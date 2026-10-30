@@ -55,6 +55,7 @@ import {
   copyCurriculumPairToOrgAssets,
   TEACHER_DOCUMENT_CLASS_FOLDERS,
 } from '../services/orgAssets';
+import { listIngestedUnits } from '../services/curriculumIngestionService';
 import type { Organization } from '../types';
 import type { ChurchProgram } from '../services/churchEducationService';
 import {
@@ -409,6 +410,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
             currentUserName={cls.teacherName}
             rosterStudents={cls.students.map(s => ({ id: s.id, name: s.name }))}
             club={cls.isSample ? null : { kind: 'classroom', id: cls.id }}
+            lessons={listIngestedUnits(orgContext ? orgContext.org.id : getStandaloneTeacherScopeId(user?.uid), undefined, orgContext?.org.name)}
           />
         ) : (tab as string) === 'contentHq' ? (
           <div style={{ ...cardStyle, padding: 18 }}>

@@ -36,10 +36,16 @@ import {
   ExternalLink,
   Maximize2,
   Minimize2,
+  BookOpen,
 } from 'lucide-react';
 import { useRtcSession } from '../../hooks/useRtcSession';
 import { useLiveFx } from '../../hooks/useLiveFx';
 import { LevelMeter } from '../live/LevelMeter';
+import LectureLessonStage from './LectureLessonStage';
+import { useLiveDocSource } from '../../hooks/useLiveDocSource';
+import { LiveDocPicker } from '../live/LiveDocDock';
+import { lessonAssembler, lessonChunks, type LessonChunk } from '../../services/lectureLesson';
+import type { IngestedCurriculumUnit } from '../../services/curriculumIngestionService';
 import UniversalPostComposer, { type ComposerPostData } from '../UniversalPostComposer';
 import { resolveComposerMedia } from '../FeedView';
 import { auth } from '../../services/backendService';
@@ -93,10 +99,15 @@ export interface SharedClassroomClubHubProps {
   /** Rendered inside a parent club (Christian Ed class): the parent owns the cover and channel pills,
    *  so the banner and section tabs are hidden and `initialSection` drives the section. */
   embedded?: boolean;
+  /** The class's lessons the teacher can put on the stage. */
+  lessons?: IngestedCurriculumUnit[];
+  /** A student's own copy, when this class can tie it to their assignment (else it stays on this device). */
+  ownCopy?: { load: (unitId: string) => Record<string, string> | null; save: (unitId: string, answers: Record<string, string>) => void };
 }
 
 const WHITEBOARD_COLORS = ['#FFFFFF', '#FF8C00', '#00DAF3', '#06D6A0', '#D40055', '#FFD24A', '#A78BFA'];
 const LiveMediaSheet = lazy(() => import('../live/LiveMediaSheet'));
+const LiveDocStage = lazy(() => import('../live/LiveDocStage'));
 
 /** Plays a remote participant's audio (video tiles stay muted so audio is never doubled). */
 const RemoteAudio: React.FC<{ stream: MediaStream }> = ({ stream }) => {
@@ -112,9 +123,93 @@ type LectureOp =
   | { k: 'chat'; msg: LectureSessionState['lectureChat'][number] }
   | { k: 'stroke'; stroke: WhiteboardStroke }
   | { k: 'unstroke'; ids: string[] }
-  | { k: 'leaveStage' };
+  | { k: 'leaveStage' }
+  | { k: 'react'; label: string }
+  | { k: 'lessonAnswer'; qid: string; value: string };
 // SCTP messages over ~256 KB are dropped; keep the broadcast state well under that.
 const MAX_STATE_BYTES = 200_000;
+
+// Scoped, not Tailwind: the class pages sit under several shells with their own layers.
+const LECTURE_HALL_CSS = `
+.lh{--ink:#f4f1f7;--dim:rgba(244,241,247,.72);--bd:rgba(255,255,255,.13);color:var(--ink);font-family:Inter,system-ui,sans-serif;display:grid;gap:14px}
+.lh button{font:inherit;cursor:pointer}
+.lh-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.lh-head h2{margin:0;font:700 1.35rem/1.15 Outfit,sans-serif}
+.lh-sub{font-size:.88rem;color:var(--dim);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lh-live{display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 12px;border-radius:99px;background:linear-gradient(135deg,#6B0099,#D40055);font:700 .74rem/1 Outfit,sans-serif;letter-spacing:.06em}
+.lh-live i{width:7px;height:7px;border-radius:50%;background:#fff}
+.lh-seg{display:inline-flex;flex-wrap:wrap;gap:2px;padding:3px;border-radius:99px;border:1px solid var(--bd);background:rgba(255,255,255,.04)}
+.lh-seg button{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 13px;border:0;border-radius:99px;background:transparent;color:var(--dim);font-size:.8rem;font-weight:500}
+.lh-seg button:hover{color:var(--ink)}
+.lh-seg button[aria-pressed="true"]{background:var(--ink);color:#160a24;font-weight:600}
+.lh-go{display:inline-flex;align-items:center;gap:7px;height:42px;padding:0 18px;border:0;border-radius:99px;background:linear-gradient(120deg,#6B0099,#D40055 55%,#FF8C00);color:#fff;font:700 .86rem/1 Outfit,sans-serif}
+.lh-go.end{background:var(--ink);color:#160a24}
+.lh-pick{position:absolute;z-index:40;top:44px;left:0;width:300px;max-height:320px;overflow-y:auto;padding:6px;border-radius:14px;background:#1b1029;border:1px solid var(--bd);box-shadow:0 18px 44px rgba(0,0,0,.55);display:grid;gap:2px}
+.lh-pick p{margin:0;padding:10px;font-size:.82rem;color:var(--dim)}
+.lh .lh-pick button{display:block;width:100%;height:auto;min-height:40px;padding:9px 11px;border-radius:9px;text-align:left;color:var(--ink);white-space:normal;line-height:1.3}
+.lh .lh-pick button:hover,.lh .lh-pick button[aria-current="true"]{background:rgba(255,255,255,.1)}
+.lh-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:stretch}
+.lh.wide .lh-grid{grid-template-columns:minmax(0,1fr)}
+.lh-main{min-width:0;display:flex;flex-direction:column;gap:12px}
+.lh-stage{position:relative;flex:none;height:clamp(460px,calc(100vh - 300px),860px);display:flex;flex-direction:column;border-radius:18px;background:#0d0814;border:1px solid var(--bd);overflow:auto}
+.lh-lesson{position:relative;flex:1;min-height:0;display:flex}
+.lh-paper{flex:1;min-width:0;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:24px;background:#f7f2ea;color:#22162e;outline:none}
+.lh-lesson{flex-direction:column}
+.lh-note{margin:0;padding:8px 16px;background:#22162e;color:#f7f2ea;font-size:.8rem}
+.lh-paper-wait{margin:40px 0;text-align:center;font:400 1.05rem/1.5 'Source Serif 4',Georgia,serif;color:rgba(34,22,46,.7)}
+.lh-pips{position:absolute;top:14px;right:22px;display:grid;gap:10px;width:220px;pointer-events:none}
+.lh-pip{position:relative;height:138px;border-radius:14px;overflow:hidden;background:#2a1440;box-shadow:0 10px 26px rgba(20,8,30,.35);pointer-events:auto;display:grid;place-items:center}
+.lh-pip.on{outline:3px solid #ffb066}
+.lh-pip video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
+.lh-pip .mono{width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,#6B0099,#D40055);display:grid;place-items:center;font:700 1.15rem/1 Outfit,sans-serif;color:#fff}
+.lh-pip .who{position:absolute;z-index:2;left:8px;bottom:8px;padding:4px 8px;border-radius:7px;background:rgba(10,6,16,.72);font:600 .74rem/1 Outfit,sans-serif;color:#fff}
+.lh-pip button{position:absolute;z-index:2;top:7px;right:7px;width:30px;height:30px;border:0;border-radius:50%;background:rgba(10,6,16,.72);color:#fff;display:grid;place-items:center}
+.lh-back{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 15px;border:0;border-radius:99px;background:#22162e;color:#f7f2ea;font-size:.82rem;font-weight:600;box-shadow:0 8px 22px rgba(20,8,30,.4)}
+.lh-floor{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.lh-seats{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;min-height:64px}
+.lh-seat{width:54px;display:grid;justify-items:center;gap:4px;transition:transform .25s}
+.lh-seat span{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.1);display:grid;place-items:center;font:600 .76rem/1 Outfit,sans-serif}
+.lh-seat em{font-style:normal;font-size:.7rem;color:var(--dim);max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lh-seat.up{transform:translateY(-8px)}
+.lh-seat.up span{background:#ffb066;color:#2a1400}
+.lh-empty{font-size:.84rem;color:var(--dim);margin:0}
+.lh-ctl{display:flex;flex-wrap:wrap;gap:8px}
+.lh-ctl button{display:inline-flex;align-items:center;gap:7px;height:44px;min-width:44px;justify-content:center;padding:0 15px;border:0;border-radius:99px;background:rgba(255,255,255,.1);color:var(--ink);font-size:.82rem;font-weight:500}
+.lh-ctl button:hover{background:rgba(255,255,255,.16)}
+.lh-ctl button.off{background:#f4f1f7;color:#160a24}
+.lh-ctl button.hand{background:#ffb066;color:#2a1400;font-weight:600}
+.lh-side{min-width:0;height:100%;max-height:calc(clamp(460px,calc(100vh - 300px),860px) + 90px);display:flex;flex-direction:column;border-radius:18px;background:#1b1029;border:1px solid var(--bd);overflow:hidden}
+.lh-side-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:16px 16px 12px}
+.lh-side-h h3{margin:0;font:600 1rem/1 Outfit,sans-serif}
+.lh-side-h span{font-size:.75rem;color:var(--dim)}
+.lh-hands{display:grid;gap:6px;margin:0 10px;max-height:40%;overflow-y:auto}
+.lh-hand{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.07)}
+.lh-hand strong{display:block;font-size:.82rem;font-weight:600;line-height:1.3}
+.lh-hand p{margin:3px 0 0;font-size:.78rem;color:var(--dim)}
+.lh-hand button{flex:none;height:36px;padding:0 12px;border:1px solid rgba(255,255,255,.25);border-radius:99px;background:transparent;color:var(--ink);font-size:.78rem;font-weight:600}
+.lh-hand.first{background:#f7f2ea;color:#22162e}
+.lh-hand.first p{color:rgba(34,22,46,.72)}
+.lh-hand.first button{border:0;background:#22162e;color:#f7f2ea}
+.lh-askhow{display:grid;gap:6px;margin:0 12px}
+.lh-askhow input,.lh-askhow select{height:38px;border-radius:10px;padding:0 10px;background:rgba(255,255,255,.07);border:1px solid var(--bd);color:var(--ink);font-size:.8rem;outline:none}
+.lh-askhow option{color:#160a24}
+.lh-chat{flex:1;min-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:12px}
+.lh-chat>:first-child{margin-top:auto}
+.lh-msg{align-self:flex-start;max-width:88%;padding:8px 11px;border-radius:13px;background:rgba(255,255,255,.08)}
+.lh-msg.me{align-self:flex-end;background:#6B0099}
+.lh-msg b{display:block;font-size:.72rem;font-weight:600;color:rgba(255,255,255,.82)}
+.lh-msg p{margin:2px 0 0;font-size:.86rem;line-height:1.4;overflow-wrap:anywhere}
+.lh-reacts{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 8px}
+.lh-reacts button{height:34px;padding:0 11px;border:1px solid rgba(255,255,255,.2);border-radius:99px;background:transparent;color:var(--ink);font-size:.76rem}
+.lh-send{display:flex;gap:6px;padding:0 12px 12px}
+.lh-send input{flex:1;min-width:0;height:44px;padding:0 15px;border-radius:99px;background:rgba(255,255,255,.08);border:1px solid var(--bd);color:var(--ink);font-size:.86rem;outline:none}
+.lh-send button{width:44px;height:44px;flex:none;border:0;border-radius:50%;background:linear-gradient(135deg,#6B0099,#D40055);color:#fff;display:grid;place-items:center}
+.lh-float{position:absolute;bottom:64px;padding:6px 11px;border-radius:99px;background:rgba(20,10,30,.86);color:#fff;font-size:.8rem;font-weight:600;animation:lhRise 2.2s ease-out forwards}
+@keyframes lhRise{from{opacity:0;transform:translateY(12px)}15%{opacity:1}to{opacity:0;transform:translateY(-70px)}}
+@media (prefers-reduced-motion:reduce){.lh-float{animation:none}}
+@media (max-width:1023px){.lh-grid{grid-template-columns:minmax(0,1fr)}.lh-side{height:440px;max-height:none}.lh-stage{height:62vh}}
+@media (max-width:640px){.lh-pips{width:120px;right:12px;top:10px}.lh-pip{height:84px}.lh-pip .mono{width:38px;height:38px}.lh-paper{padding:14px}.lh-pick{position:fixed;left:16px;right:16px;top:auto;width:auto}}
+`;
 
 /** A class copy's private file, fetched with the viewer's sign-in so class membership is checked. */
 const ClubMedia: React.FC<{ home: ClassClubHome; photoId: string; kind: ClubMediaKind; alt: string; className?: string }> = ({ home, photoId, kind, alt, className }) => {
@@ -170,6 +265,8 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   club = null,
   initialSection = 'LIVE_LECTURE',
   embedded = false,
+  lessons,
+  ownCopy,
 }) => {
   const viewerUid = currentUserUid || auth.currentUser?.uid || (isTeacher ? teacherUid : 'student_local');
   const viewerName =
@@ -212,6 +309,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
 
   // Media streams for Teacher Camera, Student Answer Camera, and Screen Share
   const teacherVideoRef = useRef<HTMLVideoElement | null>(null);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const studentVideoRef = useRef<HTMLVideoElement | null>(null);
   const screenShareVideoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -311,6 +409,8 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
       } else if (op.k === 'unstroke' && prev.allowStudentWhiteboard) {
         const ids = new Set(op.ids);
         next = { ...prev, whiteboardStrokes: prev.whiteboardStrokes.filter(st => !ids.has(st.id)) };
+      } else if (op.k === 'lessonAnswer' && prev.lessonSource?.interaction === 'TOGETHER' && typeof op.value === 'string') {
+        next = { ...prev, lessonShared: { ...(prev.lessonShared || {}), [String(op.qid)]: op.value.slice(0, 5000) } };
       } else if (op.k === 'leaveStage' && prev.activeStudentOnStage?.uid === peerId) {
         next = { ...prev, activeStudentOnStage: null, raisedHands: prev.raisedHands.filter(h => h.uid !== peerId) };
       }
@@ -330,6 +430,11 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
     [isTeacher, rosterStudents, teacherUid],
   );
   const broadcastRef = useRef<() => void>(() => {});
+  const sendLessonRef = useRef<() => void>(() => {});
+  const assembleLessonRef = useRef(lessonAssembler());
+  const scrollSendRef = useRef(0);
+  const showReactionRef = useRef<(label: string) => void>(() => {});
+  const rtcSendRef = useRef<(type: string, payload?: unknown) => void>(() => {});
   const gotStateRef = useRef(false);
   const rtc = useRtcSession(
     inLectureTab && (isTeacher ? lecture.isLive : true)
@@ -350,18 +455,120 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
       allowedPeerIds,
       onData: (peerId, msg) => {
         if (isTeacher) {
-          if (msg.type === 'lecture:op' && msg.payload) applyStudentOp(peerId, msg.payload as LectureOp);
+          if (msg.type === 'lecture:op' && msg.payload) {
+            const op = msg.payload as LectureOp;
+            if (op.k === 'react') {
+              // Students only reach the teacher, so the teacher passes a reaction on.
+              const label = String(op.label || '').slice(0, 24);
+              showReactionRef.current(label);
+              rtcSendRef.current('lecture:react', { label });
+            } else applyStudentOp(peerId, op);
+          }
           if (msg.type === 'lecture:hello') broadcastRef.current();
+          if (msg.type === 'lecture:needLesson') sendLessonRef.current();
         } else if (msg.type === 'lecture:state' && msg.payload && peerId === teacherUid) {
           gotStateRef.current = true;
           setLecture(msg.payload as LectureSessionState);
+        } else if (peerId === teacherUid && msg.type === 'lecture:lesson') {
+          const unit = assembleLessonRef.current(msg.payload as LessonChunk);
+          if (unit) setReceivedLesson(unit);
+        } else if (peerId === teacherUid && msg.type === 'lecture:follow') {
+          setFollowY(Number((msg.payload as { y?: number })?.y) || 0);
+        } else if (peerId === teacherUid && msg.type === 'lecture:react') {
+          showReactionRef.current(String((msg.payload as { label?: string })?.label || '').slice(0, 24));
         }
       },
     },
   );
   const fx = useLiveFx(rtc);
   const [mediaSheet, setMediaSheet] = useState(false);
+
+  // The lesson on the stage is the document itself. Students get a key-free copy in small pieces and
+  // draw it themselves; after that only the teacher's place in it travels.
+  const [lessonPicker, setLessonPicker] = useState(false);
+  // Who's called on in class is who can interact with the document.
+  const calledOnUid = lecture.activeStudentOnStage?.uid;
+  const [telaPicker, setTelaPicker] = useState(false);
+  // A real Tela document goes through the platform's shared source, with its videos, sims and models intact.
+  const liveDocMembers = useMemo(() => (rosterStudents.length ? [...rosterStudents.map(r => r.id), teacherUid] : undefined), [rosterStudents, teacherUid]);
+  const liveDoc = useLiveDocSource(inLectureTab ? `class_lecture_${classId}` : null, { hostName: viewerName, audience: liveDocMembers ? 'members' : 'signedIn', memberUids: liveDocMembers });
+  const [receivedLesson, setReceivedLesson] = useState<IngestedCurriculumUnit | null>(null);
+  const [followY, setFollowY] = useState<number | null>(null);
+  const stageLessons = useMemo(() => (lessons || []).filter(u => !u.isAnswerKeyOnly && u.libraryCategory !== 'ANSWER_KEY'), [lessons]);
+  const lessonId = lecture.lessonSource?.unitId;
+  const lessonUnit = !lessonId ? null : (receivedLesson?.id === lessonId ? receivedLesson : stageLessons.find(u => u.id === lessonId) || null);
+  const lessonUnitRef = useRef(lessonUnit);
+  lessonUnitRef.current = lessonUnit;
+  const teacherPlaceRef = useRef(0);
+  const lastLessonSendRef = useRef(0);
+  sendLessonRef.current = () => {
+    const unit = lessonUnitRef.current;
+    if (!unit || Date.now() - lastLessonSendRef.current < 1500) return;
+    lastLessonSendRef.current = Date.now();
+    lessonChunks(unit).forEach(c => rtc.sendData('lecture:lesson', c));
+  };
+  useEffect(() => {
+    if (isTeacher && lessonId) { lastLessonSendRef.current = 0; sendLessonRef.current(); }
+  }, [isTeacher, lessonId, rtc.participants.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    // Student: keep asking until the lesson is here (a piece can be dropped).
+    if (isTeacher || !lessonId || lessonUnit) return;
+    rtc.sendData('lecture:needLesson');
+    const t = window.setInterval(() => rtc.sendData('lecture:needLesson'), 2000);
+    return () => window.clearInterval(t);
+  }, [isTeacher, lessonId, !!lessonUnit]); // eslint-disable-line react-hooks/exhaustive-deps
+  const handleTeacherScroll = useCallback((y: number) => {
+    teacherPlaceRef.current = y;
+    if (scrollSendRef.current) return;
+    scrollSendRef.current = window.setTimeout(() => {
+      scrollSendRef.current = 0;
+      rtc.sendData('lecture:follow', { y: teacherPlaceRef.current });
+    }, 150);
+  }, [rtc.sendData]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    // A student who joins mid-lesson still lands on the teacher's place.
+    if (!isTeacher || !lessonId) return;
+    const t = window.setInterval(() => rtc.sendData('lecture:follow', { y: teacherPlaceRef.current }), 3000);
+    return () => window.clearInterval(t);
+  }, [isTeacher, lessonId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (isTeacher && liveDoc.isHost && liveDoc.active) liveDoc.setInvited(calledOnUid ? [calledOnUid] : []);
+  }, [isTeacher, liveDoc.isHost, liveDoc.active, calledOnUid]); // eslint-disable-line react-hooks/exhaustive-deps
+  // How the class uses it: read along, a private copy each, or one copy everyone writes on.
+  const interaction = lecture.lessonSource?.interaction || 'FOLLOW';
+  const ownKey = lessonId ? `plajah_live_lesson_${classId}_${lessonId}_${viewerUid}` : '';
+  const [ownAnswers, setOwnAnswers] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!ownKey || !lessonId) return;
+    let saved: Record<string, string> = {};
+    try { saved = JSON.parse(localStorage.getItem(ownKey) || '{}'); } catch {}
+    setOwnAnswers({ ...saved, ...(ownCopy?.load(lessonId) || {}) });
+  }, [ownKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const handleOwnAnswer = (qid: string, value: string) => {
+    setOwnAnswers(prev => {
+      const next = { ...prev, [qid]: value };
+      try { localStorage.setItem(ownKey, JSON.stringify(next)); } catch {}
+      if (lessonId) ownCopy?.save(lessonId, next);
+      return next;
+    });
+  };
+  // A shared answer being typed here wins over a broadcast that hasn't caught up with it yet.
+  const [typingShared, setTypingShared] = useState<Record<string, { value: string; at: number }>>({});
+  const handleSharedAnswer = (qid: string, value: string) => {
+    setTypingShared(prev => ({ ...prev, [qid]: { value, at: Date.now() } }));
+    if (isTeacher) updateLecture({ lessonShared: { ...(lecture.lessonShared || {}), [qid]: value } });
+    else sendOpRef.current({ k: 'lessonAnswer', qid, value });
+  };
+  const sharedAnswers = { ...(lecture.lessonShared || {}) };
+  Object.entries(typingShared).forEach(([qid, t]) => { if (Date.now() - t.at < 2000) sharedAnswers[qid] = t.value; });
+  const handlePutLessonOnStage = (u: IngestedCurriculumUnit) => {
+    if (screenSharing) { rtc.toggleScreenShare(); setScreenSharing(false); }
+    teacherPlaceRef.current = 0;
+    setLessonPicker(false);
+    updateLecture({ stageSurface: 'LESSON', lessonSource: { unitId: u.id, title: u.title, interaction }, lessonShared: {} });
+  };
   sendOpRef.current = op => rtc.sendData('lecture:op', op);
+  rtcSendRef.current = rtc.sendData;
 
   // Teacher: re-broadcast the lecture after every change and whenever someone joins.
   broadcastRef.current = () => {
@@ -661,13 +868,34 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
     });
   };
 
-  const handleTriggerReaction = (emoji: string) => {
+  showReactionRef.current = (label: string) => {
+    if (!label) return;
     const id = Date.now() + Math.random();
-    setFloatingReactions(prev => [...prev, { id, emoji, left: 15 + Math.random() * 70 }]);
+    setFloatingReactions(prev => [...prev, { id, emoji: label, left: 15 + Math.random() * 60 }]);
     setTimeout(() => {
       setFloatingReactions(prev => prev.filter(r => r.id !== id));
     }, 2200);
   };
+  const handleSendReaction = (label: string) => {
+    showReactionRef.current(label);
+    sendOpRef.current({ k: 'react', label });
+  };
+
+  const sendLectureChat = () => {
+    const text = lectureChatDraft.trim();
+    if (!text) return;
+    updateLecture({
+      lectureChat: [
+        ...lecture.lectureChat,
+        { id: `lchat_${Date.now()}`, senderUid: viewerUid, senderName: viewerName, senderRole: isTeacher ? 'TEACHER' : 'STUDENT', text, createdAt: Date.now() },
+      ],
+    });
+    setLectureChatDraft('');
+  };
+  useEffect(() => {
+    const el = chatScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [lecture.lectureChat.length, section]);
 
   // Social Feed Composer Submit
   const handleCreateSocialPost = async (data: ComposerPostData) => {
@@ -808,107 +1036,62 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
           TAB 1: SPECIAL INTERACTIVE LECTURE LIVE STREAM (VIDEO LECTURE + AUDIO LIVE TALK + SCREEN SHARE + DIGITAL WHITEBOARD)
           ═══════════════════════════════════════════════════════════════════════════ */}
       {section === 'LIVE_LECTURE' && (
-        <div className="space-y-4">
-          {/* Top Lecture Control Bar: Video Lecture vs Audio Live Talk + Stage Surface Switcher */}
-          <div className="rounded-3xl border border-white/12 bg-white/[0.03] p-4 flex flex-wrap items-center justify-between gap-3">
-            {/* Broadcast Mode Switcher (Video Lecture vs Audio Live Talk) */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-white/45 mr-1">
-                Lecture Mode:
-              </span>
-              <button
-                type="button"
-                onClick={() => isTeacher && updateLecture({ mode: 'VIDEO_LECTURE' })}
-                className={`px-3.5 py-2 rounded-xl text-xs font-black inline-flex items-center gap-1.5 transition ${
-                  lecture.mode === 'VIDEO_LECTURE'
-                    ? 'bg-[#D40055] text-white shadow'
-                    : 'bg-white/5 text-white/65 hover:text-white'
-                }`}
-              >
-                <Video size={13} /> Video Lecture (On-Camera Student Answers)
-              </button>
-              <button
-                type="button"
-                onClick={() => isTeacher && updateLecture({ mode: 'AUDIO_LIVE_TALK' })}
-                className={`px-3.5 py-2 rounded-xl text-xs font-black inline-flex items-center gap-1.5 transition ${
-                  lecture.mode === 'AUDIO_LIVE_TALK'
-                    ? 'bg-[#8B5CF6] text-white shadow'
-                    : 'bg-white/5 text-white/65 hover:text-white'
-                }`}
-              >
-                <Volume2 size={13} /> Audio Live Talk Lecture (Interactive Podium)
-              </button>
-            </div>
-
-            {/* Stage Surface Switcher (Camera/Podium · Screen Share · Digital Whiteboard) */}
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => isTeacher && updateLecture({ stageSurface: 'CAMERA' })}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 border ${
-                  lecture.stageSurface === 'CAMERA'
-                    ? 'bg-white text-black border-white'
-                    : 'bg-white/5 border-white/15 text-white/75 hover:text-white'
-                }`}
-              >
-                {lecture.mode === 'AUDIO_LIVE_TALK' ? <Mic size={13} /> : <Camera size={13} />}
-                {lecture.mode === 'AUDIO_LIVE_TALK' ? 'Audio Podium' : 'Camera Stage'}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleToggleScreenShare}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 border ${
-                  lecture.stageSurface === 'SCREEN_SHARE'
-                    ? 'bg-cyan-400 text-black border-cyan-300 font-black'
-                    : 'bg-white/5 border-white/15 text-white/75 hover:text-white'
-                }`}
-              >
-                <MonitorUp size={13} /> {screenSharing ? 'Stop Screen Share' : 'Share Screen'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => isTeacher && updateLecture({ stageSurface: 'WHITEBOARD' })}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 border ${
-                  lecture.stageSurface === 'WHITEBOARD'
-                    ? 'bg-amber-400 text-black border-amber-300 font-black'
-                    : 'bg-white/5 border-white/15 text-white/75 hover:text-white'
-                }`}
-              >
-                <PenTool size={13} /> Digital Whiteboard
-              </button>
-
-              {isTeacher && (
-                <button
-                  type="button"
-                  onClick={() => updateLecture({ isLive: !lecture.isLive, startedAt: Date.now() })}
-                  className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider inline-flex items-center gap-1.5 shadow ${
-                    lecture.isLive
-                      ? 'bg-rose-600 hover:bg-rose-500 text-white'
-                      : 'bg-emerald-400 hover:bg-emerald-300 text-black'
-                  }`}
-                >
-                  <Radio size={13} /> {lecture.isLive ? 'End Lecture' : 'Go Live Now'}
+        <div className={`lh${stageFullscreen ? ' wide' : ''}`}>
+          <style>{LECTURE_HALL_CSS}</style>
+          {telaPicker && <LiveDocPicker src={liveDoc} onClose={() => setTelaPicker(false)} onStarted={() => { if (screenSharing) { rtc.toggleScreenShare(); setScreenSharing(false); } updateLecture({ stageSurface: 'TELA_DOC', lessonSource: null }); }} />}
+          <header className="lh-head">
+            {lecture.isLive && <span className="lh-live"><i aria-hidden="true" />LIVE</span>}
+            <h2>{className}</h2>
+            {lecture.stageSurface === 'LESSON' && lecture.lessonSource && <span className="lh-sub">{lecture.lessonSource.title}</span>}
+            <span style={{ flex: 1 }} />
+            {isTeacher && (
+              <>
+                <div className="lh-seg" role="group" aria-label="Lecture type">
+                  <button type="button" aria-pressed={lecture.mode === 'VIDEO_LECTURE'} onClick={() => updateLecture({ mode: 'VIDEO_LECTURE' })}><Video size={14} /> Video</button>
+                  <button type="button" aria-pressed={lecture.mode === 'AUDIO_LIVE_TALK'} onClick={() => updateLecture({ mode: 'AUDIO_LIVE_TALK' })}><Volume2 size={14} /> Audio</button>
+                </div>
+                <div className="lh-seg" role="group" aria-label="What the class sees">
+                  <span style={{ position: 'relative', display: 'inline-flex' }}>
+                    <button type="button" aria-pressed={lecture.stageSurface === 'LESSON' || lecture.stageSurface === 'TELA_DOC'} aria-expanded={lessonPicker} onClick={() => setLessonPicker(v => !v)}><BookOpen size={14} /> Lesson</button>
+                    {lessonPicker && (
+                      <div className="lh-pick" role="menu" aria-label="Choose a lesson">
+                        <button type="button" role="menuitem" onClick={() => { setLessonPicker(false); setTelaPicker(true); }}><strong>Present a Tela document…</strong></button>
+                        {stageLessons.length === 0 && <p>This class has no lessons yet. Add one from the Lesson Library.</p>}
+                        {stageLessons.map(u => (
+                          <button key={u.id} type="button" role="menuitem" aria-current={lecture.lessonSource?.unitId === u.id} onClick={() => handlePutLessonOnStage(u)}>{u.title}</button>
+                        ))}
+                      </div>
+                    )}
+                  </span>
+                  <button type="button" aria-pressed={lecture.stageSurface === 'CAMERA'} onClick={() => { if (screenSharing) void handleToggleScreenShare(); updateLecture({ stageSurface: 'CAMERA' }); }}>
+                    {lecture.mode === 'AUDIO_LIVE_TALK' ? <Mic size={14} /> : <Camera size={14} />} {lecture.mode === 'AUDIO_LIVE_TALK' ? 'Podium' : 'Camera'}
+                  </button>
+                  <button type="button" aria-pressed={lecture.stageSurface === 'WHITEBOARD'} onClick={() => updateLecture({ stageSurface: 'WHITEBOARD' })}><PenTool size={14} /> Whiteboard</button>
+                  <button type="button" aria-pressed={lecture.stageSurface === 'SCREEN_SHARE'} onClick={handleToggleScreenShare}><MonitorUp size={14} /> {screenSharing ? 'Stop sharing' : 'Screen'}</button>
+                </div>
+                {lecture.stageSurface === 'LESSON' && lecture.lessonSource && !!lessonUnit?.questions.length && (
+                  <div className="lh-seg" role="group" aria-label="How the class uses this document">
+                    {([['FOLLOW', 'Follow me'], ['OWN_COPY', 'Own copy'], ['TOGETHER', 'Together']] as const).map(([k, label]) => (
+                      <button key={k} type="button" aria-pressed={interaction === k} onClick={() => updateLecture({ lessonSource: { ...lecture.lessonSource!, interaction: k } })}>{label}</button>
+                    ))}
+                  </div>
+                )}
+                <button type="button" className={`lh-go${lecture.isLive ? ' end' : ''}`} onClick={() => updateLecture({ isLive: !lecture.isLive, startedAt: Date.now() })}>
+                  <Radio size={14} /> {lecture.isLive ? 'End class' : 'Go live'}
                 </button>
-              )}
-            </div>
-          </div>
+              </>
+            )}
+          </header>
 
-          {/* Main Lecture Grid: Stage (8 cols) + Raise Hand Queue & Live Lecture Chat (4 cols) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-            {/* LEFT 8 COLS: PRIMARY LECTURE STAGE */}
-            <div
-              className={`${
-                stageFullscreen ? ' lg:col-span-12' : 'lg:col-span-8'
-              } rounded-3xl border border-white/15 bg-[#090412] overflow-hidden shadow-2xl relative`}
-            >
+          <div className="lh-grid">
+            <div className="lh-main">
+            <div className="lh-stage">
               {/* Floating Classroom Reactions */}
               <div className="pointer-events-none absolute inset-0 overflow-hidden z-30">
                 {floatingReactions.map(r => (
                   <div
                     key={r.id}
-                    className="absolute bottom-16 text-2xl animate-bounce"
+                    className="lh-float"
                     style={{ left: `${r.left}%` }}
                   >
                     {r.emoji}
@@ -917,7 +1100,63 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
               </div>
 
               {/* STAGE SURFACE A: DIGITAL WHITEBOARD (Available in both Video & Audio modes!) */}
-              {lecture.stageSurface === 'WHITEBOARD' ? (
+              {lecture.stageSurface === 'TELA_DOC' && liveDoc.active ? (
+                <Suspense fallback={null}><LiveDocStage src={liveDoc} ownHandQueue>
+                  <div className="lh-pip">
+                    <video ref={teacherVideoRef} autoPlay playsInline muted style={{ opacity: lecture.isLive && lecture.mode === 'VIDEO_LECTURE' && teacherFeed && (isTeacher ? camEnabled : true) ? 1 : 0 }} />
+                    <span className="mono" aria-hidden="true">{teacherName.slice(0, 2).toUpperCase()}</span>
+                    <span className="who">{teacherName}</span>
+                  </div>
+                  {lecture.activeStudentOnStage && (
+                    <div className="lh-pip on">
+                      <video ref={studentVideoRef} autoPlay playsInline muted style={{ opacity: studentFeed?.getVideoTracks().some(t => t.readyState === 'live') && (!onStageMe || camEnabled) ? 1 : 0 }} />
+                      <span className="mono" aria-hidden="true">{lecture.activeStudentOnStage.name.slice(0, 2).toUpperCase()}</span>
+                      <span className="who">{lecture.activeStudentOnStage.name}</span>
+                      {(isTeacher || onStageMe) && (
+                        <button type="button" aria-label="Return to seat" title="Return to seat" onClick={() => handleDismissStudentFromStage(lecture.activeStudentOnStage!.uid)}><X size={13} /></button>
+                      )}
+                    </div>
+                  )}
+                </LiveDocStage></Suspense>
+              ) : lecture.stageSurface === 'LESSON' ? (
+                <LectureLessonStage
+                  unit={lessonUnit}
+                  followY={!isTeacher && interaction === 'FOLLOW' ? followY : undefined}
+                  onScrollY={isTeacher ? handleTeacherScroll : undefined}
+                  answers={interaction === 'TOGETHER' ? sharedAnswers : interaction === 'OWN_COPY' && !isTeacher ? ownAnswers : undefined}
+                  onAnswer={interaction === 'TOGETHER' ? handleSharedAnswer : interaction === 'OWN_COPY' && !isTeacher ? handleOwnAnswer : undefined}
+                  note={!lessonUnit?.questions.length ? undefined : interaction === 'TOGETHER' ? 'One copy for the whole class. Everyone sees what you write.'
+                    : interaction === 'OWN_COPY' ? (isTeacher ? 'Each student is writing on their own private copy.' : 'Your own copy. Only you can see what you write here.') : undefined}
+                >
+                  <div className="lh-pip">
+                    <video
+                      ref={teacherVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      style={{ opacity: lecture.isLive && lecture.mode === 'VIDEO_LECTURE' && teacherFeed && (isTeacher ? camEnabled : true) ? 1 : 0 }}
+                    />
+                    <span className="mono" aria-hidden="true">{teacherName.slice(0, 2).toUpperCase()}</span>
+                    <span className="who">{teacherName}</span>
+                  </div>
+                  {lecture.activeStudentOnStage && (
+                    <div className="lh-pip on">
+                      <video
+                        ref={studentVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        style={{ opacity: studentFeed?.getVideoTracks().some(t => t.readyState === 'live') && (!onStageMe || camEnabled) ? 1 : 0 }}
+                      />
+                      <span className="mono" aria-hidden="true">{lecture.activeStudentOnStage.name.slice(0, 2).toUpperCase()}</span>
+                      <span className="who">{lecture.activeStudentOnStage.name}</span>
+                      {(isTeacher || onStageMe) && (
+                        <button type="button" aria-label="Return to seat" title="Return to seat" onClick={() => handleDismissStudentFromStage(lecture.activeStudentOnStage!.uid)}><X size={13} /></button>
+                      )}
+                    </div>
+                  )}
+                </LectureLessonStage>
+              ) : lecture.stageSurface === 'WHITEBOARD' ? (
                 <div className="p-4 space-y-3">
                   {/* Whiteboard Toolbar */}
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-black/60 border border-white/10 p-2.5">
@@ -1267,43 +1506,48 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                     </div>
                   </div>
 
-                  {/* Classroom Listener Rows */}
-                  <div className="space-y-2 pt-2 border-t border-white/10">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white/45">
-                      🎧 Classroom Listeners ({effectiveRoster.length})
-                    </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                      {effectiveRoster.map(stu => {
-                        const hand = lecture.raisedHands.find(
-                          h => h.name.toLowerCase() === stu.name.toLowerCase() && h.status === 'WAITING'
-                        );
-                        return (
-                          <div
-                            key={stu.id}
-                            className={`rounded-2xl border p-2.5 flex items-center gap-2.5 ${
-                              hand
-                                ? 'border-amber-400/60 bg-amber-500/10'
-                                : 'border-white/10 bg-black/35'
-                            }`}
-                          >
-                            <div className="w-8 h-8 rounded-xl bg-white/10 grid place-items-center text-xs font-bold text-white shrink-0">
-                              {stu.name.slice(0, 2).toUpperCase()}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs font-bold text-white truncate">{stu.name}</p>
-                              <p className="text-[10px] text-white/45">
-                                {hand ? '✋ Hand Raised' : 'Listening'}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
                 </div>
               )}
 
               {[...rtc.remoteStreams.entries()].map(([id, st]) => <RemoteAudio key={id} stream={st} />)}
+            </div>
+
+            <div className="lh-floor">
+              <div className="lh-seats" aria-label="Class seats">
+                {effectiveRoster.length === 0 && <span className="lh-empty">No students on the roster yet.</span>}
+                {effectiveRoster.slice(0, 12).map(stu => {
+                  const up = lecture.raisedHands.some(h => h.status === 'WAITING' && (h.uid === stu.id || h.name.toLowerCase() === stu.name.toLowerCase()));
+                  return (
+                    <div key={stu.id} className={`lh-seat${up ? ' up' : ''}`} title={up ? `${stu.name} has a hand up` : stu.name}>
+                      <span>{stu.name.slice(0, 2).toUpperCase()}</span>
+                      <em>{stu.name.split(' ')[0]}</em>
+                    </div>
+                  );
+                })}
+                {effectiveRoster.length > 12 && <div className="lh-seat"><span>+{effectiveRoster.length - 12}</span><em>More</em></div>}
+              </div>
+              <nav className="lh-ctl" aria-label="Session controls">
+                {(isTeacher || onStageMe) && (
+                  <button type="button" className={micMuted ? 'off' : ''} aria-pressed={!micMuted} onClick={() => setMicMuted(m => !m)}>
+                    {micMuted ? <MicOff size={16} /> : <Mic size={16} />} {micMuted ? 'Muted' : 'Mic on'}
+                  </button>
+                )}
+                {(isTeacher || onStageMe) && lecture.mode === 'VIDEO_LECTURE' && (
+                  <button type="button" className={camEnabled ? '' : 'off'} aria-pressed={camEnabled} onClick={() => setCamEnabled(c => !c)}>
+                    {camEnabled ? <Video size={16} /> : <VideoOff size={16} />} {camEnabled ? 'Camera on' : 'Camera off'}
+                  </button>
+                )}
+                {!isTeacher && (
+                  <button type="button" className={myRaisedHand ? 'hand' : ''} aria-pressed={!!myRaisedHand} onClick={handleToggleRaiseHand}>
+                    <Hand size={16} /> {myRaisedHand ? 'Lower hand' : 'Raise hand'}
+                  </button>
+                )}
+                <button type="button" aria-label={stageFullscreen ? 'Show the chat' : 'Hide the chat'} title={stageFullscreen ? 'Show the chat' : 'Hide the chat'} onClick={() => setStageFullscreen(f => !f)}>
+                  {stageFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                </button>
+              </nav>
+            </div>
+
               {(isTeacher || onStageMe) && rtc.localStream && (
                 <div className="border-t border-white/10 bg-black/70 px-4 py-2 space-y-2">
                   <div className="flex items-center gap-3">
@@ -1329,268 +1573,82 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                   This class has no roster yet, so anyone who opens this class can watch. Add students to keep the lecture to your class.
                 </p>
               )}
-
-              {/* Bottom Stage Controls Bar (Mic, Cam, Raise Hand, Reactions, Fullscreen) */}
-              <div className="border-t border-white/10 bg-black/80 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setMicMuted(m => !m)}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 ${
-                      micMuted ? 'bg-rose-500/20 text-rose-300 border border-rose-400/30' : 'bg-white/10 text-white'
-                    }`}
-                  >
-                    {micMuted ? <MicOff size={14} /> : <Mic size={14} />}
-                    {micMuted ? 'Mic Muted' : 'Mic On'}
-                  </button>
-
-                  {lecture.mode === 'VIDEO_LECTURE' && (
-                    <button
-                      type="button"
-                      onClick={() => setCamEnabled(c => !c)}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 ${
-                        !camEnabled ? 'bg-rose-500/20 text-rose-300 border border-rose-400/30' : 'bg-white/10 text-white'
-                      }`}
-                    >
-                      {camEnabled ? <Video size={14} /> : <VideoOff size={14} />}
-                      {camEnabled ? 'Camera On' : 'Camera Off'}
-                    </button>
-                  )}
-
-                  {/* Quick Classroom Reactions */}
-                  <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl px-2 py-1">
-                    {['✋', '💡', '👏', '📖', '✅'].map(emo => (
-                      <button
-                        key={emo}
-                        type="button"
-                        onClick={() => handleTriggerReaction(emo)}
-                        className="hover:scale-125 transition px-1 text-sm"
-                        title={`React ${emo}`}
-                      >
-                        {emo}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {/* Raise Hand Button for Students (or Demo Test) */}
-                  <button
-                    type="button"
-                    onClick={handleToggleRaiseHand}
-                    className={`px-4 py-2 rounded-xl text-xs font-black inline-flex items-center gap-1.5 transition shadow ${
-                      myRaisedHand
-                        ? 'bg-amber-400 text-black'
-                        : 'bg-amber-500/20 border border-amber-400/50 text-amber-200 hover:bg-amber-400 hover:text-black'
-                    }`}
-                  >
-                    <Hand size={14} />
-                    {myRaisedHand ? '✋ Hand Raised (Lower)' : '✋ Raise Hand to Answer'}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setStageFullscreen(f => !f)}
-                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white"
-                    title="Toggle wide stage"
-                  >
-                    {stageFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-                  </button>
-                </div>
-              </div>
             </div>
 
-            {/* RIGHT 4 COLS: RAISE-HAND QUEUE (CALL ON CAMERA / MIC) + LIVE LECTURE Q&A CHAT */}
-            <div className="lg:col-span-4 space-y-4">
-              {/* Raise Hand Queue Card */}
-              <div className="rounded-3xl border border-amber-400/30 bg-amber-500/[0.05] p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase tracking-widest text-amber-300 flex items-center gap-1.5">
-                    <Hand size={14} /> Raised Hands Queue ({lecture.raisedHands.filter(h => h.status === 'WAITING').length})
-                  </span>
-                  {isTeacher && (
-                    <label className="inline-flex items-center gap-1.5 text-[10px] text-white/70 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={lecture.allowStudentWhiteboard}
-                        onChange={e => updateLecture({ allowStudentWhiteboard: e.target.checked })}
-                        className="rounded accent-amber-400"
-                      />
-                      Student Whiteboard
-                    </label>
-                  )}
+            {!stageFullscreen && (
+              <aside className="lh-side" aria-label="Class conversation">
+                <div className="lh-side-h">
+                  <h3>Class conversation</h3>
+                  <span>{effectiveRoster.length} in class</span>
                 </div>
 
-                {/* Student Raise Hand Topic Input */}
-                {!myRaisedHand && (
-                  <div className="space-y-2 rounded-2xl bg-black/40 border border-white/10 p-2.5">
-                    <input
-                      value={handPromptDraft}
-                      onChange={e => setHandPromptDraft(e.target.value)}
-                      placeholder="Optional note: e.g. 'I have the answer to #3'..."
-                      className="w-full bg-black/50 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-400"
-                    />
-                    <div className="flex items-center justify-between gap-1.5">
-                      <select
-                        aria-label="How to answer"
-                        value={handRequestMode}
-                        onChange={e => setHandRequestMode(e.target.value as any)}
-                        className="bg-black/60 border border-white/15 rounded-lg px-2 py-1 text-[11px] text-white"
-                      >
-                        <option value="CAMERA">📹 Come on Camera</option>
-                        <option value="AUDIO_MIC">🎙️ Audio Mic Only</option>
-                        <option value="WHITEBOARD">✏️ Solve on Whiteboard</option>
-                      </select>
-                      <button
-                        type="button"
-                        onClick={handleToggleRaiseHand}
-                        className="px-3 py-1 rounded-lg bg-amber-400 text-black text-[11px] font-black inline-flex items-center gap-1"
-                      >
-                        <Hand size={11} /> Raise Hand
-                      </button>
-                    </div>
+                {isTeacher && lecture.raisedHands.length > 0 && (
+                  <div className="lh-hands" aria-label="Raised hands">
+                    {lecture.raisedHands.map((h, i) => {
+                      const isOnStage = lecture.activeStudentOnStage?.uid === h.uid;
+                      const how = h.requestedMode === 'CAMERA' ? 'on camera' : h.requestedMode === 'WHITEBOARD' ? 'on the whiteboard' : 'by mic';
+                      return (
+                        <div key={h.uid} className={`lh-hand${i === 0 ? ' first' : ''}`}>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <strong>{isOnStage ? `${h.name} is answering` : `${h.name} wants to answer ${how}`}</strong>
+                            {h.promptNote && <p>{h.promptNote}</p>}
+                          </div>
+                          {isOnStage ? (
+                            <button type="button" onClick={() => handleDismissStudentFromStage(h.uid)}>Return to seat</button>
+                          ) : (
+                            <button type="button" onClick={() => handleCallStudentToStage(h)}>Call on</button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
-                {/* Waiting Hands List */}
-                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                  {lecture.raisedHands.length === 0 && (
-                    <p className="text-xs text-white/45 py-2">
-                      No hands raised right now. Students can tap <strong>✋ Raise Hand</strong> to answer on camera, audio mic, or whiteboard.
-                    </p>
-                  )}
-                  {lecture.raisedHands.map(h => {
-                    const isOnStage = lecture.activeStudentOnStage?.uid === h.uid;
-                    return (
-                      <div
-                        key={h.uid}
-                        className={`rounded-2xl border p-3 space-y-2 ${
-                          isOnStage
-                            ? 'border-emerald-400/60 bg-emerald-500/15'
-                            : 'border-white/10 bg-black/40'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-sm">✋</span>
-                            <span className="text-xs font-black text-white truncate">{h.name}</span>
-                          </div>
-                          <span className="px-2 py-0.5 rounded-full bg-white/10 text-[9px] font-black uppercase text-amber-200">
-                            {h.requestedMode === 'CAMERA'
-                              ? '📹 Video'
-                              : h.requestedMode === 'WHITEBOARD'
-                              ? '✏️ Board'
-                              : '🎙️ Audio'}
-                          </span>
-                        </div>
-                        {h.promptNote && (
-                          <p className="text-[11px] text-white/70 leading-snug">{h.promptNote}</p>
-                        )}
-                        {isTeacher && (
-                          <div className="flex items-center gap-1.5 pt-1">
-                            {!isOnStage ? (
-                              <button
-                                type="button"
-                                onClick={() => handleCallStudentToStage(h)}
-                                className="flex-1 py-1.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-black text-[11px] font-black inline-flex items-center justify-center gap-1"
-                              >
-                                {lecture.mode === 'VIDEO_LECTURE' ? (
-                                  <>
-                                    <Video size={12} /> Bring on Camera to Answer
-                                  </>
-                                ) : (
-                                  <>
-                                    <Mic size={12} /> Call On &amp; Unmute Mic
-                                  </>
-                                )}
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleDismissStudentFromStage(h.uid)}
-                                className="flex-1 py-1.5 rounded-xl bg-rose-500/25 border border-rose-400/40 text-rose-200 text-[11px] font-black"
-                              >
-                                Return to Seat
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+                {!isTeacher && !myRaisedHand && (
+                  <div className="lh-askhow">
+                    <input
+                      value={handPromptDraft}
+                      onChange={e => setHandPromptDraft(e.target.value)}
+                      aria-label="What you want to say"
+                      placeholder="I have the answer to number 3"
+                    />
+                    <select aria-label="How to answer" value={handRequestMode} onChange={e => setHandRequestMode(e.target.value as any)}>
+                      <option value="CAMERA">Answer on camera</option>
+                      <option value="AUDIO_MIC">Answer by mic</option>
+                      <option value="WHITEBOARD">Answer on the whiteboard</option>
+                    </select>
+                  </div>
+                )}
 
-              {/* Live Lecture Q&A Chat */}
-              <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
-                <h4 className="text-xs font-black uppercase tracking-widest text-white/60 flex items-center gap-1.5">
-                  <MessagesSquare size={13} /> Live Lecture Backchannel
-                </h4>
-                <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                <div className="lh-chat" ref={chatScrollRef}>
+                  {lecture.lectureChat.length === 0 && <p className="lh-empty">Questions and answers from the class show up here.</p>}
                   {lecture.lectureChat.map(m => (
-                    <div key={m.id} className="rounded-xl bg-black/35 border border-white/10 p-2.5 text-xs">
-                      <div className="flex items-center justify-between text-[10px] mb-0.5">
-                        <span className="font-black text-white">
-                          {m.senderName}{' '}
-                          <span className="text-amber-300 font-bold">({m.senderRole})</span>
-                        </span>
-                      </div>
-                      <p className="text-white/80 leading-snug">{m.text}</p>
+                    <div key={m.id} className={`lh-msg${m.senderUid === viewerUid ? ' me' : ''}`}>
+                      <b>{m.senderName}{m.senderRole === 'TEACHER' ? ' · Teacher' : ''}</b>
+                      <p>{m.text}</p>
                     </div>
                   ))}
                 </div>
-                <div className="flex gap-1.5">
+
+                {!isTeacher && (
+                  <div className="lh-reacts" role="group" aria-label="Quick reactions">
+                    {['Got it', 'Slow down', ...(contextKind === 'CHRISTIAN_EDUCATION' ? ['Amen'] : ['Question'])].map(label => (
+                      <button key={label} type="button" onClick={() => handleSendReaction(label)}>{label}</button>
+                    ))}
+                  </div>
+                )}
+
+                <form className="lh-send" onSubmit={e => { e.preventDefault(); sendLectureChat(); }}>
                   <input
                     value={lectureChatDraft}
                     onChange={e => setLectureChatDraft(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' && lectureChatDraft.trim()) {
-                        e.preventDefault();
-                        updateLecture({
-                          lectureChat: [
-                            ...lecture.lectureChat,
-                            {
-                              id: `lchat_${Date.now()}`,
-                              senderUid: viewerUid,
-                              senderName: viewerName,
-                              senderRole: isTeacher ? 'TEACHER' : 'STUDENT',
-                              text: lectureChatDraft.trim(),
-                              createdAt: Date.now(),
-                            },
-                          ],
-                        });
-                        setLectureChatDraft('');
-                      }
-                    }}
-                    placeholder="Type an answer or question in lecture chat..."
-                    className="flex-1 bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-400"
+                    aria-label="Message the class"
+                    placeholder="Message the class"
                   />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!lectureChatDraft.trim()) return;
-                      updateLecture({
-                        lectureChat: [
-                          ...lecture.lectureChat,
-                          {
-                            id: `lchat_${Date.now()}`,
-                            senderUid: viewerUid,
-                            senderName: viewerName,
-                            senderRole: isTeacher ? 'TEACHER' : 'STUDENT',
-                            text: lectureChatDraft.trim(),
-                            createdAt: Date.now(),
-                          },
-                        ],
-                      });
-                      setLectureChatDraft('');
-                    }}
-                    className="px-3 py-2 rounded-xl bg-amber-400 text-black text-xs font-black"
-                  >
-                    <Send size={12} />
-                  </button>
-                </div>
-              </div>
-            </div>
+                  <button type="submit" aria-label="Send"><Send size={15} /></button>
+                </form>
+              </aside>
+            )}
           </div>
         </div>
       )}

@@ -10,7 +10,7 @@ import { COEDIT } from './project';
 
 const CHUNK_CHARS = 700_000;
 
-async function gzipB64(text: string): Promise<string> {
+export async function gzipB64(text: string): Promise<string> {
   const raw = new TextEncoder().encode(text);
   if (typeof CompressionStream === 'undefined') return `r:${btoa(unescape(encodeURIComponent(text)))}`;
   const stream = new Blob([raw]).stream().pipeThrough(new CompressionStream('gzip'));
@@ -20,7 +20,7 @@ async function gzipB64(text: string): Promise<string> {
   return `g:${btoa(bin)}`;
 }
 
-async function gunzipB64(data: string): Promise<string> {
+export async function gunzipB64(data: string): Promise<string> {
   if (data.startsWith('r:')) return decodeURIComponent(escape(atob(data.slice(2))));
   const bin = atob(data.slice(2));
   const bytes = new Uint8Array(bin.length);

@@ -46,6 +46,8 @@ import { LiveSoundSheet } from './live/LiveSoundSheet';
 import { LevelMeter } from './live/LevelMeter';
 import { CINEMATIC_LUTS, generate3dCubeText } from '../services/color/cinematicLutLibrary';
 import { LutStrip } from './live/LiveMediaSheet';
+import LiveDocDock from './live/LiveDocDock';
+
 import { usePresence } from '../hooks/usePresence';
 import { CallControlBar } from './call/CallControls';
 import { unlockAchievementByTrigger } from '../services/achievementService';
@@ -2324,6 +2326,7 @@ function MobileStreamer({ onClose, clubId, isPrivate, liveOverlay }: { onClose: 
             onClose={() => setEmoteStudioOpen(false)} />
         </div>
       )}
+      <LiveDocDock sessionKey={streamId} canPresent hostName={auth.currentUser?.displayName || 'Host'} audience={isPrivate ? 'signedIn' : 'public'} />
     </div>
   );
 }
@@ -2882,6 +2885,7 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
             onPick={e => { if (picker === 'insert') { insertEmote(e.code); setPicker(null); } else emoteLayerRef.current?.send(e, 1); }} />
         </div>
       )}
+      <LiveDocDock sessionKey={streamId} canPresent={false} hostName={ownerName || 'Host'} />
     </div>
   );
 }

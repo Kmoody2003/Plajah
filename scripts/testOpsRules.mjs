@@ -172,6 +172,38 @@ t('media: student cannot add', 'DENY', MEMBER, 'create', MD, { data: media({ aut
 t('media: teacher files it under a lesson', 'ALLOW', TEACH, 'update', MD, { existing: media(), data: media({ lessonId: 'u1', lessonTitle: 'Exam 1' }) });
 t('media: no swapping the file', 'DENY', TEACH, 'update', MD, { existing: media(), data: media({ url: 'https://evil/z.jpg' }) });
 
+const LS = `${DB}/liveSources/s1`;
+const live = (o) => ({ id: 's1', hostUid: TEACH, hostName: 'T', title: 'Doc', docId: 'd1', active: true, mode: 'FOLLOW', audience: 'members', memberUids: [MEMBER], rev: 1, chunks: 1, updatedAt: 1, invitedUids: [], ...o });
+t('live doc: nothing on yet reads as empty', 'ALLOW', OTHER, 'get', LS, {});
+t('live doc: a member reads a members-only source', 'ALLOW', MEMBER, 'get', LS, { existing: live() });
+t('live doc: an outsider cannot', 'DENY', OTHER, 'get', LS, { existing: live() });
+t('live doc: anyone reads a public stream source, signed out too', 'ALLOW', null, 'get', LS, { existing: live({ audience: 'public' }) });
+t('live doc: presenter starts', 'ALLOW', TEACH, 'create', LS, { data: live({ active: false }) });
+t('live doc: no presenting as someone else', 'DENY', OTHER, 'create', LS, { data: live() });
+t('live doc: nobody takes over a running source', 'DENY', OTHER, 'update', LS, { existing: live(), data: live({ hostUid: OTHER }) });
+t('live doc: the next presenter claims a finished one', 'ALLOW', OTHER, 'update', LS, { existing: live({ active: false }), data: live({ hostUid: OTHER, active: false }) });
+t('live doc: audience cannot change the mode', 'DENY', MEMBER, 'update', LS, { existing: live(), data: live({ mode: 'TOGETHER' }) });
+
+const LR = `${LS}/responses/r1`;
+const resp = (o) => ({ id: 'r1', rev: 1, uid: MEMBER, name: 'M', at: 1, mode: 'OWN_COPY', json: '{}', ...o });
+t('live doc: a watcher cannot move the simulations', 'DENY', MEMBER, 'update', LS, { existing: live(), data: live({ figure: { values: {} } }) });
+t('live doc: someone brought on can', 'ALLOW', MEMBER, 'update', LS, { existing: live({ invitedUids: [MEMBER] }), data: live({ invitedUids: [MEMBER], figure: { values: {} } }) });
+t('live doc: someone brought on cannot change the mode', 'DENY', MEMBER, 'update', LS, { existing: live({ invitedUids: [MEMBER] }), data: live({ invitedUids: [MEMBER], mode: 'TOGETHER' }) });
+t('live doc: nobody invites themselves', 'DENY', MEMBER, 'update', LS, { existing: live(), data: live({ invitedUids: [MEMBER] }) });
+const HD = `${LS}/hands/${MEMBER}`;
+t('live doc: a member raises a hand', 'ALLOW', MEMBER, 'create', HD, { data: { uid: MEMBER, name: 'M', rev: 1, at: 1 } });
+t('live doc: not for someone else', 'DENY', OTHER, 'create', HD, { data: { uid: MEMBER, name: 'M', rev: 1, at: 1 } });
+t('live doc: signed out cannot raise a hand', 'DENY', null, 'create', HD, { data: { uid: MEMBER, name: 'M', rev: 1, at: 1 } });
+t('live doc: the presenter clears a hand', 'ALLOW', TEACH, 'delete', HD, { existing: { uid: MEMBER, rev: 1 } });
+t('live doc: a student submits', 'ALLOW', MEMBER, 'create', LR, { data: resp() });
+t('live doc: no submitting as someone else', 'DENY', MEMBER, 'create', LR, { data: resp({ uid: OTHER }) });
+t('live doc: no sending yourself a result', 'DENY', MEMBER, 'create', LR, { data: resp({ returned: { percent: 100 } }) });
+t('live doc: the student reads their own', 'ALLOW', MEMBER, 'get', LR, { existing: resp() });
+t('live doc: another student cannot', 'DENY', OTHER, 'get', LR, { existing: resp() });
+t('live doc: the presenter sends a result', 'ALLOW', TEACH, 'update', LR, { existing: resp(), data: resp({ returned: { percent: 90 } }) });
+t('live doc: the presenter cannot rewrite the answers', 'DENY', TEACH, 'update', LR, { existing: resp(), data: resp({ json: '{"x":1}' }) });
+t('live doc: a student cannot mark themselves', 'DENY', MEMBER, 'update', LR, { existing: resp(), data: resp({ returned: { percent: 100 } }) });
+
 const body = {
   source: { files: [{ name: 'firestore.rules', content: src }] },
   testSuite: {

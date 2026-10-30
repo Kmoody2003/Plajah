@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Headphones, Mic, MicOff, Maximize2, PhoneOff } from 'lucide-react';
 import { collection, onSnapshot } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { auth, db } from '../../services/firebase';
+import LiveDocDock from '../live/LiveDocDock';
 import { useRtcSession } from '../../hooks/useRtcSession';
 import { LevelMeter } from '../live/LevelMeter';
 import { activeHuddlers, huddleLabel, type HuddlePresence } from '../../services/meetings/scheduleCore';
@@ -85,6 +86,7 @@ export const HuddleDock: React.FC<{ room: ChatRoom; onLeave: () => void; onExpan
         <PhoneOff size={15} />
       </button>
       {rtc.error && <span className="sr-only" role="status">{rtc.error}</span>}
+      <LiveDocDock sessionKey={`call_${room.id}`} canPresent hostName={auth.currentUser?.displayName || 'You'} audience="members" memberUids={room.participants} />
     </div>
   );
 };

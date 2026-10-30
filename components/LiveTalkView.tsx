@@ -18,6 +18,7 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { onAuthStateChanged } from 'firebase/auth';
 import type { ChatMessage } from '../types';
 import { auth, createLiveTalk, loginWithGoogle } from '../services/backendService';
+import LiveDocDock from './live/LiveDocDock';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { useRtcSession } from '../hooks/useRtcSession';
 import LanguageChannels from './LanguageChannels';
@@ -920,6 +921,7 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse, initialShowSetup,
             targetName={report.name} snapshot={report.snapshot} />
         )}
         <Toast msg={toast} />
+        <LiveDocDock sessionKey={talkId ? `talk_${talkId}` : null} canPresent={amHost} hostName={me?.name || 'Host'} audience="public" />
       </div>
     );
   }

@@ -99,7 +99,59 @@ const HuddleDock = React.lazy(() => import('../../components/meetings/Huddle').t
 const CollabCall = React.lazy(() => import('../../components/collab/CollabCall').then(m => ({ default: m.CollabCall })));
 const who = qs.get('who') === 'b' ? 'b' : 'a';
 
+// A long enough page to test following the teacher; correctAnswer must never reach the student frame.
+const LAB_LESSON: any = {
+  id: 'lab-lesson', title: 'To the church in Ephesus', sourceLabel: 'Lab', lessonBlocks: [], rawCurriculumText: 'TEACHER RAW SOURCE',
+  questions: Array.from({ length: 24 }, (_, i) => ({ id: `q${i}`, type: 'SHORT', label: `${i + 1}`, prompt: `Question ${i + 1}: what does this verse say about the first love?`, correctAnswer: 'LAB-SECRET-KEY' })),
+};
+
+const LessonStage = React.lazy(() => import('../../components/classroom/LectureLessonStage'));
+// ?as=lessonstage: the student's stage alone, for when two frames can't connect (WebRTC stuck on this network).
+function LessonStageLab() {
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  return (
+    <div className="lh" style={{ height: '100vh' }}>
+      <style>{'.lh-lesson{height:100vh;display:flex;flex-direction:column;position:relative}.lh-paper{flex:1;min-height:0;overflow-y:auto;background:#f7f2ea;padding:24px}'}</style>
+      <LessonStage unit={LAB_LESSON} answers={answers} onAnswer={(q: string, v: string) => setAnswers(a => ({ ...a, [q]: v }))} note="Your own copy. Only you can see what you write here." />
+    </div>
+  );
+}
+
+// ?as=docshow&who=a|b: a Tela document with a sim, video, form and grid over the real source, no WebRTC needed.
+const LiveDocDock = React.lazy(() => import('../../components/live/LiveDocDock'));
+function seedDocShow() {
+  const doc: any = {
+    id: 'lab-doc', ownerId: 'lab-host', title: 'Interactive lesson', createdAt: 1, updatedAt: 1,
+    frames: [
+      { id: 'f1', kind: 'PAPER', x: 0, y: 0, w: 816, h: 1056, deviceIds: ['fig', 'vid', 'model'], label: 'Page 1' },
+      { id: 'f2', kind: 'PAPER', x: 900, y: 0, w: 816, h: 700, deviceIds: ['form', 'base', 'grid'], label: 'Page 2' },
+    ],
+    devices: {
+      fig: { id: 'fig', type: 'FIGURE', figure: { id: 'f', type: 'sim', title: 'Population', sim: 'population', caption: 'Live simulation' } },
+      vid: { id: 'vid', type: 'MEDIA', kind: 'VIDEO', name: 'Clip', mimeType: 'video/mp4', size: 1, width: 640, height: 360, src: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4' },
+      model: { id: 'model', type: 'MEDIA', kind: 'MODEL_3D', name: 'Astronaut.glb', mimeType: 'model/gltf-binary', size: 1, width: 640, height: 360, src: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb' },
+      form: { id: 'form', type: 'FORM', baseDeviceId: 'base', title: 'Quick check' },
+      base: { id: 'base', type: 'BASE', name: 'Answers', fields: [{ id: 'a', name: 'Q1', type: 'TEXT', interaction: { kind: 'QUESTION', prompt: 'What limits growth?', responseType: 'SHORT_TEXT', required: true, points: 2, correctAnswer: 'Food' } }], rows: [] },
+      grid: { id: 'grid', type: 'GRID', label: 'Data', cols: 3, rows: 3, cells: {} },
+    },
+  };
+  return doc;
+}
+function DocShow() {
+  useEffect(() => {
+    if (who === 'a') import('../../services/telaStore').then(m => m.saveTelaDoc(seedDocShow())).catch(e => console.error('[lab] seed', e));
+  }, []);
+  return (
+    <div style={{ height: '100vh', background: '#05030a', color: '#fff', padding: 16 }}>
+      <p>{who === 'a' ? 'Presenter' : 'Viewer'} stream</p>
+      <LiveDocDock sessionKey="lab-stream" canPresent={who === 'a'} hostName="Lab Host" audience="public" />
+    </div>
+  );
+}
+
 function Surface() {
+  if (as === 'docshow') return <DocShow />;
+  if (as === 'lessonstage') return <LessonStageLab />;
   if (as === 'call') return <VideoChat room={LAB_ROOM} user={auth.currentUser} onClose={() => {}} />;
   if (as === 'huddle') return <HuddleDock room={LAB_ROOM} onLeave={() => {}} onExpand={() => {}} />;
   if (as === 'collab') return <div style={{ width: 360, background: '#0b0b10' }}><CollabCall roomId="lab-room" joined onLeave={() => {}} onPopOut={() => {}} /></div>;
@@ -107,7 +159,7 @@ function Surface() {
     <div style={{ padding: 16, background: '#05030a', minHeight: '100vh' }}>
       <ClassHub classId="lab-class" className="Lab Class" contextKind={'ACADEMIA' as any} teacherUid="lab-host" teacherName="Lab Host"
         isTeacher={who === 'a'} currentUserUid={auth.currentUser.uid} currentUserName={auth.currentUser.displayName}
-        rosterStudents={[{ id: 'lab-viewer', name: 'Lab Viewer' }]} club={{ kind: 'classroom', id: 'lab-class' }}
+        rosterStudents={[{ id: 'lab-viewer', name: 'Lab Viewer' }]} club={{ kind: 'classroom', id: 'lab-class' }} lessons={[LAB_LESSON]}
         initialSection={(new URLSearchParams(location.search).get('section') as any) || 'LIVE_LECTURE'} />
     </div>
   );
@@ -135,7 +187,7 @@ function App() {
   if (as === 'host') return <Suspense fallback={null}><GoLiveWizard onClose={() => location.reload()} currentUser={auth.currentUser} /></Suspense>;
   if (as === 'viewer') return <Suspense fallback={null}><Viewer /></Suspense>;
   if (as === 'talk') return <Talk />;
-  if (as === 'call' || as === 'class' || as === 'campus' || as === 'huddle' || as === 'collab') return <Suspense fallback={null}><Surface /></Suspense>;
+  if (as === 'docshow' || as === 'lessonstage' || as === 'call' || as === 'class' || as === 'campus' || as === 'huddle' || as === 'collab') return <Suspense fallback={null}><Surface /></Suspense>;
   return <Split />;
 }
 createRoot(document.getElementById('root')!).render(<App />);

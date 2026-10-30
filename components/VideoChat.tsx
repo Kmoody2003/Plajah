@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Circle } from 'lucide-react';
 import { ChatRoom } from '../types';
 import { auth } from '../services/backendService';
+import LiveDocDock from './live/LiveDocDock';
 import { MeetingControl, meetingRoomFor, meetingPeerAllowed } from '../services/meetingCore';
 import { MeetingMessage, watchMeeting, watchMeetingMessages, sendMeetingMessage } from '../services/meetingService';
 import MeetingControls from './chat/MeetingControls';
@@ -566,6 +567,7 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
           </motion.div>
         )}
       </AnimatePresence>
+      <LiveDocDock sessionKey={`call_${room.id}`} canPresent={!isGuest} hostName={auth.currentUser?.displayName || 'You'} audience="members" memberUids={room.participants} />
     </div>
   );
 };

@@ -9,6 +9,8 @@ import DeskView from '../../desk/DeskView';
 import EdAssignSheet from './EdAssignSheet';
 import EdPeople from './EdPeople';
 import EdForum from './EdForum';
+import { getStudentDeskWorkspace, saveStudentDeskDraft } from '../../../services/universalStudentDeskService';
+import { mirrorDraft } from '../../../services/christianEdSync';
 import EdMedia from './EdMedia';
 import ClassSearch from './ClassSearch';
 import { createThread, lessonAttachment } from '../../../services/classForum';
@@ -419,6 +421,17 @@ const EdClassClub: React.FC<Props> = props => {
             currentUserAvatar={viewer.photoUrl}
             rosterStudents={(p.students || []).map(s => ({ id: s.uid || s.id, name: s.name, avatar: s.avatar, roleLabel: 'Student' }))}
             club={{ kind: 'churchProgram', id: p.id }}
+            lessons={isTeacher ? visibleUnits : studentUnits}
+            ownCopy={isTeacher ? undefined : {
+              load: unitId => {
+                const a = assignments.find(x => x.unitId === unitId);
+                return a ? getStudentDeskWorkspace(viewer.uid, a.id)?.answers || null : null;
+              },
+              save: (unitId, answers) => {
+                const a = assignments.find(x => x.unitId === unitId);
+                if (a) mirrorDraft(a, saveStudentDeskDraft({ studentUid: viewer.uid, studentName: viewer.name, assignment: a, answers }));
+              },
+            }}
             initialSection={chan === 'live' ? 'LIVE_LECTURE' : feedSection}
           />
         </div>

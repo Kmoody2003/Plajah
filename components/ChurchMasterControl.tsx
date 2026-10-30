@@ -15,6 +15,7 @@ import ElevateLivePanel from './ElevateLivePanel';
 import { useLiveFx } from '../hooks/useLiveFx';
 import { LevelMeter } from './live/LevelMeter';
 const LiveMediaSheet = lazy(() => import('./live/LiveMediaSheet'));
+import LiveDocDock from './live/LiveDocDock';
 
 const Video: React.FC<{ stream: MediaStream | null; muted?: boolean }> = ({ stream, muted }) => {
   const ref = useRef<HTMLVideoElement>(null);
@@ -150,6 +151,7 @@ const ChurchMasterControl: React.FC<{ church: Organization; onClose: () => void;
           )}
         </div>
       )}
+      <LiveDocDock sessionKey={mode === 'broadcast' && liveCampus ? campusProgramSessionId(church.id, liveCampus.id) : mode === 'monitor' && watch ? watch.sessionId : null} canPresent={mode === 'broadcast'} hostName={liveCampus?.name || church.name} />
     </div>
   );
 };

@@ -693,6 +693,7 @@ const ChurchEducation: React.FC<{
           <SharedClassroomClubHub
             classId={p.classroomId || `church_cls_${p.id}`}
             club={{ kind: 'churchProgram', id: p.id }}
+            lessons={ingestedUnits.filter(u => u.programId === p.id || p.weeks.some(w => w.unitIds?.includes(u.id)))}
             className={p.name}
             classSubtitle={`${KIND_LABEL[p.kind]} · ${p.ageBand || 'All Ages'} · ${p.meetingSchedule || church.name}`}
             contextKind="CHRISTIAN_EDUCATION"

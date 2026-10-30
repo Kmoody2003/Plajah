@@ -77,7 +77,10 @@ export interface RaisedHandEntry {
 }
 
 export type LectureBroadcastMode = 'VIDEO_LECTURE' | 'AUDIO_LIVE_TALK';
-export type LectureStageSurface = 'CAMERA' | 'SCREEN_SHARE' | 'WHITEBOARD';
+export type LectureStageSurface = 'CAMERA' | 'SCREEN_SHARE' | 'WHITEBOARD' | 'LESSON' | 'TELA_DOC';
+/** How the class uses the document on the stage: read along with the teacher, answer on their own
+ *  private copy, or answer on one shared copy the whole class sees. */
+export type LessonInteraction = 'FOLLOW' | 'OWN_COPY' | 'TOGETHER';
 
 export interface WhiteboardStroke {
   id: string;
@@ -96,6 +99,10 @@ export interface LectureSessionState {
   isLive: boolean;
   mode: LectureBroadcastMode;
   stageSurface: LectureStageSurface;
+  /** The document on the stage when stageSurface is LESSON: the document itself, not a video of it. */
+  lessonSource?: { unitId: string; title: string; interaction?: LessonInteraction } | null;
+  /** Answers on the class's one shared copy (interaction TOGETHER). */
+  lessonShared?: Record<string, string>;
   hostUid: string;
   hostName: string;
   startedAt: number;

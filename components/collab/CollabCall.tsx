@@ -7,6 +7,7 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { Maximize2, Mic, MicOff, MonitorUp, PhoneOff, Sparkles, Video, VideoOff } from 'lucide-react';
 import { auth } from '../../services/firebase';
+import LiveDocDock from '../live/LiveDocDock';
 import { useRtcSession } from '../../hooks/useRtcSession';
 import { useLiveFx } from '../../hooks/useLiveFx';
 import { LevelMeter } from '../live/LevelMeter';
@@ -99,6 +100,7 @@ export const CollabCall: React.FC<{
           <PhoneOff size={13} /> Leave
         </button>
       </div>
+      <LiveDocDock sessionKey={joined ? `call_${roomId}` : null} canPresent hostName={me?.displayName || 'You'} />
     </div>
   );
 };
