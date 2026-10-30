@@ -12,6 +12,7 @@ import React, { Suspense, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '/index.css';
 import { installFakeMedia } from './fakeMedia';
+import './classMediaShim';
 import { auth } from './backendShim';
 import { __labDump } from './firestoreShim';
 

@@ -12,6 +12,7 @@ const BACKEND_SHIM = path.resolve('labs/golive/backendShim.ts');
 const FS_SHIM = path.resolve('labs/golive/firestoreShim.ts');
 const FIREBASE = path.resolve('services/firebase.ts');
 const FIREBASE_SHIM = path.resolve('labs/golive/firebaseShim.ts');
+const CLASS_MEDIA_SHIM = path.resolve('labs/golive/classMediaShim.ts');
 
 export default defineConfig({
   cacheDir: 'node_modules/.vite-golive-lab',
@@ -28,6 +29,7 @@ export default defineConfig({
         if (!importer) return null;
         const from = path.resolve(importer.split('?')[0]);
         if (source === 'firebase/firestore') return from === FS_SHIM ? null : FS_SHIM;
+        if (source === 'firebase/storage' && /sharedClassroomService/.test(from)) return CLASS_MEDIA_SHIM;
         if (/backendService(\.ts)?$/.test(source) && from !== BACKEND_SHIM) {
           const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
           return resolved && path.resolve(resolved.id) === BACKEND ? BACKEND_SHIM : null;

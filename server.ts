@@ -4284,6 +4284,10 @@ async function startServer() {
     const asset = await firestoreRead('orgAssets', assetId);
     if (!asset) return res.status(404).json({ error: 'Asset not found' });
     if (!await canWriteHqScope(req.uid, String(asset.scopeKind), String(asset.scopeId))) return res.status(403).json({ error: 'Forbidden' });
+    return scanHqAsset(res, assetId, asset);
+  });
+
+  async function scanHqAsset(res: any, assetId: string, asset: any) {
     const source = asset.currentVersionId ? await firestoreRead('hqAssetVersions', String(asset.currentVersionId)) || asset : asset;
     const objectPath = source.storagePath || asset.storagePath;
     if (!objectPath) return res.status(404).json({ error: 'No stored object to scan' });
@@ -4307,7 +4311,7 @@ async function startServer() {
       action: verdict.clean ? 'SCANNED' : 'QUARANTINED', createdAt: Date.now(),
     });
     return res.json({ scanStatus, ...(verdict.reason ? { scanReason: verdict.reason } : {}), detectedMime: verdict.detectedMime || null });
-  });
+  }
 
   app.get('/api/hq/assets/:assetId/download', apiLimiter, authMiddleware, async (req: any, res: any) => {
     const asset = await firestoreRead('orgAssets', String(req.params.assetId));
@@ -4341,6 +4345,93 @@ async function startServer() {
     if (!item?.storagePath || !String(item.storagePath).startsWith(`stage-inbox/${orgId}/`)) return res.status(404).json({ error: 'Upload not found' });
     if (item.uploaderUid !== req.uid && !await canAccessHqAsset(req.uid, { scopeKind: 'org', scopeId: orgId })) return res.status(403).json({ error: 'Forbidden' });
     return streamHqObject(req, res, String(item.storagePath), item.fileName || 'upload', item.mimeType || 'application/octet-stream');
+  });
+
+  // Class feed media (services/sharedClassroomService). The file is a private Content HQ asset owned
+  // by the uploader's account, or by the org for its admins, staff and volunteers
+  // (services/classClubOwnership); the class holds only a copy record (clubPhotos) pointing at it.
+  // Storage rules can't see class rosters, so class members get the bytes through this route.
+  async function classClubAccess(uid: string, kind: string, classId: string) {
+    if (kind !== 'classroom' && kind !== 'churchProgram') return null;
+    const col = kind === 'classroom' ? 'classrooms' : 'churchPrograms';
+    const cls = await firestoreRead(col, encodeURIComponent(classId));
+    if (!cls) return null;
+    if (kind === 'classroom') {
+      const isClassTeacher = cls.ownerId === uid;
+      const isClassStudent = (cls.enrolledStudents || []).includes(uid);
+      return isClassTeacher || isClassStudent ? { col, orgId: '', isClassTeacher, isClassStudent, org: null } : null;
+    }
+    const orgId = String(cls.orgId || '');
+    const org = orgId ? await firestoreRead('organizations', encodeURIComponent(orgId)) : null;
+    const isClassTeacher = (cls.teacherUids || []).includes(uid) || (!!org && (org.creatorId === uid || (org.admins || []).includes(uid)));
+    const isClassStudent = (cls.studentUids || []).includes(uid);
+    return isClassTeacher || isClassStudent ? { col, orgId, isClassTeacher, isClassStudent, org } : null;
+  }
+
+  app.post('/api/class-club/:kind/:classId/media/prepare', apiLimiter, authMiddleware, express.json(), async (req: any, res: any) => {
+    const uid: string = req.uid;
+    const access = await classClubAccess(uid, String(req.params.kind), String(req.params.classId));
+    if (!access) return res.status(403).json({ error: 'You are not on this class roster' });
+    const mimeType = String(req.body?.mimeType || '').toLowerCase();
+    const name = String(req.body?.fileName || 'upload').slice(0, 200);
+    const sizeBytes = Math.max(0, Number(req.body?.sizeBytes || 0));
+    if (!/^(image\/(?!svg)|video\/|audio\/)/.test(mimeType)) return res.status(400).json({ error: 'Only images, video and audio can be shared to a class' });
+
+    const { resolveClubUploadScope } = await import('./services/classClubOwnership.js');
+    const scope = resolveClubUploadScope({ uid, orgId: access.orgId, isClassTeacher: access.isClassTeacher, isClassStudent: access.isClassStudent, org: access.org as any });
+
+    const assets = await queryFirebase('orgAssets', [{ field: 'scopeId', value: scope.id }], 2000);
+    const usedBytes = assets.reduce((sum: number, a: any) => sum + (a.deletedAt ? 0 : Number(a.sizeBytes || 0)), 0);
+    const capBytes = await resolveHqCapBytes(scope.kind, scope.id, uid);
+    if (capBytes > 0 && usedBytes + sizeBytes > capBytes) return res.status(413).json({ error: 'Storage is full', code: 'OVER_CAP', scopeKind: scope.kind });
+
+    const assetId = nodeCrypto.randomUUID().replace(/-/g, '');
+    const versionId = nodeCrypto.randomUUID().replace(/-/g, '');
+    const storagePath = `protected-hq/${scope.kind}/${scope.id}/${assetId}/${name.replace(/[^\w.\-]+/g, '_')}`;
+    const now = Date.now();
+    const kindLabel = mimeType.startsWith('image/') ? 'image' : mimeType.startsWith('video/') ? 'video' : 'audio';
+    await firestoreWrite('orgAssets', assetId, {
+      id: assetId, scopeKind: scope.kind, scopeId: scope.id, uploadedByUid: uid, name, kind: kindLabel, mimeType,
+      url: `/api/hq/assets/${assetId}/download`, storagePath, sizeBytes, folder: 'Class uploads', status: 'DRAFT',
+      scanStatus: 'PENDING', versionCount: 1, currentVersionId: versionId, uploadedAt: now,
+    }, true);
+    await firestoreWrite('hqAssetVersions', versionId, { id: versionId, assetId, version: 1, storagePath, name, mimeType, sizeBytes, uploadedByUid: uid, createdAt: now }, true);
+    return res.json({ assetId, storagePath, scopeKind: scope.kind, scopeId: scope.id });
+  });
+
+  // After the bytes land: record the real size (the storage count must not trust the client) and scan.
+  app.post('/api/class-club/:kind/:classId/media/:assetId/finish', apiLimiter, authMiddleware, async (req: any, res: any) => {
+    const assetId = String(req.params.assetId);
+    const asset = await firestoreRead('orgAssets', assetId);
+    if (!asset || asset.uploadedByUid !== req.uid) return res.status(404).json({ error: 'Upload not found' });
+    const obj = await fetchHqObjectHead(String(asset.storagePath));
+    if (obj.ok && obj.size) await firestoreWrite('orgAssets', assetId, { sizeBytes: Number(obj.size) });
+    return scanHqAsset(res, assetId, asset);
+  });
+
+  // A failed upload must not leave a record counting against anyone's storage.
+  app.post('/api/class-club/:kind/:classId/media/:assetId/abort', apiLimiter, authMiddleware, async (req: any, res: any) => {
+    const assetId = String(req.params.assetId);
+    const asset = await firestoreRead('orgAssets', assetId);
+    if (!asset || asset.uploadedByUid !== req.uid || asset.scanStatus !== 'PENDING') return res.status(404).json({ error: 'Upload not found' });
+    if (asset.currentVersionId) await firestoreDeleteDoc('hqAssetVersions', String(asset.currentVersionId));
+    await firestoreDeleteDoc('orgAssets', assetId);
+    return res.json({ ok: true });
+  });
+
+  app.get('/api/class-club/:kind/:classId/photos/:photoId/file', apiLimiter, authMiddleware, async (req: any, res: any) => {
+    const classId = String(req.params.classId);
+    const access = await classClubAccess(req.uid, String(req.params.kind), classId);
+    if (!access) return res.status(403).json({ error: 'Forbidden' });
+    const copy = await firestoreRead(`${access.col}/${encodeURIComponent(classId)}/clubPhotos`, encodeURIComponent(String(req.params.photoId)));
+    if (!copy?.assetId) return res.status(404).json({ error: 'Not found' });
+    const asset = await firestoreRead('orgAssets', encodeURIComponent(String(copy.assetId)));
+    // The owner deleted their file: the copy has nothing left to show.
+    if (!asset || asset.deletedAt) return res.status(410).json({ error: 'The owner removed this file', code: 'ORIGINAL_REMOVED' });
+    // A copy can only point at its own uploader's file, so a member can't pull someone else's asset by id.
+    if (asset.uploadedByUid !== copy.uploadedByUid) return res.status(403).json({ error: 'Forbidden' });
+    if (hqScanBlocked(asset)) return res.status(409).json({ error: hqScanMessage(asset), code: `SCAN_${asset.scanStatus}` });
+    return streamHqObject(req, res, String(asset.storagePath), String(asset.name || 'file'), String(asset.mimeType || 'application/octet-stream'));
   });
 
   // Server-authoritative storage-cap check the client MUST pass before an HQ upload. Computes the

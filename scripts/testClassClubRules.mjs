@@ -24,7 +24,7 @@ const adminMocks = users.map(u => ({ function: 'exists', args: [{ exactValue: `$
 
 const post = (o = {}) => ({ id: 'p1', classId: 'k1', authorUid: STU, authorName: 'S', authorRole: 'STUDENT', text: 'hi', likes: [], comments: [], pinned: false, createdAt: 1, ...o });
 const comment = (uid, role = 'STUDENT') => ({ id: 'c_' + uid, authorUid: uid, authorName: uid, authorRole: role, text: 'yes', createdAt: 2 });
-const photo = (o = {}) => ({ id: 'ph1', classId: 'k1', url: 'https://storage/x.jpg', caption: 'c', uploadedByUid: STU, uploadedByName: 'S', uploadedByRole: 'STUDENT', createdAt: 1, ...o });
+const photo = (o = {}) => ({ id: 'ph1', classId: 'k1', assetId: 'a1', kind: 'image', ownerScope: 'user', caption: 'c', uploadedByUid: STU, uploadedByName: 'S', uploadedByRole: 'STUDENT', createdAt: 1, ...o });
 
 function suite(label, base, mocks) {
   const cases = [];
@@ -54,7 +54,7 @@ function suite(label, base, mocks) {
   t('student cannot comment as another', 'DENY', STU, 'update', P, { existing, data: { ...existing, comments: [...existing.comments, comment(STU2)] } });
   t('student cannot comment as TEACHER', 'DENY', STU, 'update', P, { existing, data: { ...existing, comments: [...existing.comments, comment(STU, 'TEACHER')] } });
   t('student cannot drop others\' comments', 'DENY', STU, 'update', P, { existing, data: { ...existing, comments: [comment(STU)] } });
-  t('student cannot edit post text', 'DENY', STU, 'update', P, { existing, data: { ...existing, text: 'changed' } });
+  t('post edit must be signed by the editor', 'DENY', STU, 'update', P, { existing, data: { ...existing, text: 'changed' } });
   t('student cannot pin', 'DENY', STU, 'update', P, { existing, data: { ...existing, pinned: true } });
   t('teacher pins', 'ALLOW', TEACH, 'update', P, { existing, data: { ...existing, pinned: true } });
   t('teacher comments as TEACHER', 'ALLOW', TEACH, 'update', P, { existing, data: { ...existing, comments: [...existing.comments, comment(TEACH, 'TEACHER')] } });
@@ -67,9 +67,21 @@ function suite(label, base, mocks) {
   t('student reads photos', 'ALLOW', STU, 'get', F, { existing: photo() });
   t('stranger cannot read photos', 'DENY', OUT, 'get', F, { existing: photo() });
   t('student uploads a photo', 'ALLOW', STU, 'create', F, { data: photo() });
-  t('photo cannot be a data: URL', 'DENY', STU, 'create', F, { data: photo({ url: 'data:image/png;base64,AAAA' }) });
+  t('a copy must point at a private asset', 'DENY', STU, 'create', F, { data: { ...photo(), assetId: undefined } });
+  t('a copy cannot carry a public link', 'DENY', STU, 'create', F, { data: photo({ url: 'https://storage/x.jpg' }) });
   t('student cannot upload as TEACHER', 'DENY', STU, 'create', F, { data: photo({ uploadedByRole: 'TEACHER' }) });
-  t('student cannot edit a photo', 'DENY', STU, 'update', F, { existing: photo(), data: photo({ caption: 'x' }) });
+  const cap = (who) => photo({ caption: 'x', editedByUid: who, editedAt: 9 });
+  t('owner edits their copy caption', 'ALLOW', STU, 'update', F, { existing: photo(), data: cap(STU) });
+  t('teacher edits the class copy caption', 'ALLOW', TEACH, 'update', F, { existing: photo(), data: cap(TEACH) });
+  t('classmate cannot edit it', 'DENY', STU2, 'update', F, { existing: photo(), data: cap(STU2) });
+  t('stranger cannot edit it', 'DENY', OUT, 'update', F, { existing: photo(), data: cap(OUT) });
+  t('edit cannot repoint the file', 'DENY', TEACH, 'update', F, { existing: photo(), data: { ...cap(TEACH), assetId: 'other' } });
+  t('edit cannot claim someone else did it', 'DENY', TEACH, 'update', F, { existing: photo(), data: cap(STU) });
+  t('owner removes their copy', 'ALLOW', STU, 'delete', F, { existing: photo() });
+  const edited = (who) => ({ ...existing, text: 'fixed', editedByUid: who, editedAt: 9 });
+  t('author edits own post', 'ALLOW', STU, 'update', P, { existing, data: edited(STU) });
+  t('teacher edits a post', 'ALLOW', TEACH, 'update', P, { existing, data: edited(TEACH) });
+  t('classmate cannot edit a post', 'DENY', STU2, 'update', P, { existing, data: edited(STU2) });
   t('classmate cannot remove it', 'DENY', STU2, 'delete', F, { existing: photo() });
   t('teacher removes a photo', 'ALLOW', TEACH, 'delete', F, { existing: photo() });
   return { cases, mocks };
@@ -85,6 +97,14 @@ const ops = suite('churchProgram', `${DB}/churchPrograms/c1`, [
   { function: 'get', args: [{ exactValue: `${DB}/organizations/o1` }], result: { value: { data: { creatorId: 'founder', admins: [ORGADM] } } } },
 ]);
 // An org admin moderates Christian Ed classes too.
+// The original is the owner's: a teacher or org admin can never touch a student's file record.
+const original = { scopeKind: 'user', scopeId: STU, uploadedByUid: STU, name: 'x.jpg', sizeBytes: 1 };
+for (const who of [TEACH, ORGADM, STU2]) {
+  ops.cases.push({ name: `original: ${who} cannot read it`, expect: 'DENY', who, method: 'get', path: `${DB}/orgAssets/a1`, existing: original });
+  ops.cases.push({ name: `original: ${who} cannot delete it`, expect: 'DENY', who, method: 'delete', path: `${DB}/orgAssets/a1`, existing: original });
+  ops.cases.push({ name: `original: ${who} cannot edit it`, expect: 'DENY', who, method: 'update', path: `${DB}/orgAssets/a1`, existing: original, data: { ...original, name: 'y.jpg' } });
+}
+ops.cases.push({ name: 'original: owner deletes it', expect: 'ALLOW', who: STU, method: 'delete', path: `${DB}/orgAssets/a1`, existing: original });
 ops.cases.push({ name: 'churchProgram: org admin removes a post', expect: 'ALLOW', who: ORGADM, method: 'delete', path: `${DB}/churchPrograms/c1/clubPosts/p1`, existing: post() });
 
 let bad = 0;

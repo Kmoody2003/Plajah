@@ -6,7 +6,8 @@
 // - Audio Lecture Mode (repurposed Live Talk stage): students raise hand and come on mic to answer
 // - Both modes include Screen Sharing (getDisplayMedia) and an Interactive Digital Whiteboard.
 
-import { db, opsDb } from './firebase';
+import { auth, db, opsDb, storage } from './firebase';
+import { ref as storageRef, uploadBytesResumable } from 'firebase/storage';
 import {
   arrayRemove, arrayUnion, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, setDoc, updateDoc,
 } from 'firebase/firestore';
@@ -21,7 +22,12 @@ export interface ClassroomSocialPost {
   authorRole: 'TEACHER' | 'STUDENT' | 'CATECHIST' | 'TA';
   authorAvatar?: string;
   text: string;
+  /** Links and GIFs from the composer. Files people upload are in mediaItems, never here. */
   mediaUrls?: string[];
+  /** Private files attached to the post: class copies in clubPhotos. */
+  mediaItems?: { photoId: string; kind: ClubMediaKind }[];
+  editedAt?: number;
+  editedByUid?: string;
   telaDocId?: string;
   telaTitle?: string;
   pinned?: boolean;
@@ -37,10 +43,21 @@ export interface ClassroomSocialPost {
   createdAt: number;
 }
 
+export type ClubMediaKind = 'image' | 'video' | 'audio';
+
+/** The class's copy of a file. The file itself is a private asset in its owner's Content HQ (the
+ *  uploader's account, or the org for its staff); the bytes come through classMediaObjectUrl.
+ *  Removing or re-captioning a copy never changes the original. */
 export interface ClassroomPhotoItem {
   id: string;
   classId: string;
-  url: string;
+  assetId: string;
+  kind: ClubMediaKind;
+  ownerScope: 'user' | 'org';
+  /** True when the file is attached to a post rather than added to the gallery. */
+  attachedToPost?: boolean;
+  editedAt?: number;
+  editedByUid?: string;
   caption: string;
   uploadedByUid: string;
   uploadedByName: string;
@@ -160,8 +177,13 @@ export function addClassroomPostComment(
   return updateDoc(doc(clubCol(home, 'clubPosts'), postId), { comments: arrayUnion(entry) });
 }
 
-export function deleteClassroomPost(home: ClassClubHome, postId: string) {
-  return deleteDoc(doc(clubCol(home, 'clubPosts'), postId));
+export function editClassroomPost(home: ClassClubHome, postId: string, text: string, uid: string) {
+  return updateDoc(doc(clubCol(home, 'clubPosts'), postId), { text, editedByUid: uid, editedAt: Date.now() });
+}
+
+export async function deleteClassroomPost(home: ClassClubHome, post: Pick<ClassroomSocialPost, 'id' | 'mediaItems'>) {
+  await Promise.all((post.mediaItems || []).map(m => deleteDoc(doc(clubCol(home, 'clubPhotos'), m.photoId)).catch(() => {})));
+  return deleteDoc(doc(clubCol(home, 'clubPosts'), post.id));
 }
 
 // ── 2. Classroom Photos & Whiteboard Gallery ─────────────────────────────────
@@ -178,18 +200,75 @@ export function watchClassroomPhotos(
   );
 }
 
-/** `url` must be a stored file's URL, never a data: URL (a Firestore doc caps at 1 MB). */
-export async function addClassroomPhoto(
+async function clubMediaFetch(home: ClassClubHome, tail: string, init: RequestInit = {}): Promise<Response> {
+  const token = await auth.currentUser?.getIdToken();
+  return fetch(`/api/class-club/${home.kind}/${encodeURIComponent(home.id)}/${tail}`, {
+    ...init,
+    headers: { ...(init.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+}
+
+/** Saves the file privately under its owner (the server decides: the uploader's account, or the org
+ *  for its staff and volunteers), then adds the class's copy of it. */
+export async function shareClassMedia(
   home: ClassClubHome,
-  item: Omit<ClassroomPhotoItem, 'id' | 'classId' | 'createdAt'>
+  file: File,
+  item: Pick<ClassroomPhotoItem, 'caption' | 'uploadedByUid' | 'uploadedByName' | 'uploadedByRole' | 'isWhiteboardSnapshot' | 'attachedToPost'>
 ): Promise<ClassroomPhotoItem> {
-  if (item.url.startsWith('data:')) throw new Error('Upload the image first; inline images cannot be shared.');
+  const mimeType = file.type || 'application/octet-stream';
+  const prep = await clubMediaFetch(home, 'media/prepare', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fileName: file.name, mimeType, sizeBytes: file.size }),
+  });
+  if (prep.status === 413) {
+    const { scopeKind } = await prep.json().catch(() => ({} as any));
+    throw new Error(scopeKind === 'org' ? "Your organization's storage is full." : 'Your account storage is full.');
+  }
+  if (!prep.ok) throw new Error((await prep.json().catch(() => ({} as any))).error || 'Upload could not start.');
+  const { assetId, storagePath, scopeKind } = await prep.json();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      uploadBytesResumable(storageRef(storage, storagePath), file, { contentType: mimeType, customMetadata: { ownerUid: item.uploadedByUid } })
+        .on('state_changed', undefined, reject, () => resolve());
+    });
+  } catch (e) {
+    void clubMediaFetch(home, `media/${assetId}/abort`, { method: 'POST' }).catch(() => {});
+    throw e;
+  }
+  await clubMediaFetch(home, `media/${assetId}/finish`, { method: 'POST' }).catch(() => {});
   const ref = doc(clubCol(home, 'clubPhotos'));
-  const created: ClassroomPhotoItem = { ...item, id: ref.id, classId: home.id, createdAt: Date.now() };
+  const kind: ClubMediaKind = mimeType.startsWith('video/') ? 'video' : mimeType.startsWith('audio/') ? 'audio' : 'image';
+  const created: ClassroomPhotoItem = { ...item, assetId, kind, ownerScope: scopeKind, id: ref.id, classId: home.id, createdAt: Date.now() };
   await setDoc(ref, clean(created));
   return created;
 }
 
+export class ClassMediaGoneError extends Error {}
+const mediaUrlCache = new Map<string, Promise<string>>();
+
+/** The copy's bytes, as a URL only this page can use. Signed-in class members only. */
+export function classMediaObjectUrl(home: ClassClubHome, photoId: string): Promise<string> {
+  const key = `${home.kind}:${home.id}:${photoId}`;
+  let pending = mediaUrlCache.get(key);
+  if (!pending) {
+    pending = clubMediaFetch(home, `photos/${encodeURIComponent(photoId)}/file`).then(async res => {
+      if (res.status === 410 || res.status === 404) throw new ClassMediaGoneError();
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return URL.createObjectURL(await res.blob());
+    });
+    // A failure (still scanning, offline) can be retried; only a success stays cached.
+    pending.catch(() => mediaUrlCache.delete(key));
+    mediaUrlCache.set(key, pending);
+  }
+  return pending;
+}
+
+export function editClassroomPhotoCaption(home: ClassClubHome, photoId: string, caption: string, uid: string) {
+  return updateDoc(doc(clubCol(home, 'clubPhotos'), photoId), { caption, editedByUid: uid, editedAt: Date.now() });
+}
+
+/** Removes the class's copy only. The owner's original stays in their files. */
 export function deleteClassroomPhoto(home: ClassClubHome, photoId: string) {
   return deleteDoc(doc(clubCol(home, 'clubPhotos'), photoId));
 }
@@ -208,15 +287,20 @@ export async function migrateLocalClassroomFeed(legacyClassId: string, home: Cla
   };
   const posts = read(LEGACY_POSTS_KEY(legacyClassId)).filter(p => !isSeedId(p?.id) && p?.authorUid === uid);
   const photos = read(LEGACY_PHOTOS_KEY(legacyClassId)).filter(
-    p => !isSeedId(p?.id) && p?.uploadedByUid === uid && typeof p?.url === 'string' && !p.url.startsWith('data:')
+    p => !isSeedId(p?.id) && p?.uploadedByUid === uid && typeof p?.url === 'string'
   );
   const rest = <T extends object>(o: any, drop: string[]): T => Object.fromEntries(Object.entries(o).filter(([k]) => !drop.includes(k))) as T;
   try {
     for (const p of posts.reverse()) {
       await addClassroomPost(home, rest(p, ['id', 'classId', 'likes', 'comments', 'createdAt']));
     }
+    // Old photos become private files in their owner's storage, like any new upload.
     for (const p of photos.reverse()) {
-      await addClassroomPhoto(home, rest(p, ['id', 'classId', 'createdAt']));
+      const blob = await (await fetch(p.url)).blob();
+      await shareClassMedia(home, new File([blob], `${p.caption || 'class-photo'}`.replace(/[^\w.\-]+/g, '_'), { type: blob.type || 'image/jpeg' }), {
+        caption: p.caption || '', uploadedByUid: uid, uploadedByName: p.uploadedByName || '', uploadedByRole: p.uploadedByRole === 'TEACHER' ? 'TEACHER' : 'STUDENT',
+        ...(p.isWhiteboardSnapshot ? { isWhiteboardSnapshot: true } : {}),
+      });
     }
     localStorage.removeItem(LEGACY_POSTS_KEY(legacyClassId));
     localStorage.removeItem(LEGACY_PHOTOS_KEY(legacyClassId));

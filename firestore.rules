@@ -30,8 +30,19 @@ service cloud.firestore {
     }
     function clubPhotoCreate(isT) {
       let d = request.resource.data;
-      return d.uploadedByUid == request.auth.uid && d.url is string && d.url.size() < 4096 && !d.url.matches('data:.*')
+      return d.uploadedByUid == request.auth.uid && d.assetId is string && d.assetId.size() < 128 && !('url' in d)
         && (isT || d.uploadedByRole == 'STUDENT');
+    }
+    // A class copy: the caption is the class's own. The owner's original is never touched from here.
+    function clubCopyEdit() {
+      let d = request.resource.data;
+      return d.diff(resource.data).affectedKeys().hasOnly(['caption', 'editedByUid', 'editedAt'])
+        && d.caption is string && d.caption.size() <= 500 && d.editedByUid == request.auth.uid;
+    }
+    function clubPostEdit() {
+      let d = request.resource.data;
+      return d.diff(resource.data).affectedKeys().hasOnly(['text', 'editedByUid', 'editedAt'])
+        && d.text is string && d.text.size() <= 10000 && d.editedByUid == request.auth.uid;
     }
 
     function isRegisteredUser() {
@@ -2747,12 +2758,13 @@ service cloud.firestore {
       match /clubPosts/{postId} {
         allow read: if clubMember();
         allow create: if clubMember() && clubPostCreate(clubTeacher());
-        allow update: if clubMember() && clubPostUpdate(clubTeacher());
+        allow update: if clubMember() && (clubPostUpdate(clubTeacher()) || (clubPostEdit() && (clubTeacher() || resource.data.authorUid == request.auth.uid)));
         allow delete: if clubTeacher() || (clubMember() && resource.data.authorUid == request.auth.uid);
       }
       match /clubPhotos/{photoId} {
         allow read: if clubMember();
         allow create: if clubMember() && clubPhotoCreate(clubTeacher());
+        allow update: if clubMember() && clubCopyEdit() && (clubTeacher() || resource.data.uploadedByUid == request.auth.uid);
         allow delete: if clubTeacher() || (clubMember() && resource.data.uploadedByUid == request.auth.uid);
       }
     }

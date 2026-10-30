@@ -42,7 +42,7 @@ import { useLiveFx } from '../../hooks/useLiveFx';
 import { LevelMeter } from '../live/LevelMeter';
 import UniversalPostComposer, { type ComposerPostData } from '../UniversalPostComposer';
 import { resolveComposerMedia } from '../FeedView';
-import { uploadFile, auth } from '../../services/backendService';
+import { auth } from '../../services/backendService';
 import {
   watchClassroomPosts,
   addClassroomPost,
@@ -51,10 +51,15 @@ import {
   addClassroomPostComment,
   deleteClassroomPost,
   watchClassroomPhotos,
-  addClassroomPhoto,
+  shareClassMedia,
+  classMediaObjectUrl,
+  ClassMediaGoneError,
+  editClassroomPhotoCaption,
+  editClassroomPost,
   deleteClassroomPhoto,
   migrateLocalClassroomFeed,
   type ClassClubHome,
+  type ClubMediaKind,
   loadLectureSession,
   blankLectureSession,
   saveLectureSession,
@@ -111,6 +116,45 @@ type LectureOp =
 // SCTP messages over ~256 KB are dropped; keep the broadcast state well under that.
 const MAX_STATE_BYTES = 200_000;
 
+/** A class copy's private file, fetched with the viewer's sign-in so class membership is checked. */
+const ClubMedia: React.FC<{ home: ClassClubHome; photoId: string; kind: ClubMediaKind; alt: string; className?: string }> = ({ home, photoId, kind, alt, className }) => {
+  const [src, setSrc] = useState('');
+  const [state, setState] = useState<'loading' | 'gone' | 'error' | 'ready'>('loading');
+  useEffect(() => {
+    let live = true;
+    setState('loading');
+    classMediaObjectUrl(home, photoId).then(
+      url => { if (live) { setSrc(url); setState('ready'); } },
+      e => { if (live) setState(e instanceof ClassMediaGoneError ? 'gone' : 'error'); }
+    );
+    return () => { live = false; };
+  }, [home.kind, home.id, photoId]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (state !== 'ready') {
+    return (
+      <div data-club-media={state} className={`${className || ''} flex items-center justify-center min-h-24 bg-white/[0.04] text-[11px] text-white/45 p-3 text-center`}>
+        {state === 'gone' ? 'The owner removed this file.' : state === 'error' ? 'This file could not load.' : 'Loading…'}
+      </div>
+    );
+  }
+  if (kind === 'video') return <video src={src} controls className={className} />;
+  if (kind === 'audio') return <audio src={src} controls className="w-full" />;
+  return <img src={src} alt={alt} data-club-media="ready" className={className} />;
+};
+
+const CopyEditor: React.FC<{ value: string; multiline?: boolean; onChange: (v: string) => void; onSave: () => void; onCancel: () => void }> = ({ value, multiline, onChange, onSave, onCancel }) => (
+  <div className="space-y-1.5">
+    {multiline ? (
+      <textarea value={value} onChange={e => onChange(e.target.value)} rows={3} className="w-full rounded-xl bg-black/30 border border-white/15 p-2 text-sm text-white" />
+    ) : (
+      <input value={value} onChange={e => onChange(e.target.value)} className="w-full rounded-lg bg-black/30 border border-white/15 px-2 py-1 text-xs text-white" />
+    )}
+    <div className="flex gap-1.5">
+      <button type="button" onClick={onSave} disabled={!value.trim()} className="px-2.5 py-1 rounded-lg bg-amber-400 text-black text-[10px] font-black disabled:opacity-40">Save</button>
+      <button type="button" onClick={onCancel} className="px-2.5 py-1 rounded-lg bg-white/10 text-white/70 text-[10px] font-bold">Cancel</button>
+    </div>
+  </div>
+);
+
 export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   classId,
   className,
@@ -148,6 +192,8 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   const [photoCaption, setPhotoCaption] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [lightboxPhoto, setLightboxPhoto] = useState<ClassroomPhotoItem | null>(null);
+  const [editing, setEditing] = useState<{ id: string; draft: string } | null>(null);
+  const galleryPhotos = photos.filter(ph => !ph.attachedToPost);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   // ── 3. Special Lecture Live Stream / Audio Live Talk / Screen Share / Whiteboard State ──
@@ -553,9 +599,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
     canvas.toBlob(blob => {
       if (!blob) return;
       void feedAction((async () => {
-        const url = await uploadFile(`uploads/classrooms/${home.id}/whiteboard_${Date.now()}.png`, blob);
-        await addClassroomPhoto(home, {
-          url,
+        await shareClassMedia(home, new File([blob], `whiteboard_${Date.now()}.png`, { type: 'image/png' }), {
           caption: `Lecture Whiteboard Snapshot · ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
           uploadedByUid: viewerUid,
           uploadedByName: viewerName,
@@ -629,17 +673,30 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   const handleCreateSocialPost = async (data: ComposerPostData) => {
     if (!club) return;
     const text = (data.text || '').trim();
-    const resolvedMedia = await resolveComposerMedia(data.attachments || [], viewerUid).catch(() => []);
+    await feedAction((async () => {
+    // Files stay private to their owner and this class; only links and GIFs keep their own URL.
+    const attachments = data.attachments || [];
+    const files = attachments.filter((a: any) => a.file);
+    const resolvedMedia = await resolveComposerMedia(attachments.filter((a: any) => !a.file), viewerUid).catch(() => []);
     const mediaUrls = resolvedMedia.map(m => m.url).filter(Boolean);
-    await feedAction(addClassroomPost(club, {
+    const shared = await Promise.all(files.map((a: any) => shareClassMedia(club, a.file, {
+      caption: text.slice(0, 200) || a.file.name,
+      uploadedByUid: viewerUid,
+      uploadedByName: viewerName,
+      uploadedByRole: isTeacher ? 'TEACHER' : 'STUDENT',
+      attachedToPost: true,
+    })));
+    await addClassroomPost(club, {
       authorUid: viewerUid,
       authorName: viewerName,
       authorRole: isTeacher ? 'TEACHER' : 'STUDENT',
       authorAvatar: currentUserAvatar,
       text,
       mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
+      mediaItems: shared.length > 0 ? shared.map(s => ({ photoId: s.id, kind: s.kind })) : undefined,
       pinned: false,
-    }));
+    });
+    })());
   };
 
   // Upload Photo to Classroom Gallery
@@ -648,9 +705,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
     setUploadingPhoto(true);
     try {
       await feedAction((async () => {
-        const url = await uploadFile(`uploads/classrooms/${club.id}/gallery_${Date.now()}_${file.name}`, file);
-        await addClassroomPhoto(club, {
-          url,
+        await shareClassMedia(club, file, {
           caption: photoCaption.trim() || file.name.replace(/\.[a-z0-9]+$/i, ''),
           uploadedByUid: viewerUid,
           uploadedByName: viewerName,
@@ -732,7 +787,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                 : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
             }`}
           >
-            <ImageIcon size={13} /> Classroom Photos ({photos.length})
+            <ImageIcon size={13} /> Classroom Photos ({galleryPhotos.length})
           </button>
 
           <button
@@ -1638,7 +1693,16 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                         {club && (isTeacher || post.authorUid === viewerUid) && (
                           <button
                             type="button"
-                            onClick={() => { if (confirm('Delete this post for everyone in the class?')) feedAction(deleteClassroomPost(club, post.id)); }}
+                            onClick={() => setEditing({ id: post.id, draft: post.text })}
+                            className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-[10px] font-bold text-white/60"
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {club && (isTeacher || post.authorUid === viewerUid) && (
+                          <button
+                            type="button"
+                            onClick={() => { if (confirm('Delete this post for everyone in the class?')) feedAction(deleteClassroomPost(club, post)); }}
                             className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-rose-500/25 text-[10px] font-bold text-white/60"
                           >
                             Delete
@@ -1647,7 +1711,26 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                       </div>
                     </div>
 
-                    <p className="text-sm text-white/90 leading-relaxed whitespace-pre-wrap">{post.text}</p>
+                    {editing?.id === post.id && club ? (
+                      <CopyEditor
+                        value={editing.draft}
+                        multiline
+                        onChange={draft => setEditing({ id: post.id, draft })}
+                        onCancel={() => setEditing(null)}
+                        onSave={() => { feedAction(editClassroomPost(club, post.id, editing.draft.trim(), viewerUid)); setEditing(null); }}
+                      />
+                    ) : (
+                      <p className="text-sm text-white/90 leading-relaxed whitespace-pre-wrap">{post.text}</p>
+                    )}
+                    {post.editedAt && <p className="text-[10px] text-white/40">Edited{post.editedByUid !== post.authorUid ? ' by the teacher' : ''}</p>}
+
+                    {club && post.mediaItems && post.mediaItems.length > 0 && (
+                      <div className="grid sm:grid-cols-2 gap-2">
+                        {post.mediaItems.map(m => (
+                          <ClubMedia key={m.photoId} home={club} photoId={m.photoId} kind={m.kind} alt="" className="rounded-2xl max-h-64 w-full object-cover border border-white/10" />
+                        ))}
+                      </div>
+                    )}
 
                     {post.mediaUrls && post.mediaUrls.length > 0 && (
                       <div className="grid sm:grid-cols-2 gap-2">
@@ -1802,7 +1885,8 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
             </div>
           </div>
 
-          {photos.length === 0 && (
+          {feedError && <p data-club-feed-error className="text-xs text-rose-300">{feedError}</p>}
+          {galleryPhotos.length === 0 && (
             <div className="rounded-3xl border border-dashed border-white/15 p-8 text-center">
               <ImageIcon size={22} className="mx-auto text-white/25 mb-2" />
               <p className="text-sm font-bold text-white/70">No photos yet</p>
@@ -1810,18 +1894,14 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
             </div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {photos.map(ph => (
+            {galleryPhotos.map(ph => (
               <div
                 key={ph.id}
                 onClick={() => setLightboxPhoto(ph)}
                 className="group rounded-3xl border border-white/10 bg-white/[0.03] overflow-hidden cursor-pointer hover:border-amber-400/50 transition"
               >
                 <div className="h-48 bg-black overflow-hidden relative">
-                  <img
-                    src={ph.url}
-                    alt={ph.caption}
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                  />
+                  {club && <ClubMedia home={club} photoId={ph.id} kind={ph.kind} alt={ph.caption} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />}
                   {ph.isWhiteboardSnapshot && (
                     <span className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-amber-400 text-black text-[9px] font-black uppercase">
                       Whiteboard Snapshot
@@ -1829,19 +1909,45 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                   )}
                 </div>
                 <div className="p-3.5 space-y-1">
-                  <p className="text-xs font-bold text-white truncate">{ph.caption}</p>
+                  {editing?.id === ph.id && club ? (
+                    <div onClick={e => e.stopPropagation()}>
+                      <CopyEditor
+                        value={editing.draft}
+                        onChange={draft => setEditing({ id: ph.id, draft })}
+                        onCancel={() => setEditing(null)}
+                        onSave={() => { feedAction(editClassroomPhotoCaption(club, ph.id, editing.draft.trim(), viewerUid)); setEditing(null); }}
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-xs font-bold text-white truncate">{ph.caption}</p>
+                  )}
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[10px] text-white/45">
                       Uploaded by {ph.uploadedByName} ({ph.uploadedByRole})
                     </p>
                     {club && (isTeacher || ph.uploadedByUid === viewerUid) && (
-                      <button
-                        type="button"
-                        onClick={e => { e.stopPropagation(); if (confirm('Remove this photo for everyone in the class?')) feedAction(deleteClassroomPhoto(club, ph.id)); }}
-                        className="text-[10px] font-bold text-white/50 hover:text-rose-300"
-                      >
-                        Remove
-                      </button>
+                      <span className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); setEditing({ id: ph.id, draft: ph.caption }); }}
+                          className="text-[10px] font-bold text-white/50 hover:text-white"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation();
+                            const msg = ph.uploadedByUid === viewerUid
+                              ? 'Remove this from the class? Your original stays in your files.'
+                              : `Remove the class's copy? The original stays with ${ph.uploadedByName || 'its owner'}.`;
+                            if (confirm(msg)) feedAction(deleteClassroomPhoto(club, ph.id));
+                          }}
+                          className="text-[10px] font-bold text-white/50 hover:text-rose-300"
+                        >
+                          Remove
+                        </button>
+                      </span>
                     )}
                   </div>
                 </div>
@@ -1868,11 +1974,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                     <X size={15} />
                   </button>
                 </div>
-                <img
-                  src={lightboxPhoto.url}
-                  alt={lightboxPhoto.caption}
-                  className="w-full max-h-[70vh] object-contain rounded-2xl bg-black"
-                />
+                {club && <ClubMedia home={club} photoId={lightboxPhoto.id} kind={lightboxPhoto.kind} alt={lightboxPhoto.caption} className="w-full max-h-[70vh] object-contain rounded-2xl bg-black" />}
               </div>
             </div>
           )}
