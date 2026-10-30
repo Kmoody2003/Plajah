@@ -278,19 +278,13 @@ export function addClassroomPhoto(
 
 // ── 3. Interactive Lecture Live Stream & Audio Live Talk State ────────────────
 
-export function loadLectureSession(
+/** A lecture that hasn't started: no hands, no chat — what a student sees until the teacher's
+ *  live state arrives over the lecture session. */
+export function blankLectureSession(
   classId: string,
   defaults: { title: string; hostUid: string; hostName: string }
 ): LectureSessionState {
-  try {
-    const raw = localStorage.getItem(LECTURE_KEY(classId));
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && parsed.classId === classId) return parsed;
-    }
-  } catch {}
-
-  const initial: LectureSessionState = {
+  return {
     id: `lec_${classId}`,
     classId,
     title: `${defaults.title} · Interactive Lecture`,
@@ -300,41 +294,37 @@ export function loadLectureSession(
     hostUid: defaults.hostUid,
     hostName: defaults.hostName,
     startedAt: Date.now(),
-    raisedHands: [
-      {
-        uid: 'student_demo_1',
-        name: 'Naomi Vance',
-        promptNote: 'Question on Question #2 & passage context',
-        requestedMode: 'CAMERA',
-        raisedAt: Date.now() - 120_000,
-        status: 'WAITING',
-      },
-      {
-        uid: 'student_demo_2',
-        name: 'Micah Sterling',
-        promptNote: 'Ready to solve on the digital whiteboard',
-        requestedMode: 'WHITEBOARD',
-        raisedAt: Date.now() - 60_000,
-        status: 'WAITING',
-      },
-    ],
+    raisedHands: [],
     activeStudentOnStage: null,
     allowStudentWhiteboard: true,
     whiteboardBg: 'obsidian',
     whiteboardStrokes: [],
-    lectureChat: [
-      {
-        id: 'lchat_1',
-        senderUid: defaults.hostUid,
-        senderName: defaults.hostName,
-        senderRole: 'TEACHER',
-        text: 'Welcome to the live lecture! Tap ✋ Raise Hand anytime to come on camera, unmute in Audio Live Talk, or write on the Digital Whiteboard.',
-        createdAt: Date.now() - 180_000,
-      },
-    ],
+    lectureChat: [],
   };
-  saveLectureSession(classId, initial);
-  return initial;
+}
+
+/** The teacher's saved lecture (this device). Earlier builds seeded sample hands and a canned
+ *  welcome message into every class; those are dropped on load — real classes show real people only. */
+export function loadLectureSession(
+  classId: string,
+  defaults: { title: string; hostUid: string; hostName: string }
+): LectureSessionState {
+  try {
+    const raw = localStorage.getItem(LECTURE_KEY(classId));
+    if (raw) {
+      const parsed = JSON.parse(raw) as LectureSessionState;
+      if (parsed && parsed.classId === classId) {
+        const isSeed = (uid?: string) => !!uid && uid.startsWith('student_demo_');
+        return {
+          ...parsed,
+          raisedHands: (parsed.raisedHands || []).filter(h => !isSeed(h.uid)),
+          activeStudentOnStage: isSeed(parsed.activeStudentOnStage?.uid) ? null : parsed.activeStudentOnStage,
+          lectureChat: (parsed.lectureChat || []).filter(m => m.id !== 'lchat_1'),
+        };
+      }
+    }
+  } catch {}
+  return blankLectureSession(classId, defaults);
 }
 
 export function saveLectureSession(classId: string, session: LectureSessionState): void {

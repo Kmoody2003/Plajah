@@ -3,6 +3,7 @@ import { Headphones, Mic, MicOff, Maximize2, PhoneOff } from 'lucide-react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useRtcSession } from '../../hooks/useRtcSession';
+import { LevelMeter } from '../live/LevelMeter';
 import { activeHuddlers, huddleLabel, type HuddlePresence } from '../../services/meetings/scheduleCore';
 import type { ChatRoom } from '../../types';
 
@@ -70,6 +71,7 @@ export const HuddleDock: React.FC<{ room: ChatRoom; onLeave: () => void; onExpan
       <div className="min-w-0 max-w-[46vw] sm:max-w-[260px]">
         <p className="text-[12px] font-bold truncate">{room.name || 'Huddle'}</p>
         <p className="text-[10px] text-white/55 truncate">{names.length ? `With ${huddleLabel(names)}` : 'Waiting for others to join…'}</p>
+        <LevelMeter source={rtc.localAudioTrack} size="sm" muted={!rtc.audioEnabled} className="mt-1" />
       </div>
       <button type="button" onClick={() => rtc.setAudio(!rtc.audioEnabled)} aria-pressed={!rtc.audioEnabled}
         title={rtc.audioEnabled ? 'Mute' : 'Unmute'} aria-label={rtc.audioEnabled ? 'Mute' : 'Unmute'}

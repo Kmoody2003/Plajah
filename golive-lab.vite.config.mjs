@@ -10,6 +10,8 @@ import { watchIgnored } from './vite.watch-ignore.mjs';
 const BACKEND = path.resolve('services/backendService.ts');
 const BACKEND_SHIM = path.resolve('labs/golive/backendShim.ts');
 const FS_SHIM = path.resolve('labs/golive/firestoreShim.ts');
+const FIREBASE = path.resolve('services/firebase.ts');
+const FIREBASE_SHIM = path.resolve('labs/golive/firebaseShim.ts');
 
 export default defineConfig({
   cacheDir: 'node_modules/.vite-golive-lab',
@@ -26,9 +28,15 @@ export default defineConfig({
         if (!importer) return null;
         const from = path.resolve(importer.split('?')[0]);
         if (source === 'firebase/firestore') return from === FS_SHIM ? null : FS_SHIM;
-        if (from === BACKEND_SHIM || !/backendService(\.ts)?$/.test(source)) return null;
-        const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
-        return resolved && path.resolve(resolved.id) === BACKEND ? BACKEND_SHIM : null;
+        if (/backendService(\.ts)?$/.test(source) && from !== BACKEND_SHIM) {
+          const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
+          return resolved && path.resolve(resolved.id) === BACKEND ? BACKEND_SHIM : null;
+        }
+        if (/\/firebase(\.ts)?$/.test(source) && from !== FIREBASE_SHIM) {
+          const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
+          return resolved && path.resolve(resolved.id) === FIREBASE ? FIREBASE_SHIM : null;
+        }
+        return null;
       },
     },
     react(), tailwindcss(),

@@ -6,7 +6,7 @@
 //   2. Audio-Only Lecture Mode (repurposed Live Talk stage): speaker podium + listener rows + raise hand to unmute & answer.
 //   3. Both Video & Audio modes include live Screen Sharing (getDisplayMedia) and an Interactive Digital Whiteboard.
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   MessagesSquare,
   Image as ImageIcon,
@@ -37,6 +37,9 @@ import {
   Maximize2,
   Minimize2,
 } from 'lucide-react';
+import { useRtcSession } from '../../hooks/useRtcSession';
+import { useLiveFx } from '../../hooks/useLiveFx';
+import { LevelMeter } from '../live/LevelMeter';
 import UniversalPostComposer, { type ComposerSubmitData } from '../UniversalPostComposer';
 import { resolveComposerMedia } from '../FeedView';
 import { uploadFile, auth } from '../../services/backendService';
@@ -49,6 +52,7 @@ import {
   loadClassroomPhotos,
   addClassroomPhoto,
   loadLectureSession,
+  blankLectureSession,
   saveLectureSession,
   type ClassroomContextKind,
   type ClassroomSocialPost,
@@ -80,6 +84,25 @@ export interface SharedClassroomClubHubProps {
 }
 
 const WHITEBOARD_COLORS = ['#FFFFFF', '#FF8C00', '#00DAF3', '#06D6A0', '#D40055', '#FFD24A', '#A78BFA'];
+const LiveMediaSheet = lazy(() => import('../live/LiveMediaSheet'));
+
+/** Plays a remote participant's audio (video tiles stay muted so audio is never doubled). */
+const RemoteAudio: React.FC<{ stream: MediaStream }> = ({ stream }) => {
+  const ref = useRef<HTMLAudioElement>(null);
+  useEffect(() => { if (ref.current && ref.current.srcObject !== stream) ref.current.srcObject = stream; }, [stream]);
+  return <audio ref={ref} autoPlay playsInline style={{ display: 'none' }} />;
+};
+
+/** Student -> teacher requests over the lecture session's data channel. The teacher's copy of the
+ *  lecture is the source of truth and is re-broadcast to everyone after each change. */
+type LectureOp =
+  | { k: 'hand'; entry: RaisedHandEntry | null }
+  | { k: 'chat'; msg: LectureSessionState['lectureChat'][number] }
+  | { k: 'stroke'; stroke: WhiteboardStroke }
+  | { k: 'unstroke'; ids: string[] }
+  | { k: 'leaveStage' };
+// SCTP messages over ~256 KB are dropped; keep the broadcast state well under that.
+const MAX_STATE_BYTES = 200_000;
 
 export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   classId,
@@ -123,8 +146,9 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   // ── 3. Special Lecture Live Stream / Audio Live Talk / Screen Share / Whiteboard State ──
+  const lectureDefaults = { title: className, hostUid: teacherUid, hostName: teacherName };
   const [lecture, setLecture] = useState<LectureSessionState>(() =>
-    loadLectureSession(classId, { title: className, hostUid: teacherUid, hostName: teacherName })
+    isTeacher ? loadLectureSession(classId, lectureDefaults) : blankLectureSession(classId, lectureDefaults)
   );
   const [micMuted, setMicMuted] = useState(false);
   const [camEnabled, setCamEnabled] = useState(true);
@@ -139,8 +163,6 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   const teacherVideoRef = useRef<HTMLVideoElement | null>(null);
   const studentVideoRef = useRef<HTMLVideoElement | null>(null);
   const screenShareVideoRef = useRef<HTMLVideoElement | null>(null);
-  const localCameraStreamRef = useRef<MediaStream | null>(null);
-  const screenStreamRef = useRef<MediaStream | null>(null);
 
   // Digital Whiteboard Canvas State
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -154,94 +176,189 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   useEffect(() => {
     setPosts(loadClassroomPosts(classId, { teacherName, className, contextKind }));
     setPhotos(loadClassroomPhotos(classId, teacherName));
-    setLecture(loadLectureSession(classId, { title: className, hostUid: teacherUid, hostName: teacherName }));
-  }, [classId]);
+    setLecture(isTeacher ? loadLectureSession(classId, lectureDefaults) : blankLectureSession(classId, lectureDefaults));
+  }, [classId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const lectureRef = useRef(lecture);
+  lectureRef.current = lecture;
+  const sendOpRef = useRef<(op: LectureOp) => void>(() => {});
+
+  /** Teacher: apply + persist (the broadcast follows). Student: send the parts a student may change
+   *  to the teacher and show them right away; the teacher's next broadcast settles it. */
   const updateLecture = (patch: Partial<LectureSessionState>) => {
-    setLecture(prev => {
-      const next = { ...prev, ...patch };
-      saveLectureSession(classId, next);
-      return next;
-    });
-  };
-
-  // Start / Stop Camera when Live Video Lecture is active
-  useEffect(() => {
-    const needsCamera =
-      lecture.isLive &&
-      lecture.mode === 'VIDEO_LECTURE' &&
-      camEnabled &&
-      (isTeacher || lecture.activeStudentOnStage?.uid === viewerUid);
-
-    if (!needsCamera) {
-      if (localCameraStreamRef.current) {
-        localCameraStreamRef.current.getTracks().forEach(t => t.stop());
-        localCameraStreamRef.current = null;
-      }
+    if (isTeacher) {
+      setLecture(prev => {
+        const next = { ...prev, ...patch };
+        saveLectureSession(classId, next);
+        return next;
+      });
       return;
     }
-
-    let cancelled = false;
-    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
-      navigator.mediaDevices
-        .getUserMedia({ video: true, audio: !micMuted })
-        .then(stream => {
-          if (cancelled) {
-            stream.getTracks().forEach(t => t.stop());
-            return;
-          }
-          localCameraStreamRef.current = stream;
-          if (isTeacher && teacherVideoRef.current) {
-            teacherVideoRef.current.srcObject = stream;
-          } else if (studentVideoRef.current) {
-            studentVideoRef.current.srcObject = stream;
-          }
-        })
-        .catch(() => {
-          // Camera unavailable or permission declined; UI falls back to simulated studio feed
-        });
+    const prev = lectureRef.current;
+    const local: Partial<LectureSessionState> = {};
+    if (patch.raisedHands) {
+      const mine = patch.raisedHands.find(h => h.uid === viewerUid) || null;
+      sendOpRef.current({ k: 'hand', entry: mine });
+      local.raisedHands = patch.raisedHands;
     }
-    return () => {
-      cancelled = true;
-    };
-  }, [lecture.isLive, lecture.mode, camEnabled, isTeacher, lecture.activeStudentOnStage?.uid, viewerUid, micMuted]);
+    if (patch.lectureChat) {
+      const known = new Set(prev.lectureChat.map(m => m.id));
+      patch.lectureChat.filter(m => !known.has(m.id) && m.senderUid === viewerUid).forEach(msg => sendOpRef.current({ k: 'chat', msg }));
+      local.lectureChat = patch.lectureChat;
+    }
+    if (patch.whiteboardStrokes && prev.allowStudentWhiteboard) {
+      const before = new Map(prev.whiteboardStrokes.map(st => [st.id, st]));
+      const after = new Set(patch.whiteboardStrokes.map(st => st.id));
+      patch.whiteboardStrokes.forEach(st => { if (before.get(st.id) !== st) sendOpRef.current({ k: 'stroke', stroke: st }); });
+      const gone = [...before.keys()].filter(id => !after.has(id));
+      if (gone.length) sendOpRef.current({ k: 'unstroke', ids: gone });
+      local.whiteboardStrokes = patch.whiteboardStrokes;
+    }
+    if ('activeStudentOnStage' in patch && patch.activeStudentOnStage === null && prev.activeStudentOnStage?.uid === viewerUid) {
+      sendOpRef.current({ k: 'leaveStage' });
+      local.activeStudentOnStage = null;
+    }
+    if (Object.keys(local).length) setLecture(p => ({ ...p, ...local }));
+  };
 
-  // Toggle Screen Share (`getDisplayMedia`)
+  // Teacher side: apply a student's request, checked against who sent it (rtc peer id = their uid).
+  const applyStudentOp = useCallback((peerId: string, op: LectureOp) => {
+    setLecture(prev => {
+      let next = prev;
+      if (op.k === 'hand') {
+        const others = prev.raisedHands.filter(h => h.uid !== peerId);
+        next = { ...prev, raisedHands: op.entry && op.entry.uid === peerId ? [...others, { ...op.entry, status: 'WAITING' }] : others };
+        if (!op.entry && prev.activeStudentOnStage?.uid === peerId) next.activeStudentOnStage = null;
+      } else if (op.k === 'chat' && op.msg?.senderUid === peerId && typeof op.msg.text === 'string') {
+        next = { ...prev, lectureChat: [...prev.lectureChat, { ...op.msg, senderRole: 'STUDENT' as const, text: op.msg.text.slice(0, 1000) }].slice(-200) };
+      } else if (op.k === 'stroke' && prev.allowStudentWhiteboard && op.stroke?.id) {
+        const i = prev.whiteboardStrokes.findIndex(st => st.id === op.stroke.id);
+        const strokes = [...prev.whiteboardStrokes];
+        if (i >= 0) strokes[i] = op.stroke; else strokes.push(op.stroke);
+        next = { ...prev, whiteboardStrokes: strokes };
+      } else if (op.k === 'unstroke' && prev.allowStudentWhiteboard) {
+        const ids = new Set(op.ids);
+        next = { ...prev, whiteboardStrokes: prev.whiteboardStrokes.filter(st => !ids.has(st.id)) };
+      } else if (op.k === 'leaveStage' && prev.activeStudentOnStage?.uid === peerId) {
+        next = { ...prev, activeStudentOnStage: null, raisedHands: prev.raisedHands.filter(h => h.uid !== peerId) };
+      }
+      if (next !== prev) saveLectureSession(classId, next);
+      return next;
+    });
+  }, [classId]);
+
+  // ── The lecture session (rtcCore 'stage'): the teacher publishes, students watch, and the student
+  // the teacher calls on publishes back. Students join while the lecture tab is open, so they see
+  // the lecture the moment it starts. With a roster, media only goes to people on it.
+  const onStageMe = !isTeacher && lecture.activeStudentOnStage?.uid === viewerUid;
+  const inLectureTab = section === 'LIVE_LECTURE';
+  const lectureSessionId = `class_lecture_${classId.replace(/[^A-Za-z0-9_-]/g, '_')}`;
+  const allowedPeerIds = useMemo(
+    () => (isTeacher && rosterStudents.length ? [...rosterStudents.map(r => r.id), teacherUid] : undefined),
+    [isTeacher, rosterStudents, teacherUid],
+  );
+  const broadcastRef = useRef<() => void>(() => {});
+  const gotStateRef = useRef(false);
+  const rtc = useRtcSession(
+    inLectureTab && (isTeacher ? lecture.isLive : true)
+      ? {
+          sessionId: lectureSessionId,
+          topology: 'stage',
+          role: isTeacher ? 'host' : onStageMe ? 'participant' : 'viewer',
+          media: isTeacher
+            ? { audio: true, video: true }
+            : onStageMe
+              ? { audio: true, video: lecture.mode === 'VIDEO_LECTURE' && lecture.activeStudentOnStage?.requestedMode === 'CAMERA' }
+              : { audio: false, video: false },
+          displayName: viewerName,
+        }
+      : null,
+    {
+      autoJoin: true,
+      allowedPeerIds,
+      onData: (peerId, msg) => {
+        if (isTeacher) {
+          if (msg.type === 'lecture:op' && msg.payload) applyStudentOp(peerId, msg.payload as LectureOp);
+          if (msg.type === 'lecture:hello') broadcastRef.current();
+        } else if (msg.type === 'lecture:state' && msg.payload && peerId === teacherUid) {
+          gotStateRef.current = true;
+          setLecture(msg.payload as LectureSessionState);
+        }
+      },
+    },
+  );
+  const fx = useLiveFx(rtc);
+  const [mediaSheet, setMediaSheet] = useState(false);
+  sendOpRef.current = op => rtc.sendData('lecture:op', op);
+
+  // Teacher: re-broadcast the lecture after every change and whenever someone joins.
+  broadcastRef.current = () => {
+    let state: LectureSessionState = lectureRef.current;
+    if (JSON.stringify(state).length > MAX_STATE_BYTES) state = { ...state, whiteboardStrokes: state.whiteboardStrokes.slice(-60) };
+    rtc.sendData('lecture:state', state);
+  };
+  useEffect(() => {
+    if (!isTeacher || !rtc.localStream) return;
+    const t = window.setTimeout(() => broadcastRef.current(), 120);
+    return () => window.clearTimeout(t);
+  }, [isTeacher, lecture, rtc.localStream, rtc.participants.length]);
+  // A data channel opens a moment after its media, so an early broadcast can miss a new student;
+  // a slow heartbeat covers that (and any dropped message).
+  useEffect(() => {
+    if (!isTeacher || !rtc.localStream) return;
+    const t = window.setInterval(() => broadcastRef.current(), 4000);
+    return () => window.clearInterval(t);
+  }, [isTeacher, rtc.localStream]);
+  // Students: ask for the current state once connected; back to "not live" once the teacher has left.
+  const hostStream = !isTeacher ? (rtc.remoteStreams.get(teacherUid) ?? null) : null;
+  useEffect(() => {
+    if (isTeacher) return;
+    if (hostStream) {
+      // Ask until the teacher's state arrives (it also comes on the teacher's heartbeat).
+      gotStateRef.current = false;
+      const t = window.setInterval(() => { if (!gotStateRef.current) rtc.sendData('lecture:hello'); }, 700);
+      return () => window.clearInterval(t);
+    }
+    // The teacher's feed also blips while a student re-joins as a speaker: only call the lecture
+    // over if it stays gone.
+    const t = window.setTimeout(() => setLecture(p => (p.isLive ? { ...p, isLive: false, activeStudentOnStage: null } : p)), 10_000);
+    return () => window.clearTimeout(t);
+  }, [isTeacher, hostStream]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Mic / camera switches drive the published tracks.
+  useEffect(() => { rtc.setAudio(!micMuted); }, [micMuted, rtc.localStream]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    rtc.setVideo(camEnabled && lecture.mode === 'VIDEO_LECTURE');
+  }, [camEnabled, lecture.mode, rtc.localStream]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Stage tiles: the teacher sees their own feed and students see the teacher's. The called-on
+  // student sees themself; everyone else sees that student's published feed.
+  const onStageUid = lecture.activeStudentOnStage?.uid;
+  const teacherFeed = isTeacher ? rtc.localStream : hostStream;
+  const studentFeed = onStageMe ? rtc.localStream : onStageUid ? (rtc.remoteStreams.get(onStageUid) ?? null) : null;
+  const screenFeed = isTeacher ? rtc.screenStream : hostStream;
+  useEffect(() => { if (teacherVideoRef.current && teacherVideoRef.current.srcObject !== teacherFeed) teacherVideoRef.current.srcObject = teacherFeed; });
+  useEffect(() => { if (studentVideoRef.current && studentVideoRef.current.srcObject !== studentFeed) studentVideoRef.current.srcObject = studentFeed; });
+  useEffect(() => { if (screenShareVideoRef.current && screenShareVideoRef.current.srcObject !== screenFeed) screenShareVideoRef.current.srcObject = screenFeed; });
+  const screenSharingLive = isTeacher ? rtc.sharingScreen : !!hostStream && lecture.stageSurface === 'SCREEN_SHARE';
+  useEffect(() => {
+    // The browser's own "Stop sharing" ends the share: fall back to the camera stage.
+    if (isTeacher && screenSharing && !rtc.sharingScreen) { setScreenSharing(false); updateLecture({ stageSurface: 'CAMERA' }); }
+  }, [rtc.sharingScreen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Screen share goes out on the lecture session (hot track swap), so students see it.
   const handleToggleScreenShare = async () => {
-    if (screenSharing && screenStreamRef.current) {
-      screenStreamRef.current.getTracks().forEach(t => t.stop());
-      screenStreamRef.current = null;
+    if (!isTeacher) return;
+    if (screenSharing) {
+      rtc.toggleScreenShare();
       setScreenSharing(false);
       updateLecture({ stageSurface: 'CAMERA' });
       return;
     }
-
-    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getDisplayMedia) {
-      try {
-        const displayStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true,
-        });
-        screenStreamRef.current = displayStream;
-        setScreenSharing(true);
-        updateLecture({ stageSurface: 'SCREEN_SHARE', isLive: true });
-        setTimeout(() => {
-          if (screenShareVideoRef.current) {
-            screenShareVideoRef.current.srcObject = displayStream;
-          }
-        }, 80);
-        displayStream.getVideoTracks()[0]?.addEventListener('ended', () => {
-          setScreenSharing(false);
-          screenStreamRef.current = null;
-          updateLecture({ stageSurface: 'CAMERA' });
-        });
-      } catch {
-        // User cancelled native screen picker; still switch to screen-share preview surface
-        updateLecture({ stageSurface: 'SCREEN_SHARE' });
-      }
-    } else {
-      updateLecture({ stageSurface: 'SCREEN_SHARE' });
-    }
+    if (!lecture.isLive) updateLecture({ isLive: true, startedAt: Date.now() });
+    updateLecture({ stageSurface: 'SCREEN_SHARE' });
+    // The session only exists once the lecture is live, so give it a moment to start.
+    window.setTimeout(() => { rtc.toggleScreenShare(); setScreenSharing(true); }, lecture.isLive ? 0 : 900);
   };
 
   // Render Digital Whiteboard Canvas whenever strokes or background change
@@ -521,15 +638,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
     }
   };
 
-  const effectiveRoster =
-    rosterStudents.length > 0
-      ? rosterStudents
-      : [
-          { id: 'stu_1', name: 'Naomi Vance', roleLabel: 'Student' },
-          { id: 'stu_2', name: 'Micah Sterling', roleLabel: 'Student' },
-          { id: 'stu_3', name: 'Maya Lin', roleLabel: 'Student' },
-          { id: 'stu_4', name: 'Jordan Brooks', roleLabel: 'Student' },
-        ];
+  const effectiveRoster = rosterStudents;
 
   return (
     <div className="space-y-5 text-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -655,7 +764,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => updateLecture({ stageSurface: 'CAMERA' })}
+                onClick={() => isTeacher && updateLecture({ stageSurface: 'CAMERA' })}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 border ${
                   lecture.stageSurface === 'CAMERA'
                     ? 'bg-white text-black border-white'
@@ -680,7 +789,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
 
               <button
                 type="button"
-                onClick={() => updateLecture({ stageSurface: 'WHITEBOARD' })}
+                onClick={() => isTeacher && updateLecture({ stageSurface: 'WHITEBOARD' })}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 border ${
                   lecture.stageSurface === 'WHITEBOARD'
                     ? 'bg-amber-400 text-black border-amber-300 font-black'
@@ -860,7 +969,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                 /* STAGE SURFACE B: LIVE SCREEN SHARE */
                 <div className="p-4 space-y-3">
                   <div className="relative rounded-2xl overflow-hidden border border-cyan-400/30 bg-black min-h-[380px] flex flex-col items-center justify-center">
-                    {screenSharing ? (
+                    {screenSharingLive ? (
                       <video
                         ref={screenShareVideoRef}
                         autoPlay
@@ -877,15 +986,17 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                           Classroom Screen Share &amp; Tela Presentation Stage
                         </h4>
                         <p className="text-xs text-white/60 leading-relaxed">
-                          Share your desktop window, slide deck, or interactive Tela document with the entire classroom. Students who raise their hand can also be invited on camera/mic while you share your screen.
+                          {isTeacher
+                            ? 'Share your desktop window, slide deck, or interactive Tela document with the entire classroom. Students who raise their hand can also be invited on camera/mic while you share your screen.'
+                            : "Your teacher's shared screen appears here when they start sharing."}
                         </p>
-                        <button
+                        {isTeacher && <button
                           type="button"
                           onClick={handleToggleScreenShare}
                           className="px-5 py-2.5 rounded-full bg-cyan-400 text-black text-xs font-black inline-flex items-center gap-1.5"
                         >
                           <MonitorUp size={14} /> Start Live Screen Share
-                        </button>
+                        </button>}
                       </div>
                     )}
                   </div>
@@ -906,7 +1017,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                         playsInline
                         muted
                         className={`absolute inset-0 w-full h-full object-cover ${
-                          lecture.isLive && camEnabled ? 'opacity-90' : 'opacity-0 pointer-events-none'
+                          lecture.isLive && teacherFeed && (isTeacher ? camEnabled : true) ? 'opacity-90' : 'opacity-0 pointer-events-none'
                         }`}
                       />
                       <div className="relative z-10 flex items-center justify-between">
@@ -918,7 +1029,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                         </span>
                       </div>
 
-                      {(!lecture.isLive || !camEnabled) && (
+                      {(!lecture.isLive || !teacherFeed || (isTeacher && !camEnabled)) && (
                         <div className="relative z-10 my-auto text-center space-y-2 py-8">
                           <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#6B0099] via-[#D40055] to-[#FF8C00] mx-auto grid place-items-center text-2xl font-black text-white shadow-2xl">
                             {teacherName.slice(0, 2).toUpperCase()}
@@ -926,8 +1037,8 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                           <p className="text-sm font-black text-white">{teacherName}</p>
                           <p className="text-xs text-white/55">
                             {lecture.isLive
-                              ? 'Camera connected · Students can raise hand to join on camera'
-                              : 'Click "Go Live Now" above to start the interactive video lecture'}
+                              ? isTeacher ? 'Camera off · students still hear you' : 'Connecting to the lecture…'
+                              : isTeacher ? 'Click "Go Live Now" above to start the interactive video lecture' : 'Waiting for your teacher to start the lecture'}
                           </p>
                         </div>
                       )}
@@ -949,9 +1060,9 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                           ref={studentVideoRef}
                           autoPlay
                           playsInline
-                          muted={lecture.activeStudentOnStage.uid === viewerUid}
+                          muted
                           className={`absolute inset-0 w-full h-full object-cover ${
-                            lecture.activeStudentOnStage.uid === viewerUid && camEnabled
+                            studentFeed?.getVideoTracks().some(t => t.readyState === 'live') && (!onStageMe || camEnabled)
                               ? 'opacity-90'
                               : 'opacity-0 pointer-events-none'
                           }`}
@@ -987,7 +1098,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                           <span>Live Mic &amp; Camera Active</span>
                           <button
                             type="button"
-                            onClick={() => updateLecture({ stageSurface: 'WHITEBOARD' })}
+                            onClick={() => isTeacher && updateLecture({ stageSurface: 'WHITEBOARD' })}
                             className="text-amber-300 font-bold hover:underline"
                           >
                             Open Whiteboard Together →
@@ -1110,6 +1221,33 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                     </div>
                   </div>
                 </div>
+              )}
+
+              {[...rtc.remoteStreams.entries()].map(([id, st]) => <RemoteAudio key={id} stream={st} />)}
+              {(isTeacher || onStageMe) && rtc.localStream && (
+                <div className="border-t border-white/10 bg-black/70 px-4 py-2 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <LevelMeter source={rtc.localAudioTrack} label="Your mic" muted={micMuted} className="flex-1" />
+                    <button type="button" onClick={() => setMediaSheet(v => !v)}
+                      className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 ${mediaSheet || fx.active ? 'bg-orange-500 text-black' : 'bg-white/10 text-white'}`}>
+                      <Sparkles size={13} /> Camera, mic &amp; effects
+                    </button>
+                  </div>
+                  {mediaSheet && (
+                    <Suspense fallback={null}>
+                      <LiveMediaSheet rtc={rtc} fx={fx} onClose={() => setMediaSheet(false)} micMuted={micMuted}
+                        video={lecture.mode === 'VIDEO_LECTURE'} className="!w-full" />
+                    </Suspense>
+                  )}
+                </div>
+              )}
+              {rtc.error && (isTeacher || onStageMe) && (
+                <p className="px-4 py-2 text-[11px] font-bold text-rose-300 bg-rose-500/10 border-t border-rose-400/20">{rtc.error}</p>
+              )}
+              {isTeacher && lecture.isLive && rosterStudents.length === 0 && (
+                <p className="px-4 py-2 text-[11px] text-amber-200 bg-amber-500/10 border-t border-amber-400/20">
+                  This class has no roster yet, so anyone who opens this class can watch. Add students to keep the lecture to your class.
+                </p>
               )}
 
               {/* Bottom Stage Controls Bar (Mic, Cam, Raise Hand, Reactions, Fullscreen) */}

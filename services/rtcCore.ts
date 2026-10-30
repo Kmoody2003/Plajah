@@ -515,6 +515,11 @@ export class RtcSession {
 
     // Perfect negotiation: (re)offer whenever tracks change.
     pc.onnegotiationneeded = async () => {
+      // A non-initiator waits for the first offer. A viewer's recv-only transceivers fire this
+      // immediately; offering then raced the publisher's offer, and when the polite side rolled
+      // back, ICE on the viewer could stall with zero candidates ("Connecting…" forever).
+      // The browser re-checks once the first exchange settles, so later renegotiation still runs.
+      if (!initiate && !pc.remoteDescription) return;
       try {
         peer.makingOffer = true;
         await pc.setLocalDescription();

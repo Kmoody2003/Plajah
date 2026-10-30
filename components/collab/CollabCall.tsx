@@ -4,10 +4,13 @@
 // (chat_rooms/{room}/meeting_rtc/main) through rtcCore, so someone who taps "call" from Chat lands
 // in the same call as people working in the editor. Pop out opens the full call screen.
 
-import React, { useEffect, useRef } from 'react';
-import { Maximize2, Mic, MicOff, MonitorUp, PhoneOff, Video, VideoOff } from 'lucide-react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import { Maximize2, Mic, MicOff, MonitorUp, PhoneOff, Sparkles, Video, VideoOff } from 'lucide-react';
 import { auth } from '../../services/firebase';
 import { useRtcSession } from '../../hooks/useRtcSession';
+import { useLiveFx } from '../../hooks/useLiveFx';
+import { LevelMeter } from '../live/LevelMeter';
+const LiveMediaSheet = lazy(() => import('../live/LiveMediaSheet'));
 import { personColor } from '../../services/coedit/project';
 import { initials } from './collabUi';
 
@@ -52,6 +55,8 @@ export const CollabCall: React.FC<{
         }
       : null
   );
+  const fx = useLiveFx(rtc);
+  const [sheet, setSheet] = useState(false);
 
   useEffect(() => {
     onParticipants?.(joined ? [me?.uid ?? '', ...rtc.participants.map((p) => p.id)].filter(Boolean) : []);
@@ -68,12 +73,21 @@ export const CollabCall: React.FC<{
           <Tile key={p.peerId} stream={p.stream} name={p.name || 'Collaborator'} uid={p.peerId} />
         ))}
       </div>
+      <LevelMeter source={rtc.localAudioTrack} size="sm" label="Mic" muted={!rtc.audioEnabled} />
+      {sheet && (
+        <Suspense fallback={null}>
+          <LiveMediaSheet rtc={rtc} fx={fx} onClose={() => setSheet(false)} micMuted={!rtc.audioEnabled} className="w-full" />
+        </Suspense>
+      )}
       <div className="flex items-center justify-center gap-1.5">
         <CallBtn on={rtc.audioEnabled} onClick={rtc.toggleAudio} title={rtc.audioEnabled ? 'Mute' : 'Unmute'}>
           {rtc.audioEnabled ? <Mic size={14} /> : <MicOff size={14} />}
         </CallBtn>
         <CallBtn on={rtc.videoEnabled} onClick={rtc.toggleVideo} title={rtc.videoEnabled ? 'Camera off' : 'Camera on'}>
           {rtc.videoEnabled ? <Video size={14} /> : <VideoOff size={14} />}
+        </CallBtn>
+        <CallBtn on={!sheet && !fx.active} onClick={() => setSheet(v => !v)} title="Camera, mic & effects">
+          <Sparkles size={14} />
         </CallBtn>
         <CallBtn on={!rtc.sharingScreen} onClick={rtc.toggleScreenShare} title="Share screen">
           <MonitorUp size={14} />

@@ -1,16 +1,10 @@
 // Lab-only stand-in for services/backendService: real exports, plus a signed-in user per frame
-// (?as=host | ?as=viewer) and no-op timeline/upload side effects so Go Live runs without Firebase.
+// (?as=host | ?as=viewer, or ?who=a | ?who=b) and no-op timeline/upload side effects so Go Live runs without Firebase.
 // Firestore itself is the in-memory labs/golive/firestoreShim.ts. Wired by golive-lab.vite.config.mjs.
 export * from '../../services/backendService';
 
-const as = new URLSearchParams(location.search).get('as') || 'host';
-const me = as === 'viewer'
-  ? { uid: 'lab-viewer', displayName: 'Lab Viewer' }
-  : { uid: 'lab-host', displayName: 'Lab Host' };
-export const auth: any = {
-  currentUser: { ...me, photoURL: '', isAnonymous: false, email: `${me.uid}@lab.test`, getIdToken: async () => 'lab' },
-  onAuthStateChanged: (cb: (u: unknown) => void) => { cb(auth.currentUser); return () => {}; },
-};
+import { labAuth } from './labUser';
+export const auth: any = labAuth;
 
 const log = (name: string) => async (...args: any[]) => { (window as any).goLiveLab?.calls.push({ name, args }); return { id: `lab-${name}-${Date.now()}` } as any; };
 export const createPost = log('createPost');

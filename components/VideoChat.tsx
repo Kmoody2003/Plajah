@@ -12,6 +12,8 @@ import { MeetingControl, meetingRoomFor, meetingPeerAllowed } from '../services/
 import { MeetingMessage, watchMeeting, watchMeetingMessages, sendMeetingMessage } from '../services/meetingService';
 import MeetingControls from './chat/MeetingControls';
 import { useRtcSession } from '../hooks/useRtcSession';
+import { useLiveFx } from '../hooks/useLiveFx';
+const LiveMediaSheet = React.lazy(() => import('./live/LiveMediaSheet'));
 import { beginMeetingRecording, listenRecordings, type ActiveRecording } from '../services/meetings/meetingRecording';
 import type { MeetingRecording } from '../services/meetings/meetingRecordingCore';
 import { useMeetingCaptions } from '../hooks/useMeetingCaptions';
@@ -168,6 +170,8 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
       if (msg.type === 'production:consent') setConsentingPeers(prev => { const next = new Set(prev); if (msg.payload?.allowed === true) next.add(peer); else next.delete(peer); return next; });
     },
   });
+  // Lenses / looks / LUTs on the outgoing camera (hooks/useLiveFx) — engaged only when picked.
+  const fx = useLiveFx(rtc);
   const lastMute = useRef<number>(0);
   useEffect(() => {
     const request = meeting?.muteRequests[selfId || ''] || 0;
@@ -351,7 +355,7 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
           </button>
           <button
             onClick={() => { rtc.refreshDevices(); setShowSettings(s => !s); setShowAdd(false); }}
-            title="Camera & microphone settings"
+            title="Camera, mic & effects"
             className={`p-2.5 sm:p-4 rounded-2xl transition-all ${showSettings ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
             <Settings size={20} />
           </button>
@@ -439,43 +443,14 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
               onClick={() => setShowSettings(false)} className="fixed inset-0 z-40" />
             <motion.div
               initial={{ opacity: 0, y: -8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.98 }}
-              className="absolute top-24 right-6 z-50 w-80 max-w-[92vw] bg-[#0c0c0f] border border-white/10 rounded-3xl shadow-2xl p-5 space-y-5">
-              <div className="flex items-center gap-2">
-                <Settings size={15} className="text-small-orange" />
-                <h3 className="text-[11px] font-black uppercase tracking-widest text-white">Devices</h3>
-                <button onClick={() => rtc.refreshDevices()} title="Refresh" className="ml-auto text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white">Refresh</button>
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-white/40"><Video size={12} /> Camera</label>
-                <select
-                  value={rtc.activeDevices.cameraId || ''}
-                  onChange={e => rtc.switchVideoDevice(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-small-orange/60 [&>option]:bg-[#0c0c0f]">
-                  {rtc.devices.cameras.length === 0 && <option value="">No camera found</option>}
-                  {rtc.devices.cameras.map((d, i) => (
-                    <option key={d.deviceId || i} value={d.deviceId}>{d.label || `Camera ${i + 1}`}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-white/40"><Mic size={12} /> Microphone</label>
-                <select
-                  value={rtc.activeDevices.micId || ''}
-                  onChange={e => rtc.switchAudioDevice(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-small-orange/60 [&>option]:bg-[#0c0c0f]">
-                  {rtc.devices.mics.length === 0 && <option value="">No microphone found</option>}
-                  {rtc.devices.mics.map((d, i) => (
-                    <option key={d.deviceId || i} value={d.deviceId}>{d.label || `Microphone ${i + 1}`}</option>
-                  ))}
-                </select>
-                <button onClick={() => rtc.useDesktopAudio()} className="w-full flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl px-3 py-2 transition-all">
-                  <MonitorSpeaker size={13} /> Use desktop / system audio
-                </button>
-              </div>
-
-              <p className="text-[9px] font-bold text-white/30 leading-relaxed">Changes apply instantly — the call keeps running while you swap devices.</p>
+              className="absolute top-24 right-6 z-50">
+              <React.Suspense fallback={null}>
+                <LiveMediaSheet rtc={rtc} fx={fx} onClose={() => setShowSettings(false)} micMuted={!rtc.audioEnabled} video={callType !== 'AUDIO'}>
+                  <button onClick={() => rtc.useDesktopAudio()} className="w-full flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl px-3 py-2 transition-all">
+                    <MonitorSpeaker size={13} /> Use desktop / system audio
+                  </button>
+                </LiveMediaSheet>
+              </React.Suspense>
             </motion.div>
           </>
         )}

@@ -6,12 +6,15 @@
 // addStreamSource) — the seam that lets one location take other campuses' program
 // feeds as sources.
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Radio, MonitorPlay, Loader2, Building2, Dot } from 'lucide-react';
 import type { Organization, Campus, ProgramFeed } from '../types';
 import { useRtcSession } from '../hooks/useRtcSession';
 import { registerProgramFeed, endProgramFeed, listenToProgramFeeds, campusProgramSessionId } from '../services/multiSiteService';
 import ElevateLivePanel from './ElevateLivePanel';
+import { useLiveFx } from '../hooks/useLiveFx';
+import { LevelMeter } from './live/LevelMeter';
+const LiveMediaSheet = lazy(() => import('./live/LiveMediaSheet'));
 
 const Video: React.FC<{ stream: MediaStream | null; muted?: boolean }> = ({ stream, muted }) => {
   const ref = useRef<HTMLVideoElement>(null);
@@ -43,6 +46,8 @@ const ChurchMasterControl: React.FC<{ church: Organization; onClose: () => void;
         : null;
 
   const rtc = useRtcSession(rtcConfig, { autoJoin: true });
+  // Lenses / looks / LUTs on the campus program feed (baked into what master control receives).
+  const fx = useLiveFx(rtc);
 
   // Register the program feed once the campus broadcast has a local stream.
   useEffect(() => {
@@ -103,6 +108,11 @@ const ChurchMasterControl: React.FC<{ church: Organization; onClose: () => void;
               <span className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 bg-red-600 rounded-full text-[9px] font-black uppercase tracking-widest text-white"><Dot className="animate-pulse" size={14} /> Live · {liveCampus.name}</span>
             </div>
           )}
+          {liveCampus && rtc.localStream && (
+            <Suspense fallback={null}>
+              <LiveMediaSheet rtc={rtc} fx={fx} micMuted={!rtc.audioEnabled} className="!w-full !max-h-none" />
+            </Suspense>
+          )}
         </div>
       ) : (
         <div className="space-y-5">
@@ -113,6 +123,7 @@ const ChurchMasterControl: React.FC<{ church: Organization; onClose: () => void;
                 {remote ? <Video stream={remote} /> : <div className="w-full h-full grid place-items-center gap-3 flex-col"><Loader2 className="animate-spin text-white/30" /><span className="text-[9px] font-black uppercase tracking-widest text-white/30">Connecting to {watch.campusName}…</span></div>}
                 <span className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 bg-black/60 backdrop-blur rounded-full text-[9px] font-black uppercase tracking-widest text-white"><Radio size={11} className="text-small-orange" /> {watch.campusName}</span>
               </div>
+              <LevelMeter source={remote} label="Program" />
               <p className="text-[10px] text-white/30">This campus feed is a live switcher source — add it in TV Studio via the campus-feeds panel.</p>
             </>
           ) : feeds.length === 0 ? (
