@@ -302,3 +302,28 @@ Paced 128-frame blocks (2.67 ms) on the Core Ultra 9 185H, with other work on th
   priority helped a little. Render-ahead for sequenced tracks and larger device buffers are the next test.
 
 Next: WASAPI output on this pool, render-ahead, then the web-message bridge from the app.
+
+## Milestone 4 — WASAPI output and render-ahead (2026-10-30)
+
+`device.rs` is event-driven WASAPI shared mode on the default device. `ahead.rs` renders sequenced tracks
+into a 170 ms ring on background workers (normal priority, 2048-frame chunks); only live tracks render in
+the device callback. **Still not connected to the app, so Chora doesn't play through it.**
+Run: `cargo run --release -p plajah-audio-host --example device -- <direct|ahead> [tracks] [voices] [seconds] [threads] [min|default] [stall_ms]`.
+
+The underrun counter was proved with forced stalls: 5 × 60 ms gave 5 underruns and 236 ms lost, against 0 and 0
+with no stall. Each row is 30 s on a Realtek USB headset, smallest period 7 ms (shared mode can't reach 128 frames here):
+
+| Session (AURA, 8 voices each) | Direct, 1 thread | Direct, 12 threads | Render-ahead, 1 live + 12 threads |
+|---|---|---|---|
+| 8 tracks | 1219 underruns, 7.3 s lost | 4, 34 ms | **0, 0 ms** |
+| 16 tracks | not run | not run | **0, 0 ms** |
+| 32 tracks | 892, 22.9 s | 958, 3.9 s | 3–4, 18–19 ms (2 runs) |
+
+Render-ahead's ring missed 0 frames in all of these runs.
+
+- The two things that made it work, both found by measuring: chunks (at 128-frame wakeups the ring missed 16 s of
+  30 s) and normal priority for background workers (at critical priority they starved the device thread).
+- Mostly single runs on a busy laptop, on one device, with one live track. Live fill still spikes to ~10 ms.
+- Sequenced tracks now react about 170 ms late to mute, fader and parameter changes; that needs handling in the bridge.
+
+Next: the app bridge, exclusive mode/ASIO for small buffers, and more devices.
