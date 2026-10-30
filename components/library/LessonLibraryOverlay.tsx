@@ -41,6 +41,8 @@ export default function LessonLibraryOverlay() {
   const [orgs, setOrgs] = useState<OrgScope[] | null>(null);
   const [scope, setScope] = useState<Scope>({ kind: 'mine' });
   const [programs, setPrograms] = useState<ChurchProgram[]>([]);
+  // Every class in the orgs the viewer teaches in, for assigning from My lessons and the Platform library.
+  const [allPrograms, setAllPrograms] = useState<Array<{ program: ChurchProgram; orgName: string }>>([]);
   const user = auth.currentUser;
 
   useEffect(() => {
@@ -84,6 +86,18 @@ export default function LessonLibraryOverlay() {
   const current = scope.kind === 'org' ? orgs?.find(o => o.org.id === scope.id) || null : null;
 
   useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    const teaching = (orgs || []).filter(o => o.teacher);
+    if (!uid || !teaching.length) { setAllPrograms([]); return; }
+    let cancelled = false;
+    Promise.all(teaching.map(o => listPrograms(o.org.id).then(ps => ps
+      .filter(p => o.admin || (p.teacherUids || []).includes(uid) || p.createdBy === uid)
+      .map(program => ({ program, orgName: o.org.name }))).catch(() => [])))
+      .then(lists => { if (!cancelled) setAllPrograms(lists.flat()); });
+    return () => { cancelled = true; };
+  }, [orgs]);
+
+  useEffect(() => {
     setPrograms([]);
     if (!current) return;
     let cancelled = false;
@@ -119,6 +133,7 @@ export default function LessonLibraryOverlay() {
         viewerIsAdmin={current.admin}
         programId={req.programId}
         programs={programs}
+        initialAssign={req.assignUnitIds}
         canAccessAnswerKey={current.teacher}
         canUploadToLibrary={current.teacher}
         currentUserUid={viewer.uid}
@@ -139,6 +154,7 @@ export default function LessonLibraryOverlay() {
         currentUserUid={viewer.uid}
         currentUserName={viewer.name}
         copyInto={user ? (current ? { orgId: current.org.id, orgName: current.org.name, label: current.org.name } : mineInto) : undefined}
+        otherPrograms={allPrograms}
       />
     );
   } else if (!user) {
@@ -157,6 +173,8 @@ export default function LessonLibraryOverlay() {
         currentUserUid={viewer.uid}
         currentUserName={viewer.name}
         copyInto={mineInto}
+        otherPrograms={allPrograms}
+        initialAssign={req.assignUnitIds}
       />
     );
   }

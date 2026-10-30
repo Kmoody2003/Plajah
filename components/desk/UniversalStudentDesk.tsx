@@ -1005,7 +1005,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-black uppercase tracking-wider text-purple-200 flex items-center gap-1.5">
-                        <GraduationCap size={14} /> Your answers ({countQuestions(activeAssignment.unitSnapshot.questions)} questions · {activeAssignment.totalPoints} pts)
+                        <GraduationCap size={14} /> Your answers ({countQuestions(activeAssignment.unitSnapshot.questions)} questions{activeAssignment.unitSnapshot.pointsAssigned ? ` · ${activeAssignment.totalPoints} pts` : ''})
                       </span>
                     </div>
 

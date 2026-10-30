@@ -35,6 +35,7 @@ import { openTelaClasswork } from './christianEd/edWork';
 import { ED_CSS } from './christianEd/edStyles';
 import TelaPage, { KIND_META, TELA_PAGE_CSS, kindOf } from './library/TelaPage';
 import DeskView from '../desk/DeskView';
+import LayoutPages from '../desk/LayoutPages';
 import { LivingTemplateBespokeRenderer } from '../desk/LivingTemplateBespokeRenderer';
 import { getDefaultLivingTemplateForUnit } from '../../services/council/livingDocumentTemplates';
 import AssignScheduleSheet, { type ScheduledResult } from './library/AssignScheduleSheet';
@@ -67,6 +68,10 @@ export interface OrgLessonLibraryHubProps {
   viewerIsAdmin?: boolean;
   /** Where "Make my copy" puts the copy. Defaults to this library. */
   copyInto?: { orgId: string; orgName: string; label: string };
+  /** Classes in the viewer's orgs, so lessons can be assigned from My lessons or the Platform library too. */
+  otherPrograms?: Array<{ program: ChurchProgram; orgName: string }>;
+  /** Lessons to open the "Assign to class" sheet for as soon as they're loaded (Content HQ). */
+  initialAssign?: string[];
 }
 
 type Filter = 'ALL' | 'ASSIGNMENT' | 'QUIZ_EXAM' | 'COURSE_RESOURCE' | 'SYLLABUS' | 'ANSWER_KEY';
@@ -118,7 +123,7 @@ const LIB_CSS = `
 .lib-panel .lib-pt{display:flex;gap:4px;padding:10px 16px 0}
 .lib-panel .lib-pt button{appearance:none;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--dim);font:700 .8rem/1 var(--fd);padding:10px 8px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
 .lib-panel .lib-pt button[aria-selected="true"]{color:#fff;border-bottom-color:var(--magenta)}
-.lib-panel .lib-pb{flex:1;overflow-y:auto;padding:18px 16px;background:radial-gradient(ellipse at top,#1b1528,#0d0b14 70%)}
+.lib-panel .lib-pb{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:18px 16px;background:radial-gradient(ellipse at top,#1b1528,#0d0b14 70%)}
 .lib-panel .lib-pf{padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--bd);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .lib-panel .lib-src{font:500 .8rem/1.6 var(--fm);white-space:pre-wrap;color:var(--dim);background:rgba(0,0,0,.35);border:1px solid var(--bd);border-radius:14px;padding:14px}
 .lib-panel .lib-keyq{border:1px solid var(--bd);border-radius:14px;padding:10px 12px;display:grid;gap:4px;font-size:.84rem;background:var(--g1)}
@@ -192,6 +197,8 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
   tier: tierProp,
   viewerIsAdmin = false,
   copyInto: copyIntoProp,
+  otherPrograms,
+  initialAssign,
 }) => {
   const isStandaloneTeacher = scopeKind === 'user' || isStandaloneTeacherScopeId(orgId);
   const tier: LibraryTier = tierProp || (isStandaloneTeacher ? 'user' : 'org');
@@ -214,7 +221,11 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
   const [scheduling, setScheduling] = useState<string[] | null>(null);
   // Inside an org: its Christian Ed courses. A teacher with no org: their own Academia classes.
   const teacherRef = useMemo(() => ({ uid: currentUserUid, name: currentUserName }), [currentUserUid, currentUserName]);
-  const source = useCourseSource({ programs, orgId, orgName, teacher: teacherRef, academia: isStandaloneTeacher && canUploadToLibrary && !!currentUserUid });
+  const source = useCourseSource({
+    programs, orgId, orgName, teacher: teacherRef, otherPrograms,
+    // My lessons and the Platform library also reach the teacher's own Academia classes.
+    academia: (isStandaloneTeacher || tierProp === 'platform') && !!currentUserUid,
+  });
   const courses = source.courses;
   const [calProgram, setCalProgram] = useState(programId || programs[0]?.id || '');
   const [calFocus, setCalFocus] = useState<Date | null>(null);
@@ -284,7 +295,8 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }, [visible, filter, search, owner, currentUserUid]);
   const preview = previewId ? visible.find(u => u.id === previewId) || null : null;
-  const canAssign = canUploadToLibrary;
+  // Teachers assign from their libraries; anyone teaching a class can assign a Platform lesson straight to it.
+  const canAssign = canUploadToLibrary || (tierProp === 'platform' && !!currentUserUid);
   const assignable = (u: IngestedCurriculumUnit) => !isKeyOnly(u);
 
   const toggle = (id: string) => setSelected(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
@@ -333,6 +345,18 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
     setStatus(ok ? `“${u.title}” is in the Platform library. Teachers anywhere can copy it.` : 'Couldn’t share it — check you’re signed in and online.');
   };
   const fromTemplate = () => window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { returnTo: { label: 'Lesson Library' } } }));
+
+  // Opened from Content HQ's "Assign to class": go straight to the assign sheet once those lessons are here.
+  const assignedOnOpen = useRef(false);
+  useEffect(() => {
+    if (assignedOnOpen.current || !initialAssign?.length) return;
+    const ids = initialAssign.filter(id => visible.some(u => u.id === id));
+    if (!ids.length) return;
+    assignedOnOpen.current = true;
+    setSelected(ids);
+    startAssign(ids);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialAssign, visible]);
 
   const filters = FILTERS.filter(([f]) => f === 'ALL' || (f === 'ANSWER_KEY' ? canAccessAnswerKey && counts[f] : counts[f]));
 
@@ -475,7 +499,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
                       <span className="lib-t">{u.title}</span>
                     </button>
                     <span className="lib-u">
-                      {u.questions.length > 0 ? `${countQuestions(u.questions)} questions · ${u.totalPoints} pts` : 'Reading'}
+                      {u.questions.length > 0 ? `${countQuestions(u.questions)} questions${u.pointsAssigned ? ` · ${u.totalPoints} pts` : ''}` : 'Reading'}
                       {canAccessAnswerKey && hasKey(u) && !isKeyOnly(u) && <span className="tag key"><KeyRound size={10} /> Key</span>}
                       {lockedForMe(u) && <span className="tag" title="Only the org’s admins can change or remove it"><Lock size={10} /> Org lesson</span>}
                       {provisionedOf(u) === 'teacher' && u.copiedFromId && <span className="tag"><Copy size={10} /> Copy</span>}
@@ -493,7 +517,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
               <span className="small grow">{source.kind === 'ACADEMIA' ? 'Pick a class and lay them out on its calendar.' : 'Pick a course and lay them out on its calendar.'}</span>
               <button type="button" className="btn sm" onClick={() => setSelected([])}>Clear</button>
               <button type="button" className="btn p" onClick={() => startAssign(selected)}>
-                <CalendarDays size={15} /> Assign &amp; schedule
+                <CalendarDays size={15} /> Assign to class
               </button>
             </div>
           )}
@@ -510,7 +534,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
                 <div className="eyebrow" style={{ color: KIND_META[kindOf(preview)].color }}>{KIND_META[kindOf(preview)].label}</div>
                 <h3>{preview.title}</h3>
                 <div className="small">
-                  {preview.questions.length ? `${countQuestions(preview.questions)} questions · ${preview.totalPoints} pts` : 'Reading'}
+                  {preview.questions.length ? `${countQuestions(preview.questions)} questions${preview.pointsAssigned ? ` · ${preview.totalPoints} pts` : ''}` : 'Reading'}
                   {preview.createdByName ? ` · by ${preview.createdByName}` : ''}
                 </div>
               </div>
@@ -531,7 +555,8 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
             </div>
             <div className="lib-pb">
               {/* How it opens: the lesson's own template, read only, as students will get it. */}
-              {panelTab === 'page' && (
+              {panelTab === 'page' && preview.layoutPages?.length && !preview.questions.length && <LayoutPages pages={preview.layoutPages} title={preview.title} />}
+              {panelTab === 'page' && !(preview.layoutPages?.length && !preview.questions.length) && (
                 <LivingTemplateBespokeRenderer
                   templateId={preview.livingTemplateId || getDefaultLivingTemplateForUnit(preview).id}
                   unit={preview}
@@ -585,7 +610,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
             <div className="lib-pf">
               {canAssign && assignable(preview) && (
                 <button type="button" className="btn p" onClick={() => startAssign([preview.id])}>
-                  <CalendarDays size={15} /> Assign &amp; schedule
+                  <CalendarDays size={15} /> Assign to class
                 </button>
               )}
               {canAssign && assignable(preview) && (
@@ -603,7 +628,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
               {tier === 'user' && canChange(preview) && (
                 <button type="button" className="btn sm" disabled={busy === preview.id} onClick={() => shareToPlatform(preview)}><Globe2 size={14} /> Share to platform</button>
               )}
-              <button type="button" className="btn sm" onClick={() => { setDeskView(preview); setPreviewId(null); }}>Full desk view</button>
+              <button type="button" className="btn sm" onClick={() => { setDeskView(preview); setPreviewId(null); }}>Open full reader</button>
               <button type="button" className="btn sm" onClick={() => { setFullPreview(preview); setPreviewId(null); }}>Side-by-side</button>
               <span className="grow" />
               {canChange(preview) && (confirmRemove ? (

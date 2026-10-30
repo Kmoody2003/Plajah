@@ -8,12 +8,13 @@ import SharedClassroomClubHub from '../../classroom/SharedClassroomClubHub';
 import DeskView from '../../desk/DeskView';
 import EdAssignSheet from './EdAssignSheet';
 import EdPeople from './EdPeople';
+import EdForum from './EdForum';
 import AnnouncementsPanel from '../../announcements/AnnouncementsPanel';
 import { coverFor, initials } from './edStyles';
 import { announceWorkChanged, currentWeekIndex, needsReview, type ClassWork } from './edWork';
 import { openLessonLibrary } from '../../../services/lessonLibraryNav';
 
-export type ClassChannel = 'feed' | 'lessons' | 'work' | 'live' | 'people';
+export type ClassChannel = 'feed' | 'lessons' | 'work' | 'live' | 'people' | 'forum';
 
 interface Props {
   orgId: string;
@@ -105,6 +106,7 @@ const EdClassClub: React.FC<Props> = props => {
     ['work', 'Work', isTeacher ? toReview || undefined : myDue.length || undefined],
     ['live', 'Live'],
     ...(isTeacher ? ([['people', 'People', work?.joinRequests.length || undefined]] as Array<[ClassChannel, string, number?]>) : []),
+    ['forum', 'Discussion'],
   ];
 
   const lessonCard = (u: IngestedCurriculumUnit, opts?: { weekId?: string }) => {
@@ -380,6 +382,7 @@ const EdClassClub: React.FC<Props> = props => {
       );
     }
     if (chan === 'lessons') return renderLessons();
+    if (chan === 'forum') return <EdForum orgId={orgId} program={p} viewer={viewer} isTeacher={isTeacher} canSeeKey={canSeeKey} units={units} />;
     if (chan === 'people') return <EdPeople orgId={orgId} program={p} joinRequests={work?.joinRequests || []} onSave={onSave} onChanged={onRefresh} />;
     return renderWork();
   };

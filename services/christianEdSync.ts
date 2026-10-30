@@ -50,7 +50,7 @@ export interface EduJoinRequest {
 // keys sit in churchEduAnswerKeys/{assignmentId}, which only the class's teachers can read. A student's
 // desk marks key-graded questions as waiting, and the teacher's review scores them with the key.
 const KEY_FIELDS = new Set(['correctAnswer', 'explanation', 'expected', 'acceptedAnswers', 'answerKey', 'rawAnswerKeyText']);
-function withoutKeys<T>(v: T): T {
+export function withoutKeys<T>(v: T): T {
   if (Array.isArray(v)) return v.map(withoutKeys) as unknown as T;
   if (v && typeof v === 'object') {
     const o: Record<string, unknown> = {};
@@ -87,6 +87,8 @@ export async function mirrorAssignment(a: UniversalDeskAssignment): Promise<void
     const keys = collectKeys(a);
     if (Object.keys(keys).length) await setDoc(doc(opsDb, 'churchEduAnswerKeys', a.id), strip({ assignmentId: a.id, programId: a.classroomId, orgId: a.orgId, keys, updatedAt: Date.now() }));
     await setDoc(doc(opsDb, 'churchEduAssignments', a.id), slimAssignment(a, a.classroomId));
+    // Every lesson posted or assigned to a class gets its discussion thread (created once).
+    void import('./classForum').then(m => m.ensureLessonThread(a)).catch(() => {});
   } catch {
     /* not a class teacher, offline, or demo org: the local desk still has it */
   }

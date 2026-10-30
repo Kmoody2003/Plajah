@@ -15,7 +15,7 @@ import {
   GREAT_FAITH_MINISTRIES_NAME, GREAT_FAITH_MINISTRIES_DEFAULT_ID,
   type OrgAsset, type OwnerScope,
 } from '../services/orgAssets';
-import { ensureAllDetectedLinksOnboarded } from '../services/curriculumIngestionService';
+import { ensureAllDetectedLinksOnboarded, listIngestedUnits, type IngestedCurriculumUnit } from '../services/curriculumIngestionService';
 import { restoreHqAsset, trashHqAsset } from '../services/hqCollaboration';
 import HqReviewPanel from './HqReviewPanel';
 import { fetchMySubscription } from '../services/subscriptionService';
@@ -274,6 +274,13 @@ export const HqFilesTab: React.FC<{
     if (search && !a.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   }), [visibleAssets, folder, isUserScope, docClassFilter, variantFilter, search]);
+
+  // The library lesson an asset belongs to (its Original, Tela document or key), for "Assign to class".
+  const lessonUnits = useMemo(() => listIngestedUnits(scope.id, undefined, scope.label), [scope.id, scope.label, assets]);
+  const lessonFor = (a: OrgAsset): IngestedCurriculumUnit | undefined => {
+    if (a.assetVariant === 'ANSWER_KEY') return undefined;
+    return lessonUnits.find(u => u.originalAssetId === a.id || u.telaAssetId === a.id || (!!a.telaDocId && u.telaDocId === a.telaDocId));
+  };
 
   // Resolve paired asset when previewing a curriculum item as a Tela Document
   const resolveTelaPreviewProps = (asset: OrgAsset) => {
@@ -615,6 +622,20 @@ export const HqFilesTab: React.FC<{
 
                   {/* Action bar for Tela Document Preview + Source Link + Trash */}
                   <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between gap-1.5">
+                    {canEdit && lessonFor(a) && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const u = lessonFor(a)!;
+                          openLessonLibrary(isUserScope ? { mine: true, assignUnitIds: [u.id] } : { orgId: scope.id, orgName: scope.label, assignUnitIds: [u.id] });
+                        }}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#34e0d0]/15 hover:bg-[#34e0d0]/25 border border-[#34e0d0]/35 text-[#34e0d0] text-[10px] font-black uppercase tracking-wider transition-colors"
+                        title="Assign this lesson to a class and schedule it"
+                      >
+                        <BookOpen className="w-3.5 h-3.5" /> Assign to class
+                      </button>
+                    )}
                     {canPreviewAsTela ? (
                       <button
                         type="button"

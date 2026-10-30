@@ -8,6 +8,7 @@ import { ExternalLink, KeyRound, PenLine, X } from 'lucide-react';
 import type { IngestedCurriculumUnit } from '../../services/curriculumIngestionService';
 import { getDefaultLivingTemplateForUnit, getLivingTemplateById } from '../../services/council/livingDocumentTemplates';
 import { LivingTemplateBespokeRenderer } from './LivingTemplateBespokeRenderer';
+import LayoutPages from './LayoutPages';
 
 type Side = 'none' | 'original' | 'key' | 'deeper';
 
@@ -21,8 +22,8 @@ const DESK_CSS = `
 .dv-b[aria-pressed="true"]{background:#fff;color:#14101c}
 .dv-b.p{background:linear-gradient(135deg,#6B0099,#D40055);border-color:transparent}
 .dv-body{flex:1;min-height:0;display:flex}
-.dv-main{flex:1;min-width:0;overflow-y:auto;padding:18px}
-.dv-side{width:min(380px,40vw);border-left:1px solid rgba(255,255,255,.1);overflow-y:auto;padding:16px;display:grid;gap:10px;align-content:start;font-size:.84rem}
+.dv-main{flex:1;min-width:0;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:18px}
+.dv-side{width:min(380px,40vw);min-height:0;border-left:1px solid rgba(255,255,255,.1);overflow-y:auto;padding:16px;display:grid;gap:10px;align-content:start;font-size:.84rem}
 .dv-side pre{white-space:pre-wrap;font:500 .8rem/1.6 ui-monospace,monospace;color:rgba(255,255,255,.75);margin:0}
 .dv-card{border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px 12px;display:grid;gap:4px;background:rgba(255,255,255,.03)}
 @media(max-width:760px){.dv{inset:0;border-radius:0}.dv-body{flex-direction:column}.dv-side{width:auto;border-left:0;border-top:1px solid rgba(255,255,255,.1);max-height:45vh}}
@@ -58,7 +59,7 @@ export default function DeskView({ unit, onClose, canViewAnswerKey = false, onEd
         <div className="dv-h">
           <div style={{ minWidth: 0, flex: '1 1 220px' }}>
             <div className="t">{unit.title}</div>
-            <div className="s">Desk view · {template.name} · read only</div>
+            <div className="s">{unit.layoutPages?.length && !unit.questions.length ? 'Reader · as the original lays it out' : `Desk view · ${template.name} · read only`}</div>
           </div>
           {(unit.sourceUrl || unit.rawCurriculumText) && <button type="button" className="dv-b" aria-pressed={side === 'original'} onClick={() => toggle('original')}>Original</button>}
           {hasKey && <button type="button" className="dv-b" aria-pressed={side === 'key'} onClick={() => toggle('key')}><KeyRound size={13} /> Answer key</button>}
@@ -68,7 +69,8 @@ export default function DeskView({ unit, onClose, canViewAnswerKey = false, onEd
         </div>
         <div className="dv-body">
           <div className="dv-main">
-            <LivingTemplateBespokeRenderer
+            {/* A reading keeps the original's layout; work to answer opens in its template. */}
+            {unit.layoutPages?.length && !unit.questions.length ? <LayoutPages pages={unit.layoutPages} title={unit.title} /> : <LivingTemplateBespokeRenderer
               templateId={templateId}
               unit={unit}
               answers={{}}
@@ -76,7 +78,7 @@ export default function DeskView({ unit, onClose, canViewAnswerKey = false, onEd
               supplements={[]}
               readOnly
               showAnswerKey={side === 'key'}
-            />
+            />}
           </div>
           {side !== 'none' && (
             <aside className="dv-side" aria-label={side === 'original' ? 'Original' : side === 'key' ? 'Answer key' : 'Dig deeper'}>

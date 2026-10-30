@@ -21,6 +21,31 @@ const ANSWER_CSS = `
 .la-ans.ro{cursor:default;background-image:repeating-linear-gradient(transparent 0 1.55em,currentColor 1.55em calc(1.55em + 1px));opacity:.5}
 .la-ans:focus-visible{outline:2px solid currentColor;outline-offset:2px}
 textarea.la-edit{display:block;width:100%;resize:none;overflow:hidden;min-height:88px;transition:height .22s ease}
+.la-grid{display:grid;gap:6px;overflow-x:auto;padding-bottom:2px}
+.la-grid-h,.la-grid-r{display:grid;grid-template-columns:var(--la-cols);align-items:center;gap:6px;min-width:min-content}
+.la-grid-h span{font-size:.72rem;font-weight:700;line-height:1.25;text-align:center;opacity:.8;padding:0 2px}
+.la-grid-r{border-radius:12px;padding:8px 10px;background:color-mix(in srgb,currentColor 6%,transparent)}
+.la-grid-r:hover{background:color-mix(in srgb,currentColor 10%,transparent)}
+.la-grid-q{font-size:.8rem;line-height:1.4;text-align:left}
+.la-grid-q b{opacity:.65;margin-right:5px}
+.la-grid-c{appearance:none;border:0;background:transparent;color:inherit;display:grid;place-items:center;min-height:36px;cursor:pointer;border-radius:10px;font:inherit}
+.la-grid-c i{width:22px;height:22px;border-radius:99px;border:1.6px solid currentColor;opacity:.5;display:grid;place-items:center;transition:transform .12s ease,opacity .12s ease}
+.la-grid-c[aria-checked="true"] i{opacity:1;transform:scale(1.06)}
+.la-grid-c[aria-checked="true"] i::after{content:'';width:11px;height:11px;border-radius:99px;background:currentColor}
+.la-grid-c:hover:not(:disabled) i{opacity:.85}
+.la-grid-c:focus-visible{outline:2px solid currentColor;outline-offset:1px}
+.la-grid-c:disabled{cursor:default}
+.la-grid-c em{display:none;font-style:normal}
+.la-grid-cs{display:contents}
+@media(max-width:640px){
+  .la-grid-h{display:none}
+  .la-grid-r{grid-template-columns:1fr;gap:8px}
+  .la-grid-cs{display:flex;flex-wrap:wrap;gap:6px}
+  .la-grid-c{display:inline-flex;gap:7px;padding:6px 11px 6px 8px;min-height:38px;border:1px solid color-mix(in srgb,currentColor 25%,transparent)}
+  .la-grid-c i{width:18px;height:18px}
+  .la-grid-c[aria-checked="true"] i::after{width:9px;height:9px}
+  .la-grid-c em{display:inline;font-size:.78rem}
+}
 @media(prefers-reduced-motion:reduce){textarea.la-edit{transition:none}}
 `;
 
@@ -83,6 +108,67 @@ export function AnswerArea({ value, onChange, disabled, readOnly, className }: {
   );
 }
 
+/**
+ * A choice grid (a Google Forms grid, a table of answer columns): the rows down the side, the choices across,
+ * one pick per row. On a phone each row becomes a card of labelled choices. Each row's answer is saved on
+ * its own (answers[rowId] = the column picked).
+ */
+function GridAnswer({ rows, columns, answers, onPick, locked }: {
+  rows: Array<{ id: string; prompt: string; label?: string; labelGenerated?: boolean; number: number }>;
+  columns: string[];
+  answers: Record<string, string>;
+  onPick: (rowId: string, column: string) => void;
+  locked?: boolean;
+}) {
+  const style = { ['--la-cols' as string]: `minmax(150px, 2.2fr) repeat(${columns.length}, minmax(${columns.length > 5 ? 58 : 72}px, 1fr))` } as React.CSSProperties;
+  return (
+    <div className="la-grid" style={style} role="table">
+      <div className="la-grid-h" role="row">
+        <span aria-hidden />
+        {columns.map(c => <span key={c} role="columnheader">{c}</span>)}
+      </div>
+      {rows.map(r => {
+        const mark = r.label && !r.labelGenerated ? r.label.slice(String(r.number).length).replace(/^\./, '') : '';
+        return (
+          <div key={r.id} className="la-grid-r" role="radiogroup" aria-label={r.prompt}>
+            <span className="la-grid-q">{mark && <b>{mark}.</b>}{r.prompt}</span>
+            <span className="la-grid-cs">
+              {columns.map(c => (
+                <button key={c} type="button" role="radio" aria-checked={answers[r.id] === c} aria-label={c} disabled={locked} className="la-grid-c" onClick={() => onPick(r.id, c)}>
+                  <i /><em>{c}</em>
+                </button>
+              ))}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** A grid's rows shown as one question; everything else as it is. */
+type DisplayQuestion = IngestedCurriculumUnit['questions'][number] & {
+  gridRows?: IngestedCurriculumUnit['questions'];
+  gridColumns?: string[];
+};
+function groupGrids(qs: IngestedCurriculumUnit['questions']): DisplayQuestion[] {
+  const out: DisplayQuestion[] = [];
+  for (const q of qs) {
+    const last = out[out.length - 1];
+    if (q.grid && last?.gridRows && last.grid?.id === q.grid.id) {
+      last.gridRows.push(q);
+      last.points += q.points;
+      continue;
+    }
+    if (q.grid) {
+      out.push({ ...q, id: `grid_${q.grid.id}`, label: undefined, labelGenerated: undefined, group: undefined, prompt: q.group || '', gridRows: [q], gridColumns: q.grid.columns });
+      continue;
+    }
+    out.push(q);
+  }
+  return out;
+}
+
 /** A part's prompt, with its question's own text ("Fill in the Blanks:") above the first part, as on the paper. */
 export function promptWithStem(q: { id: string; prompt: string; group?: string }, all: Array<{ id: string; group?: string }>): React.ReactNode {
   const i = all.findIndex(x => x.id === q.id);
@@ -121,7 +207,9 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
   readOnly = false,
 }) => {
   const [spotlightIdx, setSpotlightIdx] = useState(0);
-  const questions = unit.questions || [];
+  const questions: DisplayQuestion[] = groupGrids(unit.questions || []);
+  // Points only when the original gives them; otherwise grading weight is a teacher setting, not on the page.
+  const showPts = !!unit.pointsAssigned;
   // Every template shows only the original — its title, header fields, own text and questions, numbered as
   // printed. A template changes the look (colors, type, frame), never the content: no banners, invented
   // quotes, progress gadgets, section labels or themed numbering ("Quaestio 3", "WEFT 03").
@@ -148,10 +236,13 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
     ) : null;
 
   const renderInputControl = (
-    q: IngestedCurriculumUnit['questions'][number],
+    q: DisplayQuestion,
     btnClass: (selected: boolean) => string,
     inputClass: string
   ) => {
+    if (q.gridRows && q.gridColumns) {
+      return <GridAnswer rows={q.gridRows} columns={q.gridColumns} answers={answers} onPick={onUpdateAnswer} locked={isTurnedIn || readOnly} />;
+    }
     const val = answers[q.id] || '';
     const choices = q.options && q.options.length > 0 ? q.options : q.type === 'true-false' ? ['True', 'False'] : null;
     if (choices) {
@@ -179,9 +270,14 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
   };
 
   const renderFeedback = (
-    q: IngestedCurriculumUnit['questions'][number],
+    q: DisplayQuestion,
     darkText = false
-  ) => {
+  ): React.ReactNode => {
+    // A grid: each row's own result, in order.
+    if (q.gridRows) {
+      if (!showAnswerKey && !isTurnedIn) return null;
+      return <>{q.gridRows.map(r => <React.Fragment key={r.id}>{renderFeedback(r, darkText)}</React.Fragment>)}</>;
+    }
     const qResult = submission?.questionScores?.[q.id];
     if (!showAnswerKey && !isTurnedIn && !qResult) return null;
     return (
@@ -243,7 +339,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
                 >
                   <div className="flex items-center justify-between text-xs font-black text-[#991B1B]">
                     <span>{qLabel(q)}.</span>
-                    <span>{q.points} pts</span>
+                    {showPts && <span>{q.points} pts</span>}
                   </div>
                   <p className="text-xs font-bold text-[#2B1A10] leading-relaxed">{promptWithStem(q, questions)}</p>
                   {renderInputControl(
@@ -297,7 +393,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
                     />
                     <div className="flex items-center justify-between text-xs font-black text-amber-300">
                       <span>{qLabel(q)}.</span>
-                      <span>{q.points} pts</span>
+                      {showPts && <span>{q.points} pts</span>}
                     </div>
                     <p className="text-xs sm:text-sm font-black text-white">{promptWithStem(q, questions)}</p>
                     {renderInputControl(
@@ -427,7 +523,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
               >
                 <div className="flex items-center justify-between font-mono text-xs text-amber-300">
                   <span>{qLabel(q)}.</span>
-                  <span>{q.points} pts</span>
+                  {showPts && <span>{q.points} pts</span>}
                 </div>
                 <p className="text-xs sm:text-sm font-bold text-white">{promptWithStem(q, questions)}</p>
                 {renderInputControl(
@@ -484,7 +580,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
                     </div>
                     <div className="flex justify-between text-xs font-bold text-[#1B4332]">
                       <span>{qLabel(q)}.</span>
-                      <span>{q.points} pts</span>
+                      {showPts && <span>{q.points} pts</span>}
                     </div>
                     <p
                       className="text-xs sm:text-sm font-bold text-[#142B1F]"
@@ -544,7 +640,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
                 style={{ boxShadow: `6px 6px 0px ${shadowColors[idx % 3]}` }}
               >
                 <div className="font-mono text-xs font-black bg-black text-[#FACC15] px-2 py-0.5 inline-block">
-                  {qLabel(q)}. · {q.points} pts{hasAns ? ' ★' : ''}
+                  {qLabel(q)}.{showPts ? ` · ${q.points} pts` : ''}{hasAns ? ' ★' : ''}
                 </div>
                 <p className="text-xs sm:text-sm font-black text-black">{promptWithStem(q, questions)}</p>
                 {renderInputControl(
@@ -593,7 +689,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
                     hasAns ? 'bg-[#FACC15] text-black' : 'bg-white text-black'
                   }`}
                 >
-                  <span className="font-mono text-xs font-bold">{q.points} pts</span>
+                  {showPts && <span className="font-mono text-xs font-bold">{q.points} pts</span>}
                   <span className="text-4xl font-black tracking-tighter">{qLabel(q)}</span>
                 </div>
                 <div className="lg:col-span-4 p-4 border-b lg:border-b-0 lg:border-r-2 border-black bg-white">
@@ -745,7 +841,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
             <div className="flex items-start justify-between gap-4 border-b border-[#881337]/25 pb-3">
               <div>
                 <span className="px-2.5 py-0.5 rounded bg-[#881337] text-amber-200 text-xs font-black uppercase">
-                  {qLabel(activeQ)}. · {activeQ.points} pts
+                  {qLabel(activeQ)}.{showPts ? ` · ${activeQ.points} pts` : ''}
                 </span>
                 <p className="text-sm sm:text-base font-black text-[#2B1410] mt-2">
                   {promptWithStem(activeQ, questions)}
@@ -853,7 +949,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
               >
                 <div className="flex justify-between font-mono text-xs text-teal-300">
                   <span>{qLabel(q)}.</span>
-                  <span>{q.points} pts</span>
+                  {showPts && <span>{q.points} pts</span>}
                 </div>
                 <p className="text-xs sm:text-sm font-bold text-white">{promptWithStem(q, questions)}</p>
                 {renderInputControl(
@@ -893,7 +989,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
             <div key={q.id} className="grid sm:grid-cols-12 gap-3 rounded-lg border border-[#E5E2DC] bg-white p-4 shadow-sm">
               <div className="sm:col-span-3 sm:border-r border-[#E2DFD7] sm:pr-3 font-mono text-xs font-bold text-[#1E3A8A] flex sm:flex-col justify-between">
                 <span>{qLabel(q)}.</span>
-                <span className="text-slate-500">{q.points} pts</span>
+                {showPts && <span className="text-slate-500">{q.points} pts</span>}
               </div>
               <div className="sm:col-span-9 space-y-2.5">
                 <p className="text-sm font-bold text-[#111827]">{promptWithStem(q, questions)}</p>
@@ -943,7 +1039,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
                 >
                   {qLabel(q)}.
                 </span>
-                <span className="font-mono text-[11px] text-[#78716C]">{q.points} pts</span>
+                {showPts && <span className="font-mono text-[11px] text-[#78716C]">{q.points} pts</span>}
               </div>
               <p className="text-sm font-semibold text-[#1C1917] leading-relaxed">{promptWithStem(q, questions)}</p>
               {renderInputControl(
@@ -995,7 +1091,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
                       }`}
                     />
                     <span className="font-bold text-zinc-900">{qLabel(q)}.</span>
-                    <span className="text-zinc-400">· {q.points} pts</span>
+                    {showPts && <span className="text-zinc-400">· {q.points} pts</span>}
                   </div>
                   <p className="text-xs sm:text-sm font-bold text-zinc-900">{promptWithStem(q, questions)}</p>
                   {renderFeedback(q, true)}
@@ -1048,7 +1144,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
                   <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-bold">
                     {qLabel(q)}.
                   </span>
-                  <span className="text-xs font-semibold text-blue-600">{q.points} pts</span>
+                  {showPts && <span className="text-xs font-semibold text-blue-600">{q.points} pts</span>}
                 </div>
                 <p className="text-sm font-bold text-slate-900">{promptWithStem(q, questions)}</p>
                 {renderInputControl(
@@ -1087,7 +1183,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
           {questions.map((q, i) => (
             <div key={q.id} className={`rounded-xl border-t-4 ${i % 2 ? 'border-indigo-700' : 'border-emerald-700'} bg-white p-5 shadow-sm space-y-2`}>
               <div className={`text-xs font-bold ${i % 2 ? 'text-indigo-700' : 'text-emerald-700'}`}>
-                {qLabel(q)}. ({q.points} pts)
+                {qLabel(q)}.{showPts ? ` (${q.points} pts)` : ''}
               </div>
               <p className="text-xs sm:text-sm font-bold text-slate-900">{promptWithStem(q, questions)}</p>
               {renderInputControl(
@@ -1138,7 +1234,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
                   {qLabel(q)}
                 </div>
                 <div className="flex items-center justify-end text-xs">
-                  <span className="font-mono text-stone-500">{q.points} pts</span>
+                  {showPts && <span className="font-mono text-stone-500">{q.points} pts</span>}
                 </div>
                 <p className="text-sm font-bold text-[#1E1B18]">{promptWithStem(q, questions)}</p>
                 {renderInputControl(
@@ -1201,7 +1297,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
                 <span className="px-2.5 py-0.5 rounded-md bg-teal-50 text-teal-800 border border-teal-200 font-mono text-xs font-bold">
                   {qLabel(q)}.
                 </span>
-                <span className="font-mono text-xs text-slate-500">{q.points} pts</span>
+                {showPts && <span className="font-mono text-xs text-slate-500">{q.points} pts</span>}
               </div>
               <p className="text-sm sm:text-base font-bold text-slate-900">{promptWithStem(q, questions)}</p>
               {renderInputControl(
@@ -1264,9 +1360,11 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
                 </div>
               </div>
               <div className="lg:col-span-2 lg:text-right font-mono">
-                <span className="inline-block px-2.5 py-1 rounded border border-[#1E293B] bg-[#F4F1EA] text-xs font-bold text-[#1E293B]">
-                  [{q.points}]
-                </span>
+                {showPts && (
+                  <span className="inline-block px-2.5 py-1 rounded border border-[#1E293B] bg-[#F4F1EA] text-xs font-bold text-[#1E293B]">
+                    [{q.points}]
+                  </span>
+                )}
               </div>
             </div>
           ))}
@@ -1325,7 +1423,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
           <div className="rounded-3xl bg-white/85 backdrop-blur-md border border-white shadow-lg p-6 sm:p-8 space-y-4">
             <div className="flex items-center justify-between text-xs font-bold text-indigo-600">
               <span>{qLabel(activeQ)}.</span>
-              <span>{activeQ.points} pts</span>
+              {showPts && <span>{activeQ.points} pts</span>}
             </div>
             <p className="text-base sm:text-lg font-extrabold text-slate-900">{promptWithStem(activeQ, questions)}</p>
             {renderInputControl(
@@ -1387,7 +1485,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 font-mono text-xs text-violet-700 font-bold">
                     <span>{qLabel(q)}.</span>
-                    <span>· {q.points} pts</span>
+                    {showPts && <span>· {q.points} pts</span>}
                   </div>
                   <p className="text-sm font-bold text-slate-900">{promptWithStem(q, questions)}</p>
                   {renderInputControl(
@@ -1439,7 +1537,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
           >
             <div className="flex justify-between text-xs font-bold text-violet-700">
               <span>{qLabel(q)}.</span>
-              <span>{q.points} pts</span>
+              {showPts && <span>{q.points} pts</span>}
             </div>
             <p className="text-sm font-bold text-[#231D35] leading-relaxed">{promptWithStem(q, questions)}</p>
             {renderInputControl(

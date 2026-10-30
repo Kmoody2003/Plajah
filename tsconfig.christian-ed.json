@@ -51,6 +51,10 @@
     "services/organizationService.ts",
     "components/desk/DeskView.tsx",
     "components/WorksheetFillable.tsx",
-    "services/documentImport.ts"
+    "services/documentImport.ts",
+    "services/classForum.ts",
+    "services/documentLayout.ts",
+    "components/church/TelaDocumentPreviewModal.tsx",
+    "components/desk/LayoutPages.tsx"
   ]
 }

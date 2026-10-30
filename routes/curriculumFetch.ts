@@ -26,7 +26,9 @@ export function resolveCurriculumUrl(raw: string): string | null {
   const docMatch = u.pathname.match(/^\/document\/d\/([\w-]{10,})/);
   if (u.hostname === 'docs.google.com' && docMatch) {
     const tab = u.searchParams.get('tab');
-    return `https://docs.google.com/document/d/${docMatch[1]}/export?format=txt${tab ? `&tab=${encodeURIComponent(tab)}` : ''}`;
+    // Plain text by default; the HTML export when asked for (the importer reads tables from it).
+    const format = u.searchParams.get('format') === 'html' ? 'html' : 'txt';
+    return `https://docs.google.com/document/d/${docMatch[1]}/export?format=${format}${tab ? `&tab=${encodeURIComponent(tab)}` : ''}`;
   }
   const form = u.pathname.match(/^\/forms\/d\/(e\/)?([\w-]{10,})/);
   if (u.hostname === 'docs.google.com' && form) return `https://docs.google.com/forms/d/${form[1] || ''}${form[2]}/viewform`;
