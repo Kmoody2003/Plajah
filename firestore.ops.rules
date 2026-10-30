@@ -53,6 +53,9 @@ service cloud.firestore {
     function isAuthenticated() {
       return request.auth != null;
     }
+    function isRegisteredUser() {
+      return isAuthenticated() && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
     // PLATFORM admin = the owner and designated staff ONLY. Org / business / school admins
     // (organizations/{id}.admins, orgMemberships, business staff roles …) are separate and
     // never make someone a platform admin.

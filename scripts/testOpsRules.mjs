@@ -195,6 +195,14 @@ t('live doc: not for someone else', 'DENY', OTHER, 'create', HD, { data: { uid: 
 t('live doc: signed out cannot raise a hand', 'DENY', null, 'create', HD, { data: { uid: MEMBER, name: 'M', rev: 1, at: 1 } });
 t('live doc: the presenter clears a hand', 'ALLOW', TEACH, 'delete', HD, { existing: { uid: MEMBER, rev: 1 } });
 
+const SP = `${DB}/scheduled_posts/sp1`;
+const sched = (o) => ({ authorId: MEMBER, publishAt: 1, status: 'PENDING', post: { text: 'hi' }, ...o });
+t('scheduled post: the author schedules one', 'ALLOW', MEMBER, 'create', SP, { data: sched() });
+t('scheduled post: not as someone else', 'DENY', OTHER, 'create', SP, { data: sched() });
+t('scheduled post: signed out cannot', 'DENY', null, 'create', SP, { data: sched() });
+t('scheduled post: the author reads it', 'ALLOW', MEMBER, 'get', SP, { existing: sched() });
+t('scheduled post: nobody else reads it', 'DENY', OTHER, 'get', SP, { existing: sched() });
+
 const body = {
   source: { files: [{ name: 'firestore.rules', content: src }] },
   testSuite: {
