@@ -102,47 +102,25 @@ const LECTURE_KEY = (classId: string) => `plajah_cls_club_lecture_v1_${classId}`
 
 // ── 1. Classroom Social Feed (Club-Model Timeline Confined to Teacher & Class) ──
 
-export function loadClassroomPosts(
-  classId: string,
-  defaults?: { teacherName: string; className: string; contextKind: ClassroomContextKind }
-): ClassroomSocialPost[] {
+// Earlier builds wrote sample content into every class the first time it opened: a welcome post
+// in the teacher's name with a comment from an invented student, and two stock photos captioned as
+// class work. Real classes show only what real people posted, so those items are dropped on load.
+const isSeedPost = (p: ClassroomSocialPost) => typeof p?.id === 'string' && p.id.startsWith('cpost_seed_');
+const isSeedPhoto = (p: ClassroomPhotoItem) => typeof p?.id === 'string' && p.id.startsWith('cphoto_seed_');
+
+export function loadClassroomPosts(classId: string): ClassroomSocialPost[] {
   try {
     const raw = localStorage.getItem(POSTS_KEY(classId));
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) {
+        const real = parsed.filter(p => !isSeedPost(p));
+        if (real.length !== parsed.length) saveClassroomPosts(classId, real);
+        return real;
+      }
     }
   } catch {}
-
-  if (!defaults) return [];
-  const seeded: ClassroomSocialPost[] = [
-    {
-      id: `cpost_seed_1_${classId}`,
-      classId,
-      authorUid: 'teacher_seed',
-      authorName: defaults.teacherName,
-      authorRole: 'TEACHER',
-      text:
-        defaults.contextKind === 'CHRISTIAN_EDUCATION'
-          ? `Welcome to the ${defaults.className} Classroom Club! Post your Scripture observations, memory-verse recordings, and questions here. During our live lecture, use the ✋ Raise Hand button to come on camera or audio mic to answer!`
-          : `Welcome to ${defaults.className}! Use this classroom social feed to share project updates, study notes, and questions. When we go live for lecture, tap ✋ Raise Hand to join the stage or solve on the digital whiteboard.`,
-      pinned: true,
-      likes: ['student_1', 'student_2'],
-      comments: [
-        {
-          id: `ccom_seed_1`,
-          authorUid: 'student_1',
-          authorName: 'Maya Lin',
-          authorRole: 'STUDENT',
-          text: 'Excited for today’s interactive Tela lesson and live whiteboard session!',
-          createdAt: Date.now() - 1800_000,
-        },
-      ],
-      createdAt: Date.now() - 3600_000,
-    },
-  ];
-  saveClassroomPosts(classId, seeded);
-  return seeded;
+  return [];
 }
 
 export function saveClassroomPosts(classId: string, posts: ClassroomSocialPost[]): void {
@@ -219,39 +197,19 @@ export function addClassroomPostComment(
 
 // ── 2. Classroom Photos & Whiteboard Gallery ─────────────────────────────────
 
-export function loadClassroomPhotos(classId: string, teacherName = 'Instructor'): ClassroomPhotoItem[] {
+export function loadClassroomPhotos(classId: string): ClassroomPhotoItem[] {
   try {
     const raw = localStorage.getItem(PHOTOS_KEY(classId));
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) {
+        const real = parsed.filter(p => !isSeedPhoto(p));
+        if (real.length !== parsed.length) saveClassroomPhotos(classId, real);
+        return real;
+      }
     }
   } catch {}
-
-  const seeded: ClassroomPhotoItem[] = [
-    {
-      id: `cphoto_seed_1_${classId}`,
-      classId,
-      url: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=900&q=80',
-      caption: 'Classroom Whiteboard & Key Diagram Notes',
-      uploadedByUid: 'teacher_seed',
-      uploadedByName: teacherName,
-      uploadedByRole: 'TEACHER',
-      createdAt: Date.now() - 86400_000,
-    },
-    {
-      id: `cphoto_seed_2_${classId}`,
-      classId,
-      url: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=900&q=80',
-      caption: 'Interactive Study Guide & Annotated Passage',
-      uploadedByUid: 'teacher_seed',
-      uploadedByName: teacherName,
-      uploadedByRole: 'TEACHER',
-      createdAt: Date.now() - 43200_000,
-    },
-  ];
-  saveClassroomPhotos(classId, seeded);
-  return seeded;
+  return [];
 }
 
 export function saveClassroomPhotos(classId: string, photos: ClassroomPhotoItem[]): void {

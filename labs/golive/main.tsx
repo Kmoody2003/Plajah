@@ -90,7 +90,9 @@ function Talk() {
 
 const LAB_ROOM: any = { id: 'lab-room', type: 'GROUP', name: 'Lab call', participants: ['lab-host', 'lab-viewer'], ownerId: 'lab-host', updatedAt: Date.now() };
 const VideoChat = React.lazy(() => import('../../components/VideoChat'));
-const ClassHub = React.lazy(() => import('../../components/classroom/SharedClassroomClubHub').then(m => ({ default: m.SharedClassroomClubHub })));
+// The class feed's post composer needs the app's FediverseProvider.
+const ClassHub = React.lazy(() => Promise.all([import('../../components/classroom/SharedClassroomClubHub'), import('../../contexts/FediverseContext')])
+  .then(([m, f]) => ({ default: (p: any) => <f.FediverseProvider><m.SharedClassroomClubHub {...p} /></f.FediverseProvider> })));
 const MasterControl = React.lazy(() => import('../../components/ChurchMasterControl'));
 const HuddleDock = React.lazy(() => import('../../components/meetings/Huddle').then(m => ({ default: m.HuddleDock })));
 const CollabCall = React.lazy(() => import('../../components/collab/CollabCall').then(m => ({ default: m.CollabCall })));

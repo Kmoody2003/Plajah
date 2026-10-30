@@ -132,13 +132,13 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
 
   // ── 1. Classroom Social Feed State ──
   const [posts, setPosts] = useState<ClassroomSocialPost[]>(() =>
-    loadClassroomPosts(classId, { teacherName, className, contextKind })
+    loadClassroomPosts(classId)
   );
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
 
   // ── 2. Classroom Photos Gallery State ──
   const [photos, setPhotos] = useState<ClassroomPhotoItem[]>(() =>
-    loadClassroomPhotos(classId, teacherName)
+    loadClassroomPhotos(classId)
   );
   const [photoCaption, setPhotoCaption] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -174,8 +174,8 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   const currentStrokeRef = useRef<WhiteboardStroke | null>(null);
 
   useEffect(() => {
-    setPosts(loadClassroomPosts(classId, { teacherName, className, contextKind }));
-    setPhotos(loadClassroomPhotos(classId, teacherName));
+    setPosts(loadClassroomPosts(classId));
+    setPhotos(loadClassroomPhotos(classId));
     setLecture(isTeacher ? loadLectureSession(classId, lectureDefaults) : blankLectureSession(classId, lectureDefaults));
   }, [classId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1539,6 +1539,15 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
           </div>
 
           <div className="space-y-3">
+            {posts.length === 0 && (
+              <div className="rounded-3xl border border-dashed border-white/15 p-8 text-center">
+                <MessagesSquare size={22} className="mx-auto text-white/25 mb-2" />
+                <p className="text-sm font-bold text-white/70">No posts yet</p>
+                <p className="text-xs text-white/45 mt-1">
+                  {isTeacher ? 'Post an announcement or a question to start the class feed.' : 'When your teacher or classmates post, it shows up here.'}
+                </p>
+              </div>
+            )}
             {[...posts]
               .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.createdAt - a.createdAt)
               .map(post => {
@@ -1754,6 +1763,13 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
             </div>
           </div>
 
+          {photos.length === 0 && (
+            <div className="rounded-3xl border border-dashed border-white/15 p-8 text-center">
+              <ImageIcon size={22} className="mx-auto text-white/25 mb-2" />
+              <p className="text-sm font-bold text-white/70">No photos yet</p>
+              <p className="text-xs text-white/45 mt-1">Upload a class photo, or save a lecture whiteboard to keep it here.</p>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {photos.map(ph => (
               <div
