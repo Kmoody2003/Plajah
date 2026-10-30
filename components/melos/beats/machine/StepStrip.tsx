@@ -2,6 +2,8 @@
 // Click toggles a step; vertical drag on an active step shapes its velocity; the playhead
 // sweeps in cyan. Patterns longer than 16 page with the bar selector.
 
+import { assistKeys } from '../../../../services/melos/beats/chordAssist';
+import { padBaseNote } from '../../../../services/melos/beats/noteFx';
 import React, { useCallback, useRef, useState } from 'react';
 import type { GrooveDoc, Pattern } from '../../../../services/melos/beats/grooveDoc';
 import { ARMED, PLAYHEAD, SURFACE_CELL } from '../theme';
@@ -32,6 +34,16 @@ export const StepStrip: React.FC<StepStripProps> = ({ doc, pattern, selectedPad,
       const pat = d.patterns.find((p) => p.id === pattern.id);
       if (!pat) return;
       const row = pat.steps[selectedPad] || (pat.steps[selectedPad] = {});
+      // Auto-chord: on an instrument pad a step is a chord in the key, on the pad's note lane.
+      const pad = d.kit[selectedPad];
+      const base = padBaseNote(d, selectedPad);
+      const semis = pad?.source === 'instrument' && !row[stepIdx] ? assistKeys(d, base).map((k) => k - base) : [0];
+      if (semis.length > 1) {
+        const lane = (pat.melo ??= {})[selectedPad] ??= {};
+        if (lane[stepIdx]?.length) delete lane[stepIdx];
+        else lane[stepIdx] = semis.map((semi) => ({ semi, v: 100, len: 1 }));
+        return;
+      }
       if (row[stepIdx]) delete row[stepIdx];
       else row[stepIdx] = { v: 100 };
     });

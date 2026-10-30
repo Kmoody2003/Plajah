@@ -3,17 +3,18 @@
 // nothing has to guess a key from metadata. Scale ids are theory.ts SCALES ids.
 
 import type { GrooveDoc, SongKey } from './grooveDoc';
-import { NOTE_NAMES_FLAT, NOTE_NAMES_SHARP, nameToPc, scaleById, scalePitchClasses } from '../theory';
+import { NOTE_NAMES_FLAT, NOTE_NAMES_SHARP, SCALES, nameToPc, scaleById, scalePitchClasses } from '../theory';
 
 export const DEFAULT_SONG_KEY: SongKey = { tonic: 0, scale: 'major' };
 
 // Keys conventionally spelled with flats (tonic pc → prefer flats) for major / minor families.
 const FLAT_MAJOR = new Set([5, 10, 3, 8, 1, 6]);   // F Bb Eb Ab Db Gb
 const FLAT_MINOR = new Set([2, 7, 0, 5, 10, 3]);   // D G C F Bb Eb minor
-const MINORISH = new Set(['minor', 'dorian', 'phrygian', 'harmonic-minor', 'locrian', 'minor-pent', 'blues']);
 
 export function prefersFlats(k: SongKey): boolean {
-  return MINORISH.has(k.scale) ? FLAT_MINOR.has(k.tonic) : FLAT_MAJOR.has(k.tonic);
+  // Minor-ish = a minor third and no major third, so the whole library spells itself.
+  const iv = scaleById(k.scale).intervals;
+  return iv.includes(3) && !iv.includes(4) ? FLAT_MINOR.has(k.tonic) : FLAT_MAJOR.has(k.tonic);
 }
 
 export function tonicName(k: SongKey): string {
@@ -37,6 +38,9 @@ export function parseKey(text: string | undefined | null): SongKey | null {
   const tonic = nameToPc(letter + acc) ?? 0;
   const rest = m[3].trim().toLowerCase();
   let scale = 'major';
+  // A full scale name from the library wins ("D melodic minor", "A raga yaman").
+  const named = SCALES.filter((s) => rest.length > 3 && s.name.toLowerCase().startsWith(rest)).sort((a, b) => a.name.length - b.name.length)[0];
+  if (named && !/^(minor|major)$/.test(rest)) return { tonic, scale: named.id };
   if (/harmonic/.test(rest)) scale = 'harmonic-minor';
   else if (/pent/.test(rest)) scale = /min|^m/.test(rest) ? 'minor-pent' : 'major-pent';
   else if (/dorian/.test(rest)) scale = 'dorian';

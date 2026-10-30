@@ -9,6 +9,7 @@ import wasmUrl from './dsp/plajah_audio.wasm?url';
 import workletUrl from './instrumentProcessor.worklet.js?url';
 import { selectZones, type KeraProgram } from '../../instruments/kera/zones';
 import { DEEP_VARIANTS, deepVelBucket, lookupDeep, requestDeep, somaDeepSupported, somaParamsKey, type DeepHit } from '../../instruments/soma/deep/somaDeep';
+import { modCapture } from '../modulators';
 
 /** Envelope seconds → the engine's normalised 0..1 (inverse of env_time in params.rs: 0.001 + 12·n³). */
 function secToNorm(sec: number): number {
@@ -80,6 +81,8 @@ export interface InstrumentOptions {
  */
 export class Instrument {
   readonly node: AudioWorkletNode;
+  /** The track this plays, so a touched control can be traced back to it (modulators.ts). */
+  trackId = '';
   readonly analyser: AnalyserNode | null = null;
   private readonly outGain: GainNode | null = null;
   private disposed = false;
@@ -434,7 +437,24 @@ export class Instrument {
     return this.readyPromise;
   }
 
+  /** Frame-stamped parameter writes: land inside the block at `frame`, live or in a bounce. */
+  paramsAt(frame: number, entries: Array<[number, number]>): void {
+    if (!entries.length) return;
+    this.post({ type: 'paramsAt', frame, ids: Int32Array.from(entries.map((e) => e[0])), values: Float32Array.from(entries.map((e) => e[1])) });
+  }
+
+  /** A modulator's write: reaches the engine but leaves the stored sound alone, so the patch keeps
+   *  its base value (and SOMA's per-sound cache isn't invalidated by a moving knob). */
+  modParam(id: number, value: number): void {
+    this.post({ type: 'param', id, value });
+  }
+
+  private captureWrite(id: number, value: number): void {
+    if (modCapture.active) modCapture.writes.push({ trackId: this.trackId, id, before: this.params.get(id) ?? value, after: value });
+  }
+
   setParam(id: number, value: number): void {
+    this.captureWrite(id, value);
     this.params.set(id, value);
     this.paramsKeyMemo = null;
     this.post({ type: 'param', id, value });
@@ -443,7 +463,10 @@ export class Instrument {
   /** Bulk apply — one message instead of hundreds when loading a preset. */
   setParams(entries: Array<[number, number]>): void {
     if (!entries.length) return;
-    for (const [id, v] of entries) this.params.set(id, v);
+    for (const [id, v] of entries) {
+      if (modCapture.active && this.params.get(id) !== v) this.captureWrite(id, v);
+      this.params.set(id, v);
+    }
     this.paramsKeyMemo = null;
     this.post({
       type: 'params',
@@ -453,6 +476,7 @@ export class Instrument {
   }
 
   setMacro(index: number, value: number): void {
+    if (modCapture.active) modCapture.messages.push({ trackId: this.trackId, target: { kind: 'macro', index } });
     this.post({ type: 'macro', index, value });
   }
 
@@ -466,10 +490,12 @@ export class Instrument {
   }
 
   setModWheel(v: number): void {
+    if (modCapture.active) modCapture.messages.push({ trackId: this.trackId, target: { kind: 'mod-wheel' } });
     this.modWheelValue = Math.max(0, Math.min(1, v));
     this.post({ type: 'modWheel', value: this.modWheelValue });
   }
   setPitchBend(v: number): void {
+    if (modCapture.active) modCapture.messages.push({ trackId: this.trackId, target: { kind: 'pitch-bend' } });
     this.pitchBendValue = Math.max(-1, Math.min(1, v));
     this.post({ type: 'pitchBend', value: this.pitchBendValue });
   }

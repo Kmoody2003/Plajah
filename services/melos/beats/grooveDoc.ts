@@ -16,8 +16,15 @@ export interface SampleRef {
   lockerUrl?: string;   // durable copy in the private locker — re-hydrates an OPFS miss
 }
 
+import type { NoteFxDevice } from './noteFx';
+import type { ChordAssist } from './chordAssist';
+import type { Modulator } from './modulators';
+
 export interface PadConfig {
   id: string;
+  /** One-shot pads' note FX (noteFx.ts). An instrument pad's live on its instrument. */
+  arp?: Record<string, unknown>;
+  noteFx?: NoteFxDevice[];
   name: string;
   color: string;
   source: 'sample' | 'synth' | 'instrument';
@@ -437,6 +444,8 @@ export interface TrackInstrument {
   presetName?: string;
   /** Serialized ArpPatch. Loosely typed for the same reason as `patch`. */
   arp?: Record<string, unknown>;
+  /** The rest of the note-FX chain (noteFx.ts) — runs on drawn notes, steps and played notes. */
+  noteFx?: NoteFxDevice[];
   /** type 'kera' — a SerializedKeraProgram: zones + amp + sample refs (PCM lives in the owner's
    *  OPFS/locker, not in this doc). Loosely typed so grooveDoc stays engine-agnostic. */
   kera?: Record<string, unknown>;
@@ -579,6 +588,10 @@ export interface GrooveDoc {
   meter?: MeterChange[];
   /** The project key — read by the piano roll, hum transcription, generators and the council. */
   key?: SongKey;
+  /** Auto-chord: one note drawn or played becomes a chord in the key (chordAssist.ts). */
+  chordAssist?: ChordAssist;
+  /** Parameter animation: every modulator in the song, each attached to its target (modulators.ts). */
+  modulators?: Modulator[];
   /** MEKA scenes: one pattern per Group, launched together (Maschine scenes / MPC sequences). */
   scenes?: Scene[];
   /** The song as scene sections in order (Maschine Song view). They write the Group tracks. */

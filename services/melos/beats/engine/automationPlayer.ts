@@ -15,7 +15,7 @@ export type ParamName = 'volume' | 'pan' | 'send0' | 'send1';
 /** Volume lanes interpolate in dB; densify so the linear-gain ramps follow the dB curve. */
 const VOLUME_STEP = 1 / 8;
 
-const paramOf = (graph: BeatsGraph, trackId: string, t: AutomationTarget): AudioParam | null => {
+export const paramOf = (graph: BeatsGraph, trackId: string, t: AutomationTarget): AudioParam | null => {
   const strip = graph.tracks.get(trackId);
   if (!strip) return null;
   if (t.kind === 'volume') return strip.gain.gain;
@@ -25,23 +25,29 @@ const paramOf = (graph: BeatsGraph, trackId: string, t: AutomationTarget): Audio
   return null;
 };
 
-const toParamValue = (t: AutomationTarget, v: number) =>
+export const toParamValue = (t: AutomationTarget, v: number) =>
   t.kind === 'volume' ? laneDbToGain(v) : t.kind === 'pan' ? Math.max(-1, Math.min(1, v)) : t.kind === 'send' ? Math.max(0, Math.min(2, v)) : Math.max(0, v);
 
 export class AutomationPlayer {
   private lanes = new Map<string, Map<string, TrackAutomationLane>>();
   private sent = new Map<string, number>(); // message targets: last value sent (track:key)
+  // Targets a modulator is moving: it owns them, so lanes and static values stand aside.
+  private modOwned = new Set<string>();
+  private owned = (trackId: string, t: AutomationTarget) => this.modOwned.has(`${trackId}:${targetKey(t)}`);
 
   /** Recompute the effective lanes (track lanes + clip CC lanes) — call on every doc change. */
   refresh(doc: GrooveDoc): void {
     this.lanes = docEffectiveLanes(doc);
+    this.modOwned.clear();
+    for (const m of doc.modulators ?? []) {
+      if (m.on && m.target.kind === 'track') this.modOwned.add(`${m.target.trackId}:${targetKey(m.target.target)}`);
+    }
   }
 
   /** For graph.applyDoc: params a lane owns. */
   automated = (trackId: string, param: ParamName): boolean => {
-    const l = this.lanes.get(trackId);
-    if (!l) return false;
-    return l.has(param === 'volume' ? 'volume' : param === 'pan' ? 'pan' : param === 'send0' ? 'send:0' : 'send:1');
+    const key = param === 'volume' ? 'volume' : param === 'pan' ? 'pan' : param === 'send0' ? 'send:0' : 'send:1';
+    return this.modOwned.has(`${trackId}:${key}`) || !!this.lanes.get(trackId)?.has(key);
   };
 
   lanesFor(trackId: string): Map<string, TrackAutomationLane> | undefined { return this.lanes.get(trackId); }
@@ -57,7 +63,7 @@ export class AutomationPlayer {
       if (!track) continue;
       const audible = trackAudible(doc, track);
       for (const lane of lanes.values()) {
-        if (!isParamTarget(lane.target)) continue;
+        if (!isParamTarget(lane.target) || this.owned(trackId, lane.target)) continue;
         const param = paramOf(graph, trackId, lane.target);
         if (!param) continue;
         try { param.cancelScheduledValues(atTime); } catch { /* */ }
@@ -84,7 +90,7 @@ export class AutomationPlayer {
       const track = doc.arrangement.find((t) => t.id === trackId);
       if (!track) continue;
       for (const lane of lanes.values()) {
-        if (!isParamTarget(lane.target)) continue;
+        if (!isParamTarget(lane.target) || this.owned(trackId, lane.target)) continue;
         const param = paramOf(graph, trackId, lane.target);
         if (!param) continue;
         try { param.cancelScheduledValues(now); } catch { /* */ }
@@ -126,7 +132,7 @@ export class AutomationPlayer {
   sendMessages(beat: number, send: (track: ArrangeTrack | undefined, trackId: string, t: AutomationTarget, v: number) => boolean, doc: GrooveDoc): void {
     for (const [trackId, lanes] of this.lanes) {
       for (const lane of lanes.values()) {
-        if (!isMessageTarget(lane.target)) continue;
+        if (!isMessageTarget(lane.target) || this.owned(trackId, lane.target)) continue;
         const v = laneValueAt(lane, beat);
         if (v === undefined) continue;
         const k = `${trackId}:${targetKey(lane.target)}`;

@@ -65,6 +65,7 @@ import { VoicePanel } from './voice/VoicePanel';
 import { MenuBar, type MenuGroup } from './shared/MenuBar';
 import { useHasStudioMenuBar, StudioMenuPublisher } from '../StudioMenus';
 import { InstrumentWindow } from './instrument/InstrumentWindow';
+import { ModulatorHost } from './assist/ModulatorHost';
 import { DiagnosticsReadout } from './shared/DiagnosticsReadout';
 import { MidiLearnPanel } from './shared/MidiLearnPanel';
 import { midiStatus } from '../../../services/melos/midiInput';
@@ -593,7 +594,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           if (padTrack) {
             const semi = action.note - ((selPad.instrumentNote ?? 60) + (selPad.pitchSemis || 0));
             midiPadNotes.current.set(action.note, { pad: selIdx, semi });
-            void engine.init().then(() => engine.padDownPitched(selIdx, action.velocity, semi, true));
+            void engine.init().then(() => engine.padDownPitched(selIdx, action.velocity, semi, true, true));
             midiSendNoteOn(action.note, action.velocity);
             break;
           }
@@ -610,7 +611,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           midiSendNoteOn(action.note, action.velocity);
           // Hardware takes record through the SAME path as the QWERTY keyboard.
           if (recordingRef.current && engine.isRunning()) {
-            midiRec.current.set(action.note, { key: action.note, vel: action.velocity, startBeats: engine.posBeats() });
+            midiRec.current.set(action.note, { key: action.note, vel: action.velocity, startBeats: engine.posBeats(), keys: engine.liveKeysFor(target, action.note) });
           }
           break;
         }
@@ -1770,6 +1771,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       )}
 
       {showMidi && <MidiLearnPanel onClose={() => setShowMidi(false)} />}
+      <ModulatorHost doc={doc} onMutate={mutate} />
       {showInputs && <HardwareInputsPanel doc={doc} mutate={mutate} recording={recording} onClose={() => setShowInputs(false)} />}
       {showVoice && <VoicePanel doc={doc} mutate={mutate} isRecording={() => recordingRef.current} onClose={() => setShowVoice(false)} />}
 

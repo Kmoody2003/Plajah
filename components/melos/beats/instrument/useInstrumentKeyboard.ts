@@ -19,6 +19,8 @@ const KEY_MAP: Record<string, number> = {
 };
 
 export interface RecordedNote {
+  /** Every note the press played, when auto-chord made it more than one. */
+  keys?: number[];
   key: number;
   vel: number;
   startBeats: number;
@@ -77,7 +79,7 @@ export function useInstrumentKeyboard(opts: KeyboardOptions): void {
       });
 
       if (o.recording && o.running) {
-        recorded.current.set(note, { key: note, vel, startBeats: o.posBeats() });
+        recorded.current.set(note, { key: note, vel, startBeats: o.posBeats(), keys: engine.liveKeysFor(o.armedTrack, note) });
       }
     };
 
@@ -135,6 +137,11 @@ export function commitRecordedNote(
   endBeats: number,
   onMutate: (fn: (d: GrooveDoc) => void) => void,
 ): void {
+  // Auto-chord: a press that played a chord records the chord.
+  if (rec.keys && rec.keys.length > 1) {
+    for (const key of rec.keys) commitRecordedNote(trackId, { ...rec, key, keys: undefined }, endBeats, onMutate);
+    return;
+  }
   const lengthBeats = Math.max(0.0625, endBeats - rec.startBeats);
   onMutate((d) => {
     const track = d.arrangement.find((t) => t.id === trackId);

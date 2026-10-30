@@ -12,6 +12,8 @@ import { songTime } from '../tempoMap';
 import { noteOccurrences } from '../clipContent';
 import { effectiveLanesFor, sustainedEnd } from '../automation';
 import { patternGroup } from '../songSections';
+import { notesInWindow, padBaseNote, padChain, padPassNotes, trackChain, trackPerformedNotes, type FxNote, type PadNoteData, type ResolvedChain } from '../noteFx';
+import type { ParamLock } from '../../arp';
 
 /** Channel solo: while any pad is soloed, the others sit out of the sequence. */
 const soloOut = (doc: GrooveDoc, padIdx: number) => !doc.kit[padIdx]?.solo && doc.kit.some((p) => p.solo);
@@ -38,10 +40,8 @@ export interface SchedulerDeps {
   startAudioClip(track: ArrangeTrack, clip: TimelineClip, when: number, offsetIntoClipSec: number): void;
   /** Instrument tracks: one MIDI note, at an absolute context time, for `durSec`. */
   startInstrumentNote(track: ArrangeTrack, note: NoteEvent, when: number, durSec: number): void;
-  /** Fire an armed arp for this track+step. Called for EVERY step in both play modes. */
-  runArp?(track: ArrangeTrack, stepIndex: number, beat: number): void;
-  /** Is this track's arp enabled? Used to skip its clip notes so they don't double the arp. */
-  arpActive?(track: ArrangeTrack): boolean;
+  /** A note-FX step lock: hold these engine parameters from `when` to `until`. */
+  paramLocks?(trackId: string, when: number, until: number, locks: ParamLock[]): void;
   /** Song-mode loop region. When on, scheduling stops at endBeats and the engine re-seeks to
    *  startBeats — so nothing past the loop is ever queued. Null/off = play straight through. */
   loop?(): { on: boolean; startBeats: number; endBeats: number } | null;
@@ -81,6 +81,8 @@ export class StepScheduler {
   private nextStep = 0;                       // monotonic global 16th index from transport zero
   private startedAudioClips = new Set<string>();
   private running = false;
+  // One pass of a pad's lane through its note FX, kept while that pass plays (noteFx.ts).
+  private padPasses = new Map<string, { pass: number; v: number; notes: FxNote[] }>();
 
   constructor(private deps: SchedulerDeps) {}
 
@@ -90,6 +92,7 @@ export class StepScheduler {
     this.queued = null;
     this.nextStep = Math.ceil(fromBeats / STEP_BEATS - 1e-9);
     this.startedAudioClips.clear();
+    this.padPasses.clear();
     this.running = true;
     if (mode === 'song') this.startMidClips(fromBeats);
   }
@@ -157,10 +160,6 @@ export class StepScheduler {
       }
       if (this.mode === 'pattern') this.schedulePatternStep(doc, beat);
       else this.scheduleSongStep(doc, beat, horizonSec);
-      // Arps run in BOTH modes — an armed instrument responds to held keys whether you're
-      // auditioning a pattern or playing the whole song. (Song mode's clip loop skips arped
-      // tracks so they don't double.)
-      this.runArps(doc, beat);
       this.nextStep++;
     }
   }
@@ -197,8 +196,10 @@ export class StepScheduler {
     const d = this.deps;
     const padLen = (padIdx: number) =>
       Math.max(1, Math.min(pattern.length, Math.round(clip.padLens?.[padIdx] ?? pattern.length)));
+    const fxPads = this.firePadFx(doc, pattern, padLen, intoClipSteps, beat);
     for (const padKey of Object.keys(pattern.steps)) {
       const padIdx = Number(padKey);
+      if (fxPads?.has(padIdx)) continue;
       const len = padLen(padIdx);
       const localStep = ((intoClipSteps % len) + len) % len;
       const step = pattern.steps[padIdx]?.[localStep];
@@ -212,6 +213,7 @@ export class StepScheduler {
     if (pattern.melo) {
       for (const padKey of Object.keys(pattern.melo)) {
         const padIdx = Number(padKey);
+        if (fxPads?.has(padIdx)) continue;
         const len = padLen(padIdx);
         const localStep = ((intoClipSteps % len) + len) % len;
         const notes = pattern.melo[padIdx]?.[localStep];
@@ -224,8 +226,10 @@ export class StepScheduler {
 
   private fireRow(doc: GrooveDoc, pattern: Pattern, localStep: number, beat: number) {
     const d = this.deps;
+    const fxPads = this.firePadFx(doc, pattern, () => pattern.length, this.nextStep, beat);
     for (const padKey of Object.keys(pattern.steps)) {
       const padIdx = Number(padKey);
+      if (fxPads?.has(padIdx)) continue;
       const step = pattern.steps[padIdx]?.[localStep];
       if (!step) continue;
       if (step.p !== undefined && step.p < 1 && d.rng() > step.p) continue;
@@ -239,6 +243,7 @@ export class StepScheduler {
     if (pattern.melo) {
       for (const padKey of Object.keys(pattern.melo)) {
         const padIdx = Number(padKey);
+        if (fxPads?.has(padIdx)) continue;
         const notes = pattern.melo[padIdx]?.[localStep];
         if (!notes?.length) continue;
         if (soloOut(doc, padIdx)) continue;
@@ -249,14 +254,43 @@ export class StepScheduler {
     }
   }
 
-  /** Fire every armed instrument arp for this step — runs in pattern AND song mode. */
-  private runArps(doc: GrooveDoc, beat: number) {
+  /**
+   * Pads with note FX play their lane through the chain instead of straight off the row. `steps` is
+   * the absolute 16th count into this lane; returns the pads handled here, or null when none are.
+   */
+  private firePadFx(doc: GrooveDoc, pattern: Pattern, lenOf: (padIdx: number) => number, steps: number, beat: number): Set<number> | null {
+    let handled: Set<number> | null = null;
+    const pads = new Set([...Object.keys(pattern.steps), ...Object.keys(pattern.melo ?? {})].map(Number));
+    for (const padIdx of pads) {
+      const chain = padChain(doc, padIdx);
+      if (!chain) continue;
+      (handled ??= new Set()).add(padIdx);
+      if (soloOut(doc, padIdx)) continue;
+      this.firePadStep(doc, pattern, padIdx, chain, lenOf(padIdx), steps, beat);
+    }
+    return handled;
+  }
+
+  private firePadStep(doc: GrooveDoc, pattern: Pattern, padIdx: number, chain: ResolvedChain, len: number, steps: number, beat: number) {
     const d = this.deps;
-    if (!d.runArp) return;
-    const anySolo = doc.arrangement.some((t) => t.solo);
-    for (const track of doc.arrangement) {
-      if (track.kind !== 'instrument' || track.mute || track.padOwned || (anySolo && !track.solo)) continue;
-      if (d.arpActive?.(track)) d.runArp(track, this.nextStep, beat);
+    const pass = Math.floor(steps / len);
+    const key = `${pattern.id}:${padIdx}:${len}`;
+    let cached = this.padPasses.get(key);
+    if (!cached || cached.pass !== pass || cached.v !== doc.updatedAt) {
+      cached = { pass, v: doc.updatedAt, notes: padPassNotes(doc, pattern, padIdx, chain, len, pass, d.rng) };
+      this.padPasses.set(key, cached);
+    }
+    const at = steps * STEP_BEATS;
+    const base = padBaseNote(doc, padIdx);
+    const trackId = doc.kit[padIdx]?.source === 'instrument' ? doc.kit[padIdx].instrumentTrackId : undefined;
+    for (const n of notesInWindow(cached.notes, at, at + STEP_BEATS)) {
+      const data = n.data as PadNoteData | undefined;
+      const start = beat + (n.beat - at);
+      const when = d.toTime(start);
+      const gate = !data?.isStep || padHolds(doc, padIdx) ? d.secBetween(start, start + n.len) : undefined;
+      // A chain that stacks notes must not choke its own chord.
+      d.trigger(padIdx, n.vel, when, gate, n.key - base, data?.pan, data?.fx, !data?.isStep || chain.pitch.length > 0 || !!chain.arp, data?.mods);
+      if (n.locks?.length && trackId) d.paramLocks?.(trackId, when, d.toTime(start + n.len), n.locks);
     }
   }
 
@@ -297,9 +331,17 @@ export class StepScheduler {
     const anySoloTrack = doc.arrangement.some((t) => t.solo);
     for (const track of doc.arrangement) {
       if (track.kind !== 'instrument' || track.mute || track.padOwned || (anySoloTrack && !track.solo)) continue;
-      // Arps are fired by runArps() (both modes); when a track's arp is active its clip notes
-      // are skipped so an arped performance doesn't double against a recording.
-      if (d.arpActive?.(track)) continue;
+      // Note FX: this track plays its clip notes after the chain (worked out once per edit).
+      const chain = trackChain(track);
+      if (chain) {
+        for (const n of notesInWindow(trackPerformedNotes(doc, track, chain), beat, beat + STEP_BEATS)) {
+          const src = n.data as NoteEvent | undefined;
+          const when = d.toTime(n.beat);
+          d.startInstrumentNote(track, { id: src?.id ?? '', ...src, key: n.key, vel: n.vel, startBeats: n.beat, lengthBeats: n.len }, when, d.secBetween(n.beat, n.beat + n.len));
+          if (n.locks?.length) d.paramLocks?.(track.id, when, d.toTime(n.beat + n.len), n.locks);
+        }
+        continue;
+      }
       const sustain = effectiveLanesFor(doc, track).get('sustain');
       for (const clip of track.clips) {
         if (!clip.notes?.length) continue;

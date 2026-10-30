@@ -13,6 +13,7 @@ import {
   listPresets, applyPresetToDoc, pushTrackPatch, saveUserPreset, deleteUserPreset, type PresetEntry,
 } from '../../../../services/melos/beats/presetHub';
 import { ARMED, SURFACE } from '../theme';
+import { NoteFxRack } from '../assist/NoteFxRack';
 
 interface Geometry { x: number; y: number; w: number; h: number }
 
@@ -68,6 +69,7 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
   const accent = instrumentColor(type);
   const label = instrumentLabel(type);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [noteFxOpen, setNoteFxOpen] = useState(false);
 
   const [geo, setGeo] = useState<Geometry>(() => {
     const saved = loadGeo(type);
@@ -254,6 +256,13 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
           >Mine</button>
         )}
 
+        <button
+          onClick={() => setNoteFxOpen((v) => !v)}
+          aria-pressed={noteFxOpen}
+          className="h-7 px-2 rounded-lg border text-[10px]"
+          style={noteFxOpen || track.instrument?.noteFx?.length ? { borderColor: '#FF8C00', color: '#FF8C00', background: 'rgba(255,140,0,0.1)' } : { borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.45)' }}
+          title="Note FX: arp, gate, chord, echo and more, on drawn notes, steps and playing"
+        >Note FX</button>
         {track.padOwned ? (
           <span className="h-7 px-2 rounded-lg border border-white/12 flex items-center text-[10px] text-white/50"
             title="This instrument belongs to a MEKA pad — play it from the pad (Keys mode, or select the pad and play your keyboard)"
@@ -271,6 +280,8 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
           <X size={13} />
         </button>
       </div>
+
+      {noteFxOpen && <div className="flex-none p-2 border-b border-white/10 max-h-[45%] overflow-y-auto"><NoteFxRack doc={doc} target={{ trackId: track.id }} onMutate={onMutate} /></div>}
 
       {/* user-preset manager drawer */}
       {manageOpen && (

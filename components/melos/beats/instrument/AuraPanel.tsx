@@ -327,91 +327,13 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
       };
     }
 
-    const bpm = Math.max(40, Math.min(240, doc.bpm || 120));
-    const beatMs = 60000 / bpm;
-    const rateMul = arpRate === '1/4' ? 1
-      : arpRate === '1/8' ? 0.5
-      : arpRate === '1/8T' ? 1 / 3
-      : arpRate === '1/16T' ? 1 / 6
-      : 0.25; // '1/16'
-    const stepMs = Math.max(50, beatMs * rateMul);
-    const gateMs = Math.max(28, stepMs * Math.max(0.18, Math.min(0.92, arpGate)));
-
-    let idx = 0;
-    let gateTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const tick = () => {
-      const notes = heldNotesRef.current;
-      if (!notes || notes.length === 0) return;
-      const steps = patchRef.current?.arp?.steps?.length
-        ? patchRef.current.arp.steps
-        : [0, 7, 12, 7, 0, 10, 7, 12];
-      const stepIdx = idx % steps.length;
-      setActiveSeqStep(stepIdx);
-
-      const sorted = [...notes].sort((a, b) => a - b);
-      let note = sorted[0];
-
-      if (arpMode === 'seq' || sorted.length === 1) {
-        // Classic Moog 960 / Synthi AKS 8-stage semitone sequence anchored to root note
-        const root = sorted[0];
-        let offset = steps[stepIdx] ?? 0;
-        if (arpMode === 'octave') {
-          offset = (stepIdx % Math.max(2, arpOctaves)) * 12;
-        } else if (arpMode === 'down') {
-          offset = steps[(steps.length - 1 - stepIdx) % steps.length] ?? 0;
-        } else if (arpMode === 'upDown') {
-          const cycle = steps.length * 2 - 2;
-          const pos = idx % Math.max(1, cycle);
-          const mirror = pos < steps.length ? pos : cycle - pos;
-          offset = steps[mirror] ?? 0;
-        } else if (arpMode === 'random') {
-          offset = steps[Math.floor(Math.random() * steps.length)] ?? 0;
-        }
-        note = root + offset;
-      } else {
-        // Multi-note chord arpeggiation across octaves
-        const expandedPool: number[] = [];
-        const octCount = Math.max(1, Math.min(3, arpOctaves));
-        for (let o = 0; o < octCount; o++) {
-          for (const n of sorted) expandedPool.push(n + o * 12);
-        }
-        if (arpMode === 'up') {
-          note = expandedPool[idx % expandedPool.length];
-        } else if (arpMode === 'down') {
-          note = expandedPool[(expandedPool.length - 1 - (idx % expandedPool.length))];
-        } else if (arpMode === 'upDown') {
-          const cycle = Math.max(1, expandedPool.length * 2 - 2);
-          const pos = idx % cycle;
-          const mirror = pos < expandedPool.length ? pos : cycle - pos;
-          note = expandedPool[mirror] ?? expandedPool[0];
-        } else if (arpMode === 'octave') {
-          const base = sorted[idx % sorted.length];
-          const oct = Math.floor(idx / sorted.length) % Math.max(2, octCount);
-          note = base + oct * 12;
-        } else {
-          note = expandedPool[Math.floor(Math.random() * expandedPool.length)];
-        }
-      }
-
-      const clampedNote = Math.max(24, Math.min(96, Math.round(note)));
-      const vel = 96 + ((stepIdx % 2 === 0) ? 18 : 0);
-      triggerNoteOn(clampedNote, vel);
-
-      if (gateTimer) clearTimeout(gateTimer);
-      gateTimer = setTimeout(() => {
-        stopCurrentMidiNote();
-      }, gateMs);
-      idx++;
-    };
-
-    tick();
-    const interval = setInterval(tick, stepMs);
-    return () => {
-      clearInterval(interval);
-      if (gateTimer) clearTimeout(gateTimer);
-      stopCurrentMidiNote();
-    };
+    // The arp itself runs in the engine's note-FX chain (drawn notes use the same one), so every
+    // held key just goes in; the chain plays the pattern.
+    const engine = BeatsEngine.get();
+    const trk = trackRef.current;
+    const keys = [...heldNotes];
+    void engine.ensureInstrument(trk).then(() => { for (const k of keys) engine.instrumentNoteOn(trk, k, 110); });
+    return () => { for (const k of keys) engine.instrumentNoteOff(trk, k); };
   }, [
     heldNotes,
     arpEnabled,

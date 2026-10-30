@@ -30,6 +30,9 @@ import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine
 import { songTime } from '../../../../services/melos/beats/tempoMap';
 import { gridCellBeats, snapBeat, type GridDiv, type GridSettings } from '../../../../services/melos/beats/snapGrid';
 import { docKey, keyLabel, keyPitchClasses } from '../../../../services/melos/beats/songKey';
+import { assistKeys, chordHistory, suggestionKeys, type ChordSuggestion } from '../../../../services/melos/beats/chordAssist';
+import { ChordAssistBar } from '../assist/ChordAssistBar';
+import { NoteFxRack } from '../assist/NoteFxRack';
 import { clipLoop, contentExtent, contentPosAt, contentWindows } from '../../../../services/melos/beats/clipContent';
 import { setClipLoop } from '../../../../services/melos/beats/clipEdit';
 import { MIDI_LANE_TARGETS, targetKey, targetSpec } from '../../../../services/melos/beats/automation';
@@ -241,7 +244,45 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
     });
   }, [track]);
 
+  const [fxOpen, setFxOpen] = useState(false);
+  // Next chord lands after whatever's written, on the grid, as long as the chord before it.
+  const lastChord = useMemo(() => {
+    if (!notes.length) return { at: 0, len: 4, around: 60 };
+    const end = Math.max(...notes.map((n) => n.startBeats + n.lengthBeats));
+    const lastStart = Math.max(...notes.map((n) => n.startBeats));
+    const group = notes.filter((n) => Math.abs(n.startBeats - lastStart) < 1e-6);
+    return { at: end, len: Math.max(0.25, Math.max(...group.map((n) => n.lengthBeats))), around: Math.round(group.reduce((a, n) => a + n.key, 0) / group.length) };
+  }, [notes]);
+  const insertChord = (s: ChordSuggestion) => {
+    const keys = suggestionKeys(s, lastChord.around, doc.chordAssist);
+    editNotes((list) => {
+      for (const key of keys) list.push({ id: grooveUid(), startBeats: lastChord.at, lengthBeats: lastChord.len, key: Math.max(LOW, Math.min(HIGH, key)), vel: 100, articulation: defaultArticulation });
+    });
+    if (track) {
+      const engine = BeatsEngine.get();
+      void engine.ensureInstrument(track).then(() => {
+        const inst = engine.getInstrument(track.id);
+        const ctx = engine.getContext();
+        if (!inst || !ctx) return;
+        for (const key of keys) {
+          const id = inst.noteOn(key, 0.75, ctx.currentTime, ctx.currentTime, ctx.sampleRate);
+          setTimeout(() => inst.noteOff(id, true), 450);
+        }
+      });
+    }
+  };
+
   const addNote = (rawKey: number, startBeats: number, free = false, len?: number) => {
+    // Auto-chord: the note drawn is the root of a chord in the key, written as real notes.
+    const keys = assistKeys(doc, lockPitch(rawKey, lock));
+    if (keys.length > 1) {
+      const start = Math.max(0, free ? startBeats : snapRel(startBeats));
+      editNotes((list) => {
+        for (const k of keys) list.push({ id: grooveUid(), startBeats: start, lengthBeats: len ?? lastLen, key: Math.max(LOW, Math.min(HIGH, k)), vel: 100, articulation: defaultArticulation });
+      });
+      for (const k of keys) audition(k);
+      return;
+    }
     const key = lockPitch(rawKey, lock);
     const snapped = Math.max(0, free ? startBeats : snapRel(startBeats));
     const id = grooveUid();
@@ -659,10 +700,14 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
   return (
     <div className="absolute inset-x-0 bottom-0 z-30 border-t border-white/15 bg-[#0A0A0D] flex flex-col" style={{ height: showExprDrawer ? '58%' : '46%' }}>
       {/* Top Toolbar: Mode, Snap, Key/Scale, Quantize, Transpose, Loop, Articulation, Swell, Macros */}
+      <ChordAssistBar doc={doc} onMutate={onMutate} history={chordHistory(notes, songKey)} onInsert={insertChord} />
+      {fxOpen && <div className="flex-none p-1.5 border-b border-white/10 max-h-[40%] overflow-y-auto"><NoteFxRack doc={doc} target={{ trackId }} onMutate={onMutate} /></div>}
       <div className="flex items-center gap-1.5 px-3 h-10 border-b border-white/10 flex-none overflow-x-auto">
         <span className="text-[10px] uppercase tracking-[0.14em] text-white/45 font-semibold whitespace-nowrap">
           {track?.name || 'Clip'}
         </span>
+        <button onClick={() => setFxOpen((v) => !v)} aria-pressed={fxOpen} title="Note FX: arp, gate, chord, echo and more, on this track's notes"
+          className={`h-6 px-2 rounded-md border text-[10px] whitespace-nowrap ${fxOpen || track?.instrument?.noteFx?.length || (track?.instrument?.arp as { enabled?: boolean } | undefined)?.enabled ? 'border-[#FF8C00]/50 text-[#FF8C00] bg-[#FF8C00]/10' : 'border-white/10 text-white/50 hover:text-white'}`}>Note FX</button>
         <span className="text-[10px] text-white/25 whitespace-nowrap">{sel.length ? `${sel.length}/${notes.length}` : notes.length} notes</span>
 
         <div className="flex gap-0.5 bg-white/[0.06] border border-white/10 rounded-lg p-0.5 ml-1">

@@ -7,7 +7,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { GrooveDoc, MeloNote, Pattern } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
-import { CHORDS, chordById } from '../../../../services/melos/theory';
+import { chordById, snapToScale } from '../../../../services/melos/theory';
+import { docKey, keyPitchClasses } from '../../../../services/melos/beats/songKey';
+import { assistKeys, chordHistory, suggestionKeys, type ChordSuggestion } from '../../../../services/melos/beats/chordAssist';
+import { padBaseNote } from '../../../../services/melos/beats/noteFx';
+import { ChordAssistBar } from '../assist/ChordAssistBar';
+import { NoteFxRack } from '../assist/NoteFxRack';
 import { PLAYHEAD, SELECT, SURFACE_CELL } from '../theme';
 import { guessPartRole, performMeloLane, personaFor, playerForPart } from '../../../../services/melos/beats/patterns/performNotes';
 
@@ -41,6 +46,12 @@ interface PitchRollProps {
 export const PitchRoll: React.FC<PitchRollProps> = ({ doc, pattern, selectedPad, beats, running, playMode, onMutate }) => {
   const [open, setOpen] = useState(true);
   const [chordId, setChordId] = useState<string | null>(null); // null = single note
+  const [fxOpen, setFxOpen] = useState(false);
+  const [scaleLock, setScaleLock] = useState(false);
+  const songKey = docKey(doc);
+  const inKey = songKey ? keyPitchClasses(songKey) : null;
+  const base = padBaseNote(doc, selectedPad);
+  const isInstrumentPad = doc.kit[selectedPad]?.source === 'instrument';
   const scrollRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ semi: number; step: number; startX: number; startLen: number; moved: boolean } | null>(null);
 
@@ -99,15 +110,17 @@ export const PitchRoll: React.FC<PitchRollProps> = ({ doc, pattern, selectedPad,
     if (audition) { const engine = BeatsEngine.get(); void engine.init().then(() => engine.trigger(selectedPad, 100)); }
   }, [onMutate, pattern.id, selectedPad]);
 
-  const addNote = useCallback((rootSemi: number, step: number) => {
+  const addNote = useCallback((rawSemi: number, step: number) => {
+    const rootSemi = scaleLock && songKey ? snapToScale(base + rawSemi, songKey.tonic, songKey.scale) - base : rawSemi;
+    const auto = !chordId && isInstrumentPad && !!doc.chordAssist?.on;
     // The base row (semi 0) is the pad's own pitch = a plain drum hit, so a single-note click there
     // toggles the STEP that the step strip shows, keeping both views one truth. Chords/pitched rows
     // go to the melo lane as before.
-    if (!chordId && rootSemi === 0) { toggleStep(step); return; }
+    if (!chordId && !auto && rootSemi === 0) { toggleStep(step); return; }
     // In chord mode, one click drops the whole chord (root + intervals) that fits the roll range.
-    const semis = chordId
-      ? chordById(chordId).intervals.map((iv) => rootSemi + iv).filter((s) => s >= SEMI_BOTTOM && s <= SEMI_TOP)
-      : [rootSemi];
+    const semis = (chordId
+      ? chordById(chordId).intervals.map((iv) => rootSemi + iv)
+      : assistKeys(doc, base + rootSemi).map((k) => k - base)).filter((s) => s >= SEMI_BOTTOM && s <= SEMI_TOP);
     mutateLane((l) => {
       const arr = l[step] || (l[step] = []);
       for (const semi of semis) if (!arr.some((n) => n.semi === semi)) arr.push({ semi, v: 100, len: 1 });
@@ -115,7 +128,21 @@ export const PitchRoll: React.FC<PitchRollProps> = ({ doc, pattern, selectedPad,
     // Audition — the whole chord, so drawing is musical, not clerical. Pitched notes skip choke.
     const engine = BeatsEngine.get();
     void engine.init().then(() => { for (const semi of semis) engine.trigger(selectedPad, 100, undefined, (60 / doc.bpm) * 0.25, semi, undefined, undefined, true); });
-  }, [mutateLane, selectedPad, doc.bpm, chordId, toggleStep]);
+  }, [mutateLane, selectedPad, doc, chordId, toggleStep, scaleLock, songKey, base, isInstrumentPad]);
+
+  // A suggestion lands on the first empty step after what's written, held to the lane's chord length.
+  const insertChord = useCallback((s: ChordSuggestion) => {
+    const lane0 = pattern.melo?.[selectedPad] || {};
+    const used = Object.keys(lane0).map(Number).filter((n) => lane0[n]?.length);
+    const last = used.length ? Math.max(...used) : -1;
+    const len = last >= 0 ? Math.max(1, ...(lane0[last] ?? []).map((n) => n.len)) : 4;
+    const step = last >= 0 ? last + len : 0;
+    if (step >= pattern.length) return;
+    const semis = suggestionKeys(s, base, doc.chordAssist).map((k) => k - base).filter((x) => x >= SEMI_BOTTOM && x <= SEMI_TOP);
+    mutateLane((l) => { l[step] = semis.map((semi) => ({ semi, v: 100, len })); });
+    const engine = BeatsEngine.get();
+    void engine.init().then(() => { for (const semi of semis) engine.trigger(selectedPad, 100, undefined, 0.4, semi, undefined, undefined, true); });
+  }, [mutateLane, pattern, selectedPad, base, doc.chordAssist]);
 
   const removeNote = useCallback((semi: number, step: number) => {
     mutateLane((l) => {
@@ -137,7 +164,18 @@ export const PitchRoll: React.FC<PitchRollProps> = ({ doc, pattern, selectedPad,
         Notes · {pad.name} <span className="text-white/20 normal-case tracking-normal">draw pitched notes — length gates the envelope</span>
       </button>
       {open && (
+        <div className="rounded-lg overflow-hidden border border-white/10 mb-1.5">
+          <ChordAssistBar doc={doc} onMutate={onMutate} onInsert={insertChord}
+            history={chordHistory(Object.entries(lane).flatMap(([s, ch]) => (ch ?? []).map((n) => ({ startBeats: Number(s) / 4, key: base + n.semi }))), songKey)} />
+        </div>
+      )}
+      {open && fxOpen && <div className="mb-1.5"><NoteFxRack doc={doc} target={{ padIdx: selectedPad }} onMutate={onMutate} /></div>}
+      {open && (
         <div className="flex items-center gap-1 mb-1.5 flex-wrap">
+          <button onClick={() => setFxOpen((v) => !v)} aria-pressed={fxOpen} title="Note FX: arp, gate, chord, echo and more, on this pad's steps and notes"
+            className="h-5 px-2 rounded-md text-[9px] font-mono border" style={fxOpen ? { borderColor: '#FF8C00', color: '#FF8C00', background: 'rgba(255,140,0,0.12)' } : { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>Note FX</button>
+          {songKey && <button onClick={() => setScaleLock((v) => !v)} aria-pressed={scaleLock} title="Scale lock: drawn notes stay in the key"
+            className="h-5 px-2 rounded-md text-[9px] font-mono border" style={scaleLock ? { borderColor: '#D0BCFF', color: '#D0BCFF', background: 'rgba(208,188,255,0.14)' } : { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>Lock</button>}
           <span className="text-[8px] font-mono uppercase tracking-[0.14em] text-white/25 mr-1">Chord</span>
           <button onClick={() => setChordId(null)} className="h-5 px-2 rounded-md text-[9px] font-mono border"
             style={!chordId ? { borderColor: SELECT, color: '#fff', background: `${SELECT}22` } : { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}>Single</button>
@@ -166,8 +204,13 @@ export const PitchRoll: React.FC<PitchRollProps> = ({ doc, pattern, selectedPad,
               const semi = SEMI_TOP - r;
               const midi = 48 + semi;
               const black = BLACK.has(((midi % 12) + 12) % 12);
+              // With a project key the rows read the SCALE: out-of-key dims, the tonic is tinted.
+              const pc = (((base + semi) % 12) + 12) % 12;
+              const tint = semi === 0 ? 'rgba(0,218,243,0.06)'
+                : inKey ? (pc === songKey!.tonic ? 'rgba(208,188,255,0.1)' : inKey[pc] ? 'transparent' : 'rgba(0,0,0,0.42)')
+                  : black ? 'rgba(0,0,0,0.35)' : 'transparent';
               return (
-                <div key={r} className="absolute left-0 right-0" style={{ top: r * ROW_H, height: ROW_H, background: semi === 0 ? 'rgba(0,218,243,0.06)' : black ? 'rgba(0,0,0,0.35)' : 'transparent', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <div key={r} className="absolute left-0 right-0" style={{ top: r * ROW_H, height: ROW_H, background: tint, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                   <span className="absolute text-[8px] font-mono leading-none" style={{ left: -32, top: 2, color: semi === 0 ? PLAYHEAD : 'rgba(255,255,255,0.25)' }}>{labelFor(semi)}</span>
                 </div>
               );

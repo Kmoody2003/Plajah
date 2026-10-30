@@ -17,7 +17,13 @@ import { MeterMap, TempoMap } from '../tempoMap';
 import { AutomationPlayer, applyMessage } from './automationPlayer';
 import { Instrument } from './InstrumentHost';
 import type { ArrangeTrack as ATrack, NoteEvent } from '../grooveDoc';
-import { arpStep, defaultArpPatch, type ArpPatch } from '../../arp';
+import { ModulationPlayer } from './modulationPlayer';
+import { LiveNoteFx } from './liveNoteFx';
+import { padBaseNote, padChain, seedOf, trackChain, type FxNote, type PadNoteData } from '../noteFx';
+import { assistKeys, identifyPlayedChord, type PlayedChord } from '../chordAssist';
+import { docKey } from '../songKey';
+import { modTargetKey, overlayPadHit } from '../modulators';
+import type { ParamLock } from '../../arp';
 import type { KeraProgram } from '../../instruments/kera/zones';
 import { deserializeKeraProgram, type SerializedKeraProgram } from '../../instruments/kera/persist';
 import { SpectraEQ, defaultSpectra, type SpectraState } from '../fx/spectraEq';
@@ -87,10 +93,22 @@ export class BeatsEngine {
   // Live notes an instrument pad is holding — several when it's played as a keyboard (Keys /
   // Chords mode, a MIDI keyboard), so a chord on a pad holds every note, not just the last one.
   private padLiveNotes = new Map<number, { trackId: string; note: number; voiceId: number; kera: boolean }[]>();
-  /** Keys feeding each track's arp: `keys` is the held set, `order` preserves press order. */
-  private heldKeys = new Map<string, { keys: number[]; order: number[] }>();
-  private arpPrevFired = new Map<string, boolean>();
-  private arpFill = false;
+  /** Played notes through their note FX (the same chain drawn notes use) + its clock. */
+  private liveFx = new LiveNoteFx({
+    now: () => this.ctx?.currentTime ?? 0,
+    running: () => this.running,
+    beatAt: (t) => this.beatAt(t),
+    timeAt: (b) => this.toTime(b),
+    bpm: () => this.tempo.bpmAt(0),
+    songKey: () => docKey(this.doc),
+    play: (ch, n, when, dur) => this.playLiveFx(ch, n, when, dur),
+  });
+  private liveFxTimer: ReturnType<typeof setInterval> | null = null;
+  /** Auto-chord: the keys a press expanded to, so its release finds them even if settings moved. */
+  private assistHeld = new Map<string, number[]>();
+  /** The chords played lately (newest last), for next-chord suggestions while playing. */
+  private recentChords: PlayedChord[] = [];
+  private chordGather: { keys: number[]; at: number } | null = null;
 
   // Transport: beats↔time anchoring through the doc's tempo map. A live tempo edit re-anchors at
   // the current position, so posBeats is continuous and only events beyond the lookahead window
@@ -175,13 +193,13 @@ export class BeatsEngine {
       trigger: (padIdx, vel, when, gateSec, semiOffset, pan, stepFx, skipChoke, mods) => this.trigger(padIdx, vel, when, gateSec, semiOffset, pan, stepFx, skipChoke, mods),
       startAudioClip: (track, clip, when, offset) => this.startAudioClip(track, clip, when, offset),
       startInstrumentNote: (track, note, when, durSec) => this.startInstrumentNote(track, note, when, durSec),
-      runArp: (track, stepIndex, beat) => this.runArp(track, stepIndex, beat),
-      arpActive: (track) => this.arpIsActive(track),
+      paramLocks: (trackId, when, until, locks) => this.lockParams(trackId, when, until, locks),
       loop: () => this.doc.loop ?? null,
       metronome: () => this.metronomeOn,
       click: (when, accent) => this.clickAt(when, accent),
     });
     this.automation.refresh(this.doc);
+    this.syncModulators();
     this.graph.applyDoc(this.doc, this.automation.automated);
     this.syncMixerFx();
   }
@@ -298,6 +316,7 @@ export class BeatsEngine {
     this.doc = doc;
     this.tempo = TempoMap.fromDoc(doc);
     this.automation.refresh(doc);
+    this.syncModulators();
     this.graph?.applyDoc(doc, this.automation.automated);
     if (this.graph && this.ctx) this.automation.parkParams(doc, this.graph, this.anchorBeats, this.ctx.currentTime);
     if (this.ctx) { this.syncInstruments(); this.syncMasterEq(); this.syncMastering(); }
@@ -322,6 +341,7 @@ export class BeatsEngine {
     }
     const lanesBefore = this.automation.snapshot();
     this.automation.refresh(this.doc);
+    this.syncModulators();
     this.graph?.applyDoc(this.doc, this.automation.automated);
     if (this.graph && this.ctx) {
       this.automation.releaseParams(this.doc, this.graph, this.ctx.currentTime, lanesBefore);
@@ -364,6 +384,17 @@ export class BeatsEngine {
     // Channel mute covers instrument pads too (VoiceBank checks it for one-shots, but instrument
     // pads never reach VoiceBank — a muted ONDA pad used to keep playing).
     if (pad?.mute) return;
+    // A live hit on a pad with note FX runs the chain; what it plays comes back here with a time.
+    if (when === undefined) {
+      const chain = padChain(this.doc, padIdx);
+      if (chain) {
+        const data: PadNoteData = { pan, fx: stepFx, mods, isStep: false };
+        this.startLiveFxTimer();
+        this.liveFx.noteOn(`p:${padIdx}`, chain, padBaseNote(this.doc, padIdx) + (semiOffset ?? 0), vel127, seedOf(`pad:${padIdx}`), data);
+        this.lastHit[padIdx] = performance.now();
+        return;
+      }
+    }
     // An instrument pad plays a full ONDA/KERA voice at its base note instead of a one-shot.
     if (pad?.source === 'instrument' && pad.instrumentTrackId) {
       this.triggerPadInstrument(pad, padIdx, vel127, when, gateSec, semiOffset ?? 0);
@@ -372,7 +403,11 @@ export class BeatsEngine {
     }
     // Step Effects: route this hit through the referenced per-pad slot's chain (feature 2).
     const dest = this.stepFxDestFor(padIdx, stepFx);
+    // Per-hit modulators (drum-synth tune, envelope…) take their value at the moment of the strike.
+    const hitBeat = this.doc.modulators?.length ? this.modClockAt(when ?? this.ctx.currentTime) : null;
+    const undoHit = hitBeat ? overlayPadHit(this.doc, padIdx, hitBeat.beat, hitBeat.sec) : null;
     this.voices.trigger(this.doc, padIdx, vel127, when, gateSec, semiOffset, pan, dest, skipChoke, mods);
+    undoHit?.();
     this.lastHit[padIdx] = performance.now();
   }
 
@@ -503,9 +538,14 @@ export class BeatsEngine {
    *  pad's other held notes sounding. One-shot pads have nothing to hold — a no-op. */
   padNoteUp(padIdx: number, semi: number): void {
     const pad = this.doc.kit[padIdx];
-    if (pad?.source !== 'instrument') return;
-    const note = Math.max(0, Math.min(127, (pad.instrumentNote ?? 60) + (pad.pitchSemis || 0) + semi));
-    this.releasePadInstrument(padIdx, note);
+    const base = padBaseNote(this.doc, padIdx);
+    const k = `p:${padIdx}:${semi}`;
+    const keys = this.assistHeld.get(k) ?? [base + semi];
+    this.assistHeld.delete(k);
+    for (const key of keys) {
+      this.liveFx.noteOff(`p:${padIdx}`, key);
+      if (pad?.source === 'instrument') this.releasePadInstrument(padIdx, Math.max(0, Math.min(127, key)));
+    }
   }
 
   // ── Live pad performance: hit feed (recording) + engine-scheduled Note Repeat ──────────
@@ -559,17 +599,33 @@ export class BeatsEngine {
   // Keyboard / Chords pad modes (Maschine): the grid plays ONE pad at different pitches. The hit
   // is reported with its pitch so the recorder writes a pitch-roll note, not a plain drum hit.
   private pitchedHit: number | undefined;
-  /** A live hit at a pitch. `chord` = one of several notes struck together (no mono retrigger). */
-  padDownPitched(padIdx: number, vel127: number, semi: number, chord = false): void {
+  /** A live hit at a pitch. `chord` = one of several notes struck together (no mono retrigger);
+   *  auto-chord stands aside for those unless `assist` says this is one key of a keyboard. */
+  padDownPitched(padIdx: number, vel127: number, semi: number, chord = false, assist = !chord): void {
     if (!this.ctx) return;
-    this.pitchedHit = semi;
-    try { this.trigger(padIdx, vel127, undefined, undefined, semi, undefined, undefined, chord); }
-    finally { this.pitchedHit = undefined; }
+    const base = padBaseNote(this.doc, padIdx);
+    const keys = assist && this.padTakesChords(padIdx) ? assistKeys(this.doc, base + semi) : [base + semi];
+    if (keys.length > 1) this.assistHeld.set(`p:${padIdx}:${semi}`, keys);
+    this.noteChordIn(keys);
+    try {
+      for (const key of keys) {
+        this.pitchedHit = key - base;
+        this.trigger(padIdx, vel127, undefined, undefined, key - base, undefined, undefined, chord || keys.length > 1);
+      }
+    } finally { this.pitchedHit = undefined; }
+  }
+
+  /** Auto-chord is for pitched sounds: instrument pads, minus SOMA's hand drums. */
+  private padTakesChords(padIdx: number): boolean {
+    const pad = this.doc.kit[padIdx];
+    if (pad?.source !== 'instrument') return false;
+    return this.doc.arrangement.find((t) => t.id === pad.instrumentTrackId)?.instrument?.type !== 'soma';
   }
 
   /** Live pad press: a plain hit, or — with Note Repeat on — a hit that keeps repeating. */
   padDown(padIdx: number, vel127: number): void {
     if (!this.ctx) return;
+    if (!this.repeat.on && this.doc.chordAssist?.on && this.padTakesChords(padIdx)) { this.padDownPitched(padIdx, vel127, 0, false, true); return; }
     if (!this.repeat.on) { this.trigger(padIdx, vel127); return; }
     // The first hit sounds now; repeats follow on the grid.
     this.trigger(padIdx, vel127);
@@ -617,6 +673,7 @@ export class BeatsEngine {
 
   /** Note-off for held pads (pointer up / key up / MIDI note-off). */
   release(padIdx: number, when?: number): void {
+    this.liveFx.channelOff(`p:${padIdx}`);
     if (this.doc.kit[padIdx]?.source === 'instrument') { this.releasePadInstrument(padIdx); return; }
     this.voices?.release(padIdx, when);
   }
@@ -641,6 +698,7 @@ export class BeatsEngine {
         onError: (m) => console.warn('[beats] instrument error', track.name, m),
       });
       inst.output.connect(this.graph.trackDestination(track));
+      inst.trackId = track.id;
       inst.setTempo(this.tempo.bpmAt(this.running ? this.posBeats() : 0) / 60);
       if (track.position) inst.setSpatial({ position: track.position });
       // Load the track's saved patch. Imported lazily so the ONDA preset bank and its wavetable
@@ -955,20 +1013,28 @@ export class BeatsEngine {
   instrumentNoteOn(track: ATrack, key: number, vel127: number): void {
     // Live playing is what the band's players listen to (band/live).
     liveBus.emit({ kind: 'note', instrument: track.instrument?.type ?? 'instrument', trackId: track.id, at: liveNow(), key, velocity: vel127 / 127, on: true });
-    // With the Arp armed the keyboard FEEDS it rather than sounding directly — holding a chord
-    // is the gesture, and the arp turns it into a performance on the transport grid.
-    const arp = this.arpFor(track);
-    // The arp only produces notes while the transport runs (it's driven by the step clock). When
-    // stopped, feed the note to the arp's held set AND sound it directly, so holding a key always
-    // makes sound — pressing play then hands the performance to the arp.
-    if (arp?.enabled) {
-      const held = this.heldKeys.get(track.id) || { keys: [], order: [] };
-      if (!held.keys.includes(key)) { held.keys.push(key); held.order.push(key); }
-      this.heldKeys.set(track.id, held);
-      // The arp plays through the instrument worklet, so make sure it exists — otherwise the
+    const keys = track.instrument?.type === 'soma' ? [key] : assistKeys(this.doc, key);
+    if (keys.length > 1) this.assistHeld.set(`t:${track.id}:${key}`, keys);
+    this.noteChordIn(keys);
+    for (const k of keys) this.instrumentKeyOn(track, k, vel127);
+  }
+
+  /** The notes one press plays — what a take should record (auto-chord makes it several). */
+  liveKeysFor(track: ATrack, key: number): number[] {
+    return track.instrument?.type === 'soma' ? [key] : assistKeys(this.doc, key);
+  }
+
+  private instrumentKeyOn(track: ATrack, key: number, vel127: number): void {
+    // With note FX the keyboard FEEDS the chain rather than sounding directly. The chain runs on
+    // the transport, or its own clock when stopped, so holding a key always makes sound.
+    const chain = trackChain(track);
+    if (chain) {
+      // The chain plays through the instrument worklet, so make sure it exists — otherwise the
       // first held note before the instrument was ever touched arps into silence.
       if (!this.instruments.has(track.id)) void this.ensureInstrument(track);
-      if (this.running) return; // playing: the arp owns the sound
+      this.startLiveFxTimer();
+      this.liveFx.noteOn(`t:${track.id}`, chain, key, vel127, seedOf(track.id));
+      return;
     }
     const inst = this.instruments.get(track.id);
     if (!inst || !this.ctx) { void this.ensureInstrument(track); return; }
@@ -990,15 +1056,14 @@ export class BeatsEngine {
 
   instrumentNoteOff(track: ATrack, key: number): void {
     liveBus.emit({ kind: 'note', instrument: track.instrument?.type ?? 'instrument', trackId: track.id, at: liveNow(), key, velocity: 0, on: false });
-    const arp = this.arpFor(track);
-    if (arp?.enabled) {
-      const held = this.heldKeys.get(track.id);
-      if (held && !arp.latch) {
-        held.keys = held.keys.filter((k) => k !== key);
-        held.order = held.order.filter((k) => k !== key);
-      }
-      return;
-    }
+    const k = `t:${track.id}:${key}`;
+    const keys = this.assistHeld.get(k) ?? [key];
+    this.assistHeld.delete(k);
+    for (const one of keys) this.instrumentKeyOff(track, one);
+  }
+
+  private instrumentKeyOff(track: ATrack, key: number): void {
+    this.liveFx.noteOff(`t:${track.id}`, key);
     const inst = this.instruments.get(track.id);
     if (!inst) return;
     if (inst.hasKeraProgram()) { inst.keraNoteOff(key); this.liveNotes.delete(`${track.id}:${key}`); return; }
@@ -1009,34 +1074,151 @@ export class BeatsEngine {
     inst.noteOff(id, true);
   }
 
-  /** Keys currently feeding a track's arp — the UI highlights them on its keyboard. */
-  heldFor(trackId: string): number[] {
-    return this.heldKeys.get(trackId)?.keys ?? [];
+  // ── Live note FX ────────────────────────────────────────────────────────────
+
+  private startLiveFxTimer(): void {
+    if (this.liveFxTimer) return;
+    this.liveFxTimer = setInterval(() => {
+      this.liveFx.tick();
+      if (!this.liveFx.active() && this.liveFxTimer) { clearInterval(this.liveFxTimer); this.liveFxTimer = null; }
+    }, 20);
   }
 
-  clearHeld(trackId: string): void {
-    this.heldKeys.delete(trackId);
+  /** One note out of a live chain. `ch` is `t:<trackId>` or `p:<padIdx>`. */
+  private playLiveFx(ch: string, n: FxNote, when: number, durSec: number | null): (() => void) | void {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    if (ch.startsWith('p:')) {
+      const padIdx = Number(ch.slice(2));
+      const pad = this.doc.kit[padIdx];
+      const data = n.data as PadNoteData | undefined;
+      const semi = n.key - padBaseNote(this.doc, padIdx);
+      this.pitchedHit = semi;
+      try { this.trigger(padIdx, n.vel, when, durSec ?? undefined, semi, data?.pan, data?.fx, true, data?.mods); }
+      finally { this.pitchedHit = undefined; }
+      if (n.locks?.length && pad?.instrumentTrackId) this.lockParams(pad.instrumentTrackId, when, when + (durSec ?? 0.25), n.locks);
+      if (durSec !== null) return;
+      return () => {
+        if (pad?.source === 'instrument') this.releasePadInstrument(padIdx, Math.max(0, Math.min(127, n.key)));
+        else this.voices?.release(padIdx);
+      };
+    }
+    const trackId = ch.slice(2);
+    const inst = this.instruments.get(trackId);
+    if (!inst) return;
+    if (n.locks?.length) this.lockParams(trackId, when, when + (durSec ?? 0.25), n.locks);
+    const key = Math.max(0, Math.min(127, n.key));
+    if (inst.hasKeraProgram()) {
+      setTimeout(() => inst.keraNoteOn(key, n.vel), Math.max(0, when - ctx.currentTime) * 1000);
+      if (durSec !== null) { setTimeout(() => inst.keraNoteOff(key), Math.max(0, when - ctx.currentTime + durSec) * 1000); return; }
+      return () => inst.keraNoteOff(key);
+    }
+    const id = inst.noteOn(key, Math.max(0.05, n.vel / 127), when, ctx.currentTime, ctx.sampleRate);
+    if (durSec !== null) { setTimeout(() => inst.noteOff(id, true), Math.max(0, when - ctx.currentTime + durSec) * 1000); return; }
+    return () => inst.noteOff(id, true);
   }
 
-  /** Fill is a momentary performance control: hold it and `fill` trig conditions fire. */
-  setArpFill(on: boolean): void {
-    this.arpFill = on;
+  /** An arp step's parameter locks: frame-stamped on, frame-stamped back to the patch's value. */
+  private lockParams(trackId: string, when: number, until: number, locks: ParamLock[]): void {
+    const inst = this.instruments.get(trackId);
+    if (!inst || !this.ctx) return;
+    const sr = this.ctx.sampleRate;
+    const params = (this.doc.arrangement.find((t) => t.id === trackId)?.instrument?.patch as { params?: Record<number, number> } | undefined)?.params;
+    inst.paramsAt(Math.round(when * sr), locks.map((l) => [l.paramId, l.value]));
+    inst.paramsAt(Math.round(until * sr), locks.map((l) => [l.paramId, params?.[l.paramId] ?? 0]));
   }
 
-  private arpFor(track: ATrack): ArpPatch | null {
-    const raw = track.instrument?.arp;
-    if (!raw) return null;
-    return { ...defaultArpPatch(), ...(raw as Partial<ArpPatch>) } as ArpPatch;
+  // ── Played chords (progression assist while playing) ────────────────────────
+
+  /** Notes pressed within a moment of each other are one chord. */
+  private noteChordIn(keys: number[]): void {
+    const now = performance.now();
+    const g = this.chordGather;
+    if (g && now - g.at < 70) { g.keys.push(...keys); g.at = now; this.recentChords.pop(); }
+    else this.chordGather = { keys: [...keys], at: now };
+    const chord = identifyPlayedChord(this.chordGather!.keys, docKey(this.doc));
+    if (!chord) return;
+    this.chordsAt = now;
+    const last = this.recentChords[this.recentChords.length - 1];
+    if (last && last.rootPc === chord.rootPc && last.chordId === chord.chordId) return;
+    this.recentChords.push(chord);
+    if (this.recentChords.length > 16) this.recentChords.shift();
+  }
+  private chordsAt = 0;
+  /** What's been played lately. After a pause it's old news: the page's notes say where we are. */
+  playedChords(): PlayedChord[] {
+    return performance.now() - this.chordsAt < 20_000 ? this.recentChords : [];
+  }
+  clearPlayedChords(): void { this.recentChords = []; }
+
+  // ── Modulators (parameter animation) ────────────────────────────────────────
+
+  private modulation = new ModulationPlayer();
+  private modTimer: ReturnType<typeof setInterval> | null = null;
+  private modFree = 0;
+
+  /** Called on every doc change: start/stop the timer, hand dropped targets back to their base. */
+  private syncModulators(): void {
+    const live = (this.doc.modulators ?? []).filter((m) => m.on);
+    const keys = new Set(live.map((m) => modTargetKey(m.target)));
+    if (this.ctx) {
+      const now = this.ctx.currentTime;
+      const dropped = (this.docModBefore ?? []).filter((m) => !keys.has(modTargetKey(m.target)));
+      for (const m of dropped) {
+        const t = m.target;
+        if (t.kind === 'track') {
+          const strip = this.graph?.tracks.get(t.trackId);
+          const param = t.target.kind === 'volume' ? strip?.gain.gain : t.target.kind === 'pan' ? strip?.pan.pan : t.target.kind === 'send' ? strip?.sends[t.target.index]?.gain : t.target.kind === 'expression' ? strip?.input.gain : undefined;
+          try { param?.cancelScheduledValues(now); } catch { /* */ }
+          if (t.target.kind === 'expression') param?.setValueAtTime(1, now);
+          if (t.target.kind === 'macro' || t.target.kind === 'mod-wheel' || t.target.kind === 'pitch-bend') {
+            const tr = this.doc.arrangement.find((x) => x.id === t.trackId);
+            if (tr) void this.reloadPatch(tr);
+          }
+        } else if (t.kind === 'param') {
+          const tr = this.doc.arrangement.find((x) => x.id === t.trackId);
+          if (tr) void this.reloadPatch(tr);
+        } else if (t.kind === 'pad') {
+          const s = this.graph?.pads[t.padIdx];
+          const param = t.field === 'gainDb' ? s?.gain.gain : s?.pan.pan;
+          try { param?.cancelScheduledValues(now); } catch { /* */ }
+        }
+      }
+    }
+    this.docModBefore = live;
+    this.modulation.reset();
+    if (live.length && !this.modTimer) {
+      this.modFree = this.ctx?.currentTime ?? 0;
+      // Off the audio thread on purpose: a value write per ~30 ms, however many voices are playing.
+      this.modTimer = setInterval(() => this.modTick(), 30);
+    } else if (!live.length && this.modTimer) {
+      clearInterval(this.modTimer);
+      this.modTimer = null;
+    }
+  }
+  private docModBefore: GrooveDoc['modulators'] = [];
+
+  /** While playing, the same beat + second the bounce reads. Stopped, a free clock: they still move. */
+  private modClockAt(time: number): { beat: number; sec: number } {
+    if (this.running) {
+      const beat = Math.max(0, this.beatAt(time));
+      return { beat, sec: this.tempo.beatToSec(beat) };
+    }
+    return { beat: (time - this.modFree) * this.tempo.bpmAt(0) / 60, sec: time - this.modFree };
   }
 
-  /**
-   * One arp step for one track. Returns true when the arp owns this step.
-   * The arp itself is pure — it holds no playback state — so this only supplies held keys and
-   * routes the notes it returns.
-   */
-  /** True when the track has an enabled arp — used by the scheduler to skip its clip notes. */
-  arpIsActive(track: ATrack): boolean {
-    return !!this.arpFor(track)?.enabled;
+  private modTick(): void {
+    if (!this.ctx || !this.graph) return;
+    const now = this.ctx.currentTime;
+    const { beat, sec } = this.modClockAt(now);
+    this.modulation.tick(this.doc, beat, sec, now, {
+      graph: this.graph,
+      inst: (id) => this.instruments.get(id) ?? null,
+      fxNode: (t) => (t.scope === 'track' ? this.trackInserts.get(t.owner)
+        : t.scope === 'pad' ? this.padInserts.get(Number(t.owner))
+          : t.scope === 'group' ? this.groupInserts[Number(t.owner)]
+            : this.sendInserts[Number(t.owner)])?.nodeOf(t.fxId),
+    });
   }
 
   /**
@@ -1050,40 +1232,9 @@ export class BeatsEngine {
     this.stopAudition();
     this.voices?.stopAll(this.ctx?.currentTime);
     for (const inst of this.instruments.values()) inst.allNotesOff(true);
-    this.heldKeys.clear();
-    this.arpPrevFired.clear();
+    this.liveFx.clear();
+    this.assistHeld.clear();
     this.liveNotes.clear();
-    this.arpFill = false;
-  }
-
-  private runArp(track: ATrack, stepIndex: number, beat: number): void {
-    const arp = this.arpFor(track);
-    if (!arp?.enabled) return;
-    const held = this.heldKeys.get(track.id);
-    if (!held?.keys.length) return; // armed but nothing held — nothing to arpeggiate
-
-    const prev = this.arpPrevFired.get(track.id) ?? false;
-    const res = arpStep(arp, held.keys, held.order, stepIndex, { fill: this.arpFill, prevFired: prev });
-    this.arpPrevFired.set(track.id, res.played);
-
-    const inst = this.instruments.get(track.id);
-    if (!inst || !this.ctx) return;
-
-    for (const n of res.notes) {
-      const when = this.toTime(beat + n.offsetBeats);
-      // Parameter locks hold for the step: set on the way in, restored after it passes.
-      for (const lock of n.locks) inst.setParam(lock.paramId, lock.value);
-      const voiceId = inst.noteOn(n.key, Math.max(0.05, n.velocity / 127), when, this.ctx.currentTime, this.ctx.sampleRate);
-      const offAt = this.toTime(beat + n.offsetBeats + n.durationBeats);
-      const offIn = Math.max(0, offAt - this.ctx.currentTime) * 1000;
-      setTimeout(() => inst.noteOff(voiceId, true), offIn);
-      if (n.locks.length) {
-        const patch = track.instrument?.patch as { params?: Record<number, number> } | undefined;
-        setTimeout(() => {
-          for (const lock of n.locks) inst.setParam(lock.paramId, patch?.params?.[lock.paramId] ?? 0);
-        }, offIn + 5);
-      }
-    }
   }
 
   /** Per-note expression from an MPE controller. */
@@ -1130,6 +1281,13 @@ export class BeatsEngine {
   private startInstrumentNote(track: ATrack, note: NoteEvent, when: number, durSec: number): void {
     const inst = this.instruments.get(track.id);
     if (!inst || !this.ctx) return;
+    // KERA tracks pick zones per note and fire sampled voices; a synth note-on would play nothing.
+    if (inst.hasKeraProgram()) {
+      const wait = Math.max(0, when - this.ctx.currentTime);
+      setTimeout(() => inst.keraNoteOn(note.key, note.vel), wait * 1000);
+      setTimeout(() => inst.keraNoteOff(note.key), (wait + Math.max(0.04, durSec)) * 1000);
+      return;
+    }
 
     const art = note.articulation ?? 'legato';
     const gateScale =
@@ -1266,6 +1424,7 @@ export class BeatsEngine {
     for (const pad of [...this.repeatHeld.keys()]) this.noteRepeatRelease(pad);
     const parkedAt = this.posBeatsDisplay();
     this.running = false;
+    this.modFree = (this.ctx?.currentTime ?? 0) - this.tempo.beatToSec(parkedAt);
     if (this.graph && this.ctx) this.automation.parkParams(this.doc, this.graph, this.mode === 'song' ? parkedAt : 0, this.ctx.currentTime);
     this.clock?.port.postMessage({ cmd: 'stop' });
     this.scheduler?.stop();
@@ -1315,6 +1474,9 @@ export class BeatsEngine {
     this.stop();
     if (this.repeatTimer) { clearInterval(this.repeatTimer); this.repeatTimer = null; }
     this.padHitListeners.clear();
+    this.liveFx.clear();
+    if (this.liveFxTimer) { clearInterval(this.liveFxTimer); this.liveFxTimer = null; }
+    if (this.modTimer) { clearInterval(this.modTimer); this.modTimer = null; }
     for (const inst of this.instruments.values()) inst.dispose();
     this.instruments.clear();
     this.liveNotes.clear();
