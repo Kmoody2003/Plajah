@@ -6,6 +6,8 @@
 //! No allocation or locks in `render`; workers spin briefly between blocks, then park.
 
 pub mod ahead;
+pub mod ffi;
+pub mod session;
 #[cfg(windows)]
 pub mod device;
 pub use ahead::AheadMix;
@@ -20,9 +22,9 @@ use std::time::{Duration, Instant};
 
 /// The worklet's block, and the size the pool renders at.
 pub const BLOCK: usize = 128;
-/// Blocks a worker takes per track when rendering ahead. Waking the pool once per 2048 frames rather
+/// Blocks a worker takes per track when rendering ahead. Waking the pool once per 1024 frames rather
 /// than per 128 is most of what render-ahead gains in throughput.
-pub const CHUNK_BLOCKS: usize = 16;
+pub const CHUNK_BLOCKS: usize = 8;
 pub const CHUNK: usize = BLOCK * CHUNK_BLOCKS;
 /// Long enough to catch the next block at small buffers under load, short enough not to burn a core.
 const SPIN: Duration = Duration::from_micros(200);
@@ -47,6 +49,10 @@ impl Track {
     }
     fn render(&mut self, frames: usize) {
         unsafe { pa_render(self.engine.cast(), frames as u32) }
+    }
+    /// Left then right of the last chunk.
+    pub fn chunk_samples(&self) -> &[f32] {
+        &self.chunk
     }
     fn render_chunk(&mut self) {
         for b in 0..CHUNK_BLOCKS {
@@ -190,10 +196,7 @@ impl RenderPool {
 
     /// Renders every track for `CHUNK` frames and mixes them into `left`/`right`.
     pub fn render_chunk(&mut self, tracks: &mut [Track], left: &mut [f32; CHUNK], right: &mut [f32; CHUNK]) {
-        for t in tracks.iter_mut() {
-            t.chunk.resize(CHUNK * 2, 0.0); // once, before the first chunk; this is not the device thread
-        }
-        self.run(tracks, 0);
+        self.render_tracks(tracks);
         left.fill(0.0);
         right.fill(0.0);
         for t in tracks.iter() {
@@ -203,6 +206,14 @@ impl RenderPool {
                 right[i] += r[i];
             }
         }
+    }
+
+    /// Renders every track for `CHUNK` frames into its own `chunk_samples`, unmixed.
+    pub fn render_tracks(&mut self, tracks: &mut [Track]) {
+        for t in tracks.iter_mut() {
+            t.chunk.resize(CHUNK * 2, 0.0); // once, before the first chunk; this is not the device thread
+        }
+        self.run(tracks, 0);
     }
 
     fn run(&mut self, tracks: &mut [Track], frames: usize) {

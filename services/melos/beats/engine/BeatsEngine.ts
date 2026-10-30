@@ -11,6 +11,7 @@ import type { ArrangeTrack, GrooveDoc, PadConfig, TimelineClip } from '../groove
 import { newGrooveDoc, evaluateNoteMpeAtProgress } from '../grooveDoc';
 import { buildGraph, type BeatsGraph } from './graph';
 import { VoiceBank, type StepMods } from './voices';
+import { openNativeTrack } from './nativeStream';
 import { StepScheduler, type PlayMode, LOOKAHEAD_SEC } from './scheduler';
 import { startAudioClipSource } from './clips';
 import { MeterMap, TempoMap } from '../tempoMap';
@@ -499,7 +500,7 @@ export class BeatsEngine {
         setTimeout(() => inst.keraNoteOff(note), offIn);
       } else {
         const voiceId = inst.noteOn(note, vel01, t, this.ctx.currentTime, this.ctx.sampleRate);
-        setTimeout(() => inst.noteOff(voiceId, true), offIn);
+        inst.noteOffAt(voiceId, t + gateSec);
       }
       return;
     }
@@ -699,6 +700,10 @@ export class BeatsEngine {
       });
       inst.output.connect(this.graph.trackDestination(track));
       inst.trackId = track.id;
+      if (track.instrument?.type === 'aura') {
+        const native = await openNativeTrack(this.ctx);
+        if (native) inst.attachNative(native);
+      }
       inst.setTempo(this.tempo.bpmAt(this.running ? this.posBeats() : 0) / 60);
       if (track.position) inst.setSpatial({ position: track.position });
       // Load the track's saved patch. Imported lazily so the ONDA preset bank and its wavetable
@@ -1114,7 +1119,7 @@ export class BeatsEngine {
       return () => inst.keraNoteOff(key);
     }
     const id = inst.noteOn(key, Math.max(0.05, n.vel / 127), when, ctx.currentTime, ctx.sampleRate);
-    if (durSec !== null) { setTimeout(() => inst.noteOff(id, true), Math.max(0, when - ctx.currentTime + durSec) * 1000); return; }
+    if (durSec !== null) { inst.noteOffAt(id, when + durSec); return; }
     return () => inst.noteOff(id, true);
   }
 
@@ -1330,8 +1335,7 @@ export class BeatsEngine {
     }
 
     // Schedule the note-off. The engine's own release stage shapes the tail; this just gates it.
-    const offIn = Math.max(0, (when - this.ctx.currentTime) + effectiveDurSec) * 1000;
-    setTimeout(() => inst.noteOff(voiceId, true), offIn);
+    inst.noteOffAt(voiceId, when + effectiveDurSec);
   }
 
   // ── Metronome + count-in ────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ import workletUrl from './instrumentProcessor.worklet.js?url';
 import { selectZones, type KeraProgram } from '../../instruments/kera/zones';
 import { DEEP_VARIANTS, deepVelBucket, lookupDeep, requestDeep, somaDeepSupported, somaParamsKey, type DeepHit } from '../../instruments/soma/deep/somaDeep';
 import { modCapture } from '../modulators';
+import type { NativeTrack } from './nativeStream';
 
 /** Envelope seconds → the engine's normalised 0..1 (inverse of env_time in params.rs: 0.001 + 12·n³). */
 function secToNorm(sec: number): number {
@@ -209,7 +210,7 @@ export class Instrument {
   // they land on exactly this note whether it's live, scheduled ahead or in an offline bounce.
 
   private noteMapper: NoteMapper | null = null;
-  setNoteMapper(m: NoteMapper | null): void { this.noteMapper = m; }
+  setNoteMapper(m: NoteMapper | null): void { if (m) this.detachNative(); this.noteMapper = m; }
 
   private mapNote(key: number, velocity: number, frame: number, live: boolean): { note: number; velocity01: number } {
     const m = this.noteMapper?.(key, velocity, this.modWheelValue, live);
@@ -288,6 +289,30 @@ export class Instrument {
     await Promise.all([...new Set(notes)].map((n) => requestDeep(this.params, key, n, this.sampleRate, getModule)));
   }
 
+  /** Gate a scheduled voice at `ctxTime`. A native voice is stamped now, since its frames render ahead of the clock. */
+  noteOffAt(voiceId: number, ctxTime: number): void {
+    if (this.native?.owns(voiceId)) { this.native.offAt(voiceId, ctxTime); return; }
+    setTimeout(() => this.noteOff(voiceId, true), Math.max(0, ctxTime - this.node.context.currentTime) * 1000);
+  }
+
+  // ── Native engine (Windows app, nativeStream.ts) ─────────────────────────────
+  // While attached, sequenced notes render on the native engine and stream back into this
+  // instrument's output, so meters, FX and mixer see them as usual. Live notes stay in the worklet.
+
+  private native: NativeTrack | null = null;
+
+  attachNative(track: NativeTrack): void {
+    this.native = track;
+    track.connect(this.outGain ?? this.node.context.destination, this.analyser, () => { this.native = null; });
+    for (const [id, value] of this.params) track.mirror({ type: 'param', id, value });
+  }
+
+  /** The native side has no samples or wavetables: an instrument that needs them plays in the worklet. */
+  private detachNative(): void {
+    this.native?.dispose();
+    this.native = null;
+  }
+
   noteOff(noteOrVoiceId: number, byVoiceId = false): void {
     const voiceId = byVoiceId ? noteOrVoiceId : this.heldVoices.get(noteOrVoiceId);
     if (voiceId === undefined) return;
@@ -319,6 +344,7 @@ export class Instrument {
 
   /** Upload a KERA program's samples into engine slots. Idempotent per program id. */
   loadKeraProgram(program: KeraProgram): void {
+    this.detachNative();
     this.keraProgram = program;
     this.keraSlotOf.clear();
     this.keraRr.clear();
@@ -512,6 +538,7 @@ export class Instrument {
 
   /** Upload a wavetable: `data` is `frames * frameSize` samples; frameSize must be a power of 2. */
   loadWavetable(slot: number, data: Float32Array, frames: number, frameSize: number): void {
+    this.detachNative();
     // Transfer a copy so the caller keeps ownership of its bank.
     const copy = new Float32Array(data);
     this.node.port.postMessage({ type: 'wavetable', slot, data: copy, frames, frameSize }, [copy.buffer]);
@@ -521,6 +548,7 @@ export class Instrument {
     if (this.disposed) return;
     this.disposed = true;
     this.post({ type: 'dispose' });
+    this.detachNative();
     try { this.node.disconnect(); } catch { /* already detached */ }
     try { this.outGain?.disconnect(); } catch { /* already detached */ }
     try { this.analyser?.disconnect(); } catch { /* already detached */ }
@@ -529,6 +557,7 @@ export class Instrument {
 
   private post(msg: Record<string, unknown>): void {
     if (this.disposed) return;
+    if (this.native?.mirror(msg)) return;
     this.node.port.postMessage(msg);
   }
 }

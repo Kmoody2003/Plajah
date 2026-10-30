@@ -327,3 +327,25 @@ Render-ahead's ring missed 0 frames in all of these runs.
 - Sequenced tracks now react about 170 ms late to mute, fader and parameter changes; that needs handling in the bridge.
 
 Next: the app bridge, exclusive mode/ASIO for small buffers, and more devices.
+
+## Milestone 5: the app bridge (2026-10-30)
+
+AURA tracks in the Windows app can render sequenced notes on the native engine and stream them into the browser graph, so the FX rack, mixer and meters still apply. It is off unless `localStorage['chora.nativeEngine']` is `'on'`, and offline bounces never use it. Any failure to open falls back to the worklets.
+
+- `rust/plajah-audio-host/src/session.rs`, `ffi.rs`: chunks stamped with the AudioContext frame, so there is one clock. Tests prove them bit-identical to a direct engine.
+- `windows-native/Plajah.WinUI/NativeAudioBridge.cs`: tokened loopback WebSocket. The real `https://plajah.com` page in the app can open it.
+- `services/melos/beats/engine/nativeStream.*`: worker plus ring worklet, so no audio crosses the main thread. Notes under 110 ms ahead, and live notes, stay in the worklet.
+- Lab: `native-audio-lab.html` on :3196, opened inside the app.
+
+Measured in the desktop app (8 voices per track, browser `playbackStats`):
+
+| Tracks | Engine | Underruns | Underrun time | Ring missed frames |
+|---|---|---|---|---|
+| 16 | wasm | 1731 | 18.5 s of 29 s | n/a |
+| 16 | native | 524 | 5.5 s of 21 s | 32128 |
+| 32 | wasm | 1838 | 19.8 s of 27 s | n/a |
+| 32 | native | 1653 | 17.3 s of 30 s | 25088 |
+
+**Not ready to turn on.** It is better at 16 tracks and barely better at 32, while the same engine on WASAPI directly had no underruns at 16 tracks. So the browser's audio thread is still losing time with almost nothing to compute; the cause is not found. Suspects: ~750 chunk messages a second into 16 worklets, and the idle wasm worklets. The runs were also not on a quiet machine.
+
+Not done: the desktop installer does not bundle the DLL (the csproj copies it only if `rust/target/release` has it), parameter locks apply on arrival rather than at their frame, and the real BeatsEngine path has only been typechecked, not played.
