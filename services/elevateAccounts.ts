@@ -554,6 +554,44 @@ export async function claimProvisionedSeat(input: ClaimInput): Promise<{ orgId: 
   return claimed;
 }
 
+// ── Claim invitations by email (routes/elevateInvites.ts) ─────────────────────
+export type InviteSkipReason = 'claimed' | 'no_email' | 'bounced' | 'opted_out' | 'cooldown' | 'limit';
+export interface InviteSendResult { sent: number; failed: number; skipped: Partial<Record<InviteSkipReason, number>>; remaining: number }
+
+/** Whether this server can send email at all (false until Resend is configured). */
+export async function claimInvitesConfigured(): Promise<boolean> {
+  try { const r = await fetch('/api/elevate/invites/status'); return r.ok && !!(await r.json()).configured; } catch { return false; }
+}
+
+/** Email claim invitations to specific seats, or `all` unclaimed seats. Addresses come from the org's records. */
+export async function sendClaimInvites(orgId: string, target: { seatIds: string[] } | { all: true }): Promise<InviteSendResult> {
+  const r = await authed('/api/elevate/invites/send', { orgId, ...target });
+  const j = await r.json().catch(() => ({})) as InviteSendResult & { error?: string };
+  if (!r.ok) throw new Error(j.error || 'Could not send invitations.');
+  return j;
+}
+
+const SKIP_LABELS: Record<InviteSkipReason, string> = {
+  claimed: 'already claimed', no_email: 'no email on file', bounced: 'bounced', opted_out: 'opted out',
+  cooldown: 'invited in the last 24 h', limit: 'invited 5 times already',
+};
+export function describeInviteResult(r: InviteSendResult): string {
+  const parts = [`${r.sent} sent`];
+  if (r.failed) parts.push(`${r.failed} failed`);
+  for (const [k, n] of Object.entries(r.skipped)) if (n) parts.push(`${n} skipped (${SKIP_LABELS[k as InviteSkipReason]})`);
+  if (r.remaining) parts.push(`${r.remaining} more waiting — send again tomorrow`);
+  return parts.join(' · ') + '.';
+}
+
+/** "Invited Oct 29 · bounced" for a seat, or '' if never invited. */
+export function inviteStatusLabel(m: Pick<OrgMembership, 'claimInviteStatus' | 'claimInviteSentAt' | 'claimInviteCount'>): string {
+  if (!m.claimInviteStatus) return '';
+  const when = m.claimInviteSentAt ? new Date(m.claimInviteSentAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+  const base = when ? `Invited ${when}${(m.claimInviteCount || 0) > 1 ? ` (${m.claimInviteCount}×)` : ''}` : '';
+  const tail = ({ SENT: '', FAILED: 'last send failed', BOUNCED: 'bounced — check the address', OPTED_OUT: 'they stopped invitations' } as const)[m.claimInviteStatus];
+  return [base, tail].filter(Boolean).join(' · ');
+}
+
 /** Resolve the org behind a join link (id or @handle). */
 export async function resolveJoinTarget(key: string): Promise<Organization | null> {
   const k = (key || '').trim().replace(/^@/, '');

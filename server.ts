@@ -53,6 +53,7 @@ import { createAdminPublishAsRouter } from './routes/adminPublishAs';
 import { learnerAuthRouter } from './routes/learnerAuth';
 import { schoolsRouter } from './routes/schools';
 import { elevateAccountsRouter } from './routes/elevateAccounts';
+import { elevateInvitesRouter } from './routes/elevateInvites';
 import { templateShareRouter } from './routes/templateShare';
 import { curriculumFetchRouter } from './routes/curriculumFetch';
 import { worksheetGradingRouter, splitLegacyWorksheetKeys } from './routes/worksheetGrading';
@@ -13790,6 +13791,9 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // Elevate: claim a pre-provisioned member / staff account (member ID + last name, or own email). Rate-limited.
   app.use('/api/elevate/claim', authLimiter);
   app.use('/api/elevate/claim', express.json({ limit: '8kb' }), elevateAccountsRouter);
+  // Elevate: staff email "claim your account" invitations (address always from the org's records). routes/elevateInvites.ts
+  app.use('/api/elevate/invites', rateLimit({ windowMs: 15 * 60 * 1000, max: 40, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many invitation requests — try again in a few minutes.' } }));
+  app.use('/api/elevate/invites', express.json({ limit: '32kb' }), elevateInvitesRouter);
   // Academia worksheets: Check my work + turn-in grading run here, where the answer key lives (routes/worksheetGrading.ts).
   // Checks are capped so a student can't brute-force a key by guessing every choice.
   app.use('/api/worksheets', rateLimit({ windowMs: 15 * 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many checks — take a breath and try again in a few minutes.' } }));

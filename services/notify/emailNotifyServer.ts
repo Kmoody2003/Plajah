@@ -47,7 +47,7 @@ function unsubUrl(uid: string, scope: string): string {
 }
 
 /** `attachments[].content` is base64 (Resend's format). */
-export async function sendViaResend(to: string, mail: RenderedEmail, unsubscribe?: string, attachments?: Array<{ filename: string; content: string }>, replyTo?: string): Promise<boolean> {
+export async function sendViaResend(to: string, mail: RenderedEmail, unsubscribe?: string, attachments?: Array<{ filename: string; content: string }>, replyTo?: string, from?: string): Promise<boolean> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return false;
   const headers: Record<string, string> = {};
@@ -59,7 +59,7 @@ export async function sendViaResend(to: string, mail: RenderedEmail, unsubscribe
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM || 'Plajah <onboarding@resend.dev>',
+        from: from || process.env.RESEND_FROM || 'Plajah <onboarding@resend.dev>',
         to, subject: mail.subject, text: mail.text, html: mail.html, headers,
         ...(attachments?.length ? { attachments } : {}), ...(replyTo ? { reply_to: replyTo } : {}),
       }),

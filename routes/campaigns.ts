@@ -31,6 +31,7 @@
 import { Router, Request, Response } from 'express';
 import * as nodeCrypto from 'crypto';
 import { verifyIdToken, fsGet, fsSet, fsPatch, fsCreate, adminConfig } from '../services/firebaseAdminRest';
+import { markInviteBounced } from './elevateInvites';
 
 export const campaignsRouter = Router();
 
@@ -558,6 +559,8 @@ campaignsRouter.post('/webhook/resend', async (req: Request, res: Response) => {
         const owners = await fsQuery('mailing_lists', 'subscriberEmail', email, 500);
         const ids = new Set(owners.map(o => String(o.data.artistId || '')).filter(Boolean));
         for (const ownerId of ids) await suppress(ownerId, email, reason, 'provider');
+        // Elevate claim invitations share the sender: stop re-inviting a dead address.
+        await markInviteBounced(email);
       } catch (err) {
         console.error('[campaigns] webhook suppression failed:', err);
       }

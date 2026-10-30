@@ -3550,6 +3550,11 @@ export interface OrgMembership {
   ministryIds?: string[];
   /** When a real person claimed the provisioned seat. */
   claimedAt?: number;
+  /** Claim-invitation email state, written only by the server (routes/elevateInvites.ts). */
+  claimInviteStatus?: 'SENT' | 'FAILED' | 'BOUNCED' | 'OPTED_OUT';
+  claimInviteEmail?: string;
+  claimInviteSentAt?: number;
+  claimInviteCount?: number;
   /** Member onboarding details submitted with a PENDING membership request (doubles as church/org member onboarding). */
   onboarding?: OrgMembershipOnboarding;
 }
