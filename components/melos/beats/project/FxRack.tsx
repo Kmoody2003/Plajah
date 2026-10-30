@@ -39,6 +39,8 @@ interface FxRackProps {
 export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#D0BCFF', reductionOf, nodeOf, title, emptyHint, horizontal }) => {
   const [adding, setAdding] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
 
   const add = (type: string) => {
     const inst = newInstance(type);
@@ -46,6 +48,7 @@ export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#
     onChange([...instances, inst]);
     setOpenId(inst.id);
     setAdding(false);
+    setQuery('');
   };
   const patch = (id: string, fn: (i: FxInstance) => FxInstance) => onChange(instances.map((i) => (i.id === id ? fn(i) : i)));
   /** Merge several params at once — what a rig preset or a multi-control editor writes. */
@@ -71,13 +74,21 @@ export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#
             className="h-6 px-2.5 rounded-lg text-[10px] font-semibold border border-white/15 text-white/60 hover:text-white hover:bg-white/10 flex items-center gap-1"
           ><Plus size={11} /> Add FX</button>
           {adding && (
-            <div className="absolute right-0 top-7 z-30 w-56 max-h-[320px] overflow-auto rounded-[12px] border border-white/15 bg-[#12101a] shadow-2xl p-1.5">
+            <div className="absolute right-0 top-7 z-30 w-64 max-h-[360px] overflow-auto rounded-[12px] border border-white/15 bg-[#12101a] shadow-2xl p-1.5">
               <div className="flex items-center justify-between px-1.5 py-1">
                 <span className="text-[9px] font-extrabold uppercase tracking-[0.18em] text-white/30">Device Library</span>
                 <button onClick={() => setAdding(false)} className="text-white/30 hover:text-white"><X size={12} /></button>
               </div>
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search effects"
+                aria-label="Search effects"
+                className="w-full h-7 mb-1.5 px-2 rounded-lg bg-white/[0.06] border border-white/10 text-[11px] text-white placeholder:text-white/30 outline-none focus:border-white/30"
+              />
               {CAT_ORDER.map((cat) => {
-                const devs = DEVICES.filter((d) => d.category === cat);
+                const devs = DEVICES.filter((d) => d.category === cat && (!q || d.label.toLowerCase().includes(q) || d.blurb.toLowerCase().includes(q)));
                 if (!devs.length) return null;
                 return (
                   <div key={cat} className="mb-1">
