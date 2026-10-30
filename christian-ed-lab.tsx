@@ -140,7 +140,7 @@ const DeskTry: React.FC = () => {
   if (!u) return <p style={{ padding: 30 }}>Open ?as=library-greatfaith first so the course imports.</p>;
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: 20 }}>
-      <LivingTemplateBespokeRenderer templateId={u.livingTemplateId || 'std-ws-kinfolk-editorial'} unit={u} answers={answers} onUpdateAnswer={(id, v) => setAnswers(a => ({ ...a, [id]: v }))} supplements={[]} />
+      <LivingTemplateBespokeRenderer templateId={new URLSearchParams(location.search).get('tpl') || u.livingTemplateId || 'std-ws-kinfolk-editorial'} unit={u} answers={answers} onUpdateAnswer={(id, v) => setAnswers(a => ({ ...a, [id]: v }))} supplements={[]} />
     </div>
   );
 };
