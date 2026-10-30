@@ -114,7 +114,7 @@ export const LensPicker: React.FC<{
     <div className={compact ? 'flex gap-1.5' : 'grid grid-cols-2 gap-1.5'}>
       {LENSES.map(l => (
         <button key={l.id} disabled={busy} onClick={() => onChange(l.id)}
-          className={`rounded-xl text-left transition-all disabled:opacity-50 ${compact ? 'px-2.5 py-1.5 text-[11px] font-bold' : 'px-3 py-2.5'} ${value === l.id ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/85'}`}>
+          className={`rounded-xl text-left transition-all disabled:opacity-50 ${compact ? 'shrink-0 whitespace-nowrap px-2.5 py-1.5 text-[11px] font-bold' : 'px-3 py-2.5'} ${value === l.id ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/85'}`}>
           <span className={compact ? '' : 'text-[18px] mr-1.5'}>{l.icon}</span>
           <span className={compact ? '' : 'text-[12px] font-black'}>{l.label}</span>
           {!compact && <span className={`block text-[9px] leading-tight mt-0.5 ${value === l.id ? 'text-black/60' : 'text-white/40'}`}>{l.blurb}</span>}

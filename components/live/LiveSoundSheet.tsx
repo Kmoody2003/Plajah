@@ -5,9 +5,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Mic, MonitorSpeaker, Music, Play, Pause, Square, Headphones, Upload } from 'lucide-react';
 import { canShareDeviceAudio, type LiveAudioMixer, type MixSourceState, type MixSourceId } from '../../services/liveAudioMixer';
+import { LevelMeter, type MeterSource } from './LevelMeter';
 
 // Hoisted (not defined inside the sheet) so a volume drag isn't remounted on every gain update.
-function SourceRow({ s, mixer, icon, children }: { s?: MixSourceState; mixer: LiveAudioMixer | null; icon: React.ReactNode; children?: React.ReactNode }) {
+function SourceRow({ s, mixer, icon, meter, children }: { s?: MixSourceState; mixer: LiveAudioMixer | null; icon: React.ReactNode; meter?: MeterSource; children?: React.ReactNode }) {
+  const level = meter ?? (s?.active && mixer ? mixer.analyser(s.id) : null);
   return (
     <div className="rounded-2xl bg-white/5 border border-white/10 p-3">
       <div className="flex items-center gap-2">
@@ -15,6 +17,7 @@ function SourceRow({ s, mixer, icon, children }: { s?: MixSourceState; mixer: Li
         <span className="flex-1 text-[12px] font-bold text-white">{s?.label}</span>
         {children}
       </div>
+      {level && <LevelMeter source={level} size="sm" className="mt-2" />}
       {s?.active && mixer && (
         <input type="range" min={0} max={1.5} step={0.05} value={s.gain} aria-label={`${s.label} volume`}
           onChange={e => mixer.setGain(s.id, Number(e.target.value))}
@@ -24,8 +27,10 @@ function SourceRow({ s, mixer, icon, children }: { s?: MixSourceState; mixer: Li
   );
 }
 
-export function LiveSoundSheet({ mixer, state, ensureMixer, onClose, compact }: {
+export function LiveSoundSheet({ mixer, state, ensureMixer, onClose, compact, directMic }: {
   mixer: LiveAudioMixer | null;
+  /** The published mic track while no mixer is engaged (mic goes straight to the stream). */
+  directMic?: MediaStreamTrack | null;
   state: MixSourceState[];
   ensureMixer: () => Promise<LiveAudioMixer>;
   onClose: () => void;
@@ -75,7 +80,12 @@ export function LiveSoundSheet({ mixer, state, ensureMixer, onClose, compact }: 
       </div>
 
       <div className="space-y-2">
-        <SourceRow mixer={mixer} s={src("mic")} icon={<Mic size={15} />}>
+        {mixer && (
+          <div className="rounded-2xl bg-white/5 border border-white/10 px-3 py-2">
+            <LevelMeter source={mixer.analyser('program')} label="Stream" />
+          </div>
+        )}
+        <SourceRow mixer={mixer} s={src("mic")} icon={<Mic size={15} />} meter={mixer ? undefined : directMic}>
           <span className="text-[10px] text-white/40">{mixer ? 'Mixed' : 'Direct'}</span>
         </SourceRow>
 
