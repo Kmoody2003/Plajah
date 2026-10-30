@@ -163,6 +163,15 @@ t('forum: student replies', 'ALLOW', MEMBER, 'create', RP, { data: reply() });
 t('forum: outsider cannot reply', 'DENY', OTHER, 'create', RP, { data: reply({ authorUid: OTHER }) });
 t('forum: cannot edit someone else’s reply', 'DENY', TEACH, 'update', RP, { existing: reply(), data: reply({ body: 'changed' }) });
 
+const MD = `${DB}/classMedia/m1`;
+const media = (o) => ({ id: 'm1', orgId: 'o1', programId: 'c1', kind: 'photo', title: 'Pageant', url: 'https://x/y.jpg', authorUid: TEACH, authorName: 'T', createdAt: 1, ...o });
+t('media: student sees the class gallery', 'ALLOW', MEMBER, 'get', MD, { existing: media() });
+t('media: outsider cannot', 'DENY', OTHER, 'get', MD, { existing: media() });
+t('media: teacher adds a photo', 'ALLOW', TEACH, 'create', MD, { data: media() });
+t('media: student cannot add', 'DENY', MEMBER, 'create', MD, { data: media({ authorUid: MEMBER }) });
+t('media: teacher files it under a lesson', 'ALLOW', TEACH, 'update', MD, { existing: media(), data: media({ lessonId: 'u1', lessonTitle: 'Exam 1' }) });
+t('media: no swapping the file', 'DENY', TEACH, 'update', MD, { existing: media(), data: media({ url: 'https://evil/z.jpg' }) });
+
 const body = {
   source: { files: [{ name: 'firestore.rules', content: src }] },
   testSuite: {

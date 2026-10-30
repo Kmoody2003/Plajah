@@ -39,6 +39,7 @@ import LayoutPages from '../desk/LayoutPages';
 import { LivingTemplateBespokeRenderer } from '../desk/LivingTemplateBespokeRenderer';
 import { getDefaultLivingTemplateForUnit } from '../../services/council/livingDocumentTemplates';
 import AssignScheduleSheet, { type ScheduledResult } from './library/AssignScheduleSheet';
+import SendToClassSheet from './library/SendToClassSheet';
 import CourseCalendar from './library/CourseCalendar';
 import { useCourseSource } from './library/courseSource';
 import { fmtDay } from './christianEd/edWork';
@@ -87,6 +88,8 @@ const teacherListSynced = new Set<string>();
 const groupOf = (c: LessonLibraryCategory): Filter => (c === 'MASTER_SOURCE_DOC' ? 'SYLLABUS' : c);
 const isKeyOnly = (u: IngestedCurriculumUnit) => Boolean(u.isAnswerKeyOnly) || u.libraryCategory === 'ANSWER_KEY';
 const hasKey = (u: IngestedCurriculumUnit) => Boolean(u.rawAnswerKeyText || u.answerKeySourceLabel || u.questions.some(q => q.correctAnswer));
+/** Work students answer and turn in (it has questions). Everything else is a document for the class. */
+const isWork = (u: IngestedCurriculumUnit) => u.questions.length > 0 && !u.isAnswerKeyOnly;
 const hasOriginal = (u: IngestedCurriculumUnit) => Boolean(u.sourceUrl || u.rawCurriculumText);
 
 const LIB_CSS = `
@@ -218,6 +221,8 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
   const [panelTab, setPanelTab] = useState<'page' | 'original' | 'key' | 'deeper'>('page');
   const [fullPreview, setFullPreview] = useState<IngestedCurriculumUnit | null>(null);
   const [deskView, setDeskView] = useState<IngestedCurriculumUnit | null>(null);
+  const [sending, setSending] = useState<string[] | null>(null);
+  const [sendAfter, setSendAfter] = useState<string[] | null>(null);
   const [scheduling, setScheduling] = useState<string[] | null>(null);
   // Inside an org: its Christian Ed courses. A teacher with no org: their own Academia classes.
   const teacherRef = useMemo(() => ({ uid: currentUserUid, name: currentUserName }), [currentUserUid, currentUserName]);
@@ -301,14 +306,20 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
 
   const toggle = (id: string) => setSelected(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
   const openPreview = (id: string) => { setPreviewId(id); setPanelTab('page'); setConfirmRemove(false); };
+  // Work with questions is assigned (and scheduled); a syllabus, reading or resource is sent to the class's
+  // Discussion instead, so it never shows up as a lesson.
   const startAssign = (ids: string[]) => {
-    const ok = ids.filter(id => { const u = visible.find(x => x.id === id); return u && assignable(u); });
+    const ok = ids.map(id => visible.find(x => x.id === id)).filter((u): u is IngestedCurriculumUnit => !!u && assignable(u));
     if (!ok.length) return;
     setPreviewId(null);
-    setScheduling(ok);
+    const work = ok.filter(isWork).map(u => u.id);
+    const docs = ok.filter(u => !isWork(u)).map(u => u.id);
+    if (work.length) { setScheduling(work); setSendAfter(docs.length ? docs : null); }
+    else setSending(docs);
   };
   const scheduled = (r: ScheduledResult) => {
     setScheduling(null);
+    if (sendAfter) { setSending(sendAfter); setSendAfter(null); }
     setSelected([]);
     setCalProgram(r.programId);
     setCalFocus(r.first);
@@ -610,7 +621,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
             <div className="lib-pf">
               {canAssign && assignable(preview) && (
                 <button type="button" className="btn p" onClick={() => startAssign([preview.id])}>
-                  <CalendarDays size={15} /> Assign to class
+                  <CalendarDays size={15} /> {isWork(preview) ? 'Assign to class' : 'Send to class'}
                 </button>
               )}
               {canAssign && assignable(preview) && (
@@ -651,12 +662,22 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
             <AssignScheduleSheet
               units={scheduling.map(id => visible.find(u => u.id === id)).filter((u): u is IngestedCurriculumUnit => !!u)}
               source={source}
-              onClose={() => setScheduling(null)}
+              onClose={() => { setScheduling(null); if (sendAfter) { setSending(sendAfter); setSendAfter(null); } }}
               onDone={scheduled}
               onSaveProgram={onSaveProgram}
             />
           </div>
         </>
+      )}
+
+      {sending && (
+        <SendToClassSheet
+          items={sending.map(id => visible.find(u => u.id === id)).filter((u): u is IngestedCurriculumUnit => !!u).map(u => ({ title: u.title, unit: u }))}
+          orgId={orgId}
+          programs={tier === 'org' ? programs : (otherPrograms || []).map(o => o.program)}
+          onClose={() => setSending(null)}
+          onDone={msg => { setSending(null); setSelected([]); setStatus(msg); }}
+        />
       )}
 
       {deskView && (

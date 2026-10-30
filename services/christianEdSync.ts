@@ -113,6 +113,16 @@ export async function fetchProgramAnswerKeys(programId: string): Promise<Record<
   }
 }
 
+/** The class's assignments, or null when they couldn't be read (so a failed read never looks like "none"). */
+export async function fetchProgramAssignmentsOrNull(programId: string): Promise<UniversalDeskAssignment[] | null> {
+  try {
+    const snap = await getDocs(query(collection(opsDb, 'churchEduAssignments'), where('classroomId', '==', programId)));
+    return snap.docs.map(d => d.data() as UniversalDeskAssignment);
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchProgramAssignments(programId: string): Promise<UniversalDeskAssignment[]> {
   try {
     const snap = await getDocs(query(collection(opsDb, 'churchEduAssignments'), where('classroomId', '==', programId)));

@@ -36,7 +36,7 @@ const FORUM_CSS = `
 const KIND_LABEL: Record<ThreadKind, string> = { discussion: 'Discussion', lesson: 'Lesson', resource: 'Resource' };
 type Sort = 'active' | 'new' | 'top';
 
-export default function EdForum({ orgId, program: p, viewer, isTeacher, canSeeKey, units }: {
+export default function EdForum({ orgId, program: p, viewer, isTeacher, canSeeKey, units, onAssign }: {
   orgId: string;
   program: ChurchProgram;
   viewer: { uid: string; name: string };
@@ -44,6 +44,8 @@ export default function EdForum({ orgId, program: p, viewer, isTeacher, canSeeKe
   canSeeKey: boolean;
   /** The class's lessons, to attach to a post. */
   units: IngestedCurriculumUnit[];
+  /** Teachers: turn a posted document that has questions into assigned work. */
+  onAssign?: (u: IngestedCurriculumUnit) => void;
 }) {
   const [threads, setThreads] = useState<ClassThread[] | null>(null);
   const [sort, setSort] = useState<Sort>('active');
@@ -91,6 +93,7 @@ export default function EdForum({ orgId, program: p, viewer, isTeacher, canSeeKe
           onBack={() => setOpenId(null)}
           onVote={() => vote(open)}
           onOpenAttachment={openAttachment}
+          onAssign={onAssign ? a => { const u = (canSeeKey && units.find(x => x.id === (a as { unitId?: string }).unitId)) || attachedUnit(a); if (u) onAssign(u); } : undefined}
           onChanged={patch}
           onDeleted={() => { setThreads(list => (list || []).filter(x => x.id !== open.id)); setOpenId(null); }}
           onError={setErr}
@@ -183,13 +186,14 @@ function Attachment({ a, onOpen }: { a: ThreadAttachment; onOpen: () => void }) 
   );
 }
 
-function ThreadView({ thread: t, viewer, isTeacher, onBack, onVote, onOpenAttachment, onChanged, onDeleted, onError }: {
+function ThreadView({ thread: t, viewer, isTeacher, onBack, onVote, onOpenAttachment, onAssign, onChanged, onDeleted, onError }: {
   thread: ClassThread;
   viewer: { uid: string; name: string };
   isTeacher: boolean;
   onBack: () => void;
   onVote: () => void;
   onOpenAttachment: (a: ThreadAttachment) => void;
+  onAssign?: (a: ThreadAttachment) => void;
   onChanged: (t: ClassThread) => void;
   onDeleted: () => void;
   onError: (m: string) => void;
@@ -255,7 +259,14 @@ function ThreadView({ thread: t, viewer, isTeacher, onBack, onVote, onOpenAttach
         </div>
         <h3 style={{ fontFamily: 'var(--fd)', fontWeight: 900, fontSize: '1.2rem' }}>{t.title}</h3>
         {t.body && <div className="fm-body">{t.body}</div>}
-        {t.attachments.map((a, i) => <Attachment key={i} a={a} onOpen={() => onOpenAttachment(a)} />)}
+        {t.attachments.map((a, i) => (
+          <React.Fragment key={i}>
+            <Attachment a={a} onOpen={() => onOpenAttachment(a)} />
+            {onAssign && a.kind === 'lesson' && (attachedUnit(a)?.questions.length || 0) > 0 && t.kind !== 'lesson' && (
+              <button type="button" className="btn sm" style={{ justifySelf: 'start' }} onClick={() => onAssign(a)}>Assign “{a.title}” as work</button>
+            )}
+          </React.Fragment>
+        ))}
         <div className="row wrap" style={{ gap: 6 }}>
           <button type="button" className="btn sm" aria-pressed={t.upvoterUids.includes(viewer.uid)} onClick={onVote}><ArrowBigUp size={15} /> {t.upvoterUids.length}</button>
           {isTeacher && <button type="button" className="btn sm" onClick={() => mod({ pinned: !t.pinned })}><Pin size={13} /> {t.pinned ? 'Unpin' : 'Pin'}</button>}
