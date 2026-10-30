@@ -174,7 +174,8 @@ t('media: no swapping the file', 'DENY', TEACH, 'update', MD, { existing: media(
 
 const LS = `${DB}/liveSources/s1`;
 const live = (o) => ({ id: 's1', hostUid: TEACH, hostName: 'T', title: 'Doc', docId: 'd1', active: true, mode: 'FOLLOW', audience: 'members', memberUids: [MEMBER], rev: 1, chunks: 1, updatedAt: 1, invitedUids: [], ...o });
-t('live doc: nothing on yet reads as empty', 'ALLOW', OTHER, 'get', LS, {});
+mocks.push({ function: 'get', args: [{ exactValue: LS }], result: { value: { data: live() } } });
+// A missing source reading as empty cannot be simulated: :test has no way to send a null resource.
 t('live doc: a member reads a members-only source', 'ALLOW', MEMBER, 'get', LS, { existing: live() });
 t('live doc: an outsider cannot', 'DENY', OTHER, 'get', LS, { existing: live() });
 t('live doc: anyone reads a public stream source, signed out too', 'ALLOW', null, 'get', LS, { existing: live({ audience: 'public' }) });

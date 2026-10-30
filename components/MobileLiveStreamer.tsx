@@ -395,22 +395,6 @@ const PRO_CAPS: { key: string; label: string; mode?: string }[] = [
   { key: 'saturation', label: 'Saturation' },
   { key: 'sharpness', label: 'Sharpness' },
 ];
-/** The platform's cinematic LUT library (services/color/cinematicLutLibrary), baked into the
- *  composer grade — i.e. into the published + recorded frame, not just the preview. */
-const LutStrip: React.FC<{ lookId: string; onPick: (id: string) => void }> = ({ lookId, onPick }) => (
-  <div className="pt-2">
-    <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-1 pb-1.5">Cinematic LUTs</p>
-    <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {CINEMATIC_LUTS.map(l => (
-        <button key={l.id} onClick={() => onPick(l.id)} title={`${l.categoryLabel} — ${l.description}`}
-          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all ${lookId === `lut:${l.id}` ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80'}`}>
-          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: l.accentColor }} />{l.name}
-        </button>
-      ))}
-    </div>
-  </div>
-);
-
 const CameraProControls: React.FC<{ track: MediaStreamTrack | null }> = ({ track }) => {
   const [caps, setCaps] = useState<any>(null);
   const [vals, setVals] = useState<Record<string, number>>({});
