@@ -6,8 +6,10 @@
 // - Audio Lecture Mode (repurposed Live Talk stage): students raise hand and come on mic to answer
 // - Both modes include Screen Sharing (getDisplayMedia) and an Interactive Digital Whiteboard.
 
-import { db } from './firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { db, opsDb } from './firebase';
+import {
+  arrayRemove, arrayUnion, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, setDoc, updateDoc,
+} from 'firebase/firestore';
 
 export type ClassroomContextKind = 'ACADEMIA' | 'CHRISTIAN_EDUCATION';
 
@@ -96,142 +98,131 @@ export interface LectureSessionState {
   }>;
 }
 
-const POSTS_KEY = (classId: string) => `plajah_cls_club_posts_v1_${classId}`;
-const PHOTOS_KEY = (classId: string) => `plajah_cls_club_photos_v1_${classId}`;
 const LECTURE_KEY = (classId: string) => `plajah_cls_club_lecture_v1_${classId}`;
 
 // ── 1. Classroom Social Feed (Club-Model Timeline Confined to Teacher & Class) ──
+// Posts and photos are shared through Firestore under the class's own record, so the class's
+// existing roster decides who sees them:
+//   Academia:      classrooms/{id}/clubPosts|clubPhotos       (plajah-prod; owner + enrolledStudents)
+//   Christian Ed:  churchPrograms/{id}/clubPosts|clubPhotos   (plajah-ops; teacherUids + studentUids)
 
-// Earlier builds wrote sample content into every class the first time it opened: a welcome post
-// in the teacher's name with a comment from an invented student, and two stock photos captioned as
-// class work. Real classes show only what real people posted, so those items are dropped on load.
-const isSeedPost = (p: ClassroomSocialPost) => typeof p?.id === 'string' && p.id.startsWith('cpost_seed_');
-const isSeedPhoto = (p: ClassroomPhotoItem) => typeof p?.id === 'string' && p.id.startsWith('cphoto_seed_');
-
-export function loadClassroomPosts(classId: string): ClassroomSocialPost[] {
-  try {
-    const raw = localStorage.getItem(POSTS_KEY(classId));
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        const real = parsed.filter(p => !isSeedPost(p));
-        if (real.length !== parsed.length) saveClassroomPosts(classId, real);
-        return real;
-      }
-    }
-  } catch {}
-  return [];
+/** Where a class's feed lives. Without one (Teacher Tools' sample class) there is nothing to share to. */
+export interface ClassClubHome {
+  kind: 'classroom' | 'churchProgram';
+  id: string;
 }
 
-export function saveClassroomPosts(classId: string, posts: ClassroomSocialPost[]): void {
-  try {
-    localStorage.setItem(POSTS_KEY(classId), JSON.stringify(posts));
-  } catch {}
+const clubCol = (home: ClassClubHome, sub: 'clubPosts' | 'clubPhotos') =>
+  home.kind === 'classroom'
+    ? collection(db, 'classrooms', home.id, sub)
+    : collection(opsDb, 'churchPrograms', home.id, sub);
+
+const FEED_LIMIT = 200;
+const clean = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
+
+/** Live class feed, newest first. Returns the unsubscribe. */
+export function watchClassroomPosts(
+  home: ClassClubHome,
+  onPosts: (posts: ClassroomSocialPost[]) => void,
+  onError?: (e: Error) => void
+): () => void {
+  return onSnapshot(
+    query(clubCol(home, 'clubPosts'), orderBy('createdAt', 'desc'), limit(FEED_LIMIT)),
+    snap => onPosts(snap.docs.map(d => ({ ...(d.data() as ClassroomSocialPost), id: d.id }))),
+    e => onError?.(e)
+  );
 }
 
-export function addClassroomPost(
-  classId: string,
+export async function addClassroomPost(
+  home: ClassClubHome,
   post: Omit<ClassroomSocialPost, 'id' | 'classId' | 'likes' | 'comments' | 'createdAt'>
-): ClassroomSocialPost[] {
-  const current = loadClassroomPosts(classId);
-  const created: ClassroomSocialPost = {
-    ...post,
-    id: `cpost_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-    classId,
-    likes: [],
-    comments: [],
-    createdAt: Date.now(),
-  };
-  const next = [created, ...current];
-  saveClassroomPosts(classId, next);
-  try {
-    setDoc(doc(db, 'classroomClubs', classId, 'posts', created.id), created).catch(() => {});
-  } catch {}
-  return next;
+): Promise<ClassroomSocialPost> {
+  const ref = doc(clubCol(home, 'clubPosts'));
+  const created: ClassroomSocialPost = { ...post, id: ref.id, classId: home.id, likes: [], comments: [], createdAt: Date.now() };
+  await setDoc(ref, clean(created));
+  return created;
 }
 
-export function toggleClassroomPostLike(classId: string, postId: string, uid: string): ClassroomSocialPost[] {
-  const current = loadClassroomPosts(classId);
-  const next = current.map(p => {
-    if (p.id !== postId) return p;
-    const has = p.likes.includes(uid);
-    return {
-      ...p,
-      likes: has ? p.likes.filter(x => x !== uid) : [...p.likes, uid],
-    };
-  });
-  saveClassroomPosts(classId, next);
-  return next;
+export function setClassroomPostLike(home: ClassClubHome, postId: string, uid: string, liked: boolean) {
+  return updateDoc(doc(clubCol(home, 'clubPosts'), postId), { likes: liked ? arrayUnion(uid) : arrayRemove(uid) });
 }
 
-export function toggleClassroomPostPin(classId: string, postId: string): ClassroomSocialPost[] {
-  const current = loadClassroomPosts(classId);
-  const next = current.map(p => (p.id === postId ? { ...p, pinned: !p.pinned } : p));
-  saveClassroomPosts(classId, next);
-  return next;
+export function setClassroomPostPin(home: ClassClubHome, postId: string, pinned: boolean) {
+  return updateDoc(doc(clubCol(home, 'clubPosts'), postId), { pinned });
 }
 
 export function addClassroomPostComment(
-  classId: string,
+  home: ClassClubHome,
   postId: string,
   comment: { authorUid: string; authorName: string; authorRole: 'TEACHER' | 'STUDENT'; text: string }
-): ClassroomSocialPost[] {
-  const current = loadClassroomPosts(classId);
-  const next = current.map(p => {
-    if (p.id !== postId) return p;
-    return {
-      ...p,
-      comments: [
-        ...p.comments,
-        {
-          id: `ccom_${Date.now().toString(36)}`,
-          ...comment,
-          createdAt: Date.now(),
-        },
-      ],
-    };
-  });
-  saveClassroomPosts(classId, next);
-  return next;
+) {
+  const entry = { id: `ccom_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`, ...comment, createdAt: Date.now() };
+  return updateDoc(doc(clubCol(home, 'clubPosts'), postId), { comments: arrayUnion(entry) });
+}
+
+export function deleteClassroomPost(home: ClassClubHome, postId: string) {
+  return deleteDoc(doc(clubCol(home, 'clubPosts'), postId));
 }
 
 // ── 2. Classroom Photos & Whiteboard Gallery ─────────────────────────────────
 
-export function loadClassroomPhotos(classId: string): ClassroomPhotoItem[] {
-  try {
-    const raw = localStorage.getItem(PHOTOS_KEY(classId));
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        const real = parsed.filter(p => !isSeedPhoto(p));
-        if (real.length !== parsed.length) saveClassroomPhotos(classId, real);
-        return real;
-      }
-    }
-  } catch {}
-  return [];
+export function watchClassroomPhotos(
+  home: ClassClubHome,
+  onPhotos: (photos: ClassroomPhotoItem[]) => void,
+  onError?: (e: Error) => void
+): () => void {
+  return onSnapshot(
+    query(clubCol(home, 'clubPhotos'), orderBy('createdAt', 'desc'), limit(FEED_LIMIT)),
+    snap => onPhotos(snap.docs.map(d => ({ ...(d.data() as ClassroomPhotoItem), id: d.id }))),
+    e => onError?.(e)
+  );
 }
 
-export function saveClassroomPhotos(classId: string, photos: ClassroomPhotoItem[]): void {
-  try {
-    localStorage.setItem(PHOTOS_KEY(classId), JSON.stringify(photos));
-  } catch {}
-}
-
-export function addClassroomPhoto(
-  classId: string,
+/** `url` must be a stored file's URL, never a data: URL (a Firestore doc caps at 1 MB). */
+export async function addClassroomPhoto(
+  home: ClassClubHome,
   item: Omit<ClassroomPhotoItem, 'id' | 'classId' | 'createdAt'>
-): ClassroomPhotoItem[] {
-  const current = loadClassroomPhotos(classId);
-  const created: ClassroomPhotoItem = {
-    ...item,
-    id: `cphoto_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 5)}`,
-    classId,
-    createdAt: Date.now(),
+): Promise<ClassroomPhotoItem> {
+  if (item.url.startsWith('data:')) throw new Error('Upload the image first; inline images cannot be shared.');
+  const ref = doc(clubCol(home, 'clubPhotos'));
+  const created: ClassroomPhotoItem = { ...item, id: ref.id, classId: home.id, createdAt: Date.now() };
+  await setDoc(ref, clean(created));
+  return created;
+}
+
+export function deleteClassroomPhoto(home: ClassClubHome, photoId: string) {
+  return deleteDoc(doc(clubCol(home, 'clubPhotos'), photoId));
+}
+
+// Earlier builds kept the feed in this browser only (and wrote sample content into every class:
+// a welcome post with a comment from an invented student, and two stock photos). Once a class has
+// a shared home, this device's own posts and uploaded photos move there and the local copy is
+// dropped; seed items and other people's local copies are discarded.
+const LEGACY_POSTS_KEY = (classId: string) => `plajah_cls_club_posts_v1_${classId}`;
+const LEGACY_PHOTOS_KEY = (classId: string) => `plajah_cls_club_photos_v1_${classId}`;
+const isSeedId = (id: unknown) => typeof id === 'string' && /^c(post|photo)_seed_/.test(id);
+
+export async function migrateLocalClassroomFeed(legacyClassId: string, home: ClassClubHome, uid: string): Promise<void> {
+  const read = (key: string): any[] => {
+    try { const v = JSON.parse(localStorage.getItem(key) || 'null'); return Array.isArray(v) ? v : []; } catch { return []; }
   };
-  const next = [created, ...current];
-  saveClassroomPhotos(classId, next);
-  return next;
+  const posts = read(LEGACY_POSTS_KEY(legacyClassId)).filter(p => !isSeedId(p?.id) && p?.authorUid === uid);
+  const photos = read(LEGACY_PHOTOS_KEY(legacyClassId)).filter(
+    p => !isSeedId(p?.id) && p?.uploadedByUid === uid && typeof p?.url === 'string' && !p.url.startsWith('data:')
+  );
+  const rest = <T extends object>(o: any, drop: string[]): T => Object.fromEntries(Object.entries(o).filter(([k]) => !drop.includes(k))) as T;
+  try {
+    for (const p of posts.reverse()) {
+      await addClassroomPost(home, rest(p, ['id', 'classId', 'likes', 'comments', 'createdAt']));
+    }
+    for (const p of photos.reverse()) {
+      await addClassroomPhoto(home, rest(p, ['id', 'classId', 'createdAt']));
+    }
+    localStorage.removeItem(LEGACY_POSTS_KEY(legacyClassId));
+    localStorage.removeItem(LEGACY_PHOTOS_KEY(legacyClassId));
+  } catch (e) {
+    console.warn('[classroomClub] could not move this device\'s posts to the class', e);
+  }
 }
 
 // ── 3. Interactive Lecture Live Stream & Audio Live Talk State ────────────────

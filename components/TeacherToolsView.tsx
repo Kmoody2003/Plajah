@@ -408,6 +408,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
             currentUserUid={user?.uid || 'teacher_demo'}
             currentUserName={cls.teacherName}
             rosterStudents={cls.students.map(s => ({ id: s.id, name: s.name }))}
+            club={cls.isSample ? null : { kind: 'classroom', id: cls.id }}
           />
         ) : (tab as string) === 'contentHq' ? (
           <div style={{ ...cardStyle, padding: 18 }}>

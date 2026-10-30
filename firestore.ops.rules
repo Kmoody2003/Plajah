@@ -14,6 +14,31 @@ service cloud.firestore {
     // ===============================================================
     // Helper Functions
     // ===============================================================
+    // Class feed + photos (services/sharedClassroomService): shared by the class's teacher and students.
+    // A post starts with no likes/comments; members toggle only their own like and append only their own
+    // comment; only teachers pin, post as staff, or remove other people's items.
+    function clubPostCreate(isT) {
+      let d = request.resource.data;
+      return d.authorUid == request.auth.uid && d.likes.size() == 0 && d.comments.size() == 0
+        && d.text is string && d.text.size() <= 10000
+        && (isT || (d.authorRole == 'STUDENT' && d.get('pinned', false) == false));
+    }
+    function clubPostUpdate(isT) {
+      let d = request.resource.data;
+      let o = resource.data;
+      let keys = d.diff(o).affectedKeys();
+      let n = o.comments.size();
+      return (isT && keys.hasOnly(['pinned']))
+        || (keys.hasOnly(['likes']) && d.likes.toSet().difference(o.likes.toSet()).union(o.likes.toSet().difference(d.likes.toSet())).hasOnly([request.auth.uid]))
+        || (keys.hasOnly(['comments']) && d.comments.size() == n + 1 && d.comments.hasAll(o.comments)
+          && d.comments[n].authorUid == request.auth.uid && d.comments[n].text.size() <= 4000
+          && (isT || d.comments[n].authorRole == 'STUDENT'));
+    }
+    function clubPhotoCreate(isT) {
+      let d = request.resource.data;
+      return d.uploadedByUid == request.auth.uid && d.url is string && d.url.size() < 4096 && !d.url.matches('data:.*')
+        && (isT || d.uploadedByRole == 'STUDENT');
+    }
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -555,6 +580,17 @@ service cloud.firestore {
         && request.resource.data.createdBy == resource.data.createdBy;
       allow delete: if isAuthenticated() && (resource.data.createdBy == request.auth.uid
         || request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.orgId)).data.admins);
+      match /clubPosts/{postId} {
+        allow read: if (eduTeacher(programId) || eduStudent(programId));
+        allow create: if (eduTeacher(programId) || eduStudent(programId)) && clubPostCreate(eduTeacher(programId));
+        allow update: if (eduTeacher(programId) || eduStudent(programId)) && clubPostUpdate(eduTeacher(programId));
+        allow delete: if eduTeacher(programId) || ((eduTeacher(programId) || eduStudent(programId)) && resource.data.authorUid == request.auth.uid);
+      }
+      match /clubPhotos/{photoId} {
+        allow read: if (eduTeacher(programId) || eduStudent(programId));
+        allow create: if (eduTeacher(programId) || eduStudent(programId)) && clubPhotoCreate(eduTeacher(programId));
+        allow delete: if eduTeacher(programId) || ((eduTeacher(programId) || eduStudent(programId)) && resource.data.uploadedByUid == request.auth.uid);
+      }
     }
     // ── Christian Ed desk mirror (services/christianEdSync.ts) ───────────────────
     function eduProgram(pid) { return get(/databases/$(database)/documents/churchPrograms/$(pid)).data; }

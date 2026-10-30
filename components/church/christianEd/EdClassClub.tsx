@@ -418,6 +418,7 @@ const EdClassClub: React.FC<Props> = props => {
             currentUserName={viewer.name}
             currentUserAvatar={viewer.photoUrl}
             rosterStudents={(p.students || []).map(s => ({ id: s.uid || s.id, name: s.name, avatar: s.avatar, roleLabel: 'Student' }))}
+            club={{ kind: 'churchProgram', id: p.id }}
             initialSection={chan === 'live' ? 'LIVE_LECTURE' : feedSection}
           />
         </div>

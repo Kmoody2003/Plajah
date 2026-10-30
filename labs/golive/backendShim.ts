@@ -19,6 +19,8 @@ export const setChannelName = log('setChannelName');
 export const scheduleLiveInterrupt = log('scheduleLiveInterrupt');
 export const publishLiveFeed = log('publishLiveFeed');
 export const deleteLiveFeed = log('deleteLiveFeed');
+// Uploads stay in the page: a blob URL any same-origin frame can load while the uploader's frame is open.
+export const uploadFile = async (_path: string, blob: Blob) => URL.createObjectURL(blob);
 
 // The real createLiveTalk reads backendService's own Firebase auth (signed out here); same doc, lab user.
 import { doc, collection, setDoc } from 'firebase/firestore';

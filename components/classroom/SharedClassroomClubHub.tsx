@@ -40,17 +40,21 @@ import {
 import { useRtcSession } from '../../hooks/useRtcSession';
 import { useLiveFx } from '../../hooks/useLiveFx';
 import { LevelMeter } from '../live/LevelMeter';
-import UniversalPostComposer, { type ComposerSubmitData } from '../UniversalPostComposer';
+import UniversalPostComposer, { type ComposerPostData } from '../UniversalPostComposer';
 import { resolveComposerMedia } from '../FeedView';
 import { uploadFile, auth } from '../../services/backendService';
 import {
-  loadClassroomPosts,
+  watchClassroomPosts,
   addClassroomPost,
-  toggleClassroomPostLike,
-  toggleClassroomPostPin,
+  setClassroomPostLike,
+  setClassroomPostPin,
   addClassroomPostComment,
-  loadClassroomPhotos,
+  deleteClassroomPost,
+  watchClassroomPhotos,
   addClassroomPhoto,
+  deleteClassroomPhoto,
+  migrateLocalClassroomFeed,
+  type ClassClubHome,
   loadLectureSession,
   blankLectureSession,
   saveLectureSession,
@@ -77,6 +81,9 @@ export interface SharedClassroomClubHubProps {
   currentUserName?: string;
   currentUserAvatar?: string;
   rosterStudents?: Array<{ id: string; name: string; avatar?: string; roleLabel?: string }>;
+  /** The class record the feed and photos are shared under (its roster decides who sees them).
+   *  Omitted for a sample class: there is no one to share with, so posting is off. */
+  club?: ClassClubHome | null;
   initialSection?: 'SOCIAL_FEED' | 'PHOTOS' | 'LIVE_LECTURE' | 'ROSTER';
   /** Rendered inside a parent club (Christian Ed class): the parent owns the cover and channel pills,
    *  so the banner and section tabs are hidden and `initialSection` drives the section. */
@@ -116,6 +123,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   currentUserName,
   currentUserAvatar,
   rosterStudents = [],
+  club = null,
   initialSection = 'LIVE_LECTURE',
   embedded = false,
 }) => {
@@ -131,15 +139,12 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   }, [embedded, initialSection]);
 
   // ── 1. Classroom Social Feed State ──
-  const [posts, setPosts] = useState<ClassroomSocialPost[]>(() =>
-    loadClassroomPosts(classId)
-  );
+  const [posts, setPosts] = useState<ClassroomSocialPost[]>([]);
+  const [feedError, setFeedError] = useState('');
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
 
   // ── 2. Classroom Photos Gallery State ──
-  const [photos, setPhotos] = useState<ClassroomPhotoItem[]>(() =>
-    loadClassroomPhotos(classId)
-  );
+  const [photos, setPhotos] = useState<ClassroomPhotoItem[]>([]);
   const [photoCaption, setPhotoCaption] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [lightboxPhoto, setLightboxPhoto] = useState<ClassroomPhotoItem | null>(null);
@@ -173,9 +178,30 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   const isDrawingRef = useRef(false);
   const currentStrokeRef = useRef<WhiteboardStroke | null>(null);
 
+  // Feed + photos are live from the class's shared record, so everyone in the class sees the same thing.
+  const clubKey = club ? `${club.kind}:${club.id}` : '';
   useEffect(() => {
-    setPosts(loadClassroomPosts(classId));
-    setPhotos(loadClassroomPhotos(classId));
+    setPosts([]);
+    setPhotos([]);
+    setFeedError('');
+    if (!club) return;
+    const fail = (e: Error) => {
+      console.warn('[classroomClub] feed unavailable', e);
+      setFeedError('The class feed could not load. You may not be on this class roster yet.');
+    };
+    const offPosts = watchClassroomPosts(club, setPosts, fail);
+    const offPhotos = watchClassroomPhotos(club, setPhotos, fail);
+    const uid = auth.currentUser?.uid;
+    if (uid) void migrateLocalClassroomFeed(classId, club, uid);
+    return () => { offPosts(); offPhotos(); };
+  }, [clubKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const feedAction = (work: Promise<unknown>) =>
+    work.catch((e: unknown) => {
+      console.warn('[classroomClub] write failed', e);
+      setFeedError("That didn't save. Check your connection and that you are on this class roster.");
+    });
+
+  useEffect(() => {
     setLecture(isTeacher ? loadLectureSession(classId, lectureDefaults) : blankLectureSession(classId, lectureDefaults));
   }, [classId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -519,17 +545,26 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   const handleSaveWhiteboardToPhotos = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const dataUrl = canvas.toDataURL('image/png');
-    const nextPhotos = addClassroomPhoto(classId, {
-      url: dataUrl,
-      caption: `Lecture Whiteboard Snapshot · ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-      uploadedByUid: viewerUid,
-      uploadedByName: viewerName,
-      uploadedByRole: isTeacher ? 'TEACHER' : 'STUDENT',
-      isWhiteboardSnapshot: true,
-    });
-    setPhotos(nextPhotos);
-    alert('Saved whiteboard snapshot to Classroom Photos!');
+    if (!club) {
+      alert('Whiteboard snapshots are saved to a real class. Create a class first.');
+      return;
+    }
+    const home = club;
+    canvas.toBlob(blob => {
+      if (!blob) return;
+      void feedAction((async () => {
+        const url = await uploadFile(`uploads/classrooms/${home.id}/whiteboard_${Date.now()}.png`, blob);
+        await addClassroomPhoto(home, {
+          url,
+          caption: `Lecture Whiteboard Snapshot · ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+          uploadedByUid: viewerUid,
+          uploadedByName: viewerName,
+          uploadedByRole: isTeacher ? 'TEACHER' : 'STUDENT',
+          isWhiteboardSnapshot: true,
+        });
+        alert('Saved whiteboard snapshot to Classroom Photos!');
+      })());
+    }, 'image/png');
   };
 
   // Raise Hand / Call Student to Camera or Audio Mic Stage
@@ -591,48 +626,38 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   };
 
   // Social Feed Composer Submit
-  const handleCreateSocialPost = async (data: ComposerSubmitData) => {
+  const handleCreateSocialPost = async (data: ComposerPostData) => {
+    if (!club) return;
     const text = (data.text || '').trim();
     const resolvedMedia = await resolveComposerMedia(data.attachments || [], viewerUid).catch(() => []);
     const mediaUrls = resolvedMedia.map(m => m.url).filter(Boolean);
-    const next = addClassroomPost(classId, {
+    await feedAction(addClassroomPost(club, {
       authorUid: viewerUid,
       authorName: viewerName,
       authorRole: isTeacher ? 'TEACHER' : 'STUDENT',
       authorAvatar: currentUserAvatar,
       text,
       mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
-      telaDocId: data.assetEmbed?.kind === 'TELA_DOC' ? data.assetEmbed.id : undefined,
-      telaTitle: data.assetEmbed?.kind === 'TELA_DOC' ? data.assetEmbed.title : undefined,
       pinned: false,
-    });
-    setPosts(next);
+    }));
   };
 
   // Upload Photo to Classroom Gallery
   const handleUploadClassroomPhoto = async (file: File) => {
+    if (!club) return;
     setUploadingPhoto(true);
     try {
-      let url = '';
-      try {
-        url = await uploadFile(`uploads/organizations/${classId}/gallery_${Date.now()}_${file.name}`, file);
-      } catch {
-        url = await new Promise<string>((resolve, reject) => {
-          const r = new FileReader();
-          r.onload = () => resolve(String(r.result || ''));
-          r.onerror = () => reject(new Error('Could not read image'));
-          r.readAsDataURL(file);
+      await feedAction((async () => {
+        const url = await uploadFile(`uploads/classrooms/${club.id}/gallery_${Date.now()}_${file.name}`, file);
+        await addClassroomPhoto(club, {
+          url,
+          caption: photoCaption.trim() || file.name.replace(/\.[a-z0-9]+$/i, ''),
+          uploadedByUid: viewerUid,
+          uploadedByName: viewerName,
+          uploadedByRole: isTeacher ? 'TEACHER' : 'STUDENT',
         });
-      }
-      const next = addClassroomPhoto(classId, {
-        url,
-        caption: photoCaption.trim() || file.name.replace(/\.[a-z0-9]+$/i, ''),
-        uploadedByUid: viewerUid,
-        uploadedByName: viewerName,
-        uploadedByRole: isTeacher ? 'TEACHER' : 'STUDENT',
-      });
-      setPhotos(next);
-      setPhotoCaption('');
+        setPhotoCaption('');
+      })());
     } finally {
       setUploadingPhoto(false);
     }
@@ -1529,13 +1554,18 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                 Visible only to {className} teacher &amp; enrolled students
               </span>
             </div>
-            <UniversalPostComposer
-              currentUser={auth.currentUser}
-              compact
-              placeholder={`Post an announcement, question, study note, or Tela assignment to ${className}...`}
-              submitLabel="Post to Class"
-              onPost={handleCreateSocialPost}
-            />
+            {club ? (
+              <UniversalPostComposer
+                currentUser={auth.currentUser}
+                compact
+                placeholder={`Post an announcement, question, study note, or Tela assignment to ${className}...`}
+                postLabel="Post to Class"
+                onPost={handleCreateSocialPost}
+              />
+            ) : (
+              <p className="text-xs text-white/55">This is a sample class. Create a class with students to post to its feed.</p>
+            )}
+            {feedError && <p data-club-feed-error className="text-xs text-rose-300">{feedError}</p>}
           </div>
 
           <div className="space-y-3">
@@ -1595,15 +1625,26 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                         </div>
                       </div>
 
-                      {isTeacher && (
-                        <button
-                          type="button"
-                          onClick={() => setPosts(toggleClassroomPostPin(classId, post.id))}
-                          className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-[10px] font-bold text-white/70"
-                        >
-                          {post.pinned ? 'Unpin' : 'Pin Post'}
-                        </button>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {isTeacher && club && (
+                          <button
+                            type="button"
+                            onClick={() => feedAction(setClassroomPostPin(club, post.id, !post.pinned))}
+                            className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-[10px] font-bold text-white/70"
+                          >
+                            {post.pinned ? 'Unpin' : 'Pin Post'}
+                          </button>
+                        )}
+                        {club && (isTeacher || post.authorUid === viewerUid) && (
+                          <button
+                            type="button"
+                            onClick={() => { if (confirm('Delete this post for everyone in the class?')) feedAction(deleteClassroomPost(club, post.id)); }}
+                            className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-rose-500/25 text-[10px] font-bold text-white/60"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <p className="text-sm text-white/90 leading-relaxed whitespace-pre-wrap">{post.text}</p>
@@ -1647,7 +1688,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                     <div className="flex items-center gap-4 pt-2 border-t border-white/10 text-xs">
                       <button
                         type="button"
-                        onClick={() => setPosts(toggleClassroomPostLike(classId, post.id, viewerUid))}
+                        onClick={() => club && feedAction(setClassroomPostLike(club, post.id, viewerUid, !liked))}
                         className={`inline-flex items-center gap-1.5 font-bold ${
                           liked ? 'text-rose-400' : 'text-white/60 hover:text-white'
                         }`}
@@ -1679,15 +1720,14 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                           setCommentDrafts(prev => ({ ...prev, [post.id]: e.target.value }))
                         }
                         onKeyDown={e => {
-                          if (e.key === 'Enter' && (commentDrafts[post.id] || '').trim()) {
+                          if (e.key === 'Enter' && club && (commentDrafts[post.id] || '').trim()) {
                             e.preventDefault();
-                            const next = addClassroomPostComment(classId, post.id, {
+                            feedAction(addClassroomPostComment(club, post.id, {
                               authorUid: viewerUid,
                               authorName: viewerName,
                               authorRole: isTeacher ? 'TEACHER' : 'STUDENT',
                               text: commentDrafts[post.id].trim(),
-                            });
-                            setPosts(next);
+                            }));
                             setCommentDrafts(prev => ({ ...prev, [post.id]: '' }));
                           }
                         }}
@@ -1698,14 +1738,13 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                         type="button"
                         onClick={() => {
                           const txt = (commentDrafts[post.id] || '').trim();
-                          if (!txt) return;
-                          const next = addClassroomPostComment(classId, post.id, {
+                          if (!txt || !club) return;
+                          feedAction(addClassroomPostComment(club, post.id, {
                             authorUid: viewerUid,
                             authorName: viewerName,
                             authorRole: isTeacher ? 'TEACHER' : 'STUDENT',
                             text: txt,
-                          });
-                          setPosts(next);
+                          }));
                           setCommentDrafts(prev => ({ ...prev, [post.id]: '' }));
                         }}
                         className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white"
@@ -1754,7 +1793,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
               />
               <button
                 type="button"
-                disabled={uploadingPhoto}
+                disabled={uploadingPhoto || !club}
                 onClick={() => photoInputRef.current?.click()}
                 className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black text-xs font-black inline-flex items-center gap-1.5"
               >
@@ -1791,9 +1830,20 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                 </div>
                 <div className="p-3.5 space-y-1">
                   <p className="text-xs font-bold text-white truncate">{ph.caption}</p>
-                  <p className="text-[10px] text-white/45">
-                    Uploaded by {ph.uploadedByName} ({ph.uploadedByRole})
-                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] text-white/45">
+                      Uploaded by {ph.uploadedByName} ({ph.uploadedByRole})
+                    </p>
+                    {club && (isTeacher || ph.uploadedByUid === viewerUid) && (
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); if (confirm('Remove this photo for everyone in the class?')) feedAction(deleteClassroomPhoto(club, ph.id)); }}
+                        className="text-[10px] font-bold text-white/50 hover:text-rose-300"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

@@ -106,7 +106,8 @@ function Surface() {
     <div style={{ padding: 16, background: '#05030a', minHeight: '100vh' }}>
       <ClassHub classId="lab-class" className="Lab Class" contextKind={'ACADEMIA' as any} teacherUid="lab-host" teacherName="Lab Host"
         isTeacher={who === 'a'} currentUserUid={auth.currentUser.uid} currentUserName={auth.currentUser.displayName}
-        rosterStudents={[{ id: 'lab-viewer', name: 'Lab Viewer' }]} initialSection="LIVE_LECTURE" />
+        rosterStudents={[{ id: 'lab-viewer', name: 'Lab Viewer' }]} club={{ kind: 'classroom', id: 'lab-class' }}
+        initialSection={(new URLSearchParams(location.search).get('section') as any) || 'LIVE_LECTURE'} />
     </div>
   );
   return (
@@ -120,7 +121,7 @@ function Surface() {
 function Split() {
   const kind = qs.get('split');
   if (kind) {
-    const f = (w: string) => <iframe src={`/golive-lab.html?as=${kind}&who=${w}${qs.get('timer') ? '&timer=1' : ''}`} allow="camera; microphone; autoplay"
+    const f = (w: string) => <iframe src={`/golive-lab.html?as=${kind}&who=${w}${qs.get('timer') ? '&timer=1' : ''}${qs.get('section') ? '&section=' + qs.get('section') : ''}`} allow="camera; microphone; autoplay"
       style={{ width: '50%', height: '100%', border: 0, borderRight: '1px solid #333' }} />;
     return <div style={{ display: 'flex', width: '100vw', height: '100vh' }}>{f('a')}{f('b')}</div>;
   }
