@@ -6,12 +6,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TelaDoc } from '../types';
 import { applyTelaOp, type TelaOp } from '../components/tela/telaOps';
 import { auth } from '../services/backendService';
-import { loadTelaDoc, saveTelaDoc } from '../services/telaStore';
-import { audienceMayApply, gradeLiveResponse, mayInteract, type LiveDocMode, type LiveFieldMark, type LiveGrade } from '../services/liveDocPrepare';
+import { saveTelaDoc } from '../services/telaStore';
+import { audienceMayApply, mayInteract, type LiveDocMode } from '../services/liveDocPrepare';
 import {
-  liveSourceId, loadLiveDoc, lowerLiveHand, raiseLiveHand, returnLiveResponse, setLiveDocFigure, setLiveDocInvited, watchLiveHands, watchMyLiveHand, reviewLiveResponse, sendLiveOp, sendLiveResponse, setLiveDocMode, setLiveDocPlace, startLiveDoc, stopLiveDoc,
-  watchLiveOps, watchLiveResponses, watchLiveSource, watchMyLiveResponses,
-  type LiveDocAudience, type LiveDocHand, type LiveDocOpRecord, type LiveDocPlace, type LiveDocResponse, type LiveDocState,
+  liveSourceId, loadLiveDoc, lowerLiveHand, raiseLiveHand, setLiveDocFigure, setLiveDocInvited, watchLiveHands, watchMyLiveHand, sendLiveOp, setLiveDocMode, setLiveDocPlace, startLiveDoc, stopLiveDoc,
+  watchLiveOps, watchLiveSource,
+  type LiveDocAudience, type LiveDocHand, type LiveDocOpRecord, type LiveDocPlace, type LiveDocState,
 } from '../services/liveDocSource';
 
 export interface LiveDocSource {
@@ -33,19 +33,12 @@ export interface LiveDocSource {
   /** What this viewer sees: the document with their own or the shared changes applied. */
   doc: TelaDoc | null;
   error: string;
-  responses: LiveDocResponse[];
   start: (doc: TelaDoc, mode: LiveDocMode) => Promise<{ deadMedia: number } | null>;
   stop: () => Promise<void>;
   setMode: (mode: LiveDocMode) => void;
   setPlace: (place: LiveDocPlace) => void;
   dispatch: (op: TelaOp) => void;
   keepMyCopy: () => Promise<string | null>;
-  /** Presenter: each submission marked against the original document. */
-  gradeOf: (r: LiveDocResponse, review?: Record<string, LiveFieldMark>) => LiveGrade | null;
-  markField: (r: LiveDocResponse, fieldId: string, mark: LiveFieldMark | null) => void;
-  returnGrade: (r: LiveDocResponse) => void;
-  /** Viewer: their own submissions, with any results sent back. */
-  myResponses: LiveDocResponse[];
 }
 
 const ownKey = (id: string, rev: number, uid: string) => `plajah_live_doc_ops_${id}_${rev}_${uid}`;
@@ -61,9 +54,6 @@ export function useLiveDocSource(sessionKey: string | null, opts: { hostName: st
   const [ownOps, setOwnOps] = useState<TelaOp[]>([]);
   const [sharedOps, setSharedOps] = useState<LiveDocOpRecord[]>([]);
   const [pendingOps, setPendingOps] = useState<LiveDocOpRecord[]>([]);
-  const [responses, setResponses] = useState<LiveDocResponse[]>([]);
-  const [myResponses, setMyResponses] = useState<LiveDocResponse[]>([]);
-  const [original, setOriginal] = useState<TelaDoc | null>(null);
   const uid = auth.currentUser?.uid || '';
   const isHost = !!state && !!uid && state.hostUid === uid;
   const canInteract = mayInteract(state, auth.currentUser);
@@ -109,19 +99,10 @@ export function useLiveDocSource(sessionKey: string | null, opts: { hostName: st
   }, [id, rev, uid]);
 
   useEffect(() => {
-    setSharedOps([]); setPendingOps([]); setResponses([]);
+    setSharedOps([]); setPendingOps([]);
     if (!active || !rev) return;
     return watchLiveOps(id, rev, setSharedOps);
   }, [id, active, rev]);
-  useEffect(() => {
-    if (!active || !rev || !isHost) return;
-    return watchLiveResponses(id, rev, setResponses);
-  }, [id, active, rev, isHost]);
-
-  useEffect(() => {
-    if (!active || !rev || !uid || isHost) { setMyResponses([]); return; }
-    return watchMyLiveResponses(id, rev, uid, setMyResponses);
-  }, [id, active, rev, uid, isHost]);
   useEffect(() => {
     if (!active || !rev || !isHost) { setHands([]); return; }
     return watchLiveHands(id, rev, setHands);
@@ -135,26 +116,18 @@ export function useLiveDocSource(sessionKey: string | null, opts: { hostName: st
     const t = window.setInterval(() => { setLiveDocPlace(id, {}).catch(() => {}); }, HEARTBEAT_MS);
     return () => window.clearInterval(t);
   }, [id, isHost, active]);
-  // The keys only exist in the presenter's own document; a reload finds it again.
-  const docId = state?.docId;
-  useEffect(() => {
-    if (!isHost || !active || !docId || original?.id === docId) return;
-    void loadTelaDoc(docId).then(d => { if (d) setOriginal(d); }).catch(() => {});
-  }, [isHost, active, docId, original?.id]);
-
   const doc = useMemo(() => {
     if (!base || baseRev !== rev) return null;
     const apply = (d: TelaDoc, op: TelaOp) => { try { return audienceMayApply(op) ? applyTelaOp(d, op) : d; } catch { return d; } };
     let d = base;
     if (mode === 'OWN_COPY' && !isHost) d = ownOps.reduce(apply, d);
-    if (isHost) d = responses.filter(r => r.mode === 'OWN_COPY').map(r => { try { return JSON.parse(r.json) as TelaOp; } catch { return null; } }).reduce((x, op) => (op ? apply(x, op) : x), d);
     // Everyone replays the same list in the same order, then anything of mine that hasn't come back yet.
     const seen = new Set(sharedOps.map(o => o.id));
     for (const rec of [...sharedOps, ...pendingOps.filter(o => !seen.has(o.id))]) {
       try { d = apply(d, JSON.parse(rec.json) as TelaOp); } catch { /* a malformed change is skipped by everyone */ }
     }
     return d;
-  }, [base, baseRev, rev, mode, isHost, ownOps, sharedOps, pendingOps, responses]);
+  }, [base, baseRev, rev, mode, isHost, ownOps, sharedOps, pendingOps]);
 
   const dispatch = useCallback((op: TelaOp) => {
     if (!state || !audienceMayApply(op) || !mayInteract(state, auth.currentUser)) return;
@@ -165,14 +138,12 @@ export function useLiveDocSource(sessionKey: string | null, opts: { hostName: st
         setPendingOps(p => p.filter(o => o.id !== opId));
         setError(e?.message || "That change didn't save.");
       });
-      if (op.type === 'ADD_BASE_ROW' && !isHost) sendLiveResponse(state.id, state.rev, op, 'TOGETHER').catch(() => {});
     } else if (state.mode === 'OWN_COPY' && !isHost) {
       setOwnOps(prev => {
         const next = [...prev, op];
         try { localStorage.setItem(ownKey(state.id, state.rev, uid), JSON.stringify(next)); } catch { /* still works for this visit */ }
         return next;
       });
-      if (op.type === 'ADD_BASE_ROW') sendLiveResponse(state.id, state.rev, op, 'OWN_COPY').catch(e => setError(e?.message || "Your answers didn't reach the host."));
     }
   }, [state, uid, isHost]);
 
@@ -181,7 +152,6 @@ export function useLiveDocSource(sessionKey: string | null, opts: { hostName: st
     setError('');
     try {
       if (state?.active && isHost) await stopLiveDoc(state);
-      setOriginal(d);
       return await startLiveDoc({ id, doc: d, mode: m, hostName: opts.hostName, audience: opts.audience, memberUids: opts.memberUids });
     } catch (e: any) { setError(e?.message || 'This document could not go live.'); return null; }
   }, [id, state, isHost, opts.hostName, opts.audience, opts.memberUids]);
@@ -240,16 +210,5 @@ export function useLiveDocSource(sessionKey: string | null, opts: { hostName: st
     return copy.id;
   }, [doc]);
 
-  const gradeOf = useCallback((r: LiveDocResponse, review?: Record<string, LiveFieldMark>) => (original ? gradeLiveResponse(original, r.json, review ?? r.review) : null), [original]);
-  const markField = useCallback((r: LiveDocResponse, fieldId: string, mark: LiveFieldMark | null) => {
-    const review = { ...(r.review || {}) };
-    if (mark) review[fieldId] = mark; else delete review[fieldId];
-    reviewLiveResponse(id, r.id, review).catch(e => setError(e?.message || "That mark didn't save."));
-  }, [id]);
-  const returnGrade = useCallback((r: LiveDocResponse) => {
-    const g = gradeOf(r);
-    if (g) returnLiveResponse(id, r.id, g).catch(e => setError(e?.message || "That result didn't send."));
-  }, [id, gradeOf]);
-
-  return { state, active, isHost, canInteract, hands, myHand, raiseHand, lowerHand, bringOn, sendBack, setInvited, doc, error, responses, start, stop, setMode, setPlace, dispatch, keepMyCopy, gradeOf, markField, returnGrade, myResponses };
+  return { state, active, isHost, canInteract, hands, myHand, raiseHand, lowerHand, bringOn, sendBack, setInvited, doc, error, start, stop, setMode, setPlace, dispatch, keepMyCopy };
 }

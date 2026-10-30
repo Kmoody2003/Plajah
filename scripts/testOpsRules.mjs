@@ -184,8 +184,6 @@ t('live doc: nobody takes over a running source', 'DENY', OTHER, 'update', LS, {
 t('live doc: the next presenter claims a finished one', 'ALLOW', OTHER, 'update', LS, { existing: live({ active: false }), data: live({ hostUid: OTHER, active: false }) });
 t('live doc: audience cannot change the mode', 'DENY', MEMBER, 'update', LS, { existing: live(), data: live({ mode: 'TOGETHER' }) });
 
-const LR = `${LS}/responses/r1`;
-const resp = (o) => ({ id: 'r1', rev: 1, uid: MEMBER, name: 'M', at: 1, mode: 'OWN_COPY', json: '{}', ...o });
 t('live doc: a watcher cannot move the simulations', 'DENY', MEMBER, 'update', LS, { existing: live(), data: live({ figure: { values: {} } }) });
 t('live doc: someone brought on can', 'ALLOW', MEMBER, 'update', LS, { existing: live({ invitedUids: [MEMBER] }), data: live({ invitedUids: [MEMBER], figure: { values: {} } }) });
 t('live doc: someone brought on cannot change the mode', 'DENY', MEMBER, 'update', LS, { existing: live({ invitedUids: [MEMBER] }), data: live({ invitedUids: [MEMBER], mode: 'TOGETHER' }) });
@@ -195,14 +193,6 @@ t('live doc: a member raises a hand', 'ALLOW', MEMBER, 'create', HD, { data: { u
 t('live doc: not for someone else', 'DENY', OTHER, 'create', HD, { data: { uid: MEMBER, name: 'M', rev: 1, at: 1 } });
 t('live doc: signed out cannot raise a hand', 'DENY', null, 'create', HD, { data: { uid: MEMBER, name: 'M', rev: 1, at: 1 } });
 t('live doc: the presenter clears a hand', 'ALLOW', TEACH, 'delete', HD, { existing: { uid: MEMBER, rev: 1 } });
-t('live doc: a student submits', 'ALLOW', MEMBER, 'create', LR, { data: resp() });
-t('live doc: no submitting as someone else', 'DENY', MEMBER, 'create', LR, { data: resp({ uid: OTHER }) });
-t('live doc: no sending yourself a result', 'DENY', MEMBER, 'create', LR, { data: resp({ returned: { percent: 100 } }) });
-t('live doc: the student reads their own', 'ALLOW', MEMBER, 'get', LR, { existing: resp() });
-t('live doc: another student cannot', 'DENY', OTHER, 'get', LR, { existing: resp() });
-t('live doc: the presenter sends a result', 'ALLOW', TEACH, 'update', LR, { existing: resp(), data: resp({ returned: { percent: 90 } }) });
-t('live doc: the presenter cannot rewrite the answers', 'DENY', TEACH, 'update', LR, { existing: resp(), data: resp({ json: '{"x":1}' }) });
-t('live doc: a student cannot mark themselves', 'DENY', MEMBER, 'update', LR, { existing: resp(), data: resp({ returned: { percent: 100 } }) });
 
 const body = {
   source: { files: [{ name: 'firestore.rules', content: src }] },

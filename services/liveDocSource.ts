@@ -6,14 +6,14 @@
 //   liveSources/{id}                   host, title, mode, audience, the host's place (frame, scroll, media)
 //   liveSources/{id}/chunks/{rev_i}    the audience's copy of the document, gzipped (no private Notes or keys)
 //   liveSources/{id}/ops/{opId}        TOGETHER: every change, replayed in order by everyone
-//   liveSources/{id}/responses/{id}    OWN_COPY: form submissions, which only the host and their author read
+//   liveSources/{id}/hands/{uid}       raised hands, for the presenter to bring people on
 //
 // Rules: firestore.ops.rules `liveSources`.
 
 import { collection, deleteDoc, doc, getDoc, onSnapshot, orderBy, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import { auth, opsDb } from './firebase';
 import { gunzipB64, gzipB64 } from './coedit/chunks';
-import { prepareLiveDoc, type LiveDocMode, type LiveFieldMark, type LiveGrade } from './liveDocPrepare';
+import { prepareLiveDoc, type LiveDocMode } from './liveDocPrepare';
 import type { TelaDoc } from '../types';
 import type { TelaOp } from '../components/tela/telaOps';
 
@@ -155,42 +155,3 @@ export async function sendLiveOp(id: string, rev: number, opId: string, op: Tela
   if (json.length > 60_000) throw new Error('That change is too large to share.');
   await setDoc(doc(opsDb, COL, id, 'ops', opId), { id: opId, rev, uid, at: Date.now(), json });
 }
-
-// ── OWN_COPY ────────────────────────────────────────────────────────────────
-
-export interface LiveDocResponse {
-  id: string; rev: number; uid: string; name: string; at: number; json: string; mode: LiveDocMode;
-  /** The presenter's hand marks. */
-  review?: Record<string, LiveFieldMark>;
-  /** What the presenter sent back; absent until they return it. */
-  returned?: LiveGrade & { at: number };
-}
-
-export async function sendLiveResponse(id: string, rev: number, op: TelaOp, mode: LiveDocMode): Promise<void> {
-  const u = auth.currentUser;
-  if (!u) return;
-  const rid = `${u.uid}_${Date.now()}`;
-  await setDoc(doc(opsDb, COL, id, 'responses', rid), { id: rid, rev, uid: u.uid, name: u.displayName || 'Student', at: Date.now(), mode, json: JSON.stringify(op).slice(0, 200_000) });
-}
-
-export function watchLiveResponses(id: string, rev: number, onResponses: (r: LiveDocResponse[]) => void): () => void {
-  return onSnapshot(
-    query(collection(opsDb, COL, id, 'responses'), where('rev', '==', rev)),
-    s => onResponses(s.docs.map(d => d.data() as LiveDocResponse)),
-    e => console.warn('[liveDoc] responses unavailable', e),
-  );
-}
-
-export function watchMyLiveResponses(id: string, rev: number, uid: string, onResponses: (r: LiveDocResponse[]) => void): () => void {
-  return onSnapshot(
-    query(collection(opsDb, COL, id, 'responses'), where('uid', '==', uid), where('rev', '==', rev)),
-    s => onResponses(s.docs.map(d => d.data() as LiveDocResponse)),
-    e => console.warn('[liveDoc] your results are unavailable', e),
-  );
-}
-
-export const reviewLiveResponse = (id: string, rid: string, review: Record<string, LiveFieldMark>) =>
-  updateDoc(doc(opsDb, COL, id, 'responses', rid), { review });
-
-export const returnLiveResponse = (id: string, rid: string, grade: LiveGrade) =>
-  updateDoc(doc(opsDb, COL, id, 'responses', rid), { returned: { ...grade, at: Date.now() } });

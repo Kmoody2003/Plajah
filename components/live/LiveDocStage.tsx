@@ -36,6 +36,8 @@ const CSS = `
 .lds-f>div{flex:1 1 150px;min-width:0}
 .lds-f small{display:block;color:rgba(244,241,247,.72);font-size:.72rem}
 .lds-b[aria-pressed="true"]{background:#f4f1f7;color:#160a24}
+.lds [data-lds-kind="FORM"]{pointer-events:none!important}
+.lds [data-lds-kind="FORM"] button{display:none}
 .lds-pips{position:absolute;top:58px;right:22px;display:grid;gap:10px;width:200px;pointer-events:none}
 .lds-pips>*{pointer-events:auto}
 @media (max-width:640px){.lds-pips{width:112px;right:12px}}
@@ -67,7 +69,6 @@ export default function LiveDocStage({ src, children, onClose, ownHandQueue }: {
   const inner = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [naturalH, setNaturalH] = useState(0);
-  const [showSubs, setShowSubs] = useState(false);
   const figureRef = useRef<LiveDocFigureState>({ values: {}, clicks: [], orbits: {} });
   const stateRef = useRef(state); stateRef.current = state;
   const drives = mode === 'FOLLOW' && canInteract;
@@ -224,14 +225,13 @@ export default function LiveDocStage({ src, children, onClose, ownHandQueue }: {
   };
   const wander = () => { if (following) setWandered(true); };
 
-  const returned = src.myResponses.filter(r => r.returned);
   // Names stay with the presenter: the source itself only carries ids.
   const namesRef = useRef<Record<string, string>>({});
   src.hands.forEach(h => { namesRef.current[h.uid] = h.name; });
   const onStageNames = namesRef.current;
   const note = !frame ? '' : !canInteract ? 'You’re watching. Raise your hand and the presenter can bring you on to interact.'
     : mode === 'TOGETHER' ? 'One shared copy for the people on. Everyone watching sees it change.'
-    : mode === 'OWN_COPY' ? (isHost ? `Each person you bring on works on their own private copy. ${src.responses.length} submitted so far.` : 'Your own copy. Only you see it until you submit.')
+    : mode === 'OWN_COPY' ? (isHost ? 'Each person you bring on works on their own private copy.' : 'Your own copy. Only you see it. Assignments are still turned in from your class.')
     : !isHost ? 'You’re on. What you do with a simulation or model, everyone following sees.' : '';
 
   return (
@@ -259,8 +259,6 @@ export default function LiveDocStage({ src, children, onClose, ownHandQueue }: {
         {!isHost && canInteract && mode === 'OWN_COPY' && (
           <button type="button" className="lds-b" onClick={async () => { if (await src.keepMyCopy()) setKept(true); }}>{kept ? 'Saved to your Tela' : 'Keep my copy'}</button>
         )}
-        {isHost && <button type="button" className="lds-b" aria-pressed={showSubs} onClick={() => setShowSubs(v => !v)}>Submissions · {src.responses.length}</button>}
-        {!isHost && returned.length > 0 && <button type="button" className="lds-b" aria-pressed={showSubs} onClick={() => setShowSubs(v => !v)}>My results · {returned.length}</button>}
         {isHost && <button type="button" className="lds-b" onClick={() => void src.stop()}>Stop presenting</button>}
         {onClose && <button type="button" className="lds-b" onClick={onClose}>Hide</button>}
       </div>
@@ -274,46 +272,6 @@ export default function LiveDocStage({ src, children, onClose, ownHandQueue }: {
           ))}
           {(state?.invitedUids || []).map(u => (
             <div key={u} className="lds-card"><div className="h"><b>{onStageNames[u] || 'On now'}</b><span>Can interact</span><button type="button" className="lds-b" onClick={() => src.sendBack(u)}>Send back</button></div></div>
-          ))}
-        </div>
-      )}
-      {showSubs && isHost && (
-        <div className="lds-sub" aria-label="Submissions">
-          {src.responses.length === 0 && <span>Submitted forms show up here, marked against your original.</span>}
-          {[...src.responses].sort((a, b) => a.at - b.at).map(r => {
-            const g = src.gradeOf(r);
-            return (
-              <div key={r.id} className="lds-card">
-                <div className="h">
-                  <b>{r.name}</b>
-                  <span>{!g ? 'Couldn’t mark this one' : g.possible > 0 ? `${g.earned}/${g.possible} · ${g.percent}%` : 'Answers only'}{g?.needsReview ? ' · needs your review' : ''}</span>
-                  {g && <button type="button" className="lds-b" onClick={() => src.returnGrade(r)}>{r.returned ? 'Send again' : 'Send result'}</button>}
-                </div>
-                {g?.fields.map(f => (
-                  <div key={f.fieldId} className="lds-f">
-                    <div>{f.name}<small>{f.answer || 'No answer'} · {f.status === 'MANUAL_REVIEW' ? 'Needs review' : f.status === 'CORRECT' ? 'Correct' : f.status === 'INCORRECT' ? 'Incorrect' : f.status === 'UNANSWERED' ? 'Unanswered' : 'Answered'}</small></div>
-                    {f.possible > 0 && (
-                      <>
-                        <button type="button" className="lds-b" aria-pressed={r.review?.[f.fieldId] === 'CORRECT'} onClick={() => src.markField(r, f.fieldId, r.review?.[f.fieldId] === 'CORRECT' ? null : 'CORRECT')}>Correct</button>
-                        <button type="button" className="lds-b" aria-pressed={r.review?.[f.fieldId] === 'INCORRECT'} onClick={() => src.markField(r, f.fieldId, r.review?.[f.fieldId] === 'INCORRECT' ? null : 'INCORRECT')}>Incorrect</button>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {showSubs && !isHost && (
-        <div className="lds-sub" aria-label="Your results">
-          {returned.map(r => (
-            <div key={r.id} className="lds-card">
-              <div className="h"><b>Your result</b><span>{r.returned!.possible > 0 ? `${r.returned!.earned}/${r.returned!.possible} · ${r.returned!.percent}%` : 'Reviewed'}</span></div>
-              {r.returned!.fields.map(f => (
-                <div key={f.fieldId} className="lds-f"><div>{f.name}<small>{f.answer || 'No answer'} · {f.status === 'CORRECT' ? 'Correct' : f.status === 'INCORRECT' ? (f.tip || 'Try this one again') : f.status === 'MANUAL_REVIEW' ? 'Your teacher will review this' : 'Received'}</small></div></div>
-              ))}
-            </div>
           ))}
         </div>
       )}

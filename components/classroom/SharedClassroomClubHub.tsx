@@ -101,8 +101,6 @@ export interface SharedClassroomClubHubProps {
   embedded?: boolean;
   /** The class's lessons the teacher can put on the stage. */
   lessons?: IngestedCurriculumUnit[];
-  /** A student's own copy, when this class can tie it to their assignment (else it stays on this device). */
-  ownCopy?: { load: (unitId: string) => Record<string, string> | null; save: (unitId: string, answers: Record<string, string>) => void };
 }
 
 const WHITEBOARD_COLORS = ['#FFFFFF', '#FF8C00', '#00DAF3', '#06D6A0', '#D40055', '#FFD24A', '#A78BFA'];
@@ -266,7 +264,6 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   initialSection = 'LIVE_LECTURE',
   embedded = false,
   lessons,
-  ownCopy,
 }) => {
   const viewerUid = currentUserUid || auth.currentUser?.uid || (isTeacher ? teacherUid : 'student_local');
   const viewerName =
@@ -542,13 +539,12 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
     if (!ownKey || !lessonId) return;
     let saved: Record<string, string> = {};
     try { saved = JSON.parse(localStorage.getItem(ownKey) || '{}'); } catch {}
-    setOwnAnswers({ ...saved, ...(ownCopy?.load(lessonId) || {}) });
+    setOwnAnswers(saved);
   }, [ownKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const handleOwnAnswer = (qid: string, value: string) => {
     setOwnAnswers(prev => {
       const next = { ...prev, [qid]: value };
       try { localStorage.setItem(ownKey, JSON.stringify(next)); } catch {}
-      if (lessonId) ownCopy?.save(lessonId, next);
       return next;
     });
   };

@@ -30,7 +30,7 @@ const CSS = `
 
 const MODE_HELP: Array<[LiveDocMode, string, string]> = [
   ['FOLLOW', 'Follow me', 'Everyone sees your page, and what you do with videos, simulations and models.'],
-  ['OWN_COPY', 'Own copy', 'Each person you bring on works privately and can submit forms back to you.'],
+  ['OWN_COPY', 'Own copy', 'Each person you bring on works privately, on their own copy.'],
   ['TOGETHER', 'Together', 'The people you bring on write on one copy. Everyone sees it change.'],
 ];
 
