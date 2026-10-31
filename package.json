@@ -213,7 +213,7 @@
   },
   "overrides": {
     "node-domexception": "file:./mocks/node-domexception",
-    "qs": "^6.16.0",
+    "qs": "^6.17.1",
     "fast-uri": "^3.1.6",
     "mysql2": "^3.22.0",
     "three-stdlib": {
