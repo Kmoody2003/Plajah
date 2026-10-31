@@ -64,6 +64,18 @@ const people: Record<string, Partial<UserProfile>> = {
   'lab-dana': { uid: 'lab-dana', displayName: 'Dana Reyes' },
   'lab-sam': { uid: 'lab-sam', displayName: 'Sam Okafor' },
 };
+// ?view=dm: people to search. Priya's DM already exists but sits outside the live list (the listener
+// never fires for it); Blocked Bo's create is refused by rules.
+const dmPeople = [
+  { uid: 'lab-priya', displayName: 'Priya Nair', bio: 'Existing DM outside the live list' },
+  { uid: 'lab-new', displayName: 'Priya New', bio: 'No DM yet' },
+  { uid: 'lab-blocked', displayName: 'Priya Blocked', bio: 'Create is denied' },
+] as UserProfile[];
+export const searchUserProfiles = async (term: string) => dmPeople.filter(u => u.displayName.toLowerCase().includes(term.toLowerCase()));
+export const createChatRoom = async (participants: string[]) => {
+  if (participants.includes('lab-blocked')) throw new Error('Missing or insufficient permissions.');
+  return 'dm_' + [...participants].sort().join('_');
+};
 export const fetchUserProfiles = async (uids: string[]) => uids.map(u => people[u]).filter(Boolean) as UserProfile[];
 export const fetchCollabProjects = async () => [];
 export const fetchUserContent = async () => [];

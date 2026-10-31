@@ -1,11 +1,14 @@
 // Chat basics lab — see chat-basics-lab.vite.config.mjs.
 //   ?view=call   in-call recording controls
 //   ?view=meet   schedule dialog + meeting invite card
+//   ?view=dm     ChatSystem: search a name, click it, the DM opens
 //   ?view=join   a meeting link as a guest (&as=member to see the member view)
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '/index.css';
 import ChatWindow from './components/ChatWindow';
+import ChatSystem from './components/ChatSystem';
+import { CallProvider } from './contexts/CallContext';
 import { MeetingRecordPanel, RecordingNotice, LiveCaptionsOverlay } from './components/meetings/MeetingRecordPanel';
 import { ScheduleMeetingDialog, MeetingInviteCard } from './components/meetings/ScheduleMeeting';
 import MeetingJoinPage from './components/meetings/MeetingJoinPage';
@@ -43,7 +46,8 @@ const MeetLab: React.FC = () => {
 };
 
 createRoot(document.getElementById('root')!).render(
-  view === 'call' ? <CallControlsLab />
+  view === 'dm' ? <div style={{ height: '100vh', background: '#050505' }}><CallProvider><ChatSystem /></CallProvider></div>
+    : view === 'call' ? <CallControlsLab />
     : view === 'meet' ? <MeetLab />
     : view === 'join' ? <MeetingJoinPage meetingId={LAB_MEETING.id} onExit={() => {}} />
     : (
