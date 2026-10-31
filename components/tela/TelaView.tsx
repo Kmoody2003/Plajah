@@ -14,9 +14,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  BarChart3, BookHeart, BookOpen, Brush, CheckCircle2, ChevronDown, ChevronLeft, Circle, CircleHelp, Clipboard, Copy, CopyPlus, Database, Eye, EyeOff, Feather, FileDown, FilePlus2, FileText, FileUp, FlipHorizontal, Folder, FormInput,
+  BarChart3, Blend, BookHeart, BookOpen, Brush, CheckCircle2, ChevronDown, ChevronLeft, Circle, CircleHelp, Clipboard, Copy, CopyPlus, Database, Eye, EyeOff, Feather, FileDown, FilePlus2, FileText, FileUp, FlipHorizontal, Folder, FormInput,
   Grid3X3, Hand, Hexagon, Image as ImageIcon, ImagePlus, Lasso, Layers, LayoutPanelTop, Link as LinkIcon, Link2, Loader2, Maximize2, Minimize2,
-  Minus, Monitor, MousePointer2, MousePointerClick, Music2, Paintbrush, Eraser, Palette, Pencil, PenLine, PenTool, Pipette, Plus, Redo2, Scan, Shapes, Sliders, Sparkles, Spline, Square, Star, TextQuote, Trash2, Type, Undo2, Wand2, X, ZoomIn, History as HistoryIcon, Printer, Box as BoxIcon, MoreHorizontal, GraduationCap, LayoutTemplate } from 'lucide-react';
+  Minus, Monitor, ShieldAlert, ShieldCheck, MousePointer2, MousePointerClick, Music2, Paintbrush, Eraser, Palette, Pencil, PenLine, PenTool, Pipette, Plus, SquarePlus, Redo2, Cpu, Images, Library as LibraryIcon, Scan, Shapes, Sliders, Sparkles, Spline, Square, Star, TextQuote, Trash2, Type, Undo2, Wand2, X, ZoomIn, History as HistoryIcon, Printer, Box as BoxIcon, MoreHorizontal, GraduationCap, LayoutTemplate } from 'lucide-react';
 import { NON_PRINTING_LABEL, isNonPrinting, type SpotColor } from '../../services/print/types';
 import { defaultSpecFor } from '../../services/print/products';
 import { vehiclePlacements, type WrapJob } from '../../services/print/wrap';
@@ -27,12 +27,17 @@ import type {
   TelaRow, TelaVectorDevice, TelaVectorObject, TelaWriterDevice,
 } from '../../types';
 import {
-  deleteTelaDoc, listTelaDocs, loadTelaDoc, loadTelaDocFreshest, newTelaId, serializeTelaDocForStore, telaDocFromStoredJson, TELA_CLOUD_KIND, saveTelaDoc, telaStorageMode,
+  deleteTelaDoc, listTelaDocs, loadTelaDoc, loadTelaDocFreshest, newTelaId, purgeLocalTelaCopy, serializeTelaDocForStore, telaDocFromStoredJson, TELA_CLOUD_KIND, saveTelaDoc, telaStorageMode,
   publishTelaVersion,
 } from '../../services/telaStore';
 import { CreativeStorageMeter, CreativeVersionHistory, useCreativeSyncState } from '../creative/CreativeCloudPanels';
 import { useCoedit, type UseCoedit } from '../../hooks/useCoedit';
 import { CollabDock } from '../collab/CollabDock';
+import { TelaSecurityPanel } from './TelaSecurityPanel';
+import { cleanAndReport, TELA_THREAT_EVENT, type TelaThreat, type TelaThreatDetail } from '../../services/tela/telaSecurity';
+import { accessExpired, getMyRevocation } from '../../services/coedit/project';
+import { CoeditSession } from '../../services/coedit/session';
+import { logDocEvent, logTelaExport } from '../../services/coedit/audit';
 import { forShare, telaLabeler, withPrivate } from './telaCoedit';
 import { TelaPresenceLayer } from './TelaPresence';
 import { coProjectId, listSharedWithMe } from '../../services/coedit/project';
@@ -46,6 +51,14 @@ import type { TelaClassworkContext, TelaReturnTarget } from './classwork/classwo
 import { extractDocument, isSupportedImport, escapeHtml, SUPPORTED_IMPORT_ACCEPT } from '../../services/documentImport';
 import { uploadTelaAsset, uploadTelaImage } from '../../services/telaAssets';
 import { isVectorFile, rasterizeVector } from '../../services/fabula/vectorRaster';
+import { importDesignFile, isDesignFile, openSmartObject } from '../../services/tela/import/importClient';
+import type { DesignImportState } from './import/DesignImportDialog';
+import type { ImportedDocument } from '../../services/tela/import/types';
+import type { ImportedBrush, ImportedPattern, ImportedShape } from '../../services/tela/import/presets';
+import { isPresetFile } from '../../services/tela/import/presets';
+import { importPresetFiles, patternDataUrl, setActiveImportedBrush } from '../../services/tela/import/presetLibrary';
+import { parsePathData } from '../../services/tela/geometry/pathData';
+import { pathBounds } from '../../services/tela/geometry/bezier';
 import { classifyTelaAsset, instantiateTelaTemplate, makeShapeObject, TELA_CREATIVE_TEMPLATES, TELA_SHAPE_LIBRARY, type TelaTemplateCategory } from '../../services/telaCreativeEngine';
 import { answerLayoutForObject, findTelaLayoutMatch, makeAnswerGuide, makeTelaQuestionField, rememberApprovedTelaLayout, type TelaQuestionDraft } from '../../services/telaAssignmentEngine';
 import { autoFormatTelaAssignment, type TelaAutoFormatReport } from '../../services/telaAssignmentAutoFormat';
@@ -91,6 +104,7 @@ import TelaPaiGalleryModal from './TelaPaiGalleryModal';
 import { TelaTypographyStudio } from './TelaTypographyStudio';
 import { TelaToolOptionsBar, DEFAULT_TYPE, type TelaTypeDefaults } from './TelaToolOptionsBar';
 import type { Selection, SelectionTool } from '../../services/tela/raster/selectionWorkflow';
+import { TelaToolRail, type TelaRailItem, type TelaRailSection } from './TelaToolRail';
 import {
   invertSelection,
   selectAll,
@@ -119,6 +133,9 @@ import { useContextMenu } from '../ui/ContextMenu';
 import { makeTelaChart } from '../../services/telaChartData';
 
 const ComicDrawCanvas = React.lazy(() => import('../ComicDrawCanvas'));
+const DesignImportDialog = React.lazy(() => import('./import/DesignImportDialog'));   // Photoshop / Illustrator import progress + report
+const TelaPluginPanel = React.lazy(() => import('./import/TelaPluginPanel'));   // Photoshop .8bf filters (desktop app)
+const TelaLibraryPanel = React.lazy(() => import('./import/TelaLibraryPanel'));   // Imported brushes, shapes, swatches, patterns
 const ComposeWithCouncil = React.lazy(() => import('../living/ComposeWithCouncil'));   // Composer Council panel (services/living/composer)
 const TelaBehaviorsPanel = React.lazy(() => import('./TelaBehaviorsPanel'));   // Live authoring: behaviours, sounds, music (services/living)
 const TelaComicStudio = React.lazy(() => import('./TelaComicStudio').then(m => ({ default: m.TelaComicStudio })));
@@ -131,7 +148,7 @@ const LocalCreativeStudio = React.lazy(() => import('../Fabula/LocalCreativeStud
 const TelaWritingStudio = React.lazy(() => import('./TelaWritingStudio').then(m => ({ default: m.TelaWritingStudio })));
 import {
   useTelaComicVariant2Controller,
-  TelaComicLeftRailCluster,
+  comicRailItems,
   TelaComicPageStreamCanvas,
   TelaComicSplitRightInspector,
   TelaComicBottomTransportAndTimeline,
@@ -146,6 +163,7 @@ const SCREEN_PRESETS: TelaFramePreset[] = ['SIGNAGE_1080x1920', 'PHONE', 'SQUARE
 const CHROME_H = 30;
 const TELA_ASSET_ACCEPT = [
   'image/*','audio/*','video/*','model/gltf+json','model/gltf-binary','application/pdf','font/*',
+  '.psd','.psb','.psdt','.ai','.ait','.eps','.abr','.csh','.ase','.aco','.pat',
   '.glb','.gltf','.obj','.fbx','.stl','.usdz','.dae','.3ds','.blend','.ply','.3mf',
   '.mp3','.wav','.m4a','.aac','.flac','.ogg','.opus','.aiff','.mid','.midi',
   '.mp4','.mov','.m4v','.webm','.avi','.mkv','.mpeg','.mpg',
@@ -156,38 +174,55 @@ const TELA_ASSET_ACCEPT = [
 const uid = (p: string) => `${p}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
 // Studio left-rail vector tools (mirrors TelaVector's own palette).
-const STUDIO_VEC_TOOLS: { id: VectorTool; icon: React.ReactNode; label: string }[] = [
-  { id: 'select', icon: <MousePointer2 size={17} />, label: 'Select' },
-  { id: 'direct', icon: <MousePointerClick size={17} />, label: 'Direct select / anchors' },
-  { id: 'marquee', icon: <Scan size={17} />, label: 'Marquee select' },
-  { id: 'rect', icon: <Square size={17} />, label: 'Rectangle' },
-  { id: 'ellipse', icon: <Circle size={17} />, label: 'Ellipse' },
-  { id: 'line', icon: <Minus size={17} />, label: 'Line' },
-  { id: 'pen', icon: <PenTool size={17} />, label: 'Pen / polyline' },
-  { id: 'text', icon: <Type size={17} />, label: 'Text' },
-  { id: 'ink', icon: <Brush size={17} />, label: 'Ink — freehand (B)' },
+// Rail groups for artboard tools. Shortcuts are the keys the studio key handler really binds.
+type RailTool = { id: string; group: 'select' | 'text' | 'draw' | 'shapes' | 'color' | 'view'; icon: React.ReactNode; label: string; desc: string; shortcut?: string };
+
+const STUDIO_VEC_TOOLS: RailTool[] = [
+  { id: 'select', group: 'select', icon: <MousePointer2 size={16} />, label: 'Select', desc: 'Click a layer to select, move, or resize it.', shortcut: 'V' },
+  { id: 'direct', group: 'select', icon: <MousePointerClick size={16} />, label: 'Edit points', desc: 'Drag the individual points of a path.', shortcut: 'A' },
+  { id: 'marquee', group: 'select', icon: <Scan size={16} />, label: 'Box select', desc: 'Drag a box to select every layer inside it.', shortcut: 'M' },
+  { id: 'text', group: 'text', icon: <Type size={16} />, label: 'Type', desc: 'Click the page or start typing to make a text layer.', shortcut: 'T' },
+  { id: 'pen', group: 'draw', icon: <PenTool size={16} />, label: 'Pen', desc: 'Click to place points and draw a precise line.', shortcut: 'P' },
+  { id: 'ink', group: 'draw', icon: <Brush size={16} />, label: 'Ink', desc: 'Draw freehand with a pen, pencil, or highlighter.', shortcut: 'B' },
+  { id: 'rect', group: 'shapes', icon: <Square size={16} />, label: 'Rectangle', desc: 'Drag on the page to draw a rectangle.', shortcut: 'R' },
+  { id: 'ellipse', group: 'shapes', icon: <Circle size={16} />, label: 'Ellipse', desc: 'Drag on the page to draw an ellipse or circle.', shortcut: 'E' },
+  { id: 'line', group: 'shapes', icon: <Minus size={16} />, label: 'Line', desc: 'Drag on the page to draw a straight line.', shortcut: 'L' },
 ];
 
-const STUDIO_PRO_TOOLS: { id: StudioTool; icon: React.ReactNode; label: string }[] = [
-  { id: 'select', icon: <MousePointer2 size={17} />, label: 'Selection (V)' },
-  { id: 'direct', icon: <MousePointerClick size={17} />, label: 'Direct Selection / Anchors (A)' },
-  { id: 'pen', icon: <PenTool size={17} />, label: 'Pen — Bezier (P)' },
-  { id: 'pencil', icon: <Pencil size={17} />, label: 'Pencil (N)' },
-  { id: 'type', icon: <Type size={17} />, label: 'Type (T)' },
-  { id: 'rect', icon: <Square size={17} />, label: 'Rectangle (M)' },
-  { id: 'ellipse', icon: <Circle size={17} />, label: 'Ellipse (L)' },
-  { id: 'polygon', icon: <Hexagon size={17} />, label: 'Polygon' },
-  { id: 'star', icon: <Star size={17} />, label: 'Star' },
-  { id: 'line', icon: <Minus size={17} />, label: 'Line (\\)' },
-  { id: 'width', icon: <Spline size={17} />, label: 'Variable Width (Shift+W)' },
-  { id: 'shapeBuilder', icon: <Sparkles size={17} />, label: 'Shape Builder (Shift+M)' },
-  { id: 'gradient', icon: <Layers size={17} />, label: 'Gradient Tool (G)' },
-  { id: 'mesh', icon: <Grid3X3 size={17} />, label: 'Gradient Mesh (U)' },
-  { id: 'eyedropper', icon: <Pipette size={17} />, label: 'Eyedropper (I)' },
-  { id: 'artboard', icon: <Maximize2 size={17} />, label: 'Artboard Tool (Shift+O)' },
-  { id: 'hand', icon: <Hand size={17} />, label: 'Hand / Pan (H)' },
-  { id: 'zoom', icon: <ZoomIn size={17} />, label: 'Zoom (Z)' },
+const STUDIO_PRO_TOOLS: RailTool[] = [
+  { id: 'select', group: 'select', icon: <MousePointer2 size={16} />, label: 'Select', desc: 'Click a layer to select, move, or resize it.', shortcut: 'V' },
+  { id: 'direct', group: 'select', icon: <MousePointerClick size={16} />, label: 'Edit points', desc: 'Drag the individual points and handles of a path.', shortcut: 'A' },
+  { id: 'type', group: 'text', icon: <Type size={16} />, label: 'Type', desc: 'Click the page or start typing to make a text layer.', shortcut: 'T' },
+  { id: 'pen', group: 'draw', icon: <PenTool size={16} />, label: 'Pen', desc: 'Click to place points and draw precise curves.', shortcut: 'P' },
+  { id: 'pencil', group: 'draw', icon: <Pencil size={16} />, label: 'Pencil', desc: 'Draw a freehand path.' },
+  { id: 'width', group: 'draw', icon: <Spline size={16} />, label: 'Line width', desc: 'Drag on a stroke to make parts of it thicker or thinner.' },
+  { id: 'rect', group: 'shapes', icon: <Square size={16} />, label: 'Rectangle', desc: 'Drag on the page to draw a rectangle.', shortcut: 'R' },
+  { id: 'ellipse', group: 'shapes', icon: <Circle size={16} />, label: 'Ellipse', desc: 'Drag on the page to draw an ellipse or circle.', shortcut: 'E' },
+  { id: 'polygon', group: 'shapes', icon: <Hexagon size={16} />, label: 'Polygon', desc: 'Drag to draw a many-sided shape.' },
+  { id: 'star', group: 'shapes', icon: <Star size={16} />, label: 'Star', desc: 'Drag to draw a star.' },
+  { id: 'line', group: 'shapes', icon: <Minus size={16} />, label: 'Line', desc: 'Drag on the page to draw a straight line.', shortcut: 'L' },
+  { id: 'shapeBuilder', group: 'shapes', icon: <Shapes size={16} />, label: 'Shape builder', desc: 'Click regions of overlapping shapes to merge them. Alt-click removes.' },
+  { id: 'gradient', group: 'color', icon: <Blend size={16} />, label: 'Gradient', desc: 'Drag across the selection to set its gradient.' },
+  { id: 'mesh', group: 'color', icon: <Grid3X3 size={16} />, label: 'Gradient mesh', desc: 'Click inside a shape to add color points that blend together.' },
+  { id: 'eyedropper', group: 'color', icon: <Pipette size={16} />, label: 'Eyedropper', desc: 'Click any layer to copy its colors.' },
+  { id: 'hand', group: 'view', icon: <Hand size={16} />, label: 'Pan', desc: 'Drag to move around the page.' },
+  { id: 'zoom', group: 'view', icon: <ZoomIn size={16} />, label: 'Zoom', desc: 'Click to zoom in. Alt-click zooms out.' },
+  { id: 'artboard', group: 'view', icon: <Maximize2 size={16} />, label: 'Artboard size', desc: 'Drag the page edges to resize the artboard.' },
 ];
+
+const RAIL_SECTION_TEXT = {
+  select: { title: 'Select', shortTitle: 'Select', blurb: 'Pick and move things' },
+  text: { title: 'Text', shortTitle: 'Text', blurb: 'Type, boxes, and questions' },
+  draw: { title: 'Draw', shortTitle: 'Draw', blurb: 'Freehand and precise lines' },
+  shapes: { title: 'Shapes', shortTitle: 'Shapes', blurb: 'Draw and combine shapes' },
+  color: { title: 'Color', shortTitle: 'Color', blurb: 'Sample and apply color' },
+  view: { title: 'View', shortTitle: 'View', blurb: 'Move and resize the canvas' },
+  paint: { title: 'Paint and fill', shortTitle: 'Paint', blurb: 'Paint, or fill an area with AI' },
+  insert: { title: 'Insert', shortTitle: 'Insert', blurb: 'Add shapes and images' },
+  pages: { title: 'New page', shortTitle: 'Pages', blurb: 'Add a page to this document' },
+  studios: { title: 'Studios and library', shortTitle: 'Studios', blurb: 'Workspaces and your assets' },
+  comics: { title: 'Comics', shortTitle: 'Comics', blurb: 'Panels, balloons, and motion' },
+};
 
 type StudioUnit = 'PX' | 'IN' | 'MM' | 'CM';
 type StudioSafeArea = 'NONE' | 'PRINT' | 'VIDEO' | 'BOTH';
@@ -388,6 +423,9 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const [printFrameId, setPrintFrameId] = useState<string | null>(null);
   const [importBusy, setImportBusy] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [pluginPanelOpen, setPluginPanelOpen] = useState(false);
+  const [designImport, setDesignImport] = useState<DesignImportState | null>(null);
+  const [libraryPanel, setLibraryPanel] = useState<{ tab?: 'brushes' | 'shapes' | 'swatches' | 'patterns'; note?: string } | null>(null);
   const [assetDropActive, setAssetDropActive] = useState(false);
   // "Send items to Base" panel — opened from a Writer frame.
   const [bindPanel, setBindPanel] = useState<{ writerId: string } | null>(null);
@@ -489,15 +527,10 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const [flying, setFlying] = useState<{ ref: FlyingRef; anchor: { x: number; y: number } } | null>(null);
   const [publishing, setPublishing] = useState(false);
 
-  const railBtn = (active: boolean): React.CSSProperties => ({
-    display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: 10, border: 'none', cursor: 'pointer',
-    color: active ? '#fff' : 'rgba(255,255,255,0.5)',
-    background: active ? 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))' : 'transparent',
-  });
-
   const viewportRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const assetFileRef = useRef<HTMLInputElement>(null);
+  const designFileRef = useRef<HTMLInputElement>(null);
   const studioFileRef = useRef<HTMLInputElement>(null);
   const docRef = useRef<TelaDoc | null>(null);
   const vectorClipboard = useRef<TelaVectorObject | null>(null);
@@ -766,7 +799,8 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   // Solo docs behave exactly as before. Once shared, edits stream to everyone on the project,
   // offline edits queue on this device, and remote merges land here (private Notes stay local).
   const sharedDoc = useMemo(() => (doc ? forShare(doc) : null), [doc]);
-  const applyRemoteDoc = useCallback((remote: TelaDoc) => {
+  const applyRemoteDoc = useCallback((incoming: TelaDoc) => {
+    const remote = cleanAndReport(incoming);
     const current = docRef.current;
     const role = coRef.current?.role;
     const merged = { ...withPrivate(remote, current), editedBy: [...new Set([...(remote.editedBy || []), ...(current?.editedBy || [])])] };
@@ -788,6 +822,71 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     orgId: doc?.orgOrigin?.orgId,
   });
   coRef.current = co;
+  // ── Document security: blocked code, revoked access and the paper trail ──
+  const [securityOpen, setSecurityOpen] = useState(false);
+  const [threatsByDoc, setThreatsByDoc] = useState<Record<string, TelaThreat[]>>({});
+  const [accessEndedNote, setAccessEndedNote] = useState('');
+  const loggedThreats = useRef(new Set<string>());
+  useEffect(() => {
+    const on = (e: Event) => {
+      const d = (e as CustomEvent<TelaThreatDetail>).detail;
+      if (!d?.docId) return;
+      const fresh = d.threats.filter(t => { const k = `${d.docId}|${t.kind}|${t.sample}`; if (loggedThreats.current.has(k)) return false; loggedThreats.current.add(k); return true; });
+      if (!fresh.length) return;
+      setThreatsByDoc(all => ({ ...all, [d.docId]: [...(all[d.docId] || []), ...fresh] }));
+      void logDocEvent({ pid: coProjectId(TELA_CLOUD_KIND, d.docId), ownerId: d.ownerId, ...(d.orgId ? { orgId: d.orgId } : {}) }, 'threat_blocked', fresh.map(t => t.kind).join(', '));
+    };
+    window.addEventListener(TELA_THREAT_EVENT, on);
+    return () => window.removeEventListener(TELA_THREAT_EVENT, on);
+  }, []);
+  // Access ended (revoked, or its end date passed): close the document and remove this device's copy.
+  const endAccess = useCallback(async (id: string, closeOpen: boolean, reason: string) => {
+    if (closeOpen) { const blank = makeNewDoc(auth.currentUser?.uid || 'local'); docRef.current = blank; openDoc(blank); setSecurityOpen(false); setShowHome(true); setAccessEndedNote(reason); }
+    await Promise.all([purgeLocalTelaCopy(id), CoeditSession.forgetLocal(coProjectId(TELA_CLOUD_KIND, id))]);
+    void refreshList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const openedDocId = doc?.id, openedOwnerId = doc?.ownerId;
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!openedDocId || !uid || !openedOwnerId || openedOwnerId === uid || openedOwnerId === 'local') return;
+    let alive = true;
+    const pid = coProjectId(TELA_CLOUD_KIND, openedDocId);
+    const ended = 'Your access to that document has ended, and its copy was removed from this device.';
+    if (co.project && accessExpired(co.project, uid)) {
+      void logDocEvent({ pid, ownerId: co.project.ownerId, ...(co.project.orgId ? { orgId: co.project.orgId } : {}) }, 'access_ended_copy_removed', 'Access period ended');
+      void endAccess(openedDocId, true, ended);
+      return;
+    }
+    const until = co.project?.expires?.[uid];
+    const timer = until ? setTimeout(() => { if (alive) void endAccess(openedDocId, true, ended); }, Math.min(until - Date.now(), 2 ** 31 - 1)) : undefined;
+    if (!co.project) void getMyRevocation(pid).then(rev => {
+      if (alive && rev) void endAccess(openedDocId, true, `${rev.byName} ended your access to that document${rev.reason ? ` (${rev.reason})` : ''}, and its copy was removed from this device.`);
+    });
+    return () => { alive = false; if (timer) clearTimeout(timer); };
+  }, [openedDocId, openedOwnerId, co.project, endAccess]);
+  // Copies left on this device from documents revoked while the app was closed.
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const uid = auth.currentUser?.uid;
+      if (!uid) return;
+      const foreign = (await listTelaDocs()).filter(m => m.ownerId && m.ownerId !== uid && m.ownerId !== 'local').slice(0, 50);
+      for (const m of foreign) {
+        if (alive && await getMyRevocation(coProjectId(TELA_CLOUD_KIND, m.id))) await endAccess(m.id, false, '');
+      }
+    })().catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Who opened a shared document, once a session.
+  const openLogged = useRef(new Set<string>());
+  useEffect(() => {
+    const p = co.project;
+    if (!p || !co.isShared || openLogged.current.has(p.id)) return;
+    openLogged.current.add(p.id);
+    void logDocEvent({ pid: p.id, ownerId: p.ownerId, ...(p.orgId ? { orgId: p.orgId } : {}) }, 'opened');
+  }, [co.project, co.isShared]);
   // Solo docs edited on two devices while apart: the cloud sync merges both, then this editor takes
   // the merged copy, rebasing anything typed since the sync started (shared docs merge live instead).
   useEffect(() => {
@@ -1767,6 +1866,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   // Studio image adds — dispatched here so the Studio's own rail/panel can add
   // layers while the device renders chrome-less (Studio hosts the controls).
   const studioAddImageFile = async (deviceId: string, file: File) => {
+    if (isDesignFile(file.name)) { await importDesignFiles([file]); return; }
     setStudioImgBusy(true);
     try {
       if (isCameraRawFile(file)) {
@@ -1788,7 +1888,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
         dispatchOp({ type:'ADD_IMAGE_LAYER', deviceId, layer:makeImageLayer(r.src, file.name.replace(/\.[^.]+$/,''), { storagePath:r.storagePath, sessionOnly:r.sessionOnly, mediaKind:assetKind, intrinsicWidth:assetKind === 'LOTTIE' ? 512:1280, intrinsicHeight:assetKind === 'LOTTIE' ? 512:720 }) });
         return;
       }
-      if (assetKind === 'BRUSH' || assetKind === 'SHAPE' || assetKind === 'PALETTE') throw new Error(`${file.name} is a creative preset. Its importer contract is recognized, but this file needs its native preset parser before it can become a canvas layer.`);
+      if (assetKind === 'BRUSH' || assetKind === 'SHAPE' || assetKind === 'PALETTE' || isPresetFile(file.name)) { await importPresetsToLibrary([file]); return; }
       let prepared = file;
       if (isVectorFile(file)) {
         const raster = await rasterizeVector(file);
@@ -1814,6 +1914,8 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     addFrame('BOARD', 'FREE', notes, notes.name!, { size: { w: 980, h: 680 } });
   };
   const studioAddVectorFile = async (device: TelaVectorDevice, file: File) => {
+    if (isDesignFile(file.name)) { await importDesignFiles([file]); return; }
+    if (isPresetFile(file.name)) { await importPresetsToLibrary([file]); return; }
     setStudioImgBusy(true);
     try {
       let prepared = file;
@@ -2221,7 +2323,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const openCanvas = async (id: string) => {
     const cur = docRef.current;
     if (cur && cur.id !== id) await saveTelaDoc(cur);
-    const d = (await loadTelaDocFreshest(id)) ?? (await loadSharedDoc<TelaDoc>(coProjectId(TELA_CLOUD_KIND, id)));
+    const d = (await loadTelaDocFreshest(id)) ?? (await loadSharedDoc<TelaDoc>(coProjectId(TELA_CLOUD_KIND, id)).then(shared => shared && cleanAndReport(shared)));
     if (d) { const hydrated = await hydrateTelaDomainDoc(d); openDoc(hydrated); if (hydrated !== d) void saveTelaDoc(hydrated); }
     setShowHome(false);
     setCanvasesOpen(false);
@@ -2388,13 +2490,15 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   }
 
   const handleImportFile = async (file: File) => {
+    if (isDesignFile(file.name)) { await importDesignFiles([file]); return; }
+    if (isPresetFile(file.name)) { await importPresetsToLibrary([file]); return; }
     setImportError(null);
     setImportBusy(true);
     try {
       const ext = (file.name.toLowerCase().split('.').pop() || '').trim();
       if (ext === 'tela') {
         const bundle = JSON.parse(await file.text());
-        const imported = bundle?.format === 'plajah-tela' ? bundle.document : bundle;
+        const imported = cleanAndReport(bundle?.format === 'plajah-tela' ? bundle.document : bundle);
         if (!imported?.id || !Array.isArray(imported.frames) || !imported.devices) throw new Error('This is not a valid Tela board file.');
         openDoc({ ...imported, id: newTelaId(), ownerId: auth.currentUser?.uid || 'local', title: imported.title || file.name.replace(/\.tela$/i, ''), createdAt: Date.now(), updatedAt: Date.now(), locked: false, currentVersionId: undefined });
       } else if (ext === 'csv') {
@@ -2524,7 +2628,111 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     return 'FILE';
   };
 
+  // ── Photoshop / Illustrator files and Adobe presets ───────────────────────────────────
+  // A design file becomes vector artboards (one per Photoshop or Illustrator artboard); see
+  // services/tela/import. Each object stays what it was: pixels, live type, real paths.
+  const addImportedDocument = (imported: ImportedDocument, pos?: { x: number; y: number }) => {
+    let x = pos?.x, y = pos?.y;
+    imported.pages.forEach(page => {
+      const dev: TelaVectorDevice = { id: uid('dev'), type: 'VECTOR', name: page.name, width: page.width, height: page.height, objects: page.objects, studio: { ...page.studio, imported: { fileName: imported.report.fileName, format: imported.report.format, at: Date.now(), report: imported.report } } };
+      addFrame('BOARD', 'FREE', dev, page.name, { size: { w: page.width, h: page.height }, pos: x !== undefined && y !== undefined ? { x, y } : undefined });
+      if (x !== undefined) x += page.width + 80;
+    });
+    setShowHome(false); setPosture('STUDIO'); setStudioDocView('focus');
+    // Open fitted to the window, the way Photoshop and Illustrator open a file.
+    const first = imported.pages[0];
+    if (first) requestAnimationFrame(() => { const el = studioScrollRef.current; const vw = el?.clientWidth || window.innerWidth - 520, vh = el?.clientHeight || window.innerHeight - 260; setStudioZoom(Math.max(.1, Math.min(1, (vw - 96) / first.width, (vh - 116) / first.height))); });
+  };
+  const importDesignFiles = async (files: File[], pos?: { x: number; y: number }) => {
+    setAssetDropActive(false);
+    for (const file of files) {
+      setDesignImport({ name: file.name });
+      try {
+        const imported = await importDesignFile(file, p => setDesignImport(s => s && !s.report ? { ...s, ...p } : s));
+        addImportedDocument(imported, pos);
+        setDesignImport({ name: file.name, report: imported.report });
+      } catch (error) {
+        console.error('[Tela] design import failed', error);
+        setDesignImport({ name: file.name, error: error instanceof Error ? error.message : 'This file could not be imported.' });
+      }
+    }
+  };
+  const openImportedSmartObject = async (assetId: string, name: string) => {
+    setDesignImport({ name });
+    try {
+      const r = await openSmartObject(assetId, name, p => setDesignImport(s => s && !s.report ? { ...s, ...p } : s));
+      if ('imageBlob' in r) {
+        const up = await uploadTelaImage(new File([r.imageBlob], r.name, { type: r.imageBlob.type || 'image/png' }));
+        const image = await new Promise<HTMLImageElement>((resolve, reject) => { const el = new Image(); el.onload = () => resolve(el); el.onerror = reject; el.src = up.src; });
+        const w = image.naturalWidth, h = image.naturalHeight;
+        const object: TelaVectorObject = { id: uid('obj'), kind: 'IMAGE', x: 0, y: 0, w, h, fill: 'none', stroke: 'none', strokeWidth: 0, rotation: 0, opacity: 1, sourceImageSrc: up.src, sourceCrop: { x: 0, y: 0, width: w, height: h, sourceWidth: w, sourceHeight: h }, objectLabel: r.name, semanticRole: 'ARTWORK' };
+        const dev: TelaVectorDevice = { id: uid('dev'), type: 'VECTOR', name: r.name, width: w, height: h, objects: [object] };
+        addFrame('BOARD', 'FREE', dev, r.name, { size: { w, h } }); setDesignImport(null);
+      } else { addImportedDocument(r); setDesignImport({ name, report: r.report }); }
+    } catch (error) { setDesignImport({ name, error: error instanceof Error ? error.message : 'The embedded file could not be opened.' }); }
+  };
+  const importPresetsToLibrary = async (files: File[]) => {
+    setAssetDropActive(false);
+    try {
+      const r = await importPresetFiles(files);
+      const ext = (files[0]?.name.split('.').pop() || '').toLowerCase();
+      setLibraryPanel({ tab: ext === 'abr' ? 'brushes' : ext === 'csh' ? 'shapes' : ext === 'pat' ? 'patterns' : 'swatches', note: `Added ${r.added}.${r.warnings.length ? ` ${r.warnings.join(' ')}` : ''}` });
+    } catch (error) { setImportError(error instanceof Error ? `Could not read ${files[0]?.name}: ${error.message}` : 'Could not read that preset file.'); }
+  };
+  /** The vector artboard shapes and fills land on: the focused one, or a new one when there is none. */
+  const libraryTargetVector = (): TelaVectorDevice | null => {
+    const focus = studioFocus?.device; return focus?.type === 'VECTOR' ? focus : null;
+  };
+  const placeLibraryShape = (shape: ImportedShape) => {
+    const b = pathBounds(parsePathData(shape.d)); const target = libraryTargetVector();
+    const W = target?.width ?? 1200, H = target?.height ?? 800; const k = Math.min(W, H) * .4 / Math.max(1, b.w, b.h);
+    const w = b.w * k, h = b.h * k;
+    const object: TelaVectorObject = { id: uid('obj'), kind: 'PATH', x: (W - w) / 2, y: (H - h) / 2, w, h, fill: studioPaint.fill, stroke: 'none', strokeWidth: 0, rotation: 0, opacity: 1, svgPathData: shape.d, pathOriginX: b.x, pathOriginY: b.y, pathOriginW: Math.max(1, b.w), pathOriginH: Math.max(1, b.h), pathClosed: true, objectLabel: shape.name };
+    if (target) { dispatchOp({ type: 'ADD_VECTOR_OBJECT', deviceId: target.id, object }); setStudioSel(object.id); }
+    else { const dev: TelaVectorDevice = { id: uid('dev'), type: 'VECTOR', name: shape.name, width: W, height: H, objects: [object] }; addFrame('BOARD', 'FREE', dev, shape.name, { size: { w: W, h: H } }); setShowHome(false); setPosture('STUDIO'); }
+  };
+  const useLibraryColor = (color: string) => {
+    const target = libraryTargetVector();
+    setStudioPaint(prev => ({ ...prev, fill: color }));
+    if (target && studioSelIds.length) {
+      const patches: Record<string, Partial<TelaVectorObject>> = {};
+      for (const id of studioSelIds) { const o = target.objects.find(x => x.id === id); if (!o) continue; const { gradient: _g, ...rest } = o; void _g; void rest; patches[id] = { fill: color, gradient: undefined, geom: o.geom ? { ...o.geom, fill: undefined } : undefined }; }
+      dispatchOp({ type: 'EDIT_VECTOR_DEVICE', deviceId: target.id, patches, label: 'Apply swatch' });
+    }
+  };
+  const useLibraryPattern = async (pattern: ImportedPattern) => {
+    const target = libraryTargetVector(); const ids = studioSelIds.filter(id => target?.objects.some(o => o.id === id && o.kind === 'PATH'));
+    if (!target || !ids.length) { setLibraryPanel(p => ({ ...p, tab: 'patterns', note: 'Select a shape on an artboard, then click a pattern to fill it.' })); return; }
+    const blob = await (await fetch(patternDataUrl(pattern))).blob();
+    const up = await uploadTelaImage(new File([blob], `${pattern.name}.png`, { type: 'image/png' }));
+    const patches: Record<string, Partial<TelaVectorObject>> = {};
+    for (const id of ids) { const o = target.objects.find(x => x.id === id)!; patches[id] = { geom: { ...(o.geom || { v: 1 }), fill: { type: 'pattern', w: pattern.width, h: pattern.height, tiles: [], image: up.src } } }; }
+    dispatchOp({ type: 'EDIT_VECTOR_DEVICE', deviceId: target.id, patches, label: 'Apply pattern' });
+  };
+  /** The image object selected on the focused artboard: what a Photoshop filter runs on. */
+  const pluginTargetImage = () => { const target = libraryTargetVector(); const o = target?.objects.find(x => studioSelIds.includes(x.id) && x.kind === 'IMAGE' && !!x.sourceImageSrc); return target && o ? { target, o } : null; };
+  const runPluginOnSelection = async (plugin: import('../../services/tela/photoshopPlugins').PhotoshopPlugin, showUi: boolean, onProgress: (fraction: number) => void): Promise<string | null> => {
+    const hit = pluginTargetImage(); if (!hit) return 'Select an image on the artboard first.';
+    try {
+      const { runPhotoshopPlugin } = await import('../../services/tela/photoshopPlugins');
+      const bitmap = await createImageBitmap(await (await fetch(hit.o.sourceImageSrc!)).blob());
+      const c = new OffscreenCanvas(bitmap.width, bitmap.height), g = c.getContext('2d')!; g.drawImage(bitmap, 0, 0);
+      const r = await runPhotoshopPlugin(plugin.id, g.getImageData(0, 0, c.width, c.height).data, c.width, c.height, { showUi, onProgress });
+      if (r.ok === false) return r.cancelled ? 'Cancelled.' : r.reason;
+      g.putImageData(new ImageData(new Uint8ClampedArray(r.rgba), r.width, r.height), 0, 0);
+      const up = await uploadTelaImage(new File([await c.convertToBlob({ type: 'image/png' })], `${plugin.name}.png`, { type: 'image/png' }));
+      dispatchOp({ type: 'EDIT_VECTOR_DEVICE', deviceId: hit.target.id, patches: { [hit.o.id]: { sourceImageSrc: up.src } }, label: plugin.name });
+      return null;
+    } catch (error) { return error instanceof Error ? error.message : 'The plug-in could not run.'; }
+  };
+  const useLibraryBrush = (brush: ImportedBrush) => { setActiveImportedBrush(brush); setLibraryPanel(null); setStudioPaintOpen(true); };
+
   const insertAssetFiles = async (files: File[], dropPos?: { x: number; y: number }) => {
+    if (!files.length) return;
+    const design = files.filter(f => isDesignFile(f.name)), presets = files.filter(f => isPresetFile(f.name));
+    if (design.length) void importDesignFiles(design, dropPos);
+    if (presets.length) void importPresetsToLibrary(presets);
+    files = files.filter(f => !design.includes(f) && !presets.includes(f));
     if (!files.length) return;
     setImportError(null); setImportBusy(true); setAssetDropActive(false);
     try {
@@ -2599,6 +2807,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   // ── Export PDF (print stylesheet path — browsers save to PDF) ─────────────
 
   const exportPdf = () => {
+    if (doc) logTelaExport(doc, 'PDF / print');
     const target = activeFrame || doc?.frames.find(f => f.kind === 'PAPER') || doc?.frames[0];
     if (target) setPrintFrameId(target.id);
   };
@@ -2784,6 +2993,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     boxShadow: 'var(--pj-elev-4, 0 20px 48px rgba(0,0,0,0.55))',
     padding: 6, overflow: 'hidden',
   };
+  const docThreats = doc ? threatsByDoc[doc.id] || [] : [];
   const menuItem = 'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] text-left text-[.8rem] font-semibold text-white/85 hover:bg-white/[0.08] transition-colors';
   const menuBarButton = 'h-7 px-2.5 rounded-[7px] text-[.68rem] font-semibold transition-colors';
   const menuBarItem = 'w-full flex items-center gap-2.5 px-3 py-2 rounded-[8px] text-left text-[.72rem] font-semibold text-white/78 hover:text-white hover:bg-white/[.075]';
@@ -2804,7 +3014,10 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
 
   if (showHome) {
     return <>
-      <input ref={fileRef} type="file" accept={`${SUPPORTED_IMPORT_ACCEPT},.csv,.xlsx,.tela`} className="hidden" onChange={e => { const file=e.target.files?.[0]; if(file)void handleImportFile(file); e.target.value=''; }}/>
+      <input ref={fileRef} type="file" accept={`${SUPPORTED_IMPORT_ACCEPT},.csv,.xlsx,.tela,.psd,.psb,.psdt,.ai,.ait,.eps,.abr,.csh,.ase,.aco,.pat`} className="hidden" onChange={e => { const file=e.target.files?.[0]; if(file)void handleImportFile(file); e.target.value=''; }}/>
+      {designImport && <React.Suspense fallback={null}><DesignImportDialog state={designImport} onClose={() => setDesignImport(null)} onOpenSmart={(id, name) => void openImportedSmartObject(id, name)}/></React.Suspense>}
+      {libraryPanel && <React.Suspense fallback={null}><TelaLibraryPanel initialTab={libraryPanel.tab} note={libraryPanel.note} onClose={() => setLibraryPanel(null)} onPlaceShape={placeLibraryShape} onUseColor={useLibraryColor} onUsePattern={p => void useLibraryPattern(p)} onUseBrush={useLibraryBrush}/></React.Suspense>}
+      {accessEndedNote && <div role="alert" className="fixed top-4 left-1/2 -translate-x-1/2 z-[9000] max-w-[min(560px,calc(100vw-32px))] flex items-start gap-3 rounded-xl border border-amber-300/30 bg-[#1b1710] px-4 py-3 text-xs text-amber-100"><span className="flex-1">{accessEndedNote}</span><button className="font-bold text-white/70 hover:text-white" onClick={() => setAccessEndedNote('')}>Dismiss</button></div>}
       <TelaHome recent={canvasList || []} viewerUid={auth.currentUser?.uid || null} memberOrgIds={memberOrgIds} orgNames={orgNames} onOpen={id => void openCanvas(id)} onCreate={kind => void createHomeDocument(kind)} onChooseStyle={entry => void createStyleDocument(entry)} onChoosePublication={template => void createPublicationDocument(template)} onChooseTemplate={template => void createTemplateDocument(template)} onImport={() => fileRef.current?.click()} onOpenMerch={() => setMerchStudioOpen(true)} onBack={onBack}/>
     </>;
   }
@@ -3023,11 +3236,15 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
         <input
           ref={fileRef}
           type="file"
-          accept={`${SUPPORTED_IMPORT_ACCEPT},.csv,.xlsx,.tela`}
+          accept={`${SUPPORTED_IMPORT_ACCEPT},.csv,.xlsx,.tela,.psd,.psb,.psdt,.ai,.ait,.eps,.abr,.csh,.ase,.aco,.pat`}
           className="hidden"
           onChange={e => { const f = e.target.files?.[0]; if (f) void handleImportFile(f); e.target.value = ''; }}
         />
         <input ref={assetFileRef} type="file" accept={TELA_ASSET_ACCEPT} multiple className="hidden" onChange={e => { const files = [...(e.target.files || [])]; if (files.length) void insertAssetFiles(files); e.target.value = ''; }}/>
+        <input ref={designFileRef} type="file" accept=".psd,.psb,.psdt,.ai,.ait,.eps" multiple className="hidden" data-testid="design-file-input" onChange={e => { const files = [...(e.target.files || [])]; e.target.value = ''; if (files.length) void importDesignFiles(files); }}/>
+        {designImport && <React.Suspense fallback={null}><DesignImportDialog state={designImport} onClose={() => setDesignImport(null)} onOpenSmart={(id, name) => void openImportedSmartObject(id, name)}/></React.Suspense>}
+        {pluginPanelOpen && <React.Suspense fallback={null}><TelaPluginPanel hasImage={!!pluginTargetImage()} onClose={() => setPluginPanelOpen(false)} onRun={runPluginOnSelection}/></React.Suspense>}
+        {libraryPanel && <React.Suspense fallback={null}><TelaLibraryPanel initialTab={libraryPanel.tab} note={libraryPanel.note} onClose={() => setLibraryPanel(null)} onPlaceShape={placeLibraryShape} onUseColor={useLibraryColor} onUsePattern={p => void useLibraryPattern(p)} onUseBrush={useLibraryBrush}/></React.Suspense>}
 
         <button className={topBtn} onClick={exportPdf} title="Print the active frame at exact page size — save as PDF in the print dialog">
           <FileDown size={15} /> <span className={hdrLabel2}>Export PDF</span>
@@ -3056,6 +3273,11 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
             </div>
           )}
         </div>
+
+        <button className={topBtn} onClick={() => setSecurityOpen(true)} title={docThreats.length ? 'Unsafe content was blocked in this document' : 'Security: unsafe content, access and paper trail'} aria-label="Document security">
+          {docThreats.length ? <ShieldAlert size={15} className="text-amber-300" /> : <ShieldCheck size={15} />}
+        </button>
+        {securityOpen && <TelaSecurityPanel doc={doc} co={co} threats={docThreats} onClose={() => setSecurityOpen(false)} onClean={(clean, found) => { setDoc(clean); docRef.current = clean; scheduleSave(); setThreatsByDoc(all => ({ ...all, [clean.id]: [...(all[clean.id] || []), ...found] })); void logDocEvent({ pid: coProjectId(TELA_CLOUD_KIND, clean.id), ownerId: clean.ownerId, ...(clean.orgOrigin?.orgId ? { orgId: clean.orgOrigin.orgId } : {}) }, 'threat_blocked', found.map(t => t.kind).join(', ')); }} />}
 
         {/* People, team chat + call, shared history (components/collab) */}
         <CollabDock
@@ -3188,6 +3410,9 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               <div className="px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[.12em] text-white/28">Add to this Tela document</div>
               <button className={menuBarItem} onClick={() => { assetFileRef.current?.click(); setAppMenuOpen(null); }}><ImagePlus size={14}/>Media & files<span className="ml-auto text-[9px] text-white/25">multi-select</span></button>
               <button className={menuBarItem} onClick={() => { fileRef.current?.click(); setAppMenuOpen(null); }}><FileUp size={14}/>Import document, sheet, or board</button>
+              <button className={menuBarItem} data-testid="import-design-file" onClick={() => { designFileRef.current?.click(); setAppMenuOpen(null); }}><Layers size={14}/>Photoshop or Illustrator file<span className="ml-auto text-[9px] text-white/25">.psd .ai .eps</span></button>
+              <button className={menuBarItem} data-testid="open-tela-plugins" onClick={() => { setPluginPanelOpen(true); setAppMenuOpen(null); }}><Wand2 size={14}/>Photoshop plug-ins<span className="ml-auto text-[9px] text-white/25">.8bf · desktop</span></button>
+              <button className={menuBarItem} data-testid="open-tela-library" onClick={() => { setLibraryPanel({}); setAppMenuOpen(null); }}><Brush size={14}/>Brushes, shapes, swatches, patterns<span className="ml-auto text-[9px] text-white/25">.abr .csh .ase</span></button>
               <div className="h-px my-1 bg-white/[.07]"/>
               <button className={menuBarItem} onClick={() => { addWriterPage(); setAppMenuOpen(null); }}><Type size={14}/>Writer page</button>
               <button className={menuBarItem} onClick={() => { addGridSheet(); setAppMenuOpen(null); }}><Grid3X3 size={14}/>Grid sheet</button>
@@ -3313,7 +3538,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               <button className={menuBarItem} onClick={() => { exportPdf(); setAppMenuOpen(null); }} disabled={!activeFrame}><FileDown size={14}/>Export page as PDF</button>
               <button className={menuBarItem} onClick={() => { if (activeFrame) downloadTelaHtml(doc, activeFrame.id); setAppMenuOpen(null); }} disabled={!activeFrame}><Monitor size={14}/>Export page as HTML</button>
               <button className={menuBarItem} onClick={() => { if (activeFrame) downloadTelaPage(doc, activeFrame); setAppMenuOpen(null); }} disabled={!activeFrame}><FileDown size={14}/>Export editable page data<span className="ml-auto text-[9px] text-white/25">JSON</span></button>
-              {activeVectorDevice() && <><button className={menuBarItem} onClick={() => { const vector = activeVectorDevice(); if (vector) downloadTelaVectorSvg(vector, activeFrame?.label || doc.title); setAppMenuOpen(null); }}><Shapes size={14}/>Export vector page<span className="ml-auto text-[9px] text-white/25">SVG</span></button><button className={menuBarItem} onClick={() => { const vector = activeVectorDevice(); if (vector) void downloadTelaVectorPng(vector, activeFrame?.label || doc.title); setAppMenuOpen(null); }}><ImageIcon size={14}/>Export rendered page<span className="ml-auto text-[9px] text-white/25">PNG</span></button></>}
+              {activeVectorDevice() && <><button className={menuBarItem} onClick={() => { const vector = activeVectorDevice(); if (vector) { logTelaExport(doc, 'Vector SVG'); downloadTelaVectorSvg(vector, activeFrame?.label || doc.title); } setAppMenuOpen(null); }}><Shapes size={14}/>Export vector page<span className="ml-auto text-[9px] text-white/25">SVG</span></button><button className={menuBarItem} onClick={() => { const vector = activeVectorDevice(); if (vector) void downloadTelaVectorPng(vector, activeFrame?.label || doc.title); setAppMenuOpen(null); }}><ImageIcon size={14}/>Export rendered page<span className="ml-auto text-[9px] text-white/25">PNG</span></button></>}
               <div className="h-px my-1 bg-white/[.07]"/>
               <button className={menuBarItem} onClick={() => { downloadTelaBoard(doc); setAppMenuOpen(null); }}><LayoutPanelTop size={14}/>Export whole Tela board<span className="ml-auto text-[9px] text-white/25">.tela</span></button>
             </>}
@@ -3482,107 +3707,104 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           ? (currentVecDev.objects.find(o => o.id === studioSel && o.kind === 'TEXT') || null)
           : null;
 
+        const railType: TelaRailItem = { id: 'type', icon: <Type size={16} />, label: 'Type', desc: 'Click the page or start typing to make a text layer.', shortcut: isVec ? 'T' : undefined, active: isTypeTool, onClick: () => { setImageSelectionTool('none'); setStudioTool('text' as StudioTool); } };
+        const railTextExtras: TelaRailItem[] = [
+          { id: 'textbox', icon: <SquarePlus size={16} />, label: 'Text box', desc: 'Add a text box you can move anywhere on the page. Double-click it to type.', onClick: () => { setImageSelectionTool('none'); setStudioTool('select'); addTextBoxToActiveFrame(); } },
+          { id: 'question', icon: <CircleHelp size={16} />, label: 'Make a question', desc: 'Turn the selected text into an interactive question.', active: assignmentBuilderOpen, onClick: () => openAssignmentBuilder() },
+        ];
+        const railShape: TelaRailItem = { id: 'shape', icon: <Shapes size={16} />, label: 'Shape', desc: 'Add a shape or callout layer to this page.', onClick: () => addShapeToActiveFrame('RECT') };
+        const railImage: TelaRailItem = { id: 'image', icon: studioImgBusy ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />, label: 'Upload image', desc: 'Add an image from your device as a new layer.', disabled: studioImgBusy, onClick: () => { if (img) studioFileRef.current?.click(); else addImageCanvas(); } };
+        const railPaint: TelaRailItem = { id: 'paint', icon: <Brush size={16} />, label: 'Paint', desc: 'Open the pressure-sensitive paint engine.', active: studioPaintOpen, onClick: () => setStudioPaintOpen(true) };
+        const railMarquee = (id: SelectionTool, item: Omit<TelaRailItem, 'id' | 'active' | 'onClick'>): TelaRailItem => ({ ...item, id, active: imageSelectionTool === id, onClick: () => setImageSelectionTool(imageSelectionTool === id ? 'none' : id) });
+        const railSection = (id: keyof typeof RAIL_SECTION_TEXT, items: TelaRailItem[], extra?: Partial<TelaRailSection>): TelaRailSection => ({ id, ...RAIL_SECTION_TEXT[id], items, ...extra });
+
+        let railToolSections: TelaRailSection[];
+        if (isVec) {
+          const pro = studioMode === 'pro';
+          const toolsIn = (group: RailTool['group']): TelaRailItem[] => (pro ? STUDIO_PRO_TOOLS : STUDIO_VEC_TOOLS)
+            .filter(t => t.group === group)
+            .map(({ group: _group, ...t }) => ({ ...t, active: studioTool === t.id, onClick: () => setStudioTool(t.id as StudioTool) }));
+          railToolSections = [
+            railSection('select', toolsIn('select')),
+            railSection('text', [...toolsIn('text'), ...railTextExtras]),
+            railSection('draw', toolsIn('draw')),
+            railSection('shapes', toolsIn('shapes')),
+            ...(pro ? [railSection('color', toolsIn('color')), railSection('view', toolsIn('view'))] : []),
+          ];
+        } else if (isImg) {
+          railToolSections = [
+            railSection('select', [
+              { id: 'move', icon: <MousePointer2 size={16} />, label: 'Move', desc: 'Move and transform the selected layer.', active: imageSelectionTool === 'none' && studioTool === 'select', onClick: () => { setImageSelectionTool('none'); setStudioTool('select'); } },
+              railMarquee('marquee_rect', { icon: <Square size={16} />, label: 'Rectangle area', desc: 'Drag to select a rectangular area of the image.' }),
+              railMarquee('marquee_ellipse', { icon: <Circle size={16} />, label: 'Oval area', desc: 'Drag to select an oval area of the image.' }),
+              railMarquee('lasso_free', { icon: <Lasso size={16} />, label: 'Lasso', desc: 'Draw freely around the area you want to select.' }),
+              railMarquee('magic_wand', { icon: <Wand2 size={16} />, label: 'Magic wand', desc: 'Click to select nearby pixels of a similar color.' }),
+              { id: 'invert', icon: <FlipHorizontal size={16} />, label: 'Invert selection', desc: 'Swap what is selected with what is not.', shortcut: 'Ctrl+Shift+I', onClick: () => {
+                if (rasterSelection?.bounds) {
+                  setRasterSelection(invertSelection(rasterSelection));
+                } else if (img) {
+                  setRasterSelection(selectAll(img.width, img.height));
+                }
+              } },
+            ]),
+            railSection('text', [railType, ...railTextExtras]),
+            railSection('paint', [
+              railPaint,
+              railMarquee('brush_inpaint', { icon: <Paintbrush size={16} />, label: 'Generative fill', desc: 'Brush over an area for AI to fill in.', shortcut: 'B' }),
+              railMarquee('brush_erase', { icon: <Eraser size={16} />, label: 'Erase mask', desc: 'Remove part of the area you brushed for fill.', shortcut: 'E' }),
+            ]),
+            railSection('color', [
+              { id: 'eyedropper', icon: <Pipette size={16} />, label: 'Eyedropper', desc: 'Sample a color from the image with a magnifying loupe.', shortcut: 'I', active: colorEyedropperActive, onClick: () => setColorEyedropperActive(!colorEyedropperActive) },
+              { id: 'colorist', icon: <Palette size={16} />, label: 'Color grading', desc: 'Open the Colorist suite with grading controls and scopes.', shortcut: 'C', active: coloristSuiteOpen, onClick: () => setColoristSuiteOpen(!coloristSuiteOpen) },
+            ]),
+            railSection('insert', [railShape, railImage]),
+          ];
+        } else {
+          railToolSections = [
+            railSection('select', [
+              { id: 'select', icon: <MousePointer2 size={16} />, label: 'Select', desc: 'Click a layer to select, move, or resize it.', active: studioTool === 'select', onClick: () => setStudioTool('select') },
+              { id: 'direct', icon: <MousePointerClick size={16} />, label: 'Edit points', desc: 'Drag the individual points of a path.', active: studioTool === 'direct', onClick: () => setStudioTool('direct') },
+            ]),
+            railSection('text', [railType, ...railTextExtras]),
+            railSection('draw', [
+              { id: 'pen', icon: <PenLine size={16} />, label: 'Pen', desc: 'Click to place points and draw a precise line.', active: studioTool === 'pen', onClick: () => { if (!isVec) addVectorArtboard(); setStudioTool('pen'); } },
+              railPaint,
+            ]),
+            railSection('insert', [railShape, railImage]),
+          ];
+        }
+
+        const railSections: TelaRailSection[] = [
+          ...railToolSections,
+          railSection('pages', [
+            { id: 'writer', icon: <FileText size={16} />, label: 'Document', desc: 'Add a page for writing prose.', onClick: addWriterPage },
+            { id: 'grid', icon: <Grid3X3 size={16} />, label: 'Spreadsheet', desc: 'Add a sheet with rows, columns, and formulas.', onClick: addGridSheet },
+            { id: 'base', icon: <Database size={16} />, label: 'Database', desc: 'Add a table of structured records.', onClick: addBaseTable },
+            { id: 'form', icon: <FormInput size={16} />, label: 'Form', desc: 'Add an interactive form people can fill in.', onClick: addFormFrame },
+            { id: 'notes', icon: <BookHeart size={16} />, label: 'Notes and journal', desc: 'Add a stack of note cards or journal entries.', onClick: () => addNotesFrame(false) },
+          ]),
+          railSection('studios', [
+            { id: 'writing', icon: <Feather size={16} />, label: 'Writing studio', desc: 'Open the Lorea desk for long writing and screenplays.', active: writingStudioOpen, onClick: () => setWritingStudioOpen(true) },
+            { id: 'local', icon: <Cpu size={16} />, label: 'Local AI studio', desc: 'Create images with AI on your own graphics card.', active: localStudioOpen, onClick: () => { setLocalStudioOpen(true); setLocalStudioMinimized(false); } },
+            { id: 'gallery', icon: <Images size={16} />, label: 'My AI creations', desc: 'Browse the images you have generated.', active: paiGalleryOpen, onClick: () => setPaiGalleryOpen(true) },
+            { id: 'templates', icon: <LayoutTemplate size={16} />, label: 'Design templates', desc: 'Browse shapes and ready-made designs.', active: studioCreativeLibraryOpen, onClick: () => setStudioCreativeLibraryOpen(true) },
+            { id: 'library', icon: <LibraryIcon size={16} />, label: 'Universal Library', desc: 'Find your assets and use them on this page.', active: ulOpen, onClick: () => setUlOpen(v => !v) },
+          ]),
+          railSection('comics', [
+            { id: 'layout', icon: <BookOpen size={16} />, label: 'Comic layout', desc: 'Turn comic and manga page layout on or off.', active: comicLayoutMode, onClick: toggleInlineComicLayoutMode },
+            ...comicRailItems(comicVariant2Ctrl, comicLayoutMode, () => {
+              setComicLayoutMode(true);
+              setPosture('PAGE');
+              setStudioDocView('continuous');
+              setStudioRightTab('comic');
+            }),
+          ], { defaultCollapsed: true, forceOpen: comicLayoutMode }),
+        ];
+
         return (
           <div className="flex-1 flex flex-row min-h-0 h-full overflow-hidden relative">
-            {/* Left tool rail: Creative & Productivity merged in one UI (Persistent) */}
-            <div 
-              className="shrink-0 flex flex-col items-center gap-1 py-3 overflow-y-auto custom-scrollbar select-none z-30" 
-              style={{ width: 54, height: '100%', maxHeight: '100%', flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.08)', background: '#0b0a10' }}
-            >
-              {/* Free-Float Text Box Tool — placed directly above the Move / Transform Layer arrow icon */}
-              <button
-                title="＋ Free-Float Text Box — Add movable rich text box layer to this page (Double-click to freely type & format)"
-                style={{
-                  ...railBtn(false),
-                  border: '1px solid rgba(255,140,0,0.45)',
-                  background: 'rgba(255,140,0,0.14)',
-                }}
-                onClick={() => {
-                  setImageSelectionTool('none');
-                  setStudioTool('select');
-                  addTextBoxToActiveFrame();
-                }}
-              >
-                <Type size={17} color="#FF8C00" />
-              </button>
-
-              {isVec && studioMode === 'pro' ? (
-                STUDIO_PRO_TOOLS.map(t => (
-                  <button key={t.id} title={t.label} style={railBtn(studioTool === t.id)} onClick={() => setStudioTool(t.id)}>{t.icon}</button>
-                ))
-              ) : isVec ? (
-                STUDIO_VEC_TOOLS.map(t => (
-                  <button key={t.id} title={t.label} style={railBtn(studioTool === t.id)} onClick={() => setStudioTool(t.id as any)}>{t.icon}</button>
-                ))
-              ) : isImg ? (
-                <>
-                  <button title="Move / Transform Layer (V)" style={railBtn(imageSelectionTool === 'none' && studioTool === 'select')} onClick={() => { setImageSelectionTool('none'); setStudioTool('select'); }}><MousePointer2 size={17} /></button>
-                  <button title="Type (T) — click a page or start typing to make a text layer" style={railBtn(isTypeTool)} onClick={() => { setImageSelectionTool('none'); setStudioTool('text' as StudioTool); }}><Type size={17} color="#D0BCFF" /></button>
-                  <button title="Shapes and callouts (R) — Add shape layer to this page" style={railBtn(false)} onClick={() => addShapeToActiveFrame('RECT')}><Shapes size={17} color="#00DAF3" /></button>
-                  <button title="Rectangular Marquee (M)" style={railBtn(imageSelectionTool === 'marquee_rect')} onClick={() => setImageSelectionTool(imageSelectionTool === 'marquee_rect' ? 'none' : 'marquee_rect')}><Square size={17} color="#00DAF3" /></button>
-                  <button title="Elliptical Marquee (Shift+M)" style={railBtn(imageSelectionTool === 'marquee_ellipse')} onClick={() => setImageSelectionTool(imageSelectionTool === 'marquee_ellipse' ? 'none' : 'marquee_ellipse')}><Circle size={17} color="#00DAF3" /></button>
-                  <button title="Lasso Tool (L)" style={railBtn(imageSelectionTool === 'lasso_free')} onClick={() => setImageSelectionTool(imageSelectionTool === 'lasso_free' ? 'none' : 'lasso_free')}><Lasso size={17} color="#00DAF3" /></button>
-                  <button title="Magic Wand (W)" style={railBtn(imageSelectionTool === 'magic_wand')} onClick={() => setImageSelectionTool(imageSelectionTool === 'magic_wand' ? 'none' : 'magic_wand')}><Wand2 size={17} color="#a78bfa" /></button>
-                  <button title="Generative Fill Brush (B)" style={railBtn(imageSelectionTool === 'brush_inpaint')} onClick={() => setImageSelectionTool(imageSelectionTool === 'brush_inpaint' ? 'none' : 'brush_inpaint')}><Paintbrush size={17} color="#ef4444" /></button>
-                  <button title="Mask Eraser (E)" style={railBtn(imageSelectionTool === 'brush_erase')} onClick={() => setImageSelectionTool(imageSelectionTool === 'brush_erase' ? 'none' : 'brush_erase')}><Eraser size={17} color="#ffffff" /></button>
-                  <button title="Inverse Selection (Ctrl+Shift+I)" style={railBtn(false)} onClick={() => {
-                    if (rasterSelection?.bounds) {
-                      setRasterSelection(invertSelection(rasterSelection));
-                    } else if (img) {
-                      setRasterSelection(selectAll(img.width, img.height));
-                    }
-                  }}><FlipHorizontal size={17} color="#f59e0b" /></button>
-                  <button title="Lorea pressure paint engine (B)" style={railBtn(studioPaintOpen)} onClick={() => setStudioPaintOpen(true)}><Brush size={17} color="#f472b6" /></button>
-                  <button title="Colorist Eyedropper & Loupe (I)" style={railBtn(colorEyedropperActive)} onClick={() => setColorEyedropperActive(!colorEyedropperActive)}><Pipette size={17} color="#00DAF3" /></button>
-                  <button title="Tela Colorist Suite & Scopes (C)" style={railBtn(coloristSuiteOpen)} onClick={() => setColoristSuiteOpen(!coloristSuiteOpen)}><Palette size={17} color="#00DAF3" /></button>
-                  <button title="Upload image layer" style={railBtn(false)} disabled={studioImgBusy} onClick={() => { if (img) studioFileRef.current?.click(); else addImageCanvas(); }}>{studioImgBusy ? <Loader2 size={17} className="animate-spin" /> : <ImagePlus size={17} color="#38bdf8" />}</button>
-                </>
-              ) : (
-                <>
-                  <button title="Select / move (V)" style={railBtn(studioTool === 'select')} onClick={() => setStudioTool('select')}><MousePointer2 size={17} /></button>
-                  <button title="Type (T) — click a page or start typing to make a text layer" style={railBtn(isTypeTool)} onClick={() => { setImageSelectionTool('none'); setStudioTool('text' as StudioTool); }}><Type size={17} color="#D0BCFF" /></button>
-                  <button title="Shapes and callouts (R) — Add shape layer to this page" style={railBtn(false)} onClick={() => addShapeToActiveFrame('RECT')}><Shapes size={17} color="#00DAF3" /></button>
-                  <button title="Direct select / anchors (A)" style={railBtn(studioTool === 'direct')} onClick={() => setStudioTool('direct')}><MousePointerClick size={17} /></button>
-                  <button title="Pen / vector spline (P)" style={railBtn(studioTool === 'pen')} onClick={() => { if (!isVec) addVectorArtboard(); setStudioTool('pen'); }}><PenLine size={17} color="#a78bfa" /></button>
-                  <button title="Lorea pressure paint engine (B)" style={railBtn(studioPaintOpen)} onClick={() => setStudioPaintOpen(true)}><Brush size={17} color="#f472b6" /></button>
-                  <button title="Upload image layer" style={railBtn(false)} disabled={studioImgBusy} onClick={() => { if (img) studioFileRef.current?.click(); else addImageCanvas(); }}>{studioImgBusy ? <Loader2 size={17} className="animate-spin" /> : <ImagePlus size={17} color="#38bdf8" />}</button>
-                </>
-              )}
-
-              {/* Productivity Tools separator */}
-              <div className="w-7 my-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.12)' }} />
-
-              {/* Productivity Suite */}
-              <button title="＋ Writer Page (Document / Prose)" style={railBtn(isWriter)} onClick={addWriterPage}><Type size={17} color="#D0BCFF" /></button>
-              <button title="＋ Grid Sheet (Spreadsheet / Tables)" style={railBtn(isGrid)} onClick={addGridSheet}><Grid3X3 size={17} color="#00DAF3" /></button>
-              <button title="＋ Base Table (Database)" style={railBtn(isBase)} onClick={addBaseTable}><Database size={17} color="#06D6A0" /></button>
-              <button title="＋ Form Frame (Interactive Form)" style={railBtn(isForm)} onClick={addFormFrame}><FormInput size={17} color="#D40055" /></button>
-              <button title="＋ Notes & Journal (Cards / Stack)" style={railBtn(isNotes)} onClick={() => addNotesFrame(false)}><BookHeart size={17} color="#FF8C00" /></button>
-              <button title="Writing & Screenplay Studio (Lorea Desk)" style={railBtn(writingStudioOpen)} onClick={() => setWritingStudioOpen(true)}><FileText size={17} color="#ec4899" /></button>
-
-              {/* AI & Studio Suites separator */}
-              <div className="w-7 my-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.12)' }} />
-
-              <button title="Local Creative Studio (Local GPU)" style={railBtn(localStudioOpen)} onClick={() => { setLocalStudioOpen(true); setLocalStudioMinimized(false); }}><Wand2 size={17} color="#D40055" /></button>
-              <button title="PAI Generations Gallery (Your AI Creations)" style={railBtn(paiGalleryOpen)} onClick={() => setPaiGalleryOpen(true)}><Sparkles size={17} color="#38bdf8" /></button>
-              <button title="Toggle Native Comic & Manga Page-Layout Mode (Variant 2)" style={railBtn(comicLayoutMode)} onClick={toggleInlineComicLayoutMode}><BookOpen size={17} color="#a78bfa" /></button>
-              <button title="Turn selected text into an interactive question" style={railBtn(assignmentBuilderOpen)} onClick={() => openAssignmentBuilder()}><CircleHelp size={17} color="#38bdf8" /></button>
-              <button title="Shapes and design templates" style={railBtn(studioCreativeLibraryOpen)} onClick={() => setStudioCreativeLibraryOpen(true)}><Shapes size={17} /></button>
-              <button title="Universal Library" style={railBtn(ulOpen)} onClick={() => setUlOpen(v => !v)}>▦</button>
-
-              {/* Variant 2: Left Rail Comic Tool Cluster */}
-              <div className="w-7 my-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.12)' }} />
-              <TelaComicLeftRailCluster
-                ctrl={comicVariant2Ctrl}
-                comicModeActive={comicLayoutMode}
-                onEnableComicMode={() => {
-                  setComicLayoutMode(true);
-                  setPosture('PAGE');
-                  setStudioDocView('continuous');
-                  setStudioRightTab('comic');
-                }}
-              />
-            </div>
+            {/* Left tool rail: named sections of labeled tools (Persistent) */}
+            <TelaToolRail sections={railSections} />
 
             {/* Center stage — rulers + canvas */}
             <div 
@@ -3864,7 +4086,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
 
                     {/* Canvas Stage Box */}
                     <div style={{ position: 'relative', width: focusWidth * studioZoom, height: focusHeight * studioZoom, borderRadius: 3, boxShadow: '0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08)' }}>
-                      <div style={{ position: 'absolute', left: 0, top: 0, width: focusWidth, height: focusHeight, transform: `scale(${studioZoom})`, transformOrigin: '0 0', overflow: 'visible', borderRadius: 3, background: isProductivity ? '#ffffff' : undefined }}>
+                      <div style={{ position: 'absolute', left: 0, top: 0, width: focusWidth, height: focusHeight, transform: isVec && studioMode === 'pro' ? undefined : `scale(${studioZoom})`, transformOrigin: '0 0', overflow: 'visible', borderRadius: 3, background: isProductivity ? '#ffffff' : undefined }}>
                         {isVec && vec!.objects.length > 500 ? (
                           <div className="grid place-items-center text-center p-8" style={{ width: Math.min(vec!.width, 720), minHeight: 420, background: '#fff' }}><div className="max-w-[430px]"><div className="mx-auto grid place-items-center w-12 h-12 rounded-[14px] text-white" style={{ background: 'var(--pj-grad-spatial,linear-gradient(135deg,#6B0099,#00DAF3))' }}><Sparkles size={21}/></div><h3 className="mt-4 font-display italic text-[#1B1523] text-[1.25rem]">This legacy trace needs consolidation</h3><p className="mt-2 text-[.76rem] leading-relaxed text-[#1B1523]/55">Tela found {vec!.objects.length.toLocaleString()} microscopic paths from the earlier tracer. Consolidate them before previewing so the browser is not forced to render thousands of invisible layers.</p><button className="mt-4 h-9 px-5 rounded-[10px] text-[.72rem] font-extrabold text-white" style={{ background: 'var(--pj-grad-brand,linear-gradient(135deg,#6B0099,#D40055))' }} onClick={() => dispatchOp({ type: 'REPLACE_VECTOR_OBJECTS', deviceId: vec!.id, objects: consolidateTelaTraceObjects(vec!.objects) })}>Consolidate and preview</button></div></div>
                         ) : isVec && studioMode === 'pro' ? (

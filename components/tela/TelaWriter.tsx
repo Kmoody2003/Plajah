@@ -11,6 +11,7 @@
  * or will-change on the resting text layer — zoom is applied by the canvas to
  * the frame wrapper, never to this container itself.
  */
+import { sanitizeRichText } from '../../services/tela/telaSecurity';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Bold, BookHeart, CircleHelp, Feather, Italic, Heading1, Heading2, List, Music2, Pilcrow, Sparkles, StickyNote, TextQuote } from 'lucide-react';
@@ -64,7 +65,8 @@ const BlockEl = React.memo<BlockElProps>(({ block, readOnly, onInput, onKeyDown,
   // so this never clobbers the caret mid-edit).
   useEffect(() => {
     const el = ref.current;
-    if (el && el.innerHTML !== block.text) el.innerHTML = block.text;
+    const safe = sanitizeRichText(block.text);
+    if (el && el.innerHTML !== safe) el.innerHTML = safe;
   }, [block.text]);
 
   return (

@@ -1048,6 +1048,16 @@ public sealed partial class MainWindow : Window
             {
                 PostNativeMessage("VST_SCAN_RESULT", new { plugins = WindowsVstService.Scan() });
             }
+            else if (type is not null && type.StartsWith("PS_PLUGIN_", StringComparison.Ordinal))
+            {
+                await WindowsPhotoshopPluginService.HandleMessageAsync(type, root, PostNativeMessage, async () =>
+                {
+                    var picker = new Windows.Storage.Pickers.FolderPicker();
+                    InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+                    picker.FileTypeFilter.Add("*");
+                    return (await picker.PickSingleFolderAsync())?.Path;
+                });
+            }
             else if (type == "AUDIO_DEVICE_LIST")
             {
                 PostNativeMessage("AUDIO_DEVICE_LIST_RESULT", new { devices = PlajahAiNativeService.GetAudioDevices() });

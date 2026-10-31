@@ -31,6 +31,7 @@ import {
   scheduleCreativeSync,
   syncCreativeProject,
 } from './creativeCloud/cloudStore';
+import { cleanAndReport } from './tela/telaSecurity';
 
 /** Cloud copies (services/creativeCloud) are filed under this kind. */
 export const TELA_CLOUD_KIND = 'tela';
@@ -126,7 +127,7 @@ async function restoreSensitiveComponents(doc: TelaDoc): Promise<TelaDoc> {
     }
     devices[deviceId] = { ...source, entries };
   }
-  return changed ? { ...doc, devices } : doc;
+  return cleanAndReport(changed ? { ...doc, devices } : doc);
 }
 
 /** A doc exactly as the store keeps it (sensitive Notes encrypted) — what cloud history holds. */
@@ -272,6 +273,18 @@ export async function deleteTelaDoc(id: string): Promise<void> {
   try { localStorage.removeItem(LS_PREFIX + id); } catch { /* */ }
   await deleteManifest(id);
   await deleteCloudProject(TELA_CLOUD_KIND, id).catch(() => {});
+}
+
+/** Removes this device's copy of a document someone revoked; the owner's own copies are untouched. */
+export async function purgeLocalTelaCopy(id: string): Promise<void> {
+  if (await opfsAvailable()) {
+    try { const dir = await telaDir(); await dir.removeEntry(`${id}.json`); } catch { /* wasn't there */ }
+    try { const dir = await telaDir(); const versions = await dir.getDirectoryHandle(VERSIONS_DIR); await versions.removeEntry(id, { recursive: true }); } catch { /* none */ }
+  }
+  try {
+    localStorage.removeItem(LS_PREFIX + id);
+    for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (k?.startsWith(`${LS_VER_PREFIX}${id}__`)) localStorage.removeItem(k); }
+  } catch { /* private mode */ }
 }
 
 function toMeta(d: TelaDoc): TelaDocMeta {

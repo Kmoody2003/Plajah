@@ -55,7 +55,7 @@ export interface FreeformPaint { type: 'freeform'; base: string; points: Array<{
 /** Coons-patch mesh gradient: a grid of (rows+1) x (cols+1) nodes; see paint.ts tessellateMesh. */
 export interface MeshPaint { type: 'mesh'; rows: number; cols: number; nodes: Array<{ x: number; y: number; color: string }>; /** Max colour step per tessellated cell (0-255 per channel); default 6. */ tolerance?: number }
 /** Repeating tile (in artboard px). `objects` are drawn inside a tile of size w x h. */
-export interface PatternPaint { type: 'pattern'; w: number; h: number; transform?: Matrix; tiles: Array<{ d: string; fill?: string; stroke?: string; strokeWidth?: number; opacity?: number }>; background?: string }
+export interface PatternPaint { type: 'pattern'; w: number; h: number; transform?: Matrix; tiles: Array<{ d: string; fill?: string; stroke?: string; strokeWidth?: number; opacity?: number }>; background?: string; /** A bitmap tile (imported .pat / Photoshop pattern), drawn under any path tiles. */ image?: string }
 export type Paint = string | LinearPaint | RadialPaint | FreeformPaint | MeshPaint | PatternPaint;
 
 export type LineCap = 'butt' | 'round' | 'square';
@@ -90,6 +90,45 @@ export interface TelaGeomExt {
    * the editor, exports, Fabula and letters without loading any font.
    */
   glyphs?: Array<{ d: string; fill: string }>;
+  /**
+   * Live bitmap masks (a Photoshop layer mask, a group mask, or the base of a clipping mask).
+   * Positions are relative to the object's x/y at `base` size, so moving or scaling the object
+   * carries the mask with it. stage 'content' sits inside the layer style (effects follow the
+   * masked shape); 'clip' sits outside it (a clipping base hides the effects too).
+   */
+  masks?: GeomMask[];
+  /**
+   * The source app's rendered pixels for a TEXT object (Photoshop's cached text), shown until the
+   * text is first edited. Used when the font is missing or the styling has no live equivalent,
+   * which is exactly how Photoshop itself treats a missing font.
+   */
+  textPreview?: { src: string; dx: number; dy: number; w: number; h: number; base: { w: number; h: number } };
+  /** Where an imported object came from; nothing renders from this. See services/tela/import. */
+  imported?: ImportedObjectMeta;
+}
+
+export interface GeomMask {
+  src: string; dx: number; dy: number; w: number; h: number;
+  /** Object size the offsets were taken at. */
+  base: { w: number; h: number };
+  /** luminance: white shows (layer masks). alpha: opaque shows (clipping to a pixel layer). */
+  mode: 'luminance' | 'alpha';
+  /** What a luminance mask does outside its rectangle: 255 shows, 0 hides. */
+  outside?: 0 | 255;
+  stage?: 'content' | 'clip';
+}
+
+export interface ImportedObjectMeta {
+  source: 'psd' | 'ai' | 'pdf' | 'eps';
+  kind?: 'pixel' | 'text' | 'shape' | 'smart' | 'fill' | 'image';
+  /** The layer's original name, blend and clip facts, kept for round trips and the import report. */
+  layerName?: string;
+  /** Embedded smart object bytes in the Tela asset store. */
+  smart?: { assetId: string; name: string; type?: string };
+  /** The Photoshop font name, before substitution. */
+  font?: string;
+  /** Adjustment layers baked into this object at import. */
+  bakedAdjustments?: string[];
 }
 
 // ── Constructors ────────────────────────────────────────────────────────────────────

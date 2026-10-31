@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Crown, Loader2, LogOut, Search, UserPlus, X } from 'lucide-react';
 import { auth } from '../../services/firebase';
 import { searchUserProfilesSafe } from '../../services/searchUsersSafe';
-import { addMembers, personColor, removeMember, ROLE_LABEL, setRole, type CoProject, type CoRole } from '../../services/coedit/project';
+import { addMembers, personColor, removeMember, revokeMember, ROLE_LABEL, setRole, type CoProject, type CoRole } from '../../services/coedit/project';
 import type { Presence } from '../../services/coedit/session';
 import type { UserProfile } from '../../types';
 import { ago, btn, btnPrimary, card, initials, input, lbl } from './collabUi';
@@ -146,7 +146,7 @@ const MemberRow: React.FC<{ project: CoProject; uid: string; canManage: boolean 
               </option>
             ))}
           </select>
-          <button className="text-white/35 hover:text-red-300" title="Remove" onClick={() => confirm(`Remove ${name} from this project?`) && void removeMember(project, uid)}>
+          <button className="text-white/35 hover:text-red-300" title="Remove" onClick={() => confirm(`Remove ${name} from this project? Their access ends now and Tela removes its copy from their devices.`) && void revokeMember(project, uid)}>
             <X size={12} />
           </button>
         </>
