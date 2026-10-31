@@ -80,8 +80,10 @@ const CommandSplitBar: React.FC<CommandSplitBarProps> = ({
   return (
     <>
       <PlajahIconGradientDefs />
-      <header className="sticky top-0 z-50 w-full flex flex-col border-b border-white/[0.07] backdrop-blur-xl"
-        style={{ background: 'linear-gradient(180deg,rgba(20,13,32,.97),rgba(14,10,22,.98))' }}>
+      {/* Fixed, not in flow: the workspace is a row at lg, where an in-flow w-full bar leaves the page 0px wide.
+          App.tsx reserves the space with pt-[100px]. */}
+      <header className="fixed left-0 right-0 z-50 flex flex-col border-b border-white/[0.07] backdrop-blur-xl"
+        style={{ top: 'var(--pj-toolbar-h, 0px)', background: 'linear-gradient(180deg,rgba(20,13,32,.97),rgba(14,10,22,.98))' }}>
 
         {/* ── Row 1 — brand · category chips · tools (≈56px) ── */}
         <div className="flex items-center gap-2 h-14 px-2.5">
