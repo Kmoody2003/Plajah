@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db, opsDb, dbFor, auth } from './firebase';
 import { createOrganization, updateOrganization, fetchOrganization, fetchOrgMembers, syncMemberIndex } from './organizationService';
-import { elevatePermissions, getElevateRole, canAssignRole, memberRoleKeys, memberDepartmentIds } from './elevateRoles';
+import { elevatePermissions, getElevateRole, canAssignRole, memberRoleKeys, memberDepartmentIds, isProtectedRole } from './elevateRoles';
 import { defaultMinistries, leadTitleFor } from './elevateTemplates';
 import { isOrgOwner } from './orgPermissions';
 import { provisionOrgChat, resyncOrgChatIfProvisioned, withDefaultRooms } from './orgChatService';
@@ -191,11 +191,19 @@ export const newMinistry = (name: string, kind: Ministry['kind'] = 'MINISTRY', e
 // ── Roles + rosters ──────────────────────────────────────────────────────────
 
 /** Assign a catalog role to a membership (supports multi-department & multi-role assignments). */
+/** IT Admin, Senior Pastor and finance roles are server-only: the server checks the caller and rebuilds the access lists. */
+export async function setProtectedRole(orgId: string, membershipId: string, roleKey: string, on: boolean): Promise<void> {
+  const token = await auth.currentUser?.getIdToken();
+  const res = await fetch('/api/elevate/access/set-role', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ orgId, membershipId, roleKey, on }) });
+  if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || 'Could not change that role.');
+}
+
 export async function assignRole(
   org: Organization, actor: OrgMembership | null, target: OrgMembership,
   roleKey: string, opts?: { title?: string; ministryId?: string; rosterGroup?: RosterGroup; keepExistingInMinistry?: boolean },
 ): Promise<void> {
   if (!canAssignRole(actor, org, roleKey)) throw new Error('You do not have permission to assign that role.');
+  if (isProtectedRole(roleKey)) return setProtectedRole(org.id, target.id, roleKey, true);
   const def = getElevateRole(roleKey);
   if (!def) throw new Error('Unknown role.');
   const patch: Record<string, any> = {};
@@ -284,6 +292,7 @@ export async function toggleOrgRoleKey(
   roleKey: string,
 ): Promise<void> {
   if (!canAssignRole(actor, org, roleKey)) throw new Error('You do not have permission to assign that role.');
+  if (isProtectedRole(roleKey)) return setProtectedRole(org.id, target.id, roleKey, !target.protectedRoles?.includes(roleKey));
   const existing = new Set<string>([...(target.roleKeys || []), ...(target.roleKey ? [target.roleKey] : [])]);
   if (existing.has(roleKey) && existing.size > 1) {
     existing.delete(roleKey);
@@ -333,13 +342,13 @@ export async function recomputeOrgRoleIndex(orgId: string): Promise<void> {
     const members = (await fetchOrgMembers(orgId)).filter(m => m.status === 'ACTIVE');
     const ids = (pred: (m: OrgMembership) => boolean) => Array.from(new Set(members.filter(pred).map(m => m.userId)));
     const has = (m: OrgMembership, p: any) => elevatePermissions(m).has(p);
+    const org = await fetchOrganization(orgId);
+    const departmentUids: Record<string, string[]> = {};
+    for (const m of members) for (const d of memberDepartmentIds(m, org)) (departmentUids[d] ||= []).push(m.userId);
     await updateDoc(doc(db, 'organizations', orgId), {
+      departmentUids,
       pastorUids: ids(m => memberRoleKeys(m).some(k => !!getElevateRole(k)?.isPastoral)),
-      financeUids: ids(m => has(m, 'MANAGE_GIVING')),
       prayerUids: ids(m => has(m, 'VIEW_PRAYER')),
-      givingViewUids: ids(m => has(m, 'VIEW_GIVING')),
-      accountingUids: ids(m => has(m, 'MANAGE_ACCOUNTING')),
-      accountingViewUids: ids(m => has(m, 'VIEW_ACCOUNTING') || has(m, 'MANAGE_ACCOUNTING')),
       leaderUids: ids(m => {
         const keys = memberRoleKeys(m);
         return keys.includes('DEPARTMENT_HEAD') || keys.includes('DEPARTMENT_ADMIN') || keys.includes('INSTRUCTOR') || !!m.ministryRoles?.length;
@@ -347,6 +356,9 @@ export async function recomputeOrgRoleIndex(orgId: string): Promise<void> {
       staffUids: ids(m => has(m, 'MANAGE_CONTENT')),
       updatedAt: Date.now(),
     });
+    // The IT Admin and finance lists are server-only; someone leaving the roster must drop off them too.
+    const token = await auth.currentUser?.getIdToken();
+    await fetch('/api/elevate/access/sync', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ orgId }) });
   } catch { /* best-effort; owners/admins retain access */ }
 }
 

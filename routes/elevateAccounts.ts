@@ -13,6 +13,7 @@
 
 import { Router, Request, Response } from 'express';
 import { verifyIdTokenDetailed, fsGet, fsPatch, fsSet, fsCreate, fsQuery, fsDelete, adminConfig } from '../services/firebaseAdminRest';
+import { rebuildOrgAccessIndex } from './elevateAccess';
 
 export const elevateAccountsRouter = Router();
 
@@ -255,6 +256,8 @@ elevateAccountsRouter.post('/sync-index', async (req: Request, res: Response) =>
   if (!org) return res.status(404).json({ error: 'Organization not found.' });
   const rows = await fsQuery('orgMemberships', [{ field: 'orgId', value: orgId }, { field: 'userId', value: uid }], 20);
   const active = rows.map(r => r.data).filter(m => m.status === 'ACTIVE');
+  // A claimed or removed seat may carry IT Admin or finance roles, so those lists follow it.
+  if (!active.length || active.some(m => (m.protectedRoles || []).length)) await rebuildOrgAccessIndex(orgId, org);
   if (!active.length) {
     await fsDelete(`orgMemberIndex/${orgId}_${uid}`).catch(() => false);
     return res.json({ active: false, ministryIds: [] });

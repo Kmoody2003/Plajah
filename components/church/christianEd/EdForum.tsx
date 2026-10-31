@@ -121,7 +121,7 @@ export default function EdForum({ orgId, program: p, viewer, isTeacher, canSeeKe
           ) : unreadable ? (
             <div className="empty">
               <div className="t">You don’t have access to this discussion</div>
-              <div>Posts here are for this class’s teachers and enrolled students. Ask an org admin to add you to the class.</div>
+              <div>Posts here are for this class’s department, teachers and enrolled students. Ask an org admin to add you to the department.</div>
             </div>
           ) : shown.length === 0 ? (
             <div className="empty">

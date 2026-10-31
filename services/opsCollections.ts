@@ -40,6 +40,8 @@ export const OPS_COLLECTIONS: ReadonlySet<string> = new Set([
   // Live co-editing of creative projects (services/coedit): ops log, snapshots, shared history,
   // presence and drafts. Self-contained rules (membership lives on the project doc).
   'coedit',
+  // A document's append-only paper trail (services/coedit/audit.ts).
+  'docAudit',
   // Moved 2026-10-29 when plajah-prod's ruleset went over the 256,000-byte cap again (265,327).
   // Education staff tools: worksheets + keys, template assignments, integrity, periodicals, council.
   'digital_worksheets', 'digital_worksheet_keys', 'worksheet_assignments', 'worksheet_submissions',

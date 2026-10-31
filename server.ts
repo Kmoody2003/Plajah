@@ -53,6 +53,7 @@ import { createAdminPublishAsRouter } from './routes/adminPublishAs';
 import { learnerAuthRouter } from './routes/learnerAuth';
 import { schoolsRouter } from './routes/schools';
 import { elevateAccountsRouter } from './routes/elevateAccounts';
+import { elevateAccessRouter, canOpenLockedAsset } from './routes/elevateAccess';
 import { elevateInvitesRouter } from './routes/elevateInvites';
 import { templateShareRouter } from './routes/templateShare';
 import { curriculumFetchRouter } from './routes/curriculumFetch';
@@ -2221,7 +2222,7 @@ async function assertOrgFinanceAccess(uid: string, orgId: string): Promise<{ org
   const org = await firestoreGetDeep('organizations', orgId);
   if (!org) return { error: 'Organization not found', status: 404 };
   const inList = (k: string) => Array.isArray(org[k]) && org[k].includes(uid);
-  if (org.creatorId === uid || inList('admins') || inList('financeUids') || inList('accountingUids') || inList('pastorUids')) return { org };
+  if (org.creatorId === uid || inList('itAdminUids') || inList('seniorPastorUids') || inList('financeUids') || inList('accountingUids')) return { org };
   try { if (await fetchFirebaseDoc('admins', uid)) return { org }; } catch { /* fall through */ }
   return { error: 'Finance access required', status: 403 };
 }
@@ -4107,6 +4108,7 @@ async function startServer() {
     if (asset.scopeKind === 'user') return asset.scopeId === uid;
     if (asset.scopeKind !== 'org') return false;
     const org = await firestoreRead('organizations', String(asset.scopeId));
+    if ((asset.access || 'open') !== 'open') return canOpenLockedAsset(uid, asset, org);
     if (org && (org.creatorId === uid || (org.admins || []).includes(uid))) return true;
     const memberships = await queryFirebase('orgMemberships', [
       { field: 'orgId', value: String(asset.scopeId) }, { field: 'userId', value: uid },
@@ -4472,7 +4474,7 @@ async function startServer() {
     const a = Buffer.from(hash); const b = Buffer.from(String(share.tokenHash || ''));
     if (a.length !== b.length || !nodeCrypto.timingSafeEqual(a, b)) return null;
     const asset = await firestoreRead('orgAssets', String(share.assetId));
-    if (!asset || asset.deletedAt) return null;
+    if (!asset || asset.deletedAt || (asset.access || 'open') !== 'open') return null;
     return { share, asset };
   }
 
@@ -13882,6 +13884,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // Elevate: claim a pre-provisioned member / staff account (member ID + last name, or own email). Rate-limited.
   app.use('/api/elevate/claim', authLimiter);
   app.use('/api/elevate/claim', express.json({ limit: '8kb' }), elevateAccountsRouter);
+  app.use('/api/elevate/access', apiLimiter);
+  app.use('/api/elevate/access', express.json({ limit: '8kb' }), elevateAccessRouter);
   // Elevate: staff email "claim your account" invitations (address always from the org's records). routes/elevateInvites.ts
   app.use('/api/elevate/invites', rateLimit({ windowMs: 15 * 60 * 1000, max: 40, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many invitation requests — try again in a few minutes.' } }));
   app.use('/api/elevate/invites', express.json({ limit: '32kb' }), elevateInvitesRouter);

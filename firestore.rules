@@ -3545,18 +3545,24 @@ service cloud.firestore {
       // stripeAccountId decides where every gift is paid out, so only the server (Stripe Connect onboarding,
       // admin token) sets it — a finance volunteer or co-admin typing their own acct_… would divert donations.
       allow update: if isAuthenticated() &&
-        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stripeAccountId']) || isAdmin()) && (
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stripeAccountId', 'itAdminUids', 'seniorPastorUids', 'financeUids', 'givingViewUids', 'accountingUids', 'accountingViewUids']) || isAdmin()) &&
+        // Ownership moves only from the owner, and giving setup belongs to the people who hold the money.
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['creatorId', 'ownerId', 'accountUid']) || resource.data.creatorId == request.auth.uid || isAdmin()) &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['givingFunds', 'givingUrl', 'financeSettings']) || resource.data.creatorId == request.auth.uid ||
+          request.auth.uid in resource.data.get('itAdminUids', []) || request.auth.uid in resource.data.get('seniorPastorUids', []) ||
+          request.auth.uid in resource.data.get('financeUids', []) || isAdmin()) && (
+        request.auth.uid in resource.data.get('itAdminUids', []) ||
         request.auth.uid in resource.data.admins ||
         resource.data.creatorId == request.auth.uid ||
         // anyone may bump follower/member counters
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount', 'memberCount', 'updatedAt']) ||
         // Elevate: pastors manage ministries/rosters + the derived role index (cannot touch money/admins/ownership).
         (request.auth.uid in resource.data.get('pastorUids', []) &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['logoUrl', 'coverUrl', 'name', 'tagline', 'about', 'ministries', 'rosterIntro', 'setupState', 'pastorUids', 'financeUids', 'prayerUids', 'leaderUids', 'givingViewUids', 'accountingUids', 'accountingViewUids', 'staffUids', 'eduTeacherUids', 'memberCount', 'updatedAt'])) ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['logoUrl', 'coverUrl', 'name', 'tagline', 'about', 'ministries', 'rosterIntro', 'setupState', 'departmentUids', 'pastorUids', 'prayerUids', 'leaderUids', 'staffUids', 'eduTeacherUids', 'memberCount', 'updatedAt'])) ||
         resource.data.get('accountUid', '') == request.auth.uid ||
         resource.data.get('ownerId', '') == request.auth.uid ||
-        // Elevate: finance roles own giving setup only.
-        (request.auth.uid in resource.data.get('financeUids', []) &&
+        // Elevate: finance roles and Senior Pastors own giving setup only.
+        ((request.auth.uid in resource.data.get('financeUids', []) || request.auth.uid in resource.data.get('seniorPastorUids', [])) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['givingFunds', 'givingUrl', 'setupState', 'legalName', 'ein', 'statementFooter', 'financeSettings', 'updatedAt'])) ||
         // Elevate: department heads edit ministry/department definitions.
         (request.auth.uid in resource.data.get('leaderUids', []) &&
@@ -3571,6 +3577,7 @@ service cloud.firestore {
         allow read: if isAuthenticated() && (
           request.auth.uid in get(/databases/$(database)/documents/organizations/$(orgId)).data.admins ||
           get(/databases/$(database)/documents/organizations/$(orgId)).data.creatorId == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/organizations/$(orgId)).data.get('itAdminUids', []) ||
           isAdmin()
         );
         allow create: if isAuthenticated() && request.resource.data.actorUid == request.auth.uid;
@@ -3582,7 +3589,8 @@ service cloud.firestore {
     function orgAdminOf(orgId) {
       return isAuthenticated() && (
         request.auth.uid in get(/databases/$(database)/documents/organizations/$(orgId)).data.admins ||
-        get(/databases/$(database)/documents/organizations/$(orgId)).data.creatorId == request.auth.uid
+        get(/databases/$(database)/documents/organizations/$(orgId)).data.creatorId == request.auth.uid ||
+        request.auth.uid in get(/databases/$(database)/documents/organizations/$(orgId)).data.get('itAdminUids', [])
       );
     }
     function productionStaffOf(prodId) {
@@ -3728,7 +3736,7 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       // Join yourself as a plain member (PENDING/ACTIVE), via a valid role-setup invite, OR an org admin/pastor adds a member,
       // OR roster staff pre-provision a claimable seat.
-      allow create: if isAuthenticated() && (
+      allow create: if isAuthenticated() && (!('protectedRoles' in request.resource.data) || isAdmin()) && (
         (request.resource.data.userId == request.auth.uid && (
           (request.resource.data.role == 'MEMBER' && request.resource.data.status == 'PENDING' && !('permissions' in request.resource.data) && !('isSenior' in request.resource.data)) ||
           ('inviteToken' in request.resource.data && inviteOk(request.resource.data))
@@ -3738,7 +3746,9 @@ service cloud.firestore {
         isAdmin()
       );
       // Members may edit ONLY their own presentation fields — never role/status/permissions (closes self-promotion).
-      allow update: if isAuthenticated() && (
+      allow update: if isAuthenticated() &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['protectedRoles']) || isAdmin()) &&
+        (resource.data.get('protectedRoles', []).size() == 0 || request.resource.data.userId == resource.data.userId || isAdmin()) && (
         (resource.data.userId == request.auth.uid &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoUrl', 'aboutInOrg', 'orgPhotoUrl', 'syncToProfile'])) ||
         orgPastorOrAdmin(resource.data.orgId) ||

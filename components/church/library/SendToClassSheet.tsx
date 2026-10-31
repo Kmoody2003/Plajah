@@ -36,7 +36,7 @@ export default function SendToClassSheet({ items, orgId, programs: given, onClos
     listPrograms(orgId).then(ps => { if (live) setPrograms(ps); }).catch(() => { if (live) setPrograms([]); });
     return () => { live = false; };
   }, [orgId, given]);
-  // Every class this viewer can open: org teachers post to classes they aren't listed on, and the rules have the last word.
+  // Every class this viewer can open: department members post to classes they aren't listed on, and the rules have the last word.
   const mine = programs || [];
   const [classIds, setClassIds] = useState<string[]>([]);
   useEffect(() => { if (mine.length === 1) setClassIds([mine[0].id]); }, [mine]);
@@ -72,7 +72,7 @@ export default function SendToClassSheet({ items, orgId, programs: given, onClos
       }
     }
     setBusy(false);
-    if (!sent) { setErr('Nothing was sent. You may not have permission to post in that class. Ask an org admin to add you as a teacher.'); return; }
+    if (!sent) { setErr('Nothing was sent. You may not have permission to post in that class. Ask an org admin to add you to its department.'); return; }
     const names = mine.filter(p => classIds.includes(p.id)).map(p => p.name).join(', ');
     onDone(where === 'media' ? `Added to the Media Gallery of ${names}.` : `Posted to the Discussion of ${names} as a resource.`);
   };

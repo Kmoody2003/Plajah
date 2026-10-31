@@ -83,9 +83,15 @@ service cloud.firestore {
         )) || isAdmin()
       );
     }
+    // A restricted or revoked file: its author, the people resolved onto it by routes/elevateAccess.ts, the owner and IT Admins.
+    function hqAllowed(data) {
+      return data.get('access', 'open') == 'open' ? canAccessHqScope(data) : isAuthenticated() && (
+        data.get('uploadedByUid', '') == request.auth.uid || request.auth.uid in data.get('accessUids', []) || isAdmin() ||
+        (data.scopeKind == 'org' && (orgDoc(data.scopeId).creatorId == request.auth.uid || request.auth.uid in orgDoc(data.scopeId).get('itAdminUids', []))));
+    }
     function canAccessHqAsset(assetId) {
       return exists(/databases/$(database)/documents/orgAssets/$(assetId)) &&
-        canAccessHqScope(get(/databases/$(database)/documents/orgAssets/$(assetId)).data);
+        hqAllowed(get(/databases/$(database)/documents/orgAssets/$(assetId)).data);
     }
     function isValidDonation(data) {
       return hasRequiredFields(['fromId', 'fromName', 'toId', 'amount', 'timestamp']) &&
@@ -136,18 +142,25 @@ service cloud.firestore {
     function orgAdminOf(orgId) {
       return isAuthenticated() && (
         request.auth.uid in get(/databases/$(database)/documents/organizations/$(orgId)).data.admins ||
-        get(/databases/$(database)/documents/organizations/$(orgId)).data.creatorId == request.auth.uid
+        get(/databases/$(database)/documents/organizations/$(orgId)).data.creatorId == request.auth.uid ||
+        request.auth.uid in get(/databases/$(database)/documents/organizations/$(orgId)).data.get('itAdminUids', [])
       );
     }
     function orgDoc(orgId) { return get(/databases/$(database)/documents/organizations/$(orgId)).data; }
+    // organizations.departmentUids is { departmentId: [uid] }, kept by elevateService.recomputeOrgRoleIndex.
+    function inDepartment(orgId, deptId) { return isAuthenticated() && request.auth.uid in orgDoc(orgId).get('departmentUids', {}).get(deptId, []); }
     function orgPastorOrAdmin(orgId) {
       return orgAdminOf(orgId) || request.auth.uid in orgDoc(orgId).get('pastorUids', []);
     }
     // ── Elevate ChMS (people / finance / attendance) ─────────────────────────────
+    // Money: the owner, IT Admins, Senior Pastors and the finance roles. Org admins and other pastors see the department, not the amounts.
+    function financeLead(orgId) {
+      return isAuthenticated() && (orgDoc(orgId).creatorId == request.auth.uid ||
+        request.auth.uid in orgDoc(orgId).get('itAdminUids', []) ||
+        request.auth.uid in orgDoc(orgId).get('seniorPastorUids', []));
+    }
     function chmsFinance(orgId) {
-      return isAuthenticated() && (orgAdminOf(orgId) ||
-        request.auth.uid in orgDoc(orgId).get('financeUids', []) ||
-        request.auth.uid in orgDoc(orgId).get('pastorUids', []));
+      return financeLead(orgId) || (isAuthenticated() && request.auth.uid in orgDoc(orgId).get('financeUids', []));
     }
     function chmsGivingRead(orgId) {
       return chmsFinance(orgId) || (isAuthenticated() && request.auth.uid in orgDoc(orgId).get('givingViewUids', []));
@@ -160,14 +173,12 @@ service cloud.firestore {
     }
     // ── Elevate Accounting (double-entry) ────────────────────────────────────────
     function acctWrite(orgId) {
-      return isAuthenticated() && (orgAdminOf(orgId) ||
+      return financeLead(orgId) || (isAuthenticated() && (
         request.auth.uid in orgDoc(orgId).get('accountingUids', []) ||
-        request.auth.uid in orgDoc(orgId).get('financeUids', []));
+        request.auth.uid in orgDoc(orgId).get('financeUids', [])));
     }
     function acctRead(orgId) {
-      return acctWrite(orgId) || (isAuthenticated() && (
-        request.auth.uid in orgDoc(orgId).get('accountingViewUids', []) ||
-        request.auth.uid in orgDoc(orgId).get('pastorUids', [])));
+      return acctWrite(orgId) || (isAuthenticated() && request.auth.uid in orgDoc(orgId).get('accountingViewUids', []));
     }
 
     match /billingCustomers/{id} {
@@ -448,8 +459,8 @@ service cloud.firestore {
         // submitter edits/withdraws their own before approval
         (resource.data.submittedBy == request.auth.uid && resource.data.status in ['DRAFT', 'SUBMITTED'] &&
           request.resource.data.status in ['DRAFT', 'SUBMITTED', 'VOID']) ||
-        // department heads / pastors approve or reject (never mark paid)
-        ((request.auth.uid in orgDoc(resource.data.orgId).get('leaderUids', []) || request.auth.uid in orgDoc(resource.data.orgId).get('pastorUids', [])) &&
+        // department heads approve or reject (never mark paid)
+        (request.auth.uid in orgDoc(resource.data.orgId).get('leaderUids', []) &&
           resource.data.status == 'SUBMITTED' && request.resource.data.status in ['APPROVED', 'REJECTED'] &&
           request.resource.data.submittedBy == resource.data.submittedBy && request.resource.data.amount == resource.data.amount));
       allow delete: if false;
@@ -517,10 +528,15 @@ service cloud.firestore {
           isAdmin()
         );
       }
-      allow read: if cxScopeOk(resource.data);
-      allow create: if cxScopeOk(request.resource.data) && request.resource.data.uploadedByUid == request.auth.uid;
-      allow update: if cxScopeOk(resource.data) && cxScopeOk(request.resource.data);
-      allow delete: if cxScopeOk(resource.data);
+      // Listing goes through /api/elevate/access/assets, which filters out files the caller can't open.
+      allow get: if hqAllowed(resource.data);
+      allow list: if isAdmin();
+      allow create: if cxScopeOk(request.resource.data) && request.resource.data.uploadedByUid == request.auth.uid &&
+        !request.resource.data.keys().hasAny(['access', 'accessSpec', 'accessUids']);
+      allow update: if hqAllowed(resource.data) && request.resource.data.scopeKind == resource.data.scopeKind &&
+        request.resource.data.scopeId == resource.data.scopeId && request.resource.data.uploadedByUid == resource.data.uploadedByUid &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['access', 'accessSpec', 'accessUids']);
+      allow delete: if hqAllowed(resource.data);
     }
     // Immutable revision records. Replacing a file creates a new version; it never
     // overwrites the version a reviewer approved.
@@ -584,10 +600,15 @@ service cloud.firestore {
     // lists theirs with where('studentUids', 'array-contains', uid). Only the church's admins write.
     match /churchPrograms/{programId} {
       allow read: if isAuthenticated() && (request.auth.uid in resource.data.get('teacherUids', []) ||
-        request.auth.uid in resource.data.get('studentUids', []) || chmsPeopleStaff(resource.data.orgId) || isAdmin());
+        request.auth.uid in resource.data.get('studentUids', []) || orgPastorOrAdmin(resource.data.orgId) ||
+        inDepartment(resource.data.orgId, resource.data.get('departmentId', '_')) || isAdmin());
       allow create, update: if isAuthenticated() && request.resource.data.createdBy == request.auth.uid
         && (request.auth.uid in get(/databases/$(database)/documents/organizations/$(request.resource.data.orgId)).data.admins
             || request.auth.uid == get(/databases/$(database)/documents/organizations/$(request.resource.data.orgId)).data.creatorId);
+      // A class's own department may update it too, but never move it to another org, department or owner.
+      allow update: if inDepartment(resource.data.orgId, resource.data.get('departmentId', '_'))
+        && request.resource.data.orgId == resource.data.orgId && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.get('departmentId', '_') == resource.data.get('departmentId', '_');
       // A class's own teachers may update it (roster, weeks) but never move it or change ownership.
       allow update: if isAuthenticated() && request.auth.uid in resource.data.get('teacherUids', [])
         && request.resource.data.orgId == resource.data.orgId
@@ -710,9 +731,9 @@ service cloud.firestore {
     // ── Class discussion board (services/classForum.ts) ───────────────────────
     // The class's teachers and students read and post; authors edit their own; teachers pin, lock and remove.
     // A vote changes only the voter's own uid; a lesson thread is opened by a teacher.
-    // Class leads: the class's teachers, org admins and the org's designated teachers (eduTeacherUids). Grades and
+    // Class leads: the class's teachers, org admins and pastors, and the department the class belongs to. Grades and
     // answer keys stay with eduTeacher: this reaches the board and gallery only.
-    function classLead(pid) { return eduTeacher(pid) || (isAuthenticated() && request.auth.uid in orgDoc(eduProgram(pid).orgId).get('eduTeacherUids', [])); }
+    function classLead(pid) { return eduTeacher(pid) || orgPastorOrAdmin(eduProgram(pid).orgId) || inDepartment(eduProgram(pid).orgId, eduProgram(pid).get('departmentId', '_')); }
     function forumMember(pid) { return classLead(pid) || eduStudent(pid); }
     function ownVoteOnly(after, before) {
       return after.diff(before).affectedKeys().hasOnly(['upvoterUids'])
@@ -865,11 +886,30 @@ service cloud.firestore {
     // manages who's in; editors may rename; anyone but the owner may leave. Subcollections carry
     // the live op log, compacted snapshots (chunks), shared + private history, presence and each
     // member's held draft. Self-contained: nothing here reads plajah-prod.
+    // A document's paper trail: add only, in your own name, at server time. Nobody can change or remove an
+    // entry. A shared document's members add to it; before sharing, only its owner. Read by the owner and IT Admins.
+    match /docAudit/{pid}/events/{id} {
+      function auditShape(d) {
+        return d.keys().hasOnly(['pid', 'action', 'by', 'byName', 'at', 'detail', 'ownerId', 'orgId']) &&
+          d.pid == pid && d.by == request.auth.uid && d.at == request.time && d.action is string && d.action.size() <= 40 &&
+          d.byName is string && d.byName.size() <= 200 && d.detail is string && d.detail.size() <= 300 && d.ownerId is string;
+      }
+      function auditProject() { return get(/databases/$(database)/documents/coedit/$(pid)).data; }
+      allow create: if isAuthenticated() && auditShape(request.resource.data) && (
+        exists(/databases/$(database)/documents/coedit/$(pid))
+          ? request.auth.uid in auditProject().memberIds && request.resource.data.ownerId == auditProject().ownerId
+          : request.resource.data.ownerId == request.auth.uid);
+      allow read: if isAuthenticated() && (resource.data.ownerId == request.auth.uid ||
+        (resource.data.get('orgId', '') != '' && (orgDoc(resource.data.orgId).creatorId == request.auth.uid || request.auth.uid in orgDoc(resource.data.orgId).get('itAdminUids', []))));
+      allow update, delete: if false;
+    }
+
     match /coedit/{pid} {
       function co() { return get(/databases/$(database)/documents/coedit/$(pid)).data; }
       function coRole() { return co().members.get(request.auth.uid, ''); }
-      function coMember() { return isAuthenticated() && coRole() != ''; }
-      function coEditor() { return isAuthenticated() && coRole() in ['owner', 'editor']; }
+      function coLive() { return co().get('expires', {}).get(request.auth.uid, 0) == 0 || co().expires[request.auth.uid] > request.time.toMillis(); }
+      function coMember() { return isAuthenticated() && coRole() != '' && coLive(); }
+      function coEditor() { return isAuthenticated() && coRole() in ['owner', 'editor'] && coLive(); }
       function coShape(d) {
         return d.ownerId is string && d.kind is string && d.title is string && d.title.size() <= 300 &&
           d.members is map && d.memberIds is list && d.memberIds.size() <= 200 &&
@@ -891,6 +931,11 @@ service cloud.firestore {
         );
       allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
 
+      // Why someone lost access. It's how their app knows to remove its copy, so they can still read it.
+      match /revocations/{uid} {
+        allow read: if isAuthenticated() && (uid == request.auth.uid || co().ownerId == request.auth.uid);
+        allow write: if isAuthenticated() && co().ownerId == request.auth.uid;
+      }
       match /ops/{batchId} {
         allow read: if coMember();
         allow create, update: if coEditor() && request.resource.data.u == request.auth.uid &&

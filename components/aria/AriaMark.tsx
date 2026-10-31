@@ -62,13 +62,15 @@ export interface AriaMarkProps {
   thinking?: boolean;
   /** show the translucent petal blades (default: on for size >= 22) */
   petals?: boolean;
+  /** visible motion at button sizes: faster nebula, stronger pulse, turning starburst */
+  lively?: boolean;
   className?: string;
   style?: React.CSSProperties;
   title?: string;
 }
 
 const AriaMark: React.FC<AriaMarkProps> = ({
-  size = 28, thinking = false, petals, className = '', style, title,
+  size = 28, thinking = false, petals, lively = false, className = '', style, title,
 }) => {
   const reduce = useReducedMotion();
   const still = !!reduce;
@@ -76,9 +78,12 @@ const AriaMark: React.FC<AriaMarkProps> = ({
   const showClouds = size >= 20;
   const showStars = size >= 40;
   const mask = 'radial-gradient(circle at 50% 50%, #000 52%, transparent 74%)';
-  const speed = thinking ? 0.32 : 1; // multiply durations: thinking runs ~3x faster
+  const speed = thinking ? 0.32 : lively ? 0.15 : 1; // multiply durations: thinking runs ~3x faster
+  const pulseSpeed = thinking ? 0.32 : lively ? 0.5 : 1; // breathing stays calm when lively
   const anim = (name: string, seconds: number, extra = 'linear infinite') =>
     still ? undefined : `${name} ${(seconds * speed).toFixed(2)}s ${extra}`;
+  const pulse = (name: string, seconds: number) =>
+    still ? undefined : `${name} ${(seconds * pulseSpeed).toFixed(2)}s ease-in-out infinite`;
 
   return (
     <span
@@ -98,7 +103,7 @@ const AriaMark: React.FC<AriaMarkProps> = ({
           position: 'absolute', inset: '-30%', borderRadius: '50%', zIndex: -1, pointerEvents: 'none',
           background: 'radial-gradient(circle, rgba(139,92,246,.62) 0%, rgba(232,85,122,.34) 38%, rgba(0,218,243,.12) 58%, transparent 72%)',
           filter: `blur(${Math.max(2, size * 0.1)}px)`,
-          animation: anim('ariaMark-breathe', 5.6, 'ease-in-out infinite'),
+          animation: pulse('ariaMark-breathe', 5.6),
           opacity: still ? 0.85 : undefined,
           willChange: still ? undefined : 'transform, opacity',
         }}
@@ -185,10 +190,10 @@ const AriaMark: React.FC<AriaMarkProps> = ({
         style={{
           position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible',
           filter: 'drop-shadow(0 0 3px #fff) drop-shadow(0 0 10px rgba(255,190,140,.8)) drop-shadow(0 0 18px rgba(167,139,250,.55))',
-          animation: anim('ariaMark-core', 4.8, 'ease-in-out infinite'),
+          animation: pulse('ariaMark-core', 4.8),
         }}
-        animate={still ? undefined : (thinking ? { scale: [0.85, 1.14, 0.85], rotate: [0, 45, 0] } : { scale: [0.92, 1.07, 0.92] })}
-        transition={still ? undefined : { repeat: Infinity, ease: 'easeInOut', duration: thinking ? 0.85 : 4.8 }}
+        animate={still ? undefined : (thinking ? { scale: [0.85, 1.14, 0.85], rotate: [0, 45, 0] } : lively ? { scale: [0.82, 1.14, 0.82], rotate: [0, 45, 90] } : { scale: [0.92, 1.07, 0.92] })}
+        transition={still ? undefined : { repeat: Infinity, ease: 'easeInOut', duration: thinking ? 0.85 : lively ? 2.8 : 4.8 }}
       >
         <path d={SPARK} fill="#fff" />
       </motion.svg>

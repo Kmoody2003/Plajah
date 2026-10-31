@@ -2,8 +2,8 @@
 // A program is a week-by-week plan whose weeks point at Verse passages and Sacred Library readings,
 // plus Academia courses, a dedicated Classroom Chat Room, and an Academia Classroom (roster, assignments,
 // paper worksheet scanner, and Tela lesson builder).
-import { opsDb, auth } from './firebase';
-import { doc, collection, setDoc, getDocs, query, where, deleteDoc } from 'firebase/firestore';
+import { db, opsDb, auth } from './firebase';
+import { doc, collection, getDoc, setDoc, getDocs, query, where, deleteDoc } from 'firebase/firestore';
 import { parseRef, refId, formatRef } from './scriptureRef';
 import { createChurchClass } from './churchConsoleService';
 import { classChatRoomId } from './orgChatService';
@@ -41,6 +41,8 @@ export interface ChurchProgram {
   description: string;
   meetingSchedule?: string;
   leadInstructor?: string;
+  /** The department (Organization.ministries id) that runs this class. Its members see and edit it. */
+  departmentId?: string;
   /** Multi-role Christian Education team: Non-Credentialed Instructors, Department Heads, Department Admins & Volunteers. */
   assignedTeam?: Array<{ uid?: string; personId?: string; name: string; roleKey: 'INSTRUCTOR' | 'DEPARTMENT_HEAD' | 'DEPARTMENT_ADMIN' | 'DEPARTMENT_VOLUNTEER' }>;
   courseIds: string[];
@@ -341,10 +343,14 @@ export async function listPrograms(orgId: string): Promise<ChurchProgram[]> {
       if (!uid) throw new Error('signed out');
       const [taught, enrolled] = await Promise.all(['teacherUids', 'studentUids'].map(f =>
         getDocs(query(col(), where('orgId', '==', orgId), where(f, 'array-contains', uid))).catch(() => null)));
-      if (!taught && !enrolled) throw new Error('no access');
-      remote = [...(taught?.docs || []), ...(enrolled?.docs || [])].map(d => d.data() as ChurchProgram);
+      // Plus the classes of the departments this person belongs to.
+      const org = (await getDoc(doc(db, 'organizations', orgId)).catch(() => null))?.data();
+      const deptIds = Object.entries((org?.departmentUids || {}) as Record<string, string[]>).filter(([, uids]) => uids.includes(uid)).map(([id]) => id);
+      const byDept = await Promise.all(deptIds.map(d => getDocs(query(col(), where('orgId', '==', orgId), where('departmentId', '==', d))).catch(() => null)));
+      if (!taught && !enrolled && !byDept.some(Boolean)) throw new Error('no access');
+      remote = [...(taught?.docs || []), ...(enrolled?.docs || []), ...byDept.flatMap(s => s?.docs || [])].map(d => d.data() as ChurchProgram);
       // Drop classes an earlier session cached on this device that this person is not part of.
-      const mine = (p: ChurchProgram) => !!(p.teacherUids?.includes(uid) || p.studentUids?.includes(uid) || p.createdBy === uid);
+      const mine = (p: ChurchProgram) => !!(p.teacherUids?.includes(uid) || p.studentUids?.includes(uid) || p.createdBy === uid || remote.some(r => r.id === p.id));
       local = local.filter(mine);
     }
     const byId = new Map<string, ChurchProgram>();
@@ -368,8 +374,12 @@ export async function saveProgram(p: ChurchProgram): Promise<void> {
     if (w.unitIds?.length) o.unitIds = w.unitIds;
     return o;
   });
+  // A class belongs to the org's Christian Education department unless it says otherwise.
+  const org = p.departmentId ? null : (await getDoc(doc(db, 'organizations', p.orgId)).catch(() => null))?.data();
+  const departmentId = p.departmentId || (org?.ministries as Array<{ id: string; name: string }> | undefined)?.find(m => /christian\s*ed|education|sunday\s*school|discipleship/i.test(m.name))?.id;
   const normalized: ChurchProgram = {
     ...p,
+    ...(departmentId ? { departmentId } : {}),
     chatRoomId: p.chatRoomId || classChatRoomId(p.orgId, p.id),
     weeks,
     courseIds: p.courseIds || [],
