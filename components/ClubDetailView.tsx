@@ -1,5 +1,5 @@
 import { UserAvatar } from './avatar/UserAvatar';
-import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
+import { thumb, onThumbError, THUMB, coverGridSrc } from '../src/lib/imageThumb';
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 import { checkPostRateLimit, recordPost, detectSpam } from '../src/lib/spamCheck';

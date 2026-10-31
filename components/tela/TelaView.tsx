@@ -406,6 +406,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const [editingText, setEditingText] = useState<string | null>(null);
   const [paintTarget, setPaintTarget] = useState<{ kind: 'gradient' | 'mesh'; node?: number; stop?: number } | null>(null);
   const studioViewportRef = useRef<HTMLDivElement>(null);
+  const studioScrollRef = useRef<HTMLDivElement>(null);
   const [studioSel, setStudioSelRaw] = useState<string | null>(null); // primary object OR layer id
   const [studioSelIds, setStudioSelIds] = useState<string[]>([]);
   const setStudioSelection = useCallback((ids: string[]) => { const next = [...new Set(ids)]; setStudioSelIds(next); setStudioSelRaw(next.at(-1) || null); }, []);
@@ -2048,7 +2049,10 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
         { id: 'zoom-100', label: 'Zoom 100%', shortcut: 'Ctrl+1', onSelect: () => setStudioZoom(1.0) },
         { id: 'zoom-fit', label: 'Fit Viewport', shortcut: 'Ctrl+0', onSelect: () => {
           const device = docRef.current?.devices[ctx.deviceId];
-          if (device) fitStudioToDevice(device);
+          const el = studioScrollRef.current;
+          if (!el || (device?.type !== 'VECTOR' && device?.type !== 'IMAGE')) return;
+          // Leaves room for the stage padding and rulers around the canvas.
+          setStudioZoom(Math.max(.1, Math.min(4, (el.clientWidth - 96) / device.width, (el.clientHeight - 116) / device.height)));
         } },
       ] },
       { id: 'guides', label: 'Rulers & Guides', icon: <Grid3X3 size={15}/>, submenu: [
@@ -3221,7 +3225,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
             {menu === 'SELECT' && <>
               <div className="px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[.12em] text-white/28">Selection Suite (Photoshop Standard)</div>
               <button className={menuBarItem} onClick={() => {
-                const focus = activeDevice;
+                const focus = studioFocus?.device;
                 if (focus?.type === 'IMAGE') {
                   setRasterSelection(selectAll(focus.width, focus.height));
                 } else {
@@ -3235,7 +3239,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                 setAppMenuOpen(null);
               }}><X size={14}/>Deselect<span className="ml-auto text-[9px] text-white/25">Ctrl+D</span></button>
               <button className={menuBarItem} onClick={() => {
-                const focus = activeDevice;
+                const focus = studioFocus?.device;
                 if (focus?.type === 'IMAGE') {
                   if (rasterSelection?.bounds) {
                     setRasterSelection(invertSelection(rasterSelection));
@@ -3284,7 +3288,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                 setAppMenuOpen(null);
               }}><Wand2 size={14} className="text-purple-300"/>Select Subject (Meta SAM AI)<span className="ml-auto text-[9px] text-[#34d399]">AI</span></button>
               <button className={menuBarItem} disabled={!rasterSelection?.bounds} onClick={() => {
-                const focus = activeDevice;
+                const focus = studioFocus?.device;
                 if (focus?.type === 'IMAGE' && studioSel) {
                   const maskUrl = selectionToDataUrl(rasterSelection!, 'alpha');
                   dispatchOp({ type: 'UPDATE_IMAGE_LAYER', deviceId: focus.id, layerId: studioSel, patch: { mask: { kind: 'ALPHA_IMAGE', enabled: true, src: maskUrl, invert: false } } });
@@ -3292,7 +3296,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                 setAppMenuOpen(null);
               }}><Layers size={14}/>Create Layer Mask from Selection</button>
               <button className={menuBarItem} disabled={!rasterSelection?.bounds} onClick={() => {
-                const focus = activeDevice;
+                const focus = studioFocus?.device;
                 if (focus?.type === 'IMAGE' && studioSel) {
                   const lyr = focus.layers.find(l => l.id === studioSel);
                   if (lyr && rasterSelection) {
@@ -3716,7 +3720,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               />
 
               {/* Stage Scrollable Body — ONLY this area scrolls when viewing documents */}
-              <div className="flex-1 min-h-0 h-full overflow-y-auto overflow-x-auto relative isolate custom-scrollbar flex flex-col" style={{ overscrollBehavior: 'contain' }}>
+              <div ref={studioScrollRef} className="flex-1 min-h-0 h-full overflow-y-auto overflow-x-auto relative isolate custom-scrollbar flex flex-col" style={{ overscrollBehavior: 'contain' }}>
                 {comicLayoutMode ? (
                   <TelaComicPageStreamCanvas ctrl={comicVariant2Ctrl} zoom={studioZoom} />
                 ) : isContinuousMode ? (
