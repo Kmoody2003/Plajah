@@ -1,4 +1,4 @@
-import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
+import { thumb, onThumbError, THUMB, coverGridSrc } from '../src/lib/imageThumb';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
