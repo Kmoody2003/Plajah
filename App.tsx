@@ -4041,6 +4041,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     }
   };
 
+  // Shell nav destinations are bare view ids, but "My Profile" also has to say whose profile.
+  const handleShellNavigate = (id: string) => {
+    if (id !== 'USER_PROFILE') { setView(id as AppView); return; }
+    if (user) handleVisitUser(user.uid); else loginWithGoogle();
+  };
+
   // Smart artist router — handles audius:, personal:, and Plajah UIDs
   const handleVisitArtist = async (uid: string) => {
     if (!uid) return;
@@ -4317,6 +4323,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       fetchUserProfile(viewedUserId).then(setVisitedProfile).catch(console.error);
     }
   }, [viewedUserId, view, visitedProfile]);
+
+  // USER_PROFILE renders nothing without a uid. Reload resume, Back, the player and studio "back"
+  // buttons all arrive here with just the view, which means the signed-in person's own profile.
+  useEffect(() => {
+    if (view === 'USER_PROFILE' && !viewedUserId && user) {
+      setViewedUserId(user.uid);
+      window.history.replaceState({ view: 'USER_PROFILE' }, '', `/profile/${user.uid}`);
+    }
+  }, [view, viewedUserId, user]);
 
   // Build the ad slot pool once on mount — profiles + latest album + custom user ads
   useEffect(() => {
@@ -4675,7 +4690,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           )) && (
             <aside className={`hidden lg:block z-50 shrink-0 overflow-hidden border-white/[0.06] relative ${
               navLayout.isBar
-                ? 'lg:order-last border-l lg:w-56 sticky lg:top-14 h-[calc(100vh-3.5rem)]'
+                ? `lg:order-last border-l lg:w-56 sticky ${shellNext.enabled ? 'lg:top-[calc(100px+var(--pj-toolbar-h,0px))] h-[calc(100vh-100px-var(--pj-toolbar-h,0px))]' : 'lg:top-14 h-[calc(100vh-3.5rem)]'}`
                 : navLayout.isSplit
                   ? 'lg:order-last border-l lg:w-80 sticky top-0 h-screen'
                   : 'lg:w-80 border-r sticky top-0 h-screen'
@@ -4998,7 +5013,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             shellNext.enabled ? (
               <CommandSplitBar
                 view={view}
-                onNavigate={(id) => setView(id as AppView)}
+                onNavigate={handleShellNavigate}
                 hasUser={!!user}
                 displayName={user?.displayName || userProfile?.displayName || undefined}
                 avatarUrl={user?.photoURL || userProfile?.photoURL || undefined}
@@ -5018,7 +5033,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             <ChoraNavBar
               pages={barPages}
               activeView={view}
-              onNavigate={(id) => setView(id as AppView)}
+              onNavigate={handleShellNavigate}
               onMore={() => setView('DASHBOARD')}
               onCreate={() => setShowCreator(true)}
               switcher={<NavLayoutSwitcher pref={navLayout.pref} onSetPref={navLayout.setPref} compact />}
@@ -5063,7 +5078,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             shellNext.enabled ? (
               <CommandSplitNav
                 view={view}
-                onNavigate={(v) => setView(v as any)}
+                onNavigate={handleShellNavigate}
                 hasUser={!!user}
                 displayName={user?.displayName || userProfile?.displayName || undefined}
                 subtitle={user?.email || undefined}
