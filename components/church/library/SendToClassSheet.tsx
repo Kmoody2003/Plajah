@@ -3,9 +3,8 @@
 // full there); photos, video, audio and recordings can go to its Media Gallery instead. Work to turn in uses
 // "Assign to class" (AssignScheduleSheet).
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Check, Images, MessagesSquare, X } from 'lucide-react';
-import { auth } from '../../../services/firebase';
 import { listPrograms, type ChurchProgram } from '../../../services/churchEducationService';
 import type { IngestedCurriculumUnit } from '../../../services/curriculumIngestionService';
 import { createThread, lessonAttachment, type ThreadAttachment } from '../../../services/classForum';
@@ -25,20 +24,20 @@ const isMedia = (i: SendItem) => !i.unit && !!i.url && ['photo', 'video', 'audio
 export default function SendToClassSheet({ items, orgId, programs: given, onClose, onDone }: {
   items: SendItem[];
   orgId: string;
-  /** The org's classes when the caller has them; otherwise loaded here (classes this viewer teaches). */
+  /** The org's classes when the caller has them; otherwise loaded here (classes this viewer can open). */
   programs?: ChurchProgram[];
   onClose: () => void;
   onDone: (msg: string) => void;
 }) {
   const [programs, setPrograms] = useState<ChurchProgram[] | null>(given || null);
-  const uid = auth.currentUser?.uid || '';
   useEffect(() => {
     if (given) { setPrograms(given); return; }
     let live = true;
     listPrograms(orgId).then(ps => { if (live) setPrograms(ps); }).catch(() => { if (live) setPrograms([]); });
     return () => { live = false; };
   }, [orgId, given]);
-  const mine = useMemo(() => (programs || []).filter(p => !uid || p.createdBy === uid || (p.teacherUids || []).includes(uid) || !p.teacherUids?.length), [programs, uid]);
+  // Every class this viewer can open: department members post to classes they aren't listed on, and the rules have the last word.
+  const mine = programs || [];
   const [classIds, setClassIds] = useState<string[]>([]);
   useEffect(() => { if (mine.length === 1) setClassIds([mine[0].id]); }, [mine]);
   const allMedia = items.length > 0 && items.every(isMedia);
@@ -73,7 +72,7 @@ export default function SendToClassSheet({ items, orgId, programs: given, onClos
       }
     }
     setBusy(false);
-    if (!sent) { setErr('Nothing was sent. Check that you teach the class and are signed in.'); return; }
+    if (!sent) { setErr('Nothing was sent. You may not have permission to post in that class. Ask an org admin to add you to its department.'); return; }
     const names = mine.filter(p => classIds.includes(p.id)).map(p => p.name).join(', ');
     onDone(where === 'media' ? `Added to the Media Gallery of ${names}.` : `Posted to the Discussion of ${names} as a resource.`);
   };

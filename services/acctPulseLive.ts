@@ -15,9 +15,10 @@ export interface PulseAccess { full: boolean; headOf: string[]; canRaiseBudget: 
 /** What this viewer may see — mirrors firestore.rules (journals: finance/accounting/pastor only; heads: budgets + expenses). */
 export function pulseAccess(org: Organization, uid: string): PulseAccess {
   const inL = (k: keyof Organization) => Array.isArray((org as any)[k]) && (org as any)[k].includes(uid);
-  const full = org.creatorId === uid || inL('admins') || inL('financeUids') || inL('accountingUids') || inL('accountingViewUids') || inL('pastorUids');
+  const lead = org.creatorId === uid || inL('itAdminUids') || inL('seniorPastorUids');
+  const full = lead || inL('financeUids') || inL('accountingUids') || inL('accountingViewUids');
   const headOf = (org.ministries || []).filter(m => m.headUids?.includes(uid)).map(m => m.id);
-  return { full, headOf, canRaiseBudget: org.creatorId === uid || inL('admins') || inL('financeUids') || inL('accountingUids'), isDeptHead: !full && (headOf.length > 0 || inL('leaderUids')) };
+  return { full, headOf, canRaiseBudget: lead || inL('financeUids') || inL('accountingUids'), isDeptHead: !full && (headOf.length > 0 || inL('leaderUids')) };
 }
 
 export interface LivePulse {

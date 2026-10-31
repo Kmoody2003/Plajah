@@ -160,7 +160,7 @@ export function createBilling(deps: BillingDeps) {
   }
   const orgStaff = (org: Record<string, any>, uid: string) => {
     const inList = (k: string) => Array.isArray(org[k]) && org[k].includes(uid);
-    return org.creatorId === uid || inList('admins') || inList('financeUids') || inList('accountingUids') || inList('pastorUids');
+    return org.creatorId === uid || inList('itAdminUids') || inList('seniorPastorUids') || inList('financeUids') || inList('accountingUids');
   };
   function canAdminister(uid: string, e: Ent): boolean {
     switch (e.kind) {

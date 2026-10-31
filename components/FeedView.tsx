@@ -7,7 +7,6 @@ import HistoryMomentPulseCard from './HistoryMomentPulseCard';
 import { FeedItem, UserProfile, FeedPage, Game, Album, PostThemeBackground, LiveTalk, Post } from '../types';
 import PageHeader from './PageHeader';
 import { fetchFeed, fetchFollowedFeed, postToFeed, followUser, unfollowUser, isFollowing, deleteFeedItem, fetchUserProfile, fetchUserAlbums, fetchThemeBackgrounds, listenToActiveLiveTalks, updateUserProfile, searchUserProfiles, listenToGlobalPosts, listenToFollowedPosts, listenToLikedPosts, createPost, postFieldsForAssetEmbed, recordFeedInteraction, fetchAlbumsByIds, fetchAllPublicAlbums, fetchPublicBooks, fetchAllLiveFeeds, fetchStreamArchives } from '../services/backendService';
-import { getDailyFigure } from '../services/historyData';
 import { talkCapacityLabel } from '../services/liveTalk/liveTalkCore';
 import { filterPostsForViewer } from '../services/contentSafety';
 import { useViewerDiscovery, useDwellTracker } from '../hooks/useFeedScoring';
@@ -32,8 +31,10 @@ import ExternalPostCard from './feed/ExternalPostCard';
 import BlueskyOverlayHost from './feed/BlueskyOverlays';
 import { openBluesky } from '../services/fediverse/blueskyNav';
 import { selectExternalForFeed, mergeExternalEntries } from '../services/feedMerge';
+import NowPanel, { type NowView } from './feed/NowPanel';
+import SocialHeader, { type SocialSource } from './feed/SocialHeader';
 import RightNowFeed, { PresenceSync } from './RightNowFeed';
-import { RightNowOnboardingController, RightNowAnnouncementBanner, STORAGE_KEY as NOW_STORAGE_KEY } from './RightNowOnboarding';
+import { RightNowOnboardingController } from './RightNowOnboarding';
 import { updateUserProfile as _updatePresence } from '../services/backendService';
 import { isFeedLive } from '../services/liveFeedLiveness';
 import { useFediverse } from '../contexts/FediverseContext';
@@ -214,7 +215,9 @@ interface FeedViewProps {
   viewerProfile?: UserProfile | null;
 }
 
-type FeedTab = 'SOCIAL' | 'GLOBAL' | 'NEWS' | 'LIVETALK' | 'TRENDING' | 'TOP_10' | 'MOST_SHARED' | 'NOW' | 'PULSE';
+type FeedTab = 'GLOBAL' | 'NEWS' | 'LIVETALK' | 'ONAIR' | 'NOW' | 'PULSE' | 'MINE' | 'TRENDING' | 'TOP_10' | 'MOST_SHARED';
+const SPORT_LEAGUES = ['NBA', 'NFL', 'NHL', 'MLB', 'NCAA', 'FIFA', 'MLS', 'ESPORTS', 'F1', 'NASCAR', 'INDYCAR'] as const;
+const NEWS_TOPICS = [['HEADLINES', 'Top stories'], ['SPORTS', 'Your teams'], ['SCIENCE', 'Science'], ['FINANCE', 'Markets']] as const;
 
 const LiveTalkDiscovery: React.FC<{
   currentUser: FirebaseUser | null;
@@ -1475,9 +1478,6 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [quoteTarget, setQuoteTarget] = useState<Post | null>(null);
   const [hasPendingMilestone, setHasPendingMilestone] = useState(false);
   const [showNowOnboarding, setShowNowOnboarding] = useState(false);
-  const [showNowBanner, setShowNowBanner] = useState(() => {
-    try { return !localStorage.getItem(NOW_STORAGE_KEY); } catch { return false; }
-  });
   const [showGoLive, setShowGoLive] = useState(false);
   const [showStartTalk, setShowStartTalk] = useState(false);
   const [joinTalkId, setJoinTalkId] = useState<string | null>(null);   // room to auto-join in the overlay
@@ -1496,14 +1496,10 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   }, []);
   const [globalActiveTalks, setGlobalActiveTalks] = useState<LiveTalk[]>([]);
   const [subscribedPodcasts, setSubscribedPodcasts] = useState<Album[]>([]);
-  const [clockTime, setClockTime] = useState(() => new Date());
   const [featuredMusic, setFeaturedMusic] = useState<Album | null>(null);
   const [featuredFilm, setFeaturedFilm] = useState<Album | null>(null);
   const [featuredBook, setFeaturedBook] = useState<Album | null>(null);
   const [likedPosts, setLikedPosts] = useState<Post[]>([]);
-  const [timelineValue, setTimelineValue] = useState(0);
-  const [isTimelineDragging, setIsTimelineDragging] = useState(false);
-  const timelineTrackRef = useRef<HTMLDivElement>(null);
   const feedScrollRef = useRef<HTMLDivElement>(null);
   // Open the composer on the shell "New Post" entry — warm (event) or cold (a flag
   // set on window just before the feed mounted). Switches to the composer's tab,
@@ -1537,7 +1533,7 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [isLoadingNews, setIsLoadingNews] = useState(false);
-  const [selectedSportsTab, setSelectedSportsTab] = useState<'ON_AIR' | 'HEADLINES' | 'SPORTS' | 'NBA' | 'NFL' | 'NHL' | 'MLB' | 'NCAA' | 'ESPORTS' | 'FIFA' | 'MLS' | 'F1' | 'NASCAR' | 'INDYCAR' | 'SCIENCE' | 'FINANCE'>('ON_AIR');
+  const [selectedSportsTab, setSelectedSportsTab] = useState<'HEADLINES' | 'SPORTS' | 'NBA' | 'NFL' | 'NHL' | 'MLB' | 'NCAA' | 'ESPORTS' | 'FIFA' | 'MLS' | 'F1' | 'NASCAR' | 'INDYCAR' | 'SCIENCE' | 'FINANCE'>('HEADLINES');
   const [selectedScienceCategory, setSelectedScienceCategory] = useState<'ALL' | 'BIOLOGY' | 'PHYSICS' | 'SPACE' | 'TECH' | 'CHEMISTRY'>('ALL');
   const [selectedFinanceSubTab, setSelectedFinanceSubTab] = useState<'MARKETS' | 'NEWS' | 'LEARN' | 'LOCAL' | 'GLOBAL'>('MARKETS');
   const [sportsScores, setSportsScores] = useState<any[]>([]);
@@ -1555,7 +1551,17 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const { playTrack, theme } = useGlobalPlayerState();
   const { feed: fediverseFeed, accounts: fediverseAccounts, isLoadingFeed: fediverseLoading, refreshFeed: refreshFediverse, toggleLike: fediverseToggleLike, toggleRepost: fediverseToggleRepost } = useFediverse();
-  const [socialSubTab, setSocialSubTab] = useState<'FEDIVERSE' | 'MY_POSTS'>('FEDIVERSE');
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [editLeagues, setEditLeagues] = useState(false);
+  const [nowSheetOpen, setNowSheetOpen] = useState(false);
+  const [isWide, setIsWide] = useState(true);
+  // Leagues the viewer follows: they feed the scores in the Now panel and the chips under Your teams.
+  const [followedLeagues, setFollowedLeagues] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('plajah.news.leagues') || '[]'); } catch { return []; } });
+  const toggleLeague = (league: string) => setFollowedLeagues(cur => {
+    const next = cur.includes(league) ? cur.filter(l => l !== league) : [...cur, league];
+    try { localStorage.setItem('plajah.news.leagues', JSON.stringify(next)); } catch { /* private mode */ }
+    return next;
+  });
   const [feedPanelMode, setFeedPanelMode] = useState<'SINGLE' | 'DUAL'>('SINGLE');
   const [feedSyncScroll, setFeedSyncScroll] = useState(true);
   const [feedLightboxUrl, setFeedLightboxUrl] = useState<string | null>(null);
@@ -1657,8 +1663,18 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
 
   // Posts from the user's Bluesky/Mastodon/Audius timeline, woven into the same list by time and rendered as native posts.
   // Off by default only when no network account is connected; the chip next to the feed filters turns it off.
-  const [mixFediverse, setMixFediverse] = useState<boolean>(() => { try { return localStorage.getItem('plajah.feed.mixFediverse') !== '0'; } catch { return true; } });
-  const toggleMixFediverse = () => setMixFediverse(v => { const n = !v; try { localStorage.setItem('plajah.feed.mixFediverse', n ? '1' : '0'); } catch { /* private mode */ } return n; });
+  const [sourcesOff, setSourcesOff] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('plajah.feed.sourcesOff');
+      if (saved) return JSON.parse(saved);
+      return localStorage.getItem('plajah.feed.mixFediverse') === '0' ? ['bluesky', 'mastodon', 'audius'] : [];
+    } catch { return []; }
+  });
+  const toggleSource = (id: string) => setSourcesOff(cur => {
+    const next = cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id];
+    try { localStorage.setItem('plajah.feed.sourcesOff', JSON.stringify(next)); } catch { /* private mode */ }
+    return next;
+  });
   const [audiusSocialPosts, setAudiusSocialPosts] = useState<FediversePost[]>([]);
   useEffect(() => {
     const session = getAudiusSession();
@@ -1676,9 +1692,9 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   );
   const hasExternalAccounts = fediverseAccounts.length > 0 || Boolean(getAudiusSession()?.userId) || audiusSocialPosts.length > 0;
   const externalForFeed = React.useMemo(
-    () => (mixFediverse && activeTab === 'GLOBAL' && !hashtagView && plajahFilter !== 'LIKED' && hasExternalAccounts)
-      ? selectExternalForFeed(combinedExternalFeed, displayedPosts) : [],
-    [mixFediverse, activeTab, hashtagView, plajahFilter, hasExternalAccounts, combinedExternalFeed, displayedPosts]);
+    () => (activeTab === 'GLOBAL' && !hashtagView && plajahFilter !== 'LIKED' && hasExternalAccounts)
+      ? selectExternalForFeed(combinedExternalFeed.filter(p => !sourcesOff.includes(p.protocol as string)), displayedPosts) : [],
+    [sourcesOff, activeTab, hashtagView, plajahFilter, hasExternalAccounts, combinedExternalFeed, displayedPosts]);
   const mergedEntries = React.useMemo(
     () => mergeExternalEntries(feedEntries, externalForFeed, e => (e.type === 'post' ? e.post.timestamp : null)),
     [feedEntries, externalForFeed]);
@@ -1715,6 +1731,14 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
       case 'LOREA_NUGGET': window.dispatchEvent(new CustomEvent('plajah:openLoreaExhibit', { detail: {} })); break;
     }
   }, [onVisitUser]);
+
+  useEffect(() => {
+    const el = feedScrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setIsWide(el.clientWidth >= 1000));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Restore the reader's place after opening a post/profile and coming back.
   useScrollRestoration(`feed:${activeTab}:${hashtagView ? `#${hashtagView}` : plajahFilter}`, {
@@ -1871,11 +1895,7 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
     let unsubscribe: () => void = () => {};
 
     // GLOBAL (Plajah Social) no longer reads the `feed` mirror: it is paginated via useFeedPages above.
-    if (activeTab === 'SOCIAL') {
-      unsubscribe = fetchFeed((items) => {
-        setFeedItems(items);
-      });
-    } else if (activeTab === 'NEWS') {
+    if (activeTab === 'NEWS') {
       fetchGlobalNews();
       fetchSportsScores();
     } else if (activeTab === 'TRENDING') {
@@ -1905,12 +1925,6 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
     const unsub = listenToLikedPosts(currentUser.uid, setLikedPosts);
     return () => unsub?.();
   }, [activeTab, plajahFilter, hashtagView, currentUser?.uid]);
-
-  // Live clock — ticks every second
-  useEffect(() => {
-    const t = setInterval(() => setClockTime(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
 
   // Featured content for Today on Plajah discovery strip
   useEffect(() => {
@@ -1943,62 +1957,6 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
     fetchAlbumsByIds(ids.slice(0, 20)).then(albums => setSubscribedPodcasts(albums)).catch(() => {});
   }, [activeTab, userProfile?.uid]);
 
-  // Timeline scrubber ↔ feed scroll sync
-  useEffect(() => {
-    if (activeTab !== 'GLOBAL' || isTimelineDragging) return;
-    const container = feedScrollRef.current;
-    if (!container) return;
-    const onScroll = () => {
-      const posts = container.querySelectorAll('[data-post-index]');
-      if (posts.length === 0) return;
-      const containerTop = container.getBoundingClientRect().top;
-      const threshold = container.clientHeight * 0.4;
-      let topIdx = 0;
-      posts.forEach((el, i) => {
-        if (el.getBoundingClientRect().top - containerTop <= threshold) topIdx = i;
-      });
-      setTimelineValue((topIdx / Math.max(posts.length - 1, 1)) * 100);
-    };
-    container.addEventListener('scroll', onScroll, { passive: true });
-    return () => container.removeEventListener('scroll', onScroll);
-  }, [activeTab, isTimelineDragging]);
-
-  const scrubToPosition = useCallback((pct: number) => {
-    const container = feedScrollRef.current;
-    if (!container) return;
-    const posts = container.querySelectorAll('[data-post-index]');
-    if (posts.length === 0) return;
-    const idx = Math.round((pct / 100) * (posts.length - 1));
-    const el = posts[Math.min(idx, posts.length - 1)] as HTMLElement;
-    if (!el) return;
-    const elTop = el.getBoundingClientRect().top;
-    const containerTop = container.getBoundingClientRect().top;
-    container.scrollTop += elTop - containerTop;
-  }, []);
-
-  const handleTimelinePointer = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const track = timelineTrackRef.current;
-    if (!track) return;
-    const rect = track.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-    setTimelineValue(pct);
-    scrubToPosition(pct);
-  }, [scrubToPosition]);
-
-  const getTimelineLabel = useCallback((pct: number): string => {
-    const posts = displayedPosts;
-    if (posts.length === 0) return '';
-    const idx = Math.round((pct / 100) * (posts.length - 1));
-    const post = posts[Math.min(idx, posts.length - 1)];
-    if (!post) return '';
-    const diffMs = Date.now() - post.timestamp;
-    const mins = Math.floor(diffMs / 60000);
-    if (mins < 1) return 'now';
-    if (mins < 60) return `${mins}m`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h`;
-    return `${Math.floor(hrs / 24)}d`;
-  }, [displayedPosts]);
 
   const handleSimplePost = async () => {
     if (!currentUser || (!simplePostText.trim() && composerMedia.length === 0 && !composerAlbumEmbed)) return;
@@ -2262,10 +2220,8 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   };
 
   useEffect(() => {
-    if (activeTab === 'NEWS' || activeTab === 'GLOBAL') {
-      fetchSportsScores();
-    }
     if (activeTab === 'NEWS') {
+      fetchSportsScores();
       fetchGlobalNews();
       if (selectedSportsTab === 'FINANCE') {
         fetchFinanceMarketData();
@@ -2459,6 +2415,52 @@ const toggleFavoriteTeam = async (team: string) => {
   };
 
 
+  const socialSources: SocialSource[] = [
+    { id: 'plajah', label: 'Plajah', detail: 'Everyone here', color: '#D40055', on: true },
+    ...(fediverseAccounts.some(a => a.protocol === 'bluesky') ? [{ id: 'bluesky', label: 'Bluesky', detail: 'Your home timeline', color: '#1185FE', on: !sourcesOff.includes('bluesky') }] : []),
+    ...(fediverseAccounts.some(a => (a.protocol as string) === 'mastodon') ? [{ id: 'mastodon', label: 'Mastodon', detail: 'Your home timeline', color: '#6364FF', on: !sourcesOff.includes('mastodon') }] : []),
+    ...(getAudiusSession()?.userId ? [{ id: 'audius', label: 'Audius', detail: 'Artists you follow', color: '#A855F7', on: !sourcesOff.includes('audius') }] : []),
+  ];
+  const socialScopeLabel = activeTab === 'LIVETALK' ? 'Live talks' : activeTab === 'ONAIR' ? 'On Air' : activeTab === 'NOW' ? 'Friends right now'
+    : activeTab === 'PULSE' ? 'Debates' : activeTab === 'MINE' ? 'My posts' : activeTab === 'GLOBAL' && plajahFilter === 'LIKED' && !hashtagView ? 'Liked' : null;
+  const panelHidden = activeTab === 'GLOBAL' && feedPanelMode === 'DUAL';
+  const isSportsTopic = selectedSportsTab === 'SPORTS' || (SPORT_LEAGUES as readonly string[]).includes(selectedSportsTab);
+  const scrollFeedTop = () => requestAnimationFrame(() => { try { feedScrollRef.current?.scrollTo({ top: 0 }); } catch { /* */ } });
+  const openLens = (lens: 'ALL' | 'FOLLOWING' | 'NEWS') => {
+    setHashtagView(null);
+    if (lens === 'NEWS') setActiveTab('NEWS');
+    else { setActiveTab('GLOBAL'); setPlajahFilter(lens); }
+    scrollFeedTop();
+  };
+  const requireUser = (action: string, fn: () => void) => { if (currentUser) fn(); else setSignInAction(action); };
+  const openComposer = () => requireUser('post to Plajah Social', () => {
+    setActiveTab('GLOBAL');
+    setComposerOpen(true);
+    setComposeSignal(n => n + 1);
+    scrollFeedTop();
+  });
+  const openNowView = (view: NowView) => { setNowSheetOpen(false); setActiveTab(view); scrollFeedTop(); };
+  const nowPanel = (
+    <NowPanel
+      uid={viewerUid}
+      presenceEnabled={!!userProfile?.presenceEnabled}
+      followingIds={followingVisible}
+      talks={globalActiveTalks}
+      leagues={followedLeagues}
+      podcasts={subscribedPodcasts}
+      featured={{ music: featuredMusic, film: featuredFilm, book: featuredBook }}
+      scrollRef={feedScrollRef}
+      showScrubber={activeTab === 'GLOBAL' && feedPanelMode === 'SINGLE'}
+      onJoinTalk={(id) => { setNowSheetOpen(false); setJoinTalkId(id); setShowStartTalk(true); }}
+      onStartTalk={() => { setNowSheetOpen(false); requireUser('start a live talk', () => { setJoinTalkId(null); setShowStartTalk(true); }); }}
+      onOpenView={openNowView}
+      onOpenDebate={(id) => { setNowSheetOpen(false); window.dispatchEvent(new CustomEvent('OPEN_DEBATE', { detail: { debateId: id } })); }}
+      onVisitUser={onVisitUser}
+      onEnablePresence={() => { setNowSheetOpen(false); setShowNowOnboarding(true); }}
+      onPickLeagues={() => { setNowSheetOpen(false); setActiveTab('NEWS'); setSelectedSportsTab('SPORTS'); setEditLeagues(true); scrollFeedTop(); }}
+    />
+  );
+
   return (
     <HashtagClickProvider onHashtagClick={openHashtag}>
     <>
@@ -2466,170 +2468,44 @@ const toggleFavoriteTeam = async (team: string) => {
         flex-1 container gave the dark layer and the blur a hard rectangular edge wherever the
         container ended, which read as a rendering mistake. Full-bleed has no seam. */}
     <div aria-hidden className="fixed inset-0 z-0 pointer-events-none bg-black/40 backdrop-blur-2xl" />
-    <div className={`plajah-social-signal relative z-10 flex-1 ${activeTab === 'GLOBAL' ? 'flex flex-col overflow-hidden' : 'overflow-y-auto custom-scrollbar'}`}>
-      <div className={`${activeTab === 'GLOBAL' ? 'flex flex-col flex-1 overflow-hidden' : ''} p-3 sm:p-4 md:p-8 max-w-full mx-auto w-full`}>
-        {/* HEADER */}
-        <header className={`${activeTab === 'GLOBAL' ? 'mb-3 shrink-0' : 'mb-8'} space-y-5`}>
-          <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-5">
-            <div className="min-w-0">
-              <div className="flex items-center gap-3 mb-3">
-                <button
-                  onClick={onBack}
-                  className={`p-2.5 rounded-2xl transition-all border ${theme === 'LIGHT' ? 'bg-black text-white border-black/5 hover:bg-black/90' : 'bg-white/8 text-white border-white/10 hover:bg-white/15'}`}
-                >
-                  <ArrowLeft size={18} />
-                </button>
-                <span className="text-[9px] font-black uppercase tracking-[0.45em] text-white/30">
-                  {activeTab === 'GLOBAL' ? 'Your people · your culture · right now' : 'The Signal'}
-                </span>
-              </div>
-              <h1 className="font-black italic tracking-tight leading-[0.95] text-[clamp(1.7rem,3vw,2.25rem)]">
-                {(() => {
-                  const t = activeTab === 'SOCIAL' ? 'Interstellar' :
-                    activeTab === 'GLOBAL' ? 'Plajah Social' :
-                    activeTab === 'LIVETALK' ? 'Live Talk' :
-                    activeTab === 'NEWS' ? 'Broadcast' :
-                    activeTab === 'PULSE' ? 'Platform Pulse' : 'Signal';
-                  const i = t.lastIndexOf(' ');
-                  return (
-                    <>
-                      {i >= 0 && <span className="text-white">{t.slice(0, i + 1)}</span>}
-                      <span className="pj-text-brand">{i >= 0 ? t.slice(i + 1) : t}</span>
-                    </>
-                  );
-                })()}
-              </h1>
-            </div>
-              <div className="hidden sm:flex items-center gap-2.5 shrink-0 mt-1">
-               <button
-                 onClick={() => { try { window.dispatchEvent(new CustomEvent('plajah:open-command')); } catch {} }}
-                 className="flex items-center gap-2 h-9 px-3.5 rounded-full bg-white/5 border border-white/10 text-white/45 text-[11px] hover:text-white hover:bg-white/10 transition-all"
-               >
-                 <Search size={13} /> <span>Search the signal…</span>
-               </button>
-               {activeTab === 'GLOBAL' && currentUser && (
-                 <button onClick={() => setShowGoLive(true)} className="pj-signal-live-action tap" type="button">
-                   <Radio size={13} /> Go Live
-                 </button>
-               )}
-               <span className="w-1.5 h-1.5 rounded-full bg-small-orange animate-pulse" />
-               <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Live</span>
-            </div>
-          </div>
-
-          <nav className="flex gap-1.5 px-0.5 overflow-x-auto no-scrollbar pb-1">
-            {[
-              { id: 'GLOBAL',   label: 'Plajah Social', icon: Cloud },
-              { id: 'SOCIAL',   label: 'Interstellar', icon: Globe },
-              { id: 'NEWS',     label: 'Broadcast',     icon: Newspaper },
-              { id: 'LIVETALK', label: 'Live Talk',     icon: Mic },
-              { id: 'NOW',      label: 'Right Now',     icon: Zap,    isNew: true },
-              { id: 'PULSE',    label: 'Pulse',         icon: Swords },
-            ].map((tab: any) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as FeedTab)}
-                aria-current={activeTab === tab.id ? 'page' : undefined}
-                className={`relative flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${
-                  activeTab === tab.id
-                    ? 'bg-white text-black shadow-lg'
-                    : 'bg-white/5 border border-white/8 text-white/45 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <tab.icon size={11} className={tab.id === 'NOW' && activeTab !== tab.id ? 'text-green-400' : ''} />
-                {tab.label}
-                {tab.isNew && activeTab !== tab.id && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                )}
-              </button>
-            ))}
-          </nav>
-
-          {activeTab === 'GLOBAL' && (
-            <div className="flex flex-wrap items-center gap-4 px-0.5 mt-1">
-              <div className="flex p-1 bg-white/5 rounded-full border border-white/10">
-                <button
-                  onClick={() => { setHashtagView(null); setPlajahFilter('ALL'); }}
-                  className={`px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${plajahFilter === 'ALL' && !hashtagView ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}
-                >
-                  For You
-                </button>
-                <button
-                  onClick={() => { setHashtagView(null); setPlajahFilter('FOLLOWING'); }}
-                  className={`px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${plajahFilter === 'FOLLOWING' && !hashtagView ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}
-                >
-                  Following
-                </button>
-                {currentUser && (
-                  <button
-                    onClick={() => { setHashtagView(null); setPlajahFilter('LIKED'); }}
-                    className={`px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5
-                      ${plajahFilter === 'LIKED' && !hashtagView ? 'bg-red-400/90 text-white' : 'text-white/40 hover:text-red-400'}`}
-                  >
-                    <Heart size={10} fill={plajahFilter === 'LIKED' && !hashtagView ? 'currentColor' : 'none'} strokeWidth={2} />
-                    Liked
-                  </button>
-                )}
-              </div>
-              {currentUser && (
-                <div className="flex items-center gap-1.5">
-                  {fediverseAccounts.length > 0 && <BlueskyOverlayHost />}
-                  {fediverseAccounts.some(a => a.protocol === 'bluesky') && (
-                    <button
-                      onClick={() => openBluesky({ kind: 'search' })}
-                      aria-label="Search Bluesky"
-                      title="Search Bluesky — people, posts and #tags"
-                      className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all"
-                    >
-                      <Search size={14} />
-                    </button>
-                  )}
-                  {hasExternalAccounts && (
-                    <button
-                      onClick={toggleMixFediverse}
-                      aria-pressed={mixFediverse}
-                      title={mixFediverse ? 'Bluesky & Audius posts are mixed into your feed — tap to hide them' : 'Mix your Bluesky & Audius timelines into this feed'}
-                      className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full border text-[9px] font-black uppercase tracking-widest transition-all ${mixFediverse ? 'bg-[#1185fe]/15 border-[#1185fe]/40 text-[#7ab8ff]' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}
-                    >
-                      {fediverseAccounts.length > 0 ? '🦋' : ''}{getAudiusSession()?.userId ? '🎧' : ''} {mixFediverse ? 'In feed' : 'Hidden'}
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setShowPeoplePage('default')}
-                    className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-white/5 border border-white/10 text-white/60 text-[9px] font-black uppercase tracking-widest hover:text-white hover:bg-white/10 transition-all"
-                  >
-                    <PjPeopleIcon size={12} /> People
-                  </button>
-                  <button
-                    onClick={() => setShowSavedPosts(true)}
-                    aria-label="Saved posts"
-                    title="Saved posts"
-                    className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all"
-                  >
-                    <PjBookmarkIcon size={14} />
-                  </button>
-                  <button
-                    onClick={() => setShowFeedControls(true)}
-                    aria-label="Feed controls"
-                    title="Feed controls"
-                    className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all"
-                  >
-                    <PjSlidersIcon size={14} />
-                  </button>
-                  <StreakChip uid={viewerUid} />
-                </div>
-              )}
-            </div>
-          )}
-        </header>
-
-      {/* ── Right Now announcement banner ── */}
-      {showNowBanner && activeTab !== 'NOW' && (
-        <RightNowAnnouncementBanner
-          onLearnMore={() => { setShowNowBanner(false); setShowNowOnboarding(true); try { localStorage.setItem(NOW_STORAGE_KEY, '1'); } catch {} }}
-          onDismiss={() => { setShowNowBanner(false); try { localStorage.setItem(NOW_STORAGE_KEY, '1'); } catch {}; }}
-        />
-      )}
+    {/* One scroller for the whole page. The shelves and composer above the posts used to be pinned,
+        which on a laptop left the posts region with no height — so the feed could not scroll at all. */}
+    <div ref={feedScrollRef} className="plajah-social-signal relative z-10 flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
+      <SocialHeader
+        lens={activeTab === 'NEWS' ? 'NEWS' : activeTab === 'GLOBAL' && !hashtagView && plajahFilter !== 'LIKED' ? plajahFilter : null}
+        scopeLabel={socialScopeLabel}
+        onClearScope={() => openLens('ALL')}
+        onLens={openLens}
+        onBack={onBack}
+        signedIn={!!currentUser}
+        sources={socialSources}
+        onToggleSource={toggleSource}
+        onConnect={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'SETTINGS' } }))}
+        blueskyConnected={fediverseAccounts.some(a => a.protocol === 'bluesky')}
+        onSearchBluesky={() => openBluesky({ kind: 'search' })}
+        liked={activeTab === 'GLOBAL' && plajahFilter === 'LIKED'}
+        dual={feedPanelMode === 'DUAL'}
+        syncScroll={feedSyncScroll}
+        streak={<StreakChip uid={viewerUid} />}
+        on={{
+          post: () => openComposer(),
+          today: () => { setPostToToday(true); openComposer(); },
+          story: () => requireUser('post a story', () => setShowStoryCreator(true)),
+          room: () => requireUser('start a room', () => window.dispatchEvent(new CustomEvent('plajah:start-room'))),
+          talk: () => requireUser('start a live talk', () => { setJoinTalkId(null); setShowStartTalk(true); }),
+          goLive: () => requireUser('go live', () => setShowGoLive(true)),
+          myPosts: () => setActiveTab('MINE'),
+          liked: () => { setHashtagView(null); setActiveTab('GLOBAL'); setPlajahFilter(plajahFilter === 'LIKED' ? 'ALL' : 'LIKED'); },
+          saved: () => setShowSavedPosts(true),
+          people: () => setShowPeoplePage('default'),
+          controls: () => setShowFeedControls(true),
+          dual: () => { setActiveTab('GLOBAL'); setFeedPanelMode(m => (m === 'DUAL' ? 'SINGLE' : 'DUAL')); },
+          sync: () => setFeedSyncScroll(v => !v),
+        }}
+      />
+      {fediverseAccounts.length > 0 && <BlueskyOverlayHost />}
+      <div className={`pj-social-body ${isWide && !panelHidden ? 'with-panel' : ''}`}>
+      <div className="pj-social-main">
 
       {/* ── PresenceSync — writes to Firestore when user plays content ── */}
       {userProfile && <PresenceSync currentUser={userProfile} />}
@@ -2644,7 +2520,7 @@ const toggleFavoriteTeam = async (team: string) => {
       />
 
       {activeTab === 'PULSE' ? (
-        <div className="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-8 lg:px-16 pt-6 max-w-[1200px] mx-auto w-full">
+        <div className="w-full">
           {currentUser ? (
             <DebatePulseFeed
               uid={currentUser.uid}
@@ -2661,7 +2537,7 @@ const toggleFavoriteTeam = async (team: string) => {
           )}
         </div>
       ) : activeTab === 'NOW' ? (
-        <div className="flex-1 overflow-y-auto">
+        <div>
           <RightNowFeed
             currentUser={userProfile}
             followingUids={followingVisible}
@@ -2669,47 +2545,74 @@ const toggleFavoriteTeam = async (team: string) => {
           />
         </div>
       ) : activeTab === 'LIVETALK' ? (
-        <div className="pt-4 lg:pt-12 px-1 sm:px-6 lg:px-20 max-w-[1600px] mx-auto w-full">
+        <div className="w-full">
            <LiveTalkDiscovery
              currentUser={currentUser}
              onJoin={(id) => { setJoinTalkId(id); setShowStartTalk(true); }}
              onStartTalk={() => { setJoinTalkId(null); setShowStartTalk(true); }}
            />
         </div>
+      ) : activeTab === 'ONAIR' ? (
+        <div className="w-full"><BroadcastHub currentUserId={currentUser?.uid} /></div>
+      ) : activeTab === 'MINE' ? (
+        <div>
+          <ProfileFeed
+            uid={currentUser?.uid || ''}
+            profileName={currentUser?.displayName || 'User'}
+            onVisitUser={onVisitUser}
+            xHandle={userProfile?.xHandle}
+            mastodonHandle={userProfile?.mastodonHandle}
+            mastodonInstance={userProfile?.mastodonInstance}
+            blueskyHandle={userProfile?.blueskyHandle}
+            threadsHandle={userProfile?.threadsHandle}
+            hideBroadcaster={true}
+            initialFeedType="X_FEED"
+          />
+        </div>
       ) : activeTab === 'NEWS' ? (
-        <div className="px-1 sm:px-6 lg:px-20 max-w-[1600px] mx-auto w-full space-y-12 pb-20">
-           {/* SPORTS & SCIENCE & FINANCE SUB NAVIGATION */}
-           <div className="flex items-center gap-4 overflow-x-auto no-scrollbar pb-6 sticky top-0 bg-transparent z-40 backdrop-blur-sm">
-             {['ON_AIR', 'HEADLINES', 'SPORTS', 'NBA', 'NFL', 'NHL', 'MLB', 'NCAA', 'FIFA', 'MLS', 'ESPORTS', 'F1', 'NASCAR', 'INDYCAR', 'SCIENCE', 'FINANCE'].map((tab) => (
-               <button
-                 key={tab}
-                 onClick={() => setSelectedSportsTab(tab as any)}
-                 className={`px-8 py-4 rounded-3xl text-[10px] font-black uppercase tracking-widest transition-all border whitespace-nowrap ${
-                   selectedSportsTab === tab
-                     ? (tab === 'ON_AIR' ? 'text-white border-transparent shadow-2xl' : 'bg-white text-black border-white shadow-2xl')
-                     : 'bg-white/5 border-white/5 text-white/40 hover:bg-white/10'
-                 }`}
-                 style={tab === 'ON_AIR' && selectedSportsTab === tab ? { background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' } : undefined}
-               >
-                 {tab === 'ON_AIR' ? 'On Air' : tab}
-               </button>
-             ))}
-             <button 
+        <div className="w-full space-y-6 pb-20">
+           <div className="pj-news-topics">
+             {NEWS_TOPICS.map(([id, label]) => {
+               const on = id === 'SPORTS' ? isSportsTopic : selectedSportsTab === id;
+               return <button key={id} type="button" aria-pressed={on} onClick={() => setSelectedSportsTab(id)}>{label}</button>;
+             })}
+             <button
+               type="button"
+               aria-label="Topic settings"
+               title="Choose what to prioritize"
+               className="is-icon"
                onClick={() => {
                  if (selectedSportsTab === 'SCIENCE') setShowScienceSettings(!showScienceSettings);
                  else if (selectedSportsTab === 'FINANCE') setShowFinanceSettings(!showFinanceSettings);
                  else setShowSportsSettings(!showSportsSettings);
                }}
-               className="ml-auto p-4 rounded-full bg-white/5 border border-white/5 text-white/40 hover:text-white transition-all"
              >
-               <Zap size={20} className={(selectedSportsTab === 'SCIENCE' ? favoriteScienceFields.length > 0 : selectedSportsTab === 'FINANCE' ? (favoriteCoins.length > 0 || favoriteStocks.length > 0) : favoriteTeams.length > 0) ? "text-small-orange" : ""} />
+               <PjSlidersIcon size={15} />
              </button>
            </div>
+           {isSportsTopic && (
+             <div className="pj-news-leagues">
+               <div>
+                 <button type="button" aria-pressed={selectedSportsTab === 'SPORTS'} onClick={() => setSelectedSportsTab('SPORTS')}>All</button>
+                 {followedLeagues.map(l => (
+                   <button key={l} type="button" aria-pressed={selectedSportsTab === l} onClick={() => setSelectedSportsTab(l as any)}>{l === 'ESPORTS' ? 'Esports' : l === 'NASCAR' || l === 'INDYCAR' ? l[0] + l.slice(1).toLowerCase() : l}</button>
+                 ))}
+                 <button type="button" className="is-edit" aria-expanded={editLeagues} onClick={() => setEditLeagues(v => !v)}>{followedLeagues.length ? 'Edit leagues' : 'Pick your leagues'}</button>
+               </div>
+               {editLeagues && (
+                 <div className="pj-news-league-edit">
+                   <p>Follow a league and its scores show up in your Now panel.</p>
+                   <div>
+                     {SPORT_LEAGUES.map(l => (
+                       <button key={l} type="button" aria-pressed={followedLeagues.includes(l)} onClick={() => toggleLeague(l)}>{l === 'ESPORTS' ? 'Esports' : l === 'NASCAR' || l === 'INDYCAR' ? l[0] + l.slice(1).toLowerCase() : l}</button>
+                     ))}
+                   </div>
+                 </div>
+               )}
+             </div>
+           )}
 
-           {/* On Air — the broadcast mega-guide (live streams, FAST channels, radio). */}
-           {selectedSportsTab === 'ON_AIR' && <BroadcastHub currentUserId={currentUser?.uid} />}
-           {selectedSportsTab !== 'ON_AIR' && <>
-
+           <>
            {selectedSportsTab === 'FINANCE' && (
               <div className="flex items-center gap-4 overflow-x-auto no-scrollbar pb-8">
                 {['MARKETS', 'NEWS', 'LEARN', 'LOCAL', 'GLOBAL'].map(sub => (
@@ -2880,11 +2783,11 @@ const toggleFavoriteTeam = async (team: string) => {
              <div className="space-y-8">
                 <div className="flex items-center gap-4">
                    <div className="w-1.5 h-1.5 bg-[#00DAF3] rounded-full animate-pulse shadow-[0_0_8px_#00DAF3]" />
-                   <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 italic">Live Frequency: Market Oscillations</h4>
+                   <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 italic">Markets today</h4>
                 </div>
-                <AdaptiveGrid phone={1} tablet={2} desktop={3} gap="2rem">
+                <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="1rem">
                    {marketPrices.map((asset) => (
-                     <div key={asset.id} className="bg-white/5 border border-white/10 rounded-[3rem] p-10 hover:bg-white/10 transition-all cursor-pointer group overflow-hidden relative">
+                     <div key={asset.id} className="bg-white/5 border border-white/10 rounded-[1.5rem] p-5 hover:bg-white/10 transition-all cursor-pointer group overflow-hidden relative">
                         <div className="absolute -right-8 -bottom-8 opacity-5 group-hover:opacity-10 transition-opacity">
                            <TrendingUp size={160} className="stroke-[1]" />
                         </div>
@@ -2938,7 +2841,7 @@ const toggleFavoriteTeam = async (team: string) => {
 
            {selectedSportsTab === 'FINANCE' && selectedFinanceSubTab === 'LEARN' && (
              <div className="space-y-12">
-                <div className="p-12 md:p-20 bg-white/5 border border-white/10 rounded-[4rem] relative overflow-hidden group">
+                <div className="p-6 md:p-10 bg-white/5 border border-white/10 rounded-[2rem] relative overflow-hidden group">
                    <div className="absolute top-0 right-0 p-12 opacity-5">
                       <Book size={200} className="stroke-[1]" />
                    </div>
@@ -2947,7 +2850,7 @@ const toggleFavoriteTeam = async (team: string) => {
                          <div className="w-1.5 h-1.5 bg-small-orange rounded-full animate-pulse" />
                          <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-small-orange italic">Educational Broadcast</h4>
                       </div>
-                      <h2 className="text-6xl md:text-8xl font-black uppercase tracking-tighter leading-[0.8] italic">Interstellar <br/> Finance <br/> <span className="text-small-orange">Primer</span></h2>
+                      <h2 className="text-4xl font-black uppercase tracking-tighter leading-[0.9] italic">Finance <br/> <span className="text-small-orange">Primer</span></h2>
                       <p className="text-xl text-white/60 font-medium italic leading-relaxed">Decrypting the complex frequencies of global trade and digital assets for the modern voyager.</p>
                       
                       <AdaptiveGrid phone={1} tablet={2} gap="2rem" className="pt-8">
@@ -3006,367 +2909,33 @@ const toggleFavoriteTeam = async (team: string) => {
 
 
                       {/* NEWS FEED */}
-           <div className="space-y-12">
+           <div className="pj-news-list">
              {isLoadingNews ? (
-               <div className="py-20 text-center">
-                 <Zap className="mx-auto mb-6 text-small-orange animate-pulse" size={48} />
-                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 italic">Sensing Global Waves for {selectedSportsTab} updates...</p>
-               </div>
+               <FeedSkeleton count={3} />
+             ) : feedItems.length === 0 ? (
+               <p className="pj-news-empty">No stories right now. Check back soon.</p>
              ) : (
                feedItems.map((item) => (
-                 <RolodexCard key={item.id}>
-                    <div className="bg-white/5 border border-white/10 rounded-[2rem] md:rounded-[3.5rem] p-5 sm:p-8 md:p-12 hover:border-white/20 transition-all group overflow-hidden relative">
-                       <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-                          <Newspaper size={120} className="stroke-[1]" />
-                       </div>
-                       <div className="relative z-10 space-y-8">
-                          <div className="flex items-center justify-between">
-                             <div className="flex items-center gap-4">
-                               <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center font-black text-xs text-small-orange overflow-hidden">
-                                  <img loading="lazy" decoding="async" src={thumb(item.authorPhoto, THUMB.micro) || null} onError={onThumbError(item.authorPhoto)} className="w-full h-full object-cover" />
-                               </div>
-                               <div>
-                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40 italic">{item.authorName}</h4>
-                                 <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">{new Date(item.timestamp).toLocaleDateString()}</p>
-                               </div>
-                             </div>
-                             <div className="flex items-center gap-2">
-                                <div className={`w-1.5 h-1.5 ${item.type === 'RESEARCH_PAPER' ? 'bg-purple-500' : 'bg-[#00DAF3]'} rounded-full animate-pulse shadow-[0_0_8px_${item.type === 'RESEARCH_PAPER' ? '#A855F7' : '#00DAF3'}]`} />
-                                <span className={`text-[8px] font-black uppercase tracking-widest ${item.type === 'RESEARCH_PAPER' ? 'text-purple-400' : 'text-[#00DAF3]'}`}>
-                                   {item.type === 'RESEARCH_PAPER' ? 'Academic Publication' : 'Broadcast Signal'}
-                                </span>
-                             </div>
-                          </div>
-                          
-                          <div className="space-y-4">
-                            {item.source === 'NASA' && (
-                              <div className="flex items-center gap-2 mb-2">
-                                <Radio size={12} className="text-small-orange" />
-                                <span className="text-[8px] font-black uppercase tracking-widest text-small-orange">Galactic Uplink Active</span>
-                              </div>
-                            )}
-                            <h3 className="text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none italic group-hover:text-small-orange transition-colors cursor-pointer" onClick={() => item.url && window.open(item.url, '_blank')}>
-                              {item.title}
-                            </h3>
-                            <p className="text-white/60 text-lg leading-relaxed font-medium italic max-w-4xl">{item.content}</p>
-                          </div>
-
-                          <div className="flex items-center gap-8 pt-8 border-t border-white/5">
-                             <button className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-all group/btn">
-                                <Reply size={16} className="group-hover/btn:-translate-x-1 transition-transform" /> {item.commentCount || 0} Responses
-                             </button>
-                             <button className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-all group/btn">
-                                <Zap size={16} className="group-hover/btn:scale-110 transition-transform" /> {item.likesCount || 0} Uplinks
-                             </button>
-                             <button 
-                                onClick={() => item.url && window.open(item.url, '_blank')}
-                                className="ml-auto flex items-center gap-3 px-8 py-4 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all shadow-2xl"
-                             >
-                                READ FULL COVERAGE <ExternalLink size={14} />
-                             </button>
-                          </div>
-                       </div>
-                    </div>
-                 </RolodexCard>
+                 <article key={item.id} className="pj-news-item">
+                   <div className="pj-news-meta">
+                     <img loading="lazy" decoding="async" src={thumb(item.authorPhoto, THUMB.micro) || undefined} onError={onThumbError(item.authorPhoto)} alt="" />
+                     <span>{item.authorName}</span>
+                     <span>·</span>
+                     <span>{new Date(item.timestamp).toLocaleDateString()}</span>
+                     {item.type === 'RESEARCH_PAPER' && <em>Research</em>}
+                   </div>
+                   <h3><button type="button" onClick={() => item.url && window.open(item.url, '_blank', 'noopener')}>{item.title}</button></h3>
+                   {item.content && <p>{item.content}</p>}
+                   {item.url && <button type="button" className="pj-news-read" onClick={() => window.open(item.url, '_blank', 'noopener')}>Read full story <ExternalLink size={13} /></button>}
+                 </article>
                ))
              )}
            </div>
-           </>}
+           </>
         </div>
       ) : (
-        <div className={`${activeTab === 'GLOBAL' ? 'flex-1 overflow-hidden' : 'pt-4 pb-20'} max-w-[1700px] mx-auto w-full px-0 sm:px-4 lg:px-8 flex flex-col xl:flex-row gap-8 lg:gap-16`}>
-          <div className={`flex-1 min-w-0 ${activeTab === 'GLOBAL' ? 'flex flex-col overflow-hidden' : ''}`}>
-          {/* (the old random 'Discover This User' block was replaced by <MeetNewPeopleRow/> at the top of the Plajah Social feed) */}
-
-      {currentUser && activeTab === 'SOCIAL' && (
-        <div className="mb-6 max-w-2xl mx-auto w-full">
-          <button
-            onClick={() => window.dispatchEvent(new CustomEvent('plajah:start-room'))}
-            className="w-full mb-3 flex items-center gap-3 rounded-2xl px-5 py-3.5 text-left transition-all hover:scale-[1.005]"
-            style={{ border: '1px solid rgba(255,140,0,0.35)', background: 'linear-gradient(120deg, rgba(255,140,0,0.12), rgba(129,102,230,0.1))' }}
-          >
-            <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(255,140,0,0.18)' }}>
-              <span className="w-2.5 h-2.5 rounded-full bg-[#e23b3b] animate-pulse" />
-            </span>
-            <div className="flex-1">
-              <div className="text-sm font-black text-white">Start a Room</div>
-              <div className="text-[11px] text-white/50">Go live for 15–45 min — anyone can join &amp; chat. Posts to your feed.</div>
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#FF8C00]">Go live →</span>
-          </button>
-          <div className="mb-2"><IdentitySwitcher selfName={currentUser?.displayName} selfPhoto={currentUser?.photoURL} /></div>
-          {activeOrg && <OrgAudienceToggle value={orgPostAudience} onChange={setOrgPostAudience} className="px-1 pb-2" />}
-          <UniversalPostComposer
-            key={`composer-${composeSignal}`}
-            autoExpand={composeSignal > 0}
-            currentUser={currentUser}
-            placeholder="What's happening in the studio? Design a gorgeous post..."
-            avatarUrl={currentUser.photoURL || undefined}
-            userAlbums={userAlbums}
-            userSanctuaryId={currentUser.uid}
-            postingPower
-            recentOwnTexts={recentOwnTexts()}
-            onPost={publishFromComposer}
-            handlesFediverse
-            onMakeStory={() => setShowStoryCreator(true)}
-          />
-          {fediNoticeEl}
-        </div>
-      )}
-
-      {activeTab === 'SOCIAL' ? (
-        <div className="flex flex-col flex-1 overflow-hidden">
-
-          {/* Sub-tab bar — always visible */}
-          <div className="shrink-0 flex gap-1 px-4 pt-3 pb-2 border-b border-white/5">
-            {(['FEDIVERSE', 'MY_POSTS'] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => setSocialSubTab(t)}
-                className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
-                  socialSubTab === t
-                    ? 'bg-white text-black shadow-lg'
-                    : 'text-white/40 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                {t === 'FEDIVERSE' ? `Timeline${fediverseAccounts.length ? ` (${fediverseAccounts.length})` : ''}` : 'My Posts'}
-              </button>
-            ))}
-            {socialSubTab === 'FEDIVERSE' && fediverseAccounts.length > 0 && (
-              <button
-                onClick={() => refreshFediverse()}
-                disabled={fediverseLoading}
-                className="ml-auto p-2 rounded-full text-white/30 hover:text-white hover:bg-white/5 transition-all disabled:opacity-40"
-                title="Refresh timeline"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                  className={fediverseLoading ? 'animate-spin' : ''}>
-                  <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                </svg>
-              </button>
-            )}
-          </div>
-
-          {socialSubTab === 'FEDIVERSE' ? (
-            <div className="flex-1 overflow-y-auto">
-              {/* No accounts connected — prompt */}
-              {!fediverseAccounts.length ? (
-                <div className="flex flex-col items-center gap-5 py-16 px-8 max-w-sm mx-auto text-center">
-                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
-                    style={{ background: 'rgba(99,100,255,0.1)', border: '1px solid rgba(99,100,255,0.2)' }}>
-                    <Share2 size={26} className="text-[#6364FF]" />
-                  </div>
-                  <div>
-                    <p className="text-white font-black uppercase tracking-widest text-sm mb-2">Connect Mastodon or Bluesky</p>
-                    <p className="text-white/40 text-xs leading-relaxed">
-                      Your home timelines from Mastodon and Bluesky will appear here once you connect an account.
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2 text-[10px] text-white/30 leading-relaxed">
-                    <p>Go to <span className="text-white/60 font-bold">Account Settings → Social Networks</span> to connect.</p>
-                  </div>
-                </div>
-              ) : fediverseLoading ? (
-                <div className="flex items-center justify-center gap-3 py-20 text-white/30">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
-                    <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                  </svg>
-                  <span className="text-sm font-bold uppercase tracking-widest">Loading timeline…</span>
-                </div>
-              ) : fediverseFeed.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-3 text-white/30">
-                  <Share2 size={28} />
-                  <p className="text-sm font-bold uppercase tracking-widest">Your timeline is empty</p>
-                  <p className="text-xs text-white/20">Follow people on Mastodon or Bluesky to see posts here.</p>
-                </div>
-              ) : (
-                <div className="w-full min-w-0 max-w-2xl mx-auto space-y-3 [&_iframe]:max-w-full [&_img]:max-w-full [&_video]:max-w-full">
-                  {fediverseFeed.map(post => (
-                    <FediversePostCard
-                      key={`${post.protocol}-${post.id}`}
-                      post={post}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex-1 overflow-y-auto">
-              <ProfileFeed
-                uid={currentUser?.uid || ''}
-                profileName={currentUser?.displayName || 'User'}
-                onVisitUser={onVisitUser}
-                xHandle={userProfile?.xHandle}
-                mastodonHandle={userProfile?.mastodonHandle}
-                mastodonInstance={userProfile?.mastodonInstance}
-                blueskyHandle={userProfile?.blueskyHandle}
-                threadsHandle={userProfile?.threadsHandle}
-                hideBroadcaster={true}
-                initialFeedType="X_FEED"
-              />
-            </div>
-          )}
-        </div>
-      ) : activeTab === 'GLOBAL' ? (
         /* ── Plajah Social Canvas ───────────────────────────── */
-        <div className={`pj-signal-canvas relative w-full min-w-0 ${feedPanelMode === 'DUAL' ? 'max-w-[1200px]' : 'max-w-[760px]'} mx-auto flex flex-col flex-1 overflow-hidden`}>
-
-          {/* ── Today on Plajah — Clock · Featured Releases · History Cards ── */}
-          {(() => {
-            const musicFigure = getDailyFigure('MUSIC');
-            const filmFigure  = getDailyFigure('FILM_TV');
-            const hh = String(clockTime.getHours()).padStart(2, '0');
-            const mm = String(clockTime.getMinutes()).padStart(2, '0');
-            const ss = String(clockTime.getSeconds()).padStart(2, '0');
-            const dateStr = clockTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-            return (
-              <div className="pj-signal-today shrink-0 px-4 pt-4 pb-3 border-b border-white/5">
-                <div className="pj-signal-section-label">Today on Plajah</div>
-                <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-
-                  {/* ── Gorgeous Clock ── */}
-                  <div className="shrink-0 w-[260px] h-[170px] rounded-[1.75rem] relative overflow-hidden border border-white/8 flex flex-col items-center justify-center"
-                    style={{ background: 'radial-gradient(ellipse at 30% 20%, rgba(255,140,0,0.12) 0%, rgba(0,0,0,0.7) 70%)', boxShadow: '0 0 48px rgba(255,140,0,0.07)' }}>
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(255,255,255,0.03)_0%,transparent_70%)]" />
-                    <div className="relative text-center px-5">
-                      <div className="text-[8px] font-black uppercase tracking-[0.4em] text-small-orange/60 mb-3 flex items-center justify-center gap-1.5">
-                        <Clock size={8} />
-                        Plajah · Now
-                      </div>
-                      <div className="flex items-baseline justify-center gap-1">
-                        <span className="text-5xl font-black tabular-nums leading-none text-white" style={{ letterSpacing: '-0.02em' }}>{hh}:{mm}</span>
-                        <span className="text-xl font-black tabular-nums text-small-orange/70 leading-none" style={{ letterSpacing: '-0.02em' }}>:{ss}</span>
-                      </div>
-                      <div className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-3 leading-tight">{dateStr}</div>
-                    </div>
-                    <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-small-orange/30 to-transparent" />
-                  </div>
-
-                  {/* ── Latest Chora Release ── */}
-                  {featuredMusic && (
-                    <button
-                      onClick={() => window.dispatchEvent(new CustomEvent('SELECT_ALBUM', { detail: { album: featuredMusic } }))}
-                      className="shrink-0 w-[180px] h-[170px] rounded-[1.75rem] overflow-hidden relative border border-white/8 hover:border-small-orange/30 transition-all group text-left"
-                    >
-                      {featuredMusic.coverImage
-                        ? <img src={thumb(featuredMusic.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(featuredMusic.coverImage)} alt={featuredMusic.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                        : <div className="absolute inset-0 bg-white/5" />}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-                      <div className="absolute top-2.5 left-2.5">
-                        <span className="flex items-center gap-1 px-2 py-0.5 bg-black/70 border border-small-orange/25 rounded-full text-[7px] font-black uppercase tracking-widest text-small-orange">
-                          <Music2 size={7} /> Chora · New
-                        </span>
-                      </div>
-                      <div className="absolute bottom-0 left-0 right-0 p-3">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-white truncate leading-tight">{featuredMusic.title}</p>
-                        {featuredMusic.artist && <p className="text-[8px] text-white/40 font-bold truncate mt-0.5">{featuredMusic.artist}</p>}
-                        <span className="inline-block mt-1.5 text-[7px] font-black uppercase tracking-widest text-small-orange">Play →</span>
-                      </div>
-                    </button>
-                  )}
-
-                  {/* ── Latest Taleo Release ── */}
-                  {featuredFilm && (
-                    <button
-                      onClick={() => window.dispatchEvent(new CustomEvent('SELECT_ALBUM', { detail: { album: featuredFilm } }))}
-                      className="shrink-0 w-[180px] h-[170px] rounded-[1.75rem] overflow-hidden relative border border-white/8 hover:border-cyan-400/30 transition-all group text-left"
-                    >
-                      {featuredFilm.coverImage
-                        ? <img src={thumb(featuredFilm.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(featuredFilm.coverImage)} alt={featuredFilm.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                        : <div className="absolute inset-0 bg-white/5" />}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-                      <div className="absolute top-2.5 left-2.5">
-                        <span className="flex items-center gap-1 px-2 py-0.5 bg-black/70 border border-cyan-400/25 rounded-full text-[7px] font-black uppercase tracking-widest text-cyan-400">
-                          <Film size={7} /> Cinema · New
-                        </span>
-                      </div>
-                      <div className="absolute bottom-0 left-0 right-0 p-3">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-white truncate leading-tight">{featuredFilm.title}</p>
-                        {featuredFilm.artist && <p className="text-[8px] text-white/40 font-bold truncate mt-0.5">{featuredFilm.artist}</p>}
-                        <span className="inline-block mt-1.5 text-[7px] font-black uppercase tracking-widest text-cyan-400">Watch →</span>
-                      </div>
-                    </button>
-                  )}
-
-                  {/* ── Random Lorea Book ── */}
-                  {featuredBook && (
-                    <button
-                      onClick={() => window.dispatchEvent(new CustomEvent('SELECT_ALBUM', { detail: { album: featuredBook } }))}
-                      className="shrink-0 w-[180px] h-[170px] rounded-[1.75rem] overflow-hidden relative border border-white/8 hover:border-emerald-400/30 transition-all group text-left"
-                    >
-                      {featuredBook.coverImage
-                        ? <img src={thumb(featuredBook.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(featuredBook.coverImage)} alt={featuredBook.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                        : <div className="absolute inset-0 bg-white/5" />}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-                      <div className="absolute top-2.5 left-2.5">
-                        <span className="flex items-center gap-1 px-2 py-0.5 bg-black/70 border border-emerald-400/25 rounded-full text-[7px] font-black uppercase tracking-widest text-emerald-400">
-                          <BookOpen size={7} /> Lorea · Classic
-                        </span>
-                      </div>
-                      <div className="absolute bottom-0 left-0 right-0 p-3">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-white truncate leading-tight">{featuredBook.title}</p>
-                        {featuredBook.artist && <p className="text-[8px] text-white/40 font-bold truncate mt-0.5">{featuredBook.artist}</p>}
-                        <span className="inline-block mt-1.5 text-[7px] font-black uppercase tracking-widest text-emerald-400">Read →</span>
-                      </div>
-                    </button>
-                  )}
-
-                  {/* ── Music History Today (Chora) ── */}
-                  <div
-                    onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'CHORA_HISTORY' } }))}
-                    className="shrink-0 w-[180px] h-[170px] rounded-[1.75rem] overflow-hidden relative border border-amber-500/20 hover:border-amber-400/40 cursor-pointer transition-all group"
-                    style={{ boxShadow: '0 0 24px rgba(245,158,11,0.06)' }}
-                  >
-                    {musicFigure.imageUrl && (
-                      <>
-                        <img src={musicFigure.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover object-top" style={{ filter: 'blur(14px) brightness(0.25) saturate(1.8)' }} />
-                        <img src={thumb(musicFigure.imageUrl, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(musicFigure.imageUrl)} alt={musicFigure.name} className="absolute inset-0 w-full h-full object-cover object-top opacity-60 group-hover:scale-105 transition-transform duration-700" />
-                      </>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
-                    <div className="absolute top-2.5 left-2.5">
-                      <span className="flex items-center gap-1 px-2 py-0.5 bg-black/70 border border-amber-500/25 rounded-full text-[7px] font-black uppercase tracking-widest text-amber-400">
-                        <Music2 size={7} /> Music History
-                      </span>
-                    </div>
-                    <div className="absolute bottom-0 left-0 right-0 p-3">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white leading-tight">{musicFigure.name}</p>
-                      <p className="text-[8px] text-amber-400/70 font-bold mt-0.5">{musicFigure.era}</p>
-                      <p className="text-[8px] text-white/30 mt-1 leading-relaxed line-clamp-2">{musicFigure.bio.slice(0, 70)}…</p>
-                    </div>
-                  </div>
-
-                  {/* ── Film History Today (Taleo) ── */}
-                  <div
-                    onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'TALEO_HISTORY' } }))}
-                    className="shrink-0 w-[180px] h-[170px] rounded-[1.75rem] overflow-hidden relative border border-blue-500/20 hover:border-blue-400/40 cursor-pointer transition-all group"
-                    style={{ boxShadow: '0 0 24px rgba(59,130,246,0.06)' }}
-                  >
-                    {filmFigure.imageUrl && (
-                      <>
-                        <img src={filmFigure.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover object-top" style={{ filter: 'blur(14px) brightness(0.25) saturate(1.8)' }} />
-                        <img src={thumb(filmFigure.imageUrl, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(filmFigure.imageUrl)} alt={filmFigure.name} className="absolute inset-0 w-full h-full object-cover object-top opacity-60 group-hover:scale-105 transition-transform duration-700" />
-                      </>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
-                    <div className="absolute top-2.5 left-2.5">
-                      <span className="flex items-center gap-1 px-2 py-0.5 bg-black/70 border border-blue-500/25 rounded-full text-[7px] font-black uppercase tracking-widest text-blue-400">
-                        <Film size={7} /> Film History
-                      </span>
-                    </div>
-                    <div className="absolute bottom-0 left-0 right-0 p-3">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white leading-tight">{filmFigure.name}</p>
-                      <p className="text-[8px] text-blue-400/70 font-bold mt-0.5">{filmFigure.era}</p>
-                      <p className="text-[8px] text-white/30 mt-1 leading-relaxed line-clamp-2">{filmFigure.bio.slice(0, 70)}…</p>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            );
-          })()}
+        <div className="pj-signal-canvas relative w-full min-w-0 flex flex-col">
 
           {/* ── Stories Bar ── */}
           {currentUser && (
@@ -3381,131 +2950,9 @@ const toggleFavoriteTeam = async (team: string) => {
             </div>
           )}
 
-          {/* ── Active Live Talks & Streams strip ── */}
-          <div className="pj-signal-live-strip shrink-0 px-4 py-3 border-b border-white/5">
-              <div className="flex items-center gap-2 mb-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-[8px] font-black uppercase tracking-[0.3em] text-red-400">Live Now</span>
-              </div>
-              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-                {globalActiveTalks.slice(0, 10).map(talk => (
-                  <button
-                    key={talk.id}
-                    onClick={() => { setJoinTalkId(talk.id); setShowStartTalk(true); }}
-                    className="flex-shrink-0 flex items-center gap-2.5 bg-red-500/10 border border-red-500/20 hover:border-red-500/40 rounded-2xl px-3.5 py-2 transition-all group"
-                  >
-                    <div className="relative shrink-0">
-                      <img src={thumb(talk.hostPhoto, THUMB.micro) || undefined} loading="lazy" decoding="async" onError={onThumbError(talk.hostPhoto)} alt={talk.hostName} className="w-7 h-7 rounded-full object-cover ring-1 ring-red-500/40" />
-                      <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border border-black" />
-                    </div>
-                    <div className="text-left min-w-0">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-white truncate max-w-[120px]">{talk.title}</p>
-                      <p className="text-[8px] text-red-400/80 font-bold truncate max-w-[120px]">{talk.hostName}</p>
-                    </div>
-                    <div className="flex items-center gap-1 text-[8px] text-white/40 shrink-0">
-                      <Users size={9} />
-                      <span>{talkCapacityLabel(talk as any)}</span>
-                    </div>
-                  </button>
-                ))}
-                {globalActiveTalks.length === 0 && (
-                  <button type="button" onClick={() => { setJoinTalkId(null); setShowStartTalk(true); }} className="pj-signal-empty-card tap">
-                    <Radio size={14} /> No rooms live yet · Start one
-                  </button>
-                )}
-              </div>
-            </div>
-
-          {/* ── Subscribed Podcast Episodes strip ── */}
-          <div className="pj-signal-podcast-strip shrink-0 px-4 py-3 border-b border-white/5">
-              <div className="flex items-center gap-2 mb-2.5">
-                <Mic size={10} className="text-purple-400" />
-                <span className="text-[8px] font-black uppercase tracking-[0.3em] text-purple-400">Your Podcasts</span>
-              </div>
-              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-                {subscribedPodcasts.map(pod => (
-                  <button
-                    key={pod.id}
-                    onClick={() => window.dispatchEvent(new CustomEvent('SELECT_ALBUM', { detail: { album: pod } }))}
-                    className="flex-shrink-0 flex items-center gap-2.5 bg-white/[0.04] border border-white/8 hover:border-white/20 rounded-2xl px-3 py-2 transition-all group"
-                  >
-                    <img src={thumb(pod.coverImage, THUMB.micro) || undefined} loading="lazy" decoding="async" onError={onThumbError(pod.coverImage)} alt={pod.title} className="w-8 h-8 rounded-xl object-cover shrink-0" />
-                    <div className="text-left min-w-0">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-white truncate max-w-[110px] group-hover:text-small-orange transition-colors">{pod.title}</p>
-                      <p className="text-[8px] text-white/35 font-bold">{pod.tracks?.length ?? 0} ep</p>
-                    </div>
-                  </button>
-                ))}
-                {subscribedPodcasts.length === 0 && (
-                  <div className="pj-signal-empty-card">
-                    <Mic size={14} /> Subscribe to podcasts to build this shelf
-                  </div>
-                )}
-              </div>
-            </div>
-
-          {/* ── Composer + Timeline (pinned, does not scroll) ── */}
+          {/* ── Composer ── */}
           <div className="shrink-0">
-            {/* Frosted glass panel */}
-            <div className="pj-signal-composer backdrop-blur-3xl pt-3 pb-3">
-
-          {currentUser && (
-            <div className="px-3 pb-2">
-              <IdentitySwitcher selfName={currentUser.displayName} selfPhoto={currentUser.photoURL} />
-            </div>
-          )}
-
-          {/* ── Horizontal 24hr Timeline Scrubber ── */}
-          <div className="pj-signal-scrubber mb-3 mx-3 select-none">
-              <div className="flex items-center gap-3">
-                <span className="pj-signal-scrubber-label shrink-0"><Clock size={11} /> 24h Timeline</span>
-                <div
-                  ref={timelineTrackRef}
-                  className="pj-signal-scrubber-track flex-1 relative cursor-pointer"
-                  onPointerDown={(e) => {
-                    e.currentTarget.setPointerCapture(e.pointerId);
-                    setIsTimelineDragging(true);
-                    handleTimelinePointer(e);
-                  }}
-                  onPointerMove={(e) => { if (isTimelineDragging) handleTimelinePointer(e); }}
-                  onPointerUp={() => setIsTimelineDragging(false)}
-                  onPointerCancel={() => setIsTimelineDragging(false)}
-                >
-                  {/* Quarter-hour tick marks */}
-                  {[25, 50, 75].map(pct => (
-                    <div
-                      key={pct}
-                      style={{ left: `${pct}%` }}
-                      className="absolute top-1/2 -translate-y-1/2 w-px h-2 bg-white/25 pointer-events-none"
-                    />
-                  ))}
-                  {/* Active fill */}
-                  <div
-                    className="pj-signal-scrubber-fill absolute top-0 left-0 bottom-0 rounded-full transition-none"
-                    style={{ width: `${timelineValue}%` }}
-                  />
-                  {/* Thumb */}
-                  <motion.div
-                    style={{ left: `${timelineValue}%` }}
-                    className="pj-signal-scrubber-thumb absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing flex items-center justify-center"
-                    animate={{ scale: isTimelineDragging ? 1.3 : 1 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                  >
-                    <div className="w-1 h-1 bg-white rounded-full" />
-                  </motion.div>
-                  {/* Time tooltip on drag */}
-                  {isTimelineDragging && (
-                    <div
-                      className="absolute -top-8 -translate-x-1/2 px-2 py-1 bg-black/90 border border-white/10 rounded-lg text-[9px] font-black uppercase tracking-widest text-white whitespace-nowrap pointer-events-none"
-                      style={{ left: `${timelineValue}%` }}
-                    >
-                      {getTimelineLabel(timelineValue)}
-                    </div>
-                  )}
-                </div>
-                <span className="pj-signal-now shrink-0">Now</span>
-              </div>
-            </div>
+            <div className="pj-signal-composer" onClickCapture={() => setComposerOpen(true)}>
 
           {/* ── Sign-in CTA (unauthenticated) ── */}
           {!currentUser && (
@@ -3522,38 +2969,25 @@ const toggleFavoriteTeam = async (team: string) => {
             </button>
           )}
 
-          {/* ── Composer ── */}
           {currentUser && (
             <>
-            {/* "Post to Today" — arms the next post as a 24h ephemeral Today (1B.4). */}
-            <div className="flex items-center gap-2 px-1 pb-2">
-              <button
-                onClick={() => setPostToToday(v => !v)}
-                aria-pressed={postToToday}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest transition-all ${
-                  postToToday
-                    ? 'bg-small-orange text-black border-small-orange shadow-[0_4px_14px_rgba(255,140,0,0.25)]'
-                    : 'bg-white/5 text-white/35 border-white/10 hover:text-white/70 hover:bg-white/10'
-                }`}
-                title="Post to Today — disappears after 24 hours"
-              >
-                <Clock size={10} />
-                Post to Today
-              </button>
-              <AnimatePresence>
-                {postToToday && (
-                  <motion.span
-                    initial={{ opacity: 0, x: -6 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -6 }}
-                    className="text-[9px] font-bold uppercase tracking-widest text-small-orange/70"
-                  >
-                    Disappears in 24h
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </div>
-            {activeOrg && (
+            {(composerOpen || composeSignal > 0 || !!quoteTarget) && (
+              <div className="pj-signal-composer-opts">
+                <IdentitySwitcher selfName={currentUser.displayName} selfPhoto={currentUser.photoURL} />
+                {/* "Post to Today" — arms the next post as a 24h ephemeral Today (1B.4). */}
+                <button
+                  type="button"
+                  onClick={() => setPostToToday(v => !v)}
+                  aria-pressed={postToToday}
+                  title="Post to Today — disappears after 24 hours"
+                  className="pj-signal-today-toggle"
+                >
+                  <Clock size={13} />
+                  {postToToday ? 'Today · gone in 24h' : 'Post to Today'}
+                </button>
+              </div>
+            )}
+            {activeOrg && (composerOpen || composeSignal > 0) && (
               <OrgAudienceToggle
                 orgId={activeOrg.id}
                 value={orgPostAudience}
@@ -3564,7 +2998,8 @@ const toggleFavoriteTeam = async (team: string) => {
               />
             )}
             <UniversalPostComposer
-              key={quoteTarget ? `quote-${quoteTarget.id}` : 'main'}
+              key={quoteTarget ? `quote-${quoteTarget.id}` : `main-${composeSignal}`}
+              autoExpand={composeSignal > 0}
               currentUser={currentUser}
               placeholder={postToToday ? 'Share a Today — gone in 24 hours…' : "What's on your mind?"}
               avatarUrl={currentUser.photoURL || undefined}
@@ -3584,8 +3019,8 @@ const toggleFavoriteTeam = async (team: string) => {
             </div>{/* end frosted glass panel */}
           </div>{/* end pinned composer */}
 
-          {/* ── Posts: independently scrollable ── */}
-          <div ref={feedScrollRef} className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+          {/* ── Posts ── */}
+          <div>
           {pagedFeed && (
             <NewPostsPill
               count={feed.newCount}
@@ -3618,22 +3053,6 @@ const toggleFavoriteTeam = async (team: string) => {
                   />}
             </div>
           ) : null}
-
-          {/* Panel mode toggle */}
-          <div className="flex items-center gap-2 mb-4 px-4 pt-3">
-            {(['SINGLE', 'DUAL'] as const).map(m => (
-              <button key={m} onClick={() => setFeedPanelMode(m)}
-                className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${feedPanelMode === m ? 'bg-small-orange text-black' : 'bg-white/5 text-white/30 hover:bg-white/10'}`}>
-                {m}
-              </button>
-            ))}
-            {feedPanelMode === 'DUAL' && (
-              <button onClick={() => setFeedSyncScroll(s => !s)}
-                className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${feedSyncScroll ? 'bg-small-orange text-black' : 'bg-white/5 text-white/30 hover:bg-white/10'}`}>
-                {feedSyncScroll ? 'Sync' : 'Async'}
-              </button>
-            )}
-          </div>
 
           {/* DUAL panel layout */}
           {feedPanelMode === 'DUAL' ? (
@@ -3672,20 +3091,8 @@ const toggleFavoriteTeam = async (team: string) => {
           {/* Student walls — published assignment work from the Film / Photo / Art /
               Chora schools. Self-hiding: renders nothing until a wall has work. */}
           <div className="px-4 pt-1">
-            <StudentWallRow onVisitUser={onVisitUser} showEmpty />
+            <StudentWallRow onVisitUser={onVisitUser} />
           </div>
-
-          {/* Timeline header */}
-          {displayedPosts.length > 0 && (
-            <div className="flex items-center gap-3 px-4 py-3 mt-3">
-              <div className="flex-1 h-px bg-white/5" />
-              <span className="text-[8px] font-black uppercase tracking-[0.4em] text-white/15 flex items-center gap-1.5">
-                <Clock size={9} />
-                {hashtagView ? `#${hashtagView}` : plajahFilter === 'LIKED' ? 'Liked' : plajahFilter === 'FOLLOWING' ? 'Following' : 'For you'}
-              </span>
-              <div className="flex-1 h-px bg-white/5" />
-            </div>
-          )}
 
           {/* Post feed */}
           <div className="space-y-3 w-full min-w-0 [&_iframe]:max-w-full [&_img]:max-w-full [&_video]:max-w-full">
@@ -3813,137 +3220,28 @@ const toggleFavoriteTeam = async (team: string) => {
           </div>{/* end posts scroll area */}
 
         </div>
-      ) : (
-        <div className="space-y-12 w-full min-w-0 [&_iframe]:max-w-full [&_img]:max-w-full [&_video]:max-w-full">
-          {isLoadingNews ? (
-            <div className="py-20 text-center">
-              <Zap className="mx-auto mb-6 text-small-orange" size={48} />
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Scanning Global Satellites for Breaking News...</p>
-            </div>
-          ) : (
-            (() => {
-              const rootItems = personalizedFeedItems.filter(item => !item.parentId);
-              const HISTORY_EVERY = 5; // inject one history card every N posts
-              return rootItems.flatMap((item, idx) => {
-                const elements: React.ReactNode[] = [
-                  <RolodexCard key={item.id}>
-                    <FeedItemComponent
-                      item={item}
-                      allFeedItems={personalizedFeedItems}
-                      currentUser={currentUser}
-                      onVisitUser={onVisitUser}
-                      onMessage={onMessage}
-                      onReply={handleReply}
-                      isPosting={isPosting}
-                      onSelectGame={onSelectGame}
-                      availableBackgrounds={availableBackgrounds}
-                      onStartTalk={() => { setJoinTalkId(null); setShowStartTalk(true); }}
-                    />
-                  </RolodexCard>
-                ];
-                // Every HISTORY_EVERY posts, splice in a history moment card
-                if ((idx + 1) % HISTORY_EVERY === 0) {
-                  const slotOffset = Math.floor((idx + 1) / HISTORY_EVERY) - 1;
-                  elements.push(
-                    <div key={`history-pulse-${idx}`} className="px-0 md:px-4">
-                      <HistoryMomentPulseCard
-                        uid={currentUser?.uid}
-                        category="MIX"
-                        size="feed"
-                        startOffset={slotOffset}
-                        rotationIntervalSeconds={14}
-                      />
-                    </div>
-                  );
-                }
-                return elements;
-              });
-            })()
-          )}
-          {personalizedFeedItems.length === 0 && !isLoadingNews && (
-            <RecommendedClubsEmptyState />
-          )}
-        </div>
       )}
-      </div>
+      </div>{/* end main column */}
 
-          {/* THE 411 SIDEBAR */}
-          {activeTab !== 'SOCIAL' && activeTab !== 'GLOBAL' && (
-            <div className="w-full xl:w-[380px] shrink-0 space-y-8">
-               <div className="sticky top-24 space-y-8 pb-12">
-                  <div className="flex items-center gap-3 mb-6 px-4">
-                    <Info className="text-small-orange" size={24} />
-                    <h2 className="text-xl font-black uppercase tracking-widest text-[#CBC3D7]">The 411</h2>
-                  </div>
+      {isWide && !panelHidden && <aside className="pj-now-panel" aria-label="Now">{nowPanel}</aside>}
+      </div>{/* end body */}
 
-                  {/* Sports Scores */}
-                  {sportsScores.length > 0 && (
-                     <div className="bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-8 shadow-2xl">
-                        <h3 className="text-xs font-black uppercase tracking-widest mb-6 flex items-center gap-2"><Zap className="text-small-orange" size={16}/> Essential Scores</h3>
-                        <div className="space-y-6">
-                           {sportsScores.slice(0, 3).map(event => (
-                              <div key={event.id} className="flex flex-col gap-3 group border-b border-white/5 pb-4 last:border-0 last:pb-0">
-                                 <div className="flex items-center justify-between">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-white/30">{event.status.type.detail}</span>
-                                    {event.status.type.state === 'in' && <span className="text-[8px] font-black uppercase tracking-widest text-red-500 animate-pulse">Live</span>}
-                                 </div>
-                                 <div className="space-y-3">
-                                    {event.competitions[0].competitors.map((team: any) => (
-                                       <div key={team.id} className="flex items-center justify-between">
-                                          <div className="flex items-center gap-3">
-                                             <img loading="lazy" decoding="async" src={team.team.logo || null} alt="" className="w-6 h-6 object-contain opacity-80 group-hover:opacity-100 transition-opacity" />
-                                             <span className={`text-xs font-black uppercase tracking-tight ${team.winner ? 'text-white' : 'text-white/60'}`}>
-                                                {team.team.abbreviation}
-                                             </span>
-                                          </div>
-                                          <span className={`text-base font-black italic ${team.winner ? 'text-small-orange' : 'text-white/80'}`}>
-                                             {scoreText(team.score)}
-                                          </span>
-                                       </div>
-                                    ))}
-                                 </div>
-                              </div>
-                           ))}
-                        </div>
-                     </div>
-                  )}
-
-                  {/* Suggested Topics / Headlines */}
-                  <div className="bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-8 space-y-8 shadow-2xl">
-                     <div>
-                        <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-5">Trending Discussions</h3>
-                        <div className="flex flex-wrap gap-2">
-                           {['#CosmicSounds', '#MusicTheory', '#DigitalArt', '#IndieDev', '#FutureTech'].map(t => (
-                              <span key={t} className="px-4 py-2 bg-black/40 rounded-full text-[9px] font-bold uppercase tracking-widest text-small-orange border border-white/5 hover:bg-white/10 transition-colors cursor-pointer">{t}</span>
-                           ))}
-                        </div>
-                     </div>
-                     <div className="pt-8 border-t border-white/5">
-                        <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-6">On-Platform Articles</h3>
-                        <div className="space-y-6">
-                           {[1, 2, 3].map(i => (
-                             <div key={i} className="flex gap-4 group cursor-pointer">
-                                <div className="w-16 h-16 rounded-2xl bg-white/10 shrink-0 overflow-hidden relative">
-                                   <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors z-10" />
-                                   <img loading="lazy" decoding="async" src={`https://picsum.photos/seed/article${i}/150`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                                </div>
-                                <div className="flex-1 flex flex-col justify-center">
-                                   <p className="text-xs font-bold leading-snug group-hover:text-small-orange transition-colors line-clamp-2">The Evolution of Sound Design in Virtual Spaces</p>
-                                   <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mt-2">By Creator {i}</p>
-                                </div>
-                             </div>
-                           ))}
-                        </div>
-                     </div>
-                  </div>
-               </div>
-            </div>
-          )}
-
-        </div>
+      {!isWide && !panelHidden && (
+        <button type="button" className="pj-now-fab" onClick={() => setNowSheetOpen(true)}>
+          <span className="pj-now-dot" /> Now{globalActiveTalks.length > 0 ? ` · ${globalActiveTalks.length} live` : ''}
+        </button>
       )}
     </div>
-   </div>
+
+    {nowSheetOpen && !isWide && (
+      <Portal>
+        <div className="pj-now-scrim" onClick={() => setNowSheetOpen(false)} />
+        <div className="pj-now-sheet" role="dialog" aria-label="Now">
+          <button type="button" className="pj-now-grab" aria-label="Close" onClick={() => setNowSheetOpen(false)} />
+          {nowPanel}
+        </div>
+      </Portal>
+    )}
 
    {/* People discovery, saved posts and feed controls (overlays) */}
    {showPeoplePage && (

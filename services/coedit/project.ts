@@ -14,6 +14,7 @@ import {
   arrayRemove,
   arrayUnion,
   collection,
+  deleteDoc,
   deleteField,
   doc,
   getDoc,
@@ -26,6 +27,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db, opsDb } from '../firebase';
 import { cloudProjectId } from '../creativeCloud/cloudStore';
+import { logDocEvent, type DocAuditRef } from './audit';
 
 export const COEDIT = 'coedit';
 
@@ -41,6 +43,8 @@ export interface CoProject {
   memberIds: string[];
   names: Record<string, string>;
   photos?: Record<string, string>;
+  /** uid -> when their access ends (ms). Rules close the content at that moment. */
+  expires?: Record<string, number>;
   orgId?: string;
   chatRoomId?: string;
   createdAt: number;
@@ -65,6 +69,8 @@ export const ROLE_LABEL: Record<CoRole, string> = {
 };
 
 const projectRef = (id: string) => doc(opsDb, COEDIT, id);
+const revocationRef = (id: string, uid: string) => doc(opsDb, COEDIT, id, 'revocations', uid);
+const auditRef = (p: CoProject): DocAuditRef => ({ pid: p.id, ownerId: p.ownerId, ...(p.orgId ? { orgId: p.orgId } : {}) });
 
 export async function getCoProject(id: string): Promise<CoProject | null> {
   try {
@@ -139,6 +145,9 @@ export async function addMembers(project: CoProject, people: CoPerson[], role: E
     if (p.photo) patch[`photos.${p.uid}`] = p.photo;
   }
   await updateDoc(projectRef(project.id), patch);
+  // Being invited back lifts an earlier revoke.
+  await Promise.all(people.map((p) => deleteDoc(revocationRef(project.id, p.uid)).catch(() => {})));
+  void logDocEvent(auditRef(project), 'shared', `${people.map((p) => p.name || 'Collaborator').join(', ')}: ${ROLE_LABEL[role]}`);
   const memberIds = [...new Set([...project.memberIds, ...people.map((p) => p.uid)])];
   await syncTeamChat({ ...project, memberIds }).catch((e) => console.warn('[coedit] team chat sync failed', e));
 }
@@ -146,6 +155,7 @@ export async function addMembers(project: CoProject, people: CoPerson[], role: E
 export async function setRole(project: CoProject, uid: string, role: Exclude<CoRole, 'owner'>) {
   if (uid === project.ownerId) return;
   await updateDoc(projectRef(project.id), { [`members.${uid}`]: role, updatedAt: Date.now() });
+  void logDocEvent(auditRef(project), 'role_changed', `${project.names?.[uid] || 'Collaborator'}: ${ROLE_LABEL[role]}`);
 }
 
 /** Removes someone (owner), or leaves (anyone but the owner). */
@@ -162,6 +172,45 @@ export async function removeMember(project: CoProject, uid: string) {
     await updateDoc(doc(db, 'chat_rooms', project.chatRoomId), { participants: arrayRemove(uid), updatedAt: Date.now() }).catch(() => {});
   }
 }
+
+export interface CoRevocation { at: number; by: string; byName: string; reason: string }
+
+/** Ends someone's access (owner). Their app sees the notice below and removes its copy of the document. */
+export async function revokeMember(project: CoProject, uid: string, reason = '') {
+  if (uid === project.ownerId) return;
+  const name = project.names?.[uid] || 'Collaborator';
+  await setDoc(revocationRef(project.id, uid), { at: Date.now(), by: auth.currentUser?.uid || '', byName: auth.currentUser?.displayName || 'The owner', reason: reason.slice(0, 300) } satisfies CoRevocation);
+  await removeMember(project, uid);
+  void logDocEvent(auditRef(project), 'access_revoked', reason ? `${name}: ${reason}` : name);
+}
+
+/** Ends access for everyone but the owner, for when a document needs locking down at once. */
+export async function revokeEveryone(project: CoProject, reason = '') {
+  const others = project.memberIds.filter((m) => m !== project.ownerId);
+  for (const uid of others) await revokeMember(project, uid, reason);
+  void logDocEvent(auditRef(project), 'all_access_revoked', `${others.length} people${reason ? `: ${reason}` : ''}`);
+}
+
+/** Access that ends by itself on a date; null keeps it open. */
+export async function setMemberExpiry(project: CoProject, uid: string, at: number | null) {
+  if (uid === project.ownerId) return;
+  await updateDoc(projectRef(project.id), { [`expires.${uid}`]: at ?? deleteField(), updatedAt: Date.now() });
+  void logDocEvent(auditRef(project), 'access_expiry_set', `${project.names?.[uid] || 'Collaborator'}: ${at ? new Date(at).toLocaleString() : 'no end date'}`);
+}
+
+/** Why the signed-in person lost this project, if the owner revoked them. */
+export async function getMyRevocation(projectId: string): Promise<CoRevocation | null> {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return null;
+  try {
+    const snap = await getDoc(revocationRef(projectId, uid));
+    return snap.exists() ? (snap.data() as CoRevocation) : null;
+  } catch {
+    return null;
+  }
+}
+
+export const accessExpired = (p: CoProject | null, uid: string | undefined) => !!p && !!uid && !!p.expires?.[uid] && p.expires[uid] <= Date.now();
 
 export async function renameCoProject(project: CoProject, title: string) {
   await updateDoc(projectRef(project.id), { title: title.trim() || 'Untitled', updatedAt: Date.now() });

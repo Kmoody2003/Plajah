@@ -9,8 +9,9 @@ import {
 import { crossover } from '../services/crossover';
 import type { MediaKind, Recipe } from '../services/crossover';
 import { auth } from '../services/firebase';
+import { HqAccessForm } from './HqAccessForm';
 
-type Tab = 'COMMENTS' | 'VERSIONS' | 'APPROVAL' | 'RIGHTS' | 'ACTIVITY';
+type Tab = 'COMMENTS' | 'VERSIONS' | 'APPROVAL' | 'RIGHTS' | 'ACCESS' | 'ACTIVITY';
 
 // Crossover conversion presets, ported from the old ContentHQ AssetDetail. The source
 // now comes from the AUTHENTICATED download endpoint (protected storage), not a public URL.
@@ -195,7 +196,7 @@ const HqReviewPanel: React.FC<{
 
   const tabs: [Tab, string, React.ComponentType<any>][] = [
     ['COMMENTS', 'Comments', MessageSquare], ['VERSIONS', 'Versions', History], ['APPROVAL', 'Approval', ShieldCheck],
-    ['RIGHTS', 'Rights', Link2], ['ACTIVITY', 'Activity', Clock],
+    ['RIGHTS', 'Rights', Link2], ...(asset.scopeKind === 'org' ? [['ACCESS', 'Access', ShieldCheck] as [Tab, string, React.ComponentType<any>]] : []), ['ACTIVITY', 'Activity', Clock],
   ];
 
   return <div className="fixed inset-0 z-[150] bg-black/70 backdrop-blur-sm flex justify-end" onClick={onClose}>
@@ -285,6 +286,7 @@ const HqReviewPanel: React.FC<{
           {tabs.map(([id, label, Icon]) => <button key={id} onClick={() => setTab(id)} className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] font-black uppercase tracking-wider ${tab === id ? 'bg-white text-black' : 'bg-white/5 text-white/45'}`}><Icon size={12}/>{label}</button>)}
         </div>
 
+        {tab === 'ACCESS' && <HqAccessForm asset={asset} onChanged={onChanged} />}
         {tab === 'COMMENTS' && <div className="space-y-3">
           {comments.map(c => <div key={c.id} className={`p-3 rounded-xl border ${c.resolved ? 'border-white/5 opacity-45' : 'border-white/10 bg-white/[.025]'}`}>
             <div className="flex gap-2 text-[11px]"><strong>{c.authorName}</strong>{c.timeStartSeconds !== undefined && <button onClick={() => { if (media.current) media.current.currentTime = c.timeStartSeconds!; }} className="text-orange-300">{Math.floor(c.timeStartSeconds / 60)}:{String(Math.floor(c.timeStartSeconds % 60)).padStart(2, '0')}</button>}<span className="ml-auto text-white/25">{new Date(c.createdAt).toLocaleString()}</span></div>

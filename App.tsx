@@ -4666,7 +4666,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 userProfile={userProfile}
                 activePersonaKey={activePersonaKey}
                 onOpenPersonaModal={() => setIsPersonaModalOpen(true)}
-                onOpenSearch={() => setView('SEARCH')}
+                onOpenSearch={() => {
+                  // The command pillar claims this with preventDefault; the search page covers shells without one.
+                  if (window.dispatchEvent(new CustomEvent('plajah:open-command', { cancelable: true }))) setView('SEARCH');
+                }}
                 isFullscreen={isFullscreen}
                 onToggleFullscreen={handleToggleFullscreen}
                 isWindowsNative={isWindowsApp()}
@@ -5093,7 +5096,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     onExpandFromNano={() => { setIsNanoView(false); setIsNanoDocked(false); setIsMinimized(false); }}
                   />
                 ) : undefined}
-                onCreate={() => setShowCreator(true)}
+                onOpenAria={() => setIsMuseOpen(o => !o)}
                 onGoLive={() => { if (!user) { loginWithGoogle(); return; } (window as any).__reelloGoLivePending = true; setView('VIDEOS'); window.dispatchEvent(new CustomEvent('plajah:reelloGoLive')); }}
                 notificationCount={commsUnread}
                 onOpenNotifications={toggleComms}
@@ -8494,7 +8497,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           </Suspense>
           )}
 
-        {!isMobile && !getPlatformInfo().isTV && (
+        {!isMobile && !getPlatformInfo().isTV && !(!isPublicView && theme !== 'PHONE' && !navLayout.isBar && shellNext.enabled) && (
           <button
             type="button"
             aria-label="Open Aria"
@@ -8503,7 +8506,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             className="fixed right-5 bottom-[172px] z-[260] flex items-center justify-center rounded-full border border-violet-400/40 bg-[#120b1f]/90 shadow-[0_20px_60px_rgba(99,102,241,0.45)] backdrop-blur-xl transition-all hover:scale-105 hover:border-violet-300 active:scale-95"
             style={{ width: 58, height: 58 }}
           >
-            <AriaMark size={26} petals={false} />
+            <AriaMark size={26} petals={false} lively />
           </button>
         )}
 

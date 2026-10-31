@@ -45,7 +45,7 @@ export function paintServer(id: string, p: Paint): string | null {
 }
 function patternDef(id: string, p: PatternPaint): string {
   const tiles = p.tiles.map(t => `<path d="${t.d}" fill="${esc(t.fill ?? 'none')}"${t.stroke ? ` stroke="${esc(t.stroke)}" stroke-width="${fmt(t.strokeWidth ?? 1)}"` : ''}${t.opacity !== undefined && t.opacity !== 1 ? ` opacity="${fmt(t.opacity)}"` : ''}/>`).join('');
-  return `<pattern id="${id}" patternUnits="userSpaceOnUse" width="${fmt(p.w)}" height="${fmt(p.h)}"${p.transform ? ` patternTransform="${matrixToString(p.transform)}"` : ''}>${p.background ? `<rect width="${fmt(p.w)}" height="${fmt(p.h)}" fill="${esc(p.background)}"/>` : ''}${tiles}</pattern>`;
+  return `<pattern id="${id}" patternUnits="userSpaceOnUse" width="${fmt(p.w)}" height="${fmt(p.h)}"${p.transform ? ` patternTransform="${matrixToString(p.transform)}"` : ''}>${p.background ? `<rect width="${fmt(p.w)}" height="${fmt(p.h)}" fill="${esc(p.background)}"/>` : ''}${p.image ? `<image href="${esc(p.image)}" width="${fmt(p.w)}" height="${fmt(p.h)}" preserveAspectRatio="none"/>` : ''}${tiles}</pattern>`;
 }
 
 /**

@@ -18,7 +18,7 @@ import UniversalCommandResults from './UniversalCommandResults';
 
 type ViewId = string;
 
-const ALL_DESTS: NavDest[] = NAV_SECTIONS.flatMap(s => s.items);
+const ALL_DESTS: NavDest[] = NAV_SECTIONS.flatMap(s => s.items).filter((d, i, all) => all.findIndex(x => x.id === d.id) === i);
 const destById = (id: ViewId) => ALL_DESTS.find(d => d.id === id);
 const sectionIndexOf = (id: ViewId) => NAV_SECTIONS.findIndex(s => s.items.some(i => i.id === id));
 
@@ -52,7 +52,8 @@ const CommandSplitBar: React.FC<CommandSplitBarProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // keep the open category following the active view
-  useEffect(() => { const si = sectionIndexOf(view); if (si >= 0) setOpenCat(si); }, [view]);
+  // A destination can live in several sections; stay put if the open one has it.
+  useEffect(() => { const si = sectionIndexOf(view); if (si >= 0) setOpenCat(cur => NAV_SECTIONS[cur]?.items.some(i => i.id === view) ? cur : si); }, [view]);
 
   // ⌘K / Ctrl-K opens the launcher; Esc closes
   useEffect(() => {
@@ -60,12 +61,17 @@ const CommandSplitBar: React.FC<CommandSplitBarProps> = ({
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); openLauncher(); }
       if (e.key === 'Escape') setLauncher(false);
     };
+    const onOpenCmd = (e: Event) => { e.preventDefault(); openLauncher(); };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('plajah:open-command', onOpenCmd);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('plajah:open-command', onOpenCmd);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const openLauncher = () => { setLauncher(true); setQuery(''); setTimeout(() => inputRef.current?.focus(), 40); };
+  const openLauncher =() => { setLauncher(true); setQuery(''); setTimeout(() => inputRef.current?.focus(), 40); };
   const go = (id: ViewId) => { setLauncher(false); onNavigate(id); };
 
   const visibleSection = (s: NavSection): NavDest[] => s.items.filter(i => !i.requiresUser || hasUser);

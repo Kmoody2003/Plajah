@@ -79,7 +79,12 @@ export function createObjectStoreRouter({ verify, get, isPaid, config, now = () 
   };
 
   async function decide(op: ObjectOp, k: ObjectKey, uid: string): Promise<string | null> {
-    if (k.area === 'collab') return collabDecision(op, k, uid, (await get(`coedit/${k.projectId}`)) as { members?: Record<string, string> } | null);
+    if (k.area === 'collab') {
+      const project = (await get(`coedit/${k.projectId}`)) as { members?: Record<string, string>; expires?: Record<string, number> } | null;
+      // Access past its end date reaches the media no more than the document.
+      const ended = !!project?.expires?.[uid] && project.expires[uid] <= Date.now();
+      return collabDecision(op, k, uid, ended ? null : project);
+    }
     const [room, recording] = await Promise.all([
       get(`chat_rooms/${k.roomId}`),
       op === 'get' ? Promise.resolve(null) : get(`chat_rooms/${k.roomId}/recordings/${k.recId}`),

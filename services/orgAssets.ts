@@ -1,4 +1,4 @@
-import { collection, doc, setDoc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import { ref, uploadBytesResumable, deleteObject } from 'firebase/storage';
 import { db, opsDb, auth, storage } from './firebase';
 import type { Organization, Ministry, TelaDoc } from '../types';
@@ -47,6 +47,10 @@ export type OrgAssetKind = 'image' | 'video' | 'audio' | 'pdf' | 'doc' | 'other'
 
 export interface OrgAsset {
   id: string;
+  /** Who may use this file. Missing means open. Server-only (routes/elevateAccess.ts). */
+  access?: 'open' | 'restricted' | 'revoked';
+  accessSpec?: { departments?: string[]; roles?: string[]; users?: string[] };
+  accessUids?: string[];
   scopeKind: 'org' | 'user';
   scopeId: string;
   uploadedByUid: string;
@@ -952,9 +956,10 @@ export async function listHqAssets(scope: OwnerScope, includeTrash = false): Pro
 
   // 4. Load Firestore `orgAssets`
   try {
-    const snap = await getDocs(query(collection(opsDb, COLLECTION), where('scopeId', '==', scope.id)));
-    for (const d of snap.docs) {
-      const data = d.data() as OrgAsset;
+    const token = await auth.currentUser?.getIdToken();
+    const res = await fetch(`/api/elevate/access/assets?scopeId=${encodeURIComponent(scope.id)}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    for (const data of (await res.json()).assets as OrgAsset[]) {
       if (includeTrash || !data.deletedAt) {
         byId.set(data.id, normalizeAssetFolder(data));
       }
@@ -1030,6 +1035,12 @@ export async function addHqAsset(
  * a malware heuristic, then flips scanStatus to CLEAN or QUARANTINED server-side.
  * Returns the verdict, or null when the endpoint is unreachable (asset stays PENDING).
  */
+export async function setHqAssetAccess(assetId: string, access: 'open' | 'restricted' | 'revoked', spec: { departments: string[]; roles: string[]; users: string[] }): Promise<void> {
+  const token = await auth.currentUser?.getIdToken();
+  const res = await fetch('/api/elevate/access/asset', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ assetId, access, ...spec }) });
+  if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || 'Could not change who can use this file.');
+}
+
 export async function requestHqScan(assetId: string): Promise<{ scanStatus: 'PENDING' | 'CLEAN' | 'QUARANTINED'; scanReason?: string } | null> {
   try {
     const token = await auth.currentUser?.getIdToken();

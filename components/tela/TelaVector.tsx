@@ -126,10 +126,16 @@ function textLines(o: TelaVectorObject, writerTexts?: Record<string, string>): s
 // engine-set type glyphs) render through the ONE canonical serialiser, so the editor, Page /
 // Board postures, Fabula's timeline and Post Man letters show exactly what exports show.
 // Objects without geom keep the JSX path below untouched (proven by scripts/telaThumbOracle).
+/** Typing into imported text retires its cached pixels and outlines; from then on it is live type. */
+function editedTextPatch(o: TelaVectorObject, patch: Partial<TelaVectorObject>): Partial<TelaVectorObject> {
+  if (o.kind !== 'TEXT' || !o.geom?.imported || patch.text === undefined || patch.text === o.text || (!o.geom.textPreview && !o.geom.glyphs?.length)) return patch;
+  const { textPreview: _preview, glyphs: _glyphs, ...geom } = o.geom;
+  return { ...patch, geom };
+}
 const geomSvgCache = new WeakMap<TelaVectorObject, string>();
-export const usesSerializer = (o: TelaVectorObject) => !!o.geom && ((o.kind === 'PATH' && !!o.svgPathData) || (o.kind === 'TEXT' && !!o.geom.glyphs?.length) || !!o.geom.clip);
+export const usesSerializer = (o: TelaVectorObject) => !!o.geom && ((o.kind === 'PATH' && !!o.svgPathData) || (o.kind === 'TEXT' && !!o.geom.glyphs?.length) || !!o.geom.clip || !!o.geom.masks?.length || !!o.geom.textPreview || o.geom.material?.preset === 'layerStyle');
 function geomSvg(o: TelaVectorObject, writerTexts?: Record<string, string>): string {
-  const cacheable = !(o.kind === 'TEXT' && !o.geom?.glyphs?.length);
+  const cacheable = !(o.kind === 'TEXT' && !o.geom?.glyphs?.length && !o.geom?.textPreview);
   const hit = cacheable ? geomSvgCache.get(o) : undefined; if (hit !== undefined) return hit;
   const svg = objectToSvg(o, writerTexts); if (cacheable) geomSvgCache.set(o, svg); return svg;
 }
@@ -1704,7 +1710,7 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
                 setActiveBlockIdx(0);
               }
             }}
-            onUpdateObject={readOnly ? undefined : patch => onUpdateObject(o.id, patch)}
+            onUpdateObject={readOnly ? undefined : patch => onUpdateObject(o.id, editedTextPatch(o, patch))}
             onExitEdit={() => setEditingTextId(null)}
             onPointerDown={readOnly ? undefined : e => { menu?.onPointerDown(e); onObjectPointerDown(e, o.id); }}
             onPointerMove={menu?.onPointerMove} onPointerUp={menu?.onPointerUp} onPointerCancel={menu?.onPointerCancel}

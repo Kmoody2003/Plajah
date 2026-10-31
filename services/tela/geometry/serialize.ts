@@ -11,6 +11,7 @@
 import type { TelaVectorObject } from '../../../types';
 import type { Paint, FreeformPaint, MeshPaint } from './model';
 import { layoutTextLines } from '../telaText';
+import { cleanVectorObject } from '../telaSecurity';
 import { paintServer, paintLayers } from './paint';
 import { materialFilter } from './materials/filters';
 
@@ -74,7 +75,51 @@ function geomPath(o: TelaVectorObject, legacyFill: string, filterAttr: string, r
   return (defs.length ? `<defs>${defs.join('')}</defs>` : '') + `<g opacity="${o.opacity}"${rot}${filterAttr}${blend}>${inner}</g>`;
 }
 
-export function objectToSvg(o: TelaVectorObject, writerTexts?: Record<string, string>): string {
+/** Does this object need the imported-layer wrap (live masks, a layer style, cached text pixels)? */
+const needsLayerWrap = (o: TelaVectorObject) => !!o.geom && (!!o.geom.masks?.length || !!o.geom.textPreview || o.geom.material?.preset === 'layerStyle');
+
+/**
+ * Photoshop's layer stack on one object: clip masks outside the layer style, the style outside
+ * content masks, and the blend mode lifted to the outermost group because filters and masks form
+ * a stacking context that would otherwise blend the layer against nothing.
+ */
+function layerWrapped(o: TelaVectorObject, writerTexts?: Record<string, string>): string {
+  const g = o.geom!; const sid = safe(o.id); const defs: string[] = [];
+  const { masks, textPreview, ...restGeom } = g;
+  const styled = g.material?.preset === 'layerStyle' ? g.material : undefined;
+  if (styled) delete restGeom.material;
+  const inner: TelaVectorObject = { ...o, geom: restGeom, blendMode: undefined };
+  let body: string;
+  if (o.kind === 'TEXT' && textPreview) {
+    const k = o.w / Math.max(1, textPreview.base.w), kh = o.h / Math.max(1, textPreview.base.h);
+    const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+    const rot = o.rotation ? ` transform="rotate(${num(o.rotation)} ${num(cx)} ${num(cy)})"` : '';
+    body = `<g opacity="${o.opacity}"${rot}><image href="${esc(textPreview.src)}" x="${num(o.x + textPreview.dx * k)}" y="${num(o.y + textPreview.dy * kh)}" width="${num(textPreview.w * k)}" height="${num(textPreview.h * kh)}" preserveAspectRatio="none"/></g>`;
+  } else body = objectToSvg(inner, writerTexts);
+  const mask = (m: NonNullable<TelaGeomExtMasks>[number], i: number, content: string): string => {
+    const k = o.w / Math.max(1, m.base.w), kh = o.h / Math.max(1, m.base.h);
+    const mx = o.x + m.dx * k, my = o.y + m.dy * kh, mw = m.w * k, mh = m.h * kh;
+    const id = `lm${i}_${sid}`; const big = 1e5;
+    const ground = m.mode === 'luminance' && m.outside === 255 ? `<rect x="${-big}" y="${-big}" width="${big * 2}" height="${big * 2}" fill="#fff"/>` : '';
+    defs.push(`<mask id="${id}" maskUnits="userSpaceOnUse" x="${-big}" y="${-big}" width="${big * 2}" height="${big * 2}" style="mask-type:${m.mode}">${ground}<image href="${esc(m.src)}" x="${num(mx)}" y="${num(my)}" width="${num(mw)}" height="${num(mh)}" preserveAspectRatio="none"/></mask>`);
+    return `<g mask="url(#${id})">${content}</g>`;
+  };
+  (masks || []).forEach((m, i) => { if ((m.stage ?? 'content') === 'content') body = mask(m, i, body); });
+  if (styled) {
+    const fid = `ls_${sid}`;
+    defs.push(materialFilter(fid, styled, { x: o.x, y: o.y, w: o.w, h: o.h }));
+    body = `<g filter="url(#${fid})">${body}</g>`;
+  }
+  (masks || []).forEach((m, i) => { if (m.stage === 'clip') body = mask(m, i, body); });
+  const blend = o.blendMode && o.blendMode !== 'normal' ? ` style="mix-blend-mode:${o.blendMode}"` : '';
+  return `${defs.length ? `<defs>${defs.join('')}</defs>` : ''}<g${blend}>${body}</g>`;
+}
+type TelaGeomExtMasks = NonNullable<TelaVectorObject['geom']>['masks'];
+
+export function objectToSvg(source: TelaVectorObject, writerTexts?: Record<string, string>): string {
+  // These fields go into markup unescaped, so a shared document's values are checked first.
+  const o = cleanVectorObject(source);
+  if (needsLayerWrap(o)) return layerWrapped(o, writerTexts);
   const bx = o.x, by = o.y, bw = o.w, bh = o.h;
   const cx = bx + bw / 2, cy = by + bh / 2;
   const defs: string[] = [];

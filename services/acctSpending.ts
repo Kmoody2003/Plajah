@@ -138,13 +138,13 @@ export function canApproveExpense(org: Organization, member: OrgMembership | nul
     if (member?.roleKey === 'DEPARTMENT_HEAD' && !owner && !isHead && !member.ministryRoles?.some(r => r.ministryId === e.deptId)) return { ok: false, reason: 'Only this department’s head, a pastor, or finance can approve it.' };
     return { ok: true };
   }
-  return { ok: false, reason: 'Only a department head, pastor or finance can approve this.' };
+  return { ok: false, reason: 'Only a department head, Senior Pastor or finance can approve this.' };
 }
 
-/** Who should be nudged to approve: dept heads first; else pastors + finance. */
+/** Who should be nudged to approve: dept heads first; else Senior Pastors + finance. */
 export function approverUidsFor(org: Organization, e: Pick<AcctExpense, 'deptId' | 'submittedBy'>): string[] {
   const heads = ministryOf(org, e.deptId)?.headUids || [];
-  const set = new Set<string>(heads.length ? heads : [...(org.pastorUids || []), ...(org.accountingUids || org.financeUids || [])]);
+  const set = new Set<string>(heads.length ? heads : [...(org.seniorPastorUids || []), ...(org.accountingUids || org.financeUids || [])]);
   if (!set.size) set.add(org.creatorId);
   set.delete(e.submittedBy);
   return Array.from(set);

@@ -2932,8 +2932,10 @@ export interface Organization {
   orgKindLabel?: string;
   /** Denormalized role index — Firestore rules cannot query memberships, so these are derived by
    *  elevateService.recomputeOrgRoleIndex. NEVER trust client edits: derived from orgMemberships. */
+  itAdminUids?: string[];    // owner + IT Admins: master access inside this org. Server-only (routes/elevateAccess.ts)
+  seniorPastorUids?: string[]; // Senior Pastors: full finance access. Server-only
   pastorUids?: string[];     // senior pastors, pastors, ministers
-  financeUids?: string[];    // finance / treasurer / trustees with MANAGE_GIVING
+  financeUids?: string[];    // finance roles with MANAGE_GIVING. This and the three money lists below are server-only
   prayerUids?: string[];     // may read the private prayer queue (pastors + prayer warriors)
   leaderUids?: string[];     // dept heads + ministry leaders
   givingViewUids?: string[]; // trustees etc. - read-only access to giving records
@@ -3502,6 +3504,8 @@ export interface OrgMembership {
   // ── Employee / delegated-role fields (business pages) ──────────────────────
   /** Template role key (services/businessTemplates.ts), e.g. "AR", "CHEF". Drives the badge. */
   roleKey?: string;
+  /** IT Admin, Senior Pastor and finance roles actually held. Server-only: `roleKey`/`roleKeys` alone grant none of their powers. */
+  protectedRoles?: string[];
   /** Additional org-wide role keys held simultaneously (e.g. ['MEMBER', 'INSTRUCTOR', 'DEPARTMENT_VOLUNTEER']). */
   roleKeys?: string[];
   /** True when this membership represents an employee (renders as a work badge). */
@@ -4793,7 +4797,7 @@ export interface HqActivityEvent {
     'APPROVED' | 'CHANGES_REQUESTED' | 'DELIVERED' | 'MOVED' | 'TRASHED' | 'RESTORED' |
     'DOWNLOADED' | 'SHARED' | 'RIGHTS_UPDATED' | 'PUBLISHED' |
     // Wave 3 trust hardening: server-side security events.
-    'SCANNED' | 'QUARANTINED' | 'PURGED' | 'QUOTA_REJECTED';
+    'SCANNED' | 'QUARANTINED' | 'PURGED' | 'QUOTA_REJECTED' | 'ACCESS_CHANGED' | 'ACCESS_REVOKED';
   meta?: Record<string, string | number | boolean | null>;
   createdAt: number;
 }

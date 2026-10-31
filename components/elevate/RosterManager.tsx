@@ -11,6 +11,7 @@ import {
   ELEVATE_ROLES,
   canAssignRole,
   elevateCan,
+  isProtectedRole,
   getElevateRole,
   memberDepartmentIds,
   memberRoleKeys,
@@ -18,6 +19,7 @@ import {
 import {
   addDepartmentRole,
   assignRole,
+  setProtectedRole,
   recomputeOrgRoleIndex,
   removeDepartmentRole,
   rosterFor,
@@ -186,6 +188,8 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
       roleKeys: addRole === 'INSTRUCTOR' ? ['INSTRUCTOR', 'DEPARTMENT_VOLUNTEER', 'MEMBER'] : [addRole, 'MEMBER'],
       ministryIds: addMinistry ? [addMinistry] : undefined,
     });
+    // A seat doesn't carry IT Admin or finance powers until the server records them.
+    if (r && isProtectedRole(addRole)) await setProtectedRole(org.id, r.membership.id, addRole, true);
     setPreMsg(r ? `${person.firstName} ${person.lastName} is on the roster as ${getElevateRole(addRole)?.label}. Member ID ${r.membership.memberNumber} — they claim the account with it (+ last name) or by signing in with ${pre.email.trim() || 'their email'}.` : 'Already provisioned.');
     setPre({ first: '', last: '', email: '', memberNumber: '' });
   });

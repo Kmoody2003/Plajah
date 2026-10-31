@@ -182,6 +182,7 @@
     "express-rate-limit": "^8.5.2",
     "fflate": "^0.8.3",
     "firebase": "^12.9.0",
+    "fzstd": "^0.1.1",
     "gaussian-splats-3d": "^0.0.5",
     "helmet": "^8.2.0",
     "hls.js": "^1.6.16",

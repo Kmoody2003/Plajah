@@ -33,7 +33,98 @@ const keep = (coverage: number, soft = 14) => { const T = .5 + (Math.max(.01, Ma
 /** Same, but the noise must be ABOVE the threshold (sparse specks: coverage = fraction kept). */
 const specks = (coverage: number, soft = 14, rgb = '0 0 0 0 0  0 0 0 0 0  0 0 0 0 0') => { const T = .5 + (.5 - Math.max(.01, Math.min(.99, coverage))) * .26; return `${rgb}  0 0 0 ${f(soft)} ${f(-soft * T)}`; };
 
+// ── Photoshop layer styles ───────────────────────────────────────────────────────────
+// One preset whose `style` param carries the effect stack as JSON (see services/tela/import/layerStyles).
+// Effect order follows Photoshop's compositing, bottom to top: drop shadow, outer glow, the layer
+// (with bevel, satin, overlays and inner effects on top of it), stroke. Filters cannot see the
+// backdrop, so shadow and glow blend modes composite as Normal; the import report says so.
+export interface LayerStyleSpec {
+  fillOpacity?: number;
+  dropShadow?: { color: string; opacity: number; dx: number; dy: number; blur: number; spread: number };
+  outerGlow?: { color: string; opacity: number; blur: number; spread: number };
+  innerShadow?: { color: string; opacity: number; dx: number; dy: number; blur: number; choke: number; blend?: string };
+  innerGlow?: { color: string; opacity: number; blur: number; choke: number; center?: boolean; blend?: string };
+  overlay?: { color: string; opacity: number; blend?: string };
+  /** Gradient overlay as a data-URI SVG image covering the filter region. */
+  gradient?: { href: string; opacity: number; blend?: string };
+  /** Pattern overlay: a bitmap tile repeated over the layer. */
+  pattern?: { href: string; w: number; h: number; x: number; y: number; opacity: number; blend?: string };
+  satin?: { color: string; opacity: number; dx: number; dy: number; blur: number; blend?: string };
+  bevel?: { size: number; soften: number; angle: number; altitude: number; highlight: string; highlightOpacity: number; shadow: string; shadowOpacity: number; highlightBlend?: string; shadowBlend?: string };
+  stroke?: { color: string; opacity: number; size: number; position: 'outside' | 'inside' | 'center' };
+}
+const layerStyleOf = (p: Params): LayerStyleSpec => { try { return JSON.parse(s(p, 'style', '{}')); } catch { return {}; } };
+const layerStyleMargin = (st: LayerStyleSpec) => Math.max(4,
+  st.dropShadow ? Math.hypot(st.dropShadow.dx, st.dropShadow.dy) + st.dropShadow.blur * 3 + st.dropShadow.spread : 0,
+  st.outerGlow ? st.outerGlow.blur * 3 + st.outerGlow.spread : 0,
+  st.stroke ? st.stroke.size + 2 : 0);
+function buildLayerStyle(st: LayerStyleSpec): string {
+  const out: string[] = []; const under: string[] = []; const over: Array<[string, string | undefined]> = [];
+  const colorize = (src: string, color: string, op: number, res: string) => `<feFlood flood-color="${color}" flood-opacity="${f(op)}" result="${res}_c"/><feComposite in="${res}_c" in2="${src}" operator="in" result="${res}"/>`;
+  const fillOp = st.fillOpacity ?? 1;
+  if (st.dropShadow) {
+    const d = st.dropShadow;
+    out.push(`<feMorphology in="SourceAlpha" operator="dilate" radius="${f(d.spread)}" result="dsS"/><feOffset in="dsS" dx="${f(d.dx)}" dy="${f(d.dy)}" result="dsO"/><feGaussianBlur in="dsO" stdDeviation="${f(d.blur)}" result="dsB"/>${colorize('dsB', d.color, d.opacity, 'ds')}`);
+    under.push('ds');
+  }
+  if (st.outerGlow) {
+    const d = st.outerGlow;
+    out.push(`<feMorphology in="SourceAlpha" operator="dilate" radius="${f(d.spread)}" result="ogS"/><feGaussianBlur in="ogS" stdDeviation="${f(d.blur)}" result="ogB"/>${colorize('ogB', d.color, d.opacity, 'og')}`);
+    under.push('og');
+  }
+  if (st.overlay) { out.push(colorize('SourceAlpha', st.overlay.color, st.overlay.opacity, 'ov')); over.push(['ov', st.overlay.blend]); }
+  if (st.gradient) { out.push(`<feImage href="${st.gradient.href}" preserveAspectRatio="none" result="grI"/><feComponentTransfer in="grI" result="grO"><feFuncA type="linear" slope="${f(st.gradient.opacity)}"/></feComponentTransfer><feComposite in="grO" in2="SourceAlpha" operator="in" result="gr"/>`); over.push(['gr', st.gradient.blend]); }
+  if (st.pattern) { const d = st.pattern; out.push(`<feImage href="${d.href}" x="${f(d.x)}" y="${f(d.y)}" width="${f(d.w)}" height="${f(d.h)}" preserveAspectRatio="none" result="ptI"/><feTile in="ptI" result="ptT"/><feComponentTransfer in="ptT" result="ptO"><feFuncA type="linear" slope="${f(d.opacity)}"/></feComponentTransfer><feComposite in="ptO" in2="SourceAlpha" operator="in" result="pt"/>`); over.push(['pt', d.blend]); }
+  if (st.satin) {
+    const d = st.satin;
+    out.push(`<feOffset in="SourceAlpha" dx="${f(d.dx)}" dy="${f(d.dy)}" result="saA"/><feOffset in="SourceAlpha" dx="${f(-d.dx)}" dy="${f(-d.dy)}" result="saB"/><feComposite in="saA" in2="saB" operator="xor" result="saX"/><feGaussianBlur in="saX" stdDeviation="${f(d.blur)}" result="saG"/><feComposite in="saG" in2="SourceAlpha" operator="in" result="saI"/>${colorize('saI', d.color, d.opacity, 'sa')}`);
+    over.push(['sa', d.blend]);
+  }
+  if (st.innerGlow) {
+    const d = st.innerGlow;
+    out.push(d.center
+      ? `<feMorphology in="SourceAlpha" operator="erode" radius="${f(d.blur)}" result="igE"/><feGaussianBlur in="igE" stdDeviation="${f(d.blur)}" result="igB"/><feComposite in="igB" in2="SourceAlpha" operator="in" result="igM"/>${colorize('igM', d.color, d.opacity, 'ig')}`
+      : `<feMorphology in="SourceAlpha" operator="erode" radius="${f(d.choke)}" result="igE"/><feGaussianBlur in="igE" stdDeviation="${f(d.blur)}" result="igB"/><feComposite in="SourceAlpha" in2="igB" operator="out" result="igM"/>${colorize('igM', d.color, d.opacity, 'ig')}`);
+    over.push(['ig', d.blend]);
+  }
+  if (st.innerShadow) {
+    const d = st.innerShadow;
+    out.push(`<feMorphology in="SourceAlpha" operator="erode" radius="${f(d.choke)}" result="isE"/><feOffset in="isE" dx="${f(d.dx)}" dy="${f(d.dy)}" result="isO"/><feGaussianBlur in="isO" stdDeviation="${f(d.blur)}" result="isB"/><feComposite in="SourceAlpha" in2="isB" operator="out" result="isM"/>${colorize('isM', d.color, d.opacity, 'is')}`);
+    over.push(['is', d.blend]);
+  }
+  if (st.bevel) {
+    const d = st.bevel; const a = d.angle;
+    out.push(`<feGaussianBlur in="SourceAlpha" stdDeviation="${f(Math.max(.5, d.size / 2))}" result="bvH"/>
+<feDiffuseLighting in="bvH" surfaceScale="${f(Math.max(1, d.size / 2))}" diffuseConstant="1" lighting-color="#fff" result="bvL"><feDistantLight azimuth="${f(-a)}" elevation="${f(d.altitude)}"/></feDiffuseLighting>
+<feComposite in="bvL" in2="SourceAlpha" operator="in" result="bvC"/>
+<feColorMatrix in="bvC" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  3 0 0 0 -1.8" result="bvHiR"/><feComposite in="bvHiR" in2="SourceAlpha" operator="in" result="bvHiA"/>${colorize('bvHiA', d.highlight, d.highlightOpacity, 'bvHi')}
+<feColorMatrix in="bvC" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -3 0 0 0 1.2" result="bvLoR"/><feComposite in="bvLoR" in2="SourceAlpha" operator="in" result="bvLoA"/>${colorize('bvLoA', d.shadow, d.shadowOpacity, 'bvLo')}`);
+    over.push(['bvLo', d.shadowBlend], ['bvHi', d.highlightBlend]);
+  }
+  const stack: string[] = [...under];
+  let body = 'SourceGraphic';
+  if (fillOp < 1) { out.push(`<feComponentTransfer in="SourceGraphic" result="body"><feFuncA type="linear" slope="${f(fillOp)}"/></feComponentTransfer>`); body = 'body'; }
+  // Effects inside the layer really can blend, because the layer itself is in the filter.
+  over.forEach(([res, mode], i) => { out.push(`<feBlend in="${res}" in2="${body}" mode="${mode || 'normal'}" result="ob${i}"/>`); body = `ob${i}`; });
+  stack.push(body);
+  if (st.stroke) {
+    const d = st.stroke; const r = d.size;
+    if (d.position === 'inside') out.push(`<feMorphology in="SourceAlpha" operator="erode" radius="${f(r)}" result="stE"/><feComposite in="SourceAlpha" in2="stE" operator="out" result="stM"/>`);
+    else if (d.position === 'center') out.push(`<feMorphology in="SourceAlpha" operator="dilate" radius="${f(r / 2)}" result="stD"/><feMorphology in="SourceAlpha" operator="erode" radius="${f(r / 2)}" result="stE"/><feComposite in="stD" in2="stE" operator="out" result="stM"/>`);
+    else out.push(`<feMorphology in="SourceAlpha" operator="dilate" radius="${f(r)}" result="stD"/><feComposite in="stD" in2="SourceAlpha" operator="out" result="stM"/>`);
+    out.push(colorize('stM', d.color, d.opacity, 'st')); stack.push('st');
+  }
+  out.push(`<feMerge result="out">${stack.map(n => `<feMergeNode in="${n}"/>`).join('')}</feMerge>`);
+  return out.join('');
+}
+
 export const MATERIALS: Record<string, MaterialPreset> = {
+  layerStyle: {
+    id: 'layerStyle', name: 'Photoshop layer style', description: 'Drop shadow, glow, bevel, satin, overlays and stroke imported from a PSD.',
+    defaults: { style: '{}' },
+    margin: p => layerStyleMargin(layerStyleOf(p)),
+    build: p => buildLayerStyle(layerStyleOf(p)),
+  },
   watercolor: {
     id: 'watercolor', name: 'Watercolour wash', description: 'Wobbly bled edge, darker pooled rim, uneven pigment and granulation.',
     defaults: { edge: 9, rim: .75, mottle: .22, grain: .45, freq: .018 },
