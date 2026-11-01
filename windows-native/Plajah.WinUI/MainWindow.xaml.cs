@@ -26,6 +26,8 @@ public sealed partial class MainWindow : Window
     private AppWindow? _appWindow;
     private readonly PlajahStudioBridgeService _studioBridge;
     private readonly NdiReceiverService _ndiRecv = new();
+    private CrossoverNativeService? _crossoverSvc;
+    private CrossoverNativeService Crossover => _crossoverSvc ??= new CrossoverNativeService((type, payload) => DispatcherQueue.TryEnqueue(() => PostNativeMessage(type, payload)));
     /// <summary>Stage Program out as NDI / OMT / SRT (frames arrive from the page through a shared buffer).</summary>
     private ProgramOutputHub? _programOutHub;
     private ProgramOutputHub ProgramOut => _programOutHub ??= new ProgramOutputHub(() => _studioBridge.NdiDllPath);
@@ -470,8 +472,8 @@ public sealed partial class MainWindow : Window
             "  };" +
             "  var _pme = {" +
             "    capabilities: {" +
-            "      host: 'winui', platform: 'windows', hardwareGenlock: true, ndi: true, brawDecode: true, webgpu: true," +
-            "      sources: { decklink: true, ndi: true, srt: true, rtmp: true, webrtc: true, uvc: true, file: true, braw: true, ambo: true, switcher: true }," +
+            "      host: 'winui', platform: 'windows', hardwareGenlock: true, ndi: true, brawDecode: " + (BrawRuntime.LooksInstalled ? "true" : "false") + ", webgpu: true," +
+            "      sources: { decklink: true, ndi: true, srt: true, rtmp: true, webrtc: true, uvc: true, file: true, braw: " + (BrawRuntime.LooksInstalled ? "true" : "false") + ", ambo: true, switcher: true }," +
             "      cameraControl: true, mainconceptMpeg2: true" +
             "    }," +
             "    invoke: function(cmd, args) {" +
@@ -1412,7 +1414,7 @@ public sealed partial class MainWindow : Window
                         omt = true,
                         srt = true,
                         avb = true,
-                        brawDecode = true,
+                        brawDecode = BrawRuntime.Available,
                         webgpu = true,
                         nativeOmt = true,
                         nativeSrt = FfmpegLocator.SrtAvailable,
@@ -1429,13 +1431,79 @@ public sealed partial class MainWindow : Window
                             ["webrtc"] = true,
                             ["uvc"] = true,
                             ["file"] = true,
-                            ["braw"] = true,
+                            ["braw"] = BrawRuntime.Available,
                             ["ambo"] = true,
                             ["switcher"] = true
                         },
                         cameraControl = true,
                         mainconceptMpeg2 = true
                     };
+                }
+                else if (cmd.StartsWith("crossover_"))
+                {
+                    string Str(string name) => argsObj.ValueKind == JsonValueKind.Object && argsObj.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+                    switch (cmd)
+                    {
+                        case "crossover_status": result = Crossover.Status(); break;
+                        case "crossover_install_engine": result = await Crossover.InstallEngineAsync(); break;
+                        case "crossover_probe": result = await Crossover.ProbeAsync(Str("path")); break;
+                        case "crossover_cancel": result = Crossover.Cancel(Str("jobId")); break;
+                        case "crossover_convert":
+                        {
+                            var jobArgs = argsObj.TryGetProperty("args", out var ja) ? CrossoverNativeService.ArgsFrom(ja) : new List<string>();
+                            var dur = argsObj.TryGetProperty("durationSec", out var de) && de.TryGetDouble(out var dv2) ? dv2 : 0;
+                            var prev = argsObj.TryGetProperty("preview", out var pe) && pe.ValueKind == JsonValueKind.True;
+                            result = await Crossover.ConvertAsync(Str("jobId"), jobArgs, Str("outputPath"), dur, prev);
+                            break;
+                        }
+                        case "crossover_unique_path": result = new { path = CrossoverNativeService.UniquePath(Str("path")) }; break;
+                        case "crossover_temp_path": result = new { path = CrossoverNativeService.TempPath(Str("name")) }; break;
+                        case "crossover_append_base64":
+                            try
+                            {
+                                await using var appendTo = new FileStream(Str("path"), FileMode.Append, FileAccess.Write);
+                                await appendTo.WriteAsync(System.Convert.FromBase64String(Str("data")));
+                                result = new { success = true };
+                            }
+                            catch (Exception appendEx) { result = new { success = false, error = appendEx.Message }; }
+                            break;
+                        case "crossover_write_text": result = CrossoverNativeService.WriteText(Str("path"), Str("text")); break;
+                        case "crossover_read_text":
+                        {
+                            var rp = Str("path");
+                            result = File.Exists(rp) && new FileInfo(rp).Length < 256L * 1024 * 1024
+                                ? new { success = true, text = (string?)await File.ReadAllTextAsync(rp) }
+                                : new { success = false, text = (string?)null };
+                            break;
+                        }
+                        case "crossover_pick_files":
+                        {
+                            var picker = new Windows.Storage.Pickers.FileOpenPicker();
+                            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+                            picker.FileTypeFilter.Add("*");
+                            var picked = await picker.PickMultipleFilesAsync();
+                            result = new { files = picked.Select(f => { var fi = new FileInfo(f.Path); return new { name = f.Name, path = f.Path, size = fi.Exists ? fi.Length : 0 }; }).ToList() };
+                            break;
+                        }
+                        case "crossover_pick_folder":
+                        {
+                            var picker = new Windows.Storage.Pickers.FolderPicker();
+                            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+                            picker.FileTypeFilter.Add("*");
+                            var folder = await picker.PickSingleFolderAsync();
+                            result = new { path = folder?.Path };
+                            break;
+                        }
+                        case "crossover_get_braw":
+                            await LaunchExternalUriAsync(new Uri("https://www.blackmagicdesign.com/developer/products/braw/sdk-and-software"));
+                            result = new { success = true };
+                            break;
+                        case "crossover_reveal":
+                            try { System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + Str("path") + "\""); } catch { }
+                            result = new { success = true };
+                            break;
+                        default: result = new { success = false, error = "Unknown command." }; break;
+                    }
                 }
                 else if (cmd == "list_sources")
                 {

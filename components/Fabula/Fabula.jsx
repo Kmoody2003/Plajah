@@ -1,3 +1,5 @@
+import { clipsToCues, cuesToClipFields, sendTo, subscribeHandoffs } from "../../services/crossover/handoff";
+import { readCaptions } from "../../services/crossover/captions";
 import MediaRepair from './MediaRepair';
 import { reportMediaHealth } from '../../services/fabula/mediaHealth';
 import { buildEditingProxy, buildAudioProxy, buildPictureProxy } from '../../services/fabula/proxyBuilder';
@@ -139,6 +141,7 @@ import { portableProduction, portableJson, overlayLocalMedia, mergeThreeWay, rec
 // Film Production (Development → Release pipeline) lives as a page inside the editor; lazy so the
 // editor boot doesn't pay for the production suite until the tab is opened.
 const FabulaStudio = lazy(() => import("./FabulaStudio"));
+const mediaTypeOf = (name) => (/\.(mp3|wav|flac|aac|m4a|ogg|opus|aiff?)$/i.test(name) ? "audio" : /\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(name) ? "image" : "video");
 
 // Read a drag-and-drop into { path, name, file } items, recursively walking dropped FOLDERS via the
 // webkitGetAsEntry directory API (mirroring their structure into `path`). This is a picker-free way to
@@ -4268,6 +4271,51 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     updateProd((p) => { ensureSubTrack(p, sid); writeTimelineClips(p, nc); });
     setClips(nc); setSelClipId(clip.id);
   };
+  // Captions from any format become ordinary subtitle clips, editable like the rest.
+  const addCaptionClips = (cues, offsetSec = 0) => {
+    if (!cues?.length) return;
+    const sid = subTrackId();
+    const added = cuesToClipFields(cues, offsetSec).map((f) => ({ id: uid(), trackId: sid, kind: "subtitle", srcIn: 0, fx: { ...SUB_FX }, ...f }));
+    const nc = [...clips, ...added];
+    updateProd((p) => { ensureSubTrack(p, sid); writeTimelineClips(p, nc); });
+    setClips(nc);
+    ping(`Added ${added.length} captions`);
+  };
+  const importCaptionFile = async (file) => {
+    try {
+      addCaptionClips(readCaptions(file.name, await file.text()).cues, playhead);
+    } catch (e) {
+      ping(e?.message || "Couldn't read that caption file");
+    }
+  };
+  const sendCaptionsToCrossover = () => {
+    const cues = clipsToCues(clips);
+    if (!cues.length) { ping("No subtitle clips on this timeline yet"); return; }
+    sendTo("crossover", { name: `${prod?.title || "Timeline"} captions.srt`, cues });
+  };
+  // Open the selected clip's source in Crossover, to inspect or convert it.
+  const sendSelectedToCrossover = () => {
+    const clip = clips.find((c) => c.id === selClipId);
+    const asset = clip?.assetId ? prod.mediaPool.find((a) => a.id === clip.assetId) : null;
+    if (!asset?.url) { ping("Select a media clip first"); return; }
+    sendTo("crossover", { name: asset.name, url: asset.url });
+  };
+  // Media and captions sent here from Crossover, the Photos viewer and anywhere else.
+  const handoffRef = useRef(null);
+  handoffRef.current = (items) => {
+    for (const item of items) {
+      if (item.cues?.length) addCaptionClips(item.cues, item.timelineOffsetSec ?? 0);
+      const file = item.file;
+      if (file) {
+        const named = file instanceof File ? file : new File([file], item.name);
+        void ingestEntries([{ file: named }]);
+      } else if (item.url) {
+        addAssetToPool({ id: uid(), name: item.name, type: mediaTypeOf(item.name), url: item.url, duration: 5, session: true, bin: "imports" });
+        ping(`Imported ${item.name}`);
+      }
+    }
+  };
+  useEffect(() => subscribeHandoffs("fabula", (items) => handoffRef.current?.(items)), []);
   const addTitle = () => {
     const sid = subTrackId();
     const clip = { id: uid(), trackId: sid, start: playhead, duration: 3, kind: "title", text: "Title", subtitle: "", titleStyle: "modern", label: "Title", srcIn: 0, fx: { ...SUB_FX } };
@@ -7079,6 +7127,9 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                         <button className="minibtn" onClick={() => addTrack("subtitle")} title="Add a subtitle/caption track"><Captions size={10} /> + SUBS</button>
                         <button className="minibtn" onClick={addSubtitle} title="Add a subtitle clip at the playhead"><Type size={10} /> + SUBTITLE</button>
                         <button className="minibtn" onClick={addTitle} title="Add a plain title at the playhead"><Type size={10} /> + TITLE</button>
+                        <label className="minibtn" style={{ cursor: "pointer" }} title="Import SRT, VTT, SCC, MCC, TTML, ASS or SBV as subtitle clips at the playhead"><Captions size={10} /> IMPORT CAPS<input type="file" hidden accept=".srt,.vtt,.scc,.mcc,.ttml,.dfxp,.itt,.xml,.ass,.ssa,.sbv" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importCaptionFile(f); e.target.value = ""; }} /></label>
+                        <button className="minibtn" onClick={sendCaptionsToCrossover} title="Check these subtitle clips against video and export MCC, SCC or any sidecar in Crossover"><Captions size={10} /> CAPS TO CROSSOVER</button>
+                        <button className="minibtn" onClick={sendSelectedToCrossover} title="Inspect or convert the selected clip's media in Crossover"><Film size={10} /> TO CROSSOVER</button>
                         <button className="minibtn" onClick={() => setLtGallery("add")} title="Add an editable lower third or full-page shader motion graphic"><Type size={10} /> + MOTION GFX</button>
                         {/* Trim modes + snap now live in the edit toolset directly above the timeline (moved 2026-09-06). */}
                         <button className="minibtn" onClick={() => setShowShortcuts(true)} title="Keyboard shortcuts — map your own (Ctrl+Alt+K)"><Keyboard size={10} /> KEYS</button>

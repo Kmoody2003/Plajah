@@ -168,6 +168,7 @@ class MainActivity : BridgeActivity() {
         registerPlugin(PlajahSpeechPlugin::class.java)
         // PlajahLaunch: hands "Open with" files and experience-icon launches to the web layer.
         registerPlugin(PlajahLaunchPlugin::class.java)
+        registerPlugin(PlajahFilesPlugin::class.java)
         // PlajahSpeakers: "Play on" — native Google Cast discovery of speakers + multi-room
         // groups (the Web Cast SDK does not run in a WebView). Reports unsupported without GMS.
         registerPlugin(PlajahSpeakersPlugin::class.java)

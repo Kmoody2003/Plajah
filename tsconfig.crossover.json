@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true, "types": ["vite/client", "node"] },
+  "include": [
+    "services/crossover/**/*.ts", "components/CrossoverView.tsx", "components/crossover/*.tsx",
+    "labs/crossover/main.tsx", "tests/crossoverCaptions.test.ts", "tests/crossoverRecipes.test.ts", "components/HqReviewPanel.tsx", "components/ContentAssetManager.tsx"
+  ]
+}

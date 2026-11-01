@@ -18,7 +18,7 @@ export type JobStatus =
   | 'canceled';
 
 /** Where a job actually executes. */
-export type Backend = 'client' | 'server';
+export type Backend = 'client' | 'server' | 'native';
 
 export type HwAccel = 'auto' | 'none' | 'nvenc' | 'qsv' | 'amf' | 'vaapi' | 'videotoolbox';
 
@@ -32,6 +32,8 @@ export interface SourceFile {
   file?: File;
   /** Present when the source already lives at a URL (Storage / on-platform). */
   url?: string;
+  /** Full path on this PC, in the desktop app. Native jobs read the file directly. */
+  path?: string;
   probe?: MediaProbe;
 }
 
@@ -52,6 +54,29 @@ export interface MediaProbe {
   /** ffprobe reported structural / decode errors. */
   corrupt?: boolean;
   warnings: string[];
+  /** Every stream in the file, for the inspector. Only ffprobe can fill this. */
+  streams?: ProbeStream[];
+  formatName?: string;
+  tags?: Record<string, string>;
+}
+
+export interface ProbeStream {
+  index: number;
+  type: string;
+  codec: string;
+  profile?: string;
+  width?: number;
+  height?: number;
+  fps?: number;
+  pixFmt?: string;
+  colorSpace?: string;
+  fieldOrder?: string;
+  sampleRate?: number;
+  channels?: number;
+  channelLayout?: string;
+  bitrate?: number;
+  language?: string;
+  timecode?: string;
 }
 
 export type QualityMode = 'crf' | 'bitrate' | 'lossless';
@@ -72,6 +97,16 @@ export interface Recipe {
   binauralDownmix?: boolean;
   stripMetadata?: boolean;
   fixTimestamps?: boolean;
+  /** Resize; leave one blank to keep the aspect ratio. */
+  width?: number;
+  height?: number;
+  fps?: number;
+  /** prores_ks profile: 0 Proxy, 1 LT, 2 422, 3 HQ, 4 4444. */
+  proresProfile?: string;
+  /** dnxhr_lb, dnxhr_sq, dnxhr_hq, dnxhr_hqx or dnxhr_444. */
+  dnxProfile?: string;
+  /** xdcam50 sets the fixed-rate XDCAM HD422 encode. */
+  mpeg2Profile?: string;
 }
 
 export interface ConvertProgress {
@@ -79,6 +114,11 @@ export interface ConvertProgress {
   speed?: string; // "3.4x"
   etaSec?: number;
   line?: string; // raw ffmpeg log line
+  /** A picture of what is converting right now: an image URL, or a canvas being drawn to. */
+  previewUrl?: string;
+  previewCanvas?: HTMLCanvasElement;
+  /** Position in the source. */
+  outSec?: number;
 }
 
 export interface ConvertResult {
@@ -89,6 +129,8 @@ export interface ConvertResult {
   sizeBytes?: number;
   /** Present for client conversions so the app can offer a direct download. */
   blob?: Blob;
+  /** Where a native job wrote its result. */
+  outputPath?: string;
 }
 
 export interface Job {

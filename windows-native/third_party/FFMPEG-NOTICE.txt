@@ -1,0 +1,41 @@
+FFmpeg in Plajah
+================
+
+Plajah Crossover runs FFmpeg as a separate program (ffmpeg.exe and ffprobe.exe). FFmpeg is not part of
+Plajah and is not written by Plajah. It is a project of the FFmpeg developers: https://ffmpeg.org
+
+This build is a GPL build from BtbN/FFmpeg-Builds. It includes libx264, libx265 and other libraries, and as
+a whole is licensed under the GNU General Public License, version 3 or later. The full licence is in
+FFMPEG-LICENSE.txt, next to this file, and at https://www.gnu.org/licenses/gpl-3.0.html
+
+This program comes with NO WARRANTY, to the extent permitted by law.
+
+You may copy, change and share FFmpeg under the terms of that licence. Those terms cover FFmpeg only, and
+do not extend to the rest of Plajah, which is a separate work that starts FFmpeg as another program.
+
+
+Source code
+-----------
+
+The exact version in this copy is printed by "ffmpeg -version", and Crossover shows it under "About the
+engine". For example, n8.1.3-29-gad3b795b72 means FFmpeg commit ad3b795b72.
+
+  FFmpeg source:  https://github.com/FFmpeg/FFmpeg
+  Build scripts, and the libraries they compile in:  https://github.com/BtbN/FFmpeg-Builds
+
+To get the complete source for your copy from Plajah, at no charge, write to legal@plajah.com
+
+
+Pro codec pack
+--------------
+
+Where a device has no FFmpeg program, Crossover can download FFmpeg compiled to WebAssembly, from
+https://github.com/ffmpegwasm/ffmpeg.wasm. It is under the GNU General Public License too, and is fetched
+directly by your device from https://cdn.jsdelivr.net
+
+
+Patents
+-------
+
+Some formats, including H.264, HEVC and Dolby audio, may be covered by patents in some countries. This
+licence does not grant any patent rights in those formats.

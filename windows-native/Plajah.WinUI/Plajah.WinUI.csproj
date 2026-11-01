@@ -95,6 +95,21 @@
       <Link>ffmpeg\ffmpeg.exe</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="..\third_party\ffmpeg\win-x64\ffprobe.exe" Condition="Exists('..\third_party\ffmpeg\win-x64\ffprobe.exe')">
+      <Link>ffmpeg\ffprobe.exe</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\third_party\ffmpeg\win-x64\FFMPEG-LICENSE.txt" Condition="Exists('..\third_party\ffmpeg\win-x64\FFMPEG-LICENSE.txt')">
+      <Link>ffmpeg\FFMPEG-LICENSE.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\third_party\FFMPEG-NOTICE.txt">
+      <Link>ffmpeg\FFMPEG-NOTICE.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup Condition="Exists('..\..\dist')">
