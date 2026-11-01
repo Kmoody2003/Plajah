@@ -357,13 +357,13 @@ export async function fsList(
  *  filters are AND-ed. Returns id + data, max `limit` docs. */
 export async function fsQuery(
   collection: string,
-  filters: { field: string; value: string | number | boolean }[],
+  filters: { field: string; value: string | number | boolean; op?: 'EQUAL' | 'ARRAY_CONTAINS' }[],
   limit = 50,
 ): Promise<Array<{ id: string; data: Record<string, any> }>> {
-  const fieldFilter = (f: { field: string; value: string | number | boolean }) => ({
+  const fieldFilter = (f: { field: string; value: string | number | boolean; op?: 'EQUAL' | 'ARRAY_CONTAINS' }) => ({
     fieldFilter: {
       field: { fieldPath: f.field },
-      op: 'EQUAL',
+      op: f.op || 'EQUAL',
       value: typeof f.value === 'string' ? { stringValue: f.value } : typeof f.value === 'boolean' ? { booleanValue: f.value } : Number.isInteger(f.value) ? { integerValue: String(f.value) } : { doubleValue: f.value },
     },
   });

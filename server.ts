@@ -53,7 +53,8 @@ import { createAdminPublishAsRouter } from './routes/adminPublishAs';
 import { learnerAuthRouter } from './routes/learnerAuth';
 import { schoolsRouter } from './routes/schools';
 import { elevateAccountsRouter } from './routes/elevateAccounts';
-import { elevateAccessRouter, canOpenLockedAsset } from './routes/elevateAccess';
+import { elevateAccessRouter } from './routes/elevateAccess';
+import { canSeeOrgFile, hqObjectPathInScope } from './services/hqAccessPolicy';
 import { elevateInvitesRouter } from './routes/elevateInvites';
 import { templateShareRouter } from './routes/templateShare';
 import { curriculumFetchRouter } from './routes/curriculumFetch';
@@ -4108,12 +4109,16 @@ async function startServer() {
     if (asset.scopeKind === 'user') return asset.scopeId === uid;
     if (asset.scopeKind !== 'org') return false;
     const org = await firestoreRead('organizations', String(asset.scopeId));
-    if ((asset.access || 'open') !== 'open') return canOpenLockedAsset(uid, asset, org);
-    if (org && (org.creatorId === uid || (org.admins || []).includes(uid))) return true;
     const memberships = await queryFirebase('orgMemberships', [
       { field: 'orgId', value: String(asset.scopeId) }, { field: 'userId', value: uid },
     ], 5);
-    return memberships.some((m: any) => m.status === 'ACTIVE');
+    return canSeeOrgFile(uid, asset, org, memberships.find((m: any) => m.status === 'ACTIVE') || null);
+  }
+
+  /** Streams a file's object, refusing any record that names an object outside its own owner's space. */
+  function streamHqAsset(req: any, res: any, asset: any, source: any) {
+    if (!hqObjectPathInScope(asset, source?.storagePath)) return res.status(403).json({ error: 'Forbidden' });
+    return streamHqObject(req, res, source.storagePath, source.name || asset?.name, source.mimeType || asset?.mimeType);
   }
 
   // ── Content HQ storage-cap enforcement (server-authoritative) ──────────────
@@ -4272,7 +4277,8 @@ async function startServer() {
   // Is an asset barred from streaming? PENDING or QUARANTINED are gated; a MISSING
   // scanStatus is a legacy (pre-Wave-3) asset, grandfathered as CLEAN.
   function hqScanBlocked(asset: any): boolean {
-    return asset?.scanStatus === 'PENDING' || asset?.scanStatus === 'QUARANTINED';
+    // Only the server's scan stamps scannedAt, so a record claiming CLEAN without it was never scanned.
+    return asset?.scanStatus === 'PENDING' || asset?.scanStatus === 'QUARANTINED' || (asset?.scanStatus === 'CLEAN' && !asset?.scannedAt);
   }
   function hqScanMessage(asset: any): string {
     if (asset?.scanStatus === 'QUARANTINED') return asset.scanReason || 'This file was quarantined by a security scan and cannot be opened.';
@@ -4293,6 +4299,7 @@ async function startServer() {
     const source = asset.currentVersionId ? await firestoreRead('hqAssetVersions', String(asset.currentVersionId)) || asset : asset;
     const objectPath = source.storagePath || asset.storagePath;
     if (!objectPath) return res.status(404).json({ error: 'No stored object to scan' });
+    if (!hqObjectPathInScope(asset, objectPath)) return res.status(403).json({ error: 'Forbidden' });
 
     const obj = await fetchHqObjectHead(String(objectPath));
     if (!obj.ok) {
@@ -4312,12 +4319,52 @@ async function startServer() {
       actorUid: '', actorName: 'Plajah security', actorKind: 'SYSTEM',
       action: verdict.clean ? 'SCANNED' : 'QUARANTINED', createdAt: Date.now(),
     });
+    // Security stays silent until there is something to act on. A blocked file is, so its uploader hears about it.
+    if (!verdict.clean && asset.uploadedByUid && asset.scanStatus !== 'QUARANTINED') {
+      await firestoreCreate('notifications', {
+        userId: String(asset.uploadedByUid), senderId: '', senderName: 'Plajah security', type: 'CONTENT', title: 'File blocked',
+        message: `${asset.name} was blocked by a security scan. ${verdict.reason || ''}`.trim(), targetId: assetId, link: `content-hq:${assetId}`,
+        isRead: false, timestamp: Date.now(),
+      }).catch(() => {});
+    }
     return res.json({ scanStatus, ...(verdict.reason ? { scanReason: verdict.reason } : {}), detectedMime: verdict.detectedMime || null });
   }
 
+  // A player can't send an Authorization header, so an authorized viewer gets a short signed link to
+  // sound or video. Access and the scan are checked again on every request, so revoking still works.
+  const hqStreamSecret = () => process.env.HQ_STREAM_SECRET || process.env.ADMIN_SEED_KEY || process.env.CRON_SECRET || '';
+  const signHqStream = (assetId: string, uid: string, exp: string) =>
+    nodeCrypto.createHmac('sha256', hqStreamSecret()).update(`${assetId}|${uid}|${exp}`).digest('hex');
+
+  app.post('/api/hq/assets/:assetId/stream-ticket', apiLimiter, authMiddleware, async (req: any, res: any) => {
+    const assetId = String(req.params.assetId);
+    const asset = await firestoreRead('orgAssets', assetId);
+    if (!await canAccessHqAsset(req.uid, asset)) return res.status(403).json({ error: 'Forbidden' });
+    if (hqScanBlocked(asset)) return res.status(409).json({ error: hqScanMessage(asset), code: `SCAN_${asset.scanStatus}` });
+    if (asset.kind !== 'video' && asset.kind !== 'audio') return res.status(400).json({ error: 'Only sound and video stream.' });
+    if (!hqStreamSecret()) return res.status(503).json({ error: 'Streaming is not configured.' });
+    const exp = String(Date.now() + 60 * 60 * 1000);
+    return res.json({ url: `/api/hq/stream/${encodeURIComponent(assetId)}/${encodeURIComponent(req.uid)}/${exp}/${signHqStream(assetId, req.uid, exp)}` });
+  });
+
+  app.get('/api/hq/stream/:assetId/:uid/:exp/:sig', apiLimiter, async (req: any, res: any) => {
+    const { assetId, uid, exp, sig } = req.params;
+    if (!hqStreamSecret() || !(Number(exp) > Date.now()) || !secretsEqual(sig, signHqStream(assetId, uid, exp))) return res.status(403).json({ error: 'Forbidden' });
+    const asset = await firestoreRead('orgAssets', String(assetId));
+    if (!await canAccessHqAsset(String(uid), asset)) return res.status(403).json({ error: 'Forbidden' });
+    if (hqScanBlocked(asset)) return res.status(409).json({ error: hqScanMessage(asset), code: `SCAN_${asset.scanStatus}` });
+    const source = asset?.currentVersionId ? await firestoreRead('hqAssetVersions', String(asset.currentVersionId)) || asset : asset;
+    if (!source?.storagePath) return res.status(404).json({ error: 'Asset not found' });
+    return streamHqAsset(req, res, asset, source);
+  });
+
   app.get('/api/hq/assets/:assetId/download', apiLimiter, authMiddleware, async (req: any, res: any) => {
     const asset = await firestoreRead('orgAssets', String(req.params.assetId));
-    if (!await canAccessHqAsset(req.uid, asset)) return res.status(403).json({ error: 'Forbidden' });
+    if (!await canAccessHqAsset(req.uid, asset)) {
+      // Kept in the durable audit log for an owner or IT Admin to review. The person only sees "Forbidden".
+      if (asset) firestoreCreate('hqAuditLog', { kind: 'ACCESS_DENIED', assetId: String(req.params.assetId), scopeKind: String(asset.scopeKind || ''), scopeId: String(asset.scopeId || ''), actorUid: req.uid, createdAt: Date.now() }).catch(() => {});
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     // Quarantine gate: never stream bytes for a PENDING/QUARANTINED asset.
     if (hqScanBlocked(asset)) return res.status(409).json({ error: hqScanMessage(asset), code: `SCAN_${asset.scanStatus}` });
     let source: any = asset;
@@ -4335,7 +4382,7 @@ async function startServer() {
       firestoreCreate('hqActivity', { assetId: String(req.params.assetId), scopeKind: asset.scopeKind, scopeId: asset.scopeId,
         actorUid: req.uid, actorName: '', action: 'DOWNLOADED', createdAt: Date.now() }).catch(() => {});
     }
-    return streamHqObject(req, res, source.storagePath, source.name || asset?.name, source.mimeType || asset?.mimeType);
+    return streamHqAsset(req, res, asset, source);
   });
 
   // Stage Announcements inbox (services/ambo/stageInbox.ts): the operator's Stage pulls each
@@ -4406,6 +4453,7 @@ async function startServer() {
     const assetId = String(req.params.assetId);
     const asset = await firestoreRead('orgAssets', assetId);
     if (!asset || asset.uploadedByUid !== req.uid) return res.status(404).json({ error: 'Upload not found' });
+    if (!hqObjectPathInScope(asset, asset.storagePath)) return res.status(403).json({ error: 'Forbidden' });
     const obj = await fetchHqObjectHead(String(asset.storagePath));
     if (obj.ok && obj.size) await firestoreWrite('orgAssets', assetId, { sizeBytes: Number(obj.size) });
     return scanHqAsset(res, assetId, asset);
@@ -4433,7 +4481,7 @@ async function startServer() {
     // A copy can only point at its own uploader's file, so a member can't pull someone else's asset by id.
     if (asset.uploadedByUid !== copy.uploadedByUid) return res.status(403).json({ error: 'Forbidden' });
     if (hqScanBlocked(asset)) return res.status(409).json({ error: hqScanMessage(asset), code: `SCAN_${asset.scanStatus}` });
-    return streamHqObject(req, res, String(asset.storagePath), String(asset.name || 'file'), String(asset.mimeType || 'application/octet-stream'));
+    return streamHqAsset(req, res, asset, asset);
   });
 
   // Server-authoritative storage-cap check the client MUST pass before an HQ upload. Computes the
@@ -4494,7 +4542,7 @@ async function startServer() {
     if (hqScanBlocked(asset)) return res.status(409).json({ error: hqScanMessage(asset), code: `SCAN_${asset.scanStatus}` });
     if (!asset?.storagePath) return res.status(404).json({ error: 'Asset not found' });
     const source = asset.currentVersionId ? await firestoreRead('hqAssetVersions', String(asset.currentVersionId)) || asset : asset;
-    return streamHqObject(req, res, source.storagePath, source.name || asset.name, source.mimeType || asset.mimeType);
+    return streamHqAsset(req, res, asset, source);
   });
 
   // Review context for the account-free reviewer page (no protected path leaked).
@@ -4630,8 +4678,9 @@ async function startServer() {
         // Storage objects: the asset original + every version's object.
         const versions = await fsQueryDocs('hqAssetVersions', [{ field: 'assetId', op: 'EQUAL', value: id }], 500);
         const objectPaths = new Set<string>();
-        if (data.storagePath) objectPaths.add(String(data.storagePath));
-        for (const v of versions) if (v.data.storagePath) objectPaths.add(String(v.data.storagePath));
+        // Never delete an object outside this file's own space, whatever its record claims.
+        if (hqObjectPathInScope(data, data.storagePath)) objectPaths.add(String(data.storagePath));
+        for (const v of versions) if (hqObjectPathInScope(data, v.data.storagePath)) objectPaths.add(String(v.data.storagePath));
         for (const p of objectPaths) { if (await deleteHqStorageObject(p)) summary.purgedObjects++; }
         // Firestore docs across every associated collection.
         for (const coll of CHILD_COLLECTIONS) {

@@ -77,6 +77,23 @@ export function useActiveIdentity(): ActiveIdentityContextType {
   return ctx;
 }
 
+/**
+ * Opening an org's files puts you in that org's account; opening your own puts you back in yours,
+ * so what you do next is filed in the right place. Null means your personal account.
+ */
+export function useIdentityFollowsScope(orgId: string | null): void {
+  const ctx = useContext(ActiveIdentityContext);
+  const myOrgs = ctx?.myOrgs;
+  const activeOrgId = ctx?.activeOrg?.id ?? null;
+  const setActiveOrg = ctx?.setActiveOrg;
+  useEffect(() => {
+    if (!setActiveOrg || activeOrgId === orgId) return;
+    if (!orgId) { setActiveOrg(null); return; }
+    const org = myOrgs?.find(o => o.id === orgId);
+    if (org) setActiveOrg(org);
+  }, [orgId, activeOrgId, myOrgs, setActiveOrg]);
+}
+
 /** "Work" rows for the businesses you staff: one tap opens that business's dashboard in Staff view. */
 export const WorkplacesMenuSection: React.FC<{ onPicked?: () => void; className?: string }> = ({ onPicked, className = '' }) => {
   const ctx = useContext(ActiveIdentityContext);

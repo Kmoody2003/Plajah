@@ -8,12 +8,12 @@ import { auth } from '../services/firebase';
 import HqTemplatesTab from './templates/HqTemplatesTab';
 import ContentAssetManager from './ContentAssetManager';
 import { Album } from '../types';
+import { useIdentityFollowsScope } from '../contexts/ActiveIdentityContext';
 import {
-  listHqAssets, addHqAsset, deleteHqAsset, humanFileSize,
+  listHqAssets, listHqAssetsDetailed, listHqSharedWithMe, addHqAsset, deleteHqAsset, humanFileSize,
   getOrgDepartmentFolders, getOrgEducationFolderName, isOrgEducationFolderName,
   TEACHER_DOCUMENT_CLASS_FOLDERS, resolveDocumentClassFolder, isStandaloneTeacherScopeId,
-  GREAT_FAITH_MINISTRIES_NAME, GREAT_FAITH_MINISTRIES_DEFAULT_ID,
-  type OrgAsset, type OwnerScope,
+  type HqListStatus, type OrgAsset, type OwnerScope,
 } from '../services/orgAssets';
 import { ensureAllDetectedLinksOnboarded, listIngestedUnits, type IngestedCurriculumUnit } from '../services/curriculumIngestionService';
 import { restoreHqAsset, trashHqAsset } from '../services/hqCollaboration';
@@ -46,6 +46,7 @@ interface Props {
 
 const ORANGE = '#FF8C00';
 const TEAL = '#34e0d0';
+const SHARED_WITH_ME = '__shared_with_me__';
 
 // Deep-link bridge: a `content-hq:<assetId>` notification (see hqCollaboration.requestHqReview)
 // navigates to the right Content HQ surface, then calls openHqAsset() to focus that asset's
@@ -68,6 +69,8 @@ function assetIcon(kind: OrgAsset['kind'], cls = 'w-5 h-5') {
 const ContentHQ: React.FC<Props> = ({ scope, canEdit, canViewAnswerKey, mediaOwnerUid, onEditAlbum, onClose }) => {
   const [tab, setTab] = useState<'FILES' | 'MEDIA' | 'TEMPLATES'>('FILES');
   const allowAnswerKeys = canViewAnswerKey ?? canEdit;
+  // That tab is one person's own library, drafts and private items included. It never appears in an org's HQ.
+  const showPersonalMedia = scope.kind === 'user' && mediaOwnerUid === auth.currentUser?.uid;
 
   return (
     <div className="flex flex-col h-full min-h-0 text-white">
@@ -80,7 +83,7 @@ const ContentHQ: React.FC<Props> = ({ scope, canEdit, canViewAnswerKey, mediaOwn
         </div>
         <div>
           <div className="text-lg font-black tracking-tight leading-none">Content HQ</div>
-          <div className="text-[11px] text-white/40 mt-0.5">{scope.label || (scope.kind === 'org' ? GREAT_FAITH_MINISTRIES_NAME : 'Account')} · private</div>
+          <div className="text-[11px] text-white/40 mt-0.5">{scope.label || (scope.kind === 'org' ? 'Organization' : 'My account')} · private</div>
         </div>
         {!canEdit && <span className="ml-2 flex items-center gap-1 text-[10px] text-white/40"><Lock className="w-3 h-3" /> Read-only</span>}
         <div className="ml-auto flex gap-1.5 flex-wrap justify-end">
@@ -92,7 +95,7 @@ const ContentHQ: React.FC<Props> = ({ scope, canEdit, canViewAnswerKey, mediaOwn
           >
             <BookOpen className="w-3.5 h-3.5" /> Lesson Library
           </button>
-          {([['FILES', 'Files & Docs', FolderOpen], ['MEDIA', 'Media Library', Library], ['TEMPLATES', 'Templates', LayoutTemplate]] as const).map(([id, label, Icon]) => (
+          {([['FILES', 'Files & Docs', FolderOpen], ...(showPersonalMedia ? [['MEDIA', 'Media Library', Library]] as const : []), ['TEMPLATES', 'Templates', LayoutTemplate]] as const).map(([id, label, Icon]) => (
             <button key={id} onClick={() => setTab(id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-colors ${
                 tab === id ? 'bg-white text-black' : 'bg-white/5 text-white/50 hover:text-white'
@@ -108,7 +111,7 @@ const ContentHQ: React.FC<Props> = ({ scope, canEdit, canViewAnswerKey, mediaOwn
           ? <HqFilesTab scope={scope} canEdit={canEdit} canViewAnswerKey={allowAnswerKeys} />
           : tab === 'TEMPLATES'
             ? <HqTemplatesTab scope={{ kind: scope.kind === 'org' && !isStandaloneTeacherScopeId(scope.id) ? 'org' : 'user', id: scope.id, label: scope.label }} canEdit={canEdit} viewer={{ uid: auth.currentUser?.uid || 'local', name: auth.currentUser?.displayName || 'You' }} />
-            : <ContentAssetManager uid={mediaOwnerUid} onEditAlbum={onEditAlbum || (() => {})} />}
+            : showPersonalMedia ? <ContentAssetManager uid={mediaOwnerUid} onEditAlbum={onEditAlbum || (() => {})} /> : null}
       </div>
     </div>
   );
@@ -123,7 +126,9 @@ export const HqFilesTab: React.FC<{
 }> = ({ scope, canEdit, canViewAnswerKey, defaultFolder }) => {
   const allowAnswerKeyAccess = canViewAnswerKey ?? canEdit;
   const isUserScope = scope.kind === 'user' || isStandaloneTeacherScopeId(scope.id);
-  const resolvedOrgName = scope.label || GREAT_FAITH_MINISTRIES_NAME;
+  const isTeacherScope = isStandaloneTeacherScopeId(scope.id);
+  useIdentityFollowsScope(isUserScope ? null : scope.id);
+  const resolvedOrgName = scope.label || (isUserScope ? 'My files' : 'Organization');
   const orgEducationFolderName = getOrgEducationFolderName(resolvedOrgName);
 
   const normalizedInitialFolder = useMemo(() => {
@@ -150,6 +155,9 @@ export const HqFilesTab: React.FC<{
   const [entitlements, setEntitlements] = useState<ContentHqEntitlements>(() =>
     resolveContentHqEntitlements(scope.kind === 'org' ? { organization: { id: scope.id } as any } : {}));
   const [notice, setNotice] = useState('');
+  const [listStatus, setListStatus] = useState<HqListStatus>('ok');
+  const [sharedWithMe, setSharedWithMe] = useState<OrgAsset[]>([]);
+  const viewingShared = folder === SHARED_WITH_ME;
   const fileInput = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -163,8 +171,11 @@ export const HqFilesTab: React.FC<{
           resolvedOrgName
         ).catch(() => {});
       }
-      setAssets(await listHqAssets(scope));
-    } catch { /* rules / offline */ }
+      const { assets: rows, status } = await listHqAssetsDetailed(scope);
+      setAssets(rows);
+      setListStatus(status);
+      if (isUserScope) setSharedWithMe(await listHqSharedWithMe());
+    } catch { setListStatus('offline'); }
     setLoading(false);
   };
   const loadTrash = async () => {
@@ -186,11 +197,15 @@ export const HqFilesTab: React.FC<{
     if (pendingHqAssetId) { setPendingId(pendingHqAssetId); pendingHqAssetId = null; }
     return () => window.removeEventListener('plajah:openHqAsset', onOpen);
   }, []);
+  // Keep the open panel on the latest copy, so a finished scan or a new status shows without reopening.
+  useEffect(() => {
+    setDetail(d => (d ? [...assets, ...sharedWithMe].find(a => a.id === d.id) || d : d));
+  }, [assets, sharedWithMe]);
   useEffect(() => {
     if (!pendingId) return;
-    const found = assets.find(a => a.id === pendingId);
+    const found = [...assets, ...sharedWithMe].find(a => a.id === pendingId);
     if (found) { setShowTrash(false); setDetail(found); setPendingId(null); }
-  }, [pendingId, assets]);
+  }, [pendingId, assets, sharedWithMe]);
   useEffect(() => {
     if (scope.kind === 'org') {
       const next = resolveContentHqEntitlements({ organization: { id: scope.id } as any });
@@ -202,11 +217,10 @@ export const HqFilesTab: React.FC<{
     }).catch(() => setProEnabled(false));
   }, [scope.kind, scope.id]);
 
-  // Folder scopes:
-  // - For standalone teachers (`isUserScope`): the 5 Document Class Folders (`Lessons & Course Resources`, `Assignments & Worksheets`, `Quizzes & Assessments`, `Syllabi & Master Source Docs`, `Answer Keys & Rubrics`)
-  // - For organizations (`!isUserScope`): `<Organization Name> Education` + organization departments
+  // A teacher's library is filed by document class, an org's by its own departments.
+  // A personal account starts with no folders at all.
   const departmentFolders = useMemo(() => {
-    if (isUserScope) {
+    if (isTeacherScope) {
       return TEACHER_DOCUMENT_CLASS_FOLDERS
         .filter((f) => allowAnswerKeyAccess || !f.isAnswerKeyFolder)
         .map((f) => ({
@@ -216,8 +230,9 @@ export const HqFilesTab: React.FC<{
           isChristianEd: true,
         }));
     }
-    return getOrgDepartmentFolders(undefined, resolvedOrgName);
-  }, [isUserScope, allowAnswerKeyAccess, resolvedOrgName]);
+    if (scope.kind !== 'org') return [];
+    return getOrgDepartmentFolders(scope.departments, scope.label);
+  }, [isTeacherScope, allowAnswerKeyAccess, scope]);
 
   const folders = useMemo(() => {
     const set = new Set<string>();
@@ -229,6 +244,16 @@ export const HqFilesTab: React.FC<{
     ];
     return ['ALL', ...ordered];
   }, [assets, departmentFolders]);
+
+  // Its department folders, then any other folder its files are in.
+  const folderChips = useMemo(() => [
+    ...departmentFolders,
+    ...folders
+      .filter((f) => f !== 'ALL' && !departmentFolders.some((d) => d.folderName === f))
+      .map((f) => ({ id: f, folderName: f, iconEmoji: '📁', isChristianEd: false })),
+  ], [departmentFolders, folders]);
+  const folderLabel = (f: string) => (f === SHARED_WITH_ME ? 'Shared with me' : f);
+  const hasEducationDocs = useMemo(() => assets.some((a) => a.assetVariant), [assets]);
 
   const visibleAssets = useMemo(
     () => (allowAnswerKeyAccess ? assets : assets.filter((a) => a.assetVariant !== 'ANSWER_KEY' && a.folder !== 'Answer Keys & Rubrics')),
@@ -260,7 +285,8 @@ export const HqFilesTab: React.FC<{
     return counts;
   }, [visibleAssets, folder]);
 
-  const shown = useMemo(() => visibleAssets.filter((a) => {
+  const shown = useMemo(() => (viewingShared ? sharedWithMe : visibleAssets).filter((a) => {
+    if (viewingShared) return !search || a.name.toLowerCase().includes(search.toLowerCase());
     const matchesFolder = folder === 'ALL' || a.folder === folder;
     if (!matchesFolder) return false;
     if (!isUserScope && docClassFilter !== 'ALL') {
@@ -275,7 +301,7 @@ export const HqFilesTab: React.FC<{
     if (variantFilter !== 'ALL' && a.assetVariant !== variantFilter) return false;
     if (search && !a.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
-  }), [visibleAssets, folder, isUserScope, docClassFilter, variantFilter, search]);
+  }), [viewingShared, sharedWithMe, visibleAssets, folder, isUserScope, docClassFilter, variantFilter, search]);
 
   // The library lesson an asset belongs to (its Original, Tela document or key), for "Assign to class".
   const lessonUnits = useMemo(() => listIngestedUnits(scope.id, undefined, scope.label), [scope.id, scope.label, assets]);
@@ -326,55 +352,45 @@ export const HqFilesTab: React.FC<{
     }
     setNotice('');
     setUploading(files.map((f) => ({ name: f.name, pct: 0 })));
+    const failed: string[] = [];
+    let capMessage = '';
     for (const f of files) {
       const targetFolder =
         folder !== 'ALL'
           ? folder
-          : isUserScope
+          : isTeacherScope
             ? resolveDocumentClassFolder({ unitTitle: f.name })
-            : orgEducationFolderName;
+            : undefined;
       try {
         await addHqAsset(scope, f, targetFolder, (pct) =>
           setUploading((prev) => prev.map((u) => (u.name === f.name ? { ...u, pct } : u))));
       } catch (e: any) {
+        failed.push(f.name);
         setUploading((prev) => prev.map((u) => (u.name === f.name ? { ...u, pct: -1 } : u)));
         if (String(e?.message || '').startsWith('STORAGE_CAP_EXCEEDED')) {
           const cap = String(e.message).split(':')[1] || `${entitlements.storageLimitGb} GB`;
-          setNotice(`Upload rejected — your Content HQ storage allowance (${cap}) is full.`);
+          capMessage = `Upload rejected: your Content HQ storage allowance (${cap}) is full.`;
         }
       }
     }
     setUploading([]);
+    if (capMessage) setNotice(capMessage);
+    else if (failed.length) setNotice(`Couldn't upload ${failed.join(', ')}. Nothing was saved for ${failed.length === 1 ? 'that file' : 'those files'}, so please try again.`);
     load();
   }
 
   return (
     <div className="h-full min-h-0 flex flex-col">
-      {/* Folder Scope Bar:
-          - Standalone Teachers (`isUserScope`): Folders for each Document Class (Lessons & Course Resources, Assignments & Worksheets, Quizzes & Assessments, Syllabi & Master Source Docs, Answer Keys & Rubrics)
-          - Organizations (`!isUserScope`): `<Organization Name> Education` + Organization Departments */}
-      {departmentFolders.length > 0 && (
+      {(folderChips.length > 0 || hasEducationDocs || sharedWithMe.length > 0) && (
         <div className="mb-3 p-3 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2.5">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#FF8C00]">
-                {isUserScope
-                  ? `${resolvedOrgName} · Document Class Folders`
-                  : `${resolvedOrgName} · Department Folder Scopes`}
-              </span>
-              <span className="text-[10px] text-white/40">
-                {isUserScope
-                  ? 'Every uploaded or extracted lesson, assignment, quiz, syllabus, or answer key is organized into its document class folder'
-                  : `Select a department folder scope (e.g. ${orgEducationFolderName}) to manage Original Source, Interactive Tela & Answer Keys`}
-              </span>
-            </div>
+          {hasEducationDocs && (
             <div className="flex items-center gap-1 flex-wrap">
               {(
                 [
-                  ['ALL', 'All Variants'],
+                  ['ALL', 'All'],
                   ['ORIGINAL_SOURCE', 'Original Docs'],
                   ['TELA_DOCUMENT', 'Tela Documents'],
-                  ...(allowAnswerKeyAccess ? ([['ANSWER_KEY', 'Answer Keys (Teachers & Admins)']] as const) : []),
+                  ...(allowAnswerKeyAccess ? ([['ANSWER_KEY', 'Answer Keys']] as const) : []),
                 ] as const
               ).map(([vId, vLabel]) => (
                 <button
@@ -390,8 +406,8 @@ export const HqFilesTab: React.FC<{
                 </button>
               ))}
             </div>
-          </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-1">
+          )}
+          {(folderChips.length > 0 || sharedWithMe.length > 0) && <div className="flex gap-1.5 overflow-x-auto pb-1">
             <button
               onClick={() => {
                 setFolder('ALL');
@@ -403,15 +419,28 @@ export const HqFilesTab: React.FC<{
                   : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10'
               }`}
             >
-              <span>{isUserScope ? 'All Document Classes' : 'All Departments'}</span>
+              <span>All files</span>
               <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-black/20">
                 {folderCounts.ALL || 0}
               </span>
             </button>
-            {departmentFolders.map((dept) => {
+            {sharedWithMe.length > 0 && (
+              <button
+                onClick={() => setFolder(SHARED_WITH_ME)}
+                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors border ${
+                  viewingShared
+                    ? 'bg-white/20 text-white border-white/30'
+                    : 'bg-white/5 text-white/55 border-transparent hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <span>🤝</span>
+                <span>Shared with me</span>
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-black/30 text-white font-black">{sharedWithMe.length}</span>
+              </button>
+            )}
+            {folderChips.map((dept) => {
               const count = folderCounts[dept.folderName] || 0;
               const active = folder === dept.folderName;
-              const isEducationFolder = dept.isChristianEd || dept.folderName === orgEducationFolderName;
               return (
                 <button
                   key={dept.id}
@@ -421,11 +450,7 @@ export const HqFilesTab: React.FC<{
                   }}
                   className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors border ${
                     active
-                      ? isEducationFolder
-                        ? 'bg-emerald-500/25 text-emerald-200 border-emerald-400/50'
-                        : 'bg-white/20 text-white border-white/30'
-                      : isEducationFolder
-                      ? 'bg-emerald-500/10 text-emerald-300/90 border-emerald-500/25 hover:bg-emerald-500/20'
+                      ? 'bg-white/20 text-white border-white/30'
                       : 'bg-white/5 text-white/55 border-transparent hover:text-white hover:bg-white/10'
                   }`}
                 >
@@ -437,14 +462,10 @@ export const HqFilesTab: React.FC<{
                 </button>
               );
             })}
-          </div>
+          </div>}
 
-          {/* Document Class Sub-Folders inside `<Organization Name> Education` */}
-          {!isUserScope && (folder === 'ALL' || folder === orgEducationFolderName) && (
+          {!isUserScope && folder === orgEducationFolderName && (
             <div className="pt-2 border-t border-white/10 flex items-center gap-1.5 overflow-x-auto">
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300 shrink-0 mr-1">
-                {orgEducationFolderName} · Document Classes:
-              </span>
               <button
                 type="button"
                 onClick={() => setDocClassFilter('ALL')}
@@ -454,7 +475,7 @@ export const HqFilesTab: React.FC<{
                     : 'bg-white/5 text-white/60 hover:text-white'
                 }`}
               >
-                All Classes ({docClassCounts.ALL || 0})
+                All ({docClassCounts.ALL || 0})
               </button>
               {TEACHER_DOCUMENT_CLASS_FOLDERS.filter(
                 (f) => allowAnswerKeyAccess || !f.isAnswerKeyFolder
@@ -483,13 +504,13 @@ export const HqFilesTab: React.FC<{
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 flex-1 min-w-[180px]">
           <Search className="w-4 h-4 text-white/40" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={folder === 'ALL' ? (isUserScope ? 'Search across all document class folders...' : 'Search files across all departments...') : `Search files in ${folder}...`}
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={folder === 'ALL' ? 'Search by file name...' : `Search file names in ${folderLabel(folder)}...`}
             className="bg-transparent text-sm outline-none flex-1 text-white placeholder:text-white/30" />
         </div>
-        {canEdit && (
+        {canEdit && !viewingShared && (
           <button onClick={() => fileInput.current?.click()}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FF8C00] text-black text-xs font-black uppercase tracking-widest">
-            <Upload className="w-4 h-4" /> Upload{folder !== 'ALL' ? ` to ${folder}` : ''}
+            <Upload className="w-4 h-4" /> Upload{folder !== 'ALL' ? ` to ${folderLabel(folder)}` : ''}
           </button>
         )}
         <button onClick={() => { const next = !showTrash; setShowTrash(next); if (next) loadTrash(); }}
@@ -501,14 +522,18 @@ export const HqFilesTab: React.FC<{
         <input ref={fileInput} type="file" multiple className="hidden"
           onChange={(e) => { onFiles(e.target.files); e.currentTarget.value = ''; }} />
       </div>
-      <div className="flex items-center justify-between text-[10px] text-white/35 mb-3 px-1">
-        <span>
-          {isUserScope
-            ? `${resolvedOrgName} · Active Document Class Folder: ${folder === 'ALL' ? 'All Document Classes' : folder}`
-            : `${resolvedOrgName} · Active Folder Scope: ${folder === 'ALL' ? 'All Departments' : folder}`}
-        </span>
+      <div className="flex items-center justify-end text-[10px] text-white/35 mb-3 px-1">
         <span>{humanFileSize(assets.reduce((n, a) => n + Number(a.sizeBytes || 0), 0))} / {entitlements.storageLimitGb} GB</span>
       </div>
+      {listStatus === 'offline' && (
+        <div className="mb-3 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 flex items-center gap-3">
+          <span className="flex-1">Couldn't reach Content HQ, so this may be out of date. Showing what this device last saved for you.</span>
+          <button onClick={load} className="font-black uppercase tracking-widest text-[10px]">Retry</button>
+        </div>
+      )}
+      {listStatus === 'denied' && (
+        <div className="mb-3 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-200">You don't have access to these files.</div>
+      )}
       {notice && <div className="mb-3 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200">{notice}</div>}
 
       {/* upload progress */}
@@ -564,9 +589,7 @@ export const HqFilesTab: React.FC<{
         ) : shown.length === 0 ? (
           <div className="grid place-items-center h-48 text-center text-white/30 text-sm px-8">
             {canEdit
-              ? isUserScope
-                ? `No files in ${folder === 'ALL' ? 'your Teacher Content HQ' : `"${folder}"`} yet. Upload or extract lessons, assignments, quizzes, syllabi, or answer keys from links/PDFs in Teacher Tools to automatically populate your Document Class folders.`
-                : `No files in ${folder === 'ALL' ? 'this organization' : folder} yet. Upload brand specs, documents, or ingest ${orgEducationFolderName} curriculum to automatically populate both Original & Tela Document versions.`
+              ? `No files${folder === 'ALL' ? '' : ` in ${folder}`} yet. Upload to get started.`
               : 'No files.'}
           </div>
         ) : (
@@ -632,7 +655,7 @@ export const HqFilesTab: React.FC<{
 
                   {/* Action bar for Tela Document Preview + Source Link + Trash */}
                   <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between gap-1.5">
-                    {canEdit && lessonFor(a) && (lessonFor(a)!.questions.length > 0 || isUserScope) && (
+                    {canEdit && !viewingShared && lessonFor(a) && (lessonFor(a)!.questions.length > 0 || isUserScope) && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -647,7 +670,7 @@ export const HqFilesTab: React.FC<{
                       </button>
                     )}
                     {/* Anything else — a syllabus, handout, photo, video, file — goes to a class without becoming a lesson. */}
-                    {canEdit && !isUserScope && !(lessonFor(a) && lessonFor(a)!.questions.length > 0) && a.assetVariant !== 'ANSWER_KEY' && (
+                    {canEdit && !viewingShared && !isUserScope && !(lessonFor(a) && lessonFor(a)!.questions.length > 0) && a.assetVariant !== 'ANSWER_KEY' && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -684,7 +707,7 @@ export const HqFilesTab: React.FC<{
                         <ExternalLink className="w-3.5 h-3.5" />
                       </a>
                     )}
-                    {canEdit && (
+                    {canEdit && !viewingShared && (
                       <button onClick={async (e) => { e.stopPropagation(); if (confirm('Move this file to Trash? It stays recoverable for 30 days, then is permanently deleted.')) { await trashHqAsset(a); await load(); } }}
                         className="p-1.5 rounded-lg bg-white/5 text-white/40 hover:text-red-300 hover:bg-red-500/10 transition-colors"
                         title="Move to Trash">
@@ -700,7 +723,7 @@ export const HqFilesTab: React.FC<{
       </div>
 
       {detail && (
-        <HqReviewPanel asset={detail} canEdit={canEdit} proEnabled={proEnabled}
+        <HqReviewPanel asset={detail} canEdit={canEdit && detail.scopeId !== undefined && !sharedWithMe.some(s => s.id === detail.id)} proEnabled={proEnabled}
           onClose={() => setDetail(null)} onChanged={() => { load(); loadTrash(); }} />
       )}
 

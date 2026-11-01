@@ -170,7 +170,7 @@ const ContentAssetManager: React.FC<{
       out.push({
         id: p.id, service: 'STORE', typeLabel: cat.charAt(0) + cat.slice(1).toLowerCase(),
         title: p.title || 'Product', cover: p.images?.[0], status: p.isActive && (p.stock ?? 0) > 0 ? 'PUBLIC' : 'DRAFT',
-        plays: p.reviewCount || 0, updatedAt: p.updatedAt || p.createdAt || 0, editable: true, price: p.price, product: p,
+        plays: p.reviewCount || 0, updatedAt: p.updatedAt || p.createdAt || 0, editable: !!onManageStore, price: p.price, product: p,
       });
     }
     // Plajah Photos library — stills and short clips. Photos carry `isPublic` (not `isPrivate`),
@@ -190,7 +190,7 @@ const ContentAssetManager: React.FC<{
       });
     }
     return out;
-  }, [albums, videos, products, photos]);
+  }, [albums, videos, products, photos, onManageStore]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { ALL: assets.length, PROJECTS: projects.length };
@@ -337,7 +337,7 @@ const ContentAssetManager: React.FC<{
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px]">
             <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/25" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search assets, metadata…"
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by title or type…"
               className="w-full bg-white/5 border border-white/10 rounded-full py-2.5 pl-11 pr-4 text-sm outline-none focus:border-white/25" />
           </div>
           <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full px-3 py-2">

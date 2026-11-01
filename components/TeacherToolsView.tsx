@@ -447,6 +447,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
                   kind: orgContext ? 'org' : 'user',
                   id: orgContext ? orgContext.org.id : getStandaloneTeacherScopeId(user?.uid),
                   label: orgContext ? orgContext.org.name : (user?.displayName || DEMO_CLASS.teacherName),
+                  departments: orgContext?.org.ministries,
                 }}
                 canEdit={true}
                 defaultFolder={orgContext ? getOrgEducationFolderName(orgContext.org.name) : 'ALL'}

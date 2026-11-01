@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Check, Clock, Copy, Download, History, Link2, Loader2, MessageSquare, RefreshCw, Repeat, Send, ShieldAlert, ShieldCheck, Trash2, Upload, X } from 'lucide-react';
 import type { HqActivityEvent, HqAssetVersion, HqComment, HqReviewRequest } from '../types';
-import type { OrgAsset } from '../services/orgAssets';
+import { requestHqScan, type OrgAsset } from '../services/orgAssets';
 import {
   addHqComment, addHqVersion, createHqShareLink, decideHqReview, listHqActivity, listHqComments,
   listHqReviews, listHqVersions, requestHqReview, resolveHqComment, revokeHqShareLink, setHqAssetStatus, trashHqAsset, updateHqRights,
@@ -10,6 +10,8 @@ import { crossover } from '../services/crossover';
 import type { MediaKind, Recipe } from '../services/crossover';
 import { auth } from '../services/firebase';
 import { HqAccessForm } from './HqAccessForm';
+
+const MAX_INLINE_PREVIEW_BYTES = 300 * 1024 * 1024;
 
 type Tab = 'COMMENTS' | 'VERSIONS' | 'APPROVAL' | 'RIGHTS' | 'ACCESS' | 'ACTIVITY';
 
@@ -49,6 +51,7 @@ const HqReviewPanel: React.FC<{
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [mediaUrl, setMediaUrl] = useState('');
+  const [previewNote, setPreviewNote] = useState('');
   const [shareUrl, setShareUrl] = useState('');
   const [error, setError] = useState('');
   const [showShare, setShowShare] = useState(false);
@@ -74,19 +77,45 @@ const HqReviewPanel: React.FC<{
   useEffect(() => { reload(); }, [asset.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    setPreviewNote('');
     if (scanBlocked) { setMediaUrl(''); return; } // gated server-side too; don't even fetch
+    if (!['image', 'video', 'audio', 'pdf'].includes(asset.kind)) {
+      setMediaUrl('');
+      setPreviewNote(asset.rawContentText ? '' : 'No preview for this file type. Download it to open.');
+      return;
+    }
     let objectUrl = '';
+    let gone = false;
     (async () => {
       try {
         const token = await auth.currentUser?.getIdToken();
-        const res = await fetch(`/api/hq/assets/${encodeURIComponent(asset.id)}/download`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (res.ok) { objectUrl = URL.createObjectURL(await res.blob()); setMediaUrl(objectUrl); }
-      } catch { /* preview is optional; download still works */ }
+        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+        // Sound and video stream from the server, so a large file plays and seeks without downloading it all.
+        if (asset.kind === 'video' || asset.kind === 'audio') {
+          const res = await fetch(`/api/hq/assets/${encodeURIComponent(asset.id)}/stream-ticket`, { method: 'POST', headers });
+          if (res.ok) { const { url } = await res.json(); if (!gone) setMediaUrl(url); return; }
+        }
+        if (Number(asset.sizeBytes || 0) > MAX_INLINE_PREVIEW_BYTES) { if (!gone) setPreviewNote('This file is too large to preview here. Download it to open.'); return; }
+        const res = await fetch(`/api/hq/assets/${encodeURIComponent(asset.id)}/download`, { headers });
+        if (!res.ok) throw new Error(String(res.status));
+        objectUrl = URL.createObjectURL(await res.blob());
+        if (!gone) setMediaUrl(objectUrl);
+      } catch {
+        if (!gone) setPreviewNote(asset.rawContentText ? '' : 'Could not load a preview. You can still try downloading it.');
+      }
     })();
-    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [asset.id, asset.currentVersionId, scanBlocked]);
+    return () => { gone = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [asset.id, asset.kind, asset.sizeBytes, asset.rawContentText, asset.currentVersionId, scanBlocked]);
+
+  // A scan that never finished (the endpoint was down) would leave the file locked for good, so ask again.
+  useEffect(() => {
+    if (!scanning) return;
+    let stopped = false;
+    const check = async () => { const verdict = await requestHqScan(asset.id); if (!stopped && verdict && verdict.scanStatus !== 'PENDING') onChanged?.(); };
+    void check();
+    const timer = window.setInterval(check, 20000);
+    return () => { stopped = true; window.clearInterval(timer); };
+  }, [asset.id, scanning]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function run(task: () => Promise<void>) {
     setBusy(true); setError('');
@@ -209,7 +238,7 @@ const HqReviewPanel: React.FC<{
             <h2 className="font-black text-xl truncate">{asset.name}</h2></div>
           <button onClick={download} disabled={scanBlocked} className="p-2 rounded-full bg-white/5 disabled:opacity-30" title={scanBlocked ? 'Unavailable until the security scan clears' : 'Download original'}><Download size={16}/></button>
           {convKind && !scanBlocked && <button onClick={() => setShowConvert(s => !s)} className={`p-2 rounded-full ${showConvert ? 'bg-[#34e0d0]/20 text-[#34e0d0]' : 'bg-white/5'}`} title="Convert with Crossover"><Repeat size={16}/></button>}
-          {proEnabled && <button onClick={() => setShowShare(s => !s)} className={`p-2 rounded-full ${showShare ? 'bg-[#34e0d0]/20 text-[#34e0d0]' : 'bg-white/5'}`} title="Share a review link"><Link2 size={16}/></button>}
+          {proEnabled && canEdit && <button onClick={() => setShowShare(s => !s)} className={`p-2 rounded-full ${showShare ? 'bg-[#34e0d0]/20 text-[#34e0d0]' : 'bg-white/5'}`} title="Share a review link"><Link2 size={16}/></button>}
           {canEdit && <button onClick={trash} className="p-2 rounded-full bg-white/5 text-red-300" title="Move to Trash"><Trash2 size={16}/></button>}
           <button onClick={onClose} className="p-2"><X size={18}/></button>
         </div>
@@ -261,11 +290,13 @@ const HqReviewPanel: React.FC<{
             {mediaUrl && asset.kind === 'image' && <img src={mediaUrl} className="max-w-full max-h-full object-contain" alt=""/>}
             {mediaUrl && asset.kind === 'video' && <video ref={media as any} src={mediaUrl} controls className="w-full h-full"/>}
             {mediaUrl && asset.kind === 'audio' && <audio ref={media as any} src={mediaUrl} controls className="w-4/5"/>}
-            {!mediaUrl && <Loader2 className="animate-spin text-white/20"/>}
+            {mediaUrl && asset.kind === 'pdf' && <iframe src={mediaUrl} title={asset.name} className="w-full h-full bg-white"/>}
+            {!mediaUrl && asset.rawContentText && <div className="w-full h-full overflow-y-auto text-left text-xs text-white/70 whitespace-pre-wrap py-4">{asset.rawContentText}</div>}
+            {!mediaUrl && !asset.rawContentText && (previewNote ? <p className="text-xs text-white/50">{previewNote}</p> : <Loader2 className="animate-spin text-white/20"/>)}
           </>}
         </div>
 
-        {convKind && showConvert && (
+        {convKind && showConvert && !scanBlocked && (
           <div className="mb-5 p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
             <div className="flex items-center gap-2"><Repeat size={14} className="text-[#34e0d0]"/><p className="text-[10px] font-black uppercase tracking-widest text-white/70">Convert with Crossover</p></div>
             <div className="flex gap-2">

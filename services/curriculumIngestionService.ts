@@ -27,8 +27,6 @@ import {
   resolveDocumentClassFolder,
   isStandaloneTeacherScopeId,
   getStandaloneTeacherScopeId,
-  GREAT_FAITH_MINISTRIES_DEFAULT_ID,
-  GREAT_FAITH_MINISTRIES_NAME,
 } from './orgAssets';
 import {
   matchSacredLibrarySupplementsForLesson,
@@ -225,24 +223,18 @@ export function listIngestedUnits(
   try {
     const isStandaloneTeacher = isStandaloneTeacherScopeId(orgId);
     const safeOrgId = normalizeToGreatFaithOrgId(orgId);
-    const resolvedOrgName = orgName || GREAT_FAITH_MINISTRIES_NAME;
+    const resolvedOrgName = orgName || '';
     const orgEduFolder = getOrgEducationFolderName(resolvedOrgName);
 
     const ownList = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId));
     // Older builds copied every org's lessons into Great Faith's library; those copies also sit in their
     // own org's storage on this device, so leave them out of Great Faith's.
-    const primaryList = safeOrgId === GREAT_FAITH_MINISTRIES_DEFAULT_ID ? withoutOtherOrgsCopies(ownList) : ownList;
-    const secondaryList = isStandaloneTeacher
-      ? safeOrgId !== 'teacher-personal-hq'
-        ? readRawStoredUnitsForKey(STORAGE_UNITS_KEY('teacher-personal-hq'))
-        : []
-      : []; // A real org's library holds only its own lessons; the sample course lives on the demo org.
-
+    const primaryList = safeOrgId === GREAT_FAITH_OLD_LOCAL_ID ? withoutOtherOrgsCopies(ownList) : ownList;
     // The Revelation 2 sample course is demo content. Older builds seeded it into every org's library;
     // a real org shows only what its own people added.
     const demoOrg = !isStandaloneTeacher && isRevelationCourseOrg(safeOrgId);
     const byKey = new Map<string, IngestedCurriculumUnit>();
-    for (const u of [...primaryList, ...secondaryList]) {
+    for (const u of primaryList) {
       if (!u || !u.title) continue;
       if (isFabricatedSampleUnit(u)) continue;
       if (!demoOrg && isSampleCourseUnit(u)) continue;
@@ -295,10 +287,13 @@ export function listIngestedUnits(
   }
 }
 
+/** Great Faith's old browser-only id, from before it had a real org. No account is ever sent here. */
+const GREAT_FAITH_OLD_LOCAL_ID = 'great-faith-ministries';
+
 function withoutOtherOrgsCopies(list: IngestedCurriculumUnit[]): IngestedCurriculumUnit[] {
   const elsewhere = new Set<string>();
   try {
-    const gfKey = STORAGE_UNITS_KEY(GREAT_FAITH_MINISTRIES_DEFAULT_ID);
+    const gfKey = STORAGE_UNITS_KEY(GREAT_FAITH_OLD_LOCAL_ID);
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (!key || key === gfKey || !key.startsWith('plajah_ingested_curriculum_units_v1_')) continue;
@@ -314,10 +309,10 @@ function withoutOtherOrgsCopies(list: IngestedCurriculumUnit[]): IngestedCurricu
  * The orgs the Revelation 2 course belongs to, by exact org id. It is Great Faith Ministries' own
  * curriculum and no other org gets it, whatever it's called:
  *   • ssmj9GnjxGnE7lJoPmWH — "Great Faith Ministries International" (@greatfaithministries), the live org;
- *   • 'great-faith-ministries' — the same org's pre-Firestore local scope (services/orgAssets).
+ *   • 'great-faith-ministries' — the same org's pre-Firestore local scope.
  * (A second, near-empty "Great Faith Ministries Int'L" org, n7FDgEg1m3JDAsYuY19o, is deliberately not listed.)
  */
-export const REVELATION_2_COURSE_ORG_IDS: ReadonlySet<string> = new Set(['ssmj9GnjxGnE7lJoPmWH', GREAT_FAITH_MINISTRIES_DEFAULT_ID]);
+export const REVELATION_2_COURSE_ORG_IDS: ReadonlySet<string> = new Set(['ssmj9GnjxGnE7lJoPmWH', GREAT_FAITH_OLD_LOCAL_ID]);
 function isRevelationCourseOrg(safeOrgId: string): boolean {
   return REVELATION_2_COURSE_ORG_IDS.has(safeOrgId);
 }
@@ -367,7 +362,7 @@ export function saveIngestedUnit(unit: IngestedCurriculumUnit): void {
         ? isKeyOnly
           ? 'Answer Keys & Rubrics'
           : docClass
-        : unit.departmentFolder || getOrgEducationFolderName(GREAT_FAITH_MINISTRIES_NAME),
+        : unit.departmentFolder || getOrgEducationFolderName(),
     };
     // The org's own course imports are the org's (admin) lessons, whoever's browser read them in.
     if (!normalizedUnit.provisioned) normalizedUnit.provisioned = isStandaloneTeacher ? 'teacher' : isSampleCourseUnit(unit) || libraryActorIsAdmin(safeOrgId) ? 'admin' : 'teacher';
@@ -380,17 +375,6 @@ export function saveIngestedUnit(unit: IngestedCurriculumUnit): void {
     if (normalizedUnit.tier !== 'platform') {
       const uid = libraryActorUid();
       if (uid) void pushLibraryUnit(normalizedUnit, isStandaloneTeacher ? 'user' : 'org', isStandaloneTeacher ? uid : safeOrgId);
-    }
-    if (isStandaloneTeacher) {
-      if (safeOrgId !== 'teacher-personal-hq') {
-        const personalExisting = readRawStoredUnitsForKey(STORAGE_UNITS_KEY('teacher-personal-hq')).filter(
-          u => u.id !== unit.id && u.title.toLowerCase() !== unit.title.toLowerCase()
-        );
-        localStorage.setItem(
-          STORAGE_UNITS_KEY('teacher-personal-hq'),
-          JSON.stringify([{ ...normalizedUnit, orgId: 'teacher-personal-hq' }, ...personalExisting])
-        );
-      }
     }
     // An org's lessons stay in that org's library only (older builds also copied every one into Great Faith's).
     if (typeof window !== 'undefined') {
@@ -2139,11 +2123,11 @@ export async function ingestCurriculumToTela(params: {
   // - For organizations (`scopeKind === 'org'`): into the organization's Content HQ under `<Organization Name> Education`.
   const assetCopy = await copyCurriculumPairToOrgAssets({
     orgId: safeOrgId,
-    orgName: params.orgName || (isStandaloneTeacher ? 'Teacher Content HQ' : GREAT_FAITH_MINISTRIES_NAME),
+    orgName: params.orgName || (isStandaloneTeacher ? 'Teacher Content HQ' : ''),
     scopeKind: isStandaloneTeacher ? 'user' : 'org',
     departmentFolder: isStandaloneTeacher
       ? undefined
-      : getOrgEducationFolderName(params.orgName || GREAT_FAITH_MINISTRIES_NAME),
+      : getOrgEducationFolderName(params.orgName),
     unitTitle: unit.title,
     unitKind: unit.kind,
     libraryCategory: resolvedLibraryCategory,
@@ -2488,7 +2472,8 @@ export async function ensureAllDetectedLinksOnboarded(
     return listIngestedUnits(orgId, programId, orgName);
   }
   const safeOrgId = normalizeToGreatFaithOrgId(orgId);
-  if (!isRevelationCourseOrg(safeOrgId)) return listIngestedUnits(orgId, programId, orgName);
+  // Only that org's own admins bring its course in. Anyone else just sees their own library.
+  if (!isRevelationCourseOrg(safeOrgId) || !libraryActorIsAdmin(safeOrgId)) return listIngestedUnits(orgId, programId, orgName);
   if (importing) return importing;
   importing = (async () => {
     // Drop the made-up items older builds stored, so only real imports remain.

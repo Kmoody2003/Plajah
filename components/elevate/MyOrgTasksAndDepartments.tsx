@@ -19,9 +19,8 @@ import {
   Award,
 } from 'lucide-react';
 import type { Organization, OrgMembership } from '../../types';
-import { fetchUserOrganizations, fetchOrgMembers } from '../../services/organizationService';
+import { fetchOrgMembers } from '../../services/organizationService';
 import { auth } from '../../services/backendService';
-import { GREAT_FAITH_MINISTRIES_ORG, resolveGreatFaithMinistriesOrg } from '../../services/orgAssets';
 import { extractOrgDepartmentsAndGroups } from './OrgAudienceToggle';
 import { listIngestedUnits, loadOrgMasterySummary } from '../../services/curriculumIngestionService';
 import { ensureDefaultTemplatedClassrooms, type ChurchProgram } from '../../services/churchEducationService';
@@ -108,8 +107,8 @@ function saveTasks(orgId: string, uid: string, tasks: OrgMemberTaskItem[]): void
 }
 
 interface MyOrgTasksAndDepartmentsProps {
-  /** If provided, scopes directly to this organization (e.g. inside ChurchMemberHub). Otherwise loads user's orgs on the Landing Page. */
-  org?: Organization;
+  /** The organization this person belongs to and is viewing. */
+  org: Organization;
   membership?: OrgMembership | null;
   onOpenOrg?: (orgId: string) => void;
   onOpenDepartment?: (departmentId: string) => void;
@@ -118,50 +117,16 @@ interface MyOrgTasksAndDepartmentsProps {
 }
 
 export const MyOrgTasksAndDepartments: React.FC<MyOrgTasksAndDepartmentsProps> = ({
-  org: propOrg,
+  org: activeOrg,
   membership: propMembership,
   onOpenOrg,
   onOpenDepartment,
   onOpenEducation,
 }) => {
   const uid = auth.currentUser?.uid || 'member_local';
-  const [userOrgs, setUserOrgs] = useState<Organization[]>(propOrg ? [propOrg] : [GREAT_FAITH_MINISTRIES_ORG]);
-  const [selectedOrgId, setSelectedOrgId] = useState<string>(propOrg?.id || GREAT_FAITH_MINISTRIES_ORG.id);
   const [members, setMembers] = useState<OrgMembership[]>([]);
   const [programs, setPrograms] = useState<ChurchProgram[]>([]);
   const [showStudentDeskDrawer, setShowStudentDeskDrawer] = useState(false);
-
-  useEffect(() => {
-    if (propOrg) {
-      const normalized = propOrg.id === 'demo-grace-chapel' ? GREAT_FAITH_MINISTRIES_ORG : propOrg;
-      setUserOrgs([normalized]);
-      setSelectedOrgId(normalized.id);
-      return;
-    }
-    resolveGreatFaithMinistriesOrg()
-      .then(gfOrg => {
-        if (!auth.currentUser?.uid) {
-          setUserOrgs([gfOrg]);
-          setSelectedOrgId(gfOrg.id);
-          return;
-        }
-        return fetchUserOrganizations(auth.currentUser.uid).then(list => {
-          const nonDemo = list.filter(o => o.id !== 'demo-grace-chapel');
-          const merged = nonDemo.length > 0 ? nonDemo : [gfOrg];
-          setUserOrgs(merged);
-          setSelectedOrgId(merged[0].id);
-        });
-      })
-      .catch(() => {
-        setUserOrgs([GREAT_FAITH_MINISTRIES_ORG]);
-        setSelectedOrgId(GREAT_FAITH_MINISTRIES_ORG.id);
-      });
-  }, [propOrg, auth.currentUser?.uid]);
-
-  const activeOrg = useMemo(
-    () => propOrg || userOrgs.find(o => o.id === selectedOrgId) || userOrgs[0] || GREAT_FAITH_MINISTRIES_ORG,
-    [propOrg, userOrgs, selectedOrgId]
-  );
 
   useEffect(() => {
     fetchOrgMembers(activeOrg.id).then(setMembers).catch(() => setMembers([]));
@@ -275,21 +240,6 @@ export const MyOrgTasksAndDepartments: React.FC<MyOrgTasksAndDepartmentsProps> =
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {!propOrg && userOrgs.length > 1 && (
-            <select
-              aria-label="Select organization"
-              value={selectedOrgId}
-              onChange={e => setSelectedOrgId(e.target.value)}
-              className="bg-black/60 border border-white/15 rounded-xl px-3 py-2 text-xs font-bold text-white"
-            >
-              {userOrgs.map(o => (
-                <option key={o.id} value={o.id}>
-                  {o.name}
-                </option>
-              ))}
-            </select>
-          )}
-
           {onOpenOrg && (
             <button
               type="button"

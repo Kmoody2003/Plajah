@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true },
+  "include": [],
+  "files": [
+    "types.ts",
+    "services/hqScopeWall.ts",
+    "services/orgAssets.ts",
+    "services/universalStudentDeskService.ts",
+    "components/ContentHQ.tsx",
+    "components/HqReviewPanel.tsx",
+    "components/ContentAssetManager.tsx",
+    "components/desk/UniversalStudentDesk.tsx",
+    "components/desk/AssignToClassModal.tsx",
+    "components/elevate/MyOrgTasksAndDepartments.tsx",
+    "routes/elevateAccess.ts",
+    "tests/hqScopeWall.test.ts",
+    "tests/hqAccountIsolation.test.ts",
+    "contexts/ActiveIdentityContext.tsx"
+  ]
+}

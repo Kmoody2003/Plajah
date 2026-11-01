@@ -247,7 +247,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
         {tool === 'master' && can('MANAGE_MEDIA') && <ChurchMasterControl church={org} onClose={closeTool} />}
         {tool === 'console' && can('MANAGE_MEDIA') && <ChurchConsole church={org} onClose={closeTool} />}
         {tool === 'hq' && (can('MANAGE_CONTENT') || can('MANAGE_MEDIA') || myMembership?.status === 'ACTIVE') && (
-          <ContentHQ scope={{ kind: 'org', id: org.id, ownerUid: org.creatorId, adminUids: org.admins, label: org.name }}
+          <ContentHQ scope={{ kind: 'org', id: org.id, ownerUid: org.creatorId, adminUids: org.admins, label: org.name, departments: org.ministries }}
             canEdit={can('MANAGE_CONTENT') || can('MANAGE_MEDIA')}
             canViewAnswerKey={canViewerAccessAnswerKey({ membership: myMembership, org, user: auth.currentUser as any, explicitCanEdit: isOwner })}
             mediaOwnerUid={org.creatorId} onClose={closeTool} />
@@ -442,8 +442,9 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
                       ownerUid: org.creatorId,
                       adminUids: org.admins,
                       label: org.name,
+                      departments: org.ministries,
                     }}
-                    canEdit={isOwner || can('MANAGE_CONTENT') || can('MANAGE_MEDIA') || !!myMembership}
+                    canEdit={isOwner || can('MANAGE_CONTENT') || can('MANAGE_MEDIA')}
                     canViewAnswerKey={canViewerAccessAnswerKey({ membership: myMembership, org, user: auth.currentUser as any, explicitCanEdit: isOwner })}
                     mediaOwnerUid={org.creatorId}
                   />

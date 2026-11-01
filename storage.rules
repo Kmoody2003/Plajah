@@ -274,7 +274,8 @@ service firebase.storage {
       // No client read at all → no client can mint a download token, so any file type (PSD, AI,
       // SVG, FDX …) is acceptable here; the server scans and streams it with safe headers.
       allow read: if false;
-      allow create: if canCreateStamped() && request.resource.contentType != null && withinSizeLimit();
+      // Nobody writes into another person's space. (Org membership is checked on the file's record.)
+      allow create: if canCreateStamped() && (scopeKind != 'user' || scopeId == request.auth.uid) && request.resource.contentType != null && withinSizeLimit();
       allow update: if canUpdateStamped() && request.resource.contentType != null && withinSizeLimit();
       allow delete: if canDeleteStamped();
     }

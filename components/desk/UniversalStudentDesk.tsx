@@ -1,6 +1,6 @@
 // components/desk/UniversalStudentDesk.tsx
 // Universal Platform-Wide Student Desk (Powered by Tela)
-// The dedicated, tactile, living workspace where students across Academia, Christian Education (Great Faith Ministries),
+// The dedicated, tactile, living workspace where students across Academia, Christian Education,
 // and Elevate Organizations receive assigned digital worksheets/tests, fill them out with integrated study tools,
 // self-check their work, and turn them in for instant auto-grading & Mastery Graph / Learner Ledger credit.
 
@@ -30,7 +30,6 @@ import {
   Wand2,
 } from 'lucide-react';
 import {
-  ensureUniversalStudentDeskSeeded,
   listDeskAssignments,
   getAllStudentDeskWorkspaces,
   saveStudentDeskDraft,
@@ -55,10 +54,6 @@ import { LEVEL_NAME, LEVEL_COLOR, type SkillLevel } from '../../services/mastery
 import { openScripture } from '../scripture/ScriptureRefChip';
 import { parseRef } from '../../services/scriptureRef';
 import { pinResearchSource } from '../../services/sacredResearch';
-import {
-  GREAT_FAITH_MINISTRIES_DEFAULT_ID,
-  GREAT_FAITH_MINISTRIES_NAME,
-} from '../../services/orgAssets';
 import { TelaDocumentPreviewModal, type TelaDocumentPreviewProps } from '../church/TelaDocumentPreviewModal';
 import { AnswerArea, LivingTemplateBespokeRenderer, promptWithStem } from './LivingTemplateBespokeRenderer';
 import { useViewport } from '../../hooks/useViewport';
@@ -91,14 +86,10 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
   onOpenTelaStudio,
   compactHeader = false,
 }) => {
-  const orgId =
-    !rawOrgId || rawOrgId === 'demo-grace-chapel' || rawOrgId.startsWith('demo-')
-      ? GREAT_FAITH_MINISTRIES_DEFAULT_ID
-      : rawOrgId;
-  const orgName =
-    !rawOrgName || rawOrgName.toLowerCase().includes('grace chapel') || rawOrgName.toLowerCase().includes('demo')
-      ? GREAT_FAITH_MINISTRIES_NAME
-      : rawOrgName;
+  // The desk shows only what this person was given. No org means no org, never a default one.
+  const orgId = rawOrgId || '';
+  const orgName = rawOrgName || '';
+  const christianEdLabel = orgName ? `${orgName} · Christian Education` : 'Christian Education';
 
   const [domainFilter, setDomainFilter] = useState<DeskContextDomain | 'ALL'>(defaultDomain);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'TODO' | 'TURNED_IN'>('ALL');
@@ -139,9 +130,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
   const [telaPreviewModal, setTelaPreviewModal] = useState<Omit<TelaDocumentPreviewProps, 'isOpen' | 'onClose'> | null>(null);
   const [masteryMap, setMasteryMap] = useState(() => loadOrgMasterySummary(orgId));
 
-  // Seed & synchronize assignments
   const refreshDesk = async () => {
-    await ensureUniversalStudentDeskSeeded(orgId);
     const list = listDeskAssignments({
       domain: domainFilter,
       classroomId,
@@ -449,7 +438,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                     <Sparkles size={12} /> Universal Platform-Wide Student Desk · Powered by Tela
                   </span>
                   <span className="px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 text-[10px] font-black uppercase">
-                    Academia × {orgName} · Christian Education
+                    Academia × {christianEdLabel}
                   </span>
                 </>
               )}
@@ -511,7 +500,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
               className="w-full min-h-[44px] rounded-xl bg-black/50 border border-white/15 px-3 text-base text-white"
             >
               <option value="ALL">All my classes</option>
-              <option value="CHRISTIAN_EDUCATION">{orgName} · Christian Education</option>
+              <option value="CHRISTIAN_EDUCATION">{christianEdLabel}</option>
               <option value="ACADEMIA">Plajah Academia</option>
             </select>
             <div className="flex gap-1 p-1 rounded-2xl bg-black/40 border border-white/12" role="group" aria-label="Show">
@@ -534,7 +523,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
             {(
               [
                 { id: 'ALL', label: '🌐 All My Classes (Universal)' },
-                { id: 'CHRISTIAN_EDUCATION', label: `🏛️ ${orgName} · Christian Education` },
+                { id: 'CHRISTIAN_EDUCATION', label: `🏛️ ${christianEdLabel}` },
                 { id: 'ACADEMIA', label: '🎓 Plajah Academia' },
               ] as const
             ).map(tab => (

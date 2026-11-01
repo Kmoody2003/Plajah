@@ -8,6 +8,7 @@
 //   POST /sync     { orgId }                                 rebuild the lists; anyone signed in, nothing sent can widen them
 //   POST /set-role { orgId, membershipId, roleKey, on }      owner or IT Admin; a Finance Director for finance roles only
 //   GET  /assets?scopeId=                                    the Content HQ files this caller may see
+//   GET  /shared-with-me                                     org files deliberately shared with this person
 //   POST /asset { assetId, access, departments, roles, users }  the file's author, the owner or an IT Admin
 //
 // A restricted file's accessUids is resolved here from its departments, roles and people, and re-resolved whenever
@@ -18,6 +19,7 @@
 import { Router, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { verifyIdTokenDetailed, fsGet, fsPatch, fsSet, fsQuery } from '../services/firebaseAdminRest';
+import { canSeeOrgFile } from '../services/hqAccessPolicy';
 import { FINANCE_ROLE_KEYS, PROTECTED_ROLE_KEYS, getElevateRole } from '../services/elevateRoles';
 
 export const elevateAccessRouter = Router();
@@ -114,8 +116,23 @@ elevateAccessRouter.get('/assets', async (req: Request, res: Response) => {
   if (badId(scopeId)) return res.status(400).json({ error: 'Bad request.' });
   const [org, platformAdmin, rows] = await Promise.all([fsGet(`organizations/${scopeId}`), fsGet(`admins/${t.uid}`), fsQuery('orgAssets', [{ field: 'scopeId', value: scopeId }], MAX_MEMBERS)]);
   const inScope = !!platformAdmin || scopeId === t.uid || !!org && (org.creatorId === t.uid || [...(org.admins || []), ...(org.itAdminUids || []), ...(org.staffUids || [])].includes(t.uid));
-  const assets = rows.map(r => r.data).filter(a => (a.access || 'open') === 'open' ? inScope || a.uploadedByUid === t.uid : !!platformAdmin || canOpenLockedAsset(t.uid, a, org));
-  return res.json({ assets });
+  const membership = org ? (await fsQuery('orgMemberships', [{ field: 'orgId', value: scopeId }, { field: 'userId', value: t.uid }], 5)).map(r => r.data).find(m => m.status === 'ACTIVE') || null : null;
+  const assets = rows.map(r => r.data).filter(a => {
+    if (platformAdmin) return true;
+    if (a.scopeKind === 'user') return a.scopeId === t.uid;
+    if (!canSeeOrgFile(t.uid, a, org, membership)) return false;
+    return inScope || a.uploadedByUid === t.uid || (a.access || 'open') !== 'open';
+  });
+  return res.json({ assets, inScope });
+});
+
+// Files an org deliberately shared with this person. This is the only way an org's file reaches a personal account.
+elevateAccessRouter.get('/shared-with-me', async (req: Request, res: Response) => {
+  const t = await caller(req);
+  if (!t) return res.status(401).json({ error: 'Sign in first.' });
+  const rows = await fsQuery('orgAssets', [{ field: 'accessUids', op: 'ARRAY_CONTAINS', value: t.uid }], 200);
+  const assets = rows.map(r => r.data).filter(a => a.access === 'restricted' && !a.deletedAt && a.uploadedByUid !== t.uid);
+  return res.json({ assets: assets.map(({ storagePath: _path, ...a }) => a) });
 });
 
 elevateAccessRouter.post('/asset', async (req: Request, res: Response) => {

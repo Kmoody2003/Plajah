@@ -49,6 +49,7 @@
     "test:enforcement": "npx tsx --test tests/standingCore.test.ts",
     "test:phi": "npx tsx --test tests/phiCrypto.test.ts tests/phiVault.test.ts",
     "test:phi-rules": "node scripts/testPhiRules.mjs",
+    "test:hq-permissions": "npx tsx --test tests/hqScopeWall.test.ts tests/hqAccountIsolation.test.ts tests/hqAccessPolicy.test.ts && node scripts/testHqRules.mjs",
     "test:experiences": "npx tsx --test tests/dossierExperiences.test.ts",
     "test:experiences-rules": "node scripts/testExperiencesRules.mjs",
     "dossier:upload-experiences": "npx tsx scripts/dossier/uploadExperiences.ts",

@@ -89,6 +89,16 @@ service cloud.firestore {
         data.get('uploadedByUid', '') == request.auth.uid || request.auth.uid in data.get('accessUids', []) || isAdmin() ||
         (data.scopeKind == 'org' && (orgDoc(data.scopeId).creatorId == request.auth.uid || request.auth.uid in orgDoc(data.scopeId).get('itAdminUids', []))));
     }
+    // Changing a file is not part of being shared it: a grantee can read and comment, nothing more.
+    function hqWriter(data) {
+      return data.get('access', 'open') == 'open' ? canAccessHqScope(data) : isAuthenticated() && (
+        data.get('uploadedByUid', '') == request.auth.uid || isAdmin() ||
+        (data.scopeKind == 'org' && (orgDoc(data.scopeId).creatorId == request.auth.uid || request.auth.uid in orgDoc(data.scopeId).get('itAdminUids', []))));
+    }
+    function canWriteHqAsset(assetId) {
+      return exists(/databases/$(database)/documents/orgAssets/$(assetId)) &&
+        hqWriter(get(/databases/$(database)/documents/orgAssets/$(assetId)).data);
+    }
     function canAccessHqAsset(assetId) {
       return exists(/databases/$(database)/documents/orgAssets/$(assetId)) &&
         hqAllowed(get(/databases/$(database)/documents/orgAssets/$(assetId)).data);
@@ -531,18 +541,21 @@ service cloud.firestore {
       // Listing goes through /api/elevate/access/assets, which filters out files the caller can't open.
       allow get: if hqAllowed(resource.data);
       allow list: if isAdmin();
+      // A record can only name a stored object in its own owner's space, and only the server records a scan.
       allow create: if cxScopeOk(request.resource.data) && request.resource.data.uploadedByUid == request.auth.uid &&
-        !request.resource.data.keys().hasAny(['access', 'accessSpec', 'accessUids']);
-      allow update: if hqAllowed(resource.data) && request.resource.data.scopeKind == resource.data.scopeKind &&
+        !request.resource.data.keys().hasAny(['access', 'accessSpec', 'accessUids', 'scannedAt']) &&
+        request.resource.data.storagePath.matches('protected-hq/' + request.resource.data.scopeKind + '/' + request.resource.data.scopeId + '/.*');
+      allow update: if hqWriter(resource.data) && request.resource.data.scopeKind == resource.data.scopeKind &&
         request.resource.data.scopeId == resource.data.scopeId && request.resource.data.uploadedByUid == resource.data.uploadedByUid &&
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['access', 'accessSpec', 'accessUids']);
-      allow delete: if hqAllowed(resource.data);
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['access', 'accessSpec', 'accessUids', 'storagePath', 'scannedAt']) &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['scanStatus']) || request.resource.data.scanStatus == 'PENDING');
+      allow delete: if hqWriter(resource.data);
     }
     // Immutable revision records. Replacing a file creates a new version; it never
     // overwrites the version a reviewer approved.
     match /hqAssetVersions/{versionId} {
       allow read: if canAccessHqAsset(resource.data.assetId);
-      allow create: if canAccessHqAsset(request.resource.data.assetId) &&
+      allow create: if canWriteHqAsset(request.resource.data.assetId) &&
         request.resource.data.uploadedByUid == request.auth.uid;
       allow update, delete: if false;
     }
@@ -552,16 +565,16 @@ service cloud.firestore {
         request.resource.data.authorUid == request.auth.uid &&
         request.resource.data.body is string && request.resource.data.body.size() > 0 &&
         request.resource.data.body.size() <= 4000;
-      allow update: if canAccessHqAsset(resource.data.assetId) &&
+      allow update: if canWriteHqAsset(resource.data.assetId) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['resolved', 'resolvedAt', 'resolvedByUid']);
       allow delete: if false;
     }
     match /hqReviewRequests/{reviewId} {
       allow read: if canAccessHqAsset(resource.data.assetId) ||
         (isAuthenticated() && request.auth.uid in resource.data.reviewerUids);
-      allow create: if canAccessHqAsset(request.resource.data.assetId) &&
+      allow create: if canWriteHqAsset(request.resource.data.assetId) &&
         request.resource.data.requestedByUid == request.auth.uid;
-      allow update: if canAccessHqAsset(resource.data.assetId) ||
+      allow update: if canWriteHqAsset(resource.data.assetId) ||
         (isAuthenticated() && request.auth.uid in resource.data.reviewerUids &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['decisions', 'status', 'completedAt']));
       allow delete: if false;
@@ -575,10 +588,10 @@ service cloud.firestore {
       allow update, delete: if false;
     }
     match /hqShareLinks/{shareId} {
-      allow read: if canAccessHqAsset(resource.data.assetId);
-      allow create: if canAccessHqAsset(request.resource.data.assetId) &&
+      allow read: if canWriteHqAsset(resource.data.assetId);
+      allow create: if canWriteHqAsset(request.resource.data.assetId) &&
         request.resource.data.createdByUid == request.auth.uid;
-      allow update: if canAccessHqAsset(resource.data.assetId) &&
+      allow update: if canWriteHqAsset(resource.data.assetId) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revokedAt', 'expiresAt', 'allowComments', 'allowApproval', 'allowDownload', 'requireEmail']);
       allow delete: if false;
     }

@@ -4105,7 +4105,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           import('./components/ContentHQ'),
         ]);
         const asset = await fetchHqAsset(assetId).catch(() => null);
-        if (asset?.scopeKind === 'org') {
+        const { fetchUserOrganizations } = await import('./services/organizationService');
+        const inOrg = asset?.scopeKind === 'org' && !!user && (await fetchUserOrganizations(user.uid).catch(() => [])).some(o => o.id === asset.scopeId);
+        if (inOrg && asset) {
           setOrgHubInitial({ orgId: asset.scopeId, contentHq: true });
           setView('ORG_HUB');
         } else {
