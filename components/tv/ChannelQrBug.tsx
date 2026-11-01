@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import Logo from '../Logo';
 import { QrCode, Check, Copy } from 'lucide-react';
 import { getChannelQrDataUrlSync, generateChannelQrDataUrl } from '../../services/fast/channelQrService';
@@ -22,6 +22,9 @@ export interface ChannelQrBugProps {
 
 const DEFAULT_ACTIVE_MS = 2 * 60 * 1000;   // 2 minutes ON
 const DEFAULT_INACTIVE_MS = 1 * 60 * 1000; // 1 minute OFF
+const COMPACT_BELOW_W = 640;
+const COMPACT_BELOW_H = 420;
+const EXPANDED_MS = 10 * 1000;
 
 /**
  * ChannelQrBug — a broadcast-style QR code link bug overlay for the Live TV Hub and player.
@@ -32,6 +35,7 @@ const DEFAULT_INACTIVE_MS = 1 * 60 * 1000; // 1 minute OFF
  * 2. Text: "Scan to watch this channel on your device" rendered with vibrant Plajah color branding.
  * 3. "plajah.com" underneath it with the official Plajah chevron logo.
  * 4. Automatic 2-minute ON / 1-minute OFF cadence with a smooth dissolve fade.
+ * 5. On a small frame, a QR chip instead; tapping it opens the card so someone nearby can scan it.
  */
 export const ChannelQrBug: React.FC<ChannelQrBugProps> = ({
   shareUrl,
@@ -47,8 +51,41 @@ export const ChannelQrBug: React.FC<ChannelQrBugProps> = ({
   const [copied, setCopied] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rootRef = useRef<HTMLElement | null>(null);
+  // The video frame this bug sits on; a phone frame only has room for a small chip.
+  const [frame, setFrame] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }));
+  const [expanded, setExpanded] = useState(false);
+  const compact = frame.w < COMPACT_BELOW_W || frame.h < COMPACT_BELOW_H;
   const isHoveredRef = useRef(false);
-  isHoveredRef.current = isHovered;
+  isHoveredRef.current = expanded || (!compact && isHovered);
+
+  useLayoutEffect(() => {
+    const host = rootRef.current?.offsetParent as HTMLElement | null;
+    if (!host) return;
+    const measure = () => setFrame({ w: host.clientWidth, h: host.clientHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [!shareUrl]);
+
+  // An opened card closes itself, or with a tap anywhere else, so it never stays over the picture.
+  useEffect(() => {
+    if (!expanded) return;
+    const close = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setExpanded(false);
+    };
+    const timer = setTimeout(() => setExpanded(false), EXPANDED_MS);
+    document.addEventListener('pointerdown', close);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('pointerdown', close);
+    };
+  }, [expanded]);
+
+  useEffect(() => {
+    if (!compact) setExpanded(false);
+  }, [compact]);
 
   // Generate QR code data URL whenever the channel shareUrl changes
   useEffect(() => {
@@ -137,18 +174,36 @@ export const ChannelQrBug: React.FC<ChannelQrBugProps> = ({
 
   return (
     <aside
+      ref={rootRef}
       aria-label={channelName ? `Scan to watch ${channelName} on your device` : 'Scan to watch channel on your device'}
       className={`absolute z-30 transition-all duration-1000 ease-in-out select-none ${className} ${
         visible
           ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto'
           : 'opacity-0 translate-y-2 scale-95 pointer-events-none'
       }`}
+      style={expanded ? { left: 12, bottom: 12 } : undefined}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
+      {compact && !expanded ? (
+        <button
+          type="button"
+          aria-label="Show QR code for this channel"
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded(true);
+          }}
+          className="w-11 h-11 min-h-0 p-0 grid place-items-center"
+        >
+          <span className="w-8 h-8 rounded-lg grid place-items-center bg-black/55 backdrop-blur-md border border-white/20 text-white/90">
+            <QrCode size={18} />
+          </span>
+        </button>
+      ) : (
       <div
         onClick={handleCopy}
         title="Scan with phone camera or click to copy direct link"
+        style={compact ? { maxWidth: Math.max(0, frame.w - 24) } : undefined}
         className="group relative flex items-center gap-3.5 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl bg-black/85 hover:bg-black/95 backdrop-blur-md border border-white/20 hover:border-white/35 shadow-[0_12px_40px_rgba(0,0,0,0.8)] cursor-pointer transition-colors max-w-[380px]"
       >
         {/* Crisp QR Code Tile */}
@@ -201,6 +256,7 @@ export const ChannelQrBug: React.FC<ChannelQrBugProps> = ({
           </div>
         )}
       </div>
+      )}
     </aside>
   );
 };
