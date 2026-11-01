@@ -178,7 +178,7 @@ function Split() {
       style={{ width: '50%', height: '100%', border: 0, borderRight: '1px solid #333' }} />;
     return <div style={{ display: 'flex', width: '100vw', height: '100vh' }}>{f('a')}{f('b')}</div>;
   }
-  const frame = (q: string) => <iframe src={`/golive-lab.html?${q}${qs.get('fake') ? '&fake=1' : ''}${qs.get('timer') ? '&timer=1' : ''}`} allow="camera; microphone; autoplay"
+  const frame = (q: string) => <iframe src={`/golive-lab.html?${q}${qs.get('fake') ? '&fake=1' : ''}${qs.get('phone') ? '&phone=1' : ''}${qs.get('timer') ? '&timer=1' : ''}`} allow="camera; microphone; autoplay"
     style={{ width: '50%', height: '100%', border: 0, borderRight: '1px solid #333' }} />;
   return <div style={{ display: 'flex', width: '100vw', height: '100vh' }}>{frame('as=host')}{frame('as=viewer')}</div>;
 }

@@ -67,6 +67,8 @@ export interface UseRtcSession {
   publishExternalAudio: (track: MediaStreamTrack) => Promise<void>;
   toggleScreenShare: () => void;
   leave: () => void;
+  /** Tear down and rejoin from scratch, re-requesting the camera and mic (after a failed start). */
+  rejoin: () => void;
   /** Available input/output devices (populated after join; refreshed on hot-plug). */
   devices: { cameras: MediaDeviceInfo[]; mics: MediaDeviceInfo[]; speakers: MediaDeviceInfo[] };
   /** deviceIds currently being published (to highlight the active pick). */
@@ -321,7 +323,10 @@ export function useRtcSession(
     if (s) trackLeave(s.path, s.leave());
   }, []);
 
+  const rejoin = useCallback(() => { setError(null); setRevive(n => n + 1); }, []);
+
   return {
+    rejoin,
     localStream: activeSessionKey === key ? localStream : null,
     localAudioTrack: activeSessionKey === key ? (localStream?.getAudioTracks()[0] ?? null) : null,
     remoteStreams: activeSessionKey === key ? remoteStreams : emptySession.remoteStreams,

@@ -79,13 +79,17 @@ export function LiveDocPicker({ src, onClose, onStarted }: { src: LiveDocSource;
   );
 }
 
-export default function LiveDocDock({ sessionKey, canPresent, hostName, audience = 'signedIn', memberUids }: {
+export default function LiveDocDock({ sessionKey, canPresent, hostName, audience = 'signedIn', memberUids, quiet, pickSignal }: {
   /** The stream or call this document belongs to. */
   sessionKey: string | null | undefined;
   canPresent: boolean;
   hostName: string;
   audience?: LiveDocAudience;
   memberUids?: string[];
+  /** The surface has its own button for this: no floating pill while nothing is being presented. */
+  quiet?: boolean;
+  /** Bump to open the document picker. */
+  pickSignal?: number;
 }) {
   const src = useLiveDocSource(sessionKey || null, { hostName, audience, memberUids });
   const [picking, setPicking] = useState(false);
@@ -93,8 +97,9 @@ export default function LiveDocDock({ sessionKey, canPresent, hostName, audience
   // A new document opens for everyone, even if they hid the last one.
   const rev = src.active ? src.state?.rev : 0;
   useEffect(() => { if (rev) setHidden(false); }, [rev]);
+  useEffect(() => { if (pickSignal) setPicking(true); }, [pickSignal]);
   if (!sessionKey || typeof document === 'undefined') return null;
-  const showPill = (src.active && hidden) || (!src.active && canPresent);
+  const showPill = (src.active && hidden) || (!src.active && canPresent && !quiet);
   return createPortal(
     <>
       <style>{CSS}</style>
