@@ -53,6 +53,7 @@ import { formatRef, refId, type ScriptureRef } from '../../services/scriptureRef
 import { recordServiceNote, verseKeyOf, formatTC } from '../../services/serviceNotes';
 import { verseNotes } from '../../services/readerNotes';
 import { TRANSLATIONS, type BibleVerse } from '../../services/bibleService';
+import LeafPlayer, { useLeafPhone, isLeafPhoneNow } from './LeafPlayer';
 
 export interface ChurchStreamItem {
   id: string;
@@ -541,7 +542,14 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [compact]);
   const [lectioMiniMounted, setLectioMiniMounted] = useState<boolean>(true);
-  const [skinId, setSkinId] = useState<string>('lamplight');
+  // Phones open on Vellum paper, or the darkest surface when already in the sanctuary.
+  const isPhone = useLeafPhone();
+  const [skinId, setSkinId] = useState<string>(() =>
+    isLeafPhoneNow() ? (inSanctuaryAutoEngaged ? 'night' : 'vellum') : 'lamplight'
+  );
+  useEffect(() => {
+    if (inSanctuaryAutoEngaged && isLeafPhoneNow()) setSkinId('night');
+  }, [inSanctuaryAutoEngaged]);
   const [translation, setTranslation] = useState<string>(DEFAULT_TRANSLATION);
   const [chapterVerses, setChapterVerses] = useState<BibleVerse[]>([]);
   const [loadingVerses, setLoadingVerses] = useState<boolean>(false);
@@ -813,6 +821,67 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
           </button>
         </div>
       </div>
+    );
+  }
+
+  // ── Phone: the Leaf. Sources, display and notes live in its sheets. ──
+  if (isPhone) {
+    // A real org with nothing playing gets a plain line, not a standby player with sample verses.
+    if (!demo && !activeStream.playback) {
+      return (
+        <div className="rounded-[20px] px-4 py-3 text-[14px]" style={{ background: '#18141F', color: '#A49CB2' }}>
+          Nothing is live right now.
+        </div>
+      );
+    }
+    const cues = activeStream.scriptureCues;
+    const cueIndex = cues.findIndex(c => c.label === resolvedCueInfo.label);
+    return (
+      <LeafPlayer
+        media={<ReelloStageMedia playback={activeStream.playback} muted={muted} playing={playing} title={activeStream.title} />}
+        mediaIsEmbed={activeStream.playback?.kind === 'embed'}
+        background={activeStream.thumbnailGradient}
+        title={activeStream.title}
+        isLive={isLiveStream}
+        muted={muted}
+        onToggleMute={() => setMuted(m => !m)}
+        label={resolvedCueInfo.label}
+        verse={resolvedCueInfo.ref.verse ?? 1}
+        excerpt={resolvedCueInfo.spokenExcerpt}
+        verses={chapterVerses}
+        loading={loadingVerses}
+        translation={translation}
+        translations={TRANSLATIONS.slice(0, 6)}
+        onTranslation={setTranslation}
+        skin={activeSkin}
+        skins={LECTIO_SKINS}
+        onSkin={setSkinId}
+        sources={streamCatalog.map(s => ({
+          id: s.id,
+          title: s.title,
+          channel: s.ministryChannelName,
+          live: s.kind !== 'SERVICE_REPLAY',
+        }))}
+        activeSourceId={activeStream.id}
+        onPickSource={selectStreamSource}
+        onOpenLiveTv={onOpenOnAir && activeStream.onAirItem ? () => onOpenOnAir(activeStream.onAirItem!) : undefined}
+        inSanctuary={inSanctuaryAutoEngaged}
+        notes={memberNotes.filter(n => n.streamId === activeStream.id)}
+        noteDraft={noteDraft}
+        onNoteDraft={setNoteDraft}
+        onAddNote={handleAddTimestampedNote}
+        onJumpTo={jumpToCueMarker}
+        playheadSec={playheadSec}
+        onStepCue={
+          cues.length > 1 && cueIndex >= 0
+            ? dir => {
+                const next = cues[cueIndex + dir];
+                if (next) jumpToCueMarker(next.programTC);
+              }
+            : undefined
+        }
+        onOpenStudy={onOpenFullLectio ? () => onOpenFullLectio(resolvedCueInfo.ref) : undefined}
+      />
     );
   }
 
