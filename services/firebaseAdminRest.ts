@@ -345,6 +345,19 @@ export async function fsBatchWrite(docs: { path: string; data: Record<string, un
   return ok;
 }
 
+/** Atomic increment; returns the new count, or null when it couldn't be counted. */
+export async function fsBumpCounter(path: string, by = 1): Promise<number | null> {
+  const root = docRootFor(path);
+  const res = await fetch(`https://firestore.googleapis.com/v1/${root}:commit`, {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify({ writes: [{ update: { name: `${root}/${path}`, fields: toFields({ at: Date.now() }) }, updateMask: { fieldPaths: ['at'] }, updateTransforms: [{ fieldPath: 'count', increment: { integerValue: String(by) } }] }] }),
+  });
+  if (!res.ok) return null;
+  const v = ((await res.json()) as any)?.writeResults?.[0]?.transformResults?.[0]?.integerValue;
+  return v === undefined ? null : Number(v);
+}
+
 /** Add one student atomically: marker (only if new), private roster, public seat count. Idempotent. */
 export async function fsAddClassMember(classId: string, uid: string): Promise<'added' | 'already' | 'error'> {
   const root = docRootFor('classMembers');

@@ -374,7 +374,7 @@ export function registerEviteRoutes(d: EviteDeps) {
       const desc = esc([when, inv.settings.revealAddressAfterYes ? '' : inv.fields.venueName, 'Tap to see the invitation and reply. No account needed.'].filter(Boolean).join(' · '));
       const tags = `<title>${title}</title><meta property="og:type" content="website"><meta property="og:site_name" content="Plajah Events"><meta property="og:title" content="${title}"><meta property="og:description" content="${desc}"><meta property="og:url" content="${esc(origin)}/i/${inv.id}"><meta name="twitter:card" content="${og ? 'summary_large_image' : 'summary'}"><meta name="twitter:title" content="${title}"><meta name="twitter:description" content="${desc}">${og ? `<meta property="og:image" content="${esc(og.url)}">${og.w ? `<meta property="og:image:width" content="${og.w}"><meta property="og:image:height" content="${og.h}">` : ''}<meta property="og:image:alt" content="${title}"><meta name="twitter:image" content="${esc(og.url)}">` : ''}`;
       const stripped = html.replace(/<title>[\s\S]*?<\/title>/i, '').replace(/[ \t]*<meta\s+(?:property|name)="(?:og:[^"]*|twitter:[^"]*)"[^>]*\/?>\s*/gi, '');
-      res.set('Cache-Control', 'no-cache').type('html').send(stripped.replace('</head>', `${tags}</head>`));
+      res.set('Cache-Control', 'no-cache').type('html').send(stripped.replace('</head>', () => `${tags}</head>`));
     } catch { next(); }
   });
 }

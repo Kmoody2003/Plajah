@@ -27,7 +27,8 @@ import { ChoraGenerativeMusicEngine, ROOT_KEY_TO_PC } from './chora/choraGenerat
 import { billingApi } from './billingService';
 import { buildContentLicense, type ContentLicense } from './contentLicense';
 import { computeRoyalty } from './pod/royalty';
-import { auth } from './firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { auth, db } from './firebase';
 import type { BillingConnection, BillingEntityRef } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1191,19 +1192,39 @@ export async function createStripePaymentLinkForListing(
   }
 }
 
+export interface ServerChoraLicense { uid: string; songId: string; kind: string; paymentLinkId: string; sessionId: string; amountCents: number; grantedAt: number }
+
+const choraLicenseRef = (uid: string, songId: string) => doc(db, 'choraLicenses', `${uid}_${songId.replace(/[^A-Za-z0-9_-]/g, '_')}`);
+
+/** Calls back once Stripe has confirmed this person's purchase. Licences are only ever written by the server. */
+export function watchChoraLicense(songId: string, onLicense: (license: ServerChoraLicense) => void): () => void {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return () => {};
+  return onSnapshot(choraLicenseRef(uid, songId), snap => { if (snap.exists()) onLicense(snap.data() as ServerChoraLicense); }, () => {});
+}
+
+/** The payment link, tagged so the webhook knows who bought it. */
+export function checkoutUrlForListing(listing: ChoraSovereignListing): string | null {
+  const uid = auth.currentUser?.uid;
+  if (!uid || !listing.stripePaymentLinkUrl) return null;
+  return `${listing.stripePaymentLinkUrl}${listing.stripePaymentLinkUrl.includes('?') ? '&' : '?'}client_reference_id=${encodeURIComponent(uid)}`;
+}
+
 export function unlockSovereignListingForChurch(
   listing: ChoraSovereignListing,
   mode: 'PLAJAH_PLUS_SUBSCRIPTION' | 'DIRECT_SINGLE_LICENSE',
   productionId: string,
-  licensedOrg?: { orgId?: string; orgName?: string },
+  licensedOrg: { orgId?: string; orgName?: string } | undefined,
+  license: ServerChoraLicense,
 ): { song: MelosSong; receipt: SovereignLicenseReceipt; contentLicense: ContentLicense } {
+  if (!license?.uid || license.songId !== listing.songId) throw new Error('No confirmed licence for this song.');
   const amountUsd =
     mode === 'PLAJAH_PLUS_SUBSCRIPTION'
       ? listing.creatorPlajahPlusTierUsd
       : listing.directSingleSongLicenseUsd;
 
   const feeBreakdown = computeChoraSongFeeAndSplits(amountUsd, listing.coWriterSplits);
-  const buyerUid = auth.currentUser?.uid || 'local-church-admin';
+  const buyerUid = license.uid;
   const creatorUid = listing.id;
 
   // Build canonical Plajah ContentLicense (`services/contentLicense.ts`)
@@ -1218,7 +1239,7 @@ export function unlockSovereignListingForChurch(
     watermark: true,
     priceCents: feeBreakdown.listPriceCents,
     currency: 'USD',
-    paymentRef: listing.stripePaymentLinkId || `stripe_direct_${Date.now().toString(36)}`,
+    paymentRef: license.sessionId || license.paymentLinkId,
     choraRights: {
       licensedOrgId: licensedOrg?.orgId || productionId,
       licensedOrgName: licensedOrg?.orgName || 'Licensed Church / Ensemble',

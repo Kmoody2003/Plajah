@@ -61,15 +61,34 @@ Children's passwords were publicly readable, so treat every existing one as expo
 - Co-teachers get no guardian links, so their assignments may not reach parents.
 - Images in shared or org Tela docs may break in letters and album art, because only chat, articles and periodicals grant media access.
 
+## Private org, business and class data (release/trust-next)
+
+Dry run every script first and read its list. Copy phases only add; strip phases skip anything not yet on the private doc.
+
+1. Before the deploy: `migrateOrgFinance --phase=copy`, `migrateBusinessPrivate --phase=copy`, `migrateClassRoster --phase=copy` (rules read its markers), `migrateUserPrivate --phase=copy`, `migrateHqDepartmentWriters`.
+2. Deploy main, ops and storage rules, the server and the client together. Run `scripts/probeRuleset.mjs` on the minified main rules first.
+3. Run the copy phases again.
+4. Let the ops mirror reconcile, so it holds business seats from `private/staff`.
+5. Strip: `migrateOrgFinance`, `migrateBusinessPrivate`, `migrateClassRoster`, `migrateUserPrivate` with `--phase=strip`.
+6. `migrateSanctuaryGated`. Review the public originals it lists.
+
+New env: `VEO_DAILY_LIMIT` is optional (default 10). Gated sanctuary files use `HQ_STREAM_SECRET`, so they return 503 without it.
+
+## What people will notice from this round
+
+- Org admins and regular pastors lose EIN, legal name and finance settings until finance adds them.
+- Department leaders get approval limits from the server, without recurring bills, so their budget forecast leaves those out.
+- A free course joins through the server. Teachers can't edit a roster directly.
+- Trashing media breaks its URL at once, including anywhere else that URL was pasted. Restore brings it back.
+- A vehicle added by hand loses to the shop's customer, or to a claim code, on the first published service.
+- Song licences need a live Stripe link. Seeded listings without one no longer unlock.
+- Staff outside a department can no longer change its files, and department members now can.
+
 ## Still open
 
-- `organizations` and `businessPages` public docs still carry `ein`, `legalName`, `financeSettings` (with `recurringBills`), `stripeAccountId`, role lists and `staffSeats`. About 20 finance components read these, so moving them is its own change. `stripeAccountId` client writes on `businessPages` should also be blocked.
-- Public user docs still carry `fcmTokens`, `masterEmail` and `aliases`, and `isChild` is readable by direct lookup.
-- Classroom rosters remain on the public class doc.
-- Gated sanctuary files may be reachable if their storage URLs are public. Trashed media stays reachable by URL for 30 days.
-- Staff can write or trash a department file by exact id, because rules can't see departments.
-- `/api/garage/claim` pre-claim, ticket email and push abuse, no daily Veo quota, evite `venueName` and `Math.random` ids, and client-built licenses in `unlockSovereignListingForChurch`.
-- `elevate_mobilize_bundles` has no rule, so cloud saves fail silently and the device holds the only copy.
-- Shared browser stores `studio:blob`, `tela-assets` and `plajah.creative.rev.*`.
+- `isChild` is still readable by direct lookup. Safety rules and client checks read it on other people's docs, and 68 files open users docs directly, so hiding it needs a server card route first.
+- Org role lists remain on the public org doc. Rules across the main database read them.
+- `unlockSovereignListingForChurch` Plajah+ mode is refused: listings are device-local, so the server can't verify a tier. Listings need a server home.
+- A new department file has no writer marker until someone lists its folder or the roster syncs.
 - A client-reported Tela audit is gone, but notification text is still sender-written.
 - Pre-existing failure: `testEduAnnouncementRules` "church staff reads any class" fails on the old rules too.

@@ -189,8 +189,9 @@ export async function revokeHqShareLink(asset: OrgAsset, shareId: string): Promi
 
 /** List a scope's share links so the owner can copy or revoke them. */
 export async function listHqShareLinks(assetId: string): Promise<HqShareLink[]> {
-  const snap = await getDocs(query(collection(opsDb, 'hqShareLinks'), where('assetId', '==', assetId), orderBy('createdAt', 'desc'), limit(25)));
-  return snap.docs.map(d => d.data() as HqShareLink);
+  // Only people who can change a file may see its links. A grantee is refused, and that just means no list.
+  const snap = await getDocs(query(collection(opsDb, 'hqShareLinks'), where('assetId', '==', assetId), orderBy('createdAt', 'desc'), limit(25))).catch(() => null);
+  return snap ? snap.docs.map(d => d.data() as HqShareLink) : [];
 }
 
 export async function fetchHqAsset(assetId: string): Promise<OrgAsset | null> {

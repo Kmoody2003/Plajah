@@ -202,6 +202,20 @@ t('a person reads their own page list', 'ALLOW', 'clerk', 'get', 'staffPageIndex
 t('nobody reads another person page list', 'DENY', 'out', 'get', 'staffPageIndex/clerk', { existing: { pageIds: ['b1'] } });
 t('nobody writes their own page list', 'DENY', 'clerk', 'update', 'staffPageIndex/clerk', { existing: { pageIds: [] }, data: { pageIds: ['b1'] } });
 
+// ── Mobilize + licences ─────────────────────────────────────────────────────
+const mobOrg = [get('organizations/o1', { creatorId: 'own', admins: ['adm'], itAdminUids: [], pastorUids: ['pas'], staffUids: ['st'], leaderUids: ['lead'] })];
+for (const u of ['own', 'adm', 'pas', 'st', 'lead']) t(`org staff ${u} saves a mobilize bundle`, 'ALLOW', u, 'update', 'elevate_mobilize_bundles/o1', { existing: { orgId: 'o1' }, data: { orgId: 'o1', a: 1 }, extra: mobOrg });
+t('an outsider cannot read a mobilize bundle', 'DENY', 'out', 'get', 'elevate_mobilize_bundles/o1', { existing: { orgId: 'o1' }, extra: mobOrg });
+t('signed out cannot read a mobilize bundle', 'DENY', null, 'get', 'elevate_mobilize_bundles/o1', { existing: { orgId: 'o1' }, extra: mobOrg });
+t('an outsider cannot write a mobilize bundle', 'DENY', 'out', 'create', 'elevate_mobilize_bundles/o1', { data: { orgId: 'o1' }, extra: mobOrg });
+t('a bundle cannot point at another org', 'DENY', 'st', 'update', 'elevate_mobilize_bundles/o1', { existing: { orgId: 'o1' }, data: { orgId: 'o2' }, extra: mobOrg });
+t('staff cannot delete a bundle', 'DENY', 'st', 'delete', 'elevate_mobilize_bundles/o1', { existing: { orgId: 'o1' }, extra: mobOrg });
+t('nobody mints their own song licence', 'DENY', 'fan', 'create', 'choraLicenses/fan_s1', { data: { uid: 'fan', songId: 's1' } });
+t('a buyer reads their licence', 'ALLOW', 'fan', 'get', 'choraLicenses/fan_s1', { existing: { uid: 'fan', songId: 's1' } });
+t('nobody reads another buyer licence', 'DENY', 'out', 'get', 'choraLicenses/fan_s1', { existing: { uid: 'fan', songId: 's1' } });
+t('nobody reads usage counters', 'DENY', 'fan', 'get', 'usageCounters/veo_x_2026-11-01', { existing: { count: 1 } });
+t('nobody resets a usage counter', 'DENY', 'fan', 'update', 'usageCounters/veo_x_2026-11-01', { existing: { count: 9 }, data: { count: 0 } });
+
 // ── F ───────────────────────────────────────────────────────────────────────
 const emp = { uid: 'emp_org1_abc', displayName: 'E', photoURL: '', isEmployee: true, managedByUid: 'boss' };
 t('nobody squats a real uid as a managed employee', 'DENY', 'out', 'create', 'users/realuid123', { data: { ...emp, uid: 'realuid123', managedByUid: 'out' } });

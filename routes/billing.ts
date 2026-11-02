@@ -89,6 +89,8 @@ export function computeTotals(lines: Array<{ quantity: number; unitAmount: numbe
   return { subtotalC, discountC, taxC, totalC: subtotalC - discountC + taxC };
 }
 
+export const choraLicenseId = (uid: string, songId: string) => `${uid}_${songId.replace(/[^A-Za-z0-9_-]/g, '_')}`;
+
 const COLL: Record<BillingEntityKind, string> = { USER: 'users', ORG: 'organizations', BUSINESS: 'businesses', PRODUCTION: 'productions' };
 const ACCT_FIELD = (k: BillingEntityKind) => (k === 'USER' ? 'stripeConnectAccountId' : 'stripeAccountId');
 
@@ -704,6 +706,11 @@ export function createBilling(deps: BillingDeps) {
         const pl = rows[0]; if (!pl) return false;
         if (obj.payment_status === 'paid' && await once(`pl_${obj.id}`)) {
           const cur = await deps.read('billingPaymentLinks', pl.id);
+        // A Chora song link: the checkout carries the buyer's uid, and this paid event is the only thing that mints their licence.
+        if (cur?.choraSongId && obj.client_reference_id && /^[A-Za-z0-9_-]{6,128}$/.test(String(obj.client_reference_id))) {
+          const buyer = String(obj.client_reference_id);
+          await deps.patch('choraLicenses', choraLicenseId(buyer, String(cur.choraSongId)), { uid: buyer, songId: String(cur.choraSongId), kind: String(cur.choraLicenseKind || 'chora_song_pack'), paymentLinkId: pl.id, sessionId: String(obj.id || ''), amountCents: Number(obj.amount_total) || 0, grantedAt: Date.now() });
+        }
           await deps.patch('billingPaymentLinks', pl.id, { paidCount: (cur?.paidCount || 0) + 1, paidTotal: c2d(d2c(cur?.paidTotal || 0) + (obj.amount_total || 0)), lastPaidAt: Date.now() });
           const ent = await loadEntity(pl.data.entity);
           if (ent) await notifyUser(ent.ownerUid, `Payment received - ${pl.data.title}`, `${c2d(obj.amount_total || 0).toFixed(2)} ${String(obj.currency || 'usd').toUpperCase()}${obj.customer_details?.name ? ' from ' + obj.customer_details.name : ''}`, pl.id, 'Plajah Billing');

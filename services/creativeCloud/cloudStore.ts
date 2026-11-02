@@ -13,6 +13,7 @@
 // (before a restore). Otherwise it is deleted. Versions are pointers, so history costs no extra
 // uploads; old autosave checkpoints are thinned by versionsToPrune.
 
+import { scopedKey } from '../userScope';
 import {
   collection,
   deleteDoc,
@@ -117,7 +118,7 @@ export function thisDevice(): { id: string; label: string } {
 /** The head revision this device last saved or opened, per project. */
 function knownRev(projectId: string): number | null {
   try {
-    const v = localStorage.getItem(`plajah.creative.rev.${projectId}`);
+    const v = localStorage.getItem(scopedKey(`creative.rev.${projectId}`)) ?? localStorage.getItem(`plajah.creative.rev.${projectId}`);
     return v == null ? null : Number(v);
   } catch {
     return null;
@@ -125,7 +126,8 @@ function knownRev(projectId: string): number | null {
 }
 function setKnownRev(projectId: string, rev: number) {
   try {
-    localStorage.setItem(`plajah.creative.rev.${projectId}`, String(rev));
+    localStorage.setItem(scopedKey(`creative.rev.${projectId}`), String(rev));
+    localStorage.removeItem(`plajah.creative.rev.${projectId}`);
   } catch {
     /* storage blocked: conflict detection falls back to device id */
   }

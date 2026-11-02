@@ -3757,6 +3757,20 @@ service cloud.firestore {
 
 
     function orgDoc(orgId) { return get(/databases/$(database)/documents/organizations/$(orgId)).data; }
+    // Elevate Mobilize drives and rosters: org leadership and staff, scoped to their own org. Org admins included, finance not involved.
+    match /elevate_mobilize_bundles/{orgId} {
+      allow read: if orgMobilizeStaff(orgId);
+      allow create, update: if orgMobilizeStaff(orgId) && request.resource.data.orgId == orgId;
+      allow delete: if orgAdminOf(orgId);
+    }
+    function orgMobilizeStaff(orgId) {
+      return isAuthenticated() && (orgPastorOrAdmin(orgId) || request.auth.uid in orgDoc(orgId).get('staffUids', []) || request.auth.uid in orgDoc(orgId).get('leaderUids', []));
+    }
+    // A song licence: written only by the Stripe webhook, read only by the person who bought it.
+    match /choraLicenses/{id} {
+      allow get: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
     function orgFinanceWriter(orgId) {
       let o = orgDoc(orgId);
       return isAuthenticated() && (o.creatorId == request.auth.uid || o.get('ownerId', '') == request.auth.uid || o.get('accountUid', '') == request.auth.uid ||

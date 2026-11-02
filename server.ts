@@ -185,6 +185,7 @@ import { grossUpCents, giftCentsFromGross, applicationFeePercent } from './servi
 import { receiptPdf, bytesToBase64 } from './services/givingPdf';
 import { receiptEmail, statementEmail, receiptNoOf, statementOrgOf, EMAIL_RE } from './services/givingEmailCore';
 import { createBilling } from './routes/billing';
+import { bumpQuota, PUSH_PAIR_DAILY_LIMIT, PUSH_SENDER_DAILY_LIMIT } from './services/usageQuota';
 import { canOpenSanctuaryItem, itemNamesGatedPath, sanctuaryItemOwner, SANCTUARY_ITEM_OWNER } from './services/sanctuaryMediaCore';
 import { fsAddClassMember, fsClassRoster } from './services/firebaseAdminRest';
 import { mergeOrgFinance, financeViewFor, financeViewLevel } from './services/orgFinanceCore';
@@ -8609,6 +8610,10 @@ async function startServer() {
       const notif = typeof notificationId === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(notificationId) ? await firestoreRead('notifications', notificationId) : null;
       if (!pushMatchesNotification(notif, recipient, req.uid)) return res.status(403).json({ error: 'No matching notification', code: 'NO_NOTIFICATION' });
       title = notif!.title; body = notif!.message; link = notif!.link; targetId = notif!.targetId; type = notif!.type; icon = undefined;
+      // A sender writes the notification too, so one person can't spam another, or everyone, through this route.
+      if (await bumpQuota('pushPair', `${req.uid}|${recipient}`, PUSH_PAIR_DAILY_LIMIT) || await bumpQuota('pushFrom', req.uid, PUSH_SENDER_DAILY_LIMIT)) {
+        return res.json({ sent: 0, total: 0, limited: true });
+      }
       // Email is its own channel with its own prefs (unread delay / digests) — decided server-side,
       // independent of push prefs and of whether the recipient has a device registered.
       if (!req.isAnonymous) {

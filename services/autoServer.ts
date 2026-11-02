@@ -29,7 +29,7 @@ import { toPublicInspection, sanitizeInspection, serializeInspection, parseInspe
 import { buildAdvisorPrompt, buildFindings, validateAdvisorResponse, fallbackDraft, type AdvisorVehicle } from './advisorCore';
 import { predictNextService, resolveIntervals, classifyLine, reminderMessage } from './serviceReminderCore';
 import {
-  buildEntry, canReadEntries, visibleToShop, makeClaimCode, normalizeClaimCode, formatShareToken, parseShareToken, renderPassportHtml, SHARE_TTL_MS, type PassportEntry,
+  ownerAfterPublish, buildEntry, canReadEntries, visibleToShop, makeClaimCode, normalizeClaimCode, formatShareToken, parseShareToken, renderPassportHtml, SHARE_TTL_MS, type PassportEntry,
 } from './passportCore';
 
 export interface AutoDeps {
@@ -300,6 +300,10 @@ export function registerAutoRoutes(d: AutoDeps): void {
     let claimCode = '';
     const pp = await casUpdate<{ ownerUid: string; claimCode: string }>(d.restCas('passports'), key, cur => {
       // An existing passport never changes owner from a ticket, and its claim code only goes back to the shop that first issued it.
+      if (cur?.selfClaimed) {
+        const next = ownerAfterPublish(cur as any, t.customer.uid, () => makeClaimCode(nodeCrypto.randomBytes(8)));
+        return { patch: { ownerUid: next.ownerUid, selfClaimed: false, ...(next.claimCode !== undefined ? { claimCode: next.claimCode, claimShopUid: businessUid } : {}), updatedAt: Date.now() }, result: { ownerUid: next.ownerUid, claimCode: next.claimCode || '' } };
+      }
       if (cur) return { patch: { updatedAt: Date.now() }, result: { ownerUid: String(cur.ownerUid || ''), claimCode: cur.claimShopUid === businessUid ? String(cur.claimCode || '') : '' } };
       const code = t.customer.uid ? '' : makeClaimCode(nodeCrypto.randomBytes(8));
       return { patch: {
@@ -399,7 +403,7 @@ export function registerAutoRoutes(d: AutoDeps): void {
     let fail: { status: number; error: string } | null = null;
     const out = await casUpdate<string>(d.restCas('passports'), key, cur => {
       const now = Date.now();
-      if (!cur) return { patch: { key, vin: c.valid ? c.vin : '', plate: normalizePlate(String(req.body?.plate || '')), state: normalizeState(String(req.body?.state || '')), year: Number(req.body?.year) || 0, make: String(req.body?.make || '').slice(0, 60), model: String(req.body?.model || '').slice(0, 80), trim: '', ownerUid: uid, claimCode: '', createdAt: now, updatedAt: now }, result: 'CREATED' };
+      if (!cur) return { patch: { selfClaimed: true, key, vin: c.valid ? c.vin : '', plate: normalizePlate(String(req.body?.plate || '')), state: normalizeState(String(req.body?.state || '')), year: Number(req.body?.year) || 0, make: String(req.body?.make || '').slice(0, 60), model: String(req.body?.model || '').slice(0, 80), trim: '', ownerUid: uid, claimCode: '', createdAt: now, updatedAt: now }, result: 'CREATED' };
       if (cur.ownerUid === uid) return { abort: true, result: 'MINE' };
       if (cur.ownerUid) { fail = { status: 409, error: 'This vehicle is already in another Plajah garage. Ownership transfer is not available yet; contact support if this is yours.' }; return { abort: true, result: '' }; }
       if (!cur.claimCode || !code || !safeEq(normalizeClaimCode(String(cur.claimCode)), code)) { fail = { status: 403, error: 'This vehicle already has service history. Enter the claim code your shop gave you.' }; return { abort: true, result: '' }; }

@@ -22,6 +22,7 @@ import { GoogleGenAI, type GenerateVideosOperation } from '@google/genai';
 import { createHash } from 'node:crypto';
 import { verifyIdTokenDetailed, adminConfig, fsGet, fsSet } from '../services/firebaseAdminRest';
 import { isVeoDownloadUri, isVeoOperationName } from '../services/serverGuards';
+import { bumpQuota, refundQuota, VEO_DAILY_LIMIT } from '../services/usageQuota';
 
 export const veoRouter = Router();
 
@@ -115,13 +116,18 @@ veoRouter.post('/generate', async (req: Request, res: Response) => {
   if (typeof rawConfig.resolution === 'string') config.resolution = rawConfig.resolution;
   if (typeof rawConfig.aspectRatio === 'string') config.aspectRatio = rawConfig.aspectRatio;
 
+  // Each render is billed to the platform, so every account gets a daily allowance. A render that fails is given back.
+  if (await bumpQuota('veo', uid, VEO_DAILY_LIMIT(), true)) {
+    return res.status(429).json({ error: 'You have reached today\'s video limit. It resets at midnight UTC.', code: 'DAILY_LIMIT' });
+  }
   try {
     const operation = await ai.models.generateVideos({ model, prompt, image, config });
-    if (!operation.name) return res.status(502).json({ error: 'Upstream returned no operation.' });
+    if (!operation.name) { await refundQuota('veo', uid); return res.status(502).json({ error: 'Upstream returned no operation.' }); }
     await fsSet(ownerDoc('op', operation.name), { uid, at: Date.now() });
     return res.json({ operationName: operation.name });
   } catch (e: any) {
     console.error('[veo] generate failed:', e?.message || e);
+    await refundQuota('veo', uid);
     return res.status(502).json({ error: 'Video generation failed to start.' });
   }
 });
