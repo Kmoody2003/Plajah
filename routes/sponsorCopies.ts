@@ -18,6 +18,8 @@
 //   GET  /api/copies/book/:bookId             public: OPEN giveaways listed on a book's page
 
 import { Router } from 'express';
+import { paymentRouting, type SaleRoute } from '../services/payments/directRoute';
+import type { SaleBreakdown } from '../services/payments/saleFees';
 import express from 'express';
 import * as crypto from 'node:crypto';
 import { fsGet, fsSet, fsPatch, fsQuery, fsDelete, fsBatchWrite, verifyIdToken } from '../services/firebaseAdminRest';
@@ -27,6 +29,7 @@ import { readRegistry, editionOf, type BookVersionStamp } from '../services/book
 import { appendLedger } from './ledger';
 
 export interface SponsorCopiesDeps {
+  prepareSale(sellerUid: string, category: string, grossCents: number, opts: { isBook?: boolean }): Promise<{ ok: false; error: string } | { ok: true; route: SaleRoute; fees: SaleBreakdown; meta: Record<string, string> }>;
   authMiddleware: any;
   requireRegisteredUser: any;
   getStripe: () => any;
@@ -147,7 +150,10 @@ export function createSponsorCopiesRouter(deps: SponsorCopiesDeps): Router {
         edition: registry.current, ...(p.message ? { message: p.message } : {}), showOnBookPage: !!p.showOnBookPage,
         status: 'PENDING_PAYMENT', createdAt: now, ...(p.recipients ? { recipients: p.recipients } : {}),
       };
-      if (!(await fsSet(`copyPools/${poolId}`, pool as unknown as Record<string, unknown>))) return res.status(500).json({ error: 'Could not start the gift' });
+      const sale = isAuthor ? null : await deps.prepareSale(owner, 'content_purchase', pool.unitPriceCents * p.quantity, { isBook: true });
+      if (sale && sale.ok === false) return res.status(400).json({ error: sale.error });
+      const paid = sale && sale.ok === true ? sale : null;
+      if (!(await fsSet(`copyPools/${poolId}`, { ...pool, ...(paid ? { paymentRoute: paid.route.route } : {}) } as unknown as Record<string, unknown>))) return res.status(500).json({ error: 'Could not start the gift' });
       const origin = deps.trustedRequestOrigin(req);
       // The author gives their own book away for free — no payment, live at once.
       if (isAuthor) {
@@ -160,8 +166,8 @@ export function createSponsorCopiesRouter(deps: SponsorCopiesDeps): Router {
         line_items: [{ price_data: { currency: 'usd', product_data: { name: `${pool.title} — gift ${p.quantity === 1 ? 'copy' : 'copies'}` }, unit_amount: pool.unitPriceCents }, quantity: p.quantity }],
         success_url: `${origin}/?copies_purchased=${encodeURIComponent(poolId)}&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}/?copies_cancelled=${encodeURIComponent(poolId)}`,
-        metadata: { type: 'copy_pool', poolId, uid: req.uid, creatorUid: owner, kind: 'book', contentId: p.bookId, title: pool.title, quantity: String(p.quantity) },
-        payment_intent_data: { metadata: { type: 'copy_pool', poolId } },
+        metadata: { type: 'copy_pool', poolId, uid: req.uid, creatorUid: owner, kind: 'book', contentId: p.bookId, title: pool.title, quantity: String(p.quantity), ...paid!.meta },
+        payment_intent_data: { ...paymentRouting(paid!.route, paid!.fees), metadata: { type: 'copy_pool', poolId } },
       });
       res.json({ url: session.url, poolId });
     } catch (e: any) {
@@ -287,17 +293,9 @@ export function createSponsorCopiesRouter(deps: SponsorCopiesDeps): Router {
     if (cents > 0 && fresh.paymentRef) {
       try {
         const stripe = deps.getStripe();
-        const refund = await stripe.refunds.create({ payment_intent: fresh.paymentRef, amount: cents, metadata: { type: 'copy_pool_unclaimed', poolId } }, { idempotencyKey: `pool_refund_${poolId}` });
+        const refund = await stripe.refunds.create({ payment_intent: fresh.paymentRef, amount: cents, ...((fresh as any).paymentRoute === 'direct' ? { reverse_transfer: true, refund_application_fee: true } : {}), metadata: { type: 'copy_pool_unclaimed', poolId } }, { idempotencyKey: `pool_refund_${poolId}` });
         refundId = refund.id;
-        // Take back the author's share of the refunded copies.
-        const rows = await fsQuery('creatorEarnings', [{ field: 'stripePaymentIntentId', value: fresh.paymentRef }], 3);
-        for (const row of rows) {
-          const share = Math.round((Number(row.data.creatorNetCents) || 0) * seats / fresh.quantity);
-          if (row.data.transferId && share > 0) {
-            await stripe.transfers.createReversal(String(row.data.transferId), { amount: share }, { idempotencyKey: `pool_reverse_${poolId}` }).catch((e: any) => console.error('[copies] reversal failed', e?.message || e));
-          }
-          await fsPatch(`creatorEarnings/${row.id}`, { refundedCents: share, refundedSeats: seats, refundedAt: Date.now() });
-        }
+        // This refund's charge.refunded webhook takes back the author's and collaborators' shares (services/splitPayouts.ts).
       } catch (e: any) {
         console.error('[copies] refund failed', poolId, e?.message || e);
         return res.status(502).json({ error: 'The gift is closed, but the refund could not be issued. Contact support.', closed: true });

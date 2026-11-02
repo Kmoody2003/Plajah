@@ -237,43 +237,8 @@ export async function settlePatronagePayout(
     // Fallback to client Firestore ledger update below
   }
 
-  // Gear 1 Zero-KYC Firestore Ledger fallback
-  try {
-    const walletRef = doc(db, 'patronageWallets', req.recipientUid);
-    const snap = await getDoc(walletRef);
-    if (snap.exists()) {
-      await updateDoc(walletRef, {
-        pendingStripeBalanceCents: increment(req.amountCents),
-        lifetimeEarnedCents: increment(req.amountCents),
-        updatedAt: Date.now(),
-      });
-    } else {
-      const initial: PatronageWallet = {
-        uid: req.recipientUid,
-        pendingStripeBalanceCents: req.amountCents,
-        lifetimeDirectStripeCents: 0,
-        lifetimeEarnedCents: req.amountCents,
-        updatedAt: Date.now(),
-      };
-      await setDoc(walletRef, initial);
-    }
-
-    await addDoc(collection(db, 'creatorEarnings'), {
-      creatorUid: req.recipientUid,
-      category: req.category,
-      grossCents: req.amountCents,
-      platformFeeCents: 0,
-      netCents: req.amountCents,
-      sourceModel: req.sourceModel,
-      albumId: req.albumId || null,
-      sponsorName: req.sponsorName || null,
-      description: req.note || 'Plajah Patronage Payout',
-      createdAt: Date.now(),
-    });
-    return { ok: true, settledDirectToStripe: false };
-  } catch {
-    return { ok: false, settledDirectToStripe: false };
-  }
+  // No ledger fallback: Plajah doesn't keep balances for people, so an unpaid payout is simply unpaid.
+  return { ok: false, settledDirectToStripe: false };
 }
 
 export async function fetchPatronageWallet(uid?: string): Promise<PatronageWallet | null> {
