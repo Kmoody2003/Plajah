@@ -98,11 +98,12 @@ service cloud.firestore {
         data.get('uploadedByUid', '') == request.auth.uid || request.auth.uid in data.get('accessUids', []) || isAdmin() ||
         (data.scopeKind == 'org' && (orgDoc(data.scopeId).creatorId == request.auth.uid || request.auth.uid in orgDoc(data.scopeId).get('itAdminUids', []))));
     }
-    // Changing a file is not part of being shared it: a grantee can read and comment, nothing more.
+    // Changing a file is not part of being shared it: a grantee can read and comment, nothing more. A department's
+    // file carries hqWriteUids (server-written): only those people, its author, the owner and IT Admins change or trash it.
     function hqWriter(data) {
       return data.scopeKind == 'business' ? isAuthenticated() && (bizHqWriter(data.scopeId) || isAdmin()) :
-        data.get('access', 'open') == 'open' ? canAccessHqScope(data) : isAuthenticated() && (
-        data.get('uploadedByUid', '') == request.auth.uid || isAdmin() ||
+        (data.get('access', 'open') == 'open' && data.get('hqWriteUids', null) == null) ? canAccessHqScope(data) : isAuthenticated() && (
+        data.get('uploadedByUid', '') == request.auth.uid || isAdmin() || request.auth.uid in data.get('hqWriteUids', []) ||
         (data.scopeKind == 'org' && (orgDoc(data.scopeId).creatorId == request.auth.uid || request.auth.uid in orgDoc(data.scopeId).get('itAdminUids', []))));
     }
     // Reading a file's record or thread directly. Rules can't see departments, so everyone else goes through
@@ -574,11 +575,11 @@ service cloud.firestore {
       allow list: if isAdmin();
       // A record can only name a stored object in its own owner's space, and only the server records a scan.
       allow create: if cxScopeOk(request.resource.data) && request.resource.data.uploadedByUid == request.auth.uid &&
-        !request.resource.data.keys().hasAny(['access', 'accessSpec', 'accessUids', 'scannedAt', 'scanEngine', 'scanEngineNote', 'rawContentText', 'sharedOrgIds']) &&
+        !request.resource.data.keys().hasAny(['hqWriteUids', 'access', 'accessSpec', 'accessUids', 'scannedAt', 'scanEngine', 'scanEngineNote', 'rawContentText', 'sharedOrgIds']) &&
         request.resource.data.storagePath.matches('protected-hq/' + request.resource.data.scopeKind + '/' + request.resource.data.scopeId + '/.*');
       allow update: if hqWriter(resource.data) && request.resource.data.scopeKind == resource.data.scopeKind &&
         request.resource.data.scopeId == resource.data.scopeId && request.resource.data.uploadedByUid == resource.data.uploadedByUid &&
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['access', 'accessSpec', 'accessUids', 'storagePath', 'scannedAt', 'scanEngine', 'scanEngineNote', 'rawContentText', 'sharedOrgIds']) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['hqWriteUids', 'access', 'accessSpec', 'accessUids', 'storagePath', 'scannedAt', 'scanEngine', 'scanEngineNote', 'rawContentText', 'sharedOrgIds']) &&
         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['scanStatus']) || request.resource.data.scanStatus == 'PENDING');
       allow delete: if hqWriter(resource.data);
     }

@@ -48,6 +48,25 @@ export function canSeeOrgFile(uid: string, asset: Row, org: Row | null, membersh
   return inDept || asset.uploadedByUid === uid;
 }
 
+/**
+ * The marker rules read, since they can't see departments: who may change an open file that belongs to a department,
+ * beyond its author, the owner and IT Admins (rules always let those through). null means the file has no department
+ * limit, so the scope's staff keep write access. Finance stays with finance. Education stays open to all staff, as reading does.
+ */
+export function hqWriteUidsFor(asset: Row, org: Row, members: Row[]): string[] | null {
+  if ((asset.access || 'open') !== 'open') return null;
+  const dept = fileDepartment(asset, org);
+  if (!dept) return null;
+  const name = dept.name || asset.folder;
+  if (isEducationDepartmentName(name)) return null;
+  const out = new Set<string>();
+  for (const m of members) if (m.status === 'ACTIVE' && m.userId && isInDepartment(String(m.userId), dept, org, m)) out.add(String(m.userId));
+  for (const u of [...(dept.headUids || []), ...(org.departmentUids?.[dept.id] || [])]) out.add(u);
+  if (isFinanceDepartmentName(name)) for (const u of [...(org.seniorPastorUids || []), ...(org.financeUids || []), ...(org.accountingUids || [])]) out.add(u);
+  else for (const u of org.admins || []) out.add(u);
+  return [...out].sort();
+}
+
 /** A business's files: its owner and whoever holds a staff seat. A seat that ended takes the files with it. */
 export function canSeeBusinessFile(uid: string, asset: Row, page: Row | null): boolean {
   if (!page || !uid) return false;
@@ -106,7 +125,7 @@ export const HQ_TEXT_MAX_CHARS = 900_000;
 
 /** What leaves the server about a file. Its text is fetched on its own, through the same check. */
 export function hqRecordForClient(asset: Row): Row {
-  const { rawContentText, ...rest } = asset;
+  const { rawContentText, hqWriteUids: _writers, ...rest } = asset;
   return rawContentText ? { ...rest, hasText: true } : rest;
 }
 

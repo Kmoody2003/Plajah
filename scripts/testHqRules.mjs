@@ -72,6 +72,21 @@ t("someone else cannot read a person's file", 'DENY', OUT, 'get', A('mine1'), { 
 t("an org's owner cannot read a member's personal file", 'DENY', OWNER, 'get', A('mine1'), { existing: personal });
 t('the person reads their own file', 'ALLOW', AUTHOR, 'get', A('mine1'), { existing: personal });
 
+// Department files: rules read the server's writer list
+const deptFile = { ...openFile, id: 'dept1', departmentId: 'youth', hqWriteUids: ['head'] };
+const trashed = { ...deptFile, deletedAt: 1 };
+t('staff outside a department cannot change its file', 'DENY', STAFF, 'update', A('dept1'), { existing: deptFile, data: { ...deptFile, name: 'x' } });
+t('staff outside a department cannot trash its file', 'DENY', STAFF, 'update', A('dept1'), { existing: deptFile, data: trashed });
+t('staff outside a department cannot delete its file', 'DENY', STAFF, 'delete', A('dept1'), { existing: deptFile });
+t('an org admin not listed cannot change a Finance file', 'DENY', ADMIN, 'update', A('dept1'), { existing: deptFile, data: trashed });
+t('a department member changes the file', 'ALLOW', 'head', 'update', A('dept1'), { existing: deptFile, data: { ...deptFile, name: 'x' } });
+t('the author still changes their file', 'ALLOW', AUTHOR, 'update', A('dept1'), { existing: deptFile, data: { ...deptFile, name: 'x' } });
+t('the owner trashes any department file', 'ALLOW', OWNER, 'update', A('dept1'), { existing: deptFile, data: trashed });
+t('an IT Admin trashes any department file', 'ALLOW', IT, 'update', A('dept1'), { existing: deptFile, data: trashed });
+t('nobody adds themselves to the writer list', 'DENY', 'head', 'update', A('dept1'), { existing: deptFile, data: { ...deptFile, hqWriteUids: ['head', STAFF] } });
+t('nobody strips the writer list', 'DENY', AUTHOR, 'update', A('dept1'), { existing: deptFile, data: openFile });
+t('a new file cannot name its own writers', 'DENY', STAFF, 'create', A('new9'), { data: { scopeKind: 'org', scopeId: ORG, uploadedByUid: STAFF, hqWriteUids: [STAFF], storagePath: `protected-hq/org/${ORG}/new9/a.pdf` } });
+
 // Restricted files
 t('grantee reads a restricted file', 'ALLOW', GRANTEE, 'get', A('lock1'), { existing: locked });
 t('org admin cannot read a restricted file', 'DENY', ADMIN, 'get', A('lock1'), { existing: locked });

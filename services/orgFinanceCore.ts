@@ -67,6 +67,7 @@ export function financeViewFor(fin: OrgFinanceFields | null | undefined, level: 
 export function financeViewLevel(org: Record<string, any>, uid: string, isMember: boolean): FinanceViewLevel {
   const inList = (k: string) => Array.isArray(org[k]) && org[k].includes(uid);
   const isHead = Array.isArray(org.ministries) && org.ministries.some((m: any) => Array.isArray(m?.headUids) && m.headUids.includes(uid));
-  if (org.creatorId === uid || isHead || ['admins', 'pastorUids', 'leaderUids', 'departmentUids', 'staffUids', 'itAdminUids', 'seniorPastorUids', 'financeUids', 'givingViewUids', 'accountingUids', 'accountingViewUids'].some(inList)) return 'policy';
+  const inDepartment = !!org.departmentUids && Object.values(org.departmentUids as Record<string, unknown>).some(l => Array.isArray(l) && l.includes(uid));
+  if (org.creatorId === uid || isHead || inDepartment || ['admins', 'pastorUids', 'leaderUids', 'staffUids', 'itAdminUids', 'seniorPastorUids', 'financeUids', 'givingViewUids', 'accountingUids', 'accountingViewUids'].some(inList)) return 'policy';
   return isMember ? 'identity' : 'none';
 }

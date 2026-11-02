@@ -23,7 +23,7 @@
 import { Router, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { verifyIdTokenDetailed, fsCreate, fsGet, fsPatch, fsSet, fsQuery } from '../services/firebaseAdminRest';
-import { canReviewHqSecurity, canSeeBusinessFile, canSeeOrgFile, canUseOrgShare, hqRecordForClient, hqRecordForOrgShare, isOrgShareable } from '../services/hqAccessPolicy';
+import { canReviewHqSecurity, canSeeBusinessFile, canSeeOrgFile, canUseOrgShare, hqRecordForClient, hqRecordForOrgShare, isOrgShareable, hqWriteUidsFor } from '../services/hqAccessPolicy';
 import { getElevateRole } from '../services/elevateRoles';
 import { settleDepartures } from '../services/coeditAdmin';
 import { FINANCE_ROLE_KEYS, PROTECTED_ROLE_KEYS, getElevateRole } from '../services/elevateRoles';
@@ -62,6 +62,17 @@ function resolveAccessUids(spec: Record<string, any> | undefined, members: Recor
   return Array.from(out);
 }
 
+/** Write hqWriteUids where it changed. Clients never see or set this field. */
+async function stampDepartmentWriters(files: { id: string; data: Record<string, any> }[], org: Record<string, any>, members: Record<string, any>[]): Promise<void> {
+  for (const f of files) {
+    if (f.data.scopeKind !== 'org') continue;
+    const next = hqWriteUidsFor(f.data, org, members);
+    if (next === null && f.data.hqWriteUids === undefined) continue;
+    if (next && (f.data.hqWriteUids || []).join() === next.join()) continue;
+    await fsPatch(`orgAssets/${f.id}`, { hqWriteUids: next ?? undefined });
+  }
+}
+
 /** Re-derive the access lists on the org doc from the memberships' protected roles. */
 export async function rebuildOrgAccessIndex(orgId: string, org: Record<string, any>): Promise<void> {
   const rows = await fsQuery('orgMemberships', [{ field: 'orgId', value: orgId }], MAX_MEMBERS);
@@ -71,6 +82,9 @@ export async function rebuildOrgAccessIndex(orgId: string, org: Record<string, a
     const accessUids = resolveAccessUids(a.data.accessSpec, rows.map(r => r.data), org);
     if (accessUids.join() !== (a.data.accessUids || []).join()) await fsPatch(`orgAssets/${a.id}`, { accessUids });
   }
+  // Keep each department file's writer list in step with the roster.
+  const files = await fsQuery('orgAssets', [{ field: 'scopeId', value: orgId }], MAX_MEMBERS);
+  await stampDepartmentWriters(files, org, rows.map(r => r.data));
   const active = rows.map(r => r.data).filter(m => m.status === 'ACTIVE' && Array.isArray(m.protectedRoles) && m.protectedRoles.length);
   const ids = (pred: (key: string) => boolean) => Array.from(new Set(active.filter(m => m.protectedRoles.some(pred)).map(m => String(m.userId))));
   const grants = (p: string) => (key: string) => !!getElevateRole(key)?.permissions.includes(p as any);
@@ -122,6 +136,11 @@ elevateAccessRouter.get('/assets', async (req: Request, res: Response) => {
   const inBusiness = !!page && (page.ownerId === t.uid || (seats?.staffUids || page.staffUids || []).includes(t.uid));
   const inScope = !!platformAdmin || scopeId === t.uid || inBusiness || !!org && (org.creatorId === t.uid || [...(org.admins || []), ...(org.itAdminUids || []), ...(org.staffUids || [])].includes(t.uid));
   const membership = org ? (await fsQuery('orgMemberships', [{ field: 'orgId', value: scopeId }, { field: 'userId', value: t.uid }], 5)).map(r => r.data).find(m => m.status === 'ACTIVE') || null : null;
+  // A file uploaded since the last roster sync gets its marker here, the first time anyone lists the folder.
+  if (org && rows.some(r => r.data.scopeKind === 'org' && r.data.hqWriteUids === undefined && hqWriteUidsFor(r.data, org, []) !== null)) {
+    const fresh = rows.filter(r => r.data.hqWriteUids === undefined);
+    void fsQuery('orgMemberships', [{ field: 'orgId', value: scopeId }], MAX_MEMBERS).then(m => stampDepartmentWriters(fresh, org, m.map(x => x.data))).catch(() => {});
+  }
   const assets = rows.map(r => r.data).filter(a => {
     if (platformAdmin) return true;
     if (a.scopeKind === 'user') return a.scopeId === t.uid;
