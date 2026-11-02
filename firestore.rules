@@ -3795,7 +3795,7 @@ service cloud.firestore {
     }
 
     match /orgFollowers/{followId} {
-      allow read: if isAuthenticated() && (followId.matches('.*_' + request.auth.uid) || orgPastorOrAdmin(resource.data.orgId) || isAdmin());
+      allow read: if isAuthenticated() && (followId.matches('.*_' + request.auth.uid) || resource.data.userId == request.auth.uid || orgPastorOrAdmin(resource.data.orgId) || isAdmin());
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid &&
         (followId == request.resource.data.orgId + '_' + request.auth.uid ||
          followId == request.resource.data.orgId + '__' + request.resource.data.get('ministryId', '') + '__' + request.auth.uid);
@@ -3949,7 +3949,7 @@ service cloud.firestore {
 
 
     match /clubPosts/{postId} {
-      allow read: if clubReadable(resource.data.clubId);
+      allow read: if (isAuthenticated() && resource.data.authorId == request.auth.uid) || clubReadable(resource.data.clubId);
       allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
       allow update: if isAuthenticated() && (
         resource.data.authorId == request.auth.uid ||
@@ -4048,14 +4048,14 @@ service cloud.firestore {
     }
 
     match /clubGallery/{itemId} {
-      allow read: if clubReadable(resource.data.clubId);
+      allow read: if (isAuthenticated() && resource.data.uploaderId == request.auth.uid) || clubReadable(resource.data.clubId);
       allow create: if isAuthenticated() && request.resource.data.uploaderId == request.auth.uid;
       allow update: if isAuthenticated() && (resource.data.uploaderId == request.auth.uid || isAdmin());
       allow delete: if isAuthenticated() && (resource.data.uploaderId == request.auth.uid || isAdmin());
     }
 
     match /clubChat/{msgId} {
-      allow read: if clubReadable(resource.data.clubId);
+      allow read: if (isAuthenticated() && resource.data.senderId == request.auth.uid) || clubReadable(resource.data.clubId);
       allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid;
       allow update: if isAuthenticated() && resource.data.senderId == request.auth.uid;
       allow delete: if isAuthenticated() && (resource.data.senderId == request.auth.uid || isAdmin());
