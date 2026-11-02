@@ -377,6 +377,27 @@ export async function fsQuery(
   } catch { return []; }
 }
 
+/** Like fsQuery, but a failed query THROWS instead of reading as "no rows". For anything where a missing row
+ *  would become a wrong figure, such as a finalized royalty statement. */
+export async function fsQueryStrict(
+  collection: string,
+  filters: { field: string; value: string | number | boolean; op?: 'EQUAL' | 'ARRAY_CONTAINS' }[],
+  limit = 50,
+): Promise<Array<{ id: string; data: Record<string, any> }>> {
+  const fieldFilter = (f: { field: string; value: string | number | boolean; op?: 'EQUAL' | 'ARRAY_CONTAINS' }) => ({
+    fieldFilter: {
+      field: { fieldPath: f.field },
+      op: f.op || 'EQUAL',
+      value: typeof f.value === 'string' ? { stringValue: f.value } : typeof f.value === 'boolean' ? { booleanValue: f.value } : Number.isInteger(f.value) ? { integerValue: String(f.value) } : { doubleValue: f.value },
+    },
+  });
+  const where = filters.length === 1 ? fieldFilter(filters[0]) : { compositeFilter: { op: 'AND', filters: filters.map(fieldFilter) } };
+  const res = await fetch(`${baseFor(collection)}:runQuery`, { method: 'POST', headers: await authHeaders(), body: JSON.stringify({ structuredQuery: { from: [{ collectionId: collection }], where, limit } }) });
+  if (!res.ok) throw new Error(`query ${collection} failed: HTTP ${res.status}`);
+  const rows = await res.json() as any[];
+  return rows.filter(r => r.document).map(r => ({ id: String(r.document.name).split('/').pop()!, data: r.document.fields ? fromFields(r.document.fields) : {} }));
+}
+
 // ── Custom auth claims (Identity Toolkit) ────────────────────────────────────────
 // Claims are how a server-side decision reaches firestore.rules: the rules can read
 // request.auth.token.<claim> but cannot call out. Note the propagation cost — a client keeps

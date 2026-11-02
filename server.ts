@@ -90,6 +90,7 @@ import { PLATFORM_CUT_PCT as BOOK_PLATFORM_CUT_PCT } from './services/bookmeta/p
 import { readRegistry as readEditionRegistry, licenceActive, entitledEditions, editionOf, type BookVersionStamp } from './services/bookEditions/policy';
 import { createLedgerRouter, appendLedger } from './routes/ledger';
 import { createChoraContribRouter } from './routes/choraContrib';
+import { createLabelRouter } from './routes/labels';
 import { createLegalAcceptanceRouter } from './routes/legalAcceptance';
 import { createCopyrightRouter } from './routes/copyright';
 import { createSponsorCopiesRouter, activateCopyPool } from './routes/sponsorCopies';
@@ -3251,6 +3252,7 @@ async function startServer() {
                 creatorUid: meta.rightsOwnerUid,
                 payerUid: meta.buyerUid || meta.uid || '',
                 category: 'sync_license',
+                albumId: meta.albumId || '',
                 grossCents: feeCents,
                 platformFeeCents,
                 netCents: feeCents - platformFeeCents,
@@ -3393,6 +3395,8 @@ async function startServer() {
               creatorNetCents,
               splits:                JSON.stringify(splitDetails),
               title:                 earningTitle,
+              // Ties the sale to its release for label statements (routes/labels.ts).
+              ...(meta.type === 'content_purchase' && meta.contentId ? { workKind: String(meta.kind || ''), workId: String(meta.contentId) } : {}),
               stripePaymentIntentId: session.payment_intent || '',
               status:                isDirect ? 'paid_direct' : 'pending',
               payeeVerified:         true,
@@ -13980,6 +13984,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // Licence + rights ledger (hash-chained, server-written): my licence history, and an author's audit view.
   app.use('/api/ledger', createLedgerRouter({ authMiddleware, isAdmin: isPlatformAdminReq }));
   app.use('/api/chora/contrib', createChoraContribRouter({ authMiddleware }));
+  app.use('/api/labels', express.json({ limit: '10mb' }), createLabelRouter({ cas: restCas }));
   app.use('/api/legal', createLegalAcceptanceRouter({ authMiddleware }));
   app.use('/api/copyright', createCopyrightRouter({ authMiddleware, requireVerifiedAdmin }));
   // Sponsored + gift copies of books: fans/named people/org bulk codes; each claim mints a licence + ledger entry.
