@@ -2959,10 +2959,15 @@ export interface Organization {
   statementOfFaith?: string;
   givingUrl?: string;         // external giving link (fallback to native Stripe giving)
   /** Legal entity name + EIN printed on giving statements (Finance Hub settings). */
+  /** The finance fields below live on organizations/{id}/private/finance; load them with services/orgFinance. */
   legalName?: string;
   ein?: string;
   statementFooter?: string;
   financeSettings?: ChmsFinanceSettings;
+  /** Public, server-set: Stripe giving is connected. */
+  canReceiveGiving?: boolean;
+  /** Public: this org turned the donor fee-cover offer off. */
+  donorFeeCoverOff?: boolean;
 
   // ── Org chat workspace (services/orgChatService) ───────────────────────────
   /** Set when the org's chat channels were last provisioned (mirrors productions). */

@@ -5,6 +5,7 @@
 // - Unified "Page & Hero Identity" studio (Live WYSIWYG Hero Cover & Logo uploader, Identity & Welcome Copy,
 //   Service Times & Gatherings, Multi-site Campuses, Visibility, and Danger Zone) + Operations pillars.
 
+import { orgCanReceiveGiving } from '../../services/orgFinanceCore';
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   LayoutDashboard, Users, Church, Link2, Gift, HandHeart, MonitorPlay, MessagesSquare, ShoppingBag,
@@ -982,7 +983,7 @@ const GivingPanel: React.FC<{ org: Organization; canManage: boolean; totals: Rec
       const saved = await saveFunds(org, funds, id => bal?.get(id) ?? totals[(org.givingFunds || []).find(f => f.id === id)?.name || ''] ?? 0);
       const patch: Partial<Organization> = {
         givingUrl: givingUrl.trim() || undefined,
-        setupState: { ...(org.setupState || {}), givingReady: !!(org.stripeAccountId || givingUrl.trim()) },
+        setupState: { ...(org.setupState || {}), givingReady: !!(orgCanReceiveGiving(org) || givingUrl.trim()) },
       };
       await updateOrganization(org.id, patch);
       setFunds(saved);
@@ -1022,11 +1023,11 @@ const GivingPanel: React.FC<{ org: Organization; canManage: boolean; totals: Rec
           </div>
           <h3 className="text-[10px] font-semibold text-[#FF8C00] mb-3">Payouts</h3>
           <div className="flex items-center gap-2 mb-3">
-            <p className="flex-1 text-[11px] text-white/50">{org.stripeAccountId ? 'Stripe is connected. Payout details are managed in Stripe.' : 'Connect Stripe to accept card and bank gifts. Stripe verifies the account; nobody types an account number here.'}</p>
+            <p className="flex-1 text-[11px] text-white/50">{orgCanReceiveGiving(org) ? 'Stripe is connected. Payout details are managed in Stripe.' : 'Connect Stripe to accept card and bank gifts. Stripe verifies the account; nobody types an account number here.'}</p>
             <button type="button" onClick={async () => { const t = await auth.currentUser?.getIdToken(); if (t) connectStripe({ orgId: org.id, userIdToken: t }).catch(e => alert(e?.message || 'Could not start Stripe onboarding')); }}
               className="px-4 py-3 rounded-2xl bg-[#635bff] text-white text-[10px] font-semibold hover:brightness-110 shrink-0 whitespace-nowrap">Connect Stripe</button>
           </div>
-          {org.stripeAccountId && <p className="text-[9px] font-semibold text-green-400 mb-3 flex items-center gap-1.5"><Check size={11} /> Payouts connected</p>}
+          {orgCanReceiveGiving(org) && <p className="text-[9px] font-semibold text-green-400 mb-3 flex items-center gap-1.5"><Check size={11} /> Payouts connected</p>}
           <input value={givingUrl} onChange={e => setGivingUrl(e.target.value)} placeholder="External giving link (optional — overrides native Stripe giving)" className={`${field} mb-5`} />
           <button onClick={save} disabled={busy} className="w-full py-4 rounded-full font-black text-xs uppercase tracking-widest text-white hover:brightness-110 disabled:opacity-30 flex items-center justify-center gap-2" style={{ background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' }}>
             {busy ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : 'Save giving settings'}

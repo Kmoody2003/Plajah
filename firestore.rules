@@ -114,6 +114,9 @@ service cloud.firestore {
     function privProfile(uid) {
       return get(/databases/$(database)/documents/users/$(uid)/private/profile).data;
     }
+    function orgFinanceKeys() {
+      return ['ein', 'legalName', 'statementFooter', 'financeSettings', 'stripeAccountId', 'billingConnection', 'canReceiveGiving'];
+    }
     function userPrivateKeys() {
       return ['email', 'birthYear', 'dateOfBirth', 'guardianUid', 'coGuardianUids', 'provisionedByTeacherUid', 'childUids', 'parentalControls'];
     }
@@ -3630,14 +3633,14 @@ service cloud.firestore {
     // ── Organizations (Part 2): a parallel account = business page + club. ──
     match /organizations/{orgId} {
       allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid;
-      // stripeAccountId decides where every gift is paid out, so only the server (Stripe Connect onboarding,
-      // admin token) sets it — a finance volunteer or co-admin typing their own acct_… would divert donations.
-      allow update: if isAuthenticated() &&
-        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stripeAccountId', 'itAdminUids', 'seniorPastorUids', 'financeUids', 'givingViewUids', 'accountingUids', 'accountingViewUids']) || isAdmin()) &&
+      allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid && !request.resource.data.keys().hasAny(orgFinanceKeys());
+      // Finance fields live on private/finance (world-readable here). No client may add or change them on this doc;
+      // canReceiveGiving is server-derived from Stripe Connect onboarding.
+      allow update: if isAuthenticated() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(orgFinanceKeys()) &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['itAdminUids', 'seniorPastorUids', 'financeUids', 'givingViewUids', 'accountingUids', 'accountingViewUids']) || isAdmin()) &&
         // Ownership moves only from the owner, and giving setup belongs to the people who hold the money.
         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['creatorId', 'ownerId', 'accountUid']) || resource.data.creatorId == request.auth.uid || isAdmin()) &&
-        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['givingFunds', 'givingUrl', 'financeSettings']) || resource.data.creatorId == request.auth.uid ||
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['givingFunds', 'givingUrl', 'donorFeeCoverOff']) || resource.data.creatorId == request.auth.uid ||
           request.auth.uid in resource.data.get('itAdminUids', []) || request.auth.uid in resource.data.get('seniorPastorUids', []) ||
           request.auth.uid in resource.data.get('financeUids', []) || isAdmin()) && (
         request.auth.uid in resource.data.get('itAdminUids', []) ||
@@ -3652,13 +3655,23 @@ service cloud.firestore {
         resource.data.get('ownerId', '') == request.auth.uid ||
         // Elevate: finance roles and Senior Pastors own giving setup only.
         ((request.auth.uid in resource.data.get('financeUids', []) || request.auth.uid in resource.data.get('seniorPastorUids', [])) &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['givingFunds', 'givingUrl', 'setupState', 'legalName', 'ein', 'statementFooter', 'financeSettings', 'updatedAt'])) ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['givingFunds', 'givingUrl', 'setupState', 'donorFeeCoverOff', 'updatedAt'])) ||
         // Elevate: department heads edit ministry/department definitions.
         (request.auth.uid in resource.data.get('leaderUids', []) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ministries', 'updatedAt'])) ||
         isAdmin()
       );
       allow delete: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin());
+
+      // Finance details: the owner, IT Admins, Senior Pastors and finance roles. Org admins and regular pastors are
+      // blocked until finance adds them. Stripe fields are server-only, since they decide where gifts are paid out.
+      match /private/{docId} {
+        allow read: if docId == 'finance' && orgFinanceReader(orgId);
+        allow create: if docId == 'finance' && orgFinanceWriter(orgId) &&
+            request.resource.data.keys().hasOnly(['ein', 'legalName', 'statementFooter', 'financeSettings', 'updatedAt']);
+        allow update: if docId == 'finance' && orgFinanceWriter(orgId) &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ein', 'legalName', 'statementFooter', 'financeSettings', 'updatedAt']);
+      }
 
       // Append-only audit trail of sensitive org actions (services/orgAudit.ts). Owner/admins
       // read; any authed actor may append an entry stamped with their own uid; never edited.
@@ -3739,6 +3752,16 @@ service cloud.firestore {
 
 
     function orgDoc(orgId) { return get(/databases/$(database)/documents/organizations/$(orgId)).data; }
+    function orgFinanceWriter(orgId) {
+      let o = orgDoc(orgId);
+      return isAuthenticated() && (o.creatorId == request.auth.uid || o.get('ownerId', '') == request.auth.uid || o.get('accountUid', '') == request.auth.uid ||
+        request.auth.uid in o.get('itAdminUids', []) || request.auth.uid in o.get('seniorPastorUids', []) || request.auth.uid in o.get('financeUids', []));
+    }
+    function orgFinanceReader(orgId) {
+      let o = orgDoc(orgId);
+      return orgFinanceWriter(orgId) || (isAuthenticated() && (request.auth.uid in o.get('givingViewUids', []) ||
+        request.auth.uid in o.get('accountingUids', []) || request.auth.uid in o.get('accountingViewUids', [])));
+    }
     function orgPastorOrAdmin(orgId) {
       return orgAdminOf(orgId) || request.auth.uid in orgDoc(orgId).get('pastorUids', []);
     }

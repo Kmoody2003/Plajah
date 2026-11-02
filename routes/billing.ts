@@ -21,6 +21,8 @@ import type { BillingEntityKind, BillingEntityRef, BillingFlagKey, InvoiceStatus
 import { dbIdFor } from '../services/opsCollections';
 
 export interface BillingDeps {
+  /** Bind a Stripe account to an org: private doc, public flag and webhook index together. */
+  saveOrgStripeAccount: (orgId: string, acct: string) => Promise<boolean>;
   getStripe: () => any;
   authMiddleware: any;
   requireRegisteredUser: any;
@@ -155,7 +157,11 @@ export function createBilling(deps: BillingDeps) {
     }
     if (!doc) return null;
     if (ref.kind === 'USER') return { kind: 'USER', id: ref.id, entityKey, name: doc.displayName || doc.name || doc.username || 'Plajah creator', ownerUid: ref.id, stripeAccountId: doc.stripeConnectAccountId || undefined, doc };
-    if (ref.kind === 'ORG') return { kind: 'ORG', id: ref.id, entityKey, name: doc.name || 'Organization', ownerUid: doc.creatorId || '', stripeAccountId: doc.stripeAccountId || undefined, doc };
+    if (ref.kind === 'ORG') {
+      // The Stripe account lives on the private doc; an unmigrated public copy still counts.
+      const fin = await deps.read(`organizations/${ref.id}/private`, 'finance').catch(() => null);
+      return { kind: 'ORG', id: ref.id, entityKey, name: doc.name || 'Organization', ownerUid: doc.creatorId || '', stripeAccountId: fin?.stripeAccountId || doc.stripeAccountId || undefined, doc };
+    }
     return { kind: 'PRODUCTION', id: ref.id, entityKey, name: doc.title || 'Production', ownerUid: doc.ownerUid || '', stripeAccountId: doc.stripeAccountId || undefined, doc };
   }
   const orgStaff = (org: Record<string, any>, uid: string) => {
@@ -213,7 +219,8 @@ export function createBilling(deps: BillingDeps) {
       requirementsDue: [...new Set<string>([...(account.requirements?.currently_due || []), ...(account.requirements?.past_due || [])])],
       checkedAt: Date.now(),
     });
-    await deps.patch(COLL[ent.kind], ent.id, { billingConnection: conn });
+    if (ent.kind === 'ORG') await deps.patch(`organizations/${ent.id}/private`, 'finance', { billingConnection: conn });
+    else await deps.patch(COLL[ent.kind], ent.id, { billingConnection: conn });
     return { entity: { kind: ent.kind, id: ent.id }, ...conn };
   }
 
@@ -778,7 +785,7 @@ export function createBilling(deps: BillingDeps) {
           metadata: { entityKey: ent.entityKey, ownerUid: ent.ownerUid, startedBy: req.uid, uid: ent.ownerUid, plajah: 'billing' },
         }));
         acct = account.id as string;
-        const ok = await deps.patch(COLL[ent.kind], ent.id, { [ACCT_FIELD(ent.kind)]: acct, updatedAt: Date.now() });
+        const ok = ent.kind === 'ORG' ? await deps.saveOrgStripeAccount(ent.id, acct) : await deps.patch(COLL[ent.kind], ent.id, { [ACCT_FIELD(ent.kind)]: acct, updatedAt: Date.now() });
         if (!ok) fail(500, 'Could not store the Stripe account', 'SAVE_FAILED');
         ent.stripeAccountId = acct;
         memo.set(`acct:${ent.entityKey}:${acct}`, { v: account, exp: Date.now() + 60_000 });

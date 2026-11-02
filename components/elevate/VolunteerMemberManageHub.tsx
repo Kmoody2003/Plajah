@@ -276,8 +276,8 @@ export const VolunteerMemberManageHub: React.FC<VolunteerMemberManageHubProps> =
     openPrintWindow(
       statementsHtml([sampleStmt], {
         name: org.name,
-        legalName: org.legalName || `${org.name} Inc.`,
-        ein: org.ein || '58-1948271',
+        legalName: org.legalName,
+        ein: org.ein,
       }),
       `${org.name} — ${taxScope} Tax Statement (${yr})`
     );

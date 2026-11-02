@@ -184,6 +184,7 @@ import { grossUpCents, giftCentsFromGross, applicationFeePercent } from './servi
 import { receiptPdf, bytesToBase64 } from './services/givingPdf';
 import { receiptEmail, statementEmail, receiptNoOf, statementOrgOf, EMAIL_RE } from './services/givingEmailCore';
 import { createBilling } from './routes/billing';
+import { mergeOrgFinance, financeViewFor, financeViewLevel } from './services/orgFinanceCore';
 import { deriveAlerts as pulseDeriveAlerts, alertAudience as pulseAudience, prefAllows as pulsePrefAllows } from './services/acctPulse';
 import { isFutureRelease } from './services/releases/visibility';
 import { filmDistributionOf, resolveFilmCharge } from './services/filmPricing';
@@ -2238,9 +2239,27 @@ async function autoPost(orgId: string, make: (sys: SysAccounts) => DraftJournal)
   catch (e: any) { console.error('[Elevate] journal skipped:', e?.message); return null; }
 }
 
+/** organizations/{id} plus its private/finance doc (EIN, legal name, finance settings, Stripe account). */
+async function orgWithFinance(orgId: string, pre?: Record<string, any> | null): Promise<Record<string, any> | null> {
+  const [org, fin] = await Promise.all([pre ? Promise.resolve(pre) : firestoreGetDeep('organizations', orgId), firestoreGetDeep(`organizations/${orgId}/private`, 'finance')]);
+  return org ? mergeOrgFinance(org, fin) : null;
+}
+/** The org's connected Stripe account, or undefined. */
+async function orgStripeAccount(orgId: string): Promise<string | undefined> {
+  return (await orgWithFinance(orgId))?.stripeAccountId || undefined;
+}
+/** Bind a Stripe account to an org: the id goes on the private doc, donors see only a flag, webhooks use the index. */
+async function saveOrgStripeAccount(orgId: string, acct: string): Promise<boolean> {
+  const now = Date.now();
+  const saved = await firestorePatchDeep(`organizations/${orgId}/private`, 'finance', { stripeAccountId: acct, updatedAt: now });
+  const indexed = await firestorePatchDeep('stripeAccountOrgs', acct, { orgId, at: now });
+  const flagged = await firestorePatchDeep('organizations', orgId, { canReceiveGiving: true, updatedAt: now });
+  return saved && indexed && flagged;
+}
+
 /** Finance-staff gate, read server-side from the org doc (never trust the client). */
 async function assertOrgFinanceAccess(uid: string, orgId: string): Promise<{ org: Record<string, any> } | { error: string; status: number }> {
-  const org = await firestoreGetDeep('organizations', orgId);
+  const org = await orgWithFinance(orgId);
   if (!org) return { error: 'Organization not found', status: 404 };
   const inList = (k: string) => Array.isArray(org[k]) && org[k].includes(uid);
   if (org.creatorId === uid || inList('itAdminUids') || inList('seniorPastorUids') || inList('financeUids') || inList('accountingUids')) return { org };
@@ -2252,6 +2271,9 @@ async function stripeStateWrite(orgId: string, patch: Record<string, any>) {
   await firestorePatchDeep('chmsFinanceMeta', `stripe_${orgId}`, deepClean({ ...patch, id: `stripe_${orgId}`, orgId, kind: 'STRIPE_STATE', createdAt: Date.now(), createdBy: 'stripe' }));
 }
 async function orgForStripeAccount(acct: string): Promise<string | null> {
+  const hit = await firestoreGetDeep('stripeAccountOrgs', acct);
+  if (hit?.orgId) return String(hit.orgId);
+  // Not yet indexed: the public copy, until migrateOrgFinance has stripped it.
   const r = await fsQueryDocs('organizations', [{ field: 'stripeAccountId', op: 'EQUAL', value: acct }], 1);
   return r[0]?.id || null;
 }
@@ -2305,7 +2327,7 @@ async function recordOnlineGift(a: {
 async function sendGiftReceipt(orgId: string, giftId: string, o: { email?: string; uid?: string; createdSec: number; recurring?: boolean }): Promise<void> {
   if (!process.env.RESEND_API_KEY) return;
   if (Date.now() / 1000 - o.createdSec > 3 * 86400) return;
-  const [org, gift] = await Promise.all([firestoreGetDeep('organizations', orgId), firestoreRead('chmsContributions', giftId)]);
+  const [org, gift] = await Promise.all([orgWithFinance(orgId), firestoreRead('chmsContributions', giftId)]);
   if (!org || !gift || gift.receiptSentAt || gift.status === 'VOID') return;
   if (org.financeSettings?.emailReceipts === false) return;
   let to = o.email && EMAIL_RE.test(o.email) ? o.email : '';
@@ -3517,6 +3539,7 @@ async function startServer() {
     patch: (c, id, f) => firestorePatchDeep(c, id, f),
     create: (c, d) => firestoreCreate(c, d),
     query: (c, f, n) => fsQueryDocs(c, f, n),
+    saveOrgStripeAccount: (orgId, acct) => saveOrgStripeAccount(orgId, acct),
     isPlatformAdmin: async (uid: string) => !!(await fetchFirebaseDoc('admins', uid)),
     autoPost: (orgId, make) => autoPost(orgId, make),
     postJournal: (orgId, d) => postJournal(orgId, d),
@@ -3830,7 +3853,7 @@ async function startServer() {
             capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
           });
           accountId = account.id as string;
-          await firestoreWrite('organizations', String(orgId), { stripeAccountId: accountId, updatedAt: Date.now() });
+          if (!(await saveOrgStripeAccount(String(orgId), accountId))) return res.status(500).json({ error: 'Could not store the Stripe account' });
         }
       } else {
         // Check if creator already has an account
@@ -5769,7 +5792,7 @@ async function startServer() {
 
       // Route the gift to the CHURCH's connected Stripe account (destination charge)
       // when it has one — so money lands in the church's account, not the platform's.
-      const church = await firestoreRead('organizations', churchId);
+      const church = await orgWithFinance(churchId);
       const destAcct: string | undefined = church?.stripeAccountId || undefined;
       // DONOR COVERS THE FEE: charge gift + fee so the church receives exactly the gift. Only meaningful on a
       // destination charge (the platform keeps the fee as application_fee, which pays Stripe's cost). Default ON;
@@ -5864,7 +5887,7 @@ async function startServer() {
     if (_pulseRunning.has(orgId)) { out.skipped = 'busy'; return out; }
     _pulseRunning.add(orgId);
     try {
-      const org = pre || await firestoreGetDeep('organizations', orgId);
+      const org = await orgWithFinance(orgId, pre);
       if (!org) { out.skipped = 'not-found'; return out; }
       if (org.financeSettings?.pulseAlertsOff) { out.skipped = 'disabled'; return out; }
       const eq = [{ field: 'orgId', op: 'EQUAL', value: orgId }];
@@ -6277,6 +6300,27 @@ async function startServer() {
   });
   // The client calls this right after it creates or edits an org, so ops access (e.g. the onboarding
   // vault) doesn't wait on the trigger.
+  // The narrow finance view for people who can't read organizations/{id}/private/finance: members get the tax
+  // identity for their own statements, department leaders also the approval limits. Finance roles read the doc itself.
+  app.get('/api/org-finance/view', authMiddleware, async (req: any, res) => {
+    const orgId = String(req.query.orgId || '');
+    if (!/^[A-Za-z0-9_-]{1,200}$/.test(orgId)) return res.status(400).json({ error: 'Bad orgId' });
+    const org = await firestoreGetDeep('organizations', orgId);
+    if (!org) return res.status(404).json({ error: 'Not found' });
+    let isMember = !!(await firestoreRead('orgMemberIndex', `${orgId}_${req.uid}`));
+    if (!isMember) {
+      const gifts = await Promise.all([
+        fsQueryDocs('chmsContributions', [{ field: 'linkedUid', op: 'EQUAL', value: req.uid }, { field: 'orgId', op: 'EQUAL', value: orgId }], 1).catch(() => []),
+        fsQueryDocs('donations', [{ field: 'fromId', op: 'EQUAL', value: req.uid }, { field: 'churchId', op: 'EQUAL', value: orgId }], 1).catch(() => []),
+      ]);
+      isMember = gifts.some(g => g.length > 0);
+    }
+    const level = financeViewLevel(org, req.uid, isMember);
+    if (level === 'none') return res.status(403).json({ error: 'Not a member of this organization' });
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json(financeViewFor(await orgWithFinance(orgId, org), level));
+  });
+
   app.post('/api/ops-mirror/sync', opsMirrorLimit, express.json({ limit: '2kb' }), async (req, res) => {
     const collection = String(req.body?.collection || ''), id = String(req.body?.id || '');
     if (!isMirroredPath(collection, id)) return res.status(400).json({ error: 'Not a mirrored document' });
@@ -11060,8 +11104,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       if (!businessUid) return res.status(400).json({ error: 'businessUid is required' });
       const actor = await resolveRegisterActor(req, businessUid, 'RING_SALES');
       if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
-      const org = await firestoreRead('organizations', businessUid);
-      let connectedAccountId: string | undefined = org?.stripeAccountId;
+      let connectedAccountId: string | undefined = await orgStripeAccount(businessUid);
       if (!connectedAccountId) { const u = await firestoreRead('users', businessUid); connectedAccountId = u?.stripeConnectAccountId; }
       if (!connectedAccountId) return res.status(400).json({ error: 'This shop has not connected Stripe payouts yet.' });
       const stripe = getStripe();
@@ -11190,8 +11233,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         return res.status(400).json({ error: 'businessUid and items are required.' });
       }
       // Resolve the business's connected Stripe account — the money goes straight to them.
-      const org = await firestoreRead('organizations', businessUid);
-      let acct: string | undefined = org?.stripeAccountId;
+      let acct: string | undefined = await orgStripeAccount(businessUid);
       if (!acct) { const u = await firestoreRead('users', businessUid); acct = u?.stripeConnectAccountId; }
       if (!acct) return res.status(400).json({ error: 'This shop has not connected Stripe payouts yet.' });
 
@@ -12210,8 +12252,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     try {
       const b = String(req.body?.businessUid || '');
       if (!b) return res.status(400).json({ error: 'businessUid required.' });
-      const org = await firestoreRead('organizations', b);
-      let acct: string | undefined = org?.stripeAccountId;
+      let acct: string | undefined = await orgStripeAccount(b);
       if (!acct) { const u = await firestoreRead('users', b); acct = u?.stripeConnectAccountId; }
       if (!acct) return res.status(400).json({ error: 'This shop has not connected Stripe payouts yet.' });
       const parsed = svParseGiftLines(req.body?.giftCards, (await svSettings(b)).limits);

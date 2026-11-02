@@ -443,7 +443,7 @@ export async function fetchMyGiving(orgId: string, uid: string): Promise<MyGivin
   const dons: NativeDonation[] = (donSnap?.docs || []).map(d => { const x: any = d.data(); return { id: d.id, fromId: x.fromId, fromName: x.fromName, churchId: x.churchId, fund: x.fund, amount: Number(x.amount) || 0, stripePaymentIntentId: x.stripePaymentIntentId || undefined, stripeSubscriptionId: x.stripeSubscriptionId || undefined, timestamp: toMillis(x.timestamp) }; });
   const { rows } = buildLedger(orgId, contribs, dons, person ? [person] : [], []);
   let org: Organization | null = null;
-  try { const { fetchOrganization } = await import('./organizationService'); org = await fetchOrganization(orgId); } catch { /* optional */ }
+  try { const { fetchOrganization } = await import('./organizationService'); org = await fetchOrganization(orgId); if (org) { const { withOrgFinance } = await import('./orgFinance'); org = await withOrgFinance(org); } } catch { /* optional */ }
   return { person, rows: rows.map(r => ({ ...r, personId: r.personId || person?.id })), org };
 }
 

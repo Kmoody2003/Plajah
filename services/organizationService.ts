@@ -14,6 +14,7 @@ import { onSnapshot } from './safeSnapshot';
 import { db, opsDb, auth } from './firebase';
 import { permissionsForMember } from './orgPermissions';
 import { memberRoleKeys } from './elevateRoles';
+import { splitOrgPatch } from './orgFinanceCore';
 import type { ChurchPrayer, UserProfile } from '../types';
 import type { Organization, OrgMembership, OrgMembershipOnboarding, OrgRole, OrgType, Ministry, ServiceTime, GivingFund, RosterGroup } from '../types';
 
@@ -131,7 +132,6 @@ export async function createOrganization(data: Partial<Organization> & { orgType
     location: data.location,
     hours: data.hours,
     isVerified: false,
-    stripeAccountId: data.stripeAccountId,
     followerCount: 0,
     memberCount: 1,
     isPublic: data.isPublic ?? true,
@@ -173,7 +173,11 @@ export async function fetchOrganization(orgId: string): Promise<Organization | n
 }
 
 export async function updateOrganization(orgId: string, updates: Partial<Organization>): Promise<void> {
-  await updateDoc(doc(db, 'organizations', orgId), { ...stripUndefined(updates), updatedAt: Date.now() });
+  const { publicPatch, financePatch } = splitOrgPatch(stripUndefined(updates));
+  const now = Date.now();
+  // mergeFields replaces each named field whole, so a removed key inside financeSettings really goes.
+  if (Object.keys(financePatch).length) await setDoc(doc(db, 'organizations', orgId, 'private', 'finance'), { ...financePatch, updatedAt: now }, { mergeFields: [...Object.keys(financePatch), 'updatedAt'] });
+  await updateDoc(doc(db, 'organizations', orgId), { ...publicPatch, updatedAt: now });
   await refreshOpsMirror(orgId);
 }
 

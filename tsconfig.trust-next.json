@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true, "skipLibCheck": true },
+  "include": [
+    "services/orgFinance.ts", "services/orgFinanceCore.ts", "services/organizationService.ts", "services/acctSpending.ts",
+    "services/chmsFinance.ts", "services/elevateService.ts", "routes/billing.ts", "scripts/migrateOrgFinance.ts",
+    "components/ChurchGive.tsx", "components/OrgHub.tsx", "components/elevate/ElevateOps.tsx", "components/elevate/ChurchMemberHub.tsx",
+    "components/elevate/VolunteerMemberManageHub.tsx", "components/elevate/chms/finance/FinanceHub.tsx",
+    "components/elevate/chms/finance/SpendingDesk.tsx", "components/elevate/chms/accounting/AccountingHub.tsx",
+    "tests/orgFinanceCore.test.ts"
+  ]
+}

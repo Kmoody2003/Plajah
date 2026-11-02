@@ -136,6 +136,27 @@ t('nobody writes the pledge total', 'DENY', 'owner', 'update', 'sanctuaryPledgeT
 t('nobody grants themselves an unlock', 'DENY', 'fan', 'create', 'sanctuaryUnlocks/fan_i', { data: { uid: 'fan', itemId: 'i' } });
 t('a client cannot mint a free membership at a random id', 'DENY', 'fan', 'create', 'sanctuaryMemberships/random', { data: { creatorId: 'owner', memberId: 'fan', status: 'ACTIVE', tierId: 't' }, extra: [yes('sanctuaryTiers/t'), get('sanctuaryTiers/t', { price: 0, creatorId: 'owner' })] });
 
+// ── Org finance ─────────────────────────────────────────────────────────────
+const orgP = { creatorId: 'own', admins: ['adm'], itAdminUids: ['it'], seniorPastorUids: ['sp'], pastorUids: ['pas'], financeUids: ['fin'], givingViewUids: ['gv'], accountingUids: ['acc'], accountingViewUids: ['av'], name: 'O' };
+const orgM = [get('organizations/o1', orgP)];
+const finDoc = { ein: '12-3', legalName: 'L', stripeAccountId: 'acct_real', financeSettings: { recurringBills: [] } };
+for (const u of ['own', 'it', 'sp', 'fin', 'gv', 'acc', 'av']) t(`org finance readable by ${u}`, 'ALLOW', u, 'get', 'organizations/o1/private/finance', { existing: finDoc, extra: orgM });
+for (const u of ['adm', 'pas', 'out']) t(`org finance not readable by ${u}`, 'DENY', u, 'get', 'organizations/o1/private/finance', { existing: finDoc, extra: orgM });
+t('signed out cannot read org finance', 'DENY', null, 'get', 'organizations/o1/private/finance', { existing: finDoc, extra: orgM });
+t('nobody lists org private docs', 'DENY', 'adm', 'list', 'organizations/o1/private', { existing: finDoc, extra: orgM });
+t('finance saves settings', 'ALLOW', 'fin', 'update', 'organizations/o1/private/finance', { existing: finDoc, data: { ...finDoc, ein: '99' }, extra: orgM });
+t('a view-only role cannot save settings', 'DENY', 'gv', 'update', 'organizations/o1/private/finance', { existing: finDoc, data: { ...finDoc, ein: '99' }, extra: orgM });
+t('an org admin cannot save settings', 'DENY', 'adm', 'update', 'organizations/o1/private/finance', { existing: finDoc, data: { ...finDoc, ein: '99' }, extra: orgM });
+t('even the owner cannot change the Stripe account', 'DENY', 'own', 'update', 'organizations/o1/private/finance', { existing: finDoc, data: { ...finDoc, stripeAccountId: 'acct_mine' }, extra: orgM });
+t('finance cannot create the doc with a Stripe account', 'DENY', 'fin', 'create', 'organizations/o1/private/finance', { data: { stripeAccountId: 'acct_mine' }, extra: orgM });
+t('finance creates the doc with settings', 'ALLOW', 'fin', 'create', 'organizations/o1/private/finance', { data: { ein: '1' }, extra: orgM });
+t('nobody puts an EIN on the public org', 'DENY', 'own', 'update', 'organizations/o1', { existing: orgP, data: { ...orgP, ein: '1' } });
+t('nobody flips canReceiveGiving', 'DENY', 'own', 'update', 'organizations/o1', { existing: orgP, data: { ...orgP, canReceiveGiving: true } });
+t('nobody creates an org with a Stripe account', 'DENY', 'own', 'create', 'organizations/o2', { data: { creatorId: 'own', stripeAccountId: 'a' } });
+t('finance flips the donor fee offer', 'ALLOW', 'fin', 'update', 'organizations/o1', { existing: orgP, data: { ...orgP, donorFeeCoverOff: true } });
+t('an org admin cannot flip the donor fee offer', 'DENY', 'adm', 'update', 'organizations/o1', { existing: orgP, data: { ...orgP, donorFeeCoverOff: true } });
+t('nobody reads the Stripe account index', 'DENY', 'own', 'get', 'stripeAccountOrgs/acct_real', { existing: { orgId: 'o1' } });
+
 // ── F ───────────────────────────────────────────────────────────────────────
 const emp = { uid: 'emp_org1_abc', displayName: 'E', photoURL: '', isEmployee: true, managedByUid: 'boss' };
 t('nobody squats a real uid as a managed employee', 'DENY', 'out', 'create', 'users/realuid123', { data: { ...emp, uid: 'realuid123', managedByUid: 'out' } });

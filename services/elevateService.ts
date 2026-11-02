@@ -8,6 +8,7 @@
 //   • profile sync         – mirror a person's org role onto users/{uid}.orgAffiliations (unlimited orgs)
 //   • recomputeOrgRoleIndex– denormalized pastor/finance/prayer/leader uid arrays that Firestore rules read
 
+import { orgCanReceiveGiving } from './orgFinanceCore';
 import {
   collection, doc, setDoc, updateDoc, getDoc, getDocs, query, where, runTransaction, deleteDoc,
 } from 'firebase/firestore';
@@ -463,7 +464,7 @@ export function setupChecklist(org: Organization, members: OrgMembership[]) {
     { key: 'leaders', label: 'Department heads assigned', done: (org.ministries || []).some(m => m.headUids?.length) },
     { key: 'chat', label: 'Department chat & feeds configured', done: !!org.chatProvisionedAt },
     { key: 'accounts', label: 'Member accounts provisioned (import or Accounts & Access)', done: !!org.accountProvisioning?.lastRunAt },
-    { key: 'giving', label: 'Giving connected (Stripe)', done: !!org.stripeAccountId || !!org.givingUrl },
+    { key: 'giving', label: 'Giving connected (Stripe)', done: orgCanReceiveGiving(org) || !!org.givingUrl },
     { key: 'brand', label: 'Logo & cover set', done: !!org.logoUrl && !!org.coverUrl },
   ];
 }
