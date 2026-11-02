@@ -76,7 +76,7 @@ internal sealed class CrossoverNativeService
     {
         // Pinned to match the hosted source archive; see scripts/fetchFfmpeg.mjs.
         const string asset = "ffmpeg-n8.1.3-29-gad3b795b72-win64-gpl-8.1";
-        const string baseUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-11-01-12-49";
+        const string zipUrl = "https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/open-source%2Fffmpeg%2Fn8.1.3-29-gad3b795b72%2Fffmpeg-n8.1.3-29-gad3b795b72-win64-gpl-8.1.zip?alt=media&token=40b7bfdb-4f14-4d3a-b9e5-85d3cfaaf6e2";
         const string want = "0bf508ade2d757f3e9116418768deefb4046a3a1d5a9ed32299ea4fb929dd231";
         var work = Path.Combine(WorkDir, "engine-" + Guid.NewGuid().ToString("N"));
         try
@@ -84,7 +84,7 @@ internal sealed class CrossoverNativeService
             Directory.CreateDirectory(work);
             using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromMinutes(30) };
             var zip = Path.Combine(work, asset + ".zip");
-            using (var res = await http.GetAsync($"{baseUrl}/{asset}.zip", System.Net.Http.HttpCompletionOption.ResponseHeadersRead))
+            using (var res = await http.GetAsync(zipUrl,System.Net.Http.HttpCompletionOption.ResponseHeadersRead))
             {
                 res.EnsureSuccessStatusCode();
                 var total = res.Content.Headers.ContentLength ?? 0;

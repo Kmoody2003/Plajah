@@ -146,7 +146,7 @@ const ConvertPanel: React.FC<Props> = ({ source, recipe, onChange, onQueue, onQu
           {engineVersion && <p style={mono}>{engineVersion}</p>}
           <p>
             Crossover converts with FFmpeg, a separate program by the <a className="underline" href="https://ffmpeg.org" target="_blank" rel="noreferrer">FFmpeg developers</a>, under the <a className="underline" href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noreferrer">GNU GPL version 3</a>, with no warranty.
-            Its <a className="underline" href="https://github.com/FFmpeg/FFmpeg" target="_blank" rel="noreferrer">source</a> and <a className="underline" href="https://github.com/BtbN/FFmpeg-Builds" target="_blank" rel="noreferrer">build scripts</a> are public. For the complete source of your copy, write to legal@plajah.com.
+            Its <a className="underline" href="https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/open-source%2Fffmpeg%2Fn8.1.3-29-gad3b795b72%2Fplajah-ffmpeg-source-n8.1.3-29-gad3b795b72.tar.xz?alt=media&amp;token=40b7bfdb-4f14-4d3a-b9e5-85d3cfaaf6e2" target="_blank" rel="noreferrer">complete source (1.07 GB)</a> and <a className="underline" href="https://github.com/BtbN/FFmpeg-Builds" target="_blank" rel="noreferrer">build scripts</a> are public. For the complete source of your copy, write to legal@plajah.com.
           </p>
         </div>
       </details>

@@ -49,8 +49,10 @@ function bareRepo(url) {
 
 function fetchCommit(dir, commit) {
   if (spawnSync('git', ['-C', dir, 'cat-file', '-e', `${commit}^{commit}`]).status === 0) return;
+  // Some pins are tags, which need a local ref to be found again.
+  const spec = /^[0-9a-f]{40}$/.test(commit) ? commit : `+refs/tags/${commit}:refs/tags/${commit}`;
   // Some servers refuse fetching a bare commit; the whole history always has it.
-  const shallow = spawnSync('git', ['-C', dir, 'fetch', '-q', '--depth=1', 'origin', commit], { encoding: 'utf8' });
+  const shallow = spawnSync('git', ['-C', dir, 'fetch', '-q', '--depth=1', 'origin', spec], { encoding: 'utf8' });
   if (shallow.status !== 0) git(dir, 'fetch', '-q', 'origin', '+refs/*:refs/remotes/origin/*');
   git(dir, 'cat-file', '-e', `${commit}^{commit}`);
 }
@@ -65,7 +67,7 @@ function archive(url, commit, name, prefix, submodules = 'all') {
     git(dir, 'archive', '--worktree-attributes', '--format=tar', `--prefix=${prefix}/`, '-o', tmp, commit);
     renameSync(tmp, out);
   }
-  manifest.push({ path: prefix, repo: url, commit });
+  manifest.push({ path: prefix, repo: url, commit: git(dir, 'rev-parse', `${commit}^{commit}`).trim() });
   console.log(`  ${prefix} @ ${commit.slice(0, 12)}`);
   if (submodules === 'none') return;
 
@@ -88,7 +90,7 @@ function archive(url, commit, name, prefix, submodules = 'all') {
 function shadercDeps(url, commit, name, prefix) {
   const text = git(bareRepo(url), 'show', `${commit}:DEPS`);
   const vars = Object.fromEntries([...text.matchAll(/'(\w+)':\s*'([^']+)'/g)].map((m) => [m[1], m[2]]));
-  for (const m of text.matchAll(/'(third_party\/[\w/-]+)':\s*\n?\s*(.+?),?\n/g)) {
+  for (const m of text.matchAll(/'(third_party\/[\w/-]+)':\s*([\s\S]*?),\n/g)) {
     const spec = [...m[2].matchAll(/Var\('(\w+)'\)|'([^']*)'/g)].map((p) => (p[1] ? vars[p[1]] : p[2])).join('');
     const [depUrl, rev] = spec.split('@');
     if (!depUrl || !rev) throw new Error(`Could not read the shaderc dep ${m[1]}`);
@@ -190,7 +192,9 @@ for (const file of stages) {
       continue;
     }
     if (!commit) { failed.push(`${label}: no pinned commit`); continue; }
-    attempt(label, () => archive(url, commit, `lib_${stage}${n}`, `${prefix}${n && `-${n}`}`, submodules));
+    // The script names its own mirror where the main server is unreliable.
+    const from = field(`MIRROR${n}`)?.startsWith('https:') ? field(`MIRROR${n}`) : url;
+    attempt(label, () => archive(from, commit, `lib_${stage}${n}`, `${prefix}${n && `-${n}`}`, submodules));
   }
   const url = field('REPO');
   const commit = field('COMMIT');

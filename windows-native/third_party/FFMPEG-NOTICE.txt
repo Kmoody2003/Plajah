@@ -17,13 +17,22 @@ do not extend to the rest of Plajah, which is a separate work that starts FFmpeg
 Source code
 -----------
 
-The exact version in this copy is printed by "ffmpeg -version", and Crossover shows it under "About the
-engine". For example, n8.1.3-29-gad3b795b72 means FFmpeg commit ad3b795b72.
+This copy is FFmpeg n8.1.3-29-gad3b795b72, from the BtbN/FFmpeg-Builds release autobuild-2026-11-01-12-49
+(ffmpeg-n8.1.3-29-gad3b795b72-win64-gpl-8.1.zip). "ffmpeg -version" prints the version, and Crossover shows
+it under "About the engine".
 
-  FFmpeg source:  https://github.com/FFmpeg/FFmpeg
+  FFmpeg source:  https://github.com/FFmpeg/FFmpeg  (commit ad3b795b72388fbb2b216e1e6fd38fba994e1df0)
   Build scripts, and the libraries they compile in:  https://github.com/BtbN/FFmpeg-Builds
+    (commit 5ece62897c650b863c1ddda7b6964845344aef2d)
 
-To get the complete source for your copy from Plajah, at no charge, write to legal@plajah.com
+The complete source for this copy, with every library compiled in, is free to download from Plajah (1.07 GB):
+https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/open-source%2Fffmpeg%2Fn8.1.3-29-gad3b795b72%2Fplajah-ffmpeg-source-n8.1.3-29-gad3b795b72.tar.xz?alt=media&token=40b7bfdb-4f14-4d3a-b9e5-85d3cfaaf6e2
+SHA-256: 048e600499b4cfe288aa02532057418ba93ebd90ffa6a04a212e02c34dcc1cd5
+
+The same copy of the program can be downloaded from Plajah at:
+https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/open-source%2Fffmpeg%2Fn8.1.3-29-gad3b795b72%2Fffmpeg-n8.1.3-29-gad3b795b72-win64-gpl-8.1.zip?alt=media&token=40b7bfdb-4f14-4d3a-b9e5-85d3cfaaf6e2
+
+Questions: legal@plajah.com
 
 
 Pro codec pack
