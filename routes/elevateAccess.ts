@@ -26,6 +26,7 @@ import { verifyIdTokenDetailed, fsCreate, fsGet, fsPatch, fsSet, fsQuery } from 
 import { canReviewHqSecurity, canSeeBusinessFile, canSeeOrgFile, canUseOrgShare, hqRecordForClient, hqRecordForOrgShare, isOrgShareable, hqWriteUidsFor } from '../services/hqAccessPolicy';
 import { getElevateRole } from '../services/elevateRoles';
 import { settleDepartures } from '../services/coeditAdmin';
+import { mergeSeats } from '../services/businessStaffServerCore';
 import { FINANCE_ROLE_KEYS, PROTECTED_ROLE_KEYS, getElevateRole } from '../services/elevateRoles';
 
 export const elevateAccessRouter = Router();
@@ -144,7 +145,7 @@ elevateAccessRouter.get('/assets', async (req: Request, res: Response) => {
   const assets = rows.map(r => r.data).filter(a => {
     if (platformAdmin) return true;
     if (a.scopeKind === 'user') return a.scopeId === t.uid;
-    if (a.scopeKind === 'business') return canSeeBusinessFile(t.uid, a, page);
+    if (a.scopeKind === 'business') return canSeeBusinessFile(t.uid, a, page && mergeSeats(page, seats));
     if (!canSeeOrgFile(t.uid, a, org, membership)) return false;
     return inScope || a.uploadedByUid === t.uid || (a.access || 'open') !== 'open';
   });

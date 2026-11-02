@@ -4535,7 +4535,8 @@ async function startServer() {
     if (!cls) return null;
     if (kind === 'classroom') {
       const isClassTeacher = cls.ownerId === uid;
-      const isClassStudent = (cls.enrolledStudents || []).includes(uid);
+      const roster = await firestoreRead(`classrooms/${encodeURIComponent(classId)}/private`, 'roster');
+      const isClassStudent = (roster?.enrolledStudents || cls.enrolledStudents || []).includes(uid);
       return isClassTeacher || isClassStudent ? { col, orgId: '', isClassTeacher, isClassStudent, org: null } : null;
     }
     const orgId = String(cls.orgId || '');

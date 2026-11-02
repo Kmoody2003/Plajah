@@ -79,6 +79,8 @@ classTest('teacher starts session', 'ALLOW', 'host', 'update', database + '/live
 classTest('student cannot start session', 'DENY', 'guest', 'update', database + '/liveClassSessions/study', classSession, { ...classSession, status: 'SCHEDULED' });
 classTest('host cannot revive ended session', 'DENY', 'host', 'update', database + '/liveClassSessions/study', classSession, { ...classSession, status: 'ENDED' });
 classTest('teacher creates native room with exact roster', 'ALLOW', 'host', 'create', database + '/chat_rooms/class_meeting_study', classRoom);
+classTest('teacher creates native room for a class with no students yet', 'ALLOW', 'host', 'create', database + '/chat_rooms/class_meeting_study', { ...classRoom, participants: ['host'] });
+cases.at(-1).noRoster = true;
 classTest('teacher cannot add outsider to classroom meeting', 'DENY', 'host', 'create', database + '/chat_rooms/class_meeting_study', { ...classRoom, participants: [...classRoom.participants, 'outsider'] });
 classTest('student cannot forge classroom room', 'DENY', 'guest', 'create', database + '/chat_rooms/class_meeting_study', { ...classRoom, ownerId: 'guest' });
 classTest('student cannot drop classroom scope', 'DENY', 'guest', 'update', '', { ...classRoom, workspaceType: 'ORGANIZATION' }, classRoom);
@@ -100,6 +102,7 @@ const testCases = cases.map(c => {
     { function: 'get', args: [{ exactValue: root }], result: { value: { data: c.parent || parent } } },
     { function: 'get', args: [{ exactValue: database + '/classrooms/school' }], result: { value: { data: school } } },
     { function: 'get', args: [{ exactValue: database + '/classrooms/school/private/roster' }], result: { value: { data: roster } } },
+    { function: 'exists', args: [{ exactValue: database + '/classrooms/school/private/roster' }], result: { value: !c.noRoster } },
     ...['guest', 'mod'].map(u => ({ function: 'exists', args: [{ exactValue: database + '/classMembers/school_' + u }], result: { value: true } })),
     { function: 'exists', args: [{ anyValue: {} }], result: { value: false } },
     { function: 'get', args: [{ exactValue: database + '/liveClassSessions/study' }], result: { value: { data: c.session || classSession } } },

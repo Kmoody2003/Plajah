@@ -1,5 +1,6 @@
 // Server-side lookups for Content HQ access: loads the owner's records and asks services/hqAccessPolicy.
 import { fsGet, fsQuery } from './firebaseAdminRest';
+import { mergeSeats } from './businessStaffServerCore';
 import { canReviewHqSecurity, canSeeHqFile, canUseOrgShare, canWriteHqFile, isOrgShareable } from './hqAccessPolicy';
 
 export type Row = Record<string, any>;
@@ -8,7 +9,10 @@ export const scopeOwnerPath = (kind: string, id: string) => (kind === 'org' ? `o
 
 export async function loadScopeOwner(kind: string, id: string): Promise<Row | null> {
   const path = scopeOwnerPath(kind, id);
-  return path ? fsGet(path) : null;
+  if (!path) return null;
+  if (kind !== 'business') return fsGet(path);
+  const [page, seats] = await Promise.all([fsGet(path), fsGet(`${path}/private/staff`)]);
+  return page && mergeSeats(page, seats);
 }
 
 export async function activeMembership(orgId: string, uid: string): Promise<Row | null> {

@@ -76,7 +76,7 @@ New env: `VEO_DAILY_LIMIT` is optional (default 10). Gated sanctuary files use `
 
 ## What people will notice from this round
 
-- Org admins and regular pastors lose EIN, legal name and finance settings until finance adds them.
+- Org admins and regular pastors can't read the finance doc directly. They get EIN and legal name (also on members' giving statements) and approval limits through the server, and don't see other finance settings.
 - Department leaders get approval limits from the server, without recurring bills, so their budget forecast leaves those out.
 - A free course joins through the server. Teachers can't edit a roster directly.
 - Trashing media breaks its URL at once, including anywhere else that URL was pasted. Restore brings it back.

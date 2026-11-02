@@ -2404,7 +2404,8 @@ service cloud.firestore {
     }
     function validClassroomMeetingRoom(data) {
       let classroom = get(/databases/$(database)/documents/classrooms/$(data.classroomId)).data;
-      let roster = get(/databases/$(database)/documents/classrooms/$(data.classroomId)/private/roster).data.get('enrolledStudents', []);
+      let rosterPath = /databases/$(database)/documents/classrooms/$(data.classroomId)/private/roster;
+      let roster = exists(rosterPath) ? get(rosterPath).data.get('enrolledStudents', []) : [];
       let session = getAfter(/databases/$(database)/documents/liveClassSessions/$(data.liveClassSessionId)).data;
       return data.ownerId == classroom.ownerId && request.auth.uid == classroom.ownerId &&
         session.classroomId == data.classroomId && session.hostId == classroom.ownerId &&
@@ -3768,7 +3769,7 @@ service cloud.firestore {
     }
     // A song licence: written only by the Stripe webhook, read only by the person who bought it.
     match /choraLicenses/{id} {
-      allow get: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow get: if isAuthenticated() && id.matches(request.auth.uid + '_.*');
       allow write: if false;
     }
     function orgFinanceWriter(orgId) {

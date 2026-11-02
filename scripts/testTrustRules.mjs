@@ -63,6 +63,11 @@ t(main, 'the campus that opened a feed ends it', 'ALLOW', 'a', 'update', `${DB}/
 t(main, "a stranger cannot overwrite a recording manifest", 'DENY', 'out', 'update', `${DB}/liveRecordings/s`, { existing: { ownerUid: 'a' }, data: { ownerUid: 'out' } });
 t(main, 'nobody claims another stream by creating as its owner', 'DENY', 'out', 'create', `${DB}/liveRecordings/s2`, { data: { ownerUid: 'a' } });
 
+// Song licences: a buyer's listener attaches before the licence exists
+t(main, 'a buyer can wait on their own licence before it exists', 'ALLOW', 'a', 'get', `${DB}/choraLicenses/a_song1`, {});
+t(main, "nobody reads another buyer's licence", 'DENY', 'out', 'get', `${DB}/choraLicenses/a_song1`, {});
+t(main, 'nobody writes a licence', 'DENY', 'a', 'create', `${DB}/choraLicenses/a_song1`, { data: { uid: 'a', songId: 'song1' } });
+
 // Onboarding vault
 const vault = { orgId: ORG, userId: 'someone', phone: '555' };
 t(ops, 'nobody takes a vault by rewriting its owner', 'DENY', 'out', 'update', `${DB}/orgOnboardingVault/v`, { existing: vault, data: { ...vault, userId: 'out' } });

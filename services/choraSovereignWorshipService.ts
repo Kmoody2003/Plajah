@@ -1218,6 +1218,8 @@ export function unlockSovereignListingForChurch(
   license: ServerChoraLicense,
 ): { song: MelosSong; receipt: SovereignLicenseReceipt; contentLicense: ContentLicense } {
   if (!license?.uid || license.songId !== listing.songId) throw new Error('No confirmed licence for this song.');
+  // A licence only counts if it was paid through this listing's own link.
+  if (!listing.stripePaymentLinkId || license.paymentLinkId !== listing.stripePaymentLinkId) throw new Error('No confirmed licence for this song.');
   const amountUsd =
     mode === 'PLAJAH_PLUS_SUBSCRIPTION'
       ? listing.creatorPlajahPlusTierUsd
