@@ -157,6 +157,26 @@ t('finance flips the donor fee offer', 'ALLOW', 'fin', 'update', 'organizations/
 t('an org admin cannot flip the donor fee offer', 'DENY', 'adm', 'update', 'organizations/o1', { existing: orgP, data: { ...orgP, donorFeeCoverOff: true } });
 t('nobody reads the Stripe account index', 'DENY', 'own', 'get', 'stripeAccountOrgs/acct_real', { existing: { orgId: 'o1' } });
 
+// ── Business pages ──────────────────────────────────────────────────────────
+const bp = { ownerId: 'boss', businessName: 'B' };
+const bpM = [get('businessPages/b1', bp)];
+const seatsDoc = { staffUids: ['clerk'], staffSeats: { clerk: { role: 'STAFF' } } };
+t('the owner reads seats', 'ALLOW', 'boss', 'get', 'businessPages/b1/private/staff', { existing: seatsDoc, extra: bpM });
+t('a seated person reads seats', 'ALLOW', 'clerk', 'get', 'businessPages/b1/private/staff', { existing: seatsDoc, extra: bpM });
+t('a stranger cannot read seats', 'DENY', 'out', 'get', 'businessPages/b1/private/staff', { existing: seatsDoc, extra: bpM });
+t('signed out cannot read seats', 'DENY', null, 'get', 'businessPages/b1/private/staff', { existing: seatsDoc, extra: bpM });
+t('nobody lists seats', 'DENY', 'clerk', 'list', 'businessPages/b1/private', { existing: seatsDoc, extra: bpM });
+t('staff cannot read the page finance doc', 'DENY', 'clerk', 'get', 'businessPages/b1/private/finance', { existing: { stripeAccountId: 'a', staffUids: ['clerk'] }, extra: bpM });
+t('the owner reads the page finance doc', 'ALLOW', 'boss', 'get', 'businessPages/b1/private/finance', { existing: { stripeAccountId: 'a' }, extra: bpM });
+t('even the owner cannot write seats', 'DENY', 'boss', 'update', 'businessPages/b1/private/staff', { existing: seatsDoc, data: { staffUids: ['x'] }, extra: bpM });
+t('the owner cannot set a Stripe account on the page', 'DENY', 'boss', 'update', 'businessPages/b1', { existing: bp, data: { ...bp, stripeAccountId: 'a' } });
+t('a page cannot be created with a Stripe account', 'DENY', 'boss', 'create', 'businessPages/b2', { data: { ...bp, stripeAccountId: 'a' } });
+t('the owner cannot seat themselves staff', 'DENY', 'boss', 'update', 'businessPages/b1', { existing: bp, data: { ...bp, staffUids: ['x'] } });
+t('the owner edits the page', 'ALLOW', 'boss', 'update', 'businessPages/b1', { existing: bp, data: { ...bp, businessName: 'C' } });
+t('a person reads their own page list', 'ALLOW', 'clerk', 'get', 'staffPageIndex/clerk', { existing: { pageIds: ['b1'] } });
+t('nobody reads another person page list', 'DENY', 'out', 'get', 'staffPageIndex/clerk', { existing: { pageIds: ['b1'] } });
+t('nobody writes their own page list', 'DENY', 'clerk', 'update', 'staffPageIndex/clerk', { existing: { pageIds: [] }, data: { pageIds: ['b1'] } });
+
 // ── F ───────────────────────────────────────────────────────────────────────
 const emp = { uid: 'emp_org1_abc', displayName: 'E', photoURL: '', isEmployee: true, managedByUid: 'boss' };
 t('nobody squats a real uid as a managed employee', 'DENY', 'out', 'create', 'users/realuid123', { data: { ...emp, uid: 'realuid123', managedByUid: 'out' } });

@@ -2310,10 +2310,21 @@ service cloud.firestore {
     match /businessPages/{id} {
       allow read: if true;
       allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid
-                    && !request.resource.data.keys().hasAny(['staffUids', 'staffSeats']);
-      allow update: if isAdmin() || (isAuthenticated() && resource.data.ownerId == request.auth.uid
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['staffUids', 'staffSeats']));
+                    && !request.resource.data.keys().hasAny(['staffUids', 'staffSeats', 'stripeAccountId']);
+      // Seats and the Stripe account live on private/, written only by the server.
+      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['staffUids', 'staffSeats', 'stripeAccountId']) &&
+                    (isAdmin() || (isAuthenticated() && resource.data.ownerId == request.auth.uid));
       allow delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      match /private/{docId} {
+        allow get: if isAuthenticated() && (get(/databases/$(database)/documents/businessPages/$(id)).data.ownerId == request.auth.uid ||
+                    (docId == 'staff' && request.auth.uid in resource.data.get('staffUids', [])));
+        allow write: if false;
+      }
+    }
+    // The business pages a person is seated on. Server-written, replaces array-contains on the public doc.
+    match /staffPageIndex/{uid} {
+      allow get: if isOwner(uid);
+      allow write: if false;
     }
 
 

@@ -69,7 +69,7 @@ import { academiaClassRouter } from './routes/academiaClass';
 import { objectStoreRouter } from './routes/objectStore';
 import { createBusinessStaffRouter } from './routes/businessStaff';
 import { registerPermsFor as bizRegisterPermsFor, normalizePerms as normalizeBizPerms, type BizPerm } from './services/businessStaffCore';
-import { staffActorInfo as bizStaffActorInfo } from './services/businessStaffServerCore';
+import { staffActorInfo as bizStaffActorInfo, mergeSeats as mergeBizSeats } from './services/businessStaffServerCore';
 import { payrollConnectRouter } from './routes/payrollConnect';
 import { postmanRouter } from './routes/postman';
 import { articleFeedsRouter } from './routes/articleFeeds';
@@ -2239,6 +2239,11 @@ async function autoPost(orgId: string, make: (sys: SysAccounts) => DraftJournal)
   catch (e: any) { console.error('[Elevate] journal skipped:', e?.message); return null; }
 }
 
+/** A business page plus its seats, which aren't on the public doc any more. */
+async function businessPageWithSeats(pageId: string): Promise<Record<string, any> | null> {
+  const [page, seats] = await Promise.all([firestoreGetDeep('businessPages', pageId), firestoreGetDeep(`businessPages/${pageId}/private`, 'staff')]);
+  return page ? mergeBizSeats(page, seats as any) : null;
+}
 /** organizations/{id} plus its private/finance doc (EIN, legal name, finance settings, Stripe account). */
 async function orgWithFinance(orgId: string, pre?: Record<string, any> | null): Promise<Record<string, any> | null> {
   const [org, fin] = await Promise.all([pre ? Promise.resolve(pre) : firestoreGetDeep('organizations', orgId), firestoreGetDeep(`organizations/${orgId}/private`, 'finance')]);
@@ -4185,7 +4190,7 @@ async function startServer() {
   // Only a caller who may WRITE the scope can upload, so quota is charged to the right owner.
   async function canWriteHqScope(uid: string, scopeKind: string, scopeId: string): Promise<boolean> {
     if (scopeKind === 'user') return scopeId === uid;
-    if (scopeKind === 'business') return canWriteBusinessFiles(uid, await firestoreRead('businessPages', scopeId));
+    if (scopeKind === 'business') return canWriteBusinessFiles(uid, await businessPageWithSeats(scopeId));
     if (scopeKind !== 'org') return false;
     const org = await firestoreRead('organizations', scopeId);
     if (!org) return false;
@@ -4725,7 +4730,7 @@ async function startServer() {
       if (org?.creatorId) recipients.add(String(org.creatorId));
     }
     if (asset.scopeKind === 'business') {
-      const page = await firestoreRead('businessPages', String(asset.scopeId));
+      const page = await businessPageWithSeats(String(asset.scopeId));
       if (page?.ownerId) recipients.add(String(page.ownerId));
     }
     const verb = decision === 'APPROVED' ? 'approved' : 'requested changes on';
@@ -11407,7 +11412,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const regPerms = staffPerms ? new Set(bizRegisterPermsFor(staffPerms) as RegisterPermission[]) : null;
       if (regPerms && regPerms.has(perm)) {
         const info = await bizStaffCached(`actor|${req.uid}|${businessUid}`, async () =>
-          bizStaffActorInfo(await queryFirebase('businessPages', [{ field: 'ownerId', value: businessUid }], 50), req.uid));
+          bizStaffActorInfo(await Promise.all((await queryFirebase('businessPages', [{ field: 'ownerId', value: businessUid }], 50)).map(async (p: any) => mergeBizSeats(p, await firestoreGetDeep(`businessPages/${p.id}/private`, 'staff')))), req.uid));
         if (info) return { ok: true, staffId: info.staffMemberId || req.uid, staffName: info.name, role: info.role, perms: regPerms };
       }
     }
@@ -14136,7 +14141,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // Business staff seats: invite → lookup → redeem on the member's own account (routes/businessStaff.ts).
   app.use('/api/business/staff/lookup', authLimiter);
   app.use('/api/business/staff/redeem', authLimiter);
-  app.use('/api/business/staff', express.json({ limit: '8kb' }), createBusinessStaffRouter({ cas: restCas, onStaffChanged: bizStaffForget }));
+  app.use('/api/business/staff', express.json({ limit: '8kb' }), createBusinessStaffRouter({ cas: restCas, onStaffChanged: bizStaffForget, onSeatsChanged: pageId => { void mirrorDoc(firestoreAuthHeaders, 'businessPages', pageId); } }));
   // Elevate: read-only staff directory from payroll (Paychex Flex API; file exports are handled client-side).
   app.use('/api/payroll', express.json({ limit: '8kb' }), payrollConnectRouter);
 

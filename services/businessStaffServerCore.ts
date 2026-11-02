@@ -81,6 +81,15 @@ export function withoutSeat(page: SeatPageShape, uid: string): { staffUids: stri
   return { staffUids: (Array.isArray(page.staffUids) ? page.staffUids : []).filter(u => u !== uid), staffSeats: seats };
 }
 
+/** Seats live on businessPages/{id}/private/staff. Merge them over any not-yet-stripped public copy. */
+export function mergeSeats<T extends Record<string, any>>(page: T, seats: { staffUids?: string[]; staffSeats?: Record<string, StaffSeat> } | null | undefined): T {
+  if (!seats) return page;
+  return { ...page, ...(seats.staffUids ? { staffUids: seats.staffUids } : {}), ...(seats.staffSeats ? { staffSeats: seats.staffSeats } : {}) };
+}
+/** staffPageIndex/{uid}.pageIds: the per-person list that replaces an array-contains query on the public doc. */
+export const withPageId = (ids: unknown, pageId: string): string[] => [...new Set([...(Array.isArray(ids) ? ids : []), pageId])];
+export const withoutPageId = (ids: unknown, pageId: string): string[] => (Array.isArray(ids) ? ids : []).filter(x => x !== pageId);
+
 /** Is `uid` actually seated on the page (listed in staffUids AND has a seat)? */
 export const isSeated = (page: SeatPageShape | null | undefined, uid: string) =>
   !!page && (page.staffUids || []).includes(uid) && !!page.staffSeats?.[uid];

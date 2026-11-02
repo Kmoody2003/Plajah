@@ -118,8 +118,8 @@ elevateAccessRouter.get('/assets', async (req: Request, res: Response) => {
   if (!t) return res.status(401).json({ error: 'Sign in first.' });
   const scopeId = String(req.query.scopeId || '').trim();
   if (badId(scopeId)) return res.status(400).json({ error: 'Bad request.' });
-  const [org, page, platformAdmin, rows] = await Promise.all([fsGet(`organizations/${scopeId}`), fsGet(`businessPages/${scopeId}`), fsGet(`admins/${t.uid}`), fsQuery('orgAssets', [{ field: 'scopeId', value: scopeId }], MAX_MEMBERS)]);
-  const inBusiness = !!page && (page.ownerId === t.uid || (page.staffUids || []).includes(t.uid));
+  const [org, page, seats, platformAdmin, rows] = await Promise.all([fsGet(`organizations/${scopeId}`), fsGet(`businessPages/${scopeId}`), fsGet(`businessPages/${scopeId}/private/staff`), fsGet(`admins/${t.uid}`), fsQuery('orgAssets', [{ field: 'scopeId', value: scopeId }], MAX_MEMBERS)]);
+  const inBusiness = !!page && (page.ownerId === t.uid || (seats?.staffUids || page.staffUids || []).includes(t.uid));
   const inScope = !!platformAdmin || scopeId === t.uid || inBusiness || !!org && (org.creatorId === t.uid || [...(org.admins || []), ...(org.itAdminUids || []), ...(org.staffUids || [])].includes(t.uid));
   const membership = org ? (await fsQuery('orgMemberships', [{ field: 'orgId', value: scopeId }, { field: 'userId', value: t.uid }], 5)).map(r => r.data).find(m => m.status === 'ACTIVE') || null : null;
   const assets = rows.map(r => r.data).filter(a => {

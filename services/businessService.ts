@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, deleteField, query, where, orderBy, limit, addDoc, runTransaction } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
 import { db, opsDb, auth } from './firebase';
+import { withSeats } from './businessStaffService';
 import {
   BusinessPage, BusinessOrder, BusinessReward, DigitalSignageSlide,
   SeedRaiserCampaign, SeedRaiserPledge, SeedRaiserReward, CrmContact
@@ -21,9 +22,8 @@ export async function fetchMyBusinessPages(): Promise<BusinessPage[]> {
   // Sort client-side instead.
   const q = query(collection(db, 'businessPages'), where('ownerId', '==', uid));
   const snap = await getDocs(q);
-  return snap.docs
-    .map(d => ({ id: d.id, ...d.data() } as BusinessPage))
-    .sort((a, b) => (Number((b as any).createdAt) || 0) - (Number((a as any).createdAt) || 0));
+  const pages = await Promise.all(snap.docs.map(d => withSeats({ id: d.id, ...d.data() } as BusinessPage)));
+  return pages.sort((a, b) => (Number((b as any).createdAt) || 0) - (Number((a as any).createdAt) || 0));
 }
 
 export async function fetchAllBusinessPages(): Promise<BusinessPage[]> {
@@ -45,6 +45,7 @@ export async function saveBusinessPage(page: Partial<BusinessPage>): Promise<Bus
     // Staff seats are server-owned (routes/businessStaff.ts); a stale copy must never be written back.
     delete updates.staffUids;
     delete updates.staffSeats;
+    delete updates.stripeAccountId;
     Object.keys(updates).forEach(k => { if (updates[k] === undefined) delete updates[k]; });
     await updateDoc(ref, updates);
     return { ...page, ownerId: uid, updatedAt: now } as BusinessPage;
@@ -70,6 +71,7 @@ export async function saveBusinessPage(page: Partial<BusinessPage>): Promise<Bus
     createdAt: page.createdAt || now,
     updatedAt: now,
   };
+  delete (newPage as any).staffUids; delete (newPage as any).staffSeats; delete (newPage as any).stripeAccountId;
   // Firestore rejects undefined field values — strip any the caller left undefined.
   Object.keys(newPage).forEach(k => { if ((newPage as any)[k] === undefined) delete (newPage as any)[k]; });
   await setDoc(ref, newPage);
