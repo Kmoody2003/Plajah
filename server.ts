@@ -1,3 +1,4 @@
+import { deviceTokens } from './services/pushTokensCore';
 import express from 'express';
 import { cleanDescription } from './utils/description';
 // NOTE: `vite` is imported LAZILY inside the dev-only branch below. A static top-level import pulls
@@ -54,7 +55,13 @@ import { learnerAuthRouter } from './routes/learnerAuth';
 import { schoolsRouter } from './routes/schools';
 import { elevateAccountsRouter } from './routes/elevateAccounts';
 import { elevateAccessRouter } from './routes/elevateAccess';
-import { canSeeOrgFile, hqObjectPathInScope } from './services/hqAccessPolicy';
+import { coeditRouter, telaMediaRouter } from './routes/coeditSecurity';
+import { hqSecurityRouter } from './routes/hqSecurity';
+import { hqFileRouter } from './routes/hqFile';
+import { mediaTrashRouter, sweepMediaTrash } from './routes/mediaTrash';
+import { canWriteBusinessFiles, hqObjectPathInScope } from './services/hqAccessPolicy';
+import { canOpenHqFile } from './services/hqServerAccess';
+import { clamConfigFromEnv, clamInstream, verdictFromClam, HEURISTICS_NOTE } from './services/hqMalwareScanner';
 import { elevateInvitesRouter } from './routes/elevateInvites';
 import { templateShareRouter } from './routes/templateShare';
 import { curriculumFetchRouter } from './routes/curriculumFetch';
@@ -63,7 +70,7 @@ import { academiaClassRouter } from './routes/academiaClass';
 import { objectStoreRouter } from './routes/objectStore';
 import { createBusinessStaffRouter } from './routes/businessStaff';
 import { registerPermsFor as bizRegisterPermsFor, normalizePerms as normalizeBizPerms, type BizPerm } from './services/businessStaffCore';
-import { staffActorInfo as bizStaffActorInfo } from './services/businessStaffServerCore';
+import { staffActorInfo as bizStaffActorInfo, mergeSeats as mergeBizSeats } from './services/businessStaffServerCore';
 import { payrollConnectRouter } from './routes/payrollConnect';
 import { postmanRouter } from './routes/postman';
 import { articleFeedsRouter } from './routes/articleFeeds';
@@ -78,6 +85,7 @@ import { createPodRouter, fulfillPodOrderFromStripe } from './routes/pod';
 import { createBookVaultRouter } from './routes/bookVault';
 import { createMusicDownloadRouter } from './routes/musicDownload';
 import { createFastVoteRouter } from './routes/fastVote';
+import { cleanRedeemUnits, isInternalPushLink, muxAssetReadable, muxOwnerOf, muxOwnerTag, pushMatchesNotification, ticketActionAllowed } from './services/serverGuards';
 import { createMuseumRouter } from './routes/museum';
 import { createDataCommonsRouter } from './routes/dataCommons';
 import { createMusicLawRouter } from './routes/musicLaw';
@@ -124,7 +132,8 @@ import { createSecurityCouncilRouter } from './routes/securityCouncil';
 import { homeDiscoveryRouter } from './routes/homeDiscovery';
 import { matterRouter } from './routes/matterRoutes';
 import { localAiRouter } from './routes/localAi';
-import { homeHubRouter, HOME_HUB_ORIGINS, startHomeHub } from './routes/homeHubRoutes';
+import { homeHubRouter, HOME_HUB_ORIGINS, isLoopback, requireHubLocal, requireLan, startHomeHub } from './routes/homeHubRoutes';
+import { isPrivateLanIp, pinLockKeys, signConnectState, verifyConnectState } from './services/serverGuards';
 import { createCustomToken, fsGet, fsSet, fsPatch, fsDelete } from './services/firebaseAdminRest';
 import { sweepReleaseAnnouncements } from './services/releases/releaseAnnouncer';
 import { createReleaseIo } from './routes/releaseAnnouncements';
@@ -177,6 +186,10 @@ import { grossUpCents, giftCentsFromGross, applicationFeePercent } from './servi
 import { receiptPdf, bytesToBase64 } from './services/givingPdf';
 import { receiptEmail, statementEmail, receiptNoOf, statementOrgOf, EMAIL_RE } from './services/givingEmailCore';
 import { createBilling } from './routes/billing';
+import { bumpQuota, PUSH_PAIR_DAILY_LIMIT, PUSH_SENDER_DAILY_LIMIT } from './services/usageQuota';
+import { canOpenSanctuaryItem, itemNamesGatedPath, sanctuaryItemOwner, SANCTUARY_ITEM_OWNER } from './services/sanctuaryMediaCore';
+import { fsAddClassMember, fsClassRoster } from './services/firebaseAdminRest';
+import { mergeOrgFinance, financeViewFor, financeViewLevel } from './services/orgFinanceCore';
 import { deriveAlerts as pulseDeriveAlerts, alertAudience as pulseAudience, prefAllows as pulsePrefAllows } from './services/acctPulse';
 import { isFutureRelease } from './services/releases/visibility';
 import { filmDistributionOf, resolveFilmCharge } from './services/filmPricing';
@@ -335,6 +348,18 @@ async function gcsUploadWithDownloadToken(
   } catch { return false; }
 }
 
+/** The uploader stamped on a Storage object. Storage rules make the stamp self-only and immutable by others. */
+async function gcsObjectOwner(objectPath: string): Promise<string | null> {
+  const token = await getGoogleAccessToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`https://storage.googleapis.com/storage/v1/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return null;
+    const j = await res.json() as { metadata?: { ownerUid?: string } };
+    return j.metadata?.ownerUid || null;
+  } catch { return null; }
+}
+
 async function gcsDownload(objectPath: string): Promise<Buffer | null> {
   const token = await getGoogleAccessToken();
   if (!token) return null;
@@ -349,7 +374,7 @@ async function gcsDownload(objectPath: string): Promise<Buffer | null> {
 /** Download a remote URL to a local temp file (ffmpeg can't reliably loop a remote image). */
 async function fetchToTmp(url: string, ext: string): Promise<string | null> {
   try {
-    const res = await fetch(url);
+    const res = await safeOutboundFetch(url);
     if (!res.ok) return null;
     const buf = Buffer.from(await res.arrayBuffer());
     if (buf.length < 100) return null;
@@ -1843,7 +1868,7 @@ async function firestoreArrayUnion(path: string, field: string, values: string[]
 async function enrollPaidLearner(courseId: string, uid: string, now = Date.now()): Promise<boolean> {
   let ok = false;
   for (let i = 0; i < 3 && !ok; i++) {
-    ok = await firestoreArrayUnion(`classrooms/${courseId}`, 'enrolledStudents', [uid]);
+    ok = (await fsAddClassMember(courseId, uid)) !== 'error';
     if (!ok) await new Promise(r => setTimeout(r, 400 * (i + 1)));
   }
   if (ok) {
@@ -2219,9 +2244,32 @@ async function autoPost(orgId: string, make: (sys: SysAccounts) => DraftJournal)
   catch (e: any) { console.error('[Elevate] journal skipped:', e?.message); return null; }
 }
 
+/** A business page plus its seats, which aren't on the public doc any more. */
+async function businessPageWithSeats(pageId: string): Promise<Record<string, any> | null> {
+  const [page, seats] = await Promise.all([firestoreGetDeep('businessPages', pageId), firestoreGetDeep(`businessPages/${pageId}/private`, 'staff')]);
+  return page ? mergeBizSeats(page, seats as any) : null;
+}
+/** organizations/{id} plus its private/finance doc (EIN, legal name, finance settings, Stripe account). */
+async function orgWithFinance(orgId: string, pre?: Record<string, any> | null): Promise<Record<string, any> | null> {
+  const [org, fin] = await Promise.all([pre ? Promise.resolve(pre) : firestoreGetDeep('organizations', orgId), firestoreGetDeep(`organizations/${orgId}/private`, 'finance')]);
+  return org ? mergeOrgFinance(org, fin) : null;
+}
+/** The org's connected Stripe account, or undefined. */
+async function orgStripeAccount(orgId: string): Promise<string | undefined> {
+  return (await orgWithFinance(orgId))?.stripeAccountId || undefined;
+}
+/** Bind a Stripe account to an org: the id goes on the private doc, donors see only a flag, webhooks use the index. */
+async function saveOrgStripeAccount(orgId: string, acct: string): Promise<boolean> {
+  const now = Date.now();
+  const saved = await firestorePatchDeep(`organizations/${orgId}/private`, 'finance', { stripeAccountId: acct, updatedAt: now });
+  const indexed = await firestorePatchDeep('stripeAccountOrgs', acct, { orgId, at: now });
+  const flagged = await firestorePatchDeep('organizations', orgId, { canReceiveGiving: true, updatedAt: now });
+  return saved && indexed && flagged;
+}
+
 /** Finance-staff gate, read server-side from the org doc (never trust the client). */
 async function assertOrgFinanceAccess(uid: string, orgId: string): Promise<{ org: Record<string, any> } | { error: string; status: number }> {
-  const org = await firestoreGetDeep('organizations', orgId);
+  const org = await orgWithFinance(orgId);
   if (!org) return { error: 'Organization not found', status: 404 };
   const inList = (k: string) => Array.isArray(org[k]) && org[k].includes(uid);
   if (org.creatorId === uid || inList('itAdminUids') || inList('seniorPastorUids') || inList('financeUids') || inList('accountingUids')) return { org };
@@ -2233,6 +2281,9 @@ async function stripeStateWrite(orgId: string, patch: Record<string, any>) {
   await firestorePatchDeep('chmsFinanceMeta', `stripe_${orgId}`, deepClean({ ...patch, id: `stripe_${orgId}`, orgId, kind: 'STRIPE_STATE', createdAt: Date.now(), createdBy: 'stripe' }));
 }
 async function orgForStripeAccount(acct: string): Promise<string | null> {
+  const hit = await firestoreGetDeep('stripeAccountOrgs', acct);
+  if (hit?.orgId) return String(hit.orgId);
+  // Not yet indexed: the public copy, until migrateOrgFinance has stripped it.
   const r = await fsQueryDocs('organizations', [{ field: 'stripeAccountId', op: 'EQUAL', value: acct }], 1);
   return r[0]?.id || null;
 }
@@ -2286,7 +2337,7 @@ async function recordOnlineGift(a: {
 async function sendGiftReceipt(orgId: string, giftId: string, o: { email?: string; uid?: string; createdSec: number; recurring?: boolean }): Promise<void> {
   if (!process.env.RESEND_API_KEY) return;
   if (Date.now() / 1000 - o.createdSec > 3 * 86400) return;
-  const [org, gift] = await Promise.all([firestoreGetDeep('organizations', orgId), firestoreRead('chmsContributions', giftId)]);
+  const [org, gift] = await Promise.all([orgWithFinance(orgId), firestoreRead('chmsContributions', giftId)]);
   if (!org || !gift || gift.receiptSentAt || gift.status === 'VOID') return;
   if (org.financeSettings?.emailReceipts === false) return;
   let to = o.email && EMAIL_RE.test(o.email) ? o.email : '';
@@ -2793,7 +2844,8 @@ async function startServer() {
     const body: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body || {}));
     try {
       // 1. Signature (unless explicitly disabled for local dev)
-      if (process.env.ALEXA_SKIP_SIGNATURE !== 'true') {
+      const skipAlexaSignature = process.env.ALEXA_SKIP_SIGNATURE === 'true' && !process.env.K_SERVICE && process.env.NODE_ENV !== 'production';
+      if (!skipAlexaSignature) {
         const certUrl = String(req.headers['signaturecertchainurl'] || '');
         const signature = String(req.headers['signature'] || '');
         if (!certUrl || !signature || !(await verifyAlexaSignature(certUrl, signature, body))) {
@@ -2988,6 +3040,8 @@ async function startServer() {
               stripePaymentIntentId: (session.payment_intent as string) || '',
               purchasedAt: now,
             });
+            // The marker firestore.rules check: this buyer may open this one gated item.
+            if (meta.uid && meta.itemId) await firestoreWrite('sanctuaryUnlocks', `${meta.uid}_${meta.itemId}`, { uid: meta.uid, itemId: meta.itemId, sanctuaryId: meta.creatorId || '', at: now });
           }
 
           // ── Print-on-demand order paid: record earning + send the print job (idempotent) ──
@@ -3128,6 +3182,12 @@ async function startServer() {
               stripePaymentIntentId: (session.payment_intent as string) || '',
               createdAt: now,
             });
+            // Rows are private to the backer and creator; the public banner reads this total.
+            if (meta.sanctuaryId) {
+              const rows = await queryFirebase('sanctuaryPledges', [{ field: 'sanctuaryId', value: meta.sanctuaryId }], 5000).catch(() => []);
+              const amounts = rows.map((r: any) => Number(r?.amount) || 0);
+              await firestoreWrite('sanctuaryPledgeTotals', meta.sanctuaryId, { raised: amounts.reduce((a: number, b: number) => a + b, 0), backers: rows.length, updatedAt: now });
+            }
           }
 
           // ── Artist gift: ledger row for the gifter's receipt and the artist's thank-you list ──
@@ -3308,6 +3368,7 @@ async function startServer() {
               displayName: 'Member', photoUrl: '', joinedAt: now, paid: true,
               stripeSubscriptionId: (session.subscription as string) || '', billingInterval: meta.interval || 'month',
             });
+            await firestoreWrite('clubMemberIndex', memId, { clubId: meta.clubId, userId: meta.uid, at: now });
             if (fresh === 'created') {
               const club = await firestoreRead('clubs', meta.clubId);
               if (club) await firestoreWrite('clubs', meta.clubId, { memberCount: (Number(club.memberCount) || 0) + 1 });
@@ -3491,6 +3552,7 @@ async function startServer() {
     patch: (c, id, f) => firestorePatchDeep(c, id, f),
     create: (c, d) => firestoreCreate(c, d),
     query: (c, f, n) => fsQueryDocs(c, f, n),
+    saveOrgStripeAccount: (orgId, acct) => saveOrgStripeAccount(orgId, acct),
     isPlatformAdmin: async (uid: string) => !!(await fetchFirebaseDoc('admins', uid)),
     autoPost: (orgId, make) => autoPost(orgId, make),
     postJournal: (orgId, d) => postJournal(orgId, d),
@@ -3804,7 +3866,7 @@ async function startServer() {
             capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
           });
           accountId = account.id as string;
-          await firestoreWrite('organizations', String(orgId), { stripeAccountId: accountId, updatedAt: Date.now() });
+          if (!(await saveOrgStripeAccount(String(orgId), accountId))) return res.status(500).json({ error: 'Could not store the Stripe account' });
         }
       } else {
         // Check if creator already has an account
@@ -4037,6 +4099,16 @@ async function startServer() {
     const ok = memberships.some((m: any) => m.status === 'ACTIVE' && ['OWNER', 'ADMIN', 'STAFF'].includes(String(m.role)));
     return { ok, exists: true, name };
   }
+  /** The event's creator or its host team (org / business staff). */
+  async function isEventManager(uid: string | undefined, eventId: unknown): Promise<boolean> {
+    const id = String(eventId || '');
+    if (!uid || !id || id.includes('/')) return false;
+    const ev = await firestoreRead('plajahEvents', id);
+    if (!ev) return false;
+    if (ev.creatorUid === uid) return true;
+    const host = parseEventJsonField(ev.host, null);
+    return host?.kind ? (await eventHostAccess(uid, host.kind, host.id)).ok : false;
+  }
   /** The signed-in uid when a valid Bearer token is present; undefined otherwise (public routes with owner extras). */
   async function optionalUidFromReq(req: any): Promise<string | undefined> {
     const auth = req.headers?.authorization;
@@ -4108,15 +4180,11 @@ async function startServer() {
   // ── Content HQ protected delivery ─────────────────────────────────────────────────
   // Originals are not public Storage objects. The server checks the account/org scope and
   // streams from GCS with Range support so large video can seek without buffering 25 GB.
-  async function canAccessHqAsset(uid: string, asset: any): Promise<boolean> {
-    if (!asset) return false;
-    if (asset.scopeKind === 'user') return asset.scopeId === uid;
-    if (asset.scopeKind !== 'org') return false;
-    const org = await firestoreRead('organizations', String(asset.scopeId));
-    const memberships = await queryFirebase('orgMemberships', [
-      { field: 'orgId', value: String(asset.scopeId) }, { field: 'userId', value: uid },
-    ], 5);
-    return canSeeOrgFile(uid, asset, org, memberships.find((m: any) => m.status === 'ACTIVE') || null);
+  const canAccessHqAsset = (uid: string, asset: any): Promise<boolean> => canOpenHqFile(uid, asset);
+
+  // Kept in the durable audit log for an owner or IT Admin to review. The person only sees "Forbidden".
+  function logHqDenied(uid: string, assetId: string, asset: any) {
+    firestoreCreate('hqAuditLog', { kind: 'ACCESS_DENIED', assetId, scopeKind: String(asset.scopeKind || ''), scopeId: String(asset.scopeId || ''), actorUid: uid, createdAt: Date.now() }).catch(() => {});
   }
 
   /** Streams a file's object, refusing any record that names an object outside its own owner's space. */
@@ -4130,6 +4198,7 @@ async function startServer() {
   // Only a caller who may WRITE the scope can upload, so quota is charged to the right owner.
   async function canWriteHqScope(uid: string, scopeKind: string, scopeId: string): Promise<boolean> {
     if (scopeKind === 'user') return scopeId === uid;
+    if (scopeKind === 'business') return canWriteBusinessFiles(uid, await businessPageWithSeats(scopeId));
     if (scopeKind !== 'org') return false;
     const org = await firestoreRead('organizations', scopeId);
     if (!org) return false;
@@ -4151,6 +4220,12 @@ async function startServer() {
       const org = await firestoreRead('organizations', scopeId);
       const ent = resolveContentHqEntitlements({ organization: { id: scopeId, orgType: org?.orgType, isBusinessPage: org?.isBusinessPage } as any });
       return ent.storageLimitGb * 1024 ** 3;
+    }
+    // Anyone can open a business page, so a page brings no storage of its own: it uses its owner's plan.
+    if (scopeKind === 'business') {
+      const page = await firestoreRead('businessPages', scopeId);
+      if (!page?.ownerId) return 0;
+      uid = String(page.ownerId);
     }
     const subs = await queryFirebase('plajahPlusSubscriptions', [{ field: 'subscriberId', value: uid }], 10);
     const activeSub = subs.find((s: any) => ['active', 'trialing', 'past_due'].includes(String(s.status)));
@@ -4234,10 +4309,9 @@ async function startServer() {
   }
 
   /**
-   * The pluggable malware / content-safety scan. REAL today: size ceiling, magic-byte
-   * MIME sniff, type allowlist, and an EICAR + executable-signature heuristic. This is
-   * the ONE integration seam for deep AV — swap the heuristic for a ClamAV clamd
-   * INSTREAM scan or a VirusTotal hash lookup and every caller inherits it.
+   * The checks every file gets: size ceiling, magic-byte MIME sniff, type allowlist, and an EICAR +
+   * executable-signature heuristic. These aren't antivirus. services/hqMalwareScanner.ts adds that when
+   * CLAMAV_HOST is set. Private files are never sent to an outside service.
    * Returns { clean, reason?, detectedMime? }.
    */
   function runMalwareScan(input: { declaredMime: string; storedContentType?: string; sniffedMime: string | null; sizeBytes: number; head: Buffer }): { clean: boolean; reason?: string; detectedMime?: string } {
@@ -4255,8 +4329,6 @@ async function startServer() {
     //    containers have no fixed leading magic) fall back to the stored content-type.
     const effective = input.sniffedMime || input.storedContentType || input.declaredMime || 'application/octet-stream';
     if (!isHqMimeAllowed(effective)) return { clean: false, reason: `Blocked: "${effective}" is not an allowed Content HQ file type.`, detectedMime };
-    // TODO(scanner): stream the full object to a ClamAV daemon (clamd INSTREAM) or submit
-    // its SHA-256 to VirusTotal here, and return { clean:false } on a positive verdict.
     return { clean: true, detectedMime };
   }
 
@@ -4299,6 +4371,15 @@ async function startServer() {
     return scanHqAsset(res, assetId, asset);
   });
 
+  /** The whole object, straight from our bucket to our own scanner. */
+  async function scanHqObjectWithClam(objectPath: string, clam: NonNullable<ReturnType<typeof clamConfigFromEnv>>) {
+    const token = await getGoogleAccessToken();
+    if (!token) return { status: 'unavailable' as const, detail: 'no storage token' };
+    const upstream = await fetch(`https://storage.googleapis.com/storage/v1/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}?alt=media`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
+    if (!upstream?.ok || !upstream.body) return { status: 'unavailable' as const, detail: 'could not read the object' };
+    return clamInstream(Readable.fromWeb(upstream.body as any), clam);
+  }
+
   async function scanHqAsset(res: any, assetId: string, asset: any) {
     const source = asset.currentVersionId ? await firestoreRead('hqAssetVersions', String(asset.currentVersionId)) || asset : asset;
     const objectPath = source.storagePath || asset.storagePath;
@@ -4315,8 +4396,20 @@ async function startServer() {
       declaredMime: String(asset.mimeType || ''), storedContentType: obj.contentType,
       sniffedMime: sniffed, sizeBytes: Number(obj.size || asset.sizeBytes || 0), head: obj.head,
     });
+    // Whatever the heuristics pass goes on to antivirus, if we run one. Its answer decides what the file may claim.
+    let engine = 'heuristics', engineNote = HEURISTICS_NOTE;
+    if (verdict.clean) {
+      const clam = clamConfigFromEnv();
+      const record = verdictFromClam(clam ? await scanHqObjectWithClam(String(objectPath), clam) : null);
+      if (record.outcome === 'pending') {
+        console.error('[Content HQ] antivirus unavailable, file stays locked:', assetId);
+        return res.status(503).json({ error: 'The file is waiting for the antivirus scanner.', scanStatus: 'PENDING' });
+      }
+      engine = record.engine; engineNote = record.note;
+      if (record.outcome === 'blocked') { verdict.clean = false; verdict.reason = `Blocked: ${record.reason}`; }
+    }
     const scanStatus = verdict.clean ? 'CLEAN' : 'QUARANTINED';
-    await firestoreWrite('orgAssets', assetId, { scanStatus, scannedAt: Date.now(), scanReason: verdict.reason || '' });
+    await firestoreWrite('orgAssets', assetId, { scanStatus, scannedAt: Date.now(), scanReason: verdict.reason || '', scanEngine: engine, scanEngineNote: engineNote });
     // Durable server-side security audit (asset-scoped, append-only hqActivity).
     await firestoreCreate('hqActivity', {
       assetId, scopeKind: asset.scopeKind, scopeId: asset.scopeId,
@@ -4325,6 +4418,7 @@ async function startServer() {
     });
     // Security stays silent until there is something to act on. A blocked file is, so its uploader hears about it.
     if (!verdict.clean && asset.uploadedByUid && asset.scanStatus !== 'QUARANTINED') {
+      firestoreCreate('hqAuditLog', { kind: 'FILE_BLOCKED', assetId, name: String(asset.name || ''), reason: verdict.reason || '', scopeKind: String(asset.scopeKind || ''), scopeId: String(asset.scopeId || ''), actorUid: String(asset.uploadedByUid), createdAt: Date.now() }).catch(() => {});
       await firestoreCreate('notifications', {
         userId: String(asset.uploadedByUid), senderId: '', senderName: 'Plajah security', type: 'CONTENT', title: 'File blocked',
         message: `${asset.name} was blocked by a security scan. ${verdict.reason || ''}`.trim(), targetId: assetId, link: `content-hq:${assetId}`,
@@ -4336,14 +4430,18 @@ async function startServer() {
 
   // A player can't send an Authorization header, so an authorized viewer gets a short signed link to
   // sound or video. Access and the scan are checked again on every request, so revoking still works.
-  const hqStreamSecret = () => process.env.HQ_STREAM_SECRET || process.env.ADMIN_SEED_KEY || process.env.CRON_SECRET || '';
+  // Dedicated key only: cron keys never sign media URLs. Signed URLs last hours, so rotating costs one refresh at most.
+  const hqStreamSecret = () => process.env.HQ_STREAM_SECRET || '';
   const signHqStream = (assetId: string, uid: string, exp: string) =>
     nodeCrypto.createHmac('sha256', hqStreamSecret()).update(`${assetId}|${uid}|${exp}`).digest('hex');
 
   app.post('/api/hq/assets/:assetId/stream-ticket', apiLimiter, authMiddleware, async (req: any, res: any) => {
     const assetId = String(req.params.assetId);
     const asset = await firestoreRead('orgAssets', assetId);
-    if (!await canAccessHqAsset(req.uid, asset)) return res.status(403).json({ error: 'Forbidden' });
+    if (!await canAccessHqAsset(req.uid, asset)) {
+      if (asset) logHqDenied(req.uid, assetId, asset);
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     if (hqScanBlocked(asset)) return res.status(409).json({ error: hqScanMessage(asset), code: `SCAN_${asset.scanStatus}` });
     if (asset.kind !== 'video' && asset.kind !== 'audio') return res.status(400).json({ error: 'Only sound and video stream.' });
     if (!hqStreamSecret()) return res.status(503).json({ error: 'Streaming is not configured.' });
@@ -4362,11 +4460,41 @@ async function startServer() {
     return streamHqAsset(req, res, asset, source);
   });
 
+  // Gated sanctuary files, the same way: a short signed link, with access checked again on every request, so a lapsed
+  // member stops at once. The object has no public URL.
+  async function sanctuaryFileAccess(uid: string, col: string, id: string, path: string): Promise<boolean> {
+    if (!SANCTUARY_ITEM_OWNER[col] || !id || id.includes('/')) return false;
+    const item = await firestoreGetDeep(col, id);
+    const owner = sanctuaryItemOwner(col, item);
+    if (!item || !itemNamesGatedPath(item, owner, path)) return false;
+    const [membership, unlock] = await Promise.all([firestoreRead('sanctuaryMemberships', `${owner}_${uid}`), firestoreRead('sanctuaryUnlocks', `${uid}_${id}`)]);
+    return canOpenSanctuaryItem(item, uid, owner, membership?.status, !!unlock);
+  }
+  const signSanctuaryFile = (col: string, id: string, uid: string, exp: string, path: string) =>
+    nodeCrypto.createHmac('sha256', hqStreamSecret()).update(`sanctuary|${col}|${id}|${uid}|${exp}|${path}`).digest('hex');
+
+  app.post('/api/sanctuary/media-ticket', apiLimiter, authMiddleware, express.json(), async (req: any, res: any) => {
+    const col = String(req.body?.col || ''), id = String(req.body?.id || ''), path = String(req.body?.path || '');
+    if (!await sanctuaryFileAccess(req.uid, col, id, path)) return res.status(403).json({ error: 'Forbidden' });
+    if (!hqStreamSecret()) return res.status(503).json({ error: 'Streaming is not configured.' });
+    const exp = String(Date.now() + 60 * 60 * 1000);
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.json({ url: `/api/sanctuary/media/${encodeURIComponent(col)}/${encodeURIComponent(id)}/${encodeURIComponent(req.uid)}/${exp}/${signSanctuaryFile(col, id, req.uid, exp, path)}?p=${encodeURIComponent(path)}` });
+  });
+
+  app.get('/api/sanctuary/media/:col/:id/:uid/:exp/:sig', apiLimiter, async (req: any, res: any) => {
+    const { col, id, uid, exp, sig } = req.params;
+    const path = String(req.query.p || '');
+    if (!hqStreamSecret() || !(Number(exp) > Date.now()) || !secretsEqual(sig, signSanctuaryFile(col, id, uid, exp, path))) return res.status(403).json({ error: 'Forbidden' });
+    if (!await sanctuaryFileAccess(String(uid), String(col), String(id), path)) return res.status(403).json({ error: 'Forbidden' });
+    res.setHeader('Cache-Control', 'private, no-store');
+    return streamHqObject(req, res, path, path.split('/').pop() || 'file', '');
+  });
+
   app.get('/api/hq/assets/:assetId/download', apiLimiter, authMiddleware, async (req: any, res: any) => {
     const asset = await firestoreRead('orgAssets', String(req.params.assetId));
     if (!await canAccessHqAsset(req.uid, asset)) {
-      // Kept in the durable audit log for an owner or IT Admin to review. The person only sees "Forbidden".
-      if (asset) firestoreCreate('hqAuditLog', { kind: 'ACCESS_DENIED', assetId: String(req.params.assetId), scopeKind: String(asset.scopeKind || ''), scopeId: String(asset.scopeId || ''), actorUid: req.uid, createdAt: Date.now() }).catch(() => {});
+      if (asset) logHqDenied(req.uid, String(req.params.assetId), asset);
       return res.status(403).json({ error: 'Forbidden' });
     }
     // Quarantine gate: never stream bytes for a PENDING/QUARANTINED asset.
@@ -4411,7 +4539,8 @@ async function startServer() {
     if (!cls) return null;
     if (kind === 'classroom') {
       const isClassTeacher = cls.ownerId === uid;
-      const isClassStudent = (cls.enrolledStudents || []).includes(uid);
+      const roster = await firestoreRead(`classrooms/${encodeURIComponent(classId)}/private`, 'roster');
+      const isClassStudent = (roster?.enrolledStudents || cls.enrolledStudents || []).includes(uid);
       return isClassTeacher || isClassStudent ? { col, orgId: '', isClassTeacher, isClassStudent, org: null } : null;
     }
     const orgId = String(cls.orgId || '');
@@ -4495,8 +4624,8 @@ async function startServer() {
     const scopeKind = String(req.body?.scopeKind || '');
     const scopeId = String(req.body?.scopeId || '');
     const incomingBytes = Math.max(0, Number(req.body?.incomingBytes || 0));
-    if ((scopeKind !== 'user' && scopeKind !== 'org') || !scopeId) {
-      return res.status(400).json({ error: 'scopeKind (user|org) and scopeId are required' });
+    if (!['user', 'org', 'business'].includes(scopeKind) || !scopeId) {
+      return res.status(400).json({ error: 'scopeKind (user|org|business) and scopeId are required' });
     }
     if (!await canWriteHqScope(uid, scopeKind, scopeId)) return res.status(403).json({ error: 'Forbidden' });
 
@@ -4640,6 +4769,10 @@ async function startServer() {
       const org = await firestoreRead('organizations', String(asset.scopeId));
       if (org?.creatorId) recipients.add(String(org.creatorId));
     }
+    if (asset.scopeKind === 'business') {
+      const page = await businessPageWithSeats(String(asset.scopeId));
+      if (page?.ownerId) recipients.add(String(page.ownerId));
+    }
     const verb = decision === 'APPROVED' ? 'approved' : 'requested changes on';
     await Promise.all([...recipients].map(userId => firestoreCreate('notifications', {
       userId, senderId: '', senderName: guestName, type: 'CONTENT', title: decision === 'APPROVED' ? 'Asset approved' : 'Changes requested',
@@ -4660,8 +4793,7 @@ async function startServer() {
   // Auth: an admin/cron secret, reusing the same pattern as /api/cron/publish-due-posts —
   //   POST /api/hq/retention/sweep?key=<ADMIN_SEED_KEY|CRON_SECRET>
   //   (or header  x-cron-key: <secret>)
-  // NO scheduler is wired here. This repo deploys to Cloud Run; point Cloud Scheduler
-  // (e.g. daily) at this URL with the secret to run it. Each purge is written to the
+  // Cloud Scheduler calls this daily: scripts/scheduler/setup-hq-retention.sh. Each purge is written to the
   // durable hqAuditLog collection (which SURVIVES the asset, whose own hqActivity is
   // deleted in the same sweep).
   app.post('/api/hq/retention/sweep', express.json(), async (req: any, res: any) => {
@@ -4691,6 +4823,7 @@ async function startServer() {
           const docs = await fsQueryDocs(coll, [{ field: 'assetId', op: 'EQUAL', value: id }], 500);
           for (const d of docs) { if (await fsDelete(`${coll}/${d.id}`)) summary.purgedDocs++; }
         }
+        await fsDelete(`orgAssetText/${id}`);
         if (await fsDelete(`orgAssets/${id}`)) summary.purgedDocs++;
         summary.sweptAssets++; summary.assetIds.push(id);
         // Durable audit that outlives the asset (its hqActivity was just deleted).
@@ -4701,7 +4834,9 @@ async function startServer() {
       // 2) Dead share links past their expiry, independent of any asset purge.
       const deadShares = await fsQueryDocs('hqShareLinks', [{ field: 'expiresAt', op: 'LESS_THAN_OR_EQUAL', value: now }], cap);
       for (const s of deadShares) { if (await fsDelete(`hqShareLinks/${s.id}`)) summary.expiredShares++; }
-      return res.json({ ok: true, ...summary });
+      // 3) The Media Library's trash runs on the same clock.
+      const media = await sweepMediaTrash(now, cap);
+      return res.json({ ok: true, ...summary, mediaPurged: media.purged, mediaFailed: media.failed });
     } catch (err: any) {
       console.error('[Content HQ] retention sweep failed:', err?.message || err);
       return res.status(500).json({ error: err?.message || 'sweep failed' });
@@ -5176,6 +5311,9 @@ async function startServer() {
       const doc = await fetchFirebaseDoc('eventTickets', req.params.ticketId);
       if (!doc?.fields) return res.json({ valid: false, reason: 'Ticket not found' });
       const f = doc.fields;
+      // Door staff, or the holder's own self check-in. Anyone else used to be able to burn a stranger's ticket.
+      const canCheckIn = ticketActionAllowed('check-in', { isHolder: f.holderUid?.stringValue === req.uid, isEventManager: await isEventManager(req.uid, f.eventId?.stringValue) });
+      if (!canCheckIn) return res.status(403).json({ valid: false, reason: 'Only this event’s team can check in this ticket.' });
       if (f.status?.stringValue === 'USED') return res.json({ valid: false, reason: 'Already checked in', checkedInAt: parseInt(f.checkedInAt?.integerValue ?? '0'), holderName: f.holderName?.stringValue, packages: JSON.parse(f.packages?.stringValue ?? '[]') });
       if (f.status?.stringValue !== 'VALID') return res.json({ valid: false, reason: `Ticket is ${f.status?.stringValue}` });
       await firestoreWrite('eventTickets', req.params.ticketId, { status: 'USED', checkedInAt: Date.now(), checkedInBy: req.uid });
@@ -5185,11 +5323,15 @@ async function startServer() {
 
   // Redeem a package perk (With live cooldown & balance decrement)
   app.post('/api/tickets/:ticketId/redeem-package', authMiddleware, express.json(), async (req: any, res) => {
-    const { packageId, units = 1, itemName, stationName, notes, overrideCooldown = false } = req.body;
+    const { packageId, itemName, stationName, notes, overrideCooldown = false } = req.body;
+    const units = cleanRedeemUnits(req.body?.units);
+    if (units === null) return res.status(400).json({ success: false, reason: 'Invalid quantity' });
     try {
       const doc = await fetchFirebaseDoc('eventTickets', req.params.ticketId);
       if (!doc?.fields) return res.status(404).json({ success: false, reason: 'Ticket not found' });
       const f = doc.fields;
+      const who = { isHolder: f.holderUid?.stringValue === req.uid, isEventManager: await isEventManager(req.uid, f.eventId?.stringValue) };
+      if (!ticketActionAllowed(overrideCooldown ? 'redeem-override' : 'redeem', who)) return res.status(403).json({ success: false, reason: 'Only this event’s team can do that.' });
       const packages: any[] = JSON.parse(f.packages?.stringValue ?? '[]');
       const pkgIndex = packages.findIndex((p: any) => p.id === packageId || p.packageAddonId === packageId);
       if (pkgIndex === -1) return res.status(400).json({ success: false, reason: 'Package not attached to this ticket' });
@@ -5255,6 +5397,8 @@ async function startServer() {
       const doc = await fetchFirebaseDoc('eventTickets', req.params.ticketId);
       if (!doc?.fields) return res.status(404).json({ error: 'Ticket not found' });
       const f = doc.fields;
+      // Adding a package is a free perk: box office only, never the holder.
+      if (!(await isEventManager(req.uid, f.eventId?.stringValue))) return res.status(403).json({ error: 'Only this event’s team can add packages.' });
       const packages: any[] = JSON.parse(f.packages?.stringValue ?? '[]');
       const newPkg = {
         id: `tpkg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -5299,13 +5443,13 @@ async function startServer() {
     } catch (err: any) { res.status(500).json({ error: err.message }); }
   });
 
-  // Get single ticket (holder only)
+  // Get single ticket (holder or the event's team: the door scanner loads perks from here)
   app.get('/api/tickets/:ticketId', authMiddleware, async (req: any, res) => {
     try {
       const doc = await fetchFirebaseDoc('eventTickets', req.params.ticketId);
       if (!doc?.fields) return res.status(404).json({ error: 'Ticket not found' });
       const f = doc.fields;
-      if (f.holderUid?.stringValue !== req.uid) return res.status(403).json({ error: 'Forbidden' });
+      if (f.holderUid?.stringValue !== req.uid && !(await isEventManager(req.uid, f.eventId?.stringValue))) return res.status(403).json({ error: 'Forbidden' });
       res.json({ id: req.params.ticketId, eventId: f.eventId?.stringValue, eventTitle: f.eventTitle?.stringValue, eventStartDate: parseInt(f.eventStartDate?.integerValue ?? '0'), eventVenue: f.eventVenue?.stringValue, eventCoverImage: f.eventCoverImage?.stringValue, tierId: f.tierId?.stringValue, tierName: f.tierName?.stringValue, tierColor: f.tierColor?.stringValue, holderName: f.holderName?.stringValue, holderEmail: f.holderEmail?.stringValue, orderNumber: f.orderNumber?.stringValue, quantity: parseInt(f.quantity?.integerValue ?? '1'), totalPriceCents: parseInt(f.totalPriceCents?.integerValue ?? '0'), status: f.status?.stringValue, checkedInAt: f.checkedInAt?.integerValue ? parseInt(f.checkedInAt.integerValue) : undefined, physicalRequested: f.physicalRequested?.booleanValue ?? false, packages: JSON.parse(f.packages?.stringValue ?? '[]'), createdAt: parseInt(f.createdAt?.integerValue ?? '0') });
     } catch (err: any) { res.status(500).json({ error: err.message }); }
   });
@@ -5336,8 +5480,7 @@ async function startServer() {
       const doc = await fetchFirebaseDoc('eventTickets', req.params.ticketId);
       if (!doc?.fields) return res.status(404).json({ error: 'Ticket not found' });
       const f = doc.fields;
-      const eventDoc = await fetchFirebaseDoc('plajahEvents', f.eventId?.stringValue);
-      if (f.holderUid?.stringValue !== req.uid && eventDoc?.fields?.creatorUid?.stringValue !== req.uid) return res.status(403).json({ error: 'Forbidden' });
+      if (!ticketActionAllowed('print', { isHolder: f.holderUid?.stringValue === req.uid, isEventManager: await isEventManager(req.uid, f.eventId?.stringValue) })) return res.status(403).json({ error: 'Forbidden' });
       const apiKey = printNodeApiKey || process.env.PRINTNODE_API_KEY;
       if (!apiKey) return res.status(503).json({ error: 'Printer not configured — add PRINTNODE_API_KEY to env or pass in request' });
       const ticketPdfUrl = `${trustedRequestOrigin(req)}/print-ticket/${req.params.ticketId}`;
@@ -5356,6 +5499,7 @@ async function startServer() {
   // Kiosk session start
   app.post('/api/events/:eventId/kiosk/session', authMiddleware, express.json(), async (req: any, res) => {
     try {
+      if (!(await isEventManager(req.uid, req.params.eventId))) return res.status(403).json({ error: 'Only this event’s team can start a kiosk.' });
       const sessionId = `kiosk_${req.params.eventId}_${Date.now()}`;
       await firestoreCreate('eventKioskSessions', { id: sessionId, eventId: req.params.eventId, creatorUid: req.uid, deviceLabel: req.body.deviceLabel || 'Kiosk 1', startedAt: Date.now(), lastActivityAt: Date.now(), ordersCount: 0, totalRevenueCents: 0, isActive: true });
       res.json({ sessionId });
@@ -5693,7 +5837,7 @@ async function startServer() {
 
       // Route the gift to the CHURCH's connected Stripe account (destination charge)
       // when it has one — so money lands in the church's account, not the platform's.
-      const church = await firestoreRead('organizations', churchId);
+      const church = await orgWithFinance(churchId);
       const destAcct: string | undefined = church?.stripeAccountId || undefined;
       // DONOR COVERS THE FEE: charge gift + fee so the church receives exactly the gift. Only meaningful on a
       // destination charge (the platform keeps the fee as application_fee, which pays Stripe's cost). Default ON;
@@ -5788,7 +5932,7 @@ async function startServer() {
     if (_pulseRunning.has(orgId)) { out.skipped = 'busy'; return out; }
     _pulseRunning.add(orgId);
     try {
-      const org = pre || await firestoreGetDeep('organizations', orgId);
+      const org = await orgWithFinance(orgId, pre);
       if (!org) { out.skipped = 'not-found'; return out; }
       if (org.financeSettings?.pulseAlertsOff) { out.skipped = 'disabled'; return out; }
       const eq = [{ field: 'orgId', op: 'EQUAL', value: orgId }];
@@ -5827,7 +5971,7 @@ async function startServer() {
           for (const m of msgs) {
             await firestoreCreate('notifications', { userId: uid, senderId: 'plajah-finance', senderName: org.name || 'Budget Pulse', senderPhoto: org.logoUrl || '', type: 'SYSTEM', title: m.title, message: m.message, targetId: orgId, isRead: false, timestamp: Date.now() });
             out.notified++;
-            const tokens: string[] = [...(Array.isArray(u?.fcmTokens) ? u!.fcmTokens : []), ...(u?.fcmToken ? [u.fcmToken] : [])].filter(Boolean);
+            const tokens: string[] = deviceTokens(u, await firestoreGetDeep(`users/${uid}/private`, 'profile'));
             if (tokens.length) sendFcmMulticast([...new Set(tokens)], { title: m.title, body: m.message.slice(0, 180), channelId: 'system', data: { type: 'SYSTEM', targetId: orgId, senderName: org.name || 'Budget Pulse' } }).catch(() => {});
           }
         } catch (e: any) { console.error('[Elevate] pulse notify failed:', e?.message); }
@@ -6125,9 +6269,10 @@ async function startServer() {
       // Trace tag from the client (attempt id, uid, target release). Stamped on the asset so
       // an abandoned upload can be attributed to a creator instead of sitting anonymous.
       // Mux caps this at 255 chars; never trust the client's length.
-      const passthrough = String(req.body?.passthrough || '').slice(0, 255);
+      // The owner stamp comes first and from the token: /api/mux/asset and /playback read it back from Mux.
+      const passthrough = muxOwnerTag((req as any).uid, String(req.body?.passthrough || ''));
       const upload = await mux.video.uploads.create({
-        new_asset_settings: passthrough ? { ...MUX_ASSET_SETTINGS, passthrough } : MUX_ASSET_SETTINGS,
+        new_asset_settings: { ...MUX_ASSET_SETTINGS, passthrough },
         cors_origin: corsOrigin,
         // 24-hour window: a multi-GB film on a slow connection can take hours, and
         // UpChunk resumes within this window. 1 hour was too tight for large masters.
@@ -6147,6 +6292,8 @@ async function startServer() {
       if (!uploadId) return res.status(400).json({ error: 'Missing uploadId' });
       const mux = await getMux();
       const upload = await mux.video.uploads.retrieve(uploadId as string);
+      const uploadOwner = muxOwnerOf((upload as any).new_asset_settings?.passthrough);
+      if (uploadOwner && uploadOwner !== (req as any).uid && !(await isPlatformAdminReq(req))) return res.status(403).json({ error: 'Not your upload' });
       res.json({ status: upload.status, assetId: upload.asset_id });
     } catch (error: any) {
       console.error('[Mux] asset retrieve error:', error.message);
@@ -6169,6 +6316,7 @@ async function startServer() {
       const asset = await mux.video.assets.create({
         inputs: [{ url: parsedUrl.toString() }],
         ...MUX_ASSET_SETTINGS,
+        passthrough: muxOwnerTag((req as any).uid),
       });
 
       const assetId = asset.id;
@@ -6197,6 +6345,27 @@ async function startServer() {
   });
   // The client calls this right after it creates or edits an org, so ops access (e.g. the onboarding
   // vault) doesn't wait on the trigger.
+  // The narrow finance view for people who can't read organizations/{id}/private/finance: members get the tax
+  // identity for their own statements, department leaders also the approval limits. Finance roles read the doc itself.
+  app.get('/api/org-finance/view', authMiddleware, async (req: any, res) => {
+    const orgId = String(req.query.orgId || '');
+    if (!/^[A-Za-z0-9_-]{1,200}$/.test(orgId)) return res.status(400).json({ error: 'Bad orgId' });
+    const org = await firestoreGetDeep('organizations', orgId);
+    if (!org) return res.status(404).json({ error: 'Not found' });
+    let isMember = !!(await firestoreRead('orgMemberIndex', `${orgId}_${req.uid}`));
+    if (!isMember) {
+      const gifts = await Promise.all([
+        fsQueryDocs('chmsContributions', [{ field: 'linkedUid', op: 'EQUAL', value: req.uid }, { field: 'orgId', op: 'EQUAL', value: orgId }], 1).catch(() => []),
+        fsQueryDocs('donations', [{ field: 'fromId', op: 'EQUAL', value: req.uid }, { field: 'churchId', op: 'EQUAL', value: orgId }], 1).catch(() => []),
+      ]);
+      isMember = gifts.some(g => g.length > 0);
+    }
+    const level = financeViewLevel(org, req.uid, isMember);
+    if (level === 'none') return res.status(403).json({ error: 'Not a member of this organization' });
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json(financeViewFor(await orgWithFinance(orgId, org), level));
+  });
+
   app.post('/api/ops-mirror/sync', opsMirrorLimit, express.json({ limit: '2kb' }), async (req, res) => {
     const collection = String(req.body?.collection || ''), id = String(req.body?.id || '');
     if (!isMirroredPath(collection, id)) return res.status(400).json({ error: 'Not a mirrored document' });
@@ -6220,7 +6389,10 @@ async function startServer() {
   app.post('/api/live/finalize', authMiddleware, express.json(), async (req: any, res: any) => {
     try {
       const { streamId } = req.body || {};
-      if (!streamId || typeof streamId !== 'string') return res.status(400).json({ error: 'Missing streamId' });
+      if (!streamId || typeof streamId !== 'string' || !/^[\w-]{1,128}$/.test(streamId)) return res.status(400).json({ error: 'Missing streamId' });
+      // Owner = the uploader stamped on the first segment (the manifest doc is client-writable, so never that).
+      const recordingOwner = await gcsObjectOwner(`liveRecordings/${streamId}/seg_00000.webm`);
+      if (recordingOwner !== req.uid && !(await isPlatformAdminReq(req))) return res.status(403).json({ error: 'Not your recording' });
       const manifest = await firestoreRead('liveRecordings', streamId);
       const count = Number(manifest?.segments || 0);
       if (!count) return res.status(404).json({ error: 'No cloud segments for this stream' });
@@ -6238,7 +6410,7 @@ async function startServer() {
 
       // Push into Mux via a direct upload (server → Mux, no public Storage object needed).
       const mux = await getMux();
-      const upload = await mux.video.uploads.create({ new_asset_settings: MUX_ASSET_SETTINGS, cors_origin: '*', timeout: 86400 });
+      const upload = await mux.video.uploads.create({ new_asset_settings: { ...MUX_ASSET_SETTINGS, passthrough: muxOwnerTag(req.uid) }, cors_origin: '*', timeout: 86400 });
       const putRes = await fetch(upload.url, { method: 'PUT', headers: { 'Content-Type': 'video/webm' }, body: combined as any });
       if (!putRes.ok) return res.status(502).json({ error: `Mux upload failed: HTTP ${putRes.status}` });
 
@@ -6404,6 +6576,11 @@ async function startServer() {
       });
 
       const asset = await mux.video.assets.retrieve(assetId as string);
+      const readable = muxAssetReadable({
+        passthrough: (asset as any).passthrough, createdAtMs: Number((asset as any).created_at) * 1000,
+        callerUid: (req as any).uid, isAdmin: await isPlatformAdminReq(req), now: Date.now(),
+      });
+      if (!readable) return res.status(403).json({ error: 'Not your asset' });
       // Only expose the playback ID once the asset is fully ready — prevents
       // the client from trying to stream a manifest that doesn't exist yet.
       const playbackId = asset.status === 'ready' ? asset.playback_ids?.[0]?.id : undefined;
@@ -6424,9 +6601,11 @@ async function startServer() {
       }
       const Mux = (await import('@mux/mux-node')).default;
       const mux = new Mux({ tokenId: MUX_TOKEN_ID, tokenSecret: MUX_TOKEN_SECRET });
+      const ownerTag = muxOwnerTag((req as any).uid);
       const stream = await mux.video.liveStreams.create({
+        passthrough: ownerTag,
         playback_policy: ['public'],
-        new_asset_settings: { playback_policy: ['public'] },
+        new_asset_settings: { playback_policy: ['public'], passthrough: ownerTag },
         latency_mode: 'reduced',
         reconnect_window: 60, // 60s reconnect window for dropped SRT/RTMP connections
       });
@@ -6445,6 +6624,14 @@ async function startServer() {
     }
   });
 
+  /** Who started this Mux stream: the owner stamp, or for streams made before the stamp, their live_streams doc. */
+  const callerOwnsMuxStream = async (req: any, stream: any): Promise<boolean> => {
+    const owner = muxOwnerOf(stream?.passthrough);
+    if (owner) return owner === req.uid || isPlatformAdminReq(req);
+    const docs = await queryFirebase('live_streams', [{ field: 'muxStreamId', value: String(stream?.id || '') }], 1).catch(() => []);
+    return (docs || []).some((d: any) => d.ownerId === req.uid) || isPlatformAdminReq(req);
+  };
+
   app.delete('/api/mux/live/:streamId', authMiddleware, async (req, res) => {
     try {
       const { streamId } = req.params;
@@ -6454,6 +6641,8 @@ async function startServer() {
       }
       const Mux = (await import('@mux/mux-node')).default;
       const mux = new Mux({ tokenId: MUX_TOKEN_ID, tokenSecret: MUX_TOKEN_SECRET });
+
+      if (!(await callerOwnsMuxStream(req, await mux.video.liveStreams.retrieve(streamId)))) return res.status(403).json({ error: 'Not your stream' });
 
       // complete() signals end-of-stream and triggers asset creation from new_asset_settings.
       // disable() only stops ingestion — it does NOT create a recording asset.
@@ -6489,6 +6678,7 @@ async function startServer() {
       const Mux = (await import('@mux/mux-node')).default;
       const mux = new Mux({ tokenId: MUX_TOKEN_ID, tokenSecret: MUX_TOKEN_SECRET });
       const stream = await mux.video.liveStreams.retrieve(streamId);
+      if (!(await callerOwnsMuxStream(req, stream))) return res.status(403).json({ error: 'Not your stream' });
       res.json({ status: stream.status, playbackId: stream.playback_ids?.[0]?.id || null });
     } catch (error: any) {
       console.error('Mux live status error:', error);
@@ -6887,6 +7077,7 @@ async function startServer() {
   };
 
   app.get('/api/ai/live-speech-stream', (req: any, res: any) => {
+    if (!isLoopback(req)) return res.status(404).end();   // opens this PC's microphone: same machine only
     const workerScript = path.join(process.cwd(), 'scripts', 'winSpeechWorker.ps1');
     if (process.platform !== 'win32' || !fs.existsSync(workerScript)) {
       return res.status(404).end();
@@ -6917,7 +7108,7 @@ async function startServer() {
     });
   });
 
-  app.post('/api/ai/captions-window', aiLimiter, express.json({ limit: '10mb' }), async (req: any, res) => {
+  app.post('/api/ai/captions-window', authMiddleware, aiLimiter, requireRegisteredUser, express.json({ limit: '10mb' }), async (req: any, res) => {
     const { audioBase64, mimeType, title, artist, kind, windowSec } = (req.body || {}) as {
       audioBase64?: string; mimeType?: string; title?: string; artist?: string; kind?: string; windowSec?: number;
     };
@@ -7068,7 +7259,7 @@ async function startServer() {
       const result = await sweepReleaseAnnouncements(createReleaseIo({
         pushToUser: async (uid, m) => {
           const u = await firestoreGetDeep('users', uid);
-          const tokens: string[] = [...(Array.isArray(u?.fcmTokens) ? u!.fcmTokens : []), ...(u?.fcmToken ? [u.fcmToken] : [])].filter(Boolean);
+          const tokens: string[] = deviceTokens(u, await firestoreGetDeep(`users/${uid}/private`, 'profile'));
           if (tokens.length) await sendFcmMulticast([...new Set(tokens)], { title: m.title, body: m.body, link: m.link, channelId: 'system', data: { type: 'CONTENT', targetId: m.targetId } });
         },
       }), { lookbackMs: hours * 3_600_000 });
@@ -7199,7 +7390,7 @@ async function startServer() {
               const message = String(post.text ?? '').slice(0, 120) || 'Tap to finish sharing on X.';
               await firestoreCreate('notifications', { userId: uid, senderId: 'plajah-studio', senderName: 'Marketing', senderPhoto: '', type: 'SYSTEM', title, message, targetId: 'PLAJAH_STUDIO', isRead: false, timestamp: Date.now() });
               const u = await firestoreGetDeep('users', uid);
-              const tokens: string[] = [...(Array.isArray(u?.fcmTokens) ? u!.fcmTokens : []), ...(u?.fcmToken ? [u.fcmToken] : [])].filter(Boolean);
+              const tokens: string[] = deviceTokens(u, await firestoreGetDeep(`users/${uid}/private`, 'profile'));
               if (tokens.length) await sendFcmMulticast([...new Set(tokens)], { title, body: message, link: 'PLAJAH_STUDIO', channelId: 'system', data: { type: 'SYSTEM', targetId: 'PLAJAH_STUDIO' } });
             } catch (e: any) { console.warn('[Cron] X reminder failed:', e?.message || e); }
           }
@@ -7986,21 +8177,23 @@ async function startServer() {
 
   // ── Fediverse proxy (CORS bypass for remote instance lookups) ────────────────
   app.get('/api/social/fediverse/proxy', async (req: any, res: any) => {
-    const { instance, path: apiPath, token } = req.query as Record<string, string>;
+    const { instance, path: apiPath } = req.query as Record<string, string>;
+    const token = String(req.headers['x-fediverse-token'] || '');   // a header: query strings end up in access logs
     if (!instance || !apiPath) return res.status(400).json({ error: 'instance and path required' });
 
     try { validateFediverseInstance(instance); }
     catch (e: any) { return res.status(400).json({ error: e.message }); }
 
     const pathStr = String(apiPath);
-    if (!pathStr.startsWith('/') || pathStr.includes('..')) {
+    if (!/^\/api\/v[12]\//.test(pathStr) || pathStr.includes('..')) {
       return res.status(400).json({ error: 'Invalid API path' });
     }
 
     try {
       const headers: Record<string, string> = { Accept: 'application/json' };
       if (token) headers.Authorization = `Bearer ${token}`;
-      const response = await fetch(`https://${instance}${pathStr}`, { headers });
+      // Resolved IPs are checked on every hop; a request carrying the user's token never follows a redirect at all.
+      const response = await safeOutboundFetch(`https://${instance}${pathStr}`, { headers }, token ? 0 : 4);
       if (!response.ok) return res.status(response.status).json({ error: 'Fediverse API error', status: response.status });
       const ct = response.headers.get('content-type') ?? '';
       if (!ct.includes('application/json')) return res.status(502).json({ error: 'Non-JSON response from instance' });
@@ -8236,45 +8429,6 @@ async function startServer() {
     }
   });
 
-  // Fediverse Proxy (to avoid CORS and handle remote lookups)
-  app.get('/api/social/fediverse/proxy', async (req: any, res: any) => {
-    const { instance, path: apiPath, token } = req.query;
-    if (!instance || !apiPath) return res.status(400).json({ error: 'Instance and path required' });
-
-    try {
-      validateFediverseInstance(instance as string);
-    } catch (e: any) {
-      return res.status(400).json({ error: e.message });
-    }
-
-    // Only allow well-formed API paths starting with /
-    const pathStr = String(apiPath);
-    if (!pathStr.startsWith('/') || pathStr.includes('..')) {
-      return res.status(400).json({ error: 'Invalid API path' });
-    }
-
-    try {
-      const headers: Record<string, string> = { 'Accept': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const url = `https://${instance}${pathStr}`;
-      const response = await fetch(url, { headers });
-
-      if (!response.ok) {
-        return res.status(response.status).json({ error: 'Fediverse API error', status: response.status });
-      }
-
-      const contentType = response.headers.get('content-type');
-      if (contentType && !contentType.includes('application/json')) {
-        return res.status(502).json({ error: 'Remote instance returned non-JSON data' });
-      }
-
-      res.json(await response.json());
-    } catch (error: any) {
-      res.status(500).json({ error: 'Fediverse proxy failed' });
-    }
-  });
-
   // Mastodon Post/Reply — requires Firebase auth
   app.post('/api/social/mastodon/post', authMiddleware, async (req: any, res) => {
     const { instance, token, status, inReplyToId } = req.body;
@@ -8445,7 +8599,8 @@ async function startServer() {
   });
   const PUSH_CATEGORIES = new Set(['messages', 'social', 'content', 'system']);
   app.post('/api/push', express.json(), authMiddleware, pushLimiter, async (req: any, res) => {
-    const { toUid, self, title, body, link, icon, channelId, targetId, type, senderName, senderPhoto, notificationId, threadId, mention } = req.body || {};
+    const { toUid, self, channelId, threadId, mention, notificationId } = req.body || {};
+    let { title, body, link, icon, targetId, type } = req.body || {};
     const recipient = self === true ? req.uid : (typeof toUid === 'string' ? toUid : '');
     if (!recipient || !/^[A-Za-z0-9_-]{6,128}$/.test(recipient)) return res.status(400).json({ error: 'toUid required' });
     if (req.isAnonymous && recipient !== req.uid) return res.status(403).json({ error: 'A registered account is required', code: 'ANONYMOUS_NOT_ALLOWED' });
@@ -8456,6 +8611,14 @@ async function startServer() {
     if (recipient !== req.uid) {
       // A recipient who blocked the sender never hears from them.
       if (Array.isArray(user.blockedUsers) && user.blockedUsers.includes(req.uid)) return res.json({ sent: 0, total: 0 });
+      // The push must be the in-app notification this sender wrote for this recipient, and it says what that says.
+      const notif = typeof notificationId === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(notificationId) ? await firestoreRead('notifications', notificationId) : null;
+      if (!pushMatchesNotification(notif, recipient, req.uid)) return res.status(403).json({ error: 'No matching notification', code: 'NO_NOTIFICATION' });
+      title = notif!.title; body = notif!.message; link = notif!.link; targetId = notif!.targetId; type = notif!.type; icon = undefined;
+      // A sender writes the notification too, so one person can't spam another, or everyone, through this route.
+      if (await bumpQuota('pushPair', `${req.uid}|${recipient}`, PUSH_PAIR_DAILY_LIMIT) || await bumpQuota('pushFrom', req.uid, PUSH_SENDER_DAILY_LIMIT)) {
+        return res.json({ sent: 0, total: 0, limited: true });
+      }
       // Email is its own channel with its own prefs (unread delay / digests) — decided server-side,
       // independent of push prefs and of whether the recipient has a device registered.
       if (!req.isAnonymous) {
@@ -8481,12 +8644,16 @@ async function startServer() {
         }
       }
     }
-    const targets = Array.from(new Set<string>(
-      [...(Array.isArray(user.fcmTokens) ? user.fcmTokens : []), user.fcmToken].filter((t: any) => typeof t === 'string' && t)
-    )).slice(0, 20);
+    const privateProfile = await firestoreGetDeep(`users/${recipient}/private`, 'profile');
+    const targets = deviceTokens(user, privateProfile).slice(0, 20);
     if (!targets.length) return res.json({ sent: 0, total: 0 });
 
     const clip = (v: any, n: number) => (v == null ? undefined : String(v).slice(0, n));
+    // Sender identity is read here, never taken from the caller.
+    const sender = recipient === req.uid ? user : await firestoreGetDeep('users', req.uid);
+    const senderName = sender?.displayName || sender?.artistName;
+    const senderPhoto = sender?.photoURL || sender?.photoUrl;
+    if (!isInternalPushLink(link)) link = undefined;
     const data: Record<string, string> = { senderId: req.uid };
     if (targetId) data.targetId = clip(targetId, 200)!;
     if (type) data.type = clip(type, 40)!;
@@ -8500,8 +8667,9 @@ async function startServer() {
     // Server prunes dead tokens itself (a caller can't write someone else's users doc).
     const stale = targets.filter((_, i) => (out.results as any[])?.[i]?.stale);
     if (stale.length) {
-      const keep = (Array.isArray(user.fcmTokens) ? user.fcmTokens : []).filter((t: string) => !stale.includes(t));
-      firestorePatchDeep('users', recipient, { fcmTokens: keep }).catch(() => {});
+      const keep = deviceTokens(privateProfile).filter((t: string) => !stale.includes(t));
+      firestorePatchDeep(`users/${recipient}/private`, 'profile', { fcmTokens: keep }).catch(() => {});
+      if (Array.isArray(user.fcmTokens)) firestorePatchDeep('users', recipient, { fcmTokens: user.fcmTokens.filter((t: string) => !stale.includes(t)) }).catch(() => {});
     }
     res.json({ sent: out.sent, total: out.total });
   });
@@ -8522,19 +8690,17 @@ async function startServer() {
     if (mode === 'all') {
       const users = await queryFirebase('users', [], 5000);
       recipients = users.length;
-      for (const u of users) {
-        if (Array.isArray(u.fcmTokens)) tokens.push(...u.fcmTokens);
-        if (u.fcmToken) tokens.push(u.fcmToken);
+      for (let i = 0; i < users.length; i += 50) {
+        const page = users.slice(i, i + 50);
+        const privs = await Promise.all(page.map((u: any) => firestoreGetDeep(`users/${u.id}/private`, 'profile')));
+        page.forEach((u: any, j: number) => tokens.push(...deviceTokens(u, privs[j])));
       }
     } else {
       if (!uid) return res.status(400).json({ error: 'uid is required for single-user mode' });
       uids = [String(uid)];
       const u = decodeFirestoreFields(((await fetchFirebaseDoc('users', String(uid))) || {}).fields || {});
       if (u) recipients = 1;
-      if (u && (u.fcmTokens || u.fcmToken)) {
-        if (Array.isArray(u.fcmTokens)) tokens.push(...u.fcmTokens);
-        if (u.fcmToken) tokens.push(u.fcmToken);
-      }
+      tokens.push(...deviceTokens(u, await firestoreGetDeep(`users/${String(uid)}/private`, 'profile')));
     }
     tokens = Array.from(new Set(tokens.filter(Boolean)));
     uids = Array.from(new Set(uids.filter(x => /^[A-Za-z0-9_-]{6,128}$/.test(x))));
@@ -8688,7 +8854,8 @@ async function startServer() {
     const clientId  = process.env.HUE_CLIENT_ID;
     const redirectUri = process.env.HUE_REDIRECT_URI;
     if (!clientId || !redirectUri) return res.status(500).send('HUE_CLIENT_ID / HUE_REDIRECT_URI not configured');
-    const state = Math.random().toString(36).slice(2);
+    // Signed, not a cookie: Firebase Hosting strips cookies before they reach this server.
+    const state = signConnectState(process.env.HUE_CLIENT_SECRET || '', 'hue', 'hue', Date.now() + 10 * 60_000);
     const url = new URL('https://api.meethue.com/oauth2/auth');
     url.searchParams.set('clientid', clientId);
     url.searchParams.set('response_type', 'code');
@@ -8701,8 +8868,9 @@ async function startServer() {
 
   // Step 2: Hue redirects back here with ?code=… — exchange for access token
   app.get('/api/hue/callback', async (req: any, res: any) => {
-    const { code } = req.query;
+    const { code, state } = req.query;
     if (!code) return res.status(400).send('Missing code');
+    if (!verifyConnectState(process.env.HUE_CLIENT_SECRET || '', state, 'hue', 'hue', Date.now())) return res.status(400).send('That Hue sign-in expired. Start again from Plajah.');
     const clientId     = process.env.HUE_CLIENT_ID!;
     const clientSecret = process.env.HUE_CLIENT_SECRET!;
     const redirectUri  = process.env.HUE_REDIRECT_URI!;
@@ -8731,7 +8899,7 @@ async function startServer() {
 
   // ── Nanoleaf LAN Discovery (SSDP) ─────────────────────────────────────────
   // Sends an SSDP M-SEARCH multicast to find Nanoleaf panels on the local network.
-  app.get('/api/nanoleaf/discover', async (_req: any, res: any) => {
+  app.get('/api/nanoleaf/discover', requireLan, async (_req: any, res: any) => {
     const devices: { ip: string; port: number; name: string; model: string }[] = [];
     const SSDP_ADDR = '239.255.255.250';
     const SSDP_PORT = 1900;
@@ -8788,10 +8956,11 @@ async function startServer() {
   // ── Nanoleaf Pairing Proxy ────────────────────────────────────────────────
   // Proxies the POST to the Nanoleaf's local API to generate an auth token.
   // User must hold the power button on the device for this to succeed.
-  app.post('/api/nanoleaf/pair', express.json(), async (req: any, res: any) => {
+  app.post('/api/nanoleaf/pair', requireLan, express.json(), async (req: any, res: any) => {
     const { ip, port } = req.body || {};
-    if (!ip) return res.status(400).json({ error: 'ip required' });
+    if (!isPrivateLanIp(ip)) return res.status(400).json({ error: 'A local network address is required' });
     const p = parseInt(port) || 16021;
+    if (p < 1 || p > 65535) return res.status(400).json({ error: 'Invalid port' });
     try {
       const resp = await fetch(`http://${ip}:${p}/api/v1/new`, { method: 'POST', signal: AbortSignal.timeout(5000) });
       if (!resp.ok) return res.status(resp.status).json({ error: 'Pairing failed — hold power button and try again' });
@@ -8804,7 +8973,7 @@ async function startServer() {
 
   // ── Govee LAN Discovery (UDP multicast) ───────────────────────────────────
   // Scans for Govee devices on the local network via their LAN protocol.
-  app.get('/api/govee/discover', async (_req: any, res: any) => {
+  app.get('/api/govee/discover', requireLan, async (_req: any, res: any) => {
     const devices: { ip: string; device: string; model: string; name: string }[] = [];
     const GOVEE_MULTI = '239.255.255.250';
     const GOVEE_PORT = 4001;
@@ -8855,9 +9024,9 @@ async function startServer() {
 
   // ── Govee LAN Control Proxy ───────────────────────────────────────────────
   // Sends UDP commands to Govee devices on the LAN (no API key needed).
-  app.post('/api/govee/lan-control', express.json(), async (req: any, res: any) => {
+  app.post('/api/govee/lan-control', requireLan, express.json(), async (req: any, res: any) => {
     const { ip, cmd } = req.body || {};
-    if (!ip || !cmd) return res.status(400).json({ error: 'ip and cmd required' });
+    if (!cmd || !isPrivateLanIp(ip)) return res.status(400).json({ error: 'A local network address and cmd are required' });
     const msg = JSON.stringify({ msg: cmd });
     const sock = dgram.createSocket('udp4');
     const buf = Buffer.from(msg);
@@ -8872,7 +9041,8 @@ async function startServer() {
   // Forwards requests to cloud light APIs (Hue Remote, Govee) and local devices.
   // The body is wrapped: { targetMethod, body } so we can use POST for all verbs.
   app.post('/api/lights/proxy', express.json(), async (req: any, res: any) => {
-    const { url: targetUrl, goveeKey, hueToken, method: qMethod } = req.query;
+    const { url: targetUrl, method: qMethod } = req.query;
+    const goveeKey = req.headers['x-govee-key']; const hueToken = req.headers['x-hue-token'];
     if (!targetUrl) return res.status(400).json({ error: 'url required' });
     let parsed: URL;
     try { parsed = validateLightsProxyUrl(targetUrl as string); }
@@ -8883,7 +9053,7 @@ async function startServer() {
     if (goveeKey) headers['Govee-API-Key'] = goveeKey as string;
     if (hueToken) headers['Authorization'] = `Bearer ${hueToken}`;
     try {
-      const upstream = await fetch(parsed.toString(), {
+      const upstream = await safeOutboundFetch(parsed, {
         method,
         headers,
         body: bodyPayload && method !== 'GET' ? JSON.stringify(bodyPayload) : undefined,
@@ -8897,7 +9067,8 @@ async function startServer() {
 
   // Also accept GET for read-only calls
   app.get('/api/lights/proxy', express.json(), async (req: any, res: any) => {
-    const { url: targetUrl, goveeKey, hueToken } = req.query;
+    const { url: targetUrl } = req.query;
+    const goveeKey = req.headers['x-govee-key']; const hueToken = req.headers['x-hue-token'];
     if (!targetUrl) return res.status(400).json({ error: 'url required' });
     let parsed: URL;
     try { parsed = validateLightsProxyUrl(targetUrl as string); }
@@ -8906,7 +9077,7 @@ async function startServer() {
     if (goveeKey) headers['Govee-API-Key'] = goveeKey as string;
     if (hueToken) headers['Authorization'] = `Bearer ${hueToken}`;
     try {
-      const upstream = await fetch(parsed.toString(), { headers });
+      const upstream = await safeOutboundFetch(parsed, { headers });
       const data = await upstream.json().catch(() => null);
       res.status(upstream.status).json(data ?? {});
     } catch (e: any) {
@@ -8928,7 +9099,13 @@ async function startServer() {
       const r = await fetch(searchUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const results = await r.json();
       const doc = Array.isArray(results) ? results.find((d: any) => d.document) : null;
-      const tracks = doc?.document?.fields?.tracks?.arrayValue?.values || [];
+      const albumFields = doc?.document?.fields;
+      // Same bar as the voice index: nothing unpublished, intimate or locker-only leaves through a public route.
+      const hiddenAlbum = albumFields?.isPublic?.booleanValue === false || albumFields?.isPrivate?.booleanValue === true || albumFields?.isIntimateOnly?.booleanValue === true;
+      const tracks = hiddenAlbum ? [] : (albumFields?.tracks?.arrayValue?.values || []).filter((t: any) => {
+        const tf = t?.mapValue?.fields;
+        return !(tf?.isPrivate?.booleanValue || tf?.isLockerOnly?.booleanValue || tf?.isIntimateOnly?.booleanValue);
+      });
       const firstTrackUrl = tracks[0]?.mapValue?.fields?.url?.stringValue;
       if (firstTrackUrl) {
         res.redirect(302, firstTrackUrl);
@@ -9487,6 +9664,23 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     );
   }
 
+  // A content's owner decides who may read its private rollup (contentStats rule), so it comes from the content
+  // itself, never the event. Unknown owner: the field is simply left alone.
+  const METRIC_OWNER_COLLECTION: Record<string, string> = { album: 'albums', video: 'videos', film: 'videos', book: 'books', article: 'articles', post: 'posts', podcast: 'albums', track: 'choraStreams' };
+  const metricOwnerCache = new Map<string, { at: number; owner: string | null }>();
+  const metricOwner = async (contentType: string, contentId: string): Promise<string | null> => {
+    const key = `${contentType}:${contentId}`;
+    const hit = metricOwnerCache.get(key);
+    if (hit && Date.now() - hit.at < 10 * 60_000) return hit.owner;
+    const col = METRIC_OWNER_COLLECTION[contentType];
+    const d = col ? await firestoreRead(col, contentId).catch(() => null) : null;
+    const raw = d?.ownerId || d?.ownerUid || d?.creatorUid || d?.uid;
+    const owner = typeof raw === 'string' && /^[\w-]{1,128}$/.test(raw) ? raw : null;
+    if (metricOwnerCache.size > 5000) metricOwnerCache.clear();
+    metricOwnerCache.set(key, { at: Date.now(), owner });
+    return owner;
+  };
+
   app.post('/api/metrics/events', apiLimiter, authMiddleware, express.json({ limit: '64kb' }), async (req: any, res) => {
     const events = Array.isArray(req.body?.events) ? req.body.events.slice(0, 50) : [];
     if (!events.length) return res.json({ ok: true, accepted: 0 });
@@ -9536,7 +9730,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       if (!Object.keys(inc).length) continue;
 
       const identity: Record<string, string> = { contentId, contentType };
-      if (typeof ev.ownerId === 'string' && /^[\w-]{1,128}$/.test(ev.ownerId)) identity.ownerId = ev.ownerId;
+      const contentOwner = await metricOwner(contentType, contentId);
+      if (contentOwner) identity.ownerId = contentOwner;
 
       // Lifetime rollup + the day bucket that makes trends possible. Both keyed by content,
       // never by viewer.
@@ -9598,7 +9793,9 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // POST { trackId, srcUrl }. Writes choraStreams/{trackId} = { status, hls, low, flac, ... }.
   // Status-gated: the client only uses the result once status==='ready', so this is safe to run
   // in the background and to backfill the catalog without any playback disruption.
-  app.post('/api/chora/transcode', apiLimiter, authMiddleware, express.json({ limit: '256kb' }), async (req: any, res) => {
+  // Platform admins only (backfill tool, publish scripts): this overwrites the public stream of ANY trackId from ANY
+  // URL. Creators go through /api/chora/enqueue-album and /enqueue-track, which check ownership.
+  app.post('/api/chora/transcode', apiLimiter, authMiddleware, requireVerifiedAdmin, express.json({ limit: '256kb' }), async (req: any, res) => {
     const trackId = String(req.body?.trackId || '').trim();
     const srcUrl = String(req.body?.srcUrl || '').trim();
     if (!trackId || !srcUrl) return res.status(400).json({ error: 'trackId and srcUrl required' });
@@ -10325,6 +10522,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         body: JSON.stringify({ jobId, url }),
       });
       if (!r.ok) return res.status(502).json({ ok: false, message: `worker rejected job (${r.status})` });
+      await firestoreWrite('stemJobs', jobId, { ownerUid: req.uid, createdAt: Date.now() }, true);
       // Deliberately not awaiting the separation — it outlives this request by minutes. The
       // client polls the status route below.
       res.status(202).json({ ok: true, jobId, status: 'queued' });
@@ -10333,11 +10531,17 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     }
   });
 
+  const ownsStemJob = async (req: any, jobId: string): Promise<boolean> => {
+    const job = await firestoreRead('stemJobs', jobId);
+    return job?.ownerUid === req.uid || isPlatformAdminReq(req);
+  };
+
   // Poll a separation. Reads the status doc the worker writes beside the stems, so it stays
   // correct across worker restarts and scale-to-zero.
   app.get('/api/crossover/stems/job/:jobId', apiLimiter, authMiddleware, async (req: any, res: any) => {
     const { jobId } = req.params;
     if (!/^[a-z0-9]+$/i.test(jobId)) return res.status(400).json({ ok: false, message: 'bad jobId' });
+    if (!(await ownsStemJob(req, jobId))) return res.status(404).json({ ok: false, message: 'not found' });
     const buf = await gcsDownload(`demucs-stems/${jobId}/status.json`);
     if (!buf) return res.json({ ok: true, status: 'queued' });
     let status: any;
@@ -10357,6 +10561,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   app.get('/api/crossover/stems/:job/:stem', apiLimiter, authMiddleware, async (req: any, res: any) => {
     const { job, stem } = req.params;
     if (!/^[\w]+$/.test(job) || !['vocals', 'drums', 'bass', 'other'].includes(stem)) return res.status(400).end();
+    if (!(await ownsStemJob(req, job))) return res.status(404).end();
     const buf = await gcsDownload(`demucs-stems/${job}/${stem}.wav`);
     if (!buf) return res.status(404).end();
     res.setHeader('Content-Type', 'audio/wav');
@@ -10946,8 +11151,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       if (!businessUid) return res.status(400).json({ error: 'businessUid is required' });
       const actor = await resolveRegisterActor(req, businessUid, 'RING_SALES');
       if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
-      const org = await firestoreRead('organizations', businessUid);
-      let connectedAccountId: string | undefined = org?.stripeAccountId;
+      let connectedAccountId: string | undefined = await orgStripeAccount(businessUid);
       if (!connectedAccountId) { const u = await firestoreRead('users', businessUid); connectedAccountId = u?.stripeConnectAccountId; }
       if (!connectedAccountId) return res.status(400).json({ error: 'This shop has not connected Stripe payouts yet.' });
       const stripe = getStripe();
@@ -11076,8 +11280,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         return res.status(400).json({ error: 'businessUid and items are required.' });
       }
       // Resolve the business's connected Stripe account — the money goes straight to them.
-      const org = await firestoreRead('organizations', businessUid);
-      let acct: string | undefined = org?.stripeAccountId;
+      let acct: string | undefined = await orgStripeAccount(businessUid);
       if (!acct) { const u = await firestoreRead('users', businessUid); acct = u?.stripeConnectAccountId; }
       if (!acct) return res.status(400).json({ error: 'This shop has not connected Stripe payouts yet.' });
 
@@ -11251,7 +11454,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const regPerms = staffPerms ? new Set(bizRegisterPermsFor(staffPerms) as RegisterPermission[]) : null;
       if (regPerms && regPerms.has(perm)) {
         const info = await bizStaffCached(`actor|${req.uid}|${businessUid}`, async () =>
-          bizStaffActorInfo(await queryFirebase('businessPages', [{ field: 'ownerId', value: businessUid }], 50), req.uid));
+          bizStaffActorInfo(await Promise.all((await queryFirebase('businessPages', [{ field: 'ownerId', value: businessUid }], 50)).map(async (p: any) => mergeBizSeats(p, await firestoreGetDeep(`businessPages/${p.id}/private`, 'staff')))), req.uid));
         if (info) return { ok: true, staffId: info.staffMemberId || req.uid, staffName: info.name, role: info.role, perms: regPerms };
       }
     }
@@ -11336,6 +11539,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // AUTO REPAIR layer (services/autoServer.ts): vehicles, NHTSA decode/recalls, inspections, AI advisor draft, reminders, Vehicle Passport.
   registerAutoRoutes({
     app, express, rateLimit, authMiddleware,
+    hasBusinessPage: async (uid: string) => (await queryFirebase('businessPages', [{ field: 'ownerId', value: uid }], 1).catch(() => [])).length > 0,
     resolveActor: resolveRegisterActor, managerApproval, restCas,
     fsQueryDocs, firestoreRead, firestoreGetDeep, firestoreCreate, sendFcmMulticast,
   } as any);
@@ -11344,10 +11548,10 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     try {
       const { businessUid, pin } = req.body || {};
       if (!businessUid || !isValidPin(String(pin || ''))) return res.status(400).json({ error: 'Enter your PIN.' });
-      const key = `login:${businessUid}`;
-      if (pinGuard(key)) return res.status(429).json({ error: 'Too many wrong PINs. Try again in a few minutes.', code: 'LOCKED' });
+      const keys = pinLockKeys(String(businessUid), req.uid, String(req.ip || ''));
+      if (keys.some(pinGuard)) return res.status(429).json({ error: 'Too many wrong PINs. Try again in a few minutes.', code: 'LOCKED' });
       const m = await matchStaffPin(String(businessUid), String(pin));
-      pinNote(key, !!m);
+      keys.forEach(k => pinNote(k, !!m));
       if (!m) return res.status(401).json({ error: 'That PIN was not recognised.' });
       const exp = Date.now() + SESSION_TTL_MS;
       const token = signSession({ b: String(businessUid), sid: m.id, name: m.name, role: m.role, perms: m.perms, exp });
@@ -11379,10 +11583,10 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const b = String(businessUid);
       const actor = await resolveRegisterActor(req, b, 'RING_SALES');
       if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
-      const key = `login:${b}`;
-      if (pinGuard(key)) return res.status(429).json({ error: 'Too many wrong PINs. Try again in a few minutes.', code: 'LOCKED' });
+      const keys = pinLockKeys(b, req.uid, String(req.ip || ''));
+      if (keys.some(pinGuard)) return res.status(429).json({ error: 'Too many wrong PINs. Try again in a few minutes.', code: 'LOCKED' });
       const m = await matchStaffPin(b, String(pin));
-      pinNote(key, !!m);
+      keys.forEach(k => pinNote(k, !!m));
       if (!m) return res.status(401).json({ error: 'PIN not recognised.' });
       if (direction === 'IN') {
         // create-once marker = atomic "already clocked in" guard (works across instances)
@@ -11830,7 +12034,11 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   const svCards = (b: string): CasStore => restCas(`businesses/${b}/storedValue`);
   const svIdxPath = (b: string) => `businesses/${b}/storedValueIndex`;
   const svLedgerPath = (b: string) => `businesses/${b}/storedValueLedger`;
-  const svHash = (b: string, code16: string) => nodeCrypto.createHmac('sha256', process.env.STORED_VALUE_PEPPER || `plajah-sv:${b}`).update(`${b}:${code16}`).digest('hex');
+  // New cards hash ONLY under the secret pepper. Cards issued before it existed are indexed under the old derived key,
+  // and that key stays read-only so a card already sold keeps working; nothing new is ever written under it.
+  const svHmac = (key: string, b: string, code16: string) => nodeCrypto.createHmac('sha256', key).update(`${b}:${code16}`).digest('hex');
+  const svHash = (b: string, code16: string) => svHmac(process.env.STORED_VALUE_PEPPER || '', b, code16);
+  const svLegacyHash = (b: string, code16: string) => svHmac(`plajah-sv:${b}`, b, code16);
   const svSettings = async (b: string): Promise<{ limits: StoredValueLimits; expiryDays: number }> => {
     let sv: any = {};
     try { const d = await firestoreRead('businesses', b); const raw = d?.registerSettings ? (typeof d.registerSettings === 'string' ? JSON.parse(d.registerSettings) : d.registerSettings) : null; sv = raw?.storedValue || {}; } catch { /* defaults */ }
@@ -11855,6 +12063,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   };
   /** Issue a CODED (bearer) card. Returns the full code ONCE; only the hash is stored. */
   const svIssueCoded = async (b: string, o: { kind: CardKind; cents: number; cardId?: string; idemKey: string; ref?: string; reason?: string; by?: string; byName?: string; recipientEmail?: string; recipientName?: string; customerUid?: string }): Promise<{ ok: true; duplicate: boolean; cardId: string; code: string | null; last4: string; balanceCents: number } | { ok: false; error: string; code?: string }> => {
+    if (!process.env.STORED_VALUE_PEPPER) return { ok: false, error: 'Gift cards are not set up on this server. Nothing was charged.' };
     const cfg = await svSettings(b);
     for (let t = 0; t < 3; t++) {
       const code16 = generateCode(n => nodeCrypto.randomBytes(n));
@@ -11883,7 +12092,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   };
   const svCardByCode = async (b: string, codeIn: any): Promise<{ cardId: string; data: Record<string, any> } | null> => {
     const code16 = normalizeCode(codeIn) || 'X'.repeat(16);          // same work for malformed input
-    const idx = await firestoreRead(svIdxPath(b), svHash(b, code16));
+    const idx = (process.env.STORED_VALUE_PEPPER ? await firestoreRead(svIdxPath(b), svHash(b, code16)) : null)
+      || await firestoreRead(svIdxPath(b), svLegacyHash(b, code16));
     if (!idx || !normalizeCode(codeIn)) return null;
     const c = await svCards(b).get(String(idx.cardId));
     return c ? { cardId: String(idx.cardId), data: c.data } : null;
@@ -12089,8 +12299,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     try {
       const b = String(req.body?.businessUid || '');
       if (!b) return res.status(400).json({ error: 'businessUid required.' });
-      const org = await firestoreRead('organizations', b);
-      let acct: string | undefined = org?.stripeAccountId;
+      let acct: string | undefined = await orgStripeAccount(b);
       if (!acct) { const u = await firestoreRead('users', b); acct = u?.stripeConnectAccountId; }
       if (!acct) return res.status(400).json({ error: 'This shop has not connected Stripe payouts yet.' });
       const parsed = svParseGiftLines(req.body?.giftCards, (await svSettings(b)).limits);
@@ -12203,7 +12412,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const ownerUid = String(course.ownerId || '');
       if (!ownerUid) return res.status(400).json({ error: 'This course has no instructor on file.' });
       if (ownerUid === req.uid) return res.status(400).json({ error: 'This is your own course.' });
-      const enrolled: string[] = Array.isArray(course.enrolledStudents) ? course.enrolledStudents : [];
+      const enrolled = await fsClassRoster(courseId, course);
       if (enrolled.includes(req.uid)) return res.status(400).json({ error: 'You are already enrolled.' });
       const capacity = Number(course.capacity || 0);
       if (capacity > 0 && enrolled.filter(u => u !== ownerUid).length >= capacity) return res.status(409).json({ error: 'This course is full.' });
@@ -13929,6 +14138,9 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 
   // ── Learner identity (child username/password → custom token; provision; claim) ──
   app.use('/api/learner-auth/login', authLimiter);
+  // Claim codes are short: its own per-IP budget, so guesses cannot share in (or eat) the login allowance.
+  app.use('/api/learner-auth/claim', rateLimit({ windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many claim attempts. Try again later.' } }));
+  app.use('/api/learner-auth/join-class', authLimiter);
   app.use('/api/learner-auth', express.json({ limit: '10kb' }), learnerAuthRouter);
 
   // Emergent-school backend — resolve/create schools, confirm colleagues, claim, provision.
@@ -13939,6 +14151,15 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use('/api/elevate/claim', express.json({ limit: '8kb' }), elevateAccountsRouter);
   app.use('/api/elevate/access', apiLimiter);
   app.use('/api/elevate/access', express.json({ limit: '8kb' }), elevateAccessRouter);
+  // Shared documents: membership, paper trail, delete, and media behind a member check.
+  app.use('/api/coedit', apiLimiter, express.json({ limit: '64kb' }), coeditRouter);
+  app.use('/api/tela-media', apiLimiter, express.json({ limit: '8kb' }), telaMediaRouter);
+  // Content HQ's security view: the only way to the audit log. Owner and IT Admin only. routes/hqSecurity.ts
+  app.use('/api/hq/security', apiLimiter, express.json({ limit: '8kb' }), hqSecurityRouter);
+  // One file's record, text and thread, checked against its department on every read. routes/hqFile.ts
+  app.use('/api/hq/file', apiLimiter, express.json({ limit: '1mb' }), hqFileRouter);
+  // Media Library trash: 30 days, then gone with its Storage files. routes/mediaTrash.ts
+  app.use('/api/media/trash', apiLimiter, express.json({ limit: '8kb' }), mediaTrashRouter);
   // Elevate: staff email "claim your account" invitations (address always from the org's records). routes/elevateInvites.ts
   app.use('/api/elevate/invites', rateLimit({ windowMs: 15 * 60 * 1000, max: 40, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many invitation requests — try again in a few minutes.' } }));
   app.use('/api/elevate/invites', express.json({ limit: '32kb' }), elevateInvitesRouter);
@@ -13962,7 +14183,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // Business staff seats: invite → lookup → redeem on the member's own account (routes/businessStaff.ts).
   app.use('/api/business/staff/lookup', authLimiter);
   app.use('/api/business/staff/redeem', authLimiter);
-  app.use('/api/business/staff', express.json({ limit: '8kb' }), createBusinessStaffRouter({ cas: restCas, onStaffChanged: bizStaffForget }));
+  app.use('/api/business/staff', express.json({ limit: '8kb' }), createBusinessStaffRouter({ cas: restCas, onStaffChanged: bizStaffForget, onSeatsChanged: pageId => { void mirrorDoc(firestoreAuthHeaders, 'businessPages', pageId); } }));
   // Elevate: read-only staff directory from payroll (Paychex Flex API; file exports are handled client-side).
   app.use('/api/payroll', express.json({ limit: '8kb' }), payrollConnectRouter);
 
@@ -14038,6 +14259,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use('/api', notifyEmailRouter);
 
   // Pixels Veo/Gemini proxy (browser code must never hold the key — see routes/veo.ts).
+  // Paid calls: identity and the per-uid budget come BEFORE the 48mb parse. /operation and /video gate inside the router.
+  app.use(['/api/ai/veo/generate', '/api/ai/veo/content', '/api/ai/veo/live-token'], authMiddleware, requireRegisteredUser, aiLimiter);
   app.use('/api/ai/veo', express.json({ limit: '48mb' }), veoRouter);
 
   // Taleo Story Intelligence enqueue (worker poke; see routes/taleo.ts + worker/story/).
@@ -14068,7 +14291,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use(homeDiscoveryRouter);
   app.use(homeHubRouter);
   app.use(matterRouter);
-  app.use('/api/local-ai', express.json({ limit: '10mb' }), localAiRouter);
+  app.use('/api/local-ai', requireHubLocal, express.json({ limit: '10mb' }), localAiRouter);
 
   if (process.env.SPORTS_INGESTION_WORKER === 'true' || (process.env.NODE_ENV === 'production' && process.env.SPORTS_INGESTION_WORKER !== 'false')) {
     const intervalMs = Number(process.env.SPORTS_INGESTION_INTERVAL_MS) || undefined;

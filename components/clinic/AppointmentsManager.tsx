@@ -139,7 +139,7 @@ export const AppointmentsManager: React.FC<AppointmentsManagerProps> = ({
 
   // Launch SOAP Note editor
   const handleOpenSoapNote = async (apt: Appointment) => {
-    const existing = await getSoapNoteByAppointmentId(apt.id);
+    const existing = await getSoapNoteByAppointmentId(apt.id, apt.businessId);
     if (existing) {
       setActiveSoapNote(existing);
     } else {
@@ -186,7 +186,7 @@ export const AppointmentsManager: React.FC<AppointmentsManagerProps> = ({
 
   // Launch Intake form modal
   const handleOpenIntake = async (apt: Appointment) => {
-    const intake = await fetchIntakeByAppointmentId(apt.id);
+    const intake = await fetchIntakeByAppointmentId(apt.id, apt.businessId);
     if (intake) {
       setActiveIntake(intake);
     } else {

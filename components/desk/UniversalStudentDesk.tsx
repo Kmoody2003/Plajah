@@ -4,6 +4,7 @@
 // and Elevate Organizations receive assigned digital worksheets/tests, fill them out with integrated study tools,
 // self-check their work, and turn them in for instant auto-grading & Mastery Graph / Learner Ledger credit.
 
+import { auth } from '../../services/firebase';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   BookOpen,
@@ -75,7 +76,7 @@ export interface UniversalStudentDeskProps {
 const awaitingTeacher = (sub: { questionScores?: Record<string, { pending?: boolean }> }) => Object.values(sub.questionScores || {}).some(q => q.pending);
 
 export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
-  studentUid = 'student_great_faith',
+  studentUid: givenStudentUid,
   studentName = 'Student Scholar',
   defaultDomain = 'ALL',
   orgId: rawOrgId,
@@ -86,6 +87,8 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
   onOpenTelaStudio,
   compactHeader = false,
 }) => {
+  // The desk is its signed-in owner's. No uid means the signed-out bucket, never a shared made-up student.
+  const studentUid = givenStudentUid || auth.currentUser?.uid || 'signed_out';
   // The desk shows only what this person was given. No org means no org, never a default one.
   const orgId = rawOrgId || '';
   const orgName = rawOrgName || '';

@@ -376,7 +376,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
     try {
       const [s, u, a, bgs, gi, uni] = await Promise.all([
         fetchSystemStats(),
-        fetchAllUsers(),
+        fetchAllUsers({ admin: true }),
         fetchAdConfigs(),
         fetchThemeBackgrounds(),
         fetchGlobalArchiveItems(),
@@ -909,7 +909,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {users.filter(u => 
                         u.displayName.toLowerCase().includes(assetSearch.toLowerCase()) || 
-                        u.email.toLowerCase().includes(assetSearch.toLowerCase())
+                        (u.email || '').toLowerCase().includes(assetSearch.toLowerCase())
                       ).map(user => (
                         <button 
                           key={user.uid}

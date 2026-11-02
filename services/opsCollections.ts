@@ -27,8 +27,8 @@ export const OPS_COLLECTIONS: ReadonlySet<string> = new Set([
   'orgAnnouncements', 'announcementResponses', 'docTemplates', 'orgTemplatePolicies', 'lessonLibrary', 'classThreads', 'classMedia', 'liveSources',
   'churchPrayers', 'churchPrograms', 'congregants', 'donations',
   // Content HQ + org assets
-  'contentRepurposeJobs', 'hqActivity', 'hqAssetVersions', 'hqAuditLog', 'hqComments',
-  'hqGuestDecisions', 'hqReviewRequests', 'hqShareLinks', 'orgAssets', 'orgOnboardingVault',
+  'contentRepurposeJobs', 'hqActivity', 'hqAlertState', 'hqAssetVersions', 'hqAuditLog', 'hqComments',
+  'hqGuestDecisions', 'hqReviewRequests', 'hqShareLinks', 'orgAssets', 'orgAssetText', 'mediaTrash', 'orgOnboardingVault',
   'orgSecurityEvents',
   // CRM
   'crmActivities', 'crmContacts',
@@ -42,6 +42,8 @@ export const OPS_COLLECTIONS: ReadonlySet<string> = new Set([
   'coedit',
   // A document's append-only paper trail (services/coedit/audit.ts).
   'docAudit',
+  // Who beyond a document's members may see its media (routes/coeditSecurity.ts). Server only.
+  'telaMediaRelease',
   // Moved 2026-10-29 when plajah-prod's ruleset went over the 256,000-byte cap again (265,327).
   // Education staff tools: worksheets + keys, template assignments, integrity, periodicals, council.
   'digital_worksheets', 'digital_worksheet_keys', 'worksheet_assignments', 'worksheet_submissions',

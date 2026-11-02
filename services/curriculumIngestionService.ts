@@ -2,6 +2,7 @@
 // Universal Curriculum, Lesson, Google Docs / Google Forms / Word / PDF & Answer-Key Ingestion Engine
 // Powered by Tela (TelaWriterDevice + TelaFormDevice + TelaBaseDevice) and the Plajah Mastery Graph.
 
+import { activeScopeUid, adoptOwnedRows, scopedKey, userScopedKey } from './userScope';
 import type {
   TelaDoc,
   TelaWriterDevice,
@@ -179,10 +180,22 @@ function normalizeToGreatFaithOrgId(orgId: string): string {
   return orgId || 'unscoped';
 }
 
-const STORAGE_UNITS_KEY = (orgId: string) =>
-  `plajah_ingested_curriculum_units_v1_${normalizeToGreatFaithOrgId(orgId)}`;
-const STORAGE_SUBMISSIONS_KEY = (orgId: string) =>
-  `plajah_ingested_curriculum_subs_v1_${normalizeToGreatFaithOrgId(orgId)}`;
+const UNITS_PREFIX = 'plajah_ingested_curriculum_units_v1_';
+const SUBS_PREFIX = 'plajah_ingested_curriculum_subs_v1_';
+
+/** This account's lessons on this device. Old shared lists give up the rows with this account's uid on them. */
+const STORAGE_UNITS_KEY = (orgId: string) => {
+  const name = `${UNITS_PREFIX}${normalizeToGreatFaithOrgId(orgId)}`;
+  const uid = activeScopeUid();
+  if (uid) adoptOwnedRows<IngestedCurriculumUnit>(name, userScopedKey(uid, name), u => u?.ownerUid === uid);
+  return userScopedKey(uid, name);
+};
+const STORAGE_SUBMISSIONS_KEY = (orgId: string) => {
+  const name = `${SUBS_PREFIX}${normalizeToGreatFaithOrgId(orgId)}`;
+  const uid = activeScopeUid();
+  if (uid) adoptOwnedRows<StudentUnitSubmission>(name, userScopedKey(uid, name), s => s?.studentUid === uid);
+  return userScopedKey(uid, name);
+};
 
 function inferLessonLibraryCategory(
   title: string,
@@ -296,7 +309,7 @@ function withoutOtherOrgsCopies(list: IngestedCurriculumUnit[]): IngestedCurricu
     const gfKey = STORAGE_UNITS_KEY(GREAT_FAITH_OLD_LOCAL_ID);
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (!key || key === gfKey || !key.startsWith('plajah_ingested_curriculum_units_v1_')) continue;
+      if (!key || key === gfKey || !key.startsWith(scopedKey(UNITS_PREFIX))) continue;
       for (const u of readRawStoredUnitsForKey(key)) if (u?.id) elsewhere.add(u.id);
     }
   } catch {

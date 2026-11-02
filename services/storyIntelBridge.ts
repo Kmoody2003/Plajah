@@ -16,6 +16,7 @@
  *      the Album/Video docs for `TaleoUniverseBrowser`.
  */
 
+import { studioKey } from './fabula/fabulaSync';
 import {
   collection,
   doc,
@@ -1505,7 +1506,7 @@ export async function seedFabulaProjectFromStoryReport(
   ];
 
   // Load existing prod if present so we don't clobber custom artifacts
-  const existingRaw = await idbGet(prodKey(prodId));
+  const existingRaw = await idbGet(studioKey(prodKey(prodId)));
   let prod: any =
     typeof existingRaw === 'string'
       ? JSON.parse(existingRaw)
@@ -1789,7 +1790,7 @@ export async function seedFabulaProjectFromStoryReport(
     prod.artifacts.books = [graphicNovelItem];
   }
 
-  await idbSet(prodKey(prodId), prod);
+  await idbSet(studioKey(prodKey(prodId)), prod);
 
   // Persist to Fabula Cloud for the active signed-in user as well (best-effort)
   try {
@@ -1799,7 +1800,7 @@ export async function seedFabulaProjectFromStoryReport(
   }
 
   // Update studio:index (supports both { list: [...] } and array formats)
-  const rawIdx: any = await idbGet(INDEX_KEY);
+  const rawIdx: any = await idbGet(studioKey(INDEX_KEY));
   const parsedIdx = typeof rawIdx === 'string' ? JSON.parse(rawIdx) : rawIdx;
   const indexList: any[] = Array.isArray(parsedIdx)
     ? parsedIdx
@@ -1821,10 +1822,10 @@ export async function seedFabulaProjectFromStoryReport(
     updatedAt: now,
   };
   const nextIndex = [meta, ...indexList.filter((p) => p.id !== prod.id)];
-  await idbSet(INDEX_KEY, { list: nextIndex });
+  await idbSet(studioKey(INDEX_KEY), { list: nextIndex });
 
   // Write handoff so Fabula opens directly into the Edit Mode -> Timecode Script tab
-  await idbSet(HANDOFF_KEY, {
+  await idbSet(studioKey(HANDOFF_KEY), {
     prodId: prod.id,
     editId: masterEditItem.id,
     editWs: targetWorkspace,
@@ -2219,7 +2220,7 @@ export async function syncStoryReportToWorldAndUniverse(
 
   try {
     const vSnap = await getDocs(
-      query(collection(db, 'videos'), where('albumId', '==', albumId))
+      query(collection(db, 'videos'), where('ownerId', '==', auth.currentUser?.uid || ''), where('albumId', '==', albumId))
     );
     for (const vDoc of vSnap.docs) {
       await updateDoc(doc(db, 'videos', vDoc.id), {

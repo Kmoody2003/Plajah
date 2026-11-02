@@ -9,6 +9,7 @@
 // (syncMyAudiences) whenever a list changes, a follow request is approved, someone is
 // blocked, and once per sign-in (to pick up new followers on Followers-except posts).
 
+import { readPrivateProfile } from './userPrivate';
 import { db, auth } from './firebase';
 import {
   collection, doc, getDoc, getDocs, setDoc, query, where, orderBy, limit, writeBatch,
@@ -85,7 +86,7 @@ export async function audienceCandidates(uid: string): Promise<string[]> {
   const [followers, following, me] = await Promise.all([
     followerUids(uid).catch(() => [] as string[]),
     getDocs(query(collection(db, 'follows'), where('followerId', '==', uid))).then(s => s.docs.map(d => d.data().followingId as string)).catch(() => [] as string[]),
-    getDoc(doc(db, 'users', uid)).then(s => s.data() || {}).catch(() => ({} as any)),
+    Promise.all([getDoc(doc(db, 'users', uid)).then(s => s.data() || {}).catch(() => ({} as any)), readPrivateProfile(uid)]).then(([pub, priv]) => ({ ...pub, ...priv }) as any),
   ]);
   const family = [me.guardianUid, me.relationshipPartnerUid, ...(me.childUids || []), ...(me.coGuardianUids || [])].filter(Boolean) as string[];
   return [...new Set([...family, ...followers, ...following])].filter(u => u !== uid);
@@ -94,7 +95,7 @@ export async function audienceCandidates(uid: string): Promise<string[]> {
 /** Family links from the profile (guardian, children, co-guardians, partner) — suggested for the Family list. */
 export async function familySuggestions(uid: string): Promise<string[]> {
   try {
-    const me = (await getDoc(doc(db, 'users', uid))).data() || {};
+    const me: any = { ...((await getDoc(doc(db, 'users', uid))).data() || {}), ...(await readPrivateProfile(uid)) };
     return [...new Set([me.guardianUid, me.relationshipPartnerUid, ...(me.childUids || []), ...(me.coGuardianUids || [])].filter(Boolean))] as string[];
   } catch { return []; }
 }

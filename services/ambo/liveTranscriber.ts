@@ -143,10 +143,13 @@ export async function transcribeWindowWithChoraGemini(
   if (pcm16k.length < 2400) return [];
   const windowSec = Math.max(1, pcm16k.length / 16000);
   try {
+    const { auth } = await import('../firebase');
+    const idToken = await auth.currentUser?.getIdToken().catch(() => null);
+    if (!idToken) return null;   // signed out: straight to on-device Whisper
     const audioBase64 = encodePcm16kToWavBase64(pcm16k, 16000);
     const res = await fetch('/api/ai/captions-window', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
       body: JSON.stringify({
         audioBase64,
         mimeType: 'audio/wav',

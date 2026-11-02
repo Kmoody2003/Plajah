@@ -36,6 +36,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { del as idbDel, get as idbGet, set as idbSet } from 'idb-keyval';
+import { adoptOwnedIdbValue, scopedKey } from '../userScope';
 import { auth, opsDb } from '../firebase';
 import { thisDevice } from '../creativeCloud/cloudStore';
 import { versionsToPrune, type VersionStub } from '../creativeCloud/history';
@@ -187,7 +188,8 @@ const RECENT_WRITE_MS = 45_000;
 const MAX_BATCH_CHARS = 800_000;
 const UNDO_GROUP_MS = 800;
 
-const cacheKey = (id: string) => `coedit:v1:${id}`;
+const legacyCacheKey = (id: string) => `coedit:v1:${id}`;
+const cacheKey = (id: string) => scopedKey(legacyCacheKey(id));
 const tabId = Math.random().toString(36).slice(2, 7);
 
 let _uidShort = '';
@@ -306,6 +308,8 @@ export class CoeditSession<T = unknown> {
 
   /** Shows the local copy at once, then connects (or keeps working offline). */
   async start(): Promise<T> {
+    // An old shared copy belongs to the project's owner, the one account it can be proved for.
+    if (this.project.ownerId === this.uid) await adoptOwnedIdbValue(legacyCacheKey(this.id), cacheKey(this.id));
     const cached = await idbGet<LocalCache<T>>(cacheKey(this.id)).catch(() => undefined);
     if (cached?.v === 1) {
       this.shared = cached.state;
@@ -1140,8 +1144,9 @@ export class CoeditSession<T = unknown> {
   }
 
   async deleteVersion(v: VersionMeta) {
-    await deleteDoc(doc(opsDb, COEDIT, this.id, 'versions', v.id));
+    // Pieces first: their rule reads the version to see who may remove them.
     await deleteChunks(this.id, `ver_${v.id}`, v.chunks);
+    await deleteDoc(doc(opsDb, COEDIT, this.id, 'versions', v.id));
   }
 
   async loadVersion(v: VersionMeta): Promise<T> {

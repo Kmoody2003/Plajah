@@ -390,7 +390,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
           <ScanWorksheet user={user} orgContext={orgContext} preferClassId={realClass?.id} />
         ) : tab === 'studentDesk' ? (
           <UniversalStudentDesk
-            studentUid={user?.uid || 'student_academia'}
+            studentUid={user?.uid}
             studentName={user?.displayName || 'Academia Scholar'}
             defaultDomain="ALL"
             onOpenTelaStudio={(docId: string) => {

@@ -1,4 +1,7 @@
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, addDoc, increment, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { ref as storageRef, uploadBytes } from 'firebase/storage';
+import { storage } from './firebase';
+import { gatedRef } from './sanctuaryMediaCore';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, addDoc, increment, arrayUnion, arrayRemove, type QueryConstraint } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
 import { db, auth } from './firebase';
 import { DEMO_SANCTUARY_ID } from '../data/demoShowcase';
@@ -162,6 +165,44 @@ export const checkMembership = async (creatorId: string): Promise<SanctuaryMembe
 
 // ── EXCLUSIVE CONTENT ─────────────────────────────────────────────────────────
 
+/**
+ * Live items of a gated collection, as this viewer may see them. The rules refuse a query that could return
+ * something the viewer can't read, so a non-member asks for FREE items plus the ones they bought one by one,
+ * and switches to the full list the moment their membership turns ACTIVE.
+ */
+function listenGated<T extends { id: string }>(
+  col: string, ownerField: string, ownerId: string, constraints: QueryConstraint[],
+  callback: (items: T[]) => void, label: string,
+): () => void {
+  const uid = auth.currentUser?.uid;
+  if (!uid) { callback([]); return () => {}; }
+  let unsubList: (() => void) | null = null;
+  let alive = true;
+  const toItems = (snap: { docs: { id: string; data: () => any }[] }) => snap.docs.map(d => ({ id: d.id, ...d.data() } as T));
+  const watch = (full: boolean) => {
+    unsubList?.();
+    const q = query(collection(db, col), where(ownerField, '==', ownerId), ...(full ? [] : [where('accessType', '==', 'FREE')]), ...constraints);
+    unsubList = onSnapshot(q, async (snap) => {
+      const items = toItems(snap);
+      if (!full) {
+        const bought = await fetchMyPurchases(ownerId).catch(() => []);
+        const have = new Set(items.map(i => i.id));
+        const extra = await Promise.all(bought.map(p => p.itemId).filter(id => id && !have.has(id)).map(id =>
+          getDoc(doc(db, col, id)).then(s => (s.exists() ? ({ id: s.id, ...s.data() } as unknown as T) : null)).catch(() => null)));
+        items.push(...extra.filter((x): x is Awaited<T> & T => !!x));
+      }
+      if (alive) callback(items);
+    }, err => console.warn(`[sanctuary] ${label} listener:`, err.message));
+  };
+  if (uid === ownerId) { watch(true); return () => { alive = false; unsubList?.(); }; }
+  let wasFull: boolean | null = null;
+  const unsubMember = onSnapshot(doc(db, 'sanctuaryMemberships', `${ownerId}_${uid}`), (s) => {
+    const full = s.exists() && s.data()?.status === 'ACTIVE';
+    if (full !== wasFull) { wasFull = full; watch(full); }
+  }, () => { if (wasFull === null) { wasFull = false; watch(false); } });
+  return () => { alive = false; unsubMember(); unsubList?.(); };
+}
+
 export const publishExclusiveContent = async (
   content: Omit<SanctuaryExclusiveContent, 'id' | 'publishedAt' | 'likesCount' | 'commentsCount'>,
 ): Promise<string> => {
@@ -170,6 +211,8 @@ export const publishExclusiveContent = async (
   const now = Date.now();
   await setDoc(ref, {
     ...content,
+    // The rules gate on accessType: a public preview has to say FREE.
+    ...(content.isPublicPreview ? { accessType: 'FREE' } : {}),
     id: ref.id,
     publishedAt: now,
     likesCount: 0,
@@ -179,9 +222,11 @@ export const publishExclusiveContent = async (
 };
 
 export const fetchCreatorExclusiveContent = async (creatorId: string): Promise<SanctuaryExclusiveContent[]> => {
+  const inside = auth.currentUser?.uid === creatorId || !!(await checkMembership(creatorId).catch(() => null));
   const q = query(
     collection(db, 'sanctuaryContent'),
     where('creatorId', '==', creatorId),
+    ...(inside ? [] : [where('accessType', '==', 'FREE')]),
     orderBy('publishedAt', 'desc'),
     limit(30),
   );
@@ -191,16 +236,7 @@ export const fetchCreatorExclusiveContent = async (creatorId: string): Promise<S
 
 export const listenToExclusiveContent = (creatorId: string, callback: (items: SanctuaryExclusiveContent[]) => void) => {
   if (creatorId === DEMO_SANCTUARY_ID) { callback(DEMO_SANCTUARY_CONTENT); return () => {}; }
-  const q = query(
-    collection(db, 'sanctuaryContent'),
-    where('creatorId', '==', creatorId),
-    orderBy('publishedAt', 'desc'),
-    limit(30),
-  );
-  return onSnapshot(q,
-    snap => { callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as SanctuaryExclusiveContent))); },
-    err => console.warn('[sanctuary] content listener:', err.message),
-  );
+  return listenGated<SanctuaryExclusiveContent>('sanctuaryContent', 'creatorId', creatorId, [orderBy('publishedAt', 'desc'), limit(30)], callback, 'content');
 };
 
 export const likeExclusiveContent = async (contentId: string): Promise<void> => {
@@ -317,15 +353,10 @@ export const createSanctuaryPost = async (
 };
 
 export const listenToSanctuaryPosts = (sanctuaryId: string, callback: (posts: SanctuaryPost[]) => void) => {
-  const q = query(collection(db, 'sanctuaryPosts'), where('sanctuaryId', '==', sanctuaryId), limit(100));
-  return onSnapshot(q,
-    snap => {
-      const posts = snap.docs.map(d => ({ id: d.id, ...d.data() } as SanctuaryPost));
-      posts.sort((a, b) => ((b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0)) || (b.timestamp - a.timestamp));
-      callback(posts);
-    },
-    err => console.warn('[sanctuary] posts listener:', err.message),
-  );
+  return listenGated<SanctuaryPost>('sanctuaryPosts', 'sanctuaryId', sanctuaryId, [limit(100)], posts => {
+    posts.sort((a, b) => ((b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0)) || (b.timestamp - a.timestamp));
+    callback(posts);
+  }, 'posts');
 };
 
 export const deleteSanctuaryPost = async (postId: string): Promise<void> => {
@@ -354,6 +385,13 @@ export const fetchMyPurchases = async (sanctuaryId?: string): Promise<SanctuaryP
 
 // ── GALLERY (gated media wall) ──────────────────────────────────────────────────
 
+/** Uploads a gated file: no public URL, only a reference the server resolves per viewer. */
+export const uploadGatedSanctuaryFile = async (sanctuaryId: string, folder: 'gallery' | 'posts', file: Blob, name: string): Promise<string> => {
+  const path = `sanctuaries/${sanctuaryId}/${folder}/${Date.now()}_${name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  await uploadBytes(storageRef(storage, path), file, { contentType: file.type || undefined, customMetadata: auth.currentUser ? { ownerUid: auth.currentUser.uid } : undefined });
+  return gatedRef(path);
+};
+
 export const addSanctuaryGalleryItem = async (
   item: Partial<SanctuaryGalleryItem> & { sanctuaryId: string; url: string; type: SanctuaryGalleryItem['type'] },
 ): Promise<SanctuaryGalleryItem | null> => {
@@ -378,11 +416,8 @@ export const addSanctuaryGalleryItem = async (
 };
 
 export const listenToSanctuaryGallery = (sanctuaryId: string, callback: (items: SanctuaryGalleryItem[]) => void) => {
-  const q = query(collection(db, 'sanctuaryGallery'), where('sanctuaryId', '==', sanctuaryId), limit(100));
-  return onSnapshot(q,
-    snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as SanctuaryGalleryItem)).sort((a, b) => b.timestamp - a.timestamp)),
-    err => console.warn('[sanctuary] gallery listener:', err.message),
-  );
+  return listenGated<SanctuaryGalleryItem>('sanctuaryGallery', 'sanctuaryId', sanctuaryId, [limit(100)],
+    items => callback(items.sort((a, b) => b.timestamp - a.timestamp)), 'gallery');
 };
 
 export const deleteSanctuaryGalleryItem = async (itemId: string): Promise<void> => {
@@ -415,11 +450,8 @@ export const createSanctuaryEvent = async (
 };
 
 export const listenToSanctuaryEvents = (sanctuaryId: string, callback: (events: SanctuaryEvent[]) => void) => {
-  const q = query(collection(db, 'sanctuaryEvents'), where('sanctuaryId', '==', sanctuaryId), limit(50));
-  return onSnapshot(q,
-    snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as SanctuaryEvent)).sort((a, b) => a.scheduledAt - b.scheduledAt)),
-    err => console.warn('[sanctuary] events listener:', err.message),
-  );
+  return listenGated<SanctuaryEvent>('sanctuaryEvents', 'sanctuaryId', sanctuaryId, [limit(50)],
+    items => callback(items.sort((a, b) => a.scheduledAt - b.scheduledAt)), 'events');
 };
 
 export const rsvpSanctuaryEvent = async (eventId: string, attending: boolean): Promise<void> => {
@@ -482,13 +514,11 @@ export const contributeToCampaign = async (sanctuaryId: string, amount: number):
 
 // Real Stripe pledges are recorded server-side (webhook); the campaign's live
 // totals are summed from them so the banner reflects money actually collected.
-export const listenToSanctuaryPledges = (sanctuaryId: string, callback: (pledges: SanctuaryPledge[]) => void) => {
-  const q = query(collection(db, 'sanctuaryPledges'), where('sanctuaryId', '==', sanctuaryId), limit(500));
-  return onSnapshot(q,
-    snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as SanctuaryPledge))),
-    err => console.warn('[sanctuary] pledges listener:', err.message),
+export const listenToSanctuaryPledgeTotals = (sanctuaryId: string, callback: (totals: { raised: number; backers: number }) => void) =>
+  onSnapshot(doc(db, 'sanctuaryPledgeTotals', sanctuaryId),
+    snap => callback({ raised: Number(snap.data()?.raised) || 0, backers: Number(snap.data()?.backers) || 0 }),
+    err => console.warn('[sanctuary] pledge totals listener:', err.message),
   );
-};
 
 // ── ACCESS CHECK (pure; usable anywhere a gate applies) ─────────────────────────
 

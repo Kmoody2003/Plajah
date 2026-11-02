@@ -30,7 +30,7 @@
 
 import { Router, Request, Response } from 'express';
 import * as nodeCrypto from 'crypto';
-import { verifyIdToken, fsGet, fsSet, fsPatch, fsCreate, adminConfig } from '../services/firebaseAdminRest';
+import { verifyIdToken, verifyIdTokenDetailed, fsGet, fsSet, fsPatch, fsCreate, adminConfig } from '../services/firebaseAdminRest';
 import { markInviteBounced } from './elevateInvites';
 import { verifySvixSignature, resendStopReason } from '../services/notify/resendWebhookCore';
 
@@ -48,12 +48,15 @@ const FS_BASE = `https://firestore.googleapis.com/v1/projects/${adminConfig.PROJ
 function resendKey(): string { return process.env.RESEND_API_KEY || ''; }
 function isConfigured(): boolean { return !!resendKey(); }
 
-/** Secret for unsubscribe HMACs. Falls back to the service-account material so a
- *  missing env var cannot silently produce forgeable tokens. */
-function unsubSecret(): string {
-  const s = process.env.CAMPAIGN_UNSUB_SECRET || process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '';
-  if (!s) throw new Error('No secret available for unsubscribe tokens');
-  return s;
+/** New unsubscribe links are signed ONLY with the dedicated secret; no secret, no send. */
+function unsubSigningSecret(): string { return process.env.CAMPAIGN_UNSUB_SECRET || ''; }
+/**
+ * Links in email already delivered must keep working for good (CAN-SPAM). Older ones were signed with the
+ * service-account JSON, so that stays verify-only. Set CAMPAIGN_UNSUB_LEGACY_SECRET to its old value before rotating
+ * the service account, or those older links stop working.
+ */
+function unsubVerifySecrets(): string[] {
+  return [unsubSigningSecret(), process.env.CAMPAIGN_UNSUB_LEGACY_SECRET || '', process.env.GOOGLE_SERVICE_ACCOUNT_JSON || ''].filter(Boolean);
 }
 
 function baseUrl(req: Request): string {
@@ -136,7 +139,9 @@ const unb64u = (s: string) => Buffer.from(s, 'base64url').toString('utf8');
 
 function signUnsub(ownerId: string, email: string): string {
   const payload = b64u(JSON.stringify({ o: ownerId, e: email.toLowerCase() }));
-  const sig = nodeCrypto.createHmac('sha256', unsubSecret()).update(payload).digest('base64url');
+  const secret = unsubSigningSecret();
+  if (!secret) throw new Error('CAMPAIGN_UNSUB_SECRET is not set');
+  const sig = nodeCrypto.createHmac('sha256', secret).update(payload).digest('base64url');
   return `${payload}.${sig}`;
 }
 
@@ -144,11 +149,13 @@ function verifyUnsub(token: string): { ownerId: string; email: string } | null {
   try {
     const [payload, sig] = String(token || '').split('.');
     if (!payload || !sig) return null;
-    const expected = nodeCrypto.createHmac('sha256', unsubSecret()).update(payload).digest('base64url');
     // Constant-time compare — a token check that leaks timing is a token check that leaks.
     const a = Buffer.from(sig);
-    const b = Buffer.from(expected);
-    if (a.length !== b.length || !nodeCrypto.timingSafeEqual(a, b)) return null;
+    const valid = unsubVerifySecrets().some(secret => {
+      const b = Buffer.from(nodeCrypto.createHmac('sha256', secret).update(payload).digest('base64url'));
+      return a.length === b.length && nodeCrypto.timingSafeEqual(a, b);
+    });
+    if (!valid) return null;
     const { o, e } = JSON.parse(unb64u(payload));
     if (!o || !e) return null;
     return { ownerId: String(o), email: String(e).toLowerCase() };
@@ -343,7 +350,7 @@ campaignsRouter.post('/send', async (req: Request, res: Response) => {
       });
     }
 
-    if (!isConfigured()) {
+    if (!isConfigured() || !unsubSigningSecret()) {
       return res.status(503).json({ error: 'Email sending is not configured on this server.', configured: false });
     }
 
@@ -355,8 +362,11 @@ campaignsRouter.post('/send', async (req: Request, res: Response) => {
     // 2 — a test send goes only to the caller, and skips the audience entirely.
     let recipients: Recipient[];
     if (testTo) {
-      const addr = String(testTo).trim().toLowerCase();
-      if (!addr.includes('@')) return res.status(400).json({ error: 'That test address is not valid.' });
+      // Whatever address the client named, a test goes to the caller's own verified email: this is not a free relay.
+      const bearer = req.headers.authorization || '';
+      const who = await verifyIdTokenDetailed(bearer.slice(7));
+      if (!who?.email || !who.emailVerified) return res.status(403).json({ error: 'Verify your email address to send yourself a test.', code: 'EMAIL_UNVERIFIED' });
+      const addr = who.email.trim().toLowerCase();
       recipients = [{ email: addr, name: 'Test', consentSource: 'this is a test send to yourself', consentAt: '' }];
     } else {
       // 3 — audience is derived here, never taken from the request.

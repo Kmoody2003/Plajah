@@ -221,6 +221,11 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
     }
   }, [mode, email]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // A lookup held back for sign-in runs on its own once they are in.
+  useEffect(() => {
+    if (signedIn && lookup?.needsSignIn && !busy) doLookup();
+  }, [signedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const doClaim = async () => {
     if (!signedIn) {
       setAuthMode('REGISTER');
@@ -536,6 +541,16 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
                           <p className="text-xs text-white/85 leading-relaxed">
                             {lookup.reason || "We didn't find a pre-created roster seat under that exact entry yet — you can submit your claim right now and your Member ID & Employment # will auto-populate on the backend once approved:"}
                           </p>
+                          {lookup.needsSignIn && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <button type="button" onClick={() => setAuthMode('REGISTER')} className={primary}>
+                                <UserPlus size={14} /> Create Account
+                              </button>
+                              <button type="button" onClick={() => setAuthMode('LOGIN')} className={ghost}>
+                                <LogIn size={14} /> Sign In
+                              </button>
+                            </div>
+                          )}
                           {target && signedIn && (
                             <button
                               type="button"
@@ -561,7 +576,7 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
                           <p className="text-[10px] font-black uppercase tracking-widest text-[#C4B5FD]">
                             We found your pre-provisioned account{lookup.orgName ? ` · ${lookup.orgName}` : ''}
                           </p>
-                          <p className="text-sm font-bold">{lookup.maskedName} · {lookup.roleLabel}</p>
+                          <p className="text-sm font-bold">{lookup.maskedName}{lookup.roleLabel ? ` · ${lookup.roleLabel}` : ''}</p>
                           {!!lookup.departments?.length && <p className="text-[11px] text-white/65">Department: <strong className="text-white">{lookup.departments.join(' · ')}</strong></p>}
                           {(lookup.memberNumber || lookup.employeeNumber) && (
                             <p className="text-[11px] font-mono text-emerald-300 pt-0.5">

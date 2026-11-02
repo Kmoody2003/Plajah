@@ -8,7 +8,7 @@
 //   GET  /invites?pageId=                                                        owner → {invites:[{id, role, roleLabel, perms, expiresAt, createdAt}]}
 //   POST /revoke  {inviteId}                                                     owner → {ok}
 //
-// Seats (businessPages.staffUids/staffSeats), the private owner index (businessStaffIndex/{owner} = {staffUids, staffPerms, updatedAt}) and the
+// Seats (businessPages/{id}/private/staff: staffUids, staffSeats), each person's page list (staffPageIndex/{uid}.pageIds), the private owner index (businessStaffIndex/{owner} = {staffUids, staffPerms, updatedAt}) and the
 // invites (businessStaffInvites/{sha256(code)}) are written ONLY here, with service-account REST (bypasses rules;
 // firestore.rules forbids clients from touching those keys). Single-doc writes go through compare-and-swap
 // (`cas`, backed by server.ts restCas) so concurrent redeems / edits cannot lose a seat or double-use a code.
@@ -23,7 +23,7 @@ import { casUpdate, type CasStore } from '../services/casCore';
 import { makeInviteCode, normalizeInviteCode, INVITE_TTL_MS, type StaffSeat } from '../services/businessStaffCore';
 import {
   inviteDocId, asSeatRole, seatPerms, validateInvite, INVITE_STATE_HTTP, inviteSummary, withSeat, withoutSeat,
-  ownerStaffIndex, isSeated, cleanLabel, validId, type StaffInviteDoc, type SeatPageShape,
+  ownerStaffIndex, isSeated, cleanLabel, validId, mergeSeats, withPageId, withoutPageId, type StaffInviteDoc, type SeatPageShape,
 } from '../services/businessStaffServerCore';
 
 export interface BusinessStaffDeps {
@@ -31,6 +31,8 @@ export interface BusinessStaffDeps {
   cas: (collectionPath: string) => CasStore;
   /** Called after an owner's seats change so server-side permission caches drop that owner. */
   onStaffChanged?: (ownerUid: string) => void;
+  /** Seats don't fire the page's write trigger, so the ops mirror is refreshed here. */
+  onSeatsChanged?: (pageId: string) => void;
 }
 
 const INVITES = 'businessStaffInvites';
@@ -55,6 +57,16 @@ export function createBusinessStaffRouter(deps: BusinessStaffDeps): Router {
   const pagesCas = deps.cas('businessPages');
   const indexCas = deps.cas('businessStaffIndex');
   const invitesCas = deps.cas(INVITES);
+  const staffIndexCas = deps.cas('staffPageIndex');
+  const seatsCas = (pageId: string) => deps.cas(`businessPages/${pageId}/private`);
+  /** An owner's pages with their seats, which aren't on the public doc any more. */
+  const ownerPages = async (ownerUid: string) => {
+    const pages = await fsQuery('businessPages', [{ field: 'ownerId', value: ownerUid }], MAX_PAGES_PER_OWNER);
+    return Promise.all(pages.map(async p => ({ id: p.id, data: mergeSeats(p.data, await fsGet(`businessPages/${p.id}/private/staff`)) })));
+  };
+  const setPersonPage = (uid: string, pageId: string, seated: boolean) => casUpdate(staffIndexCas, uid, cur => ({
+    patch: { pageIds: seated ? withPageId(cur?.pageIds, pageId) : withoutPageId(cur?.pageIds, pageId), updatedAt: Date.now() }, result: true,
+  })).catch(() => null);
 
   const ready = (res: Response) => {
     if (adminConfig.hasCredentials()) return true;
@@ -72,7 +84,7 @@ export function createBusinessStaffRouter(deps: BusinessStaffDeps): Router {
   /** Rebuild businessStaffIndex/{owner} (staffPerms + staffUids) from all of the owner's pages (CAS on the index doc). */
   const reindexOwner = async (ownerUid: string): Promise<boolean> => {
     const out = await casUpdate(indexCas, ownerUid, async () => {
-      const pages = await fsQuery('businessPages', [{ field: 'ownerId', value: ownerUid }], MAX_PAGES_PER_OWNER);
+      const pages = await ownerPages(ownerUid);
       const idx = ownerStaffIndex(pages.map(p => ({ id: p.id, ...p.data }) as SeatPageShape));
       return { patch: { staffPerms: idx.staffPerms, staffUids: idx.staffUids, updatedAt: Date.now() }, result: true };
     }).catch(() => ({ ok: false as const }));
@@ -168,11 +180,11 @@ export function createBusinessStaffRouter(deps: BusinessStaffDeps): Router {
       perms: seatPerms(asSeatRole(inv.role), inv.perms), staffMemberId: inv.staffMemberId || undefined,
       addedAt: now, addedBy: inv.createdBy,
     });
-    const seated = await casUpdate<string>(pagesCas, inv.pageId, cur => {
-      if (!cur) return { abort: true, result: 'missing' };
-      if (cur.ownerId !== inv.ownerUid) return { abort: true, result: 'moved' };
-      return { patch: withSeat(cur as SeatPageShape, seat), result: 'ok' };
-    }).catch(() => ({ ok: false as const, reason: 'ERROR' as const, result: undefined }));
+    const livePage = await fsGet(`businessPages/${inv.pageId}`);
+    const seated = !livePage ? { ok: false as const, result: 'missing' as string | undefined }
+      : livePage.ownerId !== inv.ownerUid ? { ok: false as const, result: 'moved' as string | undefined }
+      : await casUpdate<string>(seatsCas(inv.pageId), 'staff', cur => ({ patch: withSeat((cur || {}) as SeatPageShape, seat), result: 'ok' }))
+        .catch(() => ({ ok: false as const, reason: 'ERROR' as const, result: undefined }));
     if (!seated.ok) {
       // Release the claim so the code can be retried (unless the business is gone).
       if (seated.result !== 'missing' && seated.result !== 'moved') {
@@ -181,7 +193,9 @@ export function createBusinessStaffRouter(deps: BusinessStaffDeps): Router {
       return res.status(seated.result === 'missing' || seated.result === 'moved' ? 410 : 503).json({ error: seated.result ? 'That business is no longer available.' : 'Could not join right now — try again.' });
     }
 
-    // 3) Owner index + roster link.
+    // 3) Owner index + roster link + the person's own list + the ops mirror.
+    await setPersonPage(uid, inv.pageId, true);
+    deps.onSeatsChanged?.(inv.pageId);
     await reindexOwner(inv.ownerUid);
     await linkStaff(inv.ownerUid, inv.staffMemberId || undefined, uid);
     return res.json({ pageId: inv.pageId });
@@ -197,8 +211,8 @@ export function createBusinessStaffRouter(deps: BusinessStaffDeps): Router {
     if (!page) return res.status(404).json({ error: 'Business not found.' });
     if (page === 'forbidden') return res.status(403).json({ error: 'Only the business owner can change staff access.' });
     if (!validId(b.uid)) return res.status(400).json({ error: 'Bad member.' });
-    const out = await casUpdate<StaffSeat | null>(pagesCas, page.id, cur => {
-      if (!cur || cur.ownerId !== who.uid || !isSeated(cur as SeatPageShape, b.uid)) return { abort: true, result: null };
+    const out = await casUpdate<StaffSeat | null>(seatsCas(page.id), 'staff', cur => {
+      if (!cur || !isSeated(cur as SeatPageShape, b.uid)) return { abort: true, result: null };
       const prev = (cur.staffSeats as Record<string, StaffSeat>)[b.uid];
       const role = b.role === undefined ? prev.role : asSeatRole(b.role);
       const perms = b.perms !== undefined ? seatPerms(role, b.perms) : (b.role !== undefined && role !== prev.role ? seatPerms(role) : seatPerms(role, prev.perms));
@@ -206,6 +220,7 @@ export function createBusinessStaffRouter(deps: BusinessStaffDeps): Router {
       return { patch: withSeat(cur as SeatPageShape, next), result: next };
     }).catch(() => ({ ok: false as const, reason: 'ERROR' as const, result: undefined }));
     if (!out.ok) return res.status(out.result === null ? 404 : 503).json({ error: out.result === null ? 'That person is not on this team.' : 'Busy — please try again.' });
+    deps.onSeatsChanged?.(page.id);
     await reindexOwner(who.uid);
     return res.json({ seat: out.result });
   });
@@ -221,18 +236,24 @@ export function createBusinessStaffRouter(deps: BusinessStaffDeps): Router {
     if (!page) return res.status(404).json({ error: 'Business not found.' });
     const ownerUid = String(page.ownerId || '');
     if (who.uid !== ownerUid && who.uid !== b.uid) return res.status(403).json({ error: 'Only the owner can remove other team members.' });
-    const out = await casUpdate<StaffSeat | null>(pagesCas, b.pageId, cur => {
-      if (!cur || String(cur.ownerId || '') !== ownerUid) return { abort: true, result: null };
+    const out = await casUpdate<StaffSeat | null>(seatsCas(b.pageId), 'staff', cur => {
+      if (!cur) return { abort: true, result: null };
       const prev = (cur.staffSeats || {})[b.uid] as StaffSeat | undefined;
       if (!prev && !(cur.staffUids || []).includes(b.uid)) return { abort: true, result: null };
       return { patch: withoutSeat(cur as SeatPageShape, b.uid), result: prev || null };
     }).catch(() => ({ ok: false as const, reason: 'ERROR' as const, result: undefined }));
     if (!out.ok && out.result === undefined) return res.status(503).json({ error: 'Busy — please try again.' });
     if (!out.ok) return res.status(404).json({ error: 'That person is not on this team.' });
+    // Until the strip phase runs, an old public copy must not bring this seat back on the next migration copy.
+    if ((page.staffUids || []).includes(b.uid) || page.staffSeats?.[b.uid]) {
+      await casUpdate(pagesCas, b.pageId, cur => (cur ? { patch: withoutSeat(cur as SeatPageShape, b.uid), result: true } : { abort: true, result: false })).catch(() => null);
+    }
+    await setPersonPage(b.uid, b.pageId, false);
+    deps.onSeatsChanged?.(b.pageId);
     await reindexOwner(ownerUid);
     // Unlink the roster record only if no other page of this owner still seats them with the same link.
     if (out.result?.staffMemberId) {
-      const pages = await fsQuery('businessPages', [{ field: 'ownerId', value: ownerUid }], MAX_PAGES_PER_OWNER);
+      const pages = await ownerPages(ownerUid);
       const stillLinked = pages.some(p => isSeated(p.data as SeatPageShape, b.uid) && (p.data.staffSeats as any)[b.uid]?.staffMemberId === out.result!.staffMemberId);
       if (!stillLinked) await linkStaff(ownerUid, out.result.staffMemberId, null, b.uid);
     }

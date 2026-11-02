@@ -89,7 +89,10 @@ function suite(label, base, mocks) {
 
 const main = suite('classroom', `${DB}/classrooms/k1`, [
   ...adminMocks,
-  { function: 'get', args: [{ exactValue: `${DB}/classrooms/k1` }], result: { value: { data: { ownerId: TEACH, enrolledStudents: [STU, STU2], price: 0 } } } },
+  { function: 'get', args: [{ exactValue: `${DB}/classrooms/k1` }], result: { value: { data: { ownerId: TEACH, price: 0 } } } },
+  { function: 'exists', args: [{ exactValue: `${DB}/classMembers/k1_${STU}` }], result: { value: true } },
+  { function: 'exists', args: [{ exactValue: `${DB}/classMembers/k1_${STU2}` }], result: { value: true } },
+  { function: 'exists', args: [{ anyValue: {} }], result: { value: false } },
 ]);
 const ops = suite('churchProgram', `${DB}/churchPrograms/c1`, [
   ...adminMocks,

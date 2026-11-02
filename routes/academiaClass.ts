@@ -35,7 +35,9 @@ export function createAcademiaClassRouter({ verify, get, patch, create }: Academ
     if (!t || t.isAnonymous || !idOk(req.body?.classId)) return null;
     const cls = await get(`classrooms/${req.body.classId}`);
     if (!cls || cls.ownerId !== t.uid) return null;
-    return { uid: t.uid, enrolled: (Array.isArray(cls.enrolledStudents) ? cls.enrolledStudents : []).filter(idOk).slice(0, MAX_STUDENTS) };
+    const roster = await get(`classrooms/${req.body.classId}/private/roster`);
+    const list = Array.isArray(roster?.enrolledStudents) ? roster.enrolledStudents : Array.isArray(cls.enrolledStudents) ? cls.enrolledStudents : [];
+    return { uid: t.uid, enrolled: list.filter(idOk).slice(0, MAX_STUDENTS) };
   }
 
   router.post('/mastery', async (req: Request, res: Response) => {

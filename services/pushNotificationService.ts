@@ -1,5 +1,5 @@
 import { getMessaging, getToken, onMessage, MessagePayload } from 'firebase/messaging';
-import { doc, updateDoc } from 'firebase/firestore';
+import { arrayUnion, doc, setDoc } from 'firebase/firestore';
 import { app } from './firebase';
 import { db, auth } from './backendService';
 
@@ -26,7 +26,7 @@ export const requestPushPermission = async (): Promise<string | null> => {
     const sw = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
     const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: sw });
     if (token && auth.currentUser) {
-      await updateDoc(doc(db, 'users', auth.currentUser.uid), { fcmToken: token }).catch(() => {});
+      await setDoc(doc(db, 'users', auth.currentUser.uid, 'private', 'profile'), { fcmTokens: arrayUnion(token) }, { merge: true }).catch(() => {});
     }
     return token || null;
   } catch (e) {

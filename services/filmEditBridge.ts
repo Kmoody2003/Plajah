@@ -14,6 +14,7 @@
 // place — new takes appear, re-circled selects swap — while any other edit the editor made
 // is left untouched.
 
+import { studioKey } from './fabula/fabulaSync';
 import { set as idbSet, get as idbGet } from 'idb-keyval';
 import type { Production, ProductionScene, ProductionTake } from './filmProductionService';
 
@@ -95,7 +96,7 @@ export async function getLinkedFabulaProject(productionId: string): Promise<{ pr
   try {
     const id = localStorage.getItem(LINK_KEY(productionId));
     if (!id) return null;
-    const p = (await idbGet(`studio:prod:${id}`)) as { title?: string } | undefined;
+    const p = (await idbGet(studioKey(`studio:prod:${id}`))) as { title?: string } | undefined;
     return p ? { prodId: id, title: p.title || 'Live Edit' } : null;
   } catch { return null; }
 }
@@ -111,8 +112,8 @@ function clipPair(t: ProductionTake, label: string, start: number, dur: number) 
 }
 
 async function bumpIndex(id: string, title: string, sceneCount: number, now: number) {
-  const idx = ((await idbGet('studio:index')) as { list?: Array<{ id: string }> } | undefined) || {};
-  await idbSet('studio:index', {
+  const idx = ((await idbGet(studioKey('studio:index'))) as { list?: Array<{ id: string }> } | undefined) || {};
+  await idbSet(studioKey('studio:index'), {
     list: [{ id, title, type: 'film', updated: now, sceneCount }, ...((idx.list || []).filter(x => x.id !== id))],
   });
 }
@@ -158,7 +159,7 @@ export async function buildFabulaProjectFromTakes(
   // ── Living update: patch the linked project in place instead of spawning a duplicate ──────────
   const linked = opts.forceNew ? null : await getLinkedFabulaProject(production.id);
   if (linked) {
-    const prod = (await idbGet(`studio:prod:${linked.prodId}`)) as any;
+    const prod = (await idbGet(studioKey(`studio:prod:${linked.prodId}`))) as any;
     const keepAssets = (prod.mediaPool || []).filter((a: any) => a.filmProductionId !== production.id); // editor's own imports survive
     prod.mediaPool = [...keepAssets, ...assets];
     prod.bins = [...new Set([...(prod.bins || []), ...bins])];
@@ -167,9 +168,9 @@ export async function buildFabulaProjectFromTakes(
     if (!live) { live = { id: uid(), title: LIVE_EDIT_TITLE, timeline: { clips: [], trackSettings: {} } }; prod.edits.unshift(live); }
     live.timeline = { ...(live.timeline || {}), clips, trackSettings: live.timeline?.trackSettings || {} };
     live.updatedAt = now; prod.liveEditId = live.id; prod.updatedAt = now;
-    await idbSet(`studio:prod:${linked.prodId}`, prod);
+    await idbSet(studioKey(`studio:prod:${linked.prodId}`), prod);
     await bumpIndex(linked.prodId, prod.title, plan.covered, now);
-    if (opts.open !== false) { await idbSet('studio:handoff', { prodId: linked.prodId, editId: live.id }); window.dispatchEvent(new CustomEvent('OPEN_FABULA')); }
+    if (opts.open !== false) { await idbSet(studioKey('studio:handoff'), { prodId: linked.prodId, editId: live.id }); window.dispatchEvent(new CustomEvent('OPEN_FABULA')); }
     return { prodId: linked.prodId, editId: live.id, sceneCount: plan.total, clipCount: plan.covered, takeCount: shot.length, runtime: plan.runtime, updated: true };
   }
 
@@ -188,9 +189,9 @@ export async function buildFabulaProjectFromTakes(
     filmProductionId: production.id,
     createdAt: now, updatedAt: now,
   };
-  await idbSet(`studio:prod:${prodId}`, prod);
+  await idbSet(studioKey(`studio:prod:${prodId}`), prod);
   await bumpIndex(prodId, title, plan.covered, now);
   try { localStorage.setItem(LINK_KEY(production.id), prodId); } catch { /* the link is a convenience */ }
-  if (opts.open !== false) { await idbSet('studio:handoff', { prodId, editId }); window.dispatchEvent(new CustomEvent('OPEN_FABULA')); }
+  if (opts.open !== false) { await idbSet(studioKey('studio:handoff'), { prodId, editId }); window.dispatchEvent(new CustomEvent('OPEN_FABULA')); }
   return { prodId, editId, sceneCount: plan.total, clipCount: plan.covered, takeCount: shot.length, runtime: plan.runtime, updated: false };
 }

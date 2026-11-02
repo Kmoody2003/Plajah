@@ -352,8 +352,8 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
     openPrintWindow(
       statementsHtml([sampleStmt], {
         name: org.name,
-        legalName: org.legalName || `${org.name} Inc.`,
-        ein: org.ein || '58-1948271',
+        legalName: org.legalName,
+        ein: org.ein,
         address: org.location?.address || 'Atlanta, GA',
         faith: true,
       })

@@ -10,7 +10,7 @@ import ContentAssetManager from './ContentAssetManager';
 import { Album } from '../types';
 import { useIdentityFollowsScope } from '../contexts/ActiveIdentityContext';
 import {
-  listHqAssets, listHqAssetsDetailed, listHqSharedWithMe, addHqAsset, deleteHqAsset, humanFileSize,
+  listHqAssets, listHqAssetsDetailed, listHqSharedWithMe, listHqSharedWithOrg, fetchHqScopeCapGb, addHqAsset, deleteHqAsset, getHqAssetText, humanFileSize,
   getOrgDepartmentFolders, getOrgEducationFolderName, isOrgEducationFolderName,
   TEACHER_DOCUMENT_CLASS_FOLDERS, resolveDocumentClassFolder, isStandaloneTeacherScopeId,
   type HqListStatus, type OrgAsset, type OwnerScope,
@@ -18,6 +18,8 @@ import {
 import { ensureAllDetectedLinksOnboarded, listIngestedUnits, type IngestedCurriculumUnit } from '../services/curriculumIngestionService';
 import { restoreHqAsset, trashHqAsset } from '../services/hqCollaboration';
 import HqReviewPanel from './HqReviewPanel';
+import HqSecurityAlerts from './HqSecurityAlerts';
+import { fetchHqAlerts } from '../services/hqSecurityClient';
 import { fetchMySubscription } from '../services/subscriptionService';
 import { resolveContentHqEntitlements } from '../services/contentHqEntitlements';
 import type { ContentHqEntitlements } from '../services/contentHqEntitlements';
@@ -67,10 +69,21 @@ function assetIcon(kind: OrgAsset['kind'], cls = 'w-5 h-5') {
 }
 
 const ContentHQ: React.FC<Props> = ({ scope, canEdit, canViewAnswerKey, mediaOwnerUid, onEditAlbum, onClose }) => {
-  const [tab, setTab] = useState<'FILES' | 'MEDIA' | 'TEMPLATES'>('FILES');
+  const [tab, setTab] = useState<'FILES' | 'MEDIA' | 'TEMPLATES' | 'SECURITY'>('FILES');
   const allowAnswerKeys = canViewAnswerKey ?? canEdit;
+  // The server decides who this tab is for. Everyone else never sees it, and a badge means something is new.
+  const [securityAccess, setSecurityAccess] = useState(false);
+  const [newAlerts, setNewAlerts] = useState(0);
+  useEffect(() => {
+    let live = true;
+    setSecurityAccess(false); setNewAlerts(0);
+    if (scope.kind === 'user') return;
+    fetchHqAlerts(scope).then(r => { if (live && r) { setSecurityAccess(true); setNewAlerts(r.newCount); } });
+    return () => { live = false; };
+  }, [scope.kind, scope.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // That tab is one person's own library, drafts and private items included. It never appears in an org's HQ.
   const showPersonalMedia = scope.kind === 'user' && mediaOwnerUid === auth.currentUser?.uid;
+  const isBusiness = scope.kind === 'business';
 
   return (
     <div className="flex flex-col h-full min-h-0 text-white">
@@ -87,15 +100,15 @@ const ContentHQ: React.FC<Props> = ({ scope, canEdit, canViewAnswerKey, mediaOwn
         </div>
         {!canEdit && <span className="ml-2 flex items-center gap-1 text-[10px] text-white/40"><Lock className="w-3 h-3" /> Read-only</span>}
         <div className="ml-auto flex gap-1.5 flex-wrap justify-end">
-          <button
+          {!isBusiness && <button
             type="button"
             onClick={() => openLessonLibrary(scope.kind === 'org' && !isStandaloneTeacherScopeId(scope.id) ? { orgId: scope.id, orgName: scope.label } : { mine: true })}
             className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest bg-[#34e0d0]/15 text-[#34e0d0] border border-[#34e0d0]/40 hover:bg-[#34e0d0]/25"
             title="Lessons, assignments and exams as Tela pages: preview, copy, assign and schedule"
           >
             <BookOpen className="w-3.5 h-3.5" /> Lesson Library
-          </button>
-          {([['FILES', 'Files & Docs', FolderOpen], ...(showPersonalMedia ? [['MEDIA', 'Media Library', Library]] as const : []), ['TEMPLATES', 'Templates', LayoutTemplate]] as const).map(([id, label, Icon]) => (
+          </button>}
+          {([['FILES', 'Files & Docs', FolderOpen], ...(showPersonalMedia ? [['MEDIA', 'Media Library', Library]] as const : []), ...(isBusiness ? [] : [['TEMPLATES', 'Templates', LayoutTemplate]] as const)] as const).map(([id, label, Icon]) => (
             <button key={id} onClick={() => setTab(id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-colors ${
                 tab === id ? 'bg-white text-black' : 'bg-white/5 text-white/50 hover:text-white'
@@ -103,11 +116,22 @@ const ContentHQ: React.FC<Props> = ({ scope, canEdit, canViewAnswerKey, mediaOwn
               <Icon className="w-3.5 h-3.5" /> {label}
             </button>
           ))}
+          {securityAccess && (
+            <button onClick={() => setTab('SECURITY')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-colors ${
+                tab === 'SECURITY' ? 'bg-white text-black' : 'bg-white/5 text-white/50 hover:text-white'
+              }`}>
+              <ShieldAlert className="w-3.5 h-3.5" /> Security
+              {newAlerts > 0 && <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-red-500 text-white">{newAlerts}</span>}
+            </button>
+          )}
         </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden px-6 lg:px-8 pb-6">
-        {tab === 'FILES'
+        {tab === 'SECURITY'
+          ? <HqSecurityAlerts scope={scope} onSeen={() => setNewAlerts(0)} onOpenFile={id => { setTab('FILES'); openHqAsset(id); }} />
+          : tab === 'FILES'
           ? <HqFilesTab scope={scope} canEdit={canEdit} canViewAnswerKey={allowAnswerKeys} />
           : tab === 'TEMPLATES'
             ? <HqTemplatesTab scope={{ kind: scope.kind === 'org' && !isStandaloneTeacherScopeId(scope.id) ? 'org' : 'user', id: scope.id, label: scope.label }} canEdit={canEdit} viewer={{ uid: auth.currentUser?.uid || 'local', name: auth.currentUser?.displayName || 'You' }} />
@@ -127,7 +151,9 @@ export const HqFilesTab: React.FC<{
   const allowAnswerKeyAccess = canViewAnswerKey ?? canEdit;
   const isUserScope = scope.kind === 'user' || isStandaloneTeacherScopeId(scope.id);
   const isTeacherScope = isStandaloneTeacherScopeId(scope.id);
-  useIdentityFollowsScope(isUserScope ? null : scope.id);
+  const isOrgScope = scope.kind === 'org' && !isTeacherScope;
+  // A business isn't an org account. Its files open from its own dashboard, which is the identity that matters there.
+  useIdentityFollowsScope(isOrgScope ? scope.id : null);
   const resolvedOrgName = scope.label || (isUserScope ? 'My files' : 'Organization');
   const orgEducationFolderName = getOrgEducationFolderName(resolvedOrgName);
 
@@ -164,7 +190,7 @@ export const HqFilesTab: React.FC<{
     setLoading(true);
     try {
       // Only an org's own id: a missing scope must not fall back to another org's library.
-      if (!isUserScope && scope.id) {
+      if (isOrgScope && scope.id) {
         await ensureAllDetectedLinksOnboarded(
           scope.id,
           undefined,
@@ -174,7 +200,9 @@ export const HqFilesTab: React.FC<{
       const { assets: rows, status } = await listHqAssetsDetailed(scope);
       setAssets(rows);
       setListStatus(status);
+      // A person's list and an org's list never mix: a file shared with an org doesn't reach anyone's personal account.
       if (isUserScope) setSharedWithMe(await listHqSharedWithMe());
+      else if (isOrgScope) setSharedWithMe(await listHqSharedWithOrg(scope.id));
     } catch { setListStatus('offline'); }
     setLoading(false);
   };
@@ -210,6 +238,12 @@ export const HqFilesTab: React.FC<{
     if (scope.kind === 'org') {
       const next = resolveContentHqEntitlements({ organization: { id: scope.id } as any });
       setEntitlements(next); setProEnabled(true); return;
+    }
+    if (scope.kind === 'business') {
+      // Storage comes from the owner's plan, which only the server can read for a staff member.
+      setProEnabled(true);
+      fetchHqScopeCapGb(scope).then(gb => setEntitlements(e => ({ ...e, storageLimitGb: gb }))).catch(() => {});
+      return;
     }
     fetchMySubscription().then(subscription => {
       const next = resolveContentHqEntitlements({ subscription });
@@ -304,7 +338,7 @@ export const HqFilesTab: React.FC<{
   }), [viewingShared, sharedWithMe, visibleAssets, folder, isUserScope, docClassFilter, variantFilter, search]);
 
   // The library lesson an asset belongs to (its Original, Tela document or key), for "Assign to class".
-  const lessonUnits = useMemo(() => listIngestedUnits(scope.id, undefined, scope.label), [scope.id, scope.label, assets]);
+  const lessonUnits = useMemo(() => (scope.kind === 'business' ? [] : listIngestedUnits(scope.id, undefined, scope.label)), [scope.kind, scope.id, scope.label, assets]);
   const lessonFor = (a: OrgAsset): IngestedCurriculumUnit | undefined => {
     if (a.assetVariant === 'ANSWER_KEY') return undefined;
     return lessonUnits.find(u => u.originalAssetId === a.id || u.telaAssetId === a.id || (!!a.telaDocId && u.telaDocId === a.telaDocId));
@@ -319,21 +353,34 @@ export const HqFilesTab: React.FC<{
   };
 
   // Resolve paired asset when previewing a curriculum item as a Tela Document
-  const resolveTelaPreviewProps = (asset: OrgAsset) => {
+  const [previewText, setPreviewText] = useState<{ original?: string; key?: string }>({});
+  useEffect(() => {
+    if (!telaPreviewAsset) { setPreviewText({}); return; }
+    let live = true;
+    const { originalAsset, answerKeyAsset } = telaPreviewSources(telaPreviewAsset);
+    Promise.all([getHqAssetText(originalAsset), answerKeyAsset ? getHqAssetText(answerKeyAsset) : Promise.resolve('')])
+      .then(([original, key]) => { if (live) setPreviewText({ original, key }); });
+    return () => { live = false; };
+  }, [telaPreviewAsset?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const telaPreviewSources = (asset: OrgAsset) => {
     const paired = asset.pairedAssetId ? assets.find((x) => x.id === asset.pairedAssetId) : undefined;
     const telaDocId = asset.telaDocId || paired?.telaDocId;
     const originalAsset = asset.assetVariant === 'ORIGINAL_SOURCE' ? asset : (paired?.assetVariant === 'ORIGINAL_SOURCE' ? paired : asset);
     const answerKeyAsset = allowAnswerKeyAccess
-      ? assets.find(
-          (x) => x.assetVariant === 'ANSWER_KEY' && (x.telaDocId === telaDocId || x.pairedAssetId === asset.id)
-        )
+      ? assets.find((x) => x.assetVariant === 'ANSWER_KEY' && (x.telaDocId === telaDocId || x.pairedAssetId === asset.id))
       : undefined;
+    return { telaDocId, originalAsset, answerKeyAsset };
+  };
+
+  const resolveTelaPreviewProps = (asset: OrgAsset) => {
+    const { telaDocId, originalAsset } = telaPreviewSources(asset);
     return {
       title: asset.name.replace(/\s*\((Original Source|Original Document|Interactive Tela Document|Teacher Answer Key)\)\s*$/i, ''),
       telaDocId,
       originalUrl: originalAsset?.sourceUrl || asset.sourceUrl || (asset as any).downloadUrl,
-      originalText: originalAsset?.rawContentText || asset.rawContentText,
-      answerKeyText: allowAnswerKeyAccess ? answerKeyAsset?.rawContentText : undefined,
+      originalText: previewText.original || undefined,
+      answerKeyText: allowAnswerKeyAccess ? previewText.key || undefined : undefined,
       canViewAnswerKey: allowAnswerKeyAccess,
       orgName: resolvedOrgName,
       departmentFolder: asset.folder || (isUserScope ? 'Lessons & Course Resources' : orgEducationFolderName),
@@ -464,7 +511,7 @@ export const HqFilesTab: React.FC<{
             })}
           </div>}
 
-          {!isUserScope && folder === orgEducationFolderName && (
+          {isOrgScope && folder === orgEducationFolderName && (
             <div className="pt-2 border-t border-white/10 flex items-center gap-1.5 overflow-x-auto">
               <button
                 type="button"
@@ -599,7 +646,7 @@ export const HqFilesTab: React.FC<{
               const isOriginalVariant = a.assetVariant === 'ORIGINAL_SOURCE';
               const isAnswerKeyVariant = a.assetVariant === 'ANSWER_KEY';
               const canPreviewAsTela = Boolean(
-                a.telaDocId || a.assetVariant || a.rawContentText || isOrgEducationFolderName(a.folder, resolvedOrgName)
+                a.telaDocId || a.assetVariant || a.rawContentText || a.hasText || isOrgEducationFolderName(a.folder, resolvedOrgName)
               );
               return (
                 <div key={a.id} onClick={() => setDetail(a)}
@@ -655,7 +702,7 @@ export const HqFilesTab: React.FC<{
 
                   {/* Action bar for Tela Document Preview + Source Link + Trash */}
                   <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between gap-1.5">
-                    {canEdit && !viewingShared && lessonFor(a) && (lessonFor(a)!.questions.length > 0 || isUserScope) && (
+                    {canEdit && !viewingShared && scope.kind !== 'business' && lessonFor(a) && (lessonFor(a)!.questions.length > 0 || isUserScope) && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -670,7 +717,7 @@ export const HqFilesTab: React.FC<{
                       </button>
                     )}
                     {/* Anything else — a syllabus, handout, photo, video, file — goes to a class without becoming a lesson. */}
-                    {canEdit && !viewingShared && !isUserScope && !(lessonFor(a) && lessonFor(a)!.questions.length > 0) && a.assetVariant !== 'ANSWER_KEY' && (
+                    {canEdit && !viewingShared && isOrgScope && !(lessonFor(a) && lessonFor(a)!.questions.length > 0) && a.assetVariant !== 'ANSWER_KEY' && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -723,7 +770,7 @@ export const HqFilesTab: React.FC<{
       </div>
 
       {detail && (
-        <HqReviewPanel asset={detail} canEdit={canEdit && detail.scopeId !== undefined && !sharedWithMe.some(s => s.id === detail.id)} proEnabled={proEnabled}
+        <HqReviewPanel asset={detail} canEdit={canEdit && detail.scopeId !== undefined && !sharedWithMe.some(s => s.id === detail.id)} orgCopy={isOrgScope && sharedWithMe.some(s => s.id === detail.id)} proEnabled={proEnabled}
           onClose={() => setDetail(null)} onChanged={() => { load(); loadTrash(); }} />
       )}
 

@@ -137,7 +137,9 @@ import { CollabDock } from "../collab/CollabDock";
 import { scheduleCreativeSync } from "../../services/creativeCloud/cloudStore";
 import { coProjectId, listSharedWithMe } from "../../services/coedit/project";
 import { loadSharedDoc } from "../../services/coedit/session";
-import { portableProduction, portableJson, overlayLocalMedia, mergeThreeWay, reconcile as reconcileProd, markPending, clearPending, listPending, getBase, setBase, dropSyncState, withTimeout, fabulaLabeler, deviceOnlyAssets } from "../../services/fabula/fabulaSync";
+import { onBeforeSignOut, scopedKey, whenAuthKnown } from "../../services/userScope";
+import { listCloudProjects } from "../../services/creativeCloud/cloudStore";
+import { adoptCloudListedProductions, studioKey, portableProduction, portableJson, overlayLocalMedia, mergeThreeWay, reconcile as reconcileProd, markPending, clearPending, listPending, getBase, setBase, dropSyncState, withTimeout, fabulaLabeler, deviceOnlyAssets } from "../../services/fabula/fabulaSync";
 // Film Production (Development → Release pipeline) lives as a page inside the editor; lazy so the
 // editor boot doesn't pay for the production suite until the tab is opened.
 const FabulaStudio = lazy(() => import("./FabulaStudio"));
@@ -310,7 +312,7 @@ const isMediaKey = (k) => typeof k === "string" && (k.startsWith("studio:blob:")
 async function stGet(k) {
   try {
     if (isMediaKey(k)) return (await mediaGetBytes(k)) || null;
-    const r = await idbGet(k);
+    const r = await idbGet(studioKey(k));
     if (r !== undefined && r !== null) return r;
     if (typeof window !== "undefined" && window.storage?.get) {
       const legacy = await window.storage.get(k);
@@ -319,8 +321,8 @@ async function stGet(k) {
     return null;
   } catch { return null; }
 }
-async function stSet(k, v) { try { if (isMediaKey(k)) return await mediaPutBytes(k, v); await idbSet(k, v); return true; } catch { return false; } }
-async function stDel(k) { try { if (isMediaKey(k)) { await mediaDelBytes(k); return; } await idbDel(k); } catch {} }
+async function stSet(k, v) { try { if (isMediaKey(k)) return await mediaPutBytes(k, v); await idbSet(studioKey(k), v); return true; } catch { return false; } }
+async function stDel(k) { try { if (isMediaKey(k)) { await mediaDelBytes(k); return; } await idbDel(studioKey(k)); } catch {} }
 
 /* ---------------- Claude API + robust JSON ---------------- */
 // Firebase restores the session asynchronously on load, so auth.currentUser can be
@@ -931,6 +933,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
 
   /* ----- boot ----- */
   useEffect(() => { (async () => {
+    await whenAuthKnown();
     let localList = [];
     try { const idx = await stGet("studio:index"); localList = idx?.list || []; setIndex(localList); setStorageReady(true); }
     catch { setStorageReady(false); }
@@ -1015,8 +1018,8 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         // Blob was stashed under a plain idb key; pull it, then import it as a new edit silently.
         await stDel("studio:handoff");
         try {
-          const rec = await idbGet("fabula:incomingClip");
-          await idbDel("fabula:incomingClip");
+          const rec = await idbGet(scopedKey("fabula:incomingClip"));
+          await idbDel(scopedKey("fabula:incomingClip"));
           if (rec?.blob) {
             const file = new File([rec.blob], rec.name || "live-clip.webm", { type: rec.mime || "video/webm" });
             importEditToProduction(file, "scene");
@@ -1059,10 +1062,12 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   const recoverProjects = async () => {
     try {
       const allKeys = await idbKeys();
-      const prodKeys = (allKeys || []).filter((k) => typeof k === "string" && k.startsWith("studio:prod:"));
+      // This account's copies only. Another account's store isn't a place to recover from.
+      const mine = studioKey("studio:prod:");
+      const prodKeys = (allKeys || []).filter((k) => typeof k === "string" && k.startsWith(mine)).map((k) => k.slice(mine.length));
       const found = [];
-      for (const k of prodKeys) {
-        const p = await stGet(k);
+      for (const id of prodKeys) {
+        const p = await stGet("studio:prod:" + id);
         if (p && p.id) {
           const sceneCount = (p.acts || []).reduce((n, a) => n + (a.scenes || []).length, 0);
           found.push({ id: p.id, title: p.title || "Untitled", type: p.type || "film", updated: p.updatedAt || Date.now(), sceneCount });
@@ -1079,7 +1084,19 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       return added;
     } catch { return 0; }
   };
-  useEffect(() => { const t = setTimeout(() => recoverProjects(), 400); return () => clearTimeout(t); }, []);
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      await whenAuthKnown();
+      if (auth.currentUser) {
+        const [fabulaCloud, creative] = await Promise.all([listProjectsCloud().catch(() => []), listCloudProjects("fabula").catch(() => [])]);
+        await adoptCloudListedProductions([...fabulaCloud.map((e) => e.id), ...creative.map((h) => h.localId)]).catch(() => 0);
+      }
+      recoverProjects();
+    }, 400);
+    return () => clearTimeout(t);
+  }, []);
+  // Save what the debounce is still holding while this account is signed in.
+  useEffect(() => onBeforeSignOut(async () => { if (prodRef.current?.id) await stSet("studio:prod:" + prodRef.current.id, prodRef.current); }), []);
   const onRecover = async () => { const n = await recoverProjects(); ping(n ? `Recovered ${n} project${n > 1 ? "s" : ""}.` : "No additional projects found in storage."); };
 
   /* ----- persistence (debounced full-production save) -----
@@ -2122,7 +2139,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       const isLottie = /\.(lottie)$/i.test(f.name) || (/\.json$/i.test(f.name)) || f.type === "application/json";
       const type = isLottie ? "lottie" : f.type.startsWith("video") ? "video" : f.type.startsWith("audio") ? "audio" : "image";
       const id = uid();
-      if (handle) { try { await idbSet("studio:handle:" + id, handle); } catch { /* handle not persistable here */ } }
+      if (handle) { try { await idbSet(studioKey("studio:handle:" + id), handle); } catch { /* handle not persistable here */ } }
       addAssetToPool({ id, name: f.name, type, url: URL.createObjectURL(f), duration: type === "image" ? 0 : 5, session: true, bin: "imports", ...(handle ? { localFileHandle: true } : {}) });
       stSet("studio:blob:" + id, f); // local fallback + cloud-sync source (the bytes are already in hand — never a re-download)
       added.push({ id, f, type });

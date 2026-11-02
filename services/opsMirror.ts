@@ -37,6 +37,14 @@ export async function mirrorDoc(authHeaders: AuthHeaders, collection: string, id
     }
     if (!src.ok) return 'error';
     const j = await src.json() as { fields?: Record<string, unknown> };
+    // Business seats live on private/staff; the ops rules still read them here, on the mirror only.
+    if (collection === 'businessPages') {
+      const seats = await fetch(`${root(PROD_DATABASE_ID)}/${path}/private/staff`, { headers: h });
+      if (seats.ok) {
+        const s = await seats.json() as { fields?: Record<string, unknown> };
+        j.fields = { ...(j.fields || {}), ...(s.fields?.staffUids ? { staffUids: s.fields.staffUids } : {}), ...(s.fields?.staffSeats ? { staffSeats: s.fields.staffSeats } : {}) };
+      } else if (seats.status !== 404) return 'error';
+    }
     // PATCH without an update mask replaces the whole document, so removed fields are removed here too.
     const put = await fetch(`${root(OPS_DATABASE_ID)}/${path}`, {
       method: 'PATCH', headers: { ...h, 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: j.fields || {} }),

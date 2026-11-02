@@ -9,10 +9,13 @@
 // with authLimiter applied to the /login path.
 
 import { Router, Request, Response } from 'express';
+import { randomBytes } from 'node:crypto';
 import {
   createCustomToken, verifyIdToken, hashPassword, verifyPassword,
-  fsGet, fsSet, fsPatch, fsCreate, adminConfig,
+  fsGet, fsSet, fsPatch, fsCreate, fsQuery, fsGetUser, fsPatchUser, adminConfig,
 } from '../services/firebaseAdminRest';
+import { fsAddClassMember, fsClassRoster } from '../services/firebaseAdminRest';
+import { lookupAuthUser, lookupUidByEmail } from '../services/notify/emailNotifyServer';
 import {
   isValidUsername, isValidChildPassword, createClaimToken, validateClaim,
   canProvisionChildren, provisioningCaps, type TeacherVerification, type ClaimToken,
@@ -77,27 +80,29 @@ learnerAuthRouter.post('/provision', async (req: Request, res: Response) => {
   const cleanPassword = String(password);
 
   const profile: Record<string, unknown> = {
-    uid: childUid, displayName, photoURL: '', email: '',
+    uid: childUid, displayName, photoURL: '',
     isChild: true, accountType: 'CHILD', username: cleanUsername,
     childState, role: 'user', tier: 'FREE',
     followerCount: 0, followingCount: 0, createdAt: now,
+  };
+  const privateProfile: Record<string, unknown> = {
     // reading-voice consent is decided by the adult creating the account (parent, or school for a teacher-
     // provisioned student) so a child never waits for an absent adult before Chora can listen
     parentalControls: {
       ...CHILD_CONTROLS,
       ...(speechRecognition === true ? { speechRecognition: true } : {}),
-      savedChildPassword: cleanPassword,
       updatedAt: now,
       updatedBy: uid,
     },
     ...(typeof birthYear === 'number' ? { birthYear } : {}),
     ...(asTeacher ? { provisionedByTeacherUid: uid } : { guardianUid: uid }),
   };
+  // Private half first: a child's public doc never exists without its guardian link and controls.
+  if (!(await fsSet(`${USER(childUid)}/private/profile`, privateProfile))) return res.status(502).json({ error: 'Could not create the account.' });
   if (!(await fsSet(USER(childUid), profile))) return res.status(502).json({ error: 'Could not create the account.' });
   await fsSet(CRED(cleanUsername), {
     childUid,
     hash: hashPassword(cleanPassword),
-    savedPassword: cleanPassword,
     createdBy: uid,
     createdAt: now,
     failedAttempts: 0,
@@ -111,9 +116,9 @@ learnerAuthRouter.post('/provision', async (req: Request, res: Response) => {
     claimCode = token.code;
   } else {
     // Link to the parent's childUids.
-    const parent = await fsGet(USER(uid));
+    const parent = await fsGetUser(uid);
     const kids: string[] = Array.isArray(parent?.childUids) ? parent!.childUids : [];
-    if (!kids.includes(childUid)) await fsPatch(USER(uid), { childUids: [...kids, childUid] });
+    if (!kids.includes(childUid)) await fsPatchUser(uid, { childUids: [...kids, childUid] });
   }
   if (speechRecognition === true) await audit(childUid, uid, 'consent', asTeacher ? 'voca-speech:school' : 'voca-speech:guardian');
   if (classroomId && typeof classroomId === 'string') await audit(childUid, uid, 'provision', `class:${classroomId}`);
@@ -168,10 +173,10 @@ learnerAuthRouter.post('/claim', async (req: Request, res: Response) => {
   if (!check.ok) return res.status(409).json({ error: check.reason });
 
   // Transfer ownership: guardian = claimer; state → PARENT_OWNED (teacher keeps classroom-scoped view).
-  await fsPatch(USER(token.childUid), { guardianUid: uid, childState: 'PARENT_OWNED' });
-  const parent = await fsGet(USER(uid));
+  await fsPatchUser(token.childUid, { guardianUid: uid, childState: 'PARENT_OWNED' });
+  const parent = await fsGetUser(uid);
   const kids: string[] = Array.isArray(parent?.childUids) ? parent!.childUids : [];
-  if (!kids.includes(token.childUid)) await fsPatch(USER(uid), { childUids: [...kids, token.childUid] });
+  if (!kids.includes(token.childUid)) await fsPatchUser(uid, { childUids: [...kids, token.childUid] });
   await fsPatch(CLAIM(String(claimCode)), { usedAt: Date.now() });
   await audit(token.childUid, uid, 'claim');
 
@@ -186,21 +191,16 @@ learnerAuthRouter.get('/child-credentials', async (req: Request, res: Response) 
   const childUid = String(req.query.childUid || '').trim();
   if (!childUid) return res.status(400).json({ error: 'childUid is required.' });
 
-  const child = await fsGet(USER(childUid));
+  const child = await fsGetUser(childUid);
   if (!child) return res.status(404).json({ error: 'Child account not found.' });
   const allowed = child.guardianUid === uid || child.provisionedByTeacherUid === uid;
   if (!allowed) return res.status(403).json({ error: 'Only this child\'s parent or teacher can view credentials.' });
 
   const username = String(child.username || '').trim().toLowerCase();
   const cred = username ? await fsGet(CRED(username)) : null;
-  const savedPassword = String(
-    cred?.savedPassword || (child.parentalControls as any)?.savedChildPassword || ''
-  );
-
   return res.json({
     childUid,
     username,
-    savedPassword,
     hasPasswordHash: Boolean(cred?.hash),
     failedAttempts: Number(cred?.failedAttempts || 0),
     lockedUntil: Number(cred?.lockedUntil || 0),
@@ -209,7 +209,7 @@ learnerAuthRouter.get('/child-credentials', async (req: Request, res: Response) 
 
 // ── POST /reset-password ──────────────────────────────────────────────────────────
 // Guardian or the provisioning teacher sets/resets a child's password (and can assign a username
-// if the child profile was created without one). Also stores savedPassword for guardian viewing.
+// if the child profile was created without one). Only a hash is kept: the adult sees the new password once.
 learnerAuthRouter.post('/reset-password', async (req: Request, res: Response) => {
   const uid = await callerUid(req);
   if (!uid) return res.status(401).json({ error: 'Sign in first.' });
@@ -222,7 +222,7 @@ learnerAuthRouter.post('/reset-password', async (req: Request, res: Response) =>
   const targetChildUid = String(bodyChildUid || cred?.childUid || '').trim();
   if (!targetChildUid) return res.status(400).json({ error: 'Child account or username is required.' });
 
-  const child = await fsGet(USER(targetChildUid));
+  const child = await fsGetUser(targetChildUid);
   if (!child) return res.status(404).json({ error: 'Child account not found.' });
   const allowed = child.guardianUid === uid || child.provisionedByTeacherUid === uid;
   if (!allowed) return res.status(403).json({ error: 'Only this child\'s parent or teacher can reset the password.' });
@@ -247,7 +247,6 @@ learnerAuthRouter.post('/reset-password', async (req: Request, res: Response) =>
   await fsSet(CRED(targetUsername), {
     childUid: targetChildUid,
     hash: hashPassword(cleanPw),
-    savedPassword: cleanPw,
     createdBy: cred?.createdBy || uid,
     createdAt: cred?.createdAt || now,
     updatedAt: now,
@@ -255,21 +254,20 @@ learnerAuthRouter.post('/reset-password', async (req: Request, res: Response) =>
     lockedUntil: 0,
   });
 
-  const existingControls = (child.parentalControls && typeof child.parentalControls === 'object')
+  const { savedChildPassword: _dropped, ...existingControls } = ((child.parentalControls && typeof child.parentalControls === 'object')
     ? child.parentalControls
-    : CHILD_CONTROLS;
-  await fsPatch(USER(targetChildUid), {
+    : CHILD_CONTROLS) as Record<string, unknown>;
+  await fsPatchUser(targetChildUid, {
     username: targetUsername,
     parentalControls: {
       ...existingControls,
-      savedChildPassword: cleanPw,
       updatedAt: now,
       updatedBy: uid,
     },
   });
 
   await audit(targetChildUid, uid, 'access', 'password-reset');
-  return res.json({ ok: true, username: targetUsername, savedPassword: cleanPw });
+  return res.json({ ok: true, username: targetUsername });
 });
 
 // ── POST /unlock ────────────────────────────────────────────────────────────────
@@ -284,7 +282,7 @@ learnerAuthRouter.post('/unlock', async (req: Request, res: Response) => {
   const cred = await fsGet(CRED(targetUsername));
   const resolvedChildUid = String(childUid || cred?.childUid || '');
   if (!resolvedChildUid) return res.status(404).json({ error: 'Account not found.' });
-  const child = await fsGet(USER(resolvedChildUid));
+  const child = await fsGetUser(resolvedChildUid);
   const allowed = child && (child.guardianUid === uid || child.provisionedByTeacherUid === uid);
   if (!allowed) return res.status(403).json({ error: 'Only this child\'s parent or teacher can unlock the account.' });
 
@@ -309,12 +307,121 @@ function classifyTeacherEmail(email: string): TeacherVerification | null {
   return null;
 }
 
+// ── POST /guardians-of ─────────────────────────────────────────────────────────
+// Teachers loop parents in (assignments, attendance, chat CC) but can't read a student's private doc.
+// Returns guardian uids only, only for a student the caller teaches, guards, is, or shares a chat room with.
+learnerAuthRouter.post('/guardians-of', async (req: Request, res: Response) => {
+  const uid = await callerUid(req);
+  if (!uid) return res.status(401).json({ error: 'Sign in first.' });
+  const uids: string[] = (Array.isArray(req.body?.uids) ? req.body.uids : []).filter((x: unknown) => typeof x === 'string' && x).slice(0, 300);
+  const roomId = typeof req.body?.roomId === 'string' ? req.body.roomId : '';
+  const room = roomId ? await fsGet(`chat_rooms/${roomId}`) : null;
+  const inRoom: string[] = room && Array.isArray(room.participants) && room.participants.includes(uid) ? room.participants : [];
+  const owned = await fsQuery('classrooms', [{ field: 'ownerId', value: uid }], 200);
+  const taught = new Set<string>();
+  for (const roster of await Promise.all(owned.map(c => fsClassRoster(c.id, c.data)))) for (const s of roster) taught.add(String(s));
+  const guardians: Record<string, string[]> = {};
+  await Promise.all(uids.map(async (s) => {
+    const priv = (await fsGet(`${USER(s)}/private/profile`)) || {};
+    const links = [priv.guardianUid, ...(Array.isArray(priv.coGuardianUids) ? priv.coGuardianUids : [])].filter(Boolean) as string[];
+    if (s === uid || links.includes(uid) || taught.has(s) || inRoom.includes(s) || priv.provisionedByTeacherUid === uid) guardians[s] = [...new Set(links)];
+  }));
+  return res.json({ guardians });
+});
+
+// ── Class join codes ───────────────────────────────────────────────────────────
+// A class that isn't open is joined with a code its teacher hands out. classJoinCodes has no client rule:
+// only the server reads it, so a code can't be listed or guessed through Firestore.
+learnerAuthRouter.post('/class-code', async (req: Request, res: Response) => {
+  const uid = await callerUid(req);
+  if (!uid) return res.status(401).json({ error: 'Sign in first.' });
+  const classId = String(req.body?.classId || '');
+  const cls = classId ? await fsGet(`classrooms/${classId}`) : null;
+  if (!cls || cls.ownerId !== uid) return res.status(403).json({ error: 'Only the teacher can see the code.' });
+  const existing = await fsQuery('classJoinCodes', [{ field: 'classId', value: classId }], 1);
+  if (existing[0]) return res.json({ code: existing[0].id });
+  const code = randomBytes(6).toString('base64').replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8);
+  if (code.length < 8 || !(await fsSet(`classJoinCodes/${code}`, { classId, ownerId: uid, createdAt: Date.now() }))) {
+    return res.status(502).json({ error: 'Could not make a code. Try again.' });
+  }
+  return res.json({ code });
+});
+
+learnerAuthRouter.post('/join-class', async (req: Request, res: Response) => {
+  const uid = await callerUid(req);
+  if (!uid) return res.status(401).json({ error: 'Sign in first.' });
+  const code = String(req.body?.code || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  const rec = code ? await fsGet(`classJoinCodes/${code}`) : null;
+  const cls = rec ? await fsGet(`classrooms/${rec.classId}`) : null;
+  if (!rec || !cls) return res.status(404).json({ error: 'That code was not found.' });
+  // A code never skips payment: paid courses are joined through checkout.
+  if (Number(cls.price) > 0) return res.status(409).json({ error: 'This course is joined through checkout.' });
+  const enrolled = await fsClassRoster(rec.classId, cls);
+  if (enrolled.includes(uid)) return res.json({ classId: rec.classId });
+  const capacity = Number(cls.capacity) || 0;
+  if (capacity > 0 && enrolled.length >= capacity) return res.status(409).json({ error: 'This class is full.' });
+  if ((await fsAddClassMember(rec.classId, uid)) === 'error') return res.status(502).json({ error: 'Could not join. Try again.' });
+  return res.json({ classId: rec.classId });
+});
+
+// Free course self-enrolment: only a published class its owner opened, within the seat cap. Paid courses go through
+// checkout, closed classes through a code. Rosters aren't client-writable.
+learnerAuthRouter.post('/join-open-class', async (req: Request, res: Response) => {
+  const uid = await callerUid(req);
+  if (!uid) return res.status(401).json({ error: 'Sign in first.' });
+  const classId = String(req.body?.classId || '');
+  const cls = /^[A-Za-z0-9_-]{1,120}$/.test(classId) ? await fsGet(`classrooms/${classId}`) : null;
+  if (!cls) return res.status(404).json({ error: 'That class was not found.' });
+  if (Number(cls.price) > 0) return res.status(409).json({ error: 'This course is joined through checkout.' });
+  if (cls.enrollment !== 'open' || cls.status === 'DRAFT') return res.status(403).json({ error: 'This class needs a join code from the teacher.' });
+  const enrolled = await fsClassRoster(classId, cls);
+  if (enrolled.includes(uid)) return res.json({ classId });
+  const capacity = Number(cls.capacity) || 0;
+  if (capacity > 0 && enrolled.length >= capacity) return res.status(409).json({ error: 'This class is full.' });
+  if ((await fsAddClassMember(classId, uid)) === 'error') return res.status(502).json({ error: 'Could not join. Try again.' });
+  return res.json({ classId });
+});
+
+// Which classes a child is in, for their guardian or provisioning teacher. Rules only let a person list their own.
+learnerAuthRouter.post('/classes-of', async (req: Request, res: Response) => {
+  const uid = await callerUid(req);
+  if (!uid) return res.status(401).json({ error: 'Sign in first.' });
+  const who = String(req.body?.uid || '');
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(who)) return res.status(400).json({ error: 'Bad request.' });
+  const priv = (await fsGet(`${USER(who)}/private/profile`)) || {};
+  const allowed = who === uid || priv.guardianUid === uid || (Array.isArray(priv.coGuardianUids) && priv.coGuardianUids.includes(uid)) || priv.provisionedByTeacherUid === uid;
+  if (!allowed) return res.status(403).json({ error: 'Not your student.' });
+  const rows = await fsQuery('classMembers', [{ field: 'uid', value: who }], 200);
+  return res.json({ classIds: rows.map(r => String(r.data.classId)) });
+});
+
+// ── POST /brand-manager ────────────────────────────────────────────────────────
+// Adding a manager by email. Emails aren't queryable from the client, so the brand's owner asks here.
+learnerAuthRouter.post('/brand-manager', async (req: Request, res: Response) => {
+  const uid = await callerUid(req);
+  if (!uid) return res.status(401).json({ error: 'Sign in first.' });
+  const brandId = String(req.body?.brandId || '');
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  if (!brandId || !email) return res.status(400).json({ error: 'Brand and email are required.' });
+  const brand = await fsGet(`brand_accounts/${brandId}`);
+  if (!brand || brand.ownerId !== uid) return res.status(403).json({ error: 'Only the brand owner can add managers.' });
+  const managerUid = await lookupUidByEmail(email);
+  if (!managerUid) return res.status(404).json({ error: 'User not found' });
+  const managers: string[] = Array.isArray(brand.managers) ? brand.managers : [];
+  await fsPatch(`brand_accounts/${brandId}`, { managers: [...new Set([...managers, managerUid])] });
+  const m = await fsGet(USER(managerUid));
+  const ids: string[] = Array.isArray(m?.managedBrandIds) ? m!.managedBrandIds : [];
+  await fsPatch(USER(managerUid), { managedBrandIds: [...new Set([...ids, brandId])] });
+  return res.json({ ok: true });
+});
+
 learnerAuthRouter.get('/teacher-status', async (req: Request, res: Response) => {
   const uid = await callerUid(req);
   if (!uid) return res.status(401).json({ error: 'Sign in.' });
   const u = await fsGet(USER(uid));
   const verification = (u?.teacherVerification ?? 'UNVERIFIED') as TeacherVerification;
-  return res.json({ verification, email: u?.email || '', canProvision: canProvisionChildren(verification) });
+  const account = await lookupAuthUser(uid);
+  return res.json({ verification, email: account?.email || '', canProvision: canProvisionChildren(verification) });
 });
 
 learnerAuthRouter.post('/request-teacher', async (req: Request, res: Response) => {
@@ -324,11 +431,13 @@ learnerAuthRouter.post('/request-teacher', async (req: Request, res: Response) =
   const u = await fsGet(USER(uid));
   if (!u) return res.status(404).json({ error: 'Account not found.' });
 
-  const cls = classifyTeacherEmail(String(u.email || ''));
+  // Only the address Firebase Auth has verified counts: a profile field could be typed by anyone.
+  const account = await lookupAuthUser(uid);
+  const cls = account?.emailVerified ? classifyTeacherEmail(String(account.email || '')) : null;
   if (cls) {
     await fsPatch(USER(uid), { teacherVerification: cls, isTeacher: true });
     return res.json({ verification: cls, pending: false, canProvision: true });
   }
-  await fsSet(`teacherVerificationRequests/${uid}`, { uid, email: u.email || '', requestedAt: Date.now(), status: 'PENDING' });
+  await fsSet(`teacherVerificationRequests/${uid}`, { uid, email: account?.email || '', requestedAt: Date.now(), status: 'PENDING' });
   return res.json({ verification: 'UNVERIFIED', pending: true, canProvision: false });
 });

@@ -8,6 +8,7 @@
 //     Reading Quest, Language Quest, submitted assignments)
 //  3. Child social posts (`posts` authored by the child)
 
+import { readPrivateProfile } from './userPrivate';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from './firebase';
 import type { UserProfile, ChildActivityEntry, ChildScreenTimeSummary } from '../types';
@@ -251,7 +252,7 @@ export async function loadChildActivityReport(
   try {
     const snap = await getDoc(doc(db, 'users', childUid));
     if (snap.exists()) {
-      freshChild = { uid: snap.id, ...(snap.data() as any) } as UserProfile;
+      freshChild = { uid: snap.id, ...(snap.data() as any), ...(await readPrivateProfile(childUid)) } as UserProfile;
     }
   } catch { /* fallback to passed child */ }
 

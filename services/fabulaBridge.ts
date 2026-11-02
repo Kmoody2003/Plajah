@@ -12,6 +12,7 @@
 // effectively a NESTED clip in Fabula (it expands to a Pixels sub-composite when
 // the Pixels render engine is mounted in Fabula — Phase 2).
 
+import { studioKey } from './fabula/fabulaSync';
 import { get as idbGet, set as idbSet } from 'idb-keyval';
 import type { SceneSnapshot } from '../components/plajahPixels/engine/timeline/sceneTimeline';
 
@@ -126,12 +127,12 @@ function buildProduction(payload: PixelsExportPayload) {
  */
 export async function exportPixelsToFabula(payload: PixelsExportPayload): Promise<{ prodId: string; editId: string }> {
   const { prod, editId } = buildProduction(payload);
-  await idbSet('studio:prod:' + prod.id, prod);
-  const idx = (await idbGet('studio:index')) as { list?: any[] } | undefined;
+  await idbSet(studioKey('studio:prod:' + prod.id), prod);
+  const idx = (await idbGet(studioKey('studio:index'))) as { list?: any[] } | undefined;
   const entry = { id: prod.id, title: prod.title, type: prod.type, updated: Date.now(), sceneCount: 0 };
   const list = [entry, ...((idx?.list || []).filter((x: any) => x.id !== prod.id))];
-  await idbSet('studio:index', { list });
-  await idbSet('studio:handoff', { prodId: prod.id, editId });
+  await idbSet(studioKey('studio:index'), { list });
+  await idbSet(studioKey('studio:handoff'), { prodId: prod.id, editId });
   return { prodId: prod.id, editId };
 }
 

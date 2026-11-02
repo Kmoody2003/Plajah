@@ -12,6 +12,7 @@ import { auth } from '../services/backendService';
 import { startChurchDonation } from '../services/stripeService';
 import { shareOrigin } from '../services/deepLinkService';
 import { grossUpDollars } from '../services/giftFees';
+import { orgOffersFeeCover } from '../services/orgFinanceCore';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 
 const PRESETS = [10, 25, 50, 100, 250];
@@ -25,7 +26,7 @@ const ChurchGive: React.FC<{ org: Organization; onClose: () => void; fundGiven?:
   const [busy, setBusy] = useState(false);
   const [showQr, setShowQr] = useState(false);
   // Donor covers the processing fee by default so 100% of the gift reaches the ministry (only on connected-payout orgs).
-  const feeCoverOffered = !!org.stripeAccountId && !org.givingUrl && org.financeSettings?.donorCoversFees !== false;
+  const feeCoverOffered = orgOffersFeeCover(org);
   const [coverFees, setCoverFees] = useState(true);
 
   const fund = funds.find(f => f.id === fundId) || funds[0];

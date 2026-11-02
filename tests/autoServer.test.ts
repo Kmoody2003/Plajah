@@ -21,6 +21,7 @@ function harness(opts: { nhtsa?: (url: string) => any; model?: (a: any) => Promi
   const express: any = { json: () => (_q: any, _s: any, n: any) => n() };
   registerAutoRoutes({
     app, express, rateLimit: () => (_q: any, _s: any, n: any) => n(), authMiddleware: (_q: any, _s: any, n: any) => n(),
+    hasBusinessPage: async () => true,
     resolveActor: async (req: any) => ({ ok: true, staffId: req.uid, staffName: 'Owner', role: 'OWNER', perms: new Set(['DISCOUNT_OVERRIDE', 'RING_SALES']) }),
     managerApproval: async () => null,
     restCas: (c: string) => store(c),

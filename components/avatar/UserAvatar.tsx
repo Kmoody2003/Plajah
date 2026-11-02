@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, documentId, getDocs, query, where } from 'firebase/firestore';
+import { collection, documentId, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import type { AvatarConfig } from '../../types';
 import { CharacterAvatarFlip } from './CharacterAvatarFlip';
@@ -43,13 +43,17 @@ async function flush(): Promise<void> {
   for (let i = 0; i < uids.length; i += 30) {
     const chunk = uids.slice(i, i + 30);
     try {
-      const snap = await getDocs(query(collection(db, 'users'), where(documentId(), 'in', chunk)));
+      const snap = await getDocs(query(collection(db, 'users'), where('listable', '==', true), where(documentId(), 'in', chunk)));
       const found = new Set<string>();
       snap.forEach((d) => {
         found.add(d.id);
         setCachedUserAvatar(d.id, (d.data() as { avatar?: AvatarConfig }).avatar);
       });
-      chunk.forEach((uid) => !found.has(uid) && setCachedUserAvatar(uid, null));
+      // Unlisted accounts (children) can't be listed but can be opened one by one.
+      await Promise.all(chunk.filter((uid) => !found.has(uid)).map(async (uid) => {
+        const one = await getDoc(doc(db, 'users', uid)).catch(() => null);
+        setCachedUserAvatar(uid, (one?.data() as { avatar?: AvatarConfig } | undefined)?.avatar ?? null);
+      }));
     } catch {
       // Offline / denied: treat as "no character" for this session rather than retrying per render.
       chunk.forEach((uid) => !cache.has(uid) && setCachedUserAvatar(uid, null));

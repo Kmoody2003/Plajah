@@ -5,6 +5,8 @@ import type { ChatMessage, TelaDoc, TelaDocMeta } from '../../types';
 import { auth, sendMessage } from '../../services/backendService';
 import { encryptText, decryptText } from '../../services/cryptoService';
 import { listTelaDocs, loadTelaDoc, saveTelaDoc } from '../../services/telaStore';
+import { forShare } from '../tela/telaCoedit';
+import { releaseDocMediaToRoom } from '../../services/tela/telaMediaSession';
 const TelaView = lazy(() => import('../tela/TelaView'));
 const TelaEmbed = lazy(() => import('../tela/TelaEmbed'));
 
@@ -16,10 +18,13 @@ export function SendTelaDocument({ roomId }: { roomId: string }) {
     const user = auth.currentUser; if (!user) return;
     setBusy(true); setError('');
     try {
-      const document = await loadTelaDoc(id);
-      if (!document) throw new Error('This document could not be opened.');
+      const loaded = await loadTelaDoc(id);
+      if (!loaded) throw new Error('This document could not be opened.');
+      // Private Notes stay with their author, here as everywhere a document leaves this device.
+      const document = forShare(loaded);
       const json = JSON.stringify(document);
       if (new TextEncoder().encode(json).length > 600_000) throw new Error('This document is too large to share inline. Use linked media instead of embedded images.');
+      await releaseDocMediaToRoom(document, roomId);
       await sendMessage(roomId, { senderId: user.uid, senderName: user.displayName || 'You', senderPhoto: user.photoURL || '', type: 'MEDIA', mediaType: 'TELA', text: await encryptText(document.title || 'Tela document', roomId), telaDocument: await encryptText(json, roomId) });
       setDocs(null);
     } catch (e) { setError(e instanceof Error ? e.message : 'Could not send this document.'); }

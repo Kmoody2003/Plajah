@@ -8,6 +8,7 @@
 // Mirrors the Pixels→Fabula bridge (services/fabulaBridge.ts): write a production into Fabula's own
 // IndexedDB store, set `studio:handoff`, then the caller dispatches `OPEN_FABULA`.
 
+import { studioKey } from './fabula/fabulaSync';
 import { get as idbGet, set as idbSet } from 'idb-keyval';
 import type { Video } from '../types';
 import {
@@ -220,12 +221,12 @@ export async function exportRepriseToFabula(
   attribution?: string,
 ): Promise<{ prodId: string; editId: string }> {
   const { prod, editId } = buildRepriseProduction(clip, attribution);
-  await idbSet('studio:prod:' + prod.id, prod);
-  const idx = (await idbGet('studio:index')) as { list?: any[] } | undefined;
+  await idbSet(studioKey('studio:prod:' + prod.id), prod);
+  const idx = (await idbGet(studioKey('studio:index'))) as { list?: any[] } | undefined;
   const entry = { id: prod.id, title: prod.title, type: prod.type, updated: Date.now(), sceneCount: 0 };
   const list = [entry, ...((idx?.list || []).filter((x: any) => x.id !== prod.id))];
-  await idbSet('studio:index', { list });
-  await idbSet('studio:handoff', { prodId: prod.id, editId });
+  await idbSet(studioKey('studio:index'), { list });
+  await idbSet(studioKey('studio:handoff'), { prodId: prod.id, editId });
   return { prodId: prod.id, editId };
 }
 

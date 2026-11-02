@@ -14,6 +14,7 @@ import { onSnapshot } from './safeSnapshot';
 import { db, opsDb, auth } from './firebase';
 import { permissionsForMember } from './orgPermissions';
 import { memberRoleKeys } from './elevateRoles';
+import { splitOrgPatch } from './orgFinanceCore';
 import type { ChurchPrayer, UserProfile } from '../types';
 import type { Organization, OrgMembership, OrgMembershipOnboarding, OrgRole, OrgType, Ministry, ServiceTime, GivingFund, RosterGroup } from '../types';
 
@@ -131,7 +132,6 @@ export async function createOrganization(data: Partial<Organization> & { orgType
     location: data.location,
     hours: data.hours,
     isVerified: false,
-    stripeAccountId: data.stripeAccountId,
     followerCount: 0,
     memberCount: 1,
     isPublic: data.isPublic ?? true,
@@ -173,7 +173,11 @@ export async function fetchOrganization(orgId: string): Promise<Organization | n
 }
 
 export async function updateOrganization(orgId: string, updates: Partial<Organization>): Promise<void> {
-  await updateDoc(doc(db, 'organizations', orgId), { ...stripUndefined(updates), updatedAt: Date.now() });
+  const { publicPatch, financePatch } = splitOrgPatch(stripUndefined(updates));
+  const now = Date.now();
+  // mergeFields replaces each named field whole, so a removed key inside financeSettings really goes.
+  if (Object.keys(financePatch).length) await setDoc(doc(db, 'organizations', orgId, 'private', 'finance'), { ...financePatch, updatedAt: now }, { mergeFields: [...Object.keys(financePatch), 'updatedAt'] });
+  await updateDoc(doc(db, 'organizations', orgId), { ...publicPatch, updatedAt: now });
   await refreshOpsMirror(orgId);
 }
 
@@ -210,8 +214,18 @@ export async function fetchUserOrganizations(uid: string): Promise<Organization[
 }
 
 export async function fetchOrgMembers(orgId: string): Promise<OrgMembership[]> {
-  const snap = await getDocs(query(collection(db, 'orgMemberships'), where('orgId', '==', orgId)));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as OrgMembership));
+  try {
+    const snap = await getDocs(query(collection(db, 'orgMemberships'), where('orgId', '==', orgId)));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as OrgMembership));
+  } catch (e: any) {
+    if (e?.code !== 'permission-denied') throw e;
+  }
+  // Outside the org: public leadership only, plus the caller's own row if they have one.
+  const uid = auth.currentUser?.uid;
+  const mine = uid ? (await getDocs(query(collection(db, 'orgMemberships'), where('orgId', '==', orgId), where('userId', '==', uid))).catch(() => null))?.docs.map(d => ({ id: d.id, ...d.data() } as OrgMembership)) || [] : [];
+  const res = await fetch(`/api/elevate/access/public-roster?orgId=${encodeURIComponent(orgId)}`).catch(() => null);
+  const pub: OrgMembership[] = res?.ok ? (await res.json()).members || [] : [];
+  return [...mine, ...pub.filter(m => !mine.some(x => x.id === m.id))];
 }
 
 /**
@@ -587,7 +601,7 @@ export async function createManagedEmployee(
     uid: employeeUid,
     displayName: data.displayName || 'Employee',
     photoURL: data.photoURL || '',
-    email: '',
+    listable: true,
     accountType: 'EMPLOYEE',
     isEmployee: true,
     employerOrgId: orgId,
@@ -840,8 +854,9 @@ export async function declineOrgMember(membershipId: string): Promise<void> {
  * links the work identity in; it never merges the two accounts.
  */
 export async function claimEmployeeProfile(employeeUid: string, personalUid: string): Promise<void> {
-  await updateDoc(doc(db, 'users', employeeUid), { claimedByUid: personalUid });
-  const snap = await getDocs(query(collection(db, 'orgMemberships'), where('employeeProfileUid', '==', employeeUid)));
+  const employee = await getDoc(doc(db, 'users', employeeUid));
+  await updateDoc(employee.ref, { claimedByUid: personalUid });
+  const snap = await getDocs(query(collection(db, 'orgMemberships'), where('orgId', '==', employee.data()?.employerOrgId || ''), where('employeeProfileUid', '==', employeeUid)));
   await Promise.all(snap.docs.map(d => updateDoc(d.ref, { userId: personalUid })));
 }
 

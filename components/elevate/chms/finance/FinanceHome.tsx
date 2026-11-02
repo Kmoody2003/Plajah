@@ -1,5 +1,6 @@
 // FinanceHome — the new default landing of the Finance Hub: where the money is, what moved this month,
 // what's coming, and what needs you — with one-tap quick actions.
+import { orgCanReceiveGiving } from '../../../../services/orgFinanceCore';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, CalendarCheck, FilePlus2, Gift, Landmark, Mailbox, PenLine, Rocket, Receipt } from 'lucide-react';
 import type { Organization, OrgMembership } from '../../../../types';
@@ -50,7 +51,7 @@ const FinanceHome: React.FC<{ org: Organization; member: OrgMembership | null; s
         <Stat label="Cash position" value={cash?.hasBooks ? usd(cash.cash) : '—'} sub={cash?.hasBooks ? (cash.ap ? `${usd(cash.ap)} owed to vendors` : 'No bills owed') : perms.canViewBooks ? 'Set up your books to see this' : 'Finance team only'} />
         <Stat label={`${month} in`} value={snap ? usd(mo.in) : '…'} sub="gifts received" />
         <Stat label={`${month} out`} value={usd(mo.out)} sub={mo.out || mo.in ? `${mo.net >= 0 ? '+' : ''}${usd(mo.net)} net` : 'paid so far'} tone={mo.net < 0 ? 'warn' : undefined} />
-        <Stat label="Next Stripe payout" value={next ? usd(next.net ?? next.amount) : '—'} sub={next ? `arrives ${next.arrivalDate}${next.bankLast4 ? ` · ····${next.bankLast4}` : ''}` : org.stripeAccountId ? 'Nothing in transit' : 'Connect Stripe to start'} />
+        <Stat label="Next Stripe payout" value={next ? usd(next.net ?? next.amount) : '—'} sub={next ? `arrives ${next.arrivalDate}${next.bankLast4 ? ` · ····${next.bankLast4}` : ''}` : orgCanReceiveGiving(org) ? 'Nothing in transit' : 'Connect Stripe to start'} />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">

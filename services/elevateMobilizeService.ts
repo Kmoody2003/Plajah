@@ -8,6 +8,7 @@
 // Quick-Actions, The Post Man compliant Email Campaigns, Ministry Rooms, Sanctuary Unlocks,
 // ARIA Content Repurpose briefs, and Tela Studio Open Letter publications.
 
+import { activeScopeUid, adoptOwnedValue, scopedKey } from './userScope';
 import {
   collection,
   doc,
@@ -245,7 +246,7 @@ export function getActionHubVerticalConfig(
 // ─── Seed Generator per Elevate Organization ─────────────────────────────────
 
 type MobilizeOrgPick = Pick<Organization, 'id' | 'name' | 'orgType' | 'ministries' | 'campuses'> &
-  Partial<Pick<Organization, 'isDemo'>>;
+  Partial<Pick<Organization, 'isDemo' | 'creatorId'>>;
 
 /**
  * Starting bundle for an organization. Only the demo church (Grace Chapel) is seeded with sample
@@ -931,10 +932,12 @@ export function buildSampleElevateMobilizeBundle(
 // ─── LocalStorage + Firestore Persistence Helpers ────────────────────────────
 
 export function loadElevateMobilizeBundleLocal(org: MobilizeOrgPick): ElevateMobilizeBundle {
-  const key = `${STORAGE_PREFIX}${org.id}`;
+  const key = scopedKey(`${STORAGE_PREFIX}${org.id}`);
   const demo = isDemoOrg(org);
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
+      // The old shared copy carries no author. Whoever founded the org can claim it; nobody else reads it.
+      if (org.creatorId && org.creatorId === activeScopeUid()) adoptOwnedValue(`${STORAGE_PREFIX}${org.id}`, key);
       const raw = window.localStorage.getItem(key);
       if (raw) {
         const parsed = JSON.parse(raw) as ElevateMobilizeBundle;
@@ -1049,7 +1052,7 @@ function stripSeededElevateMobilizeItems(
 export function saveElevateMobilizeBundleLocal(bundle: ElevateMobilizeBundle): void {
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
-      window.localStorage.setItem(`${STORAGE_PREFIX}${bundle.orgId}`, JSON.stringify(bundle));
+      window.localStorage.setItem(scopedKey(`${STORAGE_PREFIX}${bundle.orgId}`), JSON.stringify(bundle));
     } catch {
       // Ignore storage quota errors
     }

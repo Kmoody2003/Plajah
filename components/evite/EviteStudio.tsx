@@ -7,6 +7,7 @@
  *
  * Every published event automatically gets a private event room (club + chat) and a photo pool.
  */
+import { newShortId } from '../../services/evite/eviteCore';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import EviteCard, { cardAccent } from './EviteCard';
 import EraDesignGrid, { EraLesson } from './EraDesignGrid';
@@ -43,7 +44,7 @@ export interface EviteStudioProps {
 const tzNow = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; } };
 const toLocalInput = (ms: number) => { const d = new Date(ms); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
 const fromLocalInput = (v: string) => { const t = new Date(v).getTime(); return Number.isFinite(t) ? t : Date.now(); };
-const uid8 = () => Math.random().toString(36).slice(2, 8);
+const uid8 = () => newShortId(6);
 
 export function suggestHeadline(collection: string, subject: string, honoree: string): string {
   const h = honoree.trim(); const thing = prettySubject(subject);

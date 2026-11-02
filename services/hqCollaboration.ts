@@ -1,5 +1,5 @@
 import {
-  collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc, updateDoc, where,
+  collection, doc, getDocs, limit, orderBy, query, setDoc, updateDoc, where,
 } from 'firebase/firestore';
 import { ref, uploadBytesResumable } from 'firebase/storage';
 import { auth, opsDb, storage } from './firebase';
@@ -33,9 +33,28 @@ export async function recordHqActivity(
     actorUid: a.uid, actorName: a.name, action, meta, createdAt: now() }));
 }
 
+export interface HqThread { versions: HqAssetVersion[]; comments: HqComment[]; reviews: HqReviewRequest[]; activity: HqActivityEvent[] }
+
+/** A file's versions, comments, reviews and activity. Comes through the server, which checks the file's department. */
+export async function fetchHqThread(assetId: string): Promise<HqThread> {
+  const token = await auth.currentUser?.getIdToken();
+  const res = await fetch(`/api/hq/file/${encodeURIComponent(assetId)}/thread`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!res.ok) throw new Error(`Could not load this file (${res.status}).`);
+  return res.json();
+}
+
+export interface HqReviewerOption { uid: string; name: string; photo?: string }
+
+/** People who can be asked to review this file: in its org or business, and able to open it. */
+export async function fetchHqReviewers(assetId: string): Promise<HqReviewerOption[]> {
+  const token = await auth.currentUser?.getIdToken();
+  const res = await fetch(`/api/hq/file/${encodeURIComponent(assetId)}/reviewers`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!res.ok) throw new Error(`Could not load people (${res.status}).`);
+  return (await res.json()).people;
+}
+
 export async function listHqVersions(assetId: string): Promise<HqAssetVersion[]> {
-  const snap = await getDocs(query(collection(opsDb, 'hqAssetVersions'), where('assetId', '==', assetId), orderBy('version', 'desc')));
-  return snap.docs.map(d => d.data() as HqAssetVersion);
+  return (await fetchHqThread(assetId)).versions;
 }
 
 export async function addHqVersion(asset: OrgAsset, file: File, changeNote?: string, onProgress?: (n: number) => void): Promise<HqAssetVersion> {
@@ -63,8 +82,7 @@ export async function addHqVersion(asset: OrgAsset, file: File, changeNote?: str
 }
 
 export async function listHqComments(assetId: string): Promise<HqComment[]> {
-  const snap = await getDocs(query(collection(opsDb, 'hqComments'), where('assetId', '==', assetId), orderBy('createdAt', 'asc')));
-  return snap.docs.map(d => d.data() as HqComment);
+  return (await fetchHqThread(assetId)).comments;
 }
 
 export async function addHqComment(input: Omit<HqComment, 'id' | 'authorUid' | 'authorName' | 'authorPhoto' | 'resolved' | 'createdAt'>, asset: OrgAsset): Promise<HqComment> {
@@ -85,8 +103,7 @@ export async function resolveHqComment(comment: HqComment, asset: OrgAsset): Pro
 }
 
 export async function listHqReviews(assetId: string): Promise<HqReviewRequest[]> {
-  const snap = await getDocs(query(collection(opsDb, 'hqReviewRequests'), where('assetId', '==', assetId), orderBy('createdAt', 'desc'), limit(25)));
-  return snap.docs.map(d => d.data() as HqReviewRequest);
+  return (await fetchHqThread(assetId)).reviews;
 }
 
 export async function requestHqReview(asset: OrgAsset, reviewerUids: string[], deadlineAt?: number, message?: string): Promise<HqReviewRequest> {
@@ -139,8 +156,7 @@ export async function restoreHqAsset(asset: OrgAsset): Promise<void> {
 }
 
 export async function listHqActivity(assetId: string): Promise<HqActivityEvent[]> {
-  const snap = await getDocs(query(collection(opsDb, 'hqActivity'), where('assetId', '==', assetId), orderBy('createdAt', 'desc'), limit(100)));
-  return snap.docs.map(d => d.data() as HqActivityEvent);
+  return (await fetchHqThread(assetId)).activity;
 }
 
 export async function updateHqRights(asset: OrgAsset, rights: OrgAsset['rights']): Promise<void> {
@@ -173,13 +189,15 @@ export async function revokeHqShareLink(asset: OrgAsset, shareId: string): Promi
 
 /** List a scope's share links so the owner can copy or revoke them. */
 export async function listHqShareLinks(assetId: string): Promise<HqShareLink[]> {
-  const snap = await getDocs(query(collection(opsDb, 'hqShareLinks'), where('assetId', '==', assetId), orderBy('createdAt', 'desc'), limit(25)));
-  return snap.docs.map(d => d.data() as HqShareLink);
+  // Only people who can change a file may see its links. A grantee is refused, and that just means no list.
+  const snap = await getDocs(query(collection(opsDb, 'hqShareLinks'), where('assetId', '==', assetId), orderBy('createdAt', 'desc'), limit(25))).catch(() => null);
+  return snap ? snap.docs.map(d => d.data() as HqShareLink) : [];
 }
 
 export async function fetchHqAsset(assetId: string): Promise<OrgAsset | null> {
-  const snap = await getDoc(doc(opsDb, 'orgAssets', assetId));
-  return snap.exists() ? snap.data() as OrgAsset : null;
+  const token = await auth.currentUser?.getIdToken();
+  const res = await fetch(`/api/hq/file/${encodeURIComponent(assetId)}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  return res.ok ? ((await res.json()).asset as OrgAsset) : null;
 }
 
 export function authenticatedHqDownloadUrl(assetId: string, versionId?: string): string {

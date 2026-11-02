@@ -1,3 +1,4 @@
+import { userScopedKey } from './userScope';
 import { collection, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import { ref, uploadBytesResumable, deleteObject } from 'firebase/storage';
 import { db, opsDb, auth, storage } from './firebase';
@@ -19,7 +20,9 @@ export { isStandaloneTeacherScopeId } from './hqScopeWall';
 
 export type OwnerScope =
   | { kind: 'org'; id: string; ownerUid?: string; adminUids?: string[]; label?: string; departments?: Ministry[] }
-  | { kind: 'user'; id: string; label?: string };
+  | { kind: 'user'; id: string; label?: string }
+  /** id is the businessPages doc id. Its owner and staff seats share these files. */
+  | { kind: 'business'; id: string; ownerUid?: string; label?: string };
 
 export type OrgAssetKind = 'image' | 'video' | 'audio' | 'pdf' | 'doc' | 'other';
 
@@ -29,7 +32,7 @@ export interface OrgAsset {
   access?: 'open' | 'restricted' | 'revoked';
   accessSpec?: { departments?: string[]; roles?: string[]; users?: string[] };
   accessUids?: string[];
-  scopeKind: 'org' | 'user';
+  scopeKind: 'org' | 'user' | 'business';
   scopeId: string;
   uploadedByUid: string;
   name: string;
@@ -54,11 +57,16 @@ export interface OrgAsset {
   sourceUrl?: string;
   /** Preserved text/markdown snapshot of the original document for instant preview inside Content HQ. */
   rawContentText?: string;
+  /** The server holds document text for this file. Read it with getHqAssetText. */
+  hasText?: boolean;
   tags?: string[];
   status?: import('../types').HqAssetStatus;
   scanStatus?: 'PENDING' | 'CLEAN' | 'QUARANTINED';
   scanReason?: string;
   scannedAt?: number;
+  /** Which checks really ran. Server-only. A file says "antivirus" only if ClamAV read it. */
+  scanEngine?: 'clamav' | 'heuristics';
+  scanEngineNote?: string;
   currentVersionId?: string;
   versionCount?: number;
   deletedAt?: number;
@@ -108,7 +116,7 @@ function contentTypeFor(file: File): string {
  * Throws STORAGE_CAP_EXCEEDED when over cap; a server/network error is non-fatal (fail-open,
  * so an outage never blocks all uploads — the client-side UX check still applies).
  */
-async function assertUnderHqCap(scope: { kind: 'org' | 'user'; id: string }, incomingBytes: number): Promise<void> {
+async function assertUnderHqCap(scope: { kind: 'org' | 'user' | 'business'; id: string }, incomingBytes: number): Promise<void> {
   let res: Response;
   try {
     const token = await auth.currentUser?.getIdToken();
@@ -461,10 +469,11 @@ export async function copyCurriculumPairToOrgAssets(params: {
   // Signed out there is no account to file these under; the lesson itself stays in its own local list.
   if (uid) {
     try {
-      await setDoc(doc(opsDb, COLLECTION, originalAsset.id), originalAsset);
-      await setDoc(doc(opsDb, COLLECTION, telaAsset.id), telaAsset);
-      if (answerKeyAsset) {
-        await setDoc(doc(opsDb, COLLECTION, answerKeyAsset.id), answerKeyAsset);
+      // The text goes through the server, which holds it behind the department check. A record never carries it.
+      for (const asset of [originalAsset, telaAsset, ...(answerKeyAsset ? [answerKeyAsset] : [])]) {
+        const { rawContentText: text, ...record } = asset;
+        await setDoc(doc(opsDb, COLLECTION, asset.id), record);
+        if (text) await saveHqAssetText(asset.id, text);
       }
     } catch (err) {
       // The lesson still lists from its local unit until this can be written.
@@ -489,6 +498,26 @@ export async function copyCurriculumPairToOrgAssets(params: {
     telaAsset,
     answerKeyAsset,
   };
+}
+
+async function hqFileHeaders(): Promise<Record<string, string>> {
+  const token = await auth.currentUser?.getIdToken();
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+async function saveHqAssetText(assetId: string, text: string): Promise<void> {
+  const res = await fetch(`/api/hq/file/${encodeURIComponent(assetId)}/text`, { method: 'PUT', headers: await hqFileHeaders(), body: JSON.stringify({ text }) });
+  if (!res.ok) throw new Error(`Could not save the document text (${res.status}).`);
+}
+
+/** The text behind a file's preview. Files held only on this device already carry theirs. */
+export async function getHqAssetText(asset: Pick<OrgAsset, 'id' | 'rawContentText' | 'hasText'>): Promise<string> {
+  if (asset.rawContentText) return asset.rawContentText;
+  if (!asset.hasText) return '';
+  try {
+    const res = await fetch(`/api/hq/file/${encodeURIComponent(asset.id)}/text`, { headers: await hqFileHeaders() });
+    return res.ok ? String((await res.json()).text || '') : '';
+  } catch { return ''; }
 }
 
 export type HqListStatus = 'ok' | 'offline' | 'denied';
@@ -535,9 +564,10 @@ function localOnlyAssets(read: HqReadScope, orgName: string, known: Set<string>)
   const orgEduFolder = getOrgEducationFolderName(orgName);
   const isUserScope = read.kind === 'user';
 
-  for (const storageId of ownUnitStorageIds(read)) {
+  // A business has no lessons on this device.
+  for (const storageId of read.kind === 'business' ? [] : ownUnitStorageIds(read)) {
     try {
-      const raw = localStorage.getItem(`plajah_ingested_curriculum_units_v1_${storageId}`);
+      const raw = localStorage.getItem(userScopedKey(uid, `plajah_ingested_curriculum_units_v1_${storageId}`));
       const units: any[] = raw ? JSON.parse(raw) : [];
       if (!Array.isArray(units)) continue;
       for (const u of units) {
@@ -592,7 +622,7 @@ function localOnlyAssets(read: HqReadScope, orgName: string, known: Set<string>)
     }
   }
 
-  if (!isUserScope) {
+  if (read.kind === 'org') {
     try {
       const raw = localStorage.getItem(`plajah_vol_dept_uploads_v1_${read.id}`);
       const uploads: any[] = raw ? JSON.parse(raw) : [];
@@ -657,6 +687,13 @@ export async function listHqAssetsDetailed(scope: OwnerScope, includeTrash = fal
   return { assets: assets.sort((a, b) => (b.uploadedAt || 0) - (a.uploadedAt || 0)), status };
 }
 
+/** The storage allowance the server enforces for a scope, in GB. */
+export async function fetchHqScopeCapGb(scope: { kind: string; id: string }): Promise<number> {
+  const res = await fetch('/api/hq/quota-check', { method: 'POST', headers: await hqFileHeaders(), body: JSON.stringify({ scopeKind: scope.kind, scopeId: scope.id, incomingBytes: 0 }) });
+  if (!res.ok) throw new Error(String(res.status));
+  return Math.round(Number((await res.json()).capBytes || 0) / 1024 ** 3);
+}
+
 /** Org files deliberately shared with this person. Each stays the org's; access ends when the org revokes it. */
 export async function listHqSharedWithMe(): Promise<OrgAsset[]> {
   const user = auth.currentUser;
@@ -667,6 +704,24 @@ export async function listHqSharedWithMe(): Promise<OrgAsset[]> {
   } catch {
     return [];
   }
+}
+
+/** Files other orgs shared with this org. Each stays theirs, read-only, until they take it back. */
+export async function listHqSharedWithOrg(orgId: string): Promise<OrgAsset[]> {
+  try {
+    const res = await fetch(`/api/elevate/access/shared-with-org?orgId=${encodeURIComponent(orgId)}`, { headers: await hqFileHeaders() });
+    return res.ok ? ((await res.json()).assets as OrgAsset[]) : [];
+  } catch { return []; }
+}
+
+export async function listHqOrgShares(assetId: string): Promise<{ id: string; name: string }[] | null> {
+  const res = await fetch(`/api/elevate/access/org-share?assetId=${encodeURIComponent(assetId)}`, { headers: await hqFileHeaders() });
+  return res.ok ? (await res.json()).orgs : null;
+}
+
+export async function setHqOrgShare(assetId: string, targetOrgId: string, on: boolean): Promise<void> {
+  const res = await fetch('/api/elevate/access/org-share', { method: 'POST', headers: await hqFileHeaders(), body: JSON.stringify({ assetId, targetOrgId, on }) });
+  if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || 'Could not save.');
 }
 
 export async function listHqAssets(scope: OwnerScope, includeTrash = false): Promise<OrgAsset[]> {
@@ -764,6 +819,7 @@ export async function setHqAssetFolder(asset: OrgAsset, folder: string | undefin
 
 /** Delete an asset's Firestore record + its Storage object (best-effort). */
 export async function deleteHqAsset(asset: OrgAsset): Promise<void> {
+  await fetch(`/api/hq/file/${encodeURIComponent(asset.id)}/text`, { method: 'DELETE', headers: await hqFileHeaders() }).catch(() => {});
   await deleteDoc(doc(opsDb, COLLECTION, asset.id));
   try { await deleteObject(ref(storage, asset.storagePath)); } catch { /* object may already be gone */ }
 }

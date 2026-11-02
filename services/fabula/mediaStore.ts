@@ -12,16 +12,34 @@
 
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
 
-let dirPromise: Promise<FileSystemDirectoryHandle | null> | null = null;
-async function mediaDir(): Promise<FileSystemDirectoryHandle | null> {
+// One browser, many accounts: each person's bytes live in their own folder and keys. Files from before this split have
+// no owner, so one moves across only when an account's own project asks for it by id. Nothing lists them.
+const scopeOf = async (): Promise<string> => {
+  try { const { activeScopeUid } = await import('../userScope'); return activeScopeUid() || 'guest'; } catch { return 'guest'; }
+};
+const idbKey = (scope: string, key: string) => `plajah:u:${scope}:${key}`;
+
+let legacyPromise: Promise<FileSystemDirectoryHandle | null> | null = null;
+async function legacyDir(): Promise<FileSystemDirectoryHandle | null> {
   if (typeof navigator === 'undefined' || !(navigator as any).storage?.getDirectory) return null;
-  if (!dirPromise) {
-    dirPromise = (async () => {
+  if (!legacyPromise) {
+    legacyPromise = (async () => {
       const root = await (navigator as any).storage.getDirectory();
       return root.getDirectoryHandle('fabula-media', { create: true });
     })().catch(() => null);
   }
-  return dirPromise;
+  return legacyPromise;
+}
+const dirs = new Map<string, Promise<FileSystemDirectoryHandle | null>>();
+async function mediaDir(): Promise<FileSystemDirectoryHandle | null> {
+  const scope = await scopeOf();
+  if (!dirs.has(scope)) {
+    dirs.set(scope, (async () => {
+      const base = await legacyDir();
+      return base ? base.getDirectoryHandle(`u_${scope.replace(/[^\w-]/g, '_')}`, { create: true }) : null;
+    })().catch(() => null));
+  }
+  return dirs.get(scope)!;
 }
 
 // OPFS filenames must be filesystem-safe; the key ("studio:blob:<id>") has colons → sanitize.
@@ -43,13 +61,13 @@ export async function putBytes(key: string, blob: Blob): Promise<boolean> {
       await w.write(blob);
       await w.close();
       // If a stale IDB copy exists from before the OPFS migration, drop it so we don't keep two.
-      idbDel(key).catch(() => {});
+      idbDel(idbKey(await scopeOf(), key)).catch(() => {});
       memStore.delete(key);
       return true;
     } catch { /* OPFS write failed (quota?) → fall through to IDB */ }
   }
   try {
-    await idbSet(key, blob);
+    await idbSet(idbKey(await scopeOf(), key), blob);
     memStore.delete(key);
     return true;
   } catch {
@@ -67,12 +85,25 @@ export async function getBytes(key: string): Promise<Blob | null> {
       const f = await fh.getFile();
       if (f && f.size) return f;
     } catch { /* not in OPFS — check IDB below */ }
+    // An unowned file from before the per-account split: this account's project named it, so it moves in.
+    try {
+      const old = await legacyDir();
+      if (old) {
+        const fh = await old.getFileHandle(fname(key));
+        const f = await fh.getFile();
+        if (f && f.size) {
+          if (await putBytes(key, f)) await old.removeEntry(fname(key)).catch(() => {});
+          return f;
+        }
+      }
+    } catch { /* not there either */ }
   }
   try {
-    const v = await idbGet(key);
+    const scope = await scopeOf();
+    const v = (await idbGet(idbKey(scope, key))) ?? (await idbGet(key));
     if (v && (v as Blob).size) {
-      // Migrate the legacy IDB copy into OPFS for next time (best-effort, non-blocking).
-      if (dir) putBytes(key, v as Blob).catch(() => {});
+      // Move a legacy IDB copy into this account's space for next time (best-effort, non-blocking).
+      putBytes(key, v as Blob).then(() => idbDel(key)).catch(() => {});
       return v as Blob;
     }
   } catch { /* */ }
@@ -83,13 +114,15 @@ export async function hasBytes(key: string): Promise<boolean> {
   const dir = await mediaDir();
   if (dir) {
     try { const fh = await dir.getFileHandle(fname(key)); const f = await fh.getFile(); if (f && f.size) return true; } catch { /* */ }
+    try { const old = await legacyDir(); if (old) { const f = await (await old.getFileHandle(fname(key))).getFile(); if (f && f.size) return true; } } catch { /* */ }
   }
-  try { const v = await idbGet(key); return !!(v && (v as Blob).size); } catch { return memStore.has(key); }
+  try { const v = (await idbGet(idbKey(await scopeOf(), key))) ?? (await idbGet(key)); return !!(v && (v as Blob).size); } catch { return memStore.has(key); }
 }
 
 export async function delBytes(key: string): Promise<void> {
   memStore.delete(key);
   const dir = await mediaDir();
   if (dir) { try { await dir.removeEntry(fname(key)); } catch { /* */ } }
-  try { await idbDel(key); } catch { /* */ }
+  try { const old = await legacyDir(); if (old) await old.removeEntry(fname(key)); } catch { /* */ }
+  try { await idbDel(idbKey(await scopeOf(), key)); await idbDel(key); } catch { /* */ }
 }

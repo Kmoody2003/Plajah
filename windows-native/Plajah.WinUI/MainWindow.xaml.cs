@@ -203,12 +203,15 @@ public sealed partial class MainWindow : Window
             "--gpu-rasterization-msaa-sample-count=0 --enable-features=WebCodecs,WebGPU,CanvasOopRasterization,UseDirectCompositionVideoOverlays,D3D11VideoDecoder,VaapiVideoDecoder,PlatformHEVCDecoderSupport,AudioWorkletRealtimeThread,WebMachineLearningNeuralNetwork,WebNNOnnxRuntime,WebNNDirectML " +
             "--disable-features=CalculateNativeWinOcclusion --autoplay-policy=no-user-gesture-required " +
             "--ignore-gpu-blocklist --enable-native-gpu-memory-buffers";
+#if DEBUG
+        // A remote debugging port reads every account's session on this PC, so release builds never open one.
         try
         {
             var flag = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Plajah", "devtools.flag");
             if (System.IO.File.Exists(flag)) browserArgs += " --remote-debugging-port=9333 --remote-allow-origins=http://127.0.0.1:9333";
         }
         catch { }
+#endif
 
         try
         {

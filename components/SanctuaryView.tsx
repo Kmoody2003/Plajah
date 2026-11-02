@@ -14,7 +14,7 @@ import {
   deleteExclusiveContent, fetchCreatorMembers,
   saveSanctuaryTier, updateSanctuaryTier, deleteSanctuaryTier,
   listenToSanctuary, createOrUpdateSanctuary,
-  fetchMyPurchases, hasAccess, listenToSanctuaryPledges,
+  fetchMyPurchases, hasAccess, listenToSanctuaryPledgeTotals,
 } from '../services/sanctuaryService';
 import { startSanctuaryTierCheckout, backSanctuaryCampaign } from '../services/stripeService';
 import { SanctuaryTier, SanctuaryMembership, SanctuaryExclusiveContent, Sanctuary, PitchDeck } from '../types';
@@ -552,9 +552,7 @@ const SanctuaryView: React.FC<SanctuaryViewProps> = ({
   }, [creatorId, isOwnProfile, creatorProfile]);
 
   // Live campaign totals summed from real (Stripe-recorded) pledges.
-  useEffect(() => listenToSanctuaryPledges(creatorId, ps =>
-    setPledgeStats({ raised: ps.reduce((s, p) => s + (p.amount || 0), 0), backers: ps.length })
-  ), [creatorId]);
+  useEffect(() => listenToSanctuaryPledgeTotals(creatorId, setPledgeStats), [creatorId]);
 
   const contribute = async (amount: number) => {
     await backSanctuaryCampaign({

@@ -146,6 +146,7 @@ export async function publishArticle(input: PublishInput, existing?: Article | n
   const { ok: vOk, version } = await publishTelaVersion({ ...telaDoc, title: input.title, updatedAt: Date.now() }, label);
   if (!vOk) return { ok: false, gate, error: 'Could not store the Tela version on this device.' };
   const bundleJson = JSON.stringify(version.bundle);
+  await import('../tela/telaMediaSession').then(m => m.releaseDocMediaToPublic(version.bundle)).catch(() => {});
   if (bundleJson.length > MAX_BUNDLE_BYTES) return { ok: false, gate: { ...gate, canPublish: false, blockers: ['This article is too large to publish (embedded images?). Use uploaded image links instead of pasted image data.'] }, error: 'bundle too large' };
 
   // The notice records which version it created and which it replaced. Stamped in memory BEFORE the single

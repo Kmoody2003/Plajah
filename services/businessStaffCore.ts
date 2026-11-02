@@ -119,7 +119,7 @@ export function registerPermsFor(perms: BizPerm[]): string[] {
 export const TAB_PERM: Record<string, BizPerm | 'ANY'> = {
   TODAY: 'ANY', OVERVIEW: 'REPORTS', ORDERS: 'ORDERS', TICKETS: 'ORDERS', APPOINTMENTS: 'ORDERS', INVENTORY: 'INVENTORY',
   CRM: 'CRM', SIGNAGE: 'SIGNAGE', RADIO: 'SIGNAGE', EVENTS: 'EVENTS', SOCIAL: 'MARKETING', MARKETING: 'MARKETING',
-  MESSAGING: 'MARKETING', TEAM: 'TEAM',
+  MESSAGING: 'MARKETING', TEAM: 'TEAM', FILES: 'ANY',
 };
 
 export function tabAllowed(tab: string, a: BizAccess): boolean {

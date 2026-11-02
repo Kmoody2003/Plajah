@@ -156,7 +156,7 @@ export async function fetchFeedCards(
       getDocs(query(collection(db, 'albums'), where('ownerId', 'in', a), orderBy('createdAt', 'desc'), limit(6))).then(s => docs<AlbumDoc>(s)))
     ).then(r => r.flat()), [] as Raw<AlbumDoc>[]),
     safe('videos', Promise.all(authorChunks.map(a =>
-      getDocs(query(collection(db, 'videos'), where('ownerId', 'in', a), orderBy('timestamp', 'desc'), limit(6))).then(s => docs<VideoDoc>(s)))
+      getDocs(query(collection(db, 'videos'), where('isPrivate', '==', false), where('ownerId', 'in', a), orderBy('timestamp', 'desc'), limit(6))).then(s => docs<VideoDoc>(s)))
     ).then(r => r.flat()), [] as Raw<VideoDoc>[]),
     safe('events', Promise.all(authorChunks.map(a =>
       getDocs(query(collection(db, 'ppv_events'), where('ownerId', 'in', a), where('status', '==', 'UPCOMING'), limit(10))).then(s => docs<EventDoc>(s)))

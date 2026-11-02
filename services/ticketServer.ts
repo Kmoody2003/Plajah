@@ -10,6 +10,8 @@
 //
 // Tickets live in `tickets/{id}` (flat doc, complex parts JSON-stringified - see serializeTicket) and every
 // write is a compare-and-swap (casCore), so two staff / the customer cannot clobber each other.
+import { bumpQuota, TICKET_BUSINESS_DAILY_LIMIT, TICKET_RECIPIENT_DAILY_LIMIT } from './usageQuota';
+import { deviceTokens } from './pushTokensCore';
 import nodeCrypto from 'node:crypto';
 import { casUpdate } from './casCore';
 import { getPack } from './verticalPacks';
@@ -126,6 +128,12 @@ export function registerTicketRoutes(d: TicketDeps): void {
   async function notifyCustomer(req: any, t: Ticket, cfg: TicketConfig, stageId: string): Promise<{ push: boolean; email: boolean; sms: boolean }> {
     const out = { push: false, email: false, sms: false };
     const st = stageById(cfg, stageId); if (!st) return out;
+    // A shop types in the customer's contact details, so a bad actor could aim these at anyone. Per person, then per shop, per day.
+    const who = t.customer.uid || t.customer.email || t.customer.phone || t.id;
+    if (await bumpQuota('ticketTo', `${t.businessUid}|${who}`, TICKET_RECIPIENT_DAILY_LIMIT) || await bumpQuota('ticketFrom', t.businessUid, TICKET_BUSINESS_DAILY_LIMIT)) {
+      console.warn('[tickets] daily message limit reached', t.businessUid);
+      return out;
+    }
     const name = await businessName(t.businessUid);
     const link = `${baseUrl(req)}/t/${makeToken(t)}`;
     const k = st.kind;
@@ -137,7 +145,7 @@ export function registerTicketRoutes(d: TicketDeps): void {
         if (!(sub && sub.transactional === false)) {
           await d.firestoreCreate('notifications', { userId: t.customer.uid, senderId: t.businessUid, senderName: name, senderPhoto: '', type: 'BUSINESS_UPDATE', title, message: text, link: 'PROFILE', targetId: t.businessUid, isRead: false, timestamp: Date.now() });
           const u = await d.firestoreGetDeep('users', t.customer.uid);
-          const tokens: string[] = [...(Array.isArray(u?.fcmTokens) ? u!.fcmTokens : []), ...(u?.fcmToken ? [u.fcmToken] : [])].filter(Boolean);
+          const tokens: string[] = deviceTokens(u, await d.firestoreGetDeep(`users/${t.customer.uid}/private`, 'profile'));
           if (tokens.length) d.sendFcmMulticast([...new Set(tokens)], { title, body: text.slice(0, 180), link, channelId: 'system', data: { type: 'BUSINESS_UPDATE', targetId: t.businessUid, senderName: name } }).catch(() => {});
           out.push = true;
         }

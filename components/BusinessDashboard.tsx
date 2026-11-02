@@ -6,7 +6,7 @@ import {
   Trash2, ChevronRight, Clock, Package, Star, Zap, Globe, Leaf,
   Settings, ToggleLeft, ToggleRight, Search, Filter, Mail, Phone,
   BarChart3, Target, RefreshCw, Play, Pause, Image, MapPin, Building2, ShieldCheck, Megaphone,
-  Calendar, Stethoscope, Receipt, ClipboardList
+  Calendar, Stethoscope, Receipt, ClipboardList, HardDrive
 } from 'lucide-react';
 import { BillingHubMount, BillingSummaryMount, SoonPill, useBillingNav } from './BillingMounts';
 import MarketingKit from './MarketingKit';
@@ -54,7 +54,7 @@ import StaffSeatsPanel from './business/StaffSeatsPanel';
 import { accessFor, can as canDo, tabAllowed } from '../services/businessStaffCore';
 import { fetchStaffBusinessPages, takeRequestedBusinessPage, removeStaffSeat } from '../services/businessStaffService';
 
-type BizTab = 'OVERVIEW' | 'TODAY' | 'APPOINTMENTS' | 'ORDERS' | 'INVENTORY' | 'TEAM' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'MARKETING' | 'SETTINGS' | 'LISTINGS' | 'COMPLIANCE' | 'BILLING' | 'TICKETS' | 'EVENTS' | 'SOCIAL';
+type BizTab = 'FILES' | 'OVERVIEW' | 'TODAY' | 'APPOINTMENTS' | 'ORDERS' | 'INVENTORY' | 'TEAM' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'MARKETING' | 'SETTINGS' | 'LISTINGS' | 'COMPLIANCE' | 'BILLING' | 'TICKETS' | 'EVENTS' | 'SOCIAL';
 type BizMode = 'owner' | 'staff';
 
 // "Storefront Command" rail — the vertical-filtered tabs collapse into four
@@ -65,11 +65,12 @@ const TAB_GROUPS: { label: string; ids: BizTab[] }[] = [
   { label: 'Customers', ids: ['CRM', 'MESSAGING'] },
   { label: 'Grow',      ids: ['EVENTS', 'SOCIAL', 'MARKETING', 'SEEDRAISER'] },
   { label: 'Screens',   ids: ['SIGNAGE', 'RADIO'] },
-  { label: 'Manage',    ids: ['BILLING', 'TEAM', 'COMPLIANCE', 'SETTINGS'] },
+  { label: 'Manage',    ids: ['FILES', 'BILLING', 'TEAM', 'COMPLIANCE', 'SETTINGS'] },
 ];
 
 /** What a team member sees in Staff view: the work, not the money or the settings. */
-const STAFF_TABS: BizTab[] = ['TODAY', 'ORDERS', 'TICKETS', 'APPOINTMENTS', 'INVENTORY', 'CRM', 'EVENTS', 'SIGNAGE', 'RADIO'];
+const ContentHQ = lazy(() => import('./ContentHQ'));
+const STAFF_TABS: BizTab[] = ['FILES', 'TODAY', 'ORDERS', 'TICKETS', 'APPOINTMENTS', 'INVENTORY', 'CRM', 'EVENTS', 'SIGNAGE', 'RADIO'];
 
 const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
 
@@ -253,6 +254,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
     { id: 'SIGNAGE',      label: 'Signage',      icon: Monitor },
     { id: 'SEEDRAISER',   label: 'Seed Raiser',  icon: Leaf },
     { id: 'RADIO',        label: 'Radio',        icon: Radio },
+    { id: 'FILES',        label: 'Files',        icon: HardDrive },
     { id: 'SETTINGS',     label: 'Settings',     icon: Settings },
   ];
 
@@ -262,7 +264,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
   const vertical = getVertical(activePage?.businessType);
   const pick = (id: BizTab) => ALL_TABS.find(t => t.id === id) ?? (id === 'MARKETING' ? { id, label: 'Marketing', icon: Megaphone } : id === 'BILLING' ? { id, label: 'Billing', icon: Receipt } : null);
   const ownerIds: BizTab[] = Array.from(new Set<BizTab>([
-    'OVERVIEW', 'TODAY', ...(tabsFor(activePage) as BizTab[]), 'CRM', 'EVENTS', 'SOCIAL', 'MARKETING', 'BILLING',
+    'OVERVIEW', 'TODAY', ...(tabsFor(activePage) as BizTab[]), 'CRM', 'EVENTS', 'SOCIAL', 'MARKETING', 'FILES', 'BILLING',
   ]));
   const visibleIds = isSeat
     ? ownerIds.filter(id => tabAllowed(id, access))
@@ -443,6 +445,18 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
 
           {/* ── OVERVIEW ── */}
           {activePage?.businessType === 'HEALTH' && ['ORDERS', 'INVENTORY', 'MESSAGING', 'CRM', 'SIGNAGE', 'MARKETING', 'LISTINGS'].includes(activeTab) && <NoPhiNotice />}
+
+          {activeTab === 'FILES' && activePage && (
+            <div className="h-[75vh] min-h-[480px]">
+              <Suspense fallback={null}>
+                <ContentHQ
+                  scope={{ kind: 'business', id: activePage.id, ownerUid: activePage.ownerId, label: activePage.businessName }}
+                  canEdit={activePage.ownerId === currentUser.uid || activePage.staffSeats?.[currentUser.uid]?.role === 'MANAGER'}
+                  mediaOwnerUid={activePage.ownerId}
+                />
+              </Suspense>
+            </div>
+          )}
 
           {activeTab === 'BILLING' && activePage && (
             <BillingHubMount entity={{ kind: 'BUSINESS', id: activePage.id }} entityName={(activePage as any).name || (activePage as any).businessName || 'Your business'} canManage />

@@ -198,6 +198,7 @@ export interface FinchStatus {
   configured: boolean;        // server has FINCH_CLIENT_ID / FINCH_CLIENT_SECRET (+ ENCRYPTION_KEY)
   connected: boolean;         // this org has exchanged a Finch Connect code
   canConnect?: boolean;       // caller is an org owner / admin
+  connectState?: string;      // server-signed state for the Finch Connect round trip
   provider?: string;          // Finch provider id, e.g. "gusto", "paychex_flex"
   providerName?: string;      // "Gusto", "Paychex Flex"
   products?: string[];        // granted products ("directory", maybe "employment")
@@ -216,7 +217,7 @@ export function finchConnectUrl(status: FinchStatus, state: string): string {
   return `${status.connectUrl || 'https://connect.tryfinch.com/authorize'}?${q.toString()}`;
 }
 /** Exchange the Finch Connect authorization code for a token (server-side; stored encrypted, never returned). Owners/admins only. */
-export const connectFinch = (orgId: string, code: string) => authedJson<{ ok: true; provider?: string; providerName?: string; products?: string[] }>('/api/payroll/finch/connect', { orgId, code });
+export const connectFinch = (orgId: string, code: string, state: string) => authedJson<{ ok: true; provider?: string; providerName?: string; products?: string[] }>('/api/payroll/finch/connect', { orgId, code, state });
 /** Drop the stored Finch token (and ask Finch to revoke it). Owners/admins only. */
 export const disconnectFinch = (orgId: string) => authedJson<{ ok: true }>('/api/payroll/finch/disconnect', { orgId });
 /** Pull the employee directory through Finch — names, departments, active flag (titles if `employment` was granted). No pay data. */
@@ -228,7 +229,9 @@ export const fetchFinchWorkers = (orgId: string) => authedJson<{ workers: Payrol
  * against window.location.origin and the `state` we generated. Rejects if the user closes the popup or cancels.
  */
 export function openFinchConnect(status: FinchStatus, opts: { timeoutMs?: number } = {}): Promise<{ code: string; state: string }> {
-  const state = `${Date.now().toString(36)}.${Math.random().toString(36).slice(2, 12)}`;
+  // Server-signed: names this org and caller, and /finch/connect refuses a code that comes back without it.
+  const state = status.connectState;
+  if (!state) return Promise.reject(new Error('Only org owners and admins can connect payroll.'));
   const url = finchConnectUrl(status, state);
   const w = 520, h = 760;
   const left = Math.max(0, Math.round(window.screenX + (window.outerWidth - w) / 2));

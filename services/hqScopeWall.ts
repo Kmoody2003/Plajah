@@ -4,7 +4,7 @@
 // back to another org when an id is missing: no scope means no files. Going outside an org takes an
 // explicit grant, made on the server (routes/elevateAccess.ts) and returned by it.
 
-export type HqScopeKind = 'org' | 'user';
+export type HqScopeKind = 'org' | 'user' | 'business';
 
 export interface HqReadScope {
   kind: HqScopeKind;
@@ -27,6 +27,7 @@ export function isStandaloneTeacherScopeId(scopeId?: string | null): boolean {
 export function resolveHqReadScope(scope: { kind: HqScopeKind; id: string } | null | undefined, uid: string | null | undefined): HqReadScope | null {
   if (!uid || !scope?.id) return null;
   if (LEGACY_SHARED_SCOPE_IDS.has(scope.id)) return null;
+  if (scope.kind === 'business') return { kind: 'business', id: scope.id, teacher: false };
   if (scope.kind === 'user' || isStandaloneTeacherScopeId(scope.id)) {
     if (scope.id === uid) return { kind: 'user', id: uid, teacher: false };
     if (scope.id === `teacher-${uid}`) return { kind: 'user', id: uid, teacher: true };

@@ -1,3 +1,5 @@
+import { fetchClassIdsOf } from '../../services/classRoster';
+import { writePrivateProfile } from '../../services/userPrivate';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Heart, MessageCircle, Plus, Check, Clock, ClipboardList, Star, Users,
@@ -88,17 +90,19 @@ const ParentHub: React.FC<Props> = ({ user, profile, onNavigate }) => {
     return () => { alive = false; };
   }, [sel, uid]);
 
+  const [selClassIds, setSelClassIds] = useState<Set<string>>(new Set());
+  useEffect(() => { let alive = true; if (sel) fetchClassIdsOf(sel).then(s => { if (alive) setSelClassIds(s); }); return () => { alive = false; }; }, [sel]);
   const teachers = useMemo(() => {
     const m = new Map<string, { uid: string; name: string; classes: string[] }>();
     for (const c of classes) {
-      if (c?.ownerId && (c.enrolledStudents || []).includes(sel) && c.ownerId !== uid) {
+      if (c?.ownerId && selClassIds.has(c.id) && c.ownerId !== uid) {
         const t = m.get(c.ownerId) || { uid: c.ownerId, name: c.ownerName || 'Teacher', classes: [] };
         t.classes.push(c.title || 'Class');
         m.set(c.ownerId, t);
       }
     }
     return [...m.values()];
-  }, [classes, sel, uid]);
+  }, [classes, sel, uid, selClassIds]);
 
   const messageTeacher = async (teacherUid: string) => {
     if (!uid) return;
@@ -128,22 +132,6 @@ const ParentHub: React.FC<Props> = ({ user, profile, onNavigate }) => {
           birthYear: by > 1990 ? by : undefined,
           speechRecognition: true,
         });
-        if (db && res?.childUid) {
-          await setDoc(
-            doc(db, 'users', res.childUid),
-            {
-              username: res.username || cleanUsername,
-              parentalControls: {
-                ...DEFAULT_CHILD_CONTROLS,
-                savedChildPassword: cleanPassword,
-                passwordUpdatedAt: Date.now(),
-                updatedAt: Date.now(),
-                updatedBy: uid,
-              },
-            },
-            { merge: true }
-          ).catch(() => {});
-        }
         setAdding(false);
         setName('');
         setYear('');
@@ -164,19 +152,10 @@ const ParentHub: React.FC<Props> = ({ user, profile, onNavigate }) => {
       birthYear: by > 1990 ? by : undefined,
     });
     if (c && db && (cleanUsername || cleanPassword)) {
-      await setDoc(
-        doc(db, 'users', c.uid),
-        {
-          ...(cleanUsername ? { username: cleanUsername } : {}),
-          parentalControls: {
-            ...DEFAULT_CHILD_CONTROLS,
-            ...(cleanPassword ? { savedChildPassword: cleanPassword, passwordUpdatedAt: Date.now() } : {}),
-            updatedAt: Date.now(),
-            updatedBy: uid,
-          },
-        },
-        { merge: true }
-      ).catch(() => {});
+      if (cleanUsername) await setDoc(doc(db, 'users', c.uid), { username: cleanUsername }, { merge: true }).catch(() => {});
+      await writePrivateProfile(c.uid, {
+        parentalControls: { ...DEFAULT_CHILD_CONTROLS, updatedAt: Date.now(), updatedBy: uid },
+      }).catch(() => {});
     }
     setBusy(false);
     if (c) {
@@ -218,8 +197,6 @@ const ParentHub: React.FC<Props> = ({ user, profile, onNavigate }) => {
     setControlTab(tab);
     document.getElementById('parent-hub-controls-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
-
-  const savedPassword = child?.parentalControls?.savedChildPassword;
 
   return (
     <div className="min-h-full bg-[#0a0a0f] text-white pb-24">
@@ -399,41 +376,13 @@ const ParentHub: React.FC<Props> = ({ user, profile, onNavigate }) => {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-white/80">Password:</span>
-                    {savedPassword ? (
-                      <>
-                        <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-black/40 border border-white/10 text-emerald-300">
-                          {showInlinePassword ? savedPassword : '••••••••'}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setShowInlinePassword(v => !v)}
-                          className="text-xs text-white/70 hover:text-white flex items-center gap-1 px-2 py-1 rounded bg-white/5"
-                        >
-                          {showInlinePassword ? <EyeOff size={12} /> : <Eye size={12} />}
-                          {showInlinePassword ? 'Hide' : 'Show'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard?.writeText(savedPassword).catch(() => {});
-                            setCopiedPw(true);
-                            setTimeout(() => setCopiedPw(false), 1800);
-                          }}
-                          className="text-xs text-white/70 hover:text-white flex items-center gap-1 px-2 py-1 rounded bg-white/5"
-                        >
-                          {copiedPw ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                          {copiedPw ? 'Copied' : 'Copy'}
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => jumpToControls('credentials')}
+                    <button
+                      type="button"
+                      onClick={() => jumpToControls('credentials')}
                         className="text-xs text-amber-300 hover:text-amber-200 underline font-semibold"
                       >
                         Set or reset password →
                       </button>
-                    )}
                   </div>
                 </div>
 

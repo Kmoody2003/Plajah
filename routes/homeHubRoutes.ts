@@ -50,9 +50,15 @@ function isAdmin(req: Request): boolean {
   return !!tok && tok === hubIdentity().adminToken;
 }
 
-const requireLan = (req: Request, res: Response, next: NextFunction) => {
+export const requireLan = (req: Request, res: Response, next: NextFunction) => {
   if (!HOME_HUB_ENABLED) return res.status(404).json({ success: false, error: 'The Plajah Home hub is not enabled on this server' });
   if (!isLan(req)) return res.status(403).json({ success: false, error: 'The Plajah Home hub only answers devices on the local network' });
+  next();
+};
+/** Desktop-only surfaces (local GPU sidecars, the microphone): the hub PC itself, or a device holding the hub token. */
+export const requireHubLocal = (req: Request, res: Response, next: NextFunction) => {
+  if (!HOME_HUB_ENABLED) return res.status(404).json({ success: false, error: 'Not available on this server' });
+  if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Only available on this PC (or with the hub token)', needsToken: true });
   next();
 };
 const requireAdmin = (req: Request, res: Response, next: NextFunction) => {

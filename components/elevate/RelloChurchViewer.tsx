@@ -3,6 +3,8 @@
 // with Auto-Mounting Lectio Mini-Bible (synced to Ambo Production Team on Live Streams
 // or Playhead Timecode + Speech Detection on Replays) and Timestamped Stream Notes.
 
+import { isDemoOrg } from '../../services/elevateTruth';
+import { scopedKey } from '../../services/userScope';
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import Hls from 'hls.js';
 import {
@@ -35,7 +37,6 @@ import {
   type OnAirPlayback,
 } from '../../services/orgMedia';
 import { hlsTuning, capLevelsToPanel } from '../../services/hlsTuning';
-import { isDemoOrg } from '../../services/elevateTruth';
 import {
   listenToSession,
   resolveCue,
@@ -558,11 +559,12 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
   // Load persisted member stream notes
   const [memberNotes, setMemberNotes] = useState<TimestampedMemberNote[]>(() => {
     try {
-      const raw = JSON.parse(localStorage.getItem(STREAM_NOTES_STORAGE_KEY) || 'null');
+      const raw = JSON.parse(localStorage.getItem(scopedKey(STREAM_NOTES_STORAGE_KEY)) || 'null');
       if (Array.isArray(raw) && raw.length > 0) return raw;
     } catch {
       // ignore
     }
+    if (!isDemoOrg(org)) return []; // sample notes are for the demo church only
     return [
       {
         id: 'seed-note-1',
@@ -712,7 +714,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
     const nextNotes = [newNote, ...memberNotes];
     setMemberNotes(nextNotes);
     try {
-      localStorage.setItem(STREAM_NOTES_STORAGE_KEY, JSON.stringify(nextNotes));
+      localStorage.setItem(scopedKey(STREAM_NOTES_STORAGE_KEY), JSON.stringify(nextNotes));
     } catch {
       // ignore
     }

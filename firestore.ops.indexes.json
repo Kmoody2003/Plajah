@@ -1,6 +1,20 @@
 {
   "indexes": [
     {
+      "collectionGroup": "hqAuditLog",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "scopeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "hqAssetVersions",
       "queryScope": "COLLECTION",
       "fields": [

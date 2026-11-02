@@ -42,11 +42,11 @@ mocks.push(
   { function: 'get', args: [{ exactValue: CO3 }], result: { value: { data: coFull } } },
 );
 const ev = (by, extra = {}) => ({ pid: 'p1', action: 'opened', by, byName: 'N', at: AT, detail: '', ownerId: 'owner', ...extra });
-t('audit: a member adds to a shared document\'s trail', 'ALLOW', 'member', 'create', AUD, { data: ev('member'), time: AT });
+t('audit: only the server adds to a shared document\'s trail', 'DENY', 'member', 'create', AUD, { data: ev('member'), time: AT });
 t('audit: nobody writes in someone else\'s name', 'DENY', 'member', 'create', AUD, { data: ev('owner'), time: AT });
 t('audit: a revoked or outside person cannot add', 'DENY', 'other', 'create', AUD, { data: ev('other'), time: AT });
 t('audit: a time other than the server\'s is refused', 'DENY', 'member', 'create', AUD, { data: ev('member', { at: 1 }), time: AT });
-t('audit: the owner of an unshared document adds', 'ALLOW', 'owner', 'create', SOLO, { data: ev('owner', { pid: 'tela__solo' }), time: AT });
+t('audit: only the server adds to an unshared document\'s trail', 'DENY', 'owner', 'create', SOLO, { data: ev('owner', { pid: 'tela__solo' }), time: AT });
 t('audit: a stranger cannot add to an unshared document', 'DENY', 'other', 'create', SOLO, { data: ev('other', { pid: 'tela__solo' }), time: AT });
 t('audit: the owner reads the trail', 'ALLOW', 'owner', 'get', AUD, { existing: ev('member') });
 t('audit: a member cannot read the trail', 'DENY', 'member', 'get', AUD, { existing: ev('member') });
@@ -54,7 +54,7 @@ t('audit: an org IT Admin reads an org document\'s trail', 'ALLOW', 'itadmin', '
 t('audit: an org admin cannot read it', 'DENY', 'coadmin', 'get', AUD, { existing: ev('member', { ownerId: 'someone', orgId: 'o1' }) });
 t('audit: even the owner cannot edit an entry', 'DENY', 'owner', 'update', AUD, { existing: ev('member'), data: ev('member', { detail: 'x' }) });
 t('audit: even the owner cannot delete an entry', 'DENY', 'owner', 'delete', AUD, { existing: ev('member') });
-t('revoke: the owner records a revocation', 'ALLOW', 'owner', 'create', `${CO3}/revocations/member`, { data: { reason: 'x' } });
+t('revoke: only the server records a revocation', 'DENY', 'owner', 'create', `${CO3}/revocations/member`, { data: { reason: 'x' } });
 t('revoke: an editor cannot', 'DENY', 'books', 'create', `${CO3}/revocations/member`, { data: { reason: 'x' } });
 t('revoke: the revoked person reads why, after losing the project', 'ALLOW', 'gone', 'get', `${CO3}/revocations/gone`, { existing: { reason: 'x' } });
 t('revoke: nobody else reads it', 'DENY', 'other', 'get', `${CO3}/revocations/gone`, { existing: { reason: 'x' } });
@@ -125,13 +125,13 @@ const coProject = { ownerId: OWNER, kind: 'tela', title: 'Flyer', members: { [OW
 mocks.push({ function: 'get', args: [{ exactValue: CO }], result: { value: { data: coProject } } });
 t('co-edit: editor reads the project', 'ALLOW', MEMBER, 'get', CO, { existing: coProject });
 t('co-edit: outsider cannot read the project', 'DENY', OTHER, 'get', CO, { existing: coProject });
-t('co-edit: owner shares a doc they own', 'ALLOW', OWNER, 'create', `${DB}/coedit/tela__abc`, { data: { ...coProject, members: { [OWNER]: 'owner' }, memberIds: [OWNER] } });
+t('co-edit: only the server makes a project', 'DENY', OWNER, 'create', `${DB}/coedit/tela__abc`, { data: { ...coProject, members: { [OWNER]: 'owner' }, memberIds: [OWNER] } });
 t('co-edit: cannot create a project in someone else\'s name', 'DENY', OTHER, 'create', `${DB}/coedit/tela__abc`, { data: { ...coProject, members: { [OWNER]: 'owner' }, memberIds: [OWNER] } });
-t('co-edit: owner invites someone', 'ALLOW', OWNER, 'update', CO, { existing: coProject, data: { ...coProject, members: { ...coProject.members, [PASTOR]: 'editor' }, memberIds: [...coProject.memberIds, PASTOR] } });
+t('co-edit: only the server adds someone', 'DENY', OWNER, 'update', CO, { existing: coProject, data: { ...coProject, members: { ...coProject.members, [PASTOR]: 'editor' }, memberIds: [...coProject.memberIds, PASTOR] } });
 t('co-edit: editor cannot invite', 'DENY', MEMBER, 'update', CO, { existing: coProject, data: { ...coProject, members: { ...coProject.members, [OTHER]: 'editor' }, memberIds: [...coProject.memberIds, OTHER] } });
 t('co-edit: editor cannot make themselves owner', 'DENY', MEMBER, 'update', CO, { existing: coProject, data: { ...coProject, members: { ...coProject.members, [MEMBER]: 'owner' } } });
 t('co-edit: editor renames', 'ALLOW', MEMBER, 'update', CO, { existing: coProject, data: { ...coProject, title: 'Flyer v2', updatedAt: 2 } });
-t('co-edit: viewer leaves', 'ALLOW', BOOKS, 'update', CO, { existing: coProject, data: { ...coProject, members: { [OWNER]: 'owner', [MEMBER]: 'editor' }, memberIds: [OWNER, MEMBER], updatedAt: 2 } });
+t('co-edit: leaving goes through the server', 'DENY', BOOKS, 'update', CO, { existing: coProject, data: { ...coProject, members: { [OWNER]: 'owner', [MEMBER]: 'editor' }, memberIds: [OWNER, MEMBER], updatedAt: 2 } });
 t('co-edit: viewer cannot remove someone else', 'DENY', BOOKS, 'update', CO, { existing: coProject, data: { ...coProject, members: { [OWNER]: 'owner', [BOOKS]: 'viewer' }, memberIds: [OWNER, BOOKS] } });
 t('co-edit: editor writes a snapshot', 'ALLOW', MEMBER, 'update', `${CO}/snap/head`, { existing: { gen: 'a' }, data: { gen: 'b', chunks: 1 } });
 t('co-edit: viewer cannot write a snapshot', 'DENY', BOOKS, 'update', `${CO}/snap/head`, { existing: { gen: 'a' }, data: { gen: 'b', chunks: 1 } });
@@ -266,7 +266,7 @@ t('scheduled post: nobody else reads it', 'DENY', OTHER, 'get', SP, { existing: 
 const AS = `${DB}/orgAssets/a1`, asset = (x = {}) => ({ scopeKind: 'org', scopeId: 'o1', uploadedByUid: MEMBER, name: 'f', ...x });
 const LOCKED = { access: 'restricted', accessUids: [DEPT], accessSpec: { departments: ['d1'] } };
 const HQS = 'hqstaff'; ORG.staffUids = [HQS];
-t('hq: staff open an open file', 'ALLOW', HQS, 'get', AS, { existing: asset() });
+t('hq: staff read an open file through the server, not directly', 'DENY', HQS, 'get', AS, { existing: asset() });
 t('hq: staff cannot open a restricted file', 'DENY', HQS, 'get', AS, { existing: asset(LOCKED) });
 t('hq: an org admin cannot open a restricted file', 'DENY', COADMIN, 'get', AS, { existing: asset(LOCKED) });
 t('hq: a resolved department member opens it', 'ALLOW', DEPT, 'get', AS, { existing: asset(LOCKED) });
@@ -275,11 +275,11 @@ t('hq: an IT Admin opens it', 'ALLOW', ITA, 'get', AS, { existing: asset(LOCKED)
 t('hq: the owner opens it', 'ALLOW', OWNER, 'get', AS, { existing: asset(LOCKED) });
 t('hq: a revoked file is closed to its department', 'DENY', DEPT, 'get', AS, { existing: asset({ access: 'revoked' }) });
 t('hq: a revoked file stays open to its author', 'ALLOW', MEMBER, 'get', AS, { existing: asset({ access: 'revoked' }) });
-t('hq: a member of a restricted file edits it', 'ALLOW', DEPT, 'update', AS, { existing: asset(LOCKED), data: asset({ ...LOCKED, name: 'g' }) });
+t('hq: a member of a restricted file cannot edit it', 'DENY', DEPT, 'update', AS, { existing: asset(LOCKED), data: asset({ ...LOCKED, name: 'g' }) });
 t('hq: nobody widens access from the client', 'DENY', DEPT, 'update', AS, { existing: asset(LOCKED), data: asset({ ...LOCKED, accessUids: [DEPT, OTHER] }) });
 t('hq: the author cannot lift a revoke from the client', 'DENY', MEMBER, 'update', AS, { existing: asset({ access: 'revoked' }), data: asset({ access: 'open' }) });
 t('hq: an upload cannot arrive with access fields', 'DENY', HQS, 'create', AS, { data: asset({ uploadedByUid: HQS, access: 'restricted' }) });
-t('hq: staff upload a plain file', 'ALLOW', HQS, 'create', AS, { data: asset({ uploadedByUid: HQS }) });
+t('hq: staff upload a plain file', 'ALLOW', HQS, 'create', AS, { data: asset({ uploadedByUid: HQS, storagePath: `protected-hq/org/${asset().scopeId}/a/a.pdf` }) });
 t('hq: staff cannot list directly', 'DENY', HQS, 'list', `${DB}/orgAssets`, {});
 
 const body = {

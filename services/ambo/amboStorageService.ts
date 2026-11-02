@@ -2,6 +2,7 @@
 // Persists instantaneously to IndexedDB + LocalStorage, and syncs to Firestore when authenticated.
 
 import { get, set, del } from 'idb-keyval';
+import { activeScopeUid, adoptOwnedIdbValue, scopedKey } from '../userScope';
 import {
   type AmboProject,
   type AmboProjectSummary,
@@ -13,14 +14,39 @@ import {
 import { auth, db } from '../backendService';
 import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 
-const IDB_PREFIX = 'pj.ambo.prj.';
-const IDB_INDEX_KEY = 'pj.ambo.projects.index';
-const ACTIVE_PROJECT_KEY = 'pj.ambo.active.project.id';
+const LEGACY_IDB_PREFIX = 'pj.ambo.prj.';
+const LEGACY_INDEX_KEY = 'pj.ambo.projects.index';
+const idbProjectKey = (id: string) => scopedKey(LEGACY_IDB_PREFIX + id);
+const indexKey = () => scopedKey(LEGACY_INDEX_KEY);
+const activeKey = () => scopedKey('pj.ambo.active.project.id');
+
+const adopted = new Set<string>();
+/** Moves this account's own projects out of the old shared store. Org projects reload from the org's cloud copy. */
+async function adoptOwnProjects(): Promise<void> {
+  const uid = activeScopeUid();
+  if (!uid || adopted.has(uid)) return;
+  adopted.add(uid);
+  try {
+    const old = await get<AmboProjectSummary[]>(LEGACY_INDEX_KEY);
+    if (!Array.isArray(old)) return;
+    const rest: AmboProjectSummary[] = [];
+    const moved: AmboProjectSummary[] = [];
+    for (const s of old) {
+      const p = await get<AmboProject>(LEGACY_IDB_PREFIX + s.id);
+      if (p?.ownerId === uid && (await adoptOwnedIdbValue(LEGACY_IDB_PREFIX + s.id, idbProjectKey(s.id)))) moved.push(s);
+      else rest.push(s);
+    }
+    if (!moved.length) return;
+    const mine = (await get<AmboProjectSummary[]>(indexKey())) ?? [];
+    await set(indexKey(), [...moved.filter(m => !mine.some(x => x.id === m.id)), ...mine]);
+    await set(LEGACY_INDEX_KEY, rest);
+  } catch { /* the old copies stay where they were */ }
+}
 
 /** Get the currently active project ID */
 export function getActiveProjectId(): string | null {
   try {
-    return localStorage.getItem(ACTIVE_PROJECT_KEY);
+    return localStorage.getItem(activeKey());
   } catch {
     return null;
   }
@@ -29,14 +55,15 @@ export function getActiveProjectId(): string | null {
 /** Set the currently active project ID */
 export function setActiveProjectId(id: string): void {
   try {
-    localStorage.setItem(ACTIVE_PROJECT_KEY, id);
+    localStorage.setItem(activeKey(), id);
   } catch {}
 }
 
 /** Retrieve all cached project summaries from local storage */
 export async function listLocalProjects(): Promise<AmboProjectSummary[]> {
   try {
-    const raw = await get<AmboProjectSummary[]>(IDB_INDEX_KEY);
+    await adoptOwnProjects();
+    const raw = await get<AmboProjectSummary[]>(indexKey());
     if (Array.isArray(raw)) return raw;
   } catch {}
   return [];
@@ -48,7 +75,7 @@ async function updateLocalIndex(summary: AmboProjectSummary, remove = false): Pr
     const list = await listLocalProjects();
     const filtered = list.filter(p => p.id !== summary.id);
     const updated = remove ? filtered : [summary, ...filtered];
-    await set(IDB_INDEX_KEY, updated);
+    await set(indexKey(), updated);
   } catch {}
 }
 
@@ -61,7 +88,8 @@ async function updateLocalIndex(summary: AmboProjectSummary, remove = false): Pr
 export async function loadProject(projectId: string): Promise<AmboProject | null> {
   // 1. Try local IndexedDB
   try {
-    const local = await get<AmboProject>(`${IDB_PREFIX}${projectId}`);
+    await adoptOwnProjects();
+    const local = await get<AmboProject>(idbProjectKey(projectId));
     if (local && validateAmboProject(local).valid) {
       return local;
     }
@@ -77,7 +105,7 @@ export async function loadProject(projectId: string): Promise<AmboProject | null
       if (userDoc.exists()) {
         const data = userDoc.data() as AmboProject;
         // Cache locally for offline use
-        await set(`${IDB_PREFIX}${projectId}`, data);
+        await set(idbProjectKey(projectId), data);
         return data;
       }
     } catch {}
@@ -109,7 +137,7 @@ export async function saveProject(project: AmboProject): Promise<{ success: bool
   // 1. Write through to IndexedDB
   if (typeof indexedDB !== 'undefined') {
     try {
-      await set(`${IDB_PREFIX}${updatedProject.id}`, updatedProject);
+      await set(idbProjectKey(updatedProject.id), updatedProject);
       await updateLocalIndex(summary);
       setActiveProjectId(updatedProject.id);
     } catch (err) {
@@ -210,7 +238,7 @@ export async function listProjects(
 /** Delete a project from local storage and cloud */
 export async function deleteProject(projectId: string, scope: ProjectScope, organizationId?: string): Promise<boolean> {
   try {
-    await del(`${IDB_PREFIX}${projectId}`);
+    await del(idbProjectKey(projectId));
     const summary: AmboProjectSummary = {
       id: projectId,
       name: '',

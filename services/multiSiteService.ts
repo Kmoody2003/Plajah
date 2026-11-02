@@ -25,7 +25,8 @@ export async function registerProgramFeed(input: { churchId: string; campusId: s
     sessionId: input.sessionId,
     status: 'LIVE',
     startedAt: Date.now(),
-  };
+    createdByUid: auth.currentUser.uid,
+  } as ProgramFeed;
   await setDoc(ref, feed);
   return ref.id;
 }

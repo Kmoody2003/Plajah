@@ -5,15 +5,13 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Copy, Link2, Loader2, Share2, Trash2, UserPlus, X } from 'lucide-react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
 import type { BusinessPage, StaffMember } from '../../types';
 import { packForPage } from '../../services/verticalPacks';
 import {
   ALL_BIZ_PERMS, BIZ_PERM_LABEL, DEFAULT_PERMS, inviteLink, normalizePerms, seatDefaultsForPackRole,
   type BizPerm, type StaffSeat, type StaffSeatRole,
 } from '../../services/businessStaffCore';
-import { createStaffInvite, listStaffInvites, removeStaffSeat, revokeStaffInvite, updateStaffSeat } from '../../services/businessStaffService';
+import { fetchPageWithSeats, createStaffInvite, listStaffInvites, removeStaffSeat, revokeStaffInvite, updateStaffSeat } from '../../services/businessStaffService';
 import { fetchStaff } from '../../services/staffService';
 import { BO, BoLabel, BoSectionHead, BoEmpty } from './opsKit';
 
@@ -59,8 +57,8 @@ export default function StaffSeatsPanel({ page, currentUid, canManage, accent = 
   const [editPerms, setEditPerms] = useState<BizPerm[]>([]);
 
   const refreshPage = async () => {
-    const snap = await getDoc(doc(db, 'businessPages', page.id));
-    if (snap.exists()) onChanged?.({ id: snap.id, ...snap.data() } as BusinessPage);
+    const fresh = await fetchPageWithSeats(page.id);
+    if (fresh) onChanged?.(fresh);
   };
   const refreshInvites = () => { if (canManage) listStaffInvites(page.id).then(r => setInvites(r.invites)).catch(() => setInvites([])); };
 

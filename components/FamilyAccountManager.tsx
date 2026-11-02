@@ -80,24 +80,6 @@ const FamilyAccountManager: React.FC<{ guardianUid: string }> = ({ guardianUid }
         birthYear: birthYear ? parseInt(birthYear, 10) : undefined,
         speechRecognition: voice === 'yes',
       });
-      // Ensure savedChildPassword is stored on the child's parentalControls in Firestore so parent can always see it
-      if (db && res?.childUid) {
-        await setDoc(
-          doc(db, 'users', res.childUid),
-          {
-            username: res.username || cleanUsername,
-            parentalControls: {
-              ...DEFAULT_CHILD_CONTROLS,
-              speechRecognition: voice === 'yes',
-              savedChildPassword: cleanPassword,
-              passwordUpdatedAt: Date.now(),
-              updatedAt: Date.now(),
-              updatedBy: guardianUid,
-            },
-          },
-          { merge: true }
-        ).catch(() => {});
-      }
       setName('');
       setUsername('');
       setPassword('');
@@ -362,8 +344,6 @@ const FamilyAccountManager: React.FC<{ guardianUid: string }> = ({ guardianUid }
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {children.map(c => {
-            const savedPw = c.parentalControls?.savedChildPassword;
-            const isPwShown = Boolean(revealedPasswords[c.uid]);
             const blockedCount = (c.parentalControls?.blockedSurfaces || []).length;
             const wordCount = (c.parentalControls?.blockedWords || []).length;
             const isSelected = controlsFor?.uid === c.uid;
@@ -466,48 +446,18 @@ const FamilyAccountManager: React.FC<{ guardianUid: string }> = ({ guardianUid }
                       <span className="text-white/40 text-[10px] uppercase tracking-wider font-bold">
                         Password:
                       </span>
-                      {savedPw ? (
-                        <span className="font-mono font-bold text-emerald-300">
-                          {isPwShown ? savedPw : '••••••••'}
-                        </span>
-                      ) : (
-                        <span className="text-white/40 italic text-[11px]">Click Reset to set &amp; view</span>
-                      )}
+                      <span className="text-white/40 italic text-[11px]">Hidden for safety. Reset it if forgotten.</span>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    {savedPw && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => toggleRevealPassword(c.uid)}
-                          className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-white/80 text-[11px] flex items-center gap-1"
-                        >
-                          {isPwShown ? <EyeOff size={12} /> : <Eye size={12} />}
-                          {isPwShown ? 'Hide' : 'Show'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => copyText(savedPw, c.uid)}
-                          className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-white/80 text-[11px] flex items-center gap-1"
-                        >
-                          {copiedId === c.uid ? (
-                            <Check size={12} className="text-emerald-400" />
-                          ) : (
-                            <Copy size={12} />
-                          )}
-                          {copiedId === c.uid ? 'Copied' : 'Copy'}
-                        </button>
-                      </>
-                    )}
                     <button
                       type="button"
                       onClick={() => openChildSuite(c, 'credentials')}
                       className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 font-bold text-[11px] flex items-center gap-1"
                     >
                       <KeyRound size={11} />
-                      {savedPw ? 'Reset Password' : 'Set Password'}
+                      Reset Password
                     </button>
                   </div>
                 </div>

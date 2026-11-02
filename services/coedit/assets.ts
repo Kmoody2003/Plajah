@@ -20,8 +20,9 @@
 // Uploads are resumable and survive reloads: the bytes wait in IndexedDB until each tier lands.
 
 import { collection, doc, getDoc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
-import { getBlob, ref, uploadBytesResumable } from 'firebase/storage';
+import { ref, uploadBytesResumable } from 'firebase/storage';
 import { del as idbDel, get as idbGet, keys as idbKeys, set as idbSet } from 'idb-keyval';
+import { adoptOwnedIdbValue, scopedKey } from '../userScope';
 import { auth, opsDb, storage } from '../firebase';
 import { collabKey } from '../objectStore/objectKeys';
 import { getObject, ObjectStoreUnavailable, putObject } from '../objectStore/client';
@@ -63,7 +64,8 @@ export interface SharedAsset {
 }
 
 const ledger = (projectId: string) => collection(opsDb, COEDIT, projectId, 'assets');
-const cacheKey = (assetId: string, tier: AssetTier | 'local') => `coedit-asset:${assetId}:${tier}`;
+const legacyCacheKey = (assetId: string, tier: AssetTier | 'local') => `coedit-asset:${assetId}:${tier}`;
+const cacheKey = (assetId: string, tier: AssetTier | 'local') => scopedKey(legacyCacheKey(assetId, tier));
 const uploadKey = (projectId: string, assetId: string, tier: AssetTier) => `coedit-upload:${projectId}:${assetId}:${tier}`;
 
 export async function sha256Id(blob: Blob): Promise<string> {
@@ -168,7 +170,10 @@ async function runUpload(job: PendingUpload): Promise<void> {
     setTimeout(() => void runUpload(job), 3000);
     return;
   }
-  const blob = await idbGet<Blob>(cacheKey(job.assetId, job.tier === 'proxy' ? 'proxy' : 'local'));
+  // job.uid is this account (checked above), so bytes it queued before scoping are its own.
+  const sourceTier = job.tier === 'proxy' ? 'proxy' : 'local';
+  await adoptOwnedIdbValue(legacyCacheKey(job.assetId, sourceTier), cacheKey(job.assetId, sourceTier));
+  const blob = await idbGet<Blob>(cacheKey(job.assetId, sourceTier));
   if (!blob) {
     await idbDel(key);
     return;
@@ -240,11 +245,20 @@ export function bestTier(asset: SharedAsset, preferMaster = connectionCanTakeMas
   return null; // still uploading from its owner's device
 }
 
+/** Older uploads live in Firebase Storage. The server checks membership on each fetch; there is no direct read. */
+async function fetchProjectAsset(path: string): Promise<Blob> {
+  const token = await auth.currentUser?.getIdToken();
+  const res = await fetch(`/api/coedit/assets?path=${encodeURIComponent(path)}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!res.ok) throw new Error(`Could not load this file (${res.status}).`);
+  return res.blob();
+}
+
 /**
  * A playable Blob for an asset at the best tier available, cached on this device. Resolves null when
  * nothing has synced yet (the UI shows "<owner> is uploading…").
  */
 export async function resolveAsset(asset: SharedAsset, preferMaster?: boolean): Promise<{ blob: Blob; tier: AssetTier | 'local' } | null> {
+  if (asset.owner === auth.currentUser?.uid) await adoptOwnedIdbValue(legacyCacheKey(asset.id, 'local'), cacheKey(asset.id, 'local'));
   const local = await idbGet<Blob>(cacheKey(asset.id, 'local'));
   if (local) return { blob: local, tier: 'local' };
   const tier = bestTier(asset, preferMaster);
@@ -256,7 +270,7 @@ export async function resolveAsset(asset: SharedAsset, preferMaster?: boolean): 
     if (cachedProxy) return { blob: cachedProxy, tier: 'proxy' };
   }
   const info = asset.tiers[tier]!;
-  const blob = info.path.startsWith('collab/') ? await getObject(info.path) : await getBlob(ref(storage, info.path));
+  const blob = info.path.startsWith('collab/') ? await getObject(info.path) : await fetchProjectAsset(info.path);
   await idbSet(cacheKey(asset.id, tier), blob).catch(() => {});
   if (tier === 'master') await idbDel(cacheKey(asset.id, 'proxy')).catch(() => {});
   return { blob, tier };

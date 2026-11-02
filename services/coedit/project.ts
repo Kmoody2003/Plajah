@@ -1,7 +1,8 @@
 // services/coedit/project.ts — who can work on a shared creative project, and its team chat.
 //
 // A project becomes shared the first time its owner invites someone. Membership lives on one doc in
-// the plajah-ops database, so its rules need nothing from plajah-prod:
+// the plajah-ops database. Only the server changes it (routes/coeditSecurity.ts), so a name on the paper
+// trail is the account's and an org's document stays in the org:
 //
 //   coedit/{projectId}            owner, members {uid: role}, memberIds, names, photos, chatRoomId…
 //
@@ -11,11 +12,8 @@
 // platform chat stack (reactions, voice notes, threads, calls).
 
 import {
-  arrayRemove,
   arrayUnion,
   collection,
-  deleteDoc,
-  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -27,7 +25,6 @@ import {
 } from 'firebase/firestore';
 import { auth, db, opsDb } from '../firebase';
 import { cloudProjectId } from '../creativeCloud/cloudStore';
-import { logDocEvent, type DocAuditRef } from './audit';
 
 export const COEDIT = 'coedit';
 
@@ -46,6 +43,10 @@ export interface CoProject {
   /** uid -> when their access ends (ms). Rules close the content at that moment. */
   expires?: Record<string, number>;
   orgId?: string;
+  /** The author, when this document came to its owner because the author left the org. */
+  custodyFromUid?: string;
+  /** Set by the owner: rules then refuse live edits from anyone else. */
+  locked?: boolean;
   chatRoomId?: string;
   createdAt: number;
   updatedAt: number;
@@ -70,7 +71,6 @@ export const ROLE_LABEL: Record<CoRole, string> = {
 
 const projectRef = (id: string) => doc(opsDb, COEDIT, id);
 const revocationRef = (id: string, uid: string) => doc(opsDb, COEDIT, id, 'revocations', uid);
-const auditRef = (p: CoProject): DocAuditRef => ({ pid: p.id, ownerId: p.ownerId, ...(p.orgId ? { orgId: p.orgId } : {}) });
 
 export async function getCoProject(id: string): Promise<CoProject | null> {
   try {
@@ -97,80 +97,58 @@ export async function listSharedWithMe(kind?: string): Promise<CoProject[]> {
     const snap = await getDocs(query(collection(opsDb, COEDIT), where('memberIds', 'array-contains', uid)));
     return snap.docs
       .map((d) => d.data() as CoProject)
-      .filter((p) => p.ownerId !== uid && (!kind || p.kind === kind))
+      .filter((p) => (p.ownerId !== uid || !!p.custodyFromUid) && (!kind || p.kind === kind))
       .sort((a, b) => b.updatedAt - a.updatedAt);
   } catch {
     return [];
   }
 }
 
-function me(): CoPerson | null {
+export class CoAccessError extends Error {
+  constructor(message: string, readonly code?: string, readonly canOverride?: boolean) { super(message); }
+}
+
+async function coeditCall<T = Record<string, unknown>>(path: string, body: Record<string, unknown>): Promise<T> {
   const u = auth.currentUser;
-  return u ? { uid: u.uid, name: u.displayName || 'Me', photo: u.photoURL } : null;
+  if (!u) throw new CoAccessError('Sign in to share this project.');
+  const res = await fetch(`/api/coedit/${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await u.getIdToken()}` },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => ({})) as Record<string, any>;
+  if (!res.ok) throw new CoAccessError(json.error || 'That did not go through. Try again.', json.code, json.canOverride);
+  return json as T;
 }
 
-/** Makes (or returns) the shared project for a doc the signed-in user owns. */
+const access = (project: CoProject, body: Record<string, unknown>) => coeditCall(`projects/${encodeURIComponent(project.id)}/access`, body);
+
+/** Makes (or returns) the shared project for a doc. The server checks the organization and fills in the names. */
 export async function ensureCoProject(input: { kind: string; localId: string; title: string; orgId?: string }): Promise<CoProject> {
-  const owner = me();
-  if (!owner) throw new Error('Sign in to share this project.');
-  const id = coProjectId(input.kind, input.localId);
-  const existing = await getCoProject(id);
+  const existing = await getCoProject(coProjectId(input.kind, input.localId));
   if (existing) return existing;
-  const now = Date.now();
-  const p: CoProject = {
-    id,
-    kind: input.kind,
-    localId: input.localId,
-    title: input.title || 'Untitled',
-    ownerId: owner.uid,
-    members: { [owner.uid]: 'owner' },
-    memberIds: [owner.uid],
-    names: { [owner.uid]: owner.name },
-    ...(owner.photo ? { photos: { [owner.uid]: owner.photo } } : {}),
-    ...(input.orgId ? { orgId: input.orgId } : {}),
-    createdAt: now,
-    updatedAt: now,
-  };
-  await setDoc(projectRef(id), p);
-  return p;
+  const { project } = await coeditCall<{ project: CoProject }>('projects', { kind: input.kind, localId: input.localId, title: input.title || 'Untitled', ...(input.orgId ? { orgId: input.orgId } : {}) });
+  return project;
 }
 
-/** Invites people (or changes their role). Keeps the team chat's participants in step. */
-export async function addMembers(project: CoProject, people: CoPerson[], role: Exclude<CoRole, 'owner'>): Promise<void> {
+/** Invites people (or changes their role). The server keeps the team chat's participants in step.
+ *  An org document's invite of someone outside the org fails with code OUTSIDE_ORG unless `outside` is set by its owner or an IT Admin. */
+export async function addMembers(project: CoProject, people: CoPerson[], role: Exclude<CoRole, 'owner'>, outside = false): Promise<void> {
   if (!people.length) return;
-  const patch: Record<string, unknown> = { updatedAt: Date.now(), memberIds: arrayUnion(...people.map((p) => p.uid)) };
-  for (const p of people) {
-    patch[`members.${p.uid}`] = role;
-    patch[`names.${p.uid}`] = p.name || 'Collaborator';
-    if (p.photo) patch[`photos.${p.uid}`] = p.photo;
-  }
-  await updateDoc(projectRef(project.id), patch);
-  // Being invited back lifts an earlier revoke.
-  await Promise.all(people.map((p) => deleteDoc(revocationRef(project.id, p.uid)).catch(() => {})));
-  void logDocEvent(auditRef(project), 'shared', `${people.map((p) => p.name || 'Collaborator').join(', ')}: ${ROLE_LABEL[role]}`);
+  await access(project, { action: 'invite', role, uids: people.map((p) => p.uid), ...(outside ? { outside: true } : {}) });
   const memberIds = [...new Set([...project.memberIds, ...people.map((p) => p.uid)])];
   await syncTeamChat({ ...project, memberIds }).catch((e) => console.warn('[coedit] team chat sync failed', e));
 }
 
 export async function setRole(project: CoProject, uid: string, role: Exclude<CoRole, 'owner'>) {
   if (uid === project.ownerId) return;
-  await updateDoc(projectRef(project.id), { [`members.${uid}`]: role, updatedAt: Date.now() });
-  void logDocEvent(auditRef(project), 'role_changed', `${project.names?.[uid] || 'Collaborator'}: ${ROLE_LABEL[role]}`);
+  await access(project, { action: 'role', uid, role });
 }
 
 /** Removes someone (owner), or leaves (anyone but the owner). */
 export async function removeMember(project: CoProject, uid: string) {
   if (uid === project.ownerId) return;
-  await updateDoc(projectRef(project.id), {
-    [`members.${uid}`]: deleteField(),
-    [`names.${uid}`]: deleteField(),
-    [`photos.${uid}`]: deleteField(),
-    memberIds: arrayRemove(uid),
-    updatedAt: Date.now(),
-  });
-  if (project.chatRoomId) {
-    await updateDoc(doc(db, 'chat_rooms', project.chatRoomId), { participants: arrayRemove(uid), updatedAt: Date.now() }).catch(() => {});
-  }
+  await access(project, uid === auth.currentUser?.uid ? { action: 'leave' } : { action: 'revoke', uid });
 }
 
 export interface CoRevocation { at: number; by: string; byName: string; reason: string }
@@ -178,25 +156,27 @@ export interface CoRevocation { at: number; by: string; byName: string; reason: 
 /** Ends someone's access (owner). Their app sees the notice below and removes its copy of the document. */
 export async function revokeMember(project: CoProject, uid: string, reason = '') {
   if (uid === project.ownerId) return;
-  const name = project.names?.[uid] || 'Collaborator';
-  await setDoc(revocationRef(project.id, uid), { at: Date.now(), by: auth.currentUser?.uid || '', byName: auth.currentUser?.displayName || 'The owner', reason: reason.slice(0, 300) } satisfies CoRevocation);
-  await removeMember(project, uid);
-  void logDocEvent(auditRef(project), 'access_revoked', reason ? `${name}: ${reason}` : name);
+  await access(project, { action: 'revoke', uid, reason: reason.slice(0, 300) });
 }
 
 /** Ends access for everyone but the owner, for when a document needs locking down at once. */
 export async function revokeEveryone(project: CoProject, reason = '') {
-  const others = project.memberIds.filter((m) => m !== project.ownerId);
-  for (const uid of others) await revokeMember(project, uid, reason);
-  void logDocEvent(auditRef(project), 'all_access_revoked', `${others.length} people${reason ? `: ${reason}` : ''}`);
+  await access(project, { action: 'revoke_all', reason: reason.slice(0, 300) });
 }
 
 /** Access that ends by itself on a date; null keeps it open. */
 export async function setMemberExpiry(project: CoProject, uid: string, at: number | null) {
   if (uid === project.ownerId) return;
-  await updateDoc(projectRef(project.id), { [`expires.${uid}`]: at ?? deleteField(), updatedAt: Date.now() });
-  void logDocEvent(auditRef(project), 'access_expiry_set', `${project.names?.[uid] || 'Collaborator'}: ${at ? new Date(at).toLocaleString() : 'no end date'}`);
+  await access(project, { action: 'expiry', uid, at });
 }
+
+/** This person's own access date has passed: take them off the project and its team chat now, not at the next sweep. */
+export const reportMyAccessExpired = (project: CoProject) => access(project, { action: 'self_expire' }).catch(() => {});
+
+/** Removes a document from the shared side: live log, snapshots, versions, drafts, media and team chat. Owner only;
+ *  anyone else gets a refusal, and their own copy is still theirs to clear. */
+export const deleteSharedDoc = (kind: string, localId: string) =>
+  coeditCall(`projects/${encodeURIComponent(coProjectId(kind, localId))}/delete`, {});
 
 /** Why the signed-in person lost this project, if the owner revoked them. */
 export async function getMyRevocation(projectId: string): Promise<CoRevocation | null> {
@@ -211,6 +191,8 @@ export async function getMyRevocation(projectId: string): Promise<CoRevocation |
 }
 
 export const accessExpired = (p: CoProject | null, uid: string | undefined) => !!p && !!uid && !!p.expires?.[uid] && p.expires[uid] <= Date.now();
+
+export const setProjectLocked = (project: CoProject, locked: boolean) => updateDoc(projectRef(project.id), { locked, updatedAt: Date.now() });
 
 export async function renameCoProject(project: CoProject, title: string) {
   await updateDoc(projectRef(project.id), { title: title.trim() || 'Untitled', updatedAt: Date.now() });

@@ -66,9 +66,9 @@ const PayrollImport: React.FC<Props> = ({ org, myMembership, people, onDone }) =
     if (!finch) return;
     setErr(''); setResult(null); setBusy('Waiting for the payroll sign-in window…');
     try {
-      const { code } = await openFinchConnect(finch);
+      const { code, state } = await openFinchConnect(finch);
       setBusy('Finishing the connection…');
-      await connectFinch(org.id, code);
+      await connectFinch(org.id, code, state);
       await refreshFinch();
     } catch (e: any) { setErr(e?.message || 'Could not connect payroll.'); }
     setBusy(null);

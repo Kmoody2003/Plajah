@@ -41,6 +41,8 @@ import {
   loadSovereignWorshipListings,
   publishSongToSovereignExchange,
   unlockSovereignListingForChurch,
+  checkoutUrlForListing,
+  watchChoraLicense,
   loadUnlockedSovereignLicenses,
   computeChoraSongFeeAndSplits,
   creditsToCoWriterSplits,
@@ -469,19 +471,21 @@ export const ChoraSovereignWorshipDeck: React.FC<ChoraSovereignWorshipDeckProps>
     listing: ChoraSovereignListing,
     mode: 'PLAJAH_PLUS_SUBSCRIPTION' | 'DIRECT_SINGLE_LICENSE',
   ) => {
-    if (listing.stripePaymentLinkUrl && mode === 'DIRECT_SINGLE_LICENSE') {
-      window.open(listing.stripePaymentLinkUrl, '_blank', 'noopener,noreferrer');
+    // A licence exists only after Stripe confirms the payment. The song loads by itself when it does.
+    const checkout = checkoutUrlForListing(listing);
+    if (!checkout || mode !== 'DIRECT_SINGLE_LICENSE') {
+      onToast(`"${listing.title}" has no live checkout yet. Ask the writer to connect Stripe and create a payment link.`);
+      return;
     }
-    const { song: unlockedSong, receipt } = unlockSovereignListingForChurch(
-      listing,
-      mode,
-      song.productionId,
-    );
-    setUnlockedReceipts(loadUnlockedSovereignLicenses());
-    onImportCompleteSong(unlockedSong);
-    onToast(
-      `Minted Sovereign License ${receipt.licenseCode} for "${listing.title}"! Net $${receipt.creatorPayoutUsd.toFixed(2)} routed to co-writers. Loaded into Chora Pad.`,
-    );
+    window.open(checkout, '_blank', 'noopener,noreferrer');
+    onToast(`Finish checkout for "${listing.title}". It loads into Chora Pad as soon as your payment is confirmed.`);
+    const stop = watchChoraLicense(listing.songId, license => {
+      stop();
+      const { song: unlockedSong, receipt } = unlockSovereignListingForChurch(listing, mode, song.productionId, undefined, license);
+      setUnlockedReceipts(loadUnlockedSovereignLicenses());
+      onImportCompleteSong(unlockedSong);
+      onToast(`Licence ${receipt.licenseCode} confirmed for "${listing.title}". Loaded into Chora Pad.`);
+    });
   };
 
   return (

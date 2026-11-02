@@ -20,10 +20,11 @@
 // (whose roster isn't real accounts) so the UI can show the wire result honestly without spraying
 // notification docs at placeholder uids. Real classrooms pass simulate:false.
 
+import { fetchGuardiansOf } from './userPrivate';
 import { collection, doc, addDoc, arrayUnion, setDoc, getDoc, updateDoc, query, where, getDocs } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { opsDb, storage, auth } from './firebase';
-import { createNotification, fetchUserProfiles } from './backendService';
+import { createNotification } from './backendService';
 import { unlockAchievementByTrigger } from './achievementService';
 import { appendRecord } from './learningLedgerService';
 import { autoGradeWorksheet, type DigitalWorksheet, type GradeResult } from './worksheetDigitizer';
@@ -547,14 +548,11 @@ async function resolveGuardians(
 ): Promise<{ pairs: { guardianUid: string; studentId: string; childName: string }[]; estimated: number }> {
   if (simulate) return { pairs: [], estimated: students.length };
   try {
-    const profiles = await fetchUserProfiles(students.map(s => s.id));
-    const byId = new Map(profiles.map(p => [(p as any).uid, p]));
+    const links = await fetchGuardiansOf(students.map(s => s.id));
     const pairs: { guardianUid: string; studentId: string; childName: string }[] = [];
     const seen = new Set<string>();
     for (const st of students) {
-      const p: any = byId.get(st.id);
-      if (!p) continue;
-      const guardians: string[] = [p.guardianUid, ...(p.coGuardianUids || [])].filter(Boolean);
+      const guardians: string[] = links[st.id] || [];
       for (const g of guardians) {
         const key = `${g}|${st.id}`;
         if (seen.has(key)) continue;

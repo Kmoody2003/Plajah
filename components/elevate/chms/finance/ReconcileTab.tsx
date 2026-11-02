@@ -1,6 +1,7 @@
 // Reconciliation — AUTOMATIC. Stripe payouts, their line items and the gifts they carry are pulled through the
 // church's connected account (server.ts /api/elevate/stripe/*) and webhooks; nobody types a Stripe figure.
 // A small manual-adjustment escape hatch stays at the bottom for money that never touched Stripe.
+import { orgCanReceiveGiving } from '../../../../services/orgFinanceCore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, ExternalLink, RefreshCw, Loader2, Zap } from 'lucide-react';
 import { savePayout } from '../../../../services/chmsFinance';
@@ -40,7 +41,7 @@ const ReconcileTab: React.FC<TabProps> = ({ org, snap, reload, canManage, onOpen
   }, [org.id, reload, loadStatus]);
 
   // Auto-sync on open (throttled to once per 10 min per org in stripeSync) — finance roles only.
-  useEffect(() => { loadStatus(); if (canManage && org.stripeAccountId) sync(false); }, [org.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadStatus(); if (canManage && orgCanReceiveGiving(org)) sync(false); }, [org.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fix = (kind: 'fix' | 'dashboard') => act.run(async () => { const url = await getStripeLink(org.id, kind); window.open(url, '_blank', 'noopener'); });
 
@@ -54,7 +55,7 @@ const ReconcileTab: React.FC<TabProps> = ({ org, snap, reload, canManage, onOpen
   const platformFees = Math.round(online.reduce((a, r) => a + (r.feePaidBy === 'platform' ? (r.stripeFee || 0) : 0), 0) * 100) / 100;
   const orgFees = Math.round(online.reduce((a, r) => a + (r.feePaidBy === 'org' ? (r.stripeFee || 0) : 0), 0) * 100) / 100;
   const toggle = (id: string) => setOpen(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const connected = !!org.stripeAccountId && status?.connected !== false;
+  const connected = orgCanReceiveGiving(org) && status?.connected !== false;
 
   const save = () => act.run(async () => {
     const gross = Number(p.gross), fees = Number(p.fees || 0), net = p.net ? Number(p.net) : gross - fees;
@@ -72,11 +73,11 @@ const ReconcileTab: React.FC<TabProps> = ({ org, snap, reload, canManage, onOpen
           <div className="flex-1 min-w-[200px]">
             <h3 className="text-sm font-black text-white">Stripe — live</h3>
             <p className="text-[10px] text-white/40">
-              {!org.stripeAccountId ? 'Not connected yet. Connect Stripe in Giving settings and gifts, fees and payouts will appear here by themselves.'
+              {!orgCanReceiveGiving(org) ? 'Not connected yet. Connect Stripe in Giving settings and gifts, fees and payouts will appear here by themselves.'
                 : syncing ? 'Syncing with Stripe…' : `Last synced ${ago(status?.lastSyncAt)}${summary ? ` · ${summary.giftsAdded} gift(s) recovered, ${summary.payouts} payout(s) checked` : ''}`}
             </p>
           </div>
-          {canManage && org.stripeAccountId && (
+          {canManage && orgCanReceiveGiving(org) && (
             <>
               <button onClick={() => sync(true)} disabled={syncing} className={btnPrimary}>{syncing ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Sync now</button>
               <button onClick={() => fix('dashboard')} disabled={act.busy} className={btnGhost}><ExternalLink size={12} /> Stripe dashboard</button>

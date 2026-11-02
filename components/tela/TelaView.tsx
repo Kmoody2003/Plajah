@@ -11,6 +11,7 @@
  * services/telaStore (OPFS-first, localStorage fallback, Firestore manifest
  * for listing/sync only).
  */
+import { onBeforeSignOut, whenAuthKnown } from '../../services/userScope';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -35,9 +36,10 @@ import { useCoedit, type UseCoedit } from '../../hooks/useCoedit';
 import { CollabDock } from '../collab/CollabDock';
 import { TelaSecurityPanel } from './TelaSecurityPanel';
 import { cleanAndReport, TELA_THREAT_EVENT, type TelaThreat, type TelaThreatDetail } from '../../services/tela/telaSecurity';
-import { accessExpired, getMyRevocation } from '../../services/coedit/project';
+import { accessExpired, getMyRevocation, reportMyAccessExpired, setProjectLocked } from '../../services/coedit/project';
 import { CoeditSession } from '../../services/coedit/session';
 import { logDocEvent, logTelaExport } from '../../services/coedit/audit';
+import { setActiveTelaMediaDoc } from '../../services/telaAssets';
 import { forShare, telaLabeler, withPrivate } from './telaCoedit';
 import { TelaPresenceLayer } from './TelaPresence';
 import { coProjectId, listSharedWithMe } from '../../services/coedit/project';
@@ -572,6 +574,8 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   useEffect(() => {
     let alive = true;
     (async () => {
+      await whenAuthKnown(); // the list and the doc to reopen are this account's, once we know who it is
+      if (!alive) return;
       setStorageMode(await telaStorageMode());
       const metas = await listTelaDocs();
       if (!alive) return;
@@ -589,6 +593,10 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialDocId]);
+
+  useEffect(() => onBeforeSignOut(async () => {
+    if (saveTimer.current && docRef.current) await saveTelaDoc(docRef.current);
+  }), []);
 
   const openDoc = (d: TelaDoc) => {
     setHistory(emptyHistory());
@@ -846,15 +854,17 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     void refreshList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const openedDocId = doc?.id, openedOwnerId = doc?.ownerId;
+  const openedDocId = doc?.id, openedOwnerId = doc?.ownerId, openedOrgId = doc?.orgOrigin?.orgId;
   useEffect(() => {
     const uid = auth.currentUser?.uid;
-    if (!openedDocId || !uid || !openedOwnerId || openedOwnerId === uid || openedOwnerId === 'local') return;
+    // An org's document comes back to the org when its author's seat ends, so the author's copy is checked too.
+    if (!openedDocId || !uid || !openedOwnerId || (openedOwnerId === uid && !openedOrgId) || openedOwnerId === 'local') return;
     let alive = true;
     const pid = coProjectId(TELA_CLOUD_KIND, openedDocId);
     const ended = 'Your access to that document has ended, and its copy was removed from this device.';
     if (co.project && accessExpired(co.project, uid)) {
       void logDocEvent({ pid, ownerId: co.project.ownerId, ...(co.project.orgId ? { orgId: co.project.orgId } : {}) }, 'access_ended_copy_removed', 'Access period ended');
+      void reportMyAccessExpired(co.project);
       void endAccess(openedDocId, true, ended);
       return;
     }
@@ -864,14 +874,14 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
       if (alive && rev) void endAccess(openedDocId, true, `${rev.byName} ended your access to that document${rev.reason ? ` (${rev.reason})` : ''}, and its copy was removed from this device.`);
     });
     return () => { alive = false; if (timer) clearTimeout(timer); };
-  }, [openedDocId, openedOwnerId, co.project, endAccess]);
+  }, [openedDocId, openedOwnerId, openedOrgId, co.project, endAccess]);
   // Copies left on this device from documents revoked while the app was closed.
   useEffect(() => {
     let alive = true;
     void (async () => {
       const uid = auth.currentUser?.uid;
       if (!uid) return;
-      const foreign = (await listTelaDocs()).filter(m => m.ownerId && m.ownerId !== uid && m.ownerId !== 'local').slice(0, 50);
+      const foreign = (await listTelaDocs()).filter(m => m.ownerId && m.ownerId !== 'local' && (m.ownerId !== uid || m.orgId)).slice(0, 50);
       for (const m of foreign) {
         if (alive && await getMyRevocation(coProjectId(TELA_CLOUD_KIND, m.id))) await endAccess(m.id, false, '');
       }
@@ -879,6 +889,23 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Uploads made while a document is open belong to that document (services/telaAssets).
+  useEffect(() => {
+    setActiveTelaMediaDoc(openedDocId ? { pid: coProjectId(TELA_CLOUD_KIND, openedDocId), ...(openedOrgId ? { orgId: openedOrgId } : {}) } : null);
+    return () => setActiveTelaMediaDoc(null);
+  }, [openedDocId, openedOrgId]);
+  // An org's document always has a project: that's what the org holds if its author leaves. Nobody else is added.
+  const coShare = co.share, coProject = co.project, custodyAsked = useRef(new Set<string>());
+  useEffect(() => {
+    if (!openedDocId || !openedOrgId || coProject || openedOwnerId !== auth.currentUser?.uid || custodyAsked.current.has(openedDocId)) return;
+    custodyAsked.current.add(openedDocId);
+    void coShare().catch(() => {});
+  }, [openedDocId, openedOrgId, openedOwnerId, coProject, coShare]);
+  // A locked document is enforced for everyone else on the project by rules, through this flag on the project.
+  const docLocked = !!doc?.locked;
+  useEffect(() => {
+    if (coProject && coProject.ownerId === auth.currentUser?.uid && !!coProject.locked !== docLocked) void setProjectLocked(coProject, docLocked).catch(() => {});
+  }, [coProject, docLocked]);
   // Who opened a shared document, once a session.
   const openLogged = useRef(new Set<string>());
   useEffect(() => {
@@ -3538,7 +3565,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               <button className={menuBarItem} onClick={() => { exportPdf(); setAppMenuOpen(null); }} disabled={!activeFrame}><FileDown size={14}/>Export page as PDF</button>
               <button className={menuBarItem} onClick={() => { if (activeFrame) downloadTelaHtml(doc, activeFrame.id); setAppMenuOpen(null); }} disabled={!activeFrame}><Monitor size={14}/>Export page as HTML</button>
               <button className={menuBarItem} onClick={() => { if (activeFrame) downloadTelaPage(doc, activeFrame); setAppMenuOpen(null); }} disabled={!activeFrame}><FileDown size={14}/>Export editable page data<span className="ml-auto text-[9px] text-white/25">JSON</span></button>
-              {activeVectorDevice() && <><button className={menuBarItem} onClick={() => { const vector = activeVectorDevice(); if (vector) { logTelaExport(doc, 'Vector SVG'); downloadTelaVectorSvg(vector, activeFrame?.label || doc.title); } setAppMenuOpen(null); }}><Shapes size={14}/>Export vector page<span className="ml-auto text-[9px] text-white/25">SVG</span></button><button className={menuBarItem} onClick={() => { const vector = activeVectorDevice(); if (vector) void downloadTelaVectorPng(vector, activeFrame?.label || doc.title); setAppMenuOpen(null); }}><ImageIcon size={14}/>Export rendered page<span className="ml-auto text-[9px] text-white/25">PNG</span></button></>}
+              {activeVectorDevice() && <><button className={menuBarItem} onClick={() => { const vector = activeVectorDevice(); if (vector) { logTelaExport(doc, 'Vector SVG'); downloadTelaVectorSvg(vector, activeFrame?.label || doc.title); } setAppMenuOpen(null); }}><Shapes size={14}/>Export vector page<span className="ml-auto text-[9px] text-white/25">SVG</span></button><button className={menuBarItem} onClick={() => { const vector = activeVectorDevice(); if (vector) logTelaExport(doc, 'Rendered page (PNG)'); void downloadTelaVectorPng(vector, activeFrame?.label || doc.title); setAppMenuOpen(null); }}><ImageIcon size={14}/>Export rendered page<span className="ml-auto text-[9px] text-white/25">PNG</span></button></>}
               <div className="h-px my-1 bg-white/[.07]"/>
               <button className={menuBarItem} onClick={() => { downloadTelaBoard(doc); setAppMenuOpen(null); }}><LayoutPanelTop size={14}/>Export whole Tela board<span className="ml-auto text-[9px] text-white/25">.tela</span></button>
             </>}

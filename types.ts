@@ -1859,6 +1859,8 @@ export interface UserProfile {
   provisionedRoleKey?: string;
 
   // ─── Family / child-safety (accountType 'PARENT' | 'CHILD') ─────────────────
+  /** True when this account may appear in list queries. Never set on a child (firestore.rules). */
+   listable?: boolean;
   /** True for a managed child account. Safe defaults are applied regardless of who edits. */
   isChild?: boolean;
   /** uid of the managing parent/guardian (set on a CHILD account). */
@@ -2957,10 +2959,15 @@ export interface Organization {
   statementOfFaith?: string;
   givingUrl?: string;         // external giving link (fallback to native Stripe giving)
   /** Legal entity name + EIN printed on giving statements (Finance Hub settings). */
+  /** The finance fields below live on organizations/{id}/private/finance; load them with services/orgFinance. */
   legalName?: string;
   ein?: string;
   statementFooter?: string;
   financeSettings?: ChmsFinanceSettings;
+  /** Public, server-set: Stripe giving is connected. */
+  canReceiveGiving?: boolean;
+  /** Public: this org turned the donor fee-cover offer off. */
+  donorFeeCoverOff?: boolean;
 
   // ── Org chat workspace (services/orgChatService) ───────────────────────────
   /** Set when the org's chat channels were last provisioned (mirrors productions). */
@@ -3817,7 +3824,12 @@ export interface Classroom {
   lessonOutline?: { id: string; title: string }[];
   /** Catalog-safe count of the private assignments. */
   assignmentCount?: number;
+  /** Filled by services/classRoster for the class's teacher and students; lives on private/roster. */
   enrolledStudents: string[]; // UIDs
+  /** Public seat count. */
+  enrolledCount?: number;
+  /** 'open' lets anyone self-enroll (publicly listed creator courses). Default closed: teacher add or join code. */
+  enrollment?: 'open' | 'closed';
   liveSessionUrl?: string;
   category: string;
   // Which track this class belongs to. Both share the same classroom infrastructure:
@@ -4118,7 +4130,6 @@ export interface ParentalControls {
   /** School-hours focus mode: restrict non-learning surfaces during weekday school hours (8am-3pm). */
   schoolHoursLearningOnly?: boolean;
   /** Parent-visible copy of the child's login password so the parent can view/remind the child. */
-  savedChildPassword?: string;
   /** Timestamp of last password reset by parent. */
   passwordUpdatedAt?: number;
   updatedAt?: number;
@@ -4711,7 +4722,7 @@ export interface ChatMessage {
 
 // ─── CONTENT HQ / CREATIVE REVIEW ──────────────────────────────────────────
 // One deliberately small workflow shared by creators, classrooms, clients and orgs.
-export type HqScopeKind = 'user' | 'org';
+export type HqScopeKind = 'user' | 'org' | 'business';
 export type HqAssetStatus = 'DRAFT' | 'IN_REVIEW' | 'CHANGES_REQUESTED' | 'APPROVED' | 'DELIVERED' | 'ARCHIVED';
 export type HqReviewDecision = 'PENDING' | 'APPROVED' | 'CHANGES_REQUESTED';
 export type HqWorkspaceRole = 'OWNER' | 'MANAGER' | 'CONTRIBUTOR' | 'REVIEWER';
@@ -7630,7 +7641,7 @@ export interface TelaDomainBinding {
   storageKey?: string;
   field?: string;
   label?: string;
-  /** Sensitive components are encrypted before the Tela bundle reaches OPFS/localStorage. */
+  /** Sensitive components are scrambled before the Tela bundle is stored, and stay out of shared sessions. Not real encryption: see telaStore. */
   encryptedAtRest?: boolean;
 }
 

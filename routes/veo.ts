@@ -19,7 +19,10 @@
 import { Router, Request, Response } from 'express';
 import { Readable } from 'stream';
 import { GoogleGenAI, type GenerateVideosOperation } from '@google/genai';
-import { verifyIdToken, verifyIdTokenDetailed, adminConfig } from '../services/firebaseAdminRest';
+import { createHash } from 'node:crypto';
+import { verifyIdTokenDetailed, adminConfig, fsGet, fsSet } from '../services/firebaseAdminRest';
+import { isVeoDownloadUri, isVeoOperationName } from '../services/serverGuards';
+import { bumpQuota, refundQuota, VEO_DAILY_LIMIT } from '../services/usageQuota';
 
 export const veoRouter = Router();
 
@@ -29,8 +32,11 @@ const DEFAULT_VEO_MODEL = 'veo-3.1-fast-generate-preview';
 const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 const LIVE_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
 
-/** Google only serves Veo results from here; anything else is refused. */
-const VIDEO_HOST_PREFIX = 'https://generativelanguage.googleapis.com/';
+/** The models Pixels uses. Anything else falls back to the default rather than billing an arbitrary model. */
+const VEO_MODELS = new Set(['veo-3.1-generate-preview', DEFAULT_VEO_MODEL]);
+const GEMINI_MODELS = new Set(['gemini-2.5-flash-lite', DEFAULT_GEMINI_MODEL]);
+/** Operations and result files belong to the account that started them (one server key serves everyone). */
+const ownerDoc = (kind: 'op' | 'file', name: string) => `veoOwners/${kind}_${createHash('sha256').update(name).digest('hex').slice(0, 40)}`;
 
 /** Ephemeral live tokens: usable for 30 min, new sessions only in the first 2. */
 const LIVE_TOKEN_TTL_MS = 30 * 60 * 1000;
@@ -59,6 +65,10 @@ async function callerAuth(req: Request) {
  * Anonymous callers are prohibited from generating media or claiming tokens.
  */
 async function gate(req: Request, res: Response): Promise<GoogleGenAI | null> {
+  const ctx = await gateUser(req, res);
+  return ctx ? ctx.ai : null;
+}
+async function gateUser(req: Request, res: Response): Promise<{ ai: GoogleGenAI; uid: string } | null> {
   if (!adminConfig.hasCredentials()) {
     res.status(503).json({ error: 'Server not configured.' });
     return null;
@@ -77,19 +87,20 @@ async function gate(req: Request, res: Response): Promise<GoogleGenAI | null> {
     res.status(403).json({ error: 'Registered account required for Veo and Gemini generation.' });
     return null;
   }
-  return ai;
+  return { ai, uid: auth.uid };
 }
 
 // ── POST /api/ai/veo/generate ─────────────────────────────────────────────────
 /** Kick off a Veo video generation. Returns { operationName } to poll. */
 veoRouter.post('/generate', async (req: Request, res: Response) => {
-  const ai = await gate(req, res);
-  if (!ai) return;
+  const ctx = await gateUser(req, res);
+  if (!ctx) return;
+  const { ai, uid } = ctx;
 
   const body = (req.body ?? {}) as Record<string, unknown>;
   const prompt = typeof body.prompt === 'string' ? body.prompt : '';
   const requested = String(body.model || '');
-  const model = /^veo-/.test(requested) ? requested : DEFAULT_VEO_MODEL;
+  const model = VEO_MODELS.has(requested) ? requested : DEFAULT_VEO_MODEL;
 
   // Optional first-frame image, exactly the shape the client SDK used.
   let image: { imageBytes: string; mimeType: string } | undefined;
@@ -105,12 +116,18 @@ veoRouter.post('/generate', async (req: Request, res: Response) => {
   if (typeof rawConfig.resolution === 'string') config.resolution = rawConfig.resolution;
   if (typeof rawConfig.aspectRatio === 'string') config.aspectRatio = rawConfig.aspectRatio;
 
+  // Each render is billed to the platform, so every account gets a daily allowance. A render that fails is given back.
+  if (await bumpQuota('veo', uid, VEO_DAILY_LIMIT(), true)) {
+    return res.status(429).json({ error: 'You have reached today\'s video limit. It resets at midnight UTC.', code: 'DAILY_LIMIT' });
+  }
   try {
     const operation = await ai.models.generateVideos({ model, prompt, image, config });
-    if (!operation.name) return res.status(502).json({ error: 'Upstream returned no operation.' });
+    if (!operation.name) { await refundQuota('veo', uid); return res.status(502).json({ error: 'Upstream returned no operation.' }); }
+    await fsSet(ownerDoc('op', operation.name), { uid, at: Date.now() });
     return res.json({ operationName: operation.name });
   } catch (e: any) {
     console.error('[veo] generate failed:', e?.message || e);
+    await refundQuota('veo', uid);
     return res.status(502).json({ error: 'Video generation failed to start.' });
   }
 });
@@ -122,11 +139,13 @@ veoRouter.post('/generate', async (req: Request, res: Response) => {
  * stays server-side.
  */
 veoRouter.get('/operation', async (req: Request, res: Response) => {
-  const ai = await gate(req, res);
-  if (!ai) return;
+  const ctx = await gateUser(req, res);
+  if (!ctx) return;
+  const { ai, uid } = ctx;
 
   const name = String(req.query.name || '');
-  if (!name || !/^[\w./-]+$/.test(name)) return res.status(400).json({ error: 'Valid operation name required.' });
+  if (!isVeoOperationName(name)) return res.status(400).json({ error: 'Valid operation name required.' });
+  if ((await fsGet(ownerDoc('op', name)))?.uid !== uid) return res.status(404).json({ error: 'No such operation.' });
 
   try {
     const operation = await ai.operations.getVideosOperation({
@@ -138,6 +157,11 @@ veoRouter.get('/operation', async (req: Request, res: Response) => {
     if (!videoUri) {
       return res.json({ done: true, error: 'Generation finished but produced no video.' });
     }
+    if (!isVeoDownloadUri(videoUri)) {
+      console.error('[veo] unexpected video uri shape');
+      return res.json({ done: true, error: 'Generation finished but the video could not be fetched.' });
+    }
+    await fsSet(ownerDoc('file', videoUri), { uid, at: Date.now() });
     return res.json({ done: true, videoUri: `/api/ai/veo/video?uri=${encodeURIComponent(videoUri)}` });
   } catch (e: any) {
     console.error('[veo] operation poll failed:', e?.message || e);
@@ -151,13 +175,15 @@ veoRouter.get('/operation', async (req: Request, res: Response) => {
  * Only Google's generativelanguage host is ever fetched.
  */
 veoRouter.get('/video', async (req: Request, res: Response) => {
-  const ai = await gate(req, res);
-  if (!ai) return;
+  const ctx = await gateUser(req, res);
+  if (!ctx) return;
 
+  // The server appends its key: an open URI here would read everything that key can reach.
   const uri = String(req.query.uri || '');
-  if (!uri.startsWith(VIDEO_HOST_PREFIX)) {
+  if (!isVeoDownloadUri(uri)) {
     return res.status(400).json({ error: 'Invalid video uri.' });
   }
+  if ((await fsGet(ownerDoc('file', uri)))?.uid !== ctx.uid) return res.status(404).json({ error: 'No such video.' });
 
   try {
     const sep = uri.includes('?') ? '&' : '?';
@@ -186,7 +212,7 @@ veoRouter.post('/content', async (req: Request, res: Response) => {
 
   const body = (req.body ?? {}) as Record<string, unknown>;
   const requested = String(body.model || '');
-  const model = /^gemini-/.test(requested) ? requested : DEFAULT_GEMINI_MODEL;
+  const model = GEMINI_MODELS.has(requested) ? requested : DEFAULT_GEMINI_MODEL;
   const contents = body.contents;
   if (!contents) return res.status(400).json({ error: 'contents required.' });
 

@@ -28,7 +28,7 @@ const grab = (startRe) => {
 const src = [
   "rules_version = '2';", 'service cloud.firestore {', '  match /databases/{database}/documents {',
   grab(/function isAuthenticated\(\)/), grab(/function isAdmin\(\)/), grab(/function hasRequiredFields\(/),
-  grab(/function isValidClassroom\(data\)/), grab(/function isValidSubmission\(data\)/),
+  grab(/function classMember\(/), grab(/function isValidClassroom\(data\)/), grab(/function isValidSubmission\(data\)/),
   grab(/match \/classrooms\/\{classId\}/), grab(/match \/submissions\/\{subId\}/),
   grab(/match \/studentGrades\/\{gradeId\}/), grab(/match \/courseEnrollments\/\{enrollId\}/),
   '  }', '}', '',
@@ -36,27 +36,28 @@ const src = [
 
 const DB = '/databases/(default)/documents';
 const ADM = 'adm', OWNER = 'teach', LRN = 'learner', OTHER = 'other';
-const classDoc = { ownerId: OWNER, price: 0, enrolledStudents: [OWNER, LRN] };
+const classDoc = { ownerId: OWNER, price: 0 };
 const mocks = [
   ...[ADM, OWNER, LRN, OTHER].map(u => ({ function: 'exists', args: [{ exactValue: `${DB}/admins/${u}` }], result: { value: u === ADM } })),
   { function: 'get', args: [{ exactValue: `${DB}/classrooms/c1` }], result: { value: { data: classDoc } } },
+  ...[ADM, OWNER, LRN, OTHER].map(u => ({ function: 'exists', args: [{ exactValue: `${DB}/classMembers/c1_${u}` }], result: { value: u === LRN || u === OWNER } })),
 ];
 
-const course = (o = {}) => ({ id: 'c1', ownerId: OWNER, ownerName: 'Kay', title: 'T', description: 'd', thumbnailUrl: 'u', price: 0, syllabus: '', lessons: [], assignments: [], enrolledStudents: [OWNER], category: 'Music', track: 'CREATOR', ...o });
+const course = (o = {}) => ({ id: 'c1', ownerId: OWNER, ownerName: 'Kay', title: 'T', description: 'd', thumbnailUrl: 'u', price: 0, enrollment: 'open', syllabus: '', lessons: [], assignments: [], enrolledStudents: [OWNER], category: 'Music', track: 'CREATOR', ...o });
 const cases = [];
 const t = (name, expect, who, method, path, { data, existing } = {}) => cases.push({ name, expect, who, method, path, data, existing });
 const C = `${DB}/classrooms/c1`;
 
 // self-enrollment
-t('learner joins a free published course', 'ALLOW', LRN, 'update', C, { existing: course(), data: course({ enrolledStudents: [OWNER, LRN] }) });
+t('joining a free course goes through the server, not a client write', 'DENY', LRN, 'update', C, { existing: course(), data: course({ enrolledStudents: [OWNER, LRN] }) });
 t('learner CANNOT join a paid course by direct write', 'DENY', LRN, 'update', C, { existing: course({ price: 49 }), data: course({ price: 49, enrolledStudents: [OWNER, LRN] }) });
 t('learner cannot enroll someone else', 'DENY', LRN, 'update', C, { existing: course(), data: course({ enrolledStudents: [OWNER, OTHER] }) });
 t('learner cannot enroll two people at once', 'DENY', LRN, 'update', C, { existing: course(), data: course({ enrolledStudents: [OWNER, LRN, OTHER] }) });
 t('learner cannot remove others while joining', 'DENY', LRN, 'update', C, { existing: course({ enrolledStudents: [OWNER, OTHER] }), data: course({ enrolledStudents: [LRN, OTHER] }) });
 t('learner cannot join a draft', 'DENY', LRN, 'update', C, { existing: course({ status: 'DRAFT' }), data: course({ status: 'DRAFT', enrolledStudents: [OWNER, LRN] }) });
-t('learner can join a published course (status set)', 'ALLOW', LRN, 'update', C, { existing: course({ status: 'PUBLISHED' }), data: course({ status: 'PUBLISHED', enrolledStudents: [OWNER, LRN] }) });
+t('a published course is joined through the server too', 'DENY', LRN, 'update', C, { existing: course({ status: 'PUBLISHED' }), data: course({ status: 'PUBLISHED', enrolledStudents: [OWNER, LRN] }) });
 t('learner cannot join a full course', 'DENY', LRN, 'update', C, { existing: course({ capacity: 2, enrolledStudents: [OWNER, 'a', 'b'] }), data: course({ capacity: 2, enrolledStudents: [OWNER, 'a', 'b', LRN] }) });
-t('learner can take the last seat', 'ALLOW', LRN, 'update', C, { existing: course({ capacity: 2, enrolledStudents: [OWNER, 'a'] }), data: course({ capacity: 2, enrolledStudents: [OWNER, 'a', LRN] }) });
+t('the last seat is taken through the server too', 'DENY', LRN, 'update', C, { existing: course({ capacity: 2, enrolledStudents: [OWNER, 'a'] }), data: course({ capacity: 2, enrolledStudents: [OWNER, 'a', LRN] }) });
 t('learner cannot enroll while also changing the price', 'DENY', LRN, 'update', C, { existing: course({ price: 49 }), data: course({ price: 0, enrolledStudents: [OWNER, LRN] }) });
 t('already-enrolled learner cannot re-add themselves', 'DENY', LRN, 'update', C, { existing: course({ enrolledStudents: [OWNER, LRN] }), data: course({ enrolledStudents: [OWNER, LRN, LRN] }) });
 t('anonymous cannot enroll', 'DENY', null, 'update', C, { existing: course(), data: course({ enrolledStudents: [OWNER, LRN] }) });

@@ -83,10 +83,10 @@ async function buildPool(viewer: DiscoveryProfile, followingIds: string[]): Prom
   // 1) recent joiners, 2) popularity prior, 3) region opt-ins (only if the viewer opted in),
   // 4) welcome ambassadors, 5) live now, 6) the viewer's club memberships
   const [recent, popular, region, ambassadors, live, memberships] = await Promise.all([
-    safe(getDocs(query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(60)))),
-    safe(getDocs(query(collection(db, 'users'), orderBy('followerCount', 'desc'), limit(40)))),
-    regionKey ? safe(getDocs(query(collection(db, 'users'), where('discoverByRegion', '==', true), where('discoveryRegionKey', '==', regionKey), limit(40)))) : Promise.resolve(null),
-    safe(getDocs(query(collection(db, 'users'), where('isWelcomeAmbassador', '==', true), limit(10)))),
+    safe(getDocs(query(collection(db, 'users'), where('listable', '==', true), orderBy('createdAt', 'desc'), limit(60)))),
+    safe(getDocs(query(collection(db, 'users'), where('listable', '==', true), orderBy('followerCount', 'desc'), limit(40)))),
+    regionKey ? safe(getDocs(query(collection(db, 'users'), where('listable', '==', true), where('discoverByRegion', '==', true), where('discoveryRegionKey', '==', regionKey), limit(40)))) : Promise.resolve(null),
+    safe(getDocs(query(collection(db, 'users'), where('listable', '==', true), where('isWelcomeAmbassador', '==', true), limit(10)))),
     safe(getDocs(query(collection(db, 'live_feeds'), where('status', '==', 'LIVE'), limit(60)))),
     safe(getDocs(query(collection(db, 'clubMemberships'), where('userId', '==', uid), where('status', '==', 'ACTIVE'), limit(10)))),
   ]);
@@ -214,7 +214,7 @@ export async function searchPeople(
 /** Volunteer welcome ambassadors (for the new-account greeting). */
 export async function fetchWelcomeAmbassadors(max = 3): Promise<{ uid: string; displayName: string }[]> {
   try {
-    const snap = await getDocs(query(collection(db, 'users'), where('isWelcomeAmbassador', '==', true), limit(10)));
+    const snap = await getDocs(query(collection(db, 'users'), where('listable', '==', true), where('isWelcomeAmbassador', '==', true), limit(10)));
     return snap.docs
       .map(d => ({ uid: d.id, displayName: String((d.data() as any).displayName || '') }))
       .filter(a => a.displayName).slice(0, max);

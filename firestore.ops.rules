@@ -83,17 +83,41 @@ service cloud.firestore {
         )) || isAdmin()
       );
     }
+    // A business's files: the owner and managers change them. Other staff read through the server.
+    function bizHqWriter(pageId) {
+      let p = get(/databases/$(database)/documents/businessPages/$(pageId)).data;
+      return p.ownerId == request.auth.uid ||
+        (request.auth.uid in p.get('staffUids', []) && p.get('staffSeats', {}).get(request.auth.uid, {}).get('role', '') == 'MANAGER');
+    }
     // A restricted or revoked file: its author, the people resolved onto it by routes/elevateAccess.ts, the owner and IT Admins.
     function hqAllowed(data) {
-      return data.get('access', 'open') == 'open' ? canAccessHqScope(data) : isAuthenticated() && (
+      return data.scopeKind == 'business' ? isAuthenticated() && (
+          get(/databases/$(database)/documents/businessPages/$(data.scopeId)).data.ownerId == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/businessPages/$(data.scopeId)).data.get('staffUids', []) || isAdmin()) :
+        data.get('access', 'open') == 'open' ? canAccessHqScope(data) : isAuthenticated() && (
         data.get('uploadedByUid', '') == request.auth.uid || request.auth.uid in data.get('accessUids', []) || isAdmin() ||
         (data.scopeKind == 'org' && (orgDoc(data.scopeId).creatorId == request.auth.uid || request.auth.uid in orgDoc(data.scopeId).get('itAdminUids', []))));
     }
-    // Changing a file is not part of being shared it: a grantee can read and comment, nothing more.
+    // Changing a file is not part of being shared it: a grantee can read and comment, nothing more. A department's
+    // file carries hqWriteUids (server-written): only those people, its author, the owner and IT Admins change or trash it.
     function hqWriter(data) {
-      return data.get('access', 'open') == 'open' ? canAccessHqScope(data) : isAuthenticated() && (
-        data.get('uploadedByUid', '') == request.auth.uid || isAdmin() ||
+      return data.scopeKind == 'business' ? isAuthenticated() && (bizHqWriter(data.scopeId) || isAdmin()) :
+        (data.get('access', 'open') == 'open' && data.get('hqWriteUids', null) == null) ? canAccessHqScope(data) : isAuthenticated() && (
+        data.get('uploadedByUid', '') == request.auth.uid || isAdmin() || request.auth.uid in data.get('hqWriteUids', []) ||
         (data.scopeKind == 'org' && (orgDoc(data.scopeId).creatorId == request.auth.uid || request.auth.uid in orgDoc(data.scopeId).get('itAdminUids', []))));
+    }
+    // Reading a file's record or thread directly. Rules can't see departments, so everyone else goes through
+    // routes/hqFile.ts, which can: an org's admins and staff no longer read records by exact id.
+    function hqDirectRead(data) {
+      return isAuthenticated() && (
+        (data.scopeKind == 'user' && data.scopeId == request.auth.uid) ||
+        data.get('uploadedByUid', '') == request.auth.uid || request.auth.uid in data.get('accessUids', []) || isAdmin() ||
+        (data.scopeKind == 'org' && (orgDoc(data.scopeId).creatorId == request.auth.uid || request.auth.uid in orgDoc(data.scopeId).get('itAdminUids', []))) ||
+        (data.scopeKind == 'business' && get(/databases/$(database)/documents/businessPages/$(data.scopeId)).data.ownerId == request.auth.uid));
+    }
+    function canDirectReadHqAsset(assetId) {
+      return exists(/databases/$(database)/documents/orgAssets/$(assetId)) &&
+        hqDirectRead(get(/databases/$(database)/documents/orgAssets/$(assetId)).data);
     }
     function canWriteHqAsset(assetId) {
       return exists(/databases/$(database)/documents/orgAssets/$(assetId)) &&
@@ -292,10 +316,17 @@ service cloud.firestore {
         orgPastorOrAdmin(resource.data.orgId) ||
         isAdmin()
       );
-      allow create, update: if isAuthenticated() && (
+      allow create: if isAuthenticated() && (
         request.resource.data.userId == request.auth.uid ||
         chmsPeopleStaff(request.resource.data.orgId) ||
         orgPastorOrAdmin(request.resource.data.orgId) ||
+        isAdmin()
+      );
+      // A vault can't change hands: rewriting userId would hand its contents to whoever wrote it.
+      allow update: if isAuthenticated() && request.resource.data.userId == resource.data.userId && request.resource.data.orgId == resource.data.orgId && (
+        resource.data.userId == request.auth.uid ||
+        chmsPeopleStaff(resource.data.orgId) ||
+        orgPastorOrAdmin(resource.data.orgId) ||
         isAdmin()
       );
       allow delete: if isAuthenticated() && (
@@ -535,32 +566,41 @@ service cloud.firestore {
             // Staff/moderators with MANAGE_CONTENT (denormalized staffUids; owner/admin-writable only).
             request.auth.uid in get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.get('staffUids', [])
           )) ||
+          (data.scopeKind == 'business' && bizHqWriter(data.scopeId)) ||
           isAdmin()
         );
       }
       // Listing goes through /api/elevate/access/assets, which filters out files the caller can't open.
-      allow get: if hqAllowed(resource.data);
+      allow get: if hqDirectRead(resource.data);
       allow list: if isAdmin();
       // A record can only name a stored object in its own owner's space, and only the server records a scan.
       allow create: if cxScopeOk(request.resource.data) && request.resource.data.uploadedByUid == request.auth.uid &&
-        !request.resource.data.keys().hasAny(['access', 'accessSpec', 'accessUids', 'scannedAt']) &&
+        !request.resource.data.keys().hasAny(['hqWriteUids', 'access', 'accessSpec', 'accessUids', 'scannedAt', 'scanEngine', 'scanEngineNote', 'rawContentText', 'sharedOrgIds']) &&
         request.resource.data.storagePath.matches('protected-hq/' + request.resource.data.scopeKind + '/' + request.resource.data.scopeId + '/.*');
       allow update: if hqWriter(resource.data) && request.resource.data.scopeKind == resource.data.scopeKind &&
         request.resource.data.scopeId == resource.data.scopeId && request.resource.data.uploadedByUid == resource.data.uploadedByUid &&
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['access', 'accessSpec', 'accessUids', 'storagePath', 'scannedAt']) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['hqWriteUids', 'access', 'accessSpec', 'accessUids', 'storagePath', 'scannedAt', 'scanEngine', 'scanEngineNote', 'rawContentText', 'sharedOrgIds']) &&
         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['scanStatus']) || request.resource.data.scanStatus == 'PENDING');
       allow delete: if hqWriter(resource.data);
+    }
+    // Trashed albums, videos and photos, whole. Only routes/mediaTrash.ts touches them.
+    match /mediaTrash/{id} {
+      allow read, write: if false;
+    }
+    // A file's document text. Only routes/hqFile.ts reads or writes it, after the department check.
+    match /orgAssetText/{assetId} {
+      allow read, write: if false;
     }
     // Immutable revision records. Replacing a file creates a new version; it never
     // overwrites the version a reviewer approved.
     match /hqAssetVersions/{versionId} {
-      allow read: if canAccessHqAsset(resource.data.assetId);
+      allow read: if canDirectReadHqAsset(resource.data.assetId);
       allow create: if canWriteHqAsset(request.resource.data.assetId) &&
         request.resource.data.uploadedByUid == request.auth.uid;
       allow update, delete: if false;
     }
     match /hqComments/{commentId} {
-      allow read: if canAccessHqAsset(resource.data.assetId);
+      allow read: if canDirectReadHqAsset(resource.data.assetId);
       allow create: if canAccessHqAsset(request.resource.data.assetId) &&
         request.resource.data.authorUid == request.auth.uid &&
         request.resource.data.body is string && request.resource.data.body.size() > 0 &&
@@ -570,7 +610,7 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /hqReviewRequests/{reviewId} {
-      allow read: if canAccessHqAsset(resource.data.assetId) ||
+      allow read: if canDirectReadHqAsset(resource.data.assetId) ||
         (isAuthenticated() && request.auth.uid in resource.data.reviewerUids);
       allow create: if canWriteHqAsset(request.resource.data.assetId) &&
         request.resource.data.requestedByUid == request.auth.uid;
@@ -582,7 +622,7 @@ service cloud.firestore {
     // Append-only asset audit. This is separate from the general org audit so an
     // asset can carry its complete evidence trail when delivered or exported.
     match /hqActivity/{eventId} {
-      allow read: if canAccessHqAsset(resource.data.assetId);
+      allow read: if canDirectReadHqAsset(resource.data.assetId);
       allow create: if canAccessHqAsset(request.resource.data.assetId) &&
         request.resource.data.actorUid == request.auth.uid;
       allow update, delete: if false;
@@ -599,13 +639,17 @@ service cloud.firestore {
     // tokenized share endpoints — guests never authenticate — so client writes stay closed.
     // The asset's owning scope can read them to see who approved / requested changes.
     match /hqGuestDecisions/{decisionId} {
-      allow read: if canAccessHqAsset(resource.data.assetId);
+      allow read: if canDirectReadHqAsset(resource.data.assetId);
       allow write: if false;
     }
     // Durable security audit (Wave 3): retention purges + quota rejections. Written ONLY
     // by the server (Admin creds, which bypass rules) and it must outlive the assets it
     // records, so clients get no access at all.
     match /hqAuditLog/{entryId} {
+      allow read, write: if false;
+    }
+    // What each owner or IT Admin has already seen in the security view. Only routes/hqSecurity.ts touches it.
+    match /hqAlertState/{stateId} {
       allow read, write: if false;
     }
     // Church education programs (Sunday school / Bible study plans). A class carries its roster, weekly plan and
@@ -899,20 +943,15 @@ service cloud.firestore {
     // manages who's in; editors may rename; anyone but the owner may leave. Subcollections carry
     // the live op log, compacted snapshots (chunks), shared + private history, presence and each
     // member's held draft. Self-contained: nothing here reads plajah-prod.
-    // A document's paper trail: add only, in your own name, at server time. Nobody can change or remove an
-    // entry. A shared document's members add to it; before sharing, only its owner. Read by the owner and IT Admins.
+    // A document's paper trail. The server writes every entry (routes/coeditSecurity.ts), so the name on it comes from
+    // the account. Nobody can change or remove one. Read by the document's current owner and the org's IT Admins; after
+    // custody moves, the former owner no longer reads it.
     match /docAudit/{pid}/events/{id} {
-      function auditShape(d) {
-        return d.keys().hasOnly(['pid', 'action', 'by', 'byName', 'at', 'detail', 'ownerId', 'orgId']) &&
-          d.pid == pid && d.by == request.auth.uid && d.at == request.time && d.action is string && d.action.size() <= 40 &&
-          d.byName is string && d.byName.size() <= 200 && d.detail is string && d.detail.size() <= 300 && d.ownerId is string;
-      }
+      function auditHasProject() { return exists(/databases/$(database)/documents/coedit/$(pid)); }
       function auditProject() { return get(/databases/$(database)/documents/coedit/$(pid)).data; }
-      allow create: if isAuthenticated() && auditShape(request.resource.data) && (
-        exists(/databases/$(database)/documents/coedit/$(pid))
-          ? request.auth.uid in auditProject().memberIds && request.resource.data.ownerId == auditProject().ownerId
-          : request.resource.data.ownerId == request.auth.uid);
-      allow read: if isAuthenticated() && (resource.data.ownerId == request.auth.uid ||
+      allow create: if false;
+      allow read: if isAuthenticated() && (
+        (resource.data.ownerId == request.auth.uid && (!auditHasProject() || auditProject().ownerId == request.auth.uid)) ||
         (resource.data.get('orgId', '') != '' && (orgDoc(resource.data.orgId).creatorId == request.auth.uid || request.auth.uid in orgDoc(resource.data.orgId).get('itAdminUids', []))));
       allow update, delete: if false;
     }
@@ -923,57 +962,61 @@ service cloud.firestore {
       function coLive() { return co().get('expires', {}).get(request.auth.uid, 0) == 0 || co().expires[request.auth.uid] > request.time.toMillis(); }
       function coMember() { return isAuthenticated() && coRole() != '' && coLive(); }
       function coEditor() { return isAuthenticated() && coRole() in ['owner', 'editor'] && coLive(); }
-      function coShape(d) {
-        return d.ownerId is string && d.kind is string && d.title is string && d.title.size() <= 300 &&
-          d.members is map && d.memberIds is list && d.memberIds.size() <= 200 &&
-          d.members.get(d.ownerId, '') == 'owner' && d.ownerId in d.memberIds;
-      }
+      // A locked document takes edits from its owner only. Mirrored from the editor to project.locked.
+      function coWriter() { return coEditor() && (co().get('locked', false) != true || coRole() == 'owner'); }
+      // Who is in, the owner and the org are the server's to set: rename and lock are all a client may change.
       allow read: if isAuthenticated() && request.auth.uid in resource.data.memberIds;
-      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid &&
-        request.resource.data.memberIds == [request.auth.uid] && coShape(request.resource.data) &&
-        pid.matches('^' + request.resource.data.kind + '__.+$');
-      allow update: if isAuthenticated() && coShape(request.resource.data) &&
-        request.resource.data.ownerId == resource.data.ownerId && request.resource.data.kind == resource.data.kind && (
-          resource.data.ownerId == request.auth.uid ||
-          (resource.data.members.get(request.auth.uid, '') == 'editor' &&
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'updatedAt', 'chatRoomId'])) ||
-          (request.auth.uid in resource.data.memberIds && !(request.auth.uid in request.resource.data.memberIds) &&
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberIds', 'names', 'photos', 'updatedAt']) &&
-           request.resource.data.members.diff(resource.data.members).affectedKeys().hasOnly([request.auth.uid]) &&
-           request.resource.data.memberIds.size() == resource.data.memberIds.size() - 1)
-        );
-      allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow create, delete: if false;
+      allow update: if isAuthenticated() && request.resource.data.title is string && request.resource.data.title.size() <= 300 && (
+        (resource.data.ownerId == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'updatedAt', 'chatRoomId', 'locked'])) ||
+        (resource.data.members.get(request.auth.uid, '') == 'editor' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'updatedAt', 'chatRoomId']))
+      );
 
       // Why someone lost access. It's how their app knows to remove its copy, so they can still read it.
       match /revocations/{uid} {
         allow read: if isAuthenticated() && (uid == request.auth.uid || co().ownerId == request.auth.uid);
-        allow write: if isAuthenticated() && co().ownerId == request.auth.uid;
+        allow write: if false;
       }
       match /ops/{batchId} {
         allow read: if coMember();
-        allow create, update: if coEditor() && request.resource.data.u == request.auth.uid &&
+        allow create, update: if coWriter() && request.resource.data.u == request.auth.uid &&
           request.resource.data.ops is string && request.resource.data.ops.size() < 1048000 &&
           request.resource.data.at == request.time &&
           (resource == null || resource.data.u == request.auth.uid);
-        allow delete: if coEditor();
+        allow delete: if coWriter();
       }
       match /snap/{key} {
         allow read: if coMember();
-        allow write: if coEditor();
+        allow write: if coWriter();
       }
+      // Snapshot pieces (snap_*) belong to the document; version pieces (ver_{vid}_{i}) follow their version, so a
+      // private save stays with its author. Pieces are fetched by name, never listed.
       match /chunks/{key} {
-        allow read: if coMember();
-        allow create, update: if coMember() && request.resource.data.d is string && request.resource.data.d.size() < 1000000;
-        allow delete: if coMember();
+        function verId() { return key.replace('^ver_', '').replace('_[0-9]+$', ''); }
+        function verDoc() { return get(/databases/$(database)/documents/coedit/$(pid)/versions/$(verId())).data; }
+        function isVer() { return key.matches('^ver_.+_[0-9]+$'); }
+        function isSnap() { return key.matches('^snap_.+$'); }
+        function chunkShape() { return request.resource.data.d is string && request.resource.data.d.size() < 1000000; }
+        allow get: if coMember() && (isSnap() || (isVer() && (verDoc().private == false || verDoc().by == request.auth.uid)));
+        allow list: if false;
+        allow create: if chunkShape() && ((isSnap() && coWriter()) ||
+          (isVer() && coMember() && request.resource.data.by == request.auth.uid));
+        allow update: if chunkShape() && ((isSnap() && coWriter()) ||
+          (isVer() && coMember() && resource.data.get('by', '') == request.auth.uid && request.resource.data.by == request.auth.uid));
+        allow delete: if (isSnap() && coWriter()) ||
+          (isVer() && coMember() && (resource.data.get('by', '') == request.auth.uid || coRole() == 'owner' ||
+            (coEditor() && verDoc().private == false && verDoc().get('reason', '') == 'checkpoint')));
       }
       match /versions/{vid} {
         allow read: if coMember() && (resource.data.private == false || resource.data.by == request.auth.uid);
         allow create: if coMember() && request.resource.data.by == request.auth.uid &&
           request.resource.data.private is bool && (coEditor() || request.resource.data.private == true);
-        allow update: if coMember() && (resource.data.by == request.auth.uid || coEditor()) &&
+        allow update: if coMember() && (resource.data.by == request.auth.uid || (coEditor() && resource.data.private == false)) &&
           request.resource.data.by == resource.data.by && request.resource.data.private == resource.data.private;
-        allow delete: if coMember() && (resource.data.by == request.auth.uid || coRole() == 'owner' ||
-          (coEditor() && resource.data.reason == 'checkpoint'));
+        allow delete: if coMember() && (resource.data.by == request.auth.uid || (resource.data.private == false && coRole() == 'owner') ||
+          (coEditor() && resource.data.private == false && resource.data.reason == 'checkpoint'));
       }
       match /presence/{key} {
         allow read: if coMember();

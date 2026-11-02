@@ -8,6 +8,7 @@
 // on Fabula's A2·MUSIC lane. The groove id rides along on the asset so a future "Edit in Melos"
 // button can round-trip back.
 
+import { studioKey } from '../../fabula/fabulaSync';
 import { set as idbSet, get as idbGet } from 'idb-keyval';
 import { putBytes as mediaPutBytes } from '../../fabula/mediaStore';
 import { renderGroove } from './render';
@@ -42,10 +43,10 @@ export async function sendGrooveToFabula(doc: GrooveDoc, buffers: [string, Audio
     worldCats: {}, design: {}, createdAt: now, updatedAt: now,
   };
 
-  await idbSet(`studio:prod:${prodId}`, prod);
-  const idx = (await idbGet('studio:index')) as { list?: { id: string }[] } | undefined || {};
-  await idbSet('studio:index', { list: [{ id: prodId, title: name, type: 'film', updated: now, sceneCount: 0 }, ...((idx.list || []).filter((x) => x.id !== prodId))] });
-  await idbSet('studio:handoff', { prodId, editId });
+  await idbSet(studioKey(`studio:prod:${prodId}`), prod);
+  const idx = (await idbGet(studioKey('studio:index'))) as { list?: { id: string }[] } | undefined || {};
+  await idbSet(studioKey('studio:index'), { list: [{ id: prodId, title: name, type: 'film', updated: now, sceneCount: 0 }, ...((idx.list || []).filter((x) => x.id !== prodId))] });
+  await idbSet(studioKey('studio:handoff'), { prodId, editId });
 
   window.dispatchEvent(new CustomEvent('OPEN_FABULA'));
   return 'ok';

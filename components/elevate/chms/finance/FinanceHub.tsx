@@ -2,6 +2,7 @@
 // check capture, giver self-service). MANAGE_GIVING writes; VIEW_GIVING (trustees) is read-only and sees
 // giver-level data only in aggregate. Everything is audited (services/chmsFinance.ts).
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
+import { loadOrgFinance, mergeOrgFinance } from '../../../../services/orgFinance';
 import { Activity, ArrowLeft, BarChart3, Calculator, BookOpen, FileText, Gift, Handshake, Home as HomeIcon, Inbox as InboxIcon, Landmark, Layers, Loader2, PenLine, Receipt, RefreshCw, Rocket, Scale, Settings as Cog, ShieldCheck, Store } from 'lucide-react';
 import type { HubTab, SpendSub } from '../../../../services/acctSpending';
 import { CountBadge, ShortcutSheet, ToastProvider, useHotkeys, useMoneyInbox } from './SpendingUi';
@@ -49,6 +50,8 @@ const Fallback = () => <div className="flex justify-center py-16"><Loader2 class
 
 const FinanceHub: React.FC<FinanceHubProps> = ({ org: initialOrg, myMembership, onClose, onOrgChange, onOpenPerson }) => {
   const [org, setOrgState] = useState<Organization>(initialOrg);
+  const [financeReady, setFinanceReady] = useState(false);
+  useEffect(() => { let live = true; setFinanceReady(false); loadOrgFinance(initialOrg.id).then(f => { if (!live) return; setOrgState(o => mergeOrgFinance(o, f)); setFinanceReady(true); }); return () => { live = false; }; }, [initialOrg.id]);
   const [snap, setSnap] = useState<FinanceSnapshot | null>(null);
   const [tab, setTab] = useState<TabKey>('home');
   const [spendSub, setSpendSub] = useState<SpendSub | undefined>(undefined);
@@ -100,7 +103,7 @@ const FinanceHub: React.FC<FinanceHubProps> = ({ org: initialOrg, myMembership, 
 
   if (!canView) return <p className="text-xs text-white/40 py-8 text-center">The Finance Hub is limited to finance roles, pastors and trustees.</p>;
 
-  const props: TabProps | null = snap ? { org, snap, reload, canManage, setOrg, uid, onOpenPerson } : null;
+  const props: TabProps | null = snap && financeReady ? { org, snap, reload, canManage, setOrg, uid, onOpenPerson } : null;
 
   return (
     <ToastProvider>

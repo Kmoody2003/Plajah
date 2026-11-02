@@ -22,6 +22,8 @@ export interface BusinessSnapshot {
   contactCount: number;
   staffCount: number;
   slideCount: number;
+  /** The business's Stripe account, from the billing server. The page no longer carries it. */
+  stripeConnected?: boolean;
 }
 
 export const emptySnapshot = (page: BusinessSnapshot['page'] = {}): BusinessSnapshot => ({
@@ -51,7 +53,7 @@ export const DETECTORS: Record<DetectorId, Detector> = {
   HAS_LOGO: s => Boolean(s.page.logoUrl),
   CATALOG_REVIEWED: s => s.productCount > 0 && (s.sampleCount === 0 || s.editedSampleCount > 0),
   OWN_ITEM_ADDED: s => s.productCount - s.sampleCount > 0,
-  STRIPE_CONNECTED: s => Boolean(s.page.stripeAccountId),
+  STRIPE_CONNECTED: s => Boolean(s.stripeConnected || s.page.stripeAccountId),
   FIRST_SALE: s => s.orderCount > 0,
   DEAL_ACTIVE: s => s.activeOfferCount > 0,
   LOYALTY_ON: s => Boolean(s.page.rewardsEnabled),

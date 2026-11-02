@@ -1,6 +1,7 @@
 // SpendingDesk — the "Money" entry for everyone who touches spending (department heads, staff, volunteers with
 // SUBMIT_EXPENSES, approvers) who may have NO giving access: Inbox + Spending, nothing else. Mobile-first.
 import React, { Suspense, lazy, useState } from 'react';
+import { useOrgFinance } from '../../../../services/orgFinance';
 import { Activity, Inbox as InboxIcon, Loader2, Receipt } from 'lucide-react';
 import { auth } from '../../../../services/firebase';
 import { pulseAccess } from '../../../../services/acctPulseLive';
@@ -13,7 +14,8 @@ const SpendingHub = lazy(() => import('./SpendingHub'));
 const BudgetPulse = lazy(() => import('./BudgetPulse'));
 const Fallback = () => <div className="flex justify-center py-16"><Loader2 className="animate-spin text-white/30" size={22} /></div>;
 
-const SpendingDesk: React.FC<{ org: Organization; member: OrgMembership | null; onOpenFinanceHub?: () => void }> = ({ org, member, onOpenFinanceHub }) => {
+const SpendingDesk: React.FC<{ org: Organization; member: OrgMembership | null; onOpenFinanceHub?: () => void }> = ({ org: publicOrg, member, onOpenFinanceHub }) => {
+  const { org } = useOrgFinance(publicOrg);
   const inbox = useMoneyInbox(org, member, null);
   const [tab, setTab] = useState<'inbox' | 'spending' | 'budget'>(inbox.perms.canApprove ? 'inbox' : 'spending');
   // Department heads (no giving access) still see THEIR department's live budget pulse — the hook narrows the data.

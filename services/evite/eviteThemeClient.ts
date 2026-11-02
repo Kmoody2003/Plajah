@@ -9,6 +9,7 @@
 //      works without depth (no parallax).
 //   4. upload all three and return getDownloadURL URLs (they work for guests without auth)
 // The steps are exported separately so the theme maker can show the live card while the depth map computes.
+import { newShortId } from './eviteCore';
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage, auth } from '../firebase';
 import { authedFetch } from '../registerService';
@@ -158,7 +159,7 @@ export async function computeDepthMap(plateCanvas: HTMLCanvasElement, onProgress
 export async function uploadThemeBlobs(parts: { plate: Blob; thumb: Blob; depth?: Blob | null }, onProgress?: (p: ThemeUploadProgress) => void): Promise<{ plate: string; thumb: string; depth?: string }> {
   const uid = auth.currentUser?.uid;
   if (!uid || auth.currentUser?.isAnonymous) throw new Error('Sign in to upload your theme.');
-  const key = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  const key = `${Date.now().toString(36)}${newShortId(8)}`;
   const entries = (Object.entries(parts) as Array<[string, Blob | null | undefined]>).filter((e): e is [string, Blob] => !!e[1]);
   const total = entries.reduce((s, [, b]) => s + b.size, 0) || 1;
   const sent: Record<string, number> = {};

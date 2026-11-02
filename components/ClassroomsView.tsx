@@ -1,3 +1,4 @@
+import { classSeatCount } from '../services/classRoster';
 import React, { useState, useEffect, Suspense } from 'react';
 import PageHeader from './PageHeader';
 import {
@@ -33,7 +34,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Classroom, Lesson, Assignment, Submission, ProgressReport, ClassroomModule, LiveClassSession, StudentGrade } from '../types';
-import { fetchClassrooms, enrollInClassroom, createClassroom, auth, fetchClassroomModules, createClassroomModule, deleteClassroomModule, submitAssignment, gradeSubmission } from '../services/backendService';
+import { fetchClassrooms, enrollInClassroom, fetchClassJoinCode, joinClassWithCode, createClassroom, auth, fetchClassroomModules, createClassroomModule, deleteClassroomModule, submitAssignment, gradeSubmission } from '../services/backendService';
 import { collection, addDoc, getDocs, getDoc, query, where, orderBy, updateDoc, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { scheduleClassroomMeeting, joinClassroomMeeting, endClassroomMeeting } from '../services/classroomMeetings';
 import { useCall } from '../contexts/CallContext';
@@ -115,11 +116,13 @@ Loudness, limiting, export formats. Distribute your track on Plajah.`,
       { id: 'a3', title: 'Full Track Draft', description: 'Submit a 1-minute draft of an original track using everything from weeks 1–4.', dueDate: now + 28 * 86400000, maxPoints: 150 },
     ],
     enrolledStudents: [],
+    enrollment: 'open',
     liveSessionUrl: 'https://meet.google.com/demo',
   };
   // The public doc is world-readable: publish only the outline, keep the coursework private.
+  const { enrolledStudents: _roster, ...demoPublic } = demo;
   await setDoc(doc(db, 'classrooms', DEMO_CLASS_ID), {
-    ...demo, lessons: [], assignments: [], ...courseworkPreview(demo.lessons, demo.assignments),
+    ...demoPublic, lessons: [], assignments: [], ...courseworkPreview(demo.lessons, demo.assignments),
   });
   await saveClassroomCoursework(DEMO_CLASS_ID, { lessons: demo.lessons, assignments: demo.assignments });
   return demo;
@@ -178,6 +181,7 @@ const CreateClassModal: React.FC<CreateClassModalProps> = ({ user, track = 'CREA
         description: form.description.trim(),
         category: form.category,
         track,
+        enrollment: academic ? 'closed' : 'open',
         price: academic ? 0 : form.price,
         thumbnailUrl: form.thumbnailUrl.trim() || `https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=800&auto=format&fit=crop`,
         syllabus: form.syllabus.trim(),
@@ -603,6 +607,8 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
 
   const handleEnroll = async (classId: string) => {
     if (!user) return alert('Please sign in to enroll');
+    const target = classrooms.find(c => c.id === classId);
+    if (target && target.enrollment !== 'open' && target.ownerId !== user.uid) return;
     await enrollInClassroom(classId);
     loadClassrooms();
   };
@@ -1168,7 +1174,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Users size={14} className="text-white/20" />
-                        <span className="text-[10px] font-black text-white/40">{cls.enrolledStudents.length} Students</span>
+                        <span className="text-[10px] font-black text-white/40">{classSeatCount(cls)} Students</span>
                       </div>
                     </div>
                     <ChevronRight size={18} className="text-white/20 group-hover:translate-x-1 transition-transform" />
@@ -1342,6 +1348,26 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
   const lessonCount = coursework ? lessons.length : lessonCountOf(classroom);
   const assignmentCount = coursework ? assignments.length : assignmentCountOf(classroom);
   const [enrolling, setEnrolling] = useState(false);
+  // A closed class is joined with the teacher's code; the owner shows it from here.
+  const closedClass = classroom.enrollment !== 'open' && !(classroom.price > 0);
+  const [codeInput, setCodeInput] = useState('');
+  const [codeError, setCodeError] = useState('');
+  const [teacherCode, setTeacherCode] = useState('');
+  const handleJoinWithCode = async () => {
+    if (!user?.uid || !codeInput.trim()) return;
+    setEnrolling(true); setCodeError('');
+    try {
+      const joined = await joinClassWithCode(codeInput.trim());
+      if (joined === classroom.id) setIsEnrolled(true);
+      else setCodeError('That code is for a different class.');
+    } catch (e: any) { setCodeError(e?.message || 'That code did not work.'); }
+    finally { setEnrolling(false); }
+  };
+  const showTeacherCode = async () => {
+    setCodeError('');
+    try { setTeacherCode(await fetchClassJoinCode(classroom.id)); }
+    catch (e: any) { setCodeError(e?.message || 'Could not get the code.'); }
+  };
   const handleEnrollHere = async () => {
     if (!user?.uid) return alert('Please sign in to enroll');
     setEnrolling(true);
@@ -1561,7 +1587,25 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
                 <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">{classroom.title}</h1>
                 <p className="text-sm lg:text-base text-white/40 uppercase tracking-widest leading-relaxed">{classroom.description}</p>
               </div>
-              {!isEnrolled && !isOwner && (
+              {isOwner && closedClass && (
+                <div className="flex flex-col gap-2 items-start">
+                  {teacherCode
+                    ? <p className="text-sm font-black tracking-widest text-white">Join code: {teacherCode}</p>
+                    : <button onClick={showTeacherCode} className="min-h-[44px] px-6 py-3 bg-white/10 text-white rounded-2xl text-xs font-black uppercase tracking-widest">Show join code</button>}
+                  {codeError && <p role="alert" className="text-xs text-red-300">{codeError}</p>}
+                </div>
+              )}
+              {!isEnrolled && !isOwner && closedClass && (
+                <form className="flex flex-col gap-2 items-start" onSubmit={e => { e.preventDefault(); void handleJoinWithCode(); }}>
+                  <label htmlFor="class-join-code" className="text-xs text-white/60">Ask your teacher for the class code</label>
+                  <div className="flex gap-2">
+                    <input id="class-join-code" value={codeInput} onChange={e => setCodeInput(e.target.value)} autoComplete="off" className="min-h-[44px] px-4 rounded-2xl bg-white/10 text-white uppercase tracking-widest outline-none" />
+                    <button type="submit" disabled={enrolling || !codeInput.trim()} className="min-h-[44px] px-6 bg-white text-black rounded-2xl text-xs font-black uppercase tracking-widest disabled:opacity-60">Join</button>
+                  </div>
+                  {codeError && <p role="alert" className="text-xs text-red-300">{codeError}</p>}
+                </form>
+              )}
+              {!isEnrolled && !isOwner && !closedClass && (
                 <button
                   onClick={handleEnrollHere}
                   disabled={enrolling}
@@ -1623,7 +1667,7 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
                     {[
                       { label: 'Lessons', value: lessonCount, icon: PlayCircle },
                       { label: 'Assignments', value: assignmentCount, icon: BookOpen },
-                      { label: 'Students', value: classroom.enrolledStudents.length, icon: Users },
+                      { label: 'Students', value: classSeatCount(classroom), icon: Users },
                     ].map(s => (
                       <div key={s.label} className="bg-white/5 rounded-2xl p-4 text-center border border-white/5">
                         <s.icon size={20} className="mx-auto mb-2 text-white/20" />

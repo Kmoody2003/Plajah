@@ -5,6 +5,7 @@
  * Ora check-ins are never read here (they belong to the student; see WellbeingPanel).
  * Every loader is failure-tolerant — a rules denial or a missing doc is just "nothing yet".
  */
+import { fetchGuardiansOf } from './userPrivate';
 import { getDocs, collection, query, where, limit, orderBy } from 'firebase/firestore';
 import { db, opsDb } from './firebase';
 import { fetchUserProfiles, fetchChatRooms } from './backendService';
@@ -36,15 +37,15 @@ export async function loadTeacherRoster(classes: Array<{ id: string; title?: str
     }
   }
   const uids = [...byUid.keys()].slice(0, 300);
-  const profiles = await fetchUserProfiles(uids).catch(() => [] as any[]);
+  const [profiles, guardians] = await Promise.all([fetchUserProfiles(uids).catch(() => [] as any[]), fetchGuardiansOf(uids)]);
   for (const p of profiles || []) {
     if (!p?.uid) continue;
     const row = byUid.get(p.uid); if (!row) continue;
     row.name = (p as any).displayName || (p as any).username || '';
     row.photo = (p as any).photoURL || undefined;
     row.username = (p as any).username || undefined;
-    row.guardianUid = (p as any).guardianUid || undefined;
-    row.guardianUids = [...new Set([(p as any).guardianUid, ...((p as any).coGuardianUids || [])].filter(Boolean))] as string[];
+    row.guardianUids = guardians[p.uid] || [];
+    row.guardianUid = row.guardianUids[0] || undefined;
   }
   return [...byUid.values()].map(r => ({ ...r, name: r.name || 'Student' })).sort((a, b) => a.name.localeCompare(b.name));
 }

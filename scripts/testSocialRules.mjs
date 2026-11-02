@@ -22,7 +22,8 @@ function mocks() {
   for (const u of users) m.push({ function: 'exists', args: [{ exactValue: `${DB}/admins/${u}` }], result: { value: false } });
   m.push({ function: 'get', args: [{ exactValue: `${DB}/posts/p1` }], result: { value: { data: post } } });
   m.push({ function: 'exists', args: [{ exactValue: `${DB}/clubPosts/cp1` }], result: { value: true } });
-  m.push({ function: 'get', args: [{ exactValue: `${DB}/clubPosts/cp1` }], result: { value: { data: { authorId: AUTHOR } } } });
+  m.push({ function: 'exists', args: [{ exactValue: `${DB}/clubs/club1` }], result: { value: false } });
+  m.push({ function: 'get', args: [{ exactValue: `${DB}/clubPosts/cp1` }], result: { value: { data: { authorId: AUTHOR, clubId: 'club1' } } } });
   m.push({ function: 'exists', args: [{ exactValue: `${DB}/chat_rooms/r1` }], result: { value: true } });
   m.push({ function: 'get', args: [{ exactValue: `${DB}/chat_rooms/r1` }], result: { value: { data: room } } });
   m.push({ function: 'get', args: [{ exactValue: `${DB}/live_streams/ls1` }], result: { value: { data: { ownerId: AUTHOR } } } });

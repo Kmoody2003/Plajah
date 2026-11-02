@@ -1,0 +1,32 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "services/userPrivate.ts",
+    "services/videoQuery.ts",
+    "services/backendService.ts",
+    "services/sanctuaryService.ts",
+    "services/audienceService.ts",
+    "services/academiaDossier.ts",
+    "services/worksheetAssignmentService.ts",
+    "services/assignmentTemplateService.ts",
+    "services/childActivityService.ts",
+    "services/analyticsService.ts",
+    "services/creatorCourses.ts",
+    "routes/learnerAuth.ts",
+    "routes/kithSightings.ts",
+    "scripts/migrateUserPrivate.ts",
+    "scripts/migrateVideoPrivacy.ts",
+    "scripts/migrateClassEnrollment.ts",
+    "scripts/migrateClubSanctuaryMarkers.ts",
+    "components/SanctuaryView.tsx",
+    "components/ClassroomsView.tsx",
+    "components/ParentalControlsPanel.tsx",
+    "components/academia/ParentHub.tsx",
+    "components/avatar/UserAvatar.tsx"
+  ]
+}

@@ -2,6 +2,7 @@
 // Smart Church Kinship CRM (Head of Household, Spousal Status, Dependent Children,
 // and Extended Family with Per-Member Privacy Opt-Out) + 4-Scope Finance Tax Statement Engine.
 
+import { scopedKey } from './userScope';
 import type {
   ChmsHousehold,
   ChmsPerson,
@@ -59,8 +60,11 @@ const KINSHIP_PRIVACY_STORAGE_KEY = 'plajah_chms_extended_kinship_privacy_v1';
 
 export function getLocalExtendedKinshipOptIn(personId = 'self'): boolean {
   try {
-    const raw = JSON.parse(localStorage.getItem(KINSHIP_PRIVACY_STORAGE_KEY) || '{}');
+    const raw = JSON.parse(localStorage.getItem(scopedKey(KINSHIP_PRIVACY_STORAGE_KEY)) || '{}');
     if (typeof raw[personId] === 'boolean') return raw[personId];
+    // A choice to hide made in the old shared store still stands: moving it must not reveal anyone.
+    const old = JSON.parse(localStorage.getItem(KINSHIP_PRIVACY_STORAGE_KEY) || '{}');
+    if (old[personId] === false) return false;
     return true; // Default opted in unless member chooses to hide extended relationships
   } catch {
     return true;
@@ -69,9 +73,9 @@ export function getLocalExtendedKinshipOptIn(personId = 'self'): boolean {
 
 export function setLocalExtendedKinshipOptIn(personId: string, allow: boolean): void {
   try {
-    const raw = JSON.parse(localStorage.getItem(KINSHIP_PRIVACY_STORAGE_KEY) || '{}');
+    const raw = JSON.parse(localStorage.getItem(scopedKey(KINSHIP_PRIVACY_STORAGE_KEY)) || '{}');
     raw[personId] = allow;
-    localStorage.setItem(KINSHIP_PRIVACY_STORAGE_KEY, JSON.stringify(raw));
+    localStorage.setItem(scopedKey(KINSHIP_PRIVACY_STORAGE_KEY), JSON.stringify(raw));
     window.dispatchEvent(
       new CustomEvent('plajah:kinship-privacy-changed', { detail: { personId, allow } })
     );

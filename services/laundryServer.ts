@@ -11,6 +11,7 @@
 //  POST /api/laundry/cron/reminders          same for ALL businesses; guarded by header x-cron-secret = env CRON_SECRET
 //                                            (point Cloud Scheduler / any cron at it daily; 503 until CRON_SECRET is set)
 // Wallet top-up bonus is applied inside /api/stored-value/reload (server.ts) via `loadWalletPromo` below.
+import { deviceTokens } from './pushTokensCore';
 import nodeCrypto from 'node:crypto';
 import { casUpdate } from './casCore';
 import { getPack } from './verticalPacks';
@@ -197,7 +198,7 @@ export function registerLaundryRoutes(d: LaundryDeps): void {
         if (!(sub && sub.transactional === false)) {
           await d.firestoreCreate('notifications', { userId: t.customer.uid, senderId: t.businessUid, senderName: businessName, senderPhoto: '', type: 'BUSINESS_UPDATE', title, message: `${a.text} ${link}`, link: 'PROFILE', targetId: t.businessUid, isRead: false, timestamp: Date.now() });
           const u = await d.firestoreGetDeep('users', t.customer.uid);
-          const tokens: string[] = [...(Array.isArray(u?.fcmTokens) ? u!.fcmTokens : []), ...(u?.fcmToken ? [u.fcmToken] : [])].filter(Boolean);
+          const tokens: string[] = deviceTokens(u, await d.firestoreGetDeep(`users/${t.customer.uid}/private`, 'profile'));
           if (tokens.length) d.sendFcmMulticast([...new Set(tokens)], { title, body: a.text.slice(0, 180), link, channelId: 'system', data: { type: 'BUSINESS_UPDATE', targetId: t.businessUid, senderName: businessName } }).catch(() => {});
           out.push = true;
         }
