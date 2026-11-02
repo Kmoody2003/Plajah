@@ -3824,7 +3824,10 @@ export interface Classroom {
   lessonOutline?: { id: string; title: string }[];
   /** Catalog-safe count of the private assignments. */
   assignmentCount?: number;
+  /** Filled by services/classRoster for the class's teacher and students; lives on private/roster. */
   enrolledStudents: string[]; // UIDs
+  /** Public seat count. */
+  enrolledCount?: number;
   /** 'open' lets anyone self-enroll (publicly listed creator courses). Default closed: teacher add or join code. */
   enrollment?: 'open' | 'closed';
   liveSessionUrl?: string;

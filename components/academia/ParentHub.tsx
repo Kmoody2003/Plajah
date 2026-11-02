@@ -1,3 +1,4 @@
+import { fetchClassIdsOf } from '../../services/classRoster';
 import { writePrivateProfile } from '../../services/userPrivate';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -89,17 +90,19 @@ const ParentHub: React.FC<Props> = ({ user, profile, onNavigate }) => {
     return () => { alive = false; };
   }, [sel, uid]);
 
+  const [selClassIds, setSelClassIds] = useState<Set<string>>(new Set());
+  useEffect(() => { let alive = true; if (sel) fetchClassIdsOf(sel).then(s => { if (alive) setSelClassIds(s); }); return () => { alive = false; }; }, [sel]);
   const teachers = useMemo(() => {
     const m = new Map<string, { uid: string; name: string; classes: string[] }>();
     for (const c of classes) {
-      if (c?.ownerId && (c.enrolledStudents || []).includes(sel) && c.ownerId !== uid) {
+      if (c?.ownerId && selClassIds.has(c.id) && c.ownerId !== uid) {
         const t = m.get(c.ownerId) || { uid: c.ownerId, name: c.ownerName || 'Teacher', classes: [] };
         t.classes.push(c.title || 'Class');
         m.set(c.ownerId, t);
       }
     }
     return [...m.values()];
-  }, [classes, sel, uid]);
+  }, [classes, sel, uid, selClassIds]);
 
   const messageTeacher = async (teacherUid: string) => {
     if (!uid) return;

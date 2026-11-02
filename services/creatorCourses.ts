@@ -292,8 +292,9 @@ export interface CourseStats {
 }
 
 /** Gross is price x learners. Free courses and the owner's own enrollment never count as revenue. */
-export function courseStats(c: Pick<Classroom, 'price' | 'enrolledStudents' | 'capacity' | 'ownerId'>): CourseStats {
-  const learners = (c.enrolledStudents || []).filter(u => u !== c.ownerId).length;
+export function courseStats(c: Pick<Classroom, 'price' | 'enrolledStudents' | 'capacity' | 'ownerId'> & { enrolledCount?: number }): CourseStats {
+  // Only people in the class get the roster; everyone else sees the public count.
+  const learners = Math.max((c.enrolledStudents || []).filter(u => u !== c.ownerId).length, (c.enrolledStudents || []).length ? 0 : (c.enrolledCount || 0));
   const gross = Math.round(c.price * learners * 100) / 100;
   const fee = Math.round(gross * PLATFORM_CUT * 100) / 100;
   return { learners, gross, fee, net: Math.round((gross - fee) * 100) / 100, seatsLeft: c.capacity && c.capacity > 0 ? Math.max(0, c.capacity - learners) : null };
@@ -358,7 +359,8 @@ export async function fetchMyCourses(ownerId: string): Promise<Classroom[]> {
   const [{ db }, fs, cw] = await Promise.all([import('./firebase'), import('firebase/firestore'), import('./classroomCoursework')]);
   const snap = await fs.getDocs(fs.query(fs.collection(db, 'classrooms'), fs.where('ownerId', '==', ownerId)));
   const mine = snap.docs.map(d => d.data() as Classroom).filter(c => (c.track || 'CREATOR') === 'CREATOR');
-  const full = await Promise.all(mine.map(c => cw.withCoursework(c, ownerId)));
+  const { hydrateClassRosters } = await import('./classRoster');
+  const full = await Promise.all((await hydrateClassRosters(mine, ownerId)).map(c => cw.withCoursework(c, ownerId)));
   return full.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 }
 
@@ -377,13 +379,16 @@ export async function fetchPublicCourses(): Promise<Classroom[]> {
 export async function fetchCourse(id: string): Promise<Classroom | null> {
   const [{ db, auth }, fs, cw] = await Promise.all([import('./firebase'), import('firebase/firestore'), import('./classroomCoursework')]);
   const snap = await fs.getDoc(fs.doc(db, 'classrooms', id));
-  return snap.exists() ? cw.withCoursework(snap.data() as Classroom, auth.currentUser?.uid) : null;
+  if (!snap.exists()) return null;
+  const { hydrateClassRosters } = await import('./classRoster');
+  const [c] = await hydrateClassRosters([snap.data() as Classroom], auth.currentUser?.uid);
+  return cw.withCoursework(c, auth.currentUser?.uid);
 }
 
 /** Owner update. Lessons/assignments in the patch go to the private doc, the rest to the public one. */
 export async function updateCourse(id: string, patch: Partial<Classroom>): Promise<void> {
   const [{ db }, fs, cw] = await Promise.all([import('./firebase'), import('firebase/firestore'), import('./classroomCoursework')]);
-  const { lessons, assignments, lessonOutline: _o, assignmentCount: _n, ...rest } = patch;
+  const { lessons, assignments, lessonOutline: _o, assignmentCount: _n, enrolledStudents: _r, enrolledCount: _c, ...rest } = patch;
   if (lessons || assignments) await cw.saveClassroomCoursework(id, { lessons, assignments });
   if (Object.keys(clean(rest as any)).length) await fs.updateDoc(fs.doc(db, 'classrooms', id), clean(rest as any));
 }

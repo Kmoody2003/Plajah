@@ -89,10 +89,26 @@ const cls = { id: 'c1', ownerId: 'teach', ownerName: 'T', title: 'T', descriptio
 const joinOf = c => ({ existing: c, data: { ...c, enrolledStudents: ['out'] } });
 t('nobody self-enrolls in a class with no enrollment flag', 'DENY', 'out', 'update', 'classrooms/c1', joinOf(cls));
 t('nobody self-enrolls in a closed class', 'DENY', 'out', 'update', 'classrooms/c1', joinOf({ ...cls, enrollment: 'closed' }));
-t('anyone self-enrolls in an open course', 'ALLOW', 'out', 'update', 'classrooms/c1', joinOf({ ...cls, enrollment: 'open' }));
+t('open courses are joined through the server, not by a client write', 'DENY', 'out', 'update', 'classrooms/c1', joinOf({ ...cls, enrollment: 'open' }));
 t('nobody self-enrolls free in an open paid course', 'DENY', 'out', 'update', 'classrooms/c1', joinOf({ ...cls, enrollment: 'open', price: 9 }));
+const pubCls = { ...cls }; delete pubCls.enrolledStudents;
+const clsMock = [get('classrooms/c1', pubCls)];
+const inClass = u => [...clsMock, yes(`classMembers/c1_${u}`)];
+t('a class with no public roster still saves', 'ALLOW', 'teach', 'update', 'classrooms/c1', { existing: pubCls, data: { ...pubCls, title: 'U' } });
+t('a teacher cannot edit the seat count', 'DENY', 'teach', 'update', 'classrooms/c1', { existing: pubCls, data: { ...pubCls, enrolledCount: 99 } });
+t('a new class cannot carry a roster', 'DENY', 'teach', 'create', 'classrooms/c2', { data: { ...pubCls, enrolledStudents: ['x'] } });
+t('a stranger cannot read a roster', 'DENY', 'out', 'get', 'classrooms/c1/private/roster', { existing: { enrolledStudents: ['kid'] }, extra: clsMock });
+t('signed out cannot read a roster', 'DENY', null, 'get', 'classrooms/c1/private/roster', { existing: { enrolledStudents: ['kid'] }, extra: clsMock });
+t('a student reads the roster', 'ALLOW', 'kid', 'get', 'classrooms/c1/private/roster', { existing: { enrolledStudents: ['kid'] }, extra: inClass('kid') });
+t('the teacher reads the roster', 'ALLOW', 'teach', 'get', 'classrooms/c1/private/roster', { existing: { enrolledStudents: ['kid'] }, extra: clsMock });
+t('a student cannot write the roster', 'DENY', 'kid', 'update', 'classrooms/c1/private/roster', { existing: { enrolledStudents: ['kid'] }, data: { enrolledStudents: ['kid', 'pal'] }, extra: inClass('kid') });
+t('the teacher cannot write the roster directly', 'DENY', 'teach', 'update', 'classrooms/c1/private/roster', { existing: { enrolledStudents: [] }, data: { enrolledStudents: ['x'] }, extra: clsMock });
+t('nobody mints their own class marker', 'DENY', 'out', 'create', 'classMembers/c1_out', { data: { classId: 'c1', uid: 'out' } });
+t('a person lists their own class markers', 'ALLOW', 'kid', 'list', 'classMembers', { existing: { classId: 'c1', uid: 'kid' } });
+t('nobody lists class markers of someone else', 'DENY', 'out', 'list', 'classMembers', { existing: { classId: 'c1', uid: 'kid' }, extra: clsMock });
+t('a student opens coursework', 'ALLOW', 'kid', 'get', 'classrooms/c1/private/coursework', { existing: {}, extra: inClass('kid') });
 t('nobody opens another teacher\'s class', 'DENY', 'out', 'update', 'classrooms/c1', { existing: cls, data: { ...cls, enrollment: 'open' } });
-t('a teacher adds a student', 'ALLOW', 'teach', 'update', 'classrooms/c1', { existing: cls, data: { ...cls, enrolledStudents: ['kid'] } });
+t('a teacher cannot add a student by a client write', 'DENY', 'teach', 'update', 'classrooms/c1', { existing: cls, data: { ...cls, enrolledStudents: ['kid'] } });
 t('coursework stays closed to outsiders', 'DENY', 'out', 'get', 'classrooms/c1/private/coursework', { existing: {}, extra: [get('classrooms/c1', cls)] });
 
 // ── D: clubs ────────────────────────────────────────────────────────────────
@@ -192,13 +208,14 @@ t('nobody squats a real uid as a managed employee', 'DENY', 'out', 'create', 'us
 t('a manager creates an employee at a generated id', 'ALLOW', 'boss', 'create', 'users/emp_org1_abc', { data: emp });
 t('a manager creates a provisioned seat profile', 'ALLOW', 'boss', 'create', 'users/prov_org1_abc123', { data: { ...emp, uid: 'prov_org1_abc123' } });
 t('a manager cannot make an employee a platform admin', 'DENY', 'boss', 'update', 'users/emp_org1_abc', { existing: emp, data: { ...emp, role: 'admin' } });
-const wc = get('classrooms/c1', { ownerId: 'teach', enrolledStudents: ['kid'] });
+const wc = get('classrooms/c1', { ownerId: 'teach' });
+const wcKid = yes('classMembers/c1_kid');
 t('an outsider cannot read class weather', 'DENY', 'out', 'get', 'classWeather/c1_2026-11-01', { existing: { classId: 'c1' }, extra: [wc] });
-t('a student reads class weather', 'ALLOW', 'kid', 'get', 'classWeather/c1_2026-11-01', { existing: { classId: 'c1' }, extra: [wc] });
+t('a student reads class weather', 'ALLOW', 'kid', 'get', 'classWeather/c1_2026-11-01', { existing: { classId: 'c1' }, extra: [wc, wcKid] });
 t('an outsider cannot vote class weather', 'DENY', 'out', 'create', 'classWeather/c1_2026-11-01', { data: { classId: 'c1', day: '2026-11-01', counts: {} }, extra: [wc] });
-t('a student votes class weather', 'ALLOW', 'kid', 'create', 'classWeather/c1_2026-11-01', { data: { classId: 'c1', day: '2026-11-01', counts: {} }, extra: [wc] });
+t('a student votes class weather', 'ALLOW', 'kid', 'create', 'classWeather/c1_2026-11-01', { data: { classId: 'c1', day: '2026-11-01', counts: {} }, extra: [wc, wcKid] });
 t('a teacher cannot grade someone outside the class', 'DENY', 'teach', 'create', 'studentGrades/g', { data: { classroomId: 'c1', studentId: 'out' }, extra: [wc] });
-t('a teacher grades their student', 'ALLOW', 'teach', 'create', 'studentGrades/g', { data: { classroomId: 'c1', studentId: 'kid' }, extra: [wc] });
+t('a teacher grades their student', 'ALLOW', 'teach', 'create', 'studentGrades/g', { data: { classroomId: 'c1', studentId: 'kid' }, extra: [wc, wcKid] });
 t('nobody lists open TV pairing codes', 'DENY', 'out', 'list', 'tv_pairings', { existing: { uid: 'tv', expiresAt: 9e15 } });
 t('a controller lists what they claimed', 'ALLOW', 'me', 'list', 'tv_pairings', { existing: { uid: 'tv', claimedBy: 'me' } });
 t('someone with the code opens it', 'ALLOW', 'me', 'get', 'tv_pairings/ABC123', { existing: { uid: 'tv' } });

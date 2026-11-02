@@ -345,6 +345,31 @@ export async function fsBatchWrite(docs: { path: string; data: Record<string, un
   return ok;
 }
 
+/** Add one student atomically: marker (only if new), private roster, public seat count. Idempotent. */
+export async function fsAddClassMember(classId: string, uid: string): Promise<'added' | 'already' | 'error'> {
+  const root = docRootFor('classMembers');
+  try {
+    const res = await fetch(`https://firestore.googleapis.com/v1/${root}:commit`, {
+      method: 'POST',
+      headers: await authHeaders(),
+      body: JSON.stringify({ writes: [
+        { update: { name: `${root}/classMembers/${classId}_${uid}`, fields: toFields({ classId, uid, at: Date.now() }) }, currentDocument: { exists: false } },
+        { transform: { document: `${root}/classrooms/${classId}/private/roster`, fieldTransforms: [{ fieldPath: 'enrolledStudents', appendMissingElements: { values: [{ stringValue: uid }] } }] } },
+        { transform: { document: `${root}/classrooms/${classId}`, fieldTransforms: [{ fieldPath: 'enrolledCount', increment: { integerValue: '1' } }] } },
+      ] }),
+    });
+    if (res.ok) return 'added';
+    return res.status === 409 ? 'already' : 'error';
+  } catch { return 'error'; }
+}
+
+/** A class's roster: the private doc, plus a not-yet-stripped public list. */
+export async function fsClassRoster(classId: string, cls?: Record<string, any> | null): Promise<string[]> {
+  const roster = await fsGet(`classrooms/${classId}/private/roster`);
+  const legacy = Array.isArray(cls?.enrolledStudents) ? cls!.enrolledStudents : [];
+  return [...new Set<string>([...(Array.isArray(roster?.enrolledStudents) ? roster!.enrolledStudents : []), ...legacy])];
+}
+
 /** List a collection's documents (id + data), following pagination. Server-side only — this
  *  bypasses security rules, so callers must do their own authorization. */
 class StrictListError extends Error {}

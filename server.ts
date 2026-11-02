@@ -185,6 +185,7 @@ import { grossUpCents, giftCentsFromGross, applicationFeePercent } from './servi
 import { receiptPdf, bytesToBase64 } from './services/givingPdf';
 import { receiptEmail, statementEmail, receiptNoOf, statementOrgOf, EMAIL_RE } from './services/givingEmailCore';
 import { createBilling } from './routes/billing';
+import { fsAddClassMember, fsClassRoster } from './services/firebaseAdminRest';
 import { mergeOrgFinance, financeViewFor, financeViewLevel } from './services/orgFinanceCore';
 import { deriveAlerts as pulseDeriveAlerts, alertAudience as pulseAudience, prefAllows as pulsePrefAllows } from './services/acctPulse';
 import { isFutureRelease } from './services/releases/visibility';
@@ -1864,7 +1865,7 @@ async function firestoreArrayUnion(path: string, field: string, values: string[]
 async function enrollPaidLearner(courseId: string, uid: string, now = Date.now()): Promise<boolean> {
   let ok = false;
   for (let i = 0; i < 3 && !ok; i++) {
-    ok = await firestoreArrayUnion(`classrooms/${courseId}`, 'enrolledStudents', [uid]);
+    ok = (await fsAddClassMember(courseId, uid)) !== 'error';
     if (!ok) await new Promise(r => setTimeout(r, 400 * (i + 1)));
   }
   if (ok) {
@@ -12369,7 +12370,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const ownerUid = String(course.ownerId || '');
       if (!ownerUid) return res.status(400).json({ error: 'This course has no instructor on file.' });
       if (ownerUid === req.uid) return res.status(400).json({ error: 'This is your own course.' });
-      const enrolled: string[] = Array.isArray(course.enrolledStudents) ? course.enrolledStudents : [];
+      const enrolled = await fsClassRoster(courseId, course);
       if (enrolled.includes(req.uid)) return res.status(400).json({ error: 'You are already enrolled.' });
       const capacity = Number(course.capacity || 0);
       if (capacity > 0 && enrolled.filter(u => u !== ownerUid).length >= capacity) return res.status(409).json({ error: 'This course is full.' });

@@ -14,6 +14,7 @@ import {
   createCustomToken, verifyIdToken, hashPassword, verifyPassword,
   fsGet, fsSet, fsPatch, fsCreate, fsQuery, fsGetUser, fsPatchUser, adminConfig,
 } from '../services/firebaseAdminRest';
+import { fsAddClassMember, fsClassRoster } from '../services/firebaseAdminRest';
 import { lookupAuthUser, lookupUidByEmail } from '../services/notify/emailNotifyServer';
 import {
   isValidUsername, isValidChildPassword, createClaimToken, validateClaim,
@@ -318,7 +319,7 @@ learnerAuthRouter.post('/guardians-of', async (req: Request, res: Response) => {
   const inRoom: string[] = room && Array.isArray(room.participants) && room.participants.includes(uid) ? room.participants : [];
   const owned = await fsQuery('classrooms', [{ field: 'ownerId', value: uid }], 200);
   const taught = new Set<string>();
-  for (const c of owned) for (const s of (Array.isArray(c.data.enrolledStudents) ? c.data.enrolledStudents : [])) taught.add(String(s));
+  for (const roster of await Promise.all(owned.map(c => fsClassRoster(c.id, c.data)))) for (const s of roster) taught.add(String(s));
   const guardians: Record<string, string[]> = {};
   await Promise.all(uids.map(async (s) => {
     const priv = (await fsGet(`${USER(s)}/private/profile`)) || {};
@@ -355,14 +356,43 @@ learnerAuthRouter.post('/join-class', async (req: Request, res: Response) => {
   if (!rec || !cls) return res.status(404).json({ error: 'That code was not found.' });
   // A code never skips payment: paid courses are joined through checkout.
   if (Number(cls.price) > 0) return res.status(409).json({ error: 'This course is joined through checkout.' });
-  const enrolled: string[] = Array.isArray(cls.enrolledStudents) ? cls.enrolledStudents : [];
+  const enrolled = await fsClassRoster(rec.classId, cls);
   if (enrolled.includes(uid)) return res.json({ classId: rec.classId });
   const capacity = Number(cls.capacity) || 0;
   if (capacity > 0 && enrolled.length >= capacity) return res.status(409).json({ error: 'This class is full.' });
-  if (!(await fsPatch(`classrooms/${rec.classId}`, { enrolledStudents: [...enrolled, uid] }))) {
-    return res.status(502).json({ error: 'Could not join. Try again.' });
-  }
+  if ((await fsAddClassMember(rec.classId, uid)) === 'error') return res.status(502).json({ error: 'Could not join. Try again.' });
   return res.json({ classId: rec.classId });
+});
+
+// Free course self-enrolment: only a published class its owner opened, within the seat cap. Paid courses go through
+// checkout, closed classes through a code. Rosters aren't client-writable.
+learnerAuthRouter.post('/join-open-class', async (req: Request, res: Response) => {
+  const uid = await callerUid(req);
+  if (!uid) return res.status(401).json({ error: 'Sign in first.' });
+  const classId = String(req.body?.classId || '');
+  const cls = /^[A-Za-z0-9_-]{1,120}$/.test(classId) ? await fsGet(`classrooms/${classId}`) : null;
+  if (!cls) return res.status(404).json({ error: 'That class was not found.' });
+  if (Number(cls.price) > 0) return res.status(409).json({ error: 'This course is joined through checkout.' });
+  if (cls.enrollment !== 'open' || cls.status === 'DRAFT') return res.status(403).json({ error: 'This class needs a join code from the teacher.' });
+  const enrolled = await fsClassRoster(classId, cls);
+  if (enrolled.includes(uid)) return res.json({ classId });
+  const capacity = Number(cls.capacity) || 0;
+  if (capacity > 0 && enrolled.length >= capacity) return res.status(409).json({ error: 'This class is full.' });
+  if ((await fsAddClassMember(classId, uid)) === 'error') return res.status(502).json({ error: 'Could not join. Try again.' });
+  return res.json({ classId });
+});
+
+// Which classes a child is in, for their guardian or provisioning teacher. Rules only let a person list their own.
+learnerAuthRouter.post('/classes-of', async (req: Request, res: Response) => {
+  const uid = await callerUid(req);
+  if (!uid) return res.status(401).json({ error: 'Sign in first.' });
+  const who = String(req.body?.uid || '');
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(who)) return res.status(400).json({ error: 'Bad request.' });
+  const priv = (await fsGet(`${USER(who)}/private/profile`)) || {};
+  const allowed = who === uid || priv.guardianUid === uid || (Array.isArray(priv.coGuardianUids) && priv.coGuardianUids.includes(uid)) || priv.provisionedByTeacherUid === uid;
+  if (!allowed) return res.status(403).json({ error: 'Not your student.' });
+  const rows = await fsQuery('classMembers', [{ field: 'uid', value: who }], 200);
+  return res.json({ classIds: rows.map(r => String(r.data.classId)) });
 });
 
 // ── POST /brand-manager ────────────────────────────────────────────────────────

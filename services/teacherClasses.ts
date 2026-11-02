@@ -3,6 +3,7 @@
 // names/guardians through academiaDossier.loadTeacherRoster. Failure-tolerant: a rules denial or an
 // offline read returns an empty list, and callers fall back to the demo class.
 
+import { loadClassRoster as readRoster } from './classRoster';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from './firebase';
 import { loadTeacherRoster } from './academiaDossier';
@@ -21,9 +22,10 @@ export async function loadMyTeachingClasses(uid: string | undefined): Promise<Te
   if (!uid) return [];
   try {
     const snap = await getDocs(query(collection(db, 'classrooms'), where('ownerId', '==', uid)));
+    const rosters = new Map(await Promise.all(snap.docs.map(async d => [d.id, await readRoster(d.id)] as const)));
     return snap.docs
       .filter(d => (d.data() as any).status !== 'ARCHIVED')
-      .map((d): TeachingClass => { const c: any = d.data(); return { id: c.id || d.id, title: c.title || 'Class', gradeBand: c.gradeBand, category: c.category, track: c.track, enrolledStudents: Array.isArray(c.enrolledStudents) ? c.enrolledStudents : [] }; })
+      .map((d): TeachingClass => { const c: any = d.data(); return { id: c.id || d.id, title: c.title || 'Class', gradeBand: c.gradeBand, category: c.category, track: c.track, enrolledStudents: rosters.get(d.id) ?? (Array.isArray(c.enrolledStudents) ? c.enrolledStudents : []) }; })
       .sort((a, b) => (b.track === 'ACADEMIC' ? 1 : 0) - (a.track === 'ACADEMIC' ? 1 : 0) || b.enrolledStudents.length - a.enrolledStudents.length);
   } catch (error) {
     console.warn('[teacherClasses] could not load classes', error);

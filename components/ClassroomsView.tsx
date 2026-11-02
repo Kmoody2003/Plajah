@@ -1,3 +1,4 @@
+import { classSeatCount } from '../services/classRoster';
 import React, { useState, useEffect, Suspense } from 'react';
 import PageHeader from './PageHeader';
 import {
@@ -119,8 +120,9 @@ Loudness, limiting, export formats. Distribute your track on Plajah.`,
     liveSessionUrl: 'https://meet.google.com/demo',
   };
   // The public doc is world-readable: publish only the outline, keep the coursework private.
+  const { enrolledStudents: _roster, ...demoPublic } = demo;
   await setDoc(doc(db, 'classrooms', DEMO_CLASS_ID), {
-    ...demo, lessons: [], assignments: [], ...courseworkPreview(demo.lessons, demo.assignments),
+    ...demoPublic, lessons: [], assignments: [], ...courseworkPreview(demo.lessons, demo.assignments),
   });
   await saveClassroomCoursework(DEMO_CLASS_ID, { lessons: demo.lessons, assignments: demo.assignments });
   return demo;
@@ -1172,7 +1174,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Users size={14} className="text-white/20" />
-                        <span className="text-[10px] font-black text-white/40">{cls.enrolledStudents.length} Students</span>
+                        <span className="text-[10px] font-black text-white/40">{classSeatCount(cls)} Students</span>
                       </div>
                     </div>
                     <ChevronRight size={18} className="text-white/20 group-hover:translate-x-1 transition-transform" />
@@ -1665,7 +1667,7 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
                     {[
                       { label: 'Lessons', value: lessonCount, icon: PlayCircle },
                       { label: 'Assignments', value: assignmentCount, icon: BookOpen },
-                      { label: 'Students', value: classroom.enrolledStudents.length, icon: Users },
+                      { label: 'Students', value: classSeatCount(classroom), icon: Users },
                     ].map(s => (
                       <div key={s.label} className="bg-white/5 rounded-2xl p-4 text-center border border-white/5">
                         <s.icon size={20} className="mx-auto mb-2 text-white/20" />

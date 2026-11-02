@@ -24,6 +24,7 @@
  * the calendar.
  */
 
+import { myClassIds } from '../classRoster';
 import {
   collection, deleteDoc, doc, getDoc, getDocs, limit, query, setDoc, where,
 } from 'firebase/firestore';
@@ -286,8 +287,8 @@ export async function fetchPlatformFeed(from: number, to: number, force = false)
     safe('tickets', fetchMyTickets(), [] as any[]),
     safe('publicEvents', fetchPublicEvents(), [] as any[]),
     safe('classes', (async () => {
-      const rooms = await getDocs(query(collection(db, 'classrooms'), where('enrolledStudents', 'array-contains', uid), limit(30)));
-      const names = new Map(rooms.docs.map((d) => [d.id, String(d.data().title ?? 'Class')]));
+      const rooms = await Promise.all([...(await myClassIds(uid))].slice(0, 30).map((id) => getDoc(doc(db, 'classrooms', id))));
+      const names = new Map(rooms.filter((d) => d.exists()).map((d) => [d.id, String(d.data()?.title ?? 'Class')]));
       const sessions = await Promise.all(chunk([...names.keys()], 10).map((ids) =>
         getDocs(query(collection(db, 'liveClassSessions'), where('classroomId', 'in', ids), limit(60)))));
       return sessions.flatMap((s) => s.docs.map((d) => ({ id: d.id, className: names.get(String(d.data().classroomId)) ?? 'Class', ...(d.data() as Record<string, any>) })));

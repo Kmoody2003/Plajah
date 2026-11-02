@@ -52,6 +52,7 @@ import {
 import { db, opsDb, dbFor, storage, auth as firebaseAuth } from './firebase';
 import { videosOwnedBy } from './videoQuery';
 import { deviceTokens } from './pushTokensCore';
+import { hydrateClassRosters } from './classRoster';
 import { fetchGuardiansOf, listenMergedProfile, readPrivateProfile, splitUserFields, withPrivateFields, writePrivateProfile, privateProfileRef } from './userPrivate';
 import { isWindowsApp } from './windowsBridgeService';
 import { followNeedsApproval, requestFollow } from './socialSafetyService';
@@ -2249,7 +2250,7 @@ export const createClassroom = async (classroom: Partial<Classroom>) => {
   if (!auth.currentUser) return;
   const id = `class_${Date.now()}`;
   const path = `classrooms/${id}`;
-  const newClass: Classroom = {
+  const newClass: Omit<Classroom, 'enrolledStudents'> = {
     id,
     ownerId: auth.currentUser!.uid,
     ownerName: auth.currentUser.displayName || 'Teacher',
@@ -2263,7 +2264,6 @@ export const createClassroom = async (classroom: Partial<Classroom>) => {
     lessons: [],
     assignments: [],
     ...courseworkPreview(classroom.lessons || [], classroom.assignments || []),
-    enrolledStudents: [],
     category: classroom.category || 'Music',
     // Persist the track (it was silently dropped, so every academic class read back as CREATOR)
     // and the creator-course fields. Firestore throws on undefined, so only copy what is set.
@@ -2286,7 +2286,7 @@ export const createClassroom = async (classroom: Partial<Classroom>) => {
     }
     
     // Hand the creator back the full class (in memory only) so the UI can show what they just built.
-    return { ...newClass, lessons: classroom.lessons || [], assignments: classroom.assignments || [] };
+    return { ...newClass, enrolledStudents: [], lessons: classroom.lessons || [], assignments: classroom.assignments || [] };
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
   }
@@ -2296,7 +2296,7 @@ export const fetchClassrooms = async () => {
   const path = 'classrooms';
   try {
     const snap = await getDocs(collection(db, 'classrooms'));
-    return snap.docs.map(d => d.data() as Classroom);
+    return await hydrateClassRosters(snap.docs.map(d => d.data() as Classroom), auth.currentUser?.uid);
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
@@ -2323,10 +2323,7 @@ export const enrollInClassroom = async (classId: string) => {
   if (!auth.currentUser) return;
   const path = `classrooms/${classId}`;
   try {
-    const classRef = doc(db, 'classrooms', classId);
-    await updateDoc(classRef, {
-      enrolledStudents: arrayUnion(auth.currentUser.uid)
-    });
+    await classAccessCall('join-open-class', { classId });
     
     // Create initial progress report
     const reportId = `${auth.currentUser.uid}_${classId}`;
