@@ -253,7 +253,7 @@ const SplitsTab: React.FC<{ currentUserUid: string }> = ({ currentUserUid }) => 
       <div className="p-4 bg-[#fbbf24]/8 border border-[#fbbf24]/20 rounded-2xl flex gap-3">
         <Info size={16} className="text-[#fbbf24] shrink-0 mt-0.5" />
         <p className="text-xs text-[#fbbf24]/80 leading-relaxed">
-          Splits apply after Plajah's 10% platform fee. If you set 20% to a collaborator, they receive 20% of your net — not 20% of the gross charge. Transfers fire automatically when a payment clears, and a collaborator's share is held until they connect payouts. Tips and store orders go straight to you and aren't split.
+          Splits apply to what's left after Plajah's fee and card processing. If you set 20% to a collaborator, they receive 20% of your net, not 20% of the gross charge. Everyone needs a finished payout account before they can be added, and every share goes straight to them when a payment clears. Tips go straight to you and aren't split. Subscribers who joined before you added a split keep paying you directly.
         </p>
       </div>
 

@@ -1,7 +1,7 @@
 // Creator split payments: config rules and the payout ledger (services/splitPayouts.ts).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { activeRecipients, allocateSplits, checkSplitConfig, createCreatorPayouts, CREATOR_EARNINGS, isDefiniteRejection, retryDue, splitsOwedByEarning, unmatchedLegacySplits, SPLIT_PAYOUTS } from '../services/splitPayouts';
+import { activeRecipients, allocateSplits, checkSplitConfig, createCreatorPayouts, CREATOR_EARNINGS, isDefiniteRejection, retryDue, splitsOwedByEarning, SPLIT_PAYOUTS } from '../services/splitPayouts';
 
 const HOUR = 3_600_000;
 
@@ -23,7 +23,7 @@ function harness(users: Record<string, any> = {}) {
     notified: [] as string[],
   };
   const stripe = {
-    paymentIntents: { retrieve: async () => ({ latest_charge: 'ch_1' }) },
+    paymentIntents: { retrieve: async (_id: string, opts?: any) => ({ latest_charge: opts?.expand ? { transfer: 'tr_direct' } : 'ch_1' }) },
     transfers: {
       list: async (q: any) => ({ data: state.transfers.filter(t => t.destination === q.destination && t.created >= q.created.gte), has_more: false }),
       create: async (params: any, opts: any) => {
@@ -373,11 +373,24 @@ test('disputes: unpaid shares wait, a win releases them, a loss takes back paid 
   assert.equal(lost.row('bob').disputeHold, false);
 });
 
-test('legacy audit finds lines no old transfer covers, and spends each transfer once', () => {
-  const line = (creatorUid: string, amountCents: number) => ({ creatorUid, displayName: '', amountCents, percentage: 10 });
-  const earning = { creatorUid: 'amy', category: 'digital_sale', timestamp: 1000 * 1000, splits: [line('bob', 100), line('bob', 100), line('cal', 50)] };
-  const meta = { type: 'split', fromCreatorUid: 'amy', toCreatorUid: 'bob', category: 'digital_sale' };
-  const missing = unmatchedLegacySplits(earning, [{ id: 'tr_1', amount: 100, created: 1001, metadata: meta }], new Set());
-  assert.deepEqual(missing.map(l => l.creatorUid), ['bob', 'cal']);
-  assert.equal(unmatchedLegacySplits(earning, [{ id: 'tr_1', amount: 100, created: 9_000_000, metadata: meta }], new Set()).length, 3, 'outside the window');
+test('a destination charge pays nothing here, but a refund or lost dispute reverses the charge transfer', async () => {
+  const { docs, state, engine } = harness();
+  state.transfers.push({ id: 'tr_direct', amount: 1000, destination: 'acct_amy', created: 0, metadata: {} });
+  const earning = { creatorUid: 'amy', category: 'content_purchase', creatorNetCents: 800, status: 'paid_direct', stripePaymentIntentId: 'pi_1', timestamp: 0 };
+  docs.set(`${CREATOR_EARNINGS}/cs_1`, { ...earning });
+  assert.equal(await engine.payEarning('cs_1'), 'skipped');
+  assert.equal(state.createCalls.length, 0);
+  await engine.applyRefund('pi_1', 500, 1000);
+  assert.equal(state.transfers[0].amount_reversed, 400);
+  await engine.applyDispute('pi_1', 'lost', 1000, 1000);
+  assert.equal(state.transfers[0].amount_reversed, 800);
+  assert.equal(docs.get(`${CREATOR_EARNINGS}/cs_1`)!.status, 'refunded');
+});
+
+test('a refund Stripe already reversed on the charge is not taken twice', async () => {
+  const { docs, state, engine } = harness();
+  state.transfers.push({ id: 'tr_direct', amount: 1000, amount_reversed: 500, destination: 'acct_amy', created: 0, metadata: {} });
+  docs.set(`${CREATOR_EARNINGS}/cs_1`, { creatorUid: 'amy', category: 'content_purchase', creatorNetCents: 800, status: 'paid_direct', stripePaymentIntentId: 'pi_1', timestamp: 0 });
+  await engine.applyRefund('pi_1', 500, 1000);
+  assert.equal(state.reversals.length, 0);
 });

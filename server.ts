@@ -76,6 +76,8 @@ import { createAdminKeysRouter } from './routes/adminKeys';
 import { createGeminiLane, geminiConfigured, geminiGenerate, laneModel } from './services/ai/geminiLane';
 import { systemText, toAnthropicResponse, toGeminiContents } from './services/ai/anthropicCompat';
 import { PLATFORM_CUT_PCT as BOOK_PLATFORM_CUT_PCT } from './services/bookmeta/pricing';
+import { plajahPlusBreakdown, saleBreakdown, type SaleBreakdown } from './services/payments/saleFees';
+import { checkSaleRoute, feesFromMeta, fixedCutBreakdown, paymentRouting, saleMeta, subscriptionRouting, type RouteCheck, type SaleRoute } from './services/payments/directRoute';
 import { readRegistry as readEditionRegistry, licenceActive, entitledEditions, editionOf, type BookVersionStamp } from './services/bookEditions/policy';
 import { createLedgerRouter, appendLedger } from './routes/ledger';
 import { createSponsorCopiesRouter, activateCopyPool } from './routes/sponsorCopies';
@@ -2036,11 +2038,9 @@ async function revokeContentPurchase(charge: any): Promise<void> {
   }
 }
 
-// Only charges the PLATFORM collects on a creator's behalf belong here. Left out on purpose:
-//  • destination charges (sanctuary_pledge, store_order, artist_gift, …) already settled to
-//    the creator, so re-entering this path would pay splits a second time from Plajah;
-// Plajah+ is a creator earning only when bound to one creator; it used to be logged to the
-// subscriber. live_tip is a destination charge too: it is logged as paid with no transfers.
+// Sales recorded on the creator ledgers. Those routed 'direct' only log the charge and pay nothing here.
+// Left out on purpose: sanctuary_pledge, store_order and artist_gift keep their own records.
+// Plajah+ is a creator earning only when bound to one creator; it used to be logged to the subscriber.
 const CREATOR_PAYMENT_TYPES: Record<string, string> = {
   plajahplus: 'plajahplus',
   live_tip: 'tip',
@@ -2051,9 +2051,42 @@ const CREATOR_PAYMENT_TYPES: Record<string, string> = {
   seedraiser_pledge: 'seedraiser',
   content_purchase: 'content_purchase',
   copy_pool: 'content_purchase',     // sponsored/gift copies of a book (routes/sponsorCopies.ts)
+  event_ticket: 'other',
 };
 const DESTINATION_CHARGE_TYPES = new Set(['live_tip']);
 const RECURRING_PAYMENT_TYPES = new Set(['plajahplus', 'sanctuary_membership', 'club_membership']);
+
+async function sellerHasPlajahPlus(uid: string): Promise<boolean> {
+  try {
+    const subs = await queryFirebase('plajahPlusSubscriptions', [{ field: 'subscriberId', value: uid }], 10);
+    return subs.some((s: any) => ['active', 'trialing', 'past_due'].includes(String(s.status)));
+  } catch (e: any) {
+    console.error('[Fees] Plajah+ lookup failed:', e?.message || e);
+    return false;
+  }
+}
+
+async function userCanReceive(account: string): Promise<boolean> {
+  try { return !!(await getStripe().accounts.retrieve(account)).payouts_enabled; } catch { return false; }
+}
+
+/** How this seller's sale must be routed, or why it can't be taken. See services/payments/directRoute.ts. */
+async function saleRouteFor(sellerUid: string, category: string, noun?: string): Promise<RouteCheck> {
+  const splitDoc = await fetchFirebaseDoc('creatorSplits', sellerUid).catch(() => null);
+  const collaborators = activeRecipients(splitDoc?.fields?.recipients?.stringValue, splitDoc?.fields?.appliesTo?.stringValue, sellerUid, category);
+  return checkSaleRoute({
+    accountOf: async uid => (await firestoreRead('users', uid))?.stripeConnectAccountId as string | undefined,
+    canReceive: userCanReceive,
+  }, sellerUid, collaborators, noun);
+}
+
+/** Everything a checkout needs for one seller's sale. isBook carries the published Lorea cut. */
+async function prepareSale(sellerUid: string, category: string, grossCents: number, opts: { noun?: string; isBook?: boolean } = {}): Promise<{ ok: false; error: string } | { ok: true; route: SaleRoute; fees: SaleBreakdown; meta: Record<string, string> }> {
+  const route = await saleRouteFor(sellerUid, category, opts.noun);
+  if (route.ok === false) return route;
+  const fees = opts.isBook ? fixedCutBreakdown(grossCents, BOOK_PLATFORM_CUT_PCT) : saleBreakdown(grossCents, await sellerHasPlajahPlus(sellerUid));
+  return { ok: true, route, fees, meta: saleMeta(route, fees) };
+}
 
 /**
  * Record one paid sale or renewal on the ledgers and pay what's owed. Safe to repeat for the same saleId.
@@ -2062,7 +2095,7 @@ const RECURRING_PAYMENT_TYPES = new Set(['plajahplus', 'sanctuary_membership', '
 async function recordCreatorSale(sale: { saleId: string; meta: Record<string, string>; grossCents: number; paymentIntentId: string; renewal?: boolean }): Promise<boolean> {
   const { saleId: earningId, meta, grossCents, paymentIntentId } = sale;
   const now = Date.now();
-  const isDirect = DESTINATION_CHARGE_TYPES.has(meta.type);
+  const isDirect = DESTINATION_CHARGE_TYPES.has(meta.type) || meta.route === 'direct';
   const earningCategory = CREATOR_PAYMENT_TYPES[meta.type];
   // Never fall back to meta.uid — that is the buyer, not the creator.
   const recipientUid = meta.type === 'plajahplus'
@@ -2070,10 +2103,11 @@ async function recordCreatorSale(sale: { saleId: string; meta: Record<string, st
     : meta.creatorUid || meta.artistId || '';
   if (!earningCategory || !recipientUid || !grossCents) return true;
 
-  // Book sales carry the published Lorea author cut (services/bookmeta/pricing); everything else stays 90/10.
-  const platformFeePct   = (meta.type === 'content_purchase' || meta.type === 'copy_pool') && meta.kind === 'book' ? BOOK_PLATFORM_CUT_PCT : 10;
-  const platformFeeCents = Math.round(grossCents * platformFeePct / 100);
-  const netCents         = grossCents - platformFeeCents;
+  // Plajah+ pays a fixed amount by tier. Other sales record what their checkout stamped (services/payments/directRoute).
+  const fees = meta.type === 'plajahplus' ? plajahPlusBreakdown(grossCents, Number(meta.tier) || 1)
+    : feesFromMeta(meta) ?? saleBreakdown(grossCents, await sellerHasPlajahPlus(recipientUid));
+  const { feePct: platformFeePct, platformFeeCents } = fees;
+  const netCents         = grossCents - platformFeeCents - fees.processingCents;
 
   const splitDoc = isDirect ? null : await fetchFirebaseDoc('creatorSplits', recipientUid).catch(() => null);
   const activeSplits = activeRecipients(splitDoc?.fields?.recipients?.stringValue, splitDoc?.fields?.appliesTo?.stringValue, recipientUid, earningCategory);
@@ -2086,6 +2120,7 @@ async function recordCreatorSale(sale: { saleId: string; meta: Record<string, st
     meta.type === 'plajahplus'            ? `Plajah+ Subscription` :
     meta.type === 'club_membership'       ? `Club Membership` :
     meta.type === 'seedraiser_pledge'     ? `SeedRaiser Pledge` :
+    meta.type === 'event_ticket'          ? `Tickets${meta.tierName ? `: ${meta.tierName}` : ''}` :
     meta.type === 'copy_pool'             ? `Gift copies (${meta.quantity || '?'})${meta.title ? `: ${meta.title}` : ''}` :
     meta.type === 'content_purchase'      ? `${meta.kind === 'book' ? 'Book' : meta.kind === 'album' ? 'Album' : meta.kind === 'track' ? 'Track' : 'Film'} ${meta.grant === 'RENTAL' ? 'Rental' : 'Sale'}${meta.title ? `: ${meta.title}` : ''}` : 'Payment';
   const earningTitle = sale.renewal ? `${baseTitle} renewal` : baseTitle;
@@ -2111,8 +2146,7 @@ async function recordCreatorSale(sale: { saleId: string; meta: Record<string, st
   if (claimed === 'error') return false;
   if (isDirect) return true;
 
-  // Send the creator's own share now. Without an account it stays 'pending' and is swept when they
-  // finish payout onboarding. An earlier delivery that crashed here is finished by the retry job.
+  // Send the creator's own share now. An earlier delivery that crashed here is finished by the retry job.
   if (claimed === 'created' && creatorNetCents > 0) await creatorPayouts.payEarning(earningId, true);
 
   // Record what each collaborator is owed, then pay it. A re-fired event finishes rows an earlier
@@ -2975,9 +3009,27 @@ async function startServer() {
 
           // Plajah+ rebind fee paid: move the subscription to the new creator.
           if (mode === 'payment' && meta.type === 'rebind' && meta.uid && meta.subscriptionId && meta.newCreatorId) {
-            await firestoreWrite('plajahPlusSubscriptions', `${meta.uid}_${meta.subscriptionId}`, {
-              boundCreatorId: meta.newCreatorId, isMorph: false, updatedAt: now,
-            });
+            // Renewals must follow the binding, so the Stripe subscription moves first.
+            try {
+              const stripe = getStripe();
+              const sub = await stripe.subscriptions.retrieve(meta.subscriptionId);
+              const gross = Number(sub.items?.data?.[0]?.price?.unit_amount) || 0;
+              const route = await saleRouteFor(meta.newCreatorId, 'plajahplus');
+              if (route.ok === false) console.error('[Plajah+] rebind left unchanged:', meta.subscriptionId, route.error);
+              else {
+                const routing = subscriptionRouting(route, gross, plajahPlusBreakdown(gross, Number(sub.metadata?.tier) || 1));
+                await stripe.subscriptions.update(meta.subscriptionId, {
+                  metadata: { ...sub.metadata, boundCreatorId: meta.newCreatorId, isMorph: 'false', route: route.route },
+                  ...(route.route === 'direct' ? routing : { transfer_data: '', application_fee_percent: '' }),
+                });
+                await firestoreWrite('plajahPlusSubscriptions', `${meta.uid}_${meta.subscriptionId}`, {
+                  boundCreatorId: meta.newCreatorId, isMorph: false, updatedAt: now,
+                });
+              }
+            } catch (e: any) {
+              console.error('[Plajah+] rebind failed:', meta.subscriptionId, e?.message || e);
+              needsRedelivery = true;
+            }
           }
 
           if (mode === 'payment' && meta.type === 'seedraiser_pledge') {
@@ -3795,7 +3847,7 @@ async function startServer() {
           stripeConnectPayoutsEnabled: account.payouts_enabled,
           updatedAt: Date.now(),
         });
-        // Sales made before the creator connected were held as 'pending' — pay them out now.
+        // Finishes any share that couldn't be sent while this account was unavailable.
         // Idempotent per earning, so the frequent status polls can't double-pay.
         void creatorPayouts.payPendingFor(uid).catch((e: any) => console.error('[Connect] pending sweep failed:', e?.message || e));
       }
@@ -3916,7 +3968,11 @@ async function startServer() {
 
     try {
       for (const r of checked.recipients) {
-        if (!(await firestoreGetDeep('users', r.creatorUid))) return res.status(400).json({ error: `No user found for ${r.creatorUid}` });
+        const recipient = await firestoreGetDeep('users', r.creatorUid);
+        if (!recipient) return res.status(400).json({ error: `No user found for ${r.creatorUid}` });
+        // Shares go straight to each person, so they must be able to receive money before they're added.
+        const account = recipient.stripeConnectAccountId as string | undefined;
+        if (!account || !(await userCanReceive(account))) return res.status(400).json({ error: `${r.displayName || 'This collaborator'} needs to finish payout setup before they can be added.` });
       }
       await firestoreWrite('creatorSplits', uid, {
         ownerUid: uid,
@@ -4942,9 +4998,15 @@ async function startServer() {
         }
       }
 
+      const organizer = String(f.creatorUid?.stringValue || '');
+      const sale = await prepareSale(organizer, 'other', subtotal, { noun: 'organizer' });
+      if (sale.ok === false) return res.status(400).json({ error: sale.error });
       const session = await stripe.checkout.sessions.create({
         mode: 'payment', payment_method_types: ['card'], line_items: lineItems,
+        payment_intent_data: paymentRouting(sale.route, sale.fees),
         metadata: {
+          ...sale.meta,
+          creatorUid: organizer,
           type: 'event_ticket',
           eventId: req.params.eventId,
           tierId,
@@ -5181,7 +5243,18 @@ async function startServer() {
       const successUrl = `${trustedRequestOrigin(req)}/?subscription=success`;
       const cancelUrl  = `${trustedRequestOrigin(req)}/?subscription=cancelled`;
 
+      // Bound to one creator, their share goes straight to them. Unbound and Morph dues are Plajah's own revenue.
+      let creatorRouting: Record<string, unknown> = {}, routeMeta: Record<string, string> = {};
+      if (!isMorph && boundCreatorId) {
+        const route = await saleRouteFor(String(boundCreatorId), 'plajahplus');
+        if (route.ok === false) return res.status(400).json({ error: route.error });
+        const gross = Number((await stripe.prices.retrieve(priceId)).unit_amount) || 0;
+        creatorRouting = subscriptionRouting(route, gross, plajahPlusBreakdown(gross, Number(tier)));
+        routeMeta = { route: route.route };
+      }
+
       const plajahPlusMeta = {
+        ...routeMeta,
         type: 'plajahplus',
         uid,
         tier: String(tier),
@@ -5197,7 +5270,7 @@ async function startServer() {
         success_url: successUrl,
         cancel_url: cancelUrl,
         metadata: plajahPlusMeta,
-        subscription_data: { metadata: plajahPlusMeta },
+        subscription_data: { ...creatorRouting, metadata: plajahPlusMeta },
       });
 
       res.json({ url: session.url });
@@ -5243,6 +5316,8 @@ async function startServer() {
       // Only the subscriber can move their own subscription.
       const subDoc = await firestoreRead('plajahPlusSubscriptions', `${uid}_${subscriptionId}`);
       if (!subDoc || subDoc.status !== 'active') return res.status(404).json({ error: 'Active Plajah+ subscription not found' });
+      const newRoute = await saleRouteFor(String(newCreatorId), 'plajahplus');
+      if (newRoute.ok === false) return res.status(400).json({ error: newRoute.error });
 
       const successUrl = `${trustedRequestOrigin(req)}/?rebind=success`;
       const cancelUrl  = `${trustedRequestOrigin(req)}/?rebind=cancelled`;
@@ -5446,9 +5521,12 @@ async function startServer() {
       const campaignOwner = String(campaign?.creatorId || '');
       if (!campaignOwner) return res.status(404).json({ error: 'Campaign not found' });
 
+      const sale = await prepareSale(campaignOwner, 'seedraiser', Math.round(amount * 100));
+      if (sale.ok === false) return res.status(400).json({ error: sale.error });
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
         payment_method_types: ['card'],
+        payment_intent_data: paymentRouting(sale.route, sale.fees),
         line_items: [{
           price_data: {
             currency: 'usd',
@@ -5460,6 +5538,7 @@ async function startServer() {
         success_url: `${trustedRequestOrigin(req)}/?pledge=success`,
         cancel_url:  `${trustedRequestOrigin(req)}/?pledge=cancelled`,
         metadata: {
+          ...sale.meta,
           type: 'seedraiser_pledge',
           uid,
           creatorUid: campaignOwner,
@@ -5495,6 +5574,7 @@ async function startServer() {
       // when it has one — so money lands in the church's account, not the platform's.
       const church = await firestoreRead('organizations', churchId);
       const destAcct: string | undefined = church?.stripeAccountId || undefined;
+      if (!destAcct) return res.status(400).json({ error: 'This organization has not finished setting up giving yet.' });
       // DONOR COVERS THE FEE: charge gift + fee so the church receives exactly the gift. Only meaningful on a
       // destination charge (the platform keeps the fee as application_fee, which pays Stripe's cost). Default ON;
       // the donor may untick (coverFees:false) and the org may disable the offer (financeSettings.donorCoversFees=false).
@@ -10667,7 +10747,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const creator = await firestoreRead('users', String(creatorUid));
       const creatorStripeAccountId = creator?.stripeConnectAccountId as string | undefined;
       if (!creatorStripeAccountId) return res.status(400).json({ error: 'This creator has not set up payouts yet' });
-      const platformFee = Math.round(amount * 0.10); // 10% platform fee
+      const tipFees = saleBreakdown(amount, await sellerHasPlajahPlus(String(creatorUid)));
+      const platformFee = tipFees.applicationFeeCents;
       const stripe = getStripe();
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
@@ -10681,12 +10762,12 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
           quantity: 1,
         }],
         payment_intent_data: {
-          application_fee_amount: platformFee,
+          ...(platformFee > 0 ? { application_fee_amount: platformFee } : {}),
           transfer_data: { destination: creatorStripeAccountId },
           metadata: { type: 'live_tip', creatorUid, senderUid: req.uid ?? '' },
         },
         // The webhook reads session.metadata — without this the tip was never recorded.
-        metadata: { type: 'live_tip', creatorUid, uid: req.uid ?? '', title: String(title || '').slice(0, 120) },
+        metadata: { type: 'live_tip', creatorUid, uid: req.uid ?? '', title: String(title || '').slice(0, 120), route: 'direct', platformFeePct: String(tipFees.feePct), platformFeeCents: String(tipFees.platformFeeCents), processingCents: String(tipFees.processingCents) },
         success_url: `${process.env.VITE_APP_URL ?? 'https://plajah.com'}?tip=success`,
         cancel_url: `${process.env.VITE_APP_URL ?? 'https://plajah.com'}?tip=cancelled`,
       });
@@ -11929,7 +12010,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
 
       const feeCents = Math.round(feeUsd * 100);
       if (feeCents < 100) return res.status(400).json({ error: 'Sync fee must be at least $1.00.' });
-      const platformFee = Math.round(feeCents * 0.10);
+      const platformFee = saleBreakdown(feeCents, await sellerHasPlajahPlus(String(rightsOwnerUid))).applicationFeeCents;
       const appUrl = process.env.VITE_APP_URL ?? 'https://plajah.com';
       const meta = { type: 'sync_license', trackId, albumId, rightsOwnerUid, buyerUid, editId, editTitle: editTitle || '', feeCents: String(feeCents), trackTitle };
       const session = await stripe.checkout.sessions.create({
@@ -11979,7 +12060,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         if (!info.payouts_enabled) return res.status(400).json({ error: 'The instructor cannot receive payouts yet.' });
       } catch { return res.status(400).json({ error: 'Could not verify the instructor payout account.' }); }
 
-      const platformFee = Math.round(priceCents * 0.05);
+      const platformFee = saleBreakdown(priceCents, await sellerHasPlajahPlus(String(ownerUid))).applicationFeeCents;
       const origin = trustedRequestOrigin(req);
       const meta = { type: 'course_enrollment', courseId, uid: req.uid, ownerUid, platformFeeCents: String(platformFee) };
       const session = await stripe.checkout.sessions.create({
@@ -12029,6 +12110,9 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       if (creatorUid === req.uid) return res.status(400).json({ error: 'You own this club' });
       const clubName = String(club.name || 'Fan Club');
       const stripe = getStripe();
+      const clubCents = Math.round(amount * 100);
+      const sale = await prepareSale(creatorUid, 'club', clubCents);
+      if (sale.ok === false) return res.status(400).json({ error: sale.error });
       const session = await stripe.checkout.sessions.create({
         mode: 'subscription',
         payment_method_types: ['card'],
@@ -12043,8 +12127,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         }],
         success_url: `${trustedRequestOrigin(req)}/?club_join=${clubId}&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${trustedRequestOrigin(req)}/?club=${clubId}`,
-        metadata: { type: 'club_membership', clubId, uid: req.uid, creatorUid, interval },
-        subscription_data: { metadata: { type: 'club_membership', clubId, uid: req.uid, creatorUid, interval } },
+        metadata: { type: 'club_membership', clubId, uid: req.uid, creatorUid, interval, ...sale.meta },
+        subscription_data: { ...subscriptionRouting(sale.route, clubCents, sale.fees), metadata: { type: 'club_membership', clubId, uid: req.uid, creatorUid, interval, ...sale.meta } },
         client_reference_id: req.uid,
       });
       res.json({ url: session.url });
@@ -12072,9 +12156,12 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const annualPrice = Number(tier.annualPrice) || 0;
       const annual = billingCycle === 'ANNUAL';
       const amount = annual ? Math.round((annualPrice || monthlyPrice * 12 * 0.9) * 100) : Math.round(monthlyPrice * 100);
+      const sale = await prepareSale(creatorId, 'sanctuary', amount);
+      if (sale.ok === false) return res.status(400).json({ error: sale.error });
       const subMeta = {
         type: 'sanctuary_membership', uid: req.uid, creatorUid: creatorId, creatorId,
         tierId, tierName, tierColor, billingCycle: annual ? 'ANNUAL' : 'MONTHLY',
+        ...sale.meta,
       };
       const stripe = getStripe();
       const origin = trustedRequestOrigin(req);
@@ -12094,7 +12181,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         cancel_url: `${origin}/?sanctuary=${creatorId}`,
         metadata: subMeta,
         // copied onto the Subscription so cancellations / failed payments can find the membership
-        subscription_data: { metadata: subMeta },
+        subscription_data: { ...subscriptionRouting(sale.route, amount, sale.fees), metadata: subMeta },
         client_reference_id: req.uid,
       });
       res.json({ url: session.url });
@@ -12112,6 +12199,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       // The price is read from the item the creator published — never trusted from the client.
       const price = await sanctuaryUnlockPrice(String(creatorId), String(itemId), itemType === 'POST' ? 'POST' : 'CONTENT');
       if (!(price > 0)) return res.status(404).json({ error: 'That item is not for sale' });
+      const sale = await prepareSale(String(creatorId), 'sanctuary', Math.round(price * 100));
+      if (sale.ok === false) return res.status(400).json({ error: sale.error });
       const stripe = getStripe();
       const origin = trustedRequestOrigin(req);
       const session = await stripe.checkout.sessions.create({
@@ -12127,9 +12216,11 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         }],
         success_url: `${origin}/?sanctuary_unlock=${itemId}&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}/?sanctuary=${creatorId}`,
+        payment_intent_data: paymentRouting(sale.route, sale.fees),
         metadata: {
           type: 'sanctuary_unlock', uid: req.uid, creatorUid: creatorId, creatorId,
           itemId, itemType: itemType || 'CONTENT', price: String(price),
+          ...sale.meta,
         },
       });
       res.json({ url: session.url });
@@ -12290,6 +12381,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         return res.status(400).json({ error: 'kind (film|book|album|track), contentId, creatorUid and a positive price are required' });
       }
       const g = grant === 'RENTAL' || grant === 'PPV' ? grant : 'PURCHASE';
+      const sale = await prepareSale(String(creatorUid), 'content_purchase', Math.round(price * 100), { isBook: kind === 'book' });
+      if (sale.ok === false) return res.status(400).json({ error: sale.error });
       const stripe = getStripe();
       const origin = trustedRequestOrigin(req);
       const noun = kind === 'book' ? 'Book' : kind === 'album' ? 'Album' : kind === 'track' ? 'Track' : 'Film';
@@ -12315,9 +12408,10 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
           watermark: watermark === false ? 'false' : 'true',
           rentalWindowHrs: rentalWindowHrs ? String(rentalWindowHrs) : '',
           upgradeEdition: upgradeEdition ? String(upgradeEdition) : '',
+          ...sale.meta,
         },
         // Mirrored onto the PaymentIntent so a later charge.refunded can find and revoke the licence.
-        payment_intent_data: { metadata: { type: 'content_purchase', uid: req.uid, kind: String(kind), contentId: String(contentId), upgradeEdition: upgradeEdition ? String(upgradeEdition) : '' } },
+        payment_intent_data: { ...paymentRouting(sale.route, sale.fees), metadata: { type: 'content_purchase', uid: req.uid, kind: String(kind), contentId: String(contentId), upgradeEdition: upgradeEdition ? String(upgradeEdition) : '' } },
       });
       res.json({ url: session.url });
     } catch (err: any) {
@@ -12433,10 +12527,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   });
 
   // ── Two-Gear Patronage & Sponsorship Payout Engine ───────────────────────────
-  // Gear 2: If recipient has a connected Stripe account (`stripeConnectAccountId`), transfers
-  //         funds directly to their Stripe account immediately (`stripe.transfers.create`).
-  // Gear 1: If recipient has not connected Stripe yet, credits their Zero-KYC `patronageWallets`
-  //         balance immediately so they can spend in-app or cash out to Stripe anytime.
+  // Transfers straight to the recipient's connected Stripe account. Without one nothing is paid or
+  // credited, because Plajah doesn't keep balances for people.
   // Moves platform money, so only a verified platform admin may call it. It used to be open to
   // anyone, who could send up to $500 per call to any connected account.
   app.post('/api/patronage/payout', authMiddleware, requireVerifiedAdmin, express.json(), async (req: any, res) => {
@@ -12450,6 +12542,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const userDoc = await firestoreRead('users', recipientUid);
       const stripeConnectAccountId = userDoc?.stripeConnectAccountId as string | undefined;
       let settledDirectToStripe = false;
+      if (!stripeConnectAccountId) return res.status(400).json({ error: 'This person has not set up payouts yet.' });
 
       if (stripeConnectAccountId && process.env.STRIPE_SECRET_KEY) {
         try {
@@ -12469,7 +12562,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
           });
           settledDirectToStripe = true;
         } catch (transferErr: any) {
-          console.warn('[Patronage] Direct Stripe transfer deferred to Zero-KYC wallet:', transferErr.message);
+          console.error('[Patronage] transfer failed:', transferErr.message);
+          return res.status(502).json({ error: 'The transfer did not go through. Nothing was paid.' });
         }
       }
 
@@ -12703,6 +12797,9 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const { artistId, fulfillmentSource } = req.body as { artistId: string; fulfillmentSource: 'printful' | 'gelato' };
       const reqItems: { merchId: string; quantity: number }[] = Array.isArray(req.body?.items) ? req.body.items : [];
       if (!reqItems.length || !artistId) return res.status(400).json({ error: 'Missing items or artistId' });
+      // Paused: the server doesn't know the printer's cost at checkout, so it can't charge the artist's account
+      // directly and withhold that cost. Collecting first and paying later would mean holding their money.
+      return res.status(503).json({ error: 'Merch checkout is not available yet.', code: 'MERCH_PAUSED' });
 
       // Every line is re-read from merch/{id}: price, title, image and Printful ids come from what the
       // artist published, and every item must belong to artistId. The client only picks items + qty.
@@ -13725,6 +13822,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use('/api/ledger', createLedgerRouter({ authMiddleware, isAdmin: isPlatformAdminReq }));
   // Sponsored + gift copies of books: fans/named people/org bulk codes; each claim mints a licence + ledger entry.
   app.use('/api/copies', createSponsorCopiesRouter({
+    prepareSale: (seller, category, gross, opts) => prepareSale(seller, category, gross, opts),
     authMiddleware, requireRegisteredUser, getStripe: () => getStripe(), trustedRequestOrigin: (req: any) => trustedRequestOrigin(req),
     canManageHost: (uid, kind, id) => eventHostAccess(uid, kind, id),
     firestoreIncrement: (path, inc) => firestoreIncrement(path, inc), sendEmail: resendEmail,

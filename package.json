@@ -61,7 +61,7 @@
     "test:feedengine": "npx tsx --test tests/feedEngine.test.ts",
     "test:inventory": "npx tsx --test tests/inventoryCore.test.ts",
     "test:commerce": "npx tsx --test tests/commerceBus.test.ts",
-    "test:splits": "npx tsx --test tests/splitPayouts.test.ts",
+    "test:splits": "npx tsx --test tests/splitPayouts.test.ts tests/directRoute.test.ts",
     "test:packs": "npx tsx --test tests/verticalPacks.test.ts",
     "test:presets": "npx tsx --test tests/opsPresets.test.ts",
     "test:crm": "npx tsx --test tests/crmCore.test.ts",

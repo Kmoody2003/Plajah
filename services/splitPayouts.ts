@@ -1,9 +1,14 @@
 // Paying creators and their collaborators: the one split config shape (types.ts SplitConfig) and the rules
 // for moving money against two ledgers.
 //
+// Sales with one payee are destination charges (services/payments/directRoute.ts): their earning is recorded
+// 'paid_direct' and only touched here to reverse a refund or lost dispute. Sales with collaborators land on the
+// platform for a moment, and these rules send each share straight on.
+//
 // creatorEarnings/{saleId} holds the creator's own share of a sale. creatorSplitPayouts/{saleId}_{uid} holds
-// each collaborator's. A row is written before any money moves, so a missing Connect account, a Stripe failure
-// or a crash leaves a row that a later sweep pays, instead of a payment nobody remembers.
+// each collaborator's. A row is written before any money moves, so a Stripe failure or a crash leaves a row
+// that a later sweep pays, instead of a payment nobody remembers. Checkout refuses a sale unless everyone can
+// be paid, so 'awaiting_connect' only happens if a collaborator removes their account after a subscription began.
 //
 // Paying twice is prevented in two layers, because Stripe only keeps idempotency keys for about 24 hours:
 //  1. The key only changes after Stripe definitely refused the request. A timeout or 5xx retries the SAME
@@ -243,12 +248,17 @@ export function createCreatorPayouts(deps: SplitPayoutDeps) {
       if (fully) await deps.patch(kind.collection, id, { status: 'refunded', refundedAt: now() });
       return true;   // a later payment is reduced by clawbackCents
     }
-    if (row.status !== 'paid_out' || !row.transferId) return true;
+    if (row.status !== 'paid_out' && row.status !== 'paid_direct') return true;
     try {
       const stripe = deps.getStripe();
-      const transfer = await stripe.transfers.retrieve(String(row.transferId));
+      // A destination charge made its own transfer, which only the charge knows about.
+      const transferId = row.transferId || (row.status === 'paid_direct' && row.stripePaymentIntentId
+        ? (await stripe.paymentIntents.retrieve(row.stripePaymentIntentId, { expand: ['latest_charge'] }))?.latest_charge?.transfer
+        : '');
+      if (!transferId) return true;
+      const transfer = await stripe.transfers.retrieve(String(transferId));
       const delta = target - (Number(transfer.amount_reversed) || 0);
-      if (delta > 0) await stripe.transfers.createReversal(String(row.transferId), { amount: delta }, { idempotencyKey: `reverse_${id}_${target}` });
+      if (delta > 0) await stripe.transfers.createReversal(String(transferId), { amount: delta }, { idempotencyKey: `reverse_${id}_${target}` });
       await deps.patch(kind.collection, id, { reversalDue: false, lastReversalError: null, ...(fully ? { status: 'refunded', refundedAt: now() } : {}) });
       return true;
     } catch (e: any) {
@@ -377,27 +387,4 @@ export function createCreatorPayouts(deps: SplitPayoutDeps) {
     paySplit: (id: string, firstAttempt = false) => payRow(SPLIT, id, firstAttempt),
     recordAndPay, payPendingFor, retryFailed, retryReversals, applyRefund, applyDispute,
   };
-}
-
-// ── Audit of sales from before this ledger ────────────────────────────────────
-
-/**
- * Old split transfers carry no earning id, so they are matched on recipient, sender, category and amount
- * within a window after the sale. Each transfer can only satisfy one line. Returns the lines with no match.
- */
-export function unmatchedLegacySplits(
-  earning: { creatorUid: string; category: string; timestamp: number; splits: SplitLine[] },
-  transfers: Array<{ id: string; amount: number; created: number; metadata?: Record<string, string> }>,
-  used: Set<string>,
-  windowMs = 3_600_000,
-): SplitLine[] {
-  return earning.splits.filter(line => {
-    if (!(line.amountCents > 0)) return false;
-    const match = transfers.find(t => !used.has(t.id) && t.amount === line.amountCents
-      && t.metadata?.type === 'split' && t.metadata?.fromCreatorUid === earning.creatorUid
-      && t.metadata?.toCreatorUid === line.creatorUid && t.metadata?.category === earning.category
-      && Math.abs(t.created * 1000 - earning.timestamp) <= windowMs);
-    if (match) used.add(match.id);
-    return !match;
-  });
 }
