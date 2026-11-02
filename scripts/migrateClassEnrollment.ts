@@ -8,7 +8,7 @@ import { fsGet, fsList, fsPatch } from '../services/firebaseAdminRest';
 
 const apply = process.argv.includes('--apply');
 const LIMIT = 50000;
-const classes = await fsList('classrooms', { pageSize: 300, maxDocs: LIMIT });
+const classes = await fsList('classrooms', { strict: true, pageSize: 300, maxDocs: LIMIT });
 let opened = 0, failed = 0, kept = 0;
 for (const { id, data } of classes) {
   if (data.enrollment) continue;

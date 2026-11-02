@@ -6,7 +6,7 @@ import { fsList, fsPatch } from '../services/firebaseAdminRest';
 
 const apply = process.argv.includes('--apply');
 const LIMIT = 200000;
-const videos = await fsList('videos', { pageSize: 300, maxDocs: LIMIT });
+const videos = await fsList('videos', { strict: true, pageSize: 300, maxDocs: LIMIT });
 let changed = 0, failed = 0;
 for (const { id, data } of videos) {
   if (typeof data.isPrivate === 'boolean') continue;

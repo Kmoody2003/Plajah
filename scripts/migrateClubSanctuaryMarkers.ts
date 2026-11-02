@@ -4,7 +4,7 @@
 import { fsGetStrict, fsList, fsPatch, fsSet } from '../services/firebaseAdminRest';
 
 const apply = process.argv.includes('--apply');
-const opts = { pageSize: 300, maxDocs: 500000 };
+const opts = { strict: true, pageSize: 300, maxDocs: 500000 };
 const counts: Record<string, number> = {};
 let failed = 0;
 const write = async (kind: string, ok: () => Promise<boolean>) => {

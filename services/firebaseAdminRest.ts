@@ -347,9 +347,11 @@ export async function fsBatchWrite(docs: { path: string; data: Record<string, un
 
 /** List a collection's documents (id + data), following pagination. Server-side only — this
  *  bypasses security rules, so callers must do their own authorization. */
+class StrictListError extends Error {}
+
 export async function fsList(
   collection: string,
-  opts: { pageSize?: number; maxDocs?: number; idsOnly?: boolean } = {},
+  opts: { pageSize?: number; maxDocs?: number; idsOnly?: boolean; strict?: boolean } = {},
 ): Promise<Array<{ id: string; data: Record<string, any> }>> {
   const pageSize = opts.pageSize ?? 100;
   const maxDocs = opts.maxDocs ?? 1000;
@@ -359,7 +361,11 @@ export async function fsList(
     do {
       const qs = `pageSize=${pageSize}${opts.idsOnly ? '&mask.fieldPaths=__name__' : ''}${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
       const res = await fetch(`${baseFor(collection)}/${collection}?${qs}`, { headers: await authHeaders() });
-      if (!res.ok) break;
+      if (!res.ok) {
+        // A migration must never mistake a failed read for an empty collection.
+        if (opts.strict) throw new StrictListError(`List ${collection} failed: HTTP ${res.status}`);
+        break;
+      }
       const json = await res.json() as any;
       for (const d of json.documents ?? []) {
         out.push({ id: String(d.name).split('/').pop()!, data: d.fields ? fromFields(d.fields) : {} });
@@ -367,7 +373,10 @@ export async function fsList(
       }
       pageToken = json.nextPageToken;
     } while (pageToken);
-  } catch { /* return whatever we got */ }
+  } catch (e) {
+    if (opts.strict) throw e;
+    /* return whatever we got */
+  }
   return out;
 }
 

@@ -15,7 +15,7 @@ const phase = (process.argv.find(a => a.startsWith('--phase=')) || '').split('='
 if (phase !== 'copy' && phase !== 'strip') { console.error('Pass --phase=copy or --phase=strip'); process.exit(2); }
 
 const LIMIT = 200000;
-const users = await fsList('users', { pageSize: 300, maxDocs: LIMIT });
+const users = await fsList('users', { strict: true, pageSize: 300, maxDocs: LIMIT });
 const isKid = (d: Record<string, any>) => {
   if (d.isChild === true || d.accountType === 'CHILD' || d.guardianUid || d.provisionedByTeacherUid || d.childState) return true;
   const year = typeof d.birthYear === 'number' ? d.birthYear : 0;
