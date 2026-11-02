@@ -118,7 +118,7 @@ service cloud.firestore {
       return ['ein', 'legalName', 'statementFooter', 'financeSettings', 'stripeAccountId', 'billingConnection', 'canReceiveGiving'];
     }
     function userPrivateKeys() {
-      return ['email', 'birthYear', 'dateOfBirth', 'guardianUid', 'coGuardianUids', 'provisionedByTeacherUid', 'childUids', 'parentalControls'];
+      return ['email', 'birthYear', 'dateOfBirth', 'guardianUid', 'coGuardianUids', 'provisionedByTeacherUid', 'childUids', 'parentalControls', 'masterEmail', 'aliases', 'fcmToken', 'fcmTokens'];
     }
     // Existing values may be removed (the migration strips them) but never added or changed.
     function noPrivateFieldWrite() {

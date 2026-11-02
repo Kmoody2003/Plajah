@@ -7,6 +7,6 @@
     "components/ChurchGive.tsx", "components/OrgHub.tsx", "components/elevate/ElevateOps.tsx", "components/elevate/ChurchMemberHub.tsx",
     "components/elevate/VolunteerMemberManageHub.tsx", "components/elevate/chms/finance/FinanceHub.tsx",
     "components/elevate/chms/finance/SpendingDesk.tsx", "components/elevate/chms/accounting/AccountingHub.tsx",
-    "tests/orgFinanceCore.test.ts", "services/businessStaffService.ts", "services/businessService.ts", "routes/businessStaff.ts", "routes/elevateAccess.ts", "services/opsMirror.ts", "components/business/StaffSeatsPanel.tsx", "scripts/migrateBusinessPrivate.ts"
+    "tests/orgFinanceCore.test.ts", "services/businessStaffService.ts", "services/businessService.ts", "routes/businessStaff.ts", "routes/elevateAccess.ts", "services/opsMirror.ts", "components/business/StaffSeatsPanel.tsx", "scripts/migrateBusinessPrivate.ts", "services/userPrivate.ts", "services/backendService.ts", "services/pushNotificationService.ts", "scripts/migrateUserPrivate.ts", "services/autoServer.ts", "services/laundryServer.ts", "services/ticketServer.ts", "tests/pushTokens.test.ts"
   ]
 }

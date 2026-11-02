@@ -11,6 +11,7 @@
 //  Public  GET /v/:token  printable history (short-lived HMAC share token)
 // Collections (all SERVER-WRITE-ONLY, see firestore.rules): vehicles, vinCache, recallCache, inspections, passports,
 // passportEntries, serviceReminders. Object arrays are JSON-stringified (the REST writer cannot store them).
+import { deviceTokens } from './pushTokensCore';
 import nodeCrypto from 'node:crypto';
 import { casUpdate } from './casCore';
 import { parseTicket, type Ticket } from './ticketCore';
@@ -351,7 +352,7 @@ export function registerAutoRoutes(d: AutoDeps): void {
         if (!(sub && sub.transactional === false)) {
           await d.firestoreCreate('notifications', { userId: v.ownerUid, senderId: businessUid, senderName: shop, senderPhoto: '', type: 'BUSINESS_UPDATE', title: msg.title, message: msg.body, link: 'PROFILE', targetId: businessUid, isRead: false, timestamp: Date.now() });
           const u = await d.firestoreGetDeep('users', v.ownerUid);
-          const tokens: string[] = [...(Array.isArray(u?.fcmTokens) ? u!.fcmTokens : []), ...(u?.fcmToken ? [u.fcmToken] : [])].filter(Boolean);
+          const tokens: string[] = deviceTokens(u, await d.firestoreGetDeep(`users/${v.ownerUid}/private`, 'profile'));
           if (tokens.length) d.sendFcmMulticast([...new Set(tokens)], { title: msg.title, body: msg.body.slice(0, 180), channelId: 'system', data: { type: 'BUSINESS_UPDATE', targetId: businessUid, senderName: shop } }).catch(() => {});
           out.push = true;
         }

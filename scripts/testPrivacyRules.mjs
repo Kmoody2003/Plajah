@@ -61,6 +61,15 @@ t('a guardian creates a child with its private half', 'ALLOW', 'parent', 'create
 t('nobody mints a child guarded by someone else', 'DENY', 'out', 'create', 'users/child_abc_2', { data: { ...kid, uid: 'child_abc_2' }, extra: [after('users/child_abc_2/private/profile', { guardianUid: 'parent' })] });
 t('a child gets a guardian private doc only in that batch', 'ALLOW', 'parent', 'create', 'users/child_abc_2/private/profile', { data: { guardianUid: 'parent' }, extra: [after('users/child_abc_2', { isChild: true })] });
 
+for (const k of ['fcmTokens', 'fcmToken', 'masterEmail', 'aliases']) {
+  t(`the owner cannot put ${k} on the public doc`, 'DENY', 'amy', 'update', 'users/amy', { existing: adult, data: { ...adult, [k]: k === 'fcmTokens' || k === 'aliases' ? ['x'] : 'x' } });
+  t(`signup cannot put ${k} on the public doc`, 'DENY', 'amy', 'create', 'users/amy', { data: { ...adult, [k]: 'x' } });
+  t(`the owner may drop a stale public ${k}`, 'ALLOW', 'amy', 'update', 'users/amy', { existing: { ...adult, [k]: 'x' }, data: adult });
+}
+t('the owner registers a device privately', 'ALLOW', 'amy', 'update', 'users/amy/private/profile', { existing: { email: 'a@b.c' }, data: { email: 'a@b.c', fcmTokens: ['t'] }, extra: [get('users/amy', adult)] });
+t('a stranger cannot read device tokens', 'DENY', 'out', 'get', 'users/amy/private/profile', { existing: { fcmTokens: ['t'] } });
+t('a stranger cannot add a device to someone', 'DENY', 'out', 'update', 'users/amy/private/profile', { existing: { fcmTokens: [] }, data: { fcmTokens: ['t'] }, extra: [get('users/amy', adult)] });
+
 // ── B: videos ───────────────────────────────────────────────────────────────
 const pub = { id: 'v', ownerId: 'amy', title: 'T', url: 'u', timestamp: 1, isPrivate: false };
 const priv = { ...pub, isPrivate: true };

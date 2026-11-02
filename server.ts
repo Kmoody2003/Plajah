@@ -1,3 +1,4 @@
+import { deviceTokens } from './services/pushTokensCore';
 import express from 'express';
 import { cleanDescription } from './utils/description';
 // NOTE: `vite` is imported LAZILY inside the dev-only branch below. A static top-level import pulls
@@ -5931,7 +5932,7 @@ async function startServer() {
           for (const m of msgs) {
             await firestoreCreate('notifications', { userId: uid, senderId: 'plajah-finance', senderName: org.name || 'Budget Pulse', senderPhoto: org.logoUrl || '', type: 'SYSTEM', title: m.title, message: m.message, targetId: orgId, isRead: false, timestamp: Date.now() });
             out.notified++;
-            const tokens: string[] = [...(Array.isArray(u?.fcmTokens) ? u!.fcmTokens : []), ...(u?.fcmToken ? [u.fcmToken] : [])].filter(Boolean);
+            const tokens: string[] = deviceTokens(u, await firestoreGetDeep(`users/${uid}/private`, 'profile'));
             if (tokens.length) sendFcmMulticast([...new Set(tokens)], { title: m.title, body: m.message.slice(0, 180), channelId: 'system', data: { type: 'SYSTEM', targetId: orgId, senderName: org.name || 'Budget Pulse' } }).catch(() => {});
           }
         } catch (e: any) { console.error('[Elevate] pulse notify failed:', e?.message); }
@@ -7219,7 +7220,7 @@ async function startServer() {
       const result = await sweepReleaseAnnouncements(createReleaseIo({
         pushToUser: async (uid, m) => {
           const u = await firestoreGetDeep('users', uid);
-          const tokens: string[] = [...(Array.isArray(u?.fcmTokens) ? u!.fcmTokens : []), ...(u?.fcmToken ? [u.fcmToken] : [])].filter(Boolean);
+          const tokens: string[] = deviceTokens(u, await firestoreGetDeep(`users/${uid}/private`, 'profile'));
           if (tokens.length) await sendFcmMulticast([...new Set(tokens)], { title: m.title, body: m.body, link: m.link, channelId: 'system', data: { type: 'CONTENT', targetId: m.targetId } });
         },
       }), { lookbackMs: hours * 3_600_000 });
@@ -7350,7 +7351,7 @@ async function startServer() {
               const message = String(post.text ?? '').slice(0, 120) || 'Tap to finish sharing on X.';
               await firestoreCreate('notifications', { userId: uid, senderId: 'plajah-studio', senderName: 'Marketing', senderPhoto: '', type: 'SYSTEM', title, message, targetId: 'PLAJAH_STUDIO', isRead: false, timestamp: Date.now() });
               const u = await firestoreGetDeep('users', uid);
-              const tokens: string[] = [...(Array.isArray(u?.fcmTokens) ? u!.fcmTokens : []), ...(u?.fcmToken ? [u.fcmToken] : [])].filter(Boolean);
+              const tokens: string[] = deviceTokens(u, await firestoreGetDeep(`users/${uid}/private`, 'profile'));
               if (tokens.length) await sendFcmMulticast([...new Set(tokens)], { title, body: message, link: 'PLAJAH_STUDIO', channelId: 'system', data: { type: 'SYSTEM', targetId: 'PLAJAH_STUDIO' } });
             } catch (e: any) { console.warn('[Cron] X reminder failed:', e?.message || e); }
           }
@@ -8600,9 +8601,8 @@ async function startServer() {
         }
       }
     }
-    const targets = Array.from(new Set<string>(
-      [...(Array.isArray(user.fcmTokens) ? user.fcmTokens : []), user.fcmToken].filter((t: any) => typeof t === 'string' && t)
-    )).slice(0, 20);
+    const privateProfile = await firestoreGetDeep(`users/${recipient}/private`, 'profile');
+    const targets = deviceTokens(user, privateProfile).slice(0, 20);
     if (!targets.length) return res.json({ sent: 0, total: 0 });
 
     const clip = (v: any, n: number) => (v == null ? undefined : String(v).slice(0, n));
@@ -8624,8 +8624,9 @@ async function startServer() {
     // Server prunes dead tokens itself (a caller can't write someone else's users doc).
     const stale = targets.filter((_, i) => (out.results as any[])?.[i]?.stale);
     if (stale.length) {
-      const keep = (Array.isArray(user.fcmTokens) ? user.fcmTokens : []).filter((t: string) => !stale.includes(t));
-      firestorePatchDeep('users', recipient, { fcmTokens: keep }).catch(() => {});
+      const keep = deviceTokens(privateProfile).filter((t: string) => !stale.includes(t));
+      firestorePatchDeep(`users/${recipient}/private`, 'profile', { fcmTokens: keep }).catch(() => {});
+      if (Array.isArray(user.fcmTokens)) firestorePatchDeep('users', recipient, { fcmTokens: user.fcmTokens.filter((t: string) => !stale.includes(t)) }).catch(() => {});
     }
     res.json({ sent: out.sent, total: out.total });
   });
@@ -8646,19 +8647,17 @@ async function startServer() {
     if (mode === 'all') {
       const users = await queryFirebase('users', [], 5000);
       recipients = users.length;
-      for (const u of users) {
-        if (Array.isArray(u.fcmTokens)) tokens.push(...u.fcmTokens);
-        if (u.fcmToken) tokens.push(u.fcmToken);
+      for (let i = 0; i < users.length; i += 50) {
+        const page = users.slice(i, i + 50);
+        const privs = await Promise.all(page.map((u: any) => firestoreGetDeep(`users/${u.id}/private`, 'profile')));
+        page.forEach((u: any, j: number) => tokens.push(...deviceTokens(u, privs[j])));
       }
     } else {
       if (!uid) return res.status(400).json({ error: 'uid is required for single-user mode' });
       uids = [String(uid)];
       const u = decodeFirestoreFields(((await fetchFirebaseDoc('users', String(uid))) || {}).fields || {});
       if (u) recipients = 1;
-      if (u && (u.fcmTokens || u.fcmToken)) {
-        if (Array.isArray(u.fcmTokens)) tokens.push(...u.fcmTokens);
-        if (u.fcmToken) tokens.push(u.fcmToken);
-      }
+      tokens.push(...deviceTokens(u, await firestoreGetDeep(`users/${String(uid)}/private`, 'profile')));
     }
     tokens = Array.from(new Set(tokens.filter(Boolean)));
     uids = Array.from(new Set(uids.filter(x => /^[A-Za-z0-9_-]{6,128}$/.test(x))));

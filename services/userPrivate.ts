@@ -13,6 +13,7 @@ import { db, auth } from './firebase';
 export const PRIVATE_USER_FIELDS = [
   'email', 'birthYear', 'dateOfBirth', 'guardianUid', 'coGuardianUids',
   'provisionedByTeacherUid', 'childUids', 'parentalControls',
+  'masterEmail', 'aliases', 'fcmToken', 'fcmTokens',
 ] as const;
 
 export const privateProfileRef = (uid: string) => doc(db, 'users', uid, 'private', 'profile');

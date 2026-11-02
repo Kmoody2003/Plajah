@@ -10,6 +10,7 @@
 //
 // Tickets live in `tickets/{id}` (flat doc, complex parts JSON-stringified - see serializeTicket) and every
 // write is a compare-and-swap (casCore), so two staff / the customer cannot clobber each other.
+import { deviceTokens } from './pushTokensCore';
 import nodeCrypto from 'node:crypto';
 import { casUpdate } from './casCore';
 import { getPack } from './verticalPacks';
@@ -137,7 +138,7 @@ export function registerTicketRoutes(d: TicketDeps): void {
         if (!(sub && sub.transactional === false)) {
           await d.firestoreCreate('notifications', { userId: t.customer.uid, senderId: t.businessUid, senderName: name, senderPhoto: '', type: 'BUSINESS_UPDATE', title, message: text, link: 'PROFILE', targetId: t.businessUid, isRead: false, timestamp: Date.now() });
           const u = await d.firestoreGetDeep('users', t.customer.uid);
-          const tokens: string[] = [...(Array.isArray(u?.fcmTokens) ? u!.fcmTokens : []), ...(u?.fcmToken ? [u.fcmToken] : [])].filter(Boolean);
+          const tokens: string[] = deviceTokens(u, await d.firestoreGetDeep(`users/${t.customer.uid}/private`, 'profile'));
           if (tokens.length) d.sendFcmMulticast([...new Set(tokens)], { title, body: text.slice(0, 180), link, channelId: 'system', data: { type: 'BUSINESS_UPDATE', targetId: t.businessUid, senderName: name } }).catch(() => {});
           out.push = true;
         }

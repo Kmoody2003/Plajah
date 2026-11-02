@@ -51,6 +51,7 @@ import {
 } from 'firebase/auth';
 import { db, opsDb, dbFor, storage, auth as firebaseAuth } from './firebase';
 import { videosOwnedBy } from './videoQuery';
+import { deviceTokens } from './pushTokensCore';
 import { fetchGuardiansOf, listenMergedProfile, readPrivateProfile, splitUserFields, withPrivateFields, writePrivateProfile, privateProfileRef } from './userPrivate';
 import { isWindowsApp } from './windowsBridgeService';
 import { followNeedsApproval, requestFollow } from './socialSafetyService';
@@ -4994,10 +4995,7 @@ export const logout = async () => {
     // stop receiving pushes on a device that may now be used by someone else.
     const uid = auth.currentUser?.uid;
     if (uid && _thisDeviceToken) {
-      await updateDoc(doc(db, 'users', uid), {
-        fcmTokens: arrayRemove(_thisDeviceToken),
-        fcmToken: null,
-      }).catch(() => {});
+      await setDoc(privateProfileRef(uid), { fcmTokens: arrayRemove(_thisDeviceToken) }, { merge: true }).catch(() => {});
     }
     await runBeforeSignOut(); // open editors save, and queued cloud copies get their chance to land
     markSigningOut(true);
@@ -5287,10 +5285,8 @@ let _thisDeviceToken: string | null = null;
 export const saveFcmToken = async (uid: string, token: string): Promise<void> => {
   _thisDeviceToken = token;
   try {
-    await updateDoc(doc(db, 'users', uid), {
-      fcmToken: token,               // legacy single-token field (kept for backward compat)
-      fcmTokens: arrayUnion(token),  // multi-device set — web + every native install a user has
-    });
+    // Multi-device set: web + every native install a user has. Private, so nobody can harvest push tokens.
+    await setDoc(privateProfileRef(uid), { fcmTokens: arrayUnion(token) }, { merge: true });
   } catch {
     // Non-critical
   }
@@ -5345,7 +5341,7 @@ const sendPushToUser = async (uid: string, title: string, body: string, meta: Pu
 /** Removes a device token on sign-out so a shared device stops receiving the prior user's pushes. */
 export const removeFcmToken = async (uid: string, token: string): Promise<void> => {
   try {
-    await updateDoc(doc(db, 'users', uid), { fcmTokens: arrayRemove(token) });
+    await setDoc(privateProfileRef(uid), { fcmTokens: arrayRemove(token) }, { merge: true });
   } catch {
     // Non-critical
   }
@@ -5371,11 +5367,7 @@ export const sendTestPush = async (): Promise<{ sent: number; total: number }> =
   const uid = auth.currentUser?.uid;
   if (!uid) return { sent: 0, total: 0 };
   try {
-    const snap = await getDoc(doc(db, 'users', uid));
-    const data = snap.data() || {};
-    const tokens = Array.from(new Set<string>(
-      [...((data.fcmTokens as string[]) || []), data.fcmToken as string].filter(Boolean)
-    ));
+    const tokens = deviceTokens(await readPrivateProfile(uid));
     if (!tokens.length) return { sent: 0, total: 0 };
     const idToken = await auth.currentUser!.getIdToken();
     const res = await fetch('/api/push', {

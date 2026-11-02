@@ -8,8 +8,9 @@
 // accounts made in between), strip. Copy leaves the public doc alone, so it is safe to rerun.
 // Strip only removes a field once the same value is confirmed on the private doc.
 import { fsGetStrict, fsList, fsPatch } from '../services/firebaseAdminRest';
+import { deviceTokens } from '../services/pushTokensCore';
 
-const FIELDS = ['email', 'birthYear', 'dateOfBirth', 'guardianUid', 'coGuardianUids', 'provisionedByTeacherUid', 'childUids', 'parentalControls'];
+const FIELDS = ['email', 'birthYear', 'dateOfBirth', 'guardianUid', 'coGuardianUids', 'provisionedByTeacherUid', 'childUids', 'parentalControls', 'masterEmail', 'aliases', 'fcmTokens', 'fcmToken'];
 const apply = process.argv.includes('--apply');
 const phase = (process.argv.find(a => a.startsWith('--phase=')) || '').split('=')[1];
 if (phase !== 'copy' && phase !== 'strip') { console.error('Pass --phase=copy or --phase=strip'); process.exit(2); }
@@ -37,7 +38,10 @@ if (phase === 'copy') {
   for (const { id, data } of users) {
     const existing = (await fsGetStrict(`users/${id}/private/profile`)) || {};
     const next: Record<string, unknown> = {};
-    for (const k of FIELDS) if (data[k] !== undefined && existing[k] === undefined) next[k] = data[k];
+    for (const k of FIELDS) if (k !== 'fcmToken' && k !== 'fcmTokens' && data[k] !== undefined && existing[k] === undefined) next[k] = data[k];
+    // Push tokens are a set: old clients may still add to the public copy between the two copy runs.
+    const tokens = deviceTokens(existing, data);
+    if (tokens.length !== deviceTokens(existing).length) next.fcmTokens = tokens;
     // A password must not follow the controls across (the trust branch purge may not have run yet).
     if (next.parentalControls && typeof next.parentalControls === 'object') {
       const { savedChildPassword: _gone, ...rest } = next.parentalControls as Record<string, unknown>;
@@ -62,7 +66,7 @@ if (phase === 'copy') {
     if (!present.length) continue;
     const priv = (await fsGetStrict(`users/${id}/private/profile`)) || {};
     // savedChildPassword is dropped on purpose, so controls aren't compared key for key.
-    const missing = present.filter(k => priv[k] === undefined && !(k === 'email' && data.email === ''));
+    const missing = present.filter(k => !(k === 'fcmToken' ? (!data.fcmToken || deviceTokens(priv).includes(data.fcmToken)) : k === 'fcmTokens' ? deviceTokens({ fcmTokens: data.fcmTokens }).every(t => deviceTokens(priv).includes(t)) : priv[k] !== undefined || (k === 'email' && data.email === '')));
     if (missing.length) { skipped++; console.log(`Skipping ${id}: not on private doc yet: ${missing.join(', ')}`); continue; }
     stripped++;
     // An updateMask naming a field with no value deletes it.
