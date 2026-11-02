@@ -2,11 +2,10 @@ import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, 
 import { onSnapshot } from './safeSnapshot';
 import { db, auth } from './firebase';
 import {
-  PlajahPlusSubscription, CreatorSplit, CreatorSplitEntry, SubscriptionTier
+  PlajahPlusSubscription, SubscriptionTier
 } from '../types';
 
 const COLLECTION = 'plajahPlusSubscriptions';
-const SPLITS_COLLECTION = 'creatorSplits';
 
 // ── Fetch current user's subscription ────────────────────────────────────────
 
@@ -68,52 +67,6 @@ export function getSubscriptionBenefits(tier: SubscriptionTier) {
     3: { storageGb: 100, monthlyPoints: 1000, transactionDiscount: 20, merchDiscount: 20, sanctuaryDiscount: 20, adBoost: 50 },
   };
   return map[tier];
-}
-
-// ── Creator Split Management ──────────────────────────────────────────────────
-
-export async function fetchCreatorSplit(creatorId: string): Promise<CreatorSplit | null> {
-  const ref = doc(db, SPLITS_COLLECTION, creatorId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return null;
-  return snap.data() as CreatorSplit;
-}
-
-export async function saveCreatorSplit(splits: CreatorSplitEntry[], tier: SubscriptionTier): Promise<void> {
-  const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error('Not authenticated');
-
-  // Validate: max 3 splits
-  if (splits.length > 3) throw new Error('Maximum 3 splits allowed');
-
-  // Validate: percentages sum to 100
-  const total = splits.reduce((acc, s) => acc + s.percentage, 0);
-  if (Math.abs(total - 100) > 0.01) throw new Error('Split percentages must sum to 100%');
-
-  // Validate: creator gets minimum $1
-  const creatorShareMap = { 1: 3.00, 2: 7.00, 3: 11.00 };
-  const creatorShare = creatorShareMap[tier];
-
-  // When splits are active, the creator's own share is what remains after splits
-  // If creator is listed in their own splits (unlikely) we account for that
-  // Minimum $1 must always remain for the bound creator
-  const minPercentForOneDollar = (1.0 / creatorShare) * 100;
-  const creatorRetained = splits.find(s => s.targetId === uid);
-  const retainedPct = creatorRetained?.percentage ?? 0;
-
-  // If creator has assigned 100%, they retain 0 — block this
-  const totalAssigned = splits.reduce((acc, s) => acc + s.percentage, 0);
-  const creatorImpliedRetain = 100 - totalAssigned;
-
-  if (creatorImpliedRetain < minPercentForOneDollar && totalAssigned > 0) {
-    throw new Error(`You must retain at least $1.00. Keep at least ${minPercentForOneDollar.toFixed(1)}% of your share.`);
-  }
-
-  await setDoc(doc(db, SPLITS_COLLECTION, uid), {
-    creatorId: uid,
-    splits,
-    updatedAt: Date.now(),
-  } as CreatorSplit);
 }
 
 // ── List subscribers for a creator ───────────────────────────────────────────

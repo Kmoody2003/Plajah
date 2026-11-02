@@ -46,11 +46,10 @@ const CATEGORIES: { key: EarningCategory; label: string; icon: React.ComponentTy
 ];
 
 const APPLY_OPTIONS: { key: EarningCategory; label: string }[] = [
-  { key: 'tip',          label: 'Tips & Gifts' },
   { key: 'digital_sale', label: 'Digital Sales' },
+  { key: 'content_purchase', label: 'Albums, Films & Books' },
   { key: 'sanctuary',    label: 'Backstage' },
   { key: 'plajahplus',   label: 'Plajah+' },
-  { key: 'store_order',  label: 'Store' },
   { key: 'club',         label: 'Clubs' },
   { key: 'seedraiser',   label: 'SeedRaiser' },
 ];
@@ -105,8 +104,11 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     pending:     { label: 'Pending',     color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
     transferred: { label: 'Transferred', color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
     paid_out:    { label: 'Paid Out',    color: '#60a5fa', bg: 'rgba(96,165,250,0.1)' },
+    paid_direct: { label: 'Paid',        color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
+    paid:        { label: 'Paid',        color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
+    refunded:    { label: 'Refunded',    color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
   };
-  const s = map[status] ?? map.pending;
+  const s = map[status] ?? { label: status, color: 'rgba(255,255,255,0.5)', bg: 'rgba(255,255,255,0.06)' };
   return (
     <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest" style={{ color: s.color, background: s.bg }}>
       {s.label}
@@ -172,7 +174,7 @@ const OnboardingPanel: React.FC<{ status: ConnectStatus; onRefresh: () => void }
         {loading ? 'Opening Stripe…' : status.connected && status.requiresAction ? 'Complete Stripe Setup' : 'Connect with Stripe'}
       </button>
 
-      <p className="text-[9px] text-white/20 mt-4 uppercase tracking-widest">Powered by Stripe Express · Plajah takes 10% platform fee</p>
+      <p className="text-[9px] text-white/20 mt-4 uppercase tracking-widest">Powered by Stripe Express · Plajah takes 5%, or 0% with Plajah+</p>
     </motion.div>
   );
 };
@@ -181,7 +183,7 @@ const OnboardingPanel: React.FC<{ status: ConnectStatus; onRefresh: () => void }
 
 const SplitsTab: React.FC<{ currentUserUid: string }> = ({ currentUserUid }) => {
   const [recipients, setRecipients] = useState<SplitRecipient[]>([]);
-  const [appliesTo, setAppliesTo]   = useState<EarningCategory[]>(['tip','digital_sale','sanctuary','plajahplus']);
+  const [appliesTo, setAppliesTo]   = useState<EarningCategory[]>(['digital_sale','sanctuary','plajahplus']);
   const [searchQ, setSearchQ]       = useState('');
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
   const [searching, setSearching]   = useState(false);
@@ -254,7 +256,7 @@ const SplitsTab: React.FC<{ currentUserUid: string }> = ({ currentUserUid }) => 
       <div className="p-4 bg-[#fbbf24]/8 border border-[#fbbf24]/20 rounded-2xl flex gap-3">
         <Info size={16} className="text-[#fbbf24] shrink-0 mt-0.5" />
         <p className="text-xs text-[#fbbf24]/80 leading-relaxed">
-          Splits apply after Plajah's 10% platform fee. If you set 20% to a collaborator, they receive 20% of your net — not 20% of the gross charge. Transfers fire automatically when a payment clears.
+          Splits apply to what's left after Plajah's fee and card processing. If you set 20% to a collaborator, they receive 20% of your net, not 20% of the gross charge. Everyone needs a finished payout account before they can be added, and every share goes straight to them when a payment clears. Tips go straight to you and aren't split. Subscribers who joined before you added a split keep paying you directly.
         </p>
       </div>
 
@@ -506,7 +508,7 @@ const CreatorPaymentDashboard: React.FC<Props> = ({ currentUser }) => {
                     </div>
                     <div className="flex-1">
                       <p className="text-xs font-black text-white mb-0.5">Platform Fee ({PERIOD_LABELS[period]})</p>
-                      <p className="text-[10px] text-white/30">Plajah retained {fmt(earnings?.totalPlatformFeeCents ?? 0)} — 10% of gross</p>
+                      <p className="text-[10px] text-white/30">Plajah retained {fmt(earnings?.totalPlatformFeeCents ?? 0)}</p>
                     </div>
                     <p className="text-lg font-black text-white/50">{fmt(earnings?.totalPlatformFeeCents ?? 0)}</p>
                   </div>

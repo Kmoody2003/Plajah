@@ -192,7 +192,7 @@ export async function fulfillPodOrderFromStripe(session: any): Promise<{ handled
     await fsCreate('creatorEarnings', {
       creatorUid: order.authorUid, payerUid: order.buyerUid, category: 'print_on_demand', grossCents: gross, platformFeeCents: platformFee,
       netCents: gross - platformFee, creatorNetCents: Math.max(0, order.royalty.authorProfitCents * order.quantity), splits: '[]',
-      title: `Print edition: ${order.title}`, stripePaymentIntentId: String(session.payment_intent || ''), status: 'pending', timestamp: Date.now(),
+      title: `Print edition: ${order.title}`, stripePaymentIntentId: String(session.payment_intent || ''), status: 'paid_direct', timestamp: Date.now(),
     });
   }
   await submitPrintJob(order);
@@ -449,6 +449,16 @@ export function createPodRouter(deps: PodRouterDeps): Router {
       listPerCopy = 0; // at cost: printer total + card-fee gross-up so Plajah is not out of pocket
       buyerTotal = Math.ceil((q.totalCents + CARD_FEE_FIXED_CENTS) / (1 - CARD_FEE_RATE));
     }
+    // A retail sale pays the author directly. Plajah withholds the printer's bill and its cut as the application fee.
+    let routing: Record<string, unknown> = {};
+    if (kind === 'retail') {
+      const account = (await fsGet(`users/${e.ownerUid}`))?.stripeConnectAccountId as string | undefined;
+      const payable = account ? await deps.getStripe().accounts.retrieve(account).then((a: any) => !!a.payouts_enabled).catch(() => false) : false;
+      if (!payable) return res.status(400).json({ error: 'This author has not finished setting up payouts, so this edition cannot be sold yet.' });
+      const applicationFee = buyerTotal - Math.max(0, royalty!.authorProfitCents) * qty;
+      // At the minimum list price the author earns nothing, so there's nothing to send them.
+      if (applicationFee < buyerTotal) routing = { payment_intent_data: { transfer_data: { destination: account }, ...(applicationFee > 0 ? { application_fee_amount: applicationFee } : {}) } };
+    }
     const id = `pod_${crypto.randomBytes(9).toString('hex')}`;
     const now = Date.now();
     const order: PodOrder = {
@@ -466,7 +476,7 @@ export function createPodRouter(deps: PodRouterDeps): Router {
       : [{ price_data: { currency: 'usd', product_data: { name: `${kind === 'proof' ? 'Proof copy' : 'Author copies'}: ${e.title} (at cost)` }, unit_amount: buyerTotal }, quantity: 1 }];
     await saveOrder(order);
     const session = await stripe.checkout.sessions.create({
-      mode: 'payment', payment_method_types: ['card'], line_items: lineItems, customer_email: address.email,
+      mode: 'payment', payment_method_types: ['card'], line_items: lineItems, customer_email: address.email, ...routing,
       success_url: `${origin}/?pod_order=${id}&session_id={CHECKOUT_SESSION_ID}`, cancel_url: `${origin}/?pod_cancelled=${id}`,
       metadata: { type: 'pod_print_order', orderId: id, uid: req.uid, albumId, kind },
     });

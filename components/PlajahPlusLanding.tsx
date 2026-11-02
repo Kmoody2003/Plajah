@@ -54,7 +54,7 @@ const FAQ = [
   },
   {
     q: 'How much do creators earn?',
-    a: 'Tier 1 creators get $3.00, Tier 2 get $7.00, and Tier 3 get $11.00 per subscriber per month. Creators can split their share with up to 3 other creators, charities, or clubs — but always keep at least $1.00 of their share.'
+    a: 'Tier 1 creators get $2.99, Tier 2 get $5.99, and Tier 3 get $9.99 per subscriber per month. Creators can split their share with collaborators who have finished payout setup, and always keep part of it.'
   },
   {
     q: 'What happens to my subscription if a creator leaves?',

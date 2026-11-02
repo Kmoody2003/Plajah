@@ -2030,6 +2030,7 @@ export interface NowActiveEntry {
 // ── Creator Earnings ──────────────────────────────────────────────────────────
 
 export type EarningCategory =
+  | 'content_purchase' // albums, tracks, films and books bought or rented
   | 'tip'            // live stream tips & gift payments
   | 'digital_sale'   // music, books, movies sold individually
   | 'sanctuary'      // Sanctuary membership fees
@@ -5789,19 +5790,6 @@ export interface PlajahPlusSubscription {
   storageLimitGb: number;
   monthlyPoints: number;
   createdAt: number;
-  updatedAt: number;
-}
-
-export interface CreatorSplitEntry {
-  targetId: string;
-  targetType: 'USER' | 'CHARITY' | 'CLUB';
-  targetName: string;
-  percentage: number;
-}
-
-export interface CreatorSplit {
-  creatorId: string;
-  splits: CreatorSplitEntry[];
   updatedAt: number;
 }
 
