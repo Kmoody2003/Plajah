@@ -10,7 +10,24 @@ permissions:
   id-token: write
 
 jobs:
+  # Nothing deploys if this release would undo shipped work (scripts/checkShippedWork.mjs).
+  guard_shipped_work:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Shipped code is still present
+        run: node scripts/checkShippedWork.mjs
+      - name: Install dependencies
+        run: npm ci
+      - name: Payment and Content HQ tests
+        run: npm run test:shipped
   build_and_deploy:
+    needs: guard_shipped_work
     runs-on: ubuntu-latest
 
     steps:
@@ -69,6 +86,7 @@ jobs:
   # verification that reads the live rules back. A failed or no-op rules deploy now
   # turns the build red.
   deploy_rules:
+    needs: guard_shipped_work
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -173,6 +191,7 @@ jobs:
 
   # ── API backend (server.ts) → Cloud Run ──────────────────────────────────────
   deploy_api:
+    needs: guard_shipped_work
     runs-on: ubuntu-latest
     permissions:
       contents: read
