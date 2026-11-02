@@ -456,7 +456,8 @@ export function createPodRouter(deps: PodRouterDeps): Router {
       const payable = account ? await deps.getStripe().accounts.retrieve(account).then((a: any) => !!a.payouts_enabled).catch(() => false) : false;
       if (!payable) return res.status(400).json({ error: 'This author has not finished setting up payouts, so this edition cannot be sold yet.' });
       const applicationFee = buyerTotal - Math.max(0, royalty!.authorProfitCents) * qty;
-      routing = { payment_intent_data: { transfer_data: { destination: account }, ...(applicationFee > 0 ? { application_fee_amount: applicationFee } : {}) } };
+      // At the minimum list price the author earns nothing, so there's nothing to send them.
+      if (applicationFee < buyerTotal) routing = { payment_intent_data: { transfer_data: { destination: account }, ...(applicationFee > 0 ? { application_fee_amount: applicationFee } : {}) } };
     }
     const id = `pod_${crypto.randomBytes(9).toString('hex')}`;
     const now = Date.now();

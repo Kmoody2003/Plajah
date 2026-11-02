@@ -104,8 +104,11 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     pending:     { label: 'Pending',     color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
     transferred: { label: 'Transferred', color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
     paid_out:    { label: 'Paid Out',    color: '#60a5fa', bg: 'rgba(96,165,250,0.1)' },
+    paid_direct: { label: 'Paid',        color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
+    paid:        { label: 'Paid',        color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
+    refunded:    { label: 'Refunded',    color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
   };
-  const s = map[status] ?? map.pending;
+  const s = map[status] ?? { label: status, color: 'rgba(255,255,255,0.5)', bg: 'rgba(255,255,255,0.06)' };
   return (
     <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest" style={{ color: s.color, background: s.bg }}>
       {s.label}

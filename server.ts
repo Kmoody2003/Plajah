@@ -1088,6 +1088,7 @@ const fsQueryDocs = async (
   collectionId: string,
   filters: Array<{ field: string; op: string; value: any }>,
   limitN = 200,
+  strict = false,   // throw on a failed read, for callers where "failed" must not look like "none"
 ): Promise<Array<{ id: string; data: Record<string, any> }>> => {
   const projectId = 'gen-lang-client-0665118474';
   const dbId = dbIdFor(collectionId);
@@ -1098,12 +1099,12 @@ const fsQueryDocs = async (
   const body = { structuredQuery: { from: [{ collectionId }], where, limit: limitN } };
   try {
     const res = await fetch(url, { method: 'POST', headers: { ...(await firestoreAuthHeaders()), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    if (!res.ok) return [];
+    if (!res.ok) { if (strict) throw new Error(`query ${collectionId} failed: ${res.status}`); return []; }
     const data = await res.json();
     return (Array.isArray(data) ? data : [])
       .filter((r: any) => r.document)
       .map((r: any) => ({ id: String(r.document.name).split('/').pop()!, data: decodeFirestoreFields(r.document.fields) }));
-  } catch { return []; }
+  } catch (e) { if (strict) throw e; return []; }
 };
 
 // The public-facing host. Firebase Hosting proxies to Cloud Run with the internal
@@ -2025,7 +2026,7 @@ const creatorPayouts = createCreatorPayouts({
   read: (c, id) => firestoreGetDeep(c, id),
   createOnce: (c, id, d) => firestoreCreateOnce(c, id, d),
   patch: (c, id, d) => firestoreWrite(c, id, d),
-  query: (c, f, n) => fsQueryDocs(c, f, n),
+  query: (c, f, n) => fsQueryDocs(c, f, n, true),
   getStripe: () => getStripe(),
   // One nudge per person, however many sales are waiting on them.
   notifyAwaitingConnect: async uid => {
@@ -2110,9 +2111,18 @@ async function userCanReceive(account: string): Promise<boolean> {
   try { return !!(await getStripe().accounts.retrieve(account)).payouts_enabled; } catch { return false; }
 }
 
+/** A seller's split config, or null if they have none. A failed read throws: it must not drop collaborators. */
+async function readCreatorSplits(uid: string): Promise<any | null> {
+  const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/${dbIdFor('creatorSplits')}/documents/creatorSplits/${encodeURIComponent(uid)}`;
+  const res = await fetch(url, { headers: await firestoreAuthHeaders() });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`creatorSplits read failed: ${res.status}`);
+  return res.json();
+}
+
 /** How this seller's sale must be routed, or why it can't be taken. See services/payments/directRoute.ts. */
 async function saleRouteFor(sellerUid: string, category: string, noun?: string): Promise<RouteCheck> {
-  const splitDoc = await fetchFirebaseDoc('creatorSplits', sellerUid).catch(() => null);
+  const splitDoc = await readCreatorSplits(sellerUid);
   const collaborators = activeRecipients(splitDoc?.fields?.recipients?.stringValue, splitDoc?.fields?.appliesTo?.stringValue, sellerUid, category);
   return checkSaleRoute({
     accountOf: async uid => (await firestoreRead('users', uid))?.stripeConnectAccountId as string | undefined,
@@ -2149,7 +2159,7 @@ async function recordCreatorSale(sale: { saleId: string; meta: Record<string, st
   const { feePct: platformFeePct, platformFeeCents } = fees;
   const netCents         = grossCents - platformFeeCents - fees.processingCents;
 
-  const splitDoc = isDirect ? null : await fetchFirebaseDoc('creatorSplits', recipientUid).catch(() => null);
+  const splitDoc = isDirect ? null : await readCreatorSplits(recipientUid);
   const activeSplits = activeRecipients(splitDoc?.fields?.recipients?.stringValue, splitDoc?.fields?.appliesTo?.stringValue, recipientUid, earningCategory);
   const { creatorNetCents, lines: splitDetails } = allocateSplits(netCents, activeSplits);
 
@@ -2211,8 +2221,8 @@ async function recordSubscriptionRenewal(invoice: any): Promise<boolean> {
     if (!RECURRING_PAYMENT_TYPES.has(meta.type)) meta = (await stripe.checkout.sessions.list({ subscription: subId, limit: 1 })).data[0]?.metadata || {};
     if (!RECURRING_PAYMENT_TYPES.has(meta.type)) return true;
     // Newer webhook payloads drop invoice.payment_intent; re-read through our pinned-version client.
-    const full = invoice.payment_intent ? invoice : await stripe.invoices.retrieve(invoice.id, { expand: ['payments'] });
-    const paymentIntentId = idOf(full.payment_intent) || idOf(full.payments?.data?.[0]?.payment?.payment_intent) || '';
+    const full = invoice.payment_intent ? invoice : await stripe.invoices.retrieve(invoice.id);
+    const paymentIntentId = idOf(full.payment_intent) || '';
     return await recordCreatorSale({ saleId: `inv_${invoice.id}`, meta, grossCents: invoice.amount_paid, paymentIntentId, renewal: true });
   } catch (e: any) {
     console.error('[Payouts] renewal failed:', invoice?.id, e?.message || e);
@@ -2994,6 +3004,22 @@ async function startServer() {
           const custId = session.customer;
           const mode = session.mode;
 
+          // The money is recorded first and is safe to repeat, so nothing below can lose it. Refunds and
+          // disputes find rows by payment intent, which a subscription checkout only exposes on its invoice.
+          try {
+            const paymentIntentId = idOf(session.payment_intent)
+              || (session.invoice ? idOf((await getStripe().invoices.retrieve(idOf(session.invoice))).payment_intent) || '' : '');
+            if (!(await recordCreatorSale({ saleId: `cs_${session.id}`, meta, grossCents: session.amount_total, paymentIntentId }))) needsRedelivery = true;
+          } catch (e: any) {
+            console.error('[Payouts] sale not recorded:', session.id, e?.message || e);
+            needsRedelivery = true;
+          }
+
+          // Tickets, pledges, points and the rest below aren't safe to repeat, so a resent event skips them.
+          const fulfilment = await firestoreCreateOnce('stripeSessionsFulfilled', session.id, { at: now, type: meta.type || '' });
+          if (fulfilment === 'error') needsRedelivery = true;
+          if (fulfilment !== 'created') break;
+
           if (mode === 'subscription' && meta.type === 'plajahplus') {
             const stripe = getStripe();
             const sub = await stripe.subscriptions.retrieve(subId);
@@ -3082,8 +3108,11 @@ async function startServer() {
               const sub = await stripe.subscriptions.retrieve(meta.subscriptionId);
               const gross = Number(sub.items?.data?.[0]?.price?.unit_amount) || 0;
               const route = await saleRouteFor(meta.newCreatorId, 'plajahplus');
-              if (route.ok === false) console.error('[Plajah+] rebind left unchanged:', meta.subscriptionId, route.error);
-              else {
+              if (route.ok === false) {
+                // The new creator stopped being payable after checkout, so the fee bought nothing.
+                console.error('[Plajah+] rebind refused, refunding fee:', meta.subscriptionId, route.error);
+                await stripe.refunds.create({ payment_intent: idOf(session.payment_intent), metadata: { type: 'rebind_refused' } }, { idempotencyKey: `rebind_refund_${session.id}` });
+              } else {
                 const routing = subscriptionRouting(route, gross, plajahPlusBreakdown(gross, Number(sub.metadata?.tier) || 1));
                 await stripe.subscriptions.update(meta.subscriptionId, {
                   metadata: { ...sub.metadata, boundCreatorId: meta.newCreatorId, isMorph: 'false', route: route.route },
@@ -3402,7 +3431,9 @@ async function startServer() {
           // it (no double transfer).
           if (mode === 'payment' && meta.type === 'sync_license') {
             const feeCents = parseInt(meta.feeCents || String(session.amount_total || 0), 10) || 0;
-            const platformFeeCents = Math.round(feeCents * 0.10);
+            const syncFees = feesFromMeta(meta) ?? saleBreakdown(feeCents, false);
+            const platformFeeCents = syncFees.platformFeeCents;
+            const syncNetCents = feeCents - syncFees.applicationFeeCents;
             const grantId = `syncgrant_${now.toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
             await firestoreWrite('syncLicenseGrants', grantId, {
               id: grantId,
@@ -3425,12 +3456,12 @@ async function startServer() {
                 category: 'sync_license',
                 grossCents: feeCents,
                 platformFeeCents,
-                netCents: feeCents - platformFeeCents,
-                creatorNetCents: feeCents - platformFeeCents,
+                netCents: syncNetCents,
+                creatorNetCents: syncNetCents,
                 splits: '[]',
                 title: `Sync license: ${meta.trackTitle || 'track'}${meta.editTitle ? ` — ${meta.editTitle}` : ''}`,
                 stripePaymentIntentId: (session.payment_intent as string) || '',
-                status: 'transferred',
+                status: 'paid_direct',
                 timestamp: now,
               });
             }
@@ -3485,9 +3516,6 @@ async function startServer() {
             }
           }
 
-          // ── Record earnings + process splits for all creator-facing payments ──
-          if (!(await recordCreatorSale({ saleId: `cs_${session.id}`, meta, grossCents: session.amount_total, paymentIntentId: String(session.payment_intent || '') }))) needsRedelivery = true;
-
           break;
         }
 
@@ -3522,7 +3550,7 @@ async function startServer() {
           await applyChargeRefund(event.data.object, false).catch((e: any) => console.error('[Elevate] charge.refunded failed:', e?.message));
           await revokeContentPurchase(event.data.object).catch((e: any) => console.error('[Content] refund revoke failed:', e?.message));
           await creatorPayouts.applyRefund(idOf(event.data.object.payment_intent) || '', Number(event.data.object.amount_refunded) || 0, Number(event.data.object.amount) || 0)
-            .catch((e: any) => console.error('[Payouts] refund failed:', e?.message || e));
+            .catch((e: any) => { console.error('[Payouts] refund failed:', e?.message || e); needsRedelivery = true; });
           break;
         }
         case 'charge.dispute.created':
@@ -3531,8 +3559,10 @@ async function startServer() {
           try {
             const dispute = event.data.object;
             const charge = await getStripe().charges.retrieve(idOf(dispute.charge));
-            await creatorPayouts.applyDispute(idOf(charge.payment_intent) || '', String(dispute.status), Number(dispute.amount) || 0, Number(charge.amount) || 0);
-          } catch (e: any) { console.error('[Payouts] dispute failed:', e?.message || e); }
+            // A loss takes back the disputed money on top of anything already refunded.
+            const lostCents = (Number(charge.amount_refunded) || 0) + (Number(dispute.amount) || 0);
+            await creatorPayouts.applyDispute(idOf(charge.payment_intent) || '', String(dispute.status), lostCents, Number(charge.amount) || 0);
+          } catch (e: any) { console.error('[Payouts] dispute failed:', e?.message || e); needsRedelivery = true; }
           break;
         }
       }
@@ -5289,13 +5319,15 @@ async function startServer() {
       }
 
       const organizer = String(f.creatorUid?.stringValue || '');
-      const sale = await prepareSale(organizer, 'other', subtotal, { noun: 'organizer' });
-      if (sale.ok === false) return res.status(400).json({ error: sale.error });
+      // A free ticket pays nobody, so it needs no payout account.
+      const sale = subtotal > 0 ? await prepareSale(organizer, 'other', subtotal, { noun: 'organizer' }) : null;
+      if (sale && sale.ok === false) return res.status(400).json({ error: sale.error });
+      const paid = sale && sale.ok === true ? sale : null;
       const session = await stripe.checkout.sessions.create({
         mode: 'payment', payment_method_types: ['card'], line_items: lineItems,
-        payment_intent_data: paymentRouting(sale.route, sale.fees),
+        ...(paid ? { payment_intent_data: paymentRouting(paid.route, paid.fees) } : {}),
         metadata: {
-          ...sale.meta,
+          ...(paid ? paid.meta : {}),
           creatorUid: organizer,
           type: 'event_ticket',
           eventId: req.params.eventId,
@@ -12425,9 +12457,10 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
 
       const feeCents = Math.round(feeUsd * 100);
       if (feeCents < 100) return res.status(400).json({ error: 'Sync fee must be at least $1.00.' });
-      const platformFee = saleBreakdown(feeCents, await sellerHasPlajahPlus(String(rightsOwnerUid))).applicationFeeCents;
+      const syncFees = saleBreakdown(feeCents, await sellerHasPlajahPlus(String(rightsOwnerUid)));
+      const platformFee = syncFees.applicationFeeCents;
       const appUrl = process.env.VITE_APP_URL ?? 'https://plajah.com';
-      const meta = { type: 'sync_license', trackId, albumId, rightsOwnerUid, buyerUid, editId, editTitle: editTitle || '', feeCents: String(feeCents), trackTitle };
+      const meta = { type: 'sync_license', trackId, albumId, rightsOwnerUid, buyerUid, editId, editTitle: editTitle || '', feeCents: String(feeCents), trackTitle, route: 'direct', platformFeePct: String(syncFees.feePct), platformFeeCents: String(syncFees.platformFeeCents), processingCents: String(syncFees.processingCents) };
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
         payment_method_types: ['card'],

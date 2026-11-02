@@ -140,7 +140,7 @@ const SPLIT: RowKind = {
 };
 
 // Every platform-collected category the webhook records as 'pending'. Destination charges are 'paid_direct'.
-const SWEEPABLE = new Set(['content_purchase', 'sanctuary', 'club', 'seedraiser', 'digital_sale', 'plajahplus']);
+const SWEEPABLE = new Set(['content_purchase', 'sanctuary', 'club', 'seedraiser', 'digital_sale', 'plajahplus', 'other']);
 const EARNING: RowKind = {
   collection: CREATOR_EARNINGS,
   payee: r => r.creatorUid,
@@ -257,7 +257,10 @@ export function createCreatorPayouts(deps: SplitPayoutDeps) {
         : '');
       if (!transferId) return true;
       const transfer = await stripe.transfers.retrieve(String(transferId));
-      const delta = target - (Number(transfer.amount_reversed) || 0);
+      // A share paid after a partial refund went out reduced, so that much was never sent. A destination
+      // charge's transfer is the gross, so this doesn't apply to it.
+      const neverSent = row.status === 'paid_direct' ? 0 : Math.max(0, kind.cents(row) - (Number(transfer.amount) || 0));
+      const delta = target - neverSent - (Number(transfer.amount_reversed) || 0);
       if (delta > 0) await stripe.transfers.createReversal(String(transferId), { amount: delta }, { idempotencyKey: `reverse_${id}_${target}` });
       await deps.patch(kind.collection, id, { reversalDue: false, lastReversalError: null, ...(fully ? { status: 'refunded', refundedAt: now() } : {}) });
       return true;

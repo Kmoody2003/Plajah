@@ -394,3 +394,15 @@ test('a refund Stripe already reversed on the charge is not taken twice', async 
   await engine.applyRefund('pi_1', 500, 1000);
   assert.equal(state.reversals.length, 0);
 });
+
+test('a share paid reduced after a partial refund only gives back what was actually sent', async () => {
+  const { docs, state, engine } = harness();
+  state.transfers.push({ id: 'tr_9', amount: 900, destination: 'acct_bob', created: 0, metadata: {} });
+  docs.set(`${SPLIT_PAYOUTS}/cs_1_bob`, { recipientUid: 'bob', amountCents: 1000, clawbackCents: 100, status: 'paid_out', transferId: 'tr_9', stripePaymentIntentId: 'pi_1', createdAt: 0 });
+  await engine.applyRefund('pi_1', 100, 1000);
+  assert.equal(state.reversals.length, 0, 'a repeat of the same refund takes nothing more');
+  await engine.applyRefund('pi_1', 200, 1000);
+  assert.equal(state.transfers[0].amount_reversed, 100);
+  await engine.applyRefund('pi_1', 1000, 1000);
+  assert.equal(state.transfers[0].amount_reversed, 900, 'a full refund never exceeds the transfer');
+});
