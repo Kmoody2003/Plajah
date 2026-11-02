@@ -79,6 +79,7 @@ import { PLATFORM_CUT_PCT as BOOK_PLATFORM_CUT_PCT } from './services/bookmeta/p
 import { readRegistry as readEditionRegistry, licenceActive, entitledEditions, editionOf, type BookVersionStamp } from './services/bookEditions/policy';
 import { createLedgerRouter, appendLedger } from './routes/ledger';
 import { createSponsorCopiesRouter, activateCopyPool } from './routes/sponsorCopies';
+import { activeRecipients, allocateSplits, checkSplitConfig, createSplitPayouts, splitsOwedByEarning } from './services/splitPayouts';
 import { createCreativeStorageRouter } from './routes/creativeStorage';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { kithSightingsRouter } from './routes/kithSightings';
@@ -2012,6 +2013,20 @@ async function payCreatorEarning(earningId: string, creatorUid: string, amountCe
   }
 }
 
+/** Collaborator shares of a sale, one ledger row per recipient (services/splitPayouts.ts). */
+const splitPayouts = createSplitPayouts({
+  read: (c, id) => firestoreGetDeep(c, id),
+  createOnce: (c, id, d) => firestoreCreateOnce(c, id, d),
+  patch: (c, id, d) => firestoreWrite(c, id, d),
+  query: (c, f, n) => fsQueryDocs(c, f, n),
+  getStripe: () => getStripe(),
+  // One nudge per person, however many sales are waiting on them.
+  notifyAwaitingConnect: async uid => {
+    if ((await firestoreCreateOnce('ledgerReceipts', `split_connect_nudge_${uid}`, { at: Date.now() })) !== 'created') return;
+    await firestoreCreate('notifications', { userId: uid, senderId: 'plajah-payments', senderName: 'Plajah Payments', senderPhoto: '', type: 'SYSTEM', title: 'You have a split payment waiting', message: 'A collaborator shared a sale with you. Connect payouts to receive it. Everything owed is held until you do.', link: 'CREATOR', isRead: false, timestamp: Date.now() });
+  },
+});
+
 /** Mirror a Stripe subscription's status onto its Plajah+ row(s) (found by stripeSubscriptionId). */
 async function syncPlajahPlusSubscription(sub: any, deleted: boolean): Promise<void> {
   try {
@@ -2823,6 +2838,8 @@ async function startServer() {
     }
 
     const now = Date.now();
+    // Money we couldn't record: answer non-2xx so Stripe sends the event again.
+    let needsRedelivery = false;
 
     try {
       switch (event.type) {
@@ -3330,28 +3347,9 @@ async function startServer() {
             const netCents         = grossCents - platformFeeCents;
 
             // Load creator's split config
-            let splitRecipients: any[] = [];
-            let appliesTo: string[] = [];
-            try {
-              const splitDoc = await fetchFirebaseDoc('creatorSplits', recipientUid);
-              if (splitDoc?.fields) {
-                splitRecipients = JSON.parse(splitDoc.fields.recipients?.stringValue ?? '[]');
-                appliesTo       = JSON.parse(splitDoc.fields.appliesTo?.stringValue ?? '[]');
-              }
-            } catch {}
-
-            const activeSplits = appliesTo.includes(earningCategory) ? splitRecipients : [];
-            const splitTotal   = activeSplits.reduce((s: number, r: any) => s + (r.percentage || 0), 0);
-            const creatorPct   = 100 - Math.min(splitTotal, 99);
-            const creatorNetCents = Math.round(netCents * creatorPct / 100);
-
-            // Build split detail array
-            const splitDetails = activeSplits.map((r: any) => ({
-              creatorUid:   r.creatorUid,
-              displayName:  r.displayName,
-              amountCents:  Math.round(netCents * r.percentage / 100),
-              percentage:   r.percentage,
-            }));
+            const splitDoc = await fetchFirebaseDoc('creatorSplits', recipientUid).catch(() => null);
+            const activeSplits = activeRecipients(splitDoc?.fields?.recipients?.stringValue, splitDoc?.fields?.appliesTo?.stringValue, recipientUid, earningCategory);
+            const { creatorNetCents, lines: splitDetails } = allocateSplits(netCents, activeSplits);
 
             const earningTitle =
               meta.type === 'live_tip'             ? `Tip${meta.title ? ` — ${meta.title}` : ''}` :
@@ -3381,8 +3379,10 @@ async function startServer() {
               stripePaymentIntentId: session.payment_intent || '',
               status:                isDirect ? 'paid_direct' : 'pending',
               payeeVerified:         true,
+              splitLedger:           true,
               timestamp:             now,
             });
+            if (claimed === 'error') needsRedelivery = true;
 
             // Platform-collected sales: send the creator's own net share to their Connect account
             // now. Without an account it stays 'pending' and is swept when they finish payout
@@ -3391,24 +3391,13 @@ async function startServer() {
               await payCreatorEarning(earningId, recipientUid, creatorNetCents, earningCategory, String(session.payment_intent || ''));
             }
 
-            // Fire split transfers if recipients have Connect accounts
-            if (claimed === 'created' && !isDirect && splitDetails.length > 0) {
-              const stripe = getStripe();
-              for (const split of splitDetails) {
-                try {
-                  const recipDoc = await fetchFirebaseDoc('users', split.creatorUid);
-                  const recipAccountId = recipDoc?.fields?.stripeConnectAccountId?.stringValue;
-                  if (recipAccountId && split.amountCents > 0) {
-                    await (stripe as any).transfers.create({
-                      amount:      split.amountCents,
-                      currency:    'usd',
-                      destination: recipAccountId,
-                      metadata:    { type: 'split', fromCreatorUid: recipientUid, toCreatorUid: split.creatorUid, category: earningCategory },
-                    });
-                  }
-                } catch (transferErr: any) {
-                  console.error('[Connect] Split transfer failed:', transferErr.message);
-                }
+            // Record what each collaborator is owed, then pay it. A re-fired event finishes rows an
+            // earlier delivery didn't get to, using the amounts stored on the earning.
+            if (claimed !== 'error' && !isDirect) {
+              const owed = claimed === 'created' ? splitDetails : splitsOwedByEarning(await firestoreGetDeep('creatorEarnings', earningId));
+              if (owed.length > 0) {
+                const recorded = await splitPayouts.recordAndPay({ earningId, fromCreatorUid: recipientUid, category: earningCategory, title: earningTitle, paymentIntentId: String(session.payment_intent || ''), lines: owed });
+                if (!recorded.ok) needsRedelivery = true;
               }
             }
           }
@@ -3445,6 +3434,10 @@ async function startServer() {
         case 'charge.refunded': {
           await applyChargeRefund(event.data.object, false).catch((e: any) => console.error('[Elevate] charge.refunded failed:', e?.message));
           await revokeContentPurchase(event.data.object).catch((e: any) => console.error('[Content] refund revoke failed:', e?.message));
+          if (event.data.object?.refunded || event.data.object?.amount_refunded >= event.data.object?.amount) {
+            const reversed = await splitPayouts.reverseForPaymentIntent(String(event.data.object?.payment_intent || ''));
+            if (!reversed.ok) needsRedelivery = true;
+          }
           break;
         }
         case 'charge.dispute.created':
@@ -3457,6 +3450,7 @@ async function startServer() {
       console.error('Webhook handler error:', err.message);
     }
 
+    if (needsRedelivery) return res.status(500).json({ error: 'Payment state not recorded, retry' });
     res.json({ received: true });
   });
 
@@ -3842,6 +3836,7 @@ async function startServer() {
         // Sales made before the creator connected were held as 'pending' — pay them out now.
         // Idempotent per earning, so the frequent status polls can't double-pay.
         void payPendingCreatorEarnings(uid).catch((e: any) => console.error('[Connect] pending sweep failed:', e?.message || e));
+        void splitPayouts.payPendingFor(uid).catch((e: any) => console.error('[Connect] split sweep failed:', e?.message || e));
       }
 
       res.json({
@@ -3955,16 +3950,17 @@ async function startServer() {
   // Save split configuration
   app.post('/api/stripe/split', authMiddleware, express.json(), async (req: any, res) => {
     const uid: string = req.uid;
-    const { recipients, appliesTo } = req.body;
-    if (!Array.isArray(recipients)) return res.status(400).json({ error: 'recipients required' });
-    const total = recipients.reduce((s: number, r: any) => s + (r.percentage || 0), 0);
-    if (total >= 100) return res.status(400).json({ error: 'Split percentages must sum to less than 100' });
+    const checked = checkSplitConfig(req.body?.recipients, req.body?.appliesTo, uid);
+    if (checked.ok === false) return res.status(400).json({ error: checked.error });
 
     try {
+      for (const r of checked.recipients) {
+        if (!(await firestoreGetDeep('users', r.creatorUid))) return res.status(400).json({ error: `No user found for ${r.creatorUid}` });
+      }
       await firestoreWrite('creatorSplits', uid, {
         ownerUid: uid,
-        recipients: JSON.stringify(recipients),
-        appliesTo: JSON.stringify(appliesTo || ['tip','digital_sale','sanctuary','plajahplus']),
+        recipients: JSON.stringify(checked.recipients),
+        appliesTo: JSON.stringify(checked.appliesTo),
         updatedAt: Date.now(),
       });
       res.json({ ok: true });
@@ -6868,6 +6864,19 @@ async function startServer() {
   // Scheduled content (albums, books, movies, videos, embargoed articles) becomes VISIBLE exactly on time because every reader
   // compares its release date to the clock. Nothing runs at that moment, so this sweep is what ANNOUNCES it: one feed post from the
   // creator (their own wording if they set one in the release workflow, else the default) + follower notifications + push.
+  // Retries split transfers Stripe refused or that errored. Each transfer is safe to retry (services/splitPayouts.ts).
+  // Run every 15 min:  POST /api/cron/retry-split-payouts   header x-cron-key: <CRON_SECRET|ADMIN_SEED_KEY>
+  const runSplitRetry = () => splitPayouts.retryFailed();
+  app.post('/api/cron/retry-split-payouts', express.json({ limit: '4kb' }), async (req: any, res: any) => {
+    const key = req.headers['x-cron-key'];
+    if (!secretsEqual(key, process.env.ADMIN_SEED_KEY) && !secretsEqual(key, process.env.CRON_SECRET)) return res.status(401).json({ error: 'Unauthorized' });
+    try { res.json(await runSplitRetry()); }
+    catch (e: any) { console.error('[Splits] retry failed:', e?.message || e); res.status(500).json({ error: String(e?.message || e).slice(0, 300) }); }
+  });
+  if (process.env.NODE_ENV === 'production') {
+    setInterval(() => runSplitRetry().catch((e: any) => console.error('[Splits] retry failed:', e?.message || e)), 15 * 60_000).unref?.();
+  }
+
   // Run every 5 min:  POST /api/cron/release-announcements   header x-cron-key: <CRON_SECRET|ADMIN_SEED_KEY>   (same key as the other cron jobs)
   // Exactly-once per item (create-if-absent claim doc). See docs/RELEASE_ANNOUNCEMENTS.md.
   app.post('/api/cron/release-announcements', express.json({ limit: '4kb' }), async (req: any, res: any) => {

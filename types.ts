@@ -5734,19 +5734,6 @@ export interface PlajahPlusSubscription {
   updatedAt: number;
 }
 
-export interface CreatorSplitEntry {
-  targetId: string;
-  targetType: 'USER' | 'CHARITY' | 'CLUB';
-  targetName: string;
-  percentage: number;
-}
-
-export interface CreatorSplit {
-  creatorId: string;
-  splits: CreatorSplitEntry[];
-  updatedAt: number;
-}
-
 export interface BusinessMenuItem {
   id: string;
   name: string;
