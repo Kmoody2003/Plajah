@@ -61,7 +61,7 @@ Children's passwords were publicly readable, so treat every existing one as expo
 - Co-teachers get no guardian links, so their assignments may not reach parents.
 - Images in shared or org Tela docs may break in letters and album art, because only chat, articles and periodicals grant media access.
 
-## Private org, business and class data (release/trust-next)
+## Private org, business and class data
 
 Dry run every script first and read its list. Copy phases only add; strip phases skip anything not yet on the private doc.
 
