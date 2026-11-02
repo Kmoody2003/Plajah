@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true, "types": ["vite/client", "node"] },
+  "include": ["services/lighting/*.ts", "scripts/lighting/fetchFixtureCatalog.ts", "components/lighting/*.tsx", "components/LightingDesigner.tsx", "components/TVStudio.tsx", "labs/lighting/main.tsx", "tests/lightBoard.test.ts"]
+}

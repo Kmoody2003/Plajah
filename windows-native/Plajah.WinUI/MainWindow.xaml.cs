@@ -851,6 +851,7 @@ public sealed partial class MainWindow : Window
             // Stage Program → network outputs (30–60 messages a second; keep this first and cheap).
             if (type == "PROGRAM_OUT_FRAME") { _programOutHub?.OnFrame(root); return; }
             if (type == "PROGRAM_OUT_AUDIO") { _programOutHub?.OnAudio(root); return; }
+            if (type == "LD_UDP_SEND") { LightingUdpSender.Send(root); return; }
 
             if (type == "NATIVE_AUDIO_OPEN")
             {
