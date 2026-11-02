@@ -276,6 +276,8 @@ export function registerAutoRoutes(d: AutoDeps): void {
 
   // ── Passport: shop publishes a verified entry from a closed ticket ───────────────────────────────
   wrap('passport/publish', async (req, res, { businessUid, actor }) => {
+    // A signed-in account counts as "owner" of itself at the register, so this is what makes it an actual shop.
+    if (req.isAnonymous || !(await (d as any).hasBusinessPage?.(businessUid))) return res.status(403).json({ error: 'Set up your shop’s business page before publishing vehicle history.' });
     const t = await loadTicket(String(req.body?.ticketId || ''), businessUid); if (!t) return res.status(404).json({ error: 'Ticket not found.' });
     const cfg = cfgForTicket(t.packId); if (!cfg) return res.status(400).json({ error: 'Not an auto ticket.' });
     const st = cfg.stages.find(x => x.id === t.stage);
@@ -296,12 +298,13 @@ export function registerAutoRoutes(d: AutoDeps): void {
     // passport doc (create if first entry). Owner = the ticket's Plajah customer when linked; otherwise a claim code is issued.
     let claimCode = '';
     const pp = await casUpdate<{ ownerUid: string; claimCode: string }>(d.restCas('passports'), key, cur => {
-      if (cur) return { patch: { updatedAt: Date.now(), ...(!cur.ownerUid && t.customer.uid ? { ownerUid: t.customer.uid } : {}) }, result: { ownerUid: String(cur.ownerUid || t.customer.uid || ''), claimCode: String(cur.claimCode || '') } };
+      // An existing passport never changes owner from a ticket, and its claim code only goes back to the shop that first issued it.
+      if (cur) return { patch: { updatedAt: Date.now() }, result: { ownerUid: String(cur.ownerUid || ''), claimCode: cur.claimShopUid === businessUid ? String(cur.claimCode || '') : '' } };
       const code = t.customer.uid ? '' : makeClaimCode(nodeCrypto.randomBytes(8));
       return { patch: {
         key, vin: String(s.vin || ''), plate: normalizePlate(String(s.plate || '')), state: normalizeState(String(s.state || '')),
         year: Number(s.year) || 0, make: String(s.make || ''), model: String(s.model || ''), trim: String(s.trim || ''),
-        ownerUid: t.customer.uid || '', claimCode: code, createdAt: Date.now(), updatedAt: Date.now(),
+        ownerUid: t.customer.uid || '', claimCode: code, claimShopUid: businessUid, createdAt: Date.now(), updatedAt: Date.now(),
       }, result: { ownerUid: t.customer.uid || '', claimCode: code } };
     });
     if (pp.ok === false) return res.status(500).json({ error: 'Could not write the vehicle passport.' });

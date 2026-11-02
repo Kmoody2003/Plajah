@@ -1,3 +1,4 @@
+import { writePrivateProfile } from '../services/userPrivate';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Shield, Clock, Lock, Eye, EyeOff, Check, Sparkles, Mic, MessageCircle,
@@ -100,9 +101,7 @@ export const ParentalControlsPanel: React.FC<Props> = ({
   // ── Login & Password state ──
   const [credLoading, setCredLoading] = useState(false);
   const [childUsername, setChildUsername] = useState(target.username || '');
-  const [currentPassword, setCurrentPassword] = useState<string | null>(
-    target.parentalControls?.savedChildPassword || null
-  );
+  const [currentPassword, setCurrentPassword] = useState<string | null>(null);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(true);
@@ -136,9 +135,7 @@ export const ParentalControlsPanel: React.FC<Props> = ({
     const resolved = resolveControls(target);
     setControls(resolved);
     setChildUsername(target.username || '');
-    if (target.parentalControls?.savedChildPassword) {
-      setCurrentPassword(target.parentalControls.savedChildPassword);
-    }
+    setCurrentPassword(null);
   }, [target.uid]);
 
   // Fetch child credentials when opening the credentials tab (or on mount for child accounts)
@@ -148,14 +145,10 @@ export const ParentalControlsPanel: React.FC<Props> = ({
     try {
       const info = await getChildCredentials(target.uid);
       if (info.username) setChildUsername(info.username);
-      if (info.savedPassword) setCurrentPassword(info.savedPassword);
       setIsAccountLocked(Boolean(info.locked));
       setFailedAttempts(info.failedAttempts || 0);
     } catch {
-      // Fallback to local profile fields if backend endpoint isn't reachable
-      if (target.parentalControls?.savedChildPassword) {
-        setCurrentPassword(target.parentalControls.savedChildPassword);
-      }
+      // Sign-in details stay as they are if the endpoint isn't reachable
     } finally {
       setCredLoading(false);
     }
@@ -167,9 +160,6 @@ export const ParentalControlsPanel: React.FC<Props> = ({
       const report = await loadChildActivityReport(target.uid);
       setActivityEntries(report.entries);
       setScreenTimeSummary(report.screenTime);
-      if (report.savedPassword && !currentPassword) {
-        setCurrentPassword(report.savedPassword);
-      }
       if (report.username && !childUsername) {
         setChildUsername(report.username);
       }
@@ -238,7 +228,6 @@ export const ParentalControlsPanel: React.FC<Props> = ({
       const next: ParentalControls = {
         ...controls,
         adultFilter: target.isChild ? true : controls.adultFilter,
-        savedChildPassword: currentPassword || controls.savedChildPassword,
         updatedAt: Date.now(),
         updatedBy: actor.uid,
       };
@@ -247,9 +236,7 @@ export const ParentalControlsPanel: React.FC<Props> = ({
         setNewPasscode('');
       }
       if (db && target.uid) {
-        await updateDoc(doc(db, 'users', target.uid), { parentalControls: next }).catch(async () => {
-          await setDoc(doc(db, 'users', target.uid), { parentalControls: next }, { merge: true });
-        });
+        await writePrivateProfile(target.uid, { parentalControls: next });
       }
       try {
         localStorage.setItem(`plajah_parental_controls_${target.uid}`, JSON.stringify(next));
@@ -293,10 +280,9 @@ export const ParentalControlsPanel: React.FC<Props> = ({
       setIsAccountLocked(false);
       setFailedAttempts(0);
 
-      // Also persist savedChildPassword & username to Firestore / localStorage so parent always sees it immediately
+      // Only a hash is kept on the server; the adult sees this new password once, here.
       const nextControls: ParentalControls = {
         ...controls,
-        savedChildPassword: cleanPassword,
         passwordUpdatedAt: Date.now(),
         updatedAt: Date.now(),
         updatedBy: actor.uid,
@@ -305,12 +291,10 @@ export const ParentalControlsPanel: React.FC<Props> = ({
       if (db && target.uid) {
         await setDoc(
           doc(db, 'users', target.uid),
-          {
-            username: cleanUsername,
-            parentalControls: nextControls,
-          },
+          { username: cleanUsername },
           { merge: true }
         ).catch(() => {});
+        await writePrivateProfile(target.uid, { parentalControls: nextControls }).catch(() => {});
       }
       try {
         localStorage.setItem(`plajah_parental_controls_${target.uid}`, JSON.stringify(nextControls));
@@ -320,37 +304,6 @@ export const ParentalControlsPanel: React.FC<Props> = ({
       onTargetUpdated?.({ username: cleanUsername, parentalControls: nextControls });
       setPasswordStatusMsg(`Password updated for @${cleanUsername}!`);
     } catch (err: any) {
-      // Fallback: if dev server doesn't have Firebase Admin credentials configured locally,
-      // still persist the saved password & username on the child's Firestore profile doc so the parent has it.
-      const nextControls: ParentalControls = {
-        ...controls,
-        savedChildPassword: cleanPassword,
-        passwordUpdatedAt: Date.now(),
-        updatedAt: Date.now(),
-        updatedBy: actor.uid,
-      };
-      if (db && target.uid) {
-        try {
-          await setDoc(
-            doc(db, 'users', target.uid),
-            {
-              username: cleanUsername,
-              parentalControls: nextControls,
-            },
-            { merge: true }
-          );
-          setCurrentPassword(cleanPassword);
-          setChildUsername(cleanUsername);
-          setShowCurrentPassword(true);
-          setNewPasswordInput('');
-          setControls(nextControls);
-          onSaved?.(nextControls);
-          onTargetUpdated?.({ username: cleanUsername, parentalControls: nextControls });
-          setPasswordStatusMsg(`Saved password for @${cleanUsername}!`);
-          setUpdatingPassword(false);
-          return;
-        } catch {}
-      }
       setPasswordErrMsg(err?.message || 'Could not reset password.');
     } finally {
       setUpdatingPassword(false);
@@ -548,7 +501,7 @@ export const ParentalControlsPanel: React.FC<Props> = ({
                       showCurrentPassword ? currentPassword : '••••••••••'
                     ) : (
                       <span className="text-zinc-400 text-xs font-sans">
-                        Not recorded yet — set a new password below to view it anytime
+                        Hidden for safety. Set a new one below if it's forgotten.
                       </span>
                     )}
                   </div>
@@ -601,7 +554,7 @@ export const ParentalControlsPanel: React.FC<Props> = ({
             <div className="pt-3 border-t border-zinc-800/80 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-xs font-bold text-zinc-200">
-                  {currentPassword ? 'Reset or Change Child Password' : 'Set Child Username & Password'}
+                  Reset or Change Child Password
                 </div>
                 <button
                   type="button"

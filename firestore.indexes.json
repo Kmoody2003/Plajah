@@ -1,5 +1,13 @@
 {
   "indexes": [
+    { "collectionGroup": "sanctuaryContent", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "accessType", "order": "ASCENDING" }, { "fieldPath": "creatorId", "order": "ASCENDING" }, { "fieldPath": "publishedAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "videos", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "isPrivate", "order": "ASCENDING" }, { "fieldPath": "ownerId", "order": "ASCENDING" }, { "fieldPath": "timestamp", "order": "DESCENDING" }] },
+    { "collectionGroup": "videos", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "isPrivate", "order": "ASCENDING" }, { "fieldPath": "playCount", "order": "DESCENDING" }] },
+    { "collectionGroup": "users", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "listable", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "users", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "listable", "order": "ASCENDING" }, { "fieldPath": "followerCount", "order": "DESCENDING" }] },
+    { "collectionGroup": "users", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "listable", "order": "ASCENDING" }, { "fieldPath": "displayName", "order": "ASCENDING" }] },
+    { "collectionGroup": "users", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "listable", "order": "ASCENDING" }, { "fieldPath": "handle", "order": "ASCENDING" }] },
+    { "collectionGroup": "users", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "listable", "order": "ASCENDING" }, { "fieldPath": "favoriteSportsTeams", "order": "ASCENDING" }, { "fieldPath": "followerCount", "order": "DESCENDING" }] },
     {
       "collectionGroup": "circle_posts",
       "queryScope": "COLLECTION",

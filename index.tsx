@@ -5,8 +5,12 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { isMediaLaunch } from './src/lib/launchTarget';
 import { CHANGELOG } from './data/changelog';
 import { isChunkLoadError, recoverFromStaleChunk } from './src/lib/staleChunk';
+
 // @ts-ignore
-import { registerSW } from 'virtual:pwa-register';
+import { registerSW } from 'virtual:pwa-register';
+
+// Keeps this browser able to load a document's private images. Loaded apart so the entry chunk stays small.
+void import('./services/tela/telaMediaSession').then(m => m.startTelaMediaSession());
 
 // Stale-deploy self-heal. Vite fires `vite:preloadError` when a dynamically imported
 // chunk fails to load — almost always because a newer deploy rehashed assets while a

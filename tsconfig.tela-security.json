@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true },
+  "include": [
+    "services/telaDocPolicy.ts",
+    "services/coeditAdmin.ts",
+    "services/telaAssets.ts",
+    "services/tela/telaMediaSession.ts",
+    "services/coedit/project.ts",
+    "services/coedit/audit.ts",
+    "services/coedit/assets.ts",
+    "services/coedit/chunks.ts",
+    "routes/coeditSecurity.ts",
+    "routes/elevateAccess.ts",
+    "components/chat/ChatTelaDocument.tsx",
+    "components/collab/CollabPeople.tsx",
+    "components/tela/TelaSecurityPanel.tsx",
+    "tests/telaDocPolicy.test.ts"
+  ]
+}

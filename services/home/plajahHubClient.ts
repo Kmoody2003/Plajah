@@ -11,6 +11,8 @@
  *
  * Transport: CapacitorHttp on native (the APK allows cleartext to the LAN; no CORS), fetch on web.
  */
+import { auth } from '../firebase';
+import { scopedKey } from '../userScope';
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 
 export type HubDeviceKind = 'light' | 'switch' | 'thermostat' | 'lock' | 'sensor' | 'camera';
@@ -72,8 +74,10 @@ const DEFAULT_PORT = 3000;
 const EMBEDDED_PORT = 8786;
 
 const isNative = (): boolean => { try { return Capacitor.isNativePlatform(); } catch { return false; } };
-const lsGet = (k: string): string | null => { try { return localStorage.getItem(k); } catch { return null; } };
-const lsSet = (k: string, v: string | null) => { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch { /* storage blocked */ } };
+// A home hub pairing belongs to the account that made it. An older unscoped one keeps working for
+// whoever is signed in until the next sign-out, which clears it (services/userScope).
+const lsGet = (k: string): string | null => { try { return localStorage.getItem(scopedKey(k)) ?? (auth.currentUser ? localStorage.getItem(k) : null); } catch { return null; } };
+const lsSet = (k: string, v: string | null) => { try { if (v) localStorage.setItem(scopedKey(k), v); else { localStorage.removeItem(scopedKey(k)); localStorage.removeItem(k); } } catch { /* storage blocked */ } };
 
 const listeners = new Set<() => void>();
 /** Fires when the saved hub address / token changes on this device. */

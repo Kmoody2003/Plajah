@@ -1,23 +1,16 @@
 // services/universalStudentDeskService.ts
 // Universal Platform-Wide Student Desk & Digital Classroom Assignment Workflow (Powered by Tela)
-// Shared across Academia (K-12, Higher Ed, Homeschool), Christian Education (Great Faith Ministries),
+// Shared across Academia (K-12, Higher Ed, Homeschool), Christian Education,
 // and Plajah Elevate Organizational Training.
 
 import {
-  listIngestedUnits,
-  ensureAllDetectedLinksOnboarded,
   gradeAndRecordUnitSubmission,
   type IngestedCurriculumUnit,
   type StudentUnitSubmission,
 } from './curriculumIngestionService';
-import {
-  getDefaultLivingTemplateForUnit,
-  getLivingTemplateById,
-} from './council/livingDocumentTemplates';
-import {
-  GREAT_FAITH_MINISTRIES_DEFAULT_ID,
-  GREAT_FAITH_MINISTRIES_NAME,
-} from './orgAssets';
+import { getDefaultLivingTemplateForUnit } from './council/livingDocumentTemplates';
+import { auth } from './firebase';
+import { adoptFromSharedDesk, deskAssignmentsKey } from './hqScopeWall';
 import { appendRecord } from './learningLedgerService';
 import { mirrorAssignment, mirrorDraft, mirrorTurnIn, type EduSubmissionRecord } from './christianEdSync';
 
@@ -92,16 +85,30 @@ export interface StudentDeskWorkspaceState {
   teacherFeedbackNote?: string;
 }
 
-const DESK_ASSIGNMENTS_KEY = 'plajah_universal_desk_assignments_v1';
+/** The old desk every account on a browser shared. Read once to move each person's own work out of it. */
+const SHARED_DESK_KEY = 'plajah_universal_desk_assignments_v1';
 const DESK_WORKSPACE_KEY = (studentUid: string) =>
   `plajah_universal_desk_workspace_v1_${studentUid || 'default_student'}`;
 
+function readJsonList<T>(key: string): T[] | null {
+  const raw = localStorage.getItem(key);
+  if (raw === null) return null;
+  const parsed = JSON.parse(raw);
+  return Array.isArray(parsed) ? parsed : [];
+}
+
 function readStoredAssignments(): UniversalDeskAssignment[] {
   try {
-    const raw = localStorage.getItem(DESK_ASSIGNMENTS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const uid = auth.currentUser?.uid;
+    const key = deskAssignmentsKey(uid);
+    const own = readJsonList<UniversalDeskAssignment>(key);
+    if (own) return own;
+    if (!uid) return [];
+    const { mine, rest } = adoptFromSharedDesk(readJsonList<UniversalDeskAssignment>(SHARED_DESK_KEY) || [], uid, new Set(Object.keys(readWorkspaceMap(uid))));
+    localStorage.setItem(key, JSON.stringify(mine));
+    if (rest.length) localStorage.setItem(SHARED_DESK_KEY, JSON.stringify(rest));
+    else localStorage.removeItem(SHARED_DESK_KEY);
+    return mine;
   } catch {
     return [];
   }
@@ -109,7 +116,7 @@ function readStoredAssignments(): UniversalDeskAssignment[] {
 
 function writeStoredAssignments(list: UniversalDeskAssignment[]): void {
   try {
-    localStorage.setItem(DESK_ASSIGNMENTS_KEY, JSON.stringify(list));
+    localStorage.setItem(deskAssignmentsKey(auth.currentUser?.uid), JSON.stringify(list));
     window.dispatchEvent(new CustomEvent('plajah:deskUpdated'));
   } catch {
     // Non-fatal
@@ -137,293 +144,6 @@ function writeWorkspaceMap(
   } catch {
     // Non-fatal
   }
-}
-
-/**
- * Builds starter Academia units so the Universal Student Desk showcases both
- * Christian Education (Great Faith Ministries) AND Academia (STEM / ELA / History) out of the box.
- */
-function buildStarterAcademiaUnits(): IngestedCurriculumUnit[] {
-  const now = Date.now();
-  return [
-    {
-      id: 'acad_unit_ela_odyssey',
-      orgId: 'academia-campus',
-      programId: 'class-ela-honors',
-      departmentFolder: 'Academia · Humanities & ELA',
-      title: 'ELA Reading Quest: The Odyssey & Heroic Perseverance Worksheet',
-      subtitle: 'Interactive Tela Literary Analysis · 3 Questions · 6 Pts · Paired with Lorea Classic Reader',
-      kind: 'ASSIGNMENT',
-      sourceKind: 'GOOGLE_DOC',
-      sourceLabel: 'The Odyssey Book IX Analytical Worksheet (Google Doc)',
-      answerKeySourceLabel: 'ELA Department Master Rubric',
-      livingTemplateId: 'std-ws-kinfolk-editorial',
-      telaDocId: 'tela_acad_ela_odyssey',
-      lessonBlocks: [
-        {
-          id: 'b1',
-          kind: 'h1',
-          text: 'Homer’s Odyssey: Ingenuity, Hubris & Homecoming',
-        },
-        {
-          id: 'b2',
-          kind: 'p',
-          text: 'In Book IX of the Odyssey, Odysseus recounts his encounter with the Cyclops Polyphemus. Homer contrasts brute force with metis (wise resourcefulness and strategic patience), while warning how prideful boasting endangers the entire crew.',
-        },
-      ],
-      questions: [
-        {
-          id: 'acad_ela_q1',
-          number: 1,
-          prompt: 'How does Odysseus use strategic foresight (metis) rather than sheer physical strength to escape Polyphemus’ cave?',
-          type: 'multiple_choice',
-          options: [
-            'A) By concealing his identity as "Nobody" (Outis) and binding his men beneath the wool of the giant rams',
-            'B) By summoning an Athenian fleet to storm the island',
-            'C) By bribing Polyphemus with golden shields',
-            'D) By waiting for winter snows to freeze the Aegean Sea',
-          ],
-          correctAnswer: 'A) By concealing his identity as "Nobody" (Outis) and binding his men beneath the wool of the giant rams',
-          explanation: 'Odysseus’ "Outis" ("Nobody") wordplay prevents the other Cyclopes from intervening, and hiding beneath the rams allows his crew to pass undetected.',
-          points: 2,
-          skillId: 'skill_ela_textual_evidence',
-        },
-        {
-          id: 'acad_ela_q2',
-          number: 2,
-          prompt: 'What critical error of hubris (excessive pride) does Odysseus commit as his ship pulls away from the shore?',
-          type: 'multiple_choice',
-          options: [
-            'A) He shouts his true name and lineage back to Polyphemus, enabling the Cyclops to call upon Poseidon’s wrath',
-            'B) He abandons his rudder in the cave',
-            'C) He refuses to share food with his oarsmen',
-            'D) He sails directly into Charybdis',
-          ],
-          correctAnswer: 'A) He shouts his true name and lineage back to Polyphemus, enabling the Cyclops to call upon Poseidon’s wrath',
-          explanation: 'By boasting his real name and father’s name (Laertes of Ithaca), Odysseus turns a clean escape into a ten-year curse from Poseidon.',
-          points: 2,
-          skillId: 'skill_ela_character_arc',
-        },
-        {
-          id: 'acad_ela_q3',
-          number: 3,
-          prompt: 'Short Reflection: Compare ancient Greek metis (strategic wisdom) with biblical wisdom in Proverbs 16:18 ("Pride goes before destruction"). How do both texts warn leaders about pride?',
-          type: 'short_answer',
-          correctAnswer: 'humility',
-          explanation: 'Look for synthesis comparing Odysseus’ boastful hubris with the proverb that humility and restraint protect a leader’s household and mission.',
-          points: 2,
-          skillId: 'skill_ela_comparative_synthesis',
-        },
-      ],
-      masterySkills: [
-        { id: 'skill_ela_textual_evidence', title: 'ELA · Textual Evidence & Close Reading' },
-        { id: 'skill_ela_character_arc', title: 'ELA · Character Motivation & Hubris' },
-        { id: 'skill_ela_comparative_synthesis', title: 'ELA · Comparative Literary Synthesis' },
-      ],
-      sacredLibrarySupplements: [],
-      totalPoints: 6,
-      createdAt: now - 86400_000,
-    },
-    {
-      id: 'acad_unit_stem_astrolabe',
-      orgId: 'academia-campus',
-      programId: 'class-stem-lab',
-      departmentFolder: 'Academia · STEM & Quantitative Lab',
-      title: 'STEM & Astronomy: Celestial Coordinates, Ratios & Proportional Reasoning',
-      subtitle: 'Interactive Tela Lab Check · 3 Questions · 6 Pts · Celestial Astrolabe Template',
-      kind: 'QUIZ',
-      sourceKind: 'GOOGLE_FORM',
-      sourceLabel: 'STEM Celestial Navigation Formative Check (Google Form)',
-      answerKeySourceLabel: 'STEM Lab Auto-Grading Key',
-      livingTemplateId: 'ws-celestial-astrolabe',
-      telaDocId: 'tela_acad_stem_astrolabe',
-      lessonBlocks: [
-        {
-          id: 's1',
-          kind: 'h1',
-          text: 'Angular Altitude, Ratios & Celestial Navigation',
-        },
-        {
-          id: 's2',
-          kind: 'p',
-          text: 'Mariners and astronomers used brass astrolabes to measure the altitude angle of Polaris (the North Star) above the horizon. Because Earth is spherical, the altitude angle of Polaris in degrees equals the observer’s latitude in the Northern Hemisphere.',
-        },
-      ],
-      questions: [
-        {
-          id: 'acad_stem_q1',
-          number: 1,
-          prompt: 'If an astronomer in Ephesus measures Polaris at an altitude angle of 38° above the northern horizon, what is the approximate latitude of Ephesus?',
-          type: 'multiple_choice',
-          options: [
-            'A) 38° North Latitude',
-            'B) 52° South Latitude',
-            'C) 0° Equator',
-            'D) 90° North Pole',
-          ],
-          correctAnswer: 'A) 38° North Latitude',
-          explanation: 'The altitude of the celestial pole above the horizon equals the observer’s latitude (Ephesus is at ~37.9° N).',
-          points: 2,
-          skillId: 'skill_stem_angular_geometry',
-        },
-        {
-          id: 'acad_stem_q2',
-          number: 2,
-          prompt: 'A full circle on an astrolabe rim is divided into 360°. If 8 equal star-sector arcs span 240° in total, how many degrees does each individual sector arc measure?',
-          type: 'multiple_choice',
-          options: [
-            'A) 30° per sector arc',
-            'B) 45° per sector arc',
-            'C) 15° per sector arc',
-            'D) 60° per sector arc',
-          ],
-          correctAnswer: 'A) 30° per sector arc',
-          explanation: '240° ÷ 8 equal sectors = 30° per sector.',
-          points: 2,
-          skillId: 'skill_stem_proportional_ratios',
-        },
-        {
-          id: 'acad_stem_q3',
-          number: 3,
-          prompt: 'True or False: As a traveler journeys northward from Alexandria (31° N) toward Smyrna (38.4° N), the altitude of Polaris above the northern horizon increases.',
-          type: 'true_false',
-          options: ['True', 'False'],
-          correctAnswer: 'True',
-          explanation: 'Moving northward increases latitude, which directly raises the altitude angle of Polaris above the horizon.',
-          points: 2,
-          skillId: 'skill_stem_angular_geometry',
-        },
-      ],
-      masterySkills: [
-        { id: 'skill_stem_angular_geometry', title: 'STEM · Angular Geometry & Latitude' },
-        { id: 'skill_stem_proportional_ratios', title: 'STEM · Proportional Ratios & Rates' },
-      ],
-      sacredLibrarySupplements: [],
-      totalPoints: 6,
-      createdAt: now - 43200_000,
-    },
-  ];
-}
-
-/**
- * Ensures the Universal Student Desk has default digital assignments across both
- * Great Faith Ministries (Christian Education) and Academia so the student desk is
- * immediately populated and ready to test.
- */
-export async function ensureUniversalStudentDeskSeeded(
-  orgId: string = GREAT_FAITH_MINISTRIES_DEFAULT_ID
-): Promise<UniversalDeskAssignment[]> {
-  const cleanOrgId =
-    !orgId || orgId === 'demo-grace-chapel' || orgId.startsWith('demo-')
-      ? GREAT_FAITH_MINISTRIES_DEFAULT_ID
-      : orgId;
-
-  // Ensure all 9 Revelation 2: Course Connection documents are onboarded first
-  const churchUnits = await ensureAllDetectedLinksOnboarded(cleanOrgId);
-  const existing = readStoredAssignments();
-
-  const existingUnitIds = new Set(existing.map(a => a.unitId));
-  const additions: UniversalDeskAssignment[] = [];
-  const now = Date.now();
-
-  // Seed the Revelation 2 units into Great Faith Ministries Christian Education classrooms
-  const classroomRotation = [
-    { id: 'prog-adult-bible-study', name: 'Wednesday Sanctuary Bible Study (Rev 2)' },
-    { id: 'prog-sunday-school', name: 'Sunday Morning Christian Education' },
-    { id: 'prog-theology-track', name: 'Great Faith Leadership & Theology Track' },
-  ];
-
-  churchUnits.forEach((unit, idx) => {
-    if (existingUnitIds.has(unit.id)) return;
-    const targetClass = classroomRotation[idx % classroomRotation.length];
-    const tpl = unit.livingTemplateId
-      ? getLivingTemplateById(unit.livingTemplateId)
-      : getDefaultLivingTemplateForUnit(unit.kind, unit.title);
-
-    additions.push({
-      id: `desk_assign_${unit.id}`,
-      unitId: unit.id,
-      telaDocId: unit.telaDocId,
-      domain: 'CHRISTIAN_EDUCATION',
-      orgId: cleanOrgId,
-      orgName: GREAT_FAITH_MINISTRIES_NAME,
-      classroomId: targetClass.id,
-      classroomName: targetClass.name,
-      departmentFolder: unit.departmentFolder || 'Christian Education',
-      title: unit.title,
-      subtitle: unit.subtitle,
-      instructions:
-        unit.kind === 'QUIZ' || unit.kind === 'TEST'
-          ? 'Complete all assessment prompts on your Tela Desk, review your Sacred Library primary sources, and click Turn In to auto-grade and update your Mastery Graph.'
-          : 'Read the Frame 1 Scripture & Lesson guide, inspect the attached Lorea Sacred Library primary sources in your Desk Reference Drawer, fill out each worksheet prompt, and Turn In to your instructor.',
-      unitKind: unit.kind,
-      livingTemplateId: tpl.id,
-      assignedByUid: 'instructor_great_faith',
-      assignedByName: 'Pastor & Christian Education Faculty',
-      assignedAt: now - (9 - idx) * 3600_000,
-      dueAt: now + ((idx % 4) + 1) * 86400_000,
-      dueLabel:
-        idx === 0
-          ? 'Due Today · Sunday 9:15 AM'
-          : idx === 1
-          ? 'Due Tomorrow · 11:59 PM'
-          : `Due in ${(idx % 5) + 2} Days`,
-      totalPoints: unit.totalPoints,
-      questionCount: unit.questions.length,
-      toolsConfig: {
-        allowSacredLibraryAndReferences: true,
-        allowSelfCheckBeforeTurnIn: true,
-        allowScratchpadNotes: true,
-        allowHandRaiseQuestion: true,
-      },
-      unitSnapshot: unit,
-    });
-  });
-
-  // Also seed the 2 Academia units so Academia & Universal views have STEM & ELA work ready
-  const acadUnits = buildStarterAcademiaUnits();
-  acadUnits.forEach((unit, idx) => {
-    if (existingUnitIds.has(unit.id)) return;
-    additions.push({
-      id: `desk_assign_${unit.id}`,
-      unitId: unit.id,
-      telaDocId: unit.telaDocId,
-      domain: 'ACADEMIA',
-      orgId: 'academia-campus',
-      orgName: 'Plajah Academia',
-      classroomId: unit.programId || 'class-academia',
-      classroomName: idx === 0 ? 'Honors Humanities & Literature' : 'STEM Quantitative & Astronomy Lab',
-      departmentFolder: unit.departmentFolder || 'Academia',
-      title: unit.title,
-      subtitle: unit.subtitle,
-      instructions:
-        'Complete the interactive Tela worksheet on your Student Desk. Use the Self-Check tool to verify your answers before turning in.',
-      unitKind: unit.kind,
-      livingTemplateId: unit.livingTemplateId || 'ws-celestial-astrolabe',
-      assignedByUid: 'teacher_academia',
-      assignedByName: 'Prof. Elena Vance · Academia Faculty',
-      assignedAt: now - 14400_000,
-      dueAt: now + (idx + 1) * 86400_000,
-      dueLabel: idx === 0 ? 'Due Tomorrow · 3:30 PM' : 'Due Friday · 5:00 PM',
-      totalPoints: unit.totalPoints,
-      questionCount: unit.questions.length,
-      toolsConfig: {
-        allowSacredLibraryAndReferences: true,
-        allowSelfCheckBeforeTurnIn: true,
-        allowScratchpadNotes: true,
-        allowHandRaiseQuestion: true,
-      },
-      unitSnapshot: unit,
-    });
-  });
-
-  if (additions.length > 0) {
-    const merged = [...additions, ...existing];
-    writeStoredAssignments(merged);
-    return merged;
-  }
-
-  return existing;
 }
 
 export function listDeskAssignments(filter?: {
@@ -499,7 +219,7 @@ export function assignUnitToClassroomDesk(params: {
     instructions: params.instructions?.trim() || '',
     unitKind: params.unit.kind,
     livingTemplateId: tplId,
-    assignedByUid: params.assignedByUid || 'instructor_great_faith',
+    assignedByUid: params.assignedByUid || auth.currentUser?.uid || 'class_instructor',
     assignedByName: params.assignedByName || 'Class Instructor',
     assignedAt: Date.now(),
     dueAt: params.dueAt || Date.now() + 2 * 86400_000,

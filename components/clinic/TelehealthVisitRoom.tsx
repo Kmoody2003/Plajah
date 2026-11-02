@@ -120,7 +120,7 @@ export const TelehealthVisitRoom: React.FC<TelehealthVisitRoomProps> = ({
   useEffect(() => {
 
     // Load existing SOAP note if present
-    getSoapNoteByAppointmentId(appointment.id).then(existing => {
+    getSoapNoteByAppointmentId(appointment.id, appointment.businessId).then(existing => {
       if (existing) setSoapNote(existing);
     });
   }, [appointment.id]);

@@ -113,11 +113,13 @@ async function lightProxy(
   extraHeaders?: Record<string, string>
 ): Promise<any> {
   const params = new URLSearchParams({ url: targetUrl, method });
-  if (extraHeaders?.['Govee-API-Key']) params.set('goveeKey', extraHeaders['Govee-API-Key']);
-  if (extraHeaders?.['Authorization']) params.set('hueToken', extraHeaders['Authorization'].replace('Bearer ', ''));
+  // Device keys travel in headers: query strings end up in access logs.
+  const keyHeaders: Record<string, string> = {};
+  if (extraHeaders?.['Govee-API-Key']) keyHeaders['X-Govee-Key'] = extraHeaders['Govee-API-Key'];
+  if (extraHeaders?.['Authorization']) keyHeaders['X-Hue-Token'] = extraHeaders['Authorization'].replace('Bearer ', '');
   const res = await fetch(`/api/lights/proxy?${params}`, {
     method: body ? 'POST' : 'GET',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...keyHeaders },
     body: body ? JSON.stringify({ targetMethod: method, body }) : undefined,
   });
   return res.ok ? res.json().catch(() => null) : null;

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { exec } from 'node:child_process';
 import util from 'node:util';
 import path from 'node:path';
+import { requireLan } from './homeHubRoutes';
 import { matterMdnsDiscovery, DiscoveredSmartDevice } from '../services/home/matterMdnsDiscovery';
 
 const execAsync = util.promisify(exec);
@@ -27,7 +28,7 @@ let lastScanTime = 0;
 
 export const homeDiscoveryRouter = Router();
 
-homeDiscoveryRouter.get('/api/home/discover', async (req, res) => {
+homeDiscoveryRouter.get('/api/home/discover', requireLan, async (req, res) => {
   const force = req.query.force === 'true';
   const now = Date.now();
 

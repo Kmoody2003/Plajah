@@ -9,10 +9,17 @@ import type {
   EducationalPrescription,
 } from '../types/clinic';
 import { ROSTER, RosterCourse } from '../data/lawMedicineRoster';
+import { activeScopeUid, adoptOwnedRows, scopedKey, userScopedKey } from './userScope';
 
-const SOAP_STORAGE_KEY = 'plajah_soap_notes_cache';
-const INTAKE_STORAGE_KEY = 'plajah_intake_forms_cache';
-const AUDIT_STORAGE_KEY = 'plajah_hipaa_audit_cache';
+/** This account's notes on this device. An old shared list gives up the notes this account wrote. */
+const SOAP_STORAGE_KEY = () => {
+  const uid = activeScopeUid();
+  const key = userScopedKey(uid, 'plajah_soap_notes_cache');
+  if (uid) adoptOwnedRows<ClinicalSoapNote>('plajah_soap_notes_cache', key, n => n?.providerId === uid);
+  return key;
+};
+const INTAKE_STORAGE_KEY = () => scopedKey('plajah_intake_forms_cache');
+const AUDIT_STORAGE_KEY = () => scopedKey('plajah_hipaa_audit_cache');
 
 // Seed demo SOAP notes
 const DEFAULT_DEMO_SOAP_NOTES: ClinicalSoapNote[] = [
@@ -119,23 +126,29 @@ let inMemoryAuditLogs: AuditLogEntry[] = [];
 let inMemorySoapNotes: ClinicalSoapNote[] = [...DEFAULT_DEMO_SOAP_NOTES];
 let inMemoryIntakeForms: PatientIntakeForm[] = [...DEFAULT_DEMO_INTAKE];
 
-export async function fetchSoapNotesForBusiness(businessId: string): Promise<ClinicalSoapNote[]> {
+/** Every note this account holds on this device, across the clinics it works at. */
+function readAllSoapNotes(): ClinicalSoapNote[] {
   try {
     if (typeof localStorage !== 'undefined') {
-      const raw = localStorage.getItem(SOAP_STORAGE_KEY);
+      const raw = localStorage.getItem(SOAP_STORAGE_KEY());
       if (raw) return JSON.parse(raw);
+      return [...DEFAULT_DEMO_SOAP_NOTES];
     }
   } catch (e) {}
   return inMemorySoapNotes;
 }
 
-export async function getSoapNoteByAppointmentId(appointmentId: string): Promise<ClinicalSoapNote | null> {
-  const notes = await fetchSoapNotesForBusiness('demo');
+export async function fetchSoapNotesForBusiness(businessId: string): Promise<ClinicalSoapNote[]> {
+  return readAllSoapNotes().filter(n => n.businessId === businessId);
+}
+
+export async function getSoapNoteByAppointmentId(appointmentId: string, businessId: string): Promise<ClinicalSoapNote | null> {
+  const notes = await fetchSoapNotesForBusiness(businessId);
   return notes.find(n => n.appointmentId === appointmentId) || null;
 }
 
 export async function saveSoapNote(note: ClinicalSoapNote): Promise<ClinicalSoapNote> {
-  const notes = await fetchSoapNotesForBusiness(note.businessId);
+  const notes = readAllSoapNotes();
   const index = notes.findIndex(n => n.id === note.id);
   if (index >= 0) {
     notes[index] = note;
@@ -145,7 +158,7 @@ export async function saveSoapNote(note: ClinicalSoapNote): Promise<ClinicalSoap
   inMemorySoapNotes = notes;
   try {
     if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(SOAP_STORAGE_KEY, JSON.stringify(notes));
+      localStorage.setItem(SOAP_STORAGE_KEY(), JSON.stringify(notes));
     }
   } catch (e) {}
 
@@ -161,15 +174,15 @@ export async function saveSoapNote(note: ClinicalSoapNote): Promise<ClinicalSoap
   return note;
 }
 
-export async function fetchIntakeByAppointmentId(appointmentId: string): Promise<PatientIntakeForm | null> {
+export async function fetchIntakeByAppointmentId(appointmentId: string, businessId: string): Promise<PatientIntakeForm | null> {
+  const match = (forms: PatientIntakeForm[]) => forms.find(f => f.appointmentId === appointmentId && f.businessId === businessId) || null;
   try {
     if (typeof localStorage !== 'undefined') {
-      const raw = localStorage.getItem(INTAKE_STORAGE_KEY);
-      const forms: PatientIntakeForm[] = raw ? JSON.parse(raw) : DEFAULT_DEMO_INTAKE;
-      return forms.find(f => f.appointmentId === appointmentId) || forms[0] || null;
+      const raw = localStorage.getItem(INTAKE_STORAGE_KEY());
+      return match(raw ? JSON.parse(raw) : DEFAULT_DEMO_INTAKE);
     }
   } catch (e) {}
-  return inMemoryIntakeForms.find(f => f.appointmentId === appointmentId) || inMemoryIntakeForms[0] || null;
+  return match(inMemoryIntakeForms);
 }
 
 export async function saveIntakeForm(form: PatientIntakeForm): Promise<PatientIntakeForm> {
@@ -179,7 +192,7 @@ export async function saveIntakeForm(form: PatientIntakeForm): Promise<PatientIn
 
   try {
     if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(INTAKE_STORAGE_KEY, JSON.stringify(inMemoryIntakeForms));
+      localStorage.setItem(INTAKE_STORAGE_KEY(), JSON.stringify(inMemoryIntakeForms));
     }
   } catch (e) {}
   return form;
@@ -243,7 +256,7 @@ export async function logHipaaAudit(entry: Omit<AuditLogEntry, 'id' | 'timestamp
 
   try {
     if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(inMemoryAuditLogs));
+      localStorage.setItem(AUDIT_STORAGE_KEY(), JSON.stringify(inMemoryAuditLogs));
     }
   } catch (e) {}
 
@@ -253,7 +266,7 @@ export async function logHipaaAudit(entry: Omit<AuditLogEntry, 'id' | 'timestamp
 export function fetchAuditLogs(): AuditLogEntry[] {
   try {
     if (typeof localStorage !== 'undefined') {
-      const raw = localStorage.getItem(AUDIT_STORAGE_KEY);
+      const raw = localStorage.getItem(AUDIT_STORAGE_KEY());
       if (raw) return JSON.parse(raw);
     }
   } catch (e) {}

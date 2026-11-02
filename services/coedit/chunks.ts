@@ -5,7 +5,7 @@
 // an old and a new snapshot: the pointer doc flips only after every chunk of the new one is written.
 
 import { collection, deleteDoc, doc, getDoc, setDoc, writeBatch } from 'firebase/firestore';
-import { opsDb } from '../firebase';
+import { auth, opsDb } from '../firebase';
 import { COEDIT } from './project';
 
 const CHUNK_CHARS = 700_000;
@@ -38,7 +38,7 @@ export async function writeChunks(projectId: string, key: string, json: string):
   for (let i = 0; i < data.length; i += CHUNK_CHARS) parts.push(data.slice(i, i + CHUNK_CHARS));
   if (!parts.length) parts.push('');
   // One chunk per batch keeps every write well under the request size cap.
-  for (let i = 0; i < parts.length; i++) await setDoc(chunkRef(projectId, key, i), { d: parts[i], n: parts.length });
+  for (let i = 0; i < parts.length; i++) await setDoc(chunkRef(projectId, key, i), { d: parts[i], n: parts.length, by: auth.currentUser?.uid ?? '' });
   return { chunks: parts.length, size: data.length };
 }
 

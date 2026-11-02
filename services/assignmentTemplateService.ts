@@ -10,9 +10,10 @@
 //
 // Firestore: assignmentTemplates/{templateId} — flat collection, ownerUid-scoped.
 
+import { fetchGuardiansOf } from './userPrivate';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { db, opsDb, auth } from './firebase';
-import { createNotification, fetchUserProfiles } from './backendService';
+import { createNotification } from './backendService';
 import { appendRecord, loadProficiency } from './learningLedgerService';
 import { gateForCommercialUse, mostRestrictive, type GateResult, type License } from './oerLicenseGate';
 import { libraryItemById, ledgerFrameworkFor } from '../data/oerLibrary';
@@ -182,8 +183,7 @@ export async function assignTemplate(input: AssignInput): Promise<AssignResult> 
   let guardianUids: string[] = [];
   if (!simulate) {
     try {
-      const profs = await fetchUserProfiles(students.map(s => s.id));
-      guardianUids = [...new Set(profs.flatMap((p: any) => [p?.guardianUid, ...(p?.coGuardianUids || [])]).filter(Boolean))] as string[];
+      guardianUids = [...new Set(Object.values(await fetchGuardiansOf(students.map(s => s.id))).flat())];
     } catch { /* non-fatal — the assignment still goes out */ }
   }
 

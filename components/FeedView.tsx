@@ -1456,7 +1456,8 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   // Shell "New Post" entry — the Creator Hub / pillar New Post lands here and pops
   // the composer open (bumping this key remounts the composer with autoExpand).
   const [composeSignal, setComposeSignal] = useState(0);
-  const { activeOrg } = useActiveIdentity();
+  // Being in an org's account isn't speaking for it: posts carry its name only if this person may post as it.
+  const { postingOrg: activeOrg } = useActiveIdentity();
   const [orgPostAudience, setOrgPostAudience] = useState<OrgPostAudience>('PUBLIC');
   const [orgTarget, setOrgTarget] = useState<OrgPostTarget>(() => defaultOrgPostTarget('PUBLIC'));
   // The full org (departments / ministry groups) — department targets fan out into one post per department.

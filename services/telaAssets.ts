@@ -1,10 +1,9 @@
 // telaAssets — image upload for the Tela Image device (P2).
 //
-// Signed-in users: the file is uploaded to Firebase Storage under
-// `users/{uid}/tela/{id}_{safe}` (the existing owner-write rule covers this
-// path) and the durable download URL is returned. Guests: no account to write
-// to, so we hand back a session-only object: URL — usable this session, gone on
-// reload (the caller flags the layer `sessionOnly` and the UI says so).
+// A document's media goes to `tela-media/{pid}/…`, which no client can read. It is served by /api/tela-media after a
+// check against the document's members, so revoking someone ends what they can load. Uploads with no document open
+// (Notes pages, Stage backgrounds) keep their durable `users/{uid}/tela/` link. Guests have no account to write to, so
+// they get a session-only object: URL, gone on reload (the caller flags the layer `sessionOnly` and the UI says so).
 //
 // Mirrors the resumable-upload + fresh-token recipe used across the app
 // (orgAssets / backendService): getIdToken(true) first so a hot-switched
@@ -12,6 +11,7 @@
 
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage, auth } from './firebase';
+import { ensureTelaMediaSession } from './tela/telaMediaSession';
 
 export interface TelaUploadResult {
   src: string;
@@ -32,6 +32,10 @@ function contentTypeFor(file: File): string {
   } as Record<string, string>)[ext] || 'application/octet-stream';
 }
 
+let activeDoc: { pid: string; orgId?: string } | null = null;
+/** The document open in the editor; what's uploaded while it's open belongs to it. */
+export function setActiveTelaMediaDoc(doc: { pid: string; orgId?: string } | null) { activeDoc = doc; }
+
 /**
  * Upload one image for an Image device. Guests get a session-only object URL;
  * signed-in users get a durable Storage URL under their own `users/{uid}/tela/`.
@@ -47,18 +51,24 @@ export async function uploadTelaImage(
   }
   try { await u.getIdToken(true); } catch { /* the write below surfaces a real auth error */ }
   const safe = file.name.replace(/[^\w.\-]+/g, '_').slice(-64) || 'image';
-  const storagePath = `users/${u.uid}/tela/${uid()}_${safe}`;
-  const storageRef = ref(storage, storagePath);
   const contentType = contentTypeFor(file);
-  const src = await new Promise<string>((resolve, reject) => {
+  const doc = activeDoc;
+  const pid = doc ? doc.pid.replace(/[^\w.\-]+/g, '_') : '';
+  const name = `${uid()}_${safe}`;
+  const relative = doc ? (doc.orgId ? `${pid}/org/${encodeURIComponent(doc.orgId)}/${u.uid}/${name}` : `${pid}/user/${u.uid}/${name}`) : '';
+  const storagePath = doc ? `tela-media/${doc.orgId ? `${pid}/org/${doc.orgId}/${u.uid}/${name}` : `${pid}/user/${u.uid}/${name}`}` : `users/${u.uid}/tela/${name}`;
+  const storageRef = ref(storage, storagePath);
+  if (doc) await ensureTelaMediaSession();
+  const durable = await new Promise<string>((resolve, reject) => {
     const task = uploadBytesResumable(storageRef, file, { contentType });
     task.on(
       'state_changed',
       s => onProgress?.((s.bytesTransferred / Math.max(1, s.totalBytes)) * 100),
       err => reject(err),
-      async () => resolve(await getDownloadURL(task.snapshot.ref)),
+      async () => { try { resolve(doc ? '' : await getDownloadURL(task.snapshot.ref)); } catch (e) { reject(e); } },
     );
   });
+  const src = doc ? `/api/tela-media/${relative}` : durable;
   return { src, storagePath, sessionOnly: false };
 }
 

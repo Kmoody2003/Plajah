@@ -18,6 +18,7 @@
  * utilities + dvh-based sheets so no control ever renders off-screen.
  */
 
+import { studioKey } from '../services/fabula/fabulaSync';
 import { createPortal } from 'react-dom';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -1378,8 +1379,8 @@ function MobileStreamer({ onClose, clubId, isPrivate, liveOverlay }: { onClose: 
     if (!blob || blob.size < 1000) { alert('No recording to send yet.'); return; }
     const finalTitle = (title.trim() || 'Live Stream').replace(/[^\w.\-]+/g, '_');
     try {
-      await idbSet('fabula:incomingClip', { blob, name: `${finalTitle}.webm`, mime: blob.type || 'video/webm' });
-      await idbSet('studio:handoff', { importClip: true });
+      await idbSet(studioKey('fabula:incomingClip'), { blob, name: `${finalTitle}.webm`, mime: blob.type || 'video/webm' });
+      await idbSet(studioKey('studio:handoff'), { importClip: true });
       setSentToFabula(true);
       window.dispatchEvent(new CustomEvent('OPEN_FABULA'));
       setTimeout(onClose, 800);

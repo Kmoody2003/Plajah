@@ -248,7 +248,7 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
           {openStudentDesk && (
             <div style={{ marginBottom: 16 }}>
               <UniversalStudentDesk
-                studentUid={uid || 'student_academia'}
+                studentUid={uid || undefined}
                 studentName={profile?.displayName || 'Student Scholar'}
                 defaultDomain="ALL"
                 onBack={() => setOpenStudentDesk(false)}

@@ -193,6 +193,7 @@ function toValue(v: unknown): any {
   if (typeof v === 'string') return { stringValue: v };
   if (typeof v === 'boolean') return { booleanValue: v };
   if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  if (v instanceof Date) return { timestampValue: v.toISOString() };
   if (Array.isArray(v)) return { arrayValue: { values: v.map(toValue) } };
   if (typeof v === 'object') return { mapValue: { fields: toFields(v as Record<string, unknown>) } };
   return { stringValue: String(v) };
@@ -263,6 +264,23 @@ export async function fsPatch(path: string, data: Record<string, unknown>): Prom
   } catch { return false; }
 }
 
+const PRIVATE_USER_FIELDS = ['email', 'birthYear', 'dateOfBirth', 'guardianUid', 'coGuardianUids', 'provisionedByTeacherUid', 'childUids', 'parentalControls'];
+
+/** A user with users/{uid} and users/{uid}/private/profile merged, or null if there is no user. */
+export async function fsGetUser(uid: string): Promise<Record<string, any> | null> {
+  const [pub, priv] = await Promise.all([fsGet(`users/${uid}`), fsGet(`users/${uid}/private/profile`)]);
+  return pub ? { ...pub, ...(priv || {}) } : null;
+}
+
+/** Patch a user, sending private fields to private/profile. */
+export async function fsPatchUser(uid: string, data: Record<string, unknown>): Promise<boolean> {
+  const pub: Record<string, unknown> = {}, priv: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(data)) (PRIVATE_USER_FIELDS.includes(k) ? priv : pub)[k] = v;
+  const a = Object.keys(pub).length ? await fsPatch(`users/${uid}`, pub) : true;
+  const b = Object.keys(priv).length ? await fsPatch(`users/${uid}/private/profile`, priv) : true;
+  return a && b;
+}
+
 /** Append a doc with an auto id to a collection. Returns new id or null. */
 export async function fsCreate(collection: string, data: Record<string, unknown>): Promise<string | null> {
   try {
@@ -331,7 +349,7 @@ export async function fsBatchWrite(docs: { path: string; data: Record<string, un
  *  bypasses security rules, so callers must do their own authorization. */
 export async function fsList(
   collection: string,
-  opts: { pageSize?: number; maxDocs?: number } = {},
+  opts: { pageSize?: number; maxDocs?: number; idsOnly?: boolean } = {},
 ): Promise<Array<{ id: string; data: Record<string, any> }>> {
   const pageSize = opts.pageSize ?? 100;
   const maxDocs = opts.maxDocs ?? 1000;
@@ -339,7 +357,7 @@ export async function fsList(
   let pageToken: string | undefined;
   try {
     do {
-      const qs = `pageSize=${pageSize}${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
+      const qs = `pageSize=${pageSize}${opts.idsOnly ? '&mask.fieldPaths=__name__' : ''}${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
       const res = await fetch(`${baseFor(collection)}/${collection}?${qs}`, { headers: await authHeaders() });
       if (!res.ok) break;
       const json = await res.json() as any;
@@ -357,18 +375,19 @@ export async function fsList(
  *  filters are AND-ed. Returns id + data, max `limit` docs. */
 export async function fsQuery(
   collection: string,
-  filters: { field: string; value: string | number | boolean }[],
+  filters: { field: string; value: string | number | boolean; op?: 'EQUAL' | 'ARRAY_CONTAINS' | 'LESS_THAN_OR_EQUAL' }[],
   limit = 50,
+  orderBy?: { field: string; direction: 'ASCENDING' | 'DESCENDING' },
 ): Promise<Array<{ id: string; data: Record<string, any> }>> {
-  const fieldFilter = (f: { field: string; value: string | number | boolean }) => ({
+  const fieldFilter = (f: { field: string; value: string | number | boolean; op?: 'EQUAL' | 'ARRAY_CONTAINS' | 'LESS_THAN_OR_EQUAL' }) => ({
     fieldFilter: {
       field: { fieldPath: f.field },
-      op: 'EQUAL',
+      op: f.op || 'EQUAL',
       value: typeof f.value === 'string' ? { stringValue: f.value } : typeof f.value === 'boolean' ? { booleanValue: f.value } : Number.isInteger(f.value) ? { integerValue: String(f.value) } : { doubleValue: f.value },
     },
   });
   const where = filters.length === 1 ? fieldFilter(filters[0]) : { compositeFilter: { op: 'AND', filters: filters.map(fieldFilter) } };
-  const body = { structuredQuery: { from: [{ collectionId: collection }], where, limit } };
+  const body = { structuredQuery: { from: [{ collectionId: collection }], where, limit, ...(orderBy ? { orderBy: [{ field: { fieldPath: orderBy.field }, direction: orderBy.direction }] } : {}) } };
   try {
     const res = await fetch(`${baseFor(collection)}:runQuery`, { method: 'POST', headers: await authHeaders(), body: JSON.stringify(body) });
     if (!res.ok) return [];

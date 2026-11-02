@@ -77,6 +77,7 @@ export async function setAdviserApproval(issueId: string, approve: boolean, note
  * Lorea's Periodicals shelf and the issue reader read published issues directly.
  */
 export async function publishIssueEdition(issue: PeriodicalIssue, telaDoc: TelaDoc, flatPdfUrl?: string): Promise<{ ok: boolean; error?: string }> {
+  await import('../tela/telaMediaSession').then(m => m.releaseDocMediaToPublic(telaDoc)).catch(() => {});
   const { publishTelaVersion } = await import('../telaStore');
   const { ok, version } = await publishTelaVersion({ ...telaDoc, updatedAt: Date.now() }, `Vol. ${issue.volume} No. ${issue.number}`);
   if (!ok) return { ok: false, error: 'Could not freeze the issue on this device.' };

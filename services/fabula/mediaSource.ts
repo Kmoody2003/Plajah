@@ -1,3 +1,4 @@
+import { studioKey } from './fabulaSync';
 import { getBytes, putBytes, hasBytes } from './mediaStore';
 import { getFileFromFolder } from './syncFolders';
 import { get as idbGet } from 'idb-keyval';
@@ -163,7 +164,7 @@ export async function resolveMediaSource(asset: any, _recover = false, picture =
 
   if (asset?.localFileHandle) {
     try {
-      const handle: any = await idbGet('studio:handle:' + asset.id);
+      const handle: any = await idbGet(studioKey('studio:handle:' + asset.id));
       if (handle && (await handle.queryPermission({ mode: 'read' })) === 'granted') {
         const file = await handle.getFile();
         if (file.size) return owned(file, 'folder');

@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Crown, Loader2, LogOut, Search, UserPlus, X } from 'lucide-react';
 import { auth } from '../../services/firebase';
 import { searchUserProfilesSafe } from '../../services/searchUsersSafe';
-import { addMembers, personColor, removeMember, revokeMember, ROLE_LABEL, setRole, type CoProject, type CoRole } from '../../services/coedit/project';
+import { addMembers, CoAccessError, personColor, removeMember, revokeMember, ROLE_LABEL, setRole, type CoProject, type CoRole } from '../../services/coedit/project';
 import type { Presence } from '../../services/coedit/session';
 import type { UserProfile } from '../../types';
 import { ago, btn, btnPrimary, card, initials, input, lbl } from './collabUi';
@@ -98,7 +98,7 @@ export const CollabPeople: React.FC<{
           <button
             className={`${btn} self-start mt-1`}
             onClick={() => {
-              if (confirm('Leave this project? Your private draft and saved copies stay with you until you clear them.')) void removeMember(project, uid);
+              if (confirm('Leave this project? Your private draft and saved copies stay with you until you clear them.')) void removeMember(project, uid).catch(() => {});
             }}
           >
             <LogOut size={11} /> Leave project
@@ -163,6 +163,7 @@ const Invite: React.FC<{ project: CoProject }> = ({ project }) => {
   const [picked, setPicked] = useState<UserProfile[]>([]);
   const [role, setRoleSel] = useState<Exclude<CoRole, 'owner'>>('editor');
   const [busy, setBusy] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   useEffect(() => {
     const term = q.trim();
@@ -225,13 +226,18 @@ const Invite: React.FC<{ project: CoProject }> = ({ project }) => {
           disabled={!picked.length || busy}
           onClick={async () => {
             setBusy(true);
+            setInviteError(null);
+            const people = picked.map((u) => ({ uid: u.uid, name: u.displayName, photo: u.photoURL }));
             try {
-              await addMembers(
-                project,
-                picked.map((u) => ({ uid: u.uid, name: u.displayName, photo: u.photoURL })),
-                role
-              );
+              try {
+                await addMembers(project, people, role);
+              } catch (e) {
+                if (!(e instanceof CoAccessError) || e.code !== 'OUTSIDE_ORG' || !e.canOverride || !confirm(`${e.message} Share this document with them anyway?`)) throw e;
+                await addMembers(project, people, role, true);
+              }
               setPicked([]);
+            } catch (e) {
+              setInviteError(e instanceof Error ? e.message : 'Could not invite them.');
             } finally {
               setBusy(false);
             }
@@ -240,6 +246,7 @@ const Invite: React.FC<{ project: CoProject }> = ({ project }) => {
           {busy ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />} Invite
         </button>
       </div>
+      {inviteError && <p role="alert" className="text-[.65rem] text-red-300 leading-relaxed">{inviteError}</p>}
       <p className="text-[.6rem] text-white/35 leading-relaxed">Everyone you invite also joins the project's team chat.</p>
     </section>
   );

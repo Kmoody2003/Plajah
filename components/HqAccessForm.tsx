@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Ban, Globe, Loader2, Lock } from 'lucide-react';
 import type { Organization, OrgMembership } from '../types';
 import type { OrgAsset } from '../services/orgAssets';
-import { setHqAssetAccess } from '../services/orgAssets';
-import { fetchOrganization, fetchOrgMembers } from '../services/organizationService';
+import { listHqOrgShares, setHqAssetAccess, setHqOrgShare } from '../services/orgAssets';
+import { fetchOrganization, fetchOrgMembers, fetchPublicOrganizations } from '../services/organizationService';
 import { ELEVATE_ROLES } from '../services/elevateRoles';
 import { auth } from '../services/firebase';
 
@@ -74,6 +74,49 @@ export const HqAccessForm: React.FC<{ asset: OrgAsset; onChanged?: () => void }>
       : <button disabled={busy} onClick={() => save('revoked')} className="w-full py-2.5 rounded-xl bg-white/5 text-red-300 text-[10px] font-black uppercase tracking-widest disabled:opacity-50"><Ban className="inline w-3.5 h-3.5 mr-1.5" />Revoke use</button>}
     <p className="text-[11px] text-white/40">The owner and IT Admins can always open this file. Copies already downloaded or pasted into another document aren't recalled.</p>
     {note && <p className="text-xs text-white/60">{note}</p>}
+    {org.creatorId === uid || org.itAdminUids?.includes(uid || '') ? <OrgShareForm asset={asset} open={mode === 'open'} /> : null}
+  </div>;
+};
+
+/** Hands the file to another org, read-only. Their people see it under Shared with me in that org's HQ, nowhere else. */
+const OrgShareForm: React.FC<{ asset: OrgAsset; open: boolean }> = ({ asset, open }) => {
+  const [shared, setShared] = useState<{ id: string; name: string }[]>([]);
+  const [orgs, setOrgs] = useState<Organization[]>([]);
+  const [q, setQ] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+
+  useEffect(() => {
+    let live = true;
+    listHqOrgShares(asset.id).then(rows => { if (live && rows) setShared(rows); }).catch(() => {});
+    fetchPublicOrganizations().then(rows => { if (live) setOrgs(rows); }).catch(() => {});
+    return () => { live = false; };
+  }, [asset.id]);
+
+  const change = async (id: string, name: string, on: boolean) => {
+    setBusy(true); setNote('');
+    try {
+      await setHqOrgShare(asset.id, id, on);
+      setShared(list => (on ? [...list.filter(x => x.id !== id), { id, name }] : list.filter(x => x.id !== id)));
+      setQ('');
+    } catch (e: any) { setNote(e?.message || 'Could not save.'); } finally { setBusy(false); }
+  };
+
+  const needle = q.trim().toLowerCase();
+  const matches = needle ? orgs.filter(o => o.id !== asset.scopeId && !shared.some(s => s.id === o.id) && (o.name || '').toLowerCase().includes(needle)).slice(0, 6) : [];
+
+  return <div className="pt-4 border-t border-white/10 space-y-2">
+    <div className="text-[10px] font-black uppercase tracking-widest text-white/40">Other organizations</div>
+    {shared.map(s => <div key={s.id} className="flex items-center gap-2 p-2.5 rounded-xl bg-white/[0.03] border border-white/10">
+      <span className="text-xs text-white/80 flex-1 truncate">{s.name}</span>
+      <button disabled={busy} onClick={() => change(s.id, s.name, false)} className="text-[10px] font-black uppercase tracking-widest text-red-300 disabled:opacity-50">Take back</button>
+    </div>)}
+    {open
+      ? <><input value={q} onChange={e => setQ(e.target.value)} placeholder="Find an organization to share with" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm outline-none" />
+        {matches.map(o => <button key={o.id} disabled={busy} onClick={() => change(o.id, o.name, true)} className="w-full text-left px-3 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-xs text-white/70 hover:text-white disabled:opacity-50">Share with {o.name}</button>)}
+        <p className="text-[11px] text-white/40">They can view and download it. They can't change it, and it never reaches anyone's personal account.</p></>
+      : <p className="text-[11px] text-white/40">Only a file open to the whole org can be shared with another organization.</p>}
+    {note && <p className="text-xs text-red-300">{note}</p>}
   </div>;
 };
 

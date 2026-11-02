@@ -21,7 +21,8 @@
 // registered on the Plajah developer app, or Audius rejects the authorize request. See
 // docs/AUDIUS_OUTREACH_AND_INTEGRATION.md § "Developer app setup".
 
-import { auth, updateUserProfile } from './backendService';
+import { auth, fetchUserProfile, updateUserProfile } from './backendService';
+import { adoptOwnedValue, scopedKey, userScopedKey } from './userScope';
 
 export const AUDIUS_API_BASE = 'https://api.audius.co/v1';
 
@@ -29,7 +30,8 @@ export const AUDIUS_API_BASE = 'https://api.audius.co/v1';
 export const AUDIUS_API_KEY =
   (import.meta as any).env?.VITE_AUDIUS_API_KEY || '9504e71d3b7450c321850ca4451aff09e72d6b01';
 
-const SESSION_KEY = 'plajah_audius_session';
+const LEGACY_SESSION_KEY = 'plajah_audius_session';
+const SESSION_KEY = () => scopedKey(LEGACY_SESSION_KEY);
 const CSRF_KEY = 'plajah_audius_state';
 const VERIFIER_KEY = 'plajah_audius_verifier';
 const REDIRECT_KEY = 'plajah_audius_redirect';
@@ -62,7 +64,7 @@ export function audiusRedirectUri(): string {
 
 export function getAudiusSession(): AudiusSession | null {
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
+    const raw = localStorage.getItem(SESSION_KEY());
     if (!raw) return null;
     const s = JSON.parse(raw) as AudiusSession;
     return s?.userId ? s : null;
@@ -71,10 +73,27 @@ export function getAudiusSession(): AudiusSession | null {
 
 function setAudiusSession(s: AudiusSession | null) {
   try {
-    if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
-    else localStorage.removeItem(SESSION_KEY);
+    if (s) localStorage.setItem(SESSION_KEY(), JSON.stringify(s));
+    else localStorage.removeItem(SESSION_KEY());
   } catch { /* private mode */ }
   window.dispatchEvent(new CustomEvent(AUDIUS_SESSION_EVENT, { detail: s }));
+}
+
+/** The old unscoped connection goes to the account whose profile names that same Audius user. */
+async function adoptLegacyAudiusSession(uid: string) {
+  try {
+    const raw = localStorage.getItem(LEGACY_SESSION_KEY);
+    if (!raw) return;
+    const old = JSON.parse(raw) as AudiusSession;
+    const profile = await fetchUserProfile(uid);
+    if (old?.userId && (profile as any)?.audiusAccount?.userId === old.userId && auth.currentUser?.uid === uid) {
+      adoptOwnedValue(LEGACY_SESSION_KEY, userScopedKey(uid, LEGACY_SESSION_KEY));
+      window.dispatchEvent(new CustomEvent(AUDIUS_SESSION_EVENT, { detail: getAudiusSession() }));
+    }
+  } catch { /* stays unread; signing out clears it */ }
+}
+if (typeof window !== 'undefined' && typeof auth?.onAuthStateChanged === 'function') {
+  auth.onAuthStateChanged((u) => { if (u && !u.isAnonymous) void adoptLegacyAudiusSession(u.uid); });
 }
 
 /** Mirror the connection onto the Plajah profile so it survives a new device / reinstall.

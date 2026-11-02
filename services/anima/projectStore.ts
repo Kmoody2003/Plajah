@@ -7,6 +7,7 @@
  */
 
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
+import { activeScopeUid, adoptOwnedIdbValue, scopedKey } from '../userScope';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { auth, storage } from '../firebase';
 import type { AnimaProject } from './types';
@@ -22,10 +23,11 @@ import {
 
 export const ANIMA_CLOUD_KIND = 'anima';
 
-const KEY = (id: string) => `animaProject:${id}`;
-const INDEX_KEY = 'animaProject:index';
-const LAST_KEY = 'plajah.anima.last';
-const PENDING_KEY = 'plajah.anima.pending';
+const LEGACY_KEY = (id: string) => `animaProject:${id}`;
+const KEY = (id: string) => scopedKey(LEGACY_KEY(id));
+const INDEX_KEY = () => scopedKey('animaProject:index');
+const LAST_KEY = () => scopedKey('plajah.anima.last');
+const PENDING_KEY = () => scopedKey('plajah.anima.pending');
 
 export interface AnimaProjectSummary {
   id: string;
@@ -63,8 +65,8 @@ export function parseAnimaProject(json: string): AnimaProject | null {
 
 async function cacheLocally(p: AnimaProject) {
   await idbSet(KEY(p.id), p);
-  const index = (await idbGet<AnimaProjectSummary[]>(INDEX_KEY)) ?? [];
-  await idbSet(INDEX_KEY, [summarize(p), ...index.filter((s) => s.id !== p.id)]);
+  const index = (await idbGet<AnimaProjectSummary[]>(INDEX_KEY())) ?? [];
+  await idbSet(INDEX_KEY(), [summarize(p), ...index.filter((s) => s.id !== p.id)]);
 }
 
 /** Saves on this device and queues the cloud copy (with history). */
@@ -78,9 +80,10 @@ export async function saveAnimaProject(project: AnimaProject): Promise<AnimaProj
 
 /** Opens the newest copy: this device's, or the cloud's when another device saved after it. */
 export async function loadAnimaProject(id: string): Promise<AnimaProject | null> {
+  const head = await withTimeout(getCloudHead(ANIMA_CLOUD_KIND, id), 4000, null);
+  if (head && head.ownerId === activeScopeUid()) await adoptOwnedIdbValue(LEGACY_KEY(id), KEY(id));
   const stored = await idbGet<AnimaProject>(KEY(id));
   const local = stored && stored.schema === ANIMA_SCHEMA ? stored : null;
-  const head = await withTimeout(getCloudHead(ANIMA_CLOUD_KIND, id), 4000, null);
   if (head && (!local || isCloudNewer(head, local.updatedAt))) {
     const cloud = await withTimeout(loadCloudProject(ANIMA_CLOUD_KIND, id), 20000, null);
     const p = cloud ? parseAnimaProject(cloud.json) : null;
@@ -94,8 +97,9 @@ export async function loadAnimaProject(id: string): Promise<AnimaProject | null>
 
 /** This device's projects plus those saved from the user's other devices. */
 export async function listAnimaProjects(): Promise<AnimaProjectSummary[]> {
-  const index = [...((await idbGet<AnimaProjectSummary[]>(INDEX_KEY)) ?? [])];
+  const index = [...((await idbGet<AnimaProjectSummary[]>(INDEX_KEY())) ?? [])];
   for (const head of await withTimeout(listCloudProjects(ANIMA_CLOUD_KIND), 4000, [])) {
+    await adoptOwnedIdbValue(LEGACY_KEY(head.localId), KEY(head.localId)); // the cloud lists it under this account
     const local = index.find((s) => s.id === head.localId);
     if (local) {
       if (head.updatedAt > local.updatedAt) index[index.indexOf(local)] = { ...local, name: head.title, updatedAt: head.updatedAt };
@@ -108,8 +112,8 @@ export async function listAnimaProjects(): Promise<AnimaProjectSummary[]> {
 
 export async function deleteAnimaProject(id: string) {
   await idbDel(KEY(id));
-  const index = (await idbGet<AnimaProjectSummary[]>(INDEX_KEY)) ?? [];
-  await idbSet(INDEX_KEY, index.filter((s) => s.id !== id));
+  const index = (await idbGet<AnimaProjectSummary[]>(INDEX_KEY())) ?? [];
+  await idbSet(INDEX_KEY(), index.filter((s) => s.id !== id));
   if (getLastAnimaProjectId() === id) setLastAnimaProjectId(null);
   await deleteCloudProject(ANIMA_CLOUD_KIND, id).catch(() => {});
 }
@@ -117,7 +121,7 @@ export async function deleteAnimaProject(id: string) {
 /** The last project opened overall, or for one Fabula production. */
 export function getLastAnimaProjectId(fabulaProdId?: string): string | null {
   try {
-    return localStorage.getItem(fabulaProdId ? `${LAST_KEY}.${fabulaProdId}` : LAST_KEY);
+    return localStorage.getItem(fabulaProdId ? `${LAST_KEY()}.${fabulaProdId}` : LAST_KEY());
   } catch {
     return null;
   }
@@ -126,9 +130,9 @@ export function getLastAnimaProjectId(fabulaProdId?: string): string | null {
 export function setLastAnimaProjectId(id: string | null, fabulaProdId?: string) {
   try {
     if (id) {
-      localStorage.setItem(LAST_KEY, id);
-      if (fabulaProdId) localStorage.setItem(`${LAST_KEY}.${fabulaProdId}`, id);
-    } else localStorage.removeItem(LAST_KEY);
+      localStorage.setItem(LAST_KEY(), id);
+      if (fabulaProdId) localStorage.setItem(`${LAST_KEY()}.${fabulaProdId}`, id);
+    } else localStorage.removeItem(LAST_KEY());
   } catch {
     /* blocked storage: reopening starts blank */
   }
@@ -137,7 +141,7 @@ export function setLastAnimaProjectId(id: string | null, fabulaProdId?: string) 
 /** Synchronous snapshot at page close (an IndexedDB write may not finish during unload). */
 export function stashPendingAnimaProject(p: AnimaProject) {
   try {
-    localStorage.setItem(PENDING_KEY, JSON.stringify({ ...p, updatedAt: Date.now() }));
+    localStorage.setItem(PENDING_KEY(), JSON.stringify({ ...p, updatedAt: Date.now() }));
   } catch {
     /* over quota: the async save is the only attempt */
   }
@@ -145,9 +149,9 @@ export function stashPendingAnimaProject(p: AnimaProject) {
 
 export function takePendingAnimaProject(): AnimaProject | null {
   try {
-    const raw = localStorage.getItem(PENDING_KEY);
+    const raw = localStorage.getItem(PENDING_KEY());
     if (!raw) return null;
-    localStorage.removeItem(PENDING_KEY);
+    localStorage.removeItem(PENDING_KEY());
     return parseAnimaProject(raw);
   } catch {
     return null;

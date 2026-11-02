@@ -81,7 +81,7 @@ export const TelaDocumentPreviewModal: React.FC<TelaDocumentPreviewProps> = ({
   originalUrl,
   originalText,
   answerKeyText,
-  orgName = 'Great Faith Ministries',
+  orgName = '',
   departmentFolder: rawDepartmentFolder,
   initialTemplateId,
   canViewAnswerKey = false,

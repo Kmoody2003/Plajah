@@ -42,7 +42,7 @@ const mocks = [
   { function: 'get', args: [{ exactValue: `${DB}/classrooms/c1` }], result: { value: { data: classDoc } } },
 ];
 
-const course = (o = {}) => ({ id: 'c1', ownerId: OWNER, ownerName: 'Kay', title: 'T', description: 'd', thumbnailUrl: 'u', price: 0, syllabus: '', lessons: [], assignments: [], enrolledStudents: [OWNER], category: 'Music', track: 'CREATOR', ...o });
+const course = (o = {}) => ({ id: 'c1', ownerId: OWNER, ownerName: 'Kay', title: 'T', description: 'd', thumbnailUrl: 'u', price: 0, enrollment: 'open', syllabus: '', lessons: [], assignments: [], enrolledStudents: [OWNER], category: 'Music', track: 'CREATOR', ...o });
 const cases = [];
 const t = (name, expect, who, method, path, { data, existing } = {}) => cases.push({ name, expect, who, method, path, data, existing });
 const C = `${DB}/classrooms/c1`;

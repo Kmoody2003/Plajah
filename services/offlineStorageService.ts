@@ -1,3 +1,4 @@
+import { activeScopeUid } from './userScope';
 /**
  * Plajah Offline Storage Service
  *
@@ -32,7 +33,13 @@ export interface OfflineCacheEntry {
   cachedAt:  number;    // ms timestamp
   albumId?:  string;
   trackId?:  string;
+  /** Accounts that saved this on this device. The bytes are shared; the shelf isn't. No field: an older save, listed for nobody. */
+  ownerUids?: string[];
 }
+
+/** Whoever's shelf this is, 'guest' when signed out. */
+const shelfOwner = () => activeScopeUid() || 'guest';
+const onMyShelf = (e: OfflineCacheEntry | null) => !!e?.ownerUids?.includes(shelfOwner());
 
 export interface DownloadQueueEntry {
   url:    string;
@@ -119,7 +126,8 @@ export async function cacheMediaFile(
   await cache.put(url, response);
 
   const blob = await clone.blob();
-  const entry: OfflineCacheEntry = { ...meta, url, cachedAt: Date.now(), size: blob.size };
+  const prior = await dbGet<OfflineCacheEntry>(STORE_META, url);
+  const entry: OfflineCacheEntry = { ...meta, url, cachedAt: Date.now(), size: blob.size, ownerUids: [...new Set([...(prior?.ownerUids ?? []), shelfOwner()])] };
   await dbPut(STORE_META, entry);
 
   return blob.size;
@@ -137,12 +145,18 @@ export async function getCachedMedia(url: string): Promise<string | null> {
 
 /** Check synchronously-ish whether a URL is available offline (metadata lookup). */
 export async function isAvailableOffline(url: string): Promise<boolean> {
-  const entry = await dbGet<OfflineCacheEntry>(STORE_META, url);
-  return entry !== null;
+  return onMyShelf(await dbGet<OfflineCacheEntry>(STORE_META, url));
 }
 
 /** Remove a single cached file and its metadata. */
 export async function removeCachedMedia(url: string): Promise<void> {
+  const entry = await dbGet<OfflineCacheEntry>(STORE_META, url);
+  const others = (entry?.ownerUids ?? []).filter(o => o !== shelfOwner());
+  if (entry && (others.length || !entry.ownerUids)) {
+    // Someone else's save too (or an unclaimed older one): leave the bytes, just take it off this shelf.
+    if (entry.ownerUids) await dbPut(STORE_META, { ...entry, ownerUids: others });
+    return;
+  }
   const cache = await getMediaCache();
   if (cache) await cache.delete(url);
   await dbDelete(STORE_META, url);
@@ -150,16 +164,12 @@ export async function removeCachedMedia(url: string): Promise<void> {
 
 /** List all cached items with their metadata. */
 export async function listCachedItems(): Promise<OfflineCacheEntry[]> {
-  return dbGetAll<OfflineCacheEntry>(STORE_META);
+  return (await dbGetAll<OfflineCacheEntry>(STORE_META)).filter(onMyShelf);
 }
 
-/** Nuke all offline media. */
+/** Clears this account's offline shelf. Other accounts' saves on this device are theirs. */
 export async function clearAllOfflineMedia(): Promise<void> {
-  if (typeof caches !== 'undefined') await caches.delete(CACHE_NAME);
-  const db = await openDB();
-  const tx = db.transaction([STORE_META, STORE_QUEUE], 'readwrite');
-  tx.objectStore(STORE_META).clear();
-  tx.objectStore(STORE_QUEUE).clear();
+  for (const item of await listCachedItems()) await removeCachedMedia(item.url);
 }
 
 /** Total storage used in bytes. */

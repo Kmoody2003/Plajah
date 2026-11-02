@@ -1,3 +1,4 @@
+import { videosOwnedBy } from './videoQuery';
 import { collection, getDocs, getDoc, doc, setDoc, updateDoc, query, where, orderBy, limit } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { AdBoostProfile, AdSlotAllocation, AdPackage, SubscriptionTier } from '../types';
@@ -98,7 +99,7 @@ export async function computeUserActivityScore(uid: string): Promise<number> {
 
   const [postsSnap, videosSnap, albumsSnap] = await Promise.all([
     getDocs(query(collection(db, 'posts'), where('authorId', '==', uid), where('timestamp', '>=', since))),
-    getDocs(query(collection(db, 'videos'), where('ownerId', '==', uid), where('timestamp', '>=', since))),
+    getDocs(query(collection(db, 'videos'), ...videosOwnedBy(uid), where('timestamp', '>=', since))),
     getDocs(query(collection(db, 'albums'), where('ownerId', '==', uid), where('createdAt', '>=', since))),
   ]);
 

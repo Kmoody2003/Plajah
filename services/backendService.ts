@@ -1,3 +1,4 @@
+import { finishSignOut, markSigningOut, runBeforeSignOut } from './userScope';
 import { visibleToReader } from './journalist/embargo';
 import { isFutureRelease as isFutureReleaseVideo, visibleToViewer as videoVisibleToViewer, filterReleased as filterReleasedVideos } from './releases/visibility';
 import {
@@ -49,6 +50,8 @@ import {
   User
 } from 'firebase/auth';
 import { db, opsDb, dbFor, storage, auth as firebaseAuth } from './firebase';
+import { videosOwnedBy } from './videoQuery';
+import { fetchGuardiansOf, listenMergedProfile, readPrivateProfile, splitUserFields, withPrivateFields, writePrivateProfile, privateProfileRef } from './userPrivate';
 import { isWindowsApp } from './windowsBridgeService';
 import { followNeedsApproval, requestFollow } from './socialSafetyService';
 // Social perf pass (docs/SOCIAL_MIGRATION_AND_PERF.md): paged chat, throttled typing subdoc, index fallbacks, shared room list.
@@ -2266,7 +2269,7 @@ export const createClassroom = async (classroom: Partial<Classroom>) => {
     track: classroom.track || 'CREATOR',
     createdAt: Date.now(),
     ...Object.fromEntries(
-      (['status', 'tagline', 'outcomes', 'level', 'format', 'startDate', 'capacity', 'accent', 'publishedAt', 'gradeBand', 'schoolId'] as const)
+      (['status', 'enrollment', 'tagline', 'outcomes', 'level', 'format', 'startDate', 'capacity', 'accent', 'publishedAt', 'gradeBand', 'schoolId'] as const)
         .filter(k => (classroom as any)[k] !== undefined)
         .map(k => [k, (classroom as any)[k]]),
     ),
@@ -2298,6 +2301,22 @@ export const fetchClassrooms = async () => {
     return [];
   }
 };
+
+async function classAccessCall(path: string, body: Record<string, unknown>): Promise<any> {
+  if (!auth.currentUser) throw new Error('Please sign in first.');
+  const r = await fetch(`/api/learner-auth/${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await auth.currentUser.getIdToken()}` },
+    body: JSON.stringify(body),
+  });
+  const data = await r.json().catch(() => ({} as any));
+  if (!r.ok) throw new Error(data.error || 'That did not work. Try again.');
+  return data;
+}
+/** The teacher's join code for a closed class, created on first ask. */
+export const fetchClassJoinCode = async (classId: string): Promise<string> => (await classAccessCall('class-code', { classId })).code;
+/** Joins whichever class this code belongs to. Returns its id. */
+export const joinClassWithCode = async (code: string): Promise<string> => (await classAccessCall('join-class', { code })).classId;
 
 export const enrollInClassroom = async (classId: string) => {
   if (!auth.currentUser) return;
@@ -2941,15 +2960,15 @@ export const syncUserProfile = async (user: User) => {
     const docSnap = await getDoc(userRef);
     if (!docSnap.exists()) {
       // Count existing users to see if this is a Pioneer (first 25)
-      const userCountSnap = await getDocs(query(collection(db, 'users'), limit(50)));
+      const userCountSnap = await getDocs(query(collection(db, 'users'), where('listable', '==', true), limit(50)));
       const count = userCountSnap.size;
       const isPioneer = count < 25;
 
-      const profile: UserProfile = {
+      const profile = {
         uid: user.uid,
         displayName: user.displayName || 'Anonymous Artist',
         photoURL: user.photoURL || '',
-        email: user.email || '',
+        listable: true,
         followerCount: 0,
         followingCount: 0,
         createdAt: Date.now(),
@@ -2962,19 +2981,23 @@ export const syncUserProfile = async (user: User) => {
       };
       
       await setDoc(userRef, profile);
+      if (user.email) await writePrivateProfile(user.uid, { email: user.email });
     } else {
       const d = docSnap.data();
-      // Backfill the fields isValidUserProfile REQUIRES (uid/displayName/photoURL/
-      // email). A profile clobbered by the old full-replace firestoreWrite loses
+      // Backfill the fields isValidUserProfile REQUIRES (uid/displayName/photoURL).
+      // A profile clobbered by the old full-replace firestoreWrite loses
       // these, and then every owner update fails the rule → nothing persists.
       // Including uid + guaranteed non-null strings here self-heals it on login.
       const updates: Partial<UserProfile> = {
         uid: user.uid,
         displayName: user.displayName || d.displayName || 'Anonymous Artist',
         photoURL: (user.photoURL ?? d.photoURL ?? '') as string,
-        email: user.email || d.email || ''
       };
+      // An adult account the migration missed still becomes findable; a child never does.
+      if (d.listable === undefined && !d.isChild && d.accountType !== 'CHILD' && !d.guardianUid && !d.provisionedByTeacherUid) updates.listable = true;
       await updateDoc(userRef, updates);
+      // Email lives in the private doc. Only written when it changed, to spare a write per login.
+      if (user.email && (await readPrivateProfile(user.uid)).email !== user.email) await writePrivateProfile(user.uid, { email: user.email });
     }
   } catch (e) {
     console.error("Profile sync failed:", e);
@@ -2984,7 +3007,7 @@ export const syncUserProfile = async (user: User) => {
 export const searchUsers = async (searchTerm: string): Promise<UserProfile[]> => {
   const path = 'users';
   try {
-    const snapshot = await getDocs(collection(db, path));
+    const snapshot = await getDocs(query(collection(db, path), where('listable', '==', true)));
     const users = snapshot.docs.map(d => d.data() as UserProfile);
     if (!searchTerm) return users;
     const needle = searchTerm.trim().toLowerCase();
@@ -4290,7 +4313,7 @@ export const simulateDailySelection = async () => {
     }
 
     // 1. Fetch eligible users
-    const usersSnap = await getDocs(query(collection(db, 'users'), where('payItForwardOptIn', '==', true)));
+    const usersSnap = await getDocs(query(collection(db, 'users'), where('listable', '==', true), where('payItForwardOptIn', '==', true)));
     const eligibleUsers = usersSnap.docs.map(d => d.data() as UserProfile).filter(u => {
       // Frequency limits
       if (u.uid === status.lastWinnerId) return false; // No back-to-back
@@ -4976,6 +4999,8 @@ export const logout = async () => {
         fcmToken: null,
       }).catch(() => {});
     }
+    await runBeforeSignOut(); // open editors save, and queued cloud copies get their chance to land
+    markSigningOut(true);
     await signOut(auth);
     // Drop every per-user cache. These reset helpers all existed but NOTHING called them, so on
     // an account switch the next user inherited the previous one's taste vector, play-count
@@ -4988,7 +5013,9 @@ export const logout = async () => {
       import('./publicStats').then(m => m.resetPublicStatsCache()).catch(() => {}),
       import('./contentMetrics').then(m => m.resetMetricsSession()).catch(() => {}),
     ]);
+    finishSignOut();
   } catch (error) {
+    markSigningOut(false);
     console.error("Logout failed:", error);
   }
 };
@@ -5833,19 +5860,11 @@ export const subscribeToUserProfile = (
   uid: string,
   callback: (profile: UserProfile | null) => void
 ): (() => void) => {
-  return onSnapshot(
-    doc(db, 'users', uid),
-    (snap) => {
-      callback(snap.exists() ? ({ uid: snap.id, ...snap.data() } as UserProfile) : null);
-    },
-    () => callback(null)
-  );
+  return listenMergedProfile(uid, (data) => callback(data as UserProfile | null), () => callback(null));
 };
 
 export const listenToUserProfile = (uid: string, callback: (profile: UserProfile | null) => void): (() => void) => {
-  return onSnapshot(doc(db, 'users', uid), (snap) => {
-    callback(snap.exists() ? ({ uid: snap.id, ...snap.data() } as UserProfile) : null);
-  });
+  return listenMergedProfile(uid, (data) => callback(data as UserProfile | null));
 };
 
 /** Live profile for the profile page. Unlike a one-shot getDoc it can't strand the page: the
@@ -5870,8 +5889,8 @@ export const watchUserProfile = (
       const fromCache = snap.metadata.fromCache;
       if (snap.exists()) {
         const data = snap.data();
-        if (!data.uid || !data.displayName || data.photoURL === undefined || data.email === undefined) heal();
-        handlers.onProfile({ uid: snap.id, ...data } as UserProfile);
+        if (!data.uid || !data.displayName || data.photoURL === undefined) heal();
+        withPrivateFields(snap.id, { uid: snap.id, ...data }).then(p => handlers.onProfile(p as UserProfile));
       } else if (!fromCache) {
         if (!heal()) handlers.onMissing();
       }
@@ -5888,18 +5907,18 @@ export const fetchUserProfile = async (uid: string): Promise<UserProfile | null>
     // the fields isValidUserProfile requires, owner updates silently fail and
     // "nothing persists." Re-sync (only for the signed-in owner) to backfill them.
     if (auth.currentUser?.uid === uid &&
-        (!data.uid || !data.displayName || data.photoURL === undefined || data.email === undefined)) {
+        (!data.uid || !data.displayName || data.photoURL === undefined)) {
       await syncUserProfile(auth.currentUser).catch(() => {});
       const dh = await getDoc(doc(db, 'users', uid));
-      if (dh.exists()) return { uid: dh.id, ...dh.data() } as UserProfile;
+      if (dh.exists()) return withPrivateFields(uid, { uid: dh.id, ...dh.data() }) as Promise<UserProfile>;
     }
-    return { uid: d.id, ...d.data() } as UserProfile;
+    return withPrivateFields(uid, { uid: d.id, ...d.data() }) as Promise<UserProfile>;
   }
   if (auth.currentUser && auth.currentUser.uid === uid) {
     await syncUserProfile(auth.currentUser);
     const d2 = await getDoc(doc(db, 'users', uid));
     if (d2.exists()) {
-      return { uid: d2.id, ...d2.data() } as UserProfile;
+      return withPrivateFields(uid, { uid: d2.id, ...d2.data() }) as Promise<UserProfile>;
     }
   }
   return null;
@@ -5939,8 +5958,8 @@ export const searchUserProfiles = async (searchTerm: string, max: number = 10, o
     const variants = nameSearchVariants(term);
     const runs: Promise<{ docs: any[] }>[] = [];
     for (const v of variants) {
-      runs.push(getDocs(query(collection(db, path), where('displayName', '>=', v), where('displayName', '<=', v + ''), limit(max))));
-      runs.push(getDocs(query(collection(db, path), where('handle', '>=', v.toLowerCase()), where('handle', '<=', v.toLowerCase() + ''), limit(max))).catch(() => ({ docs: [] })));
+      runs.push(getDocs(query(collection(db, path), where('listable', '==', true), where('displayName', '>=', v), where('displayName', '<=', v + ''), limit(max))));
+      runs.push(getDocs(query(collection(db, path), where('listable', '==', true), where('handle', '>=', v.toLowerCase()), where('handle', '<=', v.toLowerCase() + ''), limit(max))).catch(() => ({ docs: [] })));
     }
     const snaps = await Promise.all(runs);
     const byId = new Map<string, UserProfile>();
@@ -5965,6 +5984,7 @@ export const searchLiveChannels = async (searchTerm: string): Promise<UserProfil
   try {
     const q = query(
       collection(db, path),
+      where('listable', '==', true),
       where('liveStreamConfig.isActive', '==', true),
       limit(20)
     );
@@ -5985,7 +6005,7 @@ export const searchLiveChannels = async (searchTerm: string): Promise<UserProfil
 export const fetchRandomActiveUser = async (): Promise<UserProfile | null> => {
   const path = 'users';
   try {
-    const q = query(collection(db, path), limit(50));
+    const q = query(collection(db, path), where('listable', '==', true), limit(50));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
     const users = snapshot.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile));
@@ -6000,7 +6020,9 @@ export const fetchRandomActiveUser = async (): Promise<UserProfile | null> => {
 export const updateUserProfile = async (uid: string, data: Partial<UserProfile>) => {
   const path = `users/${uid}`;
   try {
-    await updateDoc(doc(db, 'users', uid), data);
+    const { pub, priv } = splitUserFields(data as Record<string, any>);
+    if (Object.keys(pub).length) await updateDoc(doc(db, 'users', uid), pub);
+    await writePrivateProfile(uid, priv);
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
   }
@@ -6160,26 +6182,31 @@ export const createChildProfile = async (
 ): Promise<UserProfile | null> => {
   try {
     const childUid = `child_${guardianUid.slice(0, 6)}_${Math.random().toString(36).slice(2, 9)}`;
-    const profile: UserProfile = {
+    const profile = {
       uid: childUid,
       displayName: data.displayName || 'Kid',
       photoURL: data.photoURL || '',
-      email: '',
       isChild: true,
       accountType: 'CHILD',
-      guardianUid,
-      birthYear: data.birthYear,
       role: 'user',
       tier: 'FREE',
       followerCount: 0,
       followingCount: 0,
       createdAt: Date.now(),
       storageUsage: { total: 0, audio: 0, video: 0, photos: 0 },
+    } as Record<string, any>;
+    const priv: Record<string, any> = {
+      guardianUid,
       parentalControls: { adultFilter: true, maxMaturity: 'PG', hideAdultPosts: true, kidsMode: true },
-    } as UserProfile;
-    await setDoc(doc(db, 'users', childUid), profile);
-    await updateDoc(doc(db, 'users', guardianUid), { childUids: arrayUnion(childUid) });
-    return profile;
+    };
+    if (data.birthYear !== undefined) priv.birthYear = data.birthYear;
+    // One batch: the rules check each half against the other.
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'users', childUid), profile);
+    batch.set(privateProfileRef(childUid), priv);
+    await batch.commit();
+    await writePrivateProfile(guardianUid, { childUids: arrayUnion(childUid) });
+    return { ...profile, ...priv } as UserProfile;
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, `users (child of ${guardianUid})`);
     return null;
@@ -6189,8 +6216,10 @@ export const createChildProfile = async (
 /** All child profiles managed by this guardian. */
 export const listChildProfiles = async (guardianUid: string): Promise<UserProfile[]> => {
   try {
-    const snap = await getDocs(query(collection(db, 'users'), where('guardianUid', '==', guardianUid)));
-    return snap.docs.map(d => ({ uid: d.id, ...d.data() }) as UserProfile);
+    // The guardian's own private doc names the children; each child's private half is readable by them.
+    const ids: string[] = (await readPrivateProfile(guardianUid)).childUids || [];
+    const kids = await fetchUserProfiles(ids);
+    return kids.filter(k => (k as any).guardianUid === guardianUid);
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, 'users (children)');
     return [];
@@ -6201,7 +6230,7 @@ export const listChildProfiles = async (guardianUid: string): Promise<UserProfil
 export const deleteChildProfile = async (guardianUid: string, childUid: string): Promise<void> => {
   try {
     await deleteDoc(doc(db, 'users', childUid));
-    await updateDoc(doc(db, 'users', guardianUid), { childUids: arrayRemove(childUid) });
+    await writePrivateProfile(guardianUid, { childUids: arrayRemove(childUid) });
   } catch (e) {
     handleFirestoreError(e, OperationType.DELETE, `users/${childUid}`);
   }
@@ -6270,7 +6299,7 @@ export const fetchVideosByInterests = async (uid: string) => {
 export const fetchUserVideos = async (uid: string): Promise<Video[]> => {
   const path = 'videos';
   try {
-    const q = query(collection(db, path), where('ownerId', '==', uid), orderBy('timestamp', 'desc'));
+    const q = query(collection(db, path), ...videosOwnedBy(uid), orderBy('timestamp', 'desc'));
     const snap = await getDocs(q);
     // The owner keeps their own scheduled videos (VideoManager shows the badge); everyone else only sees released ones.
     return filterReleasedVideos(snap.docs.map(d => ({ id: d.id, ...d.data() } as Video)), auth.currentUser?.uid);
@@ -6299,7 +6328,7 @@ export const fetchFollowedVideos = async (uid: string): Promise<Video[]> => {
     
     // Firestore 'in' limit is 10
     const targetIds = followingIds.slice(0, 10);
-    const q = query(collection(db, path), where('ownerId', 'in', targetIds), orderBy('timestamp', 'desc'), limit(20));
+    const q = query(collection(db, path), where('isPrivate', '==', false), where('ownerId', 'in', targetIds), orderBy('timestamp', 'desc'), limit(20));
     const snap = await getDocs(q);
     return filterReleasedVideos(snap.docs.map(d => ({ id: d.id, ...d.data() } as Video)), auth.currentUser?.uid);
   } catch (e) {
@@ -7423,15 +7452,13 @@ export const ensureGuardianCc = async (
   if (participants.length < 2) return []; // wait until both sides are present before resolving
   try {
     const profiles = await fetchUserProfiles(participants);
-    const guardians = new Set<string>();
-    for (const p of profiles) {
-      const isStudent =
-        (p as any).isChild || p.accountType === 'CHILD' || (p as any).accountType === 'STUDENT' ||
-        (p as any).childState === 'SCHOOL_PROVISIONED';
-      if (!isStudent) continue;
-      if ((p as any).guardianUid) guardians.add((p as any).guardianUid);
-      ((p as any).coGuardianUids || []).forEach((g: string) => g && guardians.add(g));
-    }
+    const students = profiles.filter(p =>
+      (p as any).isChild || p.accountType === 'CHILD' || (p as any).accountType === 'STUDENT' ||
+      (p as any).childState === 'SCHOOL_PROVISIONED').map(p => p.uid);
+    const links = await fetchGuardiansOf(students, { roomId });
+    const guardians = new Set<string>(Object.values(links).flat());
+    // Student rooms stay unresolved if the server couldn't answer, so a guardian is never silently dropped.
+    if (students.some(u => !(u in links))) return [];
     // Guardians not already in the room need adding as observers; the rest are already present.
     const toAdd = [...guardians].filter(g => g && !participants.includes(g));
     await updateDoc(doc(db, 'chat_rooms', roomId), {
@@ -8584,12 +8611,12 @@ export const addBrandManager = async (brandId: string, managerEmail: string) => 
   if (!auth.currentUser) return;
   const path = `brand_accounts/${brandId}`;
   try {
-    const userQ = query(collection(db, 'users'), where('email', '==', managerEmail));
-    const userSnap = await getDocs(userQ);
-    if (userSnap.empty) throw new Error('User not found');
-    const managerUid = userSnap.docs[0].id;
-    await updateDoc(doc(db, 'brand_accounts', brandId), { managers: arrayUnion(managerUid) });
-    await updateDoc(doc(db, 'users', managerUid), { managedBrandIds: arrayUnion(brandId) });
+    const r = await fetch('/api/learner-auth/brand-manager', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await auth.currentUser.getIdToken()}` },
+      body: JSON.stringify({ brandId, email: managerEmail }),
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({} as any))).error || 'User not found');
     return true;
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
@@ -8812,7 +8839,7 @@ export const updateTrack = async (trackId: string, updates: Partial<Track>) => {
 export const fetchFastChannelVideos = async (uid: string): Promise<Video[]> => {
   const path = 'videos';
   try {
-    const q = query(collection(db, path), where('ownerId', '==', uid), where('allowInFastChannel', '==', true));
+    const q = query(collection(db, path), ...videosOwnedBy(uid), where('allowInFastChannel', '==', true));
     const snap = await getDocs(q);
     const videos = filterReleasedVideos(snap.docs.map(d => ({ id: d.id, ...d.data() } as Video)), auth.currentUser?.uid);
     return videos.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
@@ -9847,13 +9874,6 @@ export const updateTooltipSettings = async (uid: string, enabled: boolean) => {
   }
 };
 
-export const fetchUserProfileByEmail = async (email: string): Promise<UserProfile | null> => {
-  const q = query(collection(db, 'users'), where('email', '==', email));
-  const snap = await getDocs(q);
-  if (snap.empty) return null;
-  return snap.docs[0].data() as UserProfile;
-};
-
 export const fetchUserAlbums = async (userId: string): Promise<Album[]> => {
   const path = 'albums';
   try {
@@ -10005,12 +10025,21 @@ export const updateCloudAlbum = async (albumId: string, updates: Partial<Album>)
   }
 };
 
-export const fetchAllUsers = async (): Promise<UserProfile[]> => {
+/** Everyone listable. `admin` (platform admin screens only) also returns unlisted accounts with
+ *  their private fields, which the rules refuse to anyone else. */
+export const fetchAllUsers = async (opts: { admin?: boolean } = {}): Promise<UserProfile[]> => {
   const path = 'users';
   try {
-    const q = query(collection(db, path), orderBy('displayName', 'asc'));
+    const q = opts.admin
+      ? query(collection(db, path), orderBy('displayName', 'asc'))
+      : query(collection(db, path), where('listable', '==', true), orderBy('displayName', 'asc'));
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile));
+    const users = snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile));
+    if (!opts.admin) return users;
+    for (let i = 0; i < users.length; i += 50) {
+      await Promise.all(users.slice(i, i + 50).map(async u => { Object.assign(u, await readPrivateProfile(u.uid)); }));
+    }
+    return users;
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
@@ -10049,7 +10078,7 @@ export const fetchAllFastChannels = async (max = 300): Promise<FastChannelListin
     // No orderBy on the query: with a small limit Firestore would return an ARBITRARY subset, so a
     // channel could appear in one fetch and vanish in the next ("inconsistently showing up"). A high
     // cap captures every enabled channel; sorting into guide order happens below.
-    const snap = await getDocs(query(collection(db, 'users'), where('fastChannelEnabled', '==', true), limit(max)));
+    const snap = await getDocs(query(collection(db, 'users'), where('listable', '==', true), where('fastChannelEnabled', '==', true), limit(max)));
     const profiles = snap.docs.map(d => ({ uid: d.id, ...(d.data() as any) } as UserProfile));
     const metas = await Promise.all(profiles.map(p => fetchFastChannelMeta((p as any).uid).catch(() => null)));
     const listings: FastChannelListing[] = [];
@@ -10083,7 +10112,7 @@ export const fetchAllFastChannels = async (max = 300): Promise<FastChannelListin
 
 export const fetchFeaturedProfiles = async (): Promise<UserProfile[]> => {
   try {
-    const q = query(collection(db, 'users'), where('isArtist', '==', true), limit(30));
+    const q = query(collection(db, 'users'), where('listable', '==', true), where('isArtist', '==', true), limit(30));
     const snap = await getDocs(q);
     return snap.docs
       .map(d => ({ uid: d.id, ...d.data() } as UserProfile))
@@ -11331,6 +11360,7 @@ export const createClub = async (data: Partial<Club>): Promise<Club | null> => {
       photoUrl: auth.currentUser.photoURL || '',
       joinedAt: now,
     } as ClubMembership));
+    await setDoc(clubMarkerRef(club.id, auth.currentUser.uid), clubMarker(club.id, auth.currentUser.uid));
     return club;
   } catch (e: any) {
     console.error('createClub failed:', e);
@@ -11595,6 +11625,7 @@ export const claimClubAsFounder = async (clubId: string): Promise<boolean> => {
       photoUrl: auth.currentUser.photoURL || '',
       joinedAt: Date.now(),
     }));
+    await setDoc(clubMarkerRef(clubId, uid), clubMarker(clubId, uid));
     await updateDoc(doc(db, 'clubs', clubId), { memberCount: increment(1) });
     return true;
   } catch (e) {
@@ -11635,6 +11666,9 @@ export const getUserClubMembership = async (clubId: string, uid: string): Promis
   return { id: snap.docs[0].id, ...snap.docs[0].data() } as ClubMembership;
 };
 
+const clubMarkerRef = (clubId: string, uid: string) => doc(db, 'clubMemberIndex', `${clubId}_${uid}`);
+const clubMarker = (clubId: string, uid: string) => ({ clubId, userId: uid, at: Date.now() });
+
 export const joinClub = async (clubId: string, role: ClubRole = 'MEMBER', answers?: string[]): Promise<ClubMembership | null> => {
   if (!auth.currentUser) return null;
   const club = await fetchClub(clubId);
@@ -11642,7 +11676,7 @@ export const joinClub = async (clubId: string, role: ClubRole = 'MEMBER', answer
   const existing = await getUserClubMembership(clubId, auth.currentUser.uid);
   if (existing) return existing;
   const memberRef = doc(collection(db, 'clubMemberships'));
-  const status = club.joinProcess === 'AUTO' ? 'ACTIVE' : 'PENDING';
+  const status = club.joinProcess === 'AUTO' && !club.isPrivate ? 'ACTIVE' : 'PENDING';
   const mem: ClubMembership = {
     id: memberRef.id,
     clubId,
@@ -11654,7 +11688,10 @@ export const joinClub = async (clubId: string, role: ClubRole = 'MEMBER', answer
     questionnaireAnswers: answers,
     joinedAt: Date.now(),
   };
-  await setDoc(memberRef, removeUndefined(mem));
+  const joinBatch = writeBatch(db);
+  joinBatch.set(memberRef, removeUndefined(mem));
+  if (status === 'ACTIVE') joinBatch.set(clubMarkerRef(clubId, auth.currentUser.uid), clubMarker(clubId, auth.currentUser.uid));
+  await joinBatch.commit();
   if (status === 'ACTIVE') await updateDoc(doc(db, 'clubs', clubId), { memberCount: increment(1) });
   return mem;
 };
@@ -11677,6 +11714,7 @@ export const leaveClub = async (clubId: string) => {
   const mem = await getUserClubMembership(clubId, auth.currentUser.uid);
   if (!mem) return;
   await deleteDoc(doc(db, 'clubMemberships', mem.id));
+  await deleteDoc(clubMarkerRef(clubId, auth.currentUser.uid)).catch(() => {});
   await updateDoc(doc(db, 'clubs', clubId), { memberCount: increment(-1) });
 };
 
@@ -11699,12 +11737,22 @@ export const updateMemberRole = async (membershipId: string, role: ClubRole) => 
 };
 
 export const approveMember = async (membershipId: string, clubId: string) => {
-  await updateDoc(doc(db, 'clubMemberships', membershipId), { status: 'ACTIVE' });
+  const row = await getDoc(doc(db, 'clubMemberships', membershipId));
+  const userId = String(row.data()?.userId || '');
+  const approve = writeBatch(db);
+  approve.update(row.ref, { status: 'ACTIVE' });
+  if (userId) approve.set(clubMarkerRef(clubId, userId), clubMarker(clubId, userId));
+  await approve.commit();
   await updateDoc(doc(db, 'clubs', clubId), { memberCount: increment(1) });
 };
 
 export const banMember = async (membershipId: string) => {
-  await updateDoc(doc(db, 'clubMemberships', membershipId), { status: 'BANNED' });
+  const row = await getDoc(doc(db, 'clubMemberships', membershipId));
+  const { clubId, userId } = (row.data() || {}) as { clubId?: string; userId?: string };
+  const ban = writeBatch(db);
+  ban.update(row.ref, { status: 'BANNED' });
+  if (clubId && userId) ban.delete(clubMarkerRef(clubId, userId));
+  await ban.commit();
 };
 
 // Club Posts
@@ -12485,7 +12533,10 @@ export const validateTicket = async (ticketId: string): Promise<{ valid: boolean
     method: 'POST',
     headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
   });
-  if (!res.ok) return { valid: false, reason: 'Server error' };
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    return { valid: false, reason: d.reason || 'Server error' };
+  }
   return res.json();
 };
 

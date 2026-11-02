@@ -524,6 +524,7 @@ export const PlajahSportsView: React.FC<Props> = ({ onVisitUser, currentUser, on
 
     getDocs(
       query(collection(db, 'users'),
+        where('listable', '==', true),
         where('favoriteSportsTeams', '!=', null),
         orderBy('favoriteSportsTeams'),
         orderBy('followerCount', 'desc'),

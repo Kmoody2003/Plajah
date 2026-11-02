@@ -389,7 +389,7 @@ export async function updateCourse(id: string, patch: Partial<Classroom>): Promi
 }
 
 export async function publishCourse(id: string): Promise<void> {
-  await updateCourse(id, { status: 'PUBLISHED', publishedAt: Date.now() });
+  await updateCourse(id, { status: 'PUBLISHED', enrollment: 'open', publishedAt: Date.now() });
 }
 
 export async function unpublishCourse(id: string): Promise<void> {
@@ -404,6 +404,7 @@ export async function createCourseFromDraft(d: CourseDraft, opts: { publish: boo
     description: d.description.trim(),
     category: d.category,
     track: 'CREATOR',
+    enrollment: 'open',
     price: d.price,
     thumbnailUrl: d.thumbnailUrl || generatedCover(d.title, categoryMeta(d.category).emoji, 'aurora', d.category),
     syllabus: d.syllabus || syllabusFrom(d.lessons),

@@ -271,8 +271,8 @@ export async function fetchPlatformFeed(from: number, to: number, force = false)
     ).then((r) => r.flat()), [] as Record<string, any>[]),
     // Premieres the person asked to be reminded about, plus followed creators' premieres.
     safe('premieres', Promise.all([
-      getDocs(query(collection(db, 'videos'), where('premiereConfig.remindUserIds', 'array-contains', uid), limit(40))),
-      ...authorChunks.slice(0, 6).map((a) => getDocs(query(collection(db, 'videos'), where('ownerId', 'in', a), where('premiereConfig.status', '==', 'SCHEDULED'), limit(20)))),
+      getDocs(query(collection(db, 'videos'), where('isPrivate', '==', false), where('premiereConfig.remindUserIds', 'array-contains', uid), limit(40))),
+      ...authorChunks.slice(0, 6).map((a) => getDocs(query(collection(db, 'videos'), where('isPrivate', '==', false), where('ownerId', 'in', a), where('premiereConfig.status', '==', 'SCHEDULED'), limit(20)))),
     ]).then((snaps) => snaps.flatMap((s) => s.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, any>) })))), [] as Record<string, any>[]),
     // Pay-per-view: bought, or upcoming from people you follow (same shape as the feed cards).
     safe('ppv', Promise.all([

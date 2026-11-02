@@ -38,6 +38,7 @@ import {
 import { noteCloudBytes, quotaAllowsSave } from './usage';
 import { del as idbDel, get as idbGet, keys as idbKeys, set as idbSet } from 'idb-keyval';
 import { merge3Json } from '../coedit/crdt';
+import { onBeforeSignOut, userScopedKey } from '../userScope';
 
 const COL = 'creativeProjects';
 
@@ -282,11 +283,14 @@ export async function syncCreativeProject(input: SyncInput): Promise<SyncResult>
 // ── Cross-device merge ───────────────────────────────────────────────────────
 
 /** The JSON this device last synced or opened, per project: the common ancestor for merges. */
-const baseKey = (id: string) => `creative-base:${id}`;
+const legacyBaseKey = (id: string) => `creative-base:${id}`;
+const baseKey = (id: string) => userScopedKey(auth.currentUser?.uid, legacyBaseKey(id));
 
 async function mergeWithCloud(id: string, head: CloudHead, mineJson: string): Promise<{ json: string; conflicts: number } | null> {
   try {
-    const [baseJson, theirsJson] = await Promise.all([idbGet<string>(baseKey(id)), getBytes(ref(storage, head.headPath)).then(gunzipToText)]);
+    // An old shared base counts only once the cloud says this project is this account's.
+    const readBase = async () => (await idbGet<string>(baseKey(id))) ?? (head.ownerId === auth.currentUser?.uid ? await idbGet<string>(legacyBaseKey(id)) : undefined);
+    const [baseJson, theirsJson] = await Promise.all([readBase(), getBytes(ref(storage, head.headPath)).then(gunzipToText)]);
     if (!baseJson || theirsJson === mineJson) return null;
     const base = JSON.parse(baseJson);
     const mine = JSON.parse(mineJson);
@@ -320,7 +324,7 @@ async function pruneHistory(kind: string, localId: string) {
 // ── Throttled background sync (what tools call on every local save) ────────
 
 const SYNC_THROTTLE_MS = 5000;
-const pending = new Map<string, { input: SyncInput; timer: ReturnType<typeof setTimeout> | null; running: boolean }>();
+const pending = new Map<string, { uid: string; input: SyncInput; timer: ReturnType<typeof setTimeout> | null; running: boolean }>();
 export const CREATIVE_SYNC_EVENT = 'creative-cloud:sync';
 export interface CreativeSyncDetail {
   kind: string;
@@ -337,6 +341,7 @@ export interface CreativeSyncDetail {
 // Saves that haven't reached the cloud yet survive offline spells, closed tabs and restarts:
 // each pending sync is mirrored to IndexedDB and replayed when the network (or the app) returns.
 const OUTBOX = 'creative-outbox:';
+const outboxKey = (uid: string, key: string) => userScopedKey(uid, OUTBOX + key);
 const RETRY_MS = 30_000;
 
 function emit(detail: CreativeSyncDetail) {
@@ -354,10 +359,12 @@ export function scheduleCreativeSync(input: SyncInput) {
     return;
   }
   const key = cloudProjectId(input.kind, input.localId);
-  const entry = pending.get(key) ?? { input, timer: null, running: false };
+  const uid = auth.currentUser.uid;
+  const known = pending.get(key);
+  const entry = known?.uid === uid ? known : { uid, input, timer: null, running: false };
   entry.input = input;
   pending.set(key, entry);
-  void idbSet(OUTBOX + key, { uid: auth.currentUser.uid, input }).catch(() => {});
+  void idbSet(outboxKey(uid, key), { uid, input }).catch(() => {});
   if (entry.timer || entry.running) return;
   emit({ kind: input.kind, localId: input.localId, state: 'syncing' });
   entry.timer = setTimeout(() => void runPending(key), SYNC_THROTTLE_MS);
@@ -366,6 +373,8 @@ export function scheduleCreativeSync(input: SyncInput) {
 async function runPending(key: string) {
   const entry = pending.get(key);
   if (!entry) return;
+  // Queued by an account that has since left: it stays in that account's outbox for its return.
+  if (entry.uid !== auth.currentUser?.uid) { pending.delete(key); return; }
   entry.timer = null;
   entry.running = true;
   const input = entry.input;
@@ -386,7 +395,10 @@ async function runPending(key: string) {
     entry.timer = setTimeout(() => void runPending(key), RETRY_MS);
   } else {
     pending.delete(key);
-    if (result.state === 'synced' || result.state === 'over-quota') void idbDel(OUTBOX + key).catch(() => {});
+    if (result.state === 'synced' || result.state === 'over-quota') {
+      void idbDel(outboxKey(entry.uid, key)).catch(() => {});
+      void idbDel(OUTBOX + key).catch(() => {}); // the entry an older build may have left
+    }
   }
 }
 
@@ -395,10 +407,10 @@ export async function resumeCreativeOutbox() {
   if (!auth.currentUser) return;
   const all = await idbKeys().catch(() => [] as IDBValidKey[]);
   for (const k of all) {
-    if (typeof k !== 'string' || !k.startsWith(OUTBOX)) continue;
+    if (typeof k !== 'string' || !(k.startsWith(OUTBOX) || k.startsWith(userScopedKey(auth.currentUser.uid, OUTBOX)))) continue;
     const entry = await idbGet<{ uid: string; input: SyncInput }>(k).catch(() => undefined);
     // Only the account that made the edit may upload it.
-    if (entry?.uid === auth.currentUser.uid && entry.input && !pending.has(k.slice(OUTBOX.length))) scheduleCreativeSync(entry.input);
+    if (entry?.uid === auth.currentUser.uid && entry.input && !pending.has(cloudProjectId(entry.input.kind, entry.input.localId))) scheduleCreativeSync(entry.input);
   }
 }
 
@@ -416,6 +428,17 @@ if (typeof window !== 'undefined') {
   document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && flushCreativeSyncs());
   window.addEventListener('online', flushCreativeSyncs);
   auth.onAuthStateChanged((u) => u && void resumeCreativeOutbox());
+  // What can't land before sign-out stays in this account's outbox and goes when they return.
+  onBeforeSignOut(async () => {
+    flushCreativeSyncs();
+    await Promise.race([
+      new Promise<void>((done) => {
+        const check = () => ([...pending.values()].some((e) => e.running) ? setTimeout(check, 100) : done());
+        check();
+      }),
+      new Promise<void>((done) => setTimeout(done, 2000)),
+    ]);
+  });
 }
 
 // ── Open anywhere ────────────────────────────────────────────────────────────

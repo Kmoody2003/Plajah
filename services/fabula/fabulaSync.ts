@@ -14,14 +14,48 @@
 //     device's playable URLs back on a document that arrived from elsewhere.
 
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
+import { adoptOwnedIdbValue, scopedKey } from '../userScope';
 import { applyOps, diff, fromDoc } from '../coedit/crdt';
 import { newClock, tick } from '../coedit/hlc';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Prod = Record<string, any> & { id: string; updatedAt?: number; mediaPool?: any[] };
 
-const PENDING_KEY = 'fabula:sync:pending';
-const baseKey = (id: string) => `fabula:sync:base:${id}`;
+const LEGACY_PENDING_KEY = 'fabula:sync:pending';
+const legacyBaseKey = (id: string) => `fabula:sync:base:${id}`;
+const pendingKey = () => scopedKey(LEGACY_PENDING_KEY);
+const baseKey = (id: string) => scopedKey(legacyBaseKey(id));
+
+/**
+ * A key in Fabula's IndexedDB store, for this account. Media bytes are the exception: they are
+ * addressed by asset id and only reachable through a production that lists them.
+ */
+export function studioKey(key: string): string {
+  return key.startsWith('studio:blob:') || key.startsWith('studio:proxy:') ? key : scopedKey(key);
+}
+
+/**
+ * Productions from before each account had its own store carry no owner. One moves in when the
+ * cloud lists it under this account. The rest stay on this device unread: their queued saves never
+ * run under someone else, so a local-only backup can't upload into the wrong account.
+ */
+export async function adoptCloudListedProductions(cloudIds: string[]): Promise<number> {
+  let moved = 0;
+  const pendingOld = (await idbGet<string[]>(LEGACY_PENDING_KEY).catch(() => undefined)) ?? [];
+  const mine = new Set<string>();
+  for (const id of cloudIds) {
+    if ((await idbGet('studio:prod:' + id).catch(() => undefined)) === undefined) continue;
+    if ((await idbGet(studioKey('studio:prod:' + id)).catch(() => undefined)) === undefined) moved++;
+    await adoptOwnedIdbValue('studio:prod:' + id, studioKey('studio:prod:' + id));
+    await adoptOwnedIdbValue(legacyBaseKey(id), baseKey(id));
+    if (pendingOld.includes(id)) mine.add(id);
+  }
+  if (mine.size) {
+    await editPending((s) => { mine.forEach((id) => s.add(id)); return s; });
+    await idbSet(LEGACY_PENDING_KEY, pendingOld.filter((id) => !mine.has(id))).catch(() => {});
+  }
+  return moved;
+}
 
 const isDeviceUrl = (u: unknown): u is string => typeof u === 'string' && (u.startsWith('blob:') || u.startsWith('data:'));
 
@@ -161,7 +195,7 @@ export function mergeThreeWay<T>(base: T, mine: T, theirs: T): T {
 
 export async function listPending(): Promise<string[]> {
   try {
-    const v = await idbGet<string[]>(PENDING_KEY);
+    const v = await idbGet<string[]>(pendingKey());
     return Array.isArray(v) ? v : [];
   } catch {
     return [];
@@ -174,7 +208,7 @@ function editPending(fn: (ids: Set<string>) => void): Promise<void> {
   const run = pendingChain.then(async () => {
     const ids = new Set(await listPending());
     fn(ids);
-    await idbSet(PENDING_KEY, [...ids]).catch(() => {});
+    await idbSet(pendingKey(), [...ids]).catch(() => {});
   });
   pendingChain = run.catch(() => {});
   return run;

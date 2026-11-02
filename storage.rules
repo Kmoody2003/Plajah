@@ -103,7 +103,8 @@ service firebase.storage {
     // get stays public (avatars/covers are fetched by path); listing is owner-only so nobody can
     // enumerate another user's files (worksheets, production attachments, drafts …).
     match /users/{uid}/{allPaths=**} {
-      allow get: if true;
+      // Schoolwork isn't public: only its student reads by path (their teacher opens the link saved on the submission).
+      allow get: if !allPaths.matches('academia/.*') || (isAuth() && request.auth.uid == uid);
       allow list: if isAuth() && request.auth.uid == uid;
       allow write: if (isRegisteredUser() && request.auth.uid == uid && isOwnerPathType() && withinSizeLimit())
                    || isAdmin();
@@ -274,7 +275,8 @@ service firebase.storage {
       // No client read at all → no client can mint a download token, so any file type (PSD, AI,
       // SVG, FDX …) is acceptable here; the server scans and streams it with safe headers.
       allow read: if false;
-      allow create: if canCreateStamped() && request.resource.contentType != null && withinSizeLimit();
+      // Nobody writes into another person's space. (Org membership is checked on the file's record.)
+      allow create: if canCreateStamped() && (scopeKind != 'user' || scopeId == request.auth.uid) && request.resource.contentType != null && withinSizeLimit();
       allow update: if canUpdateStamped() && request.resource.contentType != null && withinSizeLimit();
       allow delete: if canDeleteStamped();
     }
@@ -318,14 +320,27 @@ service firebase.storage {
     }
 
     // ── Shared project media (services/coedit/assets.ts) ───────────────────────
-    // coedit-assets/{projectId}/{uid}/{sha-id}/{proxy|master}.{ext}. Only the contributor writes their
-    // own folder; any signed-in reader who knows the content-addressed path may read (membership lives
-    // in the plajah-ops database, which Storage rules can't see — the ledger that lists these paths is
-    // members-only there).
+    // coedit-assets/{projectId}/{uid}/{sha-id}/{proxy|master}.{ext}. Only the contributor writes their own folder.
+    // Nobody reads these directly: membership lives in plajah-ops, which Storage rules can't see, so reads go through
+    // GET /api/coedit/assets (routes/coeditSecurity.ts).
     match /coedit-assets/{projectId}/{uid}/{assetId}/{file} {
-      allow read: if isAuth();
-      allow create, update: if isAuth() && request.auth.uid == uid && request.resource.size < 2 * 1024 * 1024 * 1024;
-      allow delete: if isAuth() && request.auth.uid == uid;
+      allow read: if false;
+      allow create, update: if isRegisteredUser() && request.auth.uid == uid && isOwnerPathType() && request.resource.size < 2 * 1024 * 1024 * 1024;
+      allow delete: if isRegisteredUser() && request.auth.uid == uid;
+    }
+
+    // ── A document's images and media (services/telaAssets.ts) ─────────────────
+    // No client reads and no download tokens: GET /api/tela-media checks the document's members on every request, so
+    // revoking someone really ends what they can load.
+    match /tela-media/{pid}/user/{uid}/{file} {
+      allow read: if false;
+      allow create: if isRegisteredUser() && request.auth.uid == uid && isOwnerPathType() && request.resource.size < 2 * 1024 * 1024 * 1024;
+      allow delete: if isRegisteredUser() && request.auth.uid == uid;
+    }
+    match /tela-media/{pid}/org/{orgId}/{uid}/{file} {
+      allow read: if false;
+      allow create: if isRegisteredUser() && request.auth.uid == uid && isOwnerPathType() && request.resource.size < 2 * 1024 * 1024 * 1024;
+      allow delete: if isRegisteredUser() && request.auth.uid == uid;
     }
 
     // ── Fallback: deny everything not explicitly matched ──────────────────────

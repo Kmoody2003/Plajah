@@ -109,6 +109,24 @@ service cloud.firestore {
 
 
 
+    // Private profile: users/{uid}/private/profile holds what must never be on the world-readable
+    // users/{uid} doc (see services/userPrivate.ts). Rules read relationships from here.
+    function privProfile(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)/private/profile).data;
+    }
+    function userPrivateKeys() {
+      return ['email', 'birthYear', 'dateOfBirth', 'guardianUid', 'coGuardianUids', 'provisionedByTeacherUid', 'childUids', 'parentalControls'];
+    }
+    // Existing values may be removed (the migration strips them) but never added or changed.
+    function noPrivateFieldWrite() {
+      return !request.resource.data.diff(resource.data).addedKeys().hasAny(userPrivateKeys()) &&
+             !request.resource.data.diff(resource.data).changedKeys().hasAny(userPrivateKeys());
+    }
+    // A child stays out of every users list: only queries constrained on listable == true pass.
+    function listableOk(d) {
+      return d.get('listable', false) == false || !isChildAccount(d);
+    }
+
     function productionById(prodId) {
       return get(/databases/$(database)/documents/productions/$(prodId)).data;
     }
@@ -310,8 +328,8 @@ service cloud.firestore {
     }
 
     function isValidUserProfile(data) {
-      return hasRequiredFields(['uid', 'displayName', 'photoURL', 'email']) &&
-             data.uid is string && data.displayName is string && data.photoURL is string && data.email is string &&
+      return hasRequiredFields(['uid', 'displayName', 'photoURL']) &&
+             data.uid is string && data.displayName is string && data.photoURL is string &&
              relationshipStatusOk(data) &&
              (!('motionPref' in data) || data.motionPref in ['auto', 'on', 'off']) &&
              (!('acceptsTips' in data) || (data.acceptsTips is bool)) &&
@@ -710,10 +728,9 @@ service cloud.firestore {
     }
     function isGuardianUidOf(adultUid, studentUid) {
       return exists(/databases/$(database)/documents/users/$(studentUid)) && (
-        eduUser(studentUid).get('guardianUid', '') == adultUid ||
-        adultUid in eduUser(studentUid).get('coGuardianUids', []) ||
-        (exists(/databases/$(database)/documents/users/$(adultUid)) &&
-         studentUid in eduUser(adultUid).get('childUids', []))
+        privProfile(studentUid).get('guardianUid', '') == adultUid ||
+        adultUid in privProfile(studentUid).get('coGuardianUids', []) ||
+        studentUid in privProfile(adultUid).get('childUids', [])
       );
     }
     // For a 2-person PRIVATE room: allow iff not student-involving, or the one adult
@@ -1036,8 +1053,15 @@ service cloud.firestore {
       }
     }
 
+    // A private video is the owner's alone. Lists must be provably public or the caller's own, so queries
+    // for other people's videos carry where isPrivate == false (services/videoQuery.ts).
+    function videoVisible(videoId) {
+      let v = get(/databases/$(database)/documents/videos/$(videoId)).data;
+      return v.get('isPrivate', false) != true || (isAuthenticated() && v.ownerId == request.auth.uid) || isAdmin();
+    }
     match /videos/{videoId} {
-      allow read: if true;
+      allow get: if resource.data.get('isPrivate', false) != true || (isAuthenticated() && resource.data.ownerId == request.auth.uid) || isAdmin();
+      allow list: if resource.data.isPrivate == false || (isAuthenticated() && resource.data.ownerId == request.auth.uid) || isAdmin();
       allow create: if isRegisteredUser() && isValidVideo(request.resource.data) && request.resource.data.ownerId == request.auth.uid;
       // Anti-abuse: likesCount moves ±1 ONLY in the same batch that creates/deletes the caller's
       // like edge (videos/{id}/likes/{uid}_{id}) — no edge-less inflation. commentsCount ±1 alone.
@@ -1056,13 +1080,13 @@ service cloud.firestore {
       allow delete: if (isAuthenticated() && resource.data.ownerId == request.auth.uid) || isAdmin();
 
       match /likes/{likeId} {
-        allow read: if true;
+        allow read: if videoVisible(videoId);
         allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid && likeId == request.auth.uid + "_" + videoId;
         allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
       }
 
       match /comments/{commentId} {
-        allow read: if true;
+        allow read: if videoVisible(videoId);
         allow create: if isRegisteredUser() && isValidVideoComment(request.resource.data) && request.resource.data.userId == request.auth.uid;
         // Creator reply-with-video: the VIDEO's owner may attach/clear replyVideoId on a
         // comment — and ONLY that key, so this can't become a general comment-edit hole.
@@ -1122,20 +1146,19 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Public read is allowed but write-through validation prevents
-      // sensitive fields like masterEmail / aliases from leaking via
-      // unsafe clients.  The email field stored here is used for
-      // admin checks only and is NEVER surfaced in public-facing UI
-      // (enforced at the application layer — see email privacy guards
-      // in AdminDashboard, VideoTab, App.tsx, etc.).
-      allow read: if true;
+      // Public profile card: anyone can open one by id. Private fields live in private/profile and
+      // writes can't put them back here. Lists only return listable accounts, so children can't be
+      // enumerated: every users query must carry where('listable', '==', true).
+      allow get: if true;
+      allow list: if resource.data.listable == true || isAdmin();
       // Allow owner to update everything; others can only bump followerCount.
       // A guardian may also create + manage a CHILD profile they own (isChild +
       // guardianUid == their uid) — Firestore-only managed sub-accounts, no separate auth.
       // teacherVerification gates the right to provision child accounts — it is a SERVER-ONLY
       // field (set via the service account, which bypasses these rules). A client may never
       // self-grant it on create or change it on update, or the provisioning gate is bypassable.
-      allow create: if (isOwner(userId) && isValidUserProfile(request.resource.data) &&
+      allow create: if !request.resource.data.keys().hasAny(userPrivateKeys()) && listableOk(request.resource.data) && (
+                      (isOwner(userId) && isValidUserProfile(request.resource.data) &&
                        request.resource.data.get('teacherVerification', 'UNVERIFIED') == 'UNVERIFIED' &&
                        // nobody self-declares as a child at signup: child profiles come only from
                        // the guardian path below or the server (/api/learner provisioning)
@@ -1151,19 +1174,22 @@ service cloud.firestore {
                        request.resource.data.get('uid', '') == userId &&
                        request.resource.data.isChild == true &&
                        request.resource.data.get('accountType', 'CHILD') == 'CHILD' &&
-                       request.resource.data.guardianUid == request.auth.uid &&
-                       !('provisionedByTeacherUid' in request.resource.data) &&
+                       getAfter(/databases/$(database)/documents/users/$(userId)/private/profile).data.guardianUid == request.auth.uid &&
                        request.resource.data.get('teacherVerification', 'UNVERIFIED') == 'UNVERIFIED' &&
                        noPlatformPrivilegeGrab(request.resource.data)) ||
                       // Managed EMPLOYEE profile: a business owner/admin provisions a Firestore-only
-                      // work identity (no login). Must be flagged isEmployee and owned by the creator.
+                      // work identity (no login). Must be flagged isEmployee and owned by the creator, at a
+                      // generated emp_/prov_ id a real Firebase uid can't have, so nobody pre-squats a person's profile.
                       (isAuthenticated() &&
+                       userId.matches('(emp|prov)_[A-Za-z0-9_-]{1,6}_[a-z0-9]{1,16}') &&
+                       request.resource.data.get('uid', '') == userId &&
                        request.resource.data.isEmployee == true &&
                        request.resource.data.managedByUid == request.auth.uid &&
                        request.resource.data.get('teacherVerification', 'UNVERIFIED') == 'UNVERIFIED' &&
                        !isChildAccount(request.resource.data) &&
-                       noPlatformPrivilegeGrab(request.resource.data));
-      allow update: if (isOwner(userId) && isValidUserProfile(request.resource.data) &&
+                       noPlatformPrivilegeGrab(request.resource.data)));
+      allow update: if noPrivateFieldWrite() && listableOk(request.resource.data) && (
+                      (isOwner(userId) && isValidUserProfile(request.resource.data) &&
                        request.resource.data.get('teacherVerification', 'UNVERIFIED') == resource.data.get('teacherVerification', 'UNVERIFIED') &&
                        platformPrivilegeUnchanged(request.resource.data, resource.data) &&
                        ownerChildSafetyOk(request.resource.data, resource.data)) ||
@@ -1183,9 +1209,8 @@ service cloud.firestore {
                       // can never un-child it, hand it to someone else, or grant it privilege.
                       (isAuthenticated() &&
                        resource.data.isChild == true &&
-                       resource.data.guardianUid == request.auth.uid &&
+                       isGuardianOf(userId) &&
                        request.resource.data.get('isChild', false) == true &&
-                       request.resource.data.get('guardianUid', null) == request.auth.uid &&
                        request.resource.data.get('accountType', null) == resource.data.get('accountType', null) &&
                        request.resource.data.get('provisionedByTeacherUid', null) == resource.data.get('provisionedByTeacherUid', null) &&
                        request.resource.data.get('teacherVerification', 'UNVERIFIED') == resource.data.get('teacherVerification', 'UNVERIFIED') &&
@@ -1193,7 +1218,9 @@ service cloud.firestore {
                       // A managed employee profile is managed by its creator, or by the employer
                       // org's admins (roster/role/badge edits, and owner-initiated claim linking).
                       (isAuthenticated() &&
-                       resource.data.isEmployee == true && (
+                       resource.data.isEmployee == true &&
+                       request.resource.data.get('teacherVerification', 'UNVERIFIED') == resource.data.get('teacherVerification', 'UNVERIFIED') &&
+                       platformPrivilegeUnchanged(request.resource.data, resource.data) && (
                          resource.data.managedByUid == request.auth.uid ||
                          request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.employerOrgId)).data.admins
                        )) ||
@@ -1202,7 +1229,7 @@ service cloud.firestore {
                       // displayName alone so sensitive fields (email, teacherVerification, aliases)
                       // can never be touched via this path.
                       (isAdmin() &&
-                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName']));
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName'])));
 
       // Aria (PlajahAgent) conversation history. The owner may create and read their OWN sessions, and read
       // their messages and daily usage counter. Every message and usage write is SERVER-ONLY (the service
@@ -1227,9 +1254,36 @@ service cloud.firestore {
         allow write: if false;
       }
 
-      // Private user data — only the account owner can read
+      // Private user data. private/profile: the owner, their guardians, the provisioning teacher and
+      // platform admins read it; the server (service account) writes anything. A child can't change
+      // who manages them or what they may see, and nobody can name themselves a guardian of a real uid.
       match /private/{docId} {
-        allow read, write: if isOwner(userId);
+        allow read: if isOwner(userId) || isAdmin() || (docId == 'profile' && isAuthenticated() && (
+                      resource.data.get('guardianUid', '') == request.auth.uid ||
+                      request.auth.uid in resource.data.get('coGuardianUids', []) ||
+                      resource.data.get('provisionedByTeacherUid', '') == request.auth.uid));
+        allow write: if docId != 'profile' && isOwner(userId);
+        allow create: if docId == 'profile' && (
+                      (isOwner(userId) && !isChildAccount(get(/databases/$(database)/documents/users/$(userId)).data) &&
+                       !request.resource.data.keys().hasAny(['guardianUid', 'coGuardianUids', 'provisionedByTeacherUid'])) ||
+                      // Guardian path: same batch as the child's users doc, at a child_ id no real uid can have.
+                      (isRegisteredUser() && !request.auth.uid.matches('child_.*') &&
+                       userId.matches('child_[A-Za-z0-9]{1,6}_[a-z0-9]{1,16}') &&
+                       request.resource.data.guardianUid == request.auth.uid &&
+                       !request.resource.data.keys().hasAny(['coGuardianUids', 'provisionedByTeacherUid']) &&
+                       getAfter(/databases/$(database)/documents/users/$(userId)).data.get('isChild', false) == true));
+        allow update: if docId == 'profile' && isAuthenticated() &&
+                      request.resource.data.get('guardianUid', null) == resource.data.get('guardianUid', null) &&
+                      request.resource.data.get('coGuardianUids', null) == resource.data.get('coGuardianUids', null) &&
+                      request.resource.data.get('provisionedByTeacherUid', null) == resource.data.get('provisionedByTeacherUid', null) && (
+                      resource.data.get('guardianUid', '') == request.auth.uid ||
+                      (isOwner(userId) &&
+                       (!('birthYear' in resource.data) || request.resource.data.get('birthYear', null) == resource.data.birthYear) &&
+                       (!('dateOfBirth' in resource.data) || request.resource.data.get('dateOfBirth', null) == resource.data.dateOfBirth) &&
+                       (!isChildAccount(get(/databases/$(database)/documents/users/$(userId)).data) ||
+                        (request.resource.data.get('parentalControls', null) == resource.data.get('parentalControls', null) &&
+                         request.resource.data.get('birthYear', null) == resource.data.get('birthYear', null)))));
+        allow delete: if docId == 'profile' && isAdmin();
       }
 
       // ── Plajah Pixels projects (components/plajahPixels/services/projectService) ──
@@ -1470,9 +1524,7 @@ service cloud.firestore {
 
     // ── Education: the Learner Ledger. A student owns their record; a guardian may read it. ──
     function isGuardianOf(studentId) {
-      return isAuthenticated() &&
-             exists(/databases/$(database)/documents/users/$(studentId)) &&
-             get(/databases/$(database)/documents/users/$(studentId)).data.guardianUid == request.auth.uid;
+      return isAuthenticated() && privProfile(studentId).get('guardianUid', '') == request.auth.uid;
     }
     // Learner / teacher corrections for lessons and questions. Anyone signed in may report; only admins read or resolve.
     match /contentReports/{id} {
@@ -1513,7 +1565,7 @@ service cloud.firestore {
     // their own guardian; the child and that guardian can read it; only the guardian can resolve it.
     match /chatRequests/{id} {
       allow create: if isAuthenticated() && request.resource.data.childUid == request.auth.uid
-                    && request.resource.data.guardianUid == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.guardianUid
+                    && request.resource.data.guardianUid == privProfile(request.auth.uid).guardianUid
                     && request.resource.data.status == 'pending';
       allow read: if isAuthenticated() && (resource.data.childUid == request.auth.uid || resource.data.guardianUid == request.auth.uid);
       allow update: if isAuthenticated() && resource.data.guardianUid == request.auth.uid;
@@ -1550,8 +1602,9 @@ service cloud.firestore {
     // Live-stream cloud-recording manifest (segment count etc.), written live by the streamer;
     // the server reads it (admin) to assemble the replay.
     match /liveRecordings/{streamId} {
-      allow read: if true;
-      allow create, update: if isAuthenticated();
+      allow read: if isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.ownerUid == request.auth.uid && request.resource.data.ownerUid == request.auth.uid;
     }
     match /learnerProficiency/{studentId} {
       allow read: if isOwner(studentId) || isGuardianOf(studentId);
@@ -2286,7 +2339,7 @@ service cloud.firestore {
 
     match /purchases/{purchaseId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow create: if false;
     }
 
     match /tv_channels/{channelId} {
@@ -2471,7 +2524,7 @@ service cloud.firestore {
         // 1. If the room is identified as a live chat via naming convention, allow reading (lax fallback)
         // 2. OR if the parent room doc exists AND user is participant or type is PUBLIC_LIVE
         allow read: if isAuthenticated() && classroomThreadAccess() && (
-          roomId.matches("^live_chat_.*") || 
+          (roomId.matches("^live_chat_.*") && !exists(/databases/$(database)/documents/chat_rooms/$(roomId))) ||
           (exists(/databases/$(database)/documents/chat_rooms/$(roomId)) && (
             request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants ||
             get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.type == 'PUBLIC_LIVE'
@@ -2666,11 +2719,13 @@ service cloud.firestore {
     // token shared privately, so any signed-in user may read one they were given.
     // Only the inviter creates; the accepter (not the inviter) marks it ACCEPTED.
     match /nibbleInvites/{code} {
-      allow read: if isAuthenticated();
+      allow get: if isAuthenticated();
+      allow list: if isAuthenticated() && resource.data.inviterUid == request.auth.uid;
       allow create: if isAuthenticated() && request.resource.data.inviterUid == request.auth.uid;
       allow update: if isAuthenticated()
                     && request.auth.uid != resource.data.inviterUid
-                    && request.resource.data.inviterUid == resource.data.inviterUid;
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'accepterUid', 'acceptedAt'])
+                    && request.resource.data.accepterUid == request.auth.uid;
       allow delete: if isAuthenticated() && (resource.data.inviterUid == request.auth.uid || isAdmin());
     }
 
@@ -2730,8 +2785,10 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isValidClassroom(request.resource.data) && request.resource.data.ownerId == request.auth.uid;
       allow update: if isAuthenticated() && (
         (resource.data.ownerId == request.auth.uid && isValidClassroom(request.resource.data)) ||
-        // Self-enrollment: ONLY into a free, published course, adding exactly yourself, within the seat
-        // cap. Paid courses are joined server-side after payment (checkout.session.completed webhook,
+        // Self-enrollment: ONLY into a free, published course its owner marked enrollment: 'open' (default
+        // closed), adding exactly yourself, within the seat cap. Closed classes join by teacher add or by
+        // join code (/api/learner-auth/join-class). The roster stays on this public doc for now: rules and
+        // many readers use it, so moving it needs its own change. It exposes uids, not coursework. Paid courses are joined server-side after payment (checkout.session.completed webhook,
         // which writes with the service account and bypasses these rules). Before this, any signed-in
         // user could add themselves to a paid course for free.
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['enrolledStudents']) &&
@@ -2740,6 +2797,7 @@ service cloud.firestore {
          request.auth.uid in request.resource.data.enrolledStudents &&
          !(request.auth.uid in resource.data.enrolledStudents) &&
          resource.data.price == 0 &&
+         resource.data.get('enrollment', 'closed') == 'open' &&
          resource.data.get('status', 'PUBLISHED') != 'DRAFT' &&
          (resource.data.get('capacity', 0) == 0 || request.resource.data.enrolledStudents.size() <= resource.data.get('capacity', 0) + 1))
       );
@@ -2807,7 +2865,8 @@ service cloud.firestore {
         isAdmin()
       );
       allow create, update: if isAuthenticated() &&
-        get(/databases/$(database)/documents/classrooms/$(request.resource.data.classroomId)).data.ownerId == request.auth.uid;
+        get(/databases/$(database)/documents/classrooms/$(request.resource.data.classroomId)).data.ownerId == request.auth.uid &&
+        request.resource.data.studentId in get(/databases/$(database)/documents/classrooms/$(request.resource.data.classroomId)).data.get('enrolledStudents', []);
       allow delete: if isAuthenticated() && (
         get(/databases/$(database)/documents/classrooms/$(resource.data.classroomId)).data.ownerId == request.auth.uid ||
         isAdmin()
@@ -3459,6 +3518,33 @@ service cloud.firestore {
     // CLUBS
     // ===============================================================
 
+    // Who may read inside a club. A public club stays open to anyone signed in. A private one needs the
+    // deterministic marker clubMemberIndex/{clubId}_{uid}, written with the membership. List queries
+    // must be constrained on clubId so this can resolve. A clubId with no clubs doc is not gated.
+    function clubReadable(clubId) {
+      let path = /databases/$(database)/documents/clubs/$(clubId);
+      return isAuthenticated() && (!exists(path) || get(path).data.get('isPrivate', false) != true ||
+        get(path).data.get('creatorId', '') == request.auth.uid || request.auth.uid in get(path).data.get('admins', []) ||
+        exists(/databases/$(database)/documents/clubMemberIndex/$(clubId + '_' + request.auth.uid)) || isAdmin());
+    }
+    function clubManager(clubId) {
+      let c = get(/databases/$(database)/documents/clubs/$(clubId)).data;
+      return isAuthenticated() && (c.get('creatorId', '') == request.auth.uid || request.auth.uid in c.get('admins', []));
+    }
+    // Self-join is active only for an open public club; everything else waits for approval.
+    function clubOpenJoin(clubId) {
+      let c = get(/databases/$(database)/documents/clubs/$(clubId)).data;
+      return c.get('joinProcess', '') == 'AUTO' && c.get('isPrivate', false) != true;
+    }
+    match /clubMemberIndex/{indexId} {
+      allow read: if isAuthenticated() && (indexId.matches('.*_' + request.auth.uid) || clubManager(resource.data.clubId) || isAdmin());
+      allow create: if isAuthenticated() && indexId == request.resource.data.clubId + '_' + request.resource.data.userId &&
+        request.resource.data.keys().hasOnly(['clubId', 'userId', 'at']) && (
+          (request.resource.data.userId == request.auth.uid && clubOpenJoin(request.resource.data.clubId)) ||
+          clubManager(request.resource.data.clubId) || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || clubManager(resource.data.clubId) || isAdmin());
+    }
+
     match /clubs/{clubId} {
       allow read: if true;
       // "Official" is granted by a platform admin only (official creator clubs, e.g. the Pumpkin Patch Club).
@@ -3479,28 +3565,28 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin());
 
       match /clubPosts/{postId} {
-        allow read: if isAuthenticated();
+        allow read: if clubReadable(clubId);
         allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
         allow update: if isAuthenticated() && (resource.data.authorId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
         allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
       }
 
       match /clubGallery/{itemId} {
-        allow read: if isAuthenticated();
+        allow read: if clubReadable(clubId);
         allow create: if isAuthenticated() && request.resource.data.uploaderId == request.auth.uid;
         allow update: if isAuthenticated() && (resource.data.uploaderId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
         allow delete: if isAuthenticated() && (resource.data.uploaderId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
       }
 
       match /clubChatMessages/{msgId} {
-        allow read: if isAuthenticated();
+        allow read: if clubReadable(clubId);
         allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid;
         allow update: if isAuthenticated() && resource.data.senderId == request.auth.uid;
         allow delete: if isAuthenticated() && (resource.data.senderId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
       }
 
       match /clubEvents/{eventId} {
-        allow read: if isAuthenticated();
+        allow read: if clubReadable(clubId);
         allow create: if isAuthenticated() && request.resource.data.hostId == request.auth.uid;
         allow update: if isAuthenticated() && (
           resource.data.hostId == request.auth.uid ||
@@ -3512,7 +3598,7 @@ service cloud.firestore {
       }
 
       match /clubStickyNotes/{noteId} {
-        allow read: if isAuthenticated();
+        allow read: if clubReadable(clubId);
         allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
         allow update: if isAuthenticated() && (resource.data.authorId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
         allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins || isAdmin());
@@ -3520,18 +3606,21 @@ service cloud.firestore {
     }
 
     match /clubMemberships/{membershipId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || clubReadable(resource.data.clubId));
       // Joining makes you a MEMBER; only the club's creator gets an OWNER/staff row for themselves
       // (createClub / claimClubAsFounder / the club creators write it after setting creatorId).
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid && (
         request.resource.data.get('role', 'MEMBER') == 'MEMBER' ||
         get(/databases/$(database)/documents/clubs/$(request.resource.data.clubId)).data.creatorId == request.auth.uid ||
         isAdmin()
+      ) && (
+        request.resource.data.get('status', 'ACTIVE') == 'PENDING' ||
+        clubOpenJoin(request.resource.data.clubId) || clubManager(request.resource.data.clubId) || isAdmin()
       );
       allow update: if isAuthenticated() && (
         // Members edit their own row (team, display name…) but never promote themselves.
         (resource.data.userId == request.auth.uid &&
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'clubId', 'userId'])) ||
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'clubId', 'userId', 'status'])) ||
         request.auth.uid in get(/databases/$(database)/documents/clubs/$(resource.data.clubId)).data.admins ||
         isAdmin()
       );
@@ -3631,7 +3720,8 @@ service cloud.firestore {
                        (resource.data.productionId is string && productionStaffOf(resource.data.productionId)) || isAdmin();
     }
     match /productionInvites/{token} {
-      allow read: if isAuthenticated();
+      allow get: if isAuthenticated();
+      allow list: if productionStaffOf(resource.data.productionId);
       allow create: if request.resource.data.productionId is string && productionStaffOf(request.resource.data.productionId);
       allow update, delete: if productionStaffOf(resource.data.productionId) ||
         (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uses', 'active']) &&
@@ -3643,8 +3733,8 @@ service cloud.firestore {
     // program outputs; master control lists them. Not sensitive (just discovery).
     match /program_feeds/{feedId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.createdByUid == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.get('createdByUid', '') == request.auth.uid || orgPastorOrAdmin(resource.data.churchId) || isAdmin());
     }
 
 
@@ -3657,6 +3747,8 @@ service cloud.firestore {
       let inv = get(/databases/$(database)/documents/orgInvites/$(data.inviteToken)).data;
       return inv.orgId == data.orgId && inv.roleKey == data.roleKey && inv.get('revoked', false) == false &&
         inv.expiresAt > request.time.toMillis() && inv.uses < inv.maxUses &&
+        inv.get('baseRole', data.role) == data.role &&
+        getAfter(/databases/$(database)/documents/orgInvites/$(data.inviteToken)).data.uses == inv.uses + 1 &&
         (inv.get('requireApproval', false) == false || data.status == 'PENDING') &&
         data.role in ['MEMBER', 'STAFF', 'MODERATOR'] && !('permissions' in data) && !('isSenior' in data);
     }
@@ -3703,7 +3795,7 @@ service cloud.firestore {
     }
 
     match /orgFollowers/{followId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (followId.matches('.*_' + request.auth.uid) || orgPastorOrAdmin(resource.data.orgId) || isAdmin());
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid &&
         (followId == request.resource.data.orgId + '_' + request.auth.uid ||
          followId == request.resource.data.orgId + '__' + request.resource.data.get('ministryId', '') + '__' + request.auth.uid);
@@ -3712,7 +3804,7 @@ service cloud.firestore {
     }
 
     match /orgMemberIndex/{indexId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (indexId.matches('.*_' + request.auth.uid) || orgIsMember(resource.data.orgId) || isAdmin());
       // Marker for an ACTIVE membership — members-only and department feeds trust it, so a member never writes
       // their own: the server rebuilds it from orgMemberships (POST /api/elevate/claim/sync-index). Org
       // admins/pastors may still write it directly; anyone may drop their own.
@@ -3733,7 +3825,8 @@ service cloud.firestore {
         data.role in ['MEMBER', 'STAFF', 'MODERATOR'] && !('permissions' in data) && !('isSenior' in data);
     }
     match /orgMemberships/{membershipId} {
-      allow read: if isAuthenticated();
+      // A roster belongs to its org. Outsiders see only public leadership, through /api/elevate/access/public-roster.
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || orgIsMember(resource.data.orgId) || chmsPeopleStaff(resource.data.orgId) || isAdmin());
       // Join yourself as a plain member (PENDING/ACTIVE), via a valid role-setup invite, OR an org admin/pastor adds a member,
       // OR roster staff pre-provision a claimable seat.
       allow create: if isAuthenticated() && (!('protectedRoles' in request.resource.data) || isAdmin()) && (
@@ -3755,12 +3848,6 @@ service cloud.firestore {
         // Roster staff may re-point an UNCLAIMED seat (role / title / departments) — never claim it or lift its base role.
         (resource.data.get('isProvisioned', false) == true && provisionedSeatOk(request.resource.data) &&
           request.resource.data.userId == resource.data.userId && chmsPeopleStaff(resource.data.orgId)) ||
-        (resource.data.get('isProvisioned', false) == true &&
-          request.resource.data.get('isProvisioned', true) == false &&
-          request.resource.data.userId == request.auth.uid &&
-          request.resource.data.orgId == resource.data.orgId &&
-          request.resource.data.role == resource.data.role &&
-          request.resource.data.get('roleKey', '') == resource.data.get('roleKey', '')) ||
         isAdmin()
       );
       allow delete: if isAuthenticated() && (
@@ -3849,14 +3936,20 @@ service cloud.firestore {
 
 
     // Ora wellbeing in education. classWeather holds anonymous counters only (no user ids).
+    // Class mood counts: only the class's teacher and enrolled students. wid is {classId}_{day}.
+    function inWeatherClass(wid) {
+      let c = get(/databases/$(database)/documents/classrooms/$(wid.replace('_[0-9]{4}-[0-9]{2}-[0-9]{2}', ''))).data;
+      return isAuthenticated() && (c.ownerId == request.auth.uid || request.auth.uid in c.get('enrolledStudents', []));
+    }
     match /classWeather/{wid} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && request.resource.data.keys().hasOnly(['classId', 'day', 'counts']);
+      allow read: if inWeatherClass(wid);
+      allow create, update: if inWeatherClass(wid) && wid == request.resource.data.classId + '_' + request.resource.data.day
+        && request.resource.data.keys().hasOnly(['classId', 'day', 'counts']);
     }
 
 
     match /clubPosts/{postId} {
-      allow read: if isAuthenticated();
+      allow read: if clubReadable(resource.data.clubId);
       allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
       allow update: if isAuthenticated() && (
         resource.data.authorId == request.auth.uid ||
@@ -3877,7 +3970,7 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
 
       match /comments/{commentId} {
-        allow read: if isAuthenticated();
+        allow read: if clubReadable(get(/databases/$(database)/documents/clubPosts/$(postId)).data.clubId);
         allow create: if isRegisteredUser() && isValidPostComment(request.resource.data)
                       && request.resource.data.get('uid', '') == request.auth.uid
                       && exists(/databases/$(database)/documents/clubPosts/$(postId));
@@ -3955,21 +4048,21 @@ service cloud.firestore {
     }
 
     match /clubGallery/{itemId} {
-      allow read: if isAuthenticated();
+      allow read: if clubReadable(resource.data.clubId);
       allow create: if isAuthenticated() && request.resource.data.uploaderId == request.auth.uid;
       allow update: if isAuthenticated() && (resource.data.uploaderId == request.auth.uid || isAdmin());
       allow delete: if isAuthenticated() && (resource.data.uploaderId == request.auth.uid || isAdmin());
     }
 
     match /clubChat/{msgId} {
-      allow read: if isAuthenticated();
+      allow read: if clubReadable(resource.data.clubId);
       allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid;
       allow update: if isAuthenticated() && resource.data.senderId == request.auth.uid;
       allow delete: if isAuthenticated() && (resource.data.senderId == request.auth.uid || isAdmin());
     }
 
     match /clubEvents/{eventId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.attendeeIds || clubReadable(resource.data.clubId));
       // hostId is the field used by ClubEvent (not creatorId)
       allow create: if isAuthenticated() && request.resource.data.hostId == request.auth.uid;
       allow update: if isAuthenticated() && (
@@ -3984,6 +4077,23 @@ service cloud.firestore {
     // ===============================================================
     // SANCTUARY (Patreon / Kickstarter / GoFundMe hybrid)
     // ===============================================================
+
+    // Inside a sanctuary: its owner, or an ACTIVE member at the deterministic id {owner}_{uid}. Queries must be
+    // constrained on the owner field. FREE items are readable by anyone signed in, so a non-member's query
+    // asks for accessType == 'FREE'. Paid unlocks are the server-written sanctuaryUnlocks/{uid}_{itemId}.
+    function sanctuaryInside(owner) {
+      let path = /databases/$(database)/documents/sanctuaryMemberships/$(owner + '_' + request.auth.uid);
+      return owner == request.auth.uid || isAdmin() || (exists(path) && get(path).data.status == 'ACTIVE');
+    }
+    match /sanctuaryUnlocks/{id} {
+      allow read: if isAuthenticated() && id.matches(request.auth.uid + '_.*');
+      allow write: if false;
+    }
+    // Public campaign totals, recomputed by the server from real pledges. Who pledged stays private.
+    match /sanctuaryPledgeTotals/{sanctuaryId} {
+      allow read: if true;
+      allow write: if false;
+    }
 
     // Sanctuary identity — one per account (doc id == ownerId).
     match /sanctuaries/{ownerId} {
@@ -4007,6 +4117,7 @@ service cloud.firestore {
     // A fan's membership record.
     match /sanctuaryMemberships/{membershipId} {
       allow read: if isAuthenticated() && (
+        membershipId.matches('.*_' + request.auth.uid) ||
         resource.data.memberId == request.auth.uid ||
         resource.data.creatorId == request.auth.uid || isAdmin());
       // Paid tiers are written ONLY by the Stripe webhook; the app joins free tiers + cancels through
@@ -4016,6 +4127,7 @@ service cloud.firestore {
       // 0, and cancelling your own membership — nothing that grants paid access.
       allow create: if isAuthenticated()
         && request.resource.data.memberId == request.auth.uid
+        && membershipId == request.resource.data.creatorId + '_' + request.auth.uid
         && request.resource.data.status == 'ACTIVE'
         && !('stripeSubscriptionId' in request.resource.data)
         && request.resource.data.tierId is string
@@ -4031,7 +4143,8 @@ service cloud.firestore {
 
     // Exclusive content (tier-gated or à la carte).
     match /sanctuaryContent/{contentId} {
-      allow read: if isAuthenticated();  // access to the URL is gated in-app / server-side
+      allow get: if isAuthenticated() && (resource.data.get('accessType', 'TIER') == 'FREE' || sanctuaryInside(resource.data.creatorId) || exists(/databases/$(database)/documents/sanctuaryUnlocks/$(request.auth.uid + '_' + contentId)));
+      allow list: if isAuthenticated() && (resource.data.accessType == 'FREE' || sanctuaryInside(resource.data.creatorId));
       allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid;
       allow update: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin() ||
         // Like/comment counters.
@@ -4041,7 +4154,8 @@ service cloud.firestore {
 
     // The sanctuary's gated feed.
     match /sanctuaryPosts/{postId} {
-      allow read: if isAuthenticated();
+      allow get: if isAuthenticated() && (resource.data.get('accessType', 'TIER') == 'FREE' || sanctuaryInside(resource.data.sanctuaryId) || exists(/databases/$(database)/documents/sanctuaryUnlocks/$(request.auth.uid + '_' + postId)));
+      allow list: if isAuthenticated() && (resource.data.accessType == 'FREE' || sanctuaryInside(resource.data.sanctuaryId));
       allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
       allow update: if isAuthenticated() && (
         resource.data.authorId == request.auth.uid || isAdmin() ||
@@ -4052,14 +4166,16 @@ service cloud.firestore {
 
     // Gated media wall.
     match /sanctuaryGallery/{itemId} {
-      allow read: if isAuthenticated();
+      allow get: if isAuthenticated() && (resource.data.get('accessType', 'TIER') == 'FREE' || sanctuaryInside(resource.data.sanctuaryId) || exists(/databases/$(database)/documents/sanctuaryUnlocks/$(request.auth.uid + '_' + itemId)));
+      allow list: if isAuthenticated() && (resource.data.accessType == 'FREE' || sanctuaryInside(resource.data.sanctuaryId));
       allow create: if isAuthenticated() && request.resource.data.uploaderId == request.auth.uid;
       allow update, delete: if isAuthenticated() && (resource.data.uploaderId == request.auth.uid || isAdmin());
     }
 
     // Scheduled member events.
     match /sanctuaryEvents/{eventId} {
-      allow read: if isAuthenticated();
+      allow get: if isAuthenticated() && (resource.data.get('accessType', 'TIER') == 'FREE' || sanctuaryInside(resource.data.sanctuaryId) || request.auth.uid in resource.data.get('attendeeIds', []));
+      allow list: if isAuthenticated() && (resource.data.accessType == 'FREE' || sanctuaryInside(resource.data.sanctuaryId) || request.auth.uid in resource.data.attendeeIds);
       allow create: if isAuthenticated() && request.resource.data.hostId == request.auth.uid;
       allow update: if isAuthenticated() && (
         resource.data.hostId == request.auth.uid || isAdmin() ||
@@ -4070,7 +4186,7 @@ service cloud.firestore {
 
     // Member chat (lounge or gated channel).
     match /sanctuaryChat/{msgId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && sanctuaryInside(resource.data.sanctuaryId);
       allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid;
       allow update: if isAuthenticated() && resource.data.senderId == request.auth.uid;
       allow delete: if isAuthenticated() && (resource.data.senderId == request.auth.uid || isAdmin());
@@ -4084,10 +4200,10 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // Campaign pledges — readable so the banner can sum live totals; only the
-    // webhook (service account) writes them.
+    // Campaign pledges: the backer and the creator see a row; everyone else gets sanctuaryPledgeTotals.
+    // Only the webhook (service account) writes them.
     match /sanctuaryPledges/{pledgeId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (resource.data.backerId == request.auth.uid || resource.data.sanctuaryId == request.auth.uid || isAdmin());
       allow write: if isAdmin();
     }
 
@@ -5408,7 +5524,9 @@ service cloud.firestore {
     // TV pairing codes: the TV creates a short-lived code; one other signed-in user may claim it
     // (only the claim fields), and only that claimer may then push duties (only duty fields).
     match /tv_pairings/{code} {
-      allow read: if isAuthenticated();
+      // A code is the secret that lets someone claim a TV: read by knowing it, never by listing.
+      allow get: if isAuthenticated();
+      allow list: if isAuthenticated() && (resource.data.uid == request.auth.uid || resource.data.claimedBy == request.auth.uid);
       allow create: if isAuthenticated()
         && code.matches('^[A-Z0-9]{6}$')
         && request.resource.data.uid == request.auth.uid;

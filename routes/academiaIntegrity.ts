@@ -15,7 +15,7 @@
 
 import { Router, Request, Response } from 'express';
 import nodeCrypto from 'node:crypto';
-import {
+import { verifyIdTokenDetailed,
   verifyIdToken, fsGet, fsSet, fsPatch, fsCreate, fsList,
   setCustomClaims, getCustomClaims, adminConfig,
 } from '../services/firebaseAdminRest';
@@ -85,15 +85,19 @@ academiaIntegrityRouter.post('/conflict-check', async (req: Request, res: Respon
     const oneToOne = req.body?.offeringType === 'tutoring' && req.body?.isPaid !== false;
     return res.status(503).json({ blocked: oneToOne, reason: oneToOne ? 'ROSTER_MATCH' : undefined });
   }
-  const uid = await callerUid(req);
-  if (!uid) return res.status(401).json({ error: 'Sign in required.' });
+  const bearer = req.headers.authorization;
+  const caller = bearer?.startsWith('Bearer ') ? await verifyIdTokenDetailed(bearer.slice(7)) : null;
+  if (!caller) return res.status(401).json({ error: 'Sign in required.' });
 
   const { creatorUid, purchaserRef, offeringType, isPaid } = (req.body ?? {}) as {
     creatorUid?: string; purchaserRef?: string; offeringType?: OfferingType; isPaid?: boolean;
   };
-  if (!creatorUid || !purchaserRef) {
-    return res.status(400).json({ error: 'creatorUid and purchaserRef are required.' });
+  if (!creatorUid) {
+    return res.status(400).json({ error: 'creatorUid is required.' });
   }
+  // The purchaser is whoever is signed in. A client-named ref (a parent buying for a child) can add a match but
+  // can never replace these, so a student cannot pass a clean ref to dodge the wall.
+  const purchaserRefs = [...new Set([caller.email, caller.uid, purchaserRef].filter((r): r is string => typeof r === 'string' && !!r))];
   // Free interactions are never a conflict.
   if (isPaid === false) return res.json({ blocked: false });
 
@@ -119,7 +123,7 @@ academiaIntegrityRouter.post('/conflict-check', async (req: Request, res: Respon
       await logEvent(creatorUid, { kind: 'conflict_block', note: 'district salt missing — failed closed' });
       return res.json({ blocked: offeringType === 'tutoring', reason: 'ROSTER_MATCH' });
     }
-    if (students.includes(hashStudentRef(purchaserRef, salt))) { matched = true; break; }
+    if (purchaserRefs.some(ref => students.includes(hashStudentRef(ref, salt)))) { matched = true; break; }
   }
 
   if (!matched) return res.json({ blocked: false });

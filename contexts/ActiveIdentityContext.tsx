@@ -1,14 +1,19 @@
 // ActiveIdentityContext — "operate as" (Part 2, slice 4).
 //
+// activeOrg is the account you're in, which any member reaches by opening its files. postingOrg is the org your
+// posts speak for, which only someone with that power gets (services/identityPowers.ts).
+//
 // A user can act as themselves OR as one of the organizations they run (like
 // Facebook Pages). This holds the currently-selected identity; surfaces that post
 // (the feed composer) attribute content to the active org. The post is always
 // OWNED by the user's uid (rules/permissions) but presented as the org.
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { userScopedKey } from '../services/userScope';
 import type { Organization, OrgMembership, BusinessPage } from '../types';
 import { auth } from '../services/firebase';
-import { fetchUserOrganizations, fetchUserMemberships } from '../services/organizationService';
+import { fetchOrganization, fetchUserOrganizations, fetchUserMemberships } from '../services/organizationService';
+import { belongsToOrg, canPostAsOrg } from '../services/identityPowers';
 import { fetchStaffBusinessPages, openBusinessWorkspace } from '../services/businessStaffService';
 import StaffJoinGateway from '../components/business/StaffJoinGateway';
 
@@ -17,8 +22,14 @@ interface ActiveIdentityContextType {
   myOrgs: Organization[];
   /** The signed-in user's ACTIVE memberships, keyed for role/employee lookups. */
   myMemberships: OrgMembership[];
-  /** null = acting as yourself; otherwise the active org. */
+  /** null = your personal account; otherwise the org account you're in. */
   activeOrg: Organization | null;
+  /** The org your posts carry the name of. Null unless you may speak for the active org. */
+  postingOrg: Organization | null;
+  /** Orgs this person can post as: what the "Posting as" menu offers. */
+  postableOrgs: Organization[];
+  /** Puts this person in an org's account if they belong to it. Grants nothing. */
+  enterOrgById: (orgId: string) => Promise<void>;
   setActiveOrg: (org: Organization | null) => void;
   refreshOrgs: () => void;
   /** Businesses the user works at with their own account (staff seats on business pages they don't own). */
@@ -26,17 +37,21 @@ interface ActiveIdentityContextType {
 }
 
 const ActiveIdentityContext = createContext<ActiveIdentityContextType | undefined>(undefined);
-const LS_KEY = 'plajah:activeOrgId';
+/** Which org this account is acting as, on this device. Never carries over to another account. */
+const activeOrgKey = (uid: string) => userScopedKey(uid, 'plajah:activeOrgId');
 
 export const ActiveIdentityProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [myOrgs, setMyOrgs] = useState<Organization[]>([]);
   const [myMemberships, setMyMemberships] = useState<OrgMembership[]>([]);
   const [activeOrg, setActiveOrgState] = useState<Organization | null>(null);
   const [myWorkplaces, setMyWorkplaces] = useState<BusinessPage[]>([]);
-  const uid = auth.currentUser?.uid;
+  const activeOrgUid = useRef<string | undefined>(auth.currentUser?.uid);
+  const [uid, setUid] = useState(auth.currentUser?.uid);
+  useEffect(() => auth.onAuthStateChanged(u => setUid(u?.uid)), []);
 
   const refreshOrgs = useCallback(() => {
     const u = auth.currentUser?.uid;
+    if (activeOrgUid.current !== u) { activeOrgUid.current = u; setActiveOrgState(null); }
     if (!u) { setMyOrgs([]); setMyMemberships([]); setMyWorkplaces([]); return; }
     fetchStaffBusinessPages(u).then(setMyWorkplaces).catch(() => setMyWorkplaces([]));
     // Orgs the user runs OR is an active employee of, plus the membership rows (for role/badge).
@@ -47,23 +62,38 @@ export const ActiveIdentityProvider: React.FC<{ children: React.ReactNode }> = (
       setMyOrgs(orgs);
       setMyMemberships(memberships.filter(m => m.status === 'ACTIVE'));
       // Restore the persisted active org if it's still one we run.
-      const savedId = (() => { try { return localStorage.getItem(LS_KEY); } catch { return null; } })();
-      if (savedId) {
-        const found = orgs.find(o => o.id === savedId);
-        setActiveOrgState(found || null);
-      }
+      if (auth.currentUser?.uid !== u) return; // the account changed while this was loading
+      const savedId = (() => { try { return localStorage.getItem(activeOrgKey(u)); } catch { return null; } })();
+      const found = savedId ? orgs.find(o => o.id === savedId) || null : null;
+      setActiveOrgState(found);
     }).catch(() => { /* */ });
   }, []);
 
   useEffect(() => { refreshOrgs(); }, [refreshOrgs, uid]);
 
   const setActiveOrg = useCallback((org: Organization | null) => {
+    const u = auth.currentUser?.uid;
     setActiveOrgState(org);
-    try { org ? localStorage.setItem(LS_KEY, org.id) : localStorage.removeItem(LS_KEY); } catch { /* */ }
+    if (!u) return;
+    try { org ? localStorage.setItem(activeOrgKey(u), org.id) : localStorage.removeItem(activeOrgKey(u)); } catch { /* */ }
   }, []);
 
+  // Someone who runs an org without a seat row (an admin on its list) isn't in myOrgs. Check the org itself.
+  const enterOrgById = useCallback(async (orgId: string) => {
+    const u = auth.currentUser?.uid;
+    if (!u) return;
+    const [org, seats] = await Promise.all([fetchOrganization(orgId).catch(() => null), fetchUserMemberships(u).catch(() => [] as OrgMembership[])]);
+    if (!org || !belongsToOrg(u, org, seats.find(m => m.orgId === orgId && m.status === 'ACTIVE'))) return;
+    setMyOrgs(list => (list.some(o => o.id === orgId) ? list : [...list, org]));
+    setActiveOrg(org);
+  }, [setActiveOrg]);
+
+  const seatIn = (orgId: string) => myMemberships.find(m => m.orgId === orgId);
+  const postableOrgs = myOrgs.filter(o => canPostAsOrg(uid, o, seatIn(o.id)));
+  const postingOrg = activeOrg && canPostAsOrg(uid, activeOrg, seatIn(activeOrg.id)) ? activeOrg : null;
+
   return (
-    <ActiveIdentityContext.Provider value={{ myOrgs, myMemberships, activeOrg, setActiveOrg, refreshOrgs, myWorkplaces }}>
+    <ActiveIdentityContext.Provider value={{ myOrgs, myMemberships, activeOrg, postingOrg, postableOrgs, enterOrgById, setActiveOrg, refreshOrgs, myWorkplaces }}>
       {children}
       {/* ?bizJoin=CODE — a team member accepting a staff seat with their own account. */}
       <StaffJoinGateway onJoined={refreshOrgs} />
@@ -75,6 +105,25 @@ export function useActiveIdentity(): ActiveIdentityContextType {
   const ctx = useContext(ActiveIdentityContext);
   if (!ctx) throw new Error('useActiveIdentity must be used inside <ActiveIdentityProvider>');
   return ctx;
+}
+
+/**
+ * Opening an org's files puts you in that org's account; opening your own puts you back in yours,
+ * so what you do next is filed in the right place. Null means your personal account.
+ */
+export function useIdentityFollowsScope(orgId: string | null): void {
+  const ctx = useContext(ActiveIdentityContext);
+  const myOrgs = ctx?.myOrgs;
+  const activeOrgId = ctx?.activeOrg?.id ?? null;
+  const setActiveOrg = ctx?.setActiveOrg;
+  const enterOrgById = ctx?.enterOrgById;
+  useEffect(() => {
+    if (!setActiveOrg || activeOrgId === orgId) return;
+    if (!orgId) { setActiveOrg(null); return; }
+    const org = myOrgs?.find(o => o.id === orgId);
+    if (org) setActiveOrg(org);
+    else void enterOrgById?.(orgId);
+  }, [orgId, activeOrgId, myOrgs, setActiveOrg, enterOrgById]);
 }
 
 /** "Work" rows for the businesses you staff: one tap opens that business's dashboard in Staff view. */
@@ -109,7 +158,7 @@ export const WorkplacesMenuSection: React.FC<{ onPicked?: () => void; className?
 
 /** Compact "Posting as …" control. Renders nothing if the user runs no orgs. */
 export const IdentitySwitcher: React.FC<{ selfName?: string; selfPhoto?: string }> = ({ selfName, selfPhoto }) => {
-  const { myOrgs, myMemberships, activeOrg, setActiveOrg, myWorkplaces } = useActiveIdentity();
+  const { postableOrgs: myOrgs, myMemberships, postingOrg: activeOrg, setActiveOrg, myWorkplaces } = useActiveIdentity();
   const [open, setOpen] = useState(false);
   const uid = auth.currentUser?.uid;
   if (myOrgs.length === 0 && myWorkplaces.length === 0) return null;

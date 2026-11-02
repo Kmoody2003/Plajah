@@ -283,13 +283,15 @@ export function createMusicIntelRouter(extra: MusicIntelRouterDeps = {}): Router
   });
 
   r.post('/continue', async (req: Request, res: Response) => {
+    // Resuming spends model budget, so it takes an account. The cron is the driver for everything else.
+    const caller = await callerUid(req);
+    if (!caller) return res.status(401).json({ error: 'Sign in required.' });
     const albumId = String(req.body?.albumId || '').trim();
     if (!ID_RE.test(albumId)) return res.status(400).json({ error: 'albumId is required.' });
     const album = await fsGet(`albums/${albumId}`);
     if (!album || album.type !== 'MUSIC') return res.status(404).json({ error: 'No such album.' });
     if (album.isPrivate === true) {
-      const uid = await callerUid(req);
-      if (uid !== album.ownerId) return res.status(404).json({ error: 'No such album.' });
+      if (caller !== album.ownerId) return res.status(404).json({ error: 'No such album.' });
     }
     const job = await fsGet(`${JOBS}/${albumId}`) as MusicIntelJob | null;
     // Only resume what the creator started: a page view never starts a paid analysis.

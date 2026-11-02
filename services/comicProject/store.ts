@@ -6,6 +6,7 @@
 // with version history (services/creativeCloud), so projects open on any signed-in device.
 
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
+import { activeScopeUid, adoptOwnedIdbValue, scopedKey } from '../userScope';
 import type { ComicProject, ComicProjectSummary } from './types';
 import {
   deleteCloudProject,
@@ -18,9 +19,10 @@ import {
 
 export const COMIC_CLOUD_KIND = 'comic';
 
-const KEY = (id: string) => `comicProject:${id}`;
-const INDEX_KEY = 'comicProject:index';
-const LAST_KEY = 'plajah.comicProject.last';
+const LEGACY_KEY = (id: string) => `comicProject:${id}`;
+const KEY = (id: string) => scopedKey(LEGACY_KEY(id));
+const INDEX_KEY = () => scopedKey('comicProject:index');
+const LAST_KEY = () => scopedKey('plajah.comicProject.last');
 
 export function summarizeComicProject(p: ComicProject): ComicProjectSummary {
   let panelCount = 0;
@@ -47,8 +49,9 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
 
 /** Projects on this device plus those saved from the user's other devices. */
 export async function listComicProjects(): Promise<ComicProjectSummary[]> {
-  const index = [...((await idbGet<ComicProjectSummary[]>(INDEX_KEY)) ?? [])];
+  const index = [...((await idbGet<ComicProjectSummary[]>(INDEX_KEY())) ?? [])];
   for (const head of await withTimeout(listCloudProjects(COMIC_CLOUD_KIND), 4000, [])) {
+    await adoptOwnedIdbValue(LEGACY_KEY(head.localId), KEY(head.localId)); // the cloud lists it under this account
     const local = index.find((s) => s.id === head.localId);
     if (local) {
       if (head.updatedAt > local.updatedAt) index[index.indexOf(local)] = { ...local, title: head.title, updatedAt: head.updatedAt };
@@ -70,9 +73,10 @@ function parseProject(json: string): ComicProject | null {
 
 /** Opens the newest copy: this device's, or the cloud's when another device saved after it. */
 export async function loadComicProject(id: string): Promise<ComicProject | null> {
+  const head = await withTimeout(getCloudHead(COMIC_CLOUD_KIND, id), 4000, null);
+  if (head && head.ownerId === activeScopeUid()) await adoptOwnedIdbValue(LEGACY_KEY(id), KEY(id));
   const stored = await idbGet<ComicProject>(KEY(id));
   const local = stored && stored.schema === 'plajah.comicProject' ? stored : null;
-  const head = await withTimeout(getCloudHead(COMIC_CLOUD_KIND, id), 4000, null);
   if (head && (!local || isCloudNewer(head, local.updatedAt))) {
     const cloud = await withTimeout(loadCloudProject(COMIC_CLOUD_KIND, id), 20000, null);
     const p = cloud ? parseProject(cloud.json) : null;
@@ -87,16 +91,16 @@ export async function loadComicProject(id: string): Promise<ComicProject | null>
 /** Puts a project (e.g. one fetched from the cloud or a restored version) on this device without re-uploading. */
 export async function cacheLocally(project: ComicProject) {
   await idbSet(KEY(project.id), project);
-  const index = (await idbGet<ComicProjectSummary[]>(INDEX_KEY)) ?? [];
-  await idbSet(INDEX_KEY, [summarizeComicProject(project), ...index.filter((s) => s.id !== project.id)]);
+  const index = (await idbGet<ComicProjectSummary[]>(INDEX_KEY())) ?? [];
+  await idbSet(INDEX_KEY(), [summarizeComicProject(project), ...index.filter((s) => s.id !== project.id)]);
 }
 
 export async function saveComicProject(project: ComicProject): Promise<ComicProject> {
   const saved = { ...project, updatedAt: Date.now() };
   await idbSet(KEY(saved.id), saved);
-  const index = (await idbGet<ComicProjectSummary[]>(INDEX_KEY)) ?? [];
+  const index = (await idbGet<ComicProjectSummary[]>(INDEX_KEY())) ?? [];
   const summary = summarizeComicProject(saved);
-  await idbSet(INDEX_KEY, [summary, ...index.filter((s) => s.id !== saved.id)]);
+  await idbSet(INDEX_KEY(), [summary, ...index.filter((s) => s.id !== saved.id)]);
   setLastComicProjectId(saved.id);
   scheduleCreativeSync({
     kind: COMIC_CLOUD_KIND,
@@ -110,15 +114,15 @@ export async function saveComicProject(project: ComicProject): Promise<ComicProj
 
 export async function deleteComicProject(id: string): Promise<void> {
   await idbDel(KEY(id));
-  const index = (await idbGet<ComicProjectSummary[]>(INDEX_KEY)) ?? [];
-  await idbSet(INDEX_KEY, index.filter((s) => s.id !== id));
+  const index = (await idbGet<ComicProjectSummary[]>(INDEX_KEY())) ?? [];
+  await idbSet(INDEX_KEY(), index.filter((s) => s.id !== id));
   if (getLastComicProjectId() === id) setLastComicProjectId(null);
   await deleteCloudProject(COMIC_CLOUD_KIND, id).catch(() => {});
 }
 
 export function getLastComicProjectId(): string | null {
   try {
-    return localStorage.getItem(LAST_KEY);
+    return localStorage.getItem(LAST_KEY());
   } catch {
     return null;
   }
@@ -126,8 +130,8 @@ export function getLastComicProjectId(): string | null {
 
 export function setLastComicProjectId(id: string | null) {
   try {
-    if (id) localStorage.setItem(LAST_KEY, id);
-    else localStorage.removeItem(LAST_KEY);
+    if (id) localStorage.setItem(LAST_KEY(), id);
+    else localStorage.removeItem(LAST_KEY());
   } catch {
     // Private mode / blocked storage: reopening just starts blank.
   }

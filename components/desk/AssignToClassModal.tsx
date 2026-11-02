@@ -27,10 +27,6 @@ import {
   type DeskContextDomain,
   type UniversalDeskAssignment,
 } from '../../services/universalStudentDeskService';
-import {
-  GREAT_FAITH_MINISTRIES_DEFAULT_ID,
-  GREAT_FAITH_MINISTRIES_NAME,
-} from '../../services/orgAssets';
 
 export interface AssignToClassModalProps {
   isOpen: boolean;
@@ -50,7 +46,6 @@ const DEFAULT_CHURCH_CLASSES = [
   { id: 'prog-adult-bible-study', name: 'Wednesday Sanctuary Bible Study (Revelation 2)' },
   { id: 'prog-sunday-school', name: 'Sunday Morning Christian Education' },
   { id: 'prog-youth-discipleship', name: 'Youth & Young Adults Discipleship' },
-  { id: 'prog-theology-track', name: 'Great Faith Leadership & Theology Track' },
 ];
 
 const DEFAULT_ACADEMIA_CLASSES = [
@@ -72,11 +67,11 @@ export const AssignToClassModal: React.FC<AssignToClassModalProps> = ({
   isOpen,
   onClose,
   unit,
-  orgId = GREAT_FAITH_MINISTRIES_DEFAULT_ID,
-  orgName = GREAT_FAITH_MINISTRIES_NAME,
+  orgId = '',
+  orgName = '',
   defaultDomain = 'CHRISTIAN_EDUCATION',
   programs = [],
-  teacherUid = 'instructor_great_faith',
+  teacherUid = '',
   teacherName = 'Class Instructor',
   onAssigned,
   onOpenStudentDesk,
@@ -256,7 +251,7 @@ export const AssignToClassModal: React.FC<AssignToClassModalProps> = ({
                         : 'border-white/12 bg-black/40 text-white/65 hover:text-white'
                     }`}
                   >
-                    🏛️ {orgName} · Christian Ed
+                    🏛️ {orgName ? `${orgName} · ` : ''}Christian Ed
                   </button>
                   <button
                     type="button"

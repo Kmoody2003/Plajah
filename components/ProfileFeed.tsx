@@ -451,12 +451,8 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
       
       // Use proxy for search with resolve=true
       const searchPath = `/api/v2/search?q=${encodeURIComponent(targetAcct)}&resolve=true&type=accounts&limit=1`;
-      let searchUrl = `/api/social/fediverse/proxy?instance=${bridgeInstance}&path=${encodeURIComponent(searchPath)}`;
-      if (mastodonAuth?.token) {
-        searchUrl += `&token=${mastodonAuth.token}`;
-      }
-
-      const searchRes = await fetch(searchUrl);
+      const searchUrl = `/api/social/fediverse/proxy?instance=${bridgeInstance}&path=${encodeURIComponent(searchPath)}`;
+      const searchRes = await fetch(searchUrl, mastodonAuth?.token ? { headers: { 'X-Fediverse-Token': mastodonAuth.token } } : undefined);
       if (!searchRes.ok) {
         if (searchRes.status === 401 || searchRes.status === 403) {
            throw new Error('Fediverse search restricted - Mastodon connection required');

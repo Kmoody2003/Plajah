@@ -24,6 +24,7 @@ import { Router, Request, Response } from 'express';
 import { createHmac } from 'crypto';
 import {
   fsGet, fsSet, fsPatch, fsCreate, verifyIdToken, adminConfig,
+  fsGetUser,
 } from '../services/firebaseAdminRest';
 import {
   KITH_ACHIEVEMENT_TIERS, KITH_POINTS_PER_SIGHTING,
@@ -88,8 +89,11 @@ async function callerUid(req: Request): Promise<string | null> {
   return verifyIdToken(auth.slice(7));
 }
 
+/** No guessable fallback: with a known key anyone could predict which windows pay out. Rotating only reshuffles future rolls. */
 function secret(): string {
-  return process.env.KITH_SIGHTING_SECRET || `kith:${process.env.GOOGLE_CLOUD_PROJECT || 'plajah'}`;
+  const s = process.env.KITH_SIGHTING_SECRET || '';
+  if (!s) throw new Error('KITH_SIGHTING_SECRET is not set');
+  return s;
 }
 
 /** Stable 0..1 from a label. Same input, same output, forever. */
@@ -207,13 +211,14 @@ kithSightingsRouter.post('/spawn-check', async (req: Request, res: Response) => 
 
   const surface = String((req.body ?? {}).surface || '').toUpperCase();
   if (!surface) return res.status(400).json({ error: 'surface is required.' });
+  if (!process.env.KITH_SIGHTING_SECRET) return res.json({ sighting: null, remainingToday: 0 });
 
   const now = Date.now();
 
   // Never interrupt something that matters.
   if (BLOCKED_SURFACES.has(surface)) return res.json({ sighting: null, remainingToday: 0 });
 
-  const user = await fsGet(`users/${uid}`);
+  const user = await fsGetUser(uid);
   const kid = isKidAccount(user);
   const cap = kid ? DAILY_CAP_KID : DAILY_CAP_ADULT;
 
