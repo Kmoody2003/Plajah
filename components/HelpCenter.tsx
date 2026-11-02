@@ -390,7 +390,7 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'Binding a Subscription to a Creator',
-        description: 'When subscribing to Plajah+, you can "bind" your subscription to a specific creator. This means the creator share of your subscription ($3.00–$11.00 depending on tier) goes directly to that creator every month via their Stripe payout. You can rebind to a different creator for a one-time $2.99 fee.'
+        description: 'When subscribing to Plajah+, you can "bind" your subscription to a specific creator. This means the creator share of your subscription ($2.99–$9.99 depending on tier) goes directly to that creator every month via their Stripe payout. You can rebind to a different creator for a one-time $2.99 fee.'
       },
       {
         name: 'Morph Mode',
@@ -414,7 +414,7 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'How Payouts Work',
-        description: 'When a fan tips you, buys your content, or subscribes to your Backstage, Stripe processes the payment and automatically transfers your share (90% of the total) to your connected bank account on Stripe\'s standard payout schedule (typically 2 business days in the US). You do not need to manually request a withdrawal — it\'s fully automatic.'
+        description: 'When a fan tips you, buys your content, or subscribes to your Backstage, Stripe processes the payment and automatically transfers your share (the total, less Plajah\'s fee and card processing) to your connected bank account on Stripe\'s standard payout schedule (typically 2 business days in the US). You do not need to manually request a withdrawal — it\'s fully automatic.'
       },
       {
         name: 'Earnings Dashboard — Overview',
@@ -434,7 +434,7 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'Platform Fee',
-        description: 'Plajah takes a 10% platform fee on all creator-to-fan transactions (tips, sales, memberships, store orders). For SeedRaiser crowdfunding, the platform fee is 5%. Plajah+ subscription revenue goes to creators at a fixed dollar amount per tier — not a percentage. The Earnings Dashboard always shows your fee alongside your net so there are no surprises.'
+        description: 'Plajah takes 5% on direct sales (tips, sales, memberships, sync licences, merch), or 0% if you hold Plajah+. Card processing, about 2.9% + 30¢, comes out of every sale. Book sales use the author cut shown when you price the book. Plajah+ subscription revenue goes to creators at a fixed dollar amount per tier — not a percentage. The Earnings Dashboard always shows your fee alongside your net so there are no surprises.'
       },
       {
         name: 'Stripe Express Dashboard',

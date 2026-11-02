@@ -171,7 +171,7 @@ const OnboardingPanel: React.FC<{ status: ConnectStatus; onRefresh: () => void }
         {loading ? 'Opening Stripe…' : status.connected && status.requiresAction ? 'Complete Stripe Setup' : 'Connect with Stripe'}
       </button>
 
-      <p className="text-[9px] text-white/20 mt-4 uppercase tracking-widest">Powered by Stripe Express · Plajah takes 10% platform fee</p>
+      <p className="text-[9px] text-white/20 mt-4 uppercase tracking-widest">Powered by Stripe Express · Plajah takes 5%, or 0% with Plajah+</p>
     </motion.div>
   );
 };
@@ -505,7 +505,7 @@ const CreatorPaymentDashboard: React.FC<Props> = ({ currentUser }) => {
                     </div>
                     <div className="flex-1">
                       <p className="text-xs font-black text-white mb-0.5">Platform Fee ({PERIOD_LABELS[period]})</p>
-                      <p className="text-[10px] text-white/30">Plajah retained {fmt(earnings?.totalPlatformFeeCents ?? 0)} — 10% of gross</p>
+                      <p className="text-[10px] text-white/30">Plajah retained {fmt(earnings?.totalPlatformFeeCents ?? 0)}</p>
                     </div>
                     <p className="text-lg font-black text-white/50">{fmt(earnings?.totalPlatformFeeCents ?? 0)}</p>
                   </div>
