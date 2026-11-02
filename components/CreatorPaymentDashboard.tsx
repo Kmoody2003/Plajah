@@ -46,11 +46,10 @@ const CATEGORIES: { key: EarningCategory; label: string; icon: React.ComponentTy
 ];
 
 const APPLY_OPTIONS: { key: EarningCategory; label: string }[] = [
-  { key: 'tip',          label: 'Tips & Gifts' },
   { key: 'digital_sale', label: 'Digital Sales' },
+  { key: 'content_purchase', label: 'Albums, Films & Books' },
   { key: 'sanctuary',    label: 'Backstage' },
   { key: 'plajahplus',   label: 'Plajah+' },
-  { key: 'store_order',  label: 'Store' },
   { key: 'club',         label: 'Clubs' },
   { key: 'seedraiser',   label: 'SeedRaiser' },
 ];
@@ -181,7 +180,7 @@ const OnboardingPanel: React.FC<{ status: ConnectStatus; onRefresh: () => void }
 
 const SplitsTab: React.FC<{ currentUserUid: string }> = ({ currentUserUid }) => {
   const [recipients, setRecipients] = useState<SplitRecipient[]>([]);
-  const [appliesTo, setAppliesTo]   = useState<EarningCategory[]>(['tip','digital_sale','sanctuary','plajahplus']);
+  const [appliesTo, setAppliesTo]   = useState<EarningCategory[]>(['digital_sale','sanctuary','plajahplus']);
   const [searchQ, setSearchQ]       = useState('');
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
   const [searching, setSearching]   = useState(false);
@@ -254,7 +253,7 @@ const SplitsTab: React.FC<{ currentUserUid: string }> = ({ currentUserUid }) => 
       <div className="p-4 bg-[#fbbf24]/8 border border-[#fbbf24]/20 rounded-2xl flex gap-3">
         <Info size={16} className="text-[#fbbf24] shrink-0 mt-0.5" />
         <p className="text-xs text-[#fbbf24]/80 leading-relaxed">
-          Splits apply after Plajah's 10% platform fee. If you set 20% to a collaborator, they receive 20% of your net — not 20% of the gross charge. Transfers fire automatically when a payment clears.
+          Splits apply after Plajah's 10% platform fee. If you set 20% to a collaborator, they receive 20% of your net — not 20% of the gross charge. Transfers fire automatically when a payment clears, and a collaborator's share is held until they connect payouts. Tips and store orders go straight to you and aren't split.
         </p>
       </div>
 

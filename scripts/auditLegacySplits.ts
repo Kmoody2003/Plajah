@@ -4,6 +4,7 @@
 // no money. Old transfers carry no earning id, so matches are by amount, parties and time: review before paying.
 //
 //   STRIPE_SECRET_KEY=... npx tsx scripts/auditLegacySplits.ts [--key service-account.json] > unpaid-splits.csv
+//   ...add --renewals to list subscription renewals that never produced an earning instead.
 import Stripe from 'stripe';
 import { loadServiceAccount, preflightCredentials, CREDENTIAL_HELP } from './loadLocalEnv';
 import { unmatchedLegacySplits, type SplitLine } from '../services/splitPayouts';
@@ -21,6 +22,27 @@ const stripe = new Stripe(key);
 const parseSplits = (raw: unknown): SplitLine[] => {
   try { const v = JSON.parse(String(raw ?? '[]')); return Array.isArray(v) ? v : []; } catch { return []; }
 };
+
+if (process.argv.includes('--renewals')) {
+  const RECURRING = new Set(['plajahplus', 'sanctuary_membership', 'club_membership']);
+  console.log('invoiceId,paidAt,type,creatorUid,amountCents');
+  let count = 0, cents = 0;
+  for await (const inv of stripe.invoices.list({ status: 'paid', limit: 100 }) as any) {
+    if (!['subscription_cycle', 'subscription_update'].includes(inv.billing_reason) || !(inv.amount_paid > 0)) continue;
+    const subId = inv.parent?.subscription_details?.subscription ?? inv.subscription;
+    if (!subId || await fsGet(`creatorEarnings/inv_${inv.id}`)) continue;
+    const id = typeof subId === 'string' ? subId : subId.id;
+    let meta: any = (await stripe.subscriptions.retrieve(id)).metadata;
+    if (!RECURRING.has(meta?.type)) meta = (await stripe.checkout.sessions.list({ subscription: id, limit: 1 })).data[0]?.metadata;
+    if (!RECURRING.has(meta?.type)) continue;
+    const creator = meta.type === 'plajahplus' ? (meta.isMorph === 'true' ? '' : meta.boundCreatorId) : meta.creatorUid;
+    if (!creator) continue;
+    count++; cents += inv.amount_paid;
+    console.log([inv.id, new Date((inv.status_transitions?.paid_at || inv.created) * 1000).toISOString(), meta.type, creator, inv.amount_paid].join(','));
+  }
+  console.error(`${count} renewals with no earning, $${(cents / 100).toFixed(2)} gross, before fees.`);
+  process.exit(0);
+}
 
 const earnings = await fsList('creatorEarnings', { pageSize: 300, maxDocs: 500_000 });
 const legacy = earnings

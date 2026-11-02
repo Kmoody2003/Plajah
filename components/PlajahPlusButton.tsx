@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Zap, Check, Crown, X, Settings, Users, RefreshCw, Star } from 'lucide-react';
-import { PlajahPlusSubscription, SplitRecipient, SubscriptionTier } from '../types';
+import { PlajahPlusSubscription, SplitRecipient } from '../types';
 import {
   listenToMySubscription,
   listenToCreatorSubscriberCount,
@@ -23,9 +23,8 @@ interface PlajahPlusButtonProps {
 // ── Split Manager (creator view) ──────────────────────────────────────────────
 
 const SplitManager: React.FC<{
-  tier: SubscriptionTier;
   onClose: () => void;
-}> = ({ tier, onClose }) => {
+}> = ({ onClose }) => {
   const [splits, setSplits] = useState<SplitRecipient[]>([]);
   const [appliesTo, setAppliesTo] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -67,8 +66,6 @@ const SplitManager: React.FC<{
 
   const totalPct = splits.reduce((acc, s) => acc + (Number(s.percentage) || 0), 0);
   const creatorRetains = 100 - totalPct;
-  const creatorShareMap: Record<SubscriptionTier, number> = { 1: 3.00, 2: 7.00, 3: 11.00 };
-  const creatorRetainsDollars = (creatorShareMap[tier] * creatorRetains / 100).toFixed(2);
 
   return (
     <div className="space-y-5">
@@ -80,10 +77,6 @@ const SplitManager: React.FC<{
       <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
         <p className="text-[10px] text-white/40 mb-1">Creator retains</p>
         <p className="text-2xl font-black text-white">{creatorRetains.toFixed(1)}%</p>
-        <p className="text-xs text-white/50">${creatorRetainsDollars}/subscriber/month</p>
-        {parseFloat(creatorRetainsDollars) < 1.00 && (
-          <p className="text-[10px] text-red-400 mt-1">Must retain at least $1.00</p>
-        )}
       </div>
 
       <div className="space-y-3">
@@ -135,7 +128,7 @@ const SplitManager: React.FC<{
 
       <button
         onClick={handleSave}
-        disabled={saving || parseFloat(creatorRetainsDollars) < 1.00}
+        disabled={saving || creatorRetains <= 0}
         className="w-full py-3 bg-white text-black rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] transition-all disabled:opacity-40"
       >
         {success ? '✓ Saved' : saving ? 'Saving…' : 'Save Split'}
@@ -261,24 +254,7 @@ const PlajahPlusButton: React.FC<PlajahPlusButtonProps> = ({
               exit={{ y: 60, opacity: 0 }}
               className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-3xl p-6"
             >
-              {sub ? (
-                <SplitManager
-                  tier={sub.tier}
-                  onClose={() => setShowModal(false)}
-                />
-              ) : (
-                <div className="text-center space-y-4">
-                  <Zap size={32} className="text-[#FF8C00] mx-auto" />
-                  <h3 className="text-sm font-black text-white">No Active Subscription</h3>
-                  <p className="text-xs text-white/40">You don't have a Plajah+ subscription yet. Subscribe to manage creator splits.</p>
-                  <button
-                    onClick={() => { setShowModal(false); handleOpenLanding(); }}
-                    className="w-full py-3 bg-gradient-to-r from-[#D40055] to-[#FF8C00] rounded-2xl text-xs font-black uppercase tracking-widest text-white"
-                  >
-                    View Plans
-                  </button>
-                </div>
-              )}
+              <SplitManager onClose={() => setShowModal(false)} />
             </motion.div>
           </motion.div>
         )}

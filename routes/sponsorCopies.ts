@@ -289,15 +289,7 @@ export function createSponsorCopiesRouter(deps: SponsorCopiesDeps): Router {
         const stripe = deps.getStripe();
         const refund = await stripe.refunds.create({ payment_intent: fresh.paymentRef, amount: cents, metadata: { type: 'copy_pool_unclaimed', poolId } }, { idempotencyKey: `pool_refund_${poolId}` });
         refundId = refund.id;
-        // Take back the author's share of the refunded copies.
-        const rows = await fsQuery('creatorEarnings', [{ field: 'stripePaymentIntentId', value: fresh.paymentRef }], 3);
-        for (const row of rows) {
-          const share = Math.round((Number(row.data.creatorNetCents) || 0) * seats / fresh.quantity);
-          if (row.data.transferId && share > 0) {
-            await stripe.transfers.createReversal(String(row.data.transferId), { amount: share }, { idempotencyKey: `pool_reverse_${poolId}` }).catch((e: any) => console.error('[copies] reversal failed', e?.message || e));
-          }
-          await fsPatch(`creatorEarnings/${row.id}`, { refundedCents: share, refundedSeats: seats, refundedAt: Date.now() });
-        }
+        // This refund's charge.refunded webhook takes back the author's and collaborators' shares (services/splitPayouts.ts).
       } catch (e: any) {
         console.error('[copies] refund failed', poolId, e?.message || e);
         return res.status(502).json({ error: 'The gift is closed, but the refund could not be issued. Contact support.', closed: true });

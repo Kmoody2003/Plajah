@@ -2025,6 +2025,7 @@ export interface NowActiveEntry {
 // ── Creator Earnings ──────────────────────────────────────────────────────────
 
 export type EarningCategory =
+  | 'content_purchase' // albums, tracks, films and books bought or rented
   | 'tip'            // live stream tips & gift payments
   | 'digital_sale'   // music, books, movies sold individually
   | 'sanctuary'      // Sanctuary membership fees

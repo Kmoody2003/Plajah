@@ -1,19 +1,27 @@
-// Creator split payments: the one config shape (types.ts SplitConfig) and a per-recipient payout ledger.
+// Paying creators and their collaborators: the one split config shape (types.ts SplitConfig) and the rules
+// for moving money against two ledgers.
 //
-// creatorSplitPayouts/{earningId}_{recipientUid} is the source of truth for what a collaborator is owed
-// on a sale. The row is written before any money moves, so a recipient without Connect, a Stripe failure
+// creatorEarnings/{saleId} holds the creator's own share of a sale. creatorSplitPayouts/{saleId}_{uid} holds
+// each collaborator's. A row is written before any money moves, so a missing Connect account, a Stripe failure
 // or a crash leaves a row that a later sweep pays, instead of a payment nobody remembers.
 //
 // Paying twice is prevented in two layers, because Stripe only keeps idempotency keys for about 24 hours:
-//  1. The key is `split_{rowId}_{rejections}`. It only advances after Stripe definitely refused the
-//     request. A timeout or 5xx retries the SAME key, so an in-doubt transfer replays rather than repeats.
+//  1. The key only changes after Stripe definitely refused the request. A timeout or 5xx retries the SAME
+//     key, so an in-doubt transfer replays rather than repeats.
 //  2. Every attempt except the first looks for an existing transfer carrying this row's id in metadata,
 //     which catches a transfer whose row update was lost, however long ago.
+//
+// Refunds and lost disputes set clawbackCents, the running total to take back. Reversals are sized against
+// what Stripe says was already reversed, so repeats and overlapping events can't take back too much.
 import type { SplitRecipient } from '../types';
 
 export const SPLIT_PAYOUTS = 'creatorSplitPayouts';
 export const MAX_SPLIT_RECIPIENTS = 20;
-export const DEFAULT_APPLIES_TO = ['tip', 'digital_sale', 'sanctuary', 'plajahplus'];
+export const CREATOR_EARNINGS = 'creatorEarnings';
+export const DEFAULT_APPLIES_TO = ['digital_sale', 'sanctuary', 'plajahplus'];
+// Tips and store orders are destination charges: the money goes straight to the creator, so there's nothing
+// for the platform to divide.
+const NEVER_SPLIT = new Set(['tip', 'store_order']);
 const SAFE_UID = /^[A-Za-z0-9_-]{1,128}$/;
 const RETRY_BASE_MS = 15 * 60_000;
 const RETRY_MAX_MS = 24 * 3_600_000;
@@ -46,7 +54,7 @@ export function checkSplitConfig(recipients: unknown, appliesTo: unknown, ownerU
     clean.push({ creatorUid: uid, displayName: String(r?.displayName ?? '').slice(0, 120), ...(r?.photoURL ? { photoURL: String(r.photoURL).slice(0, 1000) } : {}), percentage: pct });
   }
   if (total >= 100) return { ok: false, error: 'Split percentages must sum to less than 100' };
-  const cats = Array.isArray(appliesTo) ? appliesTo.filter((c): c is string => typeof c === 'string').slice(0, 20) : DEFAULT_APPLIES_TO;
+  const cats = Array.isArray(appliesTo) ? appliesTo.filter((c): c is string => typeof c === 'string' && !NEVER_SPLIT.has(c)).slice(0, 20) : DEFAULT_APPLIES_TO;
   return { ok: true, recipients: clean, appliesTo: cats };
 }
 
@@ -104,36 +112,92 @@ export interface SplitPayoutDeps {
   now?(): number;
 }
 
-export function createSplitPayouts(deps: SplitPayoutDeps) {
+interface RowKind {
+  collection: string;
+  payee(row: Record<string, any>): string;
+  cents(row: Record<string, any>): number;
+  createdAt(row: Record<string, any>): number;
+  payable(id: string, row: Record<string, any>): boolean;
+  key(id: string, rejections: number): string;
+  isThisTransfer(id: string, transfer: any): boolean;
+  metadata(id: string, row: Record<string, any>): Record<string, string>;
+}
+
+const SPLIT: RowKind = {
+  collection: SPLIT_PAYOUTS,
+  payee: r => r.recipientUid,
+  cents: r => Number(r.amountCents) || 0,
+  createdAt: r => Number(r.createdAt) || 0,
+  payable: (_id, r) => r.status === 'pending' || r.status === 'awaiting_connect',
+  key: (id, rejections) => `split_${id}_${rejections}`,
+  isThisTransfer: (id, t) => t.metadata?.payoutId === id,
+  metadata: (id, r) => ({ type: 'split', payoutId: id, earningId: r.earningId, fromCreatorUid: r.fromCreatorUid, toCreatorUid: r.recipientUid, category: r.category }),
+};
+
+// Every platform-collected category the webhook records as 'pending'. Destination charges are 'paid_direct'.
+const SWEEPABLE = new Set(['content_purchase', 'sanctuary', 'club', 'seedraiser', 'digital_sale', 'plajahplus']);
+const EARNING: RowKind = {
+  collection: CREATOR_EARNINGS,
+  payee: r => r.creatorUid,
+  cents: r => Number(r.creatorNetCents) || 0,
+  createdAt: r => Number(r.timestamp) || 0,
+  // Older club/seedraiser rows could name the BUYER as creatorUid, so only rows written since that fix
+  // (payeeVerified) are paid out; content sales always resolved the payee server-side.
+  payable: (id, r) => r.status === 'pending' && SWEEPABLE.has(r.category) && (id.startsWith('cs_') || id.startsWith('inv_'))
+    && (r.category === 'content_purchase' || r.payeeVerified === true),
+  // Rows first attempted before this ledger used the bare key, so the first attempt keeps it.
+  key: (id, rejections) => rejections ? `earning_${id}_${rejections}` : `earning_${id}`,
+  isThisTransfer: (id, t) => t.metadata?.type === 'creator_earning' && t.metadata?.earningId === id,
+  metadata: (id, r) => ({ type: 'creator_earning', earningId: id, creatorUid: r.creatorUid, category: r.category }),
+};
+const KINDS = [EARNING, SPLIT];
+
+export function createCreatorPayouts(deps: SplitPayoutDeps) {
   const now = () => deps.now?.() ?? Date.now();
 
-  async function findExistingTransfer(payoutId: string, destination: string, createdAt: number): Promise<any | null> {
+  async function findExistingTransfer(kind: RowKind, id: string, destination: string, createdAt: number): Promise<any | null> {
     const stripe = deps.getStripe();
     const gte = Math.floor(createdAt / 1000) - 60;
     let starting_after: string | undefined;
     for (;;) {
       const page = await stripe.transfers.list({ destination, created: { gte }, limit: 100, ...(starting_after ? { starting_after } : {}) });
-      const hit = page.data.find((t: any) => t.metadata?.payoutId === payoutId);
+      const hit = page.data.find((t: any) => kind.isThisTransfer(id, t));
       if (hit) return hit;
       if (!page.has_more || !page.data.length) return null;
       starting_after = page.data[page.data.length - 1].id;
     }
   }
 
-  async function markPaid(payoutId: string, transferId: string): Promise<void> {
+  async function markPaid(kind: RowKind, id: string, transferId: string): Promise<void> {
     // A lost write here is safe: the next sweep finds this transfer by its metadata and doesn't send another.
-    try { await deps.patch(SPLIT_PAYOUTS, payoutId, { status: 'paid_out', transferId, paidOutAt: now(), lastPayoutError: null }); }
-    catch (e: any) { console.error(`[Splits] ${payoutId} paid but not marked:`, e?.message || e); }
+    try { await deps.patch(kind.collection, id, { status: 'paid_out', transferId, paidOutAt: now(), lastPayoutError: null, payoutFailing: false }); }
+    catch (e: any) { console.error(`[Payouts] ${id} paid but not marked:`, e?.message || e); }
   }
 
-  /** Pay one row. `firstAttempt` is only for a row created a moment ago, which can't have a transfer yet. */
-  async function payOne(payoutId: string, firstAttempt = false): Promise<PayResult> {
-    const row = await deps.read(SPLIT_PAYOUTS, payoutId);
-    if (!row || (row.status !== 'pending' && row.status !== 'awaiting_connect') || !(row.amountCents > 0)) return 'skipped';
-    const user = await deps.read('users', row.recipientUid);
-    const destination = user?.stripeConnectAccountId as string | undefined;
+  /** The buyer's charge for this row, fixed once so every retry sends the same parameters under its key. */
+  async function sourceChargeFor(kind: RowKind, id: string, row: Record<string, any>): Promise<string> {
+    if (typeof row.sourceCharge === 'string') return row.sourceCharge;
+    if (!row.stripePaymentIntentId) return '';
+    try {
+      const charge = (await deps.getStripe().paymentIntents.retrieve(row.stripePaymentIntentId))?.latest_charge;
+      if (!charge) return '';
+      await deps.patch(kind.collection, id, { sourceCharge: String(charge) }).catch(() => {});
+      return String(charge);
+    } catch { return ''; }   // draws on balance
+  }
+
+  async function payRow(kind: RowKind, id: string, firstAttempt = false): Promise<PayResult> {
+    const row = await deps.read(kind.collection, id);
+    if (!row || !kind.payable(id, row) || row.disputeHold === true) return 'skipped';
+    const clawback = Number(row.clawbackCents) || 0;
+    const amount = kind.cents(row) - clawback;
+    if (!(amount > 0)) {
+      if (clawback > 0) await deps.patch(kind.collection, id, { status: 'refunded', refundedAt: now() });
+      return 'skipped';
+    }
+    const destination = (await deps.read('users', kind.payee(row)))?.stripeConnectAccountId as string | undefined;
     if (!destination) {
-      if (row.status !== 'awaiting_connect') await deps.patch(SPLIT_PAYOUTS, payoutId, { status: 'awaiting_connect' });
+      if (kind === SPLIT && row.status !== 'awaiting_connect') await deps.patch(kind.collection, id, { status: 'awaiting_connect' });
       return 'awaiting_connect';
     }
     const attempts = Number(row.attempts) || 0;
@@ -141,39 +205,64 @@ export function createSplitPayouts(deps: SplitPayoutDeps) {
     try {
       const stripe = deps.getStripe();
       if (!firstAttempt) {
-        const existing = await findExistingTransfer(payoutId, destination, Number(row.createdAt) || 0);
-        if (existing) { await markPaid(payoutId, existing.id); return 'paid'; }
+        const existing = await findExistingTransfer(kind, id, destination, kind.createdAt(row));
+        if (existing) {
+          await markPaid(kind, id, existing.id);
+          if (clawback > 0) await settle(kind, id);   // it went out at full price before the refund arrived
+          return 'paid';
+        }
       }
+      const source = await sourceChargeFor(kind, id, row);
       const transfer = await stripe.transfers.create({
-        amount: row.amountCents,
+        amount,
         currency: 'usd',
         destination,
-        ...(row.sourceCharge ? { source_transaction: row.sourceCharge } : {}),
-        metadata: { type: 'split', payoutId, earningId: row.earningId, fromCreatorUid: row.fromCreatorUid, toCreatorUid: row.recipientUid, category: row.category },
-      }, { idempotencyKey: `split_${payoutId}_${rejections}` });
-      await markPaid(payoutId, transfer.id);
+        ...(source ? { source_transaction: source } : {}),
+        metadata: kind.metadata(id, row),
+      }, { idempotencyKey: kind.key(id, rejections) + (clawback ? `_c${clawback}` : '') });
+      await markPaid(kind, id, transfer.id);
       return 'paid';
     } catch (e: any) {
-      console.error(`[Splits] ${payoutId} transfer failed:`, e?.message || e);
+      console.error(`[Payouts] ${id} transfer failed:`, e?.message || e);
       // Status is left alone: a concurrent attempt on the same key may have succeeded and marked it paid.
-      await deps.patch(SPLIT_PAYOUTS, payoutId, {
+      await deps.patch(kind.collection, id, {
         lastPayoutError: String(e?.message || e).slice(0, 300), lastPayoutAttemptAt: now(), attempts: attempts + 1,
-        rejections: rejections + (isDefiniteRejection(e) ? 1 : 0),
+        rejections: rejections + (isDefiniteRejection(e) ? 1 : 0), payoutFailing: true,
       }).catch(() => {});
       return 'failed';
     }
   }
 
+  /** Bring one row in line with its clawbackCents. Failures stay on the row for retryReversals. */
+  async function settle(kind: RowKind, id: string): Promise<boolean> {
+    const row = await deps.read(kind.collection, id);
+    if (!row) return true;
+    const target = Number(row.clawbackCents) || 0;
+    const fully = target >= kind.cents(row);
+    if (row.status === 'pending' || row.status === 'awaiting_connect') {
+      if (fully) await deps.patch(kind.collection, id, { status: 'refunded', refundedAt: now() });
+      return true;   // a later payment is reduced by clawbackCents
+    }
+    if (row.status !== 'paid_out' || !row.transferId) return true;
+    try {
+      const stripe = deps.getStripe();
+      const transfer = await stripe.transfers.retrieve(String(row.transferId));
+      const delta = target - (Number(transfer.amount_reversed) || 0);
+      if (delta > 0) await stripe.transfers.createReversal(String(row.transferId), { amount: delta }, { idempotencyKey: `reverse_${id}_${target}` });
+      await deps.patch(kind.collection, id, { reversalDue: false, lastReversalError: null, ...(fully ? { status: 'refunded', refundedAt: now() } : {}) });
+      return true;
+    } catch (e: any) {
+      console.error(`[Payouts] reversal for ${id} failed:`, e?.message || e);
+      await deps.patch(kind.collection, id, { reversalDue: true, lastReversalError: String(e?.message || e).slice(0, 300) }).catch(() => {});
+      return false;
+    }
+  }
+
   /**
-   * Write a sale's rows, then pay the new ones. Safe to repeat: rows have deterministic ids, and rows that
-   * already existed are left to the sweep. ok:false means a row wasn't recorded and the webhook must be re-sent.
+   * Write a sale's collaborator rows, then pay the new ones. Safe to repeat: rows have deterministic ids, and
+   * rows that already existed are left to the sweep. ok:false means a row wasn't recorded and the webhook must be re-sent.
    */
   async function recordAndPay(sale: { earningId: string; fromCreatorUid: string; category: string; title: string; paymentIntentId: string; lines: SplitLine[] }): Promise<{ ok: boolean }> {
-    let sourceCharge = '';
-    if (sale.paymentIntentId) {
-      // Fixed once on the row, so every retry sends the same parameters under its idempotency key.
-      try { sourceCharge = String((await deps.getStripe().paymentIntents.retrieve(sale.paymentIntentId))?.latest_charge || ''); } catch { /* draws on balance */ }
-    }
     let ok = true;
     for (const line of sale.lines) {
       if (!(line.amountCents > 0)) continue;
@@ -188,7 +277,6 @@ export function createSplitPayouts(deps: SplitPayoutDeps) {
         category: sale.category,
         title: sale.title,
         stripePaymentIntentId: sale.paymentIntentId,
-        sourceCharge,
         status: 'pending',
         attempts: 0,
         rejections: 0,
@@ -196,60 +284,99 @@ export function createSplitPayouts(deps: SplitPayoutDeps) {
       });
       if (created === 'error') { ok = false; continue; }
       if (created !== 'created') continue;
-      if (await payOne(payoutId, true) === 'awaiting_connect') {
-        await deps.notifyAwaitingConnect(line.creatorUid).catch((e: any) => console.error('[Splits] notify failed:', e?.message || e));
+      if (await payRow(SPLIT, payoutId, true) === 'awaiting_connect') {
+        await deps.notifyAwaitingConnect(line.creatorUid).catch((e: any) => console.error('[Payouts] notify failed:', e?.message || e));
       }
     }
     return { ok };
   }
 
-  async function sweep(rows: Array<{ id: string; data: Record<string, any> }>): Promise<{ paid: number; waiting: number }> {
+  type Row = { id: string; data: Record<string, any> };
+  async function sweep(kind: RowKind, rows: Row[]): Promise<{ paid: number; waiting: number }> {
     let paid = 0, waiting = 0;
+    const seen = new Set<string>();
     for (const r of rows) {
-      if (!retryDue(r.data, now())) { waiting++; continue; }
-      if (await payOne(r.id) === 'paid') paid++; else waiting++;
+      if (seen.has(r.id)) continue;
+      seen.add(r.id);
+      if (!kind.payable(r.id, r.data) || !retryDue(r.data, now())) { waiting++; continue; }
+      if (await payRow(kind, r.id) === 'paid') paid++; else waiting++;
     }
     return { paid, waiting };
   }
+  const add = (a: { paid: number; waiting: number }, b: { paid: number; waiting: number }) => ({ paid: a.paid + b.paid, waiting: a.waiting + b.waiting });
+  const q = (collection: string, filters: Record<string, any>, limit: number) =>
+    deps.query(collection, Object.entries(filters).map(([field, value]) => ({ field, op: 'EQUAL', value })), limit);
 
-  /** Everything owed to one recipient. Run when they finish Connect onboarding. */
+  /** Everything owed to one person. Run when they finish Connect onboarding. */
   async function payPendingFor(uid: string): Promise<{ paid: number; waiting: number }> {
-    const [awaiting, pending] = await Promise.all(['awaiting_connect', 'pending'].map(status => deps.query(SPLIT_PAYOUTS, [
-      { field: 'recipientUid', op: 'EQUAL', value: uid },
-      { field: 'status', op: 'EQUAL', value: status },
-    ], 200)));
-    return sweep([...awaiting, ...pending]);
+    const [earnings, awaiting, pending] = await Promise.all([
+      q(CREATOR_EARNINGS, { creatorUid: uid, status: 'pending' }, 200),
+      q(SPLIT_PAYOUTS, { recipientUid: uid, status: 'awaiting_connect' }, 200),
+      q(SPLIT_PAYOUTS, { recipientUid: uid, status: 'pending' }, 200),
+    ]);
+    return add(await sweep(EARNING, earnings), await sweep(SPLIT, [...awaiting, ...pending]));
   }
 
-  /** Retry failed transfers, and catch recipients who connected without the status check running. */
+  /**
+   * The retry job: failed transfers first, so people waiting on Connect can't crowd them out of the limit,
+   * then everything unpaid, which catches anyone who connected without the status check running.
+   */
   async function retryFailed(limit = 200): Promise<{ paid: number; waiting: number }> {
-    const [pending, awaiting] = await Promise.all(['pending', 'awaiting_connect'].map(status =>
-      deps.query(SPLIT_PAYOUTS, [{ field: 'status', op: 'EQUAL', value: status }], limit)));
-    return sweep([...pending, ...awaiting]);
+    const [failingEarnings, earnings, failingSplits, pending, awaiting] = await Promise.all([
+      q(CREATOR_EARNINGS, { status: 'pending', payoutFailing: true }, limit),
+      q(CREATOR_EARNINGS, { status: 'pending' }, limit),
+      q(SPLIT_PAYOUTS, { status: 'pending', payoutFailing: true }, limit),
+      q(SPLIT_PAYOUTS, { status: 'pending' }, limit),
+      q(SPLIT_PAYOUTS, { status: 'awaiting_connect' }, limit),
+    ]);
+    return add(await sweep(EARNING, [...failingEarnings, ...earnings]), await sweep(SPLIT, [...failingSplits, ...pending, ...awaiting]));
   }
 
-  /** A fully refunded sale: cancel unpaid rows and take back paid ones. ok:false means a reversal needs another try. */
-  async function reverseForPaymentIntent(paymentIntentId: string): Promise<{ ok: boolean }> {
-    if (!paymentIntentId) return { ok: true };
-    const rows = await deps.query(SPLIT_PAYOUTS, [{ field: 'stripePaymentIntentId', op: 'EQUAL', value: paymentIntentId }], 50);
-    let ok = true;
-    for (const r of rows) {
-      if (r.data.status === 'refunded') continue;
-      if (r.data.status === 'paid_out' && r.data.transferId) {
-        try { await deps.getStripe().transfers.createReversal(String(r.data.transferId), {}, { idempotencyKey: `reverse_${r.id}` }); }
-        catch (e: any) {
-          console.error(`[Splits] reversal for ${r.id} failed:`, e?.message || e);
-          await deps.patch(SPLIT_PAYOUTS, r.id, { lastReversalError: String(e?.message || e).slice(0, 300) }).catch(() => {});
-          ok = false;
-          continue;
-        }
-      }
-      await deps.patch(SPLIT_PAYOUTS, r.id, { status: 'refunded', refundedAt: now() });
+  /** Reversals that failed, usually because the recipient's balance was already paid out. */
+  async function retryReversals(limit = 100): Promise<number> {
+    let done = 0;
+    for (const kind of KINDS) {
+      for (const r of await q(kind.collection, { reversalDue: true }, limit)) if (await settle(kind, r.id)) done++;
     }
-    return { ok };
+    return done;
   }
 
-  return { payOne, recordAndPay, payPendingFor, retryFailed, reverseForPaymentIntent };
+  /** Stripe's running total refunded on a charge: take back the same fraction of every share of the sale. */
+  async function applyRefund(paymentIntentId: string, refundedCents: number, chargeCents: number): Promise<void> {
+    if (!paymentIntentId || !(chargeCents > 0) || !(refundedCents > 0)) return;
+    const fraction = Math.min(1, refundedCents / chargeCents);
+    for (const kind of KINDS) {
+      for (const r of await q(kind.collection, { stripePaymentIntentId: paymentIntentId }, 50)) {
+        if (r.data.status === 'refunded') continue;
+        const target = Math.round(kind.cents(r.data) * fraction);
+        if (target > (Number(r.data.clawbackCents) || 0)) await deps.patch(kind.collection, r.id, { clawbackCents: target });
+        await settle(kind, r.id);
+      }
+    }
+  }
+
+  /** An open dispute holds unpaid shares. Paid ones stay out unless it's lost; a win releases the hold. */
+  async function applyDispute(paymentIntentId: string, status: string, disputedCents: number, chargeCents: number): Promise<void> {
+    if (!paymentIntentId) return;
+    const closed = ['won', 'warning_closed', 'lost'].includes(status);
+    for (const kind of KINDS) {
+      for (const r of await q(kind.collection, { stripePaymentIntentId: paymentIntentId }, 50)) {
+        if (r.data.status === 'refunded') continue;
+        await deps.patch(kind.collection, r.id, { disputeHold: !closed, disputeStatus: status });
+      }
+    }
+    if (status === 'lost') { await applyRefund(paymentIntentId, disputedCents, chargeCents); return; }
+    if (!closed) return;
+    for (const kind of KINDS) {
+      for (const r of await q(kind.collection, { stripePaymentIntentId: paymentIntentId }, 50)) await payRow(kind, r.id);
+    }
+  }
+
+  return {
+    payEarning: (id: string, firstAttempt = false) => payRow(EARNING, id, firstAttempt),
+    paySplit: (id: string, firstAttempt = false) => payRow(SPLIT, id, firstAttempt),
+    recordAndPay, payPendingFor, retryFailed, retryReversals, applyRefund, applyDispute,
+  };
 }
 
 // ── Audit of sales from before this ledger ────────────────────────────────────
