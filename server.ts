@@ -185,6 +185,7 @@ import { grossUpCents, giftCentsFromGross, applicationFeePercent } from './servi
 import { receiptPdf, bytesToBase64 } from './services/givingPdf';
 import { receiptEmail, statementEmail, receiptNoOf, statementOrgOf, EMAIL_RE } from './services/givingEmailCore';
 import { createBilling } from './routes/billing';
+import { canOpenSanctuaryItem, itemNamesGatedPath, sanctuaryItemOwner, SANCTUARY_ITEM_OWNER } from './services/sanctuaryMediaCore';
 import { fsAddClassMember, fsClassRoster } from './services/firebaseAdminRest';
 import { mergeOrgFinance, financeViewFor, financeViewLevel } from './services/orgFinanceCore';
 import { deriveAlerts as pulseDeriveAlerts, alertAudience as pulseAudience, prefAllows as pulsePrefAllows } from './services/acctPulse';
@@ -4452,6 +4453,37 @@ async function startServer() {
     const source = asset?.currentVersionId ? await firestoreRead('hqAssetVersions', String(asset.currentVersionId)) || asset : asset;
     if (!source?.storagePath) return res.status(404).json({ error: 'Asset not found' });
     return streamHqAsset(req, res, asset, source);
+  });
+
+  // Gated sanctuary files, the same way: a short signed link, with access checked again on every request, so a lapsed
+  // member stops at once. The object has no public URL.
+  async function sanctuaryFileAccess(uid: string, col: string, id: string, path: string): Promise<boolean> {
+    if (!SANCTUARY_ITEM_OWNER[col] || !id || id.includes('/')) return false;
+    const item = await firestoreGetDeep(col, id);
+    const owner = sanctuaryItemOwner(col, item);
+    if (!item || !itemNamesGatedPath(item, owner, path)) return false;
+    const [membership, unlock] = await Promise.all([firestoreRead('sanctuaryMemberships', `${owner}_${uid}`), firestoreRead('sanctuaryUnlocks', `${uid}_${id}`)]);
+    return canOpenSanctuaryItem(item, uid, owner, membership?.status, !!unlock);
+  }
+  const signSanctuaryFile = (col: string, id: string, uid: string, exp: string, path: string) =>
+    nodeCrypto.createHmac('sha256', hqStreamSecret()).update(`sanctuary|${col}|${id}|${uid}|${exp}|${path}`).digest('hex');
+
+  app.post('/api/sanctuary/media-ticket', apiLimiter, authMiddleware, express.json(), async (req: any, res: any) => {
+    const col = String(req.body?.col || ''), id = String(req.body?.id || ''), path = String(req.body?.path || '');
+    if (!await sanctuaryFileAccess(req.uid, col, id, path)) return res.status(403).json({ error: 'Forbidden' });
+    if (!hqStreamSecret()) return res.status(503).json({ error: 'Streaming is not configured.' });
+    const exp = String(Date.now() + 60 * 60 * 1000);
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.json({ url: `/api/sanctuary/media/${encodeURIComponent(col)}/${encodeURIComponent(id)}/${encodeURIComponent(req.uid)}/${exp}/${signSanctuaryFile(col, id, req.uid, exp, path)}?p=${encodeURIComponent(path)}` });
+  });
+
+  app.get('/api/sanctuary/media/:col/:id/:uid/:exp/:sig', apiLimiter, async (req: any, res: any) => {
+    const { col, id, uid, exp, sig } = req.params;
+    const path = String(req.query.p || '');
+    if (!hqStreamSecret() || !(Number(exp) > Date.now()) || !secretsEqual(sig, signSanctuaryFile(col, id, uid, exp, path))) return res.status(403).json({ error: 'Forbidden' });
+    if (!await sanctuaryFileAccess(String(uid), String(col), String(id), path)) return res.status(403).json({ error: 'Forbidden' });
+    res.setHeader('Cache-Control', 'private, no-store');
+    return streamHqObject(req, res, path, path.split('/').pop() || 'file', '');
   });
 
   app.get('/api/hq/assets/:assetId/download', apiLimiter, authMiddleware, async (req: any, res: any) => {

@@ -2,10 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ImagePlus, Lock, Trash2, Play, Volume2 } from 'lucide-react';
 import { SanctuaryGalleryItem, SanctuaryMembership } from '../../types';
 import {
-  listenToSanctuaryGallery, addSanctuaryGalleryItem, deleteSanctuaryGalleryItem, hasAccess,
+  listenToSanctuaryGallery, uploadGatedSanctuaryFile, addSanctuaryGalleryItem, deleteSanctuaryGalleryItem, hasAccess,
 } from '../../services/sanctuaryService';
 import { purchaseSanctuaryUnlock } from '../../services/stripeService';
-import { uploadFile } from '../../services/backendService';
+import { useGatedMedia } from './useGatedMedia';
 import { auth } from '../../services/firebase';
 import { SANCTUARY_THEME, SanctuaryLockChip, SanctuaryPriceTag } from './SanctuaryIdentity';
 
@@ -19,6 +19,14 @@ interface Props {
 
 const kindOf = (file: File): SanctuaryGalleryItem['type'] =>
   file.type.startsWith('video') ? 'VIDEO' : file.type.startsWith('audio') ? 'AUDIO' : 'PHOTO';
+
+const GalleryMedia: React.FC<{ item: SanctuaryGalleryItem }> = ({ item: it }) => {
+  const url = useGatedMedia('sanctuaryGallery', it.id, it.url);
+  if (!url) return <div className="w-full h-full bg-black/50" />;
+  if (it.type === 'PHOTO') return <img src={url} className="w-full h-full object-cover" alt={it.title || ''} loading="lazy" />;
+  if (it.type === 'VIDEO') return <video src={url} className="w-full h-full object-cover" muted playsInline controls />;
+  return <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-black/50"><Volume2 size={22} style={{ color: SANCTUARY_THEME.gold }} /><audio src={url} controls className="w-[90%] h-8" /></div>;
+};
 
 const SanctuaryGallery: React.FC<Props> = ({ sanctuaryId, isOwner, membership, purchasedIds, onPurchased }) => {
   const [items, setItems] = useState<SanctuaryGalleryItem[]>([]);
@@ -35,7 +43,7 @@ const SanctuaryGallery: React.FC<Props> = ({ sanctuaryId, isOwner, membership, p
     if (!file) return;
     setUploading(true);
     try {
-      const url = await uploadFile(`sanctuaries/${sanctuaryId}/gallery/${Date.now()}_${file.name}`, file);
+      const url = await uploadGatedSanctuaryFile(sanctuaryId, 'gallery', file, file.name);
       await addSanctuaryGalleryItem({ sanctuaryId, url, type: kindOf(file), title: file.name, accessType: 'TIER', requiredTierIds: [] });
     } finally { setUploading(false); if (fileRef.current) fileRef.current.value = ''; }
   };
@@ -71,11 +79,7 @@ const SanctuaryGallery: React.FC<Props> = ({ sanctuaryId, isOwner, membership, p
             return (
               <div key={it.id} className="relative rounded-2xl overflow-hidden aspect-square group" style={{ border: `1px solid ${SANCTUARY_THEME.line}` }}>
                 {open ? (
-                  it.type === 'PHOTO'
-                    ? <img src={it.url} className="w-full h-full object-cover" alt={it.title || ''} loading="lazy" />
-                    : it.type === 'VIDEO'
-                      ? <video src={it.url} className="w-full h-full object-cover" muted playsInline controls />
-                      : <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-black/50"><Volume2 size={22} style={{ color: SANCTUARY_THEME.gold }} /><audio src={it.url} controls className="w-[90%] h-8" /></div>
+                  <GalleryMedia item={it} />
                 ) : (
                   <button onClick={() => it.accessType === 'ONE_TIME' && unlock(it)} disabled={unlocking === it.id}
                     className="absolute inset-0 flex flex-col items-center justify-center gap-2" style={{ background: 'rgba(12,10,13,0.85)' }}>

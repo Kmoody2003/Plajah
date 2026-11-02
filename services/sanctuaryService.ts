@@ -1,3 +1,6 @@
+import { ref as storageRef, uploadBytes } from 'firebase/storage';
+import { storage } from './firebase';
+import { gatedRef } from './sanctuaryMediaCore';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, addDoc, increment, arrayUnion, arrayRemove, type QueryConstraint } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
 import { db, auth } from './firebase';
@@ -381,6 +384,13 @@ export const fetchMyPurchases = async (sanctuaryId?: string): Promise<SanctuaryP
 };
 
 // ── GALLERY (gated media wall) ──────────────────────────────────────────────────
+
+/** Uploads a gated file: no public URL, only a reference the server resolves per viewer. */
+export const uploadGatedSanctuaryFile = async (sanctuaryId: string, folder: 'gallery' | 'posts', file: Blob, name: string): Promise<string> => {
+  const path = `sanctuaries/${sanctuaryId}/${folder}/${Date.now()}_${name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  await uploadBytes(storageRef(storage, path), file, { contentType: file.type || undefined, customMetadata: auth.currentUser ? { ownerUid: auth.currentUser.uid } : undefined });
+  return gatedRef(path);
+};
 
 export const addSanctuaryGalleryItem = async (
   item: Partial<SanctuaryGalleryItem> & { sanctuaryId: string; url: string; type: SanctuaryGalleryItem['type'] },

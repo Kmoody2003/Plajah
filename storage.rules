@@ -343,6 +343,12 @@ service firebase.storage {
       allow delete: if isRegisteredUser() && request.auth.uid == uid;
     }
 
+    // Gated sanctuary files: the owner uploads, nobody reads directly. /api/sanctuary/media checks access per request.
+    match /sanctuaries/{ownerUid}/{allPaths=**} {
+      allow read: if false;
+      allow write: if isRegisteredUser() && request.auth.uid == ownerUid && isPublicSafeType() && withinSizeLimit();
+    }
+
     // ── Fallback: deny everything not explicitly matched ──────────────────────
     match /{allPaths=**} {
       allow read: if false;

@@ -39,6 +39,9 @@ export function objectBelongsTo(ownerUid: string, path: string, metadataOwner: u
   return path.split('/').includes(ownerUid);
 }
 
+/** Where a trashed object waits. Storage rules give this prefix no client read, and moving it kills the old URL and token. */
+export const trashObjectPath = (trashId: string, path: string) => `media-trash/${trashId}/${path}`;
+
 /** Is this object still named by something the owner kept? */
 export function stillUsed(path: string, keptRecords: unknown[], bucket: string): boolean {
   return keptRecords.some(r => storagePathsIn(r, bucket).includes(path));

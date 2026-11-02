@@ -1,7 +1,8 @@
 // Media Library trash: albums, videos and photos stay recoverable for 30 days, then go for good, Storage files too.
 //
 // A trashed item's whole document moves to the closed mediaTrash collection, untouched, so every public feed and
-// query stops seeing it at once and a restore brings back exactly what was there.
+// query stops seeing it at once and a restore brings back exactly what was there. Its files move to media-trash/, which
+// has no client read, so a saved URL stops working at trash time, and move back on restore with their token intact.
 //
 //   GET  /                  this person's trash
 //   POST /      { kind, id }   move to trash
@@ -13,7 +14,7 @@
 
 import { Router, Request, Response } from 'express';
 import { fsCreate, fsDelete, fsGet, fsQuery, getAccessToken, verifyIdTokenDetailed } from '../services/firebaseAdminRest';
-import { MEDIA_COLLECTION, MEDIA_TRASH_MS, mediaTrashId, objectBelongsTo, stillUsed, storagePathsIn, type MediaKind } from '../services/mediaTrashPolicy';
+import { MEDIA_COLLECTION, MEDIA_TRASH_MS, mediaTrashId, objectBelongsTo, stillUsed, storagePathsIn, trashObjectPath, type MediaKind } from '../services/mediaTrashPolicy';
 import { OPS_DATABASE_ID } from '../services/opsCollections';
 
 export const mediaTrashRouter = Router();
@@ -58,10 +59,53 @@ async function ownRow(uid: string, id: string): Promise<Record<string, any> | nu
   return row && row.ownerUid === uid ? row : null;
 }
 
-async function deleteOwnedObject(ownerUid: string, path: string): Promise<'deleted' | 'kept' | 'failed'> {
+/** Same-bucket copy then delete. Missing source counts as done, since another trashed item may have moved it. */
+async function moveObject(src: string, dst: string): Promise<boolean> {
+  const token = await getAccessToken();
+  if (!token) return false;
+  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+  let rewriteToken = '';
+  for (let i = 0; i < 50; i++) {
+    const res = await fetch(`https://storage.googleapis.com/storage/v1/b/${BUCKET}/o/${encodeURIComponent(src)}/rewriteTo/b/${BUCKET}/o/${encodeURIComponent(dst)}${rewriteToken ? `?rewriteToken=${encodeURIComponent(rewriteToken)}` : ''}`, { method: 'POST', headers, body: '{}' });
+    if (res.status === 404) return true;
+    if (!res.ok) return false;
+    const j: any = await res.json();
+    if (j.done) {
+      const del = await fetch(`https://storage.googleapis.com/storage/v1/b/${BUCKET}/o/${encodeURIComponent(src)}`, { method: 'DELETE', headers });
+      return del.ok || del.status === 404;
+    }
+    rewriteToken = j.rewriteToken;
+  }
+  return false;
+}
+
+/** What to hide when this item goes to Trash: its owner's files that nothing they kept still uses. */
+async function hideObjects(ownerUid: string, trashId: string, raw: Record<string, any>, sourceId: string): Promise<Record<string, string> | null> {
+  const token = await getAccessToken();
+  if (!token) return null;
+  const kept = (await Promise.all(Object.values(MEDIA_COLLECTION).map(c => fsQuery(c, [{ field: 'ownerId', value: ownerUid }], 1000)))).flat().filter(r => r.id !== sourceId).map(r => r.data);
+  const moved: Record<string, string> = {};
+  for (const path of storagePathsIn({ fields: raw }, BUCKET)) {
+    if (path.startsWith('media-trash/') || stillUsed(path, kept, BUCKET)) continue;
+    const meta = await fetch(`https://storage.googleapis.com/storage/v1/b/${BUCKET}/o/${encodeURIComponent(path)}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (meta.status === 404) continue;
+    if (!meta.ok) { await restoreObjects(moved); return null; }
+    if (!objectBelongsTo(ownerUid, path, ((await meta.json()) as any)?.metadata?.ownerUid)) continue;
+    const dst = trashObjectPath(trashId, path);
+    if (!(await moveObject(path, dst))) { await restoreObjects(moved); return null; }
+    moved[path] = dst;
+  }
+  return moved;
+}
+async function restoreObjects(moved: Record<string, string>): Promise<boolean> {
+  const out = await Promise.all(Object.entries(moved).map(([path, dst]) => moveObject(dst, path)));
+  return out.every(Boolean);
+}
+
+async function deleteOwnedObject(ownerUid: string, path: string, at = path): Promise<'deleted' | 'kept' | 'failed'> {
   const token = await getAccessToken();
   if (!token) return 'failed';
-  const url = `https://storage.googleapis.com/storage/v1/b/${BUCKET}/o/${encodeURIComponent(path)}`;
+  const url = `https://storage.googleapis.com/storage/v1/b/${BUCKET}/o/${encodeURIComponent(at)}`;
   const headers = { Authorization: `Bearer ${token}` };
   const meta = await fetch(url, { headers });
   if (meta.status === 404) return 'deleted';
@@ -78,12 +122,13 @@ async function purgeRow(id: string, row: Record<string, any>): Promise<boolean> 
   if (!raw) return false;
   const ownerUid = String(row.ownerUid || '');
   const paths = storagePathsIn(raw.data, BUCKET);
+  const moved: Record<string, string> = row.movedObjects || {};
   const kept = (await Promise.all(Object.values(MEDIA_COLLECTION).map(c => fsQuery(c, [{ field: 'ownerId', value: ownerUid }], 1000)))).flat().map(r => r.data);
   const otherTrash = (await fsQuery('mediaTrash', [{ field: 'ownerUid', value: ownerUid }], 1000)).filter(r => r.id !== id).map(r => r.data);
   let deleted = 0, skipped = 0, failed = 0;
   for (const path of paths) {
     if (stillUsed(path, [...kept, ...otherTrash], BUCKET)) { skipped++; continue; }
-    const out = await deleteOwnedObject(ownerUid, path);
+    const out = await deleteOwnedObject(ownerUid, path, moved[path] || path);
     if (out === 'deleted') deleted++; else if (out === 'kept') skipped++; else failed++;
   }
   if (failed) return false;
@@ -130,10 +175,19 @@ mediaTrashRouter.post('/', async (req: Request, res: Response) => {
     deletedAt: num(now), retentionDeleteAt: num(now + MEDIA_TRASH_MS),
     data: { mapValue: { fields: raw } },
   };
-  const trashPath = `mediaTrash/${mediaTrashId(kind, id)}`;
-  if (!(await writeRaw(OPS_DATABASE_ID, trashPath, fields))) return res.status(500).json({ error: 'Could not move it to Trash.' });
+  const trashId = mediaTrashId(kind, id);
+  const trashPath = `mediaTrash/${trashId}`;
+  const moved = await hideObjects(uid, trashId, raw, id);
+  if (!moved) return res.status(500).json({ error: 'Could not move it to Trash.' });
+  const movedFields: Record<string, any> = {};
+  for (const [k, v] of Object.entries(moved)) movedFields[k] = { stringValue: v };
+  if (!(await writeRaw(OPS_DATABASE_ID, trashPath, { ...fields, movedObjects: { mapValue: { fields: movedFields } } }))) {
+    await restoreObjects(moved);
+    return res.status(500).json({ error: 'Could not move it to Trash.' });
+  }
   if (!(await deleteRaw(PROD_DB, `${collection}/${id}`))) {
     await deleteRaw(OPS_DATABASE_ID, trashPath);
+    await restoreObjects(moved);
     return res.status(500).json({ error: 'Could not move it to Trash.' });
   }
   return res.json({ ok: true, retentionDeleteAt: now + MEDIA_TRASH_MS });
@@ -149,6 +203,7 @@ mediaTrashRouter.post('/restore', async (req: Request, res: Response) => {
   const raw = await readRaw(OPS_DATABASE_ID, `mediaTrash/${id}`);
   const fields = raw?.data?.mapValue?.fields;
   if (!collection || !fields) return res.status(500).json({ error: 'Could not restore it.' });
+  if (!(await restoreObjects(row.movedObjects || {}))) return res.status(500).json({ error: 'Could not restore its files. Try again in a moment.' });
   if (!(await writeRaw(PROD_DB, `${collection}/${row.sourceId}`, fields))) return res.status(500).json({ error: 'Could not restore it.' });
   await fsDelete(`mediaTrash/${id}`);
   return res.json({ ok: true });
