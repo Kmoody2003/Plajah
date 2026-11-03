@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true, "types": ["vite/client", "node", "@webgpu/types"] },
+  "include": ["services/argilla/*.ts", "services/argilla/creature/*.ts", "services/argilla/poly/*.ts", "services/argilla/understand/*.ts", "services/argilla/scene/*.ts", "components/argilla/*.tsx", "labs/argilla/main.tsx", "tests/argilla.test.ts"]
+}

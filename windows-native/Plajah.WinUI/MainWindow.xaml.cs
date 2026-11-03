@@ -1021,6 +1021,33 @@ public sealed partial class MainWindow : Window
                 var requestId = root.TryGetProperty("requestId", out var rid) ? rid.GetString() ?? string.Empty : string.Empty;
                 if (NativeLlmService.Inflight.TryGetValue(requestId, out var cts)) cts.Cancel();
             }
+            else if (type == "LOCAL_LLM_LOOK")
+            {
+                // One picture (base64) and a question for the vision model; Argilla names parts this way.
+                var requestId = root.TryGetProperty("requestId", out var rid) ? rid.GetString() ?? string.Empty : string.Empty;
+                byte[] image;
+                try { image = Convert.FromBase64String(root.GetProperty("image").GetString() ?? string.Empty); }
+                catch { PostNativeMessage("LOCAL_LLM_LOOK_RESULT", new { requestId, success = false, error = "The picture didn't arrive" }); return; }
+                var prompt = root.TryGetProperty("prompt", out var p) ? p.GetString() ?? string.Empty : string.Empty;
+                var prefill = root.TryGetProperty("prefill", out var pf) ? pf.GetString() ?? string.Empty : string.Empty;
+                var maxTokens = root.TryGetProperty("maxTokens", out var mt) && mt.TryGetInt32(out var mti) ? mti : 900;
+                var unloadAfter = root.TryGetProperty("unloadAfter", out var ua) && ua.ValueKind == System.Text.Json.JsonValueKind.True;
+                using var cts = new System.Threading.CancellationTokenSource();
+                if (requestId.Length > 0) NativeLlmService.Inflight[requestId] = cts;
+                try
+                {
+                    var res = await NativeLlmService.LookAsync(image, prompt, prefill, maxTokens, unloadAfter, cts.Token);
+                    PostNativeMessage("LOCAL_LLM_LOOK_RESULT", new
+                    {
+                        requestId, success = res.success, text = res.text, model = res.model, backend = res.backend,
+                        seconds = res.seconds, loadSeconds = res.loadSeconds, error = res.error,
+                    });
+                }
+                finally
+                {
+                    if (requestId.Length > 0) NativeLlmService.Inflight.TryRemove(requestId, out _);
+                }
+            }
             else if (type == "LOCAL_LLM_STATUS")
             {
                 PostNativeMessage("LOCAL_LLM_STATUS_RESULT", NativeLlmService.Status());
@@ -1028,6 +1055,15 @@ public sealed partial class MainWindow : Window
             else if (type == "TELA3D_ENSURE")
             {
                 PostNativeMessage("TELA3D_ENSURE_RESULT", await Tela3dRuntimeService.EnsureAsync());
+            }
+            else if (type == "ARGILLA_NPU_ENSURE")
+            {
+                PostNativeMessage("ARGILLA_NPU_ENSURE_RESULT", await ArgillaNpuService.EnsureAsync());
+            }
+            else if (type == "ARGILLA_NPU_INSTALL")
+            {
+                PostNativeMessage("ARGILLA_NPU_INSTALL_RESULT", await ArgillaNpuService.InstallAsync((label, fraction) =>
+                    PostNativeMessage("ARGILLA_NPU_INSTALL_PROGRESS", new { label, fraction })));
             }
             else if (type == "LOCAL_LLM_DOWNLOAD")
             {
