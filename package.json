@@ -209,7 +209,7 @@
     "three": "^0.184.0",
     "uuid": "^14.0.0",
     "verovio": "^6.2.0",
-    "vite": "^6.2.0"
+    "vite": "^6.4.5"
   },
   "overrides": {
     "node-domexception": "file:./mocks/node-domexception",
