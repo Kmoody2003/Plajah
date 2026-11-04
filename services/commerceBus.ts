@@ -192,6 +192,18 @@ export function subscribeCatalog(sellerUid: string, cb: (products: StoreProduct[
       fail), fail), cb, opts.onError);
 }
 
+/** Featured, published products with a photo from any shop — the ad panel's "In the store" spots.
+ *  A seller opts a product in with "Feature it" (StoreProduct.isFeatured) in the product editor. */
+export async function fetchFeaturedStoreProducts(max = 8): Promise<StoreProduct[]> {
+  try {
+    const [fs, fb] = await Promise.all([import('firebase/firestore'), import('./firebase')]);
+    const snap = await fs.getDocs(fs.query(fs.collection(fb.opsDb, 'storeProducts'), fs.where('isFeatured', '==', true), fs.limit(40)));
+    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() } as StoreProduct))
+      .filter(p => p.isActive !== false && p.price > 0 && !!p.images?.[0] && !(p.tags || []).includes('demo-seed'));
+    return rows.sort(() => Math.random() - 0.5).slice(0, max);
+  } catch { return []; }
+}
+
 /** Live: a business's offers (businesses/{uid}/offers). */
 export function subscribeOffers(sellerUid: string, cb: (offers: BusinessOffer[]) => void, opts: SubscribeOpts = {}): () => void {
   if (!sellerUid) { queueMicrotask(() => cb([])); return () => {}; }

@@ -5255,7 +5255,7 @@ export interface SystemSettingsConfig {
 export type AchievementCategory = 'USER' | 'ARTIST' | 'ORGANIZATION';
 export type AchievementTriggerType =
   | 'FIRST_PLAY' | 'FIRST_ALBUM_LISTEN' | 'FIRST_SONG' | 'FIRST_MOVIE_COMPLETED'
-  | 'FIRST_TV_COMPLETED' | 'FIRST_VIDEO_COMPLETED' | 'FIRST_GIFT' | 'FIRST_DONATION'
+  | 'FIRST_TV_COMPLETED' | 'FIRST_VIDEO_COMPLETED' | 'FIRST_GIFT' | 'FIRST_DONATION' | 'FIRST_STORE_PURCHASE' | 'LOYAL_SHOPPER'
   | 'FIRST_ENGAGEMENT' | 'FIRST_UPLOAD' | 'FIRST_LISTENER' | 'FIRST_FAN'
   | 'FIRST_SIGN_IN' | 'FIRST_FOLLOW' | 'WATCH_LIVE' | 'POST_COMMENT'
   | 'FIRST_LIVE_STREAM'
@@ -6426,7 +6426,8 @@ export interface SanctuaryGate {
 
 export type StoreProductCategory =
   | 'APPAREL' | 'MUSIC' | 'ACCESSORIES' | 'DIGITAL'
-  | 'COLLECTIBLES' | 'BOOKS' | 'ELECTRONICS' | 'HOME' | 'ART' | 'OTHER';
+  | 'COLLECTIBLES' | 'BOOKS' | 'ELECTRONICS' | 'HOME' | 'ART' | 'OTHER'
+  | 'WELLNESS' | 'JEWELRY';
 
 export interface StoreProductVariant {
   id: string;
@@ -6489,6 +6490,9 @@ export interface StoreProduct {
   worldId?: string;         // linked world/brand
   // ── Ownership (a store can belong to a user OR an org/brand) ──
   sellerType?: 'USER' | 'ORG';
+  /** ORG stores only: the department/ministry (org.ministries[].id) whose shop this product belongs to.
+   *  Unset = the org's main shop. The product is still sold by the org account (sellerId). */
+  ministryId?: string;
   // ── Media / DAM link (surfaces a store product in the Content Asset Manager) ──
   videoUrl?: string;
   linkedAssetId?: string;   // Track/Video/Album this product is tied to
@@ -6560,6 +6564,11 @@ export interface StoreReview {
   isVerifiedPurchase: boolean;
   helpfulCount: number;
   timestamp: number;
+  editedAt?: number;
+  sellerId?: string;
+  /** The shop's public answer (server-written). */
+  sellerReply?: string;
+  sellerReplyAt?: number;
 }
 
 // ── GARAGE SALE (AUCTIONS) ────────────────────────────────────────────────────

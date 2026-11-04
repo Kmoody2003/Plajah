@@ -3489,6 +3489,21 @@ async function startServer() {
                     shipCity: String(addr.city || ''), shipState: String(addr.state || ''), shipPostal: String(addr.postal_code || ''), shipCountry: String(addr.country || ''),
                   } : {}),
                 });
+                // Rewards ride the same once-only confirm: loyalty points at this shop (same 1 pt per $1 as the
+                // register), a per-shop order count, and the shopper achievements. Never blocks the order.
+                const buyer = String(order.customerUid || order.buyerId || '');
+                const shop = String(order.businessUid || order.sellerId || meta.businessUid || '');
+                if (buyer && shop && buyer !== shop) {
+                  try {
+                    const earned = Math.floor((Number(session.amount_total) || 0) / 100) * 1; // = LOYALTY_PTS_PER_DOLLAR at the register
+                    await firestoreIncrement(`businesses/${shop}/loyalty/${buyer}`, { points: earned, onlineOrders: 1, spentCents: Number(session.amount_total) || 0 }, { customerUid: buyer, businessUid: shop, updatedAt: now });
+                    await firestoreWrite('storeOrders', meta.orderId, { loyaltyPointsEarned: earned });
+                    const unlock = (trigger: string) => firestoreCreateOnce('userAchievements', `${buyer}__${trigger}`, { userId: buyer, achievementId: trigger, unlockedAt: now, isNew: true, timestamp: now });
+                    await unlock('FIRST_STORE_PURCHASE');
+                    const card = await firestoreRead(`businesses/${shop}/loyalty`, buyer).catch(() => null);
+                    if (Number(card?.onlineOrders) >= 3) await unlock('LOYAL_SHOPPER');
+                  } catch (e: any) { console.error('[store] rewards failed', e?.message || e); }
+                }
               }
               if (order.giftCardsPending) { try { await issueOnlineGiftCards(String(meta.orderId), order); } catch (e: any) { console.error('[store] online gift cards failed', e?.message || e); } }
               try {
@@ -11457,6 +11472,88 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       console.error('/api/store/create-order', err.message);
       res.status(500).json({ error: err.message });
     }
+  });
+
+  // ── Product reviews. Written ONLY here (rules deny client writes): one review per person per product
+  // (doc id = productId_uid, so posting again edits it), "Verified purchase" only when this person has a
+  // paid order from this shop containing the product, and the product's rating/reviewCount are recomputed
+  // from the reviews themselves — nobody can type their own stars into a listing.
+  const PAID_ORDER = new Set(['CONFIRMED', 'SHIPPED', 'DELIVERED', 'FULFILLED', 'READY', 'PICKED_UP', 'COMPLETED']);
+  const recomputeProductRating = async (productId: string) => {
+    const all = await fsQueryDocs('storeReviews', [{ field: 'productId', op: 'EQUAL', value: productId }], 2000);
+    const n = all.length;
+    const avg = n ? Math.round((all.reduce((s, r) => s + (Number(r.data.rating) || 0), 0) / n) * 10) / 10 : 0;
+    await firestorePatchDeep('storeProducts', productId, { rating: avg, reviewCount: n });
+    return { rating: avg, reviewCount: n };
+  };
+  const boughtIt = async (uid: string, sellerId: string, productId: string) => {
+    const orders = await fsQueryDocs('storeOrders', [{ field: 'buyerId', op: 'EQUAL', value: uid }, { field: 'sellerId', op: 'EQUAL', value: sellerId }], 300);
+    return orders.some(o => {
+      if (!PAID_ORDER.has(String(o.data.status || ''))) return false;
+      let items: any[] = [];
+      try { items = typeof o.data.items === 'string' ? JSON.parse(o.data.items) : (o.data.items || []); } catch { /* not this one */ }
+      return Array.isArray(items) && items.some(i => i && i.productId === productId);
+    });
+  };
+  app.post('/api/store/reviews', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const uid: string = req.uid;
+      const { productId, rating, title, body, images } = req.body || {};
+      const stars = Math.round(Number(rating));
+      if (!productId || typeof productId !== 'string' || !(stars >= 1 && stars <= 5)) return res.status(400).json({ error: 'Pick 1 to 5 stars.' });
+      const text = String(body || '').trim().slice(0, 4000);
+      if (text.length < 3) return res.status(400).json({ error: 'Say a little about it.' });
+      const product = await firestoreGetDeep('storeProducts', productId);
+      if (!product || product.isActive === false) return res.status(404).json({ error: 'That product isn\'t for sale.' });
+      if (product.sellerId === uid) return res.status(403).json({ error: 'Shops can\'t review their own products.' });
+      const id = `${productId}_${uid}`;
+      const [u, prev, verified] = await Promise.all([firestoreRead('users', uid), firestoreGetDeep('storeReviews', id), boughtIt(uid, String(product.sellerId || ''), productId)]);
+      const pics = (Array.isArray(images) ? images : []).filter((s: any) => typeof s === 'string' && /^https:\/\/firebasestorage\.googleapis\.com\//.test(s)).slice(0, 4);
+      const now = Date.now();
+      const review = {
+        productId, sellerId: String(product.sellerId || ''), reviewerId: uid,
+        reviewerName: String(u?.displayName || u?.artistName || u?.name || 'Plajah member').slice(0, 80),
+        reviewerPhoto: String(u?.photoURL || u?.avatarUrl || ''),
+        rating: stars, title: String(title || '').trim().slice(0, 140), body: text, images: pics,
+        isVerifiedPurchase: verified,
+        helpfulCount: Number(prev?.helpfulCount) || 0,
+        timestamp: Number(prev?.timestamp) || now, ...(prev ? { editedAt: now } : {}),
+        ...(prev?.sellerReply ? { sellerReply: prev.sellerReply, sellerReplyAt: prev.sellerReplyAt || now } : {}),
+      };
+      if (!(await firestorePatchDeep('storeReviews', id, review))) return res.status(500).json({ error: 'Couldn\'t save your review. Try again.' });
+      const agg = await recomputeProductRating(productId);
+      res.json({ review: { id, ...review }, ...agg });
+    } catch (err: any) {
+      console.error('/api/store/reviews', err.message);
+      res.status(500).json({ error: 'Couldn\'t save your review. Try again.' });
+    }
+  });
+  app.delete('/api/store/reviews/:productId', authMiddleware, async (req: any, res) => {
+    const productId = String(req.params.productId || '');
+    if (!productId) return res.status(400).json({ error: 'productId required' });
+    await firestoreDeleteDoc('storeReviews', `${productId}_${req.uid}`);
+    res.json(await recomputeProductRating(productId));
+  });
+  // "Helpful" — once per person (claim doc), never on your own review.
+  app.post('/api/store/reviews/:id/helpful', authMiddleware, async (req: any, res) => {
+    const id = String(req.params.id || '');
+    const r = await firestoreGetDeep('storeReviews', id);
+    if (!r) return res.status(404).json({ error: 'Review not found' });
+    if (r.reviewerId === req.uid) return res.status(400).json({ error: 'That\'s your review.' });
+    const claim = await firestoreCreateOnce(`storeReviews/${id}/helpful`, req.uid, { at: Date.now() });
+    if (claim === 'created') await firestoreIncrement(`storeReviews/${id}`, { helpfulCount: 1 });
+    res.json({ ok: claim !== 'error', already: claim === 'exists' });
+  });
+  // The shop answers a review (the selling account only). Empty text removes the reply.
+  app.post('/api/store/reviews/:id/reply', authMiddleware, express.json(), async (req: any, res) => {
+    const id = String(req.params.id || '');
+    const r = await firestoreGetDeep('storeReviews', id);
+    if (!r) return res.status(404).json({ error: 'Review not found' });
+    const product = await firestoreGetDeep('storeProducts', String(r.productId || ''));
+    if (!product || product.sellerId !== req.uid) return res.status(403).json({ error: 'Only the shop can reply.' });
+    const text = String(req.body?.text || '').trim().slice(0, 2000);
+    await firestorePatchDeep('storeReviews', id, { sellerReply: text, sellerReplyAt: text ? Date.now() : 0 });
+    res.json({ ok: true, sellerReply: text });
   });
 
   // ── POS sale — staff-facing register (cash tender). Business-authenticated (the owner runs the

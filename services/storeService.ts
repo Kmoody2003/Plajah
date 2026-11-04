@@ -155,22 +155,53 @@ export const migrateMerchItem = async (m: any, sellerName = ''): Promise<string>
 
 // ── REVIEWS ───────────────────────────────────────────────────────────────────
 
-export const addProductReview = async (review: Omit<StoreReview, 'id' | 'timestamp' | 'helpfulCount'>): Promise<void> => {
-  const ref = doc(collection(db, 'storeReviews'));
-  await setDoc(ref, { ...review, id: ref.id, helpfulCount: 0, timestamp: Date.now() });
-  await updateDoc(doc(opsDb, 'storeProducts', review.productId), {
-    reviewCount: increment(1),
-  });
+// Writes go through the server (/api/store/reviews): it decides "Verified purchase" from paid orders,
+// keeps one review per person per product, and recomputes the product's rating from the reviews.
+const reviewApi = async (path: string, init: RequestInit = {}) => {
+  const u = auth.currentUser;
+  if (!u) throw new Error('Sign in first.');
+  const res = await fetch(path, { ...init, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await u.getIdToken()}`, ...(init.headers || {}) } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Something went wrong. Try again.');
+  return data;
 };
+
+export interface ReviewDraft { productId: string; rating: number; title?: string; body: string; images?: string[] }
+export const addProductReview = async (review: ReviewDraft): Promise<{ review: StoreReview; rating: number; reviewCount: number }> =>
+  reviewApi('/api/store/reviews', { method: 'POST', body: JSON.stringify(review) });
+
+export const deleteMyProductReview = async (productId: string): Promise<{ rating: number; reviewCount: number }> =>
+  reviewApi(`/api/store/reviews/${encodeURIComponent(productId)}`, { method: 'DELETE' });
 
 export const fetchProductReviews = async (productId: string): Promise<StoreReview[]> => {
-  const q = query(collection(db, 'storeReviews'), where('productId', '==', productId), orderBy('timestamp', 'desc'));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as StoreReview));
+  const snap = await getDocs(query(collection(db, 'storeReviews'), where('productId', '==', productId), limit(500)));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as StoreReview)).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 };
 
-export const markReviewHelpful = async (reviewId: string): Promise<void> => {
-  await updateDoc(doc(db, 'storeReviews', reviewId), { helpfulCount: increment(1) });
+export const markReviewHelpful = async (reviewId: string): Promise<{ already: boolean }> =>
+  reviewApi(`/api/store/reviews/${encodeURIComponent(reviewId)}/helpful`, { method: 'POST' });
+
+export const replyToReview = async (reviewId: string, text: string): Promise<{ sellerReply: string }> =>
+  reviewApi(`/api/store/reviews/${encodeURIComponent(reviewId)}/reply`, { method: 'POST', body: JSON.stringify({ text }) });
+
+/** Straight to Stripe Checkout for these lines from ONE shop (Buy now). The server re-prices and stock-checks;
+ *  money goes to the shop. Navigates away on success, throws a readable error otherwise. */
+export const startStoreCheckout = async (sellerId: string, lines: StoreCartItem[]): Promise<void> => {
+  const u = auth.currentUser;
+  if (!u) throw new Error('Sign in to check out.');
+  const res = await fetch('/api/store/create-order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await u.getIdToken()}` },
+    body: JSON.stringify({
+      businessUid: sellerId,
+      items: lines.map(i => ({ productId: i.product.id, variantId: i.variantId, qty: i.quantity })),
+      fulfillment: lines.every(i => i.product.isDigital) ? 'PICKUP' : 'SHIP',
+      customerName: u.displayName || '',
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.url) throw new Error(data.error || 'Could not start checkout. Try again.');
+  window.location.href = data.url;
 };
 
 // ── ORDERS ────────────────────────────────────────────────────────────────────

@@ -84,12 +84,16 @@ const InventoryHub: React.FC<{
   canEdit?: boolean;
   /** Demo data (guided tours, previews): replaces the Firestore reads. Nothing is persisted — edits simply fail soft and revert. */
   demo?: { products: StoreProduct[]; pulse: SellerPulse; moves: StockMove[] };
-}> = ({ sellerId, sellerName, sellerType = 'USER', sellerPhoto, audience = 'creator', canEdit: canEditProp = true, demo }) => {
+  /** Org stores: the org's departments, so each product can be placed on a department's shelf (StoreProduct.ministryId). */
+  departments?: { id: string; name: string }[];
+  /** Department view: show only this department's products; new products land on its shelf. */
+  ministryId?: string;
+}> = ({ sellerId, sellerName, sellerType = 'USER', sellerPhoto, audience = 'creator', canEdit: canEditProp = true, demo, departments, ministryId }) => {
   const canEdit = canEditProp;
   const demoRef = useRef(demo);
   demoRef.current = demo;
   const isDemo = !!demo;
-  const who = useMemo(() => ({ sellerId, sellerName, sellerType }), [sellerId, sellerName, sellerType]);
+  const who = useMemo(() => ({ sellerId, sellerName, sellerType, departments, defaultMinistryId: ministryId }), [sellerId, sellerName, sellerType, departments, ministryId]);
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [pulse, setPulse] = useState<SellerPulse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -121,8 +125,8 @@ const InventoryHub: React.FC<{
       fetchUnifiedSellerProducts(sellerId, sellerName).catch(() => [] as StoreProduct[]),
       fetchSellerPulse(sellerId, 30),
     ]);
-    setProducts(ps); setPulse(pl); setLoading(false);
-  }, [sellerId, sellerName, isDemo]);
+    setProducts(ministryId ? ps.filter(p => p.ministryId === ministryId) : ps); setPulse(pl); setLoading(false);
+  }, [sellerId, sellerName, isDemo, ministryId]);
   useEffect(() => { setLoading(true); load(); }, [load]);
   useEffect(() => { if (tab === 'ACTIVITY') (demoRef.current ? Promise.resolve(demoRef.current.moves) : fetchStockMoves(sellerId)).then(setMoves); }, [tab, sellerId, products, isDemo]);
 

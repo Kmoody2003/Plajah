@@ -2341,11 +2341,10 @@ service cloud.firestore {
     match /serviceReminders/{id} { allow read, write: if false; }
 
 
+    // Reviews are written by the server (/api/store/reviews): verified-purchase + one per person.
     match /storeReviews/{reviewId} {
       allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.reviewerId == request.auth.uid;
-      allow update: if isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['helpfulCount']);
-      allow delete: if isAdmin();
+      allow write: if false;
     }
 
 

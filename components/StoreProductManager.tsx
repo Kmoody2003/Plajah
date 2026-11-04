@@ -17,7 +17,9 @@ const StoreProductManager: React.FC<{
   sellerPhoto?: string;
   settings?: StoreSettings;
   onSettingsUpdate?: (s: StoreSettings) => void;
-}> = ({ ownerId, sellerName = '', sellerType = 'USER', sellerPhoto, settings, onSettingsUpdate }) => {
+  departments?: { id: string; name: string }[];
+  ministryId?: string;
+}> = ({ ownerId, sellerName = '', sellerType = 'USER', sellerPhoto, settings, onSettingsUpdate, departments, ministryId }) => {
   const [cfg, setCfg] = useState<StoreSettings>(settings || { isEnabled: true, useExternalStore: false, externalStoreUrl: '', showDemoContent: true });
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -60,7 +62,7 @@ const StoreProductManager: React.FC<{
       </section>
 
       {!cfg.useExternalStore && (
-        <InventoryHub sellerId={ownerId} sellerName={sellerName} sellerType={sellerType} sellerPhoto={sellerPhoto} audience="creator" />
+        <InventoryHub sellerId={ownerId} sellerName={sellerName} sellerType={sellerType} sellerPhoto={sellerPhoto} audience="creator" departments={departments} ministryId={ministryId} />
       )}
     </div>
   );

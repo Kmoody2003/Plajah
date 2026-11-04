@@ -20,7 +20,7 @@ import { GROCERY_PACK } from '../../services/ebtCore';
  */
 
 type Mode = 'SHIP' | 'POD' | 'DIGITAL' | 'ELSEWHERE';
-const CATS: StoreProductCategory[] = ['APPAREL', 'MUSIC', 'ACCESSORIES', 'DIGITAL', 'COLLECTIBLES', 'BOOKS', 'ELECTRONICS', 'HOME', 'ART', 'OTHER'];
+const CATS: StoreProductCategory[] = ['APPAREL', 'MUSIC', 'ACCESSORIES', 'DIGITAL', 'COLLECTIBLES', 'BOOKS', 'ELECTRONICS', 'HOME', 'ART', 'WELLNESS', 'JEWELRY', 'OTHER'];
 const cap = (s: string) => s[0] + s.slice(1).toLowerCase();
 
 const modeOf = (p?: StoreProduct): Mode => {
@@ -64,7 +64,7 @@ const Toggle: React.FC<{ on: boolean; onChange: (v: boolean) => void; label: str
 );
 
 const ProductEditor: React.FC<{
-  who: { sellerId: string; sellerName: string; sellerType: 'USER' | 'ORG' };
+  who: { sellerId: string; sellerName: string; sellerType: 'USER' | 'ORG'; departments?: { id: string; name: string }[]; defaultMinistryId?: string };
   product?: StoreProduct;               // omit to create
   initialBarcode?: string;              // e.g. from a phone scan of an unknown item
   onClose: () => void;
@@ -82,6 +82,7 @@ const ProductEditor: React.FC<{
   const [compareAt, setCompareAt] = useState(product?.compareAtPrice ? String(product.compareAtPrice) : '');
   const [cost, setCost] = useState(product?.costPrice ? String(product.costPrice) : '');
   const [category, setCategory] = useState<StoreProductCategory>(product?.category || 'OTHER');
+  const [ministryId, setMinistryId] = useState<string>(product ? (product.ministryId || '') : (who.defaultMinistryId || ''));
   const [catTouched, setCatTouched] = useState(!!product);
   const [sku, setSku] = useState(product?.sku || '');
   const [barcode, setBarcode] = useState(product?.barcode || initialBarcode || '');
@@ -176,6 +177,7 @@ const ProductEditor: React.FC<{
     const cmp = parseFloat(compareAt) || 0;
     const fields: Partial<StoreProduct> = {
       title: title.trim(), description: description.trim(), category, price: priceN,
+      ...(who.departments?.length || product?.ministryId ? { ministryId } : {}),   // '' = the org's main shop
       compareAtPrice: cmp > priceN ? cmp : undefined, costPrice: costN > 0 ? costN : undefined,
       images, isActive: publish ? true : (!isNew && product ? product.isActive : false),
       isDigital: mode === 'DIGITAL', digitalFileUrl: mode === 'DIGITAL' ? digitalUrl.trim() : undefined,
@@ -415,6 +417,13 @@ const ProductEditor: React.FC<{
               <div className="mt-3 space-y-3">
                 <textarea className="pj-input w-full" rows={3} value={description} onChange={e => setDescription(e.target.value)} placeholder="Tell people what makes it great…" />
                 <div className="grid grid-cols-2 gap-3">
+                  {!!who.departments?.length && (
+                    <label className="type-label-md font-bold block col-span-2" style={{ color: 'var(--text-primary)' }}>Sold in
+                      <select className="pj-input w-full mt-1" value={ministryId} onChange={e => setMinistryId(e.target.value)}>
+                        <option value="">{who.sellerName} main shop</option>
+                        {who.departments.map(d => <option key={d.id} value={d.id}>{d.name} shop</option>)}
+                      </select></label>
+                  )}
                   <label className="type-label-md font-bold block" style={{ color: 'var(--text-primary)' }}>Category
                     <select className="pj-input w-full mt-1" value={category} onChange={e => { setCategory(e.target.value as StoreProductCategory); setCatTouched(true); }}>{CATS.map(c => <option key={c} value={c}>{cap(c)}</option>)}</select></label>
                   <label className="type-label-md font-bold block" style={{ color: 'var(--text-primary)' }}>Was price (crossed out)

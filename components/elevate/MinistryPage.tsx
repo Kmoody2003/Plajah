@@ -1,8 +1,9 @@
 // MinistryPage — public page for one ministry/department: about, meeting time, Follow, specialized workspace (Christian Education / Music Department), and its thread.
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Clock, UserPlus, Check } from 'lucide-react';
+import { ArrowLeft, Clock, UserPlus, Check, Store, Eye } from 'lucide-react';
 import type { Organization, OrgMembership, Ministry } from '../../types';
 import OrgThread from './OrgThread';
+import OrgStoreSection from './OrgStoreSection';
 import { followMinistry, unfollowMinistry, listenFollowedState } from '../../services/orgFollowService';
 import { auth } from '../../services/backendService';
 import { isEducationMinistry, isMusicDepartmentMinistry } from '../../services/elevateTemplates';
@@ -19,6 +20,7 @@ const MinistryPage: React.FC<{
 }> = ({ org, ministry, myMembership, onBack, onVisitUser, onOrgChange }) => {
   const [following, setFollowing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [manageShop, setManageShop] = useState(false);
   useEffect(
     () => listenFollowedState(org.id, s => setFollowing(s.ministries.includes(ministry.id))),
     [org.id, ministry.id]
@@ -131,6 +133,21 @@ const MinistryPage: React.FC<{
           />
         </div>
       )}
+
+      {/* Department shop — same store + inventory as the org (sold by the org account), shelved by StoreProduct.ministryId. */}
+      {canEdit && (
+        <div className="flex justify-end mb-2">
+          <button onClick={() => setManageShop(v => !v)}
+            className="h-10 px-4 rounded-full text-[12px] font-bold flex items-center gap-1.5 bg-white/[0.06] hover:bg-white/10 text-white/80">
+            {manageShop ? <><Eye size={14} /> See the shop</> : <><Store size={14} /> Manage shop</>}
+          </button>
+        </div>
+      )}
+      <div className="mb-10">
+        {manageShop && canEdit
+          ? <OrgStoreSection org={org} ministry={live} mode="manage" canManage onVisitUser={onVisitUser} onOrgChange={onOrgChange} />
+          : <OrgStoreSection org={org} ministry={live} mode="public" previewDrafts={canEdit} onVisitUser={onVisitUser} onOrgChange={onOrgChange} />}
+      </div>
 
       <h2 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3">
         Department Thread

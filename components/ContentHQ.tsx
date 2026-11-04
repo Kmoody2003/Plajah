@@ -3,7 +3,11 @@ import {
   FolderOpen, FileText, Image as ImageIcon, Film, Music, File as FileIcon, Upload,
   Trash2, RotateCcw, Search, Loader2, HardDrive, Library, ArrowLeft, Lock, ShieldAlert,
   Sparkles, Eye, Layers, KeyRound, ExternalLink, LayoutTemplate, BookOpen, Send,
+  MoreHorizontal, ShoppingBag, PackagePlus, Newspaper, Download,
 } from 'lucide-react';
+import { HqThumb, HqActionMenu, HqAddToProductSheet, resolveHqSeller, hqPhotoToProductUrl, hqAssetFile, isHqImage, type HqMenuItem, type HqSeller } from './hq/HqAssetActions';
+import type { StoreProduct } from '../types';
+const ProductEditor = React.lazy(() => import('./inventory/ProductEditor'));
 import { auth } from '../services/firebase';
 import HqTemplatesTab from './templates/HqTemplatesTab';
 import ContentAssetManager from './ContentAssetManager';
@@ -345,6 +349,69 @@ export const HqFilesTab: React.FC<{
   };
 
   const [sendItems, setSendItems] = useState<SendItem[] | null>(null);
+
+  // ⋯ / right-click actions. Photos can go to the store (an existing listing or a new one) or an article.
+  const [menu, setMenu] = useState<{ asset: OrgAsset; x: number; y: number } | null>(null);
+  const [seller, setSeller] = useState<HqSeller | null>(null);
+  useEffect(() => {
+    let live = true; setSeller(null);
+    if (canEdit) resolveHqSeller(scope).then(s => { if (live) setSeller(s); }).catch(() => {});
+    return () => { live = false; };
+  }, [scope.kind, scope.id, canEdit]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [addToProduct, setAddToProduct] = useState<OrgAsset | null>(null);
+  const [newListing, setNewListing] = useState<StoreProduct | null>(null);
+  const [working, setWorking] = useState('');
+  const openMenu = (a: OrgAsset, e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); setMenu({ asset: a, x: e.clientX, y: e.clientY }); };
+  const baseName = (a: OrgAsset) => a.name.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ').replace(/\s+\d+$/, '').trim();
+
+  async function createListingFrom(a: OrgAsset) {
+    setWorking('Copying the photo into your shop…'); setNotice('');
+    try {
+      const url = await hqPhotoToProductUrl(a);
+      const title = baseName(a);
+      setNewListing({ id: '', title: title.charAt(0).toUpperCase() + title.slice(1), description: '', price: 0, images: [url], category: 'OTHER',
+        ...(a.departmentId ? { ministryId: a.departmentId } : {}) } as unknown as StoreProduct);
+    } catch (e: any) { setNotice(e?.message || 'Could not copy that photo.'); } finally { setWorking(''); }
+  }
+
+  async function startArticleWith(a: OrgAsset) {
+    setWorking('Preparing the article…'); setNotice('');
+    try {
+      const uid = auth.currentUser?.uid;
+      if (!uid) throw new Error('Sign in to write an article.');
+      const { uploadImageWithDerivatives } = await import('../services/backendService');
+      const up = await uploadImageWithDerivatives(`users/${uid}/articles/${Date.now()}`, await hqAssetFile(a));
+      window.dispatchEvent(new CustomEvent('plajah:openArticleEditor', { detail: { article: {
+        id: '', title: '', coverImage: up.display, status: 'DRAFT', isPublic: false,
+        blocks: [{ id: 'cover', type: 'IMAGE', content: up.display, layout: 'FULL', caption: '' }, { id: 'initial', type: 'TEXT', content: '', layout: 'FULL' }],
+      } } }));
+    } catch (e: any) { setNotice(e?.message || 'Could not start the article.'); } finally { setWorking(''); }
+  }
+
+  async function downloadAsset(a: OrgAsset) {
+    try {
+      const f = await hqAssetFile(a);
+      const u = URL.createObjectURL(f); const el = document.createElement('a'); el.href = u; el.download = a.name; el.click(); setTimeout(() => URL.revokeObjectURL(u), 1000);
+    } catch (e: any) { setNotice(e?.message || 'Download failed.'); }
+  }
+
+  const menuItemsFor = (a: OrgAsset): HqMenuItem[] => {
+    const editable = canEdit && !viewingShared;
+    const photo = isHqImage(a) && a.scanStatus !== 'QUARANTINED';
+    const items: HqMenuItem[] = [{ id: 'open', label: 'Open', icon: <Eye className="w-3.5 h-3.5" />, onClick: () => setDetail(a), group: 'open' }];
+    if (a.scanStatus !== 'QUARANTINED' && a.scanStatus !== 'PENDING') items.push({ id: 'dl', label: 'Download', icon: <Download className="w-3.5 h-3.5" />, onClick: () => downloadAsset(a), group: 'open' });
+    if (editable && photo && seller) {
+      items.push({ id: 'to-product', label: 'Add to a product listing…', icon: <ShoppingBag className="w-3.5 h-3.5" />, onClick: () => setAddToProduct(a), group: 'use', hint: `Adds this photo to a product in the ${seller.sellerName} shop` });
+      items.push({ id: 'new-product', label: 'Create a product listing', icon: <PackagePlus className="w-3.5 h-3.5" />, onClick: () => createListingFrom(a), group: 'use', hint: 'Starts a new hidden draft with this photo' });
+    }
+    if (editable && photo) items.push({ id: 'article', label: 'Start an article with it', icon: <Newspaper className="w-3.5 h-3.5" />, onClick: () => startArticleWith(a), group: 'use' });
+    if (editable && isOrgScope && a.assetVariant !== 'ANSWER_KEY' && !(lessonFor(a) && lessonFor(a)!.questions.length > 0)) {
+      items.push({ id: 'class', label: 'Send to a class…', icon: <Send className="w-3.5 h-3.5" />, onClick: () => setSendItems([sendItemFor(a)]), group: 'share', hint: "Post it in a class's Discussion or Media Gallery" });
+    }
+    if (editable) items.push({ id: 'trash', label: 'Move to Trash', icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, group: 'trash',
+      onClick: async () => { if (confirm('Move this file to Trash? It stays recoverable for 30 days, then is permanently deleted.')) { await trashHqAsset(a); await load(); } } });
+    return items;
+  };
   const sendItemFor = (a: OrgAsset): SendItem => {
     const u = lessonFor(a);
     if (u) return { title: u.title, unit: u };
@@ -649,16 +716,17 @@ export const HqFilesTab: React.FC<{
                 a.telaDocId || a.assetVariant || a.rawContentText || a.hasText || isOrgEducationFolderName(a.folder, resolvedOrgName)
               );
               return (
-                <div key={a.id} onClick={() => setDetail(a)}
-                  className="relative text-left p-4 rounded-2xl bg-white/[0.03] border border-white/8 hover:bg-white/[0.06] transition-colors cursor-pointer flex flex-col justify-between">
+                <div key={a.id} onClick={() => setDetail(a)} onContextMenu={(e) => openMenu(a, e)}
+                  className="relative text-left p-4 rounded-2xl bg-white/[0.03] border border-white/8 hover:bg-white/[0.06] transition-colors cursor-pointer flex flex-col justify-between overflow-hidden">
                   <div>
+                    <HqThumb asset={a} fallback={assetIcon(a.kind, 'w-8 h-8')} />
                     {a.scanStatus === 'QUARANTINED' && (
-                      <span className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/15 text-red-300 text-[9px] font-black uppercase tracking-wider"><ShieldAlert className="w-3 h-3" /> Blocked</span>
+                      <span className="absolute z-10 top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/15 text-red-300 text-[9px] font-black uppercase tracking-wider"><ShieldAlert className="w-3 h-3" /> Blocked</span>
                     )}
                     {a.scanStatus === 'PENDING' && (
-                      <span className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-200 text-[9px] font-black uppercase tracking-wider"><Loader2 className="w-3 h-3 animate-spin" /> Scanning</span>
+                      <span className="absolute z-10 top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-200 text-[9px] font-black uppercase tracking-wider"><Loader2 className="w-3 h-3 animate-spin" /> Scanning</span>
                     )}
-                    <div className="flex items-start justify-between gap-2 mb-3">
+                    {!(isHqImage(a) && a.scanStatus !== 'QUARANTINED' && a.scanStatus !== 'PENDING') && <div className="flex items-start justify-between gap-2 mb-3">
                       <div className="w-10 h-10 rounded-xl grid place-items-center shrink-0" style={{
                         background: isTelaVariant ? 'rgba(16,185,129,0.16)' : isOriginalVariant ? 'rgba(56,189,248,0.16)' : `${TEAL}18`,
                         color: isTelaVariant ? '#34d399' : isOriginalVariant ? '#38bdf8' : TEAL,
@@ -676,7 +744,7 @@ export const HqFilesTab: React.FC<{
                           {isTelaVariant ? 'Interactive Tela Doc' : isOriginalVariant ? 'Original Document' : 'Answer Key'}
                         </span>
                       )}
-                    </div>
+                    </div>}
                     <div className="text-[13px] font-semibold line-clamp-2 leading-snug">{a.name}</div>
                     <div className="text-[11px] text-white/40 mt-1">{a.kind} · {humanFileSize(a.sizeBytes)}</div>
                     <div className="flex items-center gap-1.5 flex-wrap mt-2">
@@ -716,21 +784,8 @@ export const HqFilesTab: React.FC<{
                         <BookOpen className="w-3.5 h-3.5" /> Assign to class
                       </button>
                     )}
-                    {/* Anything else — a syllabus, handout, photo, video, file — goes to a class without becoming a lesson. */}
-                    {canEdit && !viewingShared && isOrgScope && !(lessonFor(a) && lessonFor(a)!.questions.length > 0) && a.assetVariant !== 'ANSWER_KEY' && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSendItems([sendItemFor(a)]);
-                        }}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#34e0d0]/15 hover:bg-[#34e0d0]/25 border border-[#34e0d0]/35 text-[#34e0d0] text-[10px] font-black uppercase tracking-wider transition-colors"
-                        title="Post it in a class's Discussion or Media Gallery"
-                      >
-                        <Send className="w-3.5 h-3.5" /> Send to class
-                      </button>
-                    )}
-                    {canPreviewAsTela ? (
+                    {/* Send to a class, add to a product, start an article, download, trash: the ⋯ menu (also right-click). */}
+                    {canPreviewAsTela && !isHqImage(a) ? (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -754,13 +809,11 @@ export const HqFilesTab: React.FC<{
                         <ExternalLink className="w-3.5 h-3.5" />
                       </a>
                     )}
-                    {canEdit && !viewingShared && (
-                      <button onClick={async (e) => { e.stopPropagation(); if (confirm('Move this file to Trash? It stays recoverable for 30 days, then is permanently deleted.')) { await trashHqAsset(a); await load(); } }}
-                        className="p-1.5 rounded-lg bg-white/5 text-white/40 hover:text-red-300 hover:bg-red-500/10 transition-colors"
-                        title="Move to Trash">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    <button type="button" onClick={(e) => openMenu(a, e)}
+                      className="p-1.5 rounded-lg bg-white/5 text-white/55 hover:text-white hover:bg-white/10 transition-colors"
+                      title="More actions (or right-click the file)" aria-label={`More actions for ${a.name}`} aria-haspopup="menu">
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               );
@@ -774,6 +827,22 @@ export const HqFilesTab: React.FC<{
           onClose={() => setDetail(null)} onChanged={() => { load(); loadTrash(); }} />
       )}
 
+      {menu && <HqActionMenu at={{ x: menu.x, y: menu.y }} title={menu.asset.name} items={menuItemsFor(menu.asset)} onClose={() => setMenu(null)} />}
+      {addToProduct && seller && (
+        <HqAddToProductSheet asset={addToProduct} seller={seller} onClose={() => setAddToProduct(null)} onDone={msg => { setAddToProduct(null); setNotice(msg); }} />
+      )}
+      {newListing && seller && (
+        <React.Suspense fallback={null}>
+          <ProductEditor who={{ sellerId: seller.sellerId, sellerName: seller.sellerName, sellerType: seller.sellerType, departments: seller.departments, defaultMinistryId: newListing.ministryId }}
+            product={newListing} onClose={() => setNewListing(null)}
+            onSaved={() => { setNewListing(null); setNotice('Product listing saved. Find it in the shop manager to set price and stock.'); }} />
+        </React.Suspense>
+      )}
+      {working && (
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[395] flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#17141f] border border-white/12 text-xs text-white/80 shadow-xl">
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#FF8C00]" /> {working}
+        </div>
+      )}
       {sendItems && (
         <div className="ce" style={{ display: 'contents' }}>
           <style>{ED_CSS}</style>

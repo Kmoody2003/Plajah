@@ -570,6 +570,7 @@ type AdSlot =
   | { kind: 'album'; album: import('./types').Album; profile: import('./types').UserProfile }
   | { kind: 'custom_ad'; ad: import('./types').UserAd; profile: import('./types').UserProfile }
   | { kind: 'product'; product: import('./data/demoShowcase').DemoProduct }
+  | { kind: 'store'; product: import('./types').StoreProduct }
   | { kind: 'promo'; promo: import('./services/promos/platformPromos').PlajahPromo };
 
 const AD_DURATION: Record<AdSlot['kind'], number> = {
@@ -579,6 +580,7 @@ const AD_DURATION: Record<AdSlot['kind'], number> = {
   album:     45000,
   custom_ad: 30000,
   product:   20000,
+  store:     20000,
 };
 
 // ~14-frame crossfade at 60 fps ≈ 233 ms
@@ -1058,9 +1060,12 @@ const App: React.FC = () => {
   useEffect(() => {
     const openStudio = (e: Event) => { setPublicationTier((e as CustomEvent)?.detail?.tier === 'student' ? 'student' : 'pro'); setView('PUBLICATION_STUDIO'); };
     const openIssue = (e: Event) => { const id = (e as CustomEvent)?.detail?.issueId; if (id) { setOpenIssueId(id); setView('ISSUE_READER'); } };
+    // Content HQ "Start an article with it": opens the editor on an unsaved draft (cover photo already in place).
+    const openArticleEditor = (e: Event) => { const a = (e as CustomEvent)?.detail?.article; setEditingArticle(a || null); setView('ARTICLE_EDITOR'); };
     window.addEventListener('plajah:openPublicationStudio', openStudio);
     window.addEventListener('plajah:openIssue', openIssue);
-    return () => { window.removeEventListener('plajah:openPublicationStudio', openStudio); window.removeEventListener('plajah:openIssue', openIssue); };
+    window.addEventListener('plajah:openArticleEditor', openArticleEditor);
+    return () => { window.removeEventListener('plajah:openPublicationStudio', openStudio); window.removeEventListener('plajah:openIssue', openIssue); window.removeEventListener('plajah:openArticleEditor', openArticleEditor); };
   }, [setView]);
 
   // Create an event from anywhere: profile, org, business, school, teacher (components/events/CreateEventButton.tsx)
@@ -1213,6 +1218,8 @@ const App: React.FC = () => {
     window.history.replaceState({ view: initialView }, '', window.location.pathname + window.location.search + window.location.hash);
 
     const handlePopState = (event: PopStateEvent) => {
+      // A store product page (components/store/ProductPage useProductRoute) owns its own ?product= entries.
+      if ((event.state && event.state.productSheet) || (window as any).__plajahProductSheet) return;
       // Ignore in-page anchor clicks (#browse, #shelf, etc.) which fire popstate with event.state === null
       if (!event.state && window.location.hash && !/^#g\//.test(window.location.hash)) {
         return;
@@ -4385,8 +4392,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       const adMap   = new Map(adEntries.filter(([, a]) => !!a)   as [string, import('./types').UserAd][]);
 
       const slots: AdSlot[] = [{ kind: 'plus' }];
-      // A demo product ad in the rotation — shows what advertising your store looks like.
-      if (DEMO_STORE_PRODUCTS[0]) slots.push({ kind: 'product', product: DEMO_STORE_PRODUCTS[0] });
+      // Real featured shop products (orgs, departments, creators). The demo product only fills in when no shop has featured one yet.
+      const featured = await import('./services/commerceBus').then(m => m.fetchFeaturedStoreProducts(6)).catch(() => []);
+      if (featured.length) featured.forEach(product => slots.push({ kind: 'store', product }));
+      else if (DEMO_STORE_PRODUCTS[0]) slots.push({ kind: 'product', product: DEMO_STORE_PRODUCTS[0] });
       for (const profile of shuffled) {
         const customAd = adMap.get(profile.uid);
         if (customAd) {
@@ -4813,6 +4822,33 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                           <span className="text-white font-black text-base tabular-nums">${pr.price.toFixed(2)}</span>
                           {pr.compareAt && <span className="text-white/40 line-through text-xs tabular-nums">${pr.compareAt.toFixed(2)}</span>}
                           <span className="text-[9px] text-white/50">★ {pr.rating.toFixed(1)} ({pr.reviewCount})</span>
+                        </div>
+                        <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-small-orange text-black text-[10px] font-black uppercase tracking-widest group-hover:scale-105 transition-transform">Shop now →</span>
+                      </div>
+                    </button>
+                  );
+                } else if (currentSlot.kind === 'store') {
+                  const pr = currentSlot.product;
+                  const pts = Math.floor(pr.price);
+                  slotContent = (
+                    <button
+                      key={`store-ad-${pr.id}`}
+                      onClick={() => { setViewedUserId(pr.sellerId); setView('STORE'); }}
+                      className="group relative block w-full h-full text-left overflow-hidden cursor-pointer"
+                      style={{ background: 'radial-gradient(120% 80% at 50% 30%, #2a2420 0%, #0b0b0d 70%)' }}
+                    >
+                      <img src={pr.images[0]} className="absolute inset-x-0 top-0 w-full h-[72%] object-contain p-6 group-hover:scale-105 transition-transform duration-[1200ms]" alt="" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
+                      <div className="absolute top-3 left-3">
+                        <span className="px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-[8px] font-black uppercase tracking-widest text-small-orange border border-small-orange/30">Sponsored · {pr.sellerName}</span>
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 p-4">
+                        <p className="text-[8px] font-black uppercase tracking-[0.3em] text-small-orange mb-1">In the store</p>
+                        <p className="text-white font-black text-lg leading-tight line-clamp-2 mb-1.5">{pr.title}</p>
+                        <div className="flex items-center gap-2 mb-2.5">
+                          <span className="text-white font-black text-base tabular-nums">${pr.price.toFixed(2)}</span>
+                          {pr.compareAtPrice && pr.compareAtPrice > pr.price && <span className="text-white/40 line-through text-xs tabular-nums">${pr.compareAtPrice.toFixed(2)}</span>}
+                          {pts > 0 && <span className="text-[9px] font-bold text-amber-300">+{pts} pts</span>}
                         </div>
                         <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-small-orange text-black text-[10px] font-black uppercase tracking-widest group-hover:scale-105 transition-transform">Shop now →</span>
                       </div>
