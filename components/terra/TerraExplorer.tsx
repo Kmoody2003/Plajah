@@ -24,11 +24,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'motion/react';
 import {
   MapPin, Layers, Ruler, Download, Info, RefreshCw,
-  FileText, AlertTriangle, Home, Hammer, Landmark, Search, ArrowLeft,
+  FileText, AlertTriangle, Home, Hammer, Landmark, Search, ArrowLeft, Store, Tag, X, Loader2,
 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import type { TerraParcel, TerraCivicRecord, CivicRecordKind } from '../../services/terra/terraTypes';
-import { fetchParcelsInBounds, clearParcelCellCache, fetchCivicForParcel } from '../../services/terra/terraService';
+import { fetchParcelsInBounds, clearParcelCellCache, fetchCivicForParcel, fetchParcel } from '../../services/terra/terraService';
+import { searchTerra, browseForSale, type TerraSearchHit, type TerraSearchResult, type ForSaleResult, type ForSaleScope } from '../../services/terra/terraSearch';
 import { fetchDetroitStreets, type StreetSegment } from '../../services/terra/detroitAdapter';
 
 /** Terra's accent: Plajah's primary orange, read here as a surveyor's flag. */
@@ -85,7 +86,9 @@ const ParcelMap: React.FC<{
   showBasemap?: boolean;
   /** City street centrelines for the current viewport. */
   streets?: StreetSegment[];
-}> = ({ parcels, selectedId, onSelect, onViewport, showBasemap = true, streets = [] }) => {
+  /** Fly here when it changes — search results move the map, not just filter it. */
+  focus?: { lat: number; lng: number; key: number } | null;
+}> = ({ parcels, selectedId, onSelect, onViewport, showBasemap = true, streets = [], focus = null }) => {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const layerRef = useRef<any>(null);
@@ -248,6 +251,13 @@ const ParcelMap: React.FC<{
     return () => { cancelled = true; };
   }, [streets, showBasemap, mapReady]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !focus) return;
+    try { map.setView([focus.lat, focus.lng], Math.max(map.getZoom(), 17)); } catch { /* mid-teardown */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus?.key, mapReady]);
+
   // Bring a selection made from the sidebar list into view.
   useEffect(() => {
     const map = mapRef.current;
@@ -399,6 +409,128 @@ const ParcelInspector: React.FC<{ parcel: TerraParcel | null; onOpenPassport?: (
   );
 };
 
+// ─── Search / for-sale results ───────────────────────────────────────────────
+
+const HIT_META: Record<TerraSearchHit['kind'], { color: string; icon: React.ReactNode }> = {
+  parcel:   { color: ACCENT,    icon: <Home size={11} /> },
+  business: { color: '#3DD68C', icon: <Store size={11} /> },
+  landbank: { color: '#C9A6FF', icon: <Landmark size={11} /> },
+  listing:  { color: '#FF3D80', icon: <Tag size={11} /> },
+};
+
+const HitGroup: React.FC<{ title: string; hits: TerraSearchHit[]; onPick: (h: TerraSearchHit) => void; note?: string }> = ({ title, hits, onPick, note }) => {
+  if (!hits.length && !note) return null;
+  return (
+    <div className="mb-3 last:mb-0">
+      <p className={`${label} mb-1.5 px-1`}>{title}{hits.length ? ` · ${hits.length}` : ''}</p>
+      {note && <p className="text-[10px] text-white/35 leading-relaxed px-1 mb-1.5">{note}</p>}
+      <div className="space-y-0.5">
+        {hits.map(h => {
+          const m = HIT_META[h.kind];
+          const canGo = h.lat !== undefined || !!h.parcelId;
+          return (
+            <button key={h.id} onClick={() => onPick(h)} disabled={!canGo}
+              className="w-full text-left flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.05] transition-colors disabled:cursor-default disabled:hover:bg-transparent">
+              <span className="mt-0.5 shrink-0" style={{ color: m.color }}>{m.icon}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[11px] text-white/85 font-semibold truncate">{h.title}</span>
+                {h.subtitle && <span className="block text-[10px] text-white/40 truncate">{h.subtitle}</span>}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const SearchPanel: React.FC<{ result: TerraSearchResult | null; busy: boolean; onPick: (h: TerraSearchHit) => void; onClose: () => void }> = ({ result, busy, onPick, onClose }) => {
+  const total = result ? result.parcels.length + result.businesses.length + result.landBank.length + result.listings.length : 0;
+  return (
+    <div className="absolute top-3 right-3 z-[600] w-[340px] max-w-[calc(100%-24px)] max-h-[70%] overflow-y-auto custom-scrollbar rounded-xl bg-[#0d0e12]/95 backdrop-blur border border-white/10 p-3 shadow-2xl">
+      <div className="flex items-center justify-between mb-2 px-1">
+        <p className="text-[11px] font-black text-white flex items-center gap-1.5">
+          {busy ? <Loader2 size={12} className="animate-spin text-white/50" /> : <Search size={12} style={{ color: ACCENT }} />}
+          {busy ? 'Searching the city record…' : result ? `${total} result${total === 1 ? '' : 's'} for “${result.query}”` : ''}
+        </p>
+        <button onClick={onClose} className="text-white/35 hover:text-white/80" title="Close"><X size={13} /></button>
+      </div>
+      {result && !busy && (
+        <>
+          <HitGroup title="For sale on Terra" hits={result.listings} onPick={onPick} />
+          {result.addressLike && <HitGroup title="Parcels" hits={result.parcels} onPick={onPick} />}
+          <HitGroup title="Land Bank — for sale" hits={result.landBank} onPick={onPick} />
+          <HitGroup title={result.mode === 'zip' ? `Licensed businesses in ${result.query}` : 'Licensed businesses'} hits={result.businesses} onPick={onPick} />
+          {!result.addressLike && <HitGroup title="Parcels" hits={result.parcels} onPick={onPick} />}
+          {total === 0 && (
+            <p className="text-[11px] text-white/45 leading-relaxed px-1">
+              Nothing in Detroit's records matches that. Try a street name without the house number, a 5-digit zip, or part of a business name.
+            </p>
+          )}
+          {result.errors.length > 0 && (
+            <p className="text-[10px] text-[#E8B33D] leading-relaxed px-1 mt-2">
+              Couldn't reach: {result.errors.join(', ')}. Results from those sources are missing, not empty.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+const ForSalePanel: React.FC<{ onPick: (h: TerraSearchHit) => void; onClose: () => void }> = ({ onPick, onClose }) => {
+  const [scope, setScope] = useState<ForSaleScope>('detroit');
+  const [businessesOnly, setBusinessesOnly] = useState(false);
+  const [busy, setBusy] = useState(true);
+  const [data, setData] = useState<ForSaleResult | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setBusy(true);
+    browseForSale(scope, { businessesOnly })
+      .then(r => { if (!cancelled) setData(r); })
+      .finally(() => { if (!cancelled) setBusy(false); });
+    return () => { cancelled = true; };
+  }, [scope, businessesOnly]);
+
+  const chip = (on: boolean) => `px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${on ? 'text-black' : 'text-white/50 bg-white/[0.05] hover:text-white/80'}`;
+
+  return (
+    <div className="absolute top-3 right-3 z-[600] w-[360px] max-w-[calc(100%-24px)] max-h-[75%] overflow-y-auto custom-scrollbar rounded-xl bg-[#0d0e12]/95 backdrop-blur border border-white/10 p-3 shadow-2xl">
+      <div className="flex items-center justify-between mb-2 px-1">
+        <p className="text-[11px] font-black text-white flex items-center gap-1.5"><Tag size={12} style={{ color: '#FF3D80' }} /> For sale</p>
+        <button onClick={onClose} className="text-white/35 hover:text-white/80" title="Close"><X size={13} /></button>
+      </div>
+      <div className="flex flex-wrap gap-1.5 mb-3 px-1">
+        <button className={chip(scope === 'detroit')} style={scope === 'detroit' ? { background: ACCENT } : {}} onClick={() => setScope('detroit')}>Detroit</button>
+        <button className={chip(scope === 'michigan')} style={scope === 'michigan' ? { background: ACCENT } : {}} onClick={() => setScope('michigan')}>Michigan</button>
+        <button className={chip(businessesOnly)} style={businessesOnly ? { background: '#3DD68C' } : {}} onClick={() => setBusinessesOnly(v => !v)}>Businesses only</button>
+      </div>
+      {busy ? (
+        <p className="text-[11px] text-white/40 px-1 flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" /> Loading…</p>
+      ) : data && (
+        <>
+          <HitGroup title={businessesOnly ? 'Businesses & commercial for sale on Terra' : 'Listed on Terra'} hits={data.listings} onPick={onPick}
+            note={data.listings.length ? undefined
+              : `No ${businessesOnly ? 'business or commercial ' : ''}listings posted on Terra ${scope === 'detroit' ? 'in Detroit' : 'in Michigan'} yet. Owners and brokers add them from Terra → Listings; there's no public register of businesses for sale to pull from.`} />
+          {scope === 'detroit' && !businessesOnly && (
+            <HitGroup title="Detroit Land Bank — houses & improved lots" hits={data.landBank} onPick={onPick}
+              note={data.landBankTotal ? `${fmtNum(data.landBankTotal)} Land Bank properties are marketed for sale in total (mostly vacant lots). Showing the houses and improved lots.` : undefined} />
+          )}
+          {scope === 'michigan' && (
+            <p className="text-[10px] text-white/35 leading-relaxed px-1 mt-2">
+              Outside Detroit, Terra only has what's been listed on Terra — the parcel and Land Bank layers are Detroit-only for now.
+            </p>
+          )}
+          {data.errors.length > 0 && (
+            <p className="text-[10px] text-[#E8B33D] leading-relaxed px-1 mt-2">Couldn't reach: {data.errors.join(', ')}.</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
 // ─── Shell ───────────────────────────────────────────────────────────────────
 
 export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => void; onOpenStudio?: (parcelId: string) => void; onBack?: () => void }> = ({ onOpenPassport, onOpenStudio, onBack }) => {
@@ -453,13 +585,59 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
     return next;
   });
 
-  const visible = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return parcels;
-    return parcels.filter(p =>
-      (p.address || '').toLowerCase().includes(needle) ||
-      p.parcelNumber.toLowerCase().includes(needle));
-  }, [parcels, q]);
+  // The search box no longer filters the viewport (that only ever matched what
+  // was already on screen). It queries the city's layers and moves the map.
+  const visible = parcels;
+  const [searchBusy, setSearchBusy] = useState(false);
+  const [searchResult, setSearchResult] = useState<TerraSearchResult | null>(null);
+  const [panel, setPanel] = useState<'none' | 'search' | 'forsale'>('none');
+  const [focus, setFocus] = useState<{ lat: number; lng: number; key: number } | null>(null);
+  const pendingSelect = useRef<string | null>(null);
+  const searchSeq = useRef(0);
+
+  const runSearch = useCallback(async (text: string) => {
+    if (text.trim().length < 2) return;
+    const seq = ++searchSeq.current;
+    setPanel('search');
+    setSearchBusy(true);
+    try {
+      const r = await searchTerra(text);
+      if (seq === searchSeq.current) setSearchResult(r);
+    } finally {
+      if (seq === searchSeq.current) setSearchBusy(false);
+    }
+  }, []);
+
+  // Search as you type (debounced); Enter runs it at once.
+  useEffect(() => {
+    if (q.trim().length < 3) return;
+    const t = setTimeout(() => runSearch(q), 500);
+    return () => clearTimeout(t);
+  }, [q, runSearch]);
+
+  const pickHit = useCallback(async (h: TerraSearchHit) => {
+    pendingSelect.current = h.parcelId ?? null;
+    setPanel('none'); // the map is the answer now — don't cover it
+    let lat = h.lat, lng = h.lng;
+    // Select straight from the stored parcel when we have it, so the inspector
+    // fills even before the viewport load lands.
+    if (h.parcelId) {
+      const p = await fetchParcel(h.parcelId);
+      if (p) {
+        setSelected(p);
+        if (lat === undefined && p.centroidLat !== undefined) { lat = p.centroidLat; lng = p.centroidLng; }
+      }
+    }
+    if (lat !== undefined && lng !== undefined) setFocus({ lat, lng, key: Date.now() });
+  }, []);
+
+  // Once the viewport around a picked hit loads, select its parcel off the map.
+  useEffect(() => {
+    const id = pendingSelect.current;
+    if (!id) return;
+    const hit = parcels.find(p => p.id === id);
+    if (hit) { setSelected(hit); pendingSelect.current = null; }
+  }, [parcels]);
 
   return (
     <div className="h-full flex flex-col bg-transparent text-white">
@@ -483,15 +661,23 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            <div className="relative">
+            <form className="relative" onSubmit={e => { e.preventDefault(); runSearch(q); }}>
               <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
               <input
                 value={q}
                 onChange={e => setQ(e.target.value)}
-                placeholder="Address or parcel number"
-                className="bg-white/5 border border-white/10 rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder-white/25 focus:outline-none focus:border-white/25 w-52"
+                onFocus={() => { if (searchResult) setPanel('search'); }}
+                placeholder="Business, address or zip code"
+                className="bg-white/5 border border-white/10 rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder-white/25 focus:outline-none focus:border-white/25 w-64"
               />
-            </div>
+            </form>
+            <button onClick={() => setPanel(p => (p === 'forsale' ? 'none' : 'forsale'))}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-colors"
+              style={panel === 'forsale'
+                ? { background: '#FF3D80', borderColor: '#FF3D80', color: '#000' }
+                : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>
+              <Tag size={11} /> For sale
+            </button>
             <button onClick={load}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/50 text-[10px] font-black uppercase tracking-widest hover:text-white/80 transition-colors">
               <RefreshCw size={11} /> Refresh
@@ -552,7 +738,12 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
 
           {/* Map — always mounted: the viewport drives the parcel loading. */}
           <div className="relative min-h-[320px] bg-[#07080B]">
-            <ParcelMap parcels={visible} selectedId={selected?.id ?? null} onSelect={setSelected} onViewport={handleViewport} showBasemap={showBasemap} streets={streets} />
+            <ParcelMap parcels={visible} selectedId={selected?.id ?? null} onSelect={setSelected} onViewport={handleViewport} showBasemap={showBasemap} streets={streets} focus={focus} />
+
+            {panel === 'search' && (
+              <SearchPanel result={searchResult} busy={searchBusy} onPick={pickHit} onClose={() => setPanel('none')} />
+            )}
+            {panel === 'forsale' && <ForSalePanel onPick={pickHit} onClose={() => setPanel('none')} />}
 
             {loading && (
               <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[500] flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur border border-white/10 text-white/50 pointer-events-none">
