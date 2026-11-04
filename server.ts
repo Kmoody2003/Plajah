@@ -7329,6 +7329,34 @@ async function startServer() {
     setInterval(() => runSplitRetry().catch((e: any) => console.error('[Splits] retry failed:', e?.message || e)), 15 * 60_000).unref?.();
   }
 
+  // Event Intelligence (Elevate Live): process runs whose window has ended, so they no longer wait for someone to
+  // press "Run due now" in Master Control. Every 2 min in production, or:
+  //   POST /api/cron/elevate-live-due   header x-cron-key: <CRON_SECRET|ADMIN_SEED_KEY>
+  // Loaded lazily so a problem in the pipeline can only fail this job, never server boot.
+  const runElevateLiveDue = async () => {
+    const [{ processDueElevateRunsServer }, rest] = await Promise.all([
+      import('./services/elevateLiveServer'), import('./services/firebaseAdminRest'),
+    ]);
+    return processDueElevateRunsServer({
+      get: rest.fsGet, set: rest.fsSet, patch: rest.fsPatch, create: rest.fsCreate,
+      query: (c, f, l) => rest.fsQuery(c, f, l),
+      createOnce: firestoreCreateOnce,
+      captions: (audioUrl, title, artist) => generateTimedCaptions({ audioUrl, title, artist, kind: 'speech' }),
+      log: m => console.log(m),
+    });
+  };
+  app.post('/api/cron/elevate-live-due', express.json({ limit: '4kb' }), async (req: any, res: any) => {
+    const key = req.headers['x-cron-key'];
+    if (!secretsEqual(key, process.env.ADMIN_SEED_KEY) && !secretsEqual(key, process.env.CRON_SECRET)) return res.status(401).json({ error: 'Unauthorized' });
+    try { res.json(await runElevateLiveDue()); }
+    catch (e: any) { console.error('[elevate-live] sweep failed:', e?.message || e); res.status(500).json({ error: String(e?.message || e).slice(0, 300) }); }
+  });
+  if (process.env.NODE_ENV === 'production') {
+    setInterval(() => runElevateLiveDue()
+      .then(r => { if (r.processed.length || r.errors.length) console.log(`[elevate-live] processed=${r.processed.length} errors=${r.errors.length}`); })
+      .catch((e: any) => console.error('[elevate-live] sweep failed:', e?.message || e)), 2 * 60_000).unref?.();
+  }
+
   // Run every 5 min:  POST /api/cron/release-announcements   header x-cron-key: <CRON_SECRET|ADMIN_SEED_KEY>   (same key as the other cron jobs)
   // Exactly-once per item (create-if-absent claim doc). See docs/RELEASE_ANNOUNCEMENTS.md.
   app.post('/api/cron/release-announcements', express.json({ limit: '4kb' }), async (req: any, res: any) => {
