@@ -47,7 +47,8 @@ import { ColorScriptPlayer, type ColorScript } from './colorScript';
 import type { FilmLookahead, FilmKey } from './filmLookahead';
 import { MotionMeter, PointerShake, SceneDepth, ObjectMatte } from './lensAux';
 import { drawPuppet, paperTone, css, type PuppetPose, type PuppetColours } from './cutoutPuppet';
-import { PoseTracker, POSE } from '../vtuber/poseTracker';
+import { POSE } from '../vtuber/poseTracker';
+import { AsyncPoseTracker } from '../vtuber/poseTrackerAsync';
 import { HalloweenFilterEngine, type HalloweenFilterId } from '../halloween/halloweenFilterEngine';
 
 export type LensId =
@@ -189,6 +190,7 @@ export class LensEngine {
   private glc = document.createElement('canvas');
   private gl: WebGL2RenderingContext | null = null;
   private progs: Partial<Record<ShaderLens, Prog>> = {};
+  private badProgs = new Set<ShaderLens>();
   private quad: WebGLBuffer | null = null;
   private srcTex: WebGLTexture | null = null;
   private maskTex: WebGLTexture | null = null;
@@ -240,7 +242,7 @@ export class LensEngine {
   private plateAlpha = document.createElement('canvas');
   private plateStamp = -1;
   private plateReady = false;
-  private pose: PoseTracker | null = null;
+  private pose: AsyncPoseTracker | null = null;
   private poseState: 'idle' | 'loading' | 'ready' | 'failed' = 'idle';
   private poseTs = 0;
   private lastPose: PuppetPose | null = null;
@@ -391,6 +393,7 @@ export class LensEngine {
   private program(kind: ShaderLens): Prog | null {
     const gl = this.gl; if (!gl) return null;
     const have = this.progs[kind]; if (have) return have;
+    if (this.badProgs.has(kind)) return null;
     try {
       const vs = gl.createShader(gl.VERTEX_SHADER)!; gl.shaderSource(vs, LENS_VERT); gl.compileShader(vs);
       const fs = gl.createShader(gl.FRAGMENT_SHADER)!; gl.shaderSource(fs, FRAGS[kind]); gl.compileShader(fs);
@@ -404,7 +407,10 @@ export class LensEngine {
       return (this.progs[kind] = { prog, u });
     } catch (e) {
       console.warn(`[lens] ${kind} shader failed:`, e);
-      this.gl = null; // don't retry a broken GPU every frame
+      // Only this shader is out. Dropping the whole GL context here used to kill every other lens too,
+      // until the app restarted, so one bad driver compile looked like "lenses stopped working".
+      this.badProgs.add(kind);
+      this.note = "This lens isn't supported on this device.";
       return null;
     }
   }
@@ -767,7 +773,9 @@ export class LensEngine {
   private startPose() {
     if (this.poseState !== 'idle') return;
     this.poseState = 'loading';
-    const p = new PoseTracker();
+    // Worker only: the inline tracker's first inference froze the whole camera for seconds. Without the
+    // worker the puppet simply has no arm tracking.
+    const p = new AsyncPoseTracker();
     p.init().then(ok => { if (ok) { this.pose = p; this.poseState = 'ready'; } else this.poseState = 'failed'; });
   }
 
@@ -775,7 +783,10 @@ export class LensEngine {
   private feedPose(src: HTMLVideoElement, W: number, H: number, fit: Fit) {
     if (!this.pose || src.readyState < 2 || !src.videoWidth) return;
     this.poseTs = Math.max(this.poseTs + 1, Math.round(performance.now()));
-    const f = this.pose.detect(this.feed.src(src), this.poseTs);
+    this.pose.send(this.feed.src(src), this.poseTs);
+    const res = this.pose.poll();
+    if (!res.fresh) return;                 // keep the last pose until a newer one lands
+    const f = res.frame;
     if (!f) { this.lastPose = null; return; }
     const vw = src.videoWidth, vh = src.videoHeight, pl = placement(W, H, vw, vh, fit);
     const at = (i: number) => { const p = f.pts[i]; return p ? { x: p.x * vw * pl.s + pl.ox, y: p.y * vh * pl.s + pl.oy, v: p.v } : undefined; };

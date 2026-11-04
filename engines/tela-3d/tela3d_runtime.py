@@ -199,9 +199,21 @@ def get_model(bid):
         model.renderer.set_chunk_size(8192)
         model.to(DEVICE)
     else:
+        import safetensors.torch
         from hy3dgen.shapegen import Hunyuan3DDiTFlowMatchingPipeline
-        model = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
-            "tencent/Hunyuan3D-2mini", subfolder="hunyuan3d-dit-v2-mini-turbo", use_safetensors=True, device=DEVICE)
+        # Same trap as SF3D: its loader maps 3.8 GB and builds a second full-precision copy in RAM, and that build dies
+        # in native code when commit runs short. Build on the GPU at the file's own precision and read the weights plainly.
+        mapped = safetensors.torch.load_file
+        safetensors.torch.load_file = lambda path, device="cpu": _read_safetensors(path, device)
+        torch.set_default_dtype(torch.float16)
+        try:
+            with torch.device(DEVICE):
+                model = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
+                    "tencent/Hunyuan3D-2mini", subfolder="hunyuan3d-dit-v2-mini-turbo", use_safetensors=True, device=DEVICE)
+        finally:
+            torch.set_default_dtype(torch.float32)
+            safetensors.torch.load_file = mapped
+        gc.collect()
         model.enable_flashvdm(mc_algo="mc")
     _RESIDENT.update(id=bid, model=model)
     return model
@@ -227,7 +239,11 @@ def cut_out(img):
     import rembg
     if _REMBG["session"] is None:
         _REMBG["session"] = rembg.new_session("u2net", providers=["CPUExecutionProvider"])
-    return rembg.remove(img, session=_REMBG["session"]).convert("RGBA"), "rembg"
+    cut = np.asarray(rembg.remove(img, session=_REMBG["session"]).convert("RGBA")).copy()
+    # Faint haze counts as object to the framing and to the generators: it built a flat sheet behind a plane.
+    k = np.clip((cut[:, :, 3].astype(np.float32) / 255 - 0.35) / 0.3, 0, 1)
+    cut[:, :, 3] = (k * k * (3 - 2 * k) * 255).astype(np.uint8)
+    return Image.fromarray(cut, "RGBA"), "rembg"
 
 
 def frame_object(img, ratio):
@@ -285,18 +301,32 @@ def run_triposr(img, opts):
     return mesh
 
 
+_STEPS = {}
+
+
 def run_hunyuan_mini(img, opts):
     from hy3dgen.shapegen import DegenerateFaceRemover, FaceReducer, FloaterRemover
+    t0 = time.time()
     pipe = get_model("hunyuan_mini")
+    _STEPS["load"] = round(time.time() - t0, 1)
     framed = frame_object(img, float(opts.get("foregroundRatio") or 0.9))
     seed = int(opts.get("seed") or 0) or int(time.time() * 1000) % 2147483647
+    t0 = time.time()
     with torch.no_grad():
         mesh = pipe(image=framed, num_inference_steps=int(opts.get("steps") or 5),
                     octree_resolution=int(opts.get("octreeResolution") or 256), num_chunks=20000,
                     generator=torch.manual_seed(seed), output_type="trimesh")[0]
+    _STEPS["generate"] = round(time.time() - t0, 1)
+    _STEPS["rawFaces"] = int(len(mesh.faces))
+    t0 = time.time()
     mesh = FloaterRemover()(mesh)
+    _STEPS["floaters"] = round(time.time() - t0, 1)
+    t0 = time.time()
     mesh = DegenerateFaceRemover()(mesh)
+    _STEPS["degenerate"] = round(time.time() - t0, 1)
+    t0 = time.time()
     mesh = FaceReducer()(mesh, max_facenum=int(opts.get("faceLimit") or 60000))
+    _STEPS["reduce"] = round(time.time() - t0, 1)
     return mesh
 
 
@@ -310,7 +340,10 @@ def image_to_mesh(task):
         raise RuntimeError(f"GPU is at {temp} °C — let it cool below {MAX_GPU_TEMP_C} °C before generating")
     opts = task.get("options") or {}
     bid = resolve_backend(task.get("backend"), str(task.get("quality") or "fast"))
+    _STEPS.clear()
+    started = time.time()
     img, cut = cut_out(decode_image(task.get("image") or task.get("imageDataUrl")))
+    _STEPS["cutOut"] = round(time.time() - started, 1)
     mesh = RUNNERS[bid](img, opts)
     if isinstance(mesh, trimesh.Scene):
         mesh = mesh.dump(concatenate=True)
@@ -322,9 +355,68 @@ def image_to_mesh(task):
         "success": True, "glbBase64": base64.b64encode(glb).decode("ascii"), "format": "glb",
         "backendUsed": bid, "backendLabel": BACKENDS[bid]["label"], "textured": BACKENDS[bid]["textured"],
         "vertices": int(len(mesh.vertices)), "faces": int(len(mesh.faces)), "cutout": cut,
-        "executionTimeMs": int((time.time() - t0) * 1000), "vramPeakMb": int(peak),
+        "executionTimeMs": int((time.time() - t0) * 1000), "steps": dict(_STEPS), "vramPeakMb": int(peak),
         "gpuTempC": gpu_temp(), "hardwareBackend": "TELA3D_TORCH_CUDA" if DEVICE == "cuda" else "TELA3D_TORCH_CPU",
     }
+
+
+SAM_CHECKPOINT = os.path.join(MODELS_ROOT, "sam2", "sam2.1_hiera_small.pt")
+SAM_SRC = os.path.join(SRC_ROOT, "sam2")
+PART_MASK_SIDE = 512
+SAM_NEEDS_MB = 2500
+
+
+def sam_available():
+    return os.path.isfile(SAM_CHECKPOINT) and os.path.isdir(SAM_SRC)
+
+
+def run_lengths(mask):
+    """Row by row, starting with a run of zeros: a part is a few hundred numbers rather than a quarter megabyte."""
+    flat = mask.ravel().astype(np.uint8)
+    edges = np.flatnonzero(flat[1:] != flat[:-1]) + 1
+    bounds = np.concatenate(([0], edges, [flat.size]))
+    runs = np.diff(bounds).tolist()
+    return ([0] + runs) if flat[0] else runs
+
+
+def find_parts(task):
+    """Every region SAM finds in a picture, whole things and the pieces inside them alike. Naming them is the page's job."""
+    if not sam_available():
+        raise RuntimeError("Finding parts needs the SAM 2.1 model, which isn't installed")
+    if gpu_temp() and gpu_temp() >= MAX_GPU_TEMP_C:
+        raise RuntimeError("GPU is too hot right now. Give it a minute.")
+    if SAM_SRC not in sys.path:
+        sys.path.insert(0, SAM_SRC)
+    from sam2.build_sam import build_sam2
+    from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
+    started = time.time()
+    # Reloading a generator costs far more than SAM itself, so one stays resident as long as SAM still fits beside it.
+    if DEVICE == "cuda":
+        # What PyTorch keeps cached counts as used until it's released.
+        torch.cuda.empty_cache()
+        if torch.cuda.mem_get_info()[0] < SAM_NEEDS_MB * 2 ** 20:
+            _free()
+    image = np.asarray(decode_image(task.get("image")).convert("RGB"))
+    model = build_sam2("configs/sam2.1/sam2.1_hiera_s.yaml", SAM_CHECKPOINT, device=DEVICE)
+    try:
+        settings = {"points_per_side": 32, "points_per_batch": 32, "pred_iou_thresh": 0.6, "stability_score_thresh": 0.8, "box_nms_thresh": 0.7}
+        settings.update(task.get("settings") or {})
+        generator = SAM2AutomaticMaskGenerator(model, **settings)
+        with torch.inference_mode(), torch.autocast("cuda", dtype=torch.float16, enabled=DEVICE == "cuda"):
+            found = generator.generate(image)
+    finally:
+        del model
+        gc.collect()
+        if DEVICE == "cuda":
+            torch.cuda.empty_cache()
+    H, W = image.shape[:2]
+    k = PART_MASK_SIDE / max(W, H)
+    w, h = max(1, round(W * k)), max(1, round(H * k))
+    xs = np.minimum((np.arange(w) / k).astype(int), W - 1)
+    ys = np.minimum((np.arange(h) / k).astype(int), H - 1)
+    parts = [{"runs": run_lengths(f["segmentation"][ys][:, xs]), "score": round(float(f["predicted_iou"]), 3),
+              "stability": round(float(f["stability_score"]), 3)} for f in found]
+    return {"success": True, "width": w, "height": h, "parts": parts, "seconds": round(time.time() - started, 1)}
 
 
 def backends_report():
@@ -358,7 +450,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, {"ok": True, "engine": "tela-3d", "comfyui": False, "device": DEVICE,
                              "vramFreeMb": free // 2 ** 20, "vramTotalMb": total // 2 ** 20, "gpuTempC": gpu_temp(),
                              "maxGpuTempC": MAX_GPU_TEMP_C, "resident": _RESIDENT["id"], "busy": _GPU_LOCK.locked(),
-                             "backgroundRemoval": rembg_available(), "backends": backends_report()})
+                             "backgroundRemoval": rembg_available(), "parts": sam_available(), "backends": backends_report()})
         elif self.path in ("/backends", "/api/backends"):
             self._send(200, {"backends": backends_report()})
         else:
@@ -368,13 +460,14 @@ class Handler(BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length") or 0)
             body = json.loads(self.rfile.read(length) or b"{}")
-            if self.path not in ("/tela3d/image-to-mesh", "/api/tela3d/image-to-mesh"):
+            routes = {"/tela3d/image-to-mesh": image_to_mesh, "/api/tela3d/image-to-mesh": image_to_mesh, "/tela3d/parts": find_parts}
+            if self.path not in routes:
                 return self._send(404, {"error": "not found"})
             # One job at a time: a queue of GPU jobs is what overheated the laptop before.
             if not _GPU_LOCK.acquire(blocking=False):
                 return self._send(429, {"success": False, "error": "A 3D generation is already running"})
             try:
-                result = image_to_mesh(body.get("task") or body)
+                result = routes[self.path](body.get("task") or body)
             finally:
                 _GPU_LOCK.release()
             self._send(200, result)

@@ -111,6 +111,34 @@ localAiRouter.post('/tela3d/ensure', (_req: Request, res: Response) => {
   res.json({ success: started, port: TELA3D_PORT, error: started ? undefined : 'tela3d-py env or engines/tela-3d missing on this machine' });
 });
 
+// Argilla's NPU lane: its own small env on D:, started on demand.
+const ARGILLA_NPU_PORT = 51125;
+let argillaNpuProcess: any = null;
+
+localAiRouter.post('/argilla-npu/ensure', (_req: Request, res: Response) => {
+  if (argillaNpuProcess && !argillaNpuProcess.killed && argillaNpuProcess.exitCode === null) {
+    return res.json({ success: true, port: ARGILLA_NPU_PORT });
+  }
+  const pythonExe = path.join(TELA_RUNTIME_ROOT, 'npu-py', 'Scripts', 'python.exe');
+  const scriptPath = path.resolve('engines/argilla-npu/argilla_npu.py');
+  if (!fs.existsSync(pythonExe) || !fs.existsSync(scriptPath)) {
+    return res.json({ success: false, port: ARGILLA_NPU_PORT, error: 'npu-py env or engines/argilla-npu missing on this machine' });
+  }
+  try {
+    argillaNpuProcess = spawn(pythonExe, ['-u', '-W', 'ignore', scriptPath, '--port', String(ARGILLA_NPU_PORT)], {
+      cwd: path.dirname(scriptPath),
+      detached: false,
+      stdio: 'ignore',
+      env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+    });
+    argillaNpuProcess.on('error', () => { argillaNpuProcess = null; });
+    argillaNpuProcess.unref();
+    res.json({ success: true, port: ARGILLA_NPU_PORT });
+  } catch (err: any) {
+    res.json({ success: false, port: ARGILLA_NPU_PORT, error: err?.message });
+  }
+});
+
 localAiRouter.get('/health', async (_req: Request, res: Response) => {
   try {
     const ctrl = new AbortController();

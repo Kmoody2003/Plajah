@@ -61,6 +61,8 @@ export const CONTAINERS: Container[] = [
   { id: 'opus', label: 'Opus', ext: 'opus', kinds: ['audio'] },
   { id: 'aiff', label: 'AIFF', ext: 'aiff', kinds: ['audio'] },
   { id: 'caf', label: 'CAF', ext: 'caf', kinds: ['audio'], note: 'Apple Core Audio — large-file safe.' },
+  { id: 'mxf', label: 'MXF', ext: 'mxf', kinds: ['video'], note: 'The broadcast and playout wrapper. Audio is 48 kHz PCM.' },
+  { id: 'gxf', label: 'GXF', ext: 'gxf', kinds: ['video'], note: 'Grass Valley servers.' },
 ];
 
 export const VIDEO_CODECS: Codec[] = [
@@ -74,6 +76,16 @@ export const VIDEO_CODECS: Codec[] = [
   { id: 'prores', label: 'Apple ProRes', encoder: 'prores_ks', kind: 'video', backend: 'server', note: '422 / 4444 mastering. Free encoder.' },
   { id: 'dnxhr', label: 'Avid DNxHR / DNxHD', encoder: 'dnxhd', kind: 'video', backend: 'server', note: 'Editing-friendly intermediate.' },
   { id: 'ffv1', label: 'FFV1 (lossless)', encoder: 'ffv1', kind: 'video', backend: 'server', lossless: true, note: 'Archival lossless.' },
+  { id: 'cfhd', label: 'GoPro CineForm', encoder: 'cfhd', kind: 'video', backend: 'server', note: 'Fast 10-bit editing intermediate.' },
+  { id: 'hap', label: 'HAP', encoder: 'hap', kind: 'video', backend: 'server', note: 'GPU-decoded playback for media servers. Width and height must divide by 4.' },
+  { id: 'jpeg2000', label: 'JPEG 2000', encoder: 'libopenjpeg', kind: 'video', backend: 'server', note: 'Archive and cinema mezzanine. Slow.' },
+  { id: 'vvc', label: 'H.266 / VVC', encoder: 'libvvenc', kind: 'video', backend: 'server', note: 'Newest compression. Very slow, few players.' },
+  { id: 'xvid', label: 'MPEG-4 Part 2 (Xvid)', encoder: 'libxvid', kind: 'video', backend: 'server', note: 'For older hardware.' },
+  { id: 'mjpeg', label: 'Motion JPEG', encoder: 'mjpeg', kind: 'video', backend: 'server' },
+  { id: 'utvideo', label: 'Ut Video (lossless)', encoder: 'utvideo', kind: 'video', backend: 'server', lossless: true },
+  { id: 'v210', label: 'Uncompressed 10-bit (v210)', encoder: 'v210', kind: 'video', backend: 'server', lossless: true, note: 'Very large files.' },
+  { id: 'qtrle', label: 'QuickTime Animation', encoder: 'qtrle', kind: 'video', backend: 'server', lossless: true, note: 'Keeps alpha.' },
+  { id: 'dv', label: 'DV (NTSC)', encoder: 'dvvideo', kind: 'video', backend: 'server', note: 'Always 720x480 at 29.97.' },
   { id: 'braw', label: 'Blackmagic RAW', encoder: '(sdk)', kind: 'video', backend: 'server', note: 'Decode-only via free BRAW SDK — no tool can freely ENCODE BRAW.' },
   { id: 'arriraw', label: 'ARRIRAW', encoder: '(sdk)', kind: 'video', backend: 'server', note: 'Decode-only via ARRI RAW SDK.' },
   { id: 'r3d', label: 'RED R3D', encoder: '(sdk)', kind: 'video', backend: 'server', note: 'Decode-only via RED R3D SDK.' },
@@ -95,8 +107,13 @@ export const AUDIO_CODECS: Codec[] = [
   { id: 'alac', label: 'ALAC (lossless)', encoder: 'alac', kind: 'audio', backend: 'server', lossless: true },
   { id: 'aac', label: 'AAC', encoder: 'aac', kind: 'audio', backend: 'either' },
   { id: 'mp3', label: 'MP3', encoder: 'libmp3lame', kind: 'audio', backend: 'server' },
+  { id: 'mp2', label: 'MPEG Audio Layer II', encoder: 'mp2', kind: 'audio', backend: 'server', note: 'The usual audio for MPEG-2 transport streams.' },
   { id: 'opus', label: 'Opus', encoder: 'libopus', kind: 'audio', backend: 'either' },
   { id: 'vorbis', label: 'Vorbis', encoder: 'libvorbis', kind: 'audio', backend: 'server' },
+  { id: 'ac3', label: 'Dolby Digital (AC-3)', encoder: 'ac3', kind: 'audio', backend: 'server' },
+  { id: 'eac3', label: 'Dolby Digital Plus (E-AC-3)', encoder: 'eac3', kind: 'audio', backend: 'server' },
+  { id: 'dts', label: 'DTS', encoder: 'dca', kind: 'audio', backend: 'server', note: 'ffmpeg marks this encoder experimental.' },
+  { id: 'truehd', label: 'Dolby TrueHD', encoder: 'truehd', kind: 'audio', backend: 'server', lossless: true, note: 'ffmpeg marks this encoder experimental.' },
   { id: 'iamf', label: 'IAMF / Eclipsa Audio', encoder: 'iamf', kind: 'audio', backend: 'server', note: 'Immersive spatial audio (AOM). Support is emerging in ffmpeg.' },
 ];
 
@@ -122,9 +139,78 @@ export const HW_OPTIONS: HwOption[] = [
   { id: 'none', label: 'CPU (software)' },
 ];
 
+// What may actually be written. RAW codecs decode only, and .crm has no free muxer.
+export const OUTPUT_VIDEO_CODECS = VIDEO_CODECS.filter((c) => c.encoder !== '(sdk)' && c.id !== 'mainconcept_mpeg2' && c.id !== 'xavc');
+const OUTPUT_AUDIO_CODECS = AUDIO_CODECS.filter((c) => c.id !== 'iamf');
+const NOT_OUTPUT_CONTAINERS = new Set(['crm']);
+
+const CONTAINER_VIDEO: Record<string, string[] | undefined> = {
+  webm: ['vp9', 'av1'],
+  mp4: ['h264', 'h265', 'av1', 'vp9', 'vvc', 'mpeg2', 'xvid', 'mjpeg'],
+  mxf: ['mpeg2', 'dnxhr', 'h264', 'prores', 'jpeg2000', 'dv'],
+  gxf: ['mpeg2'],
+  mpegts: ['h264', 'h265', 'mpeg2'],
+  mpeg: ['mpeg2'],
+  m2t: ['mpeg2', 'h264'],
+  mov: ['h264', 'h265', 'prores', 'dnxhr', 'cfhd', 'hap', 'jpeg2000', 'mpeg2', 'mjpeg', 'qtrle', 'v210', 'utvideo', 'dv'],
+  avi: ['h264', 'mpeg2', 'ffv1', 'xvid', 'mjpeg', 'utvideo', 'cfhd', 'dv'],
+  gif: [],
+};
+const CONTAINER_AUDIO: Record<string, string[] | undefined> = {
+  webm: ['opus', 'vorbis'],
+  mp4: ['aac', 'mp3', 'opus', 'alac', 'flac', 'ac3', 'eac3'],
+  mxf: ['pcm_s24le', 'pcm_s16le'],
+  gxf: ['pcm_s16le'],
+  m4a: ['aac', 'alac'],
+  mov: ['aac', 'alac', 'pcm_s16le', 'pcm_s24le', 'pcm_s32le', 'pcm_f32le', 'mp3', 'ac3'],
+  mpegts: ['mp2', 'aac', 'mp3', 'opus', 'ac3', 'eac3'],
+  mpeg: ['mp2', 'mp3'],
+  m2t: ['mp2', 'aac', 'mp3'],
+  avi: ['mp3', 'pcm_s16le', 'pcm_s24le'],
+  flac: ['flac'],
+  mp3: ['mp3'],
+  ogg: ['opus', 'vorbis', 'flac'],
+  opus: ['opus'],
+  wav: ['pcm_s16le', 'pcm_s24le', 'pcm_s32le', 'pcm_f32le', 'pcm_f64le', 'pcm_u8', 'pcm_mulaw', 'pcm_alaw', 'adpcm_ms'],
+  aiff: ['pcm_s16le', 'pcm_s24be'],
+  caf: ['pcm_s16le', 'pcm_s24le', 'alac', 'aac'],
+  gif: [],
+};
+export const videoCodecsFor = (containerId: string) => {
+  const allowed = CONTAINER_VIDEO[containerId];
+  if (allowed) return OUTPUT_VIDEO_CODECS.filter((c) => allowed.includes(c.id));
+  // Matroska takes nearly anything, but QuickTime Animation comes out unreadable.
+  return OUTPUT_VIDEO_CODECS.filter((c) => c.id !== 'qtrle');
+};
+export const audioCodecsFor = (containerId: string) => {
+  const allowed = CONTAINER_AUDIO[containerId];
+  return allowed ? OUTPUT_AUDIO_CODECS.filter((c) => allowed.includes(c.id)) : OUTPUT_AUDIO_CODECS;
+};
+
 export function containersFor(kind: MediaKind): Container[] {
-  return CONTAINERS.filter((c) => c.kinds.includes(kind));
+  return CONTAINERS.filter((c) => c.kinds.includes(kind) && !NOT_OUTPUT_CONTAINERS.has(c.id));
 }
+
+export interface RecipePreset { id: string; label: string; note: string; kinds: MediaKind[]; recipe: Partial<import('./types').Recipe> }
+
+const SAME_SIZE = { width: undefined, height: undefined, fps: undefined };
+export const RECIPE_PRESETS: RecipePreset[] = [
+  { id: 'web-h264', label: 'Web H.264', note: 'MP4 that plays anywhere.', kinds: ['video'], recipe: { containerId: 'mp4', videoCodecId: 'h264', audioCodecId: 'aac', qualityMode: 'crf', crf: 20, audioBitrate: '192k', ...SAME_SIZE } },
+  { id: '1080p', label: '1080p H.264', note: 'Downscale to full HD.', kinds: ['video'], recipe: { containerId: 'mp4', videoCodecId: 'h264', audioCodecId: 'aac', qualityMode: 'crf', crf: 20, audioBitrate: '192k', ...SAME_SIZE, height: 1080 } },
+  { id: 'hevc', label: 'HEVC small', note: 'Half the size, newer players.', kinds: ['video'], recipe: { containerId: 'mp4', videoCodecId: 'h265', audioCodecId: 'aac', qualityMode: 'crf', crf: 24, audioBitrate: '192k', ...SAME_SIZE } },
+  { id: 'prores-hq', label: 'ProRes 422 HQ', note: 'Mastering and editing.', kinds: ['video'], recipe: { containerId: 'mov', videoCodecId: 'prores', audioCodecId: 'pcm_s24le', proresProfile: '3', qualityMode: 'crf', ...SAME_SIZE } },
+  { id: 'dnxhr', label: 'DNxHR HQ', note: 'Avid-friendly intermediate.', kinds: ['video'], recipe: { containerId: 'mov', videoCodecId: 'dnxhr', audioCodecId: 'pcm_s24le', qualityMode: 'crf', ...SAME_SIZE } },
+  { id: 'playout-mpeg2', label: 'MPEG-2 playout', note: 'Transport stream for air.', kinds: ['video'], recipe: { containerId: 'mpegts', videoCodecId: 'mpeg2', audioCodecId: 'mp2', qualityMode: 'bitrate', videoBitrate: '25M', audioBitrate: '384k', ...SAME_SIZE } },
+  { id: 'xdcam-hd422', label: 'XDCAM HD422 MXF', note: '50 Mb/s MPEG-2 4:2:2 in MXF, for playout.', kinds: ['video'], recipe: { containerId: 'mxf', videoCodecId: 'mpeg2', audioCodecId: 'pcm_s24le', mpeg2Profile: 'xdcam50', qualityMode: 'bitrate', ...SAME_SIZE, width: 1920, height: 1080 } },
+  { id: 'dnxhr-mxf', label: 'DNxHR HQX MXF', note: '10-bit DNxHR for Avid and servers.', kinds: ['video'], recipe: { containerId: 'mxf', videoCodecId: 'dnxhr', audioCodecId: 'pcm_s24le', dnxProfile: 'dnxhr_hqx', qualityMode: 'crf', ...SAME_SIZE } },
+  { id: 'prores-4444', label: 'ProRes 4444', note: 'Mastering with alpha.', kinds: ['video'], recipe: { containerId: 'mov', videoCodecId: 'prores', audioCodecId: 'pcm_s24le', proresProfile: '4', qualityMode: 'crf', ...SAME_SIZE } },
+  { id: 'prores-proxy', label: 'ProRes Proxy', note: 'Small offline editing copies.', kinds: ['video'], recipe: { containerId: 'mov', videoCodecId: 'prores', audioCodecId: 'pcm_s16le', proresProfile: '0', qualityMode: 'crf', ...SAME_SIZE } },
+  { id: 'cineform', label: 'CineForm', note: '10-bit editing intermediate.', kinds: ['video'], recipe: { containerId: 'mov', videoCodecId: 'cfhd', audioCodecId: 'pcm_s24le', qualityMode: 'crf', ...SAME_SIZE } },
+  { id: 'hap', label: 'HAP', note: 'For media servers.', kinds: ['video'], recipe: { containerId: 'mov', videoCodecId: 'hap', audioCodecId: 'pcm_s16le', qualityMode: 'crf', ...SAME_SIZE } },
+  { id: 'archive-ffv1', label: 'FFV1 archive', note: 'Lossless preservation in Matroska.', kinds: ['video'], recipe: { containerId: 'mkv', videoCodecId: 'ffv1', audioCodecId: 'flac', qualityMode: 'lossless', ...SAME_SIZE } },
+  { id: 'wav-48-24', label: 'WAV 24-bit', note: 'Broadcast audio.', kinds: ['audio', 'video'], recipe: { containerId: 'wav', audioCodecId: 'pcm_s24le', sampleRate: 48000 } },
+  { id: 'mp3-320', label: 'MP3 320', note: 'Everyday audio.', kinds: ['audio', 'video'], recipe: { containerId: 'mp3', audioCodecId: 'mp3', audioBitrate: '320k', qualityMode: 'crf' } },
+];
 
 export function kindFromName(name: string): MediaKind {
   const ext = (name.split('.').pop() || '').toLowerCase();

@@ -195,6 +195,7 @@ export class LiveComposer {
   private lensId: LensId = 'none';
   private lensEngine: LensEngine | null = null;
   private lensLoading: Promise<void> | null = null;
+  private lensFailed: LensId | null = null;
   private orbListener: ((c: Collect) => void) | undefined;
 
   // Fun FX layer (emoji bursts + ambient effects), baked into the published output.
@@ -202,6 +203,7 @@ export class LiveComposer {
   private ambient: AmbientFx = 'none';
   private emitAcc = 0;
   private lastFxT = 0;
+  private composedFrame = false;
 
   constructor(private onScreenEnded?: () => void) {
     this.initGL();
@@ -240,9 +242,9 @@ export class LiveComposer {
   }
 
   private setCanvas(w: number, h: number) {
-    if (this.work.width !== w) { this.work.width = w; this.work.height = h; }
-    if (this.canvas.width !== w) { this.canvas.width = w; this.canvas.height = h; }
-    if (this.gl && this.glCanvas.width !== w) { this.glCanvas.width = w; this.glCanvas.height = h; this.gl.viewport(0, 0, w, h); }
+    if (this.work.width !== w || this.work.height !== h) { this.work.width = w; this.work.height = h; }
+    if (this.canvas.width !== w || this.canvas.height !== h) { this.canvas.width = w; this.canvas.height = h; }
+    if (this.gl && (this.glCanvas.width !== w || this.glCanvas.height !== h)) { this.glCanvas.width = w; this.glCanvas.height = h; this.gl.viewport(0, 0, w, h); }
   }
 
   getStream(): MediaStream {
@@ -272,10 +274,14 @@ export class LiveComposer {
 
   getLens(): LensId { return this.lensId; }
   /** Status of the active lens ('' when fine) — surfaced so a failing lens is visible, not silent. */
-  getLensStatus(): string { return this.lensEngine?.getStatus() ?? ''; }
+  getLensStatus(): string {
+    if (this.lensFailed === this.lensId && this.lensId !== 'none') return "This lens couldn't run on this device.";
+    return this.lensEngine?.getStatus() ?? '';
+  }
   /** Switch the live lens. Instant for the viewer: the published canvas just draws differently. */
   async setLens(id: LensId): Promise<void> {
     this.lensId = id;
+    this.lensFailed = null;
     if (id === 'none') { this.lensEngine?.setLens('none'); return; }
     if (!this.lensEngine) {
       // three.js-free but still sizeable (MediaPipe glue + shaders) — only pay for it on first use.
@@ -297,7 +303,14 @@ export class LiveComposer {
   private applyLens() {
     if (this.lensId === 'none' || !this.lensEngine) return;
     const src = this.lensSource();
-    if (src) this.lensEngine.apply(this.wctx, this.work, src, performance.now(), 'cover');
+    if (!src || this.lensFailed === this.lensId) return;
+    // A lens that throws must not freeze the picture: it drops out and the plain frame carries on.
+    try { this.lensEngine.apply(this.wctx, this.work, src, performance.now(), 'cover'); }
+    catch (e) {
+      console.warn(`[liveComposer] lens ${this.lensId} failed:`, e);
+      this.lensFailed = this.lensId;
+      this.wctx.globalAlpha = 1;
+    }
   }
   clearLut() { this.useLut = false; }
 
@@ -435,8 +448,33 @@ export class LiveComposer {
     this.frontStream = new MediaStream([track]);
     this.frontEl.srcObject = this.frontStream;
     await this.frontEl.play().catch(() => {});
+    await this.firstFrame(this.frontEl);
     if (this.night) await this.setNightMode(true).catch(() => {});
     if (restartVtuber) await this.ensureVtuber();
+  }
+  /** Resolves when this element has a picture to draw (or after a short wait, so a slow camera can't hang a switch). */
+  private firstFrame(el: HTMLVideoElement, timeoutMs = 1500): Promise<void> {
+    return new Promise(resolve => {
+      const t0 = performance.now();
+      const check = () => {
+        if ((el.readyState >= 2 && el.videoWidth > 0) || performance.now() - t0 > timeoutMs) resolve();
+        else setTimeout(check, 16);
+      };
+      check();
+    });
+  }
+  /** Resolves once the output canvas carries a real composed frame, so publishing it can't flash black. */
+  async waitForComposedFrame(timeoutMs = 1500): Promise<void> {
+    this.getStream();
+    const t0 = performance.now();
+    while (!this.composedFrame && performance.now() - t0 < timeoutMs) await new Promise(r => setTimeout(r, 16));
+  }
+  /** Both-cameras mode: swap which camera is full frame and which is the corner. */
+  swapBothCameras() {
+    if (this.mode !== 'both') return;
+    [this.frontStream, this.rearStream] = [this.rearStream, this.frontStream];
+    this.frontEl.srcObject = this.frontStream; this.rearEl.srcObject = this.rearStream;
+    this.frontEl.play().catch(() => {}); this.rearEl.play().catch(() => {});
   }
   /** Audio that came with the current screen share (null when none / not shared). */
   getScreenAudioTrack(): MediaStreamTrack | null { return this.screenStream?.getAudioTracks()[0] ?? null; }
@@ -475,6 +513,16 @@ export class LiveComposer {
   private releaseScreen() { this.stop(this.screenStream); this.screenStream = null; this.screenEl.srcObject = null; }
 
   async setMode(mode: ComposerMode): Promise<void> {
+    // Going to both cameras when the adopted camera is the rear one: it belongs in the rear slot, and
+    // only the selfie camera still needs opening. Otherwise we'd ask the phone for the rear camera twice.
+    if (mode === 'both' && !this.rearStream && this.frontStream) {
+      const t = this.frontStream.getVideoTracks()[0];
+      if (t?.readyState === 'live' && t.getSettings?.().facingMode === 'environment') {
+        this.rearStream = this.frontStream; this.frontStream = null;
+        this.frontEl.srcObject = null;
+        this.rearEl.srcObject = this.rearStream; await this.rearEl.play().catch(() => {});
+      }
+    }
     const needFront = mode !== 'rear';
     const needRear = mode === 'rear' || mode === 'both';
     const needScreen = mode === 'screen-pip' || mode === 'screen-mask';
@@ -486,7 +534,9 @@ export class LiveComposer {
     if (!needFront) this.releaseFront();
     if (!needRear) this.releaseRear();
     if (!needScreen) this.releaseScreen();
-    if (needScreen) this.setCanvas(1280, 720); else this.setCanvas(720, 1280);
+    // Camera modes size themselves from the source (syncAspect). Forcing a size here cleared the canvas
+    // to black on every mode change, even when the size was about to come straight back.
+    if (needScreen) this.setCanvas(1280, 720);
     this.mode = mode;
     if (this.night) this.setNightMode(true).catch(() => {}); // retune any freshly-opened camera
     this.getStream();
@@ -558,6 +608,12 @@ export class LiveComposer {
     const h = Math.max(2, Math.round(sh * scale / 2) * 2);
     const curAr = this.canvas.width / this.canvas.height, newAr = w / h;
     if (Math.abs(curAr - newAr) / curAr > 0.03) this.setCanvas(w, h);
+  }
+
+  /** The picture this mode needs is available. While a camera is switching it isn't: hold the last frame. */
+  private sourceReady(): boolean {
+    const el = this.mode === 'front' ? this.frontEl : this.mode === 'rear' || this.mode === 'both' ? this.rearEl : null;
+    return !el || (el.readyState >= 2 && el.videoWidth > 0);
   }
 
   private draw() {
@@ -745,7 +801,9 @@ export class LiveComposer {
     try {
       const dt = Math.min(0.05, this.lastFxT ? (t - this.lastFxT) / 1000 : 0.016);
       this.lastFxT = t;
+      if (!this.sourceReady()) return;
       this.draw(); this.applyLens(); this.present(); this.stepFx(dt);
+      this.composedFrame = true;
       if (this.overlayDrawer) { this.octx.save(); this.overlayDrawer(this.octx, this.canvas.width, this.canvas.height, dt); this.octx.restore(); }
     } catch { /* keep alive */ }
   };

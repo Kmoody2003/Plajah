@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true },
+  "include": [
+    "services/camera/*.ts",
+    "services/liveComposer.ts",
+    "components/live/CameraDeck.tsx",
+    "components/live/LiveDocDock.tsx",
+    "components/MobileLiveStreamer.tsx",
+    "components/GoLiveWizard.tsx",
+    "hooks/useRtcSession.ts"
+  ]
+}

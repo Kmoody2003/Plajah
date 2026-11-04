@@ -37,7 +37,53 @@ export function installFakeMedia() {
     draw(); setInterval(draw, 33);
     return (c as any).captureStream(30).getVideoTracks()[0] as MediaStreamTrack;
   };
+  // ?phone=1: a multi-lens phone. Each camera paints its own colour, opening takes PHONE_OPEN_MS,
+  // and a second camera can't open while one is live (NotReadableError), like many real phones.
+  const phone = new URLSearchParams(location.search).get('phone') === '1';
+  const PHONE_OPEN_MS = 350;
+  const PHONE_CAMS = [
+    { id: 'cam-front', label: 'Front Camera', facing: 'user', color: '#c02080' },
+    { id: 'cam-back', label: 'Back Camera', facing: 'environment', color: '#2060c0' },
+    { id: 'cam-ultra', label: 'Back Ultra Wide Camera', facing: 'environment', color: '#20a040' },
+    { id: 'cam-tele', label: 'Back Telephoto Camera', facing: 'environment', color: '#c08020' },
+  ];
+  const phoneLog: any[] = ((window as any).__phoneLog = []);
+  let phoneLive: MediaStreamTrack | null = null;
+  const openPhoneCam = async (v: MediaTrackConstraints) => {
+    const wantId: any = (v as any).deviceId?.exact ?? (v as any).deviceId;
+    const wantFacing: any = (v as any).facingMode?.exact ?? (v as any).facingMode;
+    const cam = PHONE_CAMS.find(x => x.id === wantId) ?? PHONE_CAMS.find(x => x.facing === wantFacing) ?? PHONE_CAMS[0];
+    if (phoneLive && phoneLive.readyState === 'live') {
+      phoneLog.push({ t: Math.round(performance.now()), open: cam.id, result: 'NotReadableError' });
+      throw new DOMException('Could not start video source', 'NotReadableError');
+    }
+    await new Promise(r => setTimeout(r, PHONE_OPEN_MS));
+    const c = document.createElement('canvas'); c.width = 720; c.height = 1280;
+    const g = c.getContext('2d')!;
+    let f = 0;
+    const paint = () => {
+      f++; g.fillStyle = cam.color; g.fillRect(0, 0, 720, 1280);
+      g.fillStyle = '#e8b796'; g.beginPath(); g.ellipse(360 + Math.sin(f / 20) * 120, 500, 150, 190, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#fff'; g.font = 'bold 44px monospace'; g.fillText(`${cam.label} f${f}`, 30, 1000);
+    };
+    paint(); const timer = setInterval(paint, 33);
+    const track: MediaStreamTrack = (c as any).captureStream(30).getVideoTracks()[0];
+    const realStop = track.stop.bind(track);
+    track.stop = () => { clearInterval(timer); realStop(); if (phoneLive === track) phoneLive = null; };
+    Object.defineProperty(track, 'label', { value: cam.label });
+    const realSettings = track.getSettings.bind(track);
+    track.getSettings = () => ({ ...realSettings(), deviceId: cam.id, facingMode: cam.facing });
+    phoneLive = track;
+    phoneLog.push({ t: Math.round(performance.now()), open: cam.id, result: 'ok' });
+    return track;
+  };
   md.getUserMedia = async (c?: MediaStreamConstraints) => {
+    if (phone) {
+      const s = new MediaStream();
+      if (c?.audio) s.addTrack(fakeAudio());
+      if (c?.video) s.addTrack(await openPhoneCam(c.video === true ? {} : c.video as MediaTrackConstraints));
+      return s;
+    }
     if (realGum && !(window as any).__forceFake) {
       try { return await realGum(c); } catch { /* fall through to synthetic */ }
     }
@@ -48,6 +94,10 @@ export function installFakeMedia() {
   };
   const realEnum = md.enumerateDevices?.bind(md);
   md.enumerateDevices = async () => {
+    if (phone) {
+      const mk = (kind: MediaDeviceKind, id: string, label: string) => ({ kind, deviceId: id, groupId: id, label, toJSON() { return this; } }) as MediaDeviceInfo;
+      return [mk('audioinput', 'lab-mic', 'Lab tone mic'), ...PHONE_CAMS.map(x => mk('videoinput', x.id, x.label))];
+    }
     const real = realEnum ? await realEnum().catch(() => []) : [];
     if (real.some(d => d.kind === 'audioinput' && d.label) && !(window as any).__forceFake) return real;
     const mk = (kind: MediaDeviceKind, id: string, label: string) => ({ kind, deviceId: id, groupId: 'lab', label, toJSON() { return this; } }) as MediaDeviceInfo;

@@ -26,6 +26,8 @@ public sealed partial class MainWindow : Window
     private AppWindow? _appWindow;
     private readonly PlajahStudioBridgeService _studioBridge;
     private readonly NdiReceiverService _ndiRecv = new();
+    private CrossoverNativeService? _crossoverSvc;
+    private CrossoverNativeService Crossover => _crossoverSvc ??= new CrossoverNativeService((type, payload) => DispatcherQueue.TryEnqueue(() => PostNativeMessage(type, payload)));
     /// <summary>Stage Program out as NDI / OMT / SRT (frames arrive from the page through a shared buffer).</summary>
     private ProgramOutputHub? _programOutHub;
     private ProgramOutputHub ProgramOut => _programOutHub ??= new ProgramOutputHub(() => _studioBridge.NdiDllPath);
@@ -473,8 +475,8 @@ public sealed partial class MainWindow : Window
             "  };" +
             "  var _pme = {" +
             "    capabilities: {" +
-            "      host: 'winui', platform: 'windows', hardwareGenlock: true, ndi: true, brawDecode: true, webgpu: true," +
-            "      sources: { decklink: true, ndi: true, srt: true, rtmp: true, webrtc: true, uvc: true, file: true, braw: true, ambo: true, switcher: true }," +
+            "      host: 'winui', platform: 'windows', hardwareGenlock: true, ndi: true, brawDecode: " + (BrawRuntime.LooksInstalled ? "true" : "false") + ", webgpu: true," +
+            "      sources: { decklink: true, ndi: true, srt: true, rtmp: true, webrtc: true, uvc: true, file: true, braw: " + (BrawRuntime.LooksInstalled ? "true" : "false") + ", ambo: true, switcher: true }," +
             "      cameraControl: true, mainconceptMpeg2: true" +
             "    }," +
             "    invoke: function(cmd, args) {" +
@@ -852,6 +854,7 @@ public sealed partial class MainWindow : Window
             // Stage Program → network outputs (30–60 messages a second; keep this first and cheap).
             if (type == "PROGRAM_OUT_FRAME") { _programOutHub?.OnFrame(root); return; }
             if (type == "PROGRAM_OUT_AUDIO") { _programOutHub?.OnAudio(root); return; }
+            if (type == "LD_UDP_SEND") { LightingUdpSender.Send(root); return; }
 
             if (type == "NATIVE_AUDIO_OPEN")
             {
@@ -1018,6 +1021,33 @@ public sealed partial class MainWindow : Window
                 var requestId = root.TryGetProperty("requestId", out var rid) ? rid.GetString() ?? string.Empty : string.Empty;
                 if (NativeLlmService.Inflight.TryGetValue(requestId, out var cts)) cts.Cancel();
             }
+            else if (type == "LOCAL_LLM_LOOK")
+            {
+                // One picture (base64) and a question for the vision model; Argilla names parts this way.
+                var requestId = root.TryGetProperty("requestId", out var rid) ? rid.GetString() ?? string.Empty : string.Empty;
+                byte[] image;
+                try { image = Convert.FromBase64String(root.GetProperty("image").GetString() ?? string.Empty); }
+                catch { PostNativeMessage("LOCAL_LLM_LOOK_RESULT", new { requestId, success = false, error = "The picture didn't arrive" }); return; }
+                var prompt = root.TryGetProperty("prompt", out var p) ? p.GetString() ?? string.Empty : string.Empty;
+                var prefill = root.TryGetProperty("prefill", out var pf) ? pf.GetString() ?? string.Empty : string.Empty;
+                var maxTokens = root.TryGetProperty("maxTokens", out var mt) && mt.TryGetInt32(out var mti) ? mti : 900;
+                var unloadAfter = root.TryGetProperty("unloadAfter", out var ua) && ua.ValueKind == System.Text.Json.JsonValueKind.True;
+                using var cts = new System.Threading.CancellationTokenSource();
+                if (requestId.Length > 0) NativeLlmService.Inflight[requestId] = cts;
+                try
+                {
+                    var res = await NativeLlmService.LookAsync(image, prompt, prefill, maxTokens, unloadAfter, cts.Token);
+                    PostNativeMessage("LOCAL_LLM_LOOK_RESULT", new
+                    {
+                        requestId, success = res.success, text = res.text, model = res.model, backend = res.backend,
+                        seconds = res.seconds, loadSeconds = res.loadSeconds, error = res.error,
+                    });
+                }
+                finally
+                {
+                    if (requestId.Length > 0) NativeLlmService.Inflight.TryRemove(requestId, out _);
+                }
+            }
             else if (type == "LOCAL_LLM_STATUS")
             {
                 PostNativeMessage("LOCAL_LLM_STATUS_RESULT", NativeLlmService.Status());
@@ -1025,6 +1055,15 @@ public sealed partial class MainWindow : Window
             else if (type == "TELA3D_ENSURE")
             {
                 PostNativeMessage("TELA3D_ENSURE_RESULT", await Tela3dRuntimeService.EnsureAsync());
+            }
+            else if (type == "ARGILLA_NPU_ENSURE")
+            {
+                PostNativeMessage("ARGILLA_NPU_ENSURE_RESULT", await ArgillaNpuService.EnsureAsync());
+            }
+            else if (type == "ARGILLA_NPU_INSTALL")
+            {
+                PostNativeMessage("ARGILLA_NPU_INSTALL_RESULT", await ArgillaNpuService.InstallAsync((label, fraction) =>
+                    PostNativeMessage("ARGILLA_NPU_INSTALL_PROGRESS", new { label, fraction })));
             }
             else if (type == "LOCAL_LLM_DOWNLOAD")
             {
@@ -1415,7 +1454,7 @@ public sealed partial class MainWindow : Window
                         omt = true,
                         srt = true,
                         avb = true,
-                        brawDecode = true,
+                        brawDecode = BrawRuntime.Available,
                         webgpu = true,
                         nativeOmt = true,
                         nativeSrt = FfmpegLocator.SrtAvailable,
@@ -1432,13 +1471,79 @@ public sealed partial class MainWindow : Window
                             ["webrtc"] = true,
                             ["uvc"] = true,
                             ["file"] = true,
-                            ["braw"] = true,
+                            ["braw"] = BrawRuntime.Available,
                             ["ambo"] = true,
                             ["switcher"] = true
                         },
                         cameraControl = true,
                         mainconceptMpeg2 = true
                     };
+                }
+                else if (cmd.StartsWith("crossover_"))
+                {
+                    string Str(string name) => argsObj.ValueKind == JsonValueKind.Object && argsObj.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+                    switch (cmd)
+                    {
+                        case "crossover_status": result = Crossover.Status(); break;
+                        case "crossover_install_engine": result = await Crossover.InstallEngineAsync(); break;
+                        case "crossover_probe": result = await Crossover.ProbeAsync(Str("path")); break;
+                        case "crossover_cancel": result = Crossover.Cancel(Str("jobId")); break;
+                        case "crossover_convert":
+                        {
+                            var jobArgs = argsObj.TryGetProperty("args", out var ja) ? CrossoverNativeService.ArgsFrom(ja) : new List<string>();
+                            var dur = argsObj.TryGetProperty("durationSec", out var de) && de.TryGetDouble(out var dv2) ? dv2 : 0;
+                            var prev = argsObj.TryGetProperty("preview", out var pe) && pe.ValueKind == JsonValueKind.True;
+                            result = await Crossover.ConvertAsync(Str("jobId"), jobArgs, Str("outputPath"), dur, prev);
+                            break;
+                        }
+                        case "crossover_unique_path": result = new { path = CrossoverNativeService.UniquePath(Str("path")) }; break;
+                        case "crossover_temp_path": result = new { path = CrossoverNativeService.TempPath(Str("name")) }; break;
+                        case "crossover_append_base64":
+                            try
+                            {
+                                await using var appendTo = new FileStream(Str("path"), FileMode.Append, FileAccess.Write);
+                                await appendTo.WriteAsync(System.Convert.FromBase64String(Str("data")));
+                                result = new { success = true };
+                            }
+                            catch (Exception appendEx) { result = new { success = false, error = appendEx.Message }; }
+                            break;
+                        case "crossover_write_text": result = CrossoverNativeService.WriteText(Str("path"), Str("text")); break;
+                        case "crossover_read_text":
+                        {
+                            var rp = Str("path");
+                            result = File.Exists(rp) && new FileInfo(rp).Length < 256L * 1024 * 1024
+                                ? new { success = true, text = (string?)await File.ReadAllTextAsync(rp) }
+                                : new { success = false, text = (string?)null };
+                            break;
+                        }
+                        case "crossover_pick_files":
+                        {
+                            var picker = new Windows.Storage.Pickers.FileOpenPicker();
+                            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+                            picker.FileTypeFilter.Add("*");
+                            var picked = await picker.PickMultipleFilesAsync();
+                            result = new { files = picked.Select(f => { var fi = new FileInfo(f.Path); return new { name = f.Name, path = f.Path, size = fi.Exists ? fi.Length : 0 }; }).ToList() };
+                            break;
+                        }
+                        case "crossover_pick_folder":
+                        {
+                            var picker = new Windows.Storage.Pickers.FolderPicker();
+                            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+                            picker.FileTypeFilter.Add("*");
+                            var folder = await picker.PickSingleFolderAsync();
+                            result = new { path = folder?.Path };
+                            break;
+                        }
+                        case "crossover_get_braw":
+                            await LaunchExternalUriAsync(new Uri("https://www.blackmagicdesign.com/developer/products/braw/sdk-and-software"));
+                            result = new { success = true };
+                            break;
+                        case "crossover_reveal":
+                            try { System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + Str("path") + "\""); } catch { }
+                            result = new { success = true };
+                            break;
+                        default: result = new { success = false, error = "Unknown command." }; break;
+                    }
                 }
                 else if (cmd == "list_sources")
                 {

@@ -473,7 +473,11 @@ export function segmentSamLatest(
         .then((c) => {
           if (c) entry!.canvas = c;
         })
-        .catch((e) => console.warn('[samMatte] live segment failed:', (e as Error)?.message || e))
+        .catch((e) => {
+          // A GPU that can't run the decoder fails the same way every time; stop asking 7 times a second.
+          console.warn('[samMatte] live segment failed:', (e as Error)?.message || e);
+          status = 'failed';
+        })
         .finally(() => {
           entry!.busy = false;
         });

@@ -62,12 +62,14 @@ export function detectCapabilities(): Capabilities {
   }
 
   if (isWinUI) {
+    // The app says whether Blackmagic RAW is on this PC.
+    const braw = !!(window as any).__plajahMediaEngine?.capabilities?.brawDecode;
     return {
       host: 'winui', platform, webgpu,
-      hardwareGenlock: true, ndi: true, omt: true, srt: true, avb: true, brawDecode: true,
+      hardwareGenlock: true, ndi: true, omt: true, srt: true, avb: true, brawDecode: braw,
       nativeOmt: true, nativeSrt: true, nativeAvb: true,
       cameraControl: true, mainconceptMpeg2: true,
-      sources: { decklink: true, ndi: true, omt: true, srt: true, avb: true, rtmp: true, webrtc: true, uvc: true, file: true, braw: true, ambo: true, switcher: true },
+      sources: { decklink: true, ndi: true, omt: true, srt: true, avb: true, rtmp: true, webrtc: true, uvc: true, file: true, braw, ambo: true, switcher: true },
     };
   }
 

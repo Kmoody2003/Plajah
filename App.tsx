@@ -1,3 +1,4 @@
+import { acceptHandoff } from './services/crossover/handoff';
 import { UserAvatar } from './components/avatar/UserAvatar';
 import React, { useState, useEffect, lazy, Suspense, useCallback, useRef, useMemo } from 'react';
 import { Album, Track, AppView, ThemeType, Game, IPWorld, LiveFeed, PhotoGallery, Photo } from './types';
@@ -836,6 +837,7 @@ const App: React.FC = () => {
   // Admin kill-switch for the standalone Crossover converter (systemConfig/settings).
   const [crossoverSystemEnabled, setCrossoverSystemEnabled] = useState(true);
   useEffect(() => { fetchSystemSettingsConfig().then(c => setCrossoverSystemEnabled(c?.crossoverEnabled !== false)).catch(() => {}); }, []);
+  const crossoverInNav = crossoverSystemEnabled;
   // Load platform feature flags (config/featureFlags) + live-update — without this,
   // isFeatureEnabled() always returns the built-in defaults (e.g. CONTENT_LICENSING off).
   useEffect(() => { const unsub = initFeatureFlagListener(); return () => unsub(); }, []);
@@ -2152,11 +2154,22 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     window.addEventListener('plajah:open-live-fx-lab', handleOpenLiveFxLab);
 
     const handleOpenFabulaMedia = (e: any) => {
+      acceptHandoff('fabula', e?.detail);
       setView('FABULA');
     };
     window.addEventListener('OPEN_FABULA_MEDIA', handleOpenFabulaMedia);
 
+    const handleOpenPixelsMedia = (e: any) => {
+      const d = e?.detail;
+      const f = d?.file ?? d;
+      const mediaUrl = d?.url ?? f?.url ?? (f instanceof Blob ? URL.createObjectURL(f) : undefined);
+      setPixelsPayload({ mediaUrl, fileName: d?.name ?? f?.name } as any);
+      setView('PLAJAH_PIXELS');
+    };
+    window.addEventListener('OPEN_PIXELS_MEDIA', handleOpenPixelsMedia);
+
     const handleOpenCrossoverMedia = (e: any) => {
+      acceptHandoff('crossover', e?.detail);
       setView('CROSSOVER');
     };
     window.addEventListener('OPEN_CROSSOVER_MEDIA', handleOpenCrossoverMedia);
@@ -5215,7 +5228,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     { id: 'PLAJAH_HOME', order: 6.6, isVisible: true },
                     { id: 'RADIO', order: 7, isVisible: true },
                     { id: 'APPS', order: 8.5, isVisible: true },
-                    { id: 'CROSSOVER', order: 8.6, isVisible: crossoverSystemEnabled },
+                    { id: 'CROSSOVER', order: 8.6, isVisible: crossoverInNav },
                     { id: 'GAMES', order: 4.5, isVisible: true },
                     { id: 'CLUBS', order: 0.5, isVisible: true },
                     { id: 'CHARITY', order: 11, isVisible: true },
@@ -5475,7 +5488,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     };
                     const groups = [
                       { id: 'discover', label: 'Discover', ids: ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH'] },
-                      { id: 'entertain', label: 'Entertainment', ids: ['MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', ...(crossoverSystemEnabled ? ['CROSSOVER'] : []), 'GLOBAL_PHOTOS'] },
+                      { id: 'entertain', label: 'Entertainment', ids: ['MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', ...(crossoverInNav ? ['CROSSOVER'] : []), 'GLOBAL_PHOTOS'] },
                       { id: 'sports', label: 'Sports & News', ids: ['PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES'] },
                       { id: 'education', label: 'Education', ids: ['BOOKS', 'CLASSROOMS', 'PLAJAH_LABS'] },
                       { id: 'community', label: 'Community', ids: ['CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'SACRED_LIBRARY', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB'] },
@@ -8892,6 +8905,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           }}
           onSendToFabula={(f) => {
             setActivatedNativeFile(null);
+            acceptHandoff('fabula', f);
             setView('FABULA');
           }}
           onSendToPixels={(f) => {
@@ -8901,6 +8915,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           }}
           onSendToCrossover={(f) => {
             setActivatedNativeFile(null);
+            acceptHandoff('crossover', f);
             setView('CROSSOVER');
           }}
           onSendToTela={(f) => {

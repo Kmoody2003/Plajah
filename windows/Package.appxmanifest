@@ -176,6 +176,7 @@
 
     <!-- Microphone — for audiobook recording (MAI Transcribe 1.5) -->
     <DeviceCapability Name="microphone" />
+    <DeviceCapability Name="webcam" />
 
     <!-- Pictures library — for local photos import & gallery viewing -->
     <uap:Capability Name="picturesLibrary" />

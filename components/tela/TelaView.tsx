@@ -145,6 +145,7 @@ const TelaClassworkStudio = React.lazy(() => import('./classwork/TelaClassworkSt
 const SaveTemplateDialog = React.lazy(() => import('../templates/SaveTemplateDialog'));
 const TemplateLibrary = React.lazy(() => import('../templates/TemplateLibrary'));
 const MerchDesignerStudio = React.lazy(() => import('./merch/MerchDesignerStudio'));
+const ArgillaStudio = React.lazy(() => import('../argilla/ArgillaStudio'));
 const PrepressPanel = React.lazy(() => import('./print/PrepressPanel'));
 const LocalCreativeStudio = React.lazy(() => import('../Fabula/LocalCreativeStudio').then(m => ({ default: m.LocalCreativeStudio })));
 const TelaWritingStudio = React.lazy(() => import('./TelaWritingStudio').then(m => ({ default: m.TelaWritingStudio })));
@@ -504,6 +505,12 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     return () => { alive = false; };
   }, []);
   const [merchStudioOpen, setMerchStudioOpen] = useState(false);
+  const [argillaOpen, setArgillaOpen] = useState<{ projectId?: string } | null>(null);
+  useEffect(() => {
+    const reopen = (event: Event) => setArgillaOpen({ projectId: (event as CustomEvent<{ projectId?: string }>).detail?.projectId });
+    window.addEventListener('tela:open-argilla', reopen);
+    return () => window.removeEventListener('tela:open-argilla', reopen);
+  }, []);
   const [prepressOpen, setPrepressOpen] = useState(false);
   const [localStudioOpen, setLocalStudioOpen] = useState(false);
   const [localStudioMinimized, setLocalStudioMinimized] = useState(false);
@@ -3033,6 +3040,22 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     );
   }
 
+  if (argillaOpen) {
+    return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0b0a0f] text-white/60">Loading Argilla…</div>}>
+      <ArgillaStudio
+        initialProjectId={argillaOpen.projectId}
+        onClose={() => setArgillaOpen(null)}
+        onSendToTela={showHome ? undefined : async (glb, name, projectId) => {
+          const file = new File([glb], name, { type: 'model/gltf-binary' });
+          const uploaded = await uploadTelaAsset(file);
+          const size = { w: 720, h: 405 };
+          const device: TelaMediaDevice = { id: uid('dev'), type: 'MEDIA', kind: 'MODEL_3D', name, src: uploaded.src, mimeType: file.type, size: file.size, width: size.w, height: size.h, storagePath: uploaded.storagePath, sessionOnly: uploaded.sessionOnly, argillaProjectId: projectId };
+          addFrame('BOARD', 'FREE', device, name, { size });
+        }}
+      />
+    </React.Suspense>;
+  }
+
   if (merchStudioOpen) {
     return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0b0a0f] text-white/60">Loading Merch Designer…</div>}>
       <MerchDesignerStudio onClose={() => setMerchStudioOpen(false)}/>
@@ -3045,7 +3068,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
       {designImport && <React.Suspense fallback={null}><DesignImportDialog state={designImport} onClose={() => setDesignImport(null)} onOpenSmart={(id, name) => void openImportedSmartObject(id, name)}/></React.Suspense>}
       {libraryPanel && <React.Suspense fallback={null}><TelaLibraryPanel initialTab={libraryPanel.tab} note={libraryPanel.note} onClose={() => setLibraryPanel(null)} onPlaceShape={placeLibraryShape} onUseColor={useLibraryColor} onUsePattern={p => void useLibraryPattern(p)} onUseBrush={useLibraryBrush}/></React.Suspense>}
       {accessEndedNote && <div role="alert" className="fixed top-4 left-1/2 -translate-x-1/2 z-[9000] max-w-[min(560px,calc(100vw-32px))] flex items-start gap-3 rounded-xl border border-amber-300/30 bg-[#1b1710] px-4 py-3 text-xs text-amber-100"><span className="flex-1">{accessEndedNote}</span><button className="font-bold text-white/70 hover:text-white" onClick={() => setAccessEndedNote('')}>Dismiss</button></div>}
-      <TelaHome recent={canvasList || []} viewerUid={auth.currentUser?.uid || null} memberOrgIds={memberOrgIds} orgNames={orgNames} onOpen={id => void openCanvas(id)} onCreate={kind => void createHomeDocument(kind)} onChooseStyle={entry => void createStyleDocument(entry)} onChoosePublication={template => void createPublicationDocument(template)} onChooseTemplate={template => void createTemplateDocument(template)} onImport={() => fileRef.current?.click()} onOpenMerch={() => setMerchStudioOpen(true)} onBack={onBack}/>
+      <TelaHome recent={canvasList || []} viewerUid={auth.currentUser?.uid || null} memberOrgIds={memberOrgIds} orgNames={orgNames} onOpen={id => void openCanvas(id)} onCreate={kind => void createHomeDocument(kind)} onChooseStyle={entry => void createStyleDocument(entry)} onChoosePublication={template => void createPublicationDocument(template)} onChooseTemplate={template => void createTemplateDocument(template)} onImport={() => fileRef.current?.click()} onOpenMerch={() => setMerchStudioOpen(true)} onOpenArgilla={() => setArgillaOpen({})} onBack={onBack}/>
     </>;
   }
 
@@ -3449,6 +3472,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               <div className="px-3 py-1 text-[9px] font-extrabold uppercase tracking-[.12em] text-[#a78bfa]">Local AI Creative Suite</div>
               <button className={menuBarItem} onClick={() => { setComicStudioOpen(true); setAppMenuOpen(null); }}><BookOpen size={14} color="#a78bfa"/>Comic & Storybook Studio<span className="ml-auto text-[9px] text-[#34d399]">Local GPU</span></button>
               <button className={menuBarItem} onClick={() => { setMerchStudioOpen(true); setAppMenuOpen(null); }}><BoxIcon size={14} color="#ff5a8a"/>Merch Designer<span className="ml-auto text-[9px] text-[#34d399]">3D + GPU</span></button>
+              <button className={menuBarItem} onClick={() => { setArgillaOpen({}); setAppMenuOpen(null); }}><BoxIcon size={14} color="#a78bfa"/>Sculpt in 3D<span className="ml-auto text-[9px] text-[#34d399]">GPU</span></button>
               <button className={menuBarItem} onClick={() => { setLocalStudioOpen(true); setAppMenuOpen(null); }}><Wand2 size={14} color="#f59e0b"/>Local Creative Studio<span className="ml-auto text-[9px] text-[#34d399]">Local GPU</span></button>
               <div className="px-3 py-2 text-[9px] leading-relaxed text-white/35">Images · audio · video · PDF · 3D · fonts · archives · other files</div>
             </>}

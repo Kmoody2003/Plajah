@@ -285,7 +285,8 @@ export default defineConfig(({ mode }) => {
         // Verovio ships an embedded-WASM ESM module; let Vite serve it as-is instead of
         // pre-bundling. onnxruntime-web (on-device Demucs) ships wasm/worker assets that must
         // not be pre-bundled either.
-        exclude: ['verovio', 'onnxruntime-web'],
+        // @ffmpeg/ffmpeg finds its worker relative to its own file, which pre-bundling breaks.
+        exclude: ['verovio', 'onnxruntime-web', '@ffmpeg/ffmpeg', '@ffmpeg/util'],
       },
     };
 });

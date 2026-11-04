@@ -89,7 +89,8 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
   const [step, setStep] = useState<WizardStep>('TYPE');
   // Quick Stream skips the wizard entirely — one tap into the phone streamer
   // (auto-post + notifications + achievements + save/delete live there).
-  const [quickLaunch, setQuickLaunch] = useState(false);
+  // Opening Go Live lands straight on the camera. TV Studio and the pro modes are one tap away in its settings.
+  const [quickLaunch, setQuickLaunch] = useState(true);
   const [streamType, setStreamType] = useState<StreamType>('QUICK');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -427,6 +428,7 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
   // z-[900] backdrop, so "Continue" looked like it did nothing.)
   if (quickLaunch) {
     return <MobileLiveStreamer mode="streamer" onClose={onClose}
+      onOpenStudio={() => { setStreamType('STUDIO'); setStep('TYPE'); setQuickLaunch(false); }}
       liveOverlay={streamType === 'SPORTS' ? (id => <SportsProducerPanel feedId={id} />) : undefined} />;
   }
 

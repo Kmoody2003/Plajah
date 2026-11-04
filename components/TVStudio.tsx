@@ -39,7 +39,7 @@ import { auth } from '../services/backendService';
 import { saveStudioEpisode } from '../services/podcastStudio/studioService';
 import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { User as FirebaseUser } from 'firebase/auth';
-import TVStudioLightingBoard from './TVStudioLightingBoard';
+import LightingDesigner from './LightingDesigner';
 import { getAppOutputStream } from '../services/mediaEngine/bridge';
 import TVStudioImportModal, { ImportedAsset, HotFolder } from './TVStudioImportModal';
 import { useSavedFolders } from './ui/SavedFolders';
@@ -1294,7 +1294,7 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
           )}
 
           {/* ════ LIGHTING BOARD TAB ═══════════════════════════════════════ */}
-          {studioTab === 'LIGHTING' && <TVStudioLightingBoard/>}
+          {studioTab === 'LIGHTING' && <div className="flex-1 min-h-0"><LightingDesigner /></div>}
 
           {/* ════ SETTINGS TAB ════════════════════════════════════════════ */}
           {studioTab === 'SETTINGS' && (

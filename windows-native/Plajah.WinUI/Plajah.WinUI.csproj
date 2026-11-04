@@ -90,9 +90,58 @@
 
   <!-- SRT in/out runs through an ffmpeg child built with libsrt (see FfmpegLocator.cs). Optional:
        drop an SRT-capable ffmpeg.exe into third_party\ffmpeg\win-x64 and it ships in <app>\ffmpeg\. -->
+  <ItemGroup>
+    <Content Include="..\..\engines\argilla-npu\argilla_npu.py">
+      <Link>engines\argilla-npu\argilla_npu.py</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\engines\argilla-npu\object_phrases.json">
+      <Link>engines\argilla-npu\object_phrases.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\engines\argilla-npu\part_phrases.json">
+      <Link>engines\argilla-npu\part_phrases.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\engines\argilla-npu\material_phrases.json">
+      <Link>engines\argilla-npu\material_phrases.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\engines\argilla-npu\kind_part_phrases.json">
+      <Link>engines\argilla-npu\kind_part_phrases.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\engines\argilla-npu\kind_phrases.json">
+      <Link>engines\argilla-npu\kind_phrases.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\engines\argilla-npu\codex_phrases.json">
+      <Link>engines\argilla-npu\codex_phrases.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\third_party\uv\win-x64\uv.exe" Condition="Exists('..\third_party\uv\win-x64\uv.exe')">
+      <Link>uv.exe</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
   <ItemGroup Condition="Exists('..\third_party\ffmpeg\win-x64\ffmpeg.exe')">
     <Content Include="..\third_party\ffmpeg\win-x64\ffmpeg.exe">
       <Link>ffmpeg\ffmpeg.exe</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\third_party\ffmpeg\win-x64\ffprobe.exe" Condition="Exists('..\third_party\ffmpeg\win-x64\ffprobe.exe')">
+      <Link>ffmpeg\ffprobe.exe</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\third_party\ffmpeg\win-x64\FFMPEG-LICENSE.txt" Condition="Exists('..\third_party\ffmpeg\win-x64\FFMPEG-LICENSE.txt')">
+      <Link>ffmpeg\FFMPEG-LICENSE.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\third_party\FFMPEG-NOTICE.txt">
+      <Link>ffmpeg\FFMPEG-NOTICE.txt</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

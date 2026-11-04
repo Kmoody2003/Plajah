@@ -9,7 +9,9 @@ import {
 import { Album, Video, StoreProduct, Photo } from '../types';
 import { fetchUserAlbums, fetchUserVideos, fetchUserPhotos, updateAlbum, updateVideo, updatePhoto, addVideoToFastChannel, deleteMerchItem, auth } from '../services/backendService';
 import { fetchUnifiedSellerProducts, deleteProduct } from '../services/storeService';
-import { crossover, type MediaKind, type Recipe, type ConvertResult } from '../services/crossover';
+import type { MediaKind } from '../services/crossover';
+import QuickConvert from './crossover/QuickConvert';
+import { addHqAsset } from '../services/orgAssets';
 import { listMediaTrash, moveMediaToTrash, purgeMedia, restoreMedia, type MediaTrashItem } from '../services/mediaTrash';
 
 // ── Unified asset model — one normalized record across every Plajah service ──────
@@ -528,25 +530,6 @@ const AssetRow: React.FC<{ asset: Asset; selected: boolean; open?: boolean; onTo
 );
 
 // ── Crossover-powered conversion, right in the asset detail ──────────────────
-const CROSSOVER_TARGETS: Record<MediaKind, { id: string; label: string; recipe: Recipe }[]> = {
-  audio: [
-    { id: 'wav16', label: 'WAV - 16-bit PCM (browser)', recipe: { containerId: 'wav', audioCodecId: 'pcm_s16le', hwAccel: 'auto', qualityMode: 'lossless', fixTimestamps: true } },
-    { id: 'mp3', label: 'MP3 - 320k (cloud)', recipe: { containerId: 'mp3', audioCodecId: 'mp3', hwAccel: 'auto', qualityMode: 'bitrate', audioBitrate: '320k', fixTimestamps: true } },
-    { id: 'flac', label: 'FLAC - lossless (cloud)', recipe: { containerId: 'flac', audioCodecId: 'flac', hwAccel: 'auto', qualityMode: 'lossless', fixTimestamps: true } },
-  ],
-  video: [
-    { id: 'mp4', label: 'MP4 / H.264 (cloud)', recipe: { containerId: 'mp4', videoCodecId: 'h264', audioCodecId: 'aac', hwAccel: 'auto', qualityMode: 'crf', crf: 20, audioBitrate: '256k', fixTimestamps: true } },
-    { id: 'prores', label: 'MOV / ProRes 422 (cloud)', recipe: { containerId: 'mov', videoCodecId: 'prores', audioCodecId: 'pcm_s16le', hwAccel: 'none', qualityMode: 'lossless', fixTimestamps: true } },
-    { id: 'mpeg2', label: 'MPEG-2 .mpg (cloud)', recipe: { containerId: 'mpeg', videoCodecId: 'mpeg2', audioCodecId: 'mp3', hwAccel: 'none', qualityMode: 'bitrate', videoBitrate: '8M', audioBitrate: '256k', fixTimestamps: true } },
-    { id: 'webm', label: 'WebM / VP9 (cloud)', recipe: { containerId: 'webm', videoCodecId: 'vp9', audioCodecId: 'opus', hwAccel: 'none', qualityMode: 'crf', crf: 31, audioBitrate: '160k', fixTimestamps: true } },
-  ],
-  image: [
-    { id: 'png', label: 'PNG (browser)', recipe: { containerId: 'png', imageFormatId: 'png', hwAccel: 'auto', qualityMode: 'crf' } },
-    { id: 'jpg', label: 'JPEG (browser)', recipe: { containerId: 'jpg', imageFormatId: 'jpg', hwAccel: 'auto', qualityMode: 'crf' } },
-    { id: 'webp', label: 'WebP (browser)', recipe: { containerId: 'webp', imageFormatId: 'webp', hwAccel: 'auto', qualityMode: 'crf' } },
-  ],
-};
-
 const CrossoverConvertPanel: React.FC<{ asset: Asset }> = ({ asset }) => {
   const url = asset.album?.tracks?.[0]?.url || asset.video?.url;
   const kind: MediaKind = asset.service === 'CHORA'
@@ -554,51 +537,18 @@ const CrossoverConvertPanel: React.FC<{ asset: Asset }> = ({ asset }) => {
     : (asset.service === 'TALEO' || asset.service === 'REELLO')
       ? 'video'
       : (url && /\.(png|jpe?g|webp|gif|tiff?|bmp)(\?|$)/i.test(url) ? 'image' : 'video');
-  const targets = CROSSOVER_TARGETS[kind];
-  const [targetId, setTargetId] = useState(targets[0].id);
-  const [busy, setBusy] = useState(false);
-  const [pct, setPct] = useState(0);
-  const [result, setResult] = useState<ConvertResult | null>(null);
-  const [err, setErr] = useState<string | null>(null);
   if (!url) return null;
-
-  const run = async () => {
-    const t = targets.find((x) => x.id === targetId);
-    if (!t) return;
-    setBusy(true); setErr(null); setResult(null); setPct(0);
-    try {
-      const blob = await (await fetch(url)).blob();
-      const safe = (asset.title || 'asset').replace(/[^\w.\-]+/g, '_');
-      const srcExt = (url.split('?')[0].split('.').pop() || 'bin');
-      const file = new File([blob], `${safe}.${srcExt}`, { type: blob.type || 'application/octet-stream' });
-      const r = await crossover.convert(
-        { id: asset.id, name: file.name, kind, sizeBytes: blob.size, file },
-        t.recipe, (p) => setPct(p.progress),
-      );
-      setResult(r);
-    } catch (e: any) {
-      setErr(e?.message || String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
+  const name = `${(asset.title || 'asset').replace(/[^\w.\-]+/g, '_')}.${url.split('?')[0].split('.').pop() || 'bin'}`;
+  const uid = auth.currentUser?.uid;
   return (
-    <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/8 space-y-3">
-      <div className="flex items-center gap-2"><Repeat size={14} className="text-[#34e0d0]" /><p className="text-[10px] font-black uppercase tracking-widest text-white/70">Convert with Crossover</p></div>
-      <div className="flex gap-2">
-        <select value={targetId} onChange={(e) => setTargetId(e.target.value)} className="flex-1 px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-xs text-white outline-none [&>option]:bg-neutral-900">
-          {targets.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-        </select>
-        <button onClick={run} disabled={busy} className="px-4 py-2 rounded-xl bg-[#FF8C00] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 flex items-center gap-1.5">
-          {busy ? <Loader2 size={13} className="animate-spin" /> : 'Convert'}
-        </button>
-      </div>
-      {busy && <div className="h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#34e0d0] transition-all" style={{ width: `${pct * 100}%` }} /></div>}
-      {result && <a href={result.outputUrl} download={result.outputName} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#3ddc84]"><Download size={12} /> Download {result.outputName}</a>}
-      {err && <p className="text-[9px] text-[#ff6b6b] leading-relaxed">{err} — video/pro formats need the Crossover cloud (deploy pending).</p>}
-      <p className="text-[8px] text-white/25 leading-relaxed">Audio &amp; images convert instantly in your browser; video routes to the Crossover cloud.</p>
-    </div>
+    <QuickConvert name={name} kind={kind}
+      getFile={async () => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Could not load this file to convert.');
+        const blob = await res.blob();
+        return new File([blob], name, { type: blob.type || 'application/octet-stream' });
+      }}
+      onSaveToHq={uid ? async (file, onProgress) => { await addHqAsset({ kind: 'user', id: uid }, file, 'Conversions', onProgress); } : undefined} />
   );
 };
 

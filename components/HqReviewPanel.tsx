@@ -1,36 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Check, Clock, Copy, Download, History, Link2, Loader2, MessageSquare, RefreshCw, Repeat, Send, ShieldAlert, ShieldCheck, Trash2, Upload, X } from 'lucide-react';
 import type { HqActivityEvent, HqAssetVersion, HqComment, HqReviewRequest } from '../types';
-import { getHqAssetText, requestHqScan, type OrgAsset } from '../services/orgAssets';
+import { addHqAsset, getHqAssetText, requestHqScan, type OrgAsset, type OwnerScope } from '../services/orgAssets';
 import {
   addHqComment, addHqVersion, createHqShareLink, decideHqReview, fetchHqReviewers, fetchHqThread, requestHqReview, type HqReviewerOption, resolveHqComment, revokeHqShareLink, setHqAssetStatus, trashHqAsset, updateHqRights,
 } from '../services/hqCollaboration';
-import { crossover } from '../services/crossover';
-import type { MediaKind, Recipe } from '../services/crossover';
+import type { MediaKind } from '../services/crossover';
+import QuickConvert from './crossover/QuickConvert';
 import { auth } from '../services/firebase';
 import { HqAccessForm } from './HqAccessForm';
 
 const MAX_INLINE_PREVIEW_BYTES = 300 * 1024 * 1024;
 
 type Tab = 'COMMENTS' | 'VERSIONS' | 'APPROVAL' | 'RIGHTS' | 'ACCESS' | 'ACTIVITY';
-
-// Crossover conversion presets, ported from the old ContentHQ AssetDetail. The source
-// now comes from the AUTHENTICATED download endpoint (protected storage), not a public URL.
-const CX_TARGETS: Partial<Record<MediaKind, { id: string; label: string; recipe: Recipe }[]>> = {
-  image: [
-    { id: 'webp', label: 'WebP (browser)', recipe: { containerId: 'webp', imageFormatId: 'webp', hwAccel: 'auto', qualityMode: 'crf' } },
-    { id: 'png', label: 'PNG (browser)', recipe: { containerId: 'png', imageFormatId: 'png', hwAccel: 'auto', qualityMode: 'crf' } },
-    { id: 'jpg', label: 'JPEG (browser)', recipe: { containerId: 'jpg', imageFormatId: 'jpg', hwAccel: 'auto', qualityMode: 'crf' } },
-  ],
-  audio: [
-    { id: 'wav', label: 'WAV 16-bit (browser)', recipe: { containerId: 'wav', audioCodecId: 'pcm_s16le', hwAccel: 'auto', qualityMode: 'lossless', fixTimestamps: true } },
-    { id: 'mp3', label: 'MP3 320k (cloud)', recipe: { containerId: 'mp3', audioCodecId: 'mp3', hwAccel: 'auto', qualityMode: 'bitrate', audioBitrate: '320k', fixTimestamps: true } },
-  ],
-  video: [
-    { id: 'mp4', label: 'MP4 / H.264 (cloud)', recipe: { containerId: 'mp4', videoCodecId: 'h264', audioCodecId: 'aac', hwAccel: 'auto', qualityMode: 'crf', crf: 20, audioBitrate: '256k', fixTimestamps: true } },
-    { id: 'prores', label: 'MOV / ProRes (cloud)', recipe: { containerId: 'mov', videoCodecId: 'prores', audioCodecId: 'pcm_s16le', hwAccel: 'none', qualityMode: 'lossless', fixTimestamps: true } },
-  ],
-};
 
 const HqReviewPanel: React.FC<{
   asset: OrgAsset;
@@ -207,13 +189,7 @@ const HqReviewPanel: React.FC<{
 
   // ── Convert (Crossover) ─────────────────────────────────────────────────────
   const convKind: MediaKind | null = asset.kind === 'image' ? 'image' : asset.kind === 'audio' ? 'audio' : asset.kind === 'video' ? 'video' : null;
-  const convTargets = convKind ? CX_TARGETS[convKind] || [] : [];
   const [showConvert, setShowConvert] = useState(false);
-  const [convTargetId, setConvTargetId] = useState(convTargets[0]?.id || '');
-  const [converting, setConverting] = useState(false);
-  const [convPct, setConvPct] = useState(0);
-  const [convOut, setConvOut] = useState<{ url: string; name: string } | null>(null);
-  const [convErr, setConvErr] = useState('');
 
   /** Load the current version as a File via the authenticated protected-storage endpoint. */
   async function fetchAssetFile(): Promise<File> {
@@ -222,20 +198,6 @@ const HqReviewPanel: React.FC<{
     if (!res.ok) throw new Error('Could not load this asset to convert.');
     const blob = await res.blob();
     return new File([blob], asset.name, { type: blob.type || asset.mimeType });
-  }
-
-  async function runConvert() {
-    const t = convTargets.find(x => x.id === convTargetId);
-    if (!t || !convKind) return;
-    setConverting(true); setConvErr(''); setConvOut(null); setConvPct(0);
-    try {
-      const file = await fetchAssetFile();
-      const r = await crossover.convert({ id: asset.id, name: asset.name, kind: convKind, sizeBytes: file.size, file },
-        t.recipe, p => setConvPct(p.progress));
-      setConvOut({ url: r.outputUrl, name: r.outputName });
-    } catch (e: any) {
-      setConvErr(e?.message === 'LIMIT_REACHED' ? 'Free conversion limit reached — upgrade to Plajah+.' : (e?.message || String(e)));
-    } finally { setConverting(false); }
   }
 
   const tabs: [Tab, string, React.ComponentType<any>][] = orgCopy ? [] : [
@@ -313,19 +275,12 @@ const HqReviewPanel: React.FC<{
         </div>
 
         {convKind && showConvert && !scanBlocked && (
-          <div className="mb-5 p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
-            <div className="flex items-center gap-2"><Repeat size={14} className="text-[#34e0d0]"/><p className="text-[10px] font-black uppercase tracking-widest text-white/70">Convert with Crossover</p></div>
-            <div className="flex gap-2">
-              <select value={convTargetId} onChange={e => setConvTargetId(e.target.value)} className="flex-1 px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-xs text-white outline-none [&>option]:bg-neutral-900">
-                {convTargets.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-              </select>
-              <button onClick={runConvert} disabled={converting} className="px-4 py-2 rounded-xl bg-[#FF8C00] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 flex items-center gap-1.5">
-                {converting ? <Loader2 size={13} className="animate-spin"/> : 'Convert'}
-              </button>
-            </div>
-            {converting && <div className="h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#34e0d0]" style={{ width: `${convPct * 100}%` }}/></div>}
-            {convOut && <a href={convOut.url} download={convOut.name} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#3ddc84]"><Download size={13}/> {convOut.name}</a>}
-            {convErr && <p className="text-[10px] text-red-300 leading-relaxed">{convErr}</p>}
+          <div className="mb-5">
+            <QuickConvert name={asset.name} kind={convKind} getFile={fetchAssetFile}
+              onSaveToHq={canEdit ? async (file, onProgress) => {
+                await addHqAsset({ kind: asset.scopeKind, id: asset.scopeId } as OwnerScope, file, asset.folder, onProgress);
+                onChanged();
+              } : undefined} />
           </div>
         )}
 

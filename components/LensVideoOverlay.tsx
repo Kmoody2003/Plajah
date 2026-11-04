@@ -127,7 +127,7 @@ export const LensPicker: React.FC<{
 );
 
 /** Colorize: which b&w stock the film was shot on, so the greys are read back through the right sensitivity. */
-const FilmStockToggle: React.FC = () => {
+export const FilmStockToggle: React.FC = () => {
   const [stock, setStock] = useState<FilmStock>(getFilmStock);
   const pick = (s: FilmStock) => { setFilmStock(s); setStock(s); };
   const opts: { id: FilmStock; label: string; hint: string }[] = [

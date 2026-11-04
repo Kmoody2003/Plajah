@@ -121,6 +121,20 @@ export async function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
+/** Every region SAM finds in a picture, as run lengths over a small grid. */
+export async function findRegions(image: Blob) {
+  const status = await ensureTela3d();
+  if (!status.online) throw new Error(status.detail);
+  const res = await fetch(`${TELA3D_URL}/tela3d/parts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: await blobToDataUrl(image) }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.parts) throw new Error(data?.error || `Tela 3D answered ${res.status}`);
+  return data as { width: number; height: number; parts: { runs: number[]; score: number; stability: number }[]; seconds: number };
+}
+
 /** One image (ideally the object on a transparent or plain background) → a GLB. */
 export async function imageToModel(image: Blob | string, backend: Tela3dBackend = 'auto', options: Tela3dOptions = {}): Promise<Tela3dResult> {
   const status = await ensureTela3d();

@@ -251,6 +251,7 @@ export default function TelaHome({
   onChooseTemplate,
   onImport,
   onOpenMerch,
+  onOpenArgilla,
   onBack,
   viewerUid = null,
   memberOrgIds = [],
@@ -270,6 +271,7 @@ export default function TelaHome({
   onImport: () => void;
   /** Opens the Merch Designer (product design + 3D product photography). */
   onOpenMerch?: () => void;
+  onOpenArgilla?: () => void;
   onBack?: () => void;
 }) {
   const [promptText, setPromptText] = useState('');
@@ -730,6 +732,16 @@ export default function TelaHome({
         </div>
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          {onOpenArgilla && (
+            <button
+              onClick={onOpenArgilla}
+              className="h-9 px-3.5 flex items-center gap-2 rounded-[10px] text-[.72rem] font-bold text-white/85 bg-white/[.05] border border-white/20 hover:bg-white/10 hover:text-white transition-all font-sans"
+              title="Describe a form, then sculpt it like clay"
+            >
+              <span className="hidden sm:inline">Sculpt in 3D</span>
+              <span className="sm:hidden">3D</span>
+            </button>
+          )}
           {onOpenMerch && (
             <button
               onClick={onOpenMerch}

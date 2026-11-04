@@ -189,7 +189,43 @@ function boostAudioSender(pc: RTCPeerConnection, bitrate: number): void {
 
 /** Push the capture track to its best: detail content hint + the device's continuous
  *  auto focus/exposure/white-balance, and nudge resolution toward the hardware max. */
-async function tuneVideoTrack(track?: MediaStreamTrack | null): Promise<void> {
+/** First capture. One bad piece must not cost the whole session: a busy or blocked mic still gets you a
+ *  camera (and the reverse), and a device that rejects the HD targets still opens at its own defaults. */
+async function captureWithFallback(audio: boolean | MediaTrackConstraints, video: boolean | MediaTrackConstraints): Promise<MediaStream> {
+  const gum = (c: MediaStreamConstraints) => navigator.mediaDevices.getUserMedia(c);
+  try { return await gum({ audio, video }); }
+  catch (first: any) {
+    console.warn('[rtc] capture failed, retrying with less:', first?.name, first?.message);
+    const plainVideo = video && typeof video === 'object' && (video as MediaTrackConstraints).facingMode
+      ? { facingMode: (video as MediaTrackConstraints).facingMode }
+      : !!video;
+    const attempts: MediaStreamConstraints[] = [];
+    if (first?.name === 'OverconstrainedError' || first?.name === 'NotReadableError') attempts.push({ audio: !!audio, video: plainVideo });
+    if (video && audio) attempts.push({ audio: false, video: plainVideo }, { audio, video: false });
+    for (const c of attempts) {
+      try { return await gum(c); } catch { /* next */ }
+    }
+    throw first;
+  }
+}
+
+/** Open a camera for a hot swap. Phones refuse a second open camera, so if the driver says busy, release
+ *  the current one and try again, with short waits while the OS frees the sensor. */
+async function openFreeingCurrent(video: MediaTrackConstraints, current: MediaStreamTrack | undefined): Promise<MediaStream> {
+  const gum = () => navigator.mediaDevices.getUserMedia({ audio: false, video });
+  try { return await gum(); }
+  catch (e: any) {
+    if (e?.name !== 'NotReadableError' && e?.name !== 'AbortError') throw e;
+    current?.stop();
+    for (const wait of [120, 300, 600]) {
+      await new Promise(r => setTimeout(r, wait));
+      try { return await gum(); } catch { /* still releasing */ }
+    }
+    return gum();
+  }
+}
+
+export async function tuneVideoTrack(track?: MediaStreamTrack | null): Promise<void> {
   if (!track || track.kind !== 'video') return;
   try { track.contentHint = 'detail'; } catch { /* */ }
   try {
@@ -335,12 +371,12 @@ export class RtcSession {
     if (publishes && (this.cfg.localStream || this.cfg.media?.audio || this.cfg.media?.video)) {
       try {
         // Prefer a provided stream (e.g. a podcast mixed master) over capturing the mic/camera.
-        this.local = this.cfg.localStream ?? await navigator.mediaDevices.getUserMedia({
+        this.local = this.cfg.localStream ?? await captureWithFallback(
           // Verbatim: callers choose their audio profile. Streamers pass HQ_AUDIO (full fidelity);
           // 2-way calls pass true (keeps echo cancellation, or they'd feed back).
-          audio: this.cfg.media?.audio ?? true,
-          video: hqVideo(this.cfg.media?.video),
-        });
+          this.cfg.media?.audio ?? true,
+          hqVideo(this.cfg.media?.video),
+        );
         if (this.closed) { if (!this.cfg.localStream) this.local?.getTracks().forEach(track => track.stop()); this.local = null; return; }
         if (!this.cfg.localStream) await tuneVideoTrack(this.local.getVideoTracks()[0]);
         if (this.closed) { if (!this.cfg.localStream) this.local?.getTracks().forEach(track => track.stop()); this.local = null; return; }
@@ -607,11 +643,12 @@ export class RtcSession {
    *  (a non-exact facingMode is only a hint and often returns the same camera —
    *  which looked like "the flip just mirrors"). Falls back to non-exact. */
   async switchCamera(facing: 'user' | 'environment') {
+    const current = this.local?.getVideoTracks()[0];
     let next: MediaStream;
     try {
-      next = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ facingMode: { exact: facing } }) });
+      next = await openFreeingCurrent(hqVideo({ facingMode: { exact: facing } }) as MediaTrackConstraints, current);
     } catch {
-      next = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ facingMode: facing }) });
+      next = await openFreeingCurrent(hqVideo({ facingMode: facing }) as MediaTrackConstraints, current);
     }
     await this.swapVideoTrack(next.getVideoTracks()[0]);
   }
@@ -644,11 +681,12 @@ export class RtcSession {
       const next = cams[(idx + 1) % cams.length];
       // exact deviceId is the reliable per-lens selector; if a device rejects it
       // (some WebViews), fall back to a non-exact hint so the flip still switches.
+      const current = this.local?.getVideoTracks()[0];
       let s: MediaStream;
       try {
-        s = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ deviceId: { exact: next.deviceId } }) });
+        s = await openFreeingCurrent(hqVideo({ deviceId: { exact: next.deviceId } }) as MediaTrackConstraints, current);
       } catch {
-        s = await navigator.mediaDevices.getUserMedia({ audio: false, video: hqVideo({ deviceId: next.deviceId }) });
+        s = await openFreeingCurrent(hqVideo({ deviceId: next.deviceId }) as MediaTrackConstraints, current);
       }
       await this.swapVideoTrack(s.getVideoTracks()[0]);
     }
@@ -744,7 +782,10 @@ export class RtcSession {
 
   /** Switch the CAMERA to a specific device mid-call — hot track swap, no peer drop. */
   async switchVideoDevice(deviceId: string) {
-    const next = await this.cameraStreamForDevice(deviceId);
+    const current = this.local?.getVideoTracks()[0];
+    let next: MediaStream;
+    try { next = await openFreeingCurrent(hqVideo({ deviceId: { exact: deviceId } }) as MediaTrackConstraints, current); }
+    catch { next = await openFreeingCurrent(hqVideo({ deviceId }) as MediaTrackConstraints, current); }
     await this.swapVideoTrack(next.getVideoTracks()[0]);
   }
 
