@@ -679,7 +679,7 @@ import { isFeedLive } from './services/liveFeedLiveness';
 import MediaRepairApprovals from './components/MediaRepairApprovals';
 import AchievementListView from './components/AchievementListView';
 import UploadManager from './components/UploadManager';
-import ReelloUploadDock from './components/reello/upload/ReelloUploadDock';
+import ReelloUploadDock, { openReelloUploader } from './components/reello/upload/ReelloUploadDock';
 import LessonLibraryOverlay from './components/library/LessonLibraryOverlay';
 import { PublishQueueProvider } from './contexts/PublishQueueContext';
 import PublishTray from './components/PublishTray';
@@ -2769,6 +2769,24 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     setView(target);
   }), [setView]);
 
+  // Reello department channel pages (components/reello/ReelloDeptChannelPage) open videos and streams
+  // from anywhere: 'plajah:open-video' { videoId } and 'plajah:open-live-feed' { feed }.
+  const selectItemRef = useRef(handleSelectItem);
+  selectItemRef.current = handleSelectItem;
+  useEffect(() => {
+    const onVideo = async (e: Event) => {
+      const id = (e as CustomEvent<{ videoId?: string }>).detail?.videoId;
+      if (!id) return;
+      const m = await import('./services/backendService');
+      const v = await m.fetchVideoById(id).catch(() => null);
+      if (v) selectItemRef.current(v);
+    };
+    const onLive = (e: Event) => { const f = (e as CustomEvent<{ feed?: LiveFeed }>).detail?.feed; if (f) setActiveLiveFeed(f); };
+    window.addEventListener('plajah:open-video', onVideo);
+    window.addEventListener('plajah:open-live-feed', onLive);
+    return () => { window.removeEventListener('plajah:open-video', onVideo); window.removeEventListener('plajah:open-live-feed', onLive); };
+  }, []);
+
   // A local video the user wants to share: sharing means uploading it to Reello, so open the upload flow
   // with the file filled in (VideoManager shows the rights declaration before anything uploads).
   const handleUploadLocalToReello = async (f: WindowsPickedFile) => {
@@ -2778,8 +2796,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       const file = new File([blob], f.name, { type: blob.type || 'video/mp4', lastModified: f.lastModified || Date.now() });
       setActiveUniversalVideo(null);
       setIsMediaPlajahMode(false);
-      setReelloUploadSeed(file);
-      setView('VIDEO_MANAGER');
+      // The Upload Studio asks for the rights declaration itself before anything uploads.
+      openReelloUploader({ files: [file] });
     } catch (e) {
       console.error('[Reello upload] could not read the local file', e);
       alert('Could not read that file. Try uploading it from Reello directly.');

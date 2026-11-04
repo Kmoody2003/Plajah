@@ -11,7 +11,8 @@
 // Two uploads run at a time; the rest wait their turn. Story Intelligence is requested per video
 // once it's published (the server waits for the transcode on its own).
 
-import { uploadVideo, updateVideoSettings, uploadImageWithDerivatives, notifyFollowers, auth } from '../backendService';
+import { uploadVideo, updateVideoSettings, uploadImageWithDerivatives, notifyFollowers, addVideoToPlaylist, auth } from '../backendService';
+import { attachToDepartment, type DeptTarget } from './orgChannels';
 import { requestIntel } from './reelloApi';
 import type { IntelOptions } from './intel/types';
 import type { UploadVisibility } from './uploadPrefs';
@@ -28,6 +29,10 @@ export interface UploadDetails {
   thumbnail?: Blob | null;
   storyIntel: boolean;
   intel: IntelOptions;
+  /** Post it for an organization's department (its own Reello channel under the org). */
+  department?: DeptTarget | null;
+  /** Add it to these of the creator's playlists once it's up. */
+  playlistIds?: string[];
 }
 
 export interface QueueItem {
@@ -151,6 +156,15 @@ async function finalize(it: QueueItem, o: { alreadyApplied?: boolean } = {}) {
       const u = auth.currentUser;
       if (!isPrivate && u) void Promise.resolve(notifyFollowers(u.uid, 'CONTENT', 'New Video', `${u.displayName || 'A creator'} posted a new video: ${it.details.title}`, 'FEED', it.videoId, { highlight: true })).catch(() => {});
     }
+    // Department and playlists: a failure here never undoes the publish — it's reported on the row.
+    const extras: string[] = [];
+    if (it.details.department) {
+      await attachToDepartment('video', it.videoId, it.details.department).catch(e => extras.push(`Department: ${e?.message || e}`));
+    }
+    for (const pid of it.details.playlistIds || []) {
+      await addVideoToPlaylist(pid, it.videoId).catch(() => extras.push('Could not add it to a playlist'));
+    }
+    if (extras.length) patch(it.id, { error: extras.join(' · ') });
     if (it.details.storyIntel && !it.intelRequested) {
       await requestIntel(it.videoId, it.details.intel).then(() => patch(it.id, { intelRequested: true })).catch(e => patch(it.id, { error: `Story Intelligence: ${e?.message || e}` }));
     }

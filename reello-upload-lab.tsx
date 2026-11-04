@@ -1,14 +1,27 @@
 // Lab for the Reello Upload Studio: npx vite --config reello-upload-lab.vite.config.mjs → http://127.0.0.1:3192/reello-upload-lab.html
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '/index.css';
 import ReelloUploadStudio from './components/reello/upload/ReelloUploadStudio';
+import ReelloDeptChannelPage from './components/reello/ReelloDeptChannelPage';
+import { OPEN_DEPT_CHANNEL_EVENT } from './services/reello/orgChannels';
+import ReelloDeptChannelsRow from './components/reello/ReelloDeptChannelsRow';
 
 const Lab: React.FC = () => {
   const [open, setOpen] = useState(true);
+  const [tick, setTick] = useState(0);
+  const [dept, setDept] = useState<{ orgId: string; departmentId: string } | null>(null);
+  useEffect(() => { const on = (e: Event) => setDept((e as CustomEvent).detail); window.addEventListener(OPEN_DEPT_CHANNEL_EVENT, on); return () => window.removeEventListener(OPEN_DEPT_CHANNEL_EVENT, on); }, []);
   return open
-    ? <ReelloUploadStudio onClose={() => setOpen(false)} />
-    : <button onClick={() => setOpen(true)} style={{ margin: 40, padding: '10px 20px', borderRadius: 999, background: '#00B4D8', color: '#000', fontWeight: 700 }}>Open uploader</button>;
+    ? <ReelloUploadStudio onClose={() => { setOpen(false); setTick(t => t + 1); }} />
+    : (
+      <div style={{ padding: 40 }}>
+        <button onClick={() => setOpen(true)} style={{ padding: '10px 20px', borderRadius: 999, background: '#00B4D8', color: '#000', fontWeight: 700 }}>Open uploader</button>
+        <p style={{ marginTop: 24, opacity: 0.6, fontSize: 13 }}>Grace Chapel's Reello channel — departments appear once they post:</p>
+        <ReelloDeptChannelsRow key={tick} orgId="org_lab" />
+        {dept && <ReelloDeptChannelPage orgId={dept.orgId} departmentId={dept.departmentId} onClose={() => setDept(null)} />}
+      </div>
+    );
 };
 
 createRoot(document.getElementById('root')!).render(<Lab />);

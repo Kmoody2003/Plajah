@@ -11,6 +11,8 @@ import {
 } from '../services/backendService';
 import { buildShareUrl, shareAsset } from '../services/deepLinkService';
 import MediaThumb from './ui/MediaThumb';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../services/firebase';
 
 const thumbFor = (v?: Partial<Video> | null): string => {
   if (!v) return '';
@@ -250,6 +252,38 @@ export const VideoPlaylistSection: React.FC<{ onOpenPlaylist: (id: string) => vo
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A channel's playlists (YouTube's channel "Playlists" tab). Visitors see the
+// creator's public playlists; the creator sees all of theirs.
+// ─────────────────────────────────────────────────────────────────────────────
+export const ChannelPlaylistsSection: React.FC<{ ownerUid: string; onOpenPlaylist: (id: string) => void }> = ({ ownerUid, onOpenPlaylist }) => {
+  const [lists, setLists] = useState<VideoPlaylist[] | null>(null);
+  const isOwner = auth.currentUser?.uid === ownerUid;
+  useEffect(() => {
+    let live = true;
+    setLists(null);
+    const load = isOwner
+      ? fetchUserVideoPlaylists(ownerUid)
+      // Only provably-public playlists may be listed for someone else (the rules refuse a wider query).
+      : getDocs(query(collection(db, 'video_playlists'), where('ownerId', '==', ownerUid), where('isPublic', '==', true)))
+          .then(s => s.docs.map(d => ({ id: d.id, ...d.data() } as VideoPlaylist)));
+    load.then(ls => {
+      if (!live) return;
+      setLists(ls.filter(p => p.system !== 'WATCH_LATER' && (isOwner || (!p.unlisted && !p.isPrivate && (p.videoIds?.length || 0) > 0)))
+        .sort((a, b) => (b.updatedAt || b.timestamp || 0) - (a.updatedAt || a.timestamp || 0)));
+    }).catch(() => live && setLists([]));
+    return () => { live = false; };
+  }, [ownerUid, isOwner]);
+
+  if (!lists) return <div className="py-16 flex justify-center"><Loader2 size={22} className="animate-spin text-white/30" /></div>;
+  if (!lists.length) return <p className="text-[11px] text-white/30 uppercase tracking-widest py-10">{isOwner ? 'No playlists yet — make one from any video’s Save button, or while uploading.' : 'No public playlists yet.'}</p>;
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-6 pt-2">
+      {lists.map(p => <PlaylistCard key={p.id} p={p} onOpen={() => onOpenPlaylist(p.id)} />)}
     </div>
   );
 };

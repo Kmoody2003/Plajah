@@ -13,8 +13,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   X, UploadCloud, FolderPlus, FolderSync, Folder, Film, Check, Loader2, AlertCircle, Trash2, Plus, Globe, Lock,
-  Image as ImageIcon, Sparkles, RefreshCw, Pause, Play, Settings2, Inbox, ChevronRight,
+  Image as ImageIcon, Sparkles, RefreshCw, Pause, Play, Settings2, Inbox, ChevronRight, ListVideo, Building2,
 } from 'lucide-react';
+import { fetchUserVideoPlaylists, createVideoPlaylist } from '../../../services/backendService';
+import { postableDepartments, type PostableOrg, type DeptTarget } from '../../../services/reello/orgChannels';
+import type { VideoPlaylist } from '../../../types';
 import { auth } from '../../../services/firebase';
 import {
   MAX_DIRECT_FILES, DEFAULT_PREFS, applyTemplate, isVideoFile, newTemplate,
@@ -56,6 +59,84 @@ const VisibilityPicker: React.FC<{ value: UploadVisibility; onChange: (v: Upload
     ))}
   </div>
 );
+
+// ── Where it goes: channel (yours or a department's) + playlists ───────────
+
+const deptKey = (t?: DeptTarget | null) => t ? `${t.orgId}::${t.departmentId}` : '';
+
+/** "Post to" — your own channel, or a department of an org you belong to. Hidden when you're in none. */
+const PostToPicker: React.FC<{ value?: DeptTarget | null; onChange: (t: DeptTarget | null) => void }> = ({ value, onChange }) => {
+  const [orgs, setOrgs] = useState<PostableOrg[]>([]);
+  useEffect(() => { postableDepartments().then(setOrgs); }, []);
+  if (!orgs.length) return null;
+  const pick = (k: string) => {
+    if (!k) return onChange(null);
+    const [orgId, departmentId] = k.split('::');
+    const o = orgs.find(x => x.orgId === orgId);
+    const d = o?.departments.find(x => x.id === departmentId);
+    onChange(o && d ? { orgId, departmentId, orgName: o.orgName, departmentName: d.name } : null);
+  };
+  return (
+    <div>
+      <p className="text-sm font-semibold text-white flex items-center gap-2"><Building2 size={15} className="text-white/60" />Post to</p>
+      <p className="text-xs text-white/50 mb-2">Post for a department and it shows on that department’s Reello channel, under the organization’s channel. A department’s channel appears once it has its first video or stream.</p>
+      <select value={deptKey(value)} onChange={e => pick(e.target.value)} className="w-full bg-[#181820] border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+        <option value="">My channel ({accountName()})</option>
+        {orgs.map(o => (
+          <optgroup key={o.orgId} label={o.orgName}>
+            {o.departments.map(d => <option key={d.id} value={`${o.orgId}::${d.id}`}>{d.iconEmoji ? `${d.iconEmoji} ` : ''}{o.orgName} · {d.name}</option>)}
+          </optgroup>
+        ))}
+      </select>
+    </div>
+  );
+};
+
+/** YouTube's "Playlists" field on the upload form: tick existing playlists or make one. */
+const PlaylistPicker: React.FC<{ value: string[]; onChange: (ids: string[]) => void }> = ({ value, onChange }) => {
+  const uid = auth.currentUser?.uid || '';
+  const [lists, setLists] = useState<VideoPlaylist[]>([]);
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { if (uid) fetchUserVideoPlaylists(uid).then(ls => setLists(ls.filter(p => p.system !== 'WATCH_LATER'))).catch(() => {}); }, [uid]);
+  const toggle = (id: string) => onChange(value.includes(id) ? value.filter(x => x !== id) : [...value, id]);
+  const create = async () => {
+    if (!name.trim()) return;
+    setBusy(true);
+    try {
+      const pl = await createVideoPlaylist({ title: name.trim(), isPublic: true, isPrivate: false, videoIds: [] });
+      if (pl) { setLists(l => [pl, ...l]); onChange([...value, pl.id]); }
+      setName('');
+    } finally { setBusy(false); }
+  };
+  const chosen = lists.filter(p => value.includes(p.id)).map(p => p.title);
+  return (
+    <div>
+      <p className="text-sm font-semibold text-white flex items-center gap-2"><ListVideo size={15} className="text-white/60" />Playlists</p>
+      <p className="text-xs text-white/50 mb-2">Add your video to one or more playlists to help viewers find more of your work.</p>
+      <button type="button" onClick={() => setOpen(o => !o)} className="w-full text-left bg-[#181820] border border-white/10 rounded-lg px-3 py-2 text-sm text-white flex items-center justify-between">
+        <span className="truncate">{chosen.length ? chosen.join(', ') : 'Select'}</span><ChevronRight size={14} className={`transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      {open && (
+        <div className="mt-2 rounded-xl border border-white/10 bg-[#111116] p-2 space-y-1 max-h-64 overflow-y-auto">
+          {!lists.length && <p className="text-xs text-white/40 px-2 py-1">No playlists yet.</p>}
+          {lists.map(p => (
+            <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 cursor-pointer text-sm text-white">
+              <input type="checkbox" className="accent-[#00B4D8]" checked={value.includes(p.id)} onChange={() => toggle(p.id)} />
+              <span className="truncate flex-1">{p.title}</span>
+              <span className="text-[10px] text-white/40">{p.unlisted ? 'Unlisted' : (p.isPrivate || p.isPublic === false) ? 'Private' : 'Public'}</span>
+            </label>
+          ))}
+          <div className="flex gap-2 pt-1">
+            <input value={name} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void create(); } }} placeholder="New playlist name" maxLength={140} className="flex-1 bg-[#181820] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white" />
+            <button type="button" disabled={!name.trim() || busy} onClick={create} className="px-3 py-1.5 rounded-lg bg-white/10 text-xs font-semibold disabled:opacity-40">{busy ? <Loader2 size={12} className="animate-spin" /> : 'Create'}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ── Upload tab: one direct item's details ───────────────────────────────────
 
@@ -132,6 +213,8 @@ const DetailsEditor: React.FC<{ item: QueueItem; templates: UploadTemplate[] }> 
             </select>
           </label>
         </div>
+        <PlaylistPicker value={d.playlistIds || []} onChange={ids => set({ playlistIds: ids })} />
+        <PostToPicker value={d.department} onChange={t => set({ department: t })} />
         <IntelOptionsEditor enabled={d.storyIntel} onEnabled={v => set({ storyIntel: v })} value={d.intel} onChange={v => set({ intel: v })} accountName={accountName()} videoTitle={d.title} />
         <div>
           <p className="text-sm font-semibold text-white mb-2">Visibility</p>
@@ -150,6 +233,7 @@ const QueueRow: React.FC<{ it: QueueItem; active?: boolean; onClick?: () => void
       <div className="flex items-center gap-2 text-[11px] text-white/50">
         <span className={it.status === 'ERROR' ? 'text-red-300' : it.status === 'DONE' ? 'text-emerald-300' : ''}>{STATUS_TEXT[it.status]}{it.status === 'UPLOADING' ? ` ${it.progress}%` : ''}</span>
         {it.status === 'DONE' && <span>· {it.details.visibility === 'PUBLIC' ? 'Public' : 'Private'}</span>}
+        {it.details.department?.departmentName && <span className="truncate">· {it.details.department.departmentName}</span>}
         {it.committed && it.status === 'UPLOADING' && it.source === 'direct' && <span>· publishes when done</span>}
         {it.folderName && <span className="truncate">· {it.folderName}</span>}
       </div>

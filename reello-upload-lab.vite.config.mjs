@@ -60,7 +60,10 @@ const reelloApi = () => ({
     const { createReelloIntelRouter } = await server.ssrLoadModule('/routes/reelloIntel.ts');
     const docs = new Map([
       ['users/lab-user', { displayName: 'Kenne Lab' }],
-      ['organizations/org_lab', { name: 'Grace Chapel', creatorId: 'someone', admins: ['lab-user'], accountUid: 'grace-acct' }],
+      ['organizations/org_lab', { name: 'Grace Chapel', creatorId: 'someone', admins: ['lab-user'], accountUid: 'grace-acct', logoUrl: '',
+        ministries: [{ id: 'youth', name: 'Youth Ministry', iconEmoji: '🔥', description: 'Wednesday nights and summer camp.' }, { id: 'media', name: 'Media Team', iconEmoji: '🎥' }, { id: 'finance', name: 'Finance', kind: 'DEPARTMENT' }] }],
+      // lab-user belongs to Youth and Media only, so Finance must not be offered.
+      ['orgMemberships/lab_m', { orgId: 'org_lab', userId: 'lab-user', status: 'ACTIVE', role: 'MEMBER', ministryIds: ['youth', 'media'] }],
     ]);
     let n = 0;
     const store = {
@@ -78,6 +81,9 @@ const reelloApi = () => ({
     api.post('/lab/videos', (req, res) => { docs.set(`videos/${req.body.id}`, req.body); res.json({ ok: true }); });
     api.patch('/lab/videos/:id', (req, res) => { docs.set(`videos/${req.params.id}`, { ...(docs.get(`videos/${req.params.id}`) || {}), ...req.body }); res.json({ ok: true }); });
     api.get('/lab/docs', (_req, res) => res.json(Object.fromEntries(docs)));
+    // Department channels: the REAL router on the same in-memory store.
+    const { createReelloOrgChannelsRouter } = await server.ssrLoadModule('/routes/reelloOrgChannels.ts');
+    api.use('/api/reello/org-channels', createReelloOrgChannelsRouter({ store, callerUid: async () => 'lab-user' }));
     api.use('/api/reello', createReelloIntelRouter({
       store,
       callerUid: async () => 'lab-user',
