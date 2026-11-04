@@ -103,6 +103,7 @@ import { readRegistry as readEditionRegistry, licenceActive, entitledEditions, e
 import { createLedgerRouter, appendLedger } from './routes/ledger';
 import { createChoraContribRouter } from './routes/choraContrib';
 import { createLabelRouter } from './routes/labels';
+import { createBackShowRouter } from './routes/backShow';
 import { createLegalAcceptanceRouter } from './routes/legalAcceptance';
 import { createCopyrightRouter } from './routes/copyright';
 import { createSponsorCopiesRouter, activateCopyPool } from './routes/sponsorCopies';
@@ -14443,6 +14444,12 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use('/api/ledger', createLedgerRouter({ authMiddleware, isAdmin: isPlatformAdminReq }));
   app.use('/api/chora/contrib', createChoraContribRouter({ authMiddleware }));
   app.use('/api/labels', express.json({ limit: '10mb' }), createLabelRouter({ cas: restCas }));
+  app.use('/api/back-show', express.json({ limit: '64kb' }), createBackShowRouter({
+    cas: restCas, getStripe: () => getStripe(), trustedRequestOrigin: (req: any) => trustedRequestOrigin(req),
+    cronKeyOk: (req: any) => secretsEqual(req.headers['x-cron-key'], process.env.CRON_SECRET) || secretsEqual(req.headers['x-cron-key'], process.env.ADMIN_SEED_KEY),
+    isAdmin: async (uid: string) => !!(await fetchFirebaseDoc('admins', uid)),
+    files: { put: gcsUpload, get: gcsDownload },
+  }));
   app.use('/api/legal', createLegalAcceptanceRouter({ authMiddleware }));
   app.use('/api/copyright', createCopyrightRouter({ authMiddleware, requireVerifiedAdmin }));
   // Sponsored + gift copies of books: fans/named people/org bulk codes; each claim mints a licence + ledger entry.

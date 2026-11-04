@@ -26,6 +26,7 @@ import {
 } from '../ArtistProjectManager';
 import { MusicReleasesTab } from '../music/MusicReleasesTab';
 import { LabelDesk } from '../chora/LabelDesk';
+import { BackShowDesk } from '../chora/BackThisShow';
 import {
   MelosProduction, MelosSong, MelosArrangement, InspirationPin, SampleCandidate,
   StudioSession, Collaborator, PadSkin, SongTake,
@@ -72,6 +73,7 @@ export type ArtistManagerRoom =
   | 'overview'
   | 'releases'
   | 'label'
+  | 'backshow'
   | 'promote'
   | 'events'
   | 'venues'
@@ -121,6 +123,7 @@ const ROOMS: RoomMeta[] = [
   { id: 'overview',  label: 'Artist Manager',       shortLabel: 'Manager',   icon: <Briefcase size={13} />,   tier: 'instrument', stage: 'concert', accent: '#FF8C00' },
   { id: 'releases',  label: 'Releases',             shortLabel: 'Releases',  icon: <Music2 size={13} />,      tier: 'instrument', stage: 'concert', accent: '#FF8C00' },
   { id: 'label',     label: 'Label Desk',           shortLabel: 'Label',     icon: <Briefcase size={13} />,   tier: 'instrument', stage: 'concert', accent: '#FF8C00' },
+  { id: 'backshow',  label: 'Sponsor This Show',    shortLabel: 'Sponsors', icon: <Mic size={13} />,         tier: 'instrument', stage: 'concert', accent: '#FF8C00' },
   { id: 'promote',   label: 'Promote',              shortLabel: 'Promote',   icon: <Megaphone size={13} />,   tier: 'instrument', stage: 'concert', accent: '#6366f1' },
   { id: 'events',    label: 'Events & Tour',        shortLabel: 'Tour',      icon: <Mic size={13} />,         tier: 'instrument', stage: 'concert', accent: '#FF8C00' },
   { id: 'venues',    label: 'Venues',               shortLabel: 'Venues',    icon: <MapPin size={13} />,      tier: 'instrument', stage: 'concert', accent: '#ef4444' },
@@ -133,7 +136,7 @@ const ROOMS: RoomMeta[] = [
 ];
 
 const ARTIST_MANAGER_ROOM_IDS = new Set<string>([
-  'overview', 'releases', 'label', 'promote', 'events', 'venues', 'vendors',
+  'overview', 'releases', 'label', 'backshow', 'promote', 'events', 'venues', 'vendors',
   'payroll', 'contracts', 'invoices', 'tasks', 'import',
 ]);
 
@@ -388,6 +391,7 @@ const ArtistManagerHost: React.FC<{
       case 'overview':  return <OverviewTab onSwitchTab={handleOverviewSwitch} />;
       case 'releases':  return <MusicReleasesTab currentUser={currentUser} />;
       case 'label':     return <LabelDesk />;
+      case 'backshow':  return <BackShowDesk />;
       case 'promote':   return <AdHubTab />;
       case 'events':    return <EventsLaunchTab />;
       case 'venues':    return <VenuesTab />;

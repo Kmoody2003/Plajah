@@ -543,6 +543,7 @@ const AdPackageManager = retryLazy(() => import('./components/AdPackageManager')
 const ArtistProjectManager = retryLazy(() => import('./components/ArtistProjectManager'));
 const ChoraArtistManager = retryLazy(() => import('./components/ChoraArtistManager'));
 const ChoraArtistPage = retryLazy(() => import('./components/ChoraArtistPage'));
+const BackShowPage = retryLazy(() => import('./components/chora/BackThisShow').then(m => ({ default: m.BackShowPage })));
 const PersonalArtistPage = retryLazy(() => import('./components/PersonalArtistPage'));
 const MelosWorkspace = retryLazy(() => import('./components/melos/MelosWorkspace'));
 const CareerImportStudio = retryLazy(() => import('./components/CareerImportStudio'));
@@ -1002,7 +1003,7 @@ const App: React.FC = () => {
     return () => window.removeEventListener('plajah:openGalleryEditor', h as EventListener);
   }, [openGalleryEditor]);
 
-  // Open a Taleo curated collection (e.g. Special Halloween Curation) from anywhere in the app (such as a shared PostCard in the Plajah feed).
+  // Open a Taleo curated collection (e.g. Plajah Horror Classics) from anywhere in the app (such as a shared PostCard in the Plajah feed).
   useEffect(() => {
     const h = (e: Event) => {
       const d = (e as CustomEvent)?.detail || {};
@@ -1616,7 +1617,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         window.location.pathname.startsWith('/ch/') ||
         window.location.pathname.startsWith('/reello') ||
         window.location.pathname.startsWith('/video') ||
-        window.location.pathname.startsWith('/link')
+        window.location.pathname.startsWith('/link') ||
+        window.location.pathname.startsWith('/back/')
       );
       if (isDeepLink) return false;
       const isWin = isWindowsApp();
@@ -1670,7 +1672,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         window.location.pathname.startsWith('/ch/') ||
         window.location.pathname.startsWith('/reello') ||
         window.location.pathname.startsWith('/video') ||
-        window.location.pathname.startsWith('/link')
+        window.location.pathname.startsWith('/link') ||
+        window.location.pathname.startsWith('/back/')
       );
       if (!isDeepLink) {
         const checkWin = () => {
@@ -1811,6 +1814,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   }, []);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | undefined>(undefined);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [backShowId, setBackShowId] = useState<string | null>(null);
   // Plajah Evites studio: which invite to edit, which design to start from, and who is hosting (you / org / business / school / teacher)
   const [eviteCtx, setEviteCtx] = useState<{ editId?: string; plateId?: string; host?: any } | null>(null);
   const [pixelsPayload, setPixelsPayload] = useState<{ album?: any; track?: any; fluxScene?: string } | null>(null);
@@ -3590,7 +3594,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           setIsPublicView(true);
           setView('MOVIES_TV');
           document.title = colSlug.includes('halloween')
-            ? 'Cinema Halloween — 31 Nights of Cinema Terror | Plajah'
+            ? 'Plajah Horror Classics — 31 Nights of Cinema Terror | Plajah'
             : 'Cinema | Plajah';
         }
         setIsLoading(false);
@@ -3778,6 +3782,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       if (pathParts[1] === 'event' && pathParts[2]) {
         setSelectedEventId(pathParts[2]);
         setView('EVENT_DETAIL');
+        setIsLoading(false);
+        return;
+      }
+
+      // Back This Show: /back/:campaignId is public and needs no sign-in.
+      if (pathParts[1] === 'back' && pathParts[2]) {
+        setBackShowId(pathParts[2]);
+        setIsPublicView(true);
+        setView('BACK_SHOW');
         setIsLoading(false);
         return;
       }
@@ -4919,8 +4932,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                             </div>
                             <div className="text-right pt-0.5">
                               <p className="text-[6.5px] uppercase tracking-widest text-white/25 mb-0.5">creator gets</p>
-                              <p className="text-[13px] font-black text-green-400 leading-none">$3.00</p>
-                              <p className="text-[6px] text-white/20 mt-0.5">platform: $1.99</p>
+                              <p className="text-[13px] font-black text-green-400 leading-none">$2.99</p>
+                              <p className="text-[6px] text-white/20 mt-0.5">platform: $2.00</p>
                             </div>
                           </div>
                           <p className="text-[7.5px] text-white/40 leading-relaxed">50 GB storage · 100 pts/mo · 10% off everything</p>
@@ -4935,8 +4948,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                             </div>
                             <div className="text-right pt-0.5">
                               <p className="text-[6.5px] uppercase tracking-widest text-white/25 mb-0.5">creator gets</p>
-                              <p className="text-[13px] font-black text-green-400 leading-none">$7.00</p>
-                              <p className="text-[6px] text-white/20 mt-0.5">platform: $2.99</p>
+                              <p className="text-[13px] font-black text-green-400 leading-none">$5.99</p>
+                              <p className="text-[6px] text-white/20 mt-0.5">platform: $4.00</p>
                             </div>
                           </div>
                           <p className="text-[7.5px] text-white/40 leading-relaxed">75 GB · 300 pts/mo · 15% off · TV & Pay-Per-View</p>
@@ -4951,8 +4964,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                             </div>
                             <div className="text-right pt-0.5">
                               <p className="text-[6.5px] uppercase tracking-widest text-white/25 mb-0.5">creator gets</p>
-                              <p className="text-[13px] font-black text-green-400 leading-none">$11.00</p>
-                              <p className="text-[6px] text-white/20 mt-0.5">platform: $3.99</p>
+                              <p className="text-[13px] font-black text-green-400 leading-none">$9.99</p>
+                              <p className="text-[6px] text-white/20 mt-0.5">platform: $5.00</p>
                             </div>
                           </div>
                           <p className="text-[7.5px] text-white/40 leading-relaxed">100 GB · 1,000 pts/mo · 20% off · Max promo boost</p>
@@ -7035,7 +7048,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     onNavigate={(v) => setView(v as any)}
                     isPublicView={isPublicView}
                   />
-                  {/* ── Premiere rails — Special Halloween Curation Carousel + per-service new releases + Lorea classics ── */}
+                  {/* ── Premiere rails — Plajah Horror Classics Carousel + per-service new releases + Lorea classics ── */}
                   <ArchiveRails
                     albums={albums}
                     onSelectItem={handleSelectItem}
@@ -7460,6 +7473,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
 
+            {view === 'BACK_SHOW' && backShowId && (
+              <BackShowPage id={backShowId} signedIn={!!userProfile} onSignIn={loginWithGoogle} />
+            )}
             {view === 'EVENT_DETAIL' && selectedEventId && (
               <EventLandingPage
                 eventId={selectedEventId}

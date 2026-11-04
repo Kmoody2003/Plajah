@@ -4271,6 +4271,7 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'SHOW_MODE'
   // Chora Artist Page — music-centric artist profile (Editorial Gallery layout)
   | 'CHORA_ARTIST'
+  | 'BACK_SHOW'
   // Personal Artist Page — enriched external artist from music locker (Wikipedia + MusicBrainz)
   | 'PERSONAL_ARTIST'
   // Plajah Home — Matter smart home controller, repurposed device hub, intercom & digital frames
@@ -5263,7 +5264,7 @@ export type AchievementTriggerType =
   | 'THEME_FIRST_ADD' | 'THEME_RECEIVED' | 'USE_FEELING_LUCKY'
   // Academia — gamified learning
   | 'MATH_FIRST_SESSION' | 'MATH_STREAK_10' | 'MATH_TIME_ATTACK_100' | 'WORKSHEET_TURNED_IN' | 'WORKSHEET_PERFECT'
-  // Games — Ravencrest (Cinema's Halloween collection)
+  // Games — Ravencrest (Cinema's Plajah Horror Classics collection)
   | 'RAVENCREST_TROLL_SLAYER' | 'RAVENCREST_DRACULA_SLAIN' | 'RAVENCREST_CURSE_BREAKER'
   // Kith sightings — minted server-side by routes/kithSightings.ts. The
   // achievement ids are these trigger strings, so a claim can mint without a

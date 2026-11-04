@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "include": [
+    "services/backShow/*.ts", "routes/backShow.ts", "labs/back-show/*.ts",
+    "components/chora/BackThisShow.tsx", "back-show-lab.tsx", "tests/backShow.test.ts"
+  ]
+}
