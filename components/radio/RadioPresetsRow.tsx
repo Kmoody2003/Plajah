@@ -39,7 +39,7 @@ export const RadioPresetsRow: React.FC<RadioPresetsRowProps> = ({
   };
 
   const handleTunePreset = (preset: RadioPreset) => {
-    const trackId = `radio:${preset.stationId}`;
+    const trackId = `radio:${preset.id}`;
     if (audioSource === 'RADIO' && currentTrack?.id === trackId) {
       isPlaying ? pause() : resume();
       return;
@@ -47,18 +47,18 @@ export const RadioPresetsRow: React.FC<RadioPresetsRowProps> = ({
 
     const track: Track = {
       id: trackId,
-      title: preset.stationName,
-      artist: preset.location || 'Live Radio',
+      title: preset.name,
+      artist: (preset.detail || preset.country) || 'Live Radio',
       url: preset.streamUrl,
-      albumCover: preset.coverUrl || undefined,
-      genre: preset.genre,
+      albumCover: preset.image || undefined,
+      genre: preset.tags?.[0],
     };
 
     const album: Album = {
-      id: `radio_preset_${preset.stationId}`,
-      title: preset.stationName,
-      artist: preset.location || 'Live Broadcast',
-      coverImage: preset.coverUrl || '',
+      id: `radio_preset_${preset.id}`,
+      title: preset.name,
+      artist: (preset.detail || preset.country) || 'Live Broadcast',
+      coverImage: preset.image || '',
       tracks: [track],
       description: 'Saved Radio Preset',
       themeColor: '#00DAF3',
@@ -150,12 +150,12 @@ export const RadioPresetsRow: React.FC<RadioPresetsRowProps> = ({
           style={{ scrollbarWidth: 'thin' }}
         >
           {presets.map((preset, index) => {
-            const isLiveStation = audioSource === 'RADIO' && currentTrack?.id === `radio:${preset.stationId}`;
+            const isLiveStation = audioSource === 'RADIO' && currentTrack?.id === `radio:${preset.id}`;
             const isStationPlaying = isLiveStation && isPlaying;
 
             return (
               <div
-                key={preset.stationId}
+                key={preset.id}
                 className={`snap-start shrink-0 w-[240px] p-4 rounded-3xl border transition-all flex flex-col justify-between ${
                   isStationPlaying
                     ? 'bg-[#00DAF3]/10 border-[#00DAF3]/50 shadow-[0_4px_24px_rgba(0,218,243,0.15)]'
@@ -168,9 +168,9 @@ export const RadioPresetsRow: React.FC<RadioPresetsRowProps> = ({
                     <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[9px] font-black text-white/60 tracking-wider font-mono">
                       PRESET {index + 1}
                     </span>
-                    {preset.genre && (
+                    {preset.tags?.[0] && (
                       <span className="text-[8px] font-black uppercase tracking-widest text-[#00DAF3] truncate max-w-[110px]">
-                        {preset.genre}
+                        {preset.tags?.[0]}
                       </span>
                     )}
                   </div>
@@ -178,10 +178,10 @@ export const RadioPresetsRow: React.FC<RadioPresetsRowProps> = ({
                   {/* Artwork & details */}
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-12 h-12 rounded-2xl overflow-hidden bg-white/5 border border-white/10 shrink-0 flex items-center justify-center">
-                      {preset.coverUrl ? (
+                      {preset.image ? (
                         <img
-                          src={preset.coverUrl}
-                          alt={preset.stationName}
+                          src={preset.image}
+                          alt={preset.name}
                           className="w-full h-full object-cover"
                           onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
                         />
@@ -190,11 +190,11 @@ export const RadioPresetsRow: React.FC<RadioPresetsRowProps> = ({
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-xs font-black uppercase tracking-tight text-white truncate" title={preset.stationName}>
-                        {preset.stationName}
+                      <h4 className="text-xs font-black uppercase tracking-tight text-white truncate" title={preset.name}>
+                        {preset.name}
                       </h4>
                       <p className="text-[9px] font-bold text-white/40 uppercase tracking-wider truncate mt-0.5">
-                        {preset.location || 'Live Broadcast'}
+                        {(preset.detail || preset.country) || 'Live Broadcast'}
                       </p>
                     </div>
                   </div>

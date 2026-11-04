@@ -27,7 +27,7 @@ import {
   Radio, Search, Play, Pause, Globe, ShieldAlert, AlertTriangle,
   Loader2, RefreshCw, Signal, ChevronLeft, X, Plus, Bookmark,
 } from 'lucide-react';
-import { Track, Album } from '../../types';
+import { Track, Album, RadioPreset } from '../../types';
 import { useGlobalPlayerState } from '../../contexts/GlobalPlayerContext';
 import {
   RadioStation, RadioCountry, searchStations, searchByName, fetchTrending,
@@ -62,15 +62,15 @@ const PRESETS_SHELF: RadioShelf = {
   kind: 'query',
 };
 
-const presetToStation = (p: { stationId: string; stationName: string; streamUrl: string; coverUrl?: string; genre?: string; location?: string }): RadioStation => ({
-  uuid: p.stationId,
-  name: p.stationName,
-  url: p.streamUrl,
-  urlResolved: p.streamUrl,
+const presetToStation = (p: RadioPreset): RadioStation => ({
+  uuid: p.id,
+  name: p.name,
+  url: p.streamUrl || '',
+  urlResolved: p.streamUrl || '',
   homepage: '',
-  favicon: p.coverUrl || '',
-  tags: p.genre ? [p.genre] : ['Preset'],
-  country: p.location || '',
+  favicon: p.image || '',
+  tags: p.tags?.length ? p.tags : ['Preset'],
+  country: p.country || p.detail || '',
   countryCode: '',
   state: '',
   language: '',
@@ -239,7 +239,7 @@ const LiveRadioBrowser: React.FC<LiveRadioBrowserProps> = ({ onBack, onExit }) =
   );
 
   const loadPresets = useCallback(
-    () => runLoad(async () => getRadioPresets().map(presetToStation)),
+    () => runLoad(async () => getRadioPresets().filter(p => !!p.streamUrl).map(presetToStation)),
     [runLoad],
   );
 
@@ -743,12 +743,14 @@ const StationCard: React.FC<{
         onClick={(e) => {
           e.stopPropagation();
           toggleRadioPreset({
-            stationId: s.uuid,
-            stationName: s.name,
+            id: s.uuid,
+            name: s.name,
             streamUrl: s.url,
-            coverUrl: s.favicon || undefined,
-            genre: s.tags[0] || undefined,
-            location: [s.country, s.language].filter(Boolean).join(' · ') || undefined,
+            image: s.favicon || undefined,
+            tags: s.tags.length ? s.tags : undefined,
+            country: s.country || undefined,
+            detail: [s.country, s.language].filter(Boolean).join(' · ') || undefined,
+            origin: 'Worldwide',
           });
         }}
         className={`p-3 rounded-2xl shrink-0 transition-all ${

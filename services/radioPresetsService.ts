@@ -10,6 +10,41 @@ function storageKeyFor(uid?: string | null): string {
 }
 
 /**
+ * Older Live Radio saves used a different shape ({ stationId, stationName,
+ * coverUrl, … }) with no `id`. Every one of those matched the next save as
+ * "the same station" and got overwritten. Read them into the real shape and
+ * drop anything that still has no id.
+ */
+function normalizePreset(raw: any): RadioPreset | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const id = raw.id ?? raw.stationId;
+  if (!id) return null;
+  if (raw.id) return raw as RadioPreset;
+  return {
+    id: String(id),
+    name: raw.name ?? raw.stationName ?? 'Radio station',
+    detail: raw.detail ?? raw.location,
+    image: raw.image ?? raw.coverUrl,
+    origin: raw.origin ?? 'Worldwide',
+    streamUrl: raw.streamUrl,
+    country: raw.country ?? raw.location,
+    tags: raw.tags ?? (raw.genre ? [raw.genre] : undefined),
+    artistId: raw.artistId,
+    addedAt: raw.addedAt ?? 0,
+  };
+}
+
+function normalizePresets(list: any[]): RadioPreset[] {
+  const seen = new Set<string>();
+  const out: RadioPreset[] = [];
+  for (const item of list) {
+    const p = normalizePreset(item);
+    if (p && !seen.has(p.id)) { seen.add(p.id); out.push(p); }
+  }
+  return out;
+}
+
+/**
  * Get the current user's saved radio presets from localStorage (instant, sync).
  */
 export function getRadioPresets(uid?: string | null): RadioPreset[] {
@@ -18,7 +53,7 @@ export function getRadioPresets(uid?: string | null): RadioPreset[] {
     const raw = localStorage.getItem(storageKeyFor(uid));
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? normalizePresets(parsed) : [];
   } catch (e) {
     console.warn('[RadioPresets] Failed to read presets from localStorage:', e);
     return [];
@@ -51,6 +86,10 @@ export async function addRadioPreset(
   station: Omit<RadioPreset, 'addedAt'>,
   uid?: string | null
 ): Promise<RadioPreset[]> {
+  if (!station.id) {
+    console.warn('[RadioPresets] Refusing to save a preset without an id:', station);
+    return getRadioPresets(uid);
+  }
   const current = getRadioPresets(uid);
   const existsIdx = current.findIndex(p => p.id === station.id);
   const newPreset: RadioPreset = {
@@ -134,7 +173,7 @@ export async function syncRadioPresetsFromProfile(userUid: string): Promise<Radi
       const local = getRadioPresets(userUid);
       const map = new Map<string, RadioPreset>();
       local.forEach(p => map.set(p.id, p));
-      profile.radioPresets.forEach(p => map.set(p.id, p));
+      normalizePresets(profile.radioPresets).forEach(p => map.set(p.id, p));
       const merged = Array.from(map.values()).sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
       saveLocalPresets(merged, userUid);
       return merged;
