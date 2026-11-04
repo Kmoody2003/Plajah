@@ -122,6 +122,7 @@ import { veoRouter } from './routes/veo';
 import { taleoRouter, enqueueIfReady as taleoEnqueueIfReady } from './routes/taleo';
 import { createMusicIntelRouter } from './routes/musicIntel';
 import { createReelloIntelRouter, sweepWaiting as reelloIntelSweep } from './routes/reelloIntel';
+import { reelloOrgChannelsRouter } from './routes/reelloOrgChannels';
 import { authMethodsRouter } from './routes/authMethods';
 // Anti-bot layer (docs/ANTI_BOT_PLAYBOOK.md): App Check monitor, signup-check, shared limits.
 import { antiAbuseRouter } from './routes/antiAbuse';
@@ -10194,6 +10195,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // ── Reello Story Intelligence + upload templates ─────────────────────────────
   // Watches a creator's Reello upload (speech + on-screen graphics) and drafts the follow-on content:
   // an article that teases the video, quote clips, store listings for what's offered (routes/reelloIntel.ts).
+  // Department channels: an org's departments get their own Reello channels once they post (routes/reelloOrgChannels.ts).
+  app.use('/api/reello/org-channels', apiLimiter, express.json({ limit: '8kb' }), reelloOrgChannelsRouter);
   app.use('/api/reello', apiLimiter, express.json({ limit: '64kb' }), createReelloIntelRouter());
 
   // ── Chora Music Intelligence ─────────────────────────────────────────────────

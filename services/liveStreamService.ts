@@ -40,6 +40,9 @@ export interface LiveDiscoveryInput {
   /** Opt-in: surface this ON-PLATFORM (Reello) live stream as its OWN live channel in the guide.
    *  Off by default — Reello streams are content that flows to the creator's FAST channel on end. */
   asChannel?: boolean;
+  /** Stream for an organization's department: the stream shows on that department's Reello channel
+   *  (and the channel appears from its first stream). Checked server-side against department access. */
+  department?: { orgId: string; departmentId: string } | null;
 }
 
 /**
@@ -66,6 +69,12 @@ export async function publishLiveDiscovery(input: LiveDiscoveryInput): Promise<s
       ...(input.asChannel ? { asChannel: true } : {}),
       timestamp: serverTimestamp(),
     });
+    if (input.department) {
+      // Never blocks or breaks the stream: a refused department just leaves it on the creator's channel.
+      import('./reello/orgChannels')
+        .then(m => m.attachToDepartment('live', ref.id, input.department!))
+        .catch(e => console.warn('[live] department channel attach failed:', e?.message || e));
+    }
     return ref.id;
   } catch (e) {
     console.warn('[live] discovery publish failed (stream still works):', e);

@@ -54,6 +54,7 @@ import OrgStoreSection from './elevate/OrgStoreSection';
 import HostEventsPublic from './events/HostEventsPublic';
 import OrgThread from './elevate/OrgThread';
 import OrgMediaShelves from './elevate/OrgMediaShelves';
+import ReelloDeptChannelsRow from './reello/ReelloDeptChannelsRow';
 import RelloChurchViewer from './elevate/RelloChurchViewer';
 // Operations side + public rosters + Church Member Hub (lazy so the public page never blocks on them).
 const ElevateOps = lazy(() => import('./elevate/ElevateOps'));
@@ -753,6 +754,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
             {tab === 'PHOTOS' && (
               <div className="space-y-8">
                 <OrgMediaShelves org={org} isOwner={isOwner} canManage={can('MANAGE_CONTENT')} onOrgChange={setOrg} onVisitUser={onVisitUser} onOpenVideo={onOpenVideo} onOpenAlbum={onOpenAlbum} />
+                <ReelloDeptChannelsRow orgId={org.id} className="mt-8" />
                 {demo && <EvGallery albums={DEMO_CHURCH_ALBUMS} perAlbum={9} />}
               </div>
             )}
@@ -810,6 +812,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                   </button>
                 )}
                 <OrgMediaShelves org={org} isOwner={isOwner} canManage={can('MANAGE_CONTENT')} onOrgChange={setOrg} onVisitUser={onVisitUser} onOpenVideo={onOpenVideo} onOpenAlbum={onOpenAlbum} />
+                <ReelloDeptChannelsRow orgId={org.id} className="mt-8" />
                 {demo && <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="1rem">
                   {DEMO_CHURCH_VIDEOS.map(v => (
                     <div key={v.id} className="text-left group">

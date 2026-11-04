@@ -8,8 +8,10 @@ import { auth } from '../../../services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { subscribeQueue, type QueueItem } from '../../../services/reello/uploadQueue';
 import { startFolderRunner, stopFolderRunner } from '../../../services/reello/folderRunner';
+import { OPEN_DEPT_CHANNEL_EVENT } from '../../../services/reello/orgChannels';
 
 const ReelloUploadStudio = lazy(() => import('./ReelloUploadStudio'));
+const ReelloDeptChannelPage = lazy(() => import('../ReelloDeptChannelPage'));
 
 const OPEN_EVENT = 'reello:open-uploader';
 type OpenDetail = { files?: File[]; tab?: 'UPLOAD' | 'FOLDERS' | 'TEMPLATES' | 'DRAFTS'; rightsConfirmed?: boolean };
@@ -23,6 +25,13 @@ const ReelloUploadDock: React.FC = () => {
   const [uid, setUid] = useState<string | null>(auth.currentUser?.uid || null);
   const [open, setOpen] = useState<OpenDetail | null>(null);
   const [items, setItems] = useState<QueueItem[]>([]);
+  // Department channel pages (an org department's own Reello channel) open over everything, signed in or not.
+  const [dept, setDept] = useState<{ orgId: string; departmentId: string } | null>(null);
+  useEffect(() => {
+    const on = (e: Event) => { const d = (e as CustomEvent<{ orgId: string; departmentId: string }>).detail; if (d?.orgId && d?.departmentId) setDept(d); };
+    window.addEventListener(OPEN_DEPT_CHANNEL_EVENT, on);
+    return () => window.removeEventListener(OPEN_DEPT_CHANNEL_EVENT, on);
+  }, []);
 
   useEffect(() => onAuthStateChanged(auth, u => setUid(u?.uid || null)), []);
   useEffect(() => {
@@ -49,6 +58,11 @@ const ReelloUploadDock: React.FC = () => {
           <span className="max-w-[14rem] truncate">Reello · uploading {moving.length}{uploading ? ` · ${uploading.details.title} ${uploading.progress}%` : ''}</span>
           <UploadCloud size={14} className="text-white/50" />
         </button>
+      )}
+      {dept && (
+        <Suspense fallback={null}>
+          <ReelloDeptChannelPage orgId={dept.orgId} departmentId={dept.departmentId} onClose={() => setDept(null)} />
+        </Suspense>
       )}
       {open && uid && (
         <Suspense fallback={null}>

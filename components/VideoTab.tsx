@@ -23,7 +23,7 @@ import {
   BookOpen, List, Layers, Lock, Smartphone, ChevronUp, ChevronDown, Volume2, VolumeX, ListPlus, Flame,
   Scissors, Home
 } from 'lucide-react';
-import { AddToPlaylistModal, VideoPlaylistSection, VideoPlaylistDetailView } from './VideoPlaylistKit';
+import { AddToPlaylistModal, VideoPlaylistSection, VideoPlaylistDetailView, ChannelPlaylistsSection } from './VideoPlaylistKit';
 import { SubscriptionsSection, LikedVideosSection, HistorySection } from './VideoLibraryKit';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
@@ -49,6 +49,8 @@ import { SoundChip, SoundRailSheet, UseThisSoundButton } from './reello/SoundsRa
 // Live → Short (blueprint 1C.3) — "clip this" on a live or just-ended stream.
 import { LiveClipStudio, ClipThisButton, MyClipsSection } from './reello/LiveClipStudio';
 import ReelloHomeTop from './reello/ReelloHomeTop';
+import { openReelloUploader } from './reello/upload/ReelloUploadDock';
+import ReelloDeptChannelsRow from './reello/ReelloDeptChannelsRow';
 import ChipRail from './ui/ChipRail';
 import { useShellNext } from '../hooks/useShellNext';
 
@@ -520,7 +522,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [searchTerm, setSearchTerm] = useState('');
   // On a user profile, open straight to that creator's own videos ('uploads' = the profile
   // owner's videos), never the global discover feed.
-  const [activeView, setActiveView] = useState<'discover' | 'uploads' | 'live' | 'playlists' | 'channel' | 'shorts' | 'subscriptions' | 'history' | 'liked' | 'social' | 'trending' | 'watchlater'>(profileScoped ? 'uploads' : 'discover');
+  const [activeView, setActiveView] = useState<'discover' | 'uploads' | 'live' | 'playlists' | 'channelPlaylists' | 'channel' | 'shorts' | 'subscriptions' | 'history' | 'liked' | 'social' | 'trending' | 'watchlater'>(profileScoped ? 'uploads' : 'discover');
   const [channelSearch, setChannelSearch] = useState('');   // creator/channel directory search (Subscriptions)
   // Deep-link: a shared playlist link opens straight to its detail under the Playlists tab.
   useEffect(() => {
@@ -533,6 +535,9 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [shortsIndex, setShortsIndex] = useState(0);
   const [shortsMuted, setShortsMuted] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  // Every Upload button opens the Reello Upload Studio (components/reello/upload). The old inline
+  // form below stays only as a fallback and is no longer opened from here.
+  const openUpload = () => { if (!auth.currentUser) { setSignInAction('upload videos'); return; } openReelloUploader(); };
   const [assigningVideo, setAssigningVideo] = useState<Video | null>(null);
   const [uploadStep, setUploadStep] = useState(1);
   const [thumbPreview, setThumbPreview] = useState('');
@@ -1013,10 +1018,11 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
       <div className="space-y-12 pt-2">
         <ReelloChannelHeader
           profile={me} isOwner videoCount={userVideos.length} bannerUrl={banner}
-          onUpload={() => { if (!auth.currentUser) { setSignInAction('upload videos'); return; } setShowUpload(true); }}
+          onUpload={() => { if (!auth.currentUser) { setSignInAction('upload videos'); return; } openUpload(); }}
           onGoLive={() => { if (!auth.currentUser) { setSignInAction('go live'); return; } setShowGoLiveModal(true); }}
           onShare={() => { try { navigator.share?.({ title: `${me.displayName} on Plajah Reello`, url: `${location.origin}/?type=user&id=${me.uid}` }); } catch { /* */ } }}
         />
+        <ReelloDeptChannelsRow accountUid={me.uid} className="mt-0" />
 
         {/* Live now */}
         {myLiveFeeds.length > 0 && (
@@ -1121,7 +1127,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                       <Radio size={12} /> Go Live
                     </button>
                     {canUpload() && (
-                      <button onClick={() => setShowUpload(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black font-black text-[9px] uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all shadow-lg">
+                      <button onClick={() => openUpload()} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black font-black text-[9px] uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all shadow-lg">
                         <Upload size={12} /> Upload Video
                       </button>
                     )}
@@ -1511,7 +1517,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
             <div className="space-y-10 pt-2">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-black uppercase tracking-widest">{profileScoped ? 'Videos' : (isOwner ? 'My Videos' : `${profile?.displayName || 'Creator'}'s Videos`)} <span className="text-white/20 ml-2">{userReello.length}</span></h2>
-                {isOwner && canUpload() && <button onClick={() => setShowUpload(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all"><Plus size={14} /> Upload</button>}
+                {isOwner && canUpload() && <button onClick={() => openUpload()} className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-small-orange hover:text-white transition-all"><Plus size={14} /> Upload</button>}
               </div>
               {/* Unsaved/failed live recordings kept on this device — retry upload or download. */}
               {isOwner && <StreamRecoveryList embedded hideWhenEmpty />}
@@ -1533,7 +1539,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                 <div className="py-32 bg-white/[0.02] border-2 border-dashed border-white/5 rounded-[3rem] flex flex-col items-center justify-center text-center">
                   <Film size={48} className="text-white/10 mb-6" />
                   <p className="text-sm font-black uppercase tracking-widest text-white/20 mb-2">{isOwner ? 'No videos uploaded yet' : `${profile?.displayName || 'This creator'} hasn't posted any videos yet`}</p>
-                  {isOwner && canUpload() && <button onClick={() => setShowUpload(true)} className="mt-6 px-10 py-4 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl">Upload First Video</button>}
+                  {isOwner && canUpload() && <button onClick={() => openUpload()} className="mt-6 px-10 py-4 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl">Upload First Video</button>}
                 </div>
               ) : null}
 
@@ -1677,6 +1683,19 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               />
             ) : (
               <VideoPlaylistSection onOpenPlaylist={(id) => setOpenPlaylistId(id)} />
+            )
+          )}
+
+          {/* ── A CHANNEL'S PLAYLISTS (profile channel "Playlists" tab) ── */}
+          {activeView === 'channelPlaylists' && profile && (
+            openPlaylistId ? (
+              <VideoPlaylistDetailView
+                playlistId={openPlaylistId}
+                onBack={() => setOpenPlaylistId(null)}
+                onPlayVideo={(v, q) => { if (q && q.length) onSetQueue?.(q); handlePlay(v); }}
+              />
+            ) : (
+              <ChannelPlaylistsSection ownerUid={profile.uid} onOpenPlaylist={(id) => setOpenPlaylistId(id)} />
             )
           )}
 
@@ -2420,7 +2439,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                 </button>
               )}
               <button
-                onClick={() => { if (!canUpload()) return; if (!auth.currentUser) { setSignInAction('upload videos'); return; } setShowUpload(true); }}
+                onClick={() => { if (!canUpload()) return; if (!auth.currentUser) { setSignInAction('upload videos'); return; } openUpload(); }}
                 className="flex items-center gap-2 px-3.5 py-2 bg-white text-black rounded-xl hover:bg-small-orange hover:text-white transition-all font-black text-[9px] uppercase tracking-widest shadow-lg"
               >
                 <Upload size={14} /> <span className="hidden md:inline">Upload</span>
@@ -2571,7 +2590,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               </button>
             )}
             <button
-              onClick={() => { if (!canUpload()) return; if (!auth.currentUser) { setSignInAction('upload videos'); return; } setShowUpload(true); }}
+              onClick={() => { if (!canUpload()) return; if (!auth.currentUser) { setSignInAction('upload videos'); return; } openUpload(); }}
               className="flex items-center gap-2 px-4 py-2.5 bg-white text-black rounded-xl hover:bg-small-orange hover:text-white transition-all font-black text-[9px] uppercase tracking-widest shadow-lg"
             >
               <Upload size={14} /> Upload
@@ -2645,10 +2664,25 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               })()}
               isFollowing={followedIds.has(profile.uid)}
               onToggleFollow={() => handleToggleFollow(profile)}
-              onUpload={() => { if (!auth.currentUser) { setSignInAction('upload videos'); return; } setShowUpload(true); }}
+              onUpload={() => { if (!auth.currentUser) { setSignInAction('upload videos'); return; } openUpload(); }}
               onGoLive={() => { if (!auth.currentUser) { setSignInAction('go live'); return; } setShowGoLiveModal(true); }}
               onShare={() => { try { navigator.share?.({ title: `${profile.displayName} on Plajah Reello`, url: `${location.origin}/?type=user&id=${profile.uid}` }); } catch { /* */ } }}
             />
+          )}
+
+          {/* Channel tabs (YouTube: Videos / Playlists) + an org's department channels */}
+          {profileScoped && profile && (
+            <>
+              <div className="flex gap-1 border-b border-white/10 mt-2 mb-4">
+                {([['uploads', 'Videos'], ['channelPlaylists', 'Playlists']] as const).map(([id, label]) => (
+                  <button key={id} onClick={() => { setActiveView(id); setOpenPlaylistId(null); }}
+                    className={`px-4 py-2.5 text-[11px] font-black uppercase tracking-widest border-b-2 -mb-px transition-colors ${activeView === id ? 'border-white text-white' : 'border-transparent text-white/40 hover:text-white/70'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <ReelloDeptChannelsRow accountUid={profile.uid} className="mb-6" />
+            </>
           )}
 
           {/* Mobile view tabs — platform Chip Rail treatment (components/ui/ChipRail);

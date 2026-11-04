@@ -83,6 +83,7 @@ import {
   query, orderBy, limit, arrayUnion, arrayRemove,
 } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
+import { postableDepartments, type PostableOrg } from '../services/reello/orgChannels';
 
 // ─── ICE + helpers ────────────────────────────────────────────────────────────
 
@@ -610,6 +611,10 @@ function MobileStreamer({ onClose, clubId, isPrivate, liveOverlay }: { onClose: 
   // user can also pick an exact file to mirror the recording into.
   const [storeLocal, setStoreLocal] = useState(true);
   const [asChannel, setAsChannel] = useState(false);       // surface this Reello stream as its own live channel
+  // Stream for an org department (its own Reello channel under the org). Empty = my own channel.
+  const [deptOrgs, setDeptOrgs] = useState<PostableOrg[]>([]);
+  const [deptKey, setDeptKey] = useState('');
+  useEffect(() => { if (!clubId) postableDepartments().then(setDeptOrgs).catch(() => {}); }, [clubId]);
   const [interruptFast, setInterruptFast] = useState(false); // cut into my FAST channel with this live stream
   const localSinkRef = useRef<LiveRecordingSink | null>(null);
   const cloudSinkRef = useRef<LiveCloudSink | null>(null);            // real-time cloud upload sink
@@ -1213,6 +1218,7 @@ function MobileStreamer({ onClose, clubId, isPrivate, liveOverlay }: { onClose: 
           clubId, isPublic: !isPrivate,
           ...(typeof channelNumber === 'number' ? { channelNumber } : {}),
           ...(asChannel ? { asChannel: true } : {}),
+          ...(deptKey && !isPrivate ? { department: { orgId: deptKey.split('::')[0], departmentId: deptKey.split('::')[1] } } : {}),
         }).then(fid => {
           discoveryFeedIdRef.current = fid;
           // Begin heartbeating so this stream reads as genuinely live — and stops reading live the
@@ -1606,6 +1612,20 @@ function MobileStreamer({ onClose, clubId, isPrivate, liveOverlay }: { onClose: 
                 when it ends). Optionally surface it as its own live channel, or cut it into your
                 FAST channel (pre-empting the loop for viewers). */}
             <div className="rounded-2xl bg-black/50 backdrop-blur border border-white/15 overflow-hidden">
+              {deptOrgs.length > 0 && !isPrivate && (
+                <label className="block px-4 py-3 border-b border-white/10">
+                  <span className="block text-[13px] font-bold text-white leading-tight">Stream for</span>
+                  <span className="block text-[10px] text-white/45 leading-tight mt-0.5 mb-2">Streaming for a department puts it on that department’s Reello channel, under the organization.</span>
+                  <select value={deptKey} onChange={e => setDeptKey(e.target.value)} className="w-full bg-white/[0.06] border border-white/10 rounded-xl px-3 py-2 text-[13px] text-white">
+                    <option value="">My channel</option>
+                    {deptOrgs.map(o => (
+                      <optgroup key={o.orgId} label={o.orgName}>
+                        {o.departments.map(d => <option key={d.id} value={`${o.orgId}::${d.id}`}>{d.iconEmoji ? `${d.iconEmoji} ` : ''}{o.orgName} · {d.name}</option>)}
+                      </optgroup>
+                    ))}
+                  </select>
+                </label>
+              )}
               <button onClick={() => setAsChannel(v => !v)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
                 <div className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${asChannel ? 'bg-[#36c5f0]/20 text-[#36c5f0]' : 'bg-white/8 text-white/40'}`}><Radio size={17} /></div>
                 <div className="flex-1 min-w-0">

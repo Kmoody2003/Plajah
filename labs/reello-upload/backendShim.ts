@@ -17,3 +17,13 @@ export async function updateVideoSettings(id: string, s: any) {
 
 export async function uploadImageWithDerivatives() { return { display: 'https://example.com/thumb.jpg' }; }
 export async function notifyFollowers() { /* lab */ }
+
+// Playlists (in memory) for the upload form's Playlists picker.
+const labPlaylists: any[] = [
+  { id: 'pl_sermons', ownerId: 'lab-user', title: 'Sunday Sermons', isPublic: true, videoIds: [], timestamp: Date.now() - 5e6 },
+  { id: 'pl_bts', ownerId: 'lab-user', title: 'Behind the scenes', isPublic: false, isPrivate: true, videoIds: [], timestamp: Date.now() - 9e6 },
+];
+(window as any).__labPlaylists = labPlaylists;
+export async function fetchUserVideoPlaylists() { return labPlaylists.map(p => ({ ...p })); }
+export async function createVideoPlaylist(p: any) { const pl = { ...p, id: `pl_${Date.now().toString(36)}`, ownerId: 'lab-user', timestamp: Date.now() }; labPlaylists.unshift(pl); return pl; }
+export async function addVideoToPlaylist(id: string, video: any) { const p = labPlaylists.find(x => x.id === id); const vid = typeof video === 'string' ? video : video.id; if (p && !p.videoIds.includes(vid)) p.videoIds.push(vid); }

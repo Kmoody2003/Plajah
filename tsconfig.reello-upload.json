@@ -1,8 +1,20 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "compilerOptions": {
+    "allowJs": false,
+    "noEmit": true
+  },
   "include": [
-    "services/reello/*.ts", "services/reello/intel/*.ts", "routes/reelloIntel.ts",
-    "components/reello/upload/*.tsx", "reello-upload-lab.tsx", "tests/reelloIntel.test.ts"
+    "services/reello/*.ts",
+    "services/reello/intel/*.ts",
+    "routes/reelloIntel.ts",
+    "components/reello/upload/*.tsx",
+    "reello-upload-lab.tsx",
+    "tests/reelloIntel.test.ts",
+    "routes/reelloOrgChannels.ts",
+    "components/reello/ReelloDeptChannelPage.tsx",
+    "components/reello/ReelloDeptChannelsRow.tsx",
+    "components/VideoPlaylistKit.tsx",
+    "tests/reelloOrgChannels.test.ts"
   ]
 }
