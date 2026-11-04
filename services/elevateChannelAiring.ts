@@ -92,3 +92,66 @@ export function pickServiceProgram(aired: AiredProgram[], minSec = MIN_SERVICE_A
 export function programMediaUrl(p: AiredProgram): string {
   return p.muxPlaybackId ? `https://stream.mux.com/${p.muxPlaybackId}.m3u8` : (p.url || '');
 }
+
+// ─── Run resolution (data access injected: browser SDK or server REST) ──────
+
+export interface RunWindow { windowStart: number; windowEnd: number; channelOwnerId?: string }
+export interface OrgRef { id: string; name: string; creatorId?: string; admins?: string[] }
+/** The fields of a stream archive this module reads or builds. */
+export interface ArchiveRef { id: string; title?: string; ownerId?: string; ownerName?: string; muxPlaybackId?: string; durationMs?: number; startedAt?: number }
+
+export interface ChannelAiringDeps {
+  fetchSchedule: (uid: string) => Promise<FastChannelSchedule | null>;
+  /** The stream recording of a live break-in, for these owner ids. */
+  findArchive: (ownerIds: string[]) => Promise<ArchiveRef | null>;
+}
+
+/** The archive that started inside the run's window (15 min early allowed), earliest first. */
+export function pickArchiveForWindow<T extends ArchiveRef>(archives: T[], run: RunWindow, ownerIds: string[]): T | null {
+  const from = run.windowStart - 15 * 60 * 1000;
+  const hits = archives
+    .filter(a => (a.startedAt || 0) >= from && (a.startedAt || 0) <= run.windowEnd)
+    .filter(a => !ownerIds.length || ownerIds.includes(a.ownerId || ''));
+  hits.sort((a, b) => (a.startedAt || 0) - (b.startedAt || 0));
+  return hits[0] || null;
+}
+
+/**
+ * A TV-channel run: find the org's channel schedule, work out which programme
+ * aired longest inside the window, and present it to the pipeline in the same
+ * shape as a stream archive. A LIVE break-in on the channel falls back to the
+ * stream recording of that live show.
+ */
+export async function resolveChannelAiring<A = ArchiveRef>(run: RunWindow, org: OrgRef, deps: ChannelAiringDeps): Promise<{ archive: A; mediaUrl: string }> {
+  const candidates = [run.channelOwnerId, org.id, org.creatorId, ...(org.admins || [])]
+    .filter((v, i, a): v is string => !!v && a.indexOf(v) === i);
+  let ownerId = '';
+  let schedule: FastChannelSchedule | null = null;
+  for (const uid of candidates) {
+    const s = await deps.fetchSchedule(uid).catch(() => null);
+    if (s && ((s.slots && s.slots.length) || (s.weeklySlots && Object.keys(s.weeklySlots).length))) { ownerId = uid; schedule = s; break; }
+  }
+  if (!schedule) throw new Error('channel-schedule-not-found');
+
+  const program = pickServiceProgram(airedProgramsInWindow(schedule, run.windowStart, run.windowEnd));
+  if (!program) throw new Error('channel-nothing-aired');
+
+  if (program.kind === 'LIVE') {
+    const archive = await deps.findArchive([ownerId, org.id]);
+    if (!archive || !archive.muxPlaybackId) throw new Error('channel-live-recording-not-found');
+    return { archive: archive as unknown as A, mediaUrl: `https://stream.mux.com/${archive.muxPlaybackId}.m3u8` };
+  }
+
+  const mediaUrl = programMediaUrl(program);
+  if (!mediaUrl) throw new Error('channel-program-no-media');
+  const archive: ArchiveRef = {
+    id: `channel_${ownerId}_${program.muxPlaybackId || run.windowStart}`,
+    title: program.title,
+    ownerId,
+    ownerName: org.name,
+    muxPlaybackId: program.muxPlaybackId,
+    durationMs: program.durationSec ? program.durationSec * 1000 : undefined,
+    startedAt: program.firstSeenMs,
+  };
+  return { archive: archive as unknown as A, mediaUrl };
+}

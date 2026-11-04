@@ -14,10 +14,10 @@
 
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Organization, StreamArchive, FastChannelSchedule } from '../types';
+import type { Organization, StreamArchive } from '../types';
 import { runElevateLivePipeline } from './elevateLiveBriefing';
 import { fetchFastChannelSchedule } from './backendService';
-import { airedProgramsInWindow, pickServiceProgram, programMediaUrl } from './elevateChannelAiring';
+import { resolveChannelAiring as resolveChannelAiringWith } from './elevateChannelAiring';
 import {
   claimDueElevateRuns, updateElevateLiveRun, getElevateLiveConfig,
   saveElevateBriefing, saveElevateArticle, saveRepurposeJob, publishElevateBriefing,
@@ -45,45 +45,12 @@ export async function findArchiveForRun(run: ElevateLiveRun, ownerIds: string[])
   return candidates[0] || null;
 }
 
-/**
- * A TV-channel run: find the org's channel schedule, work out which programme
- * aired longest inside the window, and present it to the pipeline in the same
- * shape as a stream archive. A LIVE break-in on the channel falls back to the
- * stream recording of that live show.
- */
-export async function resolveChannelAiring(run: ElevateLiveRun, org: Organization): Promise<{ archive: StreamArchive; mediaUrl: string }> {
-  const candidates = [run.channelOwnerId, org.id, (org as any).creatorId, ...(((org as any).admins as string[]) || [])]
-    .filter((v, i, a): v is string => !!v && a.indexOf(v) === i);
-  let ownerId = '';
-  let schedule: FastChannelSchedule | null = null;
-  for (const uid of candidates) {
-    const s = await fetchFastChannelSchedule(uid).catch(() => null);
-    if (s && ((s.slots && s.slots.length) || (s.weeklySlots && Object.keys(s.weeklySlots).length))) { ownerId = uid; schedule = s; break; }
-  }
-  if (!schedule) throw new Error('channel-schedule-not-found');
-
-  const program = pickServiceProgram(airedProgramsInWindow(schedule, run.windowStart, run.windowEnd));
-  if (!program) throw new Error('channel-nothing-aired');
-
-  if (program.kind === 'LIVE') {
-    const archive = await findArchiveForRun(run, [ownerId, org.id]);
-    const playbackId = (archive as any)?.muxPlaybackId as string | undefined;
-    if (!archive || !playbackId) throw new Error('channel-live-recording-not-found');
-    return { archive, mediaUrl: `https://stream.mux.com/${playbackId}.m3u8` };
-  }
-
-  const mediaUrl = programMediaUrl(program);
-  if (!mediaUrl) throw new Error('channel-program-no-media');
-  const archive = {
-    id: `channel_${ownerId}_${program.muxPlaybackId || run.windowStart}`,
-    title: program.title,
-    ownerId,
-    ownerName: org.name,
-    muxPlaybackId: program.muxPlaybackId,
-    durationMs: program.durationSec ? program.durationSec * 1000 : undefined,
-    startedAt: program.firstSeenMs,
-  } as unknown as StreamArchive;
-  return { archive, mediaUrl };
+/** A TV-channel run, with the browser's data access (see elevateChannelAiring.resolveChannelAiring). */
+export function resolveChannelAiring(run: ElevateLiveRun, org: Organization): Promise<{ archive: StreamArchive; mediaUrl: string }> {
+  return resolveChannelAiringWith<StreamArchive>(run, org as any, {
+    fetchSchedule: uid => fetchFastChannelSchedule(uid),
+    findArchive: ownerIds => findArchiveForRun(run, ownerIds) as any,
+  });
 }
 
 let processing = false;
