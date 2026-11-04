@@ -14,8 +14,10 @@
 
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Organization, StreamArchive } from '../types';
+import type { Organization, StreamArchive, FastChannelSchedule } from '../types';
 import { runElevateLivePipeline } from './elevateLiveBriefing';
+import { fetchFastChannelSchedule } from './backendService';
+import { airedProgramsInWindow, pickServiceProgram, programMediaUrl } from './elevateChannelAiring';
 import {
   claimDueElevateRuns, updateElevateLiveRun, getElevateLiveConfig,
   saveElevateBriefing, saveElevateArticle, saveRepurposeJob, publishElevateBriefing,
@@ -43,6 +45,47 @@ export async function findArchiveForRun(run: ElevateLiveRun, ownerIds: string[])
   return candidates[0] || null;
 }
 
+/**
+ * A TV-channel run: find the org's channel schedule, work out which programme
+ * aired longest inside the window, and present it to the pipeline in the same
+ * shape as a stream archive. A LIVE break-in on the channel falls back to the
+ * stream recording of that live show.
+ */
+export async function resolveChannelAiring(run: ElevateLiveRun, org: Organization): Promise<{ archive: StreamArchive; mediaUrl: string }> {
+  const candidates = [run.channelOwnerId, org.id, (org as any).creatorId, ...(((org as any).admins as string[]) || [])]
+    .filter((v, i, a): v is string => !!v && a.indexOf(v) === i);
+  let ownerId = '';
+  let schedule: FastChannelSchedule | null = null;
+  for (const uid of candidates) {
+    const s = await fetchFastChannelSchedule(uid).catch(() => null);
+    if (s && ((s.slots && s.slots.length) || (s.weeklySlots && Object.keys(s.weeklySlots).length))) { ownerId = uid; schedule = s; break; }
+  }
+  if (!schedule) throw new Error('channel-schedule-not-found');
+
+  const program = pickServiceProgram(airedProgramsInWindow(schedule, run.windowStart, run.windowEnd));
+  if (!program) throw new Error('channel-nothing-aired');
+
+  if (program.kind === 'LIVE') {
+    const archive = await findArchiveForRun(run, [ownerId, org.id]);
+    const playbackId = (archive as any)?.muxPlaybackId as string | undefined;
+    if (!archive || !playbackId) throw new Error('channel-live-recording-not-found');
+    return { archive, mediaUrl: `https://stream.mux.com/${playbackId}.m3u8` };
+  }
+
+  const mediaUrl = programMediaUrl(program);
+  if (!mediaUrl) throw new Error('channel-program-no-media');
+  const archive = {
+    id: `channel_${ownerId}_${program.muxPlaybackId || run.windowStart}`,
+    title: program.title,
+    ownerId,
+    ownerName: org.name,
+    muxPlaybackId: program.muxPlaybackId,
+    durationMs: program.durationSec ? program.durationSec * 1000 : undefined,
+    startedAt: program.firstSeenMs,
+  } as unknown as StreamArchive;
+  return { archive, mediaUrl };
+}
+
 let processing = false;
 
 /** One sweep: claim every due run and process it end-to-end. */
@@ -68,16 +111,26 @@ export async function processDueElevateRuns(now = Date.now(), orgId?: string): P
         // Candidate stream owners: the org itself + its channel owner (for a
         // FAST channel, FastChannel.id === the channel owner's uid).
         const ownerIds = [org.id, run.channelOwnerId].filter(Boolean) as string[];
-        const archive = await findArchiveForRun(run, ownerIds);
-        if (!archive) throw new Error('archive-not-found');
-        const playbackId = (archive as any).muxPlaybackId as string | undefined;
-        if (!playbackId) throw new Error('archive-no-playback-id');
+        let archive: StreamArchive | null = null;
+        let mediaUrl = '';
+        if (run.sourceKind === 'FAST_CHANNEL') {
+          // TV channel: transcribe what the channel actually played in the window.
+          const aired = await resolveChannelAiring(run, org);
+          archive = aired.archive;
+          mediaUrl = aired.mediaUrl;
+        } else {
+          archive = await findArchiveForRun(run, ownerIds);
+          if (!archive) throw new Error('archive-not-found');
+          const playbackId = (archive as any).muxPlaybackId as string | undefined;
+          if (!playbackId) throw new Error('archive-no-playback-id');
+          mediaUrl = `https://stream.mux.com/${playbackId}.m3u8`;
+        }
 
         const cfg = await getElevateLiveConfig(org.id).catch(() => null);
         const result = await runElevateLivePipeline(
           {
             run, org, archive,
-            mediaUrl: `https://stream.mux.com/${playbackId}.m3u8`,
+            mediaUrl,
             outputs: cfg?.outputs || { article: true, briefing: true, clips: true, bookChapter: false },
             autoPublishBriefing: cfg?.autoPublishBriefing !== false,
           },
