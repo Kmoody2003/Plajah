@@ -11,6 +11,7 @@
 // items (that's the "native-first" guarantee); Audius supplies breadth and fills the tail.
 
 import type { Album, Track } from '../types';
+import { canAirTrack } from './rights/trackClearance';
 import { fetchAllPublicAlbums, fetchUserProfile, fetchFollowingIds, auth } from './backendService';
 import {
   fetchAudiusChartsByGenre, fetchAudiusTrending, fetchAudiusUnderground, fetchAudiusArtistTracks,
@@ -205,7 +206,7 @@ export async function buildRadioQueue(
     if (album.type && album.type !== 'MUSIC') continue;
     if (!album.tracks?.length) continue;
     for (const t of album.tracks) {
-      if (!t?.id || skip.has(t.id) || !t.url) continue;
+      if (!t?.id || skip.has(t.id) || !t.url || !canAirTrack(t)) continue;
       const { score, reason } = relevance(t, album, seed, sig);
       if (score < 0) continue; // explicitly disliked
       const item: UpNextItem = { track: t, album, native: true, reason };

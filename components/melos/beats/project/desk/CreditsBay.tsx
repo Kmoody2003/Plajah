@@ -10,6 +10,7 @@ import {
   CREDIT_ROLES, deskOf, metaOf, deskUid, isValidIsrc, isValidUpc, formatIsrc,
   type Credit, type CreditCategory, type ExplicitFlag, type ReleaseType, type TrackMeta,
 } from '../../../../../services/melos/beats/releaseDesk';
+import { TrackRightsQuestions } from '../../../../rights/TrackRightsQuestions';
 import { Panel, Field, TagInput, inputCls, selectCls, btnCls, type BayProps } from './ui';
 
 const MOODS = ['Uplifting', 'Melancholy', 'Euphoric', 'Dark', 'Chill', 'Romantic', 'Aggressive', 'Dreamy', 'Nostalgic', 'Hopeful', 'Spiritual', 'Playful', 'Epic', 'Intimate'];
@@ -164,6 +165,7 @@ export const CreditsBay: React.FC<BayProps> = ({ project, mutate }) => {
         </Panel>
         {track && (
           <>
+            <TrackRightsQuestions rights={meta.rights} onChange={(next) => setMeta((m) => { m.rights = next; })} />
             <Panel title={`${track.title} · Metadata`}>
               <div className="grid grid-cols-2 gap-2">
                 <Field label={<span className="flex items-center gap-1">ISRC <IdBadge ok={isValidIsrc(meta.isrc)} empty={!meta.isrc} /></span>}>

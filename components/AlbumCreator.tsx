@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { CreatorAgreementCheck, recordCreatorAgreement } from './legal/CreatorAgreementCheck';
+import { TrackRightsQuestions } from './rights/TrackRightsQuestions';
+import { canAirTrack, isSongTrack, publishBlockers } from '../services/rights/trackClearance';
 import ReleaseAnnouncementField from './release/ReleaseAnnouncementField';
 import { motion, AnimatePresence } from 'motion/react';
 import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit, FilmDistribution, FilmVersion, Character } from '../types';
@@ -869,6 +871,12 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   }, [title, tracks, metadataKind]);
 
   // ── Submit ───────────────────────────────────────────────────────────────────
+  // A first publish answers for every song. Editing a live album only answers for files added now,
+  // so older catalog can still be edited.
+  const rightsBlocked = type !== 'MUSIC' ? [] : publishBlockers(
+    !initialAlbum || initialAlbum.isDraft ? tracks : tracks.filter(t => t.file),
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title) return;
@@ -885,6 +893,15 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       setPageDir(-1);
       setStep(1); // subtype selection
       alert('Choose a video content type — Reello, Movie, TV, or Podcast — before publishing.');
+      return;
+    }
+    // ── Rights gate ─────────────────────────────────────────────────────────
+    // Drafts and autosave can hold unfinished answers; a publish cannot.
+    if (rightsBlocked.length && !draftMode && !quiet) {
+      setPageDir(-1);
+      setStep(2);
+      setContentTab('tracks');
+      alert(`Finish the rights questions for: ${rightsBlocked.map(t => t.title || 'Untitled').join(', ')}`);
       return;
     }
     if (!quiet) {
@@ -1906,7 +1923,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                   <label className="text-[9px] font-black uppercase tracking-widest text-white/20">Options</label>
                   <div className="flex flex-wrap gap-2">
                     <button type="button" onClick={() => updateTrack(track.id, { isPaywalled: !track.isPaywalled })} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${track.isPaywalled ? 'bg-small-orange text-white border-small-orange shadow-lg' : 'bg-white/5 border-white/10 text-white/40'}`}>{track.isPaywalled ? 'Paywall' : 'Free'}</button>
-                    <button type="button" onClick={() => updateTrack(track.id, { isRadioEligible: !track.isRadioEligible })} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${track.isRadioEligible ? 'bg-green-500 text-white border-green-500' : 'bg-white/5 border-white/10 text-white/40'}`}>Radio</button>
+                    <button type="button" disabled={!canAirTrack(track)} title={canAirTrack(track) ? undefined : 'Held until the rights questions are finished'} onClick={() => updateTrack(track.id, { isRadioEligible: !track.isRadioEligible })} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${track.isRadioEligible && canAirTrack(track) ? 'bg-green-500 text-white border-green-500' : 'bg-white/5 border-white/10 text-white/40'}`}>Radio</button>
                     <button type="button" onClick={() => updateTrack(track.id, { isSlideshowEligible: !track.isSlideshowEligible })} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${track.isSlideshowEligible ? 'bg-blue-500 text-white border-blue-500' : 'bg-white/5 border-white/10 text-white/40'}`}>Slide</button>
                   </div>
                 </div>
@@ -1918,6 +1935,9 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                   </select>
                 </div>
               </div>
+              {type === 'MUSIC' && isSongTrack(track) && (
+                <TrackRightsQuestions rights={track.trackMeta?.rights} onChange={(rights) => updateTrack(track.id, { trackMeta: { ...track.trackMeta, rights } })} />
+              )}
               {licensingEnabled && type === 'MUSIC' && (
                 <div className="mt-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
@@ -4049,6 +4069,12 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                   return null;
                 })()}
                 {!initialAlbum && <CreatorAgreementCheck checked={rightsConfirmed} onChange={setRightsConfirmed} />}
+                {rightsBlocked.length > 0 && (
+                  <div className="flex items-start gap-2.5 p-3.5 rounded-2xl text-[11px] text-yellow-300" style={{ background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)' }}>
+                    <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+                    <span>{rightsBlocked.length} song{rightsBlocked.length > 1 ? 's need' : ' needs'} rights answers or a licence before publishing. <button type="button" className="underline" onClick={() => { setStep(2); setContentTab('tracks'); }}>Go to tracks</button></span>
+                  </div>
+                )}
                 {isFilm && (
                   <p className="text-center text-[9px] font-bold uppercase tracking-widest text-white/30 mb-3">Only a name &amp; creator are required — everything else is optional and editable anytime, before or after you publish.</p>
                 )}
@@ -4059,7 +4085,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                     className="sm:flex-shrink-0 px-6 py-5 bg-white/5 border border-white/15 text-white/70 font-black uppercase tracking-[0.3em] text-[11px] rounded-full transition-all hover:bg-white/10 disabled:opacity-30 active:scale-95">
                     {isDeploying ? 'Saving…' : 'Save Draft'}
                   </button>
-                  <button type="submit" disabled={isDeploying || !title || (type === 'VIDEO' && !subType) || (isFilm && !artist.trim()) || (!initialAlbum && !isFilm && !rightsConfirmed)} title={type === 'VIDEO' && !subType ? 'Choose a video content type first' : undefined} className="flex-1 py-5 bg-white text-black font-black uppercase tracking-[0.5em] text-sm rounded-full transition-all hover:scale-[1.02] shadow-3xl disabled:opacity-30 active:scale-95">
+                  <button type="submit" disabled={isDeploying || !title || (type === 'VIDEO' && !subType) || (isFilm && !artist.trim()) || (!initialAlbum && !isFilm && !rightsConfirmed) || (rightsBlocked.length > 0 && !isDraft)} title={type === 'VIDEO' && !subType ? 'Choose a video content type first' : undefined} className="flex-1 py-5 bg-white text-black font-black uppercase tracking-[0.5em] text-sm rounded-full transition-all hover:scale-[1.02] shadow-3xl disabled:opacity-30 active:scale-95">
                     {isDeploying ? (initialAlbum ? 'Updating Cloud...' : 'Deploying to Cloud...') : (type === 'VIDEO' && !subType) ? 'Set Content Type First' : (initialAlbum ? 'Save Changes' : 'Publish to Global Audience')}
                   </button>
                 </div>

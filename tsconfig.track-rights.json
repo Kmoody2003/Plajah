@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true, "types": ["vite/client", "node"] },
+  "include": [
+    "services/rights/trackClearance.ts", "components/rights/TrackRightsQuestions.tsx", "labs/rights/main.tsx",
+    "components/melos/beats/project/desk/CreditsBay.tsx", "components/melos/beats/project/desk/PublishBay.tsx",
+    "components/ArtistRadioBuilder.tsx", "components/RadioView.tsx", "components/AlbumCreator.tsx",
+    "hooks/useProfileMarquee.ts", "services/musicRecommender.ts"
+  ]
+}

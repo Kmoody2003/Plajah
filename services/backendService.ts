@@ -1,5 +1,6 @@
 import { finishSignOut, markSigningOut, runBeforeSignOut } from './userScope';
 import { visibleToReader } from './journalist/embargo';
+import { canAirTrack } from './rights/trackClearance';
 import { isFutureRelease as isFutureReleaseVideo, visibleToViewer as videoVisibleToViewer, filterReleased as filterReleasedVideos } from './releases/visibility';
 import {
   ref,
@@ -6603,7 +6604,7 @@ export const fetchRadioTracks = async (): Promise<Track[]> => {
     
     albums.forEach(album => {
       album.tracks?.forEach(track => {
-        if (track.isRadioEligible) {
+        if (track.isRadioEligible && canAirTrack(track)) {
           radioTracks.push({
             ...track,
             artistId: album.ownerId,
@@ -9258,7 +9259,8 @@ export const autoGenerateRadioSchedule = async (uid: string): Promise<FastChanne
 
   const tracks = albums
     .filter(a => a.type === 'MUSIC' || !a.type)
-    .flatMap(a => (a.tracks || []).map(t => ({ ...t, albumTitle: a.title })));
+    .flatMap(a => (a.tracks || []).map(t => ({ ...t, albumTitle: a.title })))
+    .filter(canAirTrack);
   const eligible = tracks.filter(t => (t as any).isRadioEligible);
   const pool = (eligible.length ? eligible : tracks).filter(t => (t as any).url || (t as any).audioUrl);
 

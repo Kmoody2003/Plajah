@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { fetchUserAlbums, fetchUserProfile, updateUserProfile, auth } from '../services/backendService';
 import type { Album, Track, UserProfile } from '../types';
+import { canAirTrack } from '../services/rights/trackClearance';
 import FastChannelManager from './FastChannelManager';
 import { createPortal } from 'react-dom';
 
@@ -50,7 +51,7 @@ export default function ArtistRadioBuilder({ user }: Props) {
         }
         // Build set of radio-eligible track IDs from all albums
         const ids = new Set<string>();
-        albs.forEach(a => (a.tracks ?? []).forEach(t => { if (t.isRadioEligible) ids.add(t.id); }));
+        albs.forEach(a => (a.tracks ?? []).forEach(t => { if (t.isRadioEligible && canAirTrack(t)) ids.add(t.id); }));
         setEligibleIds(ids);
       }
       setLoading(false);
@@ -216,7 +217,7 @@ export default function ArtistRadioBuilder({ user }: Props) {
         <div className="flex items-center justify-between mb-4">
           <p className={labelCls}>Radio-Eligible Tracks</p>
           <div className="flex gap-2">
-            <button onClick={() => setEligibleIds(new Set(allTracks.map(t => t.id)))}
+            <button onClick={() => setEligibleIds(new Set(allTracks.filter(canAirTrack).map(t => t.id)))}
               className="text-[8px] font-black uppercase tracking-widest text-white/25 hover:text-white transition-all">
               Select All
             </button>
@@ -238,9 +239,10 @@ export default function ArtistRadioBuilder({ user }: Props) {
           <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
             {allTracks.map(track => {
               const on = eligibleIds.has(track.id);
+              const held = !canAirTrack(track);
               return (
-                <button key={track.id} onClick={() => toggleTrack(track.id)}
-                  className="w-full flex items-center gap-3 p-3 rounded-2xl border transition-all text-left"
+                <button key={track.id} disabled={held} onClick={() => toggleTrack(track.id)}
+                  className="w-full flex items-center gap-3 p-3 rounded-2xl border transition-all text-left disabled:opacity-50"
                   style={{
                     background:  on ? 'rgba(255,140,0,0.06)' : 'rgba(255,255,255,0.02)',
                     borderColor: on ? 'rgba(255,140,0,0.25)' : 'rgba(255,255,255,0.06)',
@@ -250,7 +252,7 @@ export default function ArtistRadioBuilder({ user }: Props) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className={`text-xs font-black uppercase tracking-widest truncate ${on ? 'text-white' : 'text-white/35'}`}>{track.title}</p>
-                    <p className="text-[8px] text-white/20">{track.albumTitle} · {track.artist}</p>
+                    <p className="text-[8px] text-white/20">{track.albumTitle} · {track.artist}{held ? ' · Held: finish its rights answers' : ''}</p>
                   </div>
                   {track.duration && (
                     <span className="text-[8px] text-white/20 flex-shrink-0">
