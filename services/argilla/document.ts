@@ -46,7 +46,7 @@ export async function decodeField(blob: Blob): Promise<ClayFieldSnapshot> {
   const raw = await gzip(new Uint8Array(await blob.arrayBuffer()), 'decompress');
   const buffer = raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength) as ArrayBuffer;
   const ints = new Uint32Array(buffer, 0, 4);
-  if (ints[0] !== MAGIC) throw new Error('This is not an Argilla sculpt.');
+  if (ints[0] !== MAGIC) throw new Error('This is not a Plajah 3D sculpt.');
   if (ints[1] > FORMAT) throw new Error('This sculpt was saved by a newer version of Plajah.');
   const grid = ints[2];
   const brickCount = ints[3];

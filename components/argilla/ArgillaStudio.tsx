@@ -25,6 +25,9 @@ import type { CreatureStage } from '../../services/argilla/creature/stage';
 import CreatureRoom from './CreatureRoom';
 import ModelingRoom from './ModelingRoom';
 import SceneRoom from './SceneRoom';
+import { newShot, type Shot } from '../../services/argilla/shot/shot';
+import { deleteShot, listShots, loadShot, saveShot, type ShotSummary } from '../../services/argilla/shot/shotStore';
+import { sendShotToFabula } from '../../services/argilla/shot/shotToFabula';
 import type { Scene, SceneObject } from '../../services/argilla/scene/sceneModel';
 import type { FinishedObject } from '../../services/argilla/scene/finishObject';
 import type { BuildResult, Check } from '../../services/argilla/understand/reconstruct';
@@ -87,7 +90,28 @@ export default function ArgillaStudio({ onClose, initialProjectId, onSendToTela,
   const [living, setLiving] = useState<{ model: CreatureModel; entry: CodexEntry } | null>(null);
   const [whatIs, setWhatIs] = useState('');
   const [modeling, setModeling] = useState(false);
-  const [sceneView, setSceneView] = useState<{ scene: Scene; finished: Record<string, FinishedObject> } | null>(null);
+  const [sceneView, setSceneViewState] = useState<{ scene: Scene; finished: Record<string, FinishedObject> } | null>(null);
+  // Every scene is a shot: a stage, a camera path and a length, saved on this device as it changes.
+  const [shot, setShot] = useState<Shot | null>(null);
+  const [shots, setShots] = useState<ShotSummary[]>(() => listShots());
+  const setSceneView = (view: { scene: Scene; finished: Record<string, FinishedObject> } | null, keep?: Shot) => {
+    setSceneViewState(view);
+    setShot(view ? keep ?? newShot(view.scene.title) : null);
+  };
+  const shotSave = useRef(0);
+  const saveShotSoon = (next: Shot | null, view = sceneView) => {
+    if (!next || !view) return;
+    window.clearTimeout(shotSave.current);
+    shotSave.current = window.setTimeout(() => {
+      void saveShot(next, view.scene, view.finished).then(() => setShots(listShots())).catch(() => setNote('This shot could not be saved on this device.'));
+    }, 800);
+  };
+  useEffect(() => { saveShotSoon(shot); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [shot, sceneView]);
+  const openShot = async (id: string) => {
+    const saved = await loadShot(id);
+    if (!saved) { setNote('That shot is no longer on this device.'); setShots(listShots()); return; }
+    setSceneView({ scene: saved.scene, finished: saved.finished }, saved.shot);
+  };
   const [scenePrompt, setScenePrompt] = useState('');
   const sceneInput = useRef<HTMLInputElement>(null);
   // What it made of the picture: the name, how it built it, and what it checked.
@@ -170,7 +194,7 @@ export default function ArgillaStudio({ onClose, initialProjectId, onSendToTela,
         onEngine?.(engine);
         setReady(true);
       } catch (error) {
-        setFatal(error instanceof Error ? error.message : 'Argilla could not start on this device.');
+        setFatal(error instanceof Error ? error.message : 'Plajah 3D could not start on this device.');
       }
     })();
     return () => {
@@ -615,7 +639,7 @@ export default function ArgillaStudio({ onClose, initialProjectId, onSendToTela,
       const read = await readPicture(picture);
       const built = await buildInWorker(read, { grid: Math.max(48, e.pool.grid >> 1), band: e.band * 2, prior: object.prior });
       const one = await finishToScene(built.field, picture, read, { prior: object.prior, readings: [], source: 'words', confidence: 1 }, [], [], object.label);
-      setSceneView({ scene: { ...sceneView.scene, objects: sceneView.scene.objects.map((o) => (o.id === object.id ? { ...o, size: one.scene.objects[0].size } : o)) }, finished: { ...sceneView.finished, [object.id]: one.finished.object } });
+      setSceneView({ scene: { ...sceneView.scene, objects: sceneView.scene.objects.map((o) => (o.id === object.id ? { ...o, size: one.scene.objects[0].size } : o)) }, finished: { ...sceneView.finished, [object.id]: one.finished.object } }, shot ?? undefined);
     } catch (error) {
       setNote(error instanceof Error ? error.message : 'Could not build from that picture.');
     } finally { setBusy(''); }
@@ -797,7 +821,7 @@ export default function ArgillaStudio({ onClose, initialProjectId, onSendToTela,
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[#0b0a0f] text-white select-none" data-testid="argilla-studio">
       <header className="flex items-center gap-2 h-12 px-3 border-b border-white/[.07] shrink-0">
-        {onClose && <button onClick={onClose} aria-label="Close Argilla" className="p-2 rounded-lg hover:bg-white/10"><ArrowLeft size={16}/></button>}
+        {onClose && <button onClick={onClose} aria-label="Close Plajah 3D" className="p-2 rounded-lg hover:bg-white/10"><ArrowLeft size={16}/></button>}
         <Box size={16} color="#ff5a8a"/>
         <input aria-label="Sculpt name" value={title} onChange={(e) => setTitle(e.target.value)} className="bg-transparent text-sm font-semibold outline-none min-w-0 w-56 focus:bg-white/5 rounded px-1.5 py-1"/>
         <button onClick={() => setModeling(true)} className="ml-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/20">Model</button>
@@ -854,6 +878,21 @@ export default function ArgillaStudio({ onClose, initialProjectId, onSendToTela,
                     <button onClick={() => sceneInput.current?.click()} disabled={!!busy} className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white/[.07] hover:bg-white/15 disabled:opacity-40">From a picture</button>
                   </div>
                 </div>
+                {!!shots.length && (
+                  <div className="mt-3 p-3 rounded-xl bg-white/[.05]" data-testid="saved-shots">
+                    <p className="text-xs font-semibold text-white/75">Your shots</p>
+                    <div className="flex flex-col gap-1 mt-2 max-h-36 overflow-y-auto">
+                      {shots.slice(0, 12).map((s) => (
+                        <div key={s.id} className="flex items-center gap-1.5">
+                          <button onClick={() => void openShot(s.id)} disabled={!!busy} className="flex-1 flex justify-between px-2.5 py-1.5 rounded-lg text-xs text-left bg-white/[.07] hover:bg-white/15 disabled:opacity-40">
+                            <span className="truncate capitalize">{s.title}</span><span className="shrink-0 text-white/40">{s.seconds} s</span>
+                          </button>
+                          <button onClick={() => { if (window.confirm(`Delete "${s.title}" from this device? This can't be undone.`)) void deleteShot(s.id).then(() => setShots(listShots())); }} aria-label={`Delete ${s.title}`} className="px-1.5 text-white/35 hover:text-white">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-1.5 mt-4">
                   <button onClick={() => pictureInput.current?.click()} disabled={!!busy} className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-black hover:bg-white/85 disabled:opacity-40">Start from a picture</button>
                   <button onClick={() => sheetInput.current?.click()} disabled={!!busy} className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-black hover:bg-white/85 disabled:opacity-40">Start from a character sheet</button>
@@ -946,7 +985,9 @@ export default function ArgillaStudio({ onClose, initialProjectId, onSendToTela,
             </div>
           )}
 
-          {sceneView && <SceneRoom scene={sceneView.scene} finished={sceneView.finished} onBack={() => setSceneView(null)} onSculpt={sculptFromScene} onReplace={replaceInScene} onApi={onScene}/>}
+          {sceneView && <SceneRoom scene={sceneView.scene} finished={sceneView.finished} onBack={() => setSceneView(null)} onSculpt={sculptFromScene} onReplace={replaceInScene} onApi={onScene}
+            shot={shot ?? undefined} onShotChange={setShot} onSceneChange={() => saveShotSoon(shot)}
+            onSendToFabula={async (rendered) => { if (shot) await sendShotToFabula(shot, rendered); }}/>}
 
           {started && understood && (
             <div className="absolute bottom-16 right-3 w-64 max-h-[60%] overflow-y-auto p-2.5 rounded-xl bg-black/70 backdrop-blur text-xs flex flex-col gap-2" data-testid="understanding">

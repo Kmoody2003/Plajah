@@ -3,6 +3,7 @@ import { decodeRuns, lightByLabel, PartMap, placeMap, tidyParts, writeSheet } fr
 import { KIND_SHEETS, parseSheetAnswer, SHEET_BY_KIND, sheetFromWords } from '../services/argilla/understand/buildSheets';
 import { MATERIAL_BY_ID } from '../services/argilla/understand/materials';
 import { labelSpots, parseLookAnswer } from '../services/argilla/understand/lookAtParts';
+import { cameraAt, cameraMove, retime, sceneBounds, setKey } from '../services/argilla/shot/shot';
 import { agreementWithPicture, facingWeight, fillUnseen, spreadLabels, visibilityFrom } from '../services/argilla/scene/finishObject';
 import assert from 'node:assert/strict';
 import { BrickPool, BRICK_STRIDE, BRICK_VOXELS, CELL_INSIDE, isSlot } from '../services/argilla/brickPool';
@@ -1019,4 +1020,44 @@ test('names: where a piece sits and its material decide between lookalikes', () 
   const sheet = writeSheet(map, new Map([[1, { parts: { 'uniform top': 0.3 }, materials: { 'poly-twill': 0.5 } }], [2, { parts: { 'police helmet': 0.4, face: 0.2 }, materials: { skin: 0.5 } }]]), police, 'vision');
   assert.equal(sheet.parts.find((p) => p.id === 2)?.name, 'face');
   assert.equal(sheet.parts.find((p) => p.id === 2)?.material, 'skin');
+});
+
+test('shot camera: holds its keys at the ends, eases out and in, and never stops at a key in between', () => {
+  const keys = [
+    { t: 0, position: [0, 1, 5] as [number, number, number], target: [0, 1, 0] as [number, number, number], fov: 38 },
+    { t: 5, position: [5, 1, 0] as [number, number, number], target: [0, 1, 0] as [number, number, number], fov: 38 },
+    { t: 10, position: [0, 1, -5] as [number, number, number], target: [0, 1, 0] as [number, number, number], fov: 30 },
+  ];
+  assert.deepEqual(cameraAt(keys, -1)!.position, [0, 1, 5]);
+  assert.deepEqual(cameraAt(keys, 12)!.position, [0, 1, -5]);
+  assert.equal(cameraAt(keys, 10)!.fov, 30);
+  const speed = (t: number) => { const a = cameraAt(keys, t - 0.05)!.position, b = cameraAt(keys, t + 0.05)!.position; return Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) / 0.1; };
+  assert.ok(speed(0.1) < speed(5) * 0.2, 'starts gently');
+  assert.ok(speed(9.9) < speed(5) * 0.2, 'settles gently');
+  assert.ok(speed(5) > 0.5, 'keeps moving through the middle key');
+  assert.equal(cameraAt([], 3), null);
+});
+
+test('shot camera: a key near an existing one replaces it, and lengths retime the whole move', () => {
+  const k = (t: number) => ({ t, position: [t, 0, 0] as [number, number, number], target: [0, 0, 0] as [number, number, number], fov: 38 });
+  const keys = setKey(setKey(setKey([], k(0)), k(4)), k(4.1));
+  assert.deepEqual(keys.map((x) => x.t), [0, 4.1]);
+  assert.deepEqual(retime(keys, 10, 5).map((x) => +x.t.toFixed(2)), [0, 2.05]);
+});
+
+test('shot camera: ready-made moves frame the scene from the viewer\'s side', () => {
+  const scene = { objects: [{ position: [0, 0, 0], size: [1, 2, 1] }, { position: [3, 0, 0], size: [1, 1, 1] }] } as never;
+  const { centre, radius } = sceneBounds(scene);
+  assert.deepEqual(centre.map((v) => +v.toFixed(2)), [1.5, 1, 0]);
+  const from: [number, number, number] = [1.5, 2, 10];
+  const push = cameraMove('push-in', scene, 8, from);
+  const dist = (p: number[]) => Math.hypot(p[0] - centre[0], p[1] - centre[1], p[2] - centre[2]);
+  assert.equal(push.length, 2);
+  assert.equal(push[1].t, 8);
+  assert.ok(dist(push[1].position) < dist(push[0].position));
+  assert.ok(push[0].position[2] > centre[2], 'stays on the side the viewer looked from');
+  assert.ok(dist(push[0].position) > radius, 'starts outside the scene');
+  const orbit = cameraMove('orbit', scene, 10, from);
+  assert.ok(orbit.every((o) => Math.abs(dist(o.position) - dist(orbit[0].position)) < 1e-6), 'orbits at one distance');
+  for (const m of ['pull-back', 'crane-up', 'slide-past'] as const) assert.ok(cameraMove(m, scene, 5, from).every((x) => x.position.every(Number.isFinite)));
 });

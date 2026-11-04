@@ -3041,7 +3041,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   }
 
   if (argillaOpen) {
-    return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0b0a0f] text-white/60">Loading Argilla…</div>}>
+    return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0b0a0f] text-white/60">Loading Plajah 3D…</div>}>
       <ArgillaStudio
         initialProjectId={argillaOpen.projectId}
         onClose={() => setArgillaOpen(null)}

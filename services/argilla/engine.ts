@@ -107,7 +107,7 @@ export class ArgillaEngine {
   private eye = new THREE.Vector3();
 
   static async create(canvas: HTMLCanvasElement, tierName?: keyof typeof CLAY_TIERS): Promise<ArgillaEngine> {
-    if (!navigator.gpu) throw new Error('This browser has no WebGPU. Open Argilla in the Plajah desktop app or a current Chrome or Edge.');
+    if (!navigator.gpu) throw new Error('This browser has no WebGPU. Open Plajah 3D in the Plajah desktop app or a current Chrome or Edge.');
     const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
     if (!adapter) throw new Error('No GPU adapter is available.');
     if (!adapter.features.has('float32-filterable')) throw new Error('This GPU cannot filter 32-bit float textures, which the clay viewport needs.');
@@ -141,7 +141,7 @@ export class ArgillaEngine {
       this.onStatus?.('The GPU rejected that last change. Undo and try again.');
     });
     void device.lost.then((info) => {
-      if (info.reason !== 'destroyed') this.onStatus?.('The GPU connection was lost. Reopen Argilla; your last autosave is safe.');
+      if (info.reason !== 'destroyed') this.onStatus?.('The GPU connection was lost. Reopen Plajah 3D; your last autosave is safe.');
     });
 
     this.ctx = canvas.getContext('webgpu') as GPUCanvasContext;

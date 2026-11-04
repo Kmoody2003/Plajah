@@ -7,11 +7,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
-import { ArrowLeft, Check, Download, X } from 'lucide-react';
+import { ArrowLeft, Check, Clapperboard, Download, Pause, Play, Video, X } from 'lucide-react';
 import { checkScene, Scene, SceneObject } from '../../services/argilla/scene/sceneModel';
 import type { FinishedObject } from '../../services/argilla/scene/finishObject';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { MATERIAL_BY_ID } from '../../services/argilla/understand/materials';
+import { CAMERA_MOVES, cameraAt, cameraMove, fitDistance, retime, sceneBounds, setKey, SHOT_LENGTHS, type MoveId, type Shot } from '../../services/argilla/shot/shot';
+import { renderShot, RenderCancelled, type RenderedShot } from '../../services/argilla/shot/renderShot';
 
 export interface SceneRoomProps {
   scene: Scene;
@@ -21,6 +23,12 @@ export interface SceneRoomProps {
   onSculpt?: (object: SceneObject) => void;
   onReplace?: (object: SceneObject, picture: File) => Promise<void> | void;
   onApi?: (api: unknown) => void;
+  /** The shot this stage belongs to: its camera path and length. */
+  shot?: Shot;
+  onShotChange?: (shot: Shot) => void;
+  /** Something in the scene moved, so the saved shot is stale. */
+  onSceneChange?: () => void;
+  onSendToFabula?: (rendered: RenderedShot) => Promise<void>;
 }
 
 const dataTexture = (rgba: Uint8ClampedArray, size: number, srgb: boolean) => {
@@ -69,15 +77,27 @@ function exportable(root: THREE.Group, scene: Scene, finished: Record<string, Fi
   return out;
 }
 
-export default function SceneRoom({ scene, finished = {}, onBack, onSculpt, onReplace, onApi }: SceneRoomProps) {
+export default function SceneRoom({ scene, finished = {}, onBack, onSculpt, onReplace, onApi, shot, onShotChange, onSceneChange, onSendToFabula }: SceneRoomProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [checks, setChecks] = useState(scene.checks);
   const [note, setNote] = useState('');
   const replaceInput = useRef<HTMLInputElement>(null);
-  const world = useRef<{ root: THREE.Group; gizmo: TransformControls; meshes: Map<string, THREE.Mesh> } | null>(null);
+  const world = useRef<{ root: THREE.Group; gizmo: TransformControls; meshes: Map<string, THREE.Mesh>; three: THREE.Scene; camera: THREE.PerspectiveCamera; orbit: OrbitControls } | null>(null);
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
+  const sceneChanged = useRef(onSceneChange);
+  sceneChanged.current = onSceneChange;
+  // The render loop reads these every frame; React state only mirrors them for the timeline.
+  const drive = useRef({ t: 0, playing: false, throughCamera: false, keys: shot?.camera ?? [], seconds: shot?.seconds ?? 10, lastUi: 0 });
+  drive.current.keys = shot?.camera ?? [];
+  drive.current.seconds = shot?.seconds ?? 10;
+  const [time, setTime] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [throughCamera, setThroughCamera] = useState(!!shot?.camera.length);
+  drive.current.throughCamera = throughCamera && !!shot?.camera.length;
+  const [rendering, setRendering] = useState<null | { done: number; total: number; to: 'file' | 'fabula' }>(null);
+  const renderAbort = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -97,19 +117,10 @@ export default function SceneRoom({ scene, finished = {}, onBack, onSculpt, onRe
     // A picture scene opens from where the picture was taken, stepped back so all of it fits in this window.
     if (scene.backdrop) { camera.position.set(0, 0, reach * 0.22); orbit.target.set(0, 0, -reach * 0.5); } else {
       // Otherwise it opens on everything, aimed at its middle: aimed near the ground, a standing figure lost its head.
-      const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
-      for (const o of scene.objects) {
-        const [x, y, z] = o.position, [w, h, d] = o.size;
-        lo[0] = Math.min(lo[0], x - w / 2); hi[0] = Math.max(hi[0], x + w / 2);
-        lo[1] = Math.min(lo[1], y); hi[1] = Math.max(hi[1], y + h);
-        lo[2] = Math.min(lo[2], z - d / 2); hi[2] = Math.max(hi[2], z + d / 2);
-      }
-      const centre = new THREE.Vector3((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2);
-      const radius = Number.isFinite(lo[0]) ? Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) / 2 : reach * 0.3;
+      const bounds = sceneBounds(scene);
+      const centre = new THREE.Vector3(...bounds.centre);
       // Fits the narrower of the two views, so a tall window doesn't crop the sides either.
-      const vertical = THREE.MathUtils.degToRad(camera.fov / 2);
-      const aspect = canvas.clientWidth / Math.max(canvas.clientHeight, 1) || 1;
-      const fit = (radius / Math.sin(Math.min(vertical, Math.atan(Math.tan(vertical) * aspect)))) * 1.1;
+      const fit = fitDistance(bounds.radius, camera.fov, canvas.clientWidth / Math.max(canvas.clientHeight, 1) || 1);
       orbit.target.copy(centre);
       camera.position.copy(centre).addScaledVector(new THREE.Vector3(0.35, 0.3, 0.55).normalize(), fit);
     }
@@ -188,8 +199,9 @@ export default function SceneRoom({ scene, finished = {}, onBack, onSculpt, onRe
       object.position = [mesh.position.x, mesh.position.y, mesh.position.z];
       object.rotationY = mesh.rotation.y;
       if (!scene.backdrop) setChecks(checkScene(scene));
+      sceneChanged.current?.();
     });
-    world.current = { root, gizmo, meshes };
+    world.current = { root, gizmo, meshes, three, camera, orbit };
 
     const raycaster = new THREE.Raycaster();
     let down: [number, number] | null = null;
@@ -213,10 +225,28 @@ export default function SceneRoom({ scene, finished = {}, onBack, onSculpt, onRe
     const observer = new ResizeObserver(size);
     observer.observe(canvas);
     size();
-    let raf = 0;
-    const loop = () => { raf = requestAnimationFrame(loop); orbit.update(); renderer.render(three, camera); };
-    loop();
-    onApi?.({ camera, orbit, three, scene, meshes, setSelected });
+    let raf = 0, last = performance.now();
+    const loop = (now: number) => {
+      raf = requestAnimationFrame(loop);
+      const d = drive.current;
+      if (d.playing) {
+        d.t += Math.min(0.1, (now - last) / 1000);
+        if (d.t >= d.seconds) { d.t = d.seconds; d.playing = false; setPlaying(false); }
+      }
+      last = now;
+      if (d.playing && now - d.lastUi > 60) { d.lastUi = now; setTime(d.t); }
+      const at = d.throughCamera ? cameraAt(d.keys, d.t) : null;
+      orbit.enabled = !at;
+      if (at) {
+        camera.position.set(...at.position);
+        if (camera.fov !== at.fov) { camera.fov = at.fov; camera.updateProjectionMatrix(); }
+        camera.lookAt(...at.target);
+        orbit.target.set(...at.target);
+      } else orbit.update();
+      renderer.render(three, camera);
+    };
+    raf = requestAnimationFrame(loop);
+    onApi?.({ camera, orbit, three, scene, meshes, setSelected, drive });
     return () => {
       cancelAnimationFrame(raf);
       observer.disconnect();
@@ -252,6 +282,71 @@ export default function SceneRoom({ scene, finished = {}, onBack, onSculpt, onRe
     setNote(`${(blob.size / 1048576).toFixed(1)} MB${scene.backdrop ? ', without the backdrop' : ''}`);
   };
 
+  const updateShot = (patch: Partial<Shot>) => { if (shot) onShotChange?.({ ...shot, ...patch, updatedAt: Date.now() }); };
+  const seek = (t: number) => { drive.current.t = t; drive.current.playing = false; setPlaying(false); setTime(t); };
+  const togglePlay = () => {
+    const d = drive.current;
+    if (!d.playing && d.t >= d.seconds - 1e-3) d.t = 0;
+    d.playing = !d.playing;
+    setPlaying(d.playing);
+    setTime(d.t);
+  };
+  const setLength = (seconds: number) => {
+    if (!shot) return;
+    updateShot({ seconds, camera: retime(shot.camera, shot.seconds, seconds) });
+    if (drive.current.t > seconds) seek(seconds);
+  };
+  const applyMove = (id: MoveId) => {
+    const w = world.current;
+    if (!w || !shot) return;
+    const p = w.camera.position;
+    updateShot({ camera: cameraMove(id, scene, shot.seconds, [p.x, p.y, p.z], 16 / 9, w.camera.fov) });
+    setThroughCamera(true);
+    seek(0);
+  };
+  const setCameraHere = () => {
+    const w = world.current;
+    if (!w || !shot) return;
+    const p = w.camera.position, t = w.orbit.target;
+    updateShot({ camera: setKey(shot.camera, { t: drive.current.t, position: [p.x, p.y, p.z], target: [t.x, t.y, t.z], fov: w.camera.fov }) });
+    setNote(`Camera set at ${drive.current.t.toFixed(1)} s`);
+  };
+  const render = async (to: 'file' | 'fabula') => {
+    const w = world.current;
+    if (!w || !shot) return;
+    const abort = new AbortController();
+    renderAbort.current = abort;
+    seek(drive.current.t);
+    setRendering({ done: 0, total: Math.round(shot.seconds * shot.fps), to });
+    setNote('');
+    const helper = w.gizmo.getHelper();
+    try {
+      const rendered = await renderShot(w.three, shot, {
+        signal: abort.signal,
+        onProgress: (done, total) => setRendering({ done, total, to }),
+        // Gizmos don't belong in the picture.
+        prepare: (on) => { helper.visible = !on; },
+      });
+      if (to === 'file') {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(rendered.blob);
+        link.download = `${shot.title.replace(/[^\w\- ]+/g, '').trim().slice(0, 50) || 'shot'}.${rendered.mime === 'video/webm' ? 'webm' : 'mp4'}`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 60_000);
+        setNote(`${(rendered.blob.size / 1048576).toFixed(1)} MB, ${rendered.width}×${rendered.height}`);
+      } else {
+        await onSendToFabula?.(rendered);
+        setNote('Sent to Fabula');
+      }
+    } catch (error) {
+      setNote(error instanceof RenderCancelled ? 'Render stopped' : error instanceof Error ? error.message : 'Could not render the shot.');
+    } finally {
+      setRendering(null);
+      renderAbort.current = null;
+    }
+  };
+
+  const keys = shot?.camera ?? [];
   const current = scene.objects.find((o) => o.id === selected) ?? null;
   return (
     <div className="absolute inset-0 z-30 bg-[#14131a] text-white text-xs" data-testid="scene-room">
@@ -286,7 +381,49 @@ export default function SceneRoom({ scene, finished = {}, onBack, onSculpt, onRe
         <button onClick={exportGlb} className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg font-bold bg-gradient-to-br from-[#6B0099] to-[#D40055]"><Download size={13}/>Export GLB</button>
         {!!note && <p role="status" className="text-white/60">{note}</p>}
       </aside>
-      <span className="absolute bottom-3 left-3 text-[11px] text-white/40">Click a thing to select it · drag the arrows to place it · left drag turns, wheel zooms</span>
+      {shot ? (
+        <div className="absolute left-3 right-3 md:right-[17.5rem] bottom-3 p-2.5 rounded-xl bg-black/70 backdrop-blur flex flex-col gap-2" data-testid="shot-timeline">
+          <div className="flex items-center gap-2">
+            <button onClick={togglePlay} disabled={!!rendering} aria-label={playing ? 'Pause' : 'Play'} className="p-1.5 rounded-lg bg-white text-black hover:bg-white/85 disabled:opacity-40">{playing ? <Pause size={14}/> : <Play size={14}/>}</button>
+            <span className="w-24 tabular-nums text-white/70" aria-live="off">{time.toFixed(1)} / {shot.seconds} s</span>
+            <div className="relative flex-1 h-6 flex items-center">
+              <input type="range" aria-label="Playhead" min={0} max={shot.seconds} step={1 / shot.fps} value={time} onChange={(e) => seek(+e.target.value)} disabled={!!rendering} className="w-full accent-white"/>
+              {keys.map((k) => <span key={k.t} title={`Camera key at ${k.t.toFixed(1)} s`} className="pointer-events-none absolute top-0 w-1.5 h-1.5 -ml-[3px] rotate-45 bg-amber-300" style={{ left: `${(k.t / shot.seconds) * 100}%` }}/>)}
+            </div>
+            <label className="flex items-center gap-1 text-white/60">Length
+              <select value={shot.seconds} onChange={(e) => setLength(+e.target.value)} disabled={!!rendering} className="bg-white/10 rounded px-1 py-0.5 outline-none">
+                {[...new Set([...SHOT_LENGTHS, shot.seconds])].sort((a, b) => a - b).map((s) => <option key={s} value={s} className="text-black">{s} s</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <select aria-label="Camera move" value="" onChange={(e) => { if (e.target.value) applyMove(e.target.value as MoveId); }} disabled={!!rendering} className="bg-white/10 rounded-lg px-2 py-1 outline-none font-semibold">
+              <option value="" className="text-black">Camera move…</option>
+              {CAMERA_MOVES.map((m) => <option key={m.id} value={m.id} className="text-black">{m.label}</option>)}
+            </select>
+            <button onClick={setCameraHere} disabled={!!rendering || (throughCamera && !!keys.length)} title={throughCamera && keys.length ? 'Look freely first, then set the camera' : 'Keep this view at the playhead'} className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 font-semibold disabled:opacity-40">Set camera here</button>
+            <label className={`flex items-center gap-1 px-2 py-1 rounded-lg ${keys.length ? 'bg-white/10' : 'opacity-40'}`}>
+              <input type="checkbox" checked={throughCamera && !!keys.length} disabled={!keys.length || !!rendering} onChange={(e) => setThroughCamera(e.target.checked)}/>Look through the shot camera
+            </label>
+            {!!keys.length && <button onClick={() => { updateShot({ camera: [] }); setThroughCamera(false); }} disabled={!!rendering} className="px-2.5 py-1 rounded-lg text-white/60 hover:text-white disabled:opacity-40">Clear camera</button>}
+            <span className="flex-1"/>
+            {rendering ? (
+              <>
+                <span className="tabular-nums text-white/70" role="status">Rendering {Math.round((rendering.done / Math.max(rendering.total, 1)) * 100)}%</span>
+                <button onClick={() => renderAbort.current?.abort()} className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 font-semibold">Stop</button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => void render('file')} disabled={!keys.length} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 font-semibold disabled:opacity-40"><Video size={13}/>Save video</button>
+                {onSendToFabula && <button onClick={() => void render('fabula')} disabled={!keys.length} className="flex items-center gap-1 px-2.5 py-1 rounded-lg font-bold bg-gradient-to-br from-[#6B0099] to-[#D40055] disabled:opacity-40"><Clapperboard size={13}/>Send to Fabula</button>}
+              </>
+            )}
+          </div>
+          {!keys.length && <p className="text-white/45">Pick a camera move, or look around and press Set camera here at different times.</p>}
+        </div>
+      ) : (
+        <span className="absolute bottom-3 left-3 text-[11px] text-white/40">Click a thing to select it · drag the arrows to place it · left drag turns, wheel zooms</span>
+      )}
       <input ref={replaceInput} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f && current) void onReplace?.(current, f); e.target.value = ''; }}/>
     </div>
   );
