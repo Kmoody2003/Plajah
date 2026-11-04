@@ -183,11 +183,11 @@ function listingMatches(r: OpenListingRecord, needle: string): boolean {
 }
 
 /** Guarded runner: one failed layer is reported, never allowed to blank the rest. */
-async function guard<T>(label: string, errors: string[], fn: () => Promise<T[]>): Promise<T[]> {
+async function guard<T>(label: string, errors: string[], fn: () => Promise<T[]>, timeoutMs = 12_000): Promise<T[]> {
   try {
     // A slow source (a cold Firestore channel, a sluggish layer) must not hold
-    // the whole answer hostage — after 8s it's reported as unreachable.
-    return await Promise.race([fn(), new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))]);
+    // the whole answer hostage — past the timeout it's reported as unreachable.
+    return await Promise.race([fn(), new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), timeoutMs))]);
   } catch (e) {
     console.warn('[terra search]', label, (e as Error)?.message);
     errors.push(label);
@@ -224,7 +224,14 @@ export async function searchTerra(raw: string): Promise<TerraSearchResult> {
     bizWhere = `parcel_id = '${t}'`;
     dlbaWhere = `parcel_id = '${t}'`;
   } else {
-    parcelWhere = /\d/.test(t) || streetWord ? `UPPER(address) LIKE '%${t}%'` : null;
+    // Parcel addresses are stored uppercase, so no UPPER() — wrapping the column
+    // defeats the index and a 378k-row scan ran ~8s cold (timing out). A query
+    // that starts with a house number is a prefix match ("8031 MCGRAW%").
+    // Suffixes are inconsistent in the parcel file ("7701 MCGRAW" has none while
+    // "1 WOODWARD AVE" does), so a typed "St"/"Ave" is dropped before matching.
+    const bare = t.replace(/\s+(ST|AVE|RD|BLVD|DR|CT|PL|LN|HWY|PKWY|STREET|AVENUE|ROAD|WAY|TER|CIR)\.?$/, '');
+    parcelWhere = houseNo ? `address LIKE '${bare}%'`
+      : streetWord ? `address LIKE '%${t}%'` : null;
     // A business name OR a street address — both are things people type here.
     bizWhere = `UPPER(business_name) LIKE '%${t}%' OR UPPER(address) LIKE '%${t}%'`;
     // Only for address-shaped queries ("4127 McGraw", "McGraw St"): a business

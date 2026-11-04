@@ -16,7 +16,7 @@ import { motion } from 'motion/react';
 import { TerraLookup } from './TerraLookup';
 import {
   MapPin, Building2, FileText, Home, Ruler, Landmark, Rss, Film,
-  Compass, ArrowRight, ShieldCheck, Layers, Search, Store, Sparkles,
+  Compass, ArrowRight, ShieldCheck, Layers, Search, Store, Sparkles, Scale,
 } from 'lucide-react';
 
 const ACCENT = '#FF8C00';        // Terra — surveyor's flag / Plajah primary
@@ -80,6 +80,11 @@ const SERVICES: Service[] = [
     id: 'film', title: 'Listing Film', accent: PRO, status: 'live', audience: ['pro'],
     target: 'TERRA_FILM', icon: <Film size={18} />,
     blurb: 'Narrate a walkthrough and it cuts itself — the tour auto-segments into titled room scenes from what you say, ready to render.',
+  },
+  {
+    id: 'laws', title: 'Laws & Ordinances', accent: CIVIC, status: 'live', audience: ['citizen', 'pro'],
+    target: 'TERRA_LAW', icon: <Scale size={18} />,
+    blurb: 'Look up the rules in plain words — Michigan law in full text, federal regulations, and the Detroit City Code — from the official publishers.',
   },
   {
     id: 'scout', title: 'Site Scout', accent: CIVIC, status: 'live', audience: ['pro'],

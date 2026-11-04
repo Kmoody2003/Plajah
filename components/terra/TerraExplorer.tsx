@@ -24,7 +24,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'motion/react';
 import {
   MapPin, Layers, Ruler, Download, Info, RefreshCw,
-  FileText, AlertTriangle, Home, Hammer, Landmark, Search, ArrowLeft, Store, Tag, X, Loader2,
+  FileText, AlertTriangle, Home, Hammer, Landmark, Search, ArrowLeft, Store, Tag, X, Loader2, Scale,
 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import type { TerraParcel, TerraCivicRecord, CivicRecordKind } from '../../services/terra/terraTypes';
@@ -284,7 +284,9 @@ const Row: React.FC<{ k: string; v: React.ReactNode }> = ({ k, v }) => (
   </div>
 );
 
-const ParcelInspector: React.FC<{ parcel: TerraParcel | null; onOpenPassport?: (parcelId: string) => void; onOpenStudio?: (parcelId: string) => void }> = ({ parcel, onOpenPassport, onOpenStudio }) => {
+type LawTarget = { query?: string; zoningDistrict?: string; parcelId?: string };
+
+const ParcelInspector: React.FC<{ parcel: TerraParcel | null; onOpenPassport?: (parcelId: string) => void; onOpenStudio?: (parcelId: string) => void; onOpenLaws?: (t: LawTarget) => void }> = ({ parcel, onOpenPassport, onOpenStudio, onOpenLaws }) => {
   const [civic, setCivic] = useState<TerraCivicRecord[]>([]);
   const [loadingCivic, setLoadingCivic] = useState(false);
 
@@ -405,6 +407,17 @@ const ParcelInspector: React.FC<{ parcel: TerraParcel | null; onOpenPassport?: (
         <Ruler size={12} className="inline mr-1.5 -mt-0.5" />
         What could go here
       </button>
+
+      {onOpenLaws && (
+        <button
+          onClick={() => onOpenLaws({ query: 'zoning', zoningDistrict: parcel.zoningDistrict, parcelId: parcel.id })}
+          className="w-full py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.1] text-white/70 text-[11px] font-black uppercase tracking-widest hover:bg-white/[0.1] hover:text-white transition-all"
+          title="Zoning law, the city code and the state rules behind this parcel"
+        >
+          <Scale size={12} className="inline mr-1.5 -mt-0.5" />
+          Rules for this parcel
+        </button>
+      )}
     </motion.div>
   );
 };
@@ -533,7 +546,7 @@ const ForSalePanel: React.FC<{ onPick: (h: TerraSearchHit) => void; onClose: () 
 
 // ─── Shell ───────────────────────────────────────────────────────────────────
 
-export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => void; onOpenStudio?: (parcelId: string) => void; onBack?: () => void }> = ({ onOpenPassport, onOpenStudio, onBack }) => {
+export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => void; onOpenStudio?: (parcelId: string) => void; onOpenLaws?: (t: LawTarget) => void; onBack?: () => void }> = ({ onOpenPassport, onOpenStudio, onOpenLaws, onBack }) => {
   const [parcels, setParcels] = useState<TerraParcel[]>([]);
   const [selected, setSelected] = useState<TerraParcel | null>(null);
   const [loading, setLoading] = useState(true);
@@ -770,7 +783,7 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
 
           {/* Inspector */}
           <div className="border-l border-white/[0.06] p-4 overflow-y-auto custom-scrollbar">
-            <ParcelInspector parcel={selected} onOpenPassport={onOpenPassport} onOpenStudio={onOpenStudio} />
+            <ParcelInspector parcel={selected} onOpenPassport={onOpenPassport} onOpenStudio={onOpenStudio} onOpenLaws={onOpenLaws} />
           </div>
         </div>
       </div>

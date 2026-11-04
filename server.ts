@@ -88,6 +88,7 @@ import { createFastVoteRouter } from './routes/fastVote';
 import { cleanRedeemUnits, isInternalPushLink, muxAssetReadable, muxOwnerOf, muxOwnerTag, pushMatchesNotification, ticketActionAllowed } from './services/serverGuards';
 import { createMuseumRouter } from './routes/museum';
 import { createDataCommonsRouter } from './routes/dataCommons';
+import { createTerraLawRouter } from './routes/terraLaw';
 import { createMusicLawRouter } from './routes/musicLaw';
 import { createGrantsRouter } from './routes/grants';
 import { createAdminKeysRouter } from './routes/adminKeys';
@@ -14359,6 +14360,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use(fastVote.router);
   app.use(createMuseumRouter({ limiter: apiLimiter }));
   app.use(createDataCommonsRouter({ limiter: apiLimiter }));
+  // Terra Law Library: Michigan Compiled Laws (1 req/s gate to legislature.mi.gov) + eCFR search.
+  app.use(createTerraLawRouter({ limiter: apiLimiter }));
   app.use(createMusicLawRouter({ limiter: apiLimiter }));
   app.use(createGrantsRouter({ limiter: apiLimiter }));
   // Admin countdown for API keys that expire on a schedule (SAM.gov: 90 days). Dates only, never the key.

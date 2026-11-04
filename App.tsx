@@ -535,6 +535,7 @@ const TerraExplorer = retryLazy(() => import('./components/terra/TerraExplorer')
 const PropertyPassport = retryLazy(() => import('./components/terra/PropertyPassport'));
 const ParcelStudio = retryLazy(() => import('./components/terra/ParcelStudio'));
 const SiteScout = retryLazy(() => import('./components/terra/SiteScout'));
+const LawLibrary = retryLazy(() => import('./components/terra/LawLibrary'));
 const ListingFilm = retryLazy(() => import('./components/terra/ListingFilm'));
 const TerraFeed = retryLazy(() => import('./components/terra/TerraFeed'));
 const TerraListings = retryLazy(() => import('./components/terra/ListingsManager'));
@@ -1701,6 +1702,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [selectedBusinessPage, setSelectedBusinessPage] = useState<any>(null);
   const [terraPassportTarget, setTerraPassportTarget] = useState<{ parcelId?: string; listingKey?: string } | null>(null);
   const [terraStudioParcel, setTerraStudioParcel] = useState<string | undefined>(undefined);
+  const [terraLawTarget, setTerraLawTarget] = useState<{ query?: string; zoningDistrict?: string; parcelId?: string } | null>(null);
   const [selectedBrandPage, setSelectedBrandPage] = useState<any>(null);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -2903,6 +2905,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('TERRA_STUDIO');
     } else if (target === 'TERRA_SCOUT') {
       setView('TERRA_SCOUT');
+    } else if (target === 'TERRA_LAW') {
+      setTerraLawTarget(params?.terraLaw || null);
+      setView('TERRA_LAW');
     } else if (target === 'TERRA_FILM') {
       setView('TERRA_FILM');
     } else if (target === 'TERRA_FEED') {
@@ -6801,6 +6806,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onBack={() => goBack('TERRA')}
                   onOpenPassport={(parcelId) => { setTerraPassportTarget({ parcelId }); setView('TERRA_PASSPORT'); }}
                   onOpenStudio={(parcelId) => { setTerraStudioParcel(parcelId); setView('TERRA_STUDIO'); }}
+                  onOpenLaws={(t) => { setTerraLawTarget(t); setView('TERRA_LAW'); }}
                 />
               </Suspense>
             )}
@@ -6825,6 +6831,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'TERRA_SCOUT' && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <SiteScout currentUser={userProfile} onBack={() => goBack('TERRA')} />
+              </Suspense>
+            )}
+
+            {view === 'TERRA_LAW' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <LawLibrary
+                  initialQuery={terraLawTarget?.query}
+                  zoningDistrict={terraLawTarget?.zoningDistrict}
+                  onBack={() => goBack('TERRA')}
+                  onOpenStudio={() => { setTerraStudioParcel(terraLawTarget?.parcelId); setView('TERRA_STUDIO'); }}
+                />
               </Suspense>
             )}
 
