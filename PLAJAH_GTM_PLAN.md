@@ -1780,9 +1780,9 @@ Consistent with the platform's cost profile: the Knowledge front is **near-zero 
 
 ---
 
-## 26. Plajah Elevate + the Ministry Content Synergy Engine — July 5, 2026
+## 26. Plajah Elevate + Event Intelligence — July 5, 2026
 
-This section adds the **faith / culture / nonprofit vertical (Plajah Elevate)** to the GTM and introduces the platform's sharpest wedge for that segment: a **Content Synergy Engine** that turns one Sunday service into a week of publishable content automatically. Both extend — not replace — the creator strategy above; they run on the *same* reusable engines (Reello video, Chora audio, Lorea books, Fabula NLE, Photos, ARIA AI, Sanctuary monetization), so their marginal build cost is low and their differentiation is high.
+This section adds the **faith / culture / nonprofit vertical (Plajah Elevate)** to the GTM and introduces the platform's sharpest wedge for that segment: **Event Intelligence** that turns one Sunday service into a week of publishable content automatically. Both extend — not replace — the creator strategy above; they run on the *same* reusable engines (Reello video, Chora audio, Lorea books, Fabula NLE, Photos, ARIA AI, Sanctuary monetization), so their marginal build cost is low and their differentiation is high.
 
 ### 26.1 The Elevate vertical (what shipped)
 
@@ -1794,9 +1794,9 @@ Churches, cultural institutions, and nonprofits are a **high-retention, high-tru
 - **Sanctuary hybrid** monetization (Patreon/Kickstarter/GoFundMe in one) + ticketing/live-events + social-media management folded into every org.
 - **Clergy** added to account types.
 
-**GTM framing:** Elevate is sold as *"the only church platform that also produces your content."* Admin tools get you in the door (giving, check-in, directory); the Content Synergy Engine is why they never leave.
+**GTM framing:** Elevate is sold as *"the only church platform that also produces your content."* Admin tools get you in the door (giving, check-in, directory); Event Intelligence is why they never leave.
 
-### 26.2 The Content Synergy Engine — the wedge
+### 26.2 Event Intelligence — the wedge
 
 > **One service in → a week of content out.** A ministry streams once; Plajah turns that single stream into an article, a podcast episode, a book chapter, social clips, and a photo-illustrated recap — with **ARIA** (Plajah's AI) doing the editorial work and a human just approving drafts.
 
@@ -1828,7 +1828,7 @@ No new paywall primitive — value routes through **Plajah+ / Sanctuary / Elevat
 - **Distribution:** denominational networks, worship-tech conferences, and the public demo church as a shareable showcase.
 - **Expansion:** the identical engine serves museums, universities, and nonprofits (lectures → articles/books), so Elevate's build doubles as the Cultural-org GTM.
 
-*Added July 5, 2026. Reflects the shipped Church Elevate functional layer (prayer wall, announcements, demos, Clergy account type, Sanctuary hybrid) and introduces the Ministry Content Synergy Engine (stream → Fabula clean-feed project + transcript → ARIA-authored article/podcast/book drafts with scripture & fact supplements, timecoded stills, and geo-triggered event photo pools). Technical spec in `docs/MINISTRY_CONTENT_SYNERGY_BLUEPRINT.md`. Prior sections intact.*
+*Added July 5, 2026. Reflects the shipped Church Elevate functional layer (prayer wall, announcements, demos, Clergy account type, Sanctuary hybrid) and introduces Event Intelligence (stream → Fabula clean-feed project + transcript → ARIA-authored article/podcast/book drafts with scripture & fact supplements, timecoded stills, and geo-triggered event photo pools). Technical spec in `docs/MINISTRY_CONTENT_SYNERGY_BLUEPRINT.md`. Prior sections intact.*
 
 ---
 

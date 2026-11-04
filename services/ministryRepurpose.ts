@@ -1,4 +1,4 @@
-// ministryRepurpose — the ARIA editorial core of the Ministry Content Synergy Engine.
+// ministryRepurpose — the ARIA editorial core of Event Intelligence.
 // Given a transcript of a captured service/stream, ARIA produces publishable drafts
 // (Phase 1: an ARTICLE) with inline supplemental material — Bible passages, facts,
 // citations, definitions — and timecoded pull-quotes an editor then approves.

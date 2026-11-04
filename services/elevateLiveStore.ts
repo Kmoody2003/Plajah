@@ -4,7 +4,7 @@
 //   elevateLiveConfigs/{orgId}   — the org's feature toggle (per source)
 //   elevateLiveRuns/{runId}      — scheduled occurrences; claimed before work
 //   elevateBriefings/{briefingId}— generated Service Briefings (DRAFT)
-//   contentRepurposeJobs/{jobId} — the existing synergy-engine job spine
+//   contentRepurposeJobs/{jobId} — the existing Event Intelligence job spine
 //   articles/{id}                — the generated article (real Article shape)
 //
 // Claiming mirrors the repo's own scheduled-posts pattern

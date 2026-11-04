@@ -1,4 +1,4 @@
-# Ministry Content Synergy Engine — Technical Blueprint
+# Event Intelligence — Technical Blueprint
 
 *Created July 5, 2026. The technical spec behind GTM §26. Goal: **one service in → a week of publishable content out**, with ARIA doing the editorial work and a human approving drafts. Every stage reuses an engine Plajah already built for another vertical — this is integration, not greenfield.*
 
