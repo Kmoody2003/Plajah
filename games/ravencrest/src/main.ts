@@ -206,7 +206,7 @@ world.group.traverse((o) => {
   inst.instanceMatrix.needsUpdate = true;
 });
 
-// ── The Halloween collection: Cinema Mile billboards + hall paintings (cinema.ts) ──
+// ── The Plajah Horror Classics collection: Cinema Mile billboards + hall paintings (cinema.ts) ──
 const films = await loadFilms();
 loadStep('Hanging the films', 0.85);
 const mile = buildBillboards(world.road, films);

@@ -1,7 +1,7 @@
 /**
  * halloweenFilterEngine.ts
  *
- * Real-time Halloween Face & Camera Filter Engine for the Taleo Halloween Curation Vault
+ * Real-time Halloween Face & Camera Filter Engine for the Taleo Plajah Horror Classics Vault
  * Persistent Chat Room & Fan Room.
  *
  * Supports:

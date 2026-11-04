@@ -1,4 +1,4 @@
-// Exports the Halloween collection for the Ravencrest engine: the 13 films the experience
+// Exports the Plajah Horror Classics collection for the Ravencrest engine: the 13 films the experience
 // places on roadside billboards and castle paintings (Pumpkin Patch hero + 12 curated).
 // Usage: npx tsx scripts/ravencrest/exportFilms.ts  → public/games/ravencrest/films.json
 import fs from 'node:fs';

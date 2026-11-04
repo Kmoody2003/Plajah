@@ -281,7 +281,7 @@ export const BASE_ACHIEVEMENTS: Omit<Achievement, 'id' | 'createdAt' | 'updatedA
     isActive: true,
   },
 
-  // GAMES — Ravencrest (Cinema's Halloween collection)
+  // GAMES — Ravencrest (Cinema's Plajah Horror Classics collection)
   {
     title: 'Troll Slayer',
     description: 'Defeated the Bridge Troll on the crossing to Ravencrest',
