@@ -18,6 +18,7 @@ import { LayerRenderer } from '../../services/ambo/layerRenderer';
 import { getProgramBusCanvas, subscribeProgramBusFollower } from '../../services/ambo/programBus';
 import { useContextMenu } from '../ui/ContextMenu';
 import { type AmboOutput, type ProgramTake } from '../../services/ambo/outputRouter';
+import { busAspect, busFormatLabel, monitorSize, sameAspect } from '../../services/ambo/busFormat';
 import {
   type PartyEventSession, type PartyEventDevice, type EventDeviceDutyType
 } from '../../services/ambo/amboPartyEventService';
@@ -62,12 +63,26 @@ const ORANGE = '#FF8C00';
 const CYAN = '#00DAF3';
 const line = 'rgba(255,255,255,0.09)';
 
-const MiniCanvasMonitor: React.FC<{ stack: LiveStack; audio?: boolean; label: string; take?: ProgramTake; className?: string }> = ({
+/** A frame of exactly this bus's shape, as large as the tile allows (no script: container units). */
+const BusFrame: React.FC<{ aspect: number; className?: string; children: React.ReactNode }> = ({ aspect, className = '', children }) => (
+  <div className="relative flex-1 min-h-[56px] w-full flex items-center justify-center" style={{ containerType: 'size' }}>
+    <div
+      className={`relative overflow-hidden rounded-lg ${className}`}
+      style={{ width: `min(100cqw, calc(100cqh * ${aspect}))`, height: `min(100cqh, calc(100cqw / ${aspect}))` }}
+    >
+      {children}
+    </div>
+  </div>
+);
+
+const MiniCanvasMonitor: React.FC<{ stack: LiveStack; audio?: boolean; label: string; take?: ProgramTake; className?: string; aspect?: number; keepShape?: boolean }> = ({
   stack,
   audio,
   label,
   take,
   className = '',
+  aspect = 16 / 9,
+  keepShape = false,
 }) => {
   const ref = useRef<HTMLCanvasElement>(null);
   const shownTakeRef = useRef<number | null>(take?.seq ?? null);
@@ -77,12 +92,13 @@ const MiniCanvasMonitor: React.FC<{ stack: LiveStack; audio?: boolean; label: st
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
+    const size = monitorSize(aspect, 640);
     if (followProgramBus && getProgramBusCanvas()) {
-      c.width = 640;
-      c.height = 360;
-      return subscribeProgramBusFollower(c);
+      c.width = size.w;
+      c.height = size.h;
+      return subscribeProgramBusFollower(c, keepShape);
     }
-    const r = new LayerRenderer(c, { w: 640, h: 360 });
+    const r = new LayerRenderer(c, size);
     // Audio is played by the single Master Program Bus; fallbacks stay silent unless no bus exists.
     r.setOptions({ audioEnabled: !!audio && !getProgramBusCanvas() });
     r.start();
@@ -91,7 +107,14 @@ const MiniCanvasMonitor: React.FC<{ stack: LiveStack; audio?: boolean; label: st
       r.dispose();
       rendererRef.current = null;
     };
-  }, [audio, followProgramBus]);
+  // A monitor keeping its bus's own shape re-subscribes when that shape changes.
+  }, [audio, followProgramBus, keepShape, keepShape ? aspect : 0]);
+
+  // A renderer re-flows in place; a follower of Program takes its shape from the bus itself.
+  useEffect(() => {
+    const s = monitorSize(aspect, 640);
+    rendererRef.current?.resize(s.w, s.h);
+  }, [aspect]);
 
   useEffect(() => {
     const r = rendererRef.current;
@@ -101,8 +124,8 @@ const MiniCanvasMonitor: React.FC<{ stack: LiveStack; audio?: boolean; label: st
   }, [stack, take]);
 
   return (
-    // Fills whatever height the tile has and letterboxes the WHOLE 16:9 frame into it. A plain
-    // aspect-video box got squeezed by the short dock and showed only a sliver of the picture.
+    // Fills whatever height the tile has and fits the WHOLE frame, at the bus's shape, into it. A
+    // plain aspect box got squeezed by the short dock and showed only a sliver of the picture.
     <div className={`relative w-full flex-1 min-h-[56px] bg-black rounded-lg overflow-hidden border border-white/10 ${className}`}>
       <canvas ref={ref} className="absolute inset-0 w-full h-full block object-contain" />
     </div>
@@ -195,6 +218,17 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
   const stageOut = outputs.find(o => o.kind === 'STAGE');
   const auxOut = outputs.find(o => o.kind === 'AUX');
   const streamOut = outputs.find(o => o.kind === 'STREAM');
+  const pgmAspect = busAspect(pgmOut);
+  const pgmShape = { w: pgmAspect, h: 1 };
+  /** A bus tile: its own shape. Program cropped to that shape when it differs from Program's own. */
+  const busMonitor = (out: AmboOutput | undefined, label: string) => {
+    const aspect = out ? busAspect(out) : 16 / 9;
+    return (
+      <BusFrame aspect={aspect}>
+        <MiniCanvasMonitor stack={liveStack} label={label} audio={false} aspect={aspect} keepShape={!sameAspect({ w: aspect, h: 1 }, pgmShape)} className="h-full !min-h-0" />
+      </BusFrame>
+    );
+  };
   const handledKinds = new Set(['PROGRAM', 'STAGE', 'AUX', 'STREAM', 'KEY']);
   const extraOutputs = outputs.filter(o => !handledKinds.has(o.kind));
 
@@ -623,17 +657,19 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
                 >
                   {isBlackout ? 'BLK' : isMasterProgramOn ? 'LIVE' : 'MUTED'}
                 </span>
-                <span className="text-[8px] font-mono text-white/40">1080p60</span>
+                <span className="text-[8px] font-mono text-white/40" data-bus-format="program">{busFormatLabel(pgmOut)}</span>
               </div>
             </div>
             {isBlackout ? (
-              <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-red-500/30 flex items-center justify-center text-center">
+              <BusFrame aspect={pgmAspect} className="bg-black border border-red-500/30 flex items-center justify-center text-center">
                 <span className="font-mono text-[11px] font-extrabold text-red-400 tracking-widest uppercase">
                   ● MASTER BLK
                 </span>
-              </div>
+              </BusFrame>
             ) : (
-              <MiniCanvasMonitor stack={liveStack} audio label="Program" take={programTake} />
+              <BusFrame aspect={pgmAspect}>
+                <MiniCanvasMonitor stack={liveStack} audio label="Program" take={programTake} aspect={pgmAspect} className="h-full !min-h-0" />
+              </BusFrame>
             )}
             <div className="flex items-center justify-between mt-1 text-[9px] text-white/60 truncate">
               <span className="truncate font-medium">{isBlackout ? 'Output Blanked' : liveSlide?.label || 'Audience Live'}</span>
@@ -664,7 +700,9 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
                 CUED
               </span>
             </div>
-            <MiniCanvasMonitor stack={previewStack} label="Preview" />
+            <BusFrame aspect={pgmAspect}>
+              <MiniCanvasMonitor stack={previewStack} label="Preview" aspect={pgmAspect} className="h-full !min-h-0" />
+            </BusFrame>
             <div className="flex items-center justify-between mt-1 text-[9px] text-white/60 truncate">
               {(() => {
                 // A scripture cued over the slide (by hand or by Auto-cue next) — say which verse is ready.
@@ -695,7 +733,7 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
               </span>
               <span className="text-[8px] font-mono text-white/40">FOLDBACK</span>
             </div>
-            <div className="w-full aspect-video bg-[#0b0816] rounded-lg border border-white/10 p-2 flex flex-col justify-between">
+            <BusFrame aspect={busAspect(stageOut)} className="bg-[#0b0816] border border-white/10 p-2 flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <span className="font-mono text-[13px] font-extrabold text-amber-300 tracking-wider">
                   {timeStr || '10:00:00 AM'}
@@ -714,7 +752,7 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
                 <span className="font-bold">NEXT:</span>
                 <span className="truncate text-white/70">{nextSlide?.label || 'End of Service'}</span>
               </div>
-            </div>
+            </BusFrame>
             <div className="flex items-center justify-between mt-1 text-[9px] text-white/40">
               <span>Musicians & Speaker</span>
               <span className="text-emerald-400 font-mono text-[8px]">{stageOut?.enabled !== false ? 'ACTIVE' : 'OFFLINE'}</span>
@@ -736,16 +774,9 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
                 <Tv size={11} />
                 AUX 1 · LOBBY
               </span>
-              <span className="text-[8px] font-mono text-white/40">1080p</span>
+              <span className="text-[8px] font-mono text-white/40" data-bus-format="aux">{busFormatLabel(auxOut)}</span>
             </div>
-            <div className="w-full aspect-video bg-[#061410] rounded-lg border border-white/10 relative overflow-hidden flex flex-col items-center justify-center p-2 text-center">
-              <div className="absolute top-1 left-1 px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono text-[7.5px]">
-                CLEAN FEED
-              </div>
-              <Tv size={20} className="text-emerald-500/40 mb-1" />
-              <span className="text-[10px] font-medium text-white/80">Lobby & Foyer</span>
-              <span className="text-[8px] text-white/40 mt-0.5">Audience Mirror (0ms delay)</span>
-            </div>
+            {busMonitor(auxOut, 'Aux')}
             <div className="flex items-center justify-between mt-1 text-[9px] text-white/40">
               <span>HDMI / Matrix Out</span>
               <span className="text-emerald-400 font-mono text-[8px]">{auxOut?.enabled !== false ? 'ONLINE' : 'OFFLINE'}</span>
@@ -767,16 +798,9 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
                 <Radio size={11} />
                 STREAM BUS
               </span>
-              <span className="text-[8px] font-mono text-white/40">Output</span>
+              <span className="text-[8px] font-mono text-white/40" data-bus-format="stream">{busFormatLabel(streamOut)}</span>
             </div>
-            <div className="w-full aspect-video bg-[#070c18] rounded-lg border border-white/10 relative overflow-hidden flex flex-col items-center justify-center p-2 text-center">
-              <div className="absolute top-1 left-1 px-1 py-0.2 rounded bg-blue-500/20 text-blue-300 font-mono text-[7.5px]">
-                STREAM
-              </div>
-              <Radio size={20} className="text-blue-400/40 mb-1" />
-              <span className="text-[10px] font-medium text-white/80">Live Stream Output</span>
-              <span className="text-[8px] text-white/40 mt-0.5">No live stats reported</span>
-            </div>
+            {busMonitor(streamOut, 'Stream')}
             <div className="flex items-center justify-between mt-1 text-[9px] text-white/40">
               <span>Switcher Feed</span>
               <span className="text-[#00DAF3] font-mono text-[8px]">{streamOut?.enabled !== false ? 'ENABLED' : 'OFFLINE'}</span>
@@ -803,12 +827,9 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
                 </span>
                 <span className="text-[8px] font-mono text-white/40">{out.kind}</span>
               </div>
-              <div className="w-full aspect-video bg-[#0a0a0a] rounded-lg border border-white/10 relative overflow-hidden flex flex-col items-center justify-center p-2 text-center">
-                <MonitorPlay size={20} className="text-white/20 mb-1" />
-                <span className="text-[9px] font-medium text-white/60">Dynamic Output</span>
-              </div>
+              {busMonitor(out, out.name || out.kind)}
               <div className="flex items-center justify-between mt-1 text-[9px] text-white/40">
-                <span>{out.autoDetectDisplay ? 'Auto Res' : `${out.width}x${out.height}`}</span>
+                <span>{busFormatLabel(out)}{out.autoDetectDisplay !== false ? ' · display' : ''}</span>
                 <span className="text-white/50 font-mono text-[8px]">{out.enabled ? 'ONLINE' : 'OFFLINE'}</span>
               </div>
             </div>

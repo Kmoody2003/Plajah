@@ -81,7 +81,8 @@ import { setLyricsProgram } from '../../services/ambo/lyricsProgram';
 import { lyricsFor } from '../../services/ambo/lyricFeed';
 import { startTypoTextDriver, publishScriptureToTypo, setTypoTextDemand } from '../../services/ambo/typoTextDriver';
 import { getVizParams, getVizApplyTarget, lastChangedVizMode, subscribeVizParams, numericVizParams } from '../../services/ambo/visualizerParams';
-import { TYPO_PREFIX, scaleVisualizerSize } from '../../services/ambo/layerSources';
+import { TYPO_PREFIX } from '../../services/ambo/layerSources';
+import { ASPECT_PRESETS, aspectLabel, busAspect, busRenderSize, monitorSize, normalizeBus, setBusAspect } from '../../services/ambo/busFormat';
 import {
   registerProgramBusCanvas, notifyProgramBusFrame, subscribeProgramBusFollower,
   getProgramBusCanvas, getProgramBusStream, installProgramBusRtcHost,
@@ -162,7 +163,7 @@ const line = 'rgba(255,255,255,0.09)';
 const line2 = 'rgba(255,255,255,0.15)';
 
 /** A live canvas driven by the shared renderer — Program monitors mirror the single Master Program Bus. */
-const OutputMonitor = React.memo<{ stack: LiveStack; audio?: boolean; isProgram?: boolean; className?: string; fit?: Partial<FitSpec>; transform?: TransformSpec; take?: ProgramTake }>(({ stack, audio, isProgram, className, fit, transform, take }) => {
+const OutputMonitor = React.memo<{ stack: LiveStack; audio?: boolean; isProgram?: boolean; className?: string; fit?: Partial<FitSpec>; transform?: TransformSpec; take?: ProgramTake; aspect?: number }>(({ stack, audio, isProgram, className, fit, transform, take, aspect }) => {
   const ref = useRef<HTMLCanvasElement>(null);
   const shownTakeRef = useRef<number | null>(take?.seq ?? null);
   const rendererRef = useRef<LayerRenderer | null>(null);
@@ -173,25 +174,33 @@ const OutputMonitor = React.memo<{ stack: LiveStack; audio?: boolean; isProgram?
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
+    const size = monitorSize(aspect ?? 16 / 9);
     if (followProgramBus && getProgramBusCanvas()) {
-      c.width = 960;
-      c.height = 540;
+      c.width = size.w;
+      c.height = size.h;
       return subscribeProgramBusFollower(c);
     }
-    const r = new LayerRenderer(c, { w: 960, h: 540 });
+    const r = new LayerRenderer(c, size);
     r.setOptions({ audioEnabled: !!audio, fit: fitRef.current, outputTransform: transformRef.current });
     r.start();
     rendererRef.current = r;
     return () => { r.dispose(); rendererRef.current = null; };
   }, [audio, followProgramBus]);
   useEffect(() => { rendererRef.current?.setOptions({ fit, outputTransform: transform }); }, [fit, transform]);
+  // Preview takes the shape of the bus it previews, re-flowing in place.
+  useEffect(() => {
+    if (!rendererRef.current || !aspect) return;
+    const s = monitorSize(aspect);
+    rendererRef.current.resize(s.w, s.h);
+  }, [aspect]);
   useEffect(() => {
     const r = rendererRef.current;
     if (!r) return;
     if (take && shownTakeRef.current !== take.seq) { r.beginTransition(take); shownTakeRef.current = take.seq; }
     r.setStack(stack);
   }, [stack, take]);
-  return <canvas ref={ref} className={`w-full block bg-black ${className ?? ''}`} />;
+  // A tall or narrow bus keeps its shape inside the panel rather than pushing the panel over.
+  return <canvas ref={ref} className={`w-full max-h-[46vh] object-contain block bg-black ${className ?? ''}`} />;
 });
 
 /** The clip a stack plays, as VIDEO content: a VIDEO layer in any slot, or a video slide template's clip. */
@@ -383,7 +392,15 @@ useEffect(() => {
           if (!hasStage) defaults.push(makeOutput('STAGE', 'Stage Display'));
           if (!hasStream) defaults.push(makeOutput('STREAM', 'Stream Bus'));
           
-          return [...defaults, ...built, ...manualOutputs];
+          // Every device heartbeat lands here: what the operator set and what the output windows
+          // reported must survive it. Rebuilding from scratch snapped Program back to 1920×1080.
+          const merged = [...defaults, ...built].map(o => {
+            const was = prev.find(p => p.id === o.id);
+            if (!was) return o;
+            const size = o.deviceTag === 'MESH_DEVICE' && was.autoDetectDisplay !== false ? { width: o.width, height: o.height, aspectRatio: o.aspectRatio } : {};
+            return { ...o, ...was, name: o.name, isOnline: o.isOnline, ...size };
+          });
+          return [...merged, ...manualOutputs];
         });
       });
       cleanup.push(unsubDevices);
@@ -444,12 +461,10 @@ useEffect(() => {
     });
   };
 
+  /** 'auto' = match the display. Anything else fixes the Program buses to that ratio. */
   const handleSetAspectRatio = (ratio: string) => {
-    let width = 1920;
-    let height = 1080;
-    if (ratio === '16:10') { width = 1920; height = 1200; }
-    else if (ratio === '4:3') { width = 1440; height = 1080; }
-    else if (ratio === '21:9') { width = 2560; height = 1080; }
+    const patch = ratio === 'auto' ? { autoDetectDisplay: true } : setBusAspect(ratio);
+    if (!patch) return;
 
     setCurrentProject(prev => ({
       ...prev,
@@ -461,7 +476,7 @@ useEffect(() => {
 
     setOutputs(prev => prev.map(o => {
       if (o.kind === 'PROGRAM') {
-        return { ...o, width, height, aspectRatio: ratio };
+        return { ...o, ...patch };
       }
       return o;
     }));
@@ -478,9 +493,9 @@ useEffect(() => {
       setActiveShowId(prj.shows[0].id);
     }
     if (prj.outputs && prj.outputs.length > 0) {
-      setOutputs(prj.outputs);
+      setOutputs(prj.outputs.map(normalizeBus));
     } else if (prj.settings?.outputs && prj.settings.outputs.length > 0) {
-      setOutputs(prj.settings.outputs);
+      setOutputs(prj.settings.outputs.map(normalizeBus));
     }
     if (typeof prj.targetDisplayIndex === 'number') {
       setTargetDisplayIndex(prj.targetDisplayIndex);
@@ -980,13 +995,14 @@ useEffect(() => {
   const masterBusRendererRef = useRef<LayerRenderer | null>(null);
   const masterBusTakeSeqRef = useRef<number | null>(programTake?.seq ?? null);
   const pgmOutConfig = useMemo(() => outputs.find(o => o.kind === 'PROGRAM') || outputs[0], [outputs]);
-  // Full HD: this canvas IS the projector picture. Capping it at 1280 made
-  // every Output Window upscale soft text. Generators keep their own 1280 cap
-  // inside layerSources, so GPU cost only grows for the composite.
+  // Full HD on its short edge: this canvas IS the projector picture. Capping it at
+  // 1280 made every Output Window upscale soft text. Generators keep their own 1280
+  // cap inside layerSources, so GPU cost only grows for the composite.
   const masterBusSize = useMemo(
-    () => scaleVisualizerSize(pgmOutConfig?.width || 1920, pgmOutConfig?.height || 1080, 1920),
+    () => busRenderSize(pgmOutConfig?.width || 1920, pgmOutConfig?.height || 1080),
     [pgmOutConfig?.width, pgmOutConfig?.height],
   );
+  const programAspect = busAspect(pgmOutConfig);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -2787,7 +2803,7 @@ useEffect(() => {
         </span>
       </div>
       <div className="rounded-xl overflow-hidden border-2" style={{ borderColor: liveSlideId ? 'rgba(255,140,0,0.75)' : line2, boxShadow: liveSlideId ? '0 0 22px rgba(255,140,0,0.28)' : 'none' }}>
-        <OutputMonitor stack={effectiveLiveStack} audio={!isBlackout} fit={programFit} transform={programTransform} take={programTake} />
+        <OutputMonitor stack={effectiveLiveStack} aspect={programAspect} audio={!isBlackout} fit={programFit} transform={programTransform} take={programTake} />
       </div>
       <div className="flex items-center justify-between mt-3 mb-1.5">
         <div className="flex items-center gap-1.5">
@@ -2839,7 +2855,7 @@ useEffect(() => {
         </div>
       </div>
       <div className="rounded-lg overflow-hidden border" style={{ borderColor: 'rgba(0,218,243,0.4)' }}>
-        <OutputMonitor stack={previewStack} fit={programFit} transform={programTransform} />
+        <OutputMonitor stack={previewStack} aspect={programAspect} fit={programFit} transform={programTransform} />
       </div>
     </div>
   );
@@ -3154,9 +3170,11 @@ useEffect(() => {
                 <span className="text-[9px] font-black uppercase tracking-[0.14em] text-white/40 block px-1 mb-1">
                   Program Aspect Ratio
                 </span>
-                <div className="grid grid-cols-4 gap-1">
-                  {(['16:9', '16:10', '4:3', '21:9'] as const).map(ratio => {
-                    const isSelected = (currentProject.settings?.aspectRatio || '16:9') === ratio;
+                <div className="grid grid-cols-3 gap-1">
+                  {(['auto', ...ASPECT_PRESETS] as const).map(ratio => {
+                    const isSelected = ratio === 'auto'
+                      ? pgmOutConfig?.autoDetectDisplay !== false
+                      : pgmOutConfig?.autoDetectDisplay === false && aspectLabel(pgmOutConfig.width || 1920, pgmOutConfig.height || 1080) === ratio;
                     return (
                       <button
                         key={ratio}
@@ -3167,7 +3185,7 @@ useEffect(() => {
                             : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10 border-white/10'
                         }`}
                       >
-                        {ratio}
+                        {ratio === 'auto' ? 'Display' : ratio}
                       </button>
                     );
                   })}
@@ -3194,7 +3212,7 @@ useEffect(() => {
                           <span>{out.name}</span>
                         </div>
                         <div className="text-[8.5px] font-mono text-white/40">
-                          {out.width}×{out.height} ({out.aspectRatio || '16:9'})
+                          {out.width}×{out.height} ({aspectLabel(out.width || 1920, out.height || 1080)}{out.autoDetectDisplay !== false ? ' · display' : ''})
                         </div>
                       </div>
                       <span className={`text-[8.5px] font-bold px-1.5 py-0.5 rounded ${out.enabled ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/10 text-white/40'}`}>
@@ -3946,7 +3964,7 @@ useEffect(() => {
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-[0.14em] mb-1.5" style={{ color: ORANGE }}>● Audience Output</div>
                 <div className="rounded-xl overflow-hidden border-2" style={{ borderColor: 'rgba(255,140,0,0.75)', boxShadow: '0 0 22px rgba(255,140,0,0.28)' }}>
-                  <OutputMonitor stack={effectiveLiveStack} audio={!isBlackout} fit={programFit} transform={programTransform} take={programTake} />
+                  <OutputMonitor stack={effectiveLiveStack} aspect={programAspect} audio={!isBlackout} fit={programFit} transform={programTransform} take={programTake} />
                 </div>
               </div>
               <div>
@@ -4000,7 +4018,7 @@ useEffect(() => {
                   </div>
                 </div>
                 <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'rgba(0,218,243,0.4)' }}>
-                  <OutputMonitor stack={previewStack} fit={programFit} transform={programTransform} />
+                  <OutputMonitor stack={previewStack} aspect={programAspect} fit={programFit} transform={programTransform} />
                 </div>
               </div>
             </div>

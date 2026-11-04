@@ -64,12 +64,18 @@ export function setProgramEpochMs(epochMs: number): void {
 
 /**
  * Draw a source canvas or video onto a destination canvas: a straight fill when
- * the aspects match (within 2%), otherwise letterboxed so nothing is cut off.
+ * the aspects match (within 2%), otherwise letterboxed so nothing is cut off, or
+ * cropped to fill for a bus monitor that keeps its own shape.
+ *
+ * Output windows and Program monitors never reach the letterbox branch: a window
+ * of another shape renders for itself (AmboOutputWindow) and a monitor takes the
+ * bus's shape (syncFollowerShape). Letterboxing them here is what put pillars on
+ * every display that wasn't the bus's shape.
  */
 export function blitProgramSurface(
   src: HTMLCanvasElement | HTMLVideoElement,
   dst: HTMLCanvasElement,
-  _fit?: unknown,
+  mode: 'contain' | 'cover' = 'contain',
 ): boolean {
   if (!src || !dst) return false;
   const srcW = (src as HTMLVideoElement).videoWidth || (src as HTMLCanvasElement).width || 0;
@@ -96,7 +102,7 @@ export function blitProgramSurface(
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, w, h);
       ctx.globalCompositeOperation = 'source-over';
-      const scale = Math.min(w / srcW, h / srcH);
+      const scale = mode === 'cover' ? Math.max(w / srcW, h / srcH) : Math.min(w / srcW, h / srcH);
       const dw = srcW * scale;
       const dh = srcH * scale;
       ctx.drawImage(src, (w - dw) / 2, (h - dh) / 2, dw, dh);
@@ -159,6 +165,23 @@ export function refreshProgramBusStream(): void {
   registerProgramBusCanvas(masterCanvas);
 }
 
+/** Monitors of another bus, which keep that bus's shape and show Program cropped to it. */
+const shapedFollowers = new WeakSet<HTMLCanvasElement>();
+
+/** A Program monitor takes the bus's shape, keeping its long edge, so the bus resizing never adds bars. */
+function syncFollowerShape(dst: HTMLCanvasElement, src: HTMLCanvasElement): void {
+  const edge = Math.max(dst.width, dst.height);
+  const k = edge / Math.max(src.width, src.height);
+  const w = Math.max(2, Math.round(src.width * k)), h = Math.max(2, Math.round(src.height * k));
+  if (Math.abs(dst.width - w) > 1 || Math.abs(dst.height - h) > 1) { dst.width = w; dst.height = h; }
+}
+
+function blitToFollower(src: HTMLCanvasElement, dst: HTMLCanvasElement): void {
+  if (shapedFollowers.has(dst)) { blitProgramSurface(src, dst, 'cover'); return; }
+  syncFollowerShape(dst, src);
+  blitProgramSurface(src, dst);
+}
+
 /** Called at the end of every Master Program Bus frame to update all follower monitors in lockstep. */
 export function notifyProgramBusFrame(): void {
   if (!masterCanvas || !masterCanvas.width || !masterCanvas.height) return;
@@ -167,15 +190,19 @@ export function notifyProgramBusFrame(): void {
       followers.delete(dst);
       continue;
     }
-    blitProgramSurface(masterCanvas, dst);
+    blitToFollower(masterCanvas, dst);
   }
 }
 
-/** Subscribe a secondary Program monitor canvas (e.g. Multiview Program tile) to mirror the Master Program Bus. */
-export function subscribeProgramBusFollower(canvas: HTMLCanvasElement): () => void {
+/**
+ * Subscribe a secondary monitor canvas (e.g. Multiview Program tile) to mirror the Master Program
+ * Bus. `keepShape`: it watches a bus of its own shape, so it crops rather than following Program's.
+ */
+export function subscribeProgramBusFollower(canvas: HTMLCanvasElement, keepShape = false): () => void {
   followers.add(canvas);
+  if (keepShape) shapedFollowers.add(canvas); else shapedFollowers.delete(canvas);
   if (masterCanvas && masterCanvas.width > 0 && masterCanvas.height > 0) {
-    blitProgramSurface(masterCanvas, canvas);
+    blitToFollower(masterCanvas, canvas);
   }
   return () => {
     followers.delete(canvas);

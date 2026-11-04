@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true, "types": ["vite/client", "node"] },
+  "include": [
+    "services/ambo/busFormat.ts", "services/ambo/programBus.ts", "services/ambo/programFrameFeeder.ts",
+    "components/scripture/AmboOutputFitControl.tsx", "components/scripture/AmboOutputWindow.tsx",
+    "components/scripture/AmboHorizontalMultiview.tsx", "components/scripture/AmboNetworkOutputsPanel.tsx",
+    "labs/stage-bus/main.tsx"
+  ]
+}

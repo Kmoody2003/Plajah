@@ -21,7 +21,7 @@
 
 import type { LayerContent, LayerSlot, LiveStack, MaskSpec, TransformSpec } from './showModel';
 import { isWindowsApp, postNativeMessage } from '../windowsBridgeService';
-import { LAYER_ORDER } from './showModel';
+import { allowedSlots, LAYER_ORDER } from './showModel';
 import {
   getOrCreateDeviceId,
   detectDeviceType,
@@ -70,6 +70,7 @@ export interface DetectedScreenInfo {
 }
 
 import type { FitSpec } from './outputFit';
+import type { DisplayScale } from './busFormat';
 import type { TakeTransition } from './layerRenderer';
 
 export interface AmboOutput {
@@ -101,8 +102,10 @@ export interface AmboOutput {
   autoDetectDisplay?: boolean;
   /** Refresh rate of the target display, in Hz (e.g. 59.94, 60.0). */
   refreshRate?: number;
-  /** Aspect ratio string (e.g. '16:9', '16:10', '21:9'). */
+  /** Aspect ratio string (e.g. '16:9', '32:9', '4:1', '9:16', any W:H). */
   aspectRatio?: string;
+  /** How a fixed format sits on a screen of another shape. Default: fit, nothing cut off. */
+  displayScale?: DisplayScale;
   /** Stage-display extras. */
   showStageNotes?: boolean;
   showNextSlide?: boolean;
@@ -158,10 +161,7 @@ export function stackForOutput(
   output: AmboOutput,
   busClearedSlots?: Set<LayerSlot> | LayerSlot[]
 ): LiveStack {
-  const allow = new Set(output.layers);
-  // Outputs saved before the lyrics slot existed: anything that shows slides
-  // shows lyrics too, or a projector set up last month silently drops them.
-  if (allow.has('slide') && !allow.has('lyrics')) allow.add('lyrics');
+  const allow = allowedSlots(output.layers);
   const cleared = busClearedSlots instanceof Set
     ? busClearedSlots
     : new Set(busClearedSlots || output.clearedSlots || []);
@@ -344,8 +344,10 @@ export class OutputRouter {
         displayIndex: output.screenIndex ?? 1,
         feedUrl: url,
         title: output.name || 'Stage Output',
-        width: output.width || 0,
-        height: output.height || 0,
+        // 0×0 = cover the whole display. This is the WINDOW, not the bus format: passing the
+        // bus's (often stale 1920×1080) size pinned the window to 16:9 on any other screen.
+        width: 0,
+        height: 0,
       });
       this.nativeOpen.add(output.id);
       return true;
@@ -358,7 +360,7 @@ export class OutputRouter {
     const baseFeatures = 'popup=yes,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no';
     const features = s
       ? `left=${s.left},top=${s.top},width=${s.width},height=${s.height},${baseFeatures}`
-      : `width=1280,height=720,${baseFeatures}`;
+      : `${popupSize(output)},${baseFeatures}`;
 
     const w = window.open(url, `ambo_${output.id}`, features);
     if (!w) return false;
@@ -404,6 +406,12 @@ export class OutputRouter {
     } catch { /* */ }
     this.channel = null;
   }
+}
+
+/** A free-floating output window starts at its bus's shape. */
+function popupSize(o: AmboOutput): string {
+  const a = (o.width || 16) / (o.height || 9);
+  return a >= 1 ? `width=1280,height=${Math.max(120, Math.round(1280 / a))}` : `width=${Math.max(120, Math.round(720 * a))},height=720`;
 }
 
 /**

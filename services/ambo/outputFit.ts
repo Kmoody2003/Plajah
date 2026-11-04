@@ -1,11 +1,9 @@
 // outputFit — how content that does not match the output's aspect ratio is placed on it.
 //
-// Until now every layer was cover-cropped onto the output, so a 4:3 video or a
-// portrait photo lost its edges on a 16:9 screen. Now:
-//
-//   auto     (default) letterbox / pillarbox ONLY when the aspect really differs
-//            (> 1.5 %), nothing is cropped; matching content fills the screen
-//   fill     cover — the whole screen is covered, edges are cropped
+//   fill     (default for full-screen media) cover — the whole screen is covered,
+//            edges are cropped, so a bus of any shape has no bars
+//   auto     (default for props) letterbox / pillarbox ONLY when the aspect really
+//            differs (> 1.5 %), nothing is cropped; matching content fills the screen
 //   stretch  distort to the frame
 //
 // The bars are filled, not left black, when the layer is the background:
@@ -69,6 +67,11 @@ export interface Placement {
   letterboxed: boolean;
   /** Which way the bars run. */
   bars: 'none' | 'side' | 'top';
+}
+
+/** With no fit chosen: what sits on the whole screen fills it, a prop or logo is never cropped. */
+export function defaultFitMode(slot: string): FitMode {
+  return slot === 'background' || slot === 'fill' || slot === 'slide' ? 'fill' : 'auto';
 }
 
 /** Aspect difference (ratio) under which content is treated as already matching. */

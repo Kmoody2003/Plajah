@@ -268,7 +268,7 @@ describe('NetworkOutputManager', () => {
     const { m, bridge } = setup();
     const o = m.add('ndi'); await m.setEnabled(o.id, true);
     m.setFormat({ fps: 17, bitrateKbps: 10, width: 99999 });
-    assert.deepEqual(m.getFormat(), { width: 3840, height: 1080, fps: 30, bitrateKbps: 500 });
+    assert.deepEqual(m.getFormat(), { width: 3840, height: 1080, fps: 30, bitrateKbps: 500, followBus: false });
     await flush();
     assert.equal(bridge.starts().length, 2);
   });

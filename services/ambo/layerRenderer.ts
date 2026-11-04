@@ -14,7 +14,7 @@
 import { compositeOrder, type LayerSlot, type LiveStack, type MaskSpec, type TransformSpec } from './showModel';
 import { canUpdateInPlace, createSource, type LayerSource } from './layerSources';
 import { isMediaTemplate } from './telaTemplateSource';
-import { computePlacement, drawBackdrop, normalizeFit, BACKDROP_SLOTS, type FitSpec, type BackdropScratch } from './outputFit';
+import { computePlacement, defaultFitMode, drawBackdrop, normalizeFit, BACKDROP_SLOTS, type FitSpec, type BackdropScratch } from './outputFit';
 import { getProgramEpochMs } from './programBus';
 import type { LayerContent } from './showModel';
 
@@ -295,9 +295,9 @@ export class LayerRenderer {
   }
 
   /**
-   * Media with an intrinsic aspect (image, video, live feed, Lottie) is FITTED to the output instead of
-   * cropped: letterboxed / pillarboxed when the aspect really differs, with the bars filled (blur,
-   * abstraction, colour) when it is the background. Procedural sources (generators, text, scripture,
+   * Media with an intrinsic aspect (image, video, live feed, Lottie) follows the bus's fit: by default
+   * full-screen media fills the bus and props stay whole; 'auto' letterboxes when the aspect really
+   * differs, with the bars filled (blur, abstraction, colour) when it is the background. Procedural sources (generators, text, scripture,
    * templates, lyrics…) already re-flow to the output, so they keep filling it.
    */
   private drawFitted(
@@ -313,7 +313,7 @@ export class LayerRenderer {
       (fitOpts.zoom !== undefined && fitOpts.zoom !== 1) ||
       (fitOpts.ox !== undefined && fitOpts.ox !== 0) ||
       (fitOpts.oy !== undefined && fitOpts.oy !== 0) ||
-      (fitOpts.mode !== undefined && fitOpts.mode !== 'auto')
+      fitOpts.mode === 'stretch'
     );
     if (!explicit && !intrinsic && !hasOutputZoomOrPan) {
       // Words must never be cropped: if a text-like source is still at another
@@ -328,6 +328,8 @@ export class LayerRenderer {
     // An IMAGE's own fit setting is honoured when nothing more specific is set.
     const legacy = kind === 'IMAGE' ? (content as any).fit : undefined;
     const base: Partial<FitSpec> = { ...(this.opts.fit || {}), ...(legacy === 'cover' ? { mode: 'fill' } : legacy === 'fill' ? { mode: 'stretch' } : legacy === 'contain' ? { mode: 'auto' } : {}), ...(explicit || {}) };
+    // Unset means nobody asked for bars: full-screen media fills the bus (see defaultFitMode).
+    if (!base.mode) base.mode = defaultFitMode(slot);
     const fit = normalizeFit(base);
     const p = computePlacement(natural, this.frame, fit);
     if (p.letterboxed && BACKDROP_SLOTS.has(slot) && natural) drawBackdrop(ctx, fit, img, natural, this.frame, timeSec, this.backdrop);

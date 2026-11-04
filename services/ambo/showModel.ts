@@ -27,6 +27,17 @@
 export const LAYER_ORDER = ['background', 'fill', 'slide', 'scripture', 'lyrics', 'prop', 'overlay', 'audio', 'mask'] as const;
 export type LayerSlot = typeof LAYER_ORDER[number];
 
+/**
+ * The slots a bus's `layers` list really lets through. Outputs saved before the lyrics slot
+ * existed: anything that shows slides shows lyrics too, or a projector set up last month silently
+ * drops them.
+ */
+export function allowedSlots(layers: readonly LayerSlot[] | null | undefined): Set<LayerSlot> {
+  const allow = new Set<LayerSlot>(layers ?? []);
+  if (allow.has('slide')) allow.add('lyrics');
+  return allow;
+}
+
 export const LAYER_LABEL: Record<LayerSlot, string> = {
   background: 'Background',
   fill: 'Media fill',

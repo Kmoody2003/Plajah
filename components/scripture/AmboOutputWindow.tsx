@@ -21,24 +21,11 @@ import {
   blitProgramSurface, connectProgramBusRtcClient,
   readOpenerProgramCanvas, reportOutputWindowMetrics,
 } from '../../services/ambo/programBus';
+import { aspectLabel, busSize, DISPLAY_SCALE_CSS, mirrorsProgram, sameAspect } from '../../services/ambo/busFormat';
 import type { LiveStack } from '../../services/ambo/showModel';
 import type { ProgramTake } from '../../services/ambo/outputRouter';
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-
-function computeAspectLabel(w: number, h: number): string {
-  if (!w || !h) return '16:9';
-  const r = w / h;
-  if (Math.abs(r - 16 / 9) < 0.04) return '16:9';
-  if (Math.abs(r - 16 / 10) < 0.04) return '16:10';
-  if (Math.abs(r - 4 / 3) < 0.04) return '4:3';
-  if (Math.abs(r - 21 / 9) < 0.06) return '21:9';
-  if (Math.abs(r - 32 / 9) < 0.08) return '32:9';
-  if (Math.abs(r - 9 / 16) < 0.04) return '9:16';
-  const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
-  const g = gcd(Math.round(w), Math.round(h)) || 1;
-  return `${Math.round(w / g)}:${Math.round(h / g)}`;
-}
 
 const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) => {
   // Video in this window is a FOLLOWER of the studio's Program clip (one clock,
@@ -50,6 +37,8 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
   const rtcVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const [output, setOutput] = useState<AmboOutput | null>(null);
+  /** The bus the studio's master canvas is rendering, to tell whether it is this window's picture. */
+  const [programOut, setProgramOut] = useState<AmboOutput | null>(null);
   const [stack, setStack] = useState<LiveStack>({});
   const [timers, setTimers] = useState<Record<string, number>>({});
   const [take, setTake] = useState<ProgramTake | undefined>(undefined);
@@ -84,6 +73,8 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
         ?? m.outputs?.find(o => o.kind === 'PROGRAM')
         ?? makeOutput('PROGRAM', 'Program', { id });
       setOutput(prev => (prev && JSON.stringify(prev) === JSON.stringify(mine) ? prev : mine));
+      const pgm = m.outputs?.find(o => o.kind === 'PROGRAM') ?? m.outputs?.[0] ?? null;
+      setProgramOut(prev => (JSON.stringify(prev) === JSON.stringify(pgm) ? prev : pgm));
       if (m.stack) setStack(m.stack);
       if (m.timers) setTimers(m.timers);
       if (m.take) setTake(prev => (prev?.seq === m.take!.seq ? prev : m.take));
@@ -103,7 +94,7 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
       const w = Math.max(2, Math.round(vw * dpr));
       const h = Math.max(2, Math.round(vh * dpr));
       setDetectedResolution(prev => (prev && prev.w === w && prev.h === h ? prev : { w, h }));
-      reportOutputWindowMetrics(id, w, h, computeAspectLabel(w, h));
+      reportOutputWindowMetrics(id, w, h, aspectLabel(w, h));
     };
     updateSize();
     window.addEventListener('resize', updateSize);
@@ -113,6 +104,14 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
       clearTimeout(timer);
     };
   }, [id]);
+
+  // The studio can lose the size this window reported (a device rescan, a saved show loading).
+  // Say it again, or the master bus goes back to the stale shape until the next window resize.
+  useEffect(() => {
+    if (!id || !output || output.autoDetectDisplay === false || !detectedResolution) return;
+    if (output.width === detectedResolution.w && output.height === detectedResolution.h) return;
+    reportOutputWindowMetrics(id, detectedResolution.w, detectedResolution.h, aspectLabel(detectedResolution.w, detectedResolution.h));
+  }, [id, output, detectedResolution]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -140,12 +139,8 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
   }, []);
 
   // Prioritize detected physical viewport resolution when auto-detect is active
-  const renderWidth = (output?.autoDetectDisplay !== false && detectedResolution?.w)
-    ? detectedResolution.w
-    : (output?.width || detectedResolution?.w || 1920);
-  const renderHeight = (output?.autoDetectDisplay !== false && detectedResolution?.h)
-    ? detectedResolution.h
-    : (output?.height || detectedResolution?.h || 1080);
+  const { w: renderWidth, h: renderHeight } = busSize(output, detectedResolution);
+  const fixedFormat = output?.autoDetectDisplay === false;
 
   // Stage displays show a wall clock; it must tick even when nothing is cued.
   useEffect(() => {
@@ -153,14 +148,11 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
     return () => clearInterval(t);
   }, []);
 
-  // True when this output window should display the exact Program Bus feed from the Studio
-  // (rather than running a separate stripped stack for Stage Display or Switcher Key).
-  const isProgramMirror = !output || (
-    output.kind !== 'STAGE' &&
-    output.kind !== 'KEY' &&
-    !output.alpha &&
-    !(output.clearedSlots && output.clearedSlots.length > 0)
-  );
+  // True when this output window should display the exact Program Bus feed from the Studio.
+  // Otherwise it composites for itself: a stripped stack (Stage Display, Switcher Key, or any bus
+  // whose layers differ from Program's, like a lobby loop), or a bus whose shape or fit differs
+  // from Program, which re-flows to its own frame instead of showing Program's with bars around it.
+  const isProgramMirror = mirrorsProgram(output, programOut, detectedResolution);
 
   // Connect local loopback WebRTC client when window.opener is unavailable (e.g. Native WinUI 3 output window).
   useEffect(() => {
@@ -225,21 +217,24 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
       const c = canvasRef.current;
       const openerCanvas = readOpenerProgramCanvas();
       const rtcVid = rtcVideoRef.current;
-      if (c && openerCanvas && openerCanvas.width > 0 && openerCanvas.height > 0) {
+      // The master can still be another shape for a moment (it resizes after this window reports).
+      // Render locally until it matches: a frame of ours beats a frame of bars.
+      const fits = (sw: number, sh: number) => sameAspect({ w: sw, h: sh }, { w: renderWidth, h: renderHeight });
+      if (c && openerCanvas && openerCanvas.width > 0 && openerCanvas.height > 0 && fits(openerCanvas.width, openerCanvas.height)) {
         rendererRef.current?.stop();
         if (c.width !== renderWidth || c.height !== renderHeight) {
           c.width = renderWidth;
           c.height = renderHeight;
         }
-        blitProgramSurface(openerCanvas, c, output?.fit);
+        blitProgramSurface(openerCanvas, c);
         setConnected(true);
-      } else if (c && rtcVid && rtcVid.readyState >= 2 && rtcVid.videoWidth > 0 && rtcVid.videoHeight > 0) {
+      } else if (c && rtcVid && rtcVid.readyState >= 2 && rtcVid.videoWidth > 0 && rtcVid.videoHeight > 0 && fits(rtcVid.videoWidth, rtcVid.videoHeight)) {
         rendererRef.current?.stop();
         if (c.width !== renderWidth || c.height !== renderHeight) {
           c.width = renderWidth;
           c.height = renderHeight;
         }
-        blitProgramSurface(rtcVid, c, output?.fit);
+        blitProgramSurface(rtcVid, c);
         setConnected(true);
       } else {
         rendererRef.current?.start();
@@ -251,7 +246,7 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
       active = false;
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [isProgramMirror, renderWidth, renderHeight, output?.fit]);
+  }, [isProgramMirror, renderWidth, renderHeight]);
 
   // Push each new stack through the reconciler — this is where a background
   // survives a slide change (used for Stage / Key outputs or fallback mode).
@@ -285,14 +280,17 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
     >
       <canvas
         ref={canvasRef}
-        style={{ width: '100vw', height: '100dvh', objectFit: 'contain', display: 'block' }}
+        data-bus-source={isProgramMirror ? 'master' : 'own'}
+        // Matching its display the canvas IS the screen's shape. Only a fixed format can differ,
+        // and then its own scaling setting decides.
+        style={{ width: '100vw', height: '100dvh', objectFit: fixedFormat ? DISPLAY_SCALE_CSS[output?.displayScale ?? 'fit'] : 'fill', display: 'block' }}
       />
 
       {/* Auto-detected display HUD badge */}
       {showHud && (
         <div style={hudStyle}>
           <span style={dotStyle} />
-          <span>{output?.name || 'AMBO OUTPUT'} · {renderWidth}×{renderHeight} {output?.autoDetectDisplay !== false ? '(AUTO-DETECTED)' : ''}</span>
+          <span>{output?.name || 'AMBO OUTPUT'} · {renderWidth}×{renderHeight} · {aspectLabel(renderWidth, renderHeight)} {fixedFormat ? '' : '(AUTO-DETECTED)'}</span>
           <button
             type="button"
             onClick={(e) => {
