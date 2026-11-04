@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "include": [
+    "components/elevate/RelloChurchViewer.tsx", "components/elevate/VersePanel.tsx",
+    "hooks/useFeedScripture.ts", "services/watchScripture.ts"
+  ]
+}
