@@ -10,7 +10,7 @@ import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from
 import {
   LayoutDashboard, Users, Church, Link2, Gift, HandHeart, MonitorPlay, MessagesSquare, ShoppingBag,
   Megaphone, Check, Circle, Loader2, Trash2, Sparkles, Mail, HardDrive, UserCog, Mic2, Wallet, KeyRound, GraduationCap, Music, ShieldCheck,
-  Calendar, Radio, Upload, Send, DollarSign, BookOpen, Landmark, Palette, Clock, MapPin, Plus, Globe,
+  Calendar, Radio, Upload, Send, DollarSign, BookOpen, Landmark, Palette, Clock, MapPin, Plus, Globe, Bot,
 } from 'lucide-react';
 import { spendingPerms } from '../../services/acctSpending';
 import { CountBadge, useMoneyInbox } from './chms/finance/SpendingUi';
@@ -61,6 +61,7 @@ const ElevateMobilizeHub = lazy(() => import('./ElevateMobilizeHub'));
 const ElevateTelaOperationsSuite = lazy(() => import('./ElevateTelaOperationsSuite'));
 const GrowthHub = lazy(() => import('../growth/GrowthHub'));
 const GrantHub = lazy(() => import('./GrantHub'));
+const OrgCrewPanel = lazy(() => import('../crew/OrgCrewPanel'));
 const OrgCentralCalendarHub = lazy(() => import('./OrgCentralCalendarHub'));
 const VolunteerMemberManageHub = lazy(() => import('./VolunteerMemberManageHub'));
 import { EV, EvKpiStrip } from './vellum';
@@ -110,7 +111,8 @@ export type SectionKey =
   | 'marketing'
   | 'calendar'
   | 'my_settings'
-  | 'grants';
+  | 'grants'
+  | 'crew';
 type Tool = null | 'sermons' | 'sermonprep' | 'master' | 'console' | 'hq' | 'employees' | 'hiring' | 'marketing';
 
 interface Props {
@@ -193,6 +195,8 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
     { key: 'people' as const, label: 'People & Roster', icon: Users, show: can('MANAGE_ROSTER') || can('ASSIGN_ROLES') || (!!uid && (org.ministries || []).some(m => m.headUids?.includes(uid))) },
     { key: 'giving' as const, label: 'Giving & Funds', icon: Gift, show: can('MANAGE_GIVING') || can('VIEW_GIVING') || can('MANAGE_ACCOUNTING') || can('VIEW_ACCOUNTING') },
     { key: 'grants' as const, label: 'Grants', icon: Landmark, show: can('MANAGE_GIVING') || can('MANAGE_ACCOUNTING') || isOwner },
+    // Same people the server lets manage the crew (routes/crew.ts canManageCrew): owner, org admins, IT Admins.
+    { key: 'crew' as const, label: "Aria's Crew", icon: Bot, show: isOwner || (!!uid && ((org.admins || []).includes(uid) || (org.itAdminUids || []).includes(uid))) },
     { key: 'events' as const, label: 'Events', icon: Calendar, show: can('POST_AS_ORG') || can('MANAGE_CONTENT') || isOwner },
     { key: 'prayer' as const, label: 'Prayer Wall', icon: HandHeart, show: faith && can('VIEW_PRAYER') },
     { key: 'messages' as const, label: 'Messages', icon: Mail, show: can('MANAGE_MEDIA') },
@@ -588,6 +592,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
                 />
               )}
               {section === 'grants' && <GrantHub org={org} />}
+              {section === 'crew' && <OrgCrewPanel org={org} onOpenSection={k => setSection(k as SectionKey)} />}
             </Suspense>
           </div>
         </div>

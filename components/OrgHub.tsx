@@ -26,6 +26,7 @@ import {
 import { uploadFile, searchUserProfiles, auth } from '../services/backendService';
 import { connectStripe } from '../services/stripeService';
 import ApplyModal from './business/ApplyModal';
+import FrontDeskAsk from './crew/FrontDeskAsk';
 import CareersView from './business/CareersView';
 import { fetchOrgPostings } from '../services/hiringService';
 import { orgCan } from '../services/orgPermissions';
@@ -585,6 +586,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
             <Gift size={14} /> {orgTabs.find(t => t.k === 'GIVE')?.label || 'Give'}
           </button>
           {org.socialLinks?.website && <a href={org.socialLinks.website} target="_blank" rel="noopener noreferrer" className="ev-btn" style={{ color: EV.violetText, paddingLeft: 6, paddingRight: 6, fontWeight: 500 }}><Globe size={14} /> Website</a>}
+          {!demo && <FrontDeskAsk orgId={org.id} orgName={org.name} />}
         </>}
       />
 
