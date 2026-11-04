@@ -1787,7 +1787,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
       )}
 
       {/* ═════════════════════════════════════════════════════════════════════════
-          TAB 5: NON-SMS REMINDER CADENCE & POST-EVENT ARIA SYNERGY STUDIO
+          TAB 5: NON-SMS REMINDER CADENCE & POST-EVENT EVENT INTELLIGENCE
           ═════════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'REMINDERS_SYNERGY' && (
         <div className="ev-fade grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -1798,7 +1798,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
                 100% Non-SMS Native Mobilization Loop
               </div>
               <h3 className="text-xl font-black text-white mt-1">
-                In-App Push + The Post Man Email + ARIA Post-Event Synergy
+                In-App Push + The Post Man Email + Event Intelligence
               </h3>
               <p className="text-xs text-white/65 mt-1 leading-relaxed">
                 Replaces expensive external SMS blasts with interactive Plajah Notification Center
@@ -1908,14 +1908,14 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
                   />
                 </div>
 
-                {/* Post-Event ARIA Repurpose & Photo Pool Synergy */}
+                {/* Event Intelligence & Photo Pool */}
                 {liveReminderPreview.ariaRepurposeJobDraft && (
                   <div className="p-4 rounded-2xl bg-[#7A1FC0]/25 border border-[#E2C27E]/40 space-y-1.5">
                     <div className="text-[10px] font-black uppercase tracking-wider text-[#E2C27E] flex items-center gap-1.5">
-                      <Sparkles size={12} /> Plajah Post-Event ARIA &amp; Community Photo Pool Synergy
+                      <Sparkles size={12} /> Event Intelligence · ARIA Recap &amp; Community Photo Pool
                     </div>
                     <p className="text-xs text-white/85">
-                      Automatically queues ARIA Content Repurpose Job{' '}
+                      Automatically queues an Event Intelligence job{' '}
                       <b>“{liveReminderPreview.ariaRepurposeJobDraft.sourceTitle}”</b> (turning the
                       service/drive into an article, newsletter recap, and podcast clip) and prompts
                       volunteers to upload photos to the shared <b>Event Photo Pool</b>.

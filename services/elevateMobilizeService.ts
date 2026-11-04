@@ -153,7 +153,7 @@ export function getActionHubVerticalConfig(
       petitionsTabLabel: 'Student Senate Petitions & Honor Pledges',
       spokesTabLabel: 'Study Pods, Chapters & Alumni Watch Parties',
       passportTabLabel: 'Co-Curricular Service Transcript',
-      remindersTabLabel: 'Non-SMS Prep & ARIA Lecture Synergy',
+      remindersTabLabel: 'Non-SMS Prep & Event Intelligence',
       crmTabLabel: 'SIS / Campus & Coalition Sync',
       spokeHostCtaLabel: 'Start a Study Pod / Campus Chapter',
     };
@@ -204,7 +204,7 @@ export function getActionHubVerticalConfig(
       petitionsTabLabel: 'Patron Open Letters & Pledges',
       spokesTabLabel: 'Salon Screenings & Local Chapters',
       passportTabLabel: 'Patron Impact Passport',
-      remindersTabLabel: 'Non-SMS Cadence & ARIA Exhibition Synergy',
+      remindersTabLabel: 'Non-SMS Cadence & Event Intelligence',
       crmTabLabel: 'Coalition & Cultural CRM Sync',
       spokeHostCtaLabel: 'Apply to Host a Licensed Salon / Screening',
     };
@@ -221,7 +221,7 @@ export function getActionHubVerticalConfig(
       petitionsTabLabel: 'Petitions, Open Letters & Action Pledges',
       spokesTabLabel: 'Peer Spoke Chapters & Watch Parties',
       passportTabLabel: 'My Impact Passport',
-      remindersTabLabel: 'Non-SMS Cadence & ARIA Synergy Loop',
+      remindersTabLabel: 'Non-SMS Cadence & Event Intelligence',
       crmTabLabel: 'Coalition & External CRM Sync',
       spokeHostCtaLabel: 'Apply to Host a Local Chapter / Screening',
     };
@@ -237,7 +237,7 @@ export function getActionHubVerticalConfig(
     petitionsTabLabel: 'Covenants, Petitions & Open Letters',
     spokesTabLabel: 'Home Sanctuaries & Watch Parties',
     passportTabLabel: 'My Impact Passport',
-    remindersTabLabel: 'Non-SMS Cadence & ARIA Synergy Loop',
+    remindersTabLabel: 'Non-SMS Cadence & Event Intelligence',
     crmTabLabel: 'Coalition & ChMS / CRM Sync',
     spokeHostCtaLabel: 'Apply to Host a Home Sanctuary / Watch Party',
   };
@@ -1382,7 +1382,7 @@ export function checkInElevateShiftVolunteer(
   };
 }
 
-// ─── 2. Non-SMS Reminder & Post-Event Plajah Synergy Builder ─────────────────
+// ─── 2. Non-SMS Reminder & Post-Event Intelligence Builder ─────────────────
 
 export function buildNonSmsReminderPayload(
   drive: ElevateShiftDrive,

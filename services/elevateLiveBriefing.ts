@@ -1,6 +1,6 @@
 // elevateLiveBriefing — Plajah Elevate, supercharged.
 //
-// What this adds on top of the existing Ministry Content Synergy Engine
+// What this adds on top of the existing Event Intelligence pipeline
 // (services/ministryRepurpose.ts, Phase 1: transcript -> ONE article draft):
 //
 //   1. SCHEDULED / AUTO runs — an org turns the feature ON per source (a live

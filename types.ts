@@ -2738,7 +2738,7 @@ export interface ChurchPrayer {
   timestamp: number;
 }
 
-// ── Ministry Content Synergy Engine ─────────────────────────────────────────────
+// ── Event Intelligence ─────────────────────────────────────────────
 // Turn one captured service/stream into publishable content (article/podcast/book)
 // via ARIA. See docs/MINISTRY_CONTENT_SYNERGY_BLUEPRINT.md.
 
