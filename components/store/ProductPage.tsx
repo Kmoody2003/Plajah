@@ -23,6 +23,13 @@ import { availableFor, liveVariants, storefrontBadge, unitPriceCents } from '../
 import { joinWaitlist, leaveWaitlist, isOnWaitlist } from '../../services/inventoryService';
 import { boardPrice } from '../../services/commerceBus';
 import UserAvatar from '../avatar/UserAvatar';
+import { mediaOf, replaceMedia, newMediaId } from '../../services/productMediaCore';
+import type { StoreProductMedia } from '../../types';
+import {
+  useLiveEdit, MediaGallery, MediaLightbox, AdminBar, SaveBar, UndoToast, EditText, ListEdit, SpecsEdit, VariantsEdit,
+} from './ProductLiveEditor';
+import ProductTelaOverlay, { type TelaResult } from './ProductTelaOverlay';
+const ProductEditor = React.lazy(() => import('../inventory/ProductEditor'));
 
 const DISPLAY = "'Bricolage Grotesque', Inter, system-ui, sans-serif";
 const pretty = (s: string) => s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g, ' ');
@@ -267,6 +274,21 @@ const ProductPage: React.FC<ProductPageProps> = ({
   const uid = auth.currentUser?.uid;
   const isSeller = !!uid && uid === product.sellerId;
   const draft = product.isActive === false;
+  // Shop admins (seller / platform admin / staff with INVENTORY) edit right here; shoppers get none of it.
+  const live = useLiveEdit(product);
+  const [mediaBox, setMediaBox] = useState<{ items: StoreProductMedia[]; start: number } | null>(null);
+  const [telaItem, setTelaItem] = useState<{ item: StoreProductMedia | null } | null>(null);
+  const [fullEditor, setFullEditor] = useState(false);
+  const gallery = useMemo(() => (live.editing ? live.draft.media : mediaOf(product)), [live.editing, live.draft.media, product]);
+  const setDraft = (patch: Partial<typeof live.draft>) => live.setDraft(d => ({ ...d, ...patch }));
+  const onTelaDone = async ({ url, telaDocId, kind }: TelaResult) => {
+    const item = telaItem?.item || null;
+    const apply = (list: StoreProductMedia[]) => (item
+      ? replaceMedia(list, item.id, { url, telaDocId, kind })
+      : [...list, { id: newMediaId(), kind: 'tela' as const, url, telaDocId }]);
+    if (live.editing) setDraft({ media: apply(live.draft.media) });
+    else await live.applyMedia(apply(mediaOf(product)), item ? 'Updated from Tela. The live listing shows it now.' : 'Tela design added to the gallery.');
+  };
 
   // New product → top of the page, fresh selections.
   useEffect(() => {
@@ -413,53 +435,30 @@ const ProductPage: React.FC<ProductPageProps> = ({
           </p>
         </div>
       )}
+      {live.canEdit && <AdminBar accent={accent} editing={live.editing} onEdit={live.start} onFullEditor={() => setFullEditor(true)} />}
 
       <div className="max-w-6xl mx-auto px-4 py-6 lg:py-10 grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] gap-8 lg:gap-12">
-        {/* Gallery */}
-        <div className="lg:sticky lg:top-24 self-start flex gap-3">
-          {images.length > 1 && (
-            <div className="hidden sm:flex flex-col gap-2 w-[72px] shrink-0 max-h-[640px] overflow-y-auto">
-              {images.map((src, i) => (
-                <button key={i} onClick={() => setImg(i)} onMouseEnter={() => setImg(i)} aria-label={`Photo ${i + 1}`}
-                  className={`w-[72px] h-[72px] rounded-xl overflow-hidden border-2 shrink-0 transition ${img === i ? '' : 'border-transparent opacity-70 hover:opacity-100'}`}
-                  style={img === i ? { borderColor: accent } : undefined}>
-                  <Img src={src} alt="" className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="relative aspect-square rounded-3xl overflow-hidden bg-white/[0.04] group">
-              {images[img] ? (
-                <button onClick={() => setLightbox({ images, start: img })} className="w-full h-full cursor-zoom-in" aria-label="Open photo full screen">
-                  <Img src={images[img]} alt={product.title} className="w-full h-full object-cover" />
-                </button>
-              ) : <Package size={48} className="absolute inset-0 m-auto text-white/15" />}
-              {off > 0 && <span className="absolute top-4 left-4 px-3 py-1 rounded-full bg-red-500 text-white text-[13px] font-bold">{off}% off</span>}
-              {images.length > 1 && (
-                <>
-                  <button onClick={() => setImg(i => (i - 1 + images.length) % images.length)} aria-label="Previous photo" className="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/55 hover:bg-black/75 flex items-center justify-center sm:opacity-0 group-hover:opacity-100 transition"><ChevronLeft size={20} /></button>
-                  <button onClick={() => setImg(i => (i + 1) % images.length)} aria-label="Next photo" className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/55 hover:bg-black/75 flex items-center justify-center sm:opacity-0 group-hover:opacity-100 transition"><ChevronRight size={20} /></button>
-                  <span className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-black/60 text-[12px] tabular-nums">{img + 1} / {images.length}</span>
-                </>
-              )}
-            </div>
-            {images.length > 1 && (
-              <div className="sm:hidden flex gap-2 mt-3 overflow-x-auto">
-                {images.map((src, i) => (
-                  <button key={i} onClick={() => setImg(i)} aria-label={`Photo ${i + 1}`} className={`w-16 h-16 rounded-xl overflow-hidden border-2 shrink-0 ${img === i ? '' : 'border-transparent opacity-70'}`} style={img === i ? { borderColor: accent } : undefined}>
-                    <Img src={src} alt="" className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Gallery: photos, videos (play inline) and Tela designs */}
+        <MediaGallery items={gallery} title={product.title} accent={accent} editing={live.editing} canEdit={live.canEdit}
+          badge={off > 0 ? <span className="absolute top-4 left-4 px-3 py-1 rounded-full bg-red-500 text-white text-[13px] font-bold">{off}% off</span> : undefined}
+          onOpen={start => setMediaBox({ items: gallery, start })}
+          onChange={media => setDraft({ media })}
+          onTela={item => setTelaItem({ item })} />
 
         {/* Buy box */}
         <div className="min-w-0">
           <p className="text-[13px] font-semibold" style={{ color: accent }}>{deptName ? `${deptName} · ${shopName}` : shopName}</p>
+          {live.editing ? (
+            <div className="mt-2 space-y-3">
+              <EditText label="Name" value={live.draft.title} onChange={title => setDraft({ title })} />
+              <div className="grid grid-cols-2 gap-3">
+                <EditText label="Price" prefix="$" inputMode="decimal" big value={live.draft.price} onChange={price => setDraft({ price })} />
+                <EditText label="Was price (optional)" prefix="$" inputMode="decimal" value={live.draft.compareAtPrice} onChange={compareAtPrice => setDraft({ compareAtPrice })} />
+              </div>
+            </div>
+          ) : (
           <h1 className="mt-1 text-[30px] lg:text-[36px] leading-[1.1] font-extrabold tracking-tight" style={{ fontFamily: DISPLAY }}>{product.title}</h1>
+          )}
 
           <button onClick={toReviews} className="mt-3 flex items-center gap-2 text-[14px] text-white/70 hover:text-white">
             {reviews === null ? <span className="text-white/40">Loading reviews…</span>
@@ -467,11 +466,11 @@ const ProductPage: React.FC<ProductPageProps> = ({
               : <><Stars value={0} size={17} /> <span className="underline underline-offset-4 decoration-white/25">No reviews yet — be the first</span></>}
           </button>
 
-          <div className="mt-5 flex items-baseline gap-3 flex-wrap">
+          {!live.editing && <div className="mt-5 flex items-baseline gap-3 flex-wrap">
             <span className="text-[34px] font-extrabold tabular-nums" style={{ fontFamily: DISPLAY }}>{draft && !product.price ? 'Price TBD' : boardPrice(price)}</span>
             {off > 0 && <span className="text-[18px] text-white/40 line-through tabular-nums">{boardPrice(product.compareAtPrice!)}</span>}
             {off > 0 && <span className="text-[14px] font-bold text-red-400">Save {boardPrice(product.compareAtPrice! - product.price)}</span>}
-          </div>
+          </div>}
           {!draft && points > 0 && (
             <p className="mt-1.5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-amber-300">
               <Sparkles size={14} /> Earn <span className="tabular-nums">{points}</span> loyalty point{points === 1 ? '' : 's'} at {shopName}
@@ -550,7 +549,16 @@ const ProductPage: React.FC<ProductPageProps> = ({
             {!draft && <li className="flex gap-3"><Sparkles size={18} className="shrink-0 text-white/45" /> Every paid order adds loyalty points and counts toward your shopper achievements.</li>}
           </ul>
 
-          {!!product.features?.length && (
+          {live.editing && (
+            <section className="mt-8 space-y-5 rounded-2xl border border-white/12 bg-white/[0.03] p-4">
+              {!!live.draft.variants.length && <VariantsEdit variants={live.draft.variants} onChange={variants => setDraft({ variants })} onFullEditor={() => setFullEditor(true)} />}
+              <ListEdit label="Highlights" items={live.draft.features} onChange={features => setDraft({ features })} placeholder="e.g. Hand-poured in small batches" />
+              <EditText label="About this item" multiline value={live.draft.description} onChange={description => setDraft({ description })} />
+              <SpecsEdit specs={live.draft.specs} onChange={specs => setDraft({ specs })} />
+            </section>
+          )}
+
+          {!live.editing && !!product.features?.length && (
             <section className="mt-8">
               <h2 className="text-[18px] font-bold mb-3" style={{ fontFamily: DISPLAY }}>Highlights</h2>
               <ul className="space-y-2">
@@ -561,14 +569,14 @@ const ProductPage: React.FC<ProductPageProps> = ({
             </section>
           )}
 
-          {product.description && (
+          {!live.editing && product.description && (
             <section className="mt-8">
               <h2 className="text-[18px] font-bold mb-3" style={{ fontFamily: DISPLAY }}>About this item</h2>
               <p className="text-[15px] leading-relaxed text-white/75 whitespace-pre-line">{product.description}</p>
             </section>
           )}
 
-          {!!product.specs?.length && (
+          {!live.editing && !!product.specs?.length && (
             <section className="mt-8">
               <h2 className="text-[18px] font-bold mb-3" style={{ fontFamily: DISPLAY }}>Details</h2>
               <dl className="rounded-2xl border border-white/10 overflow-hidden">
@@ -780,6 +788,8 @@ const ProductPage: React.FC<ProductPageProps> = ({
         </section>
       )}
 
+      {live.editing && <SaveBar accent={accent} saving={live.saving} err={live.err} conflicts={live.conflicts.map(k => String(k))} onSave={live.save} onCancel={live.cancel} />}
+
       <footer className="border-t border-white/[0.07]">
         <div className="max-w-6xl mx-auto px-4 py-8 flex items-center justify-between gap-3 flex-wrap">
           <button onClick={onBack} className="h-11 px-4 rounded-full bg-white/[0.06] hover:bg-white/10 text-[14px] font-semibold flex items-center gap-2"><ArrowLeft size={16} /> Back to the {deptName || shopName} shop</button>
@@ -789,6 +799,16 @@ const ProductPage: React.FC<ProductPageProps> = ({
 
       {note && <div role="status" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[410] px-5 py-3 rounded-full bg-white text-black text-[14px] font-semibold shadow-2xl">{note}</div>}
       {lightbox && <Lightbox images={lightbox.images} start={lightbox.start} title={product.title} onClose={() => setLightbox(null)} />}
+      {mediaBox && <MediaLightbox items={mediaBox.items} start={mediaBox.start} title={product.title} onClose={() => setMediaBox(null)} />}
+      {live.undo && <UndoToast label={live.undo.label} onClose={() => live.setUndo(null)}
+        onUndo={/^No changes/.test(live.undo.label) ? undefined : async () => { const u = live.undo; live.setUndo(null); try { await u?.run(); setNote('Undone.'); } catch (e: any) { setNote(e?.message || 'Could not undo.'); } }} />}
+      {telaItem && live.canEdit && <ProductTelaOverlay product={product} item={telaItem.item} onDone={onTelaDone} onClose={() => setTelaItem(null)} />}
+      {fullEditor && live.canEdit && (
+        <React.Suspense fallback={null}>
+          <ProductEditor who={{ sellerId: product.sellerId, sellerName: product.sellerName || shopName, sellerType: (product as any).sellerType === 'USER' ? 'USER' : 'ORG' }}
+            product={product} onClose={() => setFullEditor(false)} onSaved={() => setNote('Saved. The live page is updated.')} />
+        </React.Suspense>
+      )}
     </div>
   );
 

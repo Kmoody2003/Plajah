@@ -14,6 +14,7 @@ import {
   saleLinesFromOrder, mergeProductData, summarizeSales, isTracked, variantStockOf, liveVariants,
   type StockMove, type StockReason, type ProductDraft, type SalesSummary,
 } from './inventoryCore';
+import { onlyEdited, reconcileMedia, liveEditPatch, imagesFromMedia } from './productMediaCore';
 
 const strip = <T,>(o: T): T => JSON.parse(JSON.stringify(o));      // Firestore rejects undefined field values
 const newMoveRef = () => doc(collection(opsDb, 'stockMoves'));
@@ -91,7 +92,14 @@ export async function saveProduct(a: SaveProductArgs): Promise<string> {
 
     wasOut = !!cur && isTracked(cur) && (cur.variants?.length ? liveVariants(cur).reduce((s, v) => s + v.stock, 0) : Number(cur.stock ?? 0)) <= 0;
     nowIn = stock > 0;
-    const data: any = mergeProductData(cur, a.fields, {
+    // Only the fields this editor changed are written over the live doc. The editor opened with a snapshot;
+    // writing it all back would undo anything changed since (a Content HQ photo, a live-page edit).
+    const fields = cur && a.original ? onlyEdited(a.original, a.fields) : a.fields;
+    if (cur && a.original && 'images' in fields && !('media' in fields)) {
+      const m = reconcileMedia(cur.media, (fields.images as string[]) || []);
+      if (m) (fields as any).media = m;
+    }
+    const data: any = mergeProductData(cur, fields, {
       id: ref.id, sellerId: a.sellerId, sellerName: a.sellerName, sellerType: a.sellerType,
       stock, variants: hasVariants ? variants : [], variantStock: hasVariants ? variantStock : {},
       createdAt: cur?.createdAt || now, updatedAt: now,
@@ -380,3 +388,58 @@ export function findByCode(products: StoreProduct[], code: string): { product: S
   }
   return null;
 }
+
+// ── Live-page editing (components/store/ProductPage edit mode) ───────────────
+
+/**
+ * May the signed-in person edit this product? Mirrors the storeProducts update rule in firestore.ops.rules:
+ * the seller, a platform admin, or the seller's staff with the INVENTORY permission. The rule decides in
+ * the end; this only decides whether to show the edit controls.
+ */
+export async function canEditProduct(p: Pick<StoreProduct, 'sellerId'>): Promise<boolean> {
+  const u = auth.currentUser;
+  if (!u || u.isAnonymous || !p.sellerId) return false;
+  if (u.uid === p.sellerId) return true;
+  if (u.email === 'kmoody2003@gmail.com' && u.emailVerified) return true;
+  try { if ((await getDoc(doc(opsDb, 'admins', u.uid))).exists()) return true; } catch { /* not readable → not an admin */ }
+  try {
+    const idx = await getDoc(doc(opsDb, 'businessStaffIndex', p.sellerId));
+    const perms: string[] = (idx.data() as any)?.staffPerms?.[u.uid] || [];
+    return perms.includes('INVENTORY');
+  } catch { return false; }
+}
+
+/**
+ * Save an edit made on the live product page. Only the fields this edit changed are written, on top of
+ * whatever is live now (a sale or another edit that landed meanwhile is kept). Stock is never touched
+ * here: option counts stay what they are live. Returns the fields written.
+ */
+export async function saveLiveEdit(opened: StoreProduct, edited: Partial<StoreProduct>): Promise<Record<string, any>> {
+  const { deleteField } = await import('firebase/firestore');
+  const ref = doc(opsDb, 'storeProducts', opened.id);
+  let written: Record<string, any> = {};
+  await runTransaction(opsDb, async tx => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error('This product was deleted.');
+    const live = { id: snap.id, ...snap.data() } as StoreProduct;
+    const patch = liveEditPatch(opened, edited, live);
+    if (!Object.keys(patch).length) { written = {}; return; }
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(patch)) out[k] = v === null ? deleteField() : strip(v);
+    tx.update(ref, { ...out, updatedAt: Date.now() });
+    written = patch;
+  });
+  return written;
+}
+
+/** Upload a gallery video for a product (public, under the uploader's own store folder). */
+export async function uploadProductVideo(file: File, onProgress?: (pct: number) => void): Promise<string> {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('Sign in to upload.');
+  if (!file.type.startsWith('video/')) throw new Error('That file is not a video.');
+  if (file.size > 200 * 1024 * 1024) throw new Error('Videos up to 200 MB. Trim it or export a smaller file.');
+  const { uploadFile } = await import('./backendService');
+  return uploadFile(`users/${uid}/store/video_${Date.now()}_${file.name}`, file, onProgress);
+}
+
+export { imagesFromMedia };

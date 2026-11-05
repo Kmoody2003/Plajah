@@ -128,6 +128,20 @@ const InventoryHub: React.FC<{
     setProducts(ministryId ? ps.filter(p => p.ministryId === ministryId) : ps); setPulse(pl); setLoading(false);
   }, [sellerId, sellerName, isDemo, ministryId]);
   useEffect(() => { setLoading(true); load(); }, [load]);
+  // Live: an edit made on the product page (or a photo from Content HQ, or a sale) refreshes this list, so
+  // the editor never opens — and saves back — an old copy of a product.
+  useEffect(() => {
+    if (demoRef.current || !sellerId) return;
+    let t: number | undefined, first = true;
+    let stop = () => {};
+    import('../../services/commerceBus').then(({ subscribeCatalog }) => {
+      stop = subscribeCatalog(sellerId, () => {
+        if (first) { first = false; return; }            // the initial snapshot is what load() just read
+        window.clearTimeout(t); t = window.setTimeout(() => { load(); }, 400);
+      }, { onError: () => {} });
+    });
+    return () => { window.clearTimeout(t); stop(); };
+  }, [sellerId, load, isDemo]);
   useEffect(() => { if (tab === 'ACTIVITY') (demoRef.current ? Promise.resolve(demoRef.current.moves) : fetchStockMoves(sellerId)).then(setMoves); }, [tab, sellerId, products, isDemo]);
 
   // ── Derived ──

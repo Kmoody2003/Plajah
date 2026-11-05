@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { parseSizeChart } from '../../services/storeShopCore';
-import { Camera, ImagePlus, Sparkles, X, Package, Shirt, Download, Link2, Trash2, Check, ChevronDown, Star, Plus } from 'lucide-react';
+import { Camera, ImagePlus, Sparkles, X, Package, Shirt, Download, Link2, Trash2, Check, ChevronDown, Star, Plus, Wand2 } from 'lucide-react';
 import type { StoreProduct, StoreProductVariant, StoreProductCategory } from '../../types';
 import {
   buildVariantMatrix, suggestSku, storefrontBadge, marginPct, isSafeVariantId, SIZE_PRESETS, COLOR_PRESETS, DEFAULT_LOW_STOCK,
@@ -11,6 +11,8 @@ import { Button, Chip } from '../ui';
 import Sheet from './Sheet';
 import BarcodeScanner from './BarcodeScanner';
 import { GROCERY_PACK } from '../../services/ebtCore';
+import { mediaOf, reconcileMedia } from '../../services/productMediaCore';
+import ProductTelaOverlay from '../store/ProductTelaOverlay';
 
 /**
  * Add / edit a product. Designed around three facts about small sellers:
@@ -100,6 +102,9 @@ const ProductEditor: React.FC<{
   const [featured, setFeatured] = useState(!!product?.isFeatured);
   const [backorder, setBackorder] = useState(!!product?.allowBackorder);
   const [images, setImages] = useState<string[]>(product?.images || []);
+  // Photos recomposed in Tela this session: new photo URL → its Tela doc (saved into the gallery's media).
+  const [telaLinks, setTelaLinks] = useState<Record<string, string>>({});
+  const [telaFor, setTelaFor] = useState<number | null>(null);
   const [baseStock, setBaseStock] = useState(String(product ? Math.max(0, product.stock ?? 0) : ''));
   const [sizes, setSizes] = useState<string[]>(o.sizes);
   const [colors, setColors] = useState<{ name: string; hex: string }[]>(o.colors);
@@ -169,6 +174,13 @@ const ProductEditor: React.FC<{
     if (!tags.trim()) setTags(d.tags.join(', '));
   };
 
+  // Keep the gallery (videos, Tela docs) in step with the photo list; a Tela-recomposed photo keeps its doc link.
+  const galleryMedia = (): Partial<StoreProduct> => {
+    if (!product?.media?.length && !Object.keys(telaLinks).length) return {};
+    const m = reconcileMedia(mediaOf(product || { images: [] } as any), images) || [];
+    return { media: m.map(x => (telaLinks[x.url] ? { ...x, telaDocId: telaLinks[x.url] } : x)) };
+  };
+
   // ── Save ──
   const save = async (publish: boolean) => {
     setErr('');
@@ -213,7 +225,7 @@ const ProductEditor: React.FC<{
         ...who,
         id: isNew ? undefined : product!.id,
         original: isNew ? undefined : product,
-        fields: { ...carry, ...fields },
+        fields: { ...carry, ...fields, ...galleryMedia() },
         variants: finalVariants,
         // An untracked product's stock number is never touched (delta 0 against what it opened with).
         baseStock: tracked ? parseInt(baseStock, 10) || 0 : Math.max(0, product?.stock ?? 0),
@@ -274,6 +286,8 @@ const ProductEditor: React.FC<{
                   )}
                   <button type="button" aria-label="Remove photo" onClick={() => setImages(im => im.filter((_, j) => j !== i))}
                     className="absolute right-1 top-1 w-6 h-6 rounded-full bg-black/60 grid place-items-center opacity-0 group-hover:opacity-100 focus:opacity-100"><X size={12} className="text-white" /></button>
+                  <button type="button" aria-label="Edit this photo in Tela" title="Edit in Tela" onClick={() => setTelaFor(i)}
+                    className="absolute right-1 bottom-1 h-6 px-2 rounded-full bg-black/65 flex items-center gap-1 text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 focus:opacity-100"><Wand2 size={11} /> Tela</button>
                 </div>
               ))}
               <button type="button" onClick={() => fileRef.current?.click()} disabled={!!uploading}
@@ -498,6 +512,15 @@ const ProductEditor: React.FC<{
           <Button variant="ghost" size="xs" className="mt-2" icon={<Plus />} onClick={() => setMoreOpen(true)}>More options</Button>
         </aside>
       </div>
+      {telaFor !== null && images[telaFor] && (() => {
+        const url = images[telaFor];
+        const known = mediaOf(product || { images: [] } as any).find(m => m.url === url);
+        const item = { id: known?.id || `m_ed${telaFor}`, kind: (known?.kind === 'tela' ? 'tela' : 'image') as 'image' | 'tela', url, telaDocId: telaLinks[url] || known?.telaDocId };
+        return (
+          <ProductTelaOverlay product={product?.id ? product : { ...preview, id: 'new' }} item={item} onClose={() => setTelaFor(null)}
+            onDone={r => { setImages(im => im.map(u => (u === url ? r.url : u))); setTelaLinks(t => ({ ...t, [r.url]: r.telaDocId })); }} />
+        );
+      })()}
       {scanOpen && <BarcodeScanner title="Scan the barcode" onDetect={c => { setBarcode(c); setScanOpen(false); }} onClose={() => setScanOpen(false)} />}
     </Sheet>
   );

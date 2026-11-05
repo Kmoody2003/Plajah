@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "services/productMediaCore.ts",
+    "services/productTelaBridge.ts",
+    "services/inventoryService.ts",
+    "components/store/ProductLiveEditor.tsx",
+    "components/store/ProductTelaOverlay.tsx",
+    "components/store/ProductPage.tsx",
+    "components/inventory/ProductEditor.tsx",
+    "components/inventory/InventoryHub.tsx",
+    "tests/productEdit.test.ts"
+  ]
+}
