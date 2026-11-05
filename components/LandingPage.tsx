@@ -12,6 +12,7 @@ import Logo from './Logo';
 import SignInPrompt from './SignInPrompt';
 import AuthExperience from './AuthExperience';
 // Lazy: the Elevate door pulls org services; only loaded when someone opens it.
+import OrgDoors from './landing/OrgDoors';
 const ElevateGateway = lazy(() => import('./elevate/ElevateGateway'));
 
 interface LandingPageProps {
@@ -419,7 +420,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser, onEnter
       </div>
 
       {/* Content */}
-      <div className="relative z-10 max-w-4xl w-full text-center flex flex-col items-center gap-12">
+      <div className="relative z-10 max-w-4xl w-full text-center flex flex-col items-center gap-10 py-6">
         <motion.div
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -433,45 +434,58 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser, onEnter
             className="relative"
           >
             <div className="absolute inset-0 rounded-[2.5rem] bg-gradient-to-br from-[#6B0099] via-[#D40055] to-[#FF8C00] blur-2xl opacity-60 scale-125" />
-            <div className="relative w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-[#6B0099] via-[#D40055] to-[#FF8C00] rounded-[2rem] md:rounded-[2.5rem] flex items-center justify-center shadow-[0_0_60px_rgba(107,0,153,0.5)]">
+            <div className="relative w-20 h-20 md:w-24 md:h-24 bg-gradient-to-br from-[#6B0099] via-[#D40055] to-[#FF8C00] rounded-[2rem] md:rounded-[2.5rem] flex items-center justify-center shadow-[0_0_60px_rgba(107,0,153,0.5)]">
               <Logo size={56} fluid />
             </div>
           </motion.div>
 
-          <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">
+          <h1 className="text-6xl md:text-[8.5rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">
             Plajah
           </h1>
-          <p className="text-center text-lg lg:text-2xl font-bold tracking-wide uppercase text-white max-w-2xl px-4 [text-shadow:0_2px_14px_rgba(0,0,0,0.65)]">
-            Everything creators make — music, film, books, live &amp; more.<br/>One profile to build it. One place to find it.
+          {/* The brand line — loud, right under the wordmark. */}
+          <p className="-mt-2 text-2xl sm:text-4xl font-black uppercase italic tracking-tight leading-none text-[#FFB020] [text-shadow:0_3px_18px_rgba(0,0,0,0.8),0_0_30px_rgba(255,140,0,0.35)]">
+            The world’s next stage
           </p>
+          <p className="text-center text-xl lg:text-3xl font-black tracking-tight text-white max-w-2xl px-4 [text-shadow:0_2px_14px_rgba(0,0,0,0.65)]">
+            One home for everything you’re part of.
+          </p>
+          {/* The whole platform in one line each: make, learn, gather, work. */}
+          <ul className="grid grid-cols-2 sm:flex sm:flex-wrap justify-center gap-x-5 gap-y-1.5 text-[12px] sm:text-sm font-semibold text-white/80 px-2 [text-shadow:0_2px_10px_rgba(0,0,0,0.7)]">
+            <li><span className="text-[#F9A8D4]">●</span> Make music, film, books &amp; live shows</li>
+            <li><span className="text-[#3FB98E]">●</span> Learn with your class</li>
+            <li><span className="text-[#C4B5FD]">●</span> Gather with your faith community or cause</li>
+            <li><span className="text-[#67E8F9]">●</span> Run a business or clock in at work</li>
+          </ul>
           <div className="h-px w-24 bg-gradient-to-r from-transparent via-small-orange to-transparent" />
         </motion.div>
 
-        {/* A one-line tease of the two directions. The "Create your free account" and
-            "Enter" buttons below are the actual answer — this just plants the fork in the
-            visitor's head. The full Explore/Create fork lives on the Front Row page after
-            sign-in. */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 0.35 }}
-          className="text-base lg:text-lg font-black uppercase tracking-[0.3em] text-white [text-shadow:0_2px_14px_rgba(0,0,0,0.65)] -mt-2"
-        >
-          What do you want to make — or discover?
-        </motion.p>
-
-        {/* Primary CTA — "continue" for a live session, otherwise create an account */}
+        {/* Personal account — just you. Stays first; the organization doors sit below it. */}
         <motion.div
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
-          className="w-full max-w-md flex flex-col items-center gap-3"
+          className="w-full max-w-2xl flex flex-col items-center gap-3 -mt-4"
         >
+          {/* The way into Plajah itself: a new world to explore and create in. One bold line, then
+              one line for each audience — the people who come to explore, and the creators. */}
+          <div className="flex flex-col items-center gap-2 text-center [text-shadow:0_2px_14px_rgba(0,0,0,0.75)]">
+            <h2 className="text-3xl sm:text-5xl font-black uppercase italic tracking-tighter leading-[0.9] pr-2 text-transparent bg-clip-text bg-gradient-to-r from-[#C084FC] via-[#FF4D8D] to-[#FFB020] [text-shadow:none] drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
+              Step into a new world
+            </h2>
+            <p className="text-[13px] sm:text-[15px] font-bold text-white/90">
+              Explore it. Create in it. Make it yours.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-4 mt-1 text-[11px] sm:text-[12px] font-semibold text-white/75">
+              <span><span className="font-black text-white">Explorers</span> — a social world that actually feels new</span>
+              <span className="hidden sm:inline text-white/30">|</span>
+              <span><span className="font-black text-white">Creators</span> — your work, your fans, your money</span>
+            </div>
+          </div>
           {signedIn ? (
             <>
               <button
                 onClick={onEnter}
-                className="w-full group relative flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white font-black text-sm uppercase tracking-[0.15em] shadow-[0_10px_40px_rgba(212,0,85,0.4)] hover:scale-[1.03] active:scale-95 transition-all duration-300"
+                className="w-full max-w-md group relative flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white font-black text-sm uppercase tracking-[0.15em] shadow-[0_10px_40px_rgba(212,0,85,0.4)] hover:scale-[1.03] active:scale-95 transition-all duration-300"
               >
                 {signedIn.photo
                   ? <img src={signedIn.photo} alt="" className="w-6 h-6 rounded-full object-cover ring-1 ring-white/40" />
@@ -487,18 +501,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser, onEnter
             <>
               <button
                 onClick={() => { setAuthPortal(null); consumePortalSignIn(); setAuthMode('REGISTER'); }}
-                className="w-full group relative flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white font-black text-sm uppercase tracking-[0.15em] shadow-[0_10px_40px_rgba(212,0,85,0.4)] hover:scale-[1.03] active:scale-95 transition-all duration-300"
+                className="w-full max-w-md group relative flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white font-black text-sm uppercase tracking-[0.15em] shadow-[0_10px_40px_rgba(212,0,85,0.4)] hover:scale-[1.03] active:scale-95 transition-all duration-300"
               >
-                <Mail size={17} /> Create your free account <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-              </button>
-              <button onClick={() => { setAuthPortal(null); consumePortalSignIn(); setAuthMode('SIGN_IN'); }} className="text-[11px] font-black uppercase tracking-[0.25em] text-white/50 hover:text-white transition-colors">
-                Sign in with email &amp; password
+                <Mail size={17} /> Join free <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
               </button>
               {/* Said plainly, because getting this wrong is the #1 way people lock themselves
                   out: the email form only serves accounts that were CREATED with an email. */}
-              <p className="text-[9px] font-bold normal-case tracking-normal text-white/35 text-center leading-relaxed max-w-sm">
-                Email &amp; password is only for accounts made with an email address. If you joined
-                with Google, Facebook, Microsoft or X, use that button below.
+              <p className="text-[11px] font-semibold text-white/70 text-center leading-relaxed [text-shadow:0_1px_8px_rgba(0,0,0,0.8)]">
+                Made your account with an email?{' '}
+                <button onClick={() => { setAuthPortal(null); consumePortalSignIn(); setAuthMode('SIGN_IN'); }} className="font-black text-white/85 underline underline-offset-2 hover:text-white">Sign in with email</button>
+                
               </p>
             </>
           )}
@@ -509,198 +521,107 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser, onEnter
           )}
         </motion.div>
 
+        {/* Provider sign-in as a row of round icons; the name is in the tooltip and screen-reader label. */}
         <motion.div
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 1, delay: 0.6, ease: "easeOut" }}
-          className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-4xl"
+          className="flex flex-col items-center gap-4 -mt-3"
         >
-          {PROVIDERS.map(({ id, label, Icon, bg }) => {
-            const isCurrent = !!signedIn?.providers.includes(id);
-            return (
-              <button
-                key={id}
-                onClick={runProvider(id, () => PROVIDER_FN[id]())}
-                disabled={!!busyProvider}
-                title={isCurrent ? `Continue with ${label} — you’re already signed in` : `Sign in with ${label}`}
-                className={`flex-1 group relative flex items-center justify-center gap-2.5 px-3 py-4 rounded-2xl font-display font-light group-hover:font-black text-[13px] uppercase tracking-[0.06em] hover:scale-105 active:scale-95 transition-all duration-300 disabled:opacity-60 disabled:hover:scale-100 ${bg} ${isCurrent ? 'ring-2 ring-small-orange ring-offset-2 ring-offset-black/60' : ''}`}
-              >
-                {busyProvider === id
-                  ? <Loader2 size={16} className="animate-spin" />
-                  : <Icon size={16} className="transition-transform group-hover:scale-110" />}
-                <span className="transition-all duration-300 whitespace-nowrap">{label}</span>
-                {/* A signed-in provider says so, so the button never looks like a dead end. */}
-                {isCurrent && <span className="absolute -top-2 right-3 px-1.5 py-0.5 rounded-full bg-small-orange text-black text-[7px] font-black uppercase tracking-widest">Signed in</span>}
-                <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              </button>
-            );
-          })}
+          <p className="text-[11px] font-semibold text-white/70 [text-shadow:0_1px_8px_rgba(0,0,0,0.8)]">or sign in with</p>
+          <div className="flex items-center justify-center gap-4 sm:gap-5">
+            {PROVIDERS.map(({ id, label, Icon, bg }) => {
+              const isCurrent = !!signedIn?.providers.includes(id);
+              return (
+                <button
+                  key={id}
+                  onClick={runProvider(id, () => PROVIDER_FN[id]())}
+                  disabled={!!busyProvider}
+                  title={isCurrent ? `Continue with ${label} — you’re already signed in` : `Sign in with ${label}`}
+                  aria-label={isCurrent ? `Continue with ${label}` : `Sign in with ${label}`}
+                  className={`group relative w-14 h-14 rounded-full grid place-items-center hover:scale-110 active:scale-95 transition-all duration-300 disabled:opacity-60 disabled:hover:scale-100 ${bg} ${isCurrent ? 'ring-2 ring-small-orange ring-offset-2 ring-offset-black/60' : ''}`}
+                >
+                  {busyProvider === id
+                    ? <Loader2 size={22} className="animate-spin" />
+                    : <Icon size={22} />}
+                  {/* A signed-in provider says so, so the button never looks like a dead end. */}
+                  {isCurrent && <span className="absolute -top-2 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full bg-small-orange text-black text-[7px] font-black uppercase tracking-widest whitespace-nowrap">Signed in</span>}
+                </button>
+              );
+            })}
+          </div>
 
           {/* Plain "Enter": browsing without an account is a first-class door, not a
               consolation prize, and calling it "guest" made people think it was lesser. */}
           <button
             onClick={onEnter}
-            className="flex-1 group relative flex items-center justify-center gap-2.5 px-3 py-4 bg-white/5 border border-white/10 text-white rounded-2xl font-display font-light group-hover:font-black text-[13px] uppercase tracking-[0.06em] hover:bg-white/10 hover:scale-105 active:scale-95 transition-all duration-300"
+            className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/5 border border-white/15 text-white text-[12px] font-black uppercase tracking-[0.15em] hover:bg-white/10 active:scale-95 transition-all"
           >
-            <span className="transition-all duration-300">Enter</span>
-            <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+            Enter without signing in <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
           </button>
         </motion.div>
 
-        {/* The doors: Academia, Elevate, Business & Work and Productions — each signs you in to its own hub */}
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 w-full max-w-4xl items-stretch text-left">
-          {/* Plajah Academia — education sign-in as a first-class path, not a footnote */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.85 }}
-            className="h-full flex flex-col justify-between rounded-3xl border border-[#3FB98E]/30 bg-gradient-to-br from-[#0f1a16]/80 to-black/40 backdrop-blur-md p-5 sm:p-6"
-          >
-            <div>
-              <div className="flex items-center gap-2 text-[#3FB98E] mb-1.5">
-                <GraduationCap size={18} className="shrink-0" />
-                <span className="text-[10px] font-black uppercase tracking-[0.28em]">Plajah Academia · For Schools</span>
-              </div>
-              <h3 className="text-lg sm:text-xl font-black text-white leading-tight">Teachers, students &amp; families</h3>
-              <p className="text-[12px] text-white/55 leading-snug mt-1.5">
-                Class points, courses, and the portable learner record — <span className="text-green-300 font-bold">safe, ad-free, and family-visible</span>.
-              </p>
-            </div>
-            <div className="mt-4">
-              <div className="flex flex-col sm:flex-row gap-2.5">
-                <button
-                  onClick={() => { if (signedIn && onEnterPortal) { onDismissChooser?.(); onEnterPortal({ portal: 'academia', intent: 'student' }); return; } beginPortalSignIn({ portal: 'academia', intent: 'student' }); setShowStudent(true); }}
-                  className="flex-1 inline-flex items-center justify-center gap-2 px-3.5 py-3 rounded-2xl bg-[#3FB98E] text-black font-black text-[11px] uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all"
-                >
-                  <UserIcon size={15} className="shrink-0" /> <span>Student sign-in</span>
-                </button>
-                <button
-                  onClick={() => openDoor({ portal: 'academia', intent: 'teacher' })}
-                  className="flex-1 inline-flex items-center justify-center gap-2 px-3.5 py-3 rounded-2xl bg-white/10 border border-white/20 text-white font-black text-[11px] uppercase tracking-wider hover:bg-white/15 active:scale-95 transition-all"
-                >
-                  <Mail size={15} className="shrink-0" /> <span>Teacher / school sign-in</span>
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3">
-                <button
-                  onClick={() => { onEnter(); setTimeout(() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'ACADEMIA_DEMOS' } })), 500); }}
-                  className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-[#3FB98E]/80 hover:text-[#3FB98E] transition-colors"
-                >
-                  <Sparkles size={13} /> Tour Academia — no signup →
-                </button>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Plajah Elevate — churches, religious communities, charities, cultural institutions & nonprofits: for staff, leaders, volunteers & participants */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.95 }}
-            className="h-full flex flex-col justify-between rounded-3xl border border-[#8B5CF6]/40 bg-gradient-to-br from-[#160a26]/85 to-black/40 backdrop-blur-md p-5 sm:p-6 shadow-[0_0_40px_rgba(139,92,246,0.12)]"
-          >
-            <div>
-              <div className="flex items-center gap-2 text-[#C4B5FD] mb-1.5">
-                <HeartHandshake size={18} className="shrink-0" />
-                <span className="text-[10px] font-black uppercase tracking-[0.22em]">Plajah Elevate · Churches, Charities, Cultural &amp; Nonprofits</span>
-              </div>
-              <h3 className="text-lg sm:text-xl font-black text-white leading-tight">Staff, leaders &amp; participants making a difference</h3>
-              <p className="text-[12px] text-white/55 leading-snug mt-1.5">
-                For <span className="text-white/85 font-semibold">churches, religious orgs, charities, cultural institutions &amp; nonprofits</span> — <span className="text-[#C4B5FD] font-bold">claim your pre-set account</span> with your ID or email, or join your organization as staff, volunteer, or participant.
-              </p>
-            </div>
-            <div className="mt-4">
-              <div className="flex flex-col sm:flex-row gap-2.5">
-                <button
-                  onClick={() => openElevateFlow('claim')}
-                  className="flex-1 inline-flex items-center justify-center gap-2 px-3.5 py-3 rounded-2xl bg-gradient-to-r from-[#6B0099] to-[#8B5CF6] text-white font-black text-[11px] uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all shadow-[0_10px_30px_rgba(139,92,246,0.3)]"
-                >
-                  <KeyRound size={15} className="shrink-0" /> <span>Claim your account</span>
-                </button>
-                <button
-                  onClick={() => openElevateFlow('join')}
-                  className="flex-1 inline-flex items-center justify-center gap-2 px-3.5 py-3 rounded-2xl bg-white/10 border border-[#8B5CF6]/40 text-white font-black text-[11px] uppercase tracking-wider hover:bg-white/15 active:scale-95 transition-all"
-                >
-                  <Search size={15} className="shrink-0" /> <span>Find &amp; join your org</span>
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3">
-                <button onClick={() => openDoor({ portal: 'elevate', intent: 'hub' })} className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-[#C4B5FD]/80 hover:text-[#C4B5FD] transition-colors">
-                  <LogIn size={13} /> {signedIn ? 'Open my Elevate hub' : 'Elevate sign in'}
-                </button>
-                <button onClick={() => openElevateFlow('create')} className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-[#C4B5FD]/80 hover:text-[#C4B5FD] transition-colors">
-                  <Sparkles size={13} /> Set up an organization (staff) →
-                </button>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Business & Work — business owners and their employees */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 1.05 }}
-            className="h-full flex flex-col justify-between rounded-3xl border border-[#22D3EE]/35 bg-gradient-to-br from-[#06181d]/85 to-black/40 backdrop-blur-md p-5 sm:p-6 shadow-[0_0_40px_rgba(34,211,238,0.10)]"
-          >
-            <div>
-              <div className="flex items-center gap-2 text-[#67E8F9] mb-1.5">
-                <Briefcase size={18} className="shrink-0" />
-                <span className="text-[10px] font-black uppercase tracking-[0.22em]">Plajah Business · Work</span>
-              </div>
-              <h3 className="text-lg sm:text-xl font-black text-white leading-tight">Business owners &amp; employees</h3>
-              <p className="text-[12px] text-white/55 leading-snug mt-1.5">
-                Run your storefront, staff and sales — or <span className="text-[#67E8F9] font-bold">clock in to your workplace</span> with the seat your employer set up.
-              </p>
-            </div>
-            <div className="mt-4 flex flex-col sm:flex-row gap-2.5">
-              <button
-                onClick={() => openDoor({ portal: 'business', intent: 'owner' })}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-3.5 py-3 rounded-2xl bg-gradient-to-r from-[#0891B2] to-[#22D3EE] text-black font-black text-[11px] uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all shadow-[0_10px_30px_rgba(34,211,238,0.25)]"
-              >
-                <Briefcase size={15} className="shrink-0" /> <span>{signedIn ? 'Open my business' : 'Owner sign-in'}</span>
-              </button>
-              <button
-                onClick={() => openDoor({ portal: 'business', intent: 'employee' })}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-3.5 py-3 rounded-2xl bg-white/10 border border-[#22D3EE]/40 text-white font-black text-[11px] uppercase tracking-wider hover:bg-white/15 active:scale-95 transition-all"
-              >
-                <BadgeCheck size={15} className="shrink-0" /> <span>{signedIn ? 'My workplace' : 'Employee sign-in'}</span>
-              </button>
-            </div>
-          </motion.div>
-
-          {/* Productions — the Creators hub or the film Production hub */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 1.15 }}
-            className="h-full flex flex-col justify-between rounded-3xl border border-[#E11D8F]/40 bg-gradient-to-br from-[#1f0616]/85 to-black/40 backdrop-blur-md p-5 sm:p-6 shadow-[0_0_40px_rgba(225,29,143,0.12)]"
-          >
-            <div>
-              <div className="flex items-center gap-2 text-[#F9A8D4] mb-1.5">
-                <Clapperboard size={18} className="shrink-0" />
-                <span className="text-[10px] font-black uppercase tracking-[0.22em]">Plajah Productions</span>
-              </div>
-              <h3 className="text-lg sm:text-xl font-black text-white leading-tight">Creators, crews &amp; studios</h3>
-              <p className="text-[12px] text-white/55 leading-snug mt-1.5">
-                Music, video and live in the <span className="text-white/85 font-semibold">Creators hub</span> — or take a film from script to screen in <span className="text-[#F9A8D4] font-bold">Film Production</span>.
-              </p>
-            </div>
-            <div className="mt-4 flex flex-col sm:flex-row gap-2.5">
-              <button
-                onClick={() => openDoor({ portal: 'productions', intent: 'creators' })}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-3.5 py-3 rounded-2xl bg-gradient-to-r from-[#9D174D] to-[#E11D8F] text-white font-black text-[11px] uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all shadow-[0_10px_30px_rgba(225,29,143,0.3)]"
-              >
-                <Wand2 size={15} className="shrink-0" /> <span>Creators hub</span>
-              </button>
-              <button
-                onClick={() => openDoor({ portal: 'productions', intent: 'film' })}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-3.5 py-3 rounded-2xl bg-white/10 border border-[#E11D8F]/40 text-white font-black text-[11px] uppercase tracking-wider hover:bg-white/15 active:scale-95 transition-all"
-              >
-                <Clapperboard size={15} className="shrink-0" /> <span>Film production</span>
-              </button>
-            </div>
-          </motion.div>
-        </div>
+        {/* Organization doors — separate from the personal account above. Each door is for one kind
+            of place you belong to; its room asks who you are there and signs you in to that hub. */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.85 }}
+          className="w-full max-w-4xl flex flex-col items-center gap-6 sm:gap-8"
+        >
+          <div className="w-full flex items-center gap-4">
+            <div className="flex-1 h-px bg-white/20" />
+            <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.3em] text-white/70">or</span>
+            <div className="flex-1 h-px bg-white/20" />
+          </div>
+          <div className="text-center px-2 -mt-1">
+            <h2 className="text-xl sm:text-3xl font-black text-white leading-tight [text-shadow:0_2px_14px_rgba(0,0,0,0.65)]">Here for a school, faith community, cause, job or studio?</h2>
+            <p className="text-[12px] sm:text-[14px] text-white/65 mt-1.5 max-w-xl mx-auto leading-snug">
+              Go through its door. That’s where you sign in as part of the organization — or claim the account it already set up for you.
+            </p>
+          </div>
+          <OrgDoors doors={[
+            {
+              key: 'academia', brand: 'Academia', noun: 'School', who: 'Students, teachers & families',
+              color: '#3FB98E', tint: '#86EFAC', Icon: GraduationCap, welcome: 'Welcome to class',
+              choices: [
+                { label: 'I’m a student', hint: 'Sign in with the code or account your teacher gave you', Icon: UserIcon,
+                  onPick: () => { if (signedIn && onEnterPortal) { onDismissChooser?.(); onEnterPortal({ portal: 'academia', intent: 'student' }); return; } beginPortalSignIn({ portal: 'academia', intent: 'student' }); setShowStudent(true); } },
+                { label: 'I’m a teacher or school staff', hint: 'Classes, lessons, grades and family updates', Icon: Mail,
+                  onPick: () => openDoor({ portal: 'academia', intent: 'teacher' }) },
+              ],
+              extras: [{ label: 'Take a tour — no sign-up', onPick: () => { onEnter(); setTimeout(() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'ACADEMIA_DEMOS' } })), 500); } }],
+            },
+            {
+              key: 'elevate', brand: 'Elevate', noun: 'Faith, Causes & Nonprofit', who: 'Members, staff & volunteers',
+              color: '#8B5CF6', tint: '#C4B5FD', Icon: HeartHandshake, welcome: 'Welcome to your community',
+              choices: [
+                { label: 'My organization added me', hint: 'Claim your account with your member ID or email', Icon: KeyRound, onPick: () => openElevateFlow('claim') },
+                { label: 'Find & join my organization', hint: 'Churches, charities, cultural groups & nonprofits', Icon: Search, onPick: () => openElevateFlow('join') },
+              ],
+              extras: [
+                { label: signedIn ? 'Open my Elevate hub' : 'Already a member? Sign in', onPick: () => openDoor({ portal: 'elevate', intent: 'hub' }) },
+                { label: 'Set up an organization', onPick: () => openElevateFlow('create') },
+              ],
+            },
+            {
+              key: 'business', brand: 'Business', noun: 'Work', who: 'Owners & employees',
+              color: '#22D3EE', tint: '#A5F3FC', Icon: Briefcase, welcome: 'Welcome to work',
+              choices: [
+                { label: signedIn ? 'Open my business' : 'I own or run a business', hint: 'Storefront, staff, sales and payroll', Icon: Briefcase, onPick: () => openDoor({ portal: 'business', intent: 'owner' }) },
+                { label: signedIn ? 'Open my workplace' : 'I work for a business', hint: 'Use the seat your employer set up — clock in, shifts, pay', Icon: BadgeCheck, onPick: () => openDoor({ portal: 'business', intent: 'employee' }) },
+              ],
+            },
+            {
+              key: 'productions', brand: 'Productions', noun: 'Studio', who: 'Creators, crews & film',
+              color: '#E11D8F', tint: '#F9A8D4', Icon: Clapperboard, welcome: 'Welcome to the studio',
+              choices: [
+                { label: 'Creators hub', hint: 'Music, video, books and live — make it and release it', Icon: Wand2, onPick: () => openDoor({ portal: 'productions', intent: 'creators' }) },
+                { label: 'Film production', hint: 'Take a film from script to screen with your crew', Icon: Clapperboard, onPick: () => openDoor({ portal: 'productions', intent: 'film' }) },
+              ],
+            },
+          ]} />
+        </motion.div>
 
       </div>
 
