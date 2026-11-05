@@ -2,16 +2,18 @@
 // box, details, customer reviews and "more from this shop". Shared by the org/department shops and the
 // marketplace. The caller owns the URL (?product=<id>) so Back closes it and the link can be shared.
 //
-// Only real information is shown: shipping is what the order spine actually charges ($5.99, free from $50
-// per shop), money goes straight to the shop, reviews come from /api/store/reviews (verified purchase is
+// Only real information is shown: shipping and returns are the shop's own settings (the same ones checkout
+// charges), money goes straight to the shop, reviews come from /api/store/reviews (verified purchase is
 // decided on the server from paid orders), and the rating is computed from those reviews.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ArrowLeft, Bell, Camera, Check, ChevronLeft, ChevronRight, Loader2, Minus, Package, Pencil, Plus,
-  Share2, ShieldCheck, ShoppingBag, Sparkles, Star, ThumbsUp, Trash2, Truck, X, Zap, MessageSquare, BadgeCheck,
+  Share2, ShieldCheck, ShoppingBag, Sparkles, Star, ThumbsUp, Trash2, Truck, X, Zap, MessageSquare, BadgeCheck, RotateCcw, Mail,
 } from 'lucide-react';
+import { fetchShopSettings } from '../../services/businessOpsService';
+import { parseSizeChart } from '../../services/storeShopCore';
 import type { StoreProduct, StoreReview } from '../../types';
 import { auth } from '../../services/backendService';
 import {
@@ -254,6 +256,14 @@ const ProductPage: React.FC<ProductPageProps> = ({
   const [replyFor, setReplyFor] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [note, setNote] = useState('');
+  // The shop's own shipping, returns and contact (what checkout and the order emails use too).
+  const [shopInfo, setShopInfo] = useState<{ shipping: string; returns: string; contact: string } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    if (product.sellerId) fetchShopSettings(product.sellerId).then(r => alive && setShopInfo({ shipping: r.shippingPolicy, returns: r.returnPolicy, contact: r.settings.contactEmail })).catch(() => {});
+    return () => { alive = false; };
+  }, [product.sellerId]);
+  const sizeChart = useMemo(() => parseSizeChart((product as any).sizeChart), [product]);
   const uid = auth.currentUser?.uid;
   const isSeller = !!uid && uid === product.sellerId;
   const draft = product.isActive === false;
@@ -532,8 +542,10 @@ const ProductPage: React.FC<ProductPageProps> = ({
             {product.isDigital ? (
               <li className="flex gap-3"><Zap size={18} className="shrink-0 text-white/45" /> Digital item — yours right after payment, nothing ships.</li>
             ) : (
-              <li className="flex gap-3"><Truck size={18} className="shrink-0 text-white/45" /> <span>Shipping is <b className="text-white">$5.99</b>, or <b className="text-white">free</b> on orders of $50 or more from {shopName}. You enter your address at checkout.</span></li>
+              <li className="flex gap-3"><Truck size={18} className="shrink-0 text-white/45" /> <span>{shopInfo ? shopInfo.shipping : 'Shipping is shown in your cart before you pay.'} You enter your address at checkout.</span></li>
             )}
+            {shopInfo && <li className="flex gap-3"><RotateCcw size={18} className="shrink-0 text-white/45" /> <span>{product.isDigital ? 'Digital items are delivered right away. ' : ''}{shopInfo.returns}</span></li>}
+            {shopInfo?.contact && <li className="flex gap-3"><Mail size={18} className="shrink-0 text-white/45" /> <span>Questions? <a className="underline text-white" href={`mailto:${shopInfo.contact}?subject=${encodeURIComponent(`Question about ${product.title}`)}`}>Email {shopName}</a></span></li>}
             <li className="flex gap-3"><ShieldCheck size={18} className="shrink-0 text-white/45" /> Secure checkout through Stripe. Your payment goes straight to {shopName}.</li>
             {!draft && <li className="flex gap-3"><Sparkles size={18} className="shrink-0 text-white/45" /> Every paid order adds loyalty points and counts toward your shopper achievements.</li>}
           </ul>
@@ -566,6 +578,19 @@ const ProductPage: React.FC<ProductPageProps> = ({
                   </div>
                 ))}
               </dl>
+            </section>
+          )}
+
+          {sizeChart && (
+            <section className="mt-8">
+              <h2 className="text-[18px] font-bold mb-3" style={{ fontFamily: DISPLAY }}>Size chart <span className="text-[13px] font-normal text-white/50">({sizeChart.unit === 'cm' ? 'centimeters' : 'inches'})</span></h2>
+              <div className="rounded-2xl border border-white/10 overflow-x-auto">
+                <table className="w-full text-[14px]">
+                  <thead><tr className="bg-white/[0.06]"><th className="text-left px-4 py-2.5 font-semibold">Size</th>{sizeChart.columns.map(c => <th key={c} className="text-left px-4 py-2.5 font-semibold">{c}</th>)}</tr></thead>
+                  <tbody>{sizeChart.rows.map((r, i) => <tr key={r.size} className={i % 2 ? 'bg-white/[0.02]' : ''}><td className="px-4 py-2.5 font-semibold">{r.size}</td>{r.values.map((v, j) => <td key={j} className="px-4 py-2.5 text-white/80">{v}</td>)}</tr>)}</tbody>
+                </table>
+              </div>
+              {sizeChart.note && <p className="mt-2 text-[13px] text-white/55">{sizeChart.note}</p>}
             </section>
           )}
 

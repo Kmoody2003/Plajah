@@ -16,13 +16,13 @@ const PICKUP_STEPS = ['PENDING_PAYMENT', 'CONFIRMED', 'PREPARING', 'READY', 'COM
 const SHIP_STEPS = ['PENDING_PAYMENT', 'CONFIRMED', 'PREPARING', 'OUT_FOR_DELIVERY', 'DELIVERED'];
 const LABEL: Record<string, string> = {
   PENDING_PAYMENT: 'Placed', CONFIRMED: 'Confirmed', PREPARING: 'Preparing',
-  READY: 'Ready', COMPLETED: 'Done', OUT_FOR_DELIVERY: 'On the way', DELIVERED: 'Delivered', CANCELLED: 'Cancelled',
+  READY: 'Ready', COMPLETED: 'Done', OUT_FOR_DELIVERY: 'On the way', DELIVERED: 'Delivered', CANCELLED: 'Cancelled', REFUNDED: 'Refunded',
 };
 
 const Timeline: React.FC<{ status: string; ship: boolean }> = ({ status, ship }) => {
   const steps = ship ? SHIP_STEPS : PICKUP_STEPS;
   const idx = Math.max(0, steps.indexOf(status));
-  const cancelled = status === 'CANCELLED';
+  const cancelled = status === 'CANCELLED' || status === 'REFUNDED';
   return (
     <div className="flex items-center gap-1 mt-3">
       {steps.map((s, i) => (
@@ -76,7 +76,10 @@ const MyOrdersView: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   ))}
                   {o.items.length > 4 && <p className="text-[10px] text-white/30">+{o.items.length - 4} more</p>}
                 </div>
-                <Timeline status={o.status} ship={ship} />
+                {o.status === 'CANCELLED' || o.status === 'REFUNDED'
+                  ? <p className="text-[11px] font-bold text-red-300 mt-3">{o.status === 'CANCELLED' ? 'Cancelled' : 'Refunded'}{o.refundedCents ? ` · ${fmt(o.refundedCents)} back to your card` : ''}</p>
+                  : <Timeline status={o.status} ship={ship} />}
+                {!!o.refundedCents && o.status !== 'CANCELLED' && o.status !== 'REFUNDED' && <p className="text-[11px] text-white/60 mt-2">Refunded {fmt(o.refundedCents)} to your card.</p>}
                 {o.trackingNumber && (
                   <p className="text-[11px] text-white/60 mt-3 flex items-center gap-1.5">
                     <Truck size={12} /> {o.trackingCarrier} {o.trackingNumber}
@@ -84,6 +87,7 @@ const MyOrdersView: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   </p>
                 )}
                 {o.note && <p className="text-[10px] text-white/30 mt-2 italic">“{o.note}”</p>}
+                {o.statusToken && o.source !== 'POS' && <a href={`/o/${o.statusToken}`} className="inline-flex items-center gap-1 text-[11px] font-bold text-small-orange mt-3">Order details, downloads &amp; returns <ChevronRight size={12} /></a>}
               </div>
             );
           })}

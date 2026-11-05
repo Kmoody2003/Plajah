@@ -22,7 +22,7 @@ import { availableFor, storefrontBadge } from '../../services/inventoryCore';
 import StoreProductManager from '../StoreProductManager';
 import { CartSidebar } from '../StorePageView';
 import ProductPage, { useProductRoute } from '../store/ProductPage';
-import { startStoreCheckout } from '../../services/storeService';
+import { startStoreCheckout, type CheckoutOptions } from '../../services/storeService';
 
 export const orgStoreOwnerUid = (org: Pick<Organization, 'accountUid' | 'creatorId'>) => org.accountUid || org.creatorId;
 
@@ -154,26 +154,12 @@ const OrgStoreSection: React.FC<OrgStoreSectionProps> = ({ org, ownerUid: ownerP
   };
 
   // Same order spine as StorePageView: the server re-prices + stock-checks, then Stripe Checkout (funds → the shop).
-  const checkout = async (sellerId: string) => {
-    if (!auth.currentUser) { setCheckoutError('Sign in to check out.'); return; }
+  const checkout = async (sellerId: string, opts: CheckoutOptions = {}) => {
     const group = cart.filter(i => (i.product.sellerId || '') === sellerId);
     if (!group.length) return;
     setBusySeller(sellerId); setCheckoutError('');
     try {
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch('/api/store/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          businessUid: sellerId,
-          items: group.map(i => ({ productId: i.product.id, variantId: i.variantId, qty: i.quantity })),
-          fulfillment: group.every(i => i.product.isDigital) ? 'PICKUP' : 'SHIP',
-          customerName: auth.currentUser.displayName || '',
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.url) throw new Error(data.error || 'Could not start checkout. Try again.');
-      window.location.href = data.url;
+      await startStoreCheckout(sellerId, group, opts);
     } catch (e: any) {
       setCheckoutError(e?.message || 'Checkout failed. Try again.');
       setBusySeller(null);
@@ -279,7 +265,8 @@ const OrgStoreSection: React.FC<OrgStoreSectionProps> = ({ org, ownerUid: ownerP
           backLabel={`${ministry ? ministry.name : org.name} shop`}
           cartCount={cartCount} onOpenCart={() => setShowCart(true)}
           onAddToCart={(p, v, q) => addToCart(p, v, q, false)}
-          onBuyNow={(p, v, q) => startStoreCheckout(p.sellerId, [{ product: p, variantId: v, quantity: q || 1 }])}
+          // Buy now opens the cart with this item, so the buyer still picks where it ships and can use a code.
+          onBuyNow={(p, v, q) => addToCart(p, v, q || 1, true)}
           onOpenProduct={openProduct} onBack={route.close} />
       )}
       <AnimatePresence>

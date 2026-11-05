@@ -1,8 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ShoppingBag, Clock, Check, Truck, RefreshCw, Bell, AlertTriangle, MapPin, Package, Copy, ExternalLink, Mail } from 'lucide-react';
+import { ShoppingBag, Clock, Check, Truck, RefreshCw, Bell, AlertTriangle, MapPin, Package, Copy, ExternalLink, Mail, RotateCcw, XCircle, Printer, Wallet } from 'lucide-react';
 import { useContextMenu } from './ui/ContextMenu';
 import { Button, IconButton, Chip } from './ui';
-import { fetchBusinessStoreOrders, advanceStoreOrder, type StoreOrderRecord } from '../services/businessOpsService';
+import { fetchBusinessStoreOrders, advanceStoreOrder, advanceOnlineOrder, fetchShopSettings, fetchShopConnections, printfulOrderAction, type StoreOrderRecord } from '../services/businessOpsService';
+import LabelBuyer from './store/LabelBuyer';
+import { packingSlipHtml, ONLINE_CANCELLABLE } from '../services/storeShopCore';
+import { openStripeDashboard } from '../services/backendService';
+import OrderRefundForm from './store/OrderRefundForm';
+import ShopSettingsPanel from './store/ShopSettingsPanel';
+import SalesReportPanel from './store/SalesReportPanel';
 import { notifyOrderReady, notifyOrderShipped } from '../services/businessMessagingService';
 import { CARRIERS, trackingUrl } from '../services/inventoryCore';
 import { subscribeOrders, emitCommerce, onCommerce } from '../services/commerceBus';
@@ -38,8 +44,12 @@ const STATUS_TONE: Record<string, { bg: string; fg: string }> = {
   DELIVERED: { bg: 'var(--pj-glass-2)', fg: 'var(--on-surface-variant)' },
   COMPLETED: { bg: 'var(--pj-glass-2)', fg: 'var(--on-surface-variant)' },
   CANCELLED: { bg: 'var(--pj-danger-soft)', fg: 'var(--pj-danger)' },
+  REFUNDED: { bg: 'var(--pj-danger-soft)', fg: 'var(--pj-danger)' },
 };
 const LABEL: Record<string, string> = { OUT_FOR_DELIVERY: 'Shipped', PREPARING: 'Packing' };
+const CLOSED = ['COMPLETED', 'DELIVERED', 'CANCELLED', 'REFUNDED'];
+type Tab = 'orders' | 'sales' | 'settings' | 'codes';
+const TABS: { id: Tab; label: string }[] = [{ id: 'orders', label: 'Orders' }, { id: 'sales', label: 'Sales' }, { id: 'settings', label: 'Policies & shipping' }, { id: 'codes', label: 'Discount codes' }];
 
 const BusinessOrdersPanel: React.FC<{ businessUid: string; businessName: string; businessPhoto?: string; onChanged?: () => void }> = ({ businessUid, businessName, businessPhoto, onChanged }) => {
   const [orders, setOrders] = useState<StoreOrderRecord[]>([]);
@@ -50,6 +60,29 @@ const BusinessOrdersPanel: React.FC<{ businessUid: string; businessName: string;
   const [tracking, setTracking] = useState('');
   const [showDone, setShowDone] = useState(false);
   const [msg, setMsg] = useState('');
+  const [tab, setTab] = useState<Tab>('orders');
+  const [refunding, setRefunding] = useState<{ id: string; mode: 'refund' | 'cancel' } | null>(null);
+  const [labelFor, setLabelFor] = useState<string | null>(null);
+  const [conns, setConns] = useState<{ shippo: boolean; printful: boolean }>({ shippo: false, printful: false });
+  useEffect(() => { fetchShopConnections(businessUid).then(setConns).catch(() => {}); }, [businessUid, tab]);
+  const printer = async (o: StoreOrderRecord, action: 'send' | 'sync') => {
+    setBusyId(o.id); setMsg('');
+    try {
+      const r = await printfulOrderAction(o.id, action);
+      setMsg(action === 'send' ? `Sent to Printful${r.status ? ` (${r.status})` : ''}.` : r.shipped ? 'Printful shipped it. The buyer has their tracking.' : `Printful status: ${r.printfulStatus || 'unknown'}.`);
+      await load();
+    } catch (e: any) { setMsg(e.message); } finally { setBusyId(null); }
+  };
+  /** A bought label means the box is ready: move the order to shipped with its tracking (emails the buyer). */
+  const labelBought = async (o: StoreOrderRecord, t: { trackingNumber: string; trackingCarrier: string }) => {
+    setLabelFor(null);
+    try {
+      if (o.status === 'CONFIRMED') await advanceOnlineOrder(o.id, 'PREPARING');
+      if (o.status === 'CONFIRMED' || o.status === 'PREPARING') await advanceOnlineOrder(o.id, 'OUT_FOR_DELIVERY', { trackingNumber: t.trackingNumber, trackingCarrier: t.trackingCarrier });
+      setMsg(`Label bought. Tracking ${t.trackingNumber} is on the order and the buyer has been emailed.`);
+    } catch (e: any) { setMsg(`Label bought (tracking ${t.trackingNumber}), but the order didn’t update: ${e.message}`); }
+    await load();
+  };
 
   const load = async () => { setLoading(true); setOrders(await fetchBusinessStoreOrders(businessUid).catch(() => [])); setLoading(false); };
 
@@ -87,7 +120,8 @@ const BusinessOrdersPanel: React.FC<{ businessUid: string; businessName: string;
     if (!step || busyId) return;
     setBusyId(o.id); setMsg('');
     try {
-      await advanceStoreOrder(o.id, step.to, extra);
+      // Online orders advance on the server, which emails the buyer; register orders stay a direct update.
+      if (o.source === 'POS') await advanceStoreOrder(o.id, step.to, extra); else await advanceOnlineOrder(o.id, step.to, extra);
       const biz = { uid: businessUid, name: businessName, photo: businessPhoto };
       if (step.to === 'READY') await notifyOrderReady(biz, o.customerUid, label(o)).catch(() => {});
       if (step.to === 'OUT_FOR_DELIVERY') await notifyOrderShipped(biz, o.customerUid, label(o), { carrier: extra.trackingCarrier, number: extra.trackingNumber }).catch(() => {});
@@ -95,16 +129,25 @@ const BusinessOrdersPanel: React.FC<{ businessUid: string; businessName: string;
       setShipping(null); setTracking('');
       emitCommerce({ type: 'ORDER', sellerUid: businessUid, orderId: o.id, status: step.to });
       onChanged?.();
-    } catch { setMsg('Couldn\'t update that order — check your connection and try again.'); }
+    } catch (e: any) { setMsg(e?.message || 'Couldn\'t update that order — check your connection and try again.'); }
     finally { setBusyId(null); }
   };
 
   const copy = (text: string, ok: string) => { navigator.clipboard.writeText(text).then(() => setMsg(ok)).catch(() => setMsg('Couldn\'t copy.')); setTimeout(() => setMsg(''), 2500); };
   const addressText = (o: StoreOrderRecord) => o.ship ? [o.ship.name, o.ship.line1, o.ship.line2, `${o.ship.city}, ${o.ship.state} ${o.ship.postal}`, o.ship.country].filter(Boolean).join('\n') : '';
 
-  const paid = orders.filter(o => o.status !== 'PENDING_PAYMENT');
-  const open = paid.filter(o => !['COMPLETED', 'DELIVERED', 'CANCELLED'].includes(o.status));
-  const done = paid.filter(o => ['COMPLETED', 'DELIVERED', 'CANCELLED'].includes(o.status));
+  const paid = orders.filter(o => o.status !== 'PENDING_PAYMENT' && o.status !== 'EXPIRED');
+  const open = paid.filter(o => !CLOSED.includes(o.status));
+  const done = paid.filter(o => CLOSED.includes(o.status));
+  const canRefund = (o: StoreOrderRecord) => o.source !== 'POS' && !!o.stripePaymentIntentId && (o.refundedCents || 0) < (o.totalCents || 0);
+
+  const printSlip = async (o: StoreOrderRecord) => {
+    const w = window.open('', '_blank');
+    if (!w) { setMsg('Allow pop-ups to print packing slips.'); return; }
+    const st = await fetchShopSettings(businessUid).catch(() => null);
+    w.document.write(packingSlipHtml({ id: o.id, createdAt: o.paidAt || o.createdAt, customerName: o.customerName, note: o.note, items: o.items.map(i => ({ title: i.title, qty: i.qty, variantName: i.variantName, sku: i.sku || undefined })), ship: o.ship }, { name: businessName, contactEmail: st?.settings.contactEmail, returnPolicy: st?.returnPolicy }));
+    w.document.close();
+  };
   const list = showDone ? [...open, ...done] : open;
 
   const orderMenu = useContextMenu<StoreOrderRecord>((o) => {
@@ -113,6 +156,9 @@ const BusinessOrdersPanel: React.FC<{ businessUid: string; businessName: string;
       { kind: 'header' as const, label: `${o.customerName || 'Customer'} · ${fmt(o.totalCents ?? o.subtotalCents)}` },
       { id: 'advance', label: step ? step.label : 'No next step', disabled: !step || !!busyId || step.to === 'OUT_FOR_DELIVERY', onSelect: (ord: StoreOrderRecord) => advance(ord) },
       ...(o.ship ? [{ id: 'addr', label: 'Copy shipping address', onSelect: (ord: StoreOrderRecord) => copy(addressText(ord), 'Address copied') }] : []),
+      ...(o.fulfillment === 'SHIP' ? [{ id: 'slip', label: 'Print packing slip', onSelect: (ord: StoreOrderRecord) => { void printSlip(ord); } }] : []),
+      ...(canRefund(o) ? [{ id: 'refund', label: 'Refund…', onSelect: (ord: StoreOrderRecord) => setRefunding({ id: ord.id, mode: 'refund' }) }] : []),
+      ...(canRefund(o) && ONLINE_CANCELLABLE.has(o.status) ? [{ id: 'cancel', label: 'Cancel order…', onSelect: (ord: StoreOrderRecord) => setRefunding({ id: ord.id, mode: 'cancel' }) }] : []),
       { id: 'copy', label: 'Copy order ID', onSelect: (ord: StoreOrderRecord) => copy(ord.id, 'Order ID copied') },
     ];
   });
@@ -120,6 +166,13 @@ const BusinessOrdersPanel: React.FC<{ businessUid: string; businessName: string;
   return (
     <div className="space-y-3">
       {orderMenu.node}
+      <div className="flex gap-1.5 flex-wrap items-center">
+        {TABS.map(t => <Chip key={t.id} interactive selected={tab === t.id} onClick={() => setTab(t.id)}>{t.label}</Chip>)}
+        <Button className="ml-auto" variant="ghost" size="sm" icon={<Wallet />} onClick={() => openStripeDashboard().catch(() => setMsg('Couldn’t open Stripe. Finish connecting payouts first.'))}>Payouts</Button>
+      </div>
+      {tab === 'sales' && <SalesReportPanel orders={orders} shopName={businessName} />}
+      {(tab === 'settings' || tab === 'codes') && <ShopSettingsPanel businessUid={businessUid} section={tab} />}
+      {tab === 'orders' && <>
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="pj-eyebrow flex items-center gap-1.5"><ShoppingBag size={13} style={{ color: 'var(--pj-orange)' }} /> Orders · {open.length} to do</p>
         <div className="flex items-center gap-2">
@@ -148,7 +201,13 @@ const BusinessOrdersPanel: React.FC<{ businessUid: string; businessName: string;
             {o.oversold && (
               <p className="type-body-sm flex items-start gap-2 mb-3 rounded-xl p-2.5" style={{ background: 'var(--pj-danger-soft)', color: 'var(--text-primary)' }}>
                 <AlertTriangle size={15} className="shrink-0 mt-0.5" style={{ color: 'var(--pj-danger)' }} />
-                <span><b>Oversold.</b> This customer paid for something that had just run out. Restock it, or refund the order in your Stripe dashboard and let them know.</span>
+                <span><b>Oversold.</b> This customer paid for something that had just run out. Restock it, or refund that item below.</span>
+              </p>
+            )}
+            {o.disputed && (
+              <p className="type-body-sm flex items-start gap-2 mb-3 rounded-xl p-2.5" style={{ background: 'var(--pj-danger-soft)', color: 'var(--text-primary)' }}>
+                <AlertTriangle size={15} className="shrink-0 mt-0.5" style={{ color: 'var(--pj-danger)' }} />
+                <span><b>Disputed.</b> The buyer’s bank opened a chargeback.{o.disputeReversedCents ? ` ${fmt(o.disputeReversedCents)} was taken back from your Stripe balance until it’s decided.` : ''} Email Plajah support your tracking, proof of delivery and any messages with the buyer{o.disputeDueBy ? ` before ${new Date(o.disputeDueBy).toLocaleDateString()}` : ' right away'}.</span>
               </p>
             )}
             <div className="flex items-start justify-between gap-3">
@@ -179,7 +238,9 @@ const BusinessOrdersPanel: React.FC<{ businessUid: string; businessName: string;
                 <IconButton aria-label="Copy address" variant="ghost" size="xs" onClick={() => copy(addressText(o), 'Address copied')}><Copy /></IconButton>
               </div>
             )}
-            {ship && !o.ship && o.status !== 'CANCELLED' && <p className="type-body-sm mt-3" style={{ color: 'var(--on-surface-variant)' }}>Address not on file — check the order in your Stripe dashboard.</p>}
+            {ship && !o.ship && o.status !== 'CANCELLED' && <p className="type-body-sm mt-3" style={{ color: 'var(--on-surface-variant)' }}>Address not on file yet. It arrives when the payment confirms.</p>}
+            {(o.discountCents || 0) > 0 && <p className="type-body-sm mt-2" style={{ color: 'var(--on-surface-variant)' }}>Code {o.discountCode} · -{fmt(o.discountCents || 0)}</p>}
+            {(o.refundedCents || 0) > 0 && <p className="type-body-sm mt-2 flex items-center gap-1.5" style={{ color: 'var(--pj-danger)' }}><RotateCcw size={11} />Refunded {fmt(o.refundedCents || 0)}{o.status !== 'REFUNDED' && o.status !== 'CANCELLED' ? ` of ${fmt(o.totalCents || 0)}` : ''}</p>}
             {o.customerEmail && <p className="type-body-sm mt-2 flex items-center gap-1.5" style={{ color: 'var(--on-surface-variant)' }}><Mail size={11} />{o.customerEmail}</p>}
             {o.note && <p className="type-body-sm mt-2 italic" style={{ color: 'var(--on-surface-variant)' }}>“{o.note}”</p>}
 
@@ -208,9 +269,29 @@ const BusinessOrdersPanel: React.FC<{ businessUid: string; businessName: string;
                 {step.label}{step.to === 'READY' ? ' & notify' : ''}
               </Button>
             ))}
+            {(o.printfulStatus || (conns.printful && ship && o.source !== 'POS' && !CLOSED.includes(o.status))) && (
+              <div className="mt-2 flex items-center gap-1.5 flex-wrap type-body-sm" style={{ color: o.printfulStatus === 'FAILED' ? 'var(--pj-danger)' : 'var(--on-surface-variant)' }}>
+                <span>Printer: {o.printfulStatus ? o.printfulStatus.toLowerCase().replace(/_/g, ' ') : 'nothing sent'}{o.printfulError ? ` · ${o.printfulError}` : ''}</span>
+                {(!o.printfulStatus || o.printfulStatus === 'FAILED') && <Button variant="ghost" size="xs" loading={busyId === o.id} onClick={() => printer(o, 'send')}>Send to printer</Button>}
+                {o.printfulStatus && o.printfulStatus !== 'FAILED' && <Button variant="ghost" size="xs" loading={busyId === o.id} onClick={() => printer(o, 'sync')}>Check printer</Button>}
+              </div>
+            )}
+            {labelFor === o.id && <LabelBuyer orderId={o.id} onClose={() => setLabelFor(null)} onBought={t => labelBought(o, t)} />}
+            {refunding?.id === o.id ? (
+              <OrderRefundForm order={o} mode={refunding.mode} onClose={() => setRefunding(null)} onDone={m => { setRefunding(null); setMsg(m); load(); onChanged?.(); }} />
+            ) : (ship || canRefund(o)) && (
+              <div className="mt-2 flex gap-1.5 flex-wrap">
+                {ship && o.source !== 'POS' && o.ship && conns.shippo && !o.labelUrl && ['CONFIRMED', 'PREPARING'].includes(o.status) && labelFor !== o.id && <Button variant="secondary" size="sm" icon={<Truck />} onClick={() => setLabelFor(o.id)}>Buy label</Button>}
+                {o.labelUrl && <Button as="a" href={o.labelUrl} target="_blank" rel="noopener noreferrer" variant="ghost" size="sm" icon={<Printer />}>Label</Button>}
+                {ship && <Button variant="ghost" size="sm" icon={<Printer />} onClick={() => printSlip(o)}>Packing slip</Button>}
+                {canRefund(o) && <Button variant="ghost" size="sm" icon={<RotateCcw />} onClick={() => setRefunding({ id: o.id, mode: 'refund' })}>Refund</Button>}
+                {canRefund(o) && ONLINE_CANCELLABLE.has(o.status) && <Button variant="danger-quiet" size="sm" icon={<XCircle />} onClick={() => setRefunding({ id: o.id, mode: 'cancel' })}>Cancel order</Button>}
+              </div>
+            )}
           </div>
         );
       })}
+      </>}
     </div>
   );
 };

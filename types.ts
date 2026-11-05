@@ -6438,6 +6438,8 @@ export interface StoreProductVariant {
   priceModifier?: number; // + or - from base price
   imageUrl?: string;
   barcode?: string;
+  /** Print-on-demand: this variant's id at the printer (Printful sync variant id). */
+  externalId?: string;
 }
 
 export interface StoreProduct {
@@ -6481,6 +6483,8 @@ export interface StoreProduct {
   colorOptions?: { name: string; hex: string }[];   // swatch selector
   sizeOptions?: string[];                            // size selector
   isClothing?: boolean;                              // enables AI try-on
+  /** Measurements per size, shown on the product page (services/storeShopCore.parseSizeChart). */
+  sizeChart?: { unit: 'in' | 'cm'; columns: string[]; rows: { size: string; values: string[] }[]; note?: string } | null;
   rating?: number;
   reviewCount?: number;
   soldCount?: number;

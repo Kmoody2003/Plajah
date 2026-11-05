@@ -28,6 +28,20 @@ export function saleBreakdown(grossCents: number, sellerHasPlus: boolean): SaleB
   return { feePct, platformFeeCents, processingCents, sellerCents: gross - applicationFeeCents, applicationFeeCents };
 }
 
+/**
+ * A shop order: Plajah's 5% (0% with Plajah+) is on what the seller sells (merchandise after discounts, plus
+ * shipping), never on the sales tax they collect for the state. Processing passes through on the whole charge.
+ */
+export function storeOrderFees(a: { merchandiseCents: number; shippingCents: number; totalCents: number }, sellerHasPlus: boolean): SaleBreakdown {
+  const total = Math.max(0, Math.round(a.totalCents));
+  const base = Math.max(0, Math.round(a.merchandiseCents) + Math.round(a.shippingCents));
+  const feePct = sellerHasPlus ? 0 : DIRECT_SALE_FEE_PCT;
+  const platformFeeCents = Math.min(total, Math.round(base * feePct / 100));
+  const processingCents = Math.min(total - platformFeeCents, estimateProcessingCents(total));
+  const applicationFeeCents = platformFeeCents + processingCents;
+  return { feePct, platformFeeCents, processingCents, sellerCents: total - applicationFeeCents, applicationFeeCents };
+}
+
 /** What a bound creator receives from one month of Plajah+ dues, by tier. Plajah's share covers processing. */
 export const PLAJAH_PLUS_CREATOR_CENTS: Record<number, number> = { 1: 299, 2: 599, 3: 999 };
 
