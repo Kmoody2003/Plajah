@@ -1976,6 +1976,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const insertPressedRef = useRef(false);
   const [showWelcomeAchievement, setShowWelcomeAchievement] = useState(false);
   const [showWelcomePackage, setShowWelcomePackage] = useState(false);
+  // Door sign-in, first visit: a one-time note that the Welcome Package waits in the Postman.
+  const [doorWelcomeNote, setDoorWelcomeNote] = useState(false);
   // First-login sequence: the Welcome Package letter → the 2-page Onboarding → the app.
   // (Named distinctly from the legacy `showOnboarding` OnboardingTour state, now retired.)
   const [showFirstRunOnboarding, setShowFirstRunOnboarding] = useState(false);
@@ -3274,12 +3276,33 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           updateUserProfile(u.uid, { hasCompletedOnboarding: true } as any).catch(() => {});
         }
 
+        // Came in through an organization door (school, faith/nonprofit, work, studio): they go
+        // straight to that org's home. No Plajah intro, no points pop-up, Smart Guide off. Their
+        // Welcome Package waits in the Postman for whenever they want the tour.
+        const doorEntry = !!pendingPortal && pendingPortal.portal !== 'personal';
+
         if (p && !p.welcomeAchievementShown && firstTime('welcome_achievement')) {
-          setShowWelcomeAchievement(true);
+          if (!doorEntry) setShowWelcomeAchievement(true);
           updateUserProfile(u.uid, { welcomeAchievementShown: true, totalPoints: (p.totalPoints || 0) + 100 } as any).catch(() => {});
         }
 
-        if (p && !p.hasCompletedOnboarding && !LAUNCHED_VIA_SHARE && firstTime('welcome_package')) {
+        if (doorEntry && p && !p.hasSeenWelcomePackage && !p.welcomePackageInPostman && firstTime('welcome_package')) {
+          updateUserProfile(u.uid, {
+            hasCompletedOnboarding: true, welcomePackageNotified: true, welcomePackageInPostman: true, isPioneer: true,
+            hasSeenSmartGuide: true,
+            ...(p.smartGuideEnabled === undefined ? { smartGuideEnabled: false } : {}),
+          } as any).catch(() => {});
+          import('./services/backendService').then(({ createNotification }) => {
+            createNotification({
+              userId: u.uid, senderId: 'plajah_system', senderName: 'Plajah',
+              senderPhoto: '/icons/icon-192.png', type: 'SYSTEM',
+              title: 'Your Welcome Package is in the Postman',
+              message: 'Whenever you want the tour of Plajah, open the Postman. Your welcome package is waiting there.',
+              link: 'POSTMAN',
+            } as any).catch(() => {});
+          });
+          setTimeout(() => setDoorWelcomeNote(true), 1500);
+        } else if (p && !p.hasCompletedOnboarding && !LAUNCHED_VIA_SHARE && firstTime('welcome_package')) {
           // Brand-new account → open the Boarding Plajah welcome package live (letter →
           // Continue → onboarding), drop the "Love, Plajah" letter into the system inbox once,
           // and mark it notified so the existing-user campaign below never also nudges them.
@@ -3306,8 +3329,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         }
 
         // Smart Guide — auto-enable for new users
-        setHasSeenSmartGuide(!!p?.hasSeenSmartGuide);
-        setSmartGuideEnabled(p?.smartGuideEnabled ?? !p?.hasSeenSmartGuide);
+        setHasSeenSmartGuide(!!p?.hasSeenSmartGuide || doorEntry); // door entries skip the first-run guide overlay
+        setSmartGuideEnabled(p?.smartGuideEnabled ?? (doorEntry ? false : !p?.hasSeenSmartGuide));
         // Load linked accounts for hot-switch. The DEVICE roster (localStorage) is
         // the source of truth so saved slots survive account switches; seed it from
         // the profile's list on first run, then upsert the now-active account.
@@ -8514,6 +8537,19 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             <WelcomeAchievement onDone={() => setShowWelcomeAchievement(false)} />
           )}
 
+          {doorWelcomeNote && (
+            <div className="fixed bottom-[max(16px,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[400] w-[min(92vw,440px)] rounded-2xl border border-white/15 bg-[#0d0612]/95 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] p-4 flex items-start gap-3" role="status">
+              <span className="shrink-0 w-10 h-10 rounded-xl bg-[#8B5CF6]/25 text-[#C4B5FD] grid place-items-center text-lg" aria-hidden>✉</span>
+              <div className="min-w-0 flex-1 text-left">
+                <p className="text-sm font-black text-white">Welcome! You’re in.</p>
+                <p className="text-[12px] text-white/70 leading-snug mt-0.5">Want the tour of Plajah? Your welcome package is waiting in the Postman whenever you’re ready.</p>
+                <div className="flex gap-3 mt-2.5">
+                  <button onClick={() => { setDoorWelcomeNote(false); setView('POSTMAN'); }} className="px-3 py-1.5 rounded-full bg-white text-black text-[11px] font-black">Open the Postman</button>
+                  <button onClick={() => setDoorWelcomeNote(false)} className="px-3 py-1.5 rounded-full bg-white/10 text-white text-[11px] font-bold">Later</button>
+                </div>
+              </div>
+            </div>
+          )}
           {showWelcomePackage && (
             <WelcomePackageModal
               displayName={user?.displayName || userProfile?.displayName}
