@@ -35,6 +35,8 @@ interface Props {
   onOpenReview: (assignmentId?: string) => void;
   onOpenDesk: (assignmentId: string) => void;
   onOpenGradebook: () => void;
+  /** A teacher is live in this class's lecture room right now. */
+  liveNow?: boolean;
 }
 
 const statusTag = (s?: string) => {
@@ -412,6 +414,7 @@ const EdClassClub: React.FC<Props> = props => {
             className={p.name}
             contextKind="CHRISTIAN_EDUCATION"
             teacherUid={p.createdBy}
+            teacherUids={[...(p.teacherUids || []), ...(p.assignedTeam || []).map(t => t.uid).filter((u): u is string => !!u)]}
             teacherName={p.leadInstructor || 'Teacher'}
             isTeacher={isTeacher}
             currentUserUid={viewer.uid}
@@ -548,6 +551,7 @@ const EdClassClub: React.FC<Props> = props => {
       <div className="channels" role="tablist" aria-label="Class channels">
         {channels.map(([id, label, badge]) => (
           <button key={id} type="button" role="tab" aria-selected={chan === id} aria-pressed={chan === id} onClick={() => setChan(id)}>
+            {id === 'live' && props.liveNow ? <span className="livedot" aria-label="Live now" /> : null}
             {label}
             {badge ? <span className="badge">{badge}</span> : null}
           </button>

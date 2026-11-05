@@ -39,6 +39,8 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { useRtcSession } from '../../hooks/useRtcSession';
+import { classLectureSessionId } from '../../hooks/useClassLiveNow';
+import { createNotification } from '../../services/backendService';
 import { useLiveFx } from '../../hooks/useLiveFx';
 import { LevelMeter } from '../live/LevelMeter';
 import LectureLessonStage from './LectureLessonStage';
@@ -101,6 +103,8 @@ export interface SharedClassroomClubHubProps {
   embedded?: boolean;
   /** The class's lessons the teacher can put on the stage. */
   lessons?: IngestedCurriculumUnit[];
+  /** Everyone who may teach this class (co-teachers, department heads). Any of them can run the lecture. */
+  teacherUids?: string[];
 }
 
 const WHITEBOARD_COLORS = ['#FFFFFF', '#FF8C00', '#00DAF3', '#06D6A0', '#D40055', '#FFD24A', '#A78BFA'];
@@ -264,6 +268,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   initialSection = 'LIVE_LECTURE',
   embedded = false,
   lessons,
+  teacherUids,
 }) => {
   const viewerUid = currentUserUid || auth.currentUser?.uid || (isTeacher ? teacherUid : 'student_local');
   const viewerName =
@@ -421,11 +426,15 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   // the lecture the moment it starts. With a roster, media only goes to people on it.
   const onStageMe = !isTeacher && lecture.activeStudentOnStage?.uid === viewerUid;
   const inLectureTab = section === 'LIVE_LECTURE';
-  const lectureSessionId = `class_lecture_${classId.replace(/[^A-Za-z0-9_-]/g, '_')}`;
+  const lectureSessionId = classLectureSessionId(classId);
+  // Whoever is teaching joins as the host. That is often not the class's creator (an assigned teacher,
+  // a department head), so students follow the host seat in the session rather than a fixed uid.
+  const teacherIds = useMemo(() => Array.from(new Set([teacherUid, ...(teacherUids || [])].filter(Boolean))), [teacherUid, teacherUids]);
   const allowedPeerIds = useMemo(
-    () => (isTeacher && rosterStudents.length ? [...rosterStudents.map(r => r.id), teacherUid] : undefined),
-    [isTeacher, rosterStudents, teacherUid],
+    () => (isTeacher && rosterStudents.length ? [...rosterStudents.map(r => r.id), ...teacherIds] : undefined),
+    [isTeacher, rosterStudents, teacherIds],
   );
+  const hostPeerRef = useRef<string>(teacherUid);
   const broadcastRef = useRef<() => void>(() => {});
   const sendLessonRef = useRef<() => void>(() => {});
   const assembleLessonRef = useRef(lessonAssembler());
@@ -445,6 +454,8 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
               ? { audio: true, video: lecture.mode === 'VIDEO_LECTURE' && lecture.activeStudentOnStage?.requestedMode === 'CAMERA' }
               : { audio: false, video: false },
           displayName: viewerName,
+          // Heartbeats: a teacher whose tab closed stops counting as live (and the class's live badge clears).
+          liveness: true,
         }
       : null,
     {
@@ -463,20 +474,26 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
           }
           if (msg.type === 'lecture:hello') broadcastRef.current();
           if (msg.type === 'lecture:needLesson') sendLessonRef.current();
-        } else if (msg.type === 'lecture:state' && msg.payload && peerId === teacherUid) {
+        } else if (msg.type === 'lecture:state' && msg.payload && peerId === hostPeerRef.current) {
           gotStateRef.current = true;
           setLecture(msg.payload as LectureSessionState);
-        } else if (peerId === teacherUid && msg.type === 'lecture:lesson') {
+        } else if (peerId === hostPeerRef.current && msg.type === 'lecture:lesson') {
           const unit = assembleLessonRef.current(msg.payload as LessonChunk);
           if (unit) setReceivedLesson(unit);
-        } else if (peerId === teacherUid && msg.type === 'lecture:follow') {
+        } else if (peerId === hostPeerRef.current && msg.type === 'lecture:follow') {
           setFollowY(Number((msg.payload as { y?: number })?.y) || 0);
-        } else if (peerId === teacherUid && msg.type === 'lecture:react') {
+        } else if (peerId === hostPeerRef.current && msg.type === 'lecture:react') {
           showReactionRef.current(String((msg.payload as { label?: string })?.label || '').slice(0, 24));
         }
       },
     },
   );
+  // The host seat, falling back to the class creator before anyone has joined.
+  const hostPeerId = useMemo(
+    () => (isTeacher ? viewerUid : rtc.participants.find(p => p.role === 'host')?.id || teacherUid),
+    [isTeacher, viewerUid, rtc.participants, teacherUid],
+  );
+  hostPeerRef.current = hostPeerId;
   const fx = useLiveFx(rtc);
   const [mediaSheet, setMediaSheet] = useState(false);
 
@@ -487,7 +504,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   const calledOnUid = lecture.activeStudentOnStage?.uid;
   const [telaPicker, setTelaPicker] = useState(false);
   // A real Tela document goes through the platform's shared source, with its videos, sims and models intact.
-  const liveDocMembers = useMemo(() => (rosterStudents.length ? [...rosterStudents.map(r => r.id), teacherUid] : undefined), [rosterStudents, teacherUid]);
+  const liveDocMembers = useMemo(() => (rosterStudents.length ? [...rosterStudents.map(r => r.id), ...teacherIds] : undefined), [rosterStudents, teacherIds]);
   const liveDoc = useLiveDocSource(inLectureTab ? `class_lecture_${classId}` : null, { hostName: viewerName, audience: liveDocMembers ? 'members' : 'signedIn', memberUids: liveDocMembers });
   const [receivedLesson, setReceivedLesson] = useState<IngestedCurriculumUnit | null>(null);
   const [followY, setFollowY] = useState<number | null>(null);
@@ -585,7 +602,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
     return () => window.clearInterval(t);
   }, [isTeacher, rtc.localStream]);
   // Students: ask for the current state once connected; back to "not live" once the teacher has left.
-  const hostStream = !isTeacher ? (rtc.remoteStreams.get(teacherUid) ?? null) : null;
+  const hostStream = !isTeacher ? (rtc.remoteStreams.get(hostPeerId) ?? null) : null;
   useEffect(() => {
     if (isTeacher) return;
     if (hostStream) {
@@ -621,6 +638,32 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
     if (isTeacher && screenSharing && !rtc.sharingScreen) { setScreenSharing(false); updateLecture({ stageSurface: 'CAMERA' }); }
   }, [rtc.sharingScreen]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Going live tells the class: each student on the roster gets a notification to come watch.
+  const announcedRef = useRef<number>(0);
+  const announceLive = () => {
+    const me = auth.currentUser?.uid;
+    if (!me || Date.now() - announcedRef.current < 10 * 60_000) return;
+    announcedRef.current = Date.now();
+    const to = Array.from(new Set(rosterStudents.map(r => r.id).filter(id => id && id !== me)));
+    to.forEach(userId => {
+      createNotification({
+        userId,
+        senderId: me,
+        senderName: viewerName,
+        senderPhoto: currentUserAvatar || auth.currentUser?.photoURL || '',
+        type: 'SYSTEM',
+        title: `${className} is live now`,
+        message: `${viewerName} started class. Open the class and choose Live to watch.`,
+        targetId: classId,
+      } as any).catch(() => {});
+    });
+  };
+  const toggleLive = () => {
+    const goingLive = !lecture.isLive;
+    updateLecture({ isLive: goingLive, startedAt: Date.now() });
+    if (goingLive) announceLive();
+  };
+
   // Screen share goes out on the lecture session (hot track swap), so students see it.
   const handleToggleScreenShare = async () => {
     if (!isTeacher) return;
@@ -630,7 +673,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
       updateLecture({ stageSurface: 'CAMERA' });
       return;
     }
-    if (!lecture.isLive) updateLecture({ isLive: true, startedAt: Date.now() });
+    if (!lecture.isLive) { updateLecture({ isLive: true, startedAt: Date.now() }); announceLive(); }
     updateLecture({ stageSurface: 'SCREEN_SHARE' });
     // The session only exists once the lecture is live, so give it a moment to start.
     window.setTimeout(() => { rtc.toggleScreenShare(); setScreenSharing(true); }, lecture.isLive ? 0 : 900);
@@ -1072,7 +1115,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                     ))}
                   </div>
                 )}
-                <button type="button" className={`lh-go${lecture.isLive ? ' end' : ''}`} onClick={() => updateLecture({ isLive: !lecture.isLive, startedAt: Date.now() })}>
+                <button type="button" className={`lh-go${lecture.isLive ? ' end' : ''}`} onClick={toggleLive}>
                   <Radio size={14} /> {lecture.isLive ? 'End class' : 'Go live'}
                 </button>
               </>
@@ -1353,7 +1396,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                           <p className="text-xs text-white/55">
                             {lecture.isLive
                               ? isTeacher ? 'Camera off · students still hear you' : 'Connecting to the lecture…'
-                              : isTeacher ? 'Click "Go Live Now" above to start the interactive video lecture' : 'Waiting for your teacher to start the lecture'}
+                              : isTeacher ? 'Press "Go live" above to start the lecture for your class' : 'Waiting for your teacher to start the lecture'}
                           </p>
                         </div>
                       )}
@@ -1563,6 +1606,11 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
               )}
               {rtc.error && (isTeacher || onStageMe) && (
                 <p className="px-4 py-2 text-[11px] font-bold text-rose-300 bg-rose-500/10 border-t border-rose-400/20">{rtc.error}</p>
+              )}
+              {!isTeacher && rosterStudents.length > 0 && !rosterStudents.some(r => r.id === viewerUid) && (
+                <p className="px-4 py-2 text-[11px] text-amber-200 bg-amber-500/10 border-t border-amber-400/20">
+                  You aren&apos;t on this class&apos;s roster, so the lecture won&apos;t reach you. Ask the teacher to add you.
+                </p>
               )}
               {isTeacher && lecture.isLive && rosterStudents.length === 0 && (
                 <p className="px-4 py-2 text-[11px] text-amber-200 bg-amber-500/10 border-t border-amber-400/20">

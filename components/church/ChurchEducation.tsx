@@ -96,10 +96,13 @@ const ChurchEducation: React.FC<{
   canEdit: boolean;
   membership?: OrgMembership | null;
   onOpenChatRoom?: (roomId: string) => void;
-}> = ({ church, canEdit, membership, onOpenChatRoom }) => {
+  /** Open straight to this class (a class tab or card tapped on the member home). */
+  initialClassId?: string;
+}> = ({ church, canEdit, membership, onOpenChatRoom, initialClassId }) => {
   const [portalMode, setPortalMode] = useState<EducationPortalMode>('HUB');
   // Set by Tela's "Back to …" button so the hub re-opens the class the teacher came from.
   const [returnClassId] = useState<string | undefined>(() => {
+    if (initialClassId) return initialClassId;
     try {
       const v = sessionStorage.getItem('plajah:eduReturnClass');
       if (v) sessionStorage.removeItem('plajah:eduReturnClass');

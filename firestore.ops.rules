@@ -419,11 +419,20 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedBy', 'usedAt']) && request.resource.data.usedBy == request.auth.uid;
       allow delete: if chmsPeopleStaff(resource.data.orgId);
     }
-    // Care/follow-up tasks (no private note content — staff only).
+    // Care/follow-up tasks (no private note content). Staff manage; the person a task is assigned to
+    // may read it and mark it done (their member home lists it).
     match /chmsTasks/{id} {
-      allow read: if chmsPeopleStaff(resource.data.orgId);
+      allow read: if chmsPeopleStaff(resource.data.orgId) || (isAuthenticated() && resource.data.get('assignedUid', '') == request.auth.uid);
       allow create: if chmsPeopleStaff(request.resource.data.orgId);
-      allow update, delete: if chmsPeopleStaff(resource.data.orgId);
+      allow update: if chmsPeopleStaff(resource.data.orgId) || (isAuthenticated() && resource.data.get('assignedUid', '') == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'doneAt']));
+      allow delete: if chmsPeopleStaff(resource.data.orgId);
+    }
+    // A member's own to-dos for an org (member home "My tasks"). Private to that member.
+    match /memberTasks/{id} {
+      allow read, delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow create, update: if isAuthenticated() && request.resource.data.uid == request.auth.uid &&
+        request.resource.data.orgId is string && request.resource.data.title is string && request.resource.data.title.size() <= 300;
     }
     // Volunteer schedule: staff manage; an assignee may read their shift and respond (confirm / decline / swap).
     match /chmsShifts/{id} {
