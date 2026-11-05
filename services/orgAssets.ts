@@ -817,6 +817,29 @@ export async function setHqAssetFolder(asset: OrgAsset, folder: string | undefin
   await setDoc(doc(opsDb, COLLECTION, asset.id), { folder: folder || null }, { merge: true });
 }
 
+/**
+ * Extra copies of imported course files. Older importers gave each re-import new ids, so every run
+ * added another Original + Tela (+ Answer Key) set for the same link. For each link and variant the
+ * copy the library's lesson points at is kept (`keepIds`); without one, the newest. Everything else
+ * from that link is a duplicate. Files people uploaded themselves (no link) are never counted.
+ */
+export function findDuplicateImportCopies(assets: OrgAsset[], courseUrls: ReadonlySet<string>, keepIds: ReadonlySet<string>): OrgAsset[] {
+  const groups = new Map<string, OrgAsset[]>();
+  for (const a of assets) {
+    if (a.deletedAt || !a.sourceUrl || !courseUrls.has(a.sourceUrl) || !/^hq_(orig|tela|key)_/.test(a.id)) continue;
+    const k = `${a.sourceUrl}\u0000${a.assetVariant || a.id.split('_')[1]}`;
+    const g = groups.get(k);
+    if (g) g.push(a); else groups.set(k, [a]);
+  }
+  const dupes: OrgAsset[] = [];
+  for (const g of groups.values()) {
+    if (g.length < 2) continue;
+    const keep = g.find(a => keepIds.has(a.id)) || [...g].sort((a, b) => (b.uploadedAt || 0) - (a.uploadedAt || 0))[0];
+    for (const a of g) if (a !== keep) dupes.push(a);
+  }
+  return dupes;
+}
+
 /** Delete an asset's Firestore record + its Storage object (best-effort). */
 export async function deleteHqAsset(asset: OrgAsset): Promise<void> {
   await fetch(`/api/hq/file/${encodeURIComponent(asset.id)}/text`, { method: 'DELETE', headers: await hqFileHeaders() }).catch(() => {});

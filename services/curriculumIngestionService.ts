@@ -28,13 +28,14 @@ import {
   resolveDocumentClassFolder,
   isStandaloneTeacherScopeId,
   getStandaloneTeacherScopeId,
+  listHqAssetsDetailed,
 } from './orgAssets';
 import {
   matchSacredLibrarySupplementsForLesson,
   type SacredLibrarySupplement,
 } from './sacredLibraryCurriculumBridge';
 import { getDefaultLivingTemplateForUnit } from './council/livingDocumentTemplates';
-import { pushLibraryUnit, removeLibraryUnit, libraryActorIsAdmin, libraryActorUid } from './lessonLibraryStore';
+import { pushLibraryUnit, removeLibraryUnit, libraryActorIsAdmin, libraryActorUid, fetchLibraryUnits } from './lessonLibraryStore';
 
 export type CurriculumSourceKind =
   | 'GOOGLE_FORM'
@@ -418,7 +419,6 @@ export function mergeSharedUnits(orgId: string, shared: IngestedCurriculumUnit[]
     const key = STORAGE_UNITS_KEY(orgId);
     const byId = new Map(readRawStoredUnitsForKey(key).map(u => [u.id, u] as const));
     for (const u of shared) {
-      if (isSampleCourseUnit(u) && (u.importVersion || 1) < IMPORT_VERSION) continue; // read again by the importer
       const mine = byId.get(u.id);
       // Same lesson imported on two devices (different ids, same link): keep the shared one.
       if (!mine && u.sourceUrl) for (const [id, x] of byId) if (x.sourceUrl === u.sourceUrl && !x.remoteUpdatedAt) byId.delete(id);
@@ -1410,6 +1410,8 @@ export function parseCurriculumAndBuildUnit(params: {
   readingText?: string;
   detailFields?: string[];
   pointsAssigned?: boolean;
+  /** A fixed id for a link that is imported again later (a course link), so it replaces its earlier copy. */
+  unitId?: string;
 }): { unit: IngestedCurriculumUnit; telaDoc: TelaDoc } {
   const {
     orgId,
@@ -1797,7 +1799,7 @@ export function parseCurriculumAndBuildUnit(params: {
   }
 
   const finalTitle = detectedTitle || sourceLabel.replace(/\.[a-z0-9]+$/i, '');
-  const unitId = `cur_${orgId}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+  const unitId = params.unitId || `cur_${orgId}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
   // Build DigitalWorksheet compatible with `worksheetToTelaDoc` & `<WorksheetFillable />`
   const wsFields: WorksheetField[] = questions.map((q, idx) => {
@@ -1998,6 +2000,8 @@ export async function ingestCurriculumToTela(params: {
   answerKeyFile?: File | null;
   answerKeyUrl?: string;
   answerKeyText?: string;
+  /** See parseCurriculumAndBuildUnit: a re-imported link keeps its id, so its Content HQ files are replaced, not added. */
+  unitId?: string;
 }): Promise<{ unit: IngestedCurriculumUnit; telaDoc: TelaDoc }> {
   let rawCurriculumText = params.lessonText?.trim() || '';
   let sourceKind: CurriculumSourceKind = 'TEXT_MARKDOWN';
@@ -2115,6 +2119,7 @@ export async function ingestCurriculumToTela(params: {
     preParsedQuestions,
     readingText,
     detailFields,
+    unitId: params.unitId,
   });
 
   // An org's lesson stays tied to the org, so sharing it as a public template follows the org's policy.
@@ -2405,6 +2410,8 @@ export async function batchIngestExtractedLinksToTela(params: {
   onProgress?: (current: number, total: number, label: string) => void;
   /** A link that couldn't be read (private, scanned, offline). It is skipped, not filled in. */
   onFailed?: (link: ExtractedCourseResourceLink, reason: string) => void;
+  /** Give each link a fixed id from its own (so importing the course again replaces its files instead of adding more). */
+  stableIds?: boolean;
 }): Promise<Array<{ unit: IngestedCurriculumUnit; telaDoc: TelaDoc }>> {
   const results: Array<{ unit: IngestedCurriculumUnit; telaDoc: TelaDoc }> = [];
   const actionable = params.includeAnswerKeyDocs
@@ -2435,6 +2442,7 @@ export async function batchIngestExtractedLinksToTela(params: {
         answerKeyUrl: item.pairedAnswerKeyUrl,
         answerKeyText: item.fallbackAnswerKeyText,
         unitKind: resolvedKind,
+        unitId: params.stableIds ? courseLinkUnitId(params.orgId, item) : undefined,
       });
       results.push(built);
     } catch (e) {
@@ -2457,6 +2465,25 @@ export interface CourseImportReport {
   total: number;
   imported: Array<{ label: string; url: string; title: string; questions: number; words: number }>;
   failed: Array<{ label: string; url: string; reason: string }>;
+}
+/** A course link's lesson id in an org: the same on every device and every re-import, so its files are replaced in place. */
+function courseLinkUnitId(orgId: string, link: ExtractedCourseResourceLink): string {
+  return `cur_${normalizeToGreatFaithOrgId(orgId)}_${link.id}`.replace(/[^A-Za-z0-9_-]/g, '_');
+}
+
+/** The links of the course an org imports (empty for every other org). */
+export function courseLinkUrls(orgId: string): Set<string> {
+  return new Set(isRevelationCourseOrg(normalizeToGreatFaithOrgId(orgId)) ? REVELATION_2_COURSE_CONNECTION_PRESET.links.map(l => l.url) : []);
+}
+
+/** The Content HQ files the org's current lessons point at (the copies to keep when removing duplicates). */
+export function currentLessonAssetIds(orgId: string, orgName?: string): Set<string> {
+  const ids = new Set<string>();
+  for (const u of listIngestedUnits(orgId, undefined, orgName)) {
+    for (const id of [u.originalAssetId, u.telaAssetId, u.answerKeyAssetId]) if (id) ids.add(id);
+    if (u.telaDocId) for (const p of ['hq_orig_', 'hq_tela_', 'hq_key_']) ids.add(p + u.telaDocId);
+  }
+  return ids;
 }
 const IMPORT_REPORT_KEY = (orgId: string) => `plajah_course_import_report_v1_${orgId}`;
 let importing: Promise<IngestedCurriculumUnit[]> | null = null;
@@ -2491,14 +2518,20 @@ export async function ensureAllDetectedLinksOnboarded(
   importing = (async () => {
     // Drop the made-up items older builds stored, so only real imports remain.
     for (const u of readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId))) if (u && isFabricatedSampleUnit(u)) deleteIngestedUnit(safeOrgId, u.id);
-    // Units read by an older importer (forms counted NAME/DATE and every lettered part as its own question,
-    // and doubled every question into the reading) are read again from their links.
-    const isAdmin = libraryActorIsAdmin(safeOrgId);
-    for (const u of listIngestedUnits(safeOrgId, undefined, orgName)) {
-      if (u.sourceUrl && isSampleCourseUnit(u) && (u.importVersion || 1) < IMPORT_VERSION) deleteIngestedUnit(safeOrgId, u.id, { shared: isAdmin });
-    }
+    // What another admin or device already imported counts as here: this browser's own list may be empty
+    // (new device, another admin, cleared storage), and judging by it alone imported the whole course again.
+    mergeSharedUnits(safeOrgId, await fetchLibraryUnits('org', safeOrgId));
+    // The uploaded files are the reference. A link whose files are already in the org's Content HQ is
+    // never imported again (that is what kept adding copies); this browser's own copy is only for offline.
+    // When the server can't be asked (offline, refused), nothing is imported.
+    const { assets: uploaded, status } = await listHqAssetsDetailed({ kind: 'org', id: safeOrgId, label: orgName }, true);
+    if (status !== 'ok') return listIngestedUnits(safeOrgId, programId, orgName);
     const existing = listIngestedUnits(safeOrgId, undefined, orgName);
-    const missing = REVELATION_2_COURSE_CONNECTION_PRESET.links.filter(link => !existing.some(u => u.sourceUrl === link.url));
+    const present = new Set<string>([
+      ...uploaded.map(a => a.sourceUrl || ''),
+      ...existing.map(u => u.sourceUrl || ''),
+    ]);
+    const missing = REVELATION_2_COURSE_CONNECTION_PRESET.links.filter(link => !present.has(link.url));
     if (missing.length) {
       const failed: CourseImportReport['failed'] = [];
       const built = await batchIngestExtractedLinksToTela({
@@ -2508,6 +2541,7 @@ export async function ensureAllDetectedLinksOnboarded(
         programId,
         links: missing,
         includeAnswerKeyDocs: true,
+        stableIds: true,
         onFailed: (link, reason) => failed.push({ label: link.label, url: link.url, reason }),
       });
       const prior = getCourseImportReport(safeOrgId);

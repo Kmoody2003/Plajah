@@ -16,10 +16,11 @@ import { useIdentityFollowsScope } from '../contexts/ActiveIdentityContext';
 import {
   listHqAssets, listHqAssetsDetailed, listHqSharedWithMe, listHqSharedWithOrg, fetchHqScopeCapGb, addHqAsset, deleteHqAsset, getHqAssetText, humanFileSize,
   getOrgDepartmentFolders, getOrgEducationFolderName, isOrgEducationFolderName,
-  TEACHER_DOCUMENT_CLASS_FOLDERS, resolveDocumentClassFolder, isStandaloneTeacherScopeId,
+  TEACHER_DOCUMENT_CLASS_FOLDERS, resolveDocumentClassFolder, isStandaloneTeacherScopeId, findDuplicateImportCopies,
   type HqListStatus, type OrgAsset, type OwnerScope,
 } from '../services/orgAssets';
-import { ensureAllDetectedLinksOnboarded, listIngestedUnits, type IngestedCurriculumUnit } from '../services/curriculumIngestionService';
+import { listIngestedUnits, courseLinkUrls, currentLessonAssetIds, mergeSharedUnits, type IngestedCurriculumUnit } from '../services/curriculumIngestionService';
+import { fetchLibraryUnits } from '../services/lessonLibraryStore';
 import { restoreHqAsset, trashHqAsset } from '../services/hqCollaboration';
 import HqReviewPanel from './HqReviewPanel';
 import HqSecurityAlerts from './HqSecurityAlerts';
@@ -188,19 +189,32 @@ export const HqFilesTab: React.FC<{
   const [listStatus, setListStatus] = useState<HqListStatus>('ok');
   const [sharedWithMe, setSharedWithMe] = useState<OrgAsset[]>([]);
   const viewingShared = folder === SHARED_WITH_ME;
+  // Extra copies an older course importer left behind (each re-import added another set of files).
+  const duplicateCopies = useMemo(
+    () => (isOrgScope && canEdit ? findDuplicateImportCopies(assets, courseLinkUrls(scope.id), currentLessonAssetIds(scope.id, resolvedOrgName)) : []),
+    [assets, isOrgScope, canEdit, scope.id, resolvedOrgName],
+  );
+  const [reviewDupes, setReviewDupes] = useState(false);
+  const [removingDupes, setRemovingDupes] = useState(false);
+  const removeDuplicateCopies = async () => {
+    setRemovingDupes(true);
+    let moved = 0;
+    for (const a of duplicateCopies) {
+      try { await trashHqAsset(a); moved++; } catch { /* left in place; shown again next time */ }
+    }
+    setRemovingDupes(false);
+    setReviewDupes(false);
+    setNotice(`Moved ${moved} duplicate cop${moved === 1 ? 'y' : 'ies'} to Trash${moved < duplicateCopies.length ? ` (${duplicateCopies.length - moved} couldn’t be moved)` : ''}. They can be restored from Trash for 30 days.`);
+    await load();
+  };
   const fileInput = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      // Only an org's own id: a missing scope must not fall back to another org's library.
-      if (isOrgScope && scope.id) {
-        await ensureAllDetectedLinksOnboarded(
-          scope.id,
-          undefined,
-          resolvedOrgName
-        ).catch(() => {});
-      }
+      // Content HQ only lists the uploaded files; opening it never imports anything.
+      // The org's saved lessons (from the shared library) say which copy of each course file is in use.
+      if (isOrgScope && scope.id && canEdit) mergeSharedUnits(scope.id, await fetchLibraryUnits('org', scope.id));
       const { assets: rows, status } = await listHqAssetsDetailed(scope);
       setAssets(rows);
       setListStatus(status);
@@ -610,6 +624,30 @@ export const HqFilesTab: React.FC<{
                 </button>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {duplicateCopies.length > 0 && !viewingShared && (
+        <div className="mb-4 p-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 text-xs text-amber-100">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="flex-1 min-w-[200px]">
+              <strong>{duplicateCopies.length} duplicate copies</strong> of imported course files. Each time the course was imported again, an older version added another set instead of replacing it. The copy each lesson uses is kept.
+            </span>
+            <button type="button" onClick={() => setReviewDupes(v => !v)} className="px-3 py-1.5 rounded-lg bg-white/10 font-bold hover:bg-white/15">
+              {reviewDupes ? 'Hide list' : 'Review'}
+            </button>
+            <button type="button" disabled={removingDupes} onClick={removeDuplicateCopies}
+              className="px-3 py-1.5 rounded-lg bg-amber-400 text-black font-black disabled:opacity-50 inline-flex items-center gap-1.5">
+              {removingDupes ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} Move {duplicateCopies.length} to Trash
+            </button>
+          </div>
+          {reviewDupes && (
+            <ul className="mt-3 max-h-60 overflow-y-auto space-y-1 text-[11px] text-amber-50/80">
+              {duplicateCopies.map(a => (
+                <li key={a.id} className="flex justify-between gap-3"><span className="truncate">{a.name}</span><span className="shrink-0 opacity-60">{a.uploadedAt ? new Date(a.uploadedAt).toLocaleDateString() : ''}</span></li>
+              ))}
+            </ul>
           )}
         </div>
       )}
