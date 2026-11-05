@@ -15,6 +15,7 @@ export async function updateVideoSettings(id: string, s: any) {
   await fetch(`/lab/videos/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) });
 }
 
+export async function fetchVideoById(id: string) { const r = await fetch(`/lab/videos/${id}`); return r.ok ? r.json() : null; }
 export async function uploadImageWithDerivatives() { return { display: 'https://example.com/thumb.jpg' }; }
 export async function notifyFollowers() { /* lab */ }
 
@@ -26,4 +27,5 @@ const labPlaylists: any[] = [
 (window as any).__labPlaylists = labPlaylists;
 export async function fetchUserVideoPlaylists() { return labPlaylists.map(p => ({ ...p })); }
 export async function createVideoPlaylist(p: any) { const pl = { ...p, id: `pl_${Date.now().toString(36)}`, ownerId: 'lab-user', timestamp: Date.now() }; labPlaylists.unshift(pl); return pl; }
+export async function removeVideoFromPlaylist(id: string, vid: string) { const p = labPlaylists.find(x => x.id === id); if (p) p.videoIds = p.videoIds.filter((x: string) => x !== vid); }
 export async function addVideoToPlaylist(id: string, video: any) { const p = labPlaylists.find(x => x.id === id); const vid = typeof video === 'string' ? video : video.id; if (p && !p.videoIds.includes(vid)) p.videoIds.push(vid); }

@@ -140,11 +140,13 @@ const TelaPluginPanel = React.lazy(() => import('./import/TelaPluginPanel'));   
 const TelaLibraryPanel = React.lazy(() => import('./import/TelaLibraryPanel'));   // Imported brushes, shapes, swatches, patterns
 const ComposeWithCouncil = React.lazy(() => import('../living/ComposeWithCouncil'));   // Composer Council panel (services/living/composer)
 const TelaBehaviorsPanel = React.lazy(() => import('./TelaBehaviorsPanel'));   // Live authoring: behaviours, sounds, music (services/living)
+import { OPEN_STORY_INTEL_EVENT, takePendingStoryIntel, type StoryIntelRequest } from '../../services/storyIntel/open';
 const TelaComicStudio = React.lazy(() => import('./TelaComicStudio').then(m => ({ default: m.TelaComicStudio })));
 const TelaClassworkStudio = React.lazy(() => import('./classwork/TelaClassworkStudio'));
 const SaveTemplateDialog = React.lazy(() => import('../templates/SaveTemplateDialog'));
 const TemplateLibrary = React.lazy(() => import('../templates/TemplateLibrary'));
 const MerchDesignerStudio = React.lazy(() => import('./merch/MerchDesignerStudio'));
+const StoryIntelWorkspace = React.lazy(() => import('./storyIntel/StoryIntelWorkspace'));
 const ArgillaStudio = React.lazy(() => import('../argilla/ArgillaStudio'));
 const PrepressPanel = React.lazy(() => import('./print/PrepressPanel'));
 const LocalCreativeStudio = React.lazy(() => import('../Fabula/LocalCreativeStudio').then(m => ({ default: m.LocalCreativeStudio })));
@@ -505,6 +507,13 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     return () => { alive = false; };
   }, []);
   const [merchStudioOpen, setMerchStudioOpen] = useState(false);
+  // Story Intelligence workspace: opened from Tela home, a video's Story tab, or Lorea (services/storyIntel/open).
+  const [storyIntel, setStoryIntel] = useState<StoryIntelRequest | null>(() => takePendingStoryIntel());
+  useEffect(() => {
+    const on = (e: Event) => { takePendingStoryIntel(); setStoryIntel((e as CustomEvent).detail || {}); };
+    window.addEventListener(OPEN_STORY_INTEL_EVENT, on);
+    return () => window.removeEventListener(OPEN_STORY_INTEL_EVENT, on);
+  }, []);
   const [argillaOpen, setArgillaOpen] = useState<{ projectId?: string } | null>(null);
   useEffect(() => {
     const reopen = (event: Event) => setArgillaOpen({ projectId: (event as CustomEvent<{ projectId?: string }>).detail?.projectId });
@@ -3056,6 +3065,12 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     </React.Suspense>;
   }
 
+  if (storyIntel) {
+    return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0d0c12] text-white/60">Loading Story Intelligence…</div>}>
+      <StoryIntelWorkspace onClose={() => setStoryIntel(null)} initialVideoId={storyIntel.videoId} initialView={storyIntel.view}/>
+    </React.Suspense>;
+  }
+
   if (merchStudioOpen) {
     return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0b0a0f] text-white/60">Loading Merch Designer…</div>}>
       <MerchDesignerStudio onClose={() => setMerchStudioOpen(false)}/>
@@ -3068,7 +3083,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
       {designImport && <React.Suspense fallback={null}><DesignImportDialog state={designImport} onClose={() => setDesignImport(null)} onOpenSmart={(id, name) => void openImportedSmartObject(id, name)}/></React.Suspense>}
       {libraryPanel && <React.Suspense fallback={null}><TelaLibraryPanel initialTab={libraryPanel.tab} note={libraryPanel.note} onClose={() => setLibraryPanel(null)} onPlaceShape={placeLibraryShape} onUseColor={useLibraryColor} onUsePattern={p => void useLibraryPattern(p)} onUseBrush={useLibraryBrush}/></React.Suspense>}
       {accessEndedNote && <div role="alert" className="fixed top-4 left-1/2 -translate-x-1/2 z-[9000] max-w-[min(560px,calc(100vw-32px))] flex items-start gap-3 rounded-xl border border-amber-300/30 bg-[#1b1710] px-4 py-3 text-xs text-amber-100"><span className="flex-1">{accessEndedNote}</span><button className="font-bold text-white/70 hover:text-white" onClick={() => setAccessEndedNote('')}>Dismiss</button></div>}
-      <TelaHome recent={canvasList || []} viewerUid={auth.currentUser?.uid || null} memberOrgIds={memberOrgIds} orgNames={orgNames} onOpen={id => void openCanvas(id)} onCreate={kind => void createHomeDocument(kind)} onChooseStyle={entry => void createStyleDocument(entry)} onChoosePublication={template => void createPublicationDocument(template)} onChooseTemplate={template => void createTemplateDocument(template)} onImport={() => fileRef.current?.click()} onOpenMerch={() => setMerchStudioOpen(true)} onOpenArgilla={() => setArgillaOpen({})} onBack={onBack}/>
+      <TelaHome recent={canvasList || []} viewerUid={auth.currentUser?.uid || null} memberOrgIds={memberOrgIds} orgNames={orgNames} onOpen={id => void openCanvas(id)} onCreate={kind => void createHomeDocument(kind)} onChooseStyle={entry => void createStyleDocument(entry)} onChoosePublication={template => void createPublicationDocument(template)} onChooseTemplate={template => void createTemplateDocument(template)} onImport={() => fileRef.current?.click()} onOpenMerch={() => setMerchStudioOpen(true)} onOpenStoryIntel={() => setStoryIntel({})} onOpenArgilla={() => setArgillaOpen({})} onBack={onBack}/>
     </>;
   }
 

@@ -61,7 +61,7 @@ export const IntelOptionsEditor: React.FC<{
           <p className="text-xs text-white/50 leading-relaxed">Watches and listens to the video — speech and on-screen graphics — to find chapters, stills, the lines worth quoting, and anything being offered (products, prices, multi-item packages, links).</p>
           <div className="grid gap-2">
             <Check on={value.article} onChange={v => set({ article: v })} icon={<FileText size={16} />} label="Blog post" hint="An overview that teases the video and sends readers to watch it." />
-            <Check on={value.clips} onChange={v => set({ clips: v })} icon={<Quote size={16} />} label="Quote clips" hint="The poignant moments, clipped as short Reello videos." />
+            <Check on={value.clips} onChange={v => set({ clips: v })} icon={<Quote size={16} />} label="Shorts" hint="The strongest moments, cut into Shorts that send viewers to the full video." />
             <Check on={value.merch} onChange={v => set({ merch: v })} icon={<ShoppingBag size={16} />} label="Store listings" hint="Products offered in the video, with prices, packages and links." />
           </div>
           {value.merch && (
@@ -100,7 +100,7 @@ export const IntelOptionsEditor: React.FC<{
           )}
           {value.clips && (
             <label className="flex items-center justify-between text-xs text-white/60">
-              <span>Quote clips are</span>
+              <span>Shorts are</span>
               <select value={value.clipVisibility} onChange={e => set({ clipVisibility: e.target.value as IntelOptions['clipVisibility'] })} className="bg-[#181820] border border-white/10 rounded-lg px-2 py-1 text-white">
                 <option value="PUBLIC">Public</option><option value="PRIVATE">Private</option>
               </select>

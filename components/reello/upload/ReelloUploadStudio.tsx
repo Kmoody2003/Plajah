@@ -35,6 +35,7 @@ import { tick, refreshRunnerPrefs, subscribeRunner, startFolderRunner } from '..
 import { grabStills } from '../../../services/reello/grabStills';
 import IntelOptionsEditor from './IntelOptionsEditor';
 import ReelloIntelDrafts from './ReelloIntelDrafts';
+import { openVideoStudio } from '../../../services/reello/videoStudio';
 
 type Tab = 'UPLOAD' | 'FOLDERS' | 'TEMPLATES' | 'DRAFTS';
 const GENRES = ['General', 'Music', 'Vlog', 'Education', 'How-to', 'Comedy', 'Gaming', 'Faith', 'News', 'Sports', 'Food', 'Fashion', 'Business', 'Film & Animation'];
@@ -181,14 +182,22 @@ const DetailsEditor: React.FC<{ item: QueueItem; templates: UploadTemplate[] }> 
           </select>
         )}
       </div>
+      {item.status === 'DONE' && item.videoId && (
+        <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+          <Check size={16} className="text-emerald-300 shrink-0" />
+          <p className="text-sm text-white/80 flex-1 min-w-[12rem]">Published. Change anything about it in the video studio.</p>
+          <button type="button" onClick={() => openVideoStudio(item.videoId!)} className="px-3 py-1.5 rounded-full bg-white text-black text-xs font-bold">Edit details</button>
+          {item.details.storyIntel && <button type="button" onClick={() => openVideoStudio(item.videoId!, 'intel')} className="px-3 py-1.5 rounded-full bg-white/10 text-white text-xs font-semibold inline-flex items-center gap-1"><Sparkles size={12} />Story Intelligence</button>}
+        </div>
+      )}
       <fieldset disabled={locked} className="space-y-5 disabled:opacity-70">
         <label className="block rounded-xl border border-white/10 focus-within:border-[#00B4D8] px-3 py-2">
           <span className="flex justify-between text-xs text-white/50"><span>Title (required)</span><span>{d.title.length}/100</span></span>
           <textarea rows={2} maxLength={100} value={d.title} onChange={e => set({ title: e.target.value })} placeholder="Add a title that describes your video" className="w-full bg-transparent text-white resize-none focus:outline-none" />
         </label>
         <label className="block rounded-xl border border-white/10 focus-within:border-[#00B4D8] px-3 py-2">
-          <span className="flex justify-between text-xs text-white/50"><span>Description</span><span>{d.description.length}/5000</span></span>
-          <textarea rows={5} maxLength={5000} value={d.description} onChange={e => set({ description: e.target.value })} placeholder="Tell viewers about your video. Links and prices here help Story Intelligence too." className="w-full bg-transparent text-white text-sm resize-y focus:outline-none" />
+          <span className="flex justify-between text-xs text-white/50"><span>Description</span><span>{d.description.length}/1999</span></span>
+          <textarea rows={5} maxLength={1999} value={d.description} onChange={e => set({ description: e.target.value })} placeholder="Tell viewers about your video. Links and prices here help Story Intelligence too." className="w-full bg-transparent text-white text-sm resize-y focus:outline-none" />
         </label>
         <div>
           <p className="text-sm font-semibold text-white">Thumbnail</p>
@@ -241,6 +250,7 @@ const QueueRow: React.FC<{ it: QueueItem; active?: boolean; onClick?: () => void
       {it.error && <p className="text-[11px] text-red-300 truncate">{it.error}</p>}
     </div>
     {it.status === 'ERROR' && <span role="button" onClick={e => { e.stopPropagation(); retryUpload(it.id); }} className="text-[11px] text-white/70 hover:text-white">Retry</span>}
+    {it.status === 'DONE' && it.videoId && <span role="button" onClick={e => { e.stopPropagation(); openVideoStudio(it.videoId!); }} className="text-[11px] font-semibold text-[#7fe3f5] hover:text-white">Edit details</span>}
     {it.status === 'QUEUED' && it.source !== 'direct' && <span role="button" onClick={e => { e.stopPropagation(); cancelUpload(it.id); }} className="text-white/40 hover:text-white"><X size={14} /></span>}
   </button>
 );

@@ -15,6 +15,8 @@ import { Video, LiveFeed } from '../../types';
 import { computeTrending } from '../../services/relloFeedService';
 import { isFeedLive } from '../../services/liveFeedLiveness';
 import { thumb as thumbUrl, onThumbError, THUMB } from '../../src/lib/imageThumb';
+import { isShortForm } from '../../services/reello/shortForm';
+import { UserAvatar } from '../avatar/UserAvatar';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -25,8 +27,8 @@ const posterOf = (v: any, w = 640): string => {
   if (id) return `https://image.mux.com/${id}/thumbnail.png?width=${w}&time=2`;
   return v.thumbnailUrl || v.coverImageUrl || v.coverImage || '';
 };
-const isVertical = (v: any): boolean =>
-  !!v?.verticalVideoUrl || v?.aspectRatio === 'VERTICAL';
+// A Short by the one Reello rule (services/reello/shortForm): never a full-length landscape upload.
+const isVertical = (v: any): boolean => isShortForm(v);
 const fmt = (n?: number) => {
   const v = n || 0;
   return v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(1)}K` : `${v}`;
@@ -114,13 +116,9 @@ interface Props {
 const ReelloHomeTop: React.FC<Props> = ({ videos, liveFeeds, followedIds, onPlay, onOpenShort, onOpenLive, onSetFormat, onVisitUser, onGoLive }) => {
   const live = useMemo(() => liveFeeds.filter(f => isFeedLive(f as any) && f.isPublic !== false), [liveFeeds]);
 
-  // Long-form pool vs vertical pool. Until creators supply 9:16 masters the vertical pool is thin,
-  // so the Shorts lane falls back to the newest videos (same as the Shorts view does).
-  const verticals = useMemo(() => videos.filter(isVertical), [videos]);
-  const shorts = useMemo(() => {
-    const base = verticals.length >= 3 ? verticals : [...videos].sort((a, b) => b.timestamp - a.timestamp);
-    return base.slice(0, 8);
-  }, [videos, verticals]);
+  // Long-form pool vs Shorts pool. The Shorts lane shows real Shorts only: it used to fall back to the
+  // newest videos, which put full-length uploads in Shorts.
+  const shorts = useMemo(() => videos.filter(isVertical).sort((a, b) => b.timestamp - a.timestamp).slice(0, 8), [videos]);
 
   // Hero: newest from someone you follow (last 14 days) → else the trending leader. Stable across renders.
   const hero = useMemo(() => {
@@ -184,9 +182,9 @@ const ReelloHomeTop: React.FC<Props> = ({ videos, liveFeeds, followedIds, onPlay
             >
               <span className={`relative w-14 h-14 rounded-full p-[2px] ${c.live ? 'bg-red-500' : 'bg-gradient-to-tr from-small-orange to-pink-500'}`}>
                 <span className="block w-full h-full rounded-full overflow-hidden bg-zinc-900 ring-2 ring-black">
-                  {c.photo
-                    ? <img src={thumbUrl(c.photo, THUMB.micro) || c.photo} alt="" loading="lazy" decoding="async" onError={onThumbError(c.photo)} className="w-full h-full object-cover" />
-                    : <span className="w-full h-full flex items-center justify-center"><Users size={16} className="text-white/30" /></span>}
+                  <UserAvatar uid={c.uid} src={c.photo ? (thumbUrl(c.photo, THUMB.micro) || c.photo) : null} alt="" loading="lazy" decoding="async"
+                    onError={c.photo ? onThumbError(c.photo) : undefined} className="w-full h-full object-cover"
+                    fallback={<span className="w-full h-full flex items-center justify-center"><Users size={16} className="text-white/30" /></span>} />
                 </span>
                 {c.live && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 rounded bg-red-600 text-[7px] font-black uppercase tracking-widest leading-tight py-0.5">Live</span>}
               </span>
@@ -262,9 +260,9 @@ const ReelloHomeTop: React.FC<Props> = ({ videos, liveFeeds, followedIds, onPlay
                 <button key={f.id} onClick={() => onOpenLive(f)} className="flex items-center gap-3 p-2.5 rounded-2xl hover:bg-white/[0.06] text-left transition-colors group">
                   <span className="relative shrink-0 w-12 h-12 rounded-full p-[2px] bg-red-500">
                     <span className="block w-full h-full rounded-full overflow-hidden bg-zinc-900 ring-2 ring-black">
-                      {f.ownerPhoto
-                        ? <img src={thumbUrl(f.ownerPhoto, THUMB.micro) || f.ownerPhoto} alt="" loading="lazy" decoding="async" onError={onThumbError(f.ownerPhoto)} className="w-full h-full object-cover" />
-                        : <span className="w-full h-full flex items-center justify-center"><Radio size={16} className="text-white/30" /></span>}
+                      <UserAvatar uid={f.ownerId} src={f.ownerPhoto ? (thumbUrl(f.ownerPhoto, THUMB.micro) || f.ownerPhoto) : null} alt="" loading="lazy" decoding="async"
+                        onError={f.ownerPhoto ? onThumbError(f.ownerPhoto) : undefined} className="w-full h-full object-cover"
+                        fallback={<span className="w-full h-full flex items-center justify-center"><Radio size={16} className="text-white/30" /></span>} />
                     </span>
                   </span>
                   <span className="min-w-0 flex-1">

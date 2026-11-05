@@ -15,6 +15,11 @@
     "components/reello/ReelloDeptChannelPage.tsx",
     "components/reello/ReelloDeptChannelsRow.tsx",
     "components/VideoPlaylistKit.tsx",
-    "tests/reelloOrgChannels.test.ts"
+    "tests/reelloOrgChannels.test.ts",
+    "components/reello/VideoStudioPanel.tsx",
+    "components/reello/ReelloHomeTop.tsx",
+    "components/avatar/UserAvatar.tsx",
+    "components/tv/reelloTvSections.ts",
+    "tests/reelloShortForm.test.ts"
   ]
 }

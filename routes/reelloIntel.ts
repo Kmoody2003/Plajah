@@ -28,13 +28,18 @@ import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
-import { fsGet, fsPatch, fsSet, fsCreate, fsQuery, verifyIdToken, adminConfig } from '../services/firebaseAdminRest';
+import { createHash } from 'crypto';
+import { fsGet, fsPatch, fsSet, fsCreate, fsQuery, fsList, verifyIdToken, adminConfig } from '../services/firebaseAdminRest';
 import { sanitizePrefs, DEFAULT_PREFS } from '../services/reello/uploadPrefs';
 import {
   ARTICLE_PROMPT, WATCH_PROMPT, DEFAULT_INTEL_OPTIONS, autoNotice, buildArticleDraft, buildProductDraft, buildReport,
   formatClock, muxClipStreamUrl, muxStillUrl, productHoldReason, watchUrl,
 } from '../services/reello/intel/core';
-import type { ArticleDraft, DraftState, IntelOptions, ReelloIntelJob, VideoIntelReport } from '../services/reello/intel/types';
+import type { ArticleDraft, DraftState, IntelOptions, ReelloIntelJob, VideoIntelReport, WorldFiling } from '../services/reello/intel/types';
+import {
+  FINDING_KEY_RE, collectionFor, findingsFromJob, matchEntry, mergeEntryFields, newEntryFields, sourceRefFor,
+  type FindingEdits, type WorldEntryLite,
+} from '../services/storyIntel/findings';
 
 const JOBS = 'reelloIntel';
 const PREFS = 'reelloUploadPrefs';
@@ -55,6 +60,8 @@ export interface ReelloIntelStore {
   patch(path: string, data: Record<string, unknown>): Promise<unknown>;
   create(collection: string, data: Record<string, unknown>): Promise<string | null>;
   query(collection: string, filters: { field: string; value: string | number | boolean }[], limit: number): Promise<Array<{ id: string; data: Record<string, any> }>>;
+  /** Every doc in a (sub)collection, up to max — World entries for matching. */
+  list?(collection: string, max: number): Promise<Array<{ id: string; data: Record<string, any> }>>;
 }
 
 export interface ReelloIntelDeps {
@@ -74,6 +81,7 @@ const addUsage = (a: Usage, b?: Usage): Usage => ({ inTokens: a.inTokens + (b?.i
 
 const adminStore: ReelloIntelStore = {
   get: fsGet, set: fsSet, patch: fsPatch, create: fsCreate, query: fsQuery,
+  list: (c, max) => fsList(c, { maxDocs: max }),
 };
 
 async function defaultCallerUid(req: Request): Promise<string | null> {
@@ -200,6 +208,8 @@ const mergeRaw = (pieces: any[]): any => {
     language: pieces.find(p => p?.language)?.language,
     chapters: cat('chapters'), stills: cat('stills'), offers: cat('offers'), links: cat('links'), quotes: cat('quotes'),
     callsToAction: [...new Set(cat('callsToAction'))],
+    // Same person across pieces is merged by name in normalizePeople.
+    people: cat('people'), lore: cat('lore'), dates: cat('dates'),
   };
 };
 
@@ -317,7 +327,9 @@ export async function postDraft(store: ReelloIntelStore, job: ReelloIntelJob, ke
       muxClip: { sourcePlaybackId: pid, startSec: q.startSec, endSec: q.endSec },
       thumbnailUrl: muxStillUrl(pid, q.startSec + 1.5, 640),
       artist: ownerName, genre: String(opts.video.genre || 'General'), duration: Math.round(q.endSec - q.startSec),
-      isRello: true, isPrivate, likesCount: 0, commentsCount: 0, timestamp: opts.now, tags: ['quote', 'clip'],
+      isRello: true, isPrivate, likesCount: 0, commentsCount: 0, timestamp: opts.now, tags: ['quote', 'clip', 'short'],
+      // A Short cut from the full video; the full upload itself is never a Short (services/reello/shortForm).
+      format: 'short', shortOf: job.videoId,
       provenance: { originVideoId: job.videoId, originOwnerId: job.ownerId, stampedAt: opts.now },
       fromVideoIntel: { videoId: job.videoId, quoteId: q.id, auto: opts.auto },
     });
@@ -503,7 +515,10 @@ export function createReelloIntelRouter(extra: ReelloIntelDeps = {}): Router {
       videoId, ownerId: uid, status: 'QUEUED', progress: { stage: 'Queued', pct: 0 }, options,
       accountName: String(owner.displayName || owner.username || video.artist || 'Creator').slice(0, 80),
       videoTitle: String(video.title || 'Untitled').slice(0, 200),
-      drafts: existing?.drafts && req.body?.force !== true ? existing.drafts : {}, attempts: 0, leaseUntil: 0,
+      // A re-run keeps what was already posted, and everything filed into a World.
+      drafts: req.body?.force !== true ? (existing?.drafts || {}) : Object.fromEntries(Object.entries(existing?.drafts || {}).filter(([, d]) => d?.status === 'POSTED')),
+      ...(existing?.worldFiling ? { worldFiling: existing.worldFiling } : {}),
+      attempts: 0, leaseUntil: 0,
       createdAt: existing?.createdAt || t, updatedAt: t,
     });
     // The watch takes minutes; answer now and keep going (resumable via /continue and the sweep).
@@ -583,6 +598,124 @@ export function createReelloIntelRouter(extra: ReelloIntelDeps = {}): Router {
     const next: DraftState = { status: 'DISCARDED' };
     await store.patch(`${JOBS}/${videoId}`, { drafts: { ...job.drafts, [key]: next }, updatedAt: now() });
     res.json({ draft: next });
+  });
+
+  // ── Story Intelligence workspace: file findings into a World ──────────────────
+
+  /** The caller's World, or null. Only the World's creator may file into it. */
+  const ownWorld = async (uid: string, worldId: string) => {
+    if (!ID_RE.test(worldId)) return null;
+    const w = await store.get(`worlds/${worldId}`);
+    return w && w.creatorId === uid ? w : null;
+  };
+  const worldEntries = async (worldId: string, coll: string): Promise<WorldEntryLite[]> => {
+    const rows = store.list ? await store.list(`worlds/${worldId}/${coll}`, 1000) : [];
+    return rows.map(r => ({ id: r.id, name: r.data.name, title: r.data.title, sourceApp: r.data.sourceApp, sourceRefId: r.data.sourceRefId, storyIntelNames: r.data.storyIntelNames, discarded: r.data.discarded }));
+  };
+  /** Stable id per (world, video, finding): filing twice can never create a second entry, even after a failure midway. */
+  const entryIdFor = (ref: string) => `si-${createHash('sha1').update(ref).digest('hex').slice(0, 20)}`;
+  const ownJob = async (uid: string, videoId: string) => {
+    const job = ID_RE.test(videoId) ? await store.get(`${JOBS}/${videoId}`) as ReelloIntelJob | null : null;
+    return job && job.ownerId === uid ? job : null;
+  };
+
+  r.get('/intel/:videoId/world', async (req, res) => {
+    const uid = await caller(req);
+    if (!uid) return res.status(401).json({ error: 'Sign in required.' });
+    const videoId = String(req.params.videoId || '');
+    const job = await ownJob(uid, videoId);
+    if (!job) return res.status(404).json({ error: 'No such job.' });
+    const worldId = String(req.query.worldId || '');
+    const world = await ownWorld(uid, worldId);
+    if (!world) return res.status(404).json({ error: 'That World isn’t yours.' });
+    const [chars, lore, timeline] = await Promise.all(['characters', 'lore', 'timeline'].map(c => worldEntries(worldId, c)));
+    const matches: Record<string, { id: string; by: 'source' | 'name'; name: string }> = {};
+    for (const f of findingsFromJob(job)) {
+      const pool = f.kind === 'character' ? chars : f.kind === 'lore' ? lore : f.kind === 'timeline' ? timeline : null;
+      if (pool) { const m = matchEntry(f, videoId, pool); if (m) matches[f.key] = m; }
+      else if (f.kind === 'asset' && f.assetId && (world.assetIds || []).includes(f.assetId)) matches[f.key] = { id: f.assetId, by: 'source', name: f.title };
+    }
+    res.json({ matches });
+  });
+
+  r.post('/intel/:videoId/file', async (req, res) => {
+    const uid = await caller(req);
+    if (!uid) return res.status(401).json({ error: 'Sign in required.' });
+    const videoId = String(req.params.videoId || '');
+    const job = await ownJob(uid, videoId);
+    if (!job) return res.status(404).json({ error: 'No such job.' });
+    const worldId = String(req.body?.worldId || '');
+    const world = await ownWorld(uid, worldId);
+    if (!world) return res.status(404).json({ error: 'That World isn’t yours.' });
+    const items = (Array.isArray(req.body?.items) ? req.body.items : []).slice(0, 100) as Array<{ key?: string; edits?: FindingEdits }>;
+    if (!items.length || items.some(i => !FINDING_KEY_RE.test(String(i?.key || '')))) return res.status(400).json({ error: 'bad request' });
+    const all = new Map(findingsFromJob(job).map(f => [f.key, f]));
+    const pools: Record<string, WorldEntryLite[]> = {};
+    const pool = async (c: string) => (pools[c] ||= await worldEntries(worldId, c));
+    const filing: Record<string, WorldFiling> = { ...(job.worldFiling || {}) };
+    const results: Array<{ key: string; ok: boolean; entryId?: string; merged?: boolean; error?: string }> = [];
+    const assetIds: string[] = Array.isArray(world.assetIds) ? [...world.assetIds] : [];
+    let assetsChanged = false;
+    for (const it of items) {
+      const key = String(it.key);
+      const f = all.get(key);
+      const coll = f ? collectionFor(f.kind) : null;
+      if (!f || !coll) { results.push({ key, ok: false, error: f ? 'Products go to your store, not a World.' : 'Not in this reading.' }); continue; }
+      const edits: FindingEdits = {
+        title: typeof it.edits?.title === 'string' ? it.edits.title : undefined,
+        summary: typeof it.edits?.summary === 'string' ? it.edits.summary : undefined,
+        year: Number.isInteger(it.edits?.year) ? it.edits!.year : undefined,
+      };
+      try {
+        if (coll === 'asset') {
+          if (!assetIds.includes(f.assetId!)) { assetIds.push(f.assetId!); assetsChanged = true; }
+          // A video belongs to one World; only claim it when it has none yet.
+          const v = await store.get(`videos/${f.assetId}`);
+          if (v && v.ownerId === uid && !v.worldId) await store.patch(`videos/${f.assetId}`, { worldId });
+          filing[key] = { status: 'FILED', worldId, entryKind: 'asset', entryId: f.assetId, at: now() };
+          results.push({ key, ok: true, entryId: f.assetId });
+          continue;
+        }
+        const entries = await pool(coll);
+        const m = matchEntry(f, videoId, entries);
+        let entryId: string; let merged = false;
+        if (m) {
+          const cur = (await store.get(`worlds/${worldId}/${coll}/${m.id}`)) || {};
+          const patch = mergeEntryFields(f, videoId, cur, m.by, edits);
+          if (Object.keys(patch).length && !(await store.patch(`worlds/${worldId}/${coll}/${m.id}`, patch))) throw new Error('Could not save to the World.');
+          entryId = m.id; merged = m.by === 'name';
+        } else {
+          entryId = entryIdFor(`${worldId}:${sourceRefFor(videoId, key)}`);
+          const data: Record<string, any> = { id: entryId, worldId, ...newEntryFields(f, videoId, edits), createdAt: now() };
+          if (!(await store.set(`worlds/${worldId}/${coll}/${entryId}`, data))) throw new Error('Could not save to the World.');
+          entries.push({ id: entryId, name: data.name, title: data.title, sourceApp: data.sourceApp, sourceRefId: data.sourceRefId, storyIntelNames: data.storyIntelNames });
+        }
+        filing[key] = { status: 'FILED', worldId, entryKind: coll, entryId, merged, at: now() };
+        results.push({ key, ok: true, entryId, merged });
+      } catch (e: any) {
+        results.push({ key, ok: false, error: e?.message || 'Could not file.' });
+      }
+    }
+    if (assetsChanged) await store.patch(`worlds/${worldId}`, { assetIds });
+    await store.patch(`${JOBS}/${videoId}`, { worldFiling: filing, updatedAt: now() });
+    res.json({ results, worldFiling: filing });
+  });
+
+  r.post('/intel/:videoId/skip', async (req, res) => {
+    const uid = await caller(req);
+    if (!uid) return res.status(401).json({ error: 'Sign in required.' });
+    const videoId = String(req.params.videoId || '');
+    const job = await ownJob(uid, videoId);
+    if (!job) return res.status(404).json({ error: 'No such job.' });
+    const keys = (Array.isArray(req.body?.keys) ? req.body.keys : [req.body?.key]).map((k: unknown) => String(k || '')).slice(0, 100);
+    if (!keys.length || keys.some((k: string) => !FINDING_KEY_RE.test(k))) return res.status(400).json({ error: 'bad request' });
+    const filing: Record<string, WorldFiling> = { ...(job.worldFiling || {}) };
+    for (const k of keys) {
+      if (req.body?.undo === true) { if (filing[k]?.status === 'SKIPPED') delete filing[k]; }
+      else if (filing[k]?.status !== 'FILED') filing[k] = { status: 'SKIPPED', at: now() };
+    }
+    await store.patch(`${JOBS}/${videoId}`, { worldFiling: filing, updatedAt: now() });
+    res.json({ worldFiling: filing });
   });
 
   return r;

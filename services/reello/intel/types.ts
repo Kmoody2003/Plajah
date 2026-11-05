@@ -73,6 +73,38 @@ export interface QuoteMoment {
   stillUrl?: string;
 }
 
+/** Someone NAMED in the video (said or shown). Faces alone never identify anyone. */
+export interface IntelPerson {
+  id: string;
+  name: string;
+  /** host | guest | interviewee | performer | mentioned | other */
+  role: string;
+  description?: string;
+  /** false = only talked about, never seen or heard. */
+  onScreen: boolean;
+  /** Seconds where they speak, appear or are named. */
+  moments: number[];
+  stillUrl?: string;
+}
+
+/** Places, named things, groups and recurring ideas — the World's lore. */
+export interface IntelLoreItem {
+  id: string;
+  title: string;
+  kind: 'place' | 'thing' | 'group' | 'idea';
+  description?: string;
+  tSec?: number;
+  stillUrl?: string;
+}
+
+/** A dated event said or shown in the video ("opened in '74"). */
+export interface IntelDate {
+  id: string;
+  year: number;
+  what: string;
+  tSec?: number;
+}
+
 export interface VideoChapter { tSec: number; title: string }
 export interface VideoStill { tSec: number; url: string; caption?: string }
 
@@ -132,6 +164,22 @@ export interface VideoIntelReport {
   /** Short spoken/on-screen call-to-action lines ("link in the description"). */
   callsToAction: string[];
   language?: string;
+  /** Added 2026-11: older reports have none — findings fall back to quote speakers and topics. */
+  people?: IntelPerson[];
+  lore?: IntelLoreItem[];
+  dates?: IntelDate[];
+}
+
+/** What the account did with one finding in the Story Intelligence workspace. */
+export interface WorldFiling {
+  status: 'FILED' | 'SKIPPED';
+  worldId?: string;
+  /** characters | lore | timeline | asset */
+  entryKind?: string;
+  entryId?: string;
+  /** Filed into an entry that already existed (same name, or an earlier run). */
+  merged?: boolean;
+  at: number;
 }
 
 export interface ReelloIntelJob {
@@ -147,6 +195,8 @@ export interface ReelloIntelJob {
   article?: ArticleDraft;
   /** Keyed by 'article', `clip:{quoteId}`, `product:{offerId}`. */
   drafts?: Record<string, DraftState>;
+  /** Keyed by finding key (services/storyIntel/findings). Survives a re-run. */
+  worldFiling?: Record<string, WorldFiling>;
   error?: string;
   usage?: { inTokens: number; outTokens: number; costUsd: number };
   leaseUntil?: number;

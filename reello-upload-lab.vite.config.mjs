@@ -80,6 +80,7 @@ const reelloApi = () => ({
     api.use(express.json({ limit: '1mb' }));
     api.post('/lab/videos', (req, res) => { docs.set(`videos/${req.body.id}`, req.body); res.json({ ok: true }); });
     api.patch('/lab/videos/:id', (req, res) => { docs.set(`videos/${req.params.id}`, { ...(docs.get(`videos/${req.params.id}`) || {}), ...req.body }); res.json({ ok: true }); });
+    api.get('/lab/videos/:id', (req, res) => { const v = docs.get(`videos/${req.params.id}`); v ? res.json(v) : res.status(404).json(null); });
     api.get('/lab/docs', (_req, res) => res.json(Object.fromEntries(docs)));
     // Department channels: the REAL router on the same in-memory store.
     const { createReelloOrgChannelsRouter } = await server.ssrLoadModule('/routes/reelloOrgChannels.ts');

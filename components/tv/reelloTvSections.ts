@@ -1,4 +1,5 @@
 import type { UserProfile, Video, VideoPlaylist, ChannelSource } from '../../types';
+import { isShortForm } from '../../services/reello/shortForm';
 import type { FastChannelListing } from '../../services/backendService';
 import {
   fetchAllVideos,
@@ -121,9 +122,8 @@ const resumeItem = (e: WatchEntry, byId: Map<string, Video>): TvVideoItem | null
  * test RelloView uses — a video is a short unless it is a live recording or a cinema genre.
  */
 const CINEMA_GENRES = ['Movie', 'Short Film', 'TV Series', 'Short', 'Teaser', 'Trailer', 'Feature Film'];
-export const isShort = (v: Video): boolean =>
-  (v as any).isRello === true ||
-  ((v as any).isRello == null && !(v as any).isLiveRecording && !(v.genre && CINEMA_GENRES.includes(v.genre)));
+// Shorts follow the one Reello rule (services/reello/shortForm). `isRello` only means "on Reello".
+export const isShort = (v: Video): boolean => isShortForm(v);
 
 const nonEmpty = (rails: TvVideoRail[]) => rails.filter(r => r.items.length > 0);
 const recent = (list: Video[]) => [...list].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));

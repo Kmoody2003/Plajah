@@ -11226,9 +11226,18 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
             const rows = await res.json();
             const videoDoc = rows[0]?.document;
             if (videoDoc) {
+              // Mux reports the real picture shape; Shorts (services/reello/shortForm) depend on it, and an
+              // upload whose browser probe couldn't read the file has no other source for it.
+              const vt = Array.isArray(data?.tracks) ? data.tracks.find((t: any) => t?.type === 'video') : null;
+              const ar = String(data?.aspect_ratio || '').match(/^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/);
+              const w = Number(vt?.max_width) || (ar ? Number(ar[1]) : 0);
+              const h = Number(vt?.max_height) || (ar ? Number(ar[2]) : 0);
+              const shape = w > 0 && h > 0 ? (w / h < 0.9 ? 'VERTICAL' : w / h <= 1.1 ? 'SQUARE' : 'HORIZONTAL') : '';
               await patchLiveDoc(videoDoc.name, {
                 muxPlaybackId: { stringValue: playbackId },
                 status: { stringValue: 'ready' },
+                ...(shape ? { aspectRatio: { stringValue: shape } } : {}),
+                ...(!videoDoc.fields?.duration && typeof data?.duration === 'number' ? { duration: { integerValue: String(Math.round(data.duration)) } } : {}),
               });
             }
           } catch (e: any) { console.error('[MUX webhook] Video update failed:', e.message); }

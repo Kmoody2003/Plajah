@@ -4,7 +4,7 @@
 // notice live in exactly one place.
 
 import type {
-  ArticleDraft, ArticleDraftBlock, IntelOptions, OfferPackage, ProductOffer, QuoteMoment,
+  ArticleDraft, ArticleDraftBlock, IntelDate, IntelLoreItem, IntelOptions, IntelPerson, OfferPackage, ProductOffer, QuoteMoment,
   VideoChapter, VideoIntelReport, VideoLink, VideoStill,
 } from './types';
 
@@ -265,16 +265,97 @@ export function normalizeChapters(raw: unknown, durationSec?: number): VideoChap
     .slice(0, 20);
 }
 
+const nameKey = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+const PERSON_ROLES = new Set(['host', 'guest', 'interviewee', 'performer', 'mentioned', 'other']);
+const LORE_KINDS = new Set(['place', 'thing', 'group', 'idea']);
+const UNNAMED = /^(the |a |an )?(man|woman|person|speaker|host|guest|narrator|unknown|someone|kid|child|baker|chef|vendor)\b/i;
+
+/** People the video NAMES. One row per person across pieces; moments merged, sorted, inside the video. */
+export function normalizePeople(raw: unknown, durationSec?: number): IntelPerson[] {
+  const dur = durationSec && durationSec > 0 ? durationSec : Number.MAX_SAFE_INTEGER;
+  const byKey = new Map<string, IntelPerson>();
+  for (const r of (Array.isArray(raw) ? raw : []) as any[]) {
+    const name = str(r?.name, 80);
+    if (!name || name.length < 2 || UNNAMED.test(name) || r?.named === false) continue;
+    const k = nameKey(name);
+    const role0 = str(r?.role, 20).toLowerCase();
+    const moments = ((Array.isArray(r?.moments) ? r.moments : []) as unknown[])
+      .map(num).filter((t): t is number => t != null && t >= 0 && t <= dur).map(t => Math.round(t));
+    const best = num(r?.bestStillSec);
+    if (best != null && best >= 0 && best <= dur) moments.unshift(Math.round(best));
+    const cur = byKey.get(k);
+    if (cur) {
+      cur.moments.push(...moments);
+      cur.onScreen = cur.onScreen || r?.onScreen !== false;
+      if (!cur.description) cur.description = str(r?.description, 300) || undefined;
+      if (cur.role === 'mentioned' && role0 && role0 !== 'mentioned' && PERSON_ROLES.has(role0)) cur.role = role0;
+      continue;
+    }
+    byKey.set(k, {
+      id: `p-${slug(name)}`, name,
+      role: PERSON_ROLES.has(role0) ? role0 : 'other',
+      description: str(r?.description, 300) || undefined,
+      onScreen: r?.onScreen !== false && role0 !== 'mentioned',
+      moments,
+    });
+  }
+  return [...byKey.values()].map(p => ({ ...p, moments: [...new Set(p.moments)].slice(0, 40) })).slice(0, 30);
+}
+
+export function normalizeLore(raw: unknown, durationSec?: number): IntelLoreItem[] {
+  const dur = durationSec && durationSec > 0 ? durationSec : Number.MAX_SAFE_INTEGER;
+  const byKey = new Map<string, IntelLoreItem>();
+  for (const r of (Array.isArray(raw) ? raw : []) as any[]) {
+    const title = str(r?.title ?? r?.name, 100);
+    if (!title) continue;
+    const k = nameKey(title);
+    const t = num(r?.tSec);
+    const kind0 = str(r?.kind, 12).toLowerCase();
+    const cur = byKey.get(k);
+    if (cur) { if (!cur.description) cur.description = str(r?.description, 400) || undefined; continue; }
+    byKey.set(k, {
+      id: `l-${slug(title)}`, title,
+      kind: (LORE_KINDS.has(kind0) ? kind0 : 'idea') as IntelLoreItem['kind'],
+      description: str(r?.description, 400) || undefined,
+      tSec: t != null && t >= 0 && t <= dur ? Math.round(t) : undefined,
+    });
+  }
+  return [...byKey.values()].slice(0, 30);
+}
+
+export function normalizeDates(raw: unknown, durationSec?: number): IntelDate[] {
+  const dur = durationSec && durationSec > 0 ? durationSec : Number.MAX_SAFE_INTEGER;
+  const thisYear = new Date().getFullYear();
+  const seen = new Set<string>();
+  const out: IntelDate[] = [];
+  for (const r of (Array.isArray(raw) ? raw : []) as any[]) {
+    const year = num(r?.year);
+    const what = str(r?.what ?? r?.title, 160);
+    if (year == null || !Number.isInteger(year) || year < -5000 || year > thisYear + 50 || !what) continue;
+    const k = `${year}:${nameKey(what)}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    const t = num(r?.tSec);
+    out.push({ id: `d-${year}-${slug(what).slice(0, 24)}`, year, what, tSec: t != null && t >= 0 && t <= dur ? Math.round(t) : undefined });
+  }
+  return out.sort((a, b) => a.year - b.year).slice(0, 20);
+}
+
 /** Assemble the report from the model's JSON; stills come from Mux at the moments that matter. */
 export function buildReport(raw: any, ctx: { durationSec?: number; description?: string; playbackId?: string }): VideoIntelReport {
   const offers = normalizeOffers(raw?.offers, ctx);
   const quotes = normalizeQuotes(raw?.quotes, ctx.durationSec);
   const chapters = normalizeChapters(raw?.chapters, ctx.durationSec);
+  const people = normalizePeople(raw?.people, ctx.durationSec);
+  const lore = normalizeLore(raw?.lore, ctx.durationSec);
+  const dates = normalizeDates(raw?.dates, ctx.durationSec);
   const stills: VideoStill[] = [];
   if (ctx.playbackId) {
     const pid = ctx.playbackId;
     for (const o of offers) o.stillUrl = muxStillUrl(pid, o.tSec + 0.5);
     for (const q of quotes) q.stillUrl = muxStillUrl(pid, q.startSec + 1.5);
+    for (const p of people) if (p.onScreen && p.moments.length) p.stillUrl = muxStillUrl(pid, p.moments[0] + 0.5);
+    for (const l of lore) if (l.tSec != null) l.stillUrl = muxStillUrl(pid, l.tSec + 0.5);
     const marks = [
       ...((Array.isArray(raw?.stills) ? raw.stills : []) as any[]).map(s => ({ t: num(s?.tSec), c: str(s?.caption, 140) })),
       ...chapters.map(c => ({ t: c.tSec + 2, c: c.title })),
@@ -295,6 +376,7 @@ export function buildReport(raw: any, ctx: { durationSec?: number; description?:
     links: normalizeLinks(raw?.links, ctx.description),
     callsToAction: ((Array.isArray(raw?.callsToAction) ? raw.callsToAction : []) as unknown[]).map(t => str(t, 160)).filter(Boolean).slice(0, 8),
     language: str(raw?.language, 20) || undefined,
+    people, lore, dates,
   };
 }
 
@@ -407,8 +489,12 @@ Return STRICT JSON only:
  "offers": [{"name": "product or service", "description": "one line", "priceText": "exactly as said/shown, e.g. '$24.99' or '3 for $60' or '2-pack $30'", "packages": [{"quantity": 3, "price": 60, "label": "3 for $60"}], "compareAtPrice": null, "url": "where to buy if given", "promoCode": "", "evidence": "speech|graphic|both", "tSec": 0, "confidence": 0.0, "category": "apparel|food|book|music|course|ticket|service|other"}],
  "links": [{"url": "spoken or shown web address, written as a URL (say 'shop dot example dot com slash hats' → shop.example.com/hats)", "label": "", "evidence": "speech|graphic|both", "tSec": 0}],
  "quotes": [{"text": "a poignant, quotable line, verbatim", "speaker": "", "startSec": 0, "endSec": 0, "why": "why it lands"}],
- "callsToAction": ["..."]
+ "callsToAction": ["..."],
+ "people": [{"name": "full name as said or shown", "role": "host|guest|interviewee|performer|mentioned|other", "description": "one line: who they are in this video", "onScreen": true, "moments": [0], "bestStillSec": 0}],
+ "lore": [{"title": "a named place, thing, group or recurring idea", "kind": "place|thing|group|idea", "description": "one or two lines from what the video says", "tSec": 0}],
+ "dates": [{"year": 1974, "what": "what happened that year, as the video says it", "tSec": 0}]
 }
+Rules for people: list a person ONLY if their name is spoken or shown (caption, lower third, sign, credit). Never guess who someone is from their face or voice, and never add someone unnamed. "mentioned" = talked about but never seen or heard. Lore is what the video itself establishes — no outside facts. Dates are only years the video states.
 Rules: an offer is something the creator is actually selling or promoting for purchase — not something merely visible. Prices are numbers in the stated currency. Only list packages that were offered. Times are seconds from the start of the full video. Up to 8 quotes, each one complete thought, 3-40 seconds long. No invented facts.`;
 
 export const ARTICLE_PROMPT = (ctx: { title: string; accountName: string; report: VideoIntelReport }) => `Write a blog post that promotes a video by ${ctx.accountName || 'a creator'} titled "${ctx.title.slice(0, 200)}".

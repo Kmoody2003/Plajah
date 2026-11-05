@@ -1,5 +1,5 @@
 // Story Intelligence drafts inbox — what each watched upload produced, waiting for the account:
-// the blog post, quote clips and store listings. Post or discard each; edit the article headline and
+// the blog post, Shorts (cut from its strongest moments) and store listings. Post or discard each; edit the article headline and
 // any listing's name / price / link first. Auto-posted pieces show as posted, with their notice.
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -65,7 +65,18 @@ const ProductCard: React.FC<{ job: ReelloIntelJob; o: ProductOffer; d?: DraftSta
   );
 };
 
-const JobCard: React.FC<{ job: ReelloIntelJob; onChange: (j: ReelloIntelJob) => void }> = ({ job, onChange }) => {
+/** A Short draft's picture: the still, and a few moving seconds of it while hovered (Mux renders both on request). */
+const ShortPreview: React.FC<{ stillUrl: string; startSec: number; endSec: number }> = ({ stillUrl, startSec, endSec }) => {
+  const [moving, setMoving] = useState(false);
+  const pid = stillUrl.match(/image\.mux\.com\/([^/]+)\//)?.[1];
+  const end = Math.min(endSec, startSec + 9);
+  const src = moving && pid ? `https://image.mux.com/${pid}/animated.webp?width=320&fps=12&start=${Math.round(startSec)}&end=${Math.round(end)}` : stillUrl;
+  return <img src={src} alt="" onMouseEnter={() => setMoving(true)} onMouseLeave={() => setMoving(false)} onError={() => setMoving(false)} className="w-24 h-16 object-cover rounded-lg shrink-0 bg-black" loading="lazy" />;
+};
+
+/** One video's Story Intelligence: summary, stills, blog post, Shorts, store listings and links, each approved here.
+ *  Also shown on the video itself (components/reello/VideoStudioPanel). */
+export const JobCard: React.FC<{ job: ReelloIntelJob; onChange: (j: ReelloIntelJob) => void; hideTitle?: boolean }> = ({ job, onChange, hideTitle }) => {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState('');
   const [headline, setHeadline] = useState(job.article?.title || '');
@@ -86,13 +97,24 @@ const JobCard: React.FC<{ job: ReelloIntelJob; onChange: (j: ReelloIntelJob) => 
     finally { setBusy(null); }
   };
 
+  // Every Short still waiting, posted one after another; one bad one stops the run and says why.
+  const waitingShorts = (r?.quotes || []).map(q => `clip:${q.id}`).filter(k => d[k] && (d[k].status === 'DRAFT' || d[k].status === 'NEEDS_REVIEW'));
+  const postAllShorts = async () => {
+    setBusy('shorts'); setErr('');
+    const next = { ...d };
+    try {
+      for (const k of waitingShorts) next[k] = (await postIntelDraft(job.videoId, k)).draft;
+    } catch (e: any) { setErr(e?.message || 'Something went wrong.'); }
+    finally { onChange({ ...job, drafts: next }); setBusy(null); }
+  };
+
   const working = job.status !== 'READY' && job.status !== 'FAILED' && job.status !== 'SKIPPED';
   return (
     <article className="rounded-2xl bg-[#111116] border border-white/10 overflow-hidden">
       <header className="flex items-center gap-3 p-4 border-b border-white/5">
         <Sparkles size={18} className="text-[#00B4D8] shrink-0" />
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-bold text-white truncate">{job.videoTitle}</h3>
+          {!hideTitle && <h3 className="text-sm font-bold text-white truncate">{job.videoTitle}</h3>}
           <p className="text-xs text-white/50">{STAGE_LABEL[job.status] || job.status}{working && job.progress?.pct ? ` · ${job.progress.pct}%` : ''}{job.progress?.note && working ? ` · ${job.progress.note}` : ''}{job.options.publishMode === 'AUTO' ? ' · posts automatically' : ''}</p>
         </div>
         {working && <Loader2 size={16} className="animate-spin text-white/40" />}
@@ -136,16 +158,19 @@ const JobCard: React.FC<{ job: ReelloIntelJob; onChange: (j: ReelloIntelJob) => 
 
           {r.quotes.some(q => d[`clip:${q.id}`]) && (
             <section className="space-y-2">
-              <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/50"><Quote size={14} />Quote clips</h4>
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/50"><Quote size={14} />Shorts</h4>
+                {waitingShorts.length > 1 && <button disabled={!!busy} onClick={postAllShorts} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-white text-[11px] font-semibold disabled:opacity-50">{busy === 'shorts' ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}Post all {waitingShorts.length}</button>}
+              </div>
               {r.quotes.filter(q => d[`clip:${q.id}`]).map(q => (
                 <div key={q.id} className="flex gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/10">
-                  {q.stillUrl && <img src={q.stillUrl} alt="" className="w-24 h-16 object-cover rounded-lg shrink-0 bg-black" loading="lazy" />}
+                  {q.stillUrl && <ShortPreview stillUrl={q.stillUrl} startSec={q.startSec} endSec={q.endSec} />}
                   <div className="min-w-0 flex-1 space-y-1.5">
                     <p className="text-sm text-white italic">“{q.text}”</p>
                     <p className="text-xs text-white/50">{q.speaker ? `${q.speaker} · ` : ''}{formatClock(q.startSec)}–{formatClock(q.endSec)}{q.why ? ` · ${q.why}` : ''}</p>
                     <div className="flex items-center gap-2"><StatusPill d={d[`clip:${q.id}`]} /></div>
                     {d[`clip:${q.id}`]?.heldReason && <p className="text-[11px] text-amber-300">{d[`clip:${q.id}`].heldReason}</p>}
-                    <Actions d={d[`clip:${q.id}`]} busy={busy === `clip:${q.id}`} postLabel="Post clip" onPost={() => act(`clip:${q.id}`, 'post')} onDiscard={() => act(`clip:${q.id}`, 'discard')} />
+                    <Actions d={d[`clip:${q.id}`]} busy={busy === `clip:${q.id}`} postLabel="Post Short" onPost={() => act(`clip:${q.id}`, 'post')} onDiscard={() => act(`clip:${q.id}`, 'discard')} />
                   </div>
                 </div>
               ))}
@@ -187,7 +212,7 @@ const ReelloIntelDrafts: React.FC = () => {
     <div className="text-center py-16 text-white/50">
       <Sparkles size={28} className="mx-auto mb-3 text-[#00B4D8]" />
       <p className="text-sm">No Story Intelligence drafts yet.</p>
-      <p className="text-xs mt-1">Turn it on for an upload and its blog post, quote clips and store listings show up here.</p>
+      <p className="text-xs mt-1">Turn it on for an upload and its blog post, Shorts and store listings show up here.</p>
     </div>
   );
   const waiting = jobs.reduce((n, j) => n + Object.values(j.drafts || {}).filter(d => d.status === 'DRAFT' || d.status === 'NEEDS_REVIEW').length, 0);

@@ -21,8 +21,9 @@ import {
   TrendingUp, Radio, Clock, Sparkles, Globe, Music2, Camera, Image as ImageIcon,
   Film, Tv, Monitor, Settings2, ChevronRight, MoreVertical, Mic2, Gamepad2,
   BookOpen, List, Layers, Lock, Smartphone, ChevronUp, ChevronDown, Volume2, VolumeX, ListPlus, Flame,
-  Scissors, Home
+  Scissors, Home, Pencil
 } from 'lucide-react';
+import { openVideoStudio, VIDEO_UPDATED_EVENT } from '../services/reello/videoStudio';
 import { AddToPlaylistModal, VideoPlaylistSection, VideoPlaylistDetailView, ChannelPlaylistsSection } from './VideoPlaylistKit';
 import { SubscriptionsSection, LikedVideosSection, HistorySection } from './VideoLibraryKit';
 import { motion, AnimatePresence } from 'motion/react';
@@ -52,6 +53,8 @@ import ReelloHomeTop from './reello/ReelloHomeTop';
 import { openReelloUploader } from './reello/upload/ReelloUploadDock';
 import ReelloDeptChannelsRow from './reello/ReelloDeptChannelsRow';
 import ChipRail from './ui/ChipRail';
+import { isShortForm } from '../services/reello/shortForm';
+import { UserAvatar } from './avatar/UserAvatar';
 import { useShellNext } from '../hooks/useShellNext';
 
 interface VideoTabProps {
@@ -202,6 +205,17 @@ const VideoCard: React.FC<{
         <div className="absolute bottom-2.5 right-2.5 px-2 py-1 bg-black/70 backdrop-blur-md rounded-md text-[8px] font-black tracking-widest text-white/80">
           {(video as any).playsCount ? `${(video as any).playsCount}` : '—'} views
         </div>
+        {/* Edit details: title, description, thumbnail, visibility, Shorts, playlists, Story Intelligence (owner only) */}
+        {isCardOwner && !isLive && video.id && (
+          <button
+            onClick={(e) => { e.stopPropagation(); openVideoStudio(video.id); }}
+            aria-label="Edit details"
+            className="absolute top-2.5 right-12 w-8 h-8 rounded-xl bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity hover:bg-small-orange/80 hover:border-small-orange/60"
+            title="Edit details"
+          >
+            <Pencil size={13} className="text-white" />
+          </button>
+        )}
         {/* Change Thumbnail button (owner only, not on live streams) */}
         {isCardOwner && !isLive && (
           <label
@@ -224,7 +238,10 @@ const VideoCard: React.FC<{
       <div className="flex gap-3">
         {showChannel && (
           <div className="w-8 h-8 rounded-full bg-white/10 shrink-0 mt-0.5 overflow-hidden ring-1 ring-white/10">
-            <img loading="lazy" decoding="async" src={thumbUrl((video as any).ownerPhoto, THUMB.micro) || `https://picsum.photos/seed/${(video as any).ownerId}/64/64`} onError={onThumbError((video as any).ownerPhoto)} alt="" className="w-full h-full object-cover" />
+            {/* The owner's own photo: from the video doc when it has one, else looked up by uid (never a stand-in picture). */}
+            <UserAvatar uid={(video as any).ownerId} src={(video as any).ownerPhoto ? thumbUrl((video as any).ownerPhoto, THUMB.micro) : null}
+              onError={(video as any).ownerPhoto ? onThumbError((video as any).ownerPhoto) : undefined} loading="lazy" decoding="async" alt="" className="w-full h-full object-cover"
+              fallback={<span className="w-full h-full grid place-items-center text-[11px] font-black text-white/60">{String((video as any).artist || (video as any).ownerName || '?').trim().charAt(0).toUpperCase()}</span>} />
           </div>
         )}
         <div className="flex-1 min-w-0">
@@ -505,6 +522,18 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
   const [openPlaylistId, setOpenPlaylistId] = useState<string | null>(null);
 
   const [videos, setVideos] = useState<Video[]>([]);
+  // An edit saved in the video studio shows here at once (new title, thumbnail, visibility, Shorts choice).
+  useEffect(() => {
+    const on = (e: Event) => {
+      const v = (e as CustomEvent<Video>).detail;
+      if (!v?.id) return;
+      const merge = (list: Video[]) => list.map(x => (x.id === v.id ? { ...x, ...v } : x));
+      setVideos(merge);
+      setUserVideos(merge);
+    };
+    window.addEventListener(VIDEO_UPDATED_EVENT, on);
+    return () => window.removeEventListener(VIDEO_UPDATED_EVENT, on);
+  }, []);
   const [movies, setMovies] = useState<any[]>([]);
   const [tvSeries, setTvSeries] = useState<any[]>([]);
   const [userVideos, setUserVideos] = useState<Video[]>([]);
@@ -1227,7 +1256,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                   onPlay={handlePlay}
                   onOpenShort={(v) => {
                     // Same ordering the Shorts view uses, so the tapped clip is the one that opens.
-                    const idx = [...videos].sort((a, b) => b.timestamp - a.timestamp).slice(0, 30).findIndex(s => s.id === v.id);
+                    const idx = [...videos].filter(isShortForm).sort((a, b) => b.timestamp - a.timestamp).slice(0, 30).findIndex(s => s.id === v.id);
                     setShortsIndex(idx >= 0 ? idx : 0);
                     setActiveView('shorts');
                   }}
@@ -1610,7 +1639,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
           {/* ── SHORTS ───────────────────────────────────────────────────────────────────── */}
           {activeView === 'shorts' && (() => {
-            const shortVideos = [...videos].sort((a, b) => b.timestamp - a.timestamp).slice(0, 30);
+            const shortVideos = [...videos].filter(isShortForm).sort((a, b) => b.timestamp - a.timestamp).slice(0, 30);
             if (!shortVideos.length) return (
               <div className="py-32 text-center">
                 <Smartphone size={48} className="text-white/10 mx-auto mb-4" />

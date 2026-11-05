@@ -127,6 +127,7 @@ import { canDM, isStudentAccount, classroomRoomId, classroomParticipants } from 
 import { previewLine as chatPreviewLine } from './chat/chatCore';
 // Classroom coursework lives in a private subdoc; the public classroom doc carries only a preview.
 import { saveClassroomCoursework, courseworkPreview } from './classroomCoursework';
+import { aspectLabel } from './reello/shortForm';
 
 export const getPrivateBoards = async (uid: string): Promise<PrivateBoard[]> => {
   const q = query(collection(db, 'privateBoards'), where('ownerId', '==', uid));
@@ -702,6 +703,8 @@ export const createCharacter = async (char: Partial<Character>) => {
   try {
     const docRef = doc(collection(db, 'worlds', char.worldId, 'characters'));
     const newChar: Character = {
+      // Keep World Hub tags (sourceApp/sourceRefId) and enhanced fields, or re-syncs duplicate.
+      ...(removeUndefined(char) as Partial<Character>),
       id: docRef.id,
       worldId: char.worldId,
       name: char.name || 'Unknown',
@@ -740,6 +743,8 @@ export const createLore = async (lore: Partial<LoreEntry>) => {
   try {
     const docRef = doc(collection(db, 'worlds', lore.worldId, 'lore'));
     const newLore: LoreEntry = {
+      // Keep World Hub tags (sourceApp/sourceRefId) and enhanced fields, or re-syncs duplicate.
+      ...(removeUndefined(lore) as Partial<LoreEntry>),
       id: docRef.id,
       worldId: lore.worldId,
       title: lore.title || 'Untitled',
@@ -776,6 +781,8 @@ export const createTimelineEvent = async (event: Partial<TimelineEvent>) => {
   try {
     const docRef = doc(collection(db, 'worlds', event.worldId, 'timeline'));
     const newEvent: TimelineEvent = {
+      // Keep World Hub tags (sourceApp/sourceRefId) and enhanced fields, or re-syncs duplicate.
+      ...(removeUndefined(event) as Partial<TimelineEvent>),
       id: docRef.id,
       worldId: event.worldId,
       timelineId: event.timelineId || 'main',
@@ -8105,6 +8112,10 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
     ...(Array.isArray(video.tags) && video.tags.length ? { tags: video.tags } : {}),
     // The measured timebase wins over a caller-supplied duration; `duration` stays in sync for the
     // many existing readers that only know about whole seconds.
+    // Picture shape, so Shorts (vertical/square, ≤3 min — services/reello/shortForm) never sweep in a landscape upload.
+    ...(aspectLabel((sourceTime.timebase as any)?.width, (sourceTime.timebase as any)?.height)
+      ? { aspectRatio: aspectLabel((sourceTime.timebase as any)?.width, (sourceTime.timebase as any)?.height) }
+      : {}),
     ...(sourceTime.timebase
       ? { timebase: sourceTime.timebase, duration: Math.round(sourceTime.timebase.durationSec) }
       : sourceTime.durationSec > 0

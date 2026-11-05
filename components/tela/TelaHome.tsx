@@ -251,6 +251,7 @@ export default function TelaHome({
   onChooseTemplate,
   onImport,
   onOpenMerch,
+  onOpenStoryIntel,
   onOpenArgilla,
   onBack,
   viewerUid = null,
@@ -271,6 +272,8 @@ export default function TelaHome({
   onImport: () => void;
   /** Opens the Merch Designer (product design + 3D product photography). */
   onOpenMerch?: () => void;
+  /** Story Intelligence workspace: what it read in your videos, filed into your Worlds. */
+  onOpenStoryIntel?: () => void;
   onOpenArgilla?: () => void;
   onBack?: () => void;
 }) {
@@ -740,6 +743,16 @@ export default function TelaHome({
             >
               <span className="hidden sm:inline">Sculpt in 3D</span>
               <span className="sm:hidden">3D</span>
+            </button>
+          )}
+          {onOpenStoryIntel && (
+            <button
+              onClick={onOpenStoryIntel}
+              className="h-9 px-3.5 flex items-center gap-2 rounded-[10px] text-[.72rem] font-bold text-white/85 bg-white/[.05] border border-[#b9a4ff]/40 hover:bg-[#b9a4ff]/15 hover:text-white transition-all font-sans"
+              title="What Story Intelligence found in your videos: add people, places and moments to your Worlds"
+            >
+              <Sparkles size={13} className="text-[#b9a4ff]" />
+              <span className="hidden sm:inline">Story Intelligence</span>
             </button>
           )}
           {onOpenMerch && (

@@ -9,9 +9,11 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { subscribeQueue, type QueueItem } from '../../../services/reello/uploadQueue';
 import { startFolderRunner, stopFolderRunner } from '../../../services/reello/folderRunner';
 import { OPEN_DEPT_CHANNEL_EVENT } from '../../../services/reello/orgChannels';
+import { OPEN_VIDEO_STUDIO_EVENT, type VideoStudioTab } from '../../../services/reello/videoStudio';
 
 const ReelloUploadStudio = lazy(() => import('./ReelloUploadStudio'));
 const ReelloDeptChannelPage = lazy(() => import('../ReelloDeptChannelPage'));
+const VideoStudioPanel = lazy(() => import('../VideoStudioPanel'));
 
 const OPEN_EVENT = 'reello:open-uploader';
 type OpenDetail = { files?: File[]; tab?: 'UPLOAD' | 'FOLDERS' | 'TEMPLATES' | 'DRAFTS'; rightsConfirmed?: boolean };
@@ -31,6 +33,14 @@ const ReelloUploadDock: React.FC = () => {
     const on = (e: Event) => { const d = (e as CustomEvent<{ orgId: string; departmentId: string }>).detail; if (d?.orgId && d?.departmentId) setDept(d); };
     window.addEventListener(OPEN_DEPT_CHANNEL_EVENT, on);
     return () => window.removeEventListener(OPEN_DEPT_CHANNEL_EVENT, on);
+  }, []);
+
+  // A published video's studio (edit details, Story Intelligence), from the watch page, a card or the uploader.
+  const [studio, setStudio] = useState<{ videoId: string; tab: VideoStudioTab } | null>(null);
+  useEffect(() => {
+    const on = (e: Event) => { const d = (e as CustomEvent<{ videoId: string; tab?: VideoStudioTab }>).detail; if (d?.videoId) setStudio({ videoId: d.videoId, tab: d.tab || 'details' }); };
+    window.addEventListener(OPEN_VIDEO_STUDIO_EVENT, on);
+    return () => window.removeEventListener(OPEN_VIDEO_STUDIO_EVENT, on);
   }, []);
 
   useEffect(() => onAuthStateChanged(auth, u => setUid(u?.uid || null)), []);
@@ -62,6 +72,11 @@ const ReelloUploadDock: React.FC = () => {
       {dept && (
         <Suspense fallback={null}>
           <ReelloDeptChannelPage orgId={dept.orgId} departmentId={dept.departmentId} onClose={() => setDept(null)} />
+        </Suspense>
+      )}
+      {studio && uid && (
+        <Suspense fallback={null}>
+          <VideoStudioPanel videoId={studio.videoId} initialTab={studio.tab} onClose={() => setStudio(null)} />
         </Suspense>
       )}
       {open && uid && (

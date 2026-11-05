@@ -984,7 +984,7 @@ export interface WorldBackgroundConfig {
 // Which Plajah tool a world entry originated from. Worlds is the shared hub:
 // Lorea (books + scripts), FABULA, and the Worlds editor all read/write entries
 // tagged with their source so data flows freely between them.
-export type WorldSourceApp = 'WORLD' | 'LOREA_BOOK' | 'LOREA_SCRIPT' | 'FABULA';
+export type WorldSourceApp = 'WORLD' | 'LOREA_BOOK' | 'LOREA_SCRIPT' | 'FABULA' | 'STORY_INTEL';
 
 export interface IPWorld {
   id: string;
@@ -1176,6 +1176,10 @@ export interface TimelineEvent {
   clips?: string[];
   locationRef?: string;        // LoreEntry ID of the location
   significance?: 'MINOR' | 'MAJOR' | 'PIVOTAL';
+  // World Hub tagging (see Character).
+  sourceApp?: WorldSourceApp;
+  sourceProjectId?: string;
+  sourceRefId?: string;
 }
 
 
@@ -1280,6 +1284,12 @@ export interface Video {
   remixEndSec?: number;
   /** Sounds — the Chora track used as this short's sound ("use this sound"). */
   soundTrackId?: string;
+  /** Picture shape, recorded at upload and again when Mux reports the asset (services/reello/shortForm). */
+  aspectRatio?: 'VERTICAL' | 'SQUARE' | 'HORIZONTAL';
+  /** The creator's own call: 'short' puts it in Shorts, 'long' keeps a vertical video out. Unset = decided by shape and length. */
+  format?: 'short' | 'long';
+  /** This Short was cut from that video (Story Intelligence). */
+  shortOf?: string;
   /** Creator Passport provenance — so reused/remixed work always resolves to origin. */
   provenance?: { passportId?: string; originVideoId?: string; originOwnerId?: string; stampedAt?: number };
   /** Skip-intro / skip-recap timeline markers (seconds). */

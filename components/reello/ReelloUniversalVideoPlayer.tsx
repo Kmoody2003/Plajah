@@ -5,8 +5,9 @@ import {
   RotateCcw, RotateCw, Settings, Sliders, Layers, Sparkles, Film, MessageCircle,
   List, Check, X, ChevronDown, ChevronRight, Share2, Heart, Clock, Folder,
   FileVideo, ArrowLeft, Send, Pin, AlertCircle, Headphones, Repeat, Shuffle,
-  Download, Eye, Subtitles, Compass, Users, Radio
+  Download, Eye, Subtitles, Compass, Users, Radio, Pencil
 } from 'lucide-react';
+import { openVideoStudio } from '../../services/reello/videoStudio';
 import { Video, Album } from '../../types';
 import { WindowsPickedFile } from '../../services/windowsBridgeService';
 import { listHqComments, addHqComment, type OrgAsset } from '../../services/hqCollaboration';
@@ -1166,6 +1167,28 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
               <MessageCircle size={22} className="group-hover:scale-110 transition-all" />
               <span className="text-[9px] font-bold">{commentsList.length}</span>
             </button>
+
+            {/* The owner edits details and reviews Story Intelligence (blog post, Shorts, listings) right from the video. */}
+            {activeVideo?.id && currentUser?.uid && (activeVideo as any).ownerId === currentUser.uid && (
+              <>
+                <button
+                  onClick={() => openVideoStudio(activeVideo.id, 'details')}
+                  aria-label="Edit details"
+                  className="w-12 h-12 rounded-full bg-black/50 hover:bg-black/80 border border-white/10 backdrop-blur-md flex flex-col items-center justify-center gap-1 transition-all group"
+                >
+                  <Pencil size={20} className="text-white/80 group-hover:text-[var(--ub)] group-hover:scale-110 transition-all" />
+                  <span className="text-[9px] font-bold text-white/70">Edit</span>
+                </button>
+                <button
+                  onClick={() => openVideoStudio(activeVideo.id, 'intel')}
+                  aria-label="Story Intelligence"
+                  className="w-12 h-12 rounded-full bg-black/50 hover:bg-black/80 border border-white/10 backdrop-blur-md flex flex-col items-center justify-center gap-1 transition-all group"
+                >
+                  <Sparkles size={20} className="text-white/80 group-hover:text-[var(--ua)] group-hover:scale-110 transition-all" />
+                  <span className="text-[9px] font-bold text-white/70">Story</span>
+                </button>
+              </>
+            )}
 
             {/* Local file: private, so sharing means uploading to Reello first (with the rights declaration). */}
             {activeContext === 'LOCAL' && (playlist[playlistIndex]?.file ?? currentFile) && onUploadToReello && (

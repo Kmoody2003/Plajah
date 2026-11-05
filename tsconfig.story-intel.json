@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "include": [
+    "services/storyIntel/*.ts",
+    "services/reello/intel/*.ts",
+    "services/reello/reelloApi.ts",
+    "routes/reelloIntel.ts",
+    "components/tela/storyIntel/*.tsx",
+    "components/lorea/StoryIntelShelf.tsx",
+    "components/reello/VideoStudioPanel.tsx",
+    "tests/storyIntelWorlds.test.ts",
+    "story-intel-lab.tsx"
+  ]
+}
