@@ -12,6 +12,7 @@ import LetterWriter from './letters/LetterWriter';
 import { consumePostmanIntent, type PostmanIntent } from '../../services/postman/postmanIntent';
 import CampaignsRoom from './CampaignsRoom';
 import SourcesRoom from './SourcesRoom';
+import WelcomePackageEnvelope from './WelcomePackageEnvelope';
 import {
   connectGoogleAccount, disconnectAccount, getPostmanStatus, LETTER_SKINS,
   listAccounts, loadPrefs, savePrefs, DEFAULT_POSTMAN_PREFS,
@@ -275,6 +276,9 @@ const PostmanApp: React.FC<PostmanAppProps> = ({ embedded = false }) => {
           <Button variant="secondary" size="xs" onClick={handleConnect} loading={connecting}>Reconnect</Button>
         </div>
       )}
+
+      {/* The Welcome Package lives in Letters: the tour, whenever they want it. */}
+      {room === 'LETTERS' && <div className="mb-3"><WelcomePackageEnvelope /></div>}
 
       {/* ── Room ─────────────────────────────────────────────────────────── */}
       <div className="flex-1 min-h-0 flex">
