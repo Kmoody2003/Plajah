@@ -11,6 +11,7 @@ import { ED_CSS, coverFor } from './edStyles';
 import AnnouncementsPanel, { type AudienceOption } from '../../announcements/AnnouncementsPanel';
 import EduPhoneShell, { EduPhoneSheet, type EduPhoneTab } from '../../edu/EduPhoneShell';
 import { useViewport } from '../../../hooks/useViewport';
+import { useClassLiveNow } from '../../../hooks/useClassLiveNow';
 import { BookOpen, ClipboardCheck, Home, Megaphone, MoreHorizontal, Users } from 'lucide-react';
 
 const TemplateLibrary = lazy(() => import('../../templates/TemplateLibrary'));
@@ -63,6 +64,14 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
   const teaching = useMemo(() => all.filter(p => isTeacherOf(p, viewer.uid, canEdit)), [all, viewer.uid, canEdit]);
   const enrolled = useMemo(() => all.filter(p => isStudentOf(p, viewer.uid) && !teaching.includes(p)), [all, viewer.uid, teaching]);
   const isTeacher = teaching.length > 0;
+  // Class tabs: department heads, admins and teachers see every class; a student sees only their own.
+  const seesAll = canEdit || isTeacher;
+  const tabClasses = useMemo(
+    () => (seesAll ? all : all.filter(p => enrolled.includes(p) || teaching.includes(p))),
+    [seesAll, all, enrolled, teaching],
+  );
+  const otherClasses = useMemo(() => (seesAll ? all.filter(p => !teaching.includes(p) && !enrolled.includes(p)) : []), [seesAll, all, teaching, enrolled]);
+  const liveNow = useClassLiveNow(useMemo(() => tabClasses.map(p => p.id), [tabClasses]));
   // Org-wide posts reach everyone on a Christian Ed roster (members) or anyone (public); teachers also post to one class.
   const hubAudiences = useMemo<AudienceOption[]>(() => {
     const everyone = [...new Set(all.flatMap(p => [...(p.studentUids || []), ...(p.students || []).map(s => s.uid), ...(p.teacherUids || []), p.createdBy]).filter(Boolean))] as string[];
@@ -218,9 +227,12 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
       const d = (w?.assignments || []).filter(a => !['TURNED_IN', 'RETURNED_WITH_FEEDBACK'].includes(desk[a.id]?.status || '')).length;
       flags.push(d ? ['soon', `${d} due`] : ['done', 'Caught up']);
     }
+    const live = !!liveNow[p.id];
+    if (live) flags.unshift(['live', 'Live now']);
     return (
-      <button type="button" className="club" key={p.id} onClick={() => setView({ kind: 'class', id: p.id })}>
+      <button type="button" className="club" key={p.id} onClick={() => setView({ kind: 'class', id: p.id, chan: live ? 'live' : undefined })}>
         <div className="art" style={{ background: coverFor(p.id, p.coverHue) }}>
+          {live && <em className="live"><i className="livedot" aria-hidden="true" />LIVE</em>}
           <span>{p.name.slice(0, 1)}</span>
         </div>
         <div className="b">
@@ -239,6 +251,31 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
       </button>
     );
   };
+
+  // One tab per class, above the gallery and every class page, so switching classes is one tap.
+  const currentClassId = view.kind === 'class' ? view.id : null;
+  const classTabs = tabClasses.length > 0 && (
+    <div className="ctabs" role="tablist" aria-label="Classes">
+      <button type="button" role="tab" aria-selected={!currentClassId} onClick={() => setView({ kind: 'hub' })}>
+        {seesAll ? 'All classes' : 'My classes'}
+      </button>
+      {tabClasses.map(p => (
+        <button
+          key={p.id}
+          type="button"
+          role="tab"
+          aria-selected={currentClassId === p.id}
+          onClick={() => setView({ kind: 'class', id: p.id, chan: liveNow[p.id] ? 'live' : undefined })}
+          title={liveNow[p.id] ? `${p.name} · live now` : p.name}
+        >
+          {liveNow[p.id] && <span className="livedot" aria-label="Live now" />}
+          {p.name}
+          {seesAll && teaching.includes(p) && !canEdit && <span className="mine">yours</span>}
+          {enrolled.includes(p) && <span className="mine">enrolled</span>}
+        </button>
+      ))}
+    </div>
+  );
 
   // ── Sub-views ───────────────────────────────────────────────────────────────
   if (view.kind === 'class') {
@@ -261,8 +298,10 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
     return shell(
       <div className="ce">
         <style>{ED_CSS}</style>
+        {classTabs}
         <EdClassClub
-          key={p.id}
+          key={`${p.id}:${view.chan || ''}`}
+          liveNow={!!liveNow[p.id]}
           orgId={church.id}
           orgName={church.name}
           program={p}
@@ -377,6 +416,7 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
   return shell(
     <div className="ce">
       <style>{ED_CSS}</style>
+      {classTabs}
 
       <div className="hubhead">
         <div className="grow">
@@ -554,6 +594,12 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
               <div className="eyebrow">Classes I’m in</div>
               {myDeskSection}
               <div className="clubs">{enrolled.map(p => clubCard(p, false))}</div>
+            </>
+          )}
+          {otherClasses.length > 0 && (
+            <>
+              <div className="eyebrow">Other classes in Christian Ed</div>
+              <div className="clubs">{otherClasses.map(p => clubCard(p, false))}</div>
             </>
           )}
           {nextClass && !isPhone && <div className="small">Next on the schedule: {nextClass.name} · {nextClass.meetingSchedule}</div>}

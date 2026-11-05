@@ -22,7 +22,7 @@ export const OPS_COLLECTIONS: ReadonlySet<string> = new Set([
   // Church management
   'chmsAttendance', 'chmsAudit', 'chmsBatches', 'chmsCareFlags', 'chmsClaims', 'chmsContributions',
   'chmsFinanceMeta', 'chmsHouseholds', 'chmsImports', 'chmsMessages', 'chmsNotes', 'chmsPayoutLines',
-  'chmsPayouts', 'chmsPeople', 'chmsPledges', 'chmsShifts', 'chmsTasks',
+  'chmsPayouts', 'chmsPeople', 'chmsPledges', 'chmsShifts', 'chmsTasks', 'memberTasks',
   'churchEduAssignments', 'churchEduAnswerKeys', 'churchEduJoinRequests', 'churchEduSubmissions',
   'orgAnnouncements', 'announcementResponses', 'docTemplates', 'orgTemplatePolicies', 'lessonLibrary', 'classThreads', 'classMedia', 'liveSources',
   'churchPrayers', 'churchPrograms', 'congregants', 'donations',

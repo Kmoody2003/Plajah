@@ -17,7 +17,11 @@ const MinistryPage: React.FC<{
   onBack: () => void;
   onVisitUser?: (uid: string) => void;
   onOrgChange?: (o: Organization) => void;
-}> = ({ org, ministry, myMembership, onBack, onVisitUser, onOrgChange }) => {
+  /** Christian Ed: open this class first. */
+  initialClassId?: string;
+  /** Inside the member home: no page padding (the home already has it). */
+  embedded?: boolean;
+}> = ({ org, ministry, myMembership, onBack, onVisitUser, onOrgChange, initialClassId, embedded = false }) => {
   const [following, setFollowing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [manageShop, setManageShop] = useState(false);
@@ -47,7 +51,9 @@ const MinistryPage: React.FC<{
       myMembership.roleKey === 'SENIOR_PASTOR' ||
       myMembership.roleKey === 'PASTOR' ||
       myMembership.roleKey === 'DEPARTMENT_HEAD' ||
-      (live.headUids || []).includes(myMembership.userId));
+      (live.headUids || []).includes(myMembership.userId) ||
+      // Heads/admins of this department hold it as a ministry role.
+      (myMembership.ministryRoles || []).some(r => r.ministryId === live.id && /HEAD|ADMIN|DIRECTOR|LEAD/i.test(r.roleKey)));
 
   const toggle = async () => {
     if (!auth.currentUser) {
@@ -64,7 +70,7 @@ const MinistryPage: React.FC<{
 
   return (
     <div
-      className={`min-h-full p-4 sm:p-6 lg:p-12 mx-auto ${
+      className={`min-h-full ${embedded ? '' : 'p-4 sm:p-6 lg:p-12'} mx-auto ${
         isEdu || isMusic ? 'max-w-6xl' : 'max-w-3xl'
       }`}
     >
@@ -120,7 +126,9 @@ const MinistryPage: React.FC<{
 
       {isEdu && (
         <div className="mb-8">
-          <ChurchEducation church={org} canEdit={canEdit || true} />
+          {/* Only staff and this department's heads run Christian Ed for everyone; teachers get their own
+              classes through the class roster, and students see just theirs. */}
+          <ChurchEducation church={org} canEdit={canEdit} membership={myMembership} initialClassId={initialClassId} />
         </div>
       )}
 

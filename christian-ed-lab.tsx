@@ -18,6 +18,7 @@ import TeacherHub from './components/academia/TeacherHub';
 import HomeroomView from './components/homeroom/HomeroomView';
 import OrgLessonLibraryHub from './components/church/OrgLessonLibraryHub';
 import TelaHome from './components/tela/TelaHome';
+import MyOrgTasksAndDepartments from './components/elevate/MyOrgTasksAndDepartments';
 import { saveIngestedUnit } from './services/curriculumIngestionService';
 import type { ChurchProgram } from './services/churchEducationService';
 import type { IngestedCurriculumUnit } from './services/curriculumIngestionService';
@@ -168,6 +169,18 @@ const Lab: React.FC = () => {
     return <><TelaHome recent={recent} viewerUid={teacher.uid} memberOrgIds={[church.id]} onOpen={id => alert(`open ${id}`)} onCreate={() => {}} onChooseStyle={() => {}} onChoosePublication={() => {}} onChooseTemplate={() => {}} onImport={() => {}} /><LessonLibraryOverlay /></>;
   }
   if (as === 'desk-try') return <DeskTry />;
+  if (as === 'member-panel' || as === 'member-panel-empty') {
+    // Member home "My work" panel. Signed out in the lab, so tasks show the sign-in message.
+    const depts = as === 'member-panel' ? [
+      { id: 'edu', name: 'Christian Education', iconEmoji: '📖', meetingTime: 'Sundays · 9:15 AM' },
+      { id: 'youth', name: 'Youth', iconEmoji: '🔥' },
+    ] as any[] : [];
+    return (
+      <div style={{ maxWidth: 1240, margin: '0 auto', padding: '24px 20px 60px', background: '#0b0214', minHeight: '100vh' }}>
+        <MyOrgTasksAndDepartments org={{ ...church, ministries: depts }} departments={depts} programs={as === 'member-panel' ? programs : []} onOpenDepartment={id => alert(`open ${id}`)} onOpenClass={id => alert(`class ${id}`)} />
+      </div>
+    );
+  }
   if (as === 'library-greatfaith') {
     // Great Faith's Revelation 2 course, imported for real from its Google links (via the lab's stand-in server).
     return (

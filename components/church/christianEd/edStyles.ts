@@ -96,6 +96,16 @@ export const ED_CSS = `
 .ce .channels button[aria-pressed="true"]{background:var(--brand);color:#fff}
 .ce .channels button:not([aria-pressed="true"]):hover{color:var(--ink);background:var(--g3)}
 .ce .badge{font-family:var(--fm);font-size:.62rem;background:rgba(255,140,0,.22);color:var(--orange);padding:1px 6px;border-radius:99px}
+.ce .livedot{width:8px;height:8px;border-radius:99px;background:#ff3b6b;box-shadow:0 0 0 0 rgba(255,59,107,.6);animation:ceLive 1.6s infinite}
+@keyframes ceLive{0%{box-shadow:0 0 0 0 rgba(255,59,107,.6)}70%{box-shadow:0 0 0 7px rgba(255,59,107,0)}100%{box-shadow:0 0 0 0 rgba(255,59,107,0)}}
+.ce .tag.live{background:rgba(255,59,107,.2);color:#ff7aa8;display:inline-flex;gap:5px;align-items:center}
+.ce .club .art .live{position:absolute;left:10px;top:10px;font-family:var(--fd);font-size:.6rem;font-weight:900;letter-spacing:.08em;padding:3px 8px;border-radius:99px;background:#ff3b6b;color:#fff;display:inline-flex;gap:5px;align-items:center}
+.ce .ctabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:14px;scrollbar-width:none;border-bottom:1px solid var(--bd)}
+.ce .ctabs::-webkit-scrollbar{display:none}
+.ce .ctabs button{appearance:none;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--dim);cursor:pointer;font-family:var(--fd);font-weight:700;font-size:.82rem;padding:10px 12px;white-space:nowrap;display:inline-flex;gap:7px;align-items:center}
+.ce .ctabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--orange)}
+.ce .ctabs button:not([aria-selected="true"]):hover{color:var(--ink)}
+.ce .ctabs .mine{font-family:var(--fm);font-size:.58rem;color:var(--faint)}
 .ce .cgrid{display:grid;gap:16px;grid-template-columns:1fr}
 @media(min-width:980px){.ce .cgrid{grid-template-columns:minmax(0,1fr) 290px;align-items:start}}
 .ce .rail{display:grid;gap:12px}
