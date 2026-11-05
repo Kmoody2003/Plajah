@@ -7,7 +7,10 @@ import { CHANGELOG } from './data/changelog';
 import { isChunkLoadError, recoverFromStaleChunk } from './src/lib/staleChunk';
 
 // @ts-ignore
-import { registerSW } from 'virtual:pwa-register';
+import { registerSW } from 'virtual:pwa-register';
+// Catch the browser's one-time install prompt early, for the Install card on Member Home.
+import './services/pwaInstall';
+
 
 // Keeps this browser able to load a document's private images. Loaded apart so the entry chunk stays small.
 void import('./services/tela/telaMediaSession').then(m => m.startTelaMediaSession());

@@ -74,6 +74,7 @@ import VespersRecap from '../scripture/VespersRecap';
 import { sessionIdFor } from '../../services/kairosService';
 import ElevateMobilizeHub from './ElevateMobilizeHub';
 import MyOrgTasksAndDepartments from './MyOrgTasksAndDepartments';
+import InstallAppCard from './InstallAppCard';
 import MinistryPage from './MinistryPage';
 import { ensureDefaultTemplatedClassrooms, type ChurchProgram } from '../../services/churchEducationService';
 import { memberDepartments, educationDepartment } from '../../services/memberDepartments';
@@ -557,6 +558,9 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
             onOpenServe={() => setSection('MOBILIZE_AND_SHIFTS')}
           />
         )}
+
+        {/* Install Plajah as a web app on this device (hidden once installed). */}
+        {!openDept && section === 'SANCTUARY_STUDIO' && <InstallAppCard orgName={org?.name} />}
 
         {/* A department opened from the tab row (Christian Ed shows its class tabs + class gallery). */}
         {openDept && openDeptMinistry && (
