@@ -12,7 +12,7 @@ const Lab: React.FC = () => {
   // Lorea's shelf asks Tela to open the workspace; here the lab stands in for TelaView.
   useEffect(() => { const on = (e: Event) => setOpen((e as CustomEvent).detail || {}); window.addEventListener(OPEN_STORY_INTEL_EVENT, on); return () => window.removeEventListener(OPEN_STORY_INTEL_EVENT, on); }, []);
   return open
-    ? <StoryIntelWorkspace key={JSON.stringify(open)} onClose={() => setOpen(null)} initialVideoId={open.videoId} initialView={open.view} />
+    ? <StoryIntelWorkspace key={JSON.stringify(open)} onClose={() => setOpen(null)} initialVideoId={open.videoId} initialSource={open.source} initialView={open.view} />
     : <div style={{ padding: 32 }}><button onClick={() => setOpen({})} style={{ padding: '8px 16px', borderRadius: 999, background: '#7c5cff', color: '#fff', fontWeight: 700, marginBottom: 24 }}>Open workspace</button><StoryIntelShelf /><p style={{ opacity: .5, fontSize: 12, marginTop: 16 }}><a href="/lab/docs" target="_blank">Store contents</a></p></div>;
 };
 createRoot(document.getElementById('root')!).render(<Lab />);

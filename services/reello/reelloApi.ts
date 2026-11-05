@@ -4,8 +4,7 @@
 
 import { auth } from '../firebase';
 import { DEFAULT_PREFS, type ReelloUploadPrefs } from './uploadPrefs';
-import type { ArticleDraft, DraftState, IntelOptions, ReelloIntelJob, WorldFiling } from './intel/types';
-import type { FindingEdits } from '../storyIntel/findings';
+import type { ArticleDraft, DraftState, IntelOptions, ReelloIntelJob } from './intel/types';
 
 const base = () => ((import.meta as any).env?.VITE_APP_URL ?? window.location.origin) + '/api/reello';
 
@@ -36,13 +35,3 @@ export const postIntelDraft = (videoId: string, key: string, edits?: unknown) =>
   call<{ draft: DraftState; article?: ArticleDraft }>(`/intel/${encodeURIComponent(videoId)}/post`, { method: 'POST', body: JSON.stringify({ key, ...(edits ? { edits } : {}) }) });
 export const discardIntelDraft = (videoId: string, key: string) =>
   call<{ draft: DraftState }>(`/intel/${encodeURIComponent(videoId)}/discard`, { method: 'POST', body: JSON.stringify({ key }) }).then(r => r.draft);
-
-// Story Intelligence workspace (Tela): file findings into a World, or skip them.
-export type WorldMatch = { id: string; by: 'source' | 'name'; name: string };
-export const intelWorldMatches = (videoId: string, worldId: string) =>
-  call<{ matches: Record<string, WorldMatch> }>(`/intel/${encodeURIComponent(videoId)}/world?worldId=${encodeURIComponent(worldId)}`).then(r => r.matches);
-export const fileFindings = (videoId: string, worldId: string, items: Array<{ key: string; edits?: FindingEdits }>) =>
-  call<{ results: Array<{ key: string; ok: boolean; entryId?: string; merged?: boolean; error?: string }>; worldFiling: Record<string, WorldFiling> }>(
-    `/intel/${encodeURIComponent(videoId)}/file`, { method: 'POST', body: JSON.stringify({ worldId, items }) });
-export const skipFindings = (videoId: string, keys: string[], undo = false) =>
-  call<{ worldFiling: Record<string, WorldFiling> }>(`/intel/${encodeURIComponent(videoId)}/skip`, { method: 'POST', body: JSON.stringify({ keys, undo }) }).then(r => r.worldFiling);

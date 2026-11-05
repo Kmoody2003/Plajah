@@ -3067,7 +3067,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
 
   if (storyIntel) {
     return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0d0c12] text-white/60">Loading Story Intelligence…</div>}>
-      <StoryIntelWorkspace onClose={() => setStoryIntel(null)} initialVideoId={storyIntel.videoId} initialView={storyIntel.view}/>
+      <StoryIntelWorkspace onClose={() => setStoryIntel(null)} initialVideoId={storyIntel.videoId} initialSource={storyIntel.source} initialView={storyIntel.view}/>
     </React.Suspense>;
   }
 

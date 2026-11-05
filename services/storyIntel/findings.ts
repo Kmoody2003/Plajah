@@ -11,8 +11,8 @@
 
 import type { IntelPerson, ReelloIntelJob, WorldFiling } from '../reello/intel/types';
 
-export type FindingKind = 'character' | 'lore' | 'timeline' | 'asset' | 'product';
-export type EntryCollection = 'characters' | 'lore' | 'timeline' | 'asset';
+export type FindingKind = 'character' | 'lore' | 'timeline' | 'asset' | 'relation' | 'product';
+export type EntryCollection = 'characters' | 'lore' | 'timeline' | 'asset' | 'graph';
 
 export interface FindingMoment { tSec: number; text?: string }
 
@@ -31,7 +31,12 @@ export interface Finding {
   loreType?: LoreType;
   year?: number;
   assetId?: string;
+  /** Where the asset doc lives (default videos). */
+  assetCollection?: 'videos' | 'albums';
   mentionedOnly?: boolean;
+  /** relation only: the two findings it connects (each is added too if it isn't yet). */
+  ends?: [string, string];
+  relationshipType?: string;
   /** product only: where it stands in the store. */
   storeState?: string;
 }
@@ -39,10 +44,14 @@ export interface Finding {
 export type LoreType = 'LOCATION' | 'ENVIRONMENT' | 'ITEM' | 'PLOT_POINT' | 'BACKSTORY' | 'EVENT' | 'FACTION' | 'CREATURE';
 
 export const STORY_INTEL_APP = 'STORY_INTEL' as const;
-export const FINDING_KEY_RE = /^(person|lore|date|chapter|asset|product):[\w.-]{1,96}$/;
+export const FINDING_KEY_RE = /^(person|lore|date|chapter|asset|rel|product):[\w.~-]{1,120}$/;
 
 const LORE_TYPE: Record<string, LoreType> = { place: 'LOCATION', thing: 'ITEM', group: 'FACTION', idea: 'BACKSTORY' };
 const LORE_WORD: Record<string, string> = { place: 'Place', thing: 'Thing', group: 'Group', idea: 'Idea' };
+export const RELATION_WORD: Record<string, string> = {
+  FAMILY: 'Family', FRIEND: 'Friends', MENTOR: 'Mentor', COLLEAGUE: 'Work together', RIVAL: 'Rivals', PARTNER: 'Partners',
+  OWNS: 'Owns', FOUNDED: 'Founded', LIVES_IN: 'Lives in', WORKS_AT: 'Works at', MEMBER_OF: 'Member of', APPEARS_WITH: 'Appear together',
+};
 const ROLE_WORD: Record<string, string> = { host: 'Host', guest: 'Guest', interviewee: 'Interviewee', performer: 'Performer', mentioned: 'Mentioned', other: 'Appears' };
 
 export const nameKey = (s: string) => (s || '').toLowerCase().normalize('NFKD').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
@@ -117,6 +126,34 @@ export function findingsFromJob(job: Pick<ReelloIntelJob, 'videoId' | 'videoTitl
     });
   });
 
+  // Relationships: what the video states, else who shares a chapter (weaker, so medium confidence).
+  const keyByName = new Map(out.filter(f => f.kind === 'character' || f.kind === 'lore').map(f => [nameKey(f.title), f]));
+  const rels = r.relations || [];
+  for (const rel of rels) {
+    const a = keyByName.get(nameKey(rel.a)); const b = keyByName.get(nameKey(rel.b));
+    if (!a || !b) continue;
+    out.push({
+      key: `rel:${rel.id}`, kind: 'relation', title: `${a.title} and ${b.title}`, summary: RELATION_WORD[rel.type] || 'Connected',
+      why: rel.evidence ? `The video says: ${rel.evidence}` : 'The video connects them.', moments: rel.tSec != null ? [{ tSec: rel.tSec }] : [],
+      confidence: 'high', ends: [a.key, b.key], relationshipType: rel.type,
+    });
+  }
+  if (!rels.length) {
+    const ppl = out.filter(f => f.kind === 'character' && !f.mentionedOnly && f.moments.length);
+    const bounds = chs.map((c, i) => [c.tSec, chs[i + 1]?.tSec ?? Number.MAX_SAFE_INTEGER] as const);
+    const inChapters = (f: Finding) => new Set(f.moments.map(m => bounds.findIndex(([s0, e0]) => m.tSec >= s0 && m.tSec < e0)).filter(i => i >= 0));
+    for (let i = 0; i < ppl.length; i++) for (let j = i + 1; j < ppl.length; j++) {
+      const A = inChapters(ppl[i]), B = inChapters(ppl[j]);
+      const shared = [...A].filter(x => B.has(x));
+      if (!shared.length) continue;
+      out.push({
+        key: `rel:with~${ppl[i].key.slice(7, 50)}~${ppl[j].key.slice(7, 50)}`, kind: 'relation', title: `${ppl[i].title} and ${ppl[j].title}`,
+        summary: 'Appear together', why: `Both appear in ${shared.length === 1 ? `"${chs[shared[0]].title}"` : `${shared.length} chapters`}.`,
+        moments: [{ tSec: chs[shared[0]].tSec }], confidence: 'medium', ends: [ppl[i].key, ppl[j].key], relationshipType: 'APPEARS_WITH',
+      });
+    }
+  }
+
   // Assets: the video itself and every Short already posted from it.
   out.push({
     key: 'asset:video', kind: 'asset', title: job.videoTitle || 'This video', summary: 'The full video',
@@ -165,7 +202,7 @@ function speakersFromQuotes(quotes: NonNullable<ReelloIntelJob['report']>['quote
 export interface FindingEdits { title?: string; summary?: string; year?: number }
 
 export const collectionFor = (kind: FindingKind): EntryCollection | null =>
-  kind === 'character' ? 'characters' : kind === 'lore' ? 'lore' : kind === 'timeline' ? 'timeline' : kind === 'asset' ? 'asset' : null;
+  kind === 'character' ? 'characters' : kind === 'lore' ? 'lore' : kind === 'timeline' ? 'timeline' : kind === 'asset' ? 'asset' : kind === 'relation' ? 'graph' : null;
 
 export const sourceRefFor = (videoId: string, key: string) => `${videoId}:${key}`;
 
@@ -252,3 +289,47 @@ export function stateOf(f: Finding, filing?: Record<string, WorldFiling>): Findi
 /** What the Inbox still asks about for one job. */
 export const waitingCount = (job: Pick<ReelloIntelJob, 'videoId' | 'videoTitle' | 'report' | 'drafts' | 'createdAt' | 'worldFiling'>) =>
   findingsFromJob(job).filter(f => stateOf(f, job.worldFiling) === 'NEW').length;
+
+// ── Auto-file rules ───────────────────────────────────────────────────────────
+// Per kind: 'ask' = always wait in the Inbox · 'known' = add on its own only when it joins something
+// already in the World (the same person in a new episode) · 'all' = add high-confidence ones on their own.
+
+export type RuleMode = 'ask' | 'known' | 'all';
+export type RuleKind = Exclude<FindingKind, 'product'>;
+export const RULE_KINDS: RuleKind[] = ['character', 'lore', 'timeline', 'asset', 'relation'];
+
+export interface StoryIntelRules {
+  enabled: boolean;
+  /** The World things are added to on their own. */
+  worldId: string;
+  modes: Record<RuleKind, RuleMode>;
+  updatedAt?: number;
+}
+
+export const DEFAULT_RULES: StoryIntelRules = {
+  enabled: false, worldId: '',
+  // Media stays 'ask': a film or album rarely belongs in every World, so it's the creator's call.
+  modes: { character: 'known', lore: 'ask', timeline: 'ask', asset: 'ask', relation: 'known' },
+};
+
+export function sanitizeRules(raw: any): StoryIntelRules {
+  const modes = { ...DEFAULT_RULES.modes };
+  for (const k of RULE_KINDS) {
+    const m = raw?.modes?.[k];
+    if (m === 'ask' || m === 'known' || m === 'all') modes[k] = m;
+  }
+  const worldId = typeof raw?.worldId === 'string' && /^[\w-]{1,128}$/.test(raw.worldId) ? raw.worldId : '';
+  return { enabled: raw?.enabled === true && !!worldId, worldId, modes };
+}
+
+/** Which waiting findings the rules add without asking. `known` = keys that already have a World match. */
+export function autoFileKeys(findings: Finding[], filing: Record<string, WorldFiling> | undefined, known: Set<string>, rules: StoryIntelRules): string[] {
+  if (!rules.enabled || !rules.worldId) return [];
+  return findings.filter(f => {
+    if (f.kind === 'product' || stateOf(f, filing) !== 'NEW') return false;
+    const mode = rules.modes[f.kind as RuleKind] || 'ask';
+    if (mode === 'all') return f.confidence === 'high' || known.has(f.key);
+    if (mode === 'known') return known.has(f.key);
+    return false;
+  }).map(f => f.key);
+}

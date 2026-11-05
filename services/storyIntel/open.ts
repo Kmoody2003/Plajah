@@ -5,7 +5,7 @@
 export const OPEN_STORY_INTEL_EVENT = 'tela:open-story-intel';
 const PENDING = '__plajahStoryIntelPending';
 
-export interface StoryIntelRequest { videoId?: string; view?: 'inbox' | 'desk' }
+export interface StoryIntelRequest { videoId?: string; /** `${kind}:${id}` for a film or album. */ source?: string; view?: 'inbox' | 'desk' }
 
 export function openStoryIntelWorkspace(req: StoryIntelRequest = {}) {
   (window as any)[PENDING] = req;

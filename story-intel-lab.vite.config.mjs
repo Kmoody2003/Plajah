@@ -60,6 +60,26 @@ const MARKET = {
   quotes: [{ text: 'Same spot every Saturday for nine years.', speaker: 'Marcus Hill', startSec: 224, endSec: 228 }],
 };
 
+// A film read by the film pipeline (report lives in Storage) and an album read by music intelligence.
+const FILM_REPORT = {
+  themes: ['Survival', 'Trust between strangers'],
+  structure: { acts: [{ number: 1, title: 'The cemetery', startSec: 0, endSec: 900, summary: 'Barbra and Johnny visit a grave and are attacked.' }, { number: 2, title: 'The farmhouse', startSec: 900, endSec: 4200, summary: 'Strangers board up an isolated house.' }, { number: 3, title: 'Dawn', startSec: 4200, endSec: 5760 }] },
+  characters: [
+    { refId: 'ch1', name: 'Barbra', tier: 'MAIN', description: 'Flees the cemetery and finds the farmhouse.', confidence: 0.9, screenTimeSec: 2400, dialogueLines: 60, appearances: [{ sceneId: 's1', tSec: 30 }, { sceneId: 's2', tSec: 1000 }, { sceneId: 's3', tSec: 1500 }] },
+    { refId: 'ch2', name: 'Ben', tier: 'MAIN', description: 'Takes charge of the house.', confidence: 0.95, screenTimeSec: 3600, dialogueLines: 140, appearances: [{ sceneId: 's2', tSec: 1010 }, { sceneId: 's3', tSec: 1510 }, { sceneId: 's4', tSec: 4300 }] },
+    { refId: 'ch3', name: 'Harry Cooper', tier: 'SUPPORTING', description: 'Hides in the cellar with his family.', confidence: 0.85, appearances: [{ sceneId: 's3', tSec: 1600 }] },
+  ],
+  scenes: [
+    { id: 's1', title: 'Cemetery', startSec: 20, characterRefIds: ['ch1'] },
+    { id: 's2', title: 'Farmhouse arrival', startSec: 990, characterRefIds: ['ch1', 'ch2'] },
+    { id: 's3', title: 'Boarding up', startSec: 1500, characterRefIds: ['ch1', 'ch2', 'ch3'] },
+    { id: 's4', title: 'Dawn', startSec: 4250, characterRefIds: ['ch2'] },
+  ],
+  locations: [{ refId: 'loc1', name: 'The farmhouse', description: 'An isolated house in rural Pennsylvania.', sceneIds: ['s2', 's3'], confidence: 0.9 }],
+  macguffins: [{ refId: 'mg1', name: 'The radio', narrativeRole: 'KEY_PROP', description: 'News reports explain what is happening.', sceneIds: ['s3'] }],
+  stills: [],
+};
+
 const reelloApi = () => ({
   name: 'story-intel-api',
   async configureServer(server) {
@@ -82,6 +102,10 @@ const reelloApi = () => ({
       ['worlds/w_kitchen', { id: 'w_kitchen', creatorId: 'lab-user', name: 'The Kitchen Table', assetIds: [], createdAt: Date.now() - 30 * day }],
       ['worlds/w_kitchen/characters/c_dee', { id: 'c_dee', worldId: 'w_kitchen', name: 'Denise Walker', bio: 'Aunt Dee. Written by the creator in Worlds.', role: 'Host', sourceApp: 'WORLD' }],
       ['worlds/w_east', { id: 'w_east', creatorId: 'lab-user', name: 'Eastside Stories', assetIds: [], createdAt: Date.now() - 60 * day }],
+      ['taleoAnalysis/film_notld', { albumId: 'film_notld', ownerId: 'lab-user', status: 'READY', reportPath: 'taleoAnalysis/lab-user/film_notld/report.json', progress: { stage: 'Ready', pct: 100 }, createdAt: Date.now() - 5 * day, updatedAt: Date.now() - 5 * day }],
+      ['albums/film_notld', { id: 'film_notld', ownerId: 'lab-user', title: 'Night of the Living Dead (1968)', releaseYear: 1968, type: 'VIDEO', subType: 'MOVIE', tracks: [{ id: 't1', muxPlaybackId: 'LABFILMPID', duration: 5760 }] }],
+      ['musicIntel/al_porch', { albumId: 'al_porch', ownerId: 'lab-user', status: 'READY', album: { overview: 'Songs about the people who keep a neighborhood going.', sonicSignature: 'Warm porch soul.', throughlines: ['Leaving home and coming back', 'Food as memory'] }, progress: { done: 10, total: 10 }, createdAt: Date.now() - 2 * day, updatedAt: Date.now() - 2 * day }],
+      ['albums/al_porch', { id: 'al_porch', ownerId: 'lab-user', title: 'Porchlight (EP)', artist: 'Denise Walker', releaseDate: '2025-06-01', tracks: [] }],
     ]);
     const store = {
       async get(p) { return docs.has(p) ? structuredClone(docs.get(p)) : null; },
@@ -102,7 +126,10 @@ const reelloApi = () => ({
     api.get('/', (_req, res) => res.redirect('/story-intel-lab.html'));
     api.get('/lab/worlds', (_req, res) => res.json([...docs.entries()].filter(([k, v]) => k.split('/').length === 2 && k.startsWith('worlds/') && v.creatorId === 'lab-user').map(([, v]) => v)));
     api.get('/lab/videos/:id', (req, res) => { const v = docs.get(`videos/${req.params.id}`); v ? res.json(v) : res.status(404).json(null); });
-    api.get('/lab/docs', (_req, res) => res.json(Object.fromEntries([...docs.entries()].filter(([k]) => k.startsWith('worlds/') || k.startsWith('videos/') || k.startsWith('reelloIntel/')).map(([k, v]) => [k, k.startsWith('reelloIntel/') ? { status: v.status, worldFiling: v.worldFiling } : v]))));
+    api.get('/lab/docs', (_req, res) => res.json(Object.fromEntries([...docs.entries()].filter(([k]) => /^(worlds|videos|reelloIntel|taleoAnalysis|musicIntel|albums|storyIntelRules)\//.test(k)).map(([k, v]) => [k, /^(reelloIntel|taleoAnalysis|musicIntel)\//.test(k) ? { status: v.status, worldFiling: v.worldFiling, rulesCheckedAt: v.rulesCheckedAt } : v]))));
+    const { createStoryIntelRouter } = await server.ssrLoadModule('/routes/storyIntelSources.ts');
+    const files = { 'taleoAnalysis/lab-user/film_notld/report.json': FILM_REPORT };
+    api.use('/api/story-intel', createStoryIntelRouter({ store: { ...store, storageJson: async p => (files[p] ? structuredClone(files[p]) : null) }, callerUid: async () => 'lab-user' }));
     api.use('/api/reello', createReelloIntelRouter({
       store, callerUid: async () => 'lab-user',
       watch: async () => ({ raw: EP4, usage: { inTokens: 0, outTokens: 0, costUsd: 0 } }),

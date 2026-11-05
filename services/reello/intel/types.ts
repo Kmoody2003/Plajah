@@ -97,6 +97,18 @@ export interface IntelLoreItem {
   stillUrl?: string;
 }
 
+/** How two named people (or a person and a place/thing) are connected, as the video says it. */
+export interface IntelRelation {
+  id: string;
+  /** Names exactly as in people[] / lore[]. */
+  a: string;
+  b: string;
+  /** FAMILY | FRIEND | MENTOR | COLLEAGUE | RIVAL | PARTNER | OWNS | FOUNDED | LIVES_IN | WORKS_AT | MEMBER_OF | APPEARS_WITH */
+  type: string;
+  evidence?: string;
+  tSec?: number;
+}
+
 /** A dated event said or shown in the video ("opened in '74"). */
 export interface IntelDate {
   id: string;
@@ -168,6 +180,7 @@ export interface VideoIntelReport {
   people?: IntelPerson[];
   lore?: IntelLoreItem[];
   dates?: IntelDate[];
+  relations?: IntelRelation[];
 }
 
 /** What the account did with one finding in the Story Intelligence workspace. */
@@ -179,6 +192,8 @@ export interface WorldFiling {
   entryId?: string;
   /** Filed into an entry that already existed (same name, or an earlier run). */
   merged?: boolean;
+  /** Added by the account's auto-file rules, not by a person. */
+  auto?: boolean;
   at: number;
 }
 

@@ -4,7 +4,8 @@ import express from 'express';
 import type { AddressInfo } from 'node:net';
 import { buildReport, normalizePeople, normalizeLore, normalizeDates } from '../services/reello/intel/core.ts';
 import { findingsFromJob, matchEntry, mergeEntryFields, newEntryFields, stateOf, waitingCount, sourceRefFor } from '../services/storyIntel/findings.ts';
-import { createReelloIntelRouter, type ReelloIntelStore } from '../routes/reelloIntel.ts';
+import { type ReelloIntelStore } from '../routes/reelloIntel.ts';
+import { createStoryIntelRouter } from '../routes/storyIntelSources.ts';
 
 // ── what the model reads → people, lore, dates ────────────────────────────────
 
@@ -120,9 +121,9 @@ function memStore(seed: Record<string, any>) {
   return { store, docs };
 }
 async function withServer(router: express.Router, fn: (base: string) => Promise<void>) {
-  const app = express(); app.use(express.json()); app.use('/api/reello', router);
+  const app = express(); app.use(express.json()); app.use('/api/story-intel', router);
   const srv = app.listen(0);
-  try { await fn(`http://127.0.0.1:${(srv.address() as AddressInfo).port}/api/reello`); } finally { srv.close(); }
+  try { await fn(`http://127.0.0.1:${(srv.address() as AddressInfo).port}/api/story-intel`); } finally { srv.close(); }
 }
 
 test('router: file into a World, refile without copies, join an existing character, skip, guard', async () => {
@@ -133,16 +134,16 @@ test('router: file into a World, refile without copies, join an existing charact
     'worlds/w1/characters/c_dee': { id: 'c_dee', worldId: 'w1', name: 'Denise Walker', bio: 'Aunt Dee, our host.' },
     'worlds/w2': { creatorId: 'u2', name: 'Not yours' },
   });
-  const router = createReelloIntelRouter({ store, callerUid: async req => (req.headers.authorization === 'Bearer u2' ? 'u2' : 'u1') });
+  const router = createStoryIntelRouter({ store: { ...store, storageJson: async () => null }, callerUid: async req => (req.headers.authorization === 'Bearer u2' ? 'u2' : 'u1') });
   await withServer(router, async base => {
     const H = (who = 'u1') => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${who}` });
-    const file = (body: any, who?: string) => fetch(`${base}/intel/v1/file`, { method: 'POST', headers: H(who), body: JSON.stringify(body) });
+    const file = (body: any, who?: string) => fetch(`${base}/video/v1/file`, { method: 'POST', headers: H(who), body: JSON.stringify(body) });
 
     assert.equal((await file({ worldId: 'w2', items: [{ key: 'person:p-marcus-hill' }] })).status, 404, 'not your World');
     assert.equal((await file({ worldId: 'w1', items: [{ key: 'person:p-marcus-hill' }] }, 'u2')).status, 404, 'not your reading');
     assert.equal((await file({ worldId: 'w1', items: [{ key: 'bogus' }] })).status, 400);
 
-    let m = await (await fetch(`${base}/intel/v1/world?worldId=w1`, { headers: H() })).json();
+    let m = await (await fetch(`${base}/video/v1/world?worldId=w1`, { headers: H() })).json();
     assert.equal(m.matches['person:p-denise-walker'].by, 'name', 'Denise is already in the World');
 
     let r = await (await file({ worldId: 'w1', items: [
@@ -172,14 +173,14 @@ test('router: file into a World, refile without copies, join an existing charact
     assert.deepEqual(docs.get('worlds/w1').assetIds, ['v1'], 'assets are a set');
 
     // Skip and bring back; a filed finding can't be skipped.
-    let s = await (await fetch(`${base}/intel/v1/skip`, { method: 'POST', headers: H(), body: JSON.stringify({ keys: ['date:' + docs.get('reelloIntel/v1').report.dates[0].id, 'person:p-marcus-hill'] }) })).json();
+    let s = await (await fetch(`${base}/video/v1/skip`, { method: 'POST', headers: H(), body: JSON.stringify({ keys: ['date:' + docs.get('reelloIntel/v1').report.dates[0].id, 'person:p-marcus-hill'] }) })).json();
     assert.equal(s.worldFiling['person:p-marcus-hill'].status, 'FILED');
     const dk = 'date:' + docs.get('reelloIntel/v1').report.dates[0].id;
     assert.equal(s.worldFiling[dk].status, 'SKIPPED');
-    s = await (await fetch(`${base}/intel/v1/skip`, { method: 'POST', headers: H(), body: JSON.stringify({ keys: [dk], undo: true }) })).json();
+    s = await (await fetch(`${base}/video/v1/skip`, { method: 'POST', headers: H(), body: JSON.stringify({ keys: [dk], undo: true }) })).json();
     assert.equal(s.worldFiling[dk], undefined);
 
-    m = await (await fetch(`${base}/intel/v1/world?worldId=w1`, { headers: H() })).json();
+    m = await (await fetch(`${base}/video/v1/world?worldId=w1`, { headers: H() })).json();
     assert.equal(m.matches['person:p-marcus-hill'].by, 'source');
     const left = waitingCount(docs.get('reelloIntel/v1'));
     const all = findingsFromJob(docs.get('reelloIntel/v1')).filter(f => f.kind !== 'product').length;

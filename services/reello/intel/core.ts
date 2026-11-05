@@ -4,7 +4,7 @@
 // notice live in exactly one place.
 
 import type {
-  ArticleDraft, ArticleDraftBlock, IntelDate, IntelLoreItem, IntelOptions, IntelPerson, OfferPackage, ProductOffer, QuoteMoment,
+  ArticleDraft, ArticleDraftBlock, IntelDate, IntelLoreItem, IntelOptions, IntelPerson, IntelRelation, OfferPackage, ProductOffer, QuoteMoment,
   VideoChapter, VideoIntelReport, VideoLink, VideoStill,
 } from './types';
 
@@ -341,6 +341,29 @@ export function normalizeDates(raw: unknown, durationSec?: number): IntelDate[] 
   return out.sort((a, b) => a.year - b.year).slice(0, 20);
 }
 
+export const RELATION_TYPES = ['FAMILY', 'FRIEND', 'MENTOR', 'COLLEAGUE', 'RIVAL', 'PARTNER', 'OWNS', 'FOUNDED', 'LIVES_IN', 'WORKS_AT', 'MEMBER_OF', 'APPEARS_WITH'] as const;
+
+/** Connections the video states, kept only between names it actually lists (people or lore). */
+export function normalizeRelations(raw: unknown, names: string[], durationSec?: number): IntelRelation[] {
+  const dur = durationSec && durationSec > 0 ? durationSec : Number.MAX_SAFE_INTEGER;
+  const byKey = new Map(names.map(n => [nameKey(n), n]));
+  const seen = new Set<string>();
+  const out: IntelRelation[] = [];
+  for (const r of (Array.isArray(raw) ? raw : []) as any[]) {
+    const a = byKey.get(nameKey(str(r?.a, 100))); const b = byKey.get(nameKey(str(r?.b, 100)));
+    if (!a || !b || a === b) continue;
+    const t0 = str(r?.type, 20).toUpperCase().replace(/[^A-Z_]/g, '_');
+    const type = (RELATION_TYPES as readonly string[]).includes(t0) ? t0 : 'APPEARS_WITH';
+    const k = [nameKey(a), nameKey(b)].sort().join('|') + '|' + type;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    const t = num(r?.tSec);
+    out.push({ id: `r-${slug(a).slice(0, 18)}-${slug(b).slice(0, 18)}-${type.toLowerCase()}`, a, b, type, evidence: str(r?.evidence, 200) || undefined, tSec: t != null && t >= 0 && t <= dur ? Math.round(t) : undefined });
+    if (out.length >= 30) break;
+  }
+  return out;
+}
+
 /** Assemble the report from the model's JSON; stills come from Mux at the moments that matter. */
 export function buildReport(raw: any, ctx: { durationSec?: number; description?: string; playbackId?: string }): VideoIntelReport {
   const offers = normalizeOffers(raw?.offers, ctx);
@@ -349,6 +372,7 @@ export function buildReport(raw: any, ctx: { durationSec?: number; description?:
   const people = normalizePeople(raw?.people, ctx.durationSec);
   const lore = normalizeLore(raw?.lore, ctx.durationSec);
   const dates = normalizeDates(raw?.dates, ctx.durationSec);
+  const relations = normalizeRelations(raw?.relations, [...people.map(p => p.name), ...lore.map(l => l.title)], ctx.durationSec);
   const stills: VideoStill[] = [];
   if (ctx.playbackId) {
     const pid = ctx.playbackId;
@@ -376,7 +400,7 @@ export function buildReport(raw: any, ctx: { durationSec?: number; description?:
     links: normalizeLinks(raw?.links, ctx.description),
     callsToAction: ((Array.isArray(raw?.callsToAction) ? raw.callsToAction : []) as unknown[]).map(t => str(t, 160)).filter(Boolean).slice(0, 8),
     language: str(raw?.language, 20) || undefined,
-    people, lore, dates,
+    people, lore, dates, relations,
   };
 }
 
@@ -492,9 +516,10 @@ Return STRICT JSON only:
  "callsToAction": ["..."],
  "people": [{"name": "full name as said or shown", "role": "host|guest|interviewee|performer|mentioned|other", "description": "one line: who they are in this video", "onScreen": true, "moments": [0], "bestStillSec": 0}],
  "lore": [{"title": "a named place, thing, group or recurring idea", "kind": "place|thing|group|idea", "description": "one or two lines from what the video says", "tSec": 0}],
- "dates": [{"year": 1974, "what": "what happened that year, as the video says it", "tSec": 0}]
+ "dates": [{"year": 1974, "what": "what happened that year, as the video says it", "tSec": 0}],
+ "relations": [{"a": "a name from people", "b": "a name from people or lore", "type": "FAMILY|FRIEND|MENTOR|COLLEAGUE|RIVAL|PARTNER|OWNS|FOUNDED|LIVES_IN|WORKS_AT|MEMBER_OF", "evidence": "what is said or shown", "tSec": 0}]
 }
-Rules for people: list a person ONLY if their name is spoken or shown (caption, lower third, sign, credit). Never guess who someone is from their face or voice, and never add someone unnamed. "mentioned" = talked about but never seen or heard. Lore is what the video itself establishes — no outside facts. Dates are only years the video states.
+Rules for people: list a person ONLY if their name is spoken or shown (caption, lower third, sign, credit). Never guess who someone is from their face or voice, and never add someone unnamed. "mentioned" = talked about but never seen or heard. Lore is what the video itself establishes — no outside facts. Dates are only years the video states. Relations only as the video states them, between names you listed.
 Rules: an offer is something the creator is actually selling or promoting for purchase — not something merely visible. Prices are numbers in the stated currency. Only list packages that were offered. Times are seconds from the start of the full video. Up to 8 quotes, each one complete thought, 3-40 seconds long. No invented facts.`;
 
 export const ARTICLE_PROMPT = (ctx: { title: string; accountName: string; report: VideoIntelReport }) => `Write a blog post that promotes a video by ${ctx.accountName || 'a creator'} titled "${ctx.title.slice(0, 200)}".

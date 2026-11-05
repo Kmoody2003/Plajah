@@ -128,6 +128,7 @@ import { veoRouter } from './routes/veo';
 import { taleoRouter, enqueueIfReady as taleoEnqueueIfReady } from './routes/taleo';
 import { createMusicIntelRouter } from './routes/musicIntel';
 import { createReelloIntelRouter, sweepWaiting as reelloIntelSweep } from './routes/reelloIntel';
+import { createStoryIntelRouter } from './routes/storyIntelSources';
 import { reelloOrgChannelsRouter } from './routes/reelloOrgChannels';
 import { authMethodsRouter } from './routes/authMethods';
 // Anti-bot layer (docs/ANTI_BOT_PLAYBOOK.md): App Check monitor, signup-check, shared limits.
@@ -10281,6 +10282,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // Department channels: an org's departments get their own Reello channels once they post (routes/reelloOrgChannels.ts).
   app.use('/api/reello/org-channels', apiLimiter, express.json({ limit: '8kb' }), reelloOrgChannelsRouter);
   app.use('/api/reello', apiLimiter, express.json({ limit: '64kb' }), createReelloIntelRouter());
+  // Story Intelligence → Worlds (Tela workspace, Lorea shelf): videos, films and albums.
+  app.use('/api/story-intel', apiLimiter, express.json({ limit: '64kb' }), createStoryIntelRouter());
 
   // ── Chora Music Intelligence ─────────────────────────────────────────────────
   // The music sibling of Taleo Story Intelligence (routes/musicIntel.ts). Every song is heard
