@@ -52,7 +52,7 @@ const SamplingRightsPanel = lazy(() => import('./melos/sampling/SamplingRightsPa
 const ProjectPromoManager = lazy(() => import('./ProjectPromoManager'));
 import { AUDIO_ACCEPT } from '../services/audioFormatService';
 import AudioHealthPanel from './AudioHealthPanel';
-import { getAudiusSession, loginWithAudius, publishAlbumToAudius } from '../services/audiusService';
+import { getAudiusSession, loginWithAudius, runAudiusPublishForAlbum } from '../services/audiusService';
 import {
   STORY_INTEL_VTUBER_CHARACTERS,
   loadCreatorCharacterPolicy,
@@ -1082,7 +1082,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         isPublic: !isPrivate && !draftMode,
         isPrivate, isIntimateOnly, isDraft: draftMode, isScheduled, publishVideosToGallery, isSlideshowEnabled,
         publishToAudius: type === 'MUSIC' ? publishToAudius : undefined,
-        audiusPublishStatus: (type === 'MUSIC' && publishToAudius) ? 'pending' as const : initialAlbum?.audiusPublishStatus,
+        audiusPublishStatus: (type === 'MUSIC' && publishToAudius && initialAlbum?.audiusPublishStatus !== 'published') ? 'pending' as const : initialAlbum?.audiusPublishStatus,
         releaseDate: releaseDate ? new Date(releaseDate).getTime() : undefined,
         ...(isScheduled && releaseAnnouncement ? { releaseAnnouncement } : {}),
         worldId: finalWorldId,
@@ -1137,22 +1137,16 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             // same windowed-transcription endpoint the player's "Sync Lyrics" uses (short audio
             // windows anchored to real timestamps), instead of guessing evenly-spaced times.
             void syncCaptionsAfterPublish(finalAlbum);
-            if (publishToAudius && !draftMode) {
-              const s = getAudiusSession();
-              if (s && s.scope === 'write' && s.accessToken) {
-                void publishAlbumToAudius(finalAlbum, s.accessToken, s.userId, undefined, s.handle)
-                  .then(res => {
-                    if (res.published.length > 0) {
-                      void publishToCloud({
-                        ...finalAlbum,
-                        publishToAudius: true,
-                        audiusPublishStatus: 'published',
-                        audiusUrl: res.albumPermalink || `https://audius.co/${s.handle}`,
-                      });
-                    }
-                  })
-                  .catch(() => {});
-              }
+            // Send to Audius once; a release that's already there isn't re-uploaded on every save.
+            // The job writes its own status/links/error onto the album (Distribution hub shows it).
+            if (publishToAudius && !draftMode && initialAlbum?.audiusPublishStatus !== 'published' && finalAlbum?.id) {
+              void runAudiusPublishForAlbum({ ...finalAlbum, audiusTrackIds: initialAlbum?.audiusTrackIds, audiusAlbumId: initialAlbum?.audiusAlbumId } as Album)
+                .then(res => {
+                  if (res.error || res.failed.length) {
+                    window.alert(`Audius publish didn't finish: ${res.error || res.failed[0]}\n\nYour release is live on Plajah. Retry from Distribution → Publish to Audius.`);
+                  }
+                })
+                .catch(err => console.error('[Audius] publish failed:', err));
             }
           }
         },

@@ -760,6 +760,11 @@ export interface Album {
   publishToAudius?: boolean;        // artist toggled "publish to Audius"
   audiusPublishStatus?: 'pending' | 'publishing' | 'published' | 'failed';
   audiusPermalinks?: string[];      // one URL per track published to Audius
+  audiusTrackIds?: Record<string, string>; // Plajah track id → Audius track id (retries skip these)
+  audiusAlbumId?: string;           // the Audius album collection, once created
+  audiusUrl?: string;               // where the release lives on Audius
+  audiusError?: string | null;      // why the last publish didn't finish
+  audiusPublishedAt?: number;
   // Early Access & Review Codes
   earlyAccessEnabled?: boolean;
   earlyAccessList?: EarlyAccessEntry[];
