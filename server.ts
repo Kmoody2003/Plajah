@@ -11009,7 +11009,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     app.get('*all', async (req, res, next) => {
       // API routes registered after this catch-all (/api/fetch-rss, /api/cora,
       // MUSE agent) must not be served the SPA shell — let them resolve.
-      if (req.path.startsWith('/api/') || req.path.startsWith('/t/') || req.path.startsWith('/i/')) return next();   // /t/* = public ticket page (ticketServer); /i/* = evite page (eviteServer)
+      if (req.path.startsWith('/api/') || req.path.startsWith('/t/') || req.path.startsWith('/i/') || req.path.startsWith('/o/') || req.path.startsWith('/r/')) return next();   // /t/* = public ticket page (ticketServer); /i/* = evite page (eviteServer); /o/* = buyer order page; /r/* = POS receipt
       // Hosting falls back here for /assets/** it doesn't have (this container's own bundle hashes,
       // which differ from the hosting build). A hashed file that isn't in dist/ is a 404 — never the shell.
       if (req.path.startsWith('/assets/')) return res.status(404).end();
@@ -11457,6 +11457,12 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   const loadShopSettings = async (b: string): Promise<ShopSettings> => {
     try { const d = await firestoreRead('businesses', b); return parseShopSettings(d?.storeSettings); } catch { return parseShopSettings(null); }
   };
+  // The return address is private: businesses/{b} is public-read, so it lives in server-only shopSecrets/{b}.shipFrom
+  // and only the shop's own managers ever get it back.
+  const loadShopShipFrom = async (b: string): Promise<ShopSettings['shipFrom']> => {
+    try { const d = await firestoreGetDeep('shopSecrets', b); return parseShopSettings({ shipFrom: d?.shipFrom ? JSON.parse(String(d.shipFrom)) : null }).shipFrom; }
+    catch { return parseShopSettings(null).shipFrom; }
+  };
   const shopNameFor = async (b: string): Promise<string> => {
     try {
       const biz = await firestoreRead('businesses', b);
@@ -11863,8 +11869,23 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   });
 
   /** A shop's public settings (policies, shipping, contact), ready to show. */
-  app.get('/api/store/settings/:b', async (req, res) => {
-    const s = await loadShopSettings(String(req.params.b || ''));
+  app.get('/api/store/settings/:b', async (req: any, res) => {
+    const b = String(req.params.b || '');
+    const s = await loadShopSettings(b);
+    s.shipFrom = parseShopSettings(null).shipFrom;   // never public
+    // A signed-in manager of this shop also gets the private return address (for the settings panel).
+    const authz = String(req.headers.authorization || '');
+    if (authz.startsWith('Bearer ')) {
+      const tok = await verifyFirebaseToken(authz.slice(7)).catch(() => null);
+      if (tok?.uid) {
+        req.uid = tok.uid;
+        const who = await shopCan(req, b, 'INVENTORY');
+        if (who.ok) {
+          s.shipFrom = await loadShopShipFrom(b);
+          return res.set('Cache-Control', 'private, no-store').json({ settings: s, returnPolicy: returnPolicyText(s.returns), shippingPolicy: shippingPolicyText(s.shipping) });
+        }
+      }
+    }
     res.set('Cache-Control', 'public, max-age=60').json({ settings: s, returnPolicy: returnPolicyText(s.returns), shippingPolicy: shippingPolicyText(s.shipping) });
   });
   app.post('/api/store/settings/:b', authMiddleware, express.json({ limit: '16kb' }), async (req: any, res) => {
@@ -11872,7 +11893,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     const who = await shopCan(req, b, 'INVENTORY');
     if (who.ok === false) return res.status(who.status).json({ error: who.error });
     const s = parseShopSettings({ ...req.body?.settings, updatedAt: Date.now() });
-    const ok = await firestorePatchDeep('businesses', b, { storeSettings: JSON.stringify(s) });
+    const ok = await firestorePatchDeep('businesses', b, { storeSettings: JSON.stringify({ ...s, shipFrom: parseShopSettings(null).shipFrom }) })
+      && await firestorePatchDeep('shopSecrets', b, { shipFrom: JSON.stringify(s.shipFrom), updatedAt: Date.now() });
     if (!ok) return res.status(503).json({ error: 'Could not save. Try again.' });
     res.json({ ok: true, settings: s, returnPolicy: returnPolicyText(s.returns), shippingPolicy: shippingPolicyText(s.shipping) });
   });
@@ -12072,6 +12094,7 @@ ${settings.contactEmail ? `<p class="m">Questions? <a href="mailto:${escHtml(set
       const { shippo } = await shopSecretsFor(b);
       if (!shippo) return res.status(400).json({ error: 'Connect your Shippo account in Policies & shipping first.', code: 'NO_SHIPPO' });
       const settings = await loadShopSettings(b);
+      settings.shipFrom = await loadShopShipFrom(b);
       if (!shipFromReady(settings.shipFrom)) return res.status(400).json({ error: 'Add your return address in Policies & shipping first.', code: 'NO_SHIP_FROM' });
       let items: any[] = []; try { items = JSON.parse(String(o.items || '[]')); } catch { /* none */ }
       const weighed: { qty: number; weightGrams?: number }[] = [];
