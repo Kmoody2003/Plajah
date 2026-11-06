@@ -777,6 +777,8 @@ export function createBilling(deps: BillingDeps) {
   function register(app: any) {
     // ---- connect ----
     app.post('/api/billing/connect/start', ...pre(), wrap(async (req, res) => {
+      // Stripe test mode (local only) must never store a test account id over a live one.
+      if (process.env.STRIPE_TEST_MODE === '1') { res.status(400).json({ error: 'Payout setup is off in Stripe test mode.' }); return; }
       await requireFlag(req, res, ALL_FLAGS);
       const ent = await entityFor(req, res, req.body?.entity);
       const s = stripe();

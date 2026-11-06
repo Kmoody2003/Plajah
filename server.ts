@@ -206,6 +206,24 @@ import { filmDistributionOf, resolveFilmCharge } from './services/filmPricing';
 import { dbIdFor } from './services/opsCollections';
 import { mirrorDoc, reconcileMirrors, isMirroredPath, subjectToDoc } from './services/opsMirror';
 
+// Stripe TEST MODE (local only): `STRIPE_TEST_MODE=1` or `--stripe-test`. Its keys come from the git-ignored
+// .env.stripe-test.local, loaded FIRST so they win over the live keys in .env.local. getStripe() then refuses any
+// non-test key, store checkouts pay out to one test connected account, and Connect onboarding is switched off so a
+// seller's live account id can never be overwritten by a test one.
+if (process.argv.includes('--stripe-test')) process.env.STRIPE_TEST_MODE = '1';
+const STRIPE_TEST_MODE = process.env.STRIPE_TEST_MODE === '1';
+if (STRIPE_TEST_MODE) {
+  if (process.env.K_SERVICE) throw new Error('STRIPE_TEST_MODE is for local runs only — never set it on Cloud Run.');
+  try {
+    readFileSync('.env.stripe-test.local', 'utf8').split('\n').forEach(line => {
+      const t = line.trim();
+      if (!t || t.startsWith('#') || t.indexOf('=') === -1) return;
+      const k = t.slice(0, t.indexOf('=')).trim(), v = t.slice(t.indexOf('=') + 1).trim().replace(/^(['"])(.*)\1$/, '$2');
+      if (k && !(k in process.env)) process.env[k] = v;
+    });
+  } catch { console.warn('[Stripe test] .env.stripe-test.local not found — copy .env.stripe-test.example and fill it in.'); }
+}
+
 // Load .env.local (development) or .env (production) — no dotenv dependency needed
 for (const envFile of ['.env.local', '.env']) {
   try {
@@ -1568,6 +1586,7 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
 function getStripe(): any {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key || key.startsWith('sk_live_YOUR')) throw new Error('Stripe secret key not configured');
+  if (STRIPE_TEST_MODE && !/^(sk|rk)_test_/.test(key)) throw new Error('Stripe test mode is on but STRIPE_SECRET_KEY is not a test key — refusing to use it.');
   // ESM server: use the static import (the old require('stripe') threw
   // "require is not defined"). Kept untyped so the many Stripe call sites,
   // written against an `any`, don't need re-typing.
@@ -2366,6 +2385,13 @@ async function orgWithFinance(orgId: string, pre?: Record<string, any> | null): 
 /** The org's connected Stripe account, or undefined. */
 async function orgStripeAccount(orgId: string): Promise<string | undefined> {
   return (await orgWithFinance(orgId))?.stripeAccountId || undefined;
+}
+/** Where a shop's sales pay out: the org's account, else the owner's. In Stripe test mode, always the one test account. */
+async function shopPayoutAccount(b: string): Promise<string | undefined> {
+  if (STRIPE_TEST_MODE) return process.env.STRIPE_TEST_DESTINATION || undefined;
+  const acct = await orgStripeAccount(b);
+  if (acct) return acct;
+  return (await firestoreRead('users', b))?.stripeConnectAccountId || undefined;
 }
 /** Bind a Stripe account to an org: the id goes on the private doc, donors see only a flag, webhooks use the index. */
 async function saveOrgStripeAccount(orgId: string, acct: string): Promise<boolean> {
@@ -3499,7 +3525,7 @@ async function startServer() {
                 // register), a per-shop order count, and the shopper achievements. Never blocks the order.
                 const buyer = String(order.customerUid || order.buyerId || '');
                 const shop = String(order.businessUid || order.sellerId || meta.businessUid || '');
-                if (buyer && shop && buyer !== shop) {
+                if (buyer && buyer !== 'guest' && !order.guest && shop && buyer !== shop) {   // guests have no account to reward
                   try {
                     const earned = Math.floor((Number(session.amount_total) || 0) / 100) * 1; // = LOYALTY_PTS_PER_DOLLAR at the register
                     await firestoreIncrement(`businesses/${shop}/loyalty/${buyer}`, { points: earned, onlineOrders: 1, spentCents: Number(session.amount_total) || 0 }, { customerUid: buyer, businessUid: shop, updatedAt: now });
@@ -3936,6 +3962,8 @@ async function startServer() {
   // ── Stripe Connect: Creator Payout Onboarding ────────────────────────────
   // Creates or retrieves a Stripe Express account for the creator and returns an onboarding URL.
   app.post('/api/stripe/connect/onboard', authMiddleware, express.json(), async (req: any, res) => {
+    // Test mode must never write a test account id over a seller's live one.
+    if (STRIPE_TEST_MODE) return res.status(400).json({ error: 'Payout setup is off in Stripe test mode. Test checkouts pay STRIPE_TEST_DESTINATION.' });
     const uid: string = req.uid;
     const orgId: string | undefined = req.body?.orgId;
     try {
@@ -11615,9 +11643,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const b = String(businessUid);
       if (customerUid && customerUid === b) return res.status(400).json({ error: 'You can’t buy from your own shop.' });
       // Resolve the business's connected Stripe account — the money goes straight to them.
-      let acct: string | undefined = await orgStripeAccount(b);
-      if (!acct) { const u = await firestoreRead('users', b); acct = u?.stripeConnectAccountId; }
-      if (!acct) return res.status(400).json({ error: 'This shop has not connected Stripe payouts yet.' });
+      const acct = await shopPayoutAccount(b);
+      if (!acct) return res.status(400).json({ error: STRIPE_TEST_MODE ? 'Stripe test mode: set STRIPE_TEST_DESTINATION (run scripts/stripeTestSetup.mjs).' : 'This shop has not connected Stripe payouts yet.' });
 
       const q = await quoteStoreCart(b, req.body);
       if (q.ok === false) return res.status(q.status).json({ error: q.error, code: q.code, available: q.available });
@@ -11689,6 +11716,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         ...(who?.email ? { customerEmail: String(who.email) } : {}),
         note: String(note || '').slice(0, 500), customerName: String(customerName || '').slice(0, 120),
         status: 'PENDING_PAYMENT', createdAt: Date.now(), stripeSessionId: session.id, statusToken,
+        ...(STRIPE_TEST_MODE ? { testMode: true } : {}),
       });
       res.json({ url: session.url, orderId });
     } catch (err: any) {
@@ -11774,10 +11802,20 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
 
       // 2) Move the money. Undo the reservation if Stripe says no.
       let stripeRefundId = '';
+      let refundErr: any = null;
       try {
         const refund = await getStripe().refunds.create({ payment_intent: pi, amount, reverse_transfer: true, refund_application_fee: false, reason: 'requested_by_customer', metadata: { type: 'store_order', orderId, refundId } }, { idempotencyKey: refundId });
         stripeRefundId = refund.id;
       } catch (e: any) {
+        refundErr = e;
+        // A timeout can hide a refund Stripe did make. Look before undoing, so the order never under- or double-counts.
+        try {
+          const made = (await getStripe().refunds.list({ payment_intent: pi, limit: 100 }))?.data?.find((x: any) => x?.metadata?.refundId === refundId && x?.status !== 'failed' && x?.status !== 'canceled');
+          if (made) stripeRefundId = String(made.id);
+        } catch { /* fall through to the undo */ }
+      }
+      if (!stripeRefundId) {
+        const e = refundErr;   // the refund did not happen
         await casUpdate(orders, orderId, c => {
           if (!c) return { abort: true, result: null };
           const next = refundLogOf(c).filter((x: any) => x.id !== refundId);
@@ -13240,9 +13278,8 @@ ${settings.contactEmail ? `<p class="m">Questions? <a href="mailto:${escHtml(set
     try {
       const b = String(req.body?.businessUid || '');
       if (!b) return res.status(400).json({ error: 'businessUid required.' });
-      let acct: string | undefined = await orgStripeAccount(b);
-      if (!acct) { const u = await firestoreRead('users', b); acct = u?.stripeConnectAccountId; }
-      if (!acct) return res.status(400).json({ error: 'This shop has not connected Stripe payouts yet.' });
+      const acct = await shopPayoutAccount(b);
+      if (!acct) return res.status(400).json({ error: STRIPE_TEST_MODE ? 'Stripe test mode: set STRIPE_TEST_DESTINATION (run scripts/stripeTestSetup.mjs).' : 'This shop has not connected Stripe payouts yet.' });
       const parsed = svParseGiftLines(req.body?.giftCards, (await svSettings(b)).limits);
       if (parsed.ok === false) return res.status(400).json({ error: parsed.error });
       if (!parsed.gifts.length) return res.status(400).json({ error: 'Choose a gift card amount.' });
