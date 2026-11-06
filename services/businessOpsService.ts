@@ -109,6 +109,11 @@ export const refundOnlineOrder = (orderId: string, r: { lines?: { index: number;
 export const fetchShopSettings = (businessUid: string) => shopApi<{ settings: import('./storeShopCore').ShopSettings; returnPolicy: string; shippingPolicy: string }>(`/api/store/settings/${encodeURIComponent(businessUid)}`);
 export const saveShopSettings = (businessUid: string, settings: import('./storeShopCore').ShopSettings) =>
   shopApi<{ ok: true; settings: import('./storeShopCore').ShopSettings; returnPolicy: string; shippingPolicy: string }>(`/api/store/settings/${encodeURIComponent(businessUid)}`, { settings });
+/** Plajah+ for the organization or business behind a shop (finance staff / business owner only). */
+export interface EntityPlusStatus { kind: 'ORG' | 'BUSINESS'; active: boolean; status: string; cancelAtPeriodEnd: boolean; currentPeriodEnd: number | null; priceConfigured: boolean; price: { amountCents: number; interval: string } | null }
+export const fetchEntityPlus = (b: string) => shopApi<EntityPlusStatus>(`/api/plus/entity/${encodeURIComponent(b)}`);
+export const startEntityPlusCheckout = (b: string) => shopApi<{ url: string }>(`/api/plus/entity/${encodeURIComponent(b)}/checkout`, {});
+export const openEntityPlusBilling = (b: string) => shopApi<{ url: string }>(`/api/plus/entity/${encodeURIComponent(b)}/portal`, {});
 export const listShopCodes = (businessUid: string) => shopApi<{ codes: import('./storeShopCore').ShopCode[] }>(`/api/store/codes/${encodeURIComponent(businessUid)}`);
 export const createShopCode = (businessUid: string, c: Partial<import('./storeShopCore').ShopCode>) => shopApi(`/api/store/codes/${encodeURIComponent(businessUid)}`, c);
 export const toggleShopCode = (businessUid: string, code: string, active: boolean) => shopApi(`/api/store/codes/${encodeURIComponent(businessUid)}`, { action: 'toggle', code, active });

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Save, Tag, Trash2, Plus } from 'lucide-react';
 import { Button, Chip } from '../ui';
 import { fetchShopSettings, saveShopSettings, listShopCodes, createShopCode, toggleShopCode, deleteShopCode, fetchShopConnections, connectShopService } from '../../services/businessOpsService';
+import EntityPlusCard from './EntityPlusCard';
 import { DEFAULT_SHOP_SETTINGS, parseShopSettings, returnPolicyText, shippingPolicyText, type ShopSettings, type ShopCode } from '../../services/storeShopCore';
 
 const toCents = (s: string) => Math.max(0, Math.round((parseFloat(s) || 0) * 100));
@@ -112,6 +113,7 @@ const ShopSettingsPanel: React.FC<{ businessUid: string; section: 'settings' | '
   const sh = s.shipping, rt = s.returns;
   return (
     <div className="space-y-3">
+      <EntityPlusCard shopId={businessUid} />
       <div className="rounded-2xl p-4 space-y-3" style={card}>
         <p className="type-title-sm font-bold">Returns &amp; refunds</p>
         <label className="type-body-md flex items-center gap-2"><input type="checkbox" checked={rt.accepts} onChange={e => set(x => ({ ...x, returns: { ...x.returns, accepts: e.target.checked } }))} /> I accept returns</label>

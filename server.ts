@@ -2124,6 +2124,20 @@ const CREATOR_PAYMENT_TYPES: Record<string, string> = {
 const DESTINATION_CHARGE_TYPES = new Set(['live_tip']);
 const RECURRING_PAYMENT_TYPES = new Set(['plajahplus', 'sanctuary_membership', 'club_membership']);
 
+/**
+ * Plajah+ for an organization or business (Plajah's own revenue, not a creator sale). A shop id is an org id or a
+ * business owner's uid; a business plan is keyed `biz:<uid>` so it never unlocks that person's personal perks.
+ */
+async function plusEntityFor(b: string): Promise<{ kind: 'ORG' | 'BUSINESS'; key: string }> {
+  const org = await firestoreGetDeep('organizations', b).catch(() => null);
+  return org ? { kind: 'ORG', key: b } : { kind: 'BUSINESS', key: `biz:${b}` };
+}
+/** The direct-sales fee waiver for a shop: the org's or business's own Plajah+, or the owner's personal one. */
+async function shopHasPlajahPlus(b: string): Promise<boolean> {
+  if (await sellerHasPlajahPlus(b)) return true;           // a person's Plajah+, or an org's (keyed by org id)
+  return sellerHasPlajahPlus(`biz:${b}`);                  // a business's Plajah+
+}
+
 async function sellerHasPlajahPlus(uid: string): Promise<boolean> {
   try {
     const subs = await queryFirebase('plajahPlusSubscriptions', [{ field: 'subscriberId', value: uid }], 10);
@@ -3091,6 +3105,27 @@ async function startServer() {
               const currentPoints = parseInt(userDoc.fields.points?.integerValue ?? '0');
               await firestoreWrite('users', meta.uid, { points: currentPoints + (TIER_POINTS[tier] ?? 100), updatedAt: now });
             }
+          }
+
+          // Plajah+ for an organization or business: the row is keyed by the entity, so its shop sells at 0%.
+          if (mode === 'subscription' && meta.type === 'plajahplus_entity' && meta.subscriberKey && subId) {
+            const sub = await getStripe().subscriptions.retrieve(subId);
+            const docId = `${String(meta.subscriberKey).replace(/[^A-Za-z0-9_-]/g, '_')}_${subId}`;
+            await firestoreWrite('plajahPlusSubscriptions', docId, {
+              id: docId,
+              subscriberId: String(meta.subscriberKey),
+              subscriberKind: meta.kind === 'ORG' ? 'ORG' : 'BUSINESS',
+              entityId: String(meta.entityId || ''),
+              purchasedBy: String(meta.uid || ''),
+              stripeSubscriptionId: subId,
+              stripeCustomerId: custId || '',
+              tier: 0,
+              status: String(sub.status || 'active'),
+              currentPeriodEnd: (subPeriodEnd(sub) || 0) * 1000,
+              cancelAtPeriodEnd: !!sub.cancel_at_period_end,
+              createdAt: now,
+              updatedAt: now,
+            });
           }
 
           if (mode === 'payment' && meta.type === 'adpackage') {
@@ -11669,7 +11704,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       }
       const orderId = `so_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
       const statusToken = nodeCrypto.randomBytes(24).toString('hex');
-      const fees = storeOrderFees({ merchandiseCents: q.merchandiseCents, shippingCents: q.shippingCents, totalCents: q.totalCents }, await sellerHasPlajahPlus(b));
+      const fees = storeOrderFees({ merchandiseCents: q.merchandiseCents, shippingCents: q.shippingCents, totalCents: q.totalCents }, await shopHasPlajahPlus(b));
       const origin = trustedRequestOrigin(req);
       const customer = customerUid ? await storeCustomerFor(customerUid, who?.email) : undefined;
       const session = await getStripe().checkout.sessions.create({
@@ -11926,6 +11961,74 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     }
     res.set('Cache-Control', 'public, max-age=60').json({ settings: s, returnPolicy: returnPolicyText(s.returns), shippingPolicy: shippingPolicyText(s.shipping) });
   });
+  // ── Plajah+ for organizations and businesses ─────────────────────────────────────────────────────
+  // Billing is the org's finance staff, or the business owner (a business id is the owner's uid).
+  const plusBilling = async (req: any, b: string): Promise<{ ok: true; kind: 'ORG' | 'BUSINESS'; key: string } | { ok: false; status: number; error: string }> => {
+    if (!b) return { ok: false, status: 400, error: 'Missing shop.' };
+    const ent = await plusEntityFor(b);
+    if (ent.kind === 'ORG') {
+      const gate: any = await assertOrgFinanceAccess(req.uid, b).catch(() => ({ error: 'Could not check access.', status: 503 }));
+      if (gate && 'error' in gate) return { ok: false, status: gate.status || 403, error: gate.error };
+    } else if (req.uid !== b) return { ok: false, status: 403, error: 'Only the business owner can manage its Plajah+.' };
+    return { ok: true, ...ent };
+  };
+  const plusPrice = (kind: 'ORG' | 'BUSINESS') => {
+    const p = kind === 'ORG' ? process.env.STRIPE_PRICE_PLUS_ORG : process.env.STRIPE_PRICE_PLUS_BUSINESS;
+    return p && p.startsWith('price_') && !p.startsWith('price_YOUR') ? p : '';
+  };
+  const plusRows = async (key: string) => (await queryFirebase('plajahPlusSubscriptions', [{ field: 'subscriberId', value: key }], 10).catch(() => [])) as any[];
+  const LIVE_PLUS = ['active', 'trialing', 'past_due'];
+
+  app.get('/api/plus/entity/:b', authMiddleware, async (req: any, res) => {
+    const who = await plusBilling(req, String(req.params.b || ''));
+    if (who.ok === false) return res.status(who.status).json({ error: who.error });
+    const rows = await plusRows(who.key);
+    const live = rows.filter(r => LIVE_PLUS.includes(String(r.status))).sort((a, c) => Number(c.currentPeriodEnd || 0) - Number(a.currentPeriodEnd || 0))[0];
+    let price: { amountCents: number; interval: string } | null = null;
+    const pid = plusPrice(who.kind);
+    if (pid) { try { const p = await getStripe().prices.retrieve(pid); price = { amountCents: Number(p.unit_amount) || 0, interval: String(p.recurring?.interval || 'month') }; } catch { /* not shown */ } }
+    res.set('Cache-Control', 'private, no-store').json({
+      kind: who.kind, active: !!live, status: live ? String(live.status) : 'none',
+      cancelAtPeriodEnd: !!live?.cancelAtPeriodEnd, currentPeriodEnd: Number(live?.currentPeriodEnd) || null,
+      priceConfigured: !!pid, price,
+    });
+  });
+
+  app.post('/api/plus/entity/:b/checkout', authMiddleware, async (req: any, res) => {
+    try {
+      const b = String(req.params.b || '');
+      const who = await plusBilling(req, b);
+      if (who.ok === false) return res.status(who.status).json({ error: who.error });
+      if ((await plusRows(who.key)).some(r => LIVE_PLUS.includes(String(r.status)))) return res.status(409).json({ error: 'This already has Plajah+. Manage it from Billing.' });
+      const price = plusPrice(who.kind);
+      if (!price) return res.status(400).json({ error: `Plajah+ for ${who.kind === 'ORG' ? 'organizations' : 'businesses'} isn't priced yet. Contact support.` });
+      const meta = { type: 'plajahplus_entity', kind: who.kind, entityId: b, subscriberKey: who.key, uid: String(req.uid) };
+      const origin = trustedRequestOrigin(req);
+      const session = await getStripe().checkout.sessions.create({
+        mode: 'subscription',
+        payment_method_types: ['card'],
+        line_items: [{ price, quantity: 1 }],
+        ...(req.email ? { customer_email: String(req.email) } : {}),
+        success_url: `${origin}/?subscription=success&plus=${who.kind === 'ORG' ? 'org' : 'business'}`,
+        cancel_url: `${origin}/?subscription=cancelled`,
+        metadata: meta,
+        subscription_data: { metadata: meta },
+      });
+      res.json({ url: session.url });
+    } catch (err: any) { console.error('/api/plus/entity/checkout', err?.message || err); res.status(500).json({ error: 'Could not start checkout. Try again.' }); }
+  });
+
+  app.post('/api/plus/entity/:b/portal', authMiddleware, async (req: any, res) => {
+    try {
+      const who = await plusBilling(req, String(req.params.b || ''));
+      if (who.ok === false) return res.status(who.status).json({ error: who.error });
+      const customer = (await plusRows(who.key)).map(r => String(r.stripeCustomerId || '')).find(Boolean);
+      if (!customer) return res.status(404).json({ error: 'No Plajah+ billing found.' });
+      const s = await getStripe().billingPortal.sessions.create({ customer, return_url: `${trustedRequestOrigin(req)}/` });
+      res.json({ url: s.url });
+    } catch (err: any) { console.error('/api/plus/entity/portal', err?.message || err); res.status(500).json({ error: 'Could not open billing. Try again.' }); }
+  });
+
   app.post('/api/store/settings/:b', authMiddleware, express.json({ limit: '16kb' }), async (req: any, res) => {
     const b = String(req.params.b || '');
     const who = await shopCan(req, b, 'INVENTORY');
