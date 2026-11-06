@@ -41,7 +41,8 @@ export async function postableDepartments(): Promise<PostableOrg[]> {
   if (!uid) return [];
   if (mineCache && mineCache.uid === uid && Date.now() - mineCache.at < 5 * 60_000) return mineCache.orgs;
   try {
-    const { orgs } = await call<{ orgs: PostableOrg[] }>('/mine');
+    const res = await call<{ orgs?: PostableOrg[] }>('/mine');
+    const orgs = Array.isArray(res?.orgs) ? res.orgs : [];
     mineCache = { uid, at: Date.now(), orgs };
     return orgs;
   } catch { return []; }
