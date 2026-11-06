@@ -20,7 +20,7 @@ import { readFileSync, existsSync } from 'fs';
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { buildProgramGuide, buildXmltv, buildMrss, nowAndNext, type EpgSlot, type EpgChannel, type MrssItem } from './services/fastChannelEpg';
 import { slotDurationSec } from './services/fastChannelTimeline';
-import { resolveLine as resolveInventoryLine, planDecrement as planDecrementInventory, variantStockSeed as variantStockSeedInventory, isTracked as isTrackedInventory, isSafeVariantId as isSafeVariantIdInventory, trackingUrl as trackingUrlInventory } from './services/inventoryCore';
+import { resolveLine as resolveInventoryLine, planDecrement as planDecrementInventory, variantStockSeed as variantStockSeedInventory, isTracked as isTrackedInventory, isSafeVariantId as isSafeVariantIdInventory } from './services/inventoryCore';
 import { computeTax, parseTaxSettings, normalizeTaxClass, type TaxSettings } from './services/taxCore';
 import { shouldPushChatMessage } from './services/chat/chatCore';
 import { validateTenders, sanitizeTip, parseTenders, tenderLabel, isStoredValueTender, type Tender } from './services/tenderCore';
@@ -97,9 +97,7 @@ import { createGeminiLane, geminiConfigured, geminiGenerate, laneModel } from '.
 import { systemText, toAnthropicResponse, toGeminiContents } from './services/ai/anthropicCompat';
 import { teacherPlayer, teacherSystem, teacherTurns } from './services/melos/beats/band/teacherPrompt';
 import { PLATFORM_CUT_PCT as BOOK_PLATFORM_CUT_PCT } from './services/bookmeta/pricing';
-import { plajahPlusBreakdown, saleBreakdown, storeOrderFees, type SaleBreakdown } from './services/payments/saleFees';
-import { encryptSecret as encryptShopSecret, decryptSecret as decryptShopSecret } from './services/fabula/genVault';
-import { parseShopSettings, quoteShipping, applyShopCode, normalizeCode as normalizeShopCode, parseShopCode, returnPolicyText, shippingPolicyText, orderEmail, shortOrderId, planOnlineRefund, remainingRefundLines, onlineRefundOrder, externalRefundEntry, isEmail as isShopEmail, ONLINE_CANCELLABLE, shipFromReady, parcelWeightOz, shippoShipment, shippoRates, printerVariantId, printfulOrderBody, printfulTracking, sellerDisputeShare, type ShopSettings, type ShipOption, type OrderEmailKind, type OrderEmailData } from './services/storeShopCore';
+import { plajahPlusBreakdown, saleBreakdown, type SaleBreakdown } from './services/payments/saleFees';
 import { checkSaleRoute, feesFromMeta, fixedCutBreakdown, paymentRouting, saleMeta, subscriptionRouting, type RouteCheck, type SaleRoute } from './services/payments/directRoute';
 import { readRegistry as readEditionRegistry, licenceActive, entitledEditions, editionOf, type BookVersionStamp } from './services/bookEditions/policy';
 import { createLedgerRouter, appendLedger } from './routes/ledger';
@@ -3510,37 +3508,6 @@ async function startServer() {
                     if (Number(card?.onlineOrders) >= 3) await unlock('LOYAL_SHOPPER');
                   } catch (e: any) { console.error('[store] rewards failed', e?.message || e); }
                 }
-                // Stripe Tax (when on) decides the tax at checkout: record what it charged.
-                if (order.stripeTax === true && (session as any).total_details) await firestoreWrite('storeOrders', meta.orderId, { taxCents: Number((session as any).total_details.amount_tax) || 0 }).catch(() => {});
-                if (order.discountCode && shop) await firestoreIncrement(`storeCodes/${shop}_${normalizeShopCode(order.discountCode)}`, { uses: 1 }).catch(() => false);
-                // Order emails: the buyer's confirmation (with downloads + the order link) and the seller's "new order".
-                try {
-                  const fresh: Record<string, any> = { ...order, ...(addr ? { shipName: String(ship?.name || ''), shipLine1: String(addr.line1 || ''), shipLine2: String(addr.line2 || ''), shipCity: String(addr.city || ''), shipState: String(addr.state || ''), shipPostal: String(addr.postal_code || ''), shipCountry: String(addr.country || '') } : {}), totalCents: Number(session.amount_total) || 0 };
-                  const settings = await loadShopSettings(shop);
-                  const shopName = await shopNameFor(shop);
-                  const origin = process.env.PUBLIC_APP_ORIGIN || 'https://plajah.com';
-                  const base: OrderEmailData = {
-                    shopName, orderId: meta.orderId, lines: orderLinesForEmail(fresh), subtotalCents: Number(order.subtotalCents) || 0, discountCents: Number(order.discountCents) || 0,
-                    shippingCents: (Number(order.shippingCents) || 0) + (Number(order.shippingTaxCents) || 0), taxCents: order.stripeTax ? Number((session as any).total_details?.amount_tax) || 0 : Number(order.taxCents) || 0,
-                    totalCents: Number(session.amount_total) || 0, ship: orderShipForEmail(fresh), contactEmail: settings.contactEmail, customerName: String(order.customerName || ship?.name || ''),
-                  };
-                  const buyerEmail = String(session.customer_details?.email || order.customerEmail || '');
-                  const pd = settings.shipping.processingDaysMin === settings.shipping.processingDaysMax ? `${settings.shipping.processingDaysMin}` : `${settings.shipping.processingDaysMin}–${settings.shipping.processingDaysMax}`;
-                  if (buyerEmail) await sendOrderEmailOnce(meta.orderId, 'CONFIRMED', buyerEmail, {
-                    ...base, orderUrl: orderStatusUrl(origin, fresh), downloads: await digitalDownloadsFor(fresh), returnPolicy: returnPolicyText(settings.returns),
-                    processing: fresh.fulfillment === 'SHIP' ? `ships in ${pd} business days` : '',
-                  });
-                  if (shop) {
-                    await firestoreCreate('notifications', { userId: shop, senderId: 'plajah-store', senderName: 'Plajah Store', senderPhoto: '', type: 'SYSTEM', title: `New order · $${((Number(session.amount_total) || 0) / 100).toFixed(2)}`, message: `${base.customerName || 'A customer'} ordered ${base.lines.map(l => `${l.qty}× ${l.title}`).slice(0, 3).join(', ')}.`, link: 'BUSINESS_DASHBOARD', targetId: meta.orderId, isRead: false, timestamp: Date.now() }).catch(() => {});
-                    const sellerTo = await sellerEmailFor(shop, settings);
-                    if (sellerTo) await sendOrderEmailOnce(meta.orderId, 'NEW_ORDER', sellerTo, { ...base, orderUrl: `${origin}/?view=BUSINESS_DASHBOARD` });
-                  }
-                } catch (e: any) { console.error('[store] order emails failed', e?.message || e); }
-                // Print on demand: printed lines go to the seller's own Printful account (they pay the printer).
-                try {
-                  const shipped: Record<string, any> = { ...order, ...(addr ? { shipName: String(ship?.name || ''), shipLine1: String(addr.line1 || ''), shipLine2: String(addr.line2 || ''), shipCity: String(addr.city || ''), shipState: String(addr.state || ''), shipPostal: String(addr.postal_code || ''), shipCountry: String(addr.country || '') } : {}), customerEmail: String(session.customer_details?.email || order.customerEmail || '') };
-                  await submitPrintfulOrder(meta.orderId, shipped);
-                } catch (e: any) { console.error('[store] printful submit failed', e?.message || e); }
               }
               if (order.giftCardsPending) { try { await issueOnlineGiftCards(String(meta.orderId), order); } catch (e: any) { console.error('[store] online gift cards failed', e?.message || e); } }
               try {
@@ -3604,7 +3571,6 @@ async function startServer() {
         case 'charge.refunded': {
           await applyChargeRefund(event.data.object, false).catch((e: any) => console.error('[Elevate] charge.refunded failed:', e?.message));
           await revokeContentPurchase(event.data.object).catch((e: any) => console.error('[Content] refund revoke failed:', e?.message));
-          await syncStoreRefund(event.data.object).catch((e: any) => console.error('[Store] refund sync failed:', e?.message));
           await creatorPayouts.applyRefund(idOf(event.data.object.payment_intent) || '', Number(event.data.object.amount_refunded) || 0, Number(event.data.object.amount) || 0)
             .catch((e: any) => { console.error('[Payouts] refund failed:', e?.message || e); needsRedelivery = true; });
           break;
@@ -3615,7 +3581,6 @@ async function startServer() {
           try {
             const dispute = event.data.object;
             const charge = await getStripe().charges.retrieve(idOf(dispute.charge));
-            await flagStoreDispute(dispute, charge, event.type.endsWith('created') ? 'created' : 'closed').catch((e: any) => console.error('[Store] dispute flag failed:', e?.message));
             // A loss takes back the disputed money on top of anything already refunded.
             const lostCents = (Number(charge.amount_refunded) || 0) + (Number(dispute.amount) || 0);
             await creatorPayouts.applyDispute(idOf(charge.payment_intent) || '', String(dispute.status), lostCents, Number(charge.amount) || 0);
@@ -11009,7 +10974,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     app.get('*all', async (req, res, next) => {
       // API routes registered after this catch-all (/api/fetch-rss, /api/cora,
       // MUSE agent) must not be served the SPA shell — let them resolve.
-      if (req.path.startsWith('/api/') || req.path.startsWith('/t/') || req.path.startsWith('/i/') || req.path.startsWith('/o/') || req.path.startsWith('/r/')) return next();   // /t/* = public ticket page (ticketServer); /i/* = evite page (eviteServer); /o/* = buyer order page; /r/* = POS receipt
+      if (req.path.startsWith('/api/') || req.path.startsWith('/t/') || req.path.startsWith('/i/')) return next();   // /t/* = public ticket page (ticketServer); /i/* = evite page (eviteServer)
       // Hosting falls back here for /assets/** it doesn't have (this container's own bundle hashes,
       // which differ from the hosting build). A hashed file that isn't in dist/ is a 404 — never the shell.
       if (req.path.startsWith('/assets/')) return res.status(404).end();
@@ -11449,759 +11414,79 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // Stripe Connect DIRECT: funds settle straight to the BUSINESS's connected account; Plajah never
   // holds them (optional application fee only). Lines are priced + stock-checked SERVER-SIDE (variants
   // included); stock is decremented by the webhook once paid.
-  // Fees: services/payments/saleFees.storeOrderFees (5%, 0% with Plajah+). Shipping: each shop's own settings (storeShopCore).
-  // ── Online shop helpers (rules in services/storeShopCore.ts) ──────────────────────────────────
-  // businesses/{b}.storeSettings   JSON: return policy, shipping, contact (public read; parsed on every use)
-  // storeCodes/{b}_{CODE}         discount codes (server-only; sellerId = b)
-  // storeEmailLog/{orderId_KIND}   one email per order event (server-only lock)
-  const loadShopSettings = async (b: string): Promise<ShopSettings> => {
-    try { const d = await firestoreRead('businesses', b); return parseShopSettings(d?.storeSettings); } catch { return parseShopSettings(null); }
-  };
-  // The return address is private: businesses/{b} is public-read, so it lives in server-only shopSecrets/{b}.shipFrom
-  // and only the shop's own managers ever get it back.
-  const loadShopShipFrom = async (b: string): Promise<ShopSettings['shipFrom']> => {
-    try { const d = await firestoreGetDeep('shopSecrets', b); return parseShopSettings({ shipFrom: d?.shipFrom ? JSON.parse(String(d.shipFrom)) : null }).shipFrom; }
-    catch { return parseShopSettings(null).shipFrom; }
-  };
-  const shopNameFor = async (b: string): Promise<string> => {
+  const STORE_APP_FEE_BPS = 0; // Plajah's per-order platform fee in basis points (200 = 2%). 0 = none at launch.
+  const SHIP_FLAT_CENTS = 599, FREE_SHIP_OVER_CENTS = 5000;   // mirrors the storefront copy: "$5.99, free over $50"
+  app.post('/api/store/create-order', authMiddleware, express.json(), async (req: any, res) => {
     try {
-      const biz = await firestoreRead('businesses', b);
-      const n = biz?.name || biz?.businessName;
-      if (n) return String(n).slice(0, 80);
-      const org = await firestoreRead('organizations', b);
-      if (org?.name) return String(org.name).slice(0, 80);
-      const u = await firestoreRead('users', b);
-      return String(u?.displayName || u?.username || 'the shop').slice(0, 80);
-    } catch { return 'the shop'; }
-  };
-  /** Where the shop's own notices go: its public contact email, else the owner's account email. */
-  const sellerEmailFor = async (b: string, settings?: ShopSettings): Promise<string> => {
-    const s = settings || await loadShopSettings(b);
-    if (s.contactEmail) return s.contactEmail;
-    try {
-      const u = await firestoreRead('users', b);
-      if (u?.email && isShopEmail(String(u.email))) return String(u.email);
-      const org = await firestoreRead('organizations', b);
-      const owner = org?.creatorId ? await firestoreRead('users', String(org.creatorId)) : null;
-      if (owner?.email && isShopEmail(String(owner.email))) return String(owner.email);
-    } catch { /* none */ }
-    return '';
-  };
-  const sendStoreEmail = async (to: string, m: { subject: string; text: string; html: string }, replyTo?: string): Promise<boolean> => {
-    if (!process.env.RESEND_API_KEY || !isShopEmail(to)) return false;
-    try {
-      const r = await fetch('https://api.resend.com/emails', {
-        method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: process.env.RESEND_FROM || 'Plajah <onboarding@resend.dev>', to, subject: m.subject, text: m.text, html: m.html, ...(replyTo && isShopEmail(replyTo) ? { reply_to: replyTo } : {}) }),
-      });
-      return r.ok;
-    } catch { return false; }
-  };
-  /** One email per (order, event, recipient role): a create-once lock, released if the send fails so a retry can try again. */
-  const sendOrderEmailOnce = async (orderId: string, kind: OrderEmailKind, to: string, d: OrderEmailData, tag = ''): Promise<boolean> => {
-    if (!isShopEmail(to)) return false;
-    const lockId = `${orderId}_${kind}${tag ? `_${tag}` : ''}`.slice(0, 200);
-    const lock = await firestoreCreateOnce('storeEmailLog', lockId, { orderId, kind, at: Date.now() });
-    if (lock !== 'created') return false;
-    const ok = await sendStoreEmail(to, orderEmail(kind, d), kind === 'NEW_ORDER' || kind === 'DISPUTE' ? undefined : d.contactEmail);
-    if (!ok) await firestoreDeleteDoc('storeEmailLog', lockId).catch(() => {});
-    return ok;
-  };
-  const orderLinesForEmail = (o: any) => { try { return (JSON.parse(String(o.items || '[]')) as any[]).map(i => ({ title: String(i.title || 'Item'), qty: Number(i.qty) || 1, variantName: i.variantName || null, amountCents: i.chargeCents !== undefined ? Number(i.chargeCents) : (Number(i.unitAmount) || 0) * (Number(i.qty) || 1) })); } catch { return []; } };
-  const orderShipForEmail = (o: any) => (o.shipLine1 ? { name: o.shipName, line1: o.shipLine1, line2: o.shipLine2, city: o.shipCity, state: o.shipState, postal: o.shipPostal, country: o.shipCountry } : null);
-  const orderStatusUrl = (origin: string, o: any) => (o.statusToken ? `${origin}/o/${o.statusToken}` : `${origin}/?view=MY_ORDERS`);
-  /** Paid digital products on an order, with their files. */
-  const digitalDownloadsFor = async (o: any): Promise<{ title: string; url: string }[]> => {
-    const out: { title: string; url: string }[] = [];
-    let items: any[] = []; try { items = JSON.parse(String(o.items || '[]')); } catch { /* none */ }
-    for (const i of items.slice(0, 30)) {
-      const p = i?.productId ? await loadStoreProduct(String(i.productId)).catch(() => null) : null;
-      if (p?.isDigital && /^https:\/\//.test(String(p.digitalFileUrl || ''))) out.push({ title: String(p.title || i.title || 'Download'), url: String(p.digitalFileUrl) });
-    }
-    return out;
-  };
-  /**
-   * Who may run a shop's back office. The owner, a seated staff member with the permission, or (for an org's
-   * shop) the org's finance/IT/senior staff. Refunds need REFUNDS; status changes need ORDERS.
-   */
-  const shopCan = async (req: any, b: string, perm: 'ORDERS' | 'REFUNDS' | 'INVENTORY' | 'REPORTS'): Promise<{ ok: true; by: string; byName: string } | { ok: false; status: number; error: string }> => {
-    if (!req.uid || !b) return { ok: false, status: 401, error: 'Sign in first.' };
-    if (req.uid === b) return { ok: true, by: req.uid, byName: 'Owner' };
-    const perms = await businessStaffPerms(req.uid, b).catch(() => null);
-    if (perms && perms.includes(perm as any)) return { ok: true, by: req.uid, byName: 'Staff' };
-    const org = await assertOrgFinanceAccess(req.uid, b).catch(() => null);
-    if (org && 'org' in org) return { ok: true, by: req.uid, byName: 'Org admin' };
-    return { ok: false, status: 403, error: 'You don’t have access to this shop’s orders.' };
-  };
-  /** The shop's Stripe customer for a signed-in buyer, so Checkout remembers and prefills their address. */
-  const storeCustomerFor = async (uid: string, email?: string): Promise<string | undefined> => {
-    try {
-      const have = await firestoreRead('storeCustomers', uid);
-      if (have?.stripeCustomerId) return String(have.stripeCustomerId);
-      const c = await getStripe().customers.create({ ...(email ? { email } : {}), metadata: { uid, purpose: 'store' } }, { idempotencyKey: `storecust_${uid}` });
-      await firestoreWrite('storeCustomers', uid, { stripeCustomerId: c.id, createdAt: Date.now() });
-      return c.id;
-    } catch (e: any) { console.error('[store] customer', e?.message || e); return undefined; }
-  };
-  /** Price a cart for a shop: lines, discount code, shipping for the chosen country/method, tax and fees. Shared by checkout and the cart preview. */
-  const quoteStoreCart = async (b: string, body: any) => {
-    const priced = await priceStoreLines(Array.isArray(body?.items) ? body.items : [], b);
-    if (priced.ok === false) return { ok: false as const, status: priced.status, error: priced.error, code: priced.code, available: priced.available };
-    const { lines, products, subtotalCents } = priced;
-    const settings = await loadShopSettings(b);
-    const physical = lines.filter(l => !products.get(l.productId)?.isDigital);
-    const physicalUnits = physical.reduce((s, l) => s + l.qty, 0);
-    const wantsPickup = body?.fulfillment === 'PICKUP' && settings.shipping.pickup;
-    const needsShipping = physical.length > 0 && !wantsPickup;
-    // Discount code (merchandise only).
-    let discountCents = 0, freeShipping = false, discountCode = '';
-    if (body?.discountCode) {
-      const c = normalizeShopCode(body.discountCode);
-      const stored = c ? await firestoreRead('storeCodes', `${b}_${c}`).catch(() => null) : null;
-      const ap = applyShopCode(stored as any, subtotalCents);
-      if (ap.ok === false) return { ok: false as const, status: 400, error: ap.error, code: 'BAD_CODE' };
-      discountCents = ap.discountCents; freeShipping = ap.freeShipping; discountCode = ap.code;
-    }
-    let shipOption: ShipOption | null = null, shipCountry = '';
-    if (needsShipping) {
-      const q = quoteShipping(settings.shipping, { itemCount: physicalUnits, subtotalCents: subtotalCents - discountCents, toCountry: body?.shipCountry, freeShipping });
-      if (q.ok === false) return { ok: false as const, status: 400, error: q.error, code: q.code };
-      shipCountry = q.country;
-      shipOption = q.options.find(o => o.id === body?.shipMethod) || q.options[0];
-    }
-    const shippingCents = shipOption?.amountCents || 0;
-    const rsettings = await loadRegisterSettings(b);
-    const stripeTax = process.env.STORE_STRIPE_TAX === '1';
-    const taxed = computeTax(taxInputs(lines, products), stripeTax ? { defaultRateBps: 0 } : rsettings.tax, { discountCents });
-    const inclusive = !stripeTax && !!rsettings.tax.inclusive;
-    const shippingTaxCents = !stripeTax && !inclusive && settings.shipping.taxShipping && shippingCents > 0 ? Math.round(shippingCents * rsettings.tax.defaultRateBps / 10000) : 0;
-    const taxCents = inclusive ? 0 : taxed.taxCents + shippingTaxCents;
-    const merchandiseCents = subtotalCents - taxed.discountCents;
-    const totalCents = (inclusive ? taxed.totalCents : merchandiseCents + taxed.taxCents) + shippingCents + shippingTaxCents;
-    return {
-      ok: true as const, settings, lines, products, taxed, subtotalCents, discountCents: taxed.discountCents, discountCode, freeShipping,
-      needsShipping, wantsPickup, shipOption, shipCountry, shippingCents, shippingTaxCents, taxCents, inclusive, stripeTax, merchandiseCents, totalCents,
-    };
-  };
-
-  /** Cart preview: the real totals (code, shipping, tax) before the buyer goes to pay. */
-  app.post('/api/store/quote', express.json({ limit: '64kb' }), async (req: any, res) => {
-    try {
-      const b = String(req.body?.businessUid || '');
-      if (!b) return res.status(400).json({ error: 'businessUid required.' });
-      const q = await quoteStoreCart(b, req.body);
-      if (q.ok === false) return res.status(q.status).json({ error: q.error, code: q.code, available: q.available });
-      res.json({
-        subtotalCents: q.subtotalCents, discountCents: q.discountCents, discountCode: q.discountCode, shippingCents: q.shippingCents,
-        shippingLabel: q.shipOption?.label || (q.wantsPickup ? 'Local pickup' : ''), shipCountry: q.shipCountry,
-        taxCents: q.taxCents, taxAtCheckout: q.stripeTax, totalCents: q.totalCents,
-        shipping: { domesticCountry: q.settings.shipping.domesticCountry, countries: q.settings.shipping.international ? q.settings.shipping.countries : [], expressCents: q.settings.shipping.expressCents, pickup: q.settings.shipping.pickup, pickupNote: q.settings.shipping.pickupNote },
-      });
-    } catch (err: any) { console.error('/api/store/quote', err?.message || err); res.status(500).json({ error: 'Could not price your cart.' }); }
-  });
-
-  // Signed-in buyers get their order in My Orders and earn rewards; guests check out with just an email and
-  // follow the order from the link in their confirmation email (/o/:token).
-  app.post('/api/store/create-order', express.json({ limit: '64kb' }), async (req: any, res) => {
-    try {
-      const bearer = String(req.headers?.authorization || '');
-      const who = bearer.startsWith('Bearer ') ? await verifyFirebaseToken(bearer.slice(7)) : null;
-      if (bearer && !who) return res.status(401).json({ error: 'Your sign-in expired. Sign in again or check out as a guest.' });
-      const customerUid: string = who?.uid || '';
-      const { businessUid, note, customerName } = req.body || {};
-      if (!businessUid || !Array.isArray(req.body?.items) || req.body.items.length === 0) {
+      const customerUid: string = req.uid;
+      const { businessUid, items, fulfillment, note, customerName } = req.body || {};
+      if (!businessUid || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ error: 'businessUid and items are required.' });
       }
-      const b = String(businessUid);
-      if (customerUid && customerUid === b) return res.status(400).json({ error: 'You can’t buy from your own shop.' });
       // Resolve the business's connected Stripe account — the money goes straight to them.
-      let acct: string | undefined = await orgStripeAccount(b);
-      if (!acct) { const u = await firestoreRead('users', b); acct = u?.stripeConnectAccountId; }
+      let acct: string | undefined = await orgStripeAccount(businessUid);
+      if (!acct) { const u = await firestoreRead('users', businessUid); acct = u?.stripeConnectAccountId; }
       if (!acct) return res.status(400).json({ error: 'This shop has not connected Stripe payouts yet.' });
 
-      const q = await quoteStoreCart(b, req.body);
-      if (q.ok === false) return res.status(q.status).json({ error: q.error, code: q.code, available: q.available });
-      const { lines, products, taxed } = q;
+      const priced = await priceStoreLines(items, businessUid);
+      if (priced.ok === false) return res.status(priced.status).json({ error: priced.error, code: priced.code, available: priced.available });
+      const { lines, products, subtotalCents } = priced;
+      const needsShipping = fulfillment === 'SHIP' && lines.some(l => !products.get(l.productId)?.isDigital);
+      const shippingCents = needsShipping ? (subtotalCents >= FREE_SHIP_OVER_CENTS ? 0 : SHIP_FLAT_CENTS) : 0;
 
-      const lineItems: any[] = lines.map(l => ({
+      // Sales tax (owner-entered rates, server-computed). Digital/untaxed classes follow product.taxClass; shipping is not taxed here.
+      const rsettings = await loadRegisterSettings(businessUid);
+      const taxedOnline = computeTax(taxInputs(lines, products), rsettings.tax);
+      const onlineTaxCents = rsettings.tax.inclusive ? 0 : taxedOnline.taxCents;   // inclusive prices already carry tax
+
+      const lineItems = lines.map(l => ({
         price_data: {
           currency: 'usd',
           product_data: { name: l.variantName ? `${l.title} — ${l.variantName}` : l.title, ...(/^https:\/\//.test(l.image || '') && String(l.image).length < 2000 ? { images: [l.image] } : {}) },
           unit_amount: l.unitAmount,
-          ...(q.stripeTax ? { tax_behavior: 'exclusive' } : {}),
         },
         quantity: l.qty,
       }));
-      // Item tax rides its own line; tax on shipping is inside the shipping rate. (Inclusive prices already carry tax.)
-      if (!q.stripeTax && !q.inclusive && taxed.taxCents > 0) lineItems.push({ price_data: { currency: 'usd', product_data: { name: 'Sales tax' }, unit_amount: taxed.taxCents }, quantity: 1 });
-      // A code becomes a one-time Stripe coupon for exactly the discount we priced.
-      let discounts: any[] | undefined;
-      if (q.discountCents > 0) {
-        const coupon = await getStripe().coupons.create({ amount_off: q.discountCents, currency: 'usd', duration: 'once', max_redemptions: 1, name: `Code ${q.discountCode}`.slice(0, 40) });
-        discounts = [{ coupon: coupon.id }];
-      }
+
+      if (onlineTaxCents > 0) lineItems.push({ price_data: { currency: 'usd', product_data: { name: 'Sales tax' }, unit_amount: onlineTaxCents }, quantity: 1 } as any);
       const orderId = `so_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-      const statusToken = nodeCrypto.randomBytes(24).toString('hex');
-      const fees = storeOrderFees({ merchandiseCents: q.merchandiseCents, shippingCents: q.shippingCents, totalCents: q.totalCents }, await sellerHasPlajahPlus(b));
+      const appFee = Math.round(subtotalCents * (STORE_APP_FEE_BPS / 10000));
       const origin = trustedRequestOrigin(req);
-      const customer = customerUid ? await storeCustomerFor(customerUid, who?.email) : undefined;
       const session = await getStripe().checkout.sessions.create({
         mode: 'payment',
         payment_method_types: ['card'],
         line_items: lineItems,
-        ...(discounts ? { discounts } : {}),
         expires_at: Math.floor(Date.now() / 1000) + 31 * 60,        // don't hold a cart for 24h
-        ...(customer ? { customer, customer_update: { shipping: 'auto', address: 'auto' } } : who?.email ? { customer_email: who.email } : {}),
-        ...(q.stripeTax ? { automatic_tax: { enabled: true } } : {}),
-        ...(q.needsShipping && q.shipOption ? {
-          shipping_address_collection: { allowed_countries: [q.shipCountry] },
-          shipping_options: [{ shipping_rate_data: {
-            type: 'fixed_amount', fixed_amount: { amount: q.shippingCents + q.shippingTaxCents, currency: 'usd' },
-            display_name: q.shippingTaxCents ? `${q.shipOption.label} (incl. tax)` : q.shipOption.label,
-            ...(q.stripeTax ? { tax_behavior: 'exclusive' } : {}),
-          } }],
+        ...(needsShipping ? {
+          shipping_address_collection: { allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'NL', 'IE', 'NZ', 'MX'] },
+          shipping_options: [{ shipping_rate_data: { type: 'fixed_amount', fixed_amount: { amount: shippingCents, currency: 'usd' }, display_name: shippingCents ? 'Standard shipping' : 'Free shipping' } }],
         } : {}),
         payment_intent_data: {
-          ...(fees.applicationFeeCents > 0 ? { application_fee_amount: fees.applicationFeeCents } : {}),
+          ...(appFee > 0 ? { application_fee_amount: appFee } : {}),
           transfer_data: { destination: acct },   // DIRECT to the business — Plajah never holds the funds
-          metadata: { type: 'store_order', orderId, businessUid: b },
+          metadata: { type: 'store_order', orderId, businessUid },
         },
-        success_url: `${origin}/o/${statusToken}?paid=1`,
+        success_url: `${origin}/?order=success`,
         cancel_url: `${origin}/?order=cancelled`,
-        metadata: { type: 'store_order', orderId, businessUid: b },
+        metadata: { type: 'store_order', orderId, businessUid },
       });
       await firestoreWrite('storeOrders', orderId, {
-        businessUid: b, customerUid: customerUid || 'guest',
+        businessUid, customerUid,
         // buyerId/sellerId mirror customerUid/businessUid so the storeOrders security rules (which gate
         // read/update on buyerId==uid / sellerId==uid) permit the customer to read their orders and the
-        // business to read + advance them. Guests have no uid; they read through /o/:token.
-        buyerId: customerUid || 'guest', sellerId: b, guest: !customerUid, source: 'ONLINE',
-        items: JSON.stringify(lines.map((l, i) => ({
-          productId: l.productId, variantId: l.variantId || null, title: l.title, qty: l.qty, unitAmount: l.unitAmount,
-          variantName: l.variantName || null, image: l.image || null, sku: String(products.get(l.productId)?.sku || '').slice(0, 60) || null,
-          chargeCents: taxed.lines[i]?.chargeCents ?? l.unitAmount * l.qty, taxCents: taxed.lines[i]?.taxCents ?? 0,
-        }))),
-        subtotalCents: q.subtotalCents, discountCents: q.discountCents, discountCode: q.discountCode,
-        shippingCents: q.shippingCents, shippingTaxCents: q.shippingTaxCents, shippingMethod: q.shipOption?.id || '', shipCountry: q.shipCountry,
-        taxCents: q.taxCents, taxInclusive: q.inclusive, stripeTax: q.stripeTax,
-        platformFeeCents: fees.platformFeeCents, processingCents: fees.processingCents, feePct: fees.feePct,
-        fulfillment: q.needsShipping ? 'SHIP' : 'PICKUP',
-        ...(who?.email ? { customerEmail: String(who.email) } : {}),
+        // business to read + advance them.
+        buyerId: customerUid, sellerId: businessUid,
+        items: JSON.stringify(lines.map(l => ({ productId: l.productId, variantId: l.variantId || null, title: l.title, qty: l.qty, unitAmount: l.unitAmount, variantName: l.variantName || null, image: l.image || null }))),
+        subtotalCents, shippingCents, taxCents: taxedOnline.taxCents, taxInclusive: !!rsettings.tax.inclusive,
+        fulfillment: needsShipping ? 'SHIP' : 'PICKUP',
         note: String(note || '').slice(0, 500), customerName: String(customerName || '').slice(0, 120),
-        status: 'PENDING_PAYMENT', createdAt: Date.now(), stripeSessionId: session.id, statusToken,
+        status: 'PENDING_PAYMENT', createdAt: Date.now(), stripeSessionId: session.id,
       });
       res.json({ url: session.url, orderId });
     } catch (err: any) {
       console.error('/api/store/create-order', err.message);
-      res.status(500).json({ error: 'Could not start checkout. Try again.' });
+      res.status(500).json({ error: err.message });
     }
-  });
-
-
-  // ── Online order back office: refunds, cancels, status + shipping emails, settings, codes ────────
-  // Online orders are destination charges on Plajah's Stripe account, so only Plajah can refund them. The
-  // seller asks here; the refund pulls the seller's share back from their account (reverse_transfer) and
-  // Plajah returns its 5% on the refunded part. Card processing isn't returned by Stripe, as on every store.
-
-  /** Put refunded/cancelled items back on the shelf through the stock ledger (create-once per refund line). */
-  const restockOnlineLines = async (b: string, orderId: string, refundId: string, items: { productId: string; variantId?: string | null; qty: number }[], by: string): Promise<number> => {
-    let restocked = 0;
-    for (const it of items) {
-      if (!it.productId || !(it.qty > 0)) continue;
-      try {
-        const p = await loadStoreProduct(it.productId);
-        if (!p || p.sellerId !== b) continue;
-        const moveId = restockMoveId(refundId, it.productId, it.variantId);
-        const tracked = isTrackedInventory(p);
-        const before = it.variantId && p.variants?.length ? Number(p.variantStock?.[it.variantId] ?? (p.variants.find((v: any) => v.id === it.variantId)?.stock ?? 0)) : Number(p.stock ?? 0);
-        const claim = await firestoreCreateOnce('stockMoves', moveId, { sellerId: b, productId: it.productId, productTitle: String(p.title || ''), ...(it.variantId ? { variantId: it.variantId } : {}), delta: tracked ? it.qty : 0, before, after: tracked ? before + it.qty : before, reason: 'RETURN', orderId, refundId, by, at: Date.now() });
-        if (claim !== 'created') continue;
-        const inc: Record<string, number> = { soldCount: -it.qty };
-        if (tracked) { inc.stock = it.qty; if (it.variantId && p.variants?.length && isSafeVariantIdInventory(it.variantId)) inc[`variantStock.${it.variantId}`] = it.qty; }
-        const seed = tracked ? variantStockSeedInventory(p) : null;
-        if (seed) await firestorePatchDeep('storeProducts', it.productId, { variantStock: seed });
-        if (await firestoreIncrement(`storeProducts/${it.productId}`, inc)) restocked++; else await firestoreDeleteDoc('stockMoves', moveId);
-      } catch (e: any) { console.error('[online refund] restock failed', e?.message || e); }
-    }
-    return restocked;
-  };
-
-  app.post('/api/store/orders/:id/refund', authMiddleware, express.json({ limit: '32kb' }), async (req: any, res) => {
-    const orderId = String(req.params.id || '');
-    try {
-      const orders = restCas('storeOrders');
-      const cur = await orders.get(orderId);
-      if (!cur) return res.status(404).json({ error: 'Order not found.' });
-      const b = String(cur.data.sellerId || '');
-      const who = await shopCan(req, b, 'REFUNDS');
-      if (who.ok === false) return res.status(who.status).json({ error: who.error });
-      if (cur.data.source === 'POS') return res.status(400).json({ error: 'In-store sales are refunded at the register.' });
-      const pi = String(cur.data.stripePaymentIntentId || '');
-      if (!pi || ['PENDING_PAYMENT', 'EXPIRED'].includes(String(cur.data.status))) return res.status(400).json({ error: 'This order was never paid, so there is nothing to refund.' });
-
-      const cancel = req.body?.cancel === true;
-      if (cancel && !ONLINE_CANCELLABLE.has(String(cur.data.status))) return res.status(400).json({ error: 'This order has already shipped. Refund it instead, once the items come back.' });
-      const restock = req.body?.restock !== false;
-      const asked: any[] = cancel || req.body?.all === true ? remainingRefundLines(cur.data, restock) : (Array.isArray(req.body?.lines) ? req.body.lines.slice(0, 60) : []);
-      const reqLines = asked.map((l: any) => ({ index: Math.floor(Number(l.index)), qty: Math.floor(Number(l.qty)), restock: restock && l.restock !== false }));
-      const reason = (REFUND_REASONS as readonly string[]).includes(String(req.body?.reason)) ? String(req.body.reason) : (cancel ? 'OTHER' : 'CUSTOMER_RETURN');
-      const key = String(req.body?.idempotencyKey || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60) || `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
-      const refundId = `orf_${orderId.slice(-16)}_${key}`.slice(0, 120);
-
-      // 1) Reserve the refund on the order (CAS): two refunds at once can never pass what was paid.
-      type Res = { ok: true; dup: boolean; entry: any; full: boolean; priorNet: number } | { ok: false; error: string };
-      const reserve = await casUpdate<Res>(orders, orderId, c => {
-        if (!c) return { abort: true, result: { ok: false, error: 'Order not found.' } };
-        const log = refundLogOf(c);
-        const dup = log.find((e: any) => e.id === refundId);
-        if (dup) return { abort: true, result: { ok: true, dup: true, entry: dup, full: String(c.status) === 'REFUNDED' || String(c.status) === 'CANCELLED', priorNet: 0 } };
-        const plan = planOnlineRefund(c, reqLines);
-        if (plan.ok === false) return { abort: true, result: { ok: false, error: plan.error } };
-        const entry = { id: refundId, lines: plan.plan.lines, allocations: plan.plan.allocations, amountCents: plan.plan.amountCents, taxCents: plan.plan.taxCents, at: Date.now(), by: who.by, reason, pending: true };
-        const next = [...log, entry];
-        const refunded = next.reduce((s: number, e: any) => s + (Number(e.amountCents) || 0), 0);
-        const full = refunded >= Math.round(Number(c.totalCents) || 0);
-        return {
-          patch: { refundLog: JSON.stringify(next), refundedCents: refunded, refundCount: next.length, updatedAt: Date.now(), ...(full ? { status: cancel ? 'CANCELLED' : 'REFUNDED', statusBeforeRefund: String(c.status) } : { partiallyRefunded: true }) },
-          result: { ok: true, dup: false, entry, full, priorNet: log.reduce((s: number, e: any) => s + (Number(e.amountCents) || 0) - (Number(e.taxCents) || 0), 0) },
-        };
-      });
-      const r: Res | undefined = reserve.ok === true ? reserve.result : (reserve as any).result;
-      if (!r) return res.status(409).json({ error: 'The order changed while refunding. Try again.' });
-      if (r.ok === false) return res.status(400).json({ error: r.error });
-      if (r.dup) return res.json({ ok: true, duplicate: true, refundId, amountCents: r.entry.amountCents });
-      const amount = Math.round(Number(r.entry.amountCents) || 0);
-
-      // 2) Move the money. Undo the reservation if Stripe says no.
-      let stripeRefundId = '';
-      try {
-        const refund = await getStripe().refunds.create({ payment_intent: pi, amount, reverse_transfer: true, refund_application_fee: false, reason: 'requested_by_customer', metadata: { type: 'store_order', orderId, refundId } }, { idempotencyKey: refundId });
-        stripeRefundId = refund.id;
-      } catch (e: any) {
-        await casUpdate(orders, orderId, c => {
-          if (!c) return { abort: true, result: null };
-          const next = refundLogOf(c).filter((x: any) => x.id !== refundId);
-          const refunded = next.reduce((s: number, x: any) => s + (Number(x.amountCents) || 0), 0);
-          return { patch: { refundLog: JSON.stringify(next), refundedCents: refunded, refundCount: next.length, partiallyRefunded: refunded > 0, ...(r.full ? { status: String(c.statusBeforeRefund || 'CONFIRMED') } : {}) }, result: null };
-        }).catch(() => {});
-        console.error('[online refund] stripe', e?.message || e);
-        return res.status(502).json({ error: /insufficient|balance/i.test(String(e?.message)) ? 'Your Stripe balance is too low to cover this refund. Add funds in Stripe, then try again.' : 'Stripe could not make the refund. Nothing was charged back; try again.' });
-      }
-      await casUpdate(orders, orderId, c => {
-        if (!c) return { abort: true, result: null };
-        const next = refundLogOf(c).map((x: any) => (x.id === refundId ? { ...x, pending: false, stripeRefundId } : x));
-        return { patch: { refundLog: JSON.stringify(next) }, result: null };
-      }).catch(() => {});
-
-      // 3) Plajah gives back its own fee on the refunded part.
-      const platformFee = Math.round(Number(cur.data.platformFeeCents) || 0);
-      const total = Math.round(Number(cur.data.totalCents) || 0);
-      if (platformFee > 0 && total > 0) {
-        try {
-          const intent = await getStripe().paymentIntents.retrieve(pi, { expand: ['latest_charge'] });
-          const feeId = idOf((intent.latest_charge as any)?.application_fee);
-          const back = Math.min(platformFee, Math.round(platformFee * amount / total));
-          if (feeId && back > 0) await getStripe().applicationFees.createRefund(feeId, { amount: back, metadata: { orderId, refundId } }, { idempotencyKey: `${refundId}_fee` });
-        } catch (e: any) { console.error('[online refund] fee return failed', orderId, e?.message || e); }
-      }
-
-      // 4) Shelf, rewards, record, buyer notice.
-      const ord = onlineRefundOrder(cur.data);
-      const restockItems = (r.entry.lines as any[]).filter(l => l.restock && ord.lines[l.index]?.productId).map(l => ({ productId: ord.lines[l.index].productId, variantId: ord.lines[l.index].variantId, qty: l.qty }));
-      const restocked = await restockOnlineLines(b, orderId, refundId, restockItems, who.by);
-      const buyer = String(cur.data.buyerId || '');
-      const earned = Number(cur.data.loyaltyPointsEarned) || 0;
-      if (buyer && buyer !== 'guest' && earned > 0) {
-        const claw = clawbackPoints({ earnedPoints: earned, orderNetCents: Math.max(1, total - (Number(cur.data.taxCents) || 0)), priorRefundNetCents: r.priorNet, thisRefundNetCents: amount - (Number(r.entry.taxCents) || 0) });
-        if (claw > 0) await casUpdate<number>(restCas(`businesses/${b}/loyalty`), buyer, l => {
-          const applied: string[] = jparse(l?.clawedRefunds, []);
-          if (!l || applied.includes(refundId)) return { abort: true, result: 0 };
-          const { newBalance, clawed } = applyClawback(Number(l.points) || 0, claw);
-          return { patch: { points: newBalance, clawedRefunds: JSON.stringify([...applied, refundId].slice(-100)), updatedAt: Date.now() }, result: clawed };
-        }).catch(() => {});
-      }
-      await firestoreCreateOnce('storeRefunds', refundId, {
-        businessUid: b, sellerId: b, orderId, amountCents: amount, taxCents: Number(r.entry.taxCents) || 0, method: 'ORIGINAL', reason,
-        note: String(req.body?.note || '').slice(0, 300), lines: JSON.stringify(r.entry.lines), allocations: JSON.stringify(r.entry.allocations),
-        staffId: who.by, staffName: who.byName, approvedBy: '', createdAt: Date.now(), source: 'ONLINE', stripeRefundId, cancel,
-      });
-      const settings = await loadShopSettings(b);
-      const shopName = await shopNameFor(b);
-      const to = String(cur.data.customerEmail || '');
-      if (to) await sendOrderEmailOnce(orderId, cancel ? 'CANCELLED' : 'REFUNDED', to, { shopName, orderId, lines: (r.entry.lines as any[]).filter(l => ord.lines[l.index]).map(l => ({ title: ord.lines[l.index].title, qty: l.qty, amountCents: l.amountCents })), refundCents: amount, orderUrl: orderStatusUrl(trustedRequestOrigin(req), cur.data), contactEmail: settings.contactEmail }, refundId);
-      if (buyer && buyer !== 'guest') await firestoreCreate('notifications', { userId: buyer, senderId: b, senderName: shopName, senderPhoto: '', type: 'SYSTEM', title: cancel ? 'Order cancelled' : 'Refund on its way', message: `${shopName} ${cancel ? 'cancelled your order and refunded' : 'refunded'} $${(amount / 100).toFixed(2)} to your original payment.`, link: 'MY_ORDERS', targetId: orderId, isRead: false, timestamp: Date.now() }).catch(() => {});
-      res.json({ ok: true, refundId, amountCents: amount, restocked, fullyRefunded: r.full, status: r.full ? (cancel ? 'CANCELLED' : 'REFUNDED') : String(cur.data.status) });
-    } catch (err: any) { console.error('/api/store/orders/refund', err?.message || err); res.status(500).json({ error: 'Refund failed. Nothing was changed.' }); }
-  });
-
-  /** Advance an online order (packing → shipped → delivered / ready → picked up), emailing the buyer when it ships or is ready. */
-  const ONLINE_NEXT: Record<string, Record<string, string>> = {
-    SHIP: { CONFIRMED: 'PREPARING', PREPARING: 'OUT_FOR_DELIVERY', OUT_FOR_DELIVERY: 'DELIVERED' },
-    PICKUP: { CONFIRMED: 'PREPARING', PREPARING: 'READY', READY: 'COMPLETED' },
-  };
-  app.post('/api/store/orders/:id/advance', authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
-    try {
-      const orderId = String(req.params.id || '');
-      const o = await firestoreRead('storeOrders', orderId);
-      if (!o) return res.status(404).json({ error: 'Order not found.' });
-      const b = String(o.sellerId || '');
-      const who = await shopCan(req, b, 'ORDERS');
-      if (who.ok === false) return res.status(who.status).json({ error: who.error });
-      const flow = ONLINE_NEXT[o.fulfillment === 'SHIP' ? 'SHIP' : 'PICKUP'];
-      const to = String(req.body?.status || '');
-      if (flow[String(o.status)] !== to) return res.status(409).json({ error: 'This order already moved on. Refresh to see where it is.' });
-      const trackingNumber = String(req.body?.trackingNumber || '').replace(/[^A-Za-z0-9 -]/g, '').trim().slice(0, 40);
-      const trackingCarrier = String(req.body?.trackingCarrier || '').slice(0, 30);
-      await firestoreWrite('storeOrders', orderId, { status: to, updatedAt: Date.now(), ...(to === 'OUT_FOR_DELIVERY' ? { shippedAt: Date.now() } : {}), ...(trackingNumber ? { trackingNumber, trackingCarrier } : {}) });
-      const email = String(o.customerEmail || '');
-      if (email && (to === 'OUT_FOR_DELIVERY' || to === 'READY')) {
-        const settings = await loadShopSettings(b);
-        const url = trackingNumber ? trackingUrlInventory(trackingCarrier, trackingNumber) : null;
-        await sendOrderEmailOnce(orderId, 'SHIPPED', email, {
-          shopName: await shopNameFor(b), orderId, lines: orderLinesForEmail(o), ship: orderShipForEmail(o),
-          tracking: trackingNumber ? { carrier: trackingCarrier, number: trackingNumber, url } : null,
-          orderUrl: orderStatusUrl(trustedRequestOrigin(req), o), contactEmail: settings.contactEmail,
-          ...(to === 'READY' ? { processing: settings.shipping.pickupNote || 'ready for pickup' } : {}),
-        }, to);
-      }
-      res.json({ ok: true, status: to });
-    } catch (err: any) { console.error('/api/store/orders/advance', err?.message || err); res.status(500).json({ error: 'Could not update the order.' }); }
-  });
-
-  /** A shop's public settings (policies, shipping, contact), ready to show. */
-  app.get('/api/store/settings/:b', async (req: any, res) => {
-    const b = String(req.params.b || '');
-    const s = await loadShopSettings(b);
-    s.shipFrom = parseShopSettings(null).shipFrom;   // never public
-    // A signed-in manager of this shop also gets the private return address (for the settings panel).
-    const authz = String(req.headers.authorization || '');
-    if (authz.startsWith('Bearer ')) {
-      const tok = await verifyFirebaseToken(authz.slice(7)).catch(() => null);
-      if (tok?.uid) {
-        req.uid = tok.uid;
-        const who = await shopCan(req, b, 'INVENTORY');
-        if (who.ok) {
-          s.shipFrom = await loadShopShipFrom(b);
-          return res.set('Cache-Control', 'private, no-store').json({ settings: s, returnPolicy: returnPolicyText(s.returns), shippingPolicy: shippingPolicyText(s.shipping) });
-        }
-      }
-    }
-    res.set('Cache-Control', 'public, max-age=60').json({ settings: s, returnPolicy: returnPolicyText(s.returns), shippingPolicy: shippingPolicyText(s.shipping) });
-  });
-  app.post('/api/store/settings/:b', authMiddleware, express.json({ limit: '16kb' }), async (req: any, res) => {
-    const b = String(req.params.b || '');
-    const who = await shopCan(req, b, 'INVENTORY');
-    if (who.ok === false) return res.status(who.status).json({ error: who.error });
-    const s = parseShopSettings({ ...req.body?.settings, updatedAt: Date.now() });
-    const ok = await firestorePatchDeep('businesses', b, { storeSettings: JSON.stringify({ ...s, shipFrom: parseShopSettings(null).shipFrom }) })
-      && await firestorePatchDeep('shopSecrets', b, { shipFrom: JSON.stringify(s.shipFrom), updatedAt: Date.now() });
-    if (!ok) return res.status(503).json({ error: 'Could not save. Try again.' });
-    res.json({ ok: true, settings: s, returnPolicy: returnPolicyText(s.returns), shippingPolicy: shippingPolicyText(s.shipping) });
-  });
-
-  // Discount codes (server-only collection: buyers can't list a shop's codes).
-  app.get('/api/store/codes/:b', authMiddleware, async (req: any, res) => {
-    const b = String(req.params.b || '');
-    const who = await shopCan(req, b, 'INVENTORY');
-    if (who.ok === false) return res.status(who.status).json({ error: who.error });
-    const docs = await fsQueryDocs('storeCodes', [{ field: 'sellerId', op: 'EQUAL', value: b }], 300).catch(() => []);
-    res.json({ codes: docs.map(d => { const { sellerId: _s, ...c } = d.data as any; return c; }).sort((x: any, y: any) => (y.createdAt || 0) - (x.createdAt || 0)) });
-  });
-  app.post('/api/store/codes/:b', authMiddleware, express.json({ limit: '4kb' }), async (req: any, res) => {
-    const b = String(req.params.b || '');
-    const who = await shopCan(req, b, 'INVENTORY');
-    if (who.ok === false) return res.status(who.status).json({ error: who.error });
-    if (req.body?.action === 'toggle' || req.body?.action === 'delete') {
-      const c = normalizeShopCode(req.body?.code);
-      if (!c) return res.status(400).json({ error: 'Which code?' });
-      if (req.body.action === 'delete') { await firestoreDeleteDoc('storeCodes', `${b}_${c}`); return res.json({ ok: true }); }
-      const ok = await firestorePatchDeep('storeCodes', `${b}_${c}`, { active: req.body?.active === true });
-      return ok ? res.json({ ok: true }) : res.status(503).json({ error: 'Could not save.' });
-    }
-    const parsed = parseShopCode(req.body);
-    if (parsed.ok === false) return res.status(400).json({ error: parsed.error });
-    const made = await firestoreCreateOnce('storeCodes', `${b}_${parsed.code.code}`, { ...parsed.code, sellerId: b } as any);
-    if (made === 'exists') return res.status(409).json({ error: 'That code already exists.' });
-    if (made !== 'created') return res.status(503).json({ error: 'Could not save. Try again.' });
-    res.json({ ok: true, code: parsed.code });
-  });
-
-  /** The buyer's order page from their email (works for guests): status, tracking, downloads, refunds, policy. */
-  app.get('/o/:token', async (req, res, next) => {
-    try {
-      const token = String(req.params.token || '');
-      if (!/^[a-f0-9]{48}$/.test(token)) return next();
-      const hits = await fsQueryDocs('storeOrders', [{ field: 'statusToken', op: 'EQUAL', value: token }], 1);
-      const o = hits[0]?.data;
-      if (!o) return res.status(404).type('html').send('<!doctype html><title>Order</title><p style="font-family:sans-serif;padding:24px">Order not found.</p>');
-      const b = String(o.sellerId || '');
-      const [shopName, settings] = await Promise.all([shopNameFor(b), loadShopSettings(b)]);
-      const paid = !['PENDING_PAYMENT', 'EXPIRED'].includes(String(o.status));
-      const downloads = paid && String(o.status) !== 'REFUNDED' && String(o.status) !== 'CANCELLED' ? await digitalDownloadsFor(o) : [];
-      const STATUS: Record<string, string> = { PENDING_PAYMENT: req.query.paid ? 'Confirming your payment…' : 'Not paid', CONFIRMED: 'Order received', PREPARING: 'Being prepared', READY: 'Ready for pickup', OUT_FOR_DELIVERY: 'Shipped', DELIVERED: 'Delivered', COMPLETED: 'Picked up', REFUNDED: 'Refunded', CANCELLED: 'Cancelled' };
-      const lines = orderLinesForEmail(o);
-      const turl = o.trackingNumber ? trackingUrlInventory(String(o.trackingCarrier || ''), String(o.trackingNumber)) : null;
-      const m = (c: any) => `$${((Number(c) || 0) / 100).toFixed(2)}`;
-      const addr = orderShipForEmail(o);
-      const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">${String(o.status) === 'PENDING_PAYMENT' && req.query.paid ? '<meta http-equiv="refresh" content="4">' : ''}<title>Order ${escHtml(shortOrderId(hits[0].id))} - ${escHtml(shopName)}</title>
-<style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#0a0a0f;color:#fff;margin:0;padding:24px}.c{max-width:520px;margin:0 auto;background:#15151d;border:1px solid #2a2a36;border-radius:20px;padding:22px}h1{font-size:22px;margin:4px 0 2px}.m{color:#9a9aab;font-size:13px}table{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px}td{padding:4px 0}.r{text-align:right}a{color:#ff8c00}.pill{display:inline-block;padding:4px 12px;border-radius:999px;background:linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00);font-weight:700;font-size:13px;margin-top:10px}hr{border:0;border-top:1px solid #2a2a36;margin:14px 0}</style></head><body><div class="c">
-<div class="m">${escHtml(shopName)}</div><h1>Order #${escHtml(shortOrderId(hits[0].id))}</h1><div class="m">${escHtml(new Date(Number(o.paidAt || o.createdAt) || Date.now()).toLocaleString('en-US'))}</div>
-<div class="pill">${escHtml(STATUS[String(o.status)] || String(o.status))}</div>
-${Number(o.refundedCents) > 0 ? `<p>Refunded ${m(o.refundedCents)} to your original payment.</p>` : ''}
-${o.trackingNumber ? `<p>Tracking: ${escHtml(String(o.trackingCarrier || ''))} ${escHtml(String(o.trackingNumber))}${turl ? ` · <a href="${escHtml(turl)}" rel="noopener">Track package</a>` : ''}</p>` : ''}
-<table>${lines.map(l => `<tr><td>${escHtml(l.qty)} × ${escHtml(l.title)}${l.variantName ? ` <span class="m">(${escHtml(l.variantName)})</span>` : ''}</td><td class="r">${m(l.amountCents)}</td></tr>`).join('')}</table><hr>
-<table>${Number(o.discountCents) ? `<tr><td>Discount${o.discountCode ? ` (${escHtml(o.discountCode)})` : ''}</td><td class="r">-${m(o.discountCents)}</td></tr>` : ''}${Number(o.shippingCents) ? `<tr><td>Shipping</td><td class="r">${m(Number(o.shippingCents) + (Number(o.shippingTaxCents) || 0))}</td></tr>` : ''}${Number(o.taxCents) ? `<tr><td>Tax</td><td class="r">${m(o.taxCents)}</td></tr>` : ''}<tr><td><b>Total</b></td><td class="r"><b>${m(o.totalCents ?? o.subtotalCents)}</b></td></tr></table>
-${downloads.length ? `<hr><b>Your downloads</b><br>${downloads.map(d => `<a href="${escHtml(d.url)}" rel="noopener">${escHtml(d.title)}</a>`).join('<br>')}` : ''}
-${addr ? `<hr><div class="m">Shipping to</div>${[addr.name, addr.line1, addr.line2, [addr.city, addr.state, addr.postal].filter(Boolean).join(', '), addr.country].filter(Boolean).map(x => escHtml(x)).join('<br>')}` : ''}
-<hr><div class="m"><b>Returns:</b> ${escHtml(returnPolicyText(settings.returns))}</div>
-${settings.contactEmail ? `<p class="m">Questions? <a href="mailto:${escHtml(settings.contactEmail)}">${escHtml(settings.contactEmail)}</a></p>` : ''}
-</div></body></html>`;
-      res.set('Cache-Control', 'private, no-store').type('html').send(html);
-    } catch { res.status(500).send('Could not load the order.'); }
-  });
-
-  /** A paid online order's store record for a Stripe charge (metadata rides from the payment intent). */
-  const storeOrderForCharge = async (charge: any): Promise<{ id: string } | null> => {
-    let meta = charge?.metadata || {};
-    if (meta.type !== 'store_order' && charge?.payment_intent) {
-      try { meta = (await getStripe().paymentIntents.retrieve(idOf(charge.payment_intent))).metadata || {}; } catch { return null; }
-    }
-    return meta.type === 'store_order' && meta.orderId ? { id: String(meta.orderId) } : null;
-  };
-  /** A refund made in the Stripe dashboard still shows on the order (no restock: we don't know which items). */
-  const syncStoreRefund = async (charge: any) => {
-    const hit = await storeOrderForCharge(charge);
-    if (!hit) return;
-    const refunded = Math.round(Number(charge.amount_refunded) || 0), amount = Math.round(Number(charge.amount) || 0);
-    await casUpdate(restCas('storeOrders'), hit.id, c => {
-      if (!c) return { abort: true, result: null };
-      const e = externalRefundEntry(c, refunded, `ext_${refunded}`, Date.now());
-      if (!e) return { abort: true, result: null };
-      const next = [...refundLogOf(c), e];
-      return { patch: { refundLog: JSON.stringify(next), refundedCents: refunded, refundCount: next.length, updatedAt: Date.now(), ...(refunded >= amount ? { status: 'REFUNDED' } : { partiallyRefunded: true }) }, result: null };
-    });
-  };
-  /** A chargeback on an online order: flag it and tell the seller right away (they have days, not weeks). */
-  const flagStoreDispute = async (dispute: any, charge: any, phase: 'created' | 'closed') => {
-    const hit = await storeOrderForCharge(charge);
-    if (!hit) return;
-    const o = await firestoreRead('storeOrders', hit.id);
-    if (!o) return;
-    const b = String(o.sellerId || '');
-    await firestoreWrite('storeOrders', hit.id, { disputed: phase === 'created' || dispute.status !== 'won', disputeStatus: String(dispute.status || ''), disputeReason: String(dispute.reason || ''), disputeAmountCents: Number(dispute.amount) || 0, ...(dispute.evidence_details?.due_by ? { disputeDueBy: Number(dispute.evidence_details.due_by) * 1000 } : {}), updatedAt: Date.now() });
-    // Sellers carry their own chargebacks, as on most marketplaces (Kenne, 2026-11-04). Their share of the disputed
-    // amount (plus the bank's fee) comes back from their Stripe account now; if the shop wins, the disputed amount
-    // goes back to them. STORE_DISPUTES_ON_SELLER=0 turns it off (Plajah absorbs them) in an emergency.
-    let reversed = 0;
-    if (process.env.STORE_DISPUTES_ON_SELLER !== '0') {
-      try {
-        const transferId = idOf(charge.transfer);
-        const acct = idOf(charge.transfer_data?.destination) || idOf(charge.destination);
-        const fee = (Array.isArray(dispute.balance_transactions) ? dispute.balance_transactions : []).reduce((t: number, x: any) => t + (Number(x?.fee) || 0), 0);
-        if (phase === 'created' && transferId) {
-          reversed = sellerDisputeShare({ disputeCents: Number(dispute.amount) || 0, chargeCents: Number(charge.amount) || 0, applicationFeeCents: Number(charge.application_fee_amount) || 0, disputeFeeCents: fee });
-          if (reversed > 0) {
-            await getStripe().transfers.createReversal(transferId, { amount: reversed, metadata: { type: 'store_dispute', orderId: hit.id, disputeId: String(dispute.id || '') } }, { idempotencyKey: `${dispute.id}_rev` });
-            await firestoreWrite('storeOrders', hit.id, { disputeReversedCents: reversed, disputeFeeCents: fee });
-          }
-        } else if (phase === 'closed' && dispute.status === 'won' && acct) {
-          const back = Math.max(0, (Number(o.disputeReversedCents) || 0) - (Number(o.disputeFeeCents) || 0));
-          if (back > 0) {
-            await getStripe().transfers.create({ amount: back, currency: 'usd', destination: acct, source_transaction: String(charge.id), metadata: { type: 'store_dispute_won', orderId: hit.id, disputeId: String(dispute.id || '') } }, { idempotencyKey: `${dispute.id}_return` });
-            await firestoreWrite('storeOrders', hit.id, { disputeReturnedCents: back });
-            await firestoreCreate('notifications', { userId: b, senderId: 'plajah-store', senderName: 'Plajah Store', senderPhoto: '', type: 'SYSTEM', title: 'You won the dispute', message: `The bank sided with you. $${(back / 100).toFixed(2)} is back in your Stripe balance.`, link: 'BUSINESS_DASHBOARD', targetId: hit.id, isRead: false, timestamp: Date.now() }).catch(() => {});
-          }
-        }
-      } catch (e: any) { console.error('[store] dispute transfer failed', hit.id, e?.message || e); }
-    }
-    if (phase !== 'created') return;
-    await firestoreCreate('notifications', { userId: b, senderId: 'plajah-store', senderName: 'Plajah Store', senderPhoto: '', type: 'SYSTEM', title: 'A buyer disputed an order', message: `Their bank opened a chargeback.${reversed ? ` $${(reversed / 100).toFixed(2)} was held back from your Stripe balance until it's decided.` : ''} Send Plajah support your tracking, proof of delivery and any messages with the buyer before the deadline.`, link: 'BUSINESS_DASHBOARD', targetId: hit.id, isRead: false, timestamp: Date.now() }).catch(() => {});
-    const to = await sellerEmailFor(b);
-    if (to) await sendOrderEmailOnce(hit.id, 'DISPUTE', to, { shopName: await shopNameFor(b), orderId: hit.id, lines: orderLinesForEmail(o), totalCents: Number(o.totalCents) || 0 }, String(dispute.id || ''));
-  };
-
-
-  // ── Seller-connected services: shipping labels (Shippo) and print on demand (Printful) ─────────
-  // Each shop connects ITS OWN account by pasting an API token, so Shippo bills the seller for labels and Printful
-  // charges the seller for production. Plajah never pays or fronts those costs. Tokens are encrypted at rest in
-  // shopSecrets/{b} (server-only; no client rule) and are never sent back to any browser.
-  const SHIPPO_API = 'https://api.goshippo.com';
-  const shopSecretsFor = async (b: string): Promise<{ shippo?: string; printful?: string; printfulStoreId?: string }> => {
-    try {
-      const d = await firestoreGetDeep('shopSecrets', b);
-      const dec = (v: any) => { try { return v ? decryptShopSecret(String(v)) : undefined; } catch { return undefined; } };
-      return { shippo: dec(d?.shippo), printful: dec(d?.printful), printfulStoreId: d?.printfulStoreId ? String(d.printfulStoreId) : undefined };
-    } catch { return {}; }
-  };
-  const shippoFetch = (token: string, path: string, body?: any) => fetch(`${SHIPPO_API}${path}`, {
-    method: body ? 'POST' : 'GET', headers: { Authorization: `ShippoToken ${token}`, 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}),
-  });
-  const printfulFetch = (token: string, storeId: string | undefined, path: string, body?: any) => fetch(`https://api.printful.com${path}`, {
-    method: body ? 'POST' : 'GET', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(storeId ? { 'X-PF-Store-Id': storeId } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}),
-  });
-
-  /** Connect or disconnect a shop's Shippo or Printful account (the token is checked with the provider first). */
-  app.post('/api/store/connect/:b', authMiddleware, express.json({ limit: '4kb' }), async (req: any, res) => {
-    const b = String(req.params.b || '');
-    const who = await shopCan(req, b, 'INVENTORY');
-    if (who.ok === false) return res.status(who.status).json({ error: who.error });
-    const provider = req.body?.provider === 'printful' ? 'printful' : req.body?.provider === 'shippo' ? 'shippo' : '';
-    if (!provider) return res.status(400).json({ error: 'Which service?' });
-    const token = String(req.body?.token || '').trim();
-    if (!token) {
-      await firestorePatchDeep('shopSecrets', b, { [provider]: '', ...(provider === 'printful' ? { printfulStoreId: '' } : {}), updatedAt: Date.now() });
-      return res.json({ ok: true, connected: false });
-    }
-    if (token.length > 400 || /\s/.test(token)) return res.status(400).json({ error: 'That doesn’t look like an API token.' });
-    const storeId = String(req.body?.storeId || '').replace(/\D/g, '').slice(0, 20) || undefined;
-    try {
-      let ok = false, label = '';
-      if (provider === 'shippo') {
-        const r = await shippoFetch(token, '/addresses/?results=1');
-        ok = r.ok;
-        if (ok && /^shippo_test_/.test(token)) label = 'test mode';
-      } else {
-        const r = await printfulFetch(token, storeId, '/store');
-        ok = r.ok;
-        if (ok) { const j: any = await r.json().catch(() => ({})); label = String(j?.result?.name || ''); }
-        else if (!storeId) { const r2 = await printfulFetch(token, undefined, '/stores'); if (r2.ok) return res.status(400).json({ error: 'This token covers several Printful stores. Enter the store id too (Printful → Settings → Stores).' }); }
-      }
-      if (!ok) return res.status(400).json({ error: `${provider === 'shippo' ? 'Shippo' : 'Printful'} didn’t accept that token.` });
-      if (!process.env.ENCRYPTION_KEY) return res.status(503).json({ error: 'Secure storage isn’t set up on the server yet.' });
-      await firestorePatchDeep('shopSecrets', b, { [provider]: encryptShopSecret(token), ...(provider === 'printful' ? { printfulStoreId: storeId || '' } : {}), updatedAt: Date.now(), by: who.by });
-      res.json({ ok: true, connected: true, label });
-    } catch (e: any) { console.error('/api/store/connect', e?.message || e); res.status(502).json({ error: 'Couldn’t reach the service. Try again.' }); }
-  });
-  /** Which services a shop has connected (never the tokens). */
-  const shopConnections = async (b: string) => { const s = await shopSecretsFor(b); return { shippo: !!s.shippo, shippoTest: /^shippo_test_/.test(s.shippo || ''), printful: !!s.printful }; };
-  app.get('/api/store/connections/:b', authMiddleware, async (req: any, res) => {
-    const b = String(req.params.b || '');
-    const who = await shopCan(req, b, 'ORDERS');
-    if (who.ok === false) return res.status(who.status).json({ error: who.error });
-    res.json(await shopConnections(b));
-  });
-
-  /** Label rates for an order from the seller's Shippo account. */
-  app.post('/api/store/orders/:id/label-rates', authMiddleware, express.json({ limit: '4kb' }), async (req: any, res) => {
-    try {
-      const orderId = String(req.params.id || '');
-      const o = await firestoreRead('storeOrders', orderId);
-      if (!o) return res.status(404).json({ error: 'Order not found.' });
-      const b = String(o.sellerId || '');
-      const who = await shopCan(req, b, 'ORDERS');
-      if (who.ok === false) return res.status(who.status).json({ error: who.error });
-      if (o.fulfillment !== 'SHIP' || !o.shipLine1) return res.status(400).json({ error: 'This order has no shipping address.' });
-      const { shippo } = await shopSecretsFor(b);
-      if (!shippo) return res.status(400).json({ error: 'Connect your Shippo account in Policies & shipping first.', code: 'NO_SHIPPO' });
-      const settings = await loadShopSettings(b);
-      settings.shipFrom = await loadShopShipFrom(b);
-      if (!shipFromReady(settings.shipFrom)) return res.status(400).json({ error: 'Add your return address in Policies & shipping first.', code: 'NO_SHIP_FROM' });
-      let items: any[] = []; try { items = JSON.parse(String(o.items || '[]')); } catch { /* none */ }
-      const weighed: { qty: number; weightGrams?: number }[] = [];
-      for (const i of items) { const p = await loadStoreProduct(String(i.productId || '')).catch(() => null); if (p && !p.isDigital && p.fulfillmentSource !== 'printful') weighed.push({ qty: Number(i.qty) || 1, weightGrams: Number(p.weight) || undefined }); }
-      if (!weighed.length) return res.status(400).json({ error: 'Nothing on this order ships from you (it’s printed or digital).' });
-      const oz = Math.max(1, Math.round(Number(req.body?.weightOz) || 0)) || parcelWeightOz(settings.parcel, weighed);
-      const ship = orderShipForEmail(o)!;
-      const r = await shippoFetch(shippo, '/shipments/', shippoShipment(settings.shipFrom, { ...ship, email: String(o.customerEmail || '') }, settings.parcel, oz, orderId));
-      const j: any = await r.json().catch(() => ({}));
-      if (!r.ok) return res.status(502).json({ error: String(j?.detail || j?.messages?.[0]?.text || 'Shippo couldn’t rate this package.') });
-      const rates = shippoRates(j);
-      if (!rates.length) return res.status(400).json({ error: String(j?.messages?.[0]?.text || 'No carrier could rate this address. Check it and try again.') });
-      res.json({ weightOz: oz, rates: rates.slice(0, 12) });
-    } catch (e: any) { console.error('/api/store/label-rates', e?.message || e); res.status(500).json({ error: 'Couldn’t get label rates.' }); }
-  });
-  /** Buy the chosen label (charged to the seller's Shippo account) and put its tracking on the order. */
-  app.post('/api/store/orders/:id/label-buy', authMiddleware, express.json({ limit: '4kb' }), async (req: any, res) => {
-    try {
-      const orderId = String(req.params.id || '');
-      const o = await firestoreRead('storeOrders', orderId);
-      if (!o) return res.status(404).json({ error: 'Order not found.' });
-      const b = String(o.sellerId || '');
-      const who = await shopCan(req, b, 'ORDERS');
-      if (who.ok === false) return res.status(who.status).json({ error: who.error });
-      const rateId = String(req.body?.rateId || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 64);
-      if (!rateId) return res.status(400).json({ error: 'Pick a rate.' });
-      const { shippo } = await shopSecretsFor(b);
-      if (!shippo) return res.status(400).json({ error: 'Connect your Shippo account first.', code: 'NO_SHIPPO' });
-      const r = await shippoFetch(shippo, '/transactions/', { rate: rateId, label_file_type: 'PDF_4x6', async: false, metadata: `Plajah order ${shortOrderId(orderId)}` });
-      const t: any = await r.json().catch(() => ({}));
-      if (!r.ok || t?.status !== 'SUCCESS' || !t?.label_url) return res.status(502).json({ error: String(t?.messages?.[0]?.text || t?.detail || 'Shippo couldn’t buy that label.') });
-      const carrier = String(req.body?.carrier || '').slice(0, 30);
-      await firestoreWrite('storeOrders', orderId, {
-        labelUrl: String(t.label_url), labelTransactionId: String(t.object_id || ''), labelRateId: rateId, labelBoughtAt: Date.now(),
-        trackingNumber: String(t.tracking_number || '').slice(0, 40), trackingCarrier: carrier, trackingUrl: String(t.tracking_url_provider || '').slice(0, 500), updatedAt: Date.now(),
-      });
-      res.json({ ok: true, labelUrl: String(t.label_url), trackingNumber: String(t.tracking_number || ''), trackingCarrier: carrier });
-    } catch (e: any) { console.error('/api/store/label-buy', e?.message || e); res.status(500).json({ error: 'Couldn’t buy the label.' }); }
-  });
-
-  /** Send a paid order's printed lines to the seller's Printful account. Idempotent (Printful external_id = order id). */
-  const submitPrintfulOrder = async (orderId: string, o: Record<string, any>): Promise<{ ok: boolean; status?: string; error?: string; skipped?: boolean }> => {
-    const b = String(o.sellerId || '');
-    let items: any[] = []; try { items = JSON.parse(String(o.items || '[]')); } catch { /* none */ }
-    const printed: { printerId: string; qty: number; retailCents: number; title: string }[] = [];
-    const missing: string[] = [];
-    for (const i of items) {
-      const p = await loadStoreProduct(String(i.productId || '')).catch(() => null);
-      if (!p || p.fulfillmentSource !== 'printful') continue;
-      const id = printerVariantId(p, i.variantId);
-      if (!id) { missing.push(String(i.title || p.title || 'item')); continue; }
-      printed.push({ printerId: id, qty: Number(i.qty) || 1, retailCents: Number(i.unitAmount) || 0, title: String(i.title || '') });
-    }
-    if (!printed.length && !missing.length) return { ok: true, skipped: true };
-    const fail = async (error: string) => {
-      await firestoreWrite('storeOrders', orderId, { printfulStatus: 'FAILED', printfulError: error.slice(0, 300), updatedAt: Date.now() }).catch(() => {});
-      await firestoreCreate('notifications', { userId: b, senderId: 'plajah-store', senderName: 'Plajah Store', senderPhoto: '', type: 'SYSTEM', title: 'Printed order needs you', message: `Couldn’t send order #${shortOrderId(orderId)} to Printful: ${error}`, link: 'BUSINESS_DASHBOARD', targetId: orderId, isRead: false, timestamp: Date.now() }).catch(() => {});
-      return { ok: false, error };
-    };
-    if (missing.length) return fail(`no printer variant id on ${missing.join(', ')}. Add it in the product editor, then press Send to printer.`);
-    const { printful, printfulStoreId } = await shopSecretsFor(b);
-    if (!printful) return fail('this shop hasn’t connected Printful.');
-    if (!o.shipLine1) return fail('the order has no shipping address yet.');
-    const settings = await loadShopSettings(b);
-    const body = printfulOrderBody(orderId, { ...orderShipForEmail(o)!, email: String(o.customerEmail || '') }, printed);
-    const r = await printfulFetch(printful, printfulStoreId, `/orders?confirm=${settings.printfulAutoSubmit ? 'true' : 'false'}`, body);
-    const j: any = await r.json().catch(() => ({}));
-    if (!r.ok) {
-      // Already sent (retry or second click): read it back instead of failing.
-      const again = await printfulFetch(printful, printfulStoreId, `/orders/@${encodeURIComponent(body.external_id)}`);
-      if (again.ok) { const k: any = await again.json().catch(() => ({})); await firestoreWrite('storeOrders', orderId, { printfulOrderId: String(k?.result?.id || ''), printfulStatus: String(k?.result?.status || 'draft').toUpperCase(), printfulError: '', updatedAt: Date.now() }); return { ok: true, status: String(k?.result?.status || '') }; }
-      return fail(String(j?.error?.message || j?.result || `Printful said ${r.status}`));
-    }
-    await firestoreWrite('storeOrders', orderId, { printfulOrderId: String(j?.result?.id || ''), printfulStatus: String(j?.result?.status || (settings.printfulAutoSubmit ? 'pending' : 'draft')).toUpperCase(), printfulError: '', printfulSentAt: Date.now(), updatedAt: Date.now() });
-    return { ok: true, status: String(j?.result?.status || '') };
-  };
-  app.post('/api/store/orders/:id/printful', authMiddleware, express.json({ limit: '2kb' }), async (req: any, res) => {
-    try {
-      const orderId = String(req.params.id || '');
-      const o = await firestoreRead('storeOrders', orderId);
-      if (!o) return res.status(404).json({ error: 'Order not found.' });
-      const b = String(o.sellerId || '');
-      const who = await shopCan(req, b, 'ORDERS');
-      if (who.ok === false) return res.status(who.status).json({ error: who.error });
-      if (['PENDING_PAYMENT', 'EXPIRED', 'CANCELLED', 'REFUNDED'].includes(String(o.status))) return res.status(400).json({ error: 'Only paid, open orders go to the printer.' });
-      if (req.body?.action === 'sync') {
-        const { printful, printfulStoreId } = await shopSecretsFor(b);
-        if (!printful) return res.status(400).json({ error: 'Connect Printful first.' });
-        const r = await printfulFetch(printful, printfulStoreId, `/orders/@${encodeURIComponent(orderId.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32))}`);
-        const j: any = await r.json().catch(() => ({}));
-        if (!r.ok) return res.status(r.status === 404 ? 404 : 502).json({ error: r.status === 404 ? 'Printful has no order for this yet. Send it first.' : 'Couldn’t reach Printful.' });
-        const st = String(j?.result?.status || '').toUpperCase();
-        const trk = printfulTracking(j?.result);
-        await firestoreWrite('storeOrders', orderId, { printfulStatus: st, updatedAt: Date.now(), ...(trk ? { trackingNumber: trk.number.slice(0, 40), trackingCarrier: trk.carrier.slice(0, 30), trackingUrl: trk.url.slice(0, 500) } : {}) });
-        // Printed and shipped: move the order on and email the buyer, same as a manual "Mark shipped".
-        if (trk && ['CONFIRMED', 'PREPARING'].includes(String(o.status))) {
-          await firestoreWrite('storeOrders', orderId, { status: 'OUT_FOR_DELIVERY', shippedAt: Date.now() });
-          const email = String(o.customerEmail || '');
-          const settings = await loadShopSettings(b);
-          if (email) await sendOrderEmailOnce(orderId, 'SHIPPED', email, { shopName: await shopNameFor(b), orderId, lines: orderLinesForEmail(o), ship: orderShipForEmail(o), tracking: { carrier: trk.carrier, number: trk.number, url: trk.url || null }, orderUrl: orderStatusUrl(trustedRequestOrigin(req), o), contactEmail: settings.contactEmail }, 'OUT_FOR_DELIVERY');
-        }
-        return res.json({ ok: true, printfulStatus: st, tracking: trk, shipped: !!trk });
-      }
-      const out = await submitPrintfulOrder(orderId, o);
-      if (!out.ok) return res.status(400).json({ error: out.error });
-      res.json({ ok: true, status: out.status, skipped: out.skipped });
-    } catch (e: any) { console.error('/api/store/printful', e?.message || e); res.status(500).json({ error: 'Couldn’t talk to Printful.' }); }
   });
 
   // ── Product reviews. Written ONLY here (rules deny client writes): one review per person per product

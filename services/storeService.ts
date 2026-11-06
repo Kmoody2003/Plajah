@@ -186,43 +186,18 @@ export const replyToReview = async (reviewId: string, text: string): Promise<{ s
 
 /** Straight to Stripe Checkout for these lines from ONE shop (Buy now). The server re-prices and stock-checks;
  *  money goes to the shop. Navigates away on success, throws a readable error otherwise. */
-export interface CheckoutOptions {
-  /** ISO country the order ships to (the shop's home country when unset). */
-  shipCountry?: string;
-  shipMethod?: 'standard' | 'express' | 'international';
-  discountCode?: string;
-  /** Pick up locally instead of shipping (only when the shop offers it). */
-  pickup?: boolean;
-}
-const checkoutBody = (sellerId: string, lines: StoreCartItem[], opts: CheckoutOptions = {}) => ({
-  businessUid: sellerId,
-  items: lines.map(i => ({ productId: i.product.id, variantId: i.variantId, qty: i.quantity })),
-  fulfillment: lines.every(i => i.product.isDigital) || opts.pickup ? 'PICKUP' : 'SHIP',
-  ...(opts.shipCountry ? { shipCountry: opts.shipCountry } : {}),
-  ...(opts.shipMethod ? { shipMethod: opts.shipMethod } : {}),
-  ...(opts.discountCode ? { discountCode: opts.discountCode } : {}),
-});
-
-export interface CartQuote {
-  subtotalCents: number; discountCents: number; discountCode: string; shippingCents: number; shippingLabel: string; shipCountry: string;
-  taxCents: number; taxAtCheckout: boolean; totalCents: number;
-  shipping: { domesticCountry: string; countries: string[]; expressCents: number; pickup: boolean; pickupNote: string };
-}
-/** The real totals for one shop's part of the cart (code, shipping, tax), priced by the server. */
-export const quoteStoreCart = async (sellerId: string, lines: StoreCartItem[], opts: CheckoutOptions = {}): Promise<CartQuote> => {
-  const res = await fetch('/api/store/quote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(checkoutBody(sellerId, lines, opts)) });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) { const e: any = new Error(data.error || 'Could not price your cart.'); e.code = data.code; throw e; }
-  return data as CartQuote;
-};
-
-/** Go to Stripe Checkout for one shop. Signed-in buyers get My Orders + rewards; guests follow the order from their email. */
-export const startStoreCheckout = async (sellerId: string, lines: StoreCartItem[], opts: CheckoutOptions = {}): Promise<void> => {
+export const startStoreCheckout = async (sellerId: string, lines: StoreCartItem[]): Promise<void> => {
   const u = auth.currentUser;
+  if (!u) throw new Error('Sign in to check out.');
   const res = await fetch('/api/store/create-order', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(u && !u.isAnonymous ? { Authorization: `Bearer ${await u.getIdToken()}` } : {}) },
-    body: JSON.stringify({ ...checkoutBody(sellerId, lines, opts), customerName: u?.displayName || '' }),
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await u.getIdToken()}` },
+    body: JSON.stringify({
+      businessUid: sellerId,
+      items: lines.map(i => ({ productId: i.product.id, variantId: i.variantId, qty: i.quantity })),
+      fulfillment: lines.every(i => i.product.isDigital) ? 'PICKUP' : 'SHIP',
+      customerName: u.displayName || '',
+    }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.url) throw new Error(data.error || 'Could not start checkout. Try again.');

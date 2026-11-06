@@ -16,7 +16,7 @@ export interface StoreOrderRecord {
   businessUid: string;
   customerUid: string;
   status: string;                 // PENDING_PAYMENT | CONFIRMED | PREPARING | READY | COMPLETED | CANCELLED
-  items: { productId: string; variantId?: string | null; title: string; qty: number; unitAmount: number; variantName?: string | null; image?: string | null; sku?: string | null; chargeCents?: number; taxCents?: number }[];
+  items: { productId: string; variantId?: string | null; title: string; qty: number; unitAmount: number; variantName?: string | null; image?: string | null }[];
   subtotalCents: number;
   shippingCents?: number;
   totalCents?: number;            // what the customer actually paid (Stripe total / POS net)
@@ -28,26 +28,9 @@ export interface StoreOrderRecord {
   trackingNumber?: string;
   trackingCarrier?: string;
   oversold?: boolean;             // paid for stock that had just run out — seller must restock or refund
-  source?: string;                // 'POS' for register sales, 'ONLINE' for the web shop
+  source?: string;                // 'POS' for register sales
   createdAt: number;
   paidAt?: number;
-  discountCents?: number;
-  discountCode?: string;
-  taxCents?: number;
-  shippingTaxCents?: number;
-  refundedCents?: number;
-  partiallyRefunded?: boolean;
-  refundLog?: { id: string; amountCents: number; at: number; lines?: { index: number; qty: number }[]; external?: boolean }[];
-  disputed?: boolean;
-  disputeDueBy?: number;
-  guest?: boolean;
-  statusToken?: string;
-  stripePaymentIntentId?: string;
-  labelUrl?: string;
-  trackingUrl?: string;
-  printfulStatus?: string;
-  printfulError?: string;
-  disputeReversedCents?: number;
 }
 
 function mapOrder(id: string, x: any): StoreOrderRecord {
@@ -62,13 +45,6 @@ function mapOrder(id: string, x: any): StoreOrderRecord {
     ship: x.shipLine1 ? { name: x.shipName || '', line1: x.shipLine1, line2: x.shipLine2 || undefined, city: x.shipCity || '', state: x.shipState || '', postal: x.shipPostal || '', country: x.shipCountry || '' } : undefined,
     trackingNumber: x.trackingNumber || undefined, trackingCarrier: x.trackingCarrier || undefined,
     oversold: x.oversold === true, source: x.source,
-    discountCents: x.discountCents || 0, discountCode: x.discountCode || undefined, taxCents: x.taxCents || 0, shippingTaxCents: x.shippingTaxCents || 0,
-    refundedCents: x.refundedCents || 0, partiallyRefunded: x.partiallyRefunded === true,
-    refundLog: (() => { try { const v = typeof x.refundLog === 'string' ? JSON.parse(x.refundLog) : x.refundLog; return Array.isArray(v) ? v : []; } catch { return []; } })(),
-    disputed: x.disputed === true, disputeDueBy: x.disputeDueBy || undefined, guest: x.guest === true, statusToken: x.statusToken || undefined,
-    stripePaymentIntentId: x.stripePaymentIntentId || undefined,
-    labelUrl: x.labelUrl || undefined, trackingUrl: x.trackingUrl || undefined,
-    printfulStatus: x.printfulStatus || undefined, printfulError: x.printfulError || undefined, disputeReversedCents: x.disputeReversedCents || 0,
   };
 }
 
@@ -91,38 +67,6 @@ export async function fetchBusinessStoreOrders(businessUid: string): Promise<Sto
     return snap.docs.map(d => mapOrder(d.id, d.data())).sort((a, b) => b.createdAt - a.createdAt);
   } catch { return []; }
 }
-
-// ── Online shop back office (server routes; see services/storeShopCore.ts) ─────────────────────
-async function shopApi<T = any>(path: string, body?: any, method = body === undefined ? 'GET' : 'POST'): Promise<T> {
-  const token = await auth.currentUser?.getIdToken?.();
-  const res = await fetch(path, { method, headers: { ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Something went wrong. Try again.');
-  return data as T;
-}
-/** Advance an online order on the server (it emails the buyer when it ships or is ready). */
-export const advanceOnlineOrder = (orderId: string, status: string, extra: { trackingNumber?: string; trackingCarrier?: string } = {}) =>
-  shopApi<{ ok: true; status: string }>(`/api/store/orders/${encodeURIComponent(orderId)}/advance`, { status, ...extra });
-/** Refund chosen lines (index = item position; the shipping line comes after the items), everything (`all`), or cancel. */
-export const refundOnlineOrder = (orderId: string, r: { lines?: { index: number; qty: number; restock?: boolean }[]; all?: boolean; cancel?: boolean; restock?: boolean; reason?: string; note?: string; idempotencyKey: string }) =>
-  shopApi<{ ok: true; refundId: string; amountCents: number; restocked: number; fullyRefunded: boolean; status: string }>(`/api/store/orders/${encodeURIComponent(orderId)}/refund`, r);
-export const fetchShopSettings = (businessUid: string) => shopApi<{ settings: import('./storeShopCore').ShopSettings; returnPolicy: string; shippingPolicy: string }>(`/api/store/settings/${encodeURIComponent(businessUid)}`);
-export const saveShopSettings = (businessUid: string, settings: import('./storeShopCore').ShopSettings) =>
-  shopApi<{ ok: true; settings: import('./storeShopCore').ShopSettings; returnPolicy: string; shippingPolicy: string }>(`/api/store/settings/${encodeURIComponent(businessUid)}`, { settings });
-export const listShopCodes = (businessUid: string) => shopApi<{ codes: import('./storeShopCore').ShopCode[] }>(`/api/store/codes/${encodeURIComponent(businessUid)}`);
-export const createShopCode = (businessUid: string, c: Partial<import('./storeShopCore').ShopCode>) => shopApi(`/api/store/codes/${encodeURIComponent(businessUid)}`, c);
-export const toggleShopCode = (businessUid: string, code: string, active: boolean) => shopApi(`/api/store/codes/${encodeURIComponent(businessUid)}`, { action: 'toggle', code, active });
-export const deleteShopCode = (businessUid: string, code: string) => shopApi(`/api/store/codes/${encodeURIComponent(businessUid)}`, { action: 'delete', code });
-
-/** Connect (token) or disconnect (empty token) the shop's own Shippo or Printful account. */
-export const connectShopService = (businessUid: string, provider: 'shippo' | 'printful', token: string, storeId?: string) =>
-  shopApi<{ ok: true; connected: boolean; label?: string }>(`/api/store/connect/${encodeURIComponent(businessUid)}`, { provider, token, storeId });
-export const fetchShopConnections = (businessUid: string) => shopApi<{ shippo: boolean; shippoTest: boolean; printful: boolean }>(`/api/store/connections/${encodeURIComponent(businessUid)}`);
-export interface LabelRateOption { id: string; carrier: string; service: string; amount: string; currency: string; days: number | null }
-export const getLabelRates = (orderId: string, weightOz?: number) => shopApi<{ weightOz: number; rates: LabelRateOption[] }>(`/api/store/orders/${encodeURIComponent(orderId)}/label-rates`, { weightOz });
-export const buyLabel = (orderId: string, rateId: string, carrier: string) => shopApi<{ ok: true; labelUrl: string; trackingNumber: string; trackingCarrier: string }>(`/api/store/orders/${encodeURIComponent(orderId)}/label-buy`, { rateId, carrier });
-/** Send printed items to the shop's Printful, or `sync` to pull status + tracking back. */
-export const printfulOrderAction = (orderId: string, action: 'send' | 'sync') => shopApi<{ ok: true; status?: string; printfulStatus?: string; shipped?: boolean }>(`/api/store/orders/${encodeURIComponent(orderId)}/printful`, { action });
 
 /** Advance a spine order's status (business only — rules require sellerId == the signed-in user). */
 export async function advanceStoreOrder(orderId: string, status: string, extra: { trackingNumber?: string; trackingCarrier?: string; oversold?: boolean } = {}): Promise<void> {
