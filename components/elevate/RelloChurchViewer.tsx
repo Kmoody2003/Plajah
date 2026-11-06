@@ -28,15 +28,15 @@ import { DEFAULT_TRANSLATION } from '../../services/scriptureText';
 import { parseRefId, type ScriptureRef } from '../../services/scriptureRef';
 import { recordServiceNote, formatTC } from '../../services/serviceNotes';
 import { verseNotes } from '../../services/readerNotes';
-import { TRANSLATIONS } from '../../services/bibleService';
 import type { ListenerHit } from '../../services/ambo/scriptureListener';
 import {
   faithForOrg, faithHearsReferences, FAITH_SCRIPTURE_NAME, readWatchSession, addWatchPassage, addWatchNote,
   removeWatchNote, passageAt, syncWatchSessions, type WatchPassage, type WatchSession,
 } from '../../services/watchScripture';
 import { useFeedScripture } from '../../hooks/useFeedScripture';
+import { useEditionMatch, useReadAlong } from '../../hooks/useReadAlong';
 import { EV, EV_FONT } from './vellum';
-import VersePanel, { VERSE_SKINS, DEFAULT_VERSE_SKIN, TEXT_SIZES, usePassageText, type TextSizeId } from './VersePanel';
+import VersePanel, { VERSE_SKINS, DEFAULT_VERSE_SKIN, TEXT_SIZES, PANEL_EDITIONS, usePassageText, type TextSizeId } from './VersePanel';
 import LeafPlayer, { useLeafPhone, isLeafPhoneNow } from './LeafPlayer';
 
 export interface ChurchStreamItem {
@@ -351,7 +351,10 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
     if (faith === 'judaism' && hit.ref.book > 39) return; // not in the Tanakh
     pushPassage({ refId: hit.refId, label: hit.label, tc: playheadRef.current, at: Date.now(), source: 'heard', heard: hit.heard });
   }, [faith, pushPassage]);
-  const listen = useFeedScripture(videoEl, listenOn, isEmbed, onHeard, activeStream.id);
+  // Words heard go on to the read-along once the panel has a text open (wired below).
+  const spokenRef = useRef<((words: string) => void) | null>(null);
+  const onSpoken = useCallback((words: string) => spokenRef.current?.(words), []);
+  const listen = useFeedScripture(videoEl, listenOn, isEmbed, onHeard, activeStream.id, onSpoken);
 
   // …and the org's Stage team, for the org's own live service.
   const stageApplies = !!faith && hearsRefs && activeStream.kind === 'LIVE_SANCTUARY' && !!activeStream.isOrgOwned;
@@ -375,6 +378,19 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
   const followed = passageAt(session, playheadSec, isLiveStream);
   const passage = pinned ?? followed;
   const { text, loading, error } = usePassageText(faith ?? 'christianity', faith ? passage : null, translation);
+  // Follow the reading word by word while the passage is read out loud (in the viewer's own pick too).
+  const readAlong = useReadAlong(text, listen.status === 'listening');
+  // …and if the reader is on a different edition than the panel, switch to theirs.
+  const openChapter = faith === 'christianity' && passage ? parseRefId(passage.refId) : null;
+  const edition = useEditionMatch({
+    chapter: openChapter ? { book: openChapter.book, chapter: openChapter.chapter } : null,
+    translation,
+    active: listen.status === 'listening' && faith === 'christianity',
+    sourceKey: activeStream.id,
+    onSwitch: setTranslation,
+  });
+  spokenRef.current = words => { readAlong.feed(words); edition.feed(words); };
+  const chooseTranslation = (slug: string) => { edition.viewerChose(); setTranslation(slug); };
 
   const pickPassage = (refId: string, label: string) => {
     const p: WatchPassage = { refId, label, tc: playheadRef.current, at: Date.now(), source: 'picked' };
@@ -522,8 +538,8 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
         verses={(text?.lines || []).map(l => ({ verse: Number(l.n), text: l.text }))}
         loading={loading}
         translation={faith === 'christianity' ? translation : scriptureName}
-        translations={faith === 'christianity' ? TRANSLATIONS.slice(0, 6) : []}
-        onTranslation={setTranslation}
+        translations={faith === 'christianity' ? PANEL_EDITIONS : []}
+        onTranslation={chooseTranslation}
         skin={activeSkin}
         skins={VERSE_SKINS}
         onSkin={pickSkin}
@@ -784,11 +800,15 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
                   onPick={pickPassage}
                   onJump={jumpToPassage}
                   listen={listen}
+                  reading={readAlong.spot}
                   listenEnabled={listenPref}
                   onToggleListen={hearsRefs ? toggleListen : undefined}
                   stageFollowing={stageFollowing}
                   translation={translation}
-                  onTranslation={setTranslation}
+                  onTranslation={chooseTranslation}
+                  editionSwitch={edition.switched}
+                  onUndoEdition={edition.undo}
+                  onDismissEdition={edition.dismiss}
                   skin={activeSkin}
                   onSkin={pickSkin}
                   textSize={TEXT_SIZES.some(s => s.id === textSize) ? textSize : 'm'}

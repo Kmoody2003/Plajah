@@ -35,3 +35,13 @@ export const startSpeechTranscription = async (source: any, events: any) => {
   return { engine: 'whisper', analyser: null, stop: () => { __transcriber.stopped++; if (ev === events) ev = null; } };
 };
 export const __say = (text: string) => { if (!ev) return false; ev.onWords(text, true); return true; };
+/** Read text out loud at a reading pace (~2.5 words/s), in small interim chunks like the transcriber. */
+export const __read = async (text: string, wordsPerSec = 2.5) => {
+  const w = text.split(/\s+/).filter(Boolean);
+  for (let i = 0; i < w.length; i += 2) {
+    if (!ev) return false;
+    ev.onWords(w.slice(i, i + 2).join(' '), false);
+    await new Promise(r => setTimeout(r, (2 / wordsPerSec) * 1000));
+  }
+  return true;
+};

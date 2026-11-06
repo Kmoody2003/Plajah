@@ -51,6 +51,7 @@ function captureAudio(el: HTMLMediaElement): MediaStream | null {
  * @param isEmbed the source is an iframe
  * @param onHit   a settled reference, with the moment it was heard
  * @param sourceKey the source playing; the player reuses one <video>, so a new source restarts listening
+ * @param onSpoken  every new stretch of words heard (a delta) — the read-along follows the reading with it
  */
 export function useFeedScripture(
   media: HTMLVideoElement | null,
@@ -58,10 +59,13 @@ export function useFeedScripture(
   isEmbed: boolean,
   onHit: (hit: ListenerHit) => void,
   sourceKey = '',
+  onSpoken?: (words: string) => void,
 ): FeedScriptureState {
   const [state, setState] = useState<FeedScriptureState>(OFF);
   const onHitRef = useRef(onHit);
   onHitRef.current = onHit;
+  const onSpokenRef = useRef(onSpoken);
+  onSpokenRef.current = onSpoken;
 
   useEffect(() => {
     if (!enabled) { setState(OFF); return; }
@@ -89,6 +93,7 @@ export function useFeedScripture(
             const now = Date.now();
             if (text.trim()) words = words.concat(text.split(/\s+/).filter(Boolean)).slice(-14);
             listener.feed(text, now, final);
+            if (text.trim()) onSpokenRef.current?.(text);
             for (const hit of listener.poll(now)) fire(hit);
             if (!closed) setState(s => ({ ...s, heard: normalizeSpoken(words.join(' ')), hearing: listener.pending() }));
           },

@@ -12,11 +12,13 @@ import { SACRED_WORKS, worksForFaith } from '../../data/sacredLibrary/readerCata
 import { loadSacredSection } from '../../services/sacredReaderService';
 import { getParallel } from '../../services/scriptureText';
 import { formatRef, parseRef, parseRefId, refId as toRefId } from '../../services/scriptureRef';
-import { TRANSLATIONS } from '../../services/bibleService';
+import { EXTRA_ENGLISH_EDITIONS, TRANSLATIONS } from '../../services/bibleService';
 import { formatTC } from '../../services/serviceNotes';
 import { verseNotes } from '../../services/readerNotes';
 import { FAITH_SCRIPTURE_NAME, type WatchPassage } from '../../services/watchScripture';
 import type { FeedScriptureState } from '../../hooks/useFeedScripture';
+import type { ReadingSpot } from '../../hooks/useReadAlong';
+import { lineWords } from '../../services/readAlong';
 
 // ── Reading surfaces ────────────────────────────────────────────────────────
 // Clear is the default: flat warm paper, high-contrast ink. The Lectio papers stay one tap away.
@@ -32,6 +34,9 @@ export const VERSE_SKINS: readonly VerseSkin[] = [
   { id: 'night', label: 'Night', bg: 'linear-gradient(180deg, #0C0B12 0%, #08070C 100%)', ink: '#DED8EA', muted: '#6E6688', num: '#E2C27E', mark: 'rgba(226,194,126,0.2)', line: 'rgba(255,255,255,0.07)' },
 ];
 export const DEFAULT_VERSE_SKIN = 'clear';
+/** The Bible editions the panel offers: the shared list plus the public-domain modern English ones. */
+export const PANEL_EDITIONS = [...TRANSLATIONS, ...EXTRA_ENGLISH_EDITIONS];
+export const editionLabel = (slug: string) => PANEL_EDITIONS.find(t => t.slug === slug)?.label ?? slug;
 export const TEXT_SIZES = [{ id: 's', px: 16 }, { id: 'm', px: 18 }, { id: 'l', px: 21 }] as const;
 export type TextSizeId = (typeof TEXT_SIZES)[number]['id'];
 
@@ -66,7 +71,7 @@ export function usePassageText(faith: FaithId, passage: WatchPassage | null, tra
       if (bible && faith === 'christianity') {
         const res = await getParallel(bible.book, bible.chapter, [translation]);
         const verses = res[translation] || [];
-        const tr = TRANSLATIONS.find(t => t.slug === translation);
+        const tr = PANEL_EDITIONS.find(t => t.slug === translation);
         return {
           title: formatRef({ ...bible, verse: undefined, endVerse: undefined }, 'display'),
           edition: tr?.label,
@@ -142,6 +147,12 @@ interface VersePanelProps {
   onPick: (refId: string, label: string) => void;
   onJump: (p: WatchPassage) => void;
   listen: FeedScriptureState;
+  /** Where the reader is while the passage is read out loud. */
+  reading?: ReadingSpot | null;
+  /** The panel switched edition to match the reader's wording. */
+  editionSwitch?: { from: string; to: string } | null;
+  onUndoEdition?: () => void;
+  onDismissEdition?: () => void;
   listenEnabled: boolean;
   onToggleListen?: () => void;
   /** The org's Stage team is publishing cues for this source. */
@@ -160,12 +171,13 @@ const SOURCE_WORD: Record<WatchPassage['source'], string> = { heard: 'Heard', st
 
 export const VersePanel: React.FC<VersePanelProps> = props => {
   const { faith, passage, passages, text, loading, error, isLive, following, listen, listenEnabled, stageFollowing, skin, textSize } = props;
+  const reading = props.reading && text && props.reading.line < text.lines.length ? props.reading : null;
   const [display, setDisplay] = useState(false);
   const [pick, setPick] = useState('');
   const [pickWork, setPickWork] = useState(() => worksForFaith(faith)[0]?.id);
   const [pickError, setPickError] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const calledRef = useRef<HTMLDivElement>(null);
+  const calledRef = useRef<HTMLDivElement | null>(null);
   const trailRef = useRef<HTMLDivElement>(null);
   const userScrollAt = useRef(0);
   const notes = useVerseNotes(faith === 'christianity');
@@ -183,20 +195,32 @@ export const VersePanel: React.FC<VersePanelProps> = props => {
     body.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
   }, [text, passage?.refId]);
 
+  // While it is read out loud, keep the verse being read in view as the reader moves on.
+  const readingRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const body = bodyRef.current, el = readingRef.current;
+    if (!body || !el || !reading?.live || Date.now() - userScrollAt.current < 4000) return;
+    // Move only when the verse has drifted above the panel or into its lower part — not on every word.
+    const above = el.offsetTop < body.scrollTop;
+    const low = el.offsetTop + Math.min(el.offsetHeight, body.clientHeight * 0.4) > body.scrollTop + body.clientHeight * 0.75;
+    if (above || low) body.scrollTo({ top: Math.max(0, el.offsetTop - body.clientHeight * 0.28), behavior: 'smooth' });
+  }, [reading?.line, reading?.word, reading?.live]);
+
   useEffect(() => {
     const t = trailRef.current;
     if (t) t.scrollTo({ left: t.scrollWidth, behavior: 'smooth' });
   }, [passages.length]);
 
   const status = useMemo(() => {
-    if (!following) return { word: 'Paused on your pick', tone: 'muted' as const };
+    if (!following && !(reading?.live && listen.status === 'listening')) return { word: 'Paused on your pick', tone: 'muted' as const };
     if (stageFollowing) return { word: 'Following the Stage team', tone: 'live' as const };
+    if (listen.status === 'listening' && reading?.live && text) return { word: `Reading along · verse ${text.lines[reading.line].n}`, tone: 'live' as const };
     if (listen.status === 'listening') return { word: listen.hearing ? `Hearing ${listen.hearing.label}…` : 'Listening to the stream', tone: 'live' as const };
     if (listen.status === 'starting' || listen.status === 'waiting') return { word: listen.detail || 'Getting ready…', tone: 'muted' as const };
     if (listen.status === 'embed') return { word: 'Can’t hear this source', tone: 'muted' as const };
     if (listen.status === 'error') return { word: 'Not listening', tone: 'muted' as const };
     return { word: listenEnabled ? 'Not listening' : 'Listening off', tone: 'muted' as const };
-  }, [following, stageFollowing, listen, listenEnabled]);
+  }, [following, stageFollowing, listen, listenEnabled, reading?.live, reading?.line, text]);
 
   const submitPick = () => {
     const hit = parsePick(faith, pick, pickWork);
@@ -252,10 +276,14 @@ export const VersePanel: React.FC<VersePanelProps> = props => {
               className="h-8 shrink-0 rounded-full px-3 text-[12px] font-semibold outline-none cursor-pointer"
               style={{ background: 'transparent', color: skin.ink, border: `1px solid ${skin.line}` }}
             >
-              {TRANSLATIONS.slice(0, 6).map(t => <option key={t.slug} value={t.slug} style={{ color: '#111' }}>{t.label}</option>)}
+              {PANEL_EDITIONS.map(t => <option key={t.slug} value={t.slug} style={{ color: '#111' }}>{t.label}</option>)}
             </select>
           )}
         </div>
+        {props.editionSwitch && (
+          <EditionNote skin={skin} to={editionLabel(props.editionSwitch.to)} from={editionLabel(props.editionSwitch.from)}
+            onUndo={props.onUndoEdition} onDismiss={props.onDismissEdition} />
+        )}
         {text?.edition && faith !== 'christianity' && <div className="mt-1 text-[12px] truncate" style={{ color: skin.muted }}>{text.edition}</div>}
 
         {!following && (
@@ -334,21 +362,26 @@ export const VersePanel: React.FC<VersePanelProps> = props => {
             {passage.heard && passage.source === 'heard' && (
               <p className="mb-4 text-[13px] italic" style={{ fontFamily: EV_FONT.ui, color: skin.muted }}>“…{passage.heard}…”</p>
             )}
-            {text.lines.map(l => {
-              const called = l.id === text.called;
+            {text.lines.map((l, idx) => {
+              // The verse being read takes the mark; until reading is heard, the verse the reference named has it.
+              const isReading = reading?.line === idx;
+              const called = reading ? isReading : l.id === text.called;
               const noteKey = faith === 'christianity' && passage ? `${parseRefId(passage.refId)?.book}:${parseRefId(passage.refId)?.chapter}:${l.id}` : '';
               const hasNote = !!(noteKey && notes[noteKey]);
               return (
                 <div
                   key={l.id}
-                  ref={called ? calledRef : undefined}
-                  className="relative rounded-xl transition-colors"
-                  style={called ? { background: skin.mark, padding: '10px 14px', margin: '6px -14px' } : { padding: '2px 0' }}
+                  ref={el => { if (l.id === text.called) calledRef.current = el; if (isReading) readingRef.current = el; }}
+                  className="relative rounded-xl transition-colors duration-300"
+                  style={called
+                    ? { background: skin.mark, padding: '10px 14px', margin: '6px -14px', boxShadow: isReading && reading?.live ? `inset 3px 0 0 ${skin.num}` : undefined }
+                    : { padding: '2px 0' }}
+                  aria-current={isReading && reading?.live ? 'true' : undefined}
                 >
                   <p>
                     <sup className="mr-1.5 tabular-nums" style={{ fontFamily: EV_FONT.ui, fontSize: 11, fontWeight: 600, color: skin.num, top: '-0.5em' }}>{l.n}</sup>
                     {hasNote && <span title="You have a note on this verse" className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle" style={{ background: '#8B5CF6' }} />}
-                    {l.text}
+                    {isReading && reading ? <ReadWords text={l.text} word={reading.word} live={reading.live} skin={skin} dark={dark} /> : l.text}
                   </p>
                   {l.original && <p className="mt-1 text-[0.92em]" dir={text.dir === 'rtl' || /[֐-ۿ]/.test(l.original) ? 'rtl' : 'ltr'} style={{ color: skin.muted }}>{l.original}</p>}
                   {called && calledNote && (
@@ -389,6 +422,47 @@ export const VersePanel: React.FC<VersePanelProps> = props => {
         </label>
       </form>
     </aside>
+  );
+};
+
+/** "Switched to World English Bible to match the reader · Undo". Goes away on its own. */
+const EditionNote: React.FC<{ skin: VerseSkin; to: string; from: string; onUndo?: () => void; onDismiss?: () => void }> = ({ skin, to, from, onUndo, onDismiss }) => {
+  useEffect(() => {
+    if (!onDismiss) return;
+    const t = window.setTimeout(onDismiss, 15000);
+    return () => window.clearTimeout(t);
+  }, [to, onDismiss]);
+  return (
+    <div className="mt-2 flex items-center gap-2 text-[12px]" style={{ color: skin.muted }} role="status">
+      <span className="min-w-0">Switched to <b style={{ color: skin.ink }}>{to}</b> to match the reader</span>
+      {onUndo && (
+        <button type="button" onClick={onUndo} className="shrink-0 font-semibold underline underline-offset-2" style={{ color: skin.ink }} title={`Back to ${from}`}>
+          Undo
+        </button>
+      )}
+    </div>
+  );
+};
+
+/** A verse being read: words already read in full ink, the word the reader is on lit, the rest softer. */
+const ReadWords: React.FC<{ text: string; word: number; live: boolean; skin: VerseSkin; dark: boolean }> = ({ text, word, live, skin, dark }) => {
+  const words = lineWords(text);
+  return (
+    <>
+      {words.map((w, i) => (
+        <React.Fragment key={i}>
+          <span
+            className="transition-[color,background-color,opacity] duration-200"
+            style={i === word && live
+              ? { background: skin.num, color: dark ? '#17141D' : '#FFFFFF', borderRadius: 4, padding: '1px 2px', boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone' }
+              : { opacity: live && i > word ? 0.5 : 1 }}
+          >
+            {w}
+          </span>
+          {i < words.length - 1 ? ' ' : null}
+        </React.Fragment>
+      ))}
+    </>
   );
 };
 
