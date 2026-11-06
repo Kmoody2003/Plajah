@@ -3625,6 +3625,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       }
 
       if (projectId) {
+        // Audius songs/albums/mixes (`audius:…` ids) live on the Audius network, not in Firestore —
+        // rebuild them from Audius, or the lookup misses and the visitor lands on the sign-in page.
+        const loadSharedMusic = async (id: string): Promise<any> => {
+          if (id.startsWith('audius:')) {
+            const { resolveAudiusShareId } = await import('./services/audiusService');
+            return resolveAudiusShareId(id).catch(() => null);
+          }
+          return fetchProjectFromCloud(id);
+        };
         if (shareType === 'movie') {
           // A shared Taleo film/TV title — always lands on the Taleo movie page
           // (MOVIE_UX). Reconstruct it from wherever it lives: creator film (album),
@@ -3735,7 +3744,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           setIsLoading(false);
           return;
         } else if (shareType === 'mix') {
-          const remoteAlbum = await fetchProjectFromCloud(projectId);
+          const remoteAlbum = await loadSharedMusic(projectId);
           if (remoteAlbum) {
             document.title = `${remoteAlbum.title} | Plajah`;
             setSelectedAlbum(remoteAlbum);
@@ -3748,7 +3757,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           return;
         } else {
           // Defaults to album
-          const remoteAlbum = await fetchProjectFromCloud(projectId);
+          const remoteAlbum = await loadSharedMusic(projectId);
           if (remoteAlbum) {
             document.title = `${remoteAlbum.title} | Plajah`;
             if (remoteAlbum.subType === 'MIX') {
@@ -4258,9 +4267,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           try {
             // Audius albums (`audius:album:<id>`) live on the network, not Firestore —
             // rehydrate them through the Audius resolver so deep-links/reloads work.
-            if (targetId.startsWith('audius:album:')) {
-              const { resolveNativeAudiusAlbum } = await import('./services/audiusService');
-              const aud = await resolveNativeAudiusAlbum(targetId);
+            if (targetId.startsWith('audius:')) {
+              const { resolveAudiusShareId } = await import('./services/audiusService');
+              const aud = await resolveAudiusShareId(targetId);
               if (aud) { handleSelectItem(aud); } else { setView('MUSIC'); }
               break;
             }

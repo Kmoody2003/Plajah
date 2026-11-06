@@ -904,6 +904,34 @@ export const resolveNativeAudiusAlbum = async (nativeId: string): Promise<Album 
   } catch { return null; }
 };
 
+/** One Audius track by its id (raw or `audius_`-prefixed). */
+export async function fetchAudiusTrackById(trackId: string): Promise<ArchiveTrack | null> {
+  try {
+    const host = await getAudiusHost();
+    const data = await audiusFetch(`/v1/tracks/${encodeURIComponent(trackId.replace(/^audius_/, ''))}`);
+    return data?.data ? mapTrack(data.data, host) : null;
+  } catch { return null; }
+}
+
+/** Any Audius share id → the native Album it was shared from:
+ *  `audius:album:single_<trackId>` (a song), `audius:mix:<trackId>` (a long set),
+ *  `audius:album:<playlistId>` (an album/playlist). Share links and notifications carry
+ *  these ids; none of them live in Firestore, so the app must rebuild them from Audius. */
+export async function resolveAudiusShareId(nativeId: string): Promise<Album | null> {
+  const single = /^audius:album:single_(.+)$/.exec(nativeId);
+  if (single) {
+    const t = await fetchAudiusTrackById(single[1]);
+    return t ? audiusTrackToNativeAlbum(t) : null;
+  }
+  const mix = /^audius:mix:(.+)$/.exec(nativeId);
+  if (mix) {
+    const t = await fetchAudiusTrackById(mix[1]);
+    return t ? audiusTrackToMixAlbum(t) : null;
+  }
+  if (nativeId.startsWith('audius:album:')) return resolveNativeAudiusAlbum(nativeId);
+  return null;
+}
+
 /** A long-form Audius set → a Chora Mix album, so it opens in MixPlayerView (waveform + Pixels
  *  auto-show) instead of the album view. Comments stay off: they live on a Plajah album doc. */
 export const audiusTrackToMixAlbum = (t: ArchiveTrack): Album => ({
