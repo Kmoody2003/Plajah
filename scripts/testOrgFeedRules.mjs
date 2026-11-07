@@ -16,9 +16,11 @@ const ORG = 'o1', YOUTH = 'youth', MEDIA = 'media';
 // YOUTHM is in the Youth department; MEM is an org member in no department; FAN only follows; OUT is a stranger;
 // PASTOR leads the org (pastorUids) and sees every department.
 const YOUTHM = 'youthm', MEM = 'mem', FAN = 'fan', OUT = 'out', PASTOR = 'pastor';
-const users = [YOUTHM, MEM, FAN, OUT, PASTOR];
+// STAFFER is on the org's staffUids; BIZ is a business page owned by BIZOWNER.
+const STAFFER = 'staffer', BIZ = 'b1', BIZOWNER = 'bizowner';
+const users = [YOUTHM, MEM, FAN, OUT, PASTOR, STAFFER, BIZOWNER];
 const index = { [YOUTHM]: [YOUTH], [MEM]: [] };
-const orgDoc = { creatorId: 'founder', admins: [], pastorUids: [PASTOR], leaderUids: [] };
+const orgDoc = { creatorId: 'founder', admins: [], pastorUids: [PASTOR], leaderUids: [], staffUids: [STAFFER] };
 const deptPost = { authorId: PASTOR, authorName: 'Grace', authorPhoto: '', text: 'youth only', timestamp: 1, authorOrgId: ORG, orgAudience: 'DEPARTMENT', orgDepartmentId: YOUTH, isPublic: false, likedBy: [], likesCount: 0 };
 const internalPost = { ...deptPost, orgAudience: 'INTERNAL', text: 'members only' };
 delete internalPost.orgDepartmentId;
@@ -36,6 +38,7 @@ function mocks() {
     m.push({ function: 'exists', args: [{ exactValue: `${DB}/orgFollowers/${ORG}_${u}` }], result: { value: u === FAN } });
   }
   m.push({ function: 'get', args: [{ exactValue: `${DB}/organizations/${ORG}` }], result: { value: { data: orgDoc } } });
+  m.push({ function: 'get', args: [{ exactValue: `${DB}/businessPages/${BIZ}` }], result: { value: { data: { ownerId: BIZOWNER } } } });
   m.push({ function: 'get', args: [{ exactValue: `${DB}/posts/pd` }], result: { value: { data: deptPost } } });
   m.push({ function: 'get', args: [{ exactValue: `${DB}/posts/pi` }], result: { value: { data: internalPost } } });
   return m;
@@ -61,6 +64,20 @@ t('department member posts to their department', 'ALLOW', YOUTHM, 'create', PN, 
 t('member posts to a department they are not in', 'DENY', YOUTHM, 'create', PN, { data: { ...deptPost, authorId: YOUTHM, orgDepartmentId: MEDIA } });
 t('department post must be unlisted', 'DENY', YOUTHM, 'create', PN, { data: { ...deptPost, authorId: YOUTHM, isPublic: true } });
 t('stranger posts into a department', 'DENY', OUT, 'create', PN, { data: { ...deptPost, authorId: OUT } });
+
+// Speaking AS the org/business (authorIsOrg) vs posting as yourself into its feed
+const feedPost = (uid, o = {}) => ({ authorId: uid, authorName: uid, authorPhoto: '', text: 'hello', timestamp: 1, authorOrgId: ORG, orgAudience: 'PUBLIC', isPublic: true, likedBy: [], likesCount: 0, ...o });
+const asOrg = (uid, o = {}) => feedPost(uid, { authorName: 'Grace', authorIsOrg: true, ...o });
+t('stranger posts publicly to the org feed as themselves', 'ALLOW', OUT, 'create', PN, { data: feedPost(OUT, { authorIsOrg: false }) });
+t('member posts members-only as themselves', 'ALLOW', MEM, 'create', PN, { data: feedPost(MEM, { authorIsOrg: false, orgAudience: 'INTERNAL', isPublic: false }) });
+t('stranger posts AS the org', 'DENY', OUT, 'create', PN, { data: asOrg(OUT) });
+t('plain member posts AS the org', 'DENY', MEM, 'create', PN, { data: asOrg(MEM) });
+t('staff member posts AS the org', 'ALLOW', STAFFER, 'create', PN, { data: asOrg(STAFFER) });
+t('pastor posts AS the org', 'ALLOW', PASTOR, 'create', PN, { data: asOrg(PASTOR) });
+t('business owner posts AS the business', 'ALLOW', BIZOWNER, 'create', PN, { data: asOrg(BIZOWNER, { authorOrgId: BIZ }) });
+t('stranger posts AS the business', 'DENY', OUT, 'create', PN, { data: asOrg(OUT, { authorOrgId: BIZ }) });
+t('author flips own post to AS the org later', 'DENY', MEM, 'update', `${DB}/posts/pm`, { existing: feedPost(MEM, { authorIsOrg: false }), data: feedPost(MEM, { authorIsOrg: true }) });
+t('author edits own post text', 'ALLOW', MEM, 'update', `${DB}/posts/pm`, { existing: feedPost(MEM, { authorIsOrg: false }), data: feedPost(MEM, { authorIsOrg: false, text: 'edited' }) });
 
 // Likes — only people who can see the post
 t('department member likes a department post', 'ALLOW', YOUTHM, 'update', PD, { existing: deptPost, data: { ...deptPost, likedBy: [YOUTHM], likesCount: 1 } });

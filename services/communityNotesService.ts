@@ -29,7 +29,7 @@ import {
   doc, getDoc, setDoc, addDoc, updateDoc, collection, getDocs,
   query, where, orderBy, limit as qLimit, serverTimestamp,
 } from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { db, opsDb, auth } from './firebase';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -190,7 +190,7 @@ export async function proposeNote(input: {
   const sources = input.sources.map(s => s.trim()).filter(s => /^https?:\/\//.test(s));
   if (!sources.length || input.summary.trim().length < 30) return null;
   try {
-    const ref = await addDoc(collection(db, 'community_notes'), {
+    const ref = await addDoc(collection(opsDb, 'community_notes'), {
       contentId: input.contentId,
       contentType: input.contentType,
       authorId: uid,
@@ -207,7 +207,7 @@ export async function proposeNote(input: {
 export async function fetchNotesForContent(contentId: string): Promise<(CommunityNote & { score: NoteScore })[]> {
   try {
     const snap = await getDocs(query(
-      collection(db, 'community_notes'),
+      collection(opsDb, 'community_notes'),
       where('contentId', '==', contentId),
       qLimit(10),
     ));
@@ -224,7 +224,7 @@ export async function fetchNotesForContent(contentId: string): Promise<(Communit
 
 export async function fetchRatings(noteId: string): Promise<NoteRating[]> {
   try {
-    const snap = await getDocs(collection(db, 'community_notes', noteId, 'ratings'));
+    const snap = await getDocs(collection(opsDb, 'community_notes', noteId, 'ratings'));
     return snap.docs.map(d => d.data() as NoteRating);
   } catch { return []; }
 }
@@ -233,7 +233,7 @@ export async function rateNote(noteId: string, helpful: HelpfulVote, reasons: No
   const uid = auth.currentUser?.uid;
   if (!uid) return false;
   try {
-    await setDoc(doc(db, 'community_notes', noteId, 'ratings', uid), {
+    await setDoc(doc(opsDb, 'community_notes', noteId, 'ratings', uid), {
       raterId: uid,
       helpful,
       reasons,
@@ -249,7 +249,7 @@ export async function respondToNote(noteId: string, text: string): Promise<boole
   const uid = auth.currentUser?.uid;
   if (!uid || !text.trim()) return false;
   try {
-    await updateDoc(doc(db, 'community_notes', noteId), {
+    await updateDoc(doc(opsDb, 'community_notes', noteId), {
       authorResponse: { text: text.trim().slice(0, 600), authorId: uid, createdAt: Date.now() },
       updatedAt: Date.now(),
     });
@@ -262,7 +262,7 @@ export async function fetchRatingQueue(max = 20): Promise<(CommunityNote & { sco
   const uid = auth.currentUser?.uid;
   try {
     const snap = await getDocs(query(
-      collection(db, 'community_notes'),
+      collection(opsDb, 'community_notes'),
       where('status', '==', 'NEEDS_RATINGS'),
       orderBy('createdAt', 'desc'),
       qLimit(max * 2),

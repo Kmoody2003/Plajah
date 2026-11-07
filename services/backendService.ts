@@ -11966,7 +11966,7 @@ export const uploadClubImage = async (file: File, clubId: string, type: 'cover' 
 
 export const createDiscussionAlias = async (name: string, avatar?: string, bio?: string) => {
   if (!auth.currentUser) return null;
-  const docRef = doc(collection(db, 'discussionAliases'));
+  const docRef = doc(collection(opsDb, 'discussionAliases'));
   const alias = { id: docRef.id, userId: auth.currentUser.uid, name, avatar: avatar || '', bio: bio || '', timestamp: Date.now() };
   await setDoc(docRef, alias);
   return alias;
@@ -11975,7 +11975,7 @@ export const createDiscussionAlias = async (name: string, avatar?: string, bio?:
 export const fetchMyDiscussionAliases = async () => {
   if (!auth.currentUser) return [];
   try {
-    const q = query(collection(db, 'discussionAliases'), where('userId', '==', auth.currentUser.uid), limit(50));
+    const q = query(collection(opsDb, 'discussionAliases'), where('userId', '==', auth.currentUser.uid), limit(50));
     const snap = await getDocs(q);
     return snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
@@ -11988,7 +11988,7 @@ export const fetchMyDiscussionAliases = async () => {
 
 export const fetchDiscussionBoards = async () => {
   try {
-    const q = query(collection(db, 'discussionBoards'), limit(50));
+    const q = query(collection(opsDb, 'discussionBoards'), limit(50));
     const snap = await getDocs(q);
     return snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
@@ -12001,7 +12001,7 @@ export const fetchDiscussionBoards = async () => {
 
 export const createDiscussionBoard = async (name: string, description: string, tags: string[] = []) => {
   if (!auth.currentUser) return null;
-  const docRef = doc(collection(db, 'discussionBoards'));
+  const docRef = doc(collection(opsDb, 'discussionBoards'));
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   const board = { id: docRef.id, name, slug, description, tags, creatorId: auth.currentUser.uid, memberCount: 1, postCount: 0, isNSFW: false, timestamp: Date.now() };
   await setDoc(docRef, board);
@@ -12011,8 +12011,8 @@ export const createDiscussionBoard = async (name: string, description: string, t
 export const fetchDiscussionPosts = async (boardId?: string, sortBy: 'hot' | 'new' | 'top' = 'hot') => {
   try {
     const q = boardId
-      ? query(collection(db, 'discussionPosts'), where('boardId', '==', boardId), limit(100))
-      : query(collection(db, 'discussionPosts'), limit(100));
+      ? query(collection(opsDb, 'discussionPosts'), where('boardId', '==', boardId), limit(100))
+      : query(collection(opsDb, 'discussionPosts'), limit(100));
     const snap = await getDocs(q);
     const posts = snap.docs.map(d => ({ id: d.id, ...(d.data() as object) })) as any[];
     if (sortBy === 'new') posts.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
@@ -12026,7 +12026,7 @@ export const fetchDiscussionPosts = async (boardId?: string, sortBy: 'hot' | 'ne
 
 export const createDiscussionPost = async (data: { boardId: string; boardName: string; title: string; body: string; aliasId?: string; displayName: string; displayPhoto?: string; isAnonymous: boolean; linkUrl?: string; imageUrls?: string[]; flair?: string }) => {
   if (!auth.currentUser) return null;
-  const docRef = doc(collection(db, 'discussionPosts'));
+  const docRef = doc(collection(opsDb, 'discussionPosts'));
   const post = {
     id: docRef.id, ...data,
     authorId: auth.currentUser.uid,
@@ -12034,16 +12034,16 @@ export const createDiscussionPost = async (data: { boardId: string; boardName: s
     timestamp: Date.now(),
   };
   await setDoc(docRef, removeUndefined(post));
-  try { await updateDoc(doc(db, 'discussionBoards', data.boardId), { postCount: increment(1) }); } catch {}
+  try { await updateDoc(doc(opsDb, 'discussionBoards', data.boardId), { postCount: increment(1) }); } catch {}
   return post;
 };
 
 export const voteDiscussionPost = async (postId: string, value: 1 | -1) => {
   if (!auth.currentUser) return;
   const voteId = `${auth.currentUser.uid}_post_${postId}`;
-  const voteRef = doc(db, 'discussionVotes', voteId);
+  const voteRef = doc(opsDb, 'discussionVotes', voteId);
   const existing = await getDoc(voteRef);
-  const postRef = doc(db, 'discussionPosts', postId);
+  const postRef = doc(opsDb, 'discussionPosts', postId);
   if (existing.exists() && existing.data().value === value) {
     await deleteDoc(voteRef);
     await updateDoc(postRef, { [value === 1 ? 'upvotes' : 'downvotes']: increment(-1) });
@@ -12057,12 +12057,12 @@ export const voteDiscussionPost = async (postId: string, value: 1 | -1) => {
 };
 
 export const deleteDiscussionPost = async (postId: string) => {
-  await deleteDoc(doc(db, 'discussionPosts', postId));
+  await deleteDoc(doc(opsDb, 'discussionPosts', postId));
 };
 
 export const fetchDiscussionComments = async (postId: string) => {
   try {
-    const q = query(collection(db, 'discussionComments'), where('postId', '==', postId), limit(200));
+    const q = query(collection(opsDb, 'discussionComments'), where('postId', '==', postId), limit(200));
     const snap = await getDocs(q);
     return snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
@@ -12076,7 +12076,7 @@ export const fetchDiscussionComments = async (postId: string) => {
 export const createDiscussionComment = async (data: { postId: string; body: string; parentCommentId?: string; aliasId?: string; displayName: string; displayPhoto?: string; isAnonymous: boolean; depth: number }) => {
   if (!auth.currentUser) return null;
   try {
-    const docRef = doc(collection(db, 'discussionComments'));
+    const docRef = doc(collection(opsDb, 'discussionComments'));
     const comment = {
       id: docRef.id, ...data,
       authorId: auth.currentUser.uid,
@@ -12084,9 +12084,9 @@ export const createDiscussionComment = async (data: { postId: string; body: stri
       timestamp: Date.now(),
     };
     await setDoc(docRef, removeUndefined(comment));
-    try { await updateDoc(doc(db, 'discussionPosts', data.postId), { commentCount: increment(1) }); } catch {}
+    try { await updateDoc(doc(opsDb, 'discussionPosts', data.postId), { commentCount: increment(1) }); } catch {}
     if (data.parentCommentId) {
-      try { await updateDoc(doc(db, 'discussionComments', data.parentCommentId), { replyCount: increment(1) }); } catch {}
+      try { await updateDoc(doc(opsDb, 'discussionComments', data.parentCommentId), { replyCount: increment(1) }); } catch {}
     }
     return comment;
   } catch (e) {
@@ -12098,9 +12098,9 @@ export const createDiscussionComment = async (data: { postId: string; body: stri
 export const voteDiscussionComment = async (commentId: string, value: 1 | -1) => {
   if (!auth.currentUser) return;
   const voteId = `${auth.currentUser.uid}_comment_${commentId}`;
-  const voteRef = doc(db, 'discussionVotes', voteId);
+  const voteRef = doc(opsDb, 'discussionVotes', voteId);
   const existing = await getDoc(voteRef);
-  const commentRef = doc(db, 'discussionComments', commentId);
+  const commentRef = doc(opsDb, 'discussionComments', commentId);
   if (existing.exists() && existing.data().value === value) {
     await deleteDoc(voteRef);
     await updateDoc(commentRef, { [value === 1 ? 'upvotes' : 'downvotes']: increment(-1) });
@@ -12169,8 +12169,8 @@ export const fetchClubAnalytics = async (clubId: string) => {
 
 export const listenToDiscussionPosts = (boardId: string | null, callback: (posts: any[]) => void) => {
   const q = boardId
-    ? query(collection(db, 'discussionPosts'), where('boardId', '==', boardId), limit(100))
-    : query(collection(db, 'discussionPosts'), limit(100));
+    ? query(collection(opsDb, 'discussionPosts'), where('boardId', '==', boardId), limit(100))
+    : query(collection(opsDb, 'discussionPosts'), limit(100));
   return onSnapshot(q, snap => {
     const posts = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
     posts.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
@@ -12179,7 +12179,7 @@ export const listenToDiscussionPosts = (boardId: string | null, callback: (posts
 };
 
 export const listenToDiscussionComments = (postId: string, callback: (comments: any[]) => void) => {
-  const q = query(collection(db, 'discussionComments'), where('postId', '==', postId), limit(200));
+  const q = query(collection(opsDb, 'discussionComments'), where('postId', '==', postId), limit(200));
   return onSnapshot(q, snap => {
     const comments = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
     comments.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
@@ -12191,20 +12191,20 @@ export const listenToDiscussionComments = (postId: string, callback: (comments: 
 
 export const reportDiscussionPost = async (postId: string): Promise<void> => {
   if (!auth.currentUser) return;
-  await updateDoc(doc(db, 'discussionPosts', postId), {
+  await updateDoc(doc(opsDb, 'discussionPosts', postId), {
     reportedBy: arrayUnion(auth.currentUser.uid),
   });
 };
 
 export const reportDiscussionComment = async (commentId: string): Promise<void> => {
   if (!auth.currentUser) return;
-  await updateDoc(doc(db, 'discussionComments', commentId), {
+  await updateDoc(doc(opsDb, 'discussionComments', commentId), {
     reportedBy: arrayUnion(auth.currentUser.uid),
   });
 };
 
 export const removeDiscussionPost = async (postId: string, reason?: string): Promise<void> => {
-  await updateDoc(doc(db, 'discussionPosts', postId), {
+  await updateDoc(doc(opsDb, 'discussionPosts', postId), {
     isRemoved: true,
     removedReason: reason ?? 'Removed by moderator',
     body: '[removed]',
@@ -12212,25 +12212,25 @@ export const removeDiscussionPost = async (postId: string, reason?: string): Pro
 };
 
 export const removeDiscussionComment = async (commentId: string): Promise<void> => {
-  await updateDoc(doc(db, 'discussionComments', commentId), {
+  await updateDoc(doc(opsDb, 'discussionComments', commentId), {
     isRemoved: true,
     body: '[removed]',
   });
 };
 
 export const deleteDiscussionComment = async (commentId: string): Promise<void> => {
-  await deleteDoc(doc(db, 'discussionComments', commentId));
+  await deleteDoc(doc(opsDb, 'discussionComments', commentId));
 };
 
 export const pinDiscussionPost = async (postId: string, pinned: boolean): Promise<void> => {
-  await updateDoc(doc(db, 'discussionPosts', postId), { isPinned: pinned });
+  await updateDoc(doc(opsDb, 'discussionPosts', postId), { isPinned: pinned });
 };
 
 export const fetchReportedDiscussionContent = async (boardId: string) => {
   try {
     const [postsSnap, commentsSnap] = await Promise.all([
-      getDocs(query(collection(db, 'discussionPosts'), where('boardId', '==', boardId))),
-      getDocs(query(collection(db, 'discussionComments'))),
+      getDocs(query(collection(opsDb, 'discussionPosts'), where('boardId', '==', boardId))),
+      getDocs(query(collection(opsDb, 'discussionComments'))),
     ]);
     const posts = postsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any))
       .filter(p => (p.reportedBy?.length ?? 0) > 0 && !p.isRemoved);
@@ -12326,7 +12326,7 @@ export const isInWatchlist = async (itemId: string): Promise<boolean> => {
 
 export const fetchDiscussionPostsByContentId = async (contentId: string): Promise<any[]> => {
   try {
-    const q = query(collection(db, 'discussionPosts'), where('linkedContentId', '==', contentId), limit(10));
+    const q = query(collection(opsDb, 'discussionPosts'), where('linkedContentId', '==', contentId), limit(10));
     const snap = await getDocs(q);
     return snap.docs
       .map(d => ({ id: d.id, ...d.data() }))

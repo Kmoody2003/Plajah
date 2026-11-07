@@ -26,6 +26,7 @@ import {
   query, orderBy, limit as qLimit, arrayUnion, arrayRemove,
 } from 'firebase/firestore';
 import { db, auth } from './backendService';
+import { opsDb } from './firebase';
 
 // ── Themes ────────────────────────────────────────────────────────────────────
 
@@ -294,7 +295,7 @@ export interface SalonEntry {
   applause: string[];
 }
 
-const entriesRef = (salonId: string) => collection(db, 'photoSalons', salonId, 'entries');
+const entriesRef = (salonId: string) => collection(opsDb, 'photoSalons', salonId, 'entries');
 
 /** Every entry in a salon, newest first. Returns [] on any failure. */
 export async function fetchSalonEntries(salonId: string, max = 120): Promise<SalonEntry[]> {

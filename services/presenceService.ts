@@ -1,6 +1,6 @@
 import { collection, doc, setDoc, deleteDoc, query, where, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
-import { db } from './firebase';
+import { opsDb } from './firebase';
 import { NowActiveEntry } from '../types';
 
 const COLLECTION = 'now_active';
@@ -21,12 +21,12 @@ export async function writePresence(uid: string, entry: Omit<NowActiveEntry, 'ui
   // Firestore rejects `undefined` (album/creator fields are often absent) — drop them.
   const clean: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(full)) if (v !== undefined) clean[k] = v;
-  await setDoc(doc(db, COLLECTION, uid), clean);
+  await setDoc(doc(opsDb, COLLECTION, uid), clean);
 }
 
 export async function clearPresence(uid: string): Promise<void> {
   try {
-    await deleteDoc(doc(db, COLLECTION, uid));
+    await deleteDoc(doc(opsDb, COLLECTION, uid));
   } catch {
     // not present — fine
   }
@@ -35,7 +35,7 @@ export async function clearPresence(uid: string): Promise<void> {
 // ── Listen: one user ──────────────────────────────────────────────────────────
 
 export function listenToMyPresence(uid: string, cb: (entry: NowActiveEntry | null) => void): () => void {
-  return onSnapshot(doc(db, COLLECTION, uid), snap => {
+  return onSnapshot(doc(opsDb, COLLECTION, uid), snap => {
     if (!snap.exists()) { cb(null); return; }
     const data = snap.data() as NowActiveEntry;
     if (data.expiresAt < Date.now()) { clearPresence(uid); cb(null); return; }
@@ -69,7 +69,7 @@ export function listenToFollowedPresence(
   };
 
   for (const chunk of chunks) {
-    const q = query(collection(db, COLLECTION), where('uid', 'in', chunk));
+    const q = query(collection(opsDb, COLLECTION), where('uid', 'in', chunk));
     const unsub = onSnapshot(q, snap => {
       snap.docChanges().forEach(change => {
         if (change.type === 'removed') {

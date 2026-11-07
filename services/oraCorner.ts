@@ -2,6 +2,7 @@ import {
   collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where,
 } from 'firebase/firestore';
 import { db, auth } from './backendService';
+import { opsDb } from './firebase';
 import { getProfile, getCheckin, listGoals, currentSeason } from './oraService';
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -75,7 +76,7 @@ export async function listMyCorners(): Promise<OraCorner[]> {
   const u = uid();
   if (!u) return [];
   try {
-    const snap = await getDocs(query(collection(db, CORNERS), where('memberUids', 'array-contains', u)));
+    const snap = await getDocs(query(collection(opsDb, CORNERS), where('memberUids', 'array-contains', u)));
     return snap.docs.map((d) => d.data() as OraCorner);
   } catch {
     return [];
@@ -92,7 +93,7 @@ export async function createCorner(name: string): Promise<OraCorner | null> {
     memberUids: [u],
     createdAt: Date.now(),
   };
-  await setDoc(doc(db, CORNERS, corner.id), corner);
+  await setDoc(doc(opsDb, CORNERS, corner.id), corner);
   await publishStatus();
   return corner;
 }
@@ -106,14 +107,14 @@ export async function createCorner(name: string): Promise<OraCorner | null> {
 export async function addMember(cornerId: string, memberUid: string): Promise<boolean> {
   const u = uid();
   if (!u || !memberUid || memberUid === u) return false;
-  const snap = await getDoc(doc(db, CORNERS, cornerId));
+  const snap = await getDoc(doc(opsDb, CORNERS, cornerId));
   if (!snap.exists()) return false;
   const corner = snap.data() as OraCorner;
   if (corner.ownerUid !== u) return false;
   if (corner.memberUids.includes(memberUid)) return true;
   if (corner.memberUids.length >= MAX_CORNER) return false;
   const memberUids = [...corner.memberUids, memberUid];
-  await setDoc(doc(db, CORNERS, cornerId), { memberUids }, { merge: true });
+  await setDoc(doc(opsDb, CORNERS, cornerId), { memberUids }, { merge: true });
   await publishStatus();
   return true;
 }
@@ -122,7 +123,7 @@ export async function addMember(cornerId: string, memberUid: string): Promise<bo
 export async function removeMember(cornerId: string, memberUid: string): Promise<void> {
   const u = uid();
   if (!u) return;
-  const snap = await getDoc(doc(db, CORNERS, cornerId));
+  const snap = await getDoc(doc(opsDb, CORNERS, cornerId));
   if (!snap.exists()) return;
   const corner = snap.data() as OraCorner;
   const allowed = corner.ownerUid === u || memberUid === u;
@@ -130,9 +131,9 @@ export async function removeMember(cornerId: string, memberUid: string): Promise
   const memberUids = corner.memberUids.filter((m) => m !== memberUid);
   if (memberUids.length === 0 || (corner.ownerUid === memberUid)) {
     // The owner leaving dissolves the corner rather than orphaning it.
-    await deleteDoc(doc(db, CORNERS, cornerId));
+    await deleteDoc(doc(opsDb, CORNERS, cornerId));
   } else {
-    await setDoc(doc(db, CORNERS, cornerId), { memberUids }, { merge: true });
+    await setDoc(doc(opsDb, CORNERS, cornerId), { memberUids }, { merge: true });
   }
   await publishStatus();
 }

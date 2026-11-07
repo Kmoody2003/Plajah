@@ -4,7 +4,7 @@
 // to spark banter between the two fanbases. Reuses the simple presence/chat Firestore
 // pattern from WCVideoChatRoom and the poll vote model from PollCard.
 
-import { db } from './firebase';
+import { opsDb } from './firebase';
 import {
   collection, doc, setDoc, deleteDoc, addDoc, updateDoc, onSnapshot, query, orderBy, limit,
   arrayUnion, getDocs, serverTimestamp, runTransaction,
@@ -46,14 +46,14 @@ export interface TeamCtx {
 
 // ── Firestore refs ───────────────────────────────────────────────────────────
 const roomCol = 'wcMatchRooms';
-const memberCol = (mid: string) => collection(db, roomCol, mid, 'members');
-const memberRef = (mid: string, uid: string) => doc(db, roomCol, mid, 'members', uid);
-const chatCol = (mid: string) => collection(db, roomCol, mid, 'chat');
-const pollCol = (mid: string) => collection(db, roomCol, mid, 'polls');
+const memberCol = (mid: string) => collection(opsDb, roomCol, mid, 'members');
+const memberRef = (mid: string, uid: string) => doc(opsDb, roomCol, mid, 'members', uid);
+const chatCol = (mid: string) => collection(opsDb, roomCol, mid, 'chat');
+const pollCol = (mid: string) => collection(opsDb, roomCol, mid, 'polls');
 
 // ── Membership / declare-your-team ───────────────────────────────────────────
 export async function joinMatchRoom(matchId: string, user: { uid: string; displayName?: string | null; photoURL?: string | null }, side: Side | null): Promise<void> {
-  await setDoc(doc(db, roomCol, matchId), { matchId, updatedAt: serverTimestamp() }, { merge: true });
+  await setDoc(doc(opsDb, roomCol, matchId), { matchId, updatedAt: serverTimestamp() }, { merge: true });
   await setDoc(memberRef(matchId, user.uid), {
     uid: user.uid,
     displayName: user.displayName || 'Fan',
@@ -79,8 +79,8 @@ export async function sendMatchMessage(matchId: string, msg: Omit<RoomMessage, '
 /** Post a room event (e.g. a goal) exactly once, however many fans' clients notice it.
  *  The doc id is the event key, created in a transaction so only the first writer lands. */
 export async function postMatchEventOnce(matchId: string, eventKey: string, text: string): Promise<void> {
-  const ref = doc(db, roomCol, matchId, 'chat', `evt_${eventKey.replace(/[^A-Za-z0-9_-]/g, '_')}`);
-  await runTransaction(db, async tx => {
+  const ref = doc(opsDb, roomCol, matchId, 'chat', `evt_${eventKey.replace(/[^A-Za-z0-9_-]/g, '_')}`);
+  await runTransaction(opsDb, async tx => {
     if ((await tx.get(ref)).exists()) return;
     tx.set(ref, { uid: 'system', displayName: 'Match', text, side: null, at: Date.now() });
   });
@@ -88,8 +88,8 @@ export async function postMatchEventOnce(matchId: string, eventKey: string, text
 const pollDocId = (key: string) => `p_${key.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120)}`;
 /** Create a poll keyed by its template key — concurrent seeders can't duplicate it. */
 async function createPollOnce(matchId: string, seed: Omit<MatchPoll, 'id' | 'votes' | 'voterSides' | 'createdAt'>): Promise<boolean> {
-  const ref = doc(db, roomCol, matchId, 'polls', pollDocId(seed.key));
-  return runTransaction(db, async tx => {
+  const ref = doc(opsDb, roomCol, matchId, 'polls', pollDocId(seed.key));
+  return runTransaction(opsDb, async tx => {
     if ((await tx.get(ref)).exists()) return false;
     tx.set(ref, { ...seed, votes: {}, voterSides: {}, createdAt: Date.now() });
     return true;
@@ -106,7 +106,7 @@ export function subscribeMatchPolls(matchId: string, cb: (p: MatchPoll[]) => voi
   return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }))), () => cb([]));
 }
 export async function voteMatchPoll(matchId: string, pollId: string, optionIndex: number, uid: string, side: Side | null): Promise<void> {
-  await updateDoc(doc(db, roomCol, matchId, 'polls', pollId), {
+  await updateDoc(doc(opsDb, roomCol, matchId, 'polls', pollId), {
     [`votes.${optionIndex}`]: arrayUnion(uid),
     [`voterSides.${uid}`]: side ?? null,
   });

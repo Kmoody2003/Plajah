@@ -15,7 +15,8 @@ import {
   UserPlus, X, Timer, Sparkles, AlertCircle, Circle,
   Eye, MessageCircle, Send, LogIn,
 } from 'lucide-react';
-import { db, followUser, ensureGuestAuth, loginWithGoogle, auth } from '../services/backendService';
+import { followUser, ensureGuestAuth, loginWithGoogle, auth } from '../services/backendService';
+import { opsDb } from '../services/firebase';
 import { saveSessionRecording } from '../services/liveStreamService';
 import { doc, collection, setDoc, deleteDoc, runTransaction, arrayUnion, increment, getDoc, updateDoc, addDoc, query, orderBy, limit, limitToLast } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
@@ -142,8 +143,8 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
   const clubId    = `wc2026_${team.id}`;
   const uid       = currentUser?.uid;
 
-  const roomRef    = doc(db, 'wcVideoRooms', clubId);
-  const presColRef = collection(db, 'wcVideoRooms', clubId, 'presence');
+  const roomRef    = doc(opsDb, 'wcVideoRooms', clubId);
+  const presColRef = collection(opsDb, 'wcVideoRooms', clubId, 'presence');
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -218,7 +219,7 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
   // ── Stable Firestore refs ────────────────────────────────────────────────────
 
   const presenceDocRef = useCallback(
-    () => uid ? doc(db, 'wcVideoRooms', clubId, 'presence', uid) : null,
+    () => uid ? doc(opsDb, 'wcVideoRooms', clubId, 'presence', uid) : null,
     [clubId, uid],
   );
 
@@ -274,7 +275,7 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
   // ── Watchers + chat subscriptions (live in every phase so the lobby can show
   //    "N watching" and the room/watch views share one chat) ────────────────────
   useEffect(() => {
-    const watchCol = collection(db, 'wcVideoRooms', clubId, 'watchers');
+    const watchCol = collection(opsDb, 'wcVideoRooms', clubId, 'watchers');
     const unsubWatchers = onSnapshot(watchCol, snap => {
       if (!mountedRef.current) return;
       setWatchers(
@@ -284,7 +285,7 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
       );
     }, () => {});
 
-    const chatQ = query(collection(db, 'wcVideoRooms', clubId, 'chat'), orderBy('at', 'asc'), limitToLast(CHAT_LIMIT)) // newest N, not the oldest N;
+    const chatQ = query(collection(opsDb, 'wcVideoRooms', clubId, 'chat'), orderBy('at', 'asc'), limitToLast(CHAT_LIMIT)) // newest N, not the oldest N;
     const unsubChat = onSnapshot(chatQ, snap => {
       if (!mountedRef.current) return;
       setChat(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as ChatMessage[]);
@@ -368,7 +369,7 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
     try {
       let newSessionEnd = 0;
 
-      await runTransaction(db, async tx => {
+      await runTransaction(opsDb, async tx => {
         const snap = await tx.get(roomRef);
         const now  = Date.now();
 
@@ -435,7 +436,7 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
 
   const writeWatcherPresence = async (id: string, guest: boolean) => {
     const u = auth.currentUser;
-    await setDoc(doc(db, 'wcVideoRooms', clubId, 'watchers', id), {
+    await setDoc(doc(opsDb, 'wcVideoRooms', clubId, 'watchers', id), {
       uid: id,
       displayName: guest ? null : (u?.displayName ?? currentUser?.displayName ?? null),
       photoURL: guest ? null : (u?.photoURL ?? currentUser?.photoURL ?? null),
@@ -445,7 +446,7 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
   };
 
   const removeWatcherPresence = async (id: string) => {
-    try { await deleteDoc(doc(db, 'wcVideoRooms', clubId, 'watchers', id)); } catch {}
+    try { await deleteDoc(doc(opsDb, 'wcVideoRooms', clubId, 'watchers', id)); } catch {}
   };
 
   const startWatching = async () => {
@@ -521,7 +522,7 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
     if (!text || !uid || isGuest) return;
     setChatInput('');
     try {
-      await addDoc(collection(db, 'wcVideoRooms', clubId, 'chat'), {
+      await addDoc(collection(opsDb, 'wcVideoRooms', clubId, 'chat'), {
         uid,
         displayName: currentUser?.displayName ?? 'Fan',
         photoURL: currentUser?.photoURL ?? null,
@@ -544,7 +545,7 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
       try {
         const presDoc = presenceDocRef();
         if (presDoc) await deleteDoc(presDoc);
-        await runTransaction(db, async tx => {
+        await runTransaction(opsDb, async tx => {
           const snap = await tx.get(roomRef);
           if (!snap.exists()) return;
           tx.update(roomRef, { participantCount: increment(-1) });
@@ -564,7 +565,7 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
     if (uid) {
       try {
         // Atomic session close — only first caller wins (others skip via isActive check)
-        await runTransaction(db, async tx => {
+        await runTransaction(opsDb, async tx => {
           const snap = await tx.get(roomRef);
           if (!snap.exists() || !snap.data().isActive) return;
           const data = snap.data() as RoomState;
@@ -596,9 +597,9 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
       // We do NOT close the session — the room continues for remaining participants.
       if (inRoomRef.current && uid) {
         inRoomRef.current = false;
-        const presDoc = doc(db, 'wcVideoRooms', clubId, 'presence', uid);
+        const presDoc = doc(opsDb, 'wcVideoRooms', clubId, 'presence', uid);
         deleteDoc(presDoc).catch(() => {});
-        runTransaction(db, async tx => {
+        runTransaction(opsDb, async tx => {
           const s = await tx.get(roomRef);
           if (s.exists() && s.data().isActive) tx.update(roomRef, { participantCount: increment(-1) });
         }).catch(() => {});
@@ -608,7 +609,7 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
       if (watchingRef.current) {
         watchingRef.current = false;
         const wid = auth.currentUser?.uid;
-        if (wid) deleteDoc(doc(db, 'wcVideoRooms', clubId, 'watchers', wid)).catch(() => {});
+        if (wid) deleteDoc(doc(opsDb, 'wcVideoRooms', clubId, 'watchers', wid)).catch(() => {});
       }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -624,7 +625,7 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
         try {
           const presDoc = presenceDocRef();
           if (presDoc) await deleteDoc(presDoc);
-          await runTransaction(db, async tx => {
+          await runTransaction(opsDb, async tx => {
             const s = await tx.get(roomRef);
             if (s.exists() && s.data().isActive) tx.update(roomRef, { participantCount: increment(-1) });
           });

@@ -8,7 +8,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, query, where, orderBy, limit, getCountFromServer, Timestamp } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
-import { db, auth, storage } from '../services/firebase';
+import { db, opsDb, auth, storage } from '../services/firebase';
 import { ref, list } from 'firebase/storage';
 import {
   Activity, Users, UserPlus, AlertTriangle, CheckCircle2,
@@ -273,7 +273,7 @@ const AdminSiteHealth: React.FC = () => {
 
     // Active WC video rooms
     unsubs.push(onSnapshot(
-      query(collection(db, 'wcVideoRooms'), where('isActive', '==', true)),
+      query(collection(opsDb, 'wcVideoRooms'), where('isActive', '==', true)),
       snap => {
         setActiveRooms(snap.size);
         const total = snap.docs.reduce((s, d) => s + ((d.data() as any).participantCount ?? 0), 0);

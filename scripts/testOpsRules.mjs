@@ -282,6 +282,18 @@ t('hq: an upload cannot arrive with access fields', 'DENY', HQS, 'create', AS, {
 t('hq: staff upload a plain file', 'ALLOW', HQS, 'create', AS, { data: asset({ uploadedByUid: HQS, storagePath: `protected-hq/org/${asset().scopeId}/a/a.pdf` }) });
 t('hq: staff cannot list directly', 'DENY', HQS, 'list', `${DB}/orgAssets`, {});
 
+// Moved from plajah-prod 2026-11-07: community spaces now evaluated here (admins mirror only).
+const NOW = 1_800_000_000_000;
+const nowDoc = (uid, o = {}) => ({ uid, type: 'TRACK', startedAt: NOW, expiresAt: NOW + 60_000, displayName: 'N', ...o });
+t('presence: you publish what you are playing', 'ALLOW', MEMBER, 'create', `${DB}/now_active/${MEMBER}`, { data: nowDoc(MEMBER) });
+t('presence: nobody writes another person’s presence', 'DENY', OTHER, 'create', `${DB}/now_active/${MEMBER}`, { data: nowDoc(MEMBER) });
+const dpost = uid => ({ authorId: uid, boardId: 'b', title: 't', body: 'b', upvotes: 0, downvotes: 0, timestamp: 1 });
+t('discussion: anyone reads a post', 'ALLOW', null, 'get', `${DB}/discussionPosts/d1`, { existing: dpost(MEMBER) });
+t('discussion: you post as yourself', 'ALLOW', MEMBER, 'create', `${DB}/discussionPosts/d2`, { data: dpost(MEMBER) });
+t('discussion: posting in another person’s name is refused', 'DENY', OTHER, 'create', `${DB}/discussionPosts/d2`, { data: dpost(MEMBER) });
+t('discussion: a vote moves the count by exactly one', 'ALLOW', OTHER, 'update', `${DB}/discussionPosts/d1`, { existing: dpost(MEMBER), data: { ...dpost(MEMBER), upvotes: 1 } });
+t('discussion: vote stuffing is refused', 'DENY', OTHER, 'update', `${DB}/discussionPosts/d1`, { existing: dpost(MEMBER), data: { ...dpost(MEMBER), upvotes: 5 } });
+
 const body = {
   source: { files: [{ name: 'firestore.rules', content: src }] },
   testSuite: {

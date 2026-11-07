@@ -58,6 +58,11 @@ export const OPS_COLLECTIONS: ReadonlySet<string> = new Set([
   'registryWorks', 'registryRefs', 'registryProducts', 'registryManifestations', 'ad_campaigns', 'promoBookings',
   // Other self-contained blocks.
   'bulletins', 'lectioServiceNotes', 'wellbeingRequests', 'scheduled_posts', 'experienceFilms', 'melosProductions',
+  // Moved 2026-11-07: plajah-prod had zero rules headroom. Community spaces whose rules read nothing else:
+  // discussion boards, presence, World Cup rooms/clubs, community notes, Ora, photo critiques/salons, Halloween vault.
+  'discussionBoards', 'discussionPosts', 'discussionComments', 'discussionVotes', 'discussionAliases', 'now_active',
+  'wcMatchRooms', 'wcVideoRooms', 'wcFanClubs', 'community_notes', 'oraCorner', 'oraRestLoops',
+  'photoCritiques', 'photoSalons', 'halloweenVaultRooms',
 ]);
 
 /** plajah-prod collections copied read-only into plajah-ops, because ops rules authorize against them

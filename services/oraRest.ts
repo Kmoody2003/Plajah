@@ -1,5 +1,6 @@
 import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { db, auth } from './backendService';
+import { opsDb } from './firebase';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Ora — Rest. A calming ambient channel, rendered once and scheduled by the
@@ -95,7 +96,7 @@ export const DAYPART_LABEL: Record<Daypart, string> = {
 /** The shared, platform-wide loop library. Readable by everyone. */
 export async function listLoops(): Promise<RestLoop[]> {
   try {
-    const snap = await getDocs(collection(db, LOOPS_COL));
+    const snap = await getDocs(collection(opsDb, LOOPS_COL));
     // Only approved, provably-seamless loops reach the channel. A submission that
     // is merely approved can still be used as an ordinary FAST program elsewhere.
     return snap.docs.map((d) => d.data() as RestLoop).filter((l) => !!l.url && isRestEligible(l));

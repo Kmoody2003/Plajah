@@ -27,7 +27,7 @@ import {
   Compass,
 } from 'lucide-react';
 import { db, auth, joinClubTeam } from '../../services/backendService';
-import { storage } from '../../services/firebase';
+import { storage, opsDb } from '../../services/firebase';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   collection,
@@ -397,7 +397,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
   useEffect(() => {
     try {
       const chatQ = query(
-        collection(db, 'halloweenVaultRooms', 'main_vault', 'chat'),
+        collection(opsDb, 'halloweenVaultRooms', 'main_vault', 'chat'),
         orderBy('at', 'desc'),
         limit(50)
       );
@@ -784,7 +784,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
     try {
       // Same id locally and in Firestore, so the snapshot replaces the optimistic copy
       // instead of showing the message twice.
-      await setDoc(doc(db, 'halloweenVaultRooms', 'main_vault', 'chat', newMsg.id), {
+      await setDoc(doc(opsDb, 'halloweenVaultRooms', 'main_vault', 'chat', newMsg.id), {
         uid: newMsg.uid,
         displayName: newMsg.displayName,
         photoURL: newMsg.photoURL || null,

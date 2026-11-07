@@ -10,6 +10,7 @@ import {
 import { WC26_TEAMS, WC26_MATCHES, getTeam, ROUND_LABELS, type WC26Team, type WC26Match } from '../data/worldCup2026';
 import { WC26Player, getPlayersByTeam, getPositionLabel, getPositionColor } from '../data/worldCupPlayers';
 import { auth, db, listenToClubPosts, createClubPost, toggleClubPostLike, deleteClubPost } from '../services/backendService';
+import { opsDb } from '../services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, setDoc, deleteDoc, getCountFromServer } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
@@ -408,7 +409,7 @@ export const FanClubDetail: React.FC<{
   const [selectedPlayer, setSelectedPlayer] = useState<WC26Player | null>(null);
 
   const clubId    = `wc2026_${team.id}`;
-  const memberDoc = useMemo(() => uid ? doc(db, 'wcFanClubs', clubId, 'members', uid) : null, [clubId, uid]);
+  const memberDoc = useMemo(() => uid ? doc(opsDb, 'wcFanClubs', clubId, 'members', uid) : null, [clubId, uid]);
 
   // Track auth state reactively
   useEffect(() => {
@@ -428,7 +429,7 @@ export const FanClubDetail: React.FC<{
 
   // Member count estimate from wcFanClubs members subcollection
   useEffect(() => {
-    getCountFromServer(collection(db, 'wcFanClubs', clubId, 'members'))
+    getCountFromServer(collection(opsDb, 'wcFanClubs', clubId, 'members'))
       .then(snap => setMemberCount(snap.data().count))
       .catch(() => setMemberCount(0));
   }, [clubId]);

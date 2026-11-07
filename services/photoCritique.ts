@@ -16,7 +16,8 @@
 import {
   collection, doc, getDocs, setDoc, deleteDoc, query, orderBy, limit as qLimit,
 } from 'firebase/firestore';
-import { db, auth } from './backendService';
+import { auth } from './backendService';
+import { opsDb } from './firebase';
 
 // ── Model ─────────────────────────────────────────────────────────────────────
 
@@ -61,7 +62,7 @@ const clampScore = (n: unknown): number => {
   return Math.min(5, Math.max(1, v));
 };
 
-const entriesRef = (photoId: string) => collection(db, 'photoCritiques', photoId, 'entries');
+const entriesRef = (photoId: string) => collection(opsDb, 'photoCritiques', photoId, 'entries');
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
