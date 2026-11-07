@@ -288,7 +288,7 @@ export default function FxStageVisualizers({
         ) : v.startsWith('TYPO:') ? (
           <TypoStage preset={v.slice(5) as import('./ChoraTypoVisualizer').TypoVolumePreset} analyser={analyser} isPlaying={isPlaying} fpsCap={fps} renderScale={renderScale} />
         ) : isFluxMode(artistGen.mode) ? (
-          <FluxStage analyser={analyser} config={artistGen} isPlaying={isPlaying} />
+          <FluxStage analyser={analyser} config={artistGen} isPlaying={isPlaying} songTrack={gp.currentTrack} />
         ) : isStudioMode(artistGen.mode) ? (
           <StudioStage analyser={analyser} config={artistGen} isPlaying={isPlaying} />
         ) : (
@@ -310,7 +310,7 @@ export default function FxStageVisualizers({
           : <AudioVisualizer analyser={analyser} config={genConfig} isPlaying={isPlaying} hasBackground={false} renderScale={renderScale} />
       )}
       {engine === 'FLUX' && (
-        <FluxStage analyser={analyser} config={fluxConfig} isPlaying={isPlaying} />
+        <FluxStage analyser={analyser} config={fluxConfig} isPlaying={isPlaying} songTrack={gp.currentTrack} />
       )}
       {engine === 'TYPO' && (
         <TypoStage

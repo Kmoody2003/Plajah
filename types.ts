@@ -231,6 +231,9 @@ export interface AudioAnalysis {
   meterConfidence?: number;
   /** Decode sample rate — lets consumers rebuild a full BeatAnalysis without re-decoding. */
   sampleRate?: number;
+  /** The song's shape (intro / verse / build / drop / breakdown / outro, energy curve, drops), from Music
+   *  Intelligence at upload. Visualizers anticipate drops with it; see services/fabula/songMap.ts. */
+  songMap?: import('./services/fabula/songMap').SongMap;
 }
 
 export interface Photo {
@@ -7935,7 +7938,7 @@ export interface TelaFormDevice {
 // Slug analytic-curve text engine (spec §04) is a LATER dedicated push; SVG text
 // delivers sharp-at-zoom today.
 
-export type TelaVectorObjectKind = 'RECT' | 'ELLIPSE' | 'LINE' | 'PATH' | 'TEXT' | 'IMAGE' | 'LOTTIE' | 'MOTION_TEMPLATE';
+export type TelaVectorObjectKind = 'RECT' | 'ELLIPSE' | 'LINE' | 'PATH' | 'TEXT' | 'IMAGE' | 'LOTTIE' | 'MOTION_TEMPLATE' | 'VISUALIZER';
 
 // ── Lottie — native animation objects (kind 'LOTTIE') ────────────────────────
 // A Lottie (.json) or dotLottie (.lottie) animation placed on a vector artboard
@@ -8017,6 +8020,36 @@ export interface TelaMotionTemplateTiming {
   loop?: boolean;
   /** Empty gap between loop cycles (default 0.6 s). */
   gapSec?: number;
+}
+
+/** A live visualizer placed on a page. `value` is a platform visualizer value: a generator / Flux mode
+ *  ("FLUX_CANVAS_EMBER_BARK"), "SHADER:<name>" or "MILKDROP:<preset>" — the same values Stage stores. */
+export interface TelaVisualizerSpec {
+  value: string;
+  name?: string;
+  /** Shader source, kept so a shader placed from the library renders even if its catalog name changes. */
+  shaderSrc?: string;
+  /** What it reacts to: whatever plays on the Plajah player, the microphone, or nothing (idle motion). */
+  audio?: 'player' | 'mic' | 'none';
+  /** Pace multiplier (1 = normal). */
+  speed?: number;
+  /** Flux Canvas: pattern morph and the beat-locked director (default on). */
+  morph?: boolean;
+  director?: boolean;
+  /** Still frame (data URL) for print / PDF / image export and static previews. */
+  posterSrc?: string;
+}
+
+/** Pixels / Fabula effects on an image: a chain of effect steps (a single effect or a Look), an overall amount. */
+export interface TelaPixelsFx {
+  steps: { effectId: string; params?: number[]; mix?: number }[];
+  /** 0..1 blend of the effect over the original. */
+  amount: number;
+  name?: string;
+  /** Animate the effect live (and react to the Plajah player) wherever the document plays. */
+  live?: boolean;
+  /** The filtered picture (data URL), used by every static path: thumbnails, print, PDF, export. */
+  filteredSrc?: string;
 }
 
 export interface TelaMotionTemplateSpec {
@@ -8209,6 +8242,10 @@ export interface TelaVectorObject {
   lottie?: TelaLottieSpec;
   /** MOTION_TEMPLATE-only: which code template to draw, its content and the doc-owned timing. */
   motionTemplate?: TelaMotionTemplateSpec;
+  /** VISUALIZER-only: a live platform visualizer (Pixels generator, shader, MilkDrop, Flux, Flux Canvas, Typo). */
+  visualizer?: TelaVisualizerSpec;
+  /** IMAGE-only: Pixels / Fabula effects applied to the picture (baked into `filteredSrc`; optionally live). */
+  pixelsFx?: TelaPixelsFx;
 }
 
 /** Vector design surface — an artboard of SVG objects (z-order = array order). */

@@ -86,6 +86,7 @@ import type { TelaStudioDeviceExt } from '../../services/tela/studio/model';
 import { TelaLottieImportRow } from './TelaLottie';
 import { importLottieFile } from '../../services/tela/telaLottieImport';
 import { makeMotionTemplateObject, renderMotionTemplatePoster, motionTemplateName } from '../../services/tela/telaMotionTemplate';
+import { makeVisualizerObject, renderVisualizerPoster, visualizerFromLibraryItem, fxFromLibraryItem, bakePixelsFx } from './TelaVisualizer';
 import { motionSpecFromItem } from '../../services/universalLibrary/amboItems';
 import type { LibraryItem } from '../../services/universalLibrary/libraryModel';
 import { isLottieFileName } from '../../services/tela/telaLottie';
@@ -223,7 +224,7 @@ const RAIL_SECTION_TEXT = {
   color: { title: 'Color', shortTitle: 'Color', blurb: 'Sample and apply color' },
   view: { title: 'View', shortTitle: 'View', blurb: 'Move and resize the canvas' },
   paint: { title: 'Paint and fill', shortTitle: 'Paint', blurb: 'Paint, or fill an area with AI' },
-  insert: { title: 'Insert', shortTitle: 'Insert', blurb: 'Add shapes and images' },
+  insert: { title: 'Insert', shortTitle: 'Insert', blurb: 'Add shapes, images, visualizers and effects' },
   pages: { title: 'New page', shortTitle: 'Pages', blurb: 'Add a page to this document' },
   studios: { title: 'Studios and library', shortTitle: 'Studios', blurb: 'Workspaces and your assets' },
   comics: { title: 'Comics', shortTitle: 'Comics', blurb: 'Panels, balloons, and motion' },
@@ -2461,6 +2462,41 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     void renderMotionTemplatePoster(spec, object.w, object.h).then(posterSrc => { if (posterSrc) dispatchOp({ type: 'UPDATE_VECTOR_OBJECT', deviceId, objectId: object.id, patch: { motionTemplate: { ...spec, posterSrc } } }); });
   };
 
+  // Pixels / Fabula visuals as design elements: a visualizer from the library becomes a live VISUALIZER
+  // object (or re-points the selected one); an effect or Look applies to the selected image.
+  const addVisualizerFromLibrary = (item: LibraryItem) => {
+    const spec = visualizerFromLibraryItem(item); if (!spec) return;
+    const focus = studioFocus?.device;
+    const selected = focus?.type === 'VECTOR' ? focus.objects.find(o => o.id === studioSel) : undefined;
+    let deviceId: string, object: TelaVectorObject;
+    if (posture === 'STUDIO' && focus?.type === 'VECTOR' && selected?.kind === 'VISUALIZER') {
+      object = { ...selected, objectLabel: spec.name, visualizer: { ...(selected.visualizer || spec), ...spec, posterSrc: undefined } };
+      dispatchOp({ type: 'UPDATE_VECTOR_OBJECT', deviceId: focus.id, objectId: selected.id, patch: { visualizer: object.visualizer, objectLabel: spec.name } }); deviceId = focus.id;
+    } else if (posture === 'STUDIO' && focus?.type === 'VECTOR') {
+      const w = Math.round(focus.width * 0.6), h = Math.round(w * 9 / 16);
+      object = makeVisualizerObject(spec, { x: Math.round((focus.width - w) / 2), y: Math.round((focus.height - h) / 2), w, h });
+      dispatchOp({ type: 'ADD_VECTOR_OBJECT', deviceId: focus.id, object }); deviceId = focus.id; setStudioSel(object.id);
+    } else {
+      object = makeVisualizerObject(spec, { x: 0, y: 0, w: 1920, h: 1080 });
+      const dev: TelaVectorDevice = { id: uid('dev'), type: 'VECTOR', name: spec.name || 'Visualizer', width: 1920, height: 1080, objects: [object] };
+      addFrame('BOARD', 'FREE', dev, dev.name!, { size: { w: 1920, h: 1080 } }); deviceId = dev.id;
+      setShowHome(false); setPosture('STUDIO');
+    }
+    const v = object.visualizer!;
+    void renderVisualizerPoster(v, object.w, object.h).then(posterSrc => { if (posterSrc) dispatchOp({ type: 'UPDATE_VECTOR_OBJECT', deviceId, objectId: object.id, patch: { visualizer: { ...v, posterSrc } } }); });
+  };
+  const applyFxFromLibrary = (item: LibraryItem) => {
+    const fx = fxFromLibraryItem(item); if (!fx) return;
+    const focus = studioFocus?.device;
+    const target = focus?.type === 'VECTOR' ? focus.objects.find(o => o.id === studioSel) : undefined;
+    if (!focus || focus.type !== 'VECTOR' || !target || target.kind !== 'IMAGE' || !target.sourceImageSrc) {
+      alert('Select an image on the page first, then choose an effect or look to apply to it.'); return;
+    }
+    const deviceId = focus.id, objectId = target.id, src = target.sourceImageSrc;
+    dispatchOp({ type: 'UPDATE_VECTOR_OBJECT', deviceId, objectId, patch: { pixelsFx: fx } });
+    void bakePixelsFx(src, fx).then(filteredSrc => { if (filteredSrc) dispatchOp({ type: 'UPDATE_VECTOR_OBJECT', deviceId, objectId, patch: { pixelsFx: { ...fx, filteredSrc } } }); });
+  };
+
   const removeCanvas = async (id: string) => {
     await deleteTelaDoc(id);
     setConfirmDeleteId(null);
@@ -3782,6 +3818,9 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
         const railImage: TelaRailItem = { id: 'image', icon: studioImgBusy ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />, label: 'Upload image', desc: 'Add an image from your device as a new layer.', disabled: studioImgBusy, onClick: () => { if (img) studioFileRef.current?.click(); else addImageCanvas(); } };
         const railPaint: TelaRailItem = { id: 'paint', icon: <Brush size={16} />, label: 'Paint', desc: 'Open the pressure-sensitive paint engine.', active: studioPaintOpen, onClick: () => setStudioPaintOpen(true) };
         const railMarquee = (id: SelectionTool, item: Omit<TelaRailItem, 'id' | 'active' | 'onClick'>): TelaRailItem => ({ ...item, id, active: imageSelectionTool === id, onClick: () => setImageSelectionTool(imageSelectionTool === id ? 'none' : id) });
+        // Pixels / Fabula visuals: the library opens on its visualizers and effects (a visualizer is placed live;
+        // an effect or Look applies to the selected image).
+        const railVisual: TelaRailItem = { id: 'visualizer', icon: <Music2 size={16} />, label: 'Visualizer or effect', desc: 'Place a live Pixels / Flux visualizer, or apply a Pixels / Fabula effect to the selected image.', onClick: () => setUlOpen(true) };
         const railSection = (id: keyof typeof RAIL_SECTION_TEXT, items: TelaRailItem[], extra?: Partial<TelaRailSection>): TelaRailSection => ({ id, ...RAIL_SECTION_TEXT[id], items, ...extra });
 
         let railToolSections: TelaRailSection[];
@@ -3796,6 +3835,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
             railSection('draw', toolsIn('draw')),
             railSection('shapes', toolsIn('shapes')),
             ...(pro ? [railSection('color', toolsIn('color')), railSection('view', toolsIn('view'))] : []),
+            railSection('insert', [railImage, railVisual]),
           ];
         } else if (isImg) {
           railToolSections = [
@@ -3823,7 +3863,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               { id: 'eyedropper', icon: <Pipette size={16} />, label: 'Eyedropper', desc: 'Sample a color from the image with a magnifying loupe.', shortcut: 'I', active: colorEyedropperActive, onClick: () => setColorEyedropperActive(!colorEyedropperActive) },
               { id: 'colorist', icon: <Palette size={16} />, label: 'Color grading', desc: 'Open the Colorist suite with grading controls and scopes.', shortcut: 'C', active: coloristSuiteOpen, onClick: () => setColoristSuiteOpen(!coloristSuiteOpen) },
             ]),
-            railSection('insert', [railShape, railImage]),
+            railSection('insert', [railShape, railImage, railVisual]),
           ];
         } else {
           railToolSections = [
@@ -3836,7 +3876,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               { id: 'pen', icon: <PenLine size={16} />, label: 'Pen', desc: 'Click to place points and draw a precise line.', active: studioTool === 'pen', onClick: () => { if (!isVec) addVectorArtboard(); setStudioTool('pen'); } },
               railPaint,
             ]),
-            railSection('insert', [railShape, railImage]),
+            railSection('insert', [railShape, railImage, railVisual]),
           ];
         }
 
@@ -5332,7 +5372,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
         </div>
       )}
 
-      {ulOpen && <UniversalLibraryPanel accent="#8B5CFF" defaultDock="floating" storageKey="tela.ullib.geo.v1" accepts={['template', 'motion']} onClose={() => setUlOpen(false)} onUse={(it) => { if (it.kind === 'motion') { addMotionTemplateFromLibrary(it); return; } const t = TELA_TEMPLATE_GALLERY.find((x) => 'tela:' + x.id === it.id); if (t) { addTemplateFrames(t); setUlOpen(false); } }} />}
+      {ulOpen && <UniversalLibraryPanel accent="#8B5CFF" defaultDock="floating" storageKey="tela.ullib.geo.v1" accepts={['template', 'motion', 'gen', 'shader', 'fx', 'look']} onClose={() => setUlOpen(false)} onUse={(it) => { if (it.kind === 'motion') { addMotionTemplateFromLibrary(it); return; } if (it.kind === 'gen' || it.kind === 'shader') { addVisualizerFromLibrary(it); return; } if (it.kind === 'fx' || it.kind === 'look') { applyFxFromLibrary(it); return; } const t = TELA_TEMPLATE_GALLERY.find((x) => 'tela:' + x.id === it.id); if (t) { addTemplateFrames(t); setUlOpen(false); } }} />}
       {studioCreativeLibraryOpen && createPortal(
         <div className="fixed inset-0 z-[270] flex items-center justify-center p-3 sm:p-6" style={{ background:'rgba(5,3,9,.86)', backdropFilter:'blur(10px)' }} onPointerDown={event => { if (event.target === event.currentTarget) setStudioCreativeLibraryOpen(false); }}>
           <div className="w-full max-w-[1120px] max-h-[88vh] overflow-hidden rounded-[22px] flex flex-col" style={{ background:'linear-gradient(160deg,#181220,#0e0b14)', border:'1px solid rgba(255,255,255,.14)', boxShadow:'0 28px 90px rgba(0,0,0,.7)' }}>

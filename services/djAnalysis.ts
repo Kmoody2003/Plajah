@@ -7,59 +7,17 @@
 
 import { db, auth } from './backendService';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { decodeMono, detectBeatsFromBuffer, type BeatAnalysis } from './audioBeatDetection';
+import { decodeMono, type BeatAnalysis } from './audioBeatDetection';
 import type { AudioAnalysis, Track } from '../types';
 
-// Bump when the peak/beat algorithm or stored shape changes so stale docs recompute.
-// v2: persist the detected meter (beatsPerMeasure/downbeat) + sampleRate so the full beat
-// grid loads with the song and consumers (Breakdown, DJ) never re-decode.
-export const ANALYSIS_VERSION = 2;
-const PEAK_BUCKETS = 1024;   // waveform resolution stored per track (compact, Firestore-friendly)
-const MAX_STORED_BEATS = 2048;
+// The analysis itself is shared with the server (Music Intelligence computes it at upload).
+import { ANALYSIS_VERSION, analysisFromMono } from './trackAnalysisCore';
+export { ANALYSIS_VERSION, analysisFromMono };
 
 const memCache = new Map<string, AudioAnalysis>();      // by track id
 const urlCache = new Map<string, AudioAnalysis>();      // by url (warmed at upload, before a track id exists)
 const inflight = new Map<string, Promise<AudioAnalysis | null>>();
 const urlInflight = new Map<string, Promise<AudioAnalysis | null>>();
-
-/** Downsample mono PCM to normalized 0–1 peak buckets for waveform rendering. */
-function extractPeaks(data: Float32Array, buckets = PEAK_BUCKETS): number[] {
-  const step = Math.max(1, Math.floor(data.length / buckets));
-  const peaks = new Array<number>(buckets).fill(0);
-  let globalMax = 1e-4;
-  for (let i = 0; i < buckets; i++) {
-    const start = i * step;
-    let max = 0;
-    for (let j = 0; j < step && start + j < data.length; j++) {
-      const v = Math.abs(data[start + j]);
-      if (v > max) max = v;
-    }
-    peaks[i] = max;
-    if (max > globalMax) globalMax = max;
-  }
-  for (let i = 0; i < buckets; i++) peaks[i] = Math.round((peaks[i] / globalMax) * 1000) / 1000;
-  return peaks;
-}
-
-/** Build the full analysis from already-decoded mono PCM (no extra fetch). */
-export function analysisFromMono(data: Float32Array, sampleRate: number, duration: number): AudioAnalysis {
-  const beat = detectBeatsFromBuffer(data, sampleRate, duration);
-  return {
-    version: ANALYSIS_VERSION,
-    bpm: beat.bpm,
-    confidence: beat.confidence,
-    firstBeatSec: beat.firstBeatSec,
-    duration,
-    peaks: extractPeaks(data),
-    beats: beat.beats.slice(0, MAX_STORED_BEATS),
-    // Persist the meter so the bar grid is part of the saved analysis (loads with the song).
-    beatsPerMeasure: beat.beatsPerMeasure ?? 4,
-    downbeatSec: beat.downbeatSec ?? beat.firstBeatSec,
-    downbeatIndex: beat.downbeatIndex ?? 0,
-    meterConfidence: beat.meterConfidence ?? 0,
-    sampleRate,
-  };
-}
 
 /**
  * Rebuild a full BeatAnalysis from a stored/loaded AudioAnalysis — NO decode. Lets the Breakdown

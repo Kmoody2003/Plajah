@@ -14,7 +14,8 @@ import StreamStudio from './dj/StreamStudio';
 import DeckMeter from './dj/DeckMeter';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { fetchPersonalTracks } from '../services/backendService';
-import { getCachedAnalysis, getOrComputeAnalysis, loadTrackTheory } from '../services/djAnalysis';
+import { getCachedAnalysis, getOrComputeAnalysis, loadTrackTheory, analysisFromMono, persistAnalysis } from '../services/djAnalysis';
+import { resamplePeaks } from '../services/trackAnalysisCore';
 import { mediaFetchUrl } from '../services/mediaFetchPolicy';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -644,6 +645,9 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
       const cacheKey = djDecodeKey(track);
       let audioBuffer: AudioBuffer;
       let peaks: Float32Array;
+      // The track's saved analysis (computed once — at upload by Music Intelligence, or by the first
+      // listener) is read alongside the decode: it's part of the track, so no deck re-analyses it.
+      const storedP = getOrComputeAnalysis(track, { computeIfMissing: false }).catch(() => null);
       const hit = cacheKey ? djDecodeCache.get(cacheKey) : undefined;
       if (hit) {
         audioBuffer = hit.buffer;
@@ -661,11 +665,23 @@ const DJModeView: React.FC<Props> = ({ album, onClose, initialTrack, initialTime
         peaks = extractPeaks(audioBuffer);
         if (cacheKey) djDecodeCache.set(cacheKey, { buffer: audioBuffer, peaks });
       }
-      // Prefer the precomputed BPM (proper beat detection, done at upload) over the cheap
-      // in-deck estimate — instant and far more accurate. Warm it in the background if absent.
-      const cached = getCachedAnalysis(track);
-      const bpm = cached?.bpm ?? estimateBPM(audioBuffer);
-      if (!cached) void getOrComputeAnalysis(track);
+      // The saved analysis wins: its BPM (proper beat detection) and its waveform. Only a track that has
+      // never been analysed is analysed here — from the buffer already decoded, no second download — and
+      // the result is saved to the track, so this happens once for everyone, on any deck, in any mode.
+      const stored = getCachedAnalysis(track) ?? await storedP;
+      if (stored?.peaks?.length) peaks = resamplePeaks(stored.peaks, WAVEFORM_POINTS);
+      const bpm = stored?.bpm ?? estimateBPM(audioBuffer);
+      if (!stored && track.id) {
+        const decoded = audioBuffer, forId = track.id, setDeck = SET[deckId];
+        setTimeout(() => {
+          try {
+            const ch = decoded.numberOfChannels > 1 ? (() => { const a = decoded.getChannelData(0), b = decoded.getChannelData(1), m = new Float32Array(a.length); for (let i = 0; i < a.length; i++) m[i] = (a[i] + b[i]) / 2; return m; })() : decoded.getChannelData(0);
+            const analysis = analysisFromMono(ch, decoded.sampleRate, decoded.duration);
+            void persistAnalysis(forId, analysis);
+            setDeck(prev => (prev.track?.id === forId ? { ...prev, bpm: analysis.bpm || prev.bpm, peaks: resamplePeaks(analysis.peaks, WAVEFORM_POINTS) } : prev));
+          } catch { /* the in-deck estimate stands */ }
+        }, 0);
+      }
       const offset = Math.max(0, Math.min(opts?.startOffset ?? 0, audioBuffer.duration - 0.1));
       const setState = SET[deckId];
       setState(prev => ({

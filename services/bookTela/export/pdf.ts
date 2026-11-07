@@ -313,10 +313,10 @@ class Builder {
           }
           if (o.fontFamily && !/serif|georgia|times|garamond/i.test(o.fontFamily)) this.warnings.add('Template fonts are replaced by the book font in PDF.');
         } else if (o.kind === 'IMAGE' && o.sourceImageSrc) {
-          const a = await this.assets(o.sourceImageSrc);
+          const a = await this.assets(o.pixelsFx?.filteredSrc || o.sourceImageSrc);
           if (a) { const mime = a.mime || sniffMime(a.bytes); const img = mime === 'image/png' ? await this.doc.embedPng(a.bytes).catch(() => null) : mime === 'image/jpeg' ? await this.doc.embedJpg(a.bytes).catch(() => null) : null; if (img) this.page.drawImage(img, { x: P(o.x), y: Y(o.y + o.h), width: o.w * scale, height: o.h * scale, opacity: op }); else this.warnings.add('A picture inside a designed page is in a format the PDF drawer cannot embed.'); }
-        } else if ((o.kind === 'LOTTIE' || o.kind === 'MOTION_TEMPLATE')) {
-          const poster = o.kind === 'LOTTIE' ? o.lottie?.posterSrc : o.motionTemplate?.posterSrc;
+        } else if ((o.kind === 'LOTTIE' || o.kind === 'MOTION_TEMPLATE' || o.kind === 'VISUALIZER')) {
+          const poster = o.kind === 'LOTTIE' ? o.lottie?.posterSrc : o.kind === 'VISUALIZER' ? o.visualizer?.posterSrc : o.motionTemplate?.posterSrc;
           const a = poster ? await this.assets(poster) : null;
           if (a) { const mime = a.mime || sniffMime(a.bytes); const img = mime === 'image/png' ? await this.doc.embedPng(a.bytes).catch(() => null) : mime === 'image/jpeg' ? await this.doc.embedJpg(a.bytes).catch(() => null) : null; if (img) this.page.drawImage(img, { x: P(o.x), y: Y(o.y + o.h), width: o.w * scale, height: o.h * scale }); }
           this.warnings.add('Animated elements are drawn as their still poster in PDF.');

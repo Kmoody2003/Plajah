@@ -20,8 +20,10 @@ function vectorObject(o: TelaVectorObject) {
     return `<foreignObject x="${o.x}" y="${o.y}" width="${o.w}" height="${o.h}" opacity="${o.opacity}"${rotate}><div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:100%;height:100%">${poster}${live}</div></foreignObject>`;
   }
   // Motion templates are drawn by platform code; a standalone page gets the settled-frame poster.
+  // Visualizers run on platform engines; a standalone page gets their still.
+  if (o.kind === 'VISUALIZER') return o.visualizer?.posterSrc ? `<image href="${esc(o.visualizer.posterSrc)}" x="${o.x}" y="${o.y}" width="${o.w}" height="${o.h}" preserveAspectRatio="xMidYMid slice" opacity="${o.opacity}"${rotate}/>` : '';
   if (o.kind === 'MOTION_TEMPLATE') return o.motionTemplate?.posterSrc ? `<image href="${esc(o.motionTemplate.posterSrc)}" x="${o.x}" y="${o.y}" width="${o.w}" height="${o.h}" preserveAspectRatio="none" opacity="${o.opacity}"${rotate}><title>${esc(o.objectLabel || 'Motion graphic')}</title></image>` : '';
-  if (o.kind === 'IMAGE' && o.sourceImageSrc && o.sourceCrop) { const c=o.sourceCrop; return `<svg x="${o.x}" y="${o.y}" width="${o.w}" height="${o.h}" viewBox="${c.x} ${c.y} ${c.width} ${c.height}" preserveAspectRatio="none"${rotate}><image href="${esc(o.sourceImageSrc)}" width="${c.sourceWidth}" height="${c.sourceHeight}"/></svg>`; }
+  if (o.kind === 'IMAGE' && o.sourceImageSrc && o.sourceCrop) { const c=o.sourceCrop; return `<svg x="${o.x}" y="${o.y}" width="${o.w}" height="${o.h}" viewBox="${c.x} ${c.y} ${c.width} ${c.height}" preserveAspectRatio="none"${rotate}><image href="${esc(o.pixelsFx?.filteredSrc || o.sourceImageSrc)}" width="${c.sourceWidth}" height="${c.sourceHeight}"/></svg>`; }
   return '';
 }
 
