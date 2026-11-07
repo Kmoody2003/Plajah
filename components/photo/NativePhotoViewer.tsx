@@ -38,7 +38,8 @@ import {
   Wand2,
   Layout,
   SkipBack,
-  SkipForward
+  SkipForward,
+  Repeat
 } from 'lucide-react';
 import {
   WindowsPickedFile,
@@ -55,6 +56,8 @@ import {
 // mode needs it, so plain photo viewing stays light and opens fast.
 const SpatialMedia = React.lazy(() => import('../SpatialMedia'));
 import { useContextMenu } from '../ui/ContextMenu';
+import { ImageConverter, ConvertSource, sourceFromPicked } from './ImageConverter';
+import { heicPreviewUrl, isHeicName } from '../../services/crossover/imageConvert';
 
 export interface NativePhotoViewerProps {
   initialFile: WindowsPickedFile;
@@ -173,6 +176,8 @@ export default function NativePhotoViewer({
   const [slideshowInterval, setSlideshowInterval] = useState(4000);
   const [copiedPath, setCopiedPath] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  // Image Converter (HEIC → JPEG/PNG, single or batch)
+  const [converterSources, setConverterSources] = useState<ConvertSource[] | null>(null);
 
   // Canvas Transform
   const [zoom, setZoom] = useState(1);
@@ -199,10 +204,25 @@ export default function NativePhotoViewer({
 
   const recoverImage = useCallback(async (file: WindowsPickedFile) => {
     const key = file.fullPath || file.name;
-    if (!file.fullPath || blobCache[key] || loadingBlobRef.current.has(key)) return;
+    const heic = isHeicName(file.name);
+    if ((!file.fullPath && !heic) || blobCache[key] || loadingBlobRef.current.has(key)) return;
     loadingBlobRef.current.add(key);
 
     try {
+      // HEIC: Chromium (WebView2, Android WebView) can't paint it, so decode on-device to JPEG.
+      if (heic) {
+        let blob: Blob | null = null;
+        try { const r = await fetch(file.url); if (r.ok) blob = await r.blob(); } catch { /* try native read */ }
+        if (!blob?.size && file.fullPath) {
+          const raw = await readWindowsFileBytes(file.fullPath);
+          if (raw?.length) blob = new Blob([raw as BlobPart]);
+        }
+        if (blob?.size) {
+          const objectUrl = await heicPreviewUrl(blob, file.name);
+          setBlobCache(prev => ({ ...prev, [key]: objectUrl }));
+        }
+        return;
+      }
       const bytes = await readWindowsFileBytes(file.fullPath);
       if (bytes && bytes.length > 0) {
         const ext = file.name.split('.').pop()?.toLowerCase();
@@ -220,7 +240,7 @@ export default function NativePhotoViewer({
 
   // Pre-recover current file immediately if on Windows app
   useEffect(() => {
-    if (currentFile && !isVideo && !isAudio && currentFile.fullPath) {
+    if (currentFile && !isVideo && !isAudio && (currentFile.fullPath || isHeicName(currentFile.name))) {
       const testImg = new Image();
       testImg.onerror = () => {
         recoverImage(currentFile);
@@ -323,11 +343,19 @@ export default function NativePhotoViewer({
     setTimeout(() => setStatusMessage(null), 3000);
   };
 
+  const converterOpenRef = useRef(false);
+  converterOpenRef.current = !!converterSources;
+  const openConverter = useCallback((which: 'this' | 'all') => {
+    const images = playlist.filter(f => !isVideoFile(f.name) && !isAudioFile(f.name));
+    setConverterSources((which === 'all' ? images : [currentFile]).map(sourceFromPicked));
+  }, [playlist, currentFile]);
+
   // Keyboard controls (Windows Photos parity)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't intercept if user is typing in an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (converterOpenRef.current) return;
 
       switch (e.key) {
         case 'ArrowRight':
@@ -604,6 +632,12 @@ export default function NativePhotoViewer({
       onSelect: (f) => onSendToPixels?.(f),
     },
     {
+      id: 'convert_image',
+      label: 'Convert to JPEG / PNG…',
+      icon: <Repeat size={14} className="text-emerald-300" />,
+      onSelect: () => openConverter('this'),
+    },
+    {
       id: 'send_crossover',
       label: 'Send to Crossover',
       icon: <Layers size={14} className="text-pink-400" />,
@@ -758,6 +792,18 @@ export default function NativePhotoViewer({
             </div>
           )}
 
+          {/* Convert (HEIC → JPEG/PNG …) */}
+          {!isVideo && !isAudio && (
+            <button
+              onClick={() => openConverter('this')}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-white/10 text-white/70 hover:text-white text-xs"
+              title="Convert this image to JPEG, PNG or WebP"
+            >
+              <Repeat size={15} />
+              <span className="hidden md:inline">{isHeicName(currentFile.name) ? 'HEIC → JPG/PNG' : 'Convert'}</span>
+            </button>
+          )}
+
           {/* Rotate */}
           {!isVideo && !isAudio && (
             <button
@@ -822,6 +868,26 @@ export default function NativePhotoViewer({
                       <FolderOpen size={14} className="text-amber-300" />
                       Show in File Explorer
                     </button>
+                  </>
+                )}
+                {!isVideo && !isAudio && (
+                  <>
+                    <button
+                      onClick={() => openConverter('this')}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-white/80 hover:text-white hover:bg-white/10 text-left"
+                    >
+                      <Repeat size={14} className="text-emerald-300" />
+                      Convert this image…
+                    </button>
+                    {playlist.length > 1 && (
+                      <button
+                        onClick={() => openConverter('all')}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-white/80 hover:text-white hover:bg-white/10 text-left"
+                      >
+                        <Repeat size={14} className="text-emerald-300" />
+                        Batch convert this folder…
+                      </button>
+                    )}
                   </>
                 )}
                 <button
@@ -1500,6 +1566,13 @@ export default function NativePhotoViewer({
 
       {/* Plajah Command Context Menu */}
       {contextMenu.node}
+
+      <ImageConverter
+        open={!!converterSources}
+        initialSources={converterSources || undefined}
+        title={converterSources && converterSources.length > 1 ? 'Batch convert' : 'Convert image'}
+        onClose={() => setConverterSources(null)}
+      />
     </div>
   );
 }

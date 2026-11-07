@@ -1,9 +1,12 @@
 import FastImage from './ui/FastImage';
 import React, { useState, useRef } from 'react';
 import { gridSrc } from '../services/imageDerivatives';
+import { ImageConverter } from './photo/ImageConverter';
+import { convertImageBlob, isHeicFile } from '../services/crossover/imageConvert';
 import { Photo, PhotoAlbum, UserProfile } from '../types';
 import {
   Plus,
+  Repeat,
   Grid,
   List,
   Lock,
@@ -56,6 +59,28 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [converterOpen, setConverterOpen] = useState(false);
+
+  /** Upload a batch; HEIC becomes JPEG first so it displays on every browser and device. */
+  const uploadFiles = async (files: File[]) => {
+    const uploadedPhotos: Photo[] = [];
+    for (const original of files) {
+      let file = original;
+      if (isHeicFile(original)) {
+        try {
+          const r = await convertImageBlob(original, original.name, { target: 'jpg', quality: 0.92 });
+          file = new File([r.blob], r.name, { type: 'image/jpeg', lastModified: original.lastModified });
+        } catch (err) {
+          console.warn('[PhotoManager] HEIC convert failed, uploading original:', err);
+        }
+      }
+      const photo = await uploadPhoto(file, { isPublic: false });
+      if (photo) uploadedPhotos.push(photo);
+    }
+    if (onUpdate && uploadedPhotos.length) {
+      onUpdate({ ...profile, photos: [...(profile.photos || []), ...uploadedPhotos] });
+    }
+  };
   // "My Galleries" manager — saved Plajah Galleries (not albums).
   const [showGalleries, setShowGalleries] = useState(false);
   const [myGalleries, setMyGalleries] = useState<PhotoGallery[]>([]);
@@ -84,17 +109,7 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
 
     setIsUploading(true);
     try {
-      const uploadedPhotos: Photo[] = [];
-      for (let i = 0; i < files.length; i++) {
-        const photo = await uploadPhoto(files[i], { isPublic: false });
-        if (photo) uploadedPhotos.push(photo);
-      }
-      if (onUpdate) {
-        onUpdate({
-          ...profile,
-          photos: [...(profile.photos || []), ...uploadedPhotos]
-        });
-      }
+      await uploadFiles(Array.from(files));
     } catch (error) {
       console.error("Bulk upload failed:", error);
     } finally {
@@ -210,7 +225,15 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
             <Upload size={14} />
             Bulk Upload
           </button>
-          <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleFileUpload} />
+          <button
+            onClick={() => setConverterOpen(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+            title="Convert images — HEIC to JPEG or PNG, one or a batch"
+          >
+            <Repeat size={14} />
+            Convert
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*,video/*,.heic,.heif" multiple className="hidden" onChange={handleFileUpload} />
         </div>
       </div>
 
@@ -638,6 +661,11 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
         )}
       </AnimatePresence>
       </>}
+      <ImageConverter
+        open={converterOpen}
+        onClose={() => setConverterOpen(false)}
+        onAddToPhotos={uploadFiles}
+      />
     </div>
   );
 };

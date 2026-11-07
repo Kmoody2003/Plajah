@@ -38,10 +38,11 @@ import {
   Monitor,
   FolderOpen,
   Film,
-  Music
+  Music,
+  Repeat
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchGlobalPhotos, favoritePhoto, followUser, auth, fetchThemePresets, updateUserProfile, fetchUserProfile, fetchUserProfiles, fetchUserPhotos } from '../services/backendService';
+import { uploadPhoto, fetchGlobalPhotos, favoritePhoto, followUser, auth, fetchThemePresets, updateUserProfile, fetchUserProfile, fetchUserProfiles, fetchUserPhotos } from '../services/backendService';
 import { fetchUserGalleries, deleteGallery } from '../services/galleryService';
 import { useShellNext } from '../hooks/useShellNext';
 import { useSpatial } from '../contexts/SpatialContext';
@@ -56,6 +57,8 @@ import PortfolioRoom from './photo/PortfolioRoom';
 import WeeklySalon from './photo/WeeklySalon';
 import PhotoCatalogWorkspace from './photo/PhotoCatalogWorkspace';
 import NativePhotoViewer from './photo/NativePhotoViewer';
+import { ImageConverter, ConvertSource, sourceFromPicked } from './photo/ImageConverter';
+import { isHeicFile } from '../services/crossover/imageConvert';
 import {
   scanWindowsLibrary,
   pickWindowsFolder,
@@ -304,6 +307,29 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
     }
     return list;
   }, [windowsLibraryFiles, windowsActiveSubfolder, windowsFilterQuery]);
+
+  // ── Image Converter (HEIC → JPEG/PNG, single or batch) ──────────────────────
+  const [converterSources, setConverterSources] = useState<ConvertSource[] | null>(null);
+  const openImageConverter = useCallback(() => {
+    // In the Windows library, the converter starts with this folder's images, HEIC pre-selected.
+    const local = mode === 'WINDOWS_PHOTOS'
+      ? filteredWindowsFiles.filter(f => (f.mediaKind || f.kind || 'IMAGE') === 'IMAGE' && !/\.(mp4|mov|webm|mkv|m4v|avi|mp3|wav|flac|m4a)$/i.test(f.name))
+      : [];
+    setConverterSources(local.map(sourceFromPicked));
+  }, [mode, filteredWindowsFiles]);
+  const addConvertedToPhotos = useCallback(async (files: File[]) => {
+    if (!auth.currentUser) throw new Error('Sign in to add converted photos to your Photos.');
+    for (const f of files) await uploadPhoto(f, { isPublic: false });
+  }, []);
+  const renderImageConverter = () => (
+    <ImageConverter
+      open={!!converterSources}
+      initialSources={converterSources || undefined}
+      preselect={s => isHeicFile(s)}
+      onClose={() => setConverterSources(null)}
+      onAddToPhotos={auth.currentUser ? addConvertedToPhotos : undefined}
+    />
+  );
 
   // Convert Windows native media files to Photo objects for the catalog workspace
   const localPhotos = React.useMemo<Photo[]>(() => {
@@ -643,6 +669,14 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
         ) : mode === 'IMPORTS' ? (
           <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="p-8 bg-white/5 border border-white/10 rounded-2xl">
+                <Repeat size={28} className="text-emerald-300 mb-6" />
+                <h3 className="text-xl font-black uppercase tracking-tight mb-3">Convert Images</h3>
+                <p className="text-xs font-bold text-white/40 leading-relaxed mb-6">iPhone HEIC to JPEG or PNG (plus WebP), one photo or a whole batch. Runs on this device; nothing is uploaded unless you choose to add the results to your Photos.</p>
+                <button onClick={openImageConverter} className="pj-btn pj-btn--sm pj-btn--primary">
+                  <Repeat size={14} /> Open converter
+                </button>
+              </div>
               {PHOTO_IMPORT_SOURCES.map(source => (
                 <div key={source.id} className="p-8 bg-white/5 border border-white/10 rounded-2xl">
                   <Cloud size={28} className="text-small-orange mb-6" />
@@ -1337,6 +1371,13 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
               <Plus size={14} /> <span className="hidden sm:inline">Create&nbsp;</span>Gallery
             </button>
             <button
+              onClick={openImageConverter}
+              className="pj-btn pj-btn--sm pj-btn--secondary"
+              title="Convert images — HEIC to JPEG or PNG, one or a batch"
+            >
+              <Repeat size={14} /> <span className="hidden sm:inline">Convert</span>
+            </button>
+            <button
               onClick={() => { setMoreOpen(false); setMode('IMPORTS'); }}
               className="pj-btn pj-btn--sm pj-btn--secondary"
               title="Bring photos into Plajah"
@@ -1352,6 +1393,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
 
         {renderOverlays()}
         {renderGalleriesModal()}
+        {renderImageConverter()}
         {nativeViewerFile && (
           <NativePhotoViewer
             initialFile={nativeViewerFile}
@@ -1434,6 +1476,13 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
                 <Images size={14} /> My Galleries
               </button>
               <button
+                onClick={openImageConverter}
+                className="flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+                title="Convert images — HEIC to JPEG or PNG, one or a batch"
+              >
+                <Repeat size={14} /> Convert Images
+              </button>
+              <button
                 onClick={() => auth.currentUser ? openPhotographerRoom(auth.currentUser.uid) : alert('Sign in to open your portfolio room.')}
                 disabled={openingRoom}
                 className="flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-40"
@@ -1513,6 +1562,14 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
         ) : mode === 'IMPORTS' ? (
           <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="p-8 bg-white/5 border border-white/10 rounded-2xl">
+                <Repeat size={28} className="text-emerald-300 mb-6" />
+                <h3 className="text-xl font-black uppercase tracking-tight mb-3">Convert Images</h3>
+                <p className="text-xs font-bold text-white/40 leading-relaxed mb-6">iPhone HEIC to JPEG or PNG (plus WebP), one photo or a whole batch. Runs on this device; nothing is uploaded unless you choose to add the results to your Photos.</p>
+                <button onClick={openImageConverter} className="pj-btn pj-btn--sm pj-btn--primary">
+                  <Repeat size={14} /> Open converter
+                </button>
+              </div>
               {PHOTO_IMPORT_SOURCES.map(source => (
                 <div key={source.id} className="p-8 bg-white/5 border border-white/10 rounded-2xl">
                   <Cloud size={28} className="text-small-orange mb-6" />
@@ -1948,6 +2005,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
       )}
 
       {renderGalleriesModal()}
+        {renderImageConverter()}
       </>}
     </div>
   );

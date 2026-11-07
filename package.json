@@ -196,6 +196,7 @@
     "firebase": "^12.9.0",
     "fzstd": "^0.1.1",
     "gaussian-splats-3d": "^0.0.5",
+    "heic-to": "1.6.5",
     "helmet": "^8.2.0",
     "hls.js": "^1.6.16",
     "html2canvas": "^1.4.1",
