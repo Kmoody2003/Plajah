@@ -12,6 +12,7 @@ import {
 import {
   IMAGE_TARGETS, CONVERTIBLE_ACCEPT, ImageTarget, canSaveBesideSource, convertImageBlob,
   isConvertibleFile, isHeicFile, saveBesideSource, zipResults,
+  canChooseFolder, chooseOutputFolder, saveToOutputFolder, OutputFolder,
 } from '../../services/crossover/imageConvert';
 import { crossoverHost } from '../../services/crossover/host';
 import { saveBlob } from '../../services/crossover/save';
@@ -63,14 +64,14 @@ interface Item {
   out?: { name: string; blob: Blob; savedPath?: string; width: number; height: number };
 }
 
-type OutputMode = 'beside' | 'zip' | 'files';
+type OutputMode = 'beside' | 'folder' | 'zip' | 'files';
 const SIZES: { label: string; value?: number }[] = [
   { label: 'Original' }, { label: '4096 px', value: 4096 }, { label: '2048 px', value: 2048 }, { label: '1080 px', value: 1080 },
 ];
 
 const fmtBytes = (n?: number) => (n == null ? '' : n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`);
 const PREF_KEY = 'plajah.imageConverter.v1';
-const loadPrefs = (): { target?: ImageTarget; quality?: number; sizeIdx?: number } => {
+const loadPrefs = (): { target?: ImageTarget; quality?: number; sizeIdx?: number; folderPath?: string } => {
   try { return JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); } catch { return {}; }
 };
 
@@ -95,7 +96,18 @@ export const ImageConverter: React.FC<ImageConverterProps> = ({ open, onClose, i
   const [quality, setQuality] = useState(prefs.quality ?? 0.9);
   const [sizeIdx, setSizeIdx] = useState(prefs.sizeIdx ?? 0);
   const besideOk = canSaveBesideSource();
+  const folderOk = canChooseFolder();
   const [output, setOutput] = useState<OutputMode>('files');
+  // Desktop remembers the last folder by path; a browser directory handle lasts for this visit.
+  const [folder, setFolder] = useState<OutputFolder | null>(
+    prefs.folderPath && besideOk ? { kind: 'path', path: prefs.folderPath, label: prefs.folderPath } : null,
+  );
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
+  const pickFolder = async () => {
+    const f = await chooseOutputFolder();
+    if (f) { setFolder(f); setOutput('folder'); }
+    return f;
+  };
   const [addToPhotos, setAddToPhotos] = useState(false);
   const [running, setRunning] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -105,8 +117,8 @@ export const ImageConverter: React.FC<ImageConverterProps> = ({ open, onClose, i
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    try { localStorage.setItem(PREF_KEY, JSON.stringify({ target, quality, sizeIdx })); } catch { /* private mode */ }
-  }, [target, quality, sizeIdx]);
+    try { localStorage.setItem(PREF_KEY, JSON.stringify({ target, quality, sizeIdx, folderPath: folder?.kind === 'path' ? folder.path : undefined })); } catch { /* private mode */ }
+  }, [target, quality, sizeIdx, folder]);
 
   const addSources = useCallback((srcs: ConvertSource[], pick?: (s: ConvertSource) => boolean) => {
     const ok = srcs.filter((s) => isConvertibleFile({ name: s.name, type: s.type }));
@@ -125,7 +137,8 @@ export const ImageConverter: React.FC<ImageConverterProps> = ({ open, onClose, i
     if (!open) return;
     setItems([]); setSelected(new Set()); setNote(null);
     if (initialSources?.length) addSources(initialSources, preselect);
-    setOutput(besideOk && initialSources?.some((s) => s.path) ? 'beside' : 'files');
+    setOutput(besideOk && initialSources?.some((s) => s.path) ? 'beside' : folderOk ? 'folder' : 'files');
+    setLastSaved(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialSources]);
 
@@ -243,9 +256,15 @@ export const ImageConverter: React.FC<ImageConverterProps> = ({ open, onClose, i
 
   const run = async () => {
     if (!queue.length || running) return;
+    // Ask for the folder first, while this click still counts as a user gesture.
+    let dest = folder;
+    if (output === 'folder' && !dest) {
+      dest = await pickFolder();
+      if (!dest) { setNote('Choose a folder to save into.'); return; }
+    }
     const job = { aborted: false };
     abortRef.current = job;
-    setRunning(true); setNote(null);
+    setRunning(true); setNote(null); setLastSaved(null);
     const opts = { target, quality, maxEdge: SIZES[sizeIdx]?.value };
     const done: { name: string; blob: Blob }[] = [];
     let failed = 0;
@@ -259,8 +278,10 @@ export const ImageConverter: React.FC<ImageConverterProps> = ({ open, onClose, i
           const r = await convertImageBlob(await readSource(it.src), it.src.name, opts);
           let savedPath: string | undefined;
           if (output === 'beside' && it.src.path) savedPath = await saveBesideSource(it.src.path, r.name, r.blob);
+          else if (output === 'folder' && dest) savedPath = await saveToOutputFolder(dest, r.name, r.blob);
           else if (output === 'files' || (output === 'zip' && queue.length === 1)) savedPath = (await saveBlob(r.name, r.blob, r.blob.type)).path;
           done.push({ name: r.name, blob: r.blob });
+          if (savedPath && host === 'desktop') setLastSaved((p) => p || savedPath!);
           patch(it.src.id, { state: 'done', out: { ...r, savedPath } });
         } catch (e) {
           failed++;
@@ -284,7 +305,10 @@ export const ImageConverter: React.FC<ImageConverterProps> = ({ open, onClose, i
 
     setRunning(false);
     abortRef.current = null;
-    const where = output === 'beside' ? 'next to the originals' : output === 'zip' && done.length > 1 ? 'in one zip' : host === 'android' ? 'to Downloads/Crossover' : '';
+    const where = output === 'beside' ? 'next to the originals'
+      : output === 'folder' && dest ? `to ${dest.label}`
+      : output === 'zip' && done.length > 1 ? 'in one zip (Downloads)'
+      : host === 'android' ? 'to Downloads/Crossover' : 'to Downloads';
     if (job.aborted) setNote(`Stopped — ${done.length} converted.`);
     else setNote(`${done.length} converted to ${targetMeta.label}${where ? ` ${where}` : ''}${failed ? ` · ${failed} failed` : ''}${addToPhotos && done.length ? ' · added to your Photos' : ''}.`);
     // Done items drop out of the selection so a second run only picks up what's left.
@@ -498,10 +522,17 @@ export const ImageConverter: React.FC<ImageConverterProps> = ({ open, onClose, i
               <select value={output} disabled={running} onChange={(e) => setOutput(e.target.value as OutputMode)}
                 className="h-8 rounded-md bg-white/5 border border-white/10 px-2 text-white text-[12px]">
                 {besideOk && <option value="beside" className="bg-neutral-900">Next to originals</option>}
-                <option value="files" className="bg-neutral-900">{host === 'android' ? 'To Downloads' : 'As separate files'}</option>
-                <option value="zip" className="bg-neutral-900">As one zip</option>
+                {folderOk && <option value="folder" className="bg-neutral-900">To a folder I choose</option>}
+                <option value="files" className="bg-neutral-900">{host === 'android' ? 'To Downloads/Crossover' : 'To Downloads'}</option>
+                <option value="zip" className="bg-neutral-900">As one zip (Downloads)</option>
               </select>
             </label>
+            {output === 'folder' && (
+              <button className="pj-btn pj-btn--sm pj-btn--secondary max-w-[260px]" disabled={running} onClick={pickFolder} title={folder?.label || 'Choose where converted files go'}>
+                <FolderOpen size={14} />
+                <span className="truncate">{folder ? folder.label : 'Choose folder…'}</span>
+              </button>
+            )}
             {onAddToPhotos && (
               <label className="flex items-center gap-2 text-[12px] text-white/60 cursor-pointer">
                 <input type="checkbox" checked={addToPhotos} disabled={running} onChange={(e) => setAddToPhotos(e.target.checked)} className="accent-[var(--pj-accent,#8b5cf6)]" />
@@ -514,6 +545,11 @@ export const ImageConverter: React.FC<ImageConverterProps> = ({ open, onClose, i
               {note || (target === 'jpg' ? 'JPEG has no transparency — clear areas turn white. Location data is removed.' : 'Location data is removed from converted copies.')}
             </p>
             <div className="ml-auto flex items-center gap-2">
+              {!running && lastSaved && host === 'desktop' && (
+                <button className="pj-btn pj-btn--sm pj-btn--secondary" onClick={() => revealNative(lastSaved)}>
+                  <FolderSearch size={14} /> Open folder
+                </button>
+              )}
               {running && <button className="pj-btn pj-btn--sm pj-btn--ghost" onClick={() => { if (abortRef.current) abortRef.current.aborted = true; }}>Stop</button>}
               <button className="pj-btn pj-btn--primary" disabled={!queue.length || running} onClick={run}>
                 {running ? <Loader2 size={15} className="animate-spin" /> : <Repeat size={15} />}

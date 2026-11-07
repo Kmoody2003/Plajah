@@ -137,8 +137,13 @@ const invoke = (cmd: string, args: Record<string, unknown>) => (window as any)._
 /** Desktop: write the converted copy next to the original (never overwriting). Returns the path. */
 export async function saveBesideSource(sourcePath: string, name: string, blob: Blob): Promise<string> {
   const sep = sourcePath.includes('\\') ? '\\' : '/';
-  const dir = sourcePath.slice(0, sourcePath.lastIndexOf(sep));
-  const { path } = await invoke('crossover_unique_path', { path: `${dir}${sep}${name}` });
+  return saveToFolderPath(sourcePath.slice(0, sourcePath.lastIndexOf(sep)), name, blob);
+}
+
+/** Desktop: write into a folder the user picked (never overwriting). Returns the path. */
+export async function saveToFolderPath(dir: string, name: string, blob: Blob): Promise<string> {
+  const sep = dir.includes('\\') ? '\\' : '/';
+  const { path } = await invoke('crossover_unique_path', { path: `${dir.replace(/[\\/]+$/, '')}${sep}${name}` });
   if (blob.size === 0) throw new Error('Empty output.');
   for (let at = 0; at < blob.size; at += CHUNK) {
     const bytes = new Uint8Array(await blob.slice(at, at + CHUNK).arrayBuffer());
@@ -149,6 +154,48 @@ export async function saveBesideSource(sourcePath: string, name: string, blob: B
 }
 
 export const canSaveBesideSource = () => crossoverHost() === 'desktop' && !!(window as any).__plajahMediaEngine;
+
+// ── Chosen folder ────────────────────────────────────────────────────────────
+// Desktop picks a real path through the native folder picker. On the web (Chrome, Edge) the
+// File System Access API hands back a directory handle. Android's WebView has neither, so
+// there the converter saves to Downloads/Crossover.
+
+export type OutputFolder =
+  | { kind: 'path'; path: string; label: string }
+  | { kind: 'handle'; handle: any; label: string };
+
+export const canChooseFolder = () =>
+  canSaveBesideSource() || (crossoverHost() === 'web' && typeof (window as any).showDirectoryPicker === 'function');
+
+export async function chooseOutputFolder(): Promise<OutputFolder | null> {
+  if (canSaveBesideSource()) {
+    const { pickNativeFolder } = await import('./nativeEngine');
+    const path = await pickNativeFolder();
+    return path ? { kind: 'path', path, label: path } : null;
+  }
+  try {
+    const handle = await (window as any).showDirectoryPicker({ id: 'plajah-image-convert', mode: 'readwrite', startIn: 'pictures' });
+    return { kind: 'handle', handle, label: handle.name };
+  } catch {
+    return null; // cancelled
+  }
+}
+
+/** Write into the chosen folder without overwriting; returns the saved path or file name. */
+export async function saveToOutputFolder(folder: OutputFolder, name: string, blob: Blob): Promise<string> {
+  if (folder.kind === 'path') return saveToFolderPath(folder.path, name, blob);
+  const dot = name.lastIndexOf('.');
+  const stem = dot > 0 ? name.slice(0, dot) : name, ext = dot > 0 ? name.slice(dot) : '';
+  let finalName = name;
+  for (let i = 2; i < 10000; i++) {
+    try { await folder.handle.getFileHandle(finalName); finalName = `${stem} (${i})${ext}`; } catch { break; }
+  }
+  const fh = await folder.handle.getFileHandle(finalName, { create: true });
+  const w = await fh.createWritable();
+  await w.write(blob);
+  await w.close();
+  return `${folder.label}/${finalName}`;
+}
 
 /** Bundle several converted files into one store-only zip (images are already compressed). */
 export async function zipResults(items: { name: string; blob: Blob }[]): Promise<Blob> {
