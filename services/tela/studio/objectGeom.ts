@@ -188,7 +188,7 @@ export function transformObject(o: TelaVectorObject, m: Matrix): TelaVectorObjec
   };
   const withSymbol = (n: TelaVectorObject) => { if (o.studio?.symbol) n.studio = { ...(n.studio ?? o.studio), symbol: { ...o.studio.symbol, matrix: multiply(m, o.studio.symbol.matrix) } }; return n; };
   if (axisAligned(m) && m[0] > 0 && m[3] > 0 && !o.rotation) {
-    if ((o.kind === 'PATH' && o.svgPathData) || o.kind === 'RECT' || o.kind === 'ELLIPSE' || o.kind === 'IMAGE' || o.kind === 'LOTTIE' || o.kind === 'MOTION_TEMPLATE') {
+    if ((o.kind === 'PATH' && o.svgPathData) || o.kind === 'RECT' || o.kind === 'ELLIPSE' || o.kind === 'IMAGE' || o.kind === 'LOTTIE' || o.kind === 'MOTION_TEMPLATE' || o.kind === 'VISUALIZER') {
       const b = scaleBox(); const next = { ...o, ...b };
       if (o.geom?.clip && !(o.kind === 'PATH' && o.svgPathData)) next.geom = { ...o.geom, clip: { ...o.geom.clip, d: mapD(o.geom.clip.d, m, o.geom.clip.fillRule) } };
       return withSymbol(next);

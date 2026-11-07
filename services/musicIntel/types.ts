@@ -56,6 +56,8 @@ export interface TrackIntel {
   /** The url the analysis heard — a changed url re-runs the song. */
   sourceUrl: string;
   measured: MeasuredAudio | null;
+  /** Sections classified for the visual director (intro/verse/build/drop/breakdown/outro) + drops. */
+  songMap?: import('../fabula/songMap').SongMap | null;
   summary: string;
   genreTags: string[];
   mood: { primary: string; secondary: string[]; valence: number; arousal: number };

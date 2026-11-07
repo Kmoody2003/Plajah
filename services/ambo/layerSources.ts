@@ -807,6 +807,14 @@ export class GeneratorSource implements LayerSource {
     this.liveIn = null;
   }
 
+  /** A host outside Stage (e.g. a Tela document) supplies its own analyser — the Plajah player's,
+   *  or null for gentle idle motion. Replaces whatever audio source was set. */
+  useAnalyser(node: AnalyserNode | null): void {
+    this.releaseLiveIn();
+    this.audioSrc = 'external';
+    this.analyserNode = node;
+  }
+
   setAudioSource(source: 'ambo-playback' | 'live-input' | 'none'): void {
     this.audioSrc = source;
     this.releaseLiveIn();
@@ -1103,6 +1111,9 @@ export class ShaderSource implements LayerSource {
   bornAt = Date.now();
   pendingCanvas: HTMLCanvasElement | null = null;
 
+  /** Set by hosts outside Stage: their analyser (or null = idle). Undefined = the Stage mix. */
+  externalAnalyser: AnalyserNode | null | undefined = undefined;
+
   constructor(private content: Extract<LayerContent, { kind: 'SHADER' }>, public w = 1280, public h = 720) {
     this.canvas = off(w, h);
     void this.init();
@@ -1174,7 +1185,8 @@ export class ShaderSource implements LayerSource {
       if (this.path === 'shadertoy' && this.gl && this.renderer && this.prog) {
         const gl = this.gl;
         if (gl.isContextLost()) { this.toFallback('Graphics context lost'); return this.frame(timeSec); }
-        const analyser: AnalyserNode | null = (typeof window !== 'undefined' ? (window as any).getAmboMasterAnalyser?.() : null) ?? null;
+        const analyser: AnalyserNode | null = this.externalAnalyser !== undefined ? this.externalAnalyser
+          : (typeof window !== 'undefined' ? (window as any).getAmboMasterAnalyser?.() : null) ?? null;
         feedAudioTexture(this.audio, analyser, timeSec);
         const p = this.content.params ?? {};
         const num = (k: string, d: number) => (typeof p[k] === 'number' ? (p[k] as number) : d);

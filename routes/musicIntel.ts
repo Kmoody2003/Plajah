@@ -222,6 +222,9 @@ function liveDeps(extra: MusicIntelRouterDeps): MusicIntelDeps & { cleanup(): Pr
       return Object.fromEntries(rows.map(r => [r.id, r.data as TrackIntel]));
     },
     writeTrack: async (albumId, intel) => { await store.set(`${JOBS}/${albumId}/tracks/${encodeURIComponent(intel.trackId)}`, intel as any); },
+    // Public per-track analysis (rules: public read). patch = merge, so a saved key/theory survives.
+    writeTrackAnalysis: async (trackId, analysis) => { await store.patch(`trackAnalysis/${encodeURIComponent(trackId)}`, JSON.parse(JSON.stringify(analysis))); },
+    decodeCapSec: MEASURE_SEC,
     decode: async (url) => {
       const file = await cache.get(resolve(url));
       const buf = await ffmpegToBuffer(['-v', 'error', '-i', file, '-t', String(MEASURE_SEC), '-ac', '2', '-ar', '22050', '-f', 'f32le', 'pipe:1'], 120_000);

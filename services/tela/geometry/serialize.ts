@@ -156,7 +156,13 @@ export function objectToSvg(source: TelaVectorObject, writerTexts?: Record<strin
   else if (o.kind === 'LINE' && o.points) body = `<line x1="${num(o.points[0])}" y1="${num(o.points[1])}" x2="${num(o.points[2])}" y2="${num(o.points[3])}" ${common}/>`;
   else if (o.kind === 'IMAGE' && o.sourceImageSrc && o.sourceCrop) {
     const c = o.sourceCrop;
-    body = `<g opacity="${o.opacity}"${rot}${filter}${blend}><svg x="${num(bx)}" y="${num(by)}" width="${num(bw)}" height="${num(bh)}" viewBox="${c.x} ${c.y} ${c.width} ${c.height}" preserveAspectRatio="none"><image href="${esc(o.sourceImageSrc)}" x="0" y="0" width="${c.sourceWidth}" height="${c.sourceHeight}" preserveAspectRatio="none"/></svg></g>`;
+    body = `<g opacity="${o.opacity}"${rot}${filter}${blend}><svg x="${num(bx)}" y="${num(by)}" width="${num(bw)}" height="${num(bh)}" viewBox="${c.x} ${c.y} ${c.width} ${c.height}" preserveAspectRatio="none"><image href="${esc(o.pixelsFx?.filteredSrc || o.sourceImageSrc)}" x="0" y="0" width="${c.sourceWidth}" height="${c.sourceHeight}" preserveAspectRatio="none"/></svg></g>`;
+  } else if (o.kind === 'VISUALIZER') {
+    const V = o.visualizer;
+    const inner = V?.posterSrc
+      ? `<svg x="${num(bx)}" y="${num(by)}" width="${num(bw)}" height="${num(bh)}"><image href="${esc(V.posterSrc)}" x="0" y="0" width="${num(bw)}" height="${num(bh)}" preserveAspectRatio="xMidYMid slice"/></svg>`
+      : `<rect x="${num(bx)}" y="${num(by)}" width="${num(bw)}" height="${num(bh)}" rx="6" fill="rgba(0,218,243,.08)" stroke="rgba(0,163,184,.6)" stroke-width="1.5" stroke-dasharray="6 4"/>`;
+    body = `<g opacity="${o.opacity}" data-tela-kind="VISUALIZER"${rot}${filter}${blend}>${inner}</g>`;
   } else if (o.kind === 'LOTTIE') {
     const L = o.lottie;
     const par = !L || L.fit === 'contain' ? 'xMidYMid meet' : L.fit === 'cover' ? 'xMidYMid slice' : 'none';

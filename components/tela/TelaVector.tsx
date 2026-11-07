@@ -29,6 +29,7 @@ import { InkLayer, type NoteTool } from '../ink';
 import { strokeInBox, pathData, type InkStyle } from '../../services/inkMath';
 import { TelaLottieCanvas, TelaLottieInspector } from './TelaLottie';
 import { TelaMotionTemplateCanvas, TelaMotionTemplateInspector } from './TelaMotionTemplate';
+import { TelaVisualizerCanvas, TelaVisualizerInspector, TelaFxLiveImage, TelaImageFxInspector } from './TelaVisualizer';
 import { objectToSvg } from '../../services/tela/geometry/serialize';
 
 export type VectorTool = 'select' | 'direct' | 'marquee' | 'rect' | 'ellipse' | 'line' | 'pen' | 'text' | 'ink';
@@ -329,7 +330,9 @@ export const ObjectEl: React.FC<{
   if (o.kind === 'LINE' && o.points) return <line x1={o.points[0]} y1={o.points[1]} x2={o.points[2]} y2={o.points[3]} {...common} />;
   if (o.kind === 'IMAGE' && o.sourceImageSrc && o.sourceCrop) {
     const c = o.sourceCrop;
-    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', pointerEvents: 'auto', ...blendStyle }} opacity={o.opacity} {...finish}><svg x={o.x} y={o.y} width={o.w} height={o.h} viewBox={`${c.x} ${c.y} ${c.width} ${c.height}`} preserveAspectRatio="none" style={{ overflow: 'hidden' }}><image href={o.sourceImageSrc} x={0} y={0} width={c.sourceWidth} height={c.sourceHeight} preserveAspectRatio="none" /></svg></g>);
+    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', pointerEvents: 'auto', ...blendStyle }} opacity={o.opacity} {...finish}><svg x={o.x} y={o.y} width={o.w} height={o.h} viewBox={`${c.x} ${c.y} ${c.width} ${c.height}`} preserveAspectRatio="none" style={{ overflow: 'hidden' }}>{o.pixelsFx?.live && !staticRender
+      ? <foreignObject x={0} y={0} width={c.sourceWidth} height={c.sourceHeight}><TelaFxLiveImage sourceSrc={o.sourceImageSrc} fx={o.pixelsFx} /></foreignObject>
+      : <image href={o.pixelsFx?.filteredSrc || o.sourceImageSrc} x={0} y={0} width={c.sourceWidth} height={c.sourceHeight} preserveAspectRatio="none" />}</svg></g>);
   }
   if (o.kind === 'LOTTIE') {
     const L = o.lottie;
@@ -354,6 +357,19 @@ export const ObjectEl: React.FC<{
         ? <svg x={o.x} y={o.y} width={w} height={h} style={{ overflow: 'hidden' }}><image href={M.posterSrc} x={0} y={0} width={w} height={h} preserveAspectRatio="none" /></svg>
         : <g><rect x={o.x} y={o.y} width={w} height={h} rx={6} fill="rgba(255,140,0,.08)" stroke="rgba(200,110,0,.6)" strokeWidth={1.5} strokeDasharray="6 4" /><text x={o.x + w / 2} y={o.y + h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={Math.max(10, Math.min(28, Math.min(w, h) / 6))} fontWeight={800} fontFamily="system-ui, sans-serif" fill="rgba(160,90,0,.85)">Motion{o.objectLabel ? ` · ${o.objectLabel}` : ''}</text></g>;
     return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', pointerEvents: 'auto', ...blendStyle }} opacity={o.opacity} {...finish} data-tela-kind="MOTION_TEMPLATE">
+      {body}
+      <rect x={o.x} y={o.y} width={w} height={h} fill="transparent" />
+    </g>);
+  }
+  if (o.kind === 'VISUALIZER') {
+    const V = o.visualizer;
+    const w = Math.max(1, o.w), h = Math.max(1, o.h);
+    const body = V && !staticRender
+      ? <foreignObject x={o.x} y={o.y} width={w} height={h} style={{ overflow: 'hidden', pointerEvents: 'none' }}><TelaVisualizerCanvas spec={V} width={w} height={h} objectId={o.id} label={o.objectLabel} /></foreignObject>
+      : V?.posterSrc
+        ? <svg x={o.x} y={o.y} width={w} height={h} style={{ overflow: 'hidden' }}><image href={V.posterSrc} x={0} y={0} width={w} height={h} preserveAspectRatio="xMidYMid slice" /></svg>
+        : <g><rect x={o.x} y={o.y} width={w} height={h} rx={6} fill="rgba(0,218,243,.08)" stroke="rgba(0,163,184,.6)" strokeWidth={1.5} strokeDasharray="6 4" /><text x={o.x + w / 2} y={o.y + h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={Math.max(10, Math.min(28, Math.min(w, h) / 6))} fontWeight={800} fontFamily="system-ui, sans-serif" fill="rgba(0,120,140,.85)">Visualizer{o.objectLabel ? ` · ${o.objectLabel}` : ''}</text></g>;
+    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', pointerEvents: 'auto', ...blendStyle }} opacity={o.opacity} {...finish} data-tela-kind="VISUALIZER">
       {body}
       <rect x={o.x} y={o.y} width={w} height={h} fill="transparent" />
     </g>);
@@ -967,7 +983,7 @@ export const TelaVectorObjectProps: React.FC<{
   compact?: boolean;
 }> = ({ object: o, writers, onUpdate, onDelete, onForward, onBack, compact }) => {
   const isText = o.kind === 'TEXT';
-  const isImage = o.kind === 'IMAGE' || o.kind === 'LOTTIE' || o.kind === 'MOTION_TEMPLATE';
+  const isImage = o.kind === 'IMAGE' || o.kind === 'LOTTIE' || o.kind === 'MOTION_TEMPLATE' || o.kind === 'VISUALIZER';
   const isLine = o.kind === 'LINE' || o.kind === 'PATH';
   const lbl: React.CSSProperties = { fontSize: 10, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: 3 };
   const rowCls = 'flex items-center gap-2 mb-2';
@@ -1001,6 +1017,8 @@ export const TelaVectorObjectProps: React.FC<{
     <div style={{ color: '#fff' }}>
       {o.kind === 'LOTTIE' && <TelaLottieInspector object={o} onUpdate={onUpdate} />}
       {o.kind === 'MOTION_TEMPLATE' && <TelaMotionTemplateInspector object={o} onUpdate={onUpdate} />}
+      {o.kind === 'VISUALIZER' && <TelaVisualizerInspector object={o} onUpdate={onUpdate} />}
+      {o.kind === 'IMAGE' && o.sourceImageSrc && <TelaImageFxInspector object={o} onUpdate={onUpdate} />}
       {isText && (
         <div style={{ marginBottom: 12 }}>
           {/* Paragraph Blocks Toolset */}
