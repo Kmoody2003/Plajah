@@ -7,6 +7,12 @@ service cloud.firestore {
     function isAuthenticated() {
       return request.auth != null;
     }
+    // rtcCore liveness stamps on call signals/candidates: sender join nonce + target join nonce.
+    function rtcStampsOk() {
+      let d = request.resource.data;
+      return (!('nonce' in d) || (d.nonce is string && d.nonce.size() <= 64)) &&
+        (!('to' in d) || (d.to is string && d.to.size() <= 64));
+    }
 
     // Class feed + photos (services/sharedClassroomService): shared by the class's teacher and students.
     // A post starts with no likes/comments; members toggle only their own like and append only their own
@@ -2029,11 +2035,11 @@ service cloud.firestore {
           function pmSender() { return edge.split('__')[0] == request.auth.uid; }
           allow read: if pmEdge();
           allow create, update: if pmEdge() && pmSender() &&
-            request.resource.data.keys().hasOnly(['description']) && request.resource.data.description is map;
+            request.resource.data.keys().hasOnly(['description', 'nonce', 'to']) && request.resource.data.description is map && rtcStampsOk();
           allow delete: if pmEdge() && pmSender();
           match /candidates/{candidateId} {
             allow read: if pmEdge();
-            allow create: if pmEdge() && pmSender() && request.resource.data.keys().hasOnly(['candidate', 'sdpMid', 'sdpMLineIndex', 'usernameFragment']);
+            allow create: if pmEdge() && pmSender() && request.resource.data.keys().hasOnly(['candidate', 'sdpMid', 'sdpMLineIndex', 'usernameFragment', 'nonce', 'to']) && rtcStampsOk();
           }
         }
       }
@@ -2482,11 +2488,11 @@ service cloud.firestore {
           function edgeSender() { return edge.split('__')[0] == request.auth.uid; }
           allow read: if edgeAllowed();
           allow create, update: if edgeAllowed() && edgeSender() &&
-            request.resource.data.keys().hasOnly(['description']) && request.resource.data.description is map;
+            request.resource.data.keys().hasOnly(['description', 'nonce', 'to']) && request.resource.data.description is map && rtcStampsOk();
           allow delete: if edgeAllowed() && edgeSender();
           match /candidates/{candidateId} {
             allow read: if edgeAllowed();
-            allow create: if edgeAllowed() && edgeSender() && request.resource.data.keys().hasOnly(['candidate', 'sdpMid', 'sdpMLineIndex', 'usernameFragment']);
+            allow create: if edgeAllowed() && edgeSender() && request.resource.data.keys().hasOnly(['candidate', 'sdpMid', 'sdpMLineIndex', 'usernameFragment', 'nonce', 'to']) && rtcStampsOk();
           }
         }
         match /messages/{messageId} {
