@@ -489,13 +489,26 @@ interface StorageUploadResult {
   orig_filename?: string;
   results?: Record<string, string>;
   probe?: { format?: { duration?: string } };
+  transcode_progress?: number;
   error?: string;
 }
+
+/** Where one file is: going up to the storage node, or being transcoded/resized there. */
+export type AudiusUploadPhase = 'upload' | 'processing';
+export interface AudiusTrackProgress { phase: AudiusUploadPhase; fraction: number }
+
+/**
+ * A write token, or a getter for one. Audius access tokens are short-lived and an album can take
+ * longer than one lasts (each track uploads and transcodes in turn), so the album job passes a
+ * getter and every write asks for a fresh token instead of reusing the one from the start.
+ */
+export type AudiusToken = string | (() => Promise<string>);
+const resolveToken = (t: AudiusToken) => (typeof t === 'string' ? Promise.resolve(t) : t());
 
 /** tus-upload one file to a storage node and wait for transcode/resize to finish. */
 async function uploadToAudiusStorage(
   file: Blob, filename: string, template: 'audio' | 'img_square', userId: number,
-  onProgress?: (fraction: number) => void,
+  onProgress?: (p: AudiusTrackProgress) => void,
 ): Promise<StorageUploadResult> {
   const tus: any = await import('tus-js-client');
   const Upload = ('Upload' in tus ? tus : tus.default).Upload;
@@ -506,12 +519,16 @@ async function uploadToAudiusStorage(
       const uploadId = await new Promise<string>((resolve, reject) => {
         const up = new Upload(file, {
           endpoint: `${node}/files/`,
-          retryDelays: [0, 3000, 5000, 10000],
+          retryDelays: [0, 3000, 5000, 10000, 20000],
           chunkSize: 100_000_000,
           removeFingerprintOnSuccess: true,
-          metadata: { filename, filetype: file.type || (template === 'audio' ? 'audio/mpeg' : 'image/jpeg'), template, userId: String(userId) },
+          // Same metadata as the Audius SDK: userId rides only on audio uploads.
+          metadata: {
+            filename, filetype: file.type || (template === 'audio' ? 'audio/mpeg' : 'image/jpeg'), template,
+            ...(template === 'audio' ? { userId: String(userId) } : {}),
+          },
           onError: reject,
-          onProgress: (loaded: number, total: number) => onProgress?.(total ? loaded / total : 0),
+          onProgress: (loaded: number, total: number) => onProgress?.({ phase: 'upload', fraction: total ? loaded / total : 0 }),
           onSuccess: () => {
             const id = String(up.url || '').split('/').pop();
             id ? resolve(id) : reject(new Error('The Audius storage node returned no upload id.'));
@@ -519,28 +536,50 @@ async function uploadToAudiusStorage(
         });
         up.start();
       });
-      // Transcodes can take minutes on a long track; images resize in seconds.
-      const limit = Date.now() + (template === 'audio' ? 30 * 60_000 : 5 * 60_000);
+      // The SDK's limits: audio gets an hour overall but fails after 20 minutes without progress;
+      // images resize in seconds. Once the file is up, a rejection is final — don't re-send it
+      // to another node.
+      onProgress?.({ phase: 'processing', fraction: 0 });
+      const started = Date.now();
+      const limit = started + (template === 'audio' ? 60 * 60_000 : 5 * 60_000);
+      let lastProgress = -1;
+      let lastProgressAt = started;
       while (Date.now() < limit) {
         await new Promise(r => setTimeout(r, 3000));
         const res = await fetch(`${node}/uploads/${uploadId}`).catch(() => null);
+        if (res && res.status >= 400 && res.status < 500 && res.status !== 404 && res.status !== 429) {
+          const why = await res.text().catch(() => '');
+          throw new UploadRejected(`Audius couldn't process ${filename}${why ? `: ${why.slice(0, 200)}` : ` (HTTP ${res.status})`}.`);
+        }
         if (!res?.ok) continue;
         const body: StorageUploadResult = await res.json();
         if (body.status === 'done' && (template !== 'audio' || body.results?.['320'])) return body;
         if (body.status === 'error' || body.status === 'error_retranscode_preview') {
-          throw new Error(body.error || `Audius couldn't process ${filename}.`);
+          throw new UploadRejected(body.error || `Audius couldn't process ${filename}.`);
         }
+        const p = Number(body.transcode_progress);
+        if (Number.isFinite(p) && p > lastProgress) {
+          lastProgress = p;
+          lastProgressAt = Date.now();
+          onProgress?.({ phase: 'processing', fraction: Math.min(1, p) });
+        }
+        if (template === 'audio' && Date.now() - lastProgressAt > 20 * 60_000) break;
       }
-      throw new Error(`Audius took too long processing ${filename}.`);
+      throw new UploadRejected(`Audius took too long processing ${filename}. Try again later.`);
     } catch (err) {
+      if (err instanceof UploadRejected) throw err;
       lastErr = err;
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error('Audius storage upload failed.');
 }
 
+/** The storage node took the file but won't (or can't) process it: trying another node won't help. */
+class UploadRejected extends Error {}
+
 /** A write to api.audius.co as the signed-in user; throws with Audius's own message. */
-async function audiusWrite(path: string, body: unknown, bearerToken: string, userHashId: string): Promise<any> {
+async function audiusWrite(path: string, body: unknown, token: AudiusToken, userHashId: string): Promise<any> {
+  const bearerToken = await resolveToken(token);
   const qs = new URLSearchParams({ user_id: userHashId, api_key: AUDIUS_API_KEY, app_name: APP_NAME });
   const res = await fetch(`${AUDIUS_WRITE_BASE}${path}?${qs}`, {
     method: 'POST',
@@ -587,9 +626,9 @@ async function uploadAudiusCover(coverUrl: string | undefined, userNumericId: nu
 export async function publishTrackToAudius(
   track: Track,
   album: Album,
-  bearerToken: string,
+  bearerToken: AudiusToken,
   audiusUserId: string,
-  opts: { coverCid?: string | null; onProgress?: (fraction: number) => void } = {},
+  opts: { coverCid?: string | null; onProgress?: (p: AudiusTrackProgress) => void } = {},
 ): Promise<AudiusPublishResult> {
   if (!track.url) throw new Error('This track has no audio file.');
   const numericId = await audiusNumericUserId(audiusUserId);
@@ -635,7 +674,7 @@ export async function publishTrackToAudius(
 export async function createAudiusAlbumCollection(
   album: Album,
   trackIds: string[],
-  bearerToken: string,
+  bearerToken: AudiusToken,
   audiusUserId: string,
   audiusHandle?: string,
   coverCid?: string | null,
@@ -664,6 +703,9 @@ export async function createAudiusAlbumCollection(
   return { albumId: String(albumId), permalink };
 }
 
+/** `done` whole tracks finished out of `total`; `current` is where the next track is. */
+export type AudiusAlbumProgress = (done: number, total: number, current?: AudiusTrackProgress) => void;
+
 /**
  * Publish a Plajah release to Audius. Tracks already sent (`alreadyPublished`, keyed by Plajah
  * track id) are skipped, so a retry after a partial failure — or a later re-save — never
@@ -671,9 +713,9 @@ export async function createAudiusAlbumCollection(
  */
 export async function publishAlbumToAudius(
   album: Album,
-  bearerToken: string,
+  bearerToken: AudiusToken,
   audiusUserId: string,
-  onProgress?: (done: number, total: number) => void,
+  onProgress?: AudiusAlbumProgress,
   audiusHandle?: string,
   alreadyPublished: Record<string, string> = {},
 ): Promise<AudiusAlbumPublishResponse> {
@@ -693,7 +735,11 @@ export async function publishAlbumToAudius(
       published.push({ trackId: prior, permalink: `https://audius.co/tracks/${prior}`, sourceTrackId: t.id });
     } else {
       try {
-        published.push(await publishTrackToAudius(t, album, bearerToken, audiusUserId, { coverCid: t.albumCover && t.albumCover !== album.coverImage ? undefined : coverCid }));
+        onProgress?.(i, tracks.length, { phase: 'upload', fraction: 0 });
+        published.push(await publishTrackToAudius(t, album, bearerToken, audiusUserId, {
+          coverCid: t.albumCover && t.albumCover !== album.coverImage ? undefined : coverCid,
+          onProgress: p => onProgress?.(i, tracks.length, p),
+        }));
       } catch (err: any) {
         const why = err?.message || 'upload failed';
         error ??= why;
@@ -733,7 +779,51 @@ export async function publishAlbumToAudius(
  */
 export async function runAudiusPublishForAlbum(
   album: Album,
-  onProgress?: (done: number, total: number) => void,
+  onProgress?: AudiusAlbumProgress,
+): Promise<AudiusAlbumPublishResponse & { albumUrl?: string }> {
+  // One run per album at a time: a second click (or a save while the first is still going)
+  // joins the running job instead of uploading every song twice.
+  const key = album.id || '';
+  const running = key ? audiusRuns.get(key) : undefined;
+  if (running) {
+    if (onProgress) {
+      running.listeners.add(onProgress);
+      if (running.last) onProgress(...running.last);
+    }
+    return running.promise;
+  }
+  if (!key) return runAudiusPublishOnce(album, onProgress);
+  const entry: AudiusRun = { listeners: new Set(onProgress ? [onProgress] : []), promise: null as any };
+  entry.promise = runAudiusPublishOnce(album, (...args) => {
+    entry.last = args;
+    entry.listeners.forEach(l => l(...args));
+  });
+  audiusRuns.set(key, entry);
+  window.addEventListener('beforeunload', warnBeforeLeaving);
+  entry.promise.finally(() => {
+    audiusRuns.delete(key);
+    if (!audiusRuns.size) window.removeEventListener('beforeunload', warnBeforeLeaving);
+  }).catch(() => {});
+  return entry.promise;
+}
+
+interface AudiusRun {
+  promise: Promise<AudiusAlbumPublishResponse & { albumUrl?: string }>;
+  listeners: Set<AudiusAlbumProgress>;
+  last?: Parameters<AudiusAlbumProgress>;
+}
+const audiusRuns = new Map<string, AudiusRun>();
+
+/** Leaving the page mid-upload kills the job, so ask first while any album is still sending. */
+const warnBeforeLeaving = (e: BeforeUnloadEvent) => {
+  if (!audiusRuns.size) return;
+  e.preventDefault();
+  e.returnValue = '';
+};
+
+async function runAudiusPublishOnce(
+  album: Album,
+  onProgress?: AudiusAlbumProgress,
 ): Promise<AudiusAlbumPublishResponse & { albumUrl?: string }> {
   const { getAudiusSession, getAudiusAccessToken } = await import('./audiusAuth');
   const { updateCloudAlbum } = await import('./backendService');
@@ -750,7 +840,13 @@ export async function runAudiusPublishForAlbum(
 
   await save({ audiusPublishStatus: 'publishing', audiusError: null });
   const prior: Record<string, string> = { ...((album as any).audiusTrackIds || {}) };
-  const res = await publishAlbumToAudius(album, token, session.userId, onProgress, session.handle, prior);
+  // Fresh token for every write: it refreshes itself when the current one is near expiry.
+  const freshToken = async () => {
+    const t = await getAudiusAccessToken();
+    if (!t) throw new Error('Your Audius sign-in expired. Reconnect Audius with upload permission and try again.');
+    return t;
+  };
+  const res = await publishAlbumToAudius(album, freshToken, session.userId, onProgress, session.handle, prior);
 
   const audiusTrackIds = { ...prior };
   for (const p of res.published) if (p.sourceTrackId) audiusTrackIds[p.sourceTrackId] = p.trackId;

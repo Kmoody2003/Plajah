@@ -39,6 +39,7 @@
     "test:composer": "tsx --test tests/livingComposer*.test.ts",
     "typecheck:composer": "tsc -p tsconfig.livingcomposer.json --noEmit",
     "test:lyrics": "npx tsx --test tests/lyricSyncWorker.test.ts",
+    "test:audius": "npx tsx --test --experimental-test-module-mocks tests/audiusPublish.test.ts",
     "test:musicintel": "npx tsx --test tests/musicIntel.test.ts",
     "test:reellointel": "npx tsx --test tests/reelloIntel.test.ts",
     "test:cora": "npx tsx --test tests/coraAnalysis.test.ts",
