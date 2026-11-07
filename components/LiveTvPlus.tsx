@@ -47,6 +47,7 @@ import { isWindowsApp, setNativeFullscreen } from '../services/windowsBridgeServ
 import { useContextMenu } from './ui';
 import { subKeyFor, favoriteKey, resolveChannelLogo, type OwnerBranding } from '../services/fast/channelBranding';
 import { getFavoriteChannels, subscribeFavoriteChannels, toggleFavoriteChannel, syncFavoriteChannelsFromProfile } from '../services/favoriteChannelsService';
+import { getLocalLastChannel, fetchRemoteLastChannel, saveLastChannel } from '../services/lastChannelService';
 import type { FavoriteChannel } from '../types';
 import type { GuideChannel } from './tv/PlajahEpgGuide';
 
@@ -634,8 +635,39 @@ const LiveTvPlus: React.FC<{
   }, [preemptUntil]);
 
   // Active channel identifier ref — pins user selection to the exact station across background lineup refreshes
+  // First visit → channel 1 (index 0). Every later visit → the last channel this viewer watched:
+  // seed the pin from this device at once, then from the account (it follows the user to any device
+  // they sign in on), and the re-pin effect below tunes to it once it's in the lineup.
+  // A shared/guide focus — or the viewer already changing channel — wins over the remembered one.
+  const uid = currentUser?.uid || null;
+  const hasFocus = !!(focusOwnerId || focusPlajahId || focusNumber || focusSourceId);
   const activeChannelRef = useRef<{ id?: string; number?: string } | null>(null);
+  const restoredLastRef = useRef(false);
+  const localLastAtRef = useRef(0);
+  if (!restoredLastRef.current) {
+    restoredLastRef.current = true;
+    const saved = hasFocus ? null : getLocalLastChannel(uid);
+    if (saved) { activeChannelRef.current = { id: saved.id, number: saved.number }; localLastAtRef.current = saved.at; }
+  }
   const userChangedChannelRef = useRef(false);
+  const [pinNonce, setPinNonce] = useState(0); // re-runs the re-pin effect when the account copy lands
+  // Until the account copy is read, don't save: the placeholder channel 1 on a new device must not
+  // overwrite the channel the user left on elsewhere.
+  const remoteCheckedRef = useRef(false);
+  useEffect(() => {
+    if (!uid || hasFocus) { remoteCheckedRef.current = true; return; }
+    let alive = true;
+    void fetchRemoteLastChannel(uid).then(remote => {
+      if (!alive) return;
+      remoteCheckedRef.current = true;
+      if (remote && !userChangedChannelRef.current && remote.at > localLastAtRef.current) {
+        activeChannelRef.current = { id: remote.id, number: remote.number };
+        localLastAtRef.current = remote.at;
+      }
+      setPinNonce(n => n + 1);
+    });
+    return () => { alive = false; };
+  }, [uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setIdx = useCallback((i: number) => {
     userChangedChannelRef.current = true;
@@ -703,7 +735,18 @@ const LiveTvPlus: React.FC<{
         return;
       }
     }
-  }, [channels, index]);
+  }, [channels, index, pinNonce]);
+
+  // Remember the channel actually playing. Only once it IS the pinned channel, so the placeholder
+  // index 0 shown while the lineup loads never overwrites the remembered channel.
+  useEffect(() => {
+    const ch = channels[loadedIndex];
+    const pin = activeChannelRef.current;
+    if (!ch || !pin) return;
+    if (!remoteCheckedRef.current && !userChangedChannelRef.current) return;
+    if (pin.id ? pin.id !== ch.id : String(pin.number) !== String(ch.number)) return;
+    saveLastChannel(uid, { id: ch.id, number: ch.number });
+  }, [loadedIndex, channels, uid, pinNonce]);
 
   // Keyboard / D-pad (works on the TV app too).
   //
