@@ -1064,7 +1064,13 @@ function MobileStreamer({ onClose, clubId, isPrivate, liveOverlay, onOpenStudio 
   const guestPeers = rtc.remotePeers.filter(p => p.role === 'participant');
 
   // Preview ← backbone local stream.
-  useEffect(() => { if (videoRef.current) videoRef.current.srcObject = rtc.localStream; }, [rtc.localStream]);
+  // play() after every swap: Android Chrome doesn't always resume an autoplay element whose old track ended.
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    el.srcObject = rtc.localStream;
+    if (rtc.localStream) el.play().catch(() => {});
+  }, [rtc.localStream]);
   // Only a session that never got a picture is a camera problem. Signalling errors mid-session aren't.
   useEffect(() => { setPermError(rtc.error && !rtc.localStream ? rtc.error : ''); }, [rtc.error, rtc.localStream]);
 

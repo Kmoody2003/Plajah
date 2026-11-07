@@ -225,19 +225,32 @@ async function openFreeingCurrent(video: MediaTrackConstraints, current: MediaSt
   }
 }
 
-export async function tuneVideoTrack(track?: MediaStreamTrack | null): Promise<void> {
-  if (!track || track.kind !== 'video') return;
+// Tuning runs once per track. Rear phone cameras are the ones that expose focus/exposure/white-balance,
+// and on Android an applyConstraints on a live rear track reconfigures the capture session: overlapping
+// calls (the swap and the camera rig both tuned the same track) or a resolution change mid-stream could
+// stall the sensor, and a switch that awaited it sat on a frozen frame. So: once per track, only the
+// modes that aren't already continuous, never resolution (every capture already asks for 1080p when it
+// opens), and callers waiting on it are released after a short deadline whatever the driver does.
+const TUNE_DEADLINE_MS = 600;
+const tunedTracks = new WeakMap<MediaStreamTrack, Promise<void>>();
+export function tuneVideoTrack(track?: MediaStreamTrack | null): Promise<void> {
+  if (!track || track.kind !== 'video') return Promise.resolve();
+  let job = tunedTracks.get(track);
+  if (!job) {
+    job = applyTuning(track);
+    tunedTracks.set(track, job);
+  }
+  return Promise.race([job, new Promise<void>(r => setTimeout(r, TUNE_DEADLINE_MS))]);
+}
+async function applyTuning(track: MediaStreamTrack): Promise<void> {
   try { track.contentHint = 'detail'; } catch { /* */ }
   try {
+    if (track.readyState !== 'live') return;
     const caps: any = track.getCapabilities?.() ?? {};
+    const set: any = track.getSettings?.() ?? {};
+    const want = (k: string) => Array.isArray(caps[k]) && caps[k].includes('continuous') && set[k] !== 'continuous';
     const adv: any[] = [];
-    const has = (k: string, val: string) => Array.isArray(caps[k]) && caps[k].includes(val);
-    if (has('focusMode', 'continuous')) adv.push({ focusMode: 'continuous' });
-    if (has('exposureMode', 'continuous')) adv.push({ exposureMode: 'continuous' });
-    if (has('whiteBalanceMode', 'continuous')) adv.push({ whiteBalanceMode: 'continuous' });
-    if (caps.width?.max && caps.height?.max) {
-      adv.push({ width: Math.min(1920, caps.width.max), height: Math.min(1080, caps.height.max) });
-    }
+    for (const k of ['focusMode', 'exposureMode', 'whiteBalanceMode']) if (want(k)) adv.push({ [k]: 'continuous' });
     if (adv.length) await track.applyConstraints({ advanced: adv });
   } catch { /* device doesn't expose advanced controls — capture constraints still apply */ }
 }
@@ -828,7 +841,8 @@ export class RtcSession {
     if (!newTrack) return;
     const old = this.local?.getVideoTracks()[0];
     if (old) newTrack.enabled = old.enabled;
-    await tuneVideoTrack(newTrack);
+    // Picture first, tuning after: the swap never waits on the camera driver.
+    void tuneVideoTrack(newTrack);
     this.peers.forEach(({ pc }) => {
       const sender = pc.getSenders().find(s => s.track?.kind === 'video');
       sender?.replaceTrack(newTrack).catch(() => {});
