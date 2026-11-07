@@ -15,9 +15,8 @@
 //
 // All I/O is injected (see routes/musicIntel.ts for the real wiring, tests for fakes).
 
-import { measureAudio } from './dsp';
-import { analysisFromMono, downmix } from '../trackAnalysisCore';
-import { buildSongMap, fineEnvelope, type SongMap } from '../fabula/songMap';
+import { analyzeDecoded } from './backfill';
+import type { SongMap } from '../fabula/songMap';
 import type { AudioAnalysis } from '../../types';
 import {
   albumPrompt, looksLikeSoundtrack, normalizeAlbumIntel, normalizeTrackIntel, parseJsonLoose, trackPrompt,
@@ -182,15 +181,14 @@ export async function runMusicIntel(deps: MusicIntelDeps, albumId: string, opts:
       try {
         const pcm = await deps.decode(t.url!);
         if (pcm) {
-          measured = measureAudio(pcm.pcm, pcm.sampleRate, pcm.channels);
           // The shared track analysis, from the same decode: waveform, beat grid, meter and the song map.
           // Written before the listening model runs, so a model outage never costs the song its analysis.
-          const mono = downmix(pcm.pcm, pcm.channels), dur = mono.length / pcm.sampleRate;
+          const r = analyzeDecoded(pcm);
+          measured = r.measured;
+          songMap = r.songMap;
           try {
-            const analysis = analysisFromMono(mono, pcm.sampleRate, dur);
-            songMap = buildSongMap(measured, { bpm: analysis.bpm, firstBeat: analysis.downbeatSec ?? analysis.firstBeatSec }, fineEnvelope(mono, pcm.sampleRate));
-            const truncated = deps.decodeCapSec != null && dur >= deps.decodeCapSec - 1;
-            if (deps.writeTrackAnalysis && !truncated) await deps.writeTrackAnalysis(t.id, { ...analysis, songMap });
+            const truncated = deps.decodeCapSec != null && r.duration >= deps.decodeCapSec - 1;
+            if (deps.writeTrackAnalysis && !truncated) await deps.writeTrackAnalysis(t.id, { ...r.analysis, songMap });
           } catch (e: any) { errors.push(`${t.id}: analysis ${e?.message || e}`); }
         }
       } catch (e: any) { errors.push(`${t.id}: measure ${e?.message || e}`); }

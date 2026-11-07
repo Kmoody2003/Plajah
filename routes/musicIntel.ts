@@ -15,7 +15,10 @@
  *   POST /api/music-intel/link-film { filmAlbumId }       owner: a film just published — re-read
  *                                    the creator's soundtracks in its light once its Story
  *                                    Intelligence report is ready.
- *   POST /api/music-intel/cron                            key-gated (CHORA_CRON_KEY) driver.
+ *   POST /api/music-intel/cron                            key-gated (CHORA_CRON_KEY) driver; spare time runs the backfill.
+ *   POST /api/music-intel/backfill-analysis { restart?, force? }  cron key or admin: one slice of the track-analysis
+ *                                         backfill (waveform, beat grid, song map) for songs uploaded before it ran at upload.
+ *   GET  /api/music-intel/backfill-analysis                    backfill progress.
  *
  * Mount (server.ts): app.use('/api/music-intel', express.json({ limit: '16kb' }), createMusicIntelRouter({...}))
  */
@@ -27,6 +30,7 @@ import path from 'path';
 import { fsGet, fsPatch, fsSet, fsList, fsQuery, verifyIdToken, adminConfig, getAccessToken } from '../services/firebaseAdminRest';
 import { runMusicIntel, pendingTracks, type IntelAlbum, type IntelTrack, type MusicIntelDeps } from '../services/musicIntel/worker';
 import { matchFilmByTitle } from '../services/musicIntel/prompts';
+import { runBackfill, audioTracks, type BackfillDeps } from '../services/musicIntel/backfill';
 import { summarizeParty, mergeAudience, buildAudienceCards, albumEnergySeries, publicAudience, type PartyAudienceRecap } from '../services/musicIntel/audience';
 import type { PartyPoll, PartyVote } from '../services/partyEngagement';
 import { applyIntelCorrections, type FilmContext, type MusicIntelBundle, type MusicIntelJob, type TrackIntel, type TrackIntelCorrections } from '../services/musicIntel/types';
@@ -260,6 +264,80 @@ function runOnce(extra: MusicIntelRouterDeps, albumId: string, opts: Parameters<
   return p;
 }
 
+// ─── Track-analysis backfill ──────────────────────────────────────────────────
+
+const BACKFILL_STATE = 'musicIntelBackfill/state';
+/** After a full pass, start over this long later (catches songs whose files were fixed or replaced). */
+const BACKFILL_REPASS_MS = 7 * 24 * 3600_000;
+
+function backfillDeps(extra: MusicIntelRouterDeps, cache: ReturnType<typeof audioCache>): BackfillDeps {
+  const store = extra.store || adminStore;
+  const listenUrl = new Map<string, string>();
+  return {
+    listAlbumIds: async () => extra.store
+      ? (await store.list('albums')).map(r => r.id)
+      : (await fsList('albums', { idsOnly: true, pageSize: 300, maxDocs: 50_000, strict: true })).map(r => r.id),
+    readAlbum: async (albumId) => {
+      const a = await store.get(`albums/${albumId}`);
+      if (!a) return null;
+      const album = { ...a, id: albumId } as IntelAlbum;
+      // The compressed rendition decodes the same notes for a fraction of the download.
+      await Promise.all(audioTracks(album).map(async t => {
+        const st = await store.get(`choraStreams/${t.id}`).catch(() => null);
+        if (st?.status === 'ready' && /^https?:/i.test(String(st.low || ''))) listenUrl.set(t.url!, String(st.low));
+      }));
+      return album;
+    },
+    readAnalysis: (trackId) => store.get(`trackAnalysis/${encodeURIComponent(trackId)}`) as any,
+    decode: async (url, capSec) => {
+      const file = await cache.get(listenUrl.get(url) || url);
+      try {
+        // Mono at 22.05 kHz: a 20-minute song is ~100 MB of f32, inside the container's memory.
+        const buf = await ffmpegToBuffer(['-v', 'error', '-i', file, '-t', String(capSec), '-ac', '1', '-ar', '22050', '-f', 'f32le', 'pipe:1'], 180_000);
+        if (!buf) return null;
+        return { pcm: new Float32Array(buf.buffer, buf.byteOffset, Math.floor(buf.byteLength / 4)), sampleRate: 22050, channels: 1 };
+      } finally {
+        await cache.cleanup();   // one song on disk at a time
+      }
+    },
+    writeAnalysis: async (trackId, analysis) => { await store.patch(`trackAnalysis/${encodeURIComponent(trackId)}`, JSON.parse(JSON.stringify(analysis))); },
+    attachSongMap: async (albumId, trackId, songMap) => {
+      const path = `${JOBS}/${albumId}/tracks/${encodeURIComponent(trackId)}`;
+      if (await store.get(path)) await store.patch(path, JSON.parse(JSON.stringify({ songMap })));
+    },
+  };
+}
+
+/** One budgeted slice from the saved cursor; records progress in musicIntelBackfill/state. */
+export async function runBackfillSlice(extra: MusicIntelRouterDeps, opts: { budgetMs: number; force?: boolean; restart?: boolean }) {
+  const store = extra.store || adminStore;
+  const state = (await store.get(BACKFILL_STATE).catch(() => null)) || {};
+  if (!opts.restart && state.completedAt && Date.now() - Number(state.completedAt) < BACKFILL_REPASS_MS) {
+    return { status: 'complete', completedAt: state.completedAt, totals: state.totals || null };
+  }
+  const leaseUntil = Number(state.leaseUntil || 0);
+  if (leaseUntil > Date.now()) return { status: 'skipped', reason: 'another backfill slice is running' };
+  await store.patch(BACKFILL_STATE, { leaseUntil: Date.now() + opts.budgetMs + 120_000 });
+  const cursor = opts.restart || state.completedAt ? null : (state.cursor ?? null);
+  const cache = audioCache();
+  try {
+    const r = await runBackfill(backfillDeps(extra, cache), { cursor, budgetMs: opts.budgetMs, force: opts.force });
+    const prev = (opts.restart || state.completedAt ? null : state.totals) || { analyzed: 0, skipped: 0, failed: 0 };
+    const totals = { analyzed: prev.analyzed + r.analyzed, skipped: prev.skipped + r.skipped, failed: prev.failed + r.failed };
+    await store.patch(BACKFILL_STATE, {
+      cursor: r.next, totals, leaseUntil: 0, updatedAt: Date.now(),
+      completedAt: r.done ? Date.now() : null,
+      lastErrors: r.errors.slice(0, 10),
+    });
+    return { status: r.done ? 'complete' : 'partial', ...r, errors: r.errors.slice(0, 10), totals };
+  } catch (e) {
+    await store.patch(BACKFILL_STATE, { leaseUntil: 0 }).catch(() => {});
+    throw e;
+  } finally {
+    await cache.cleanup();
+  }
+}
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 export function createMusicIntelRouter(extra: MusicIntelRouterDeps = {}): Router {
@@ -340,7 +418,34 @@ export function createMusicIntelRouter(extra: MusicIntelRouterDeps = {}): Router
         out.push({ albumId: j.id, ...(await runOnce(extra, j.id, { budgetMs: Math.max(30_000, 4 * 60_000 - (Date.now() - started)) }).catch((e: any) => ({ error: e?.message }))) });
       }
     }
-    res.json({ ok: true, ran: out });
+    // Leftover time goes to the analysis backfill (audio only, no model cost).
+    let backfill: any = null;
+    const left = 4 * 60_000 - (Date.now() - started);
+    if (left > 60_000) backfill = await runBackfillSlice(extra, { budgetMs: left }).catch((e: any) => ({ error: e?.message }));
+    res.json({ ok: true, ran: out, backfill });
+  });
+
+  /** Analysis backfill for songs uploaded before analysis ran at upload. Cron key or a Plajah admin.
+   *  Body { restart?, force? }. Loop until status is 'complete' (scripts/backfillTrackAnalysis.mjs). */
+  r.post('/backfill-analysis', async (req: Request, res: Response) => {
+    const expected = process.env.CHORA_CRON_KEY || '';
+    const keyed = !!expected && String(req.get('x-chora-cron-key') || '') === expected;
+    if (!keyed) {
+      const uid = await callerUid(req);
+      if (!uid) return res.status(401).json({ error: 'Sign in required.' });
+      if (!(await isAdmin(uid))) return res.status(403).json({ error: 'Admins only.' });
+    }
+    try {
+      res.json(await runBackfillSlice(extra, { budgetMs: 4 * 60_000, restart: req.body?.restart === true, force: req.body?.force === true }));
+    } catch (e: any) {
+      console.error('[music-intel] backfill', e?.message || e);
+      res.status(502).json({ error: 'Backfill hit a snag; run it again to resume.' });
+    }
+  });
+
+  r.get('/backfill-analysis', async (_req: Request, res: Response) => {
+    const s = await (extra.store || adminStore).get(BACKFILL_STATE).catch(() => null);
+    res.json({ cursor: s?.cursor ?? null, totals: s?.totals ?? null, completedAt: s?.completedAt ?? null, updatedAt: s?.updatedAt ?? null, running: Number(s?.leaseUntil || 0) > Date.now() });
   });
 
   // The creator's corrections — owner-only, kept beside the read so a re-analysis keeps them.
