@@ -986,8 +986,16 @@ export class GeneratorSource implements LayerSource {
 
       if (this.path === 'flux' && this.flux && this.ctx2d) {
         const t = fluxClock();
-        const fluxAudio=this.analyserNode?this.fluxMusic.sample(readLive(this.analyserNode,t).freq,t,this.analyserNode.context?.sampleRate||48000):SILENT_AUDIO;
-        const src = this.flux.render({ scene: this.fluxScene }, this.w, this.h, t, fluxAudio);
+        let fluxAudio = SILENT_AUDIO;
+        const an = this.analyserNode;
+        if (an) {
+          readLive(an, t);   // fills rawFreq with the analyser's first min(1024, bins) bins
+          const nb = Math.min(1024, an.frequencyBinCount);
+          // those bins span only nb/bins of the spectrum: scale the rate so Flux's bands land on the right Hz
+          fluxAudio = this.fluxMusic.sample(rawFreq.subarray(0, nb), t, (an.context?.sampleRate || 48000) * nb / Math.max(1, an.frequencyBinCount));
+        }
+        const fp = this.content.params ?? {};
+        const src = this.flux.render({ scene: this.fluxScene, morph: numParam(fp, 'morph', 1) >= 0.5, director: numParam(fp, 'director', 1) >= 0.5 } as any, this.w, this.h, t, fluxAudio);
         if (src) {
           this.ctx2d.drawImage(src, 0, 0, this.w, this.h);
           this.fluxDrawn = true;

@@ -27,6 +27,7 @@ import { buildBogolan } from './culture/bogolanScene';
 import { PLAJAH_BRAND_GLSL } from './fluxBrand';
 import { FluxDirector } from './fluxDirector';
 import { FLUX_LEAK_GLSL } from './fluxLightLeaks';
+import { imageWorldBuilders } from './fluxImageWorlds';
 
 // One camera director per scene instance (Deco Morph runs its own).
 const directors = new WeakMap<object, FluxDirector>();
@@ -59,7 +60,10 @@ export interface SceneInst {
   camera: any;
   cam: CamBase;
   /** set uniforms from the driven audio + spec, at clip-local time t */
-  update(t: number, a: FluxDriven, spec: FluxSpec): void;
+  update(t: number, a: FluxDriven, spec: FluxSpec, audio?: FluxAudio): void;
+  /** Scenes with their own director (e.g. the image worlds) frame the camera themselves; return true to
+   *  skip the shared orbit/director framing. Gets the raw audio so it can split the bands itself. */
+  direct?(t: number, a: FluxDriven, spec: FluxSpec, aspect: number, audio: FluxAudio): boolean;
   /** optional energy dolly — a radius multiplier so the camera pulls back on the build */
   radiusScale?(a: FluxDriven): number;
   /** bloom strength for this frame (before spec.bloom) */
@@ -72,6 +76,8 @@ export interface SceneInst {
   grain?: number;
   /** Optional depth focus and slow background optics for the mathematical volumes. */
   setFocus?(distance:number,strength:number):void;
+  /** Free-roaming worlds: use the cinematic director (wide orbits, cranes, flythroughs) instead of the framed one. */
+  immersive?: boolean;
   optics?():{energy:number;x:number;y:number;phase:number};
   dispose(): void;
 }
@@ -192,11 +198,25 @@ const SCENE_BUILDERS: Record<FluxSceneId, ((THREE: any, renderer: any) => SceneI
   'hellenic-marble': buildHellenic,
   'japanese-ink': buildJapaneseInk,
   'african-bogolan': buildBogolan,
+  // Flux Canvas: every image × directed / 2.5D / 3D (assets under /visualizers/canvas/)
+  ...(imageWorldBuilders() as Record<string, (THREE: any, renderer: any) => SceneInst>),
 };
+
+// Lab-only scenes (e.g. the image worlds under review): rendered by the same engine but kept out of
+// the public catalog until they're approved.
+type FluxBuilder = (THREE: any, renderer: any) => SceneInst;
+const LAB_BUILDERS = new Map<string, FluxBuilder>();
+export function registerFluxLabScenes(builders: Record<string, FluxBuilder>) { for (const [id, b] of Object.entries(builders)) LAB_BUILDERS.set(id, b); }
+function resolveSpec(specIn: Partial<FluxSpec>): FluxSpec {
+  const spec = normalizeFluxSpec(specIn);
+  if (specIn.scene && LAB_BUILDERS.has(specIn.scene)) spec.scene = specIn.scene;
+  return spec;
+}
+const sceneAvailable = (id: FluxSceneId) => fluxSceneBuilt(id) || LAB_BUILDERS.has(id);
 
 function getScene(e: Env, id: FluxSceneId): SceneInst | null {
   const cached = e.scenes.get(id); if (cached) return cached;
-  const b = SCENE_BUILDERS[id]; if (!b) return null;
+  const b = SCENE_BUILDERS[id] ?? LAB_BUILDERS.get(id); if (!b) return null;
   const inst = b(e.THREE, e.renderer); e.scenes.set(id, inst); return inst;
 }
 
@@ -491,6 +511,9 @@ function renderFrame(e: Env, inst: SceneInst, spec: FluxSpec, w: number, h: numb
   ensureSize(e, w, h);
   const a = driveFluxAudio(e.audio, audio || SILENT_AUDIO, localT, spec.sensitivity);
 
+  const ownsCamera = !!inst.direct?.(localT, a, spec, w / Math.max(1, h), audio || SILENT_AUDIO);
+  if (ownsCamera) { inst.camera.aspect = w / Math.max(1, h); inst.camera.updateProjectionMatrix(); inst.camera.updateMatrixWorld(true); }
+  else {
   // camera: the scene's own framing + spec offsets; deterministic from clip-local time.
   // Locked scenes (e.g. the tapestry, a static wall shot) ignore orbit/dolly and pitch nudges.
   const locked = !!inst.cam.lock;
@@ -500,7 +523,7 @@ function renderFrame(e: Env, inst: SceneInst, spec: FluxSpec, w: number, h: numb
   let dir = null as ReturnType<FluxDirector['update']> | null;
   if (spec.scene !== 'deco-morph' && (spec as any).director !== false) {
     let d = directors.get(inst); if (!d) { d = new FluxDirector(); directors.set(inst, d); }
-    dir = d.update(a, localT, locked, spec.scene.startsWith('math-'));
+    dir = d.update(a, localT, locked, spec.scene.startsWith('math-') || !!inst.immersive);
   }
   const yawDeg = inst.cam.yaw + spec.yaw + orbit + (dir ? dir.yaw : 0);
   const pitchDeg = inst.cam.pitch + (locked ? 0 : spec.pitch) + (dir ? dir.pitch : 0);
@@ -515,8 +538,9 @@ function renderFrame(e: Env, inst: SceneInst, spec: FluxSpec, w: number, h: numb
   inst.camera.updateProjectionMatrix();
   inst.camera.updateMatrixWorld(true);
   inst.setFocus?.(radius*(dir?.focusMul??1),dir?.focusStrength??0);
+  }
 
-  inst.update(localT, a, spec);
+  inst.update(localT, a, spec, audio);
 
   const bg = new THREE.Color(spec.background);
   renderer.setClearColor(bg, 1);
@@ -546,8 +570,8 @@ function renderFrame(e: Env, inst: SceneInst, spec: FluxSpec, w: number, h: numb
 
 /** Exact per-frame render (offline export). Awaits three init; returns null if unavailable. */
 export async function renderFlux(specIn: Partial<FluxSpec>, w: number, h: number, localT: number, audio?: FluxAudio): Promise<HTMLCanvasElement | null> {
-  const spec = normalizeFluxSpec(specIn);
-  if (!fluxSceneBuilt(spec.scene)) return null;
+  const spec = resolveSpec(specIn);
+  if (!sceneAvailable(spec.scene)) return null;
   const e = await ensureEnv(); if (!e) return null;
   const inst = getScene(e, spec.scene); if (!inst) return null;
   try { return renderFrame(e, inst, spec, w, h, localT, audio || SILENT_AUDIO); }
@@ -556,8 +580,8 @@ export async function renderFlux(specIn: Partial<FluxSpec>, w: number, h: number
 
 /** Live per-rAF render. Returns null until three is ready (kicking off the init). */
 export function renderFluxLatest(specIn: Partial<FluxSpec>, w: number, h: number, localT: number, audio?: FluxAudio): HTMLCanvasElement | null {
-  const spec = normalizeFluxSpec(specIn);
-  if (!fluxSceneBuilt(spec.scene)) { ensureEnv(); return null; }
+  const spec = resolveSpec(specIn);
+  if (!sceneAvailable(spec.scene)) { ensureEnv(); return null; }
   if (!env) { ensureEnv(); return null; }
   const inst = getScene(env, spec.scene); if (!inst) return null;
   try { return renderFrame(env, inst, spec, w, h, localT, audio || SILENT_AUDIO); }

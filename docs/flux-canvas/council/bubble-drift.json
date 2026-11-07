@@ -1,0 +1,308 @@
+{
+  "id": "bubble-drift",
+  "name": "Bubble Drift",
+  "at": "2026-11-07T00:46:28.433Z",
+  "deliberation": {
+    "proposals": [
+      {
+        "seat": "The Classical Mind, the Classical Mind",
+        "proposal": "The proportions of these overlapping circles demand an architectural canon of golden ratio movement; the plate will drift with measured cadence under the look 'Moonlight', ensuring every cut resolves symmetrically on the downbeat.",
+        "risk": "Strict structural timing may suppress the spontaneous, playful nature of floating bubbles."
+      },
+      {
+        "seat": "The Rebellious Hand, the Rebellious Hand",
+        "proposal": "Screw clean glass. Let's get tape residue and fingerprints on those lenses, push the physical distortion on the snare hits using 'Neon Split', and ask who these pristine bubbles are even for.",
+        "risk": "Might destroy the delicate, ethereal pastel aesthetic the owner established."
+      },
+      {
+        "seat": "The Futurist, the Futurist",
+        "proposal": "Map the bubble coordinates to an instanced particle array driven by real-time audio FFT inputs; when the bass hits 60Hz, trigger a procedural displacement matrix across the glass panes using 'Circle Sweep'.",
+        "risk": "Over-engineering the math could cause frame drops on mobile target hardware."
+      },
+      {
+        "seat": "The World-Eclectic Traveler, the World-Eclectic Traveller",
+        "proposal": "Honor the glass-making heritage of Murano and the pastel light of Nordic summer dusks; let the color grade borrow from Aurora while keeping the bubble motifs culturally untethered and universally resonant.",
+        "risk": "Subtle historical lighting cues may be lost in high-energy electronic drop segments."
+      },
+      {
+        "seat": "The Baroque Dramatist, the Baroque Dramatist",
+        "proposal": "Treat the viewport like an illuminated proscenium arch; use dramatic rim lighting on the glass discs, shifting from 'Dawn' in the intro to an explosive 'Magenta Rush' on the drop with deep atmospheric depth.",
+        "risk": "Excessive volumetric lighting layers could bloat draw calls on cheaper GPUs."
+      },
+      {
+        "seat": "The Radical Minimalist, the Radical Minimalist",
+        "proposal": "Strip away half the bubbles. Leave only one pristine hairline circle and vast, breathing emptiness. Use 'Pulse Wave' to mark the beat with absolute silence in visual form.",
+        "risk": "May feel too sparse for a high-energy dance track with aggressive drops."
+      },
+      {
+        "seat": "The Silicon Pioneer & Pixel Architect",
+        "proposal": "Maintain sub-pixel anti-aliasing on the circle outlines and write a custom 16-bit dither shader to handle the pastel color gradients smoothly on mobile screens without banding, locked at a rock-solid 60fps.",
+        "risk": "Strict hardware constraints limit how many complex refraction rays we can cast."
+      },
+      {
+        "seat": "The Real-Time 3D Engine & Shader Guru",
+        "proposal": "Deploy a multi-layer 3D height displacement map with custom GLSL Fresnel refraction shaders and screen-space reflections, driven by a real-time GPU particle simulation for the floating spheres.",
+        "risk": "Heavy fragment shader math will punish mobile GPUs if overdrawn."
+      },
+      {
+        "seat": "The Fun & Level Design Virtuoso",
+        "proposal": "Make the bubbles interactive touch targets that reward the player with tactile hit-stop, camera juice, and a delightful pop sound on click, ensuring the 3-second fun loop hooks them instantly.",
+        "risk": "Interactivity might distract from the automated beat-locked music video rhythm."
+      },
+      {
+        "seat": "The Japanese Game Auteur & World Director",
+        "proposal": "Design the world map as a floating miniature diorama with intentional 'ma' (breathing space) during the breakdowns, transitioning to epic scale and dramatic silhouette staging upon the drop.",
+        "risk": "Balancing contemplative stillness with rapid beat-matching cuts requires delicate timing."
+      },
+      {
+        "seat": "The 3D Dramatist, the 3D Dramatist",
+        "proposal": "Execute a vertigo camera pull during the build, transitioning smoothly from the 2.5D plate into a full 3D world shot where the glass planes orbit around the viewer.",
+        "risk": "Rapid camera moves between plate and world might cause motion sickness on phones."
+      },
+      {
+        "seat": "The Generative Artist, the Generative Artist",
+        "proposal": "Drive the bubble opacity and distortion noise fields with a cellular automata algorithm linked directly to the track's energy curve and mid-range frequencies.",
+        "risk": "Completely algorithmic visuals can occasionally drift away from the core emotional tone."
+      },
+      {
+        "seat": "The Signal Bender, the Signal Bender",
+        "proposal": "Feed the video feed back into itself with an analog tape delay buffer, smearing the pastel colors across the screen on every snare hit and glitching the signal during the breakdown.",
+        "risk": "Heavy artifacting may obscure the crisp clarity of the glass geometry."
+      },
+      {
+        "seat": "The Lighting Director",
+        "proposal": "Call 'Aurora' for the intro and verses, shift to 'Amber Anthem' during the build, and hit the drop with a blinding 'EDM Drop' flash, keeping the palette harmonized to the image's pastel blues and greens.",
+        "risk": "Aggressive concert lighting looks might overpower the subtle pastel aesthetic if not dialed in."
+      }
+    ],
+    "disputes": [
+      {
+        "between": [
+          "The Futurist, the Futurist",
+          "The Radical Minimalist, the Radical Minimalist"
+        ],
+        "issue": "The Futurist wants complex particle arrays and math-driven displacement, while the Minimalist demands stripping away half the bubbles for pure, empty space.",
+        "resolution": "We will use procedural generation for the drop moments, but enforce minimalist restraint with large fields of negative space during the intro and breakdowns."
+      },
+      {
+        "seat": [
+          "The Silicon Pioneer & Pixel Architect",
+          "The Real-Time 3D Engine & Shader Guru"
+        ],
+        "issue": "The Shader Guru demands heavy GLSL Fresnel refraction and PBR ray-marching, which the Pixel Architect warns will slaughter mobile frame rates.",
+        "resolution": "We will bake normal and height relief maps into the 2.5D plate for mobile, reserving full real-time PBR ray-marching exclusively for high-end desktop viewports."
+      }
+    ],
+    "consensus": "We will elevate 'Bubble Drift' by alternating between a beautifully optimized 2.5D depth-displaced plate for verses and a fully explorable 3D world of refractive glass ribbons and bubbles during drops. The lighting will transition dynamically using 'Aurora' and 'EDM Drop' looks, locked strictly to the audio track's beat clock, energy curve, and bar lines to ensure maximum visual punch across all platforms without compromising frame rates."
+  },
+  "synthesis": {
+    "summary": "An iridescent pastel world of translucent glass circles and floating bubbles where refractive plates seamlessly transition into immersive 3D spatial environments, driven directly by the track's beat clock and energy curve.",
+    "looks": {
+      "intro": "Aurora",
+      "verse": "Moonlight",
+      "build": "Amber Anthem",
+      "drop": "EDM Drop",
+      "breakdown": "Water Ripple",
+      "outro": "Dawn"
+    },
+    "lightPalette": [
+      "#8ce0d0",
+      "#b8a8ff",
+      "#e0f4ff"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "crane",
+          "drift"
+        ],
+        "build": [
+          "flythrough",
+          "vertigo"
+        ],
+        "drop": [
+          "hero",
+          "wide",
+          "orbit"
+        ],
+        "breakdown": [
+          "top",
+          "macro"
+        ],
+        "outro": [
+          "wide",
+          "truck"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "drift",
+          "slow"
+        ],
+        "verse": [
+          "push",
+          "pull"
+        ],
+        "build": [
+          "rack",
+          "pan"
+        ],
+        "drop": [
+          "snap",
+          "dutch"
+        ],
+        "breakdown": [
+          "pull",
+          "drift"
+        ],
+        "outro": [
+          "pull"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "plate",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "plate"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "rise",
+        "brighten"
+      ],
+      "breakdown": [
+        "slow",
+        "desaturate"
+      ]
+    },
+    "intensity": {
+      "camera": 1.2,
+      "reactivity": 1.3,
+      "glow": 1.1
+    },
+    "notes": {
+      "art": "Maintains a pristine pastel aesthetic with layered glass and floating iridescent bubbles, balancing minimal negative space with dynamic visual richness.",
+      "threeD": "Employs optimized 2.5D depth relief on mobile and full real-time PBR Fresnel refraction shaders with volumetric atmosphere for desktop viewports.",
+      "motion": "Cut strictly on bar lines with kick-reactive bubble wobbles, smooth vertigo camera pulls during builds, and explosive shockwaves on drops.",
+      "lighting": "Transitions fluidly from cool Aurora tones into Amber Anthem build heat, culminating in a crisp EDM Drop white-and-blue flash.",
+      "performance": "Engineered for rock-solid 60fps across mobile and desktop by baking complex height maps for plate views and reserving heavy ray-marching for high-tier hardware."
+    }
+  },
+  "direction": {
+    "summary": "An iridescent pastel world of translucent glass circles and floating bubbles where refractive plates seamlessly transition into immersive 3D spatial environments, driven directly by the track's beat clock and energy curve.",
+    "looks": {
+      "intro": "Aurora",
+      "verse": "Moonlight",
+      "build": "Amber Anthem",
+      "drop": "EDM Drop",
+      "breakdown": "Water Ripple",
+      "outro": "Dawn"
+    },
+    "lightPalette": [
+      "#8ce0d0",
+      "#b8a8ff",
+      "#e0f4ff"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "crane"
+        ],
+        "build": [
+          "flythrough",
+          "vertigo"
+        ],
+        "drop": [
+          "hero",
+          "wide",
+          "orbit"
+        ],
+        "breakdown": [
+          "top",
+          "macro"
+        ],
+        "outro": [
+          "wide",
+          "truck"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "drift"
+        ],
+        "verse": [
+          "push",
+          "pull"
+        ],
+        "build": [
+          "rack",
+          "pan"
+        ],
+        "drop": [
+          "snap",
+          "dutch"
+        ],
+        "breakdown": [
+          "pull",
+          "drift"
+        ],
+        "outro": [
+          "pull"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "plate",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "plate"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "rise",
+        "brighten"
+      ],
+      "breakdown": [
+        "slow",
+        "desaturate"
+      ]
+    },
+    "intensity": {
+      "camera": 1.2,
+      "reactivity": 1.3,
+      "glow": 1.1
+    },
+    "notes": {
+      "art": "Maintains a pristine pastel aesthetic with layered glass and floating iridescent bubbles, balancing minimal negative space with dynamic visual richness.",
+      "threeD": "Employs optimized 2.5D depth relief on mobile and full real-time PBR Fresnel refraction shaders with volumetric atmosphere for desktop viewports.",
+      "motion": "Cut strictly on bar lines with kick-reactive bubble wobbles, smooth vertigo camera pulls during builds, and explosive shockwaves on drops.",
+      "lighting": "Transitions fluidly from cool Aurora tones into Amber Anthem build heat, culminating in a crisp EDM Drop white-and-blue flash.",
+      "performance": "Engineered for rock-solid 60fps across mobile and desktop by baking complex height maps for plate views and reserving heavy ray-marching for high-tier hardware."
+    }
+  }
+}

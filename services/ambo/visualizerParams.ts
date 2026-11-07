@@ -107,7 +107,14 @@ const SHADER_HINTS: Record<string, string> = {
   'Text-safe': 'Darkens the centre / lower third so lyrics read',
 };
 
+const FLUX_CANVAS_DEFS: VizParamDef[] = [
+  { key: 'morph', label: 'Pattern morph', kind: 'toggle', default: 1, group: 'Look', hint: "The picture’s shapes bend, slide and swirl with the music" },
+  { key: 'director', label: 'Director', kind: 'toggle', default: 1, group: 'Motion', hint: 'Cuts on the beat and follows the song; off holds the camera still' },
+  AUDIO,
+];
+
 export function vizParamDefs(family: VizFamily, mode?: string | null): VizParamDef[] {
+  if (family === 'flux' && mode?.startsWith('FLUX_CANVAS_')) return FLUX_CANVAS_DEFS;
   if (family === 'gen' && mode && (GEN_PALETTES[mode] || GEN_PARAM_LABELS[mode])) return genDefsFor(mode);
   if (family !== 'shader') return SCHEMA[family];
   const named = mode ? shaderParamNames.get(mode) : undefined;
