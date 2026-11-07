@@ -1,0 +1,321 @@
+{
+  "id": "tidal-glass",
+  "name": "Tidal Glass",
+  "at": "2026-11-07T00:44:16.054Z",
+  "deliberation": {
+    "proposals": [
+      {
+        "seat": "The Classical Mind, the Classical Mind",
+        "proposal": "That does not resolve if the curves wander aimlessly. In the Bach suite tradition, the rippling stratification must establish a strict counterpoint; let the intro use a slow plate drift, the verse a measured rack focus across the glass layers, and the drop execute a rigid, perfectly proportioned structural cadence under Arena Blue.",
+        "risk": "Over-formalizing fluid dynamics might strip away the visceral immediacy of the track."
+      },
+      {
+        "seat": "The Rebellious Hand, the Rebellious Hand",
+        "proposal": "Who is this glass for? It's too clean, too sterile. Smash it with distortion. When the drop hits, tear the plate apart with sharp, abrasive cuts, crank the Cyan Stab, and let the kick spray jagged point-cloud shards across the screen like cracked safety glass.",
+        "risk": "Pure aggression could destroy the delicate iridescence that makes the source image hypnotic."
+      },
+      {
+        "seat": "The Futurist, the Futurist",
+        "proposal": "Configure the height-displacement map to poll real-time audio FFT bins directly. Input kicks map to Z-axis vertex displacement; bass wobbles drive custom GLSL normal-map ripples. Use an EDM Drop look to synchronize flicker state with the beat clock with zero frame latency.",
+        "risk": "Over-relying on programmatic math might turn the organic wave forms into a sterile visualizer artifact."
+      },
+      {
+        "seat": "The World-Eclectic Traveler, the World-Eclectic Traveller",
+        "proposal": "These fluid curves echo the celadon glazes of Goryeo dynasty ceramics from 12th-century Korea. Let the breakdown adopt a quiet, unhurried macro shot over a translucent jade-blue gradient, honouring the deep green-blue craft without flattening it into a generic tech aesthetic.",
+        "risk": "Historical weight might clash with high-energy electronic drop requirements."
+      },
+      {
+        "seat": "The Baroque Dramatist, the Baroque Dramatist",
+        "proposal": "Treat the frame as a grand stage! Use the drop to pull back from a tight macro glass wave into a sweeping vertigo world shot. Drench the scene in Ultraviolet and Magenta Rush, timing the curtain-like unfurling of iridescent light to the exact peak of the breakdown.",
+        "risk": "Excessive theatrical lighting could wash out the subtle sub-surface refractions of the glass."
+      },
+      {
+        "seat": "The Radical Minimalist, the Radical Minimalist",
+        "proposal": "Remove the secondary waves. Keep one single, perfect hairline crest cutting horizontally across the screen. Let the silence of empty blue space amplify the single white sparkle on the snare. Less is everything.",
+        "risk": "Extreme minimalism might fail to satisfy the owner's demand for a massive, expansive world view."
+      },
+      {
+        "seat": "The Silicon Pioneer & Pixel Architect",
+        "proposal": "Maintain strict 60fps frame pacing by baking the wave height map into a hardware-friendly 256x256 tilemap with a Mode-7 affine displacement pass. On mobile, swap heavy ray-marching for a crisp, 16-bit-inspired CRT scanline shader with exact palette register cycling.",
+        "risk": "Stylized retro constraints might fight against the ultra-modern fluid aesthetic."
+      },
+      {
+        "seat": "The Real-Time 3D Engine & Shader Guru",
+        "proposal": "Push the GPU pipeline to its absolute limit: combine a multi-layer 2D-to-3D relief displacement map with PBR specular transmission, screen-space reflections, and ray-marched volumetric mist. The drop triggers an explosive GPU particle burst of refractive glass bubbles.",
+        "risk": "Heavy fragment shader math will melt low-end mobile GPUs if not carefully LOD-culled."
+      },
+      {
+        "seat": "The Fun & Level Design Virtuoso",
+        "proposal": "A world must feel fun to touch in three seconds. Add interactive touch ripples where every tap spawns a physics-driven concentric shockwave that deflects the incoming glass ribbons like a tactile toy you cannot put down.",
+        "risk": "Interactivity overhead might distract from the purely cinematic synchronization of the music video format."
+      },
+      {
+        "seat": "The Japanese Game Auteur & World Director",
+        "proposal": "Treat the overworld as an emotional diorama. Frame the wide world shots with intentional ma—pauses of breathtaking, poetic stillness before the beat drops—staging the glass wave crests like iconic silhouette landmarks in a grand RPG map.",
+        "risk": "Intentional stillness risks feeling slow if the drop demands immediate high-velocity action."
+      },
+      {
+        "seat": "The 3D Dramatist, the 3D Dramatist",
+        "proposal": "Choreograph a relentless camera crane that swoops down the valley of glass waves during the build, executing a violent spin gesture precisely on the drop to hurl the viewer into an immersive world-space flythrough.",
+        "risk": "Fast rotational camera moves can induce motion sickness on mobile form factors."
+      },
+      {
+        "seat": "The Generative Artist, the Generative Artist",
+        "proposal": "Drive the wave vertices with a multi-octave Perlin noise field modulated by audio energy. As the drop builds, increase the frequency harmonics, letting the generative mesh organically tear and reform into crystalline geometric spikes.",
+        "risk": "Stochastic generation can occasionally produce awkward, unappealing silhouette deformations."
+      },
+      {
+        "seat": "The Signal Bender, the Signal Bender",
+        "proposal": "Feed the video output back into an analog-style delay line with chromatic aberration synced to the bass wobble. When the drop lands, inject heavy RGB split and vertical blanking glitches to corrupt the clean glass into raw electronic energy.",
+        "risk": "Excessive artifacting may completely obscure the gorgeous base imagery of the tidal glass."
+      },
+      {
+        "seat": "The Lighting Director",
+        "proposal": "Call the looks by name: start the intro in Moonlight, transition through Aurora during the build, slam a hard cut to EDM Drop on the bar line, and let Encores Blinders pulse warmly on the final sustained chord, keeping the #1450ff palette sovereign.",
+        "risk": "Rigid adherence to preset looks might clash with sudden generative color shifts."
+      }
+    ],
+    "disputes": [
+      {
+        "between": [
+          "The Rebellious Hand, the Rebellious Hand",
+          "The Classical Mind, the Classical Mind"
+        ],
+        "issue": "Disagreement over structure versus chaos in the wave choreography.",
+        "resolution": "The Classical Mind dictates the foundational bar-line structure, while the Rebellious Hand shatters the transitions during high-energy drops."
+      },
+      {
+        "seat": [
+          "The Silicon Pioneer & Pixel Architect",
+          "The Real-Time 3D Engine & Shader Guru"
+        ],
+        "issue": "Performance limits on mobile versus maximum PBR and volumetric fidelity.",
+        "resolution": "Implement dynamic scaling: heavy ray-marched volumetrics on desktop, and an optimized 2.5D displacement tilemap with baked shaders on mobile."
+      },
+      {
+        "seat": [
+          "The Japanese Game Auteur & World Director",
+          "The Fun & Level Design Virtuoso"
+        ],
+        "issue": "Balancing poetic stillness (ma) against immediate, tactile 3-second interactivity.",
+        "resolution": "Ma is preserved during breakdowns and intros, while the 3-second interactive touch ripples take over during verses and builds."
+      }
+    ],
+    "consensus": "To satisfy the owner's demand for scale, impact, and non-boring variety, the engine will dynamically alternate between PLATE (2.5D relief displacement with hardware-efficient shaders for mobile) and WORLD (fully explorable 3D glass ocean with PBR transmission, ray-marched mist, and dramatic camera cranes). The Lighting Director orchestrates looks from Moonlight to EDM Drop synchronized to exact bar lines, while audio transients (kicks, snares, bass wobbles) drive vertex displacement, touch ripples, and point-cloud particle bursts."
+  },
+  "synthesis": {
+    "summary": "Tidal glass waves swell and refract in an ocean of shimmering blue and iridescent light, synchronizing fluid vertex displacement directly to the track's beat. High-energy drops explode with refractive glass particles while cinematic camera cranes alternate seamlessly with 2.5D relief plates.",
+    "looks": {
+      "intro": "Moonlight",
+      "verse": "Holy Blue",
+      "build": "Aurora",
+      "drop": "EDM Drop",
+      "breakdown": "Ballad Silhouette",
+      "outro": "Encore Blinders"
+    },
+    "lightPalette": [
+      "#1450ff",
+      "#00e0ff",
+      "#36a3ff"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "crane",
+          "truck"
+        ],
+        "build": [
+          "flythrough",
+          "hero"
+        ],
+        "drop": [
+          "vertigo",
+          "flythrough",
+          "wide"
+        ],
+        "breakdown": [
+          "top",
+          "macro"
+        ],
+        "outro": [
+          "wide",
+          "orbit"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "drift",
+          "slow"
+        ],
+        "verse": [
+          "rack",
+          "pan"
+        ],
+        "build": [
+          "push",
+          "tilt"
+        ],
+        "drop": [
+          "snap",
+          "dutch",
+          "pull"
+        ],
+        "breakdown": [
+          "drift",
+          "rack"
+        ],
+        "outro": [
+          "pull",
+          "drift"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "world",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "plate"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "tremble",
+        "rise"
+      ],
+      "breakdown": [
+        "slow",
+        "desaturate"
+      ]
+    },
+    "intensity": {
+      "camera": 1.2,
+      "reactivity": 1.4,
+      "glow": 1.3
+    },
+    "notes": {
+      "art": "Balanced classical architectural proportion in the wave crests with rebellious iridescent glass distortion.",
+      "threeD": "Multi-layer 2D-to-3D relief displacement combined with ray-marched volumetric mist and PBR glass transmission.",
+      "motion": "Bar-line-aligned cuts with accelerating energy curves, featuring hard snap drops and smooth cinematic crane sweeps.",
+      "lighting": "Sovereign #1450ff palette anchored by Moonlight during intros and slamming into EDM Drop cyan-white flickers on beats.",
+      "performance": "Dynamic scaling ensures buttery 60fps pacing by utilizing hardware-friendly 2.5D displacement on mobile and full PBR particle pipelines on desktop."
+    }
+  },
+  "direction": {
+    "summary": "Tidal glass waves swell and refract in an ocean of shimmering blue and iridescent light, synchronizing fluid vertex displacement directly to the track's beat. High-energy drops explode with refractive glass particles while cinematic camera cranes alternate seamlessly with 2.5D relief plates.",
+    "looks": {
+      "intro": "Moonlight",
+      "verse": "Holy Blue",
+      "build": "Aurora",
+      "drop": "EDM Drop",
+      "breakdown": "Ballad Silhouette",
+      "outro": "Encore Blinders"
+    },
+    "lightPalette": [
+      "#1450ff",
+      "#00e0ff",
+      "#36a3ff"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "crane",
+          "truck"
+        ],
+        "build": [
+          "flythrough",
+          "hero"
+        ],
+        "drop": [
+          "vertigo",
+          "flythrough",
+          "wide"
+        ],
+        "breakdown": [
+          "top",
+          "macro"
+        ],
+        "outro": [
+          "wide",
+          "orbit"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "drift"
+        ],
+        "verse": [
+          "rack",
+          "pan"
+        ],
+        "build": [
+          "push",
+          "tilt"
+        ],
+        "drop": [
+          "snap",
+          "dutch",
+          "pull"
+        ],
+        "breakdown": [
+          "drift",
+          "rack"
+        ],
+        "outro": [
+          "pull",
+          "drift"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "world",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "plate"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "tremble",
+        "rise"
+      ],
+      "breakdown": [
+        "slow",
+        "desaturate"
+      ]
+    },
+    "intensity": {
+      "camera": 1.2,
+      "reactivity": 1.4,
+      "glow": 1.3
+    },
+    "notes": {
+      "art": "Balanced classical architectural proportion in the wave crests with rebellious iridescent glass distortion.",
+      "threeD": "Multi-layer 2D-to-3D relief displacement combined with ray-marched volumetric mist and PBR glass transmission.",
+      "motion": "Bar-line-aligned cuts with accelerating energy curves, featuring hard snap drops and smooth cinematic crane sweeps.",
+      "lighting": "Sovereign #1450ff palette anchored by Moonlight during intros and slamming into EDM Drop cyan-white flickers on beats.",
+      "performance": "Dynamic scaling ensures buttery 60fps pacing by utilizing hardware-friendly 2.5D displacement on mobile and full PBR particle pipelines on desktop."
+    }
+  }
+}

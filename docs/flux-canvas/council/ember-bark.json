@@ -1,0 +1,309 @@
+{
+  "id": "ember-bark",
+  "name": "Ember Bark",
+  "at": "2026-11-07T00:42:08.806Z",
+  "deliberation": {
+    "proposals": [
+      {
+        "seat": "The Classical Mind, The Classical Mind",
+        "proposal": "That does not resolve if the strata lack proportional counterpoint; we must set the architectural foundation using a plate push through the copper veins, applying the Amber Anthem look to structure the cadence before any world transition.",
+        "risk": "Proportional rigor may feel restrained against modern drop demands."
+      },
+      {
+        "seat": "The Rebellious Hand, The Rebellious Hand",
+        "proposal": "Tear the clean edges off the digital strata with heavy ink pressure and raw speed; map the charcoal bark chunks to physical friction, making every snare hit tear the wood apart against the copper.",
+        "risk": "Raw physicality can descend into visual noise on mobile viewports."
+      },
+      {
+        "seat": "The Futurist, The Futurist",
+        "proposal": "Establish a precise state machine: input kick triggers height-map displacement spikes, hi-hats spawn GPU particle embers, and the drop executes an immediate world explode gesture into a voxel-pixel hybrid relief.",
+        "risk": "Complex shader state trees risk dropping frame pacing on lower-end devices."
+      },
+      {
+        "seat": "The World-Eclectic Traveler, The World-Eclectic Traveller",
+        "proposal": "Honor the true metallurgical origins of oxidized copper and gold leafing; ensure the patinas reflect authentic craft traditions without flattening them into generic tropes.",
+        "risk": "Specific cultural material references may clash with synthetic EDM drops."
+      },
+      {
+        "seat": "The Baroque Dramatist, The Baroque Dramatist",
+        "proposal": "Treat the frame as a grand stage where lighting carves deep dramatic relief into the charcoal and gold; use Candlelit during the breakdown to cast long shadows across the copper canyon.",
+        "risk": "Heavy theatrical staging might obscure core interactive elements."
+      },
+      {
+        "seat": "The Radical Minimalist, The Radical Minimalist",
+        "proposal": "Remove the extraneous particle clutter; let one single hairline gold vein pulsing against raw charcoal carry the entire emotional weight of the track.",
+        "risk": "Extreme minimalism can read as unfinished or broken to casual viewers."
+      },
+      {
+        "seat": "The Silicon Pioneer & Pixel Architect",
+        "proposal": "Lock the canvas to a rock-solid 60fps frame rate with surgical pixel-grid integrity, using custom paletted tilemaps for the copper strata and 8-bit dithered lighting for the embers.",
+        "risk": "Retro hardware constraints may limit modern PBR lighting richness."
+      },
+      {
+        "seat": "The Real-Time 3D Engine & Shader Guru",
+        "proposal": "Push the real-time viewport to absolute limits with multi-layer 3D height displacement on the bark slabs, physically based specular lighting on the gold veins, and ray-marched volumetric smoke.",
+        "risk": "High computational overhead on mobile GPUs."
+      },
+      {
+        "seat": "The Fun & Level Design Virtuoso",
+        "proposal": "Turn the 3D canyon world into an explorable diorama where spatial sightlines and camera juice make the first three seconds irresistible, rewarding exploration with reactive gold-vein pulses.",
+        "risk": "Exploration mechanics might distract from the strictly beat-locked musical journey."
+      },
+      {
+        "seat": "The Japanese Game Auteur & World Director",
+        "proposal": "Design the world map as an emotional stage featuring iconic silhouette landmarks of charred wood against vast copper horizons, punctuated by intentional ma moments of poetic stillness.",
+        "risk": "Slow contemplative pacing can conflict with high-energy drops."
+      },
+      {
+        "seat": "The 3D Dramatist, the 3D Dramatist",
+        "proposal": "Coordinate dynamic camera moves that transition fluidly from plate drift to a sweeping world flythrough, matching every energy curve inflection with precise depth-of-field racks.",
+        "risk": "Sweeping camera motions can induce motion sickness on smaller screens."
+      },
+      {
+        "seat": "The Generative Artist, the Generative Artist",
+        "proposal": "Deploy a procedural flow-field algorithm governed by the audio frequency spectrum to stream the copper and gold strata organically across the canvas without repeating patterns.",
+        "risk": "Procedural generation may occasionally yield aesthetically unbalanced frames."
+      },
+      {
+        "seat": "The Signal Bender, the Signal Bender",
+        "proposal": "Corrupt the video feed with analog circuit-bending artifacts driven by bass wobble, glitching the copper plate colors and tearing pixel rows on every snare hit.",
+        "risk": "Heavy signal corruption risks losing the source image silhouette entirely."
+      },
+      {
+        "seat": "The Lighting Director",
+        "proposal": "Execute look 'Sunset Stadium' during the build, snap to 'EDM Drop' with a blinding white flicker on the drop, and fade into 'Candlelit' for the breakdown to anchor the mood.",
+        "risk": "Rapid lighting changes might overpower subtle material details."
+      }
+    ],
+    "disputes": [
+      {
+        "between": [
+          "The Silicon Pioneer & Pixel Architect",
+          "The Real-Time 3D Engine & Shader Guru"
+        ],
+        "issue": "Dispute over whether to prioritize retro pixel-grid constraints or modern PBR multi-layer 3D height displacement.",
+        "resolution": "Adopt a hybrid HD-2D approach: master pixel plates combined with selective real-time height displacement for hero bark elements."
+      },
+      {
+        "seat": "The Radical Minimalist, The Radical Minimalist",
+        "seat2": "The Baroque Dramatist, The Baroque Dramatist",
+        "issue": "Dispute over visual density: minimalism demands removing elements while the dramatist wants rich lighting and staging.",
+        "resolution": "Use minimal staging during verses and breakdowns, reserving full baroque theatrical lighting exclusively for drops."
+      }
+    ],
+    "consensus": "We will unite under a hybrid HD-2D framework: maintaining rock-solid 60fps frame pacing and pixel-grid integrity while driving multi-layer height displacement and physically based lighting, locked precisely to the track's beat structure and dynamic lighting cues."
+  },
+  "synthesis": {
+    "summary": "Copper and gold strata stream around charred wooden bark, coming alive with dynamic lighting and reactive material displacement. The visual journey matches the song's energy from a grounded plate into an expansive 3D canyon world.",
+    "looks": {
+      "intro": "Candlelit",
+      "verse": "Warm Day",
+      "build": "Amber Anthem",
+      "drop": "EDM Drop",
+      "breakdown": "Noir",
+      "outro": "Sunset Stadium"
+    },
+    "lightPalette": [
+      "#ff8a2a",
+      "#1450ff",
+      "#ffd9a0"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "crane",
+          "drift"
+        ],
+        "build": [
+          "vertigo",
+          "flythrough"
+        ],
+        "drop": [
+          "flythrough",
+          "hero",
+          "orbit"
+        ],
+        "breakdown": [
+          "wide",
+          "top"
+        ],
+        "outro": [
+          "orbit",
+          "wide"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "push",
+          "drift"
+        ],
+        "verse": [
+          "pan",
+          "rack"
+        ],
+        "build": [
+          "push",
+          "dutch"
+        ],
+        "drop": [
+          "snap",
+          "push"
+        ],
+        "breakdown": [
+          "pull",
+          "tilt"
+        ],
+        "outro": [
+          "push",
+          "drift"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "plate",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "world"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "tremble",
+        "rise"
+      ],
+      "breakdown": [
+        "slow",
+        "desaturate"
+      ]
+    },
+    "intensity": {
+      "camera": 1.2,
+      "reactivity": 1.3,
+      "glow": 1.1
+    },
+    "notes": {
+      "art": "Rich material contrast between raw charcoal and polished gold strata.",
+      "threeD": "Multi-layer height displacement on bark chunks within an expansive copper canyon.",
+      "motion": "Beat-locked cuts and sharp energy responses on drops and builds.",
+      "lighting": "Sunset Stadium and EDM Drop looks paired with aggressive strobe flashes.",
+      "performance": "Optimized hybrid HD-2D shaders maintaining stable 60fps across mobile and desktop viewports."
+    }
+  },
+  "direction": {
+    "summary": "Copper and gold strata stream around charred wooden bark, coming alive with dynamic lighting and reactive material displacement. The visual journey matches the song's energy from a grounded plate into an expansive 3D canyon world.",
+    "looks": {
+      "intro": "Candlelit",
+      "verse": "Warm Day",
+      "build": "Amber Anthem",
+      "drop": "EDM Drop",
+      "breakdown": "Noir",
+      "outro": "Sunset Stadium"
+    },
+    "lightPalette": [
+      "#ff8a2a",
+      "#1450ff",
+      "#ffd9a0"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "crane"
+        ],
+        "build": [
+          "vertigo",
+          "flythrough"
+        ],
+        "drop": [
+          "flythrough",
+          "hero",
+          "orbit"
+        ],
+        "breakdown": [
+          "wide",
+          "top"
+        ],
+        "outro": [
+          "orbit",
+          "wide"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "push",
+          "drift"
+        ],
+        "verse": [
+          "pan",
+          "rack"
+        ],
+        "build": [
+          "push",
+          "dutch"
+        ],
+        "drop": [
+          "snap",
+          "push"
+        ],
+        "breakdown": [
+          "pull",
+          "tilt"
+        ],
+        "outro": [
+          "push",
+          "drift"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "plate",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "world"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "tremble",
+        "rise"
+      ],
+      "breakdown": [
+        "slow",
+        "desaturate"
+      ]
+    },
+    "intensity": {
+      "camera": 1.2,
+      "reactivity": 1.3,
+      "glow": 1.1
+    },
+    "notes": {
+      "art": "Rich material contrast between raw charcoal and polished gold strata.",
+      "threeD": "Multi-layer height displacement on bark chunks within an expansive copper canyon.",
+      "motion": "Beat-locked cuts and sharp energy responses on drops and builds.",
+      "lighting": "Sunset Stadium and EDM Drop looks paired with aggressive strobe flashes.",
+      "performance": "Optimized hybrid HD-2D shaders maintaining stable 60fps across mobile and desktop viewports."
+    }
+  }
+}

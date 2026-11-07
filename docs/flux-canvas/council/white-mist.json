@@ -1,0 +1,309 @@
+{
+  "id": "white-mist",
+  "name": "White Mist",
+  "at": "2026-11-07T00:42:52.193Z",
+  "deliberation": {
+    "proposals": [
+      {
+        "seat": "The Classical Mind, the Classical Mind",
+        "proposal": "Let the composition honor proportion and cadence. The sweeping vector lines demand the structural discipline of a Palladian ceiling or a Bach fugue; let the intro use a slow plate drift in Moonlight, holding harmonic resolution until the beat-locked cadence demands a transition.",
+        "risk": "Risk of structural rigidity stifling impulsive rhythmic sync."
+      },
+      {
+        "seat": "The Rebellious Hand, the Rebellious Hand",
+        "proposal": "Who is this clean white mist for? It's too pristine. Let's slap ink-bleed resistance into the stream, spike the pressure on the drop with Red Wall, and tear across the pixel grid so it feels like spray-paint on wet glass, not a gentle gallery breeze.",
+        "risk": "Risk of destroying the ethereal tranquility that defines the core image."
+      },
+      {
+        "seat": "The Futurist, the Futurist",
+        "proposal": "Establish clean input-response loops: audio amplitude directly drives the depth-displacement height-map in real-time, mapping kick onsets to vertex turbulence and bass wobble to normal-map frequency, eliminating sluggish state changes.",
+        "risk": "Risk of reducing emotional atmosphere to a sterile visual oscilloscope."
+      },
+      {
+        "seat": "The World-Eclectic Traveler, the World-Eclectic Traveller",
+        "proposal": "Name the silk and the wind. This visual echoes the traditional indigo dye-vats and mountain mists of Guizhou paper-makers circa 1820; keep the palette tied to natural mineral washes and stop any generic EDM laser sweeps from defiling the motif.",
+        "risk": "Risk of narrative specificity clashing with high-energy club drops."
+      },
+      {
+        "seat": "The Baroque Dramatist, the Baroque Dramatist",
+        "proposal": "Treat the frame as a grand proscenium theatre. Use Sanctuary Gold and Moonlight to cast deep, dramatic relief shadows across the volumetric mist; on the drop, trigger an explosive camera vertigo that plunges the audience straight through the silk curtains.",
+        "risk": "Risk of over-theatrical lighting drowning out the subtle minimalist beauty."
+      },
+      {
+        "seat": "The Radical Minimalist, the Radical Minimalist",
+        "proposal": "Remove the fog. Leave one single hairline vector curve crossing the white void. Defend that exact pixel position for sixty seconds, letting the silence between kicks carry the entire weight of the piece.",
+        "risk": "Risk of total audience detachment during high-energy track sections."
+      },
+      {
+        "seat": "The Silicon Pioneer & Pixel Architect",
+        "proposal": "Bake the master mist plate into an optimized 8-bit/16-bit hybrid tilemap with sub-pixel horizontal scrolling for the background strata, ensuring locked 60fps frame pacing on mobile hardware without dropping a single CRT scanline simulation.",
+        "risk": "Risk of retro constraints limiting the sprawling modern 3D world ambition."
+      },
+      {
+        "seat": "The Real-Time 3D Engine & Shader Guru",
+        "proposal": "Push the real-time pipeline to its absolute limit by combining multi-layer 2.5D relief displacement with ray-marched volumetric fog and custom GLSL wind shaders, driven dynamically by live frequency band separation.",
+        "risk": "Risk of severe mobile GPU throttling and thermal throttling on lower-end devices."
+      },
+      {
+        "seat": "The Fun & Level Design Virtuoso",
+        "proposal": "Make the world explorable in the first three seconds by turning the mist ribbons into interactive spatial highways; let sightlines beckon the player forward with instant hit-stop juice on every kick drum impact.",
+        "risk": "Risk of turning a passive music visualization into an overly game-ified obstacle course."
+      },
+      {
+        "seat": "The Japanese Game Auteur & World Director",
+        "proposal": "Treat the world map like a miniature diorama of floating cloud seas. Infuse intentional ma—moments of poetic breath and stillness during breakdowns—before staging an iconic silhouette arrival on the drop.",
+        "risk": "Risk of pacing feeling too slow for aggressive electronic music drops."
+      },
+      {
+        "seat": "The 3D Dramatist, the 3D Dramatist",
+        "proposal": "Construct an expansive world-space featuring multi-layered cloth ribbons and floating ice crystals illuminated by Holy Blue, utilizing sweeping crane and flythrough shots to banish the 'small world' feeling entirely.",
+        "risk": "Risk of camera velocity causing motion sickness during frantic drop sequences."
+      },
+      {
+        "seat": "The Generative Artist, the Generative Artist",
+        "proposal": "Deploy a procedural particle flow field where Trapcode-Form points stream along complex turbulence equations, ensuring infinite variation so the mist never loops or feels mechanical.",
+        "risk": "Risk of unpredictable procedural outputs breaking established color palettes."
+      },
+      {
+        "seat": "The Signal Bender, the Signal Bender",
+        "proposal": "Feed the audio side-chain directly into analog video feedback loops, smearing the blue and white luminance channels across the frame on every snare hit and tearing the horizontal sync during bass drops.",
+        "risk": "Risk of muddying the pristine visual clarity requested by the owner."
+      },
+      {
+        "seat": "The Lighting Director",
+        "proposal": "Call 'Holy Blue' for the atmospheric intro, snap to 'Arena Blue' with a hard strobe on the build rise, and hit the drop with a blinding 'EDM Drop' flash that instantly resets to 'Moonlight' for the breakdown.",
+        "risk": "Risk of lighting cues overpowering the subtle depth of the background relief."
+      }
+    ],
+    "disputes": [
+      {
+        "between": [
+          "The Radical Minimalist, the Radical Minimalist",
+          "The Baroque Dramatist, the Baroque Dramatist"
+        ],
+        "issue": "Minimalist isolation vs. Baroque theatrical spectacle in the world space.",
+        "resolution": "Use minimalist stillness during intros and breakdowns, transitioning into grand baroque volumetric staging during drops and builds."
+      },
+      {
+        "between": [
+          "The Real-Time 3D Engine & Shader Guru",
+          "The Silicon Pioneer & Pixel Architect"
+        ],
+        "issue": "Heavy modern ray-marched volumetric shaders vs. lightweight retro mobile performance constraints.",
+        "resolution": "Scale the shader complexity dynamically based on hardware capability, falling back to optimized tilemap displacement on constrained mobile devices."
+      }
+    ],
+    "consensus": "The engine will execute a hybrid SHOW mode where intros and breakdowns utilize serene, minimalist plate drifts and measured classical cadence under 'Moonlight' and 'Holy Blue', while drops and builds explode into expansive 3D world flythroughs driven by real-time audio displacement, high-performance shaders, and dynamic lighting cues."
+  },
+  "synthesis": {
+    "summary": "Serene white and blue mist waves drift with classical cadence through minimalist plate views during intros, before erupting into expansive 3D world flythroughs driven by real-time audio displacement on the drop.",
+    "looks": {
+      "intro": "Moonlight",
+      "verse": "Holy Blue",
+      "build": "Arena Blue",
+      "drop": "EDM Drop",
+      "breakdown": "Sanctuary Gold",
+      "outro": "Moonlight"
+    },
+    "lightPalette": [
+      "#18d0e0",
+      "#ffffff",
+      "#6f95ff"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "flythrough",
+          "crane"
+        ],
+        "build": [
+          "hero",
+          "top"
+        ],
+        "drop": [
+          "flythrough",
+          "vertigo",
+          "wide"
+        ],
+        "breakdown": [
+          "crane",
+          "wide"
+        ],
+        "outro": [
+          "orbit",
+          "wide"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "drift",
+          "slow"
+        ],
+        "verse": [
+          "pan",
+          "tilt"
+        ],
+        "build": [
+          "push",
+          "rack"
+        ],
+        "drop": [
+          "snap",
+          "dutch"
+        ],
+        "breakdown": [
+          "pull",
+          "drift"
+        ],
+        "outro": [
+          "drift"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "plate",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "plate"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "rise",
+        "brighten"
+      ],
+      "breakdown": [
+        "slow",
+        "desaturate"
+      ]
+    },
+    "intensity": {
+      "camera": 1.1,
+      "reactivity": 1.2,
+      "glow": 1
+    },
+    "notes": {
+      "art": "Maintains ethereal white mist purity with balanced classical proportion and calculated cadence.",
+      "threeD": "Expands world space with multi-layered cloth ribbons and ray-marched volumetric fog, eliminating small-world feel.",
+      "motion": "Beat-locked camera cuts and velocity scaling align directly with the energy curve and live audio onsets.",
+      "lighting": "Transitions smoothly from Moonlight intro to EDM Drop flashes and Sanctuary Gold atmospheric warmth.",
+      "performance": "Optimized shader pipelines ensure rock-solid 60fps frame pacing across both desktop and mobile viewports."
+    }
+  },
+  "direction": {
+    "summary": "Serene white and blue mist waves drift with classical cadence through minimalist plate views during intros, before erupting into expansive 3D world flythroughs driven by real-time audio displacement on the drop.",
+    "looks": {
+      "intro": "Moonlight",
+      "verse": "Holy Blue",
+      "build": "Arena Blue",
+      "drop": "EDM Drop",
+      "breakdown": "Sanctuary Gold",
+      "outro": "Moonlight"
+    },
+    "lightPalette": [
+      "#18d0e0",
+      "#ffffff",
+      "#6f95ff"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "flythrough",
+          "crane"
+        ],
+        "build": [
+          "hero",
+          "top"
+        ],
+        "drop": [
+          "flythrough",
+          "vertigo",
+          "wide"
+        ],
+        "breakdown": [
+          "crane",
+          "wide"
+        ],
+        "outro": [
+          "orbit",
+          "wide"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "drift"
+        ],
+        "verse": [
+          "pan",
+          "tilt"
+        ],
+        "build": [
+          "push",
+          "rack"
+        ],
+        "drop": [
+          "snap",
+          "dutch"
+        ],
+        "breakdown": [
+          "pull",
+          "drift"
+        ],
+        "outro": [
+          "drift"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "plate",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "plate"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "rise",
+        "brighten"
+      ],
+      "breakdown": [
+        "slow",
+        "desaturate"
+      ]
+    },
+    "intensity": {
+      "camera": 1.1,
+      "reactivity": 1.2,
+      "glow": 1
+    },
+    "notes": {
+      "art": "Maintains ethereal white mist purity with balanced classical proportion and calculated cadence.",
+      "threeD": "Expands world space with multi-layered cloth ribbons and ray-marched volumetric fog, eliminating small-world feel.",
+      "motion": "Beat-locked camera cuts and velocity scaling align directly with the energy curve and live audio onsets.",
+      "lighting": "Transitions smoothly from Moonlight intro to EDM Drop flashes and Sanctuary Gold atmospheric warmth.",
+      "performance": "Optimized shader pipelines ensure rock-solid 60fps frame pacing across both desktop and mobile viewports."
+    }
+  }
+}

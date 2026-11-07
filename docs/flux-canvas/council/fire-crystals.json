@@ -1,0 +1,314 @@
+{
+  "id": "fire-crystals",
+  "name": "Fire Crystals",
+  "at": "2026-11-07T00:44:03.323Z",
+  "deliberation": {
+    "proposals": [
+      {
+        "seat": "The Classical Mind, the Classical Mind",
+        "proposal": "The structural architecture of this composition relies upon a grand counterpoint between the fiery crystal clusters and the violet abyss beneath them. That does not resolve if we merely flood the canvas with noise; instead, we must honor the proportional intervals of the phrase. Let the intro use a sustained plate push in Ultravariant, allow the verse to trace the golden crystal vectors with measured pans, and save the full symphonic disclosure of the crystal lattice for the drop.",
+        "risk": "A classical cadence might feel too restrained for an aggressive drop gesture."
+      },
+      {
+        "seat": "The Rebellious Hand, the Rebellious Hand",
+        "proposal": "Who is this clean digital glitter for? Let's rough it up. Dig deep into the plate's displacement map, smear the vertex buffers, and let the spark particles spray like unfiltered iron grit off a grinder. When the kick hits, don't just pulse the camera—slam it with a dirty chromatic aberration and make those crystal edges bleed into the purple ground.",
+        "risk": "Excessive displacement noise risks muddying the silhouette on smaller mobile screens."
+      },
+      {
+        "seat": "The Futurist, the Futurist",
+        "proposal": "We establish a strict parametric state machine mapping audio transients to GPU vertex buffers. Kick frequency directly drives height-displacement amplitude; snare onsets trigger instantaneous Trapcode-Form particle bursts; drop energy scales the volumetric fog density. No arbitrary movement—every frame is a deterministic response to incoming audio telemetry.",
+        "risk": "Purely algorithmic mappings can occasionally lack organic, breathing variation."
+      },
+      {
+        "seat": "The World-Eclectic Traveler, the World-Eclectic Traveller",
+        "proposal": "These faceted forms echo the raw mineralogical brilliance of Peruvian quartz deposits touched by twilight. Let us ensure our amber and magenta palettes respect the mineral's authentic geological weight rather than treating it as generic fantasy filler. Ground the 3D world with an organic, cavernous camera drift that honors the natural grain of the stone.",
+        "risk": "Geological realism might clash with high-energy electronic drop mechanics."
+      },
+      {
+        "seat": "The Baroque Dramatist, the Baroque Dramatist",
+        "proposal": "Treat the frame as a grand proscenium arch of fire and shadow. The intro lingers in deep, velvety purple darkness with candlelight glows; the build gathers light along the crystalline facets like footlights revealing the actors; and the drop opens the velvet curtain with a breathtaking explosion of gold and crimson stagecraft.",
+        "risk": "Heavy theatrical lighting layers could strain low-end mobile fill rates."
+      },
+      {
+        "seat": "The Radical Minimalist, the Radical Minimalist",
+        "proposal": "Strip away half the floating sparks. Emptiness is not silence; it is what lets a single razor-sharp crystal hairline vibrate with absolute authority on the drop. Hold the plate still during the breakdown so the negative space does the work.",
+        "risk": "Minimalism might leave high-energy sections feeling too sparse for the owner's demand for high wow factor."
+      },
+      {
+        "seat": "The Silicon Pioneer & Pixel Architect",
+        "proposal": "Maintain absolute 1x silhouette integrity and rock-solid 60fps frame pacing across all devices. We'll bake the crystal tilemaps with custom hardware-authentic color lookup registers and precise sub-pixel animation offsets, ensuring the raster-interrupt spark bursts feel like legendary 16-bit hardware pushed to absolute perfection.",
+        "risk": "Retro constraints might limit the freedom of modern volumetric lighting."
+      },
+      {
+        "seat": "The Real-Time 3D Engine & Shader Guru",
+        "proposal": "Push the real-time viewport to its absolute limit by combining our master plate with multi-layer 3D height displacement, physically based specular roughness on the crystal facets, and ray-marched volumetric fire smoke. The live scene will rival pre-rendered cinema while staying ruthlessly optimized for mobile GPUs.",
+        "risk": "Complex GLSL ray-marching shaders can introduce performance spikes on lower-end chipsets."
+      },
+      {
+        "seat": "The Fun & Level Design Virtuoso",
+        "proposal": "A world must be fun to touch in the first three seconds! Let's make the 3D world explorable with tactile camera feedback—every tap or drag on the viewport gives immediate hit-stop, satisfying crystal-shatter audio-visual juice, and clear landmark sightlines that guide the player's eye effortlessly.",
+        "risk": "Adding interactive exploration mechanics might distract from passive music visualization mode."
+      },
+      {
+        "seat": "The Japanese Game Auteur & World Director",
+        "proposal": "Treat the overworld diorama with emotional resonance and intentional ma. The crystal clusters should function as iconic silhouette landmarks against the purple abyss, with dramatic satsuei lighting that creates a profound sense of miniature wonder and epic scale during the breakdown.",
+        "risk": "Poetic stillness and atmospheric pauses might slow down the high-tempo drop momentum."
+      },
+      {
+        "seat": "The 3D Dramatist, the 3D Dramatist",
+        "proposal": "Choreograph the 3D world camera with sweeping crane and vertigo moves that expand dramatically on the build and snap into an intense hero orbit right as the drop hits. Scale up the crystal ribbon count so wide shots never feel small.",
+        "risk": "Aggressive camera moves can induce motion fatigue if not carefully clamped."
+      },
+      {
+        "seat": "The Generative Artist, the Generative Artist",
+        "proposal": "Deploy procedural crystal growth algorithms governed by the audio frequency spectrum. Let the shard geometry organically branch and fractalize outward during builds, creating infinite variations of fire and crystal structures that never repeat.",
+        "risk": "Fully procedural geometry generation is computationally heavy for real-time mobile playback."
+      },
+      {
+        "seat": "The Signal Bender, the Signal Bender",
+        "proposal": "Feed the master plate through analog video synthesis feedback loops, smearing the amber highlights across scanlines and pulsing color saturation via direct bass-wobble sidechaining. Give it that gritty, hardware-hacked VHS decay.",
+        "risk": "Heavy analog signal degradation could obscure the crisp geometric beauty of the crystal forms."
+      },
+      {
+        "seat": "The Lighting Director",
+        "proposal": "Lock our lighting look to Fire for the verses, shifting instantly to EDM Drop with blinding white and electric blue flickers on the drop beats. Keep the palette anchored to the image's blazing orange and deep violet throughout.",
+        "risk": "Rapid strobe effects might trigger photosensitivity warnings if overused."
+      }
+    ],
+    "disputes": [
+      {
+        "between": [
+          "The Radical Minimalist, the Radical Minimalist",
+          "The 3D Dramatist, the 3D Dramatist"
+        ],
+        "issue": "Minimalist restraint vs. large-scale dramatic 3D spectacle and particle density.",
+        "resolution": "We use minimalist framing and negative space during intros and breakdowns, but unleash full 3D spectacle, particle storms, and dramatic camera moves exclusively during drops."
+      },
+      {
+        "between": [
+          "The Silicon Pioneer & Pixel Architect",
+          "The Real-Time 3D Engine & Shader Guru"
+        ],
+        "issue": "Strict 2D retro constraints and pixel-grid integrity vs. modern heavy GLSL ray-marched volumetrics and PBR shaders.",
+        "resolution": "We implement an HD-2D hybrid approach: crisp pixel-grid silhouettes for UI and base plate elements, paired with lightweight, optimized height-displacement and particle shaders for the 3D world."
+      }
+    ],
+    "consensus": "We unite around an electrifying hybrid experience: bridging master plate 2.5D relief and fully explorable 3D crystal worlds, driven deterministically by audio transients, lit with the 'Fire' and 'EDM Drop' looks, and structured with precise bar-line cuts that balance minimalist atmospheric pauses with breathtaking drop explosions."
+  },
+  "synthesis": {
+    "summary": "A blazing landscape of fiery crystal shards and deep violet abysses that responds dynamically to the song's energy. High-impact drops trigger massive particle explosions while measured structural intervals honor the musical cadence.",
+    "looks": {
+      "intro": "Candlelit",
+      "verse": "Fire",
+      "build": "Amber Anthem",
+      "drop": "EDM Drop",
+      "breakdown": "Noir",
+      "outro": "Ballad Silhouette"
+    },
+    "lightPalette": [
+      "#ff6a14",
+      "#ff2a08",
+      "#7a12ff"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "flythrough",
+          "crane"
+        ],
+        "build": [
+          "hero",
+          "top"
+        ],
+        "drop": [
+          "vertigo",
+          "truck",
+          "wide"
+        ],
+        "breakdown": [
+          "macro",
+          "orbit"
+        ],
+        "outro": [
+          "wide",
+          "top"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "drift",
+          "push"
+        ],
+        "verse": [
+          "pan",
+          "tilt"
+        ],
+        "build": [
+          "push",
+          "rack"
+        ],
+        "drop": [
+          "snap",
+          "dutch",
+          "push"
+        ],
+        "breakdown": [
+          "pull",
+          "drift"
+        ],
+        "outro": [
+          "pull",
+          "pan"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "world",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "plate"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "tremble",
+        "rise"
+      ],
+      "breakdown": [
+        "slow",
+        "desaturate"
+      ]
+    },
+    "intensity": {
+      "camera": 1.2,
+      "reactivity": 1.4,
+      "glow": 1.3
+    },
+    "notes": {
+      "art": "Balance the fierce organic mineral textures against deep violet negative space.",
+      "threeD": "Scale up crystal ribbon counts on wide shots to maintain grand epic scale.",
+      "motion": "Lock camera cuts strictly to bar lines with violent impact frames on the drop.",
+      "lighting": "Transition smoothly from warm candlelight intro to blinding EDM drop stroboscopic flashes.",
+      "performance": "Keep vertex displacement optimized for stable mobile 60fps frame pacing."
+    }
+  },
+  "direction": {
+    "summary": "A blazing landscape of fiery crystal shards and deep violet abysses that responds dynamically to the song's energy. High-impact drops trigger massive particle explosions while measured structural intervals honor the musical cadence.",
+    "looks": {
+      "intro": "Candlelit",
+      "verse": "Fire",
+      "build": "Amber Anthem",
+      "drop": "EDM Drop",
+      "breakdown": "Noir",
+      "outro": "Ballad Silhouette"
+    },
+    "lightPalette": [
+      "#ff6a14",
+      "#ff2a08",
+      "#7a12ff"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "flythrough",
+          "crane"
+        ],
+        "build": [
+          "hero",
+          "top"
+        ],
+        "drop": [
+          "vertigo",
+          "truck",
+          "wide"
+        ],
+        "breakdown": [
+          "macro",
+          "orbit"
+        ],
+        "outro": [
+          "wide",
+          "top"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "drift",
+          "push"
+        ],
+        "verse": [
+          "pan",
+          "tilt"
+        ],
+        "build": [
+          "push",
+          "rack"
+        ],
+        "drop": [
+          "snap",
+          "dutch",
+          "push"
+        ],
+        "breakdown": [
+          "pull",
+          "drift"
+        ],
+        "outro": [
+          "pull",
+          "pan"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "world",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "plate"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "tremble",
+        "rise"
+      ],
+      "breakdown": [
+        "slow",
+        "desaturate"
+      ]
+    },
+    "intensity": {
+      "camera": 1.2,
+      "reactivity": 1.4,
+      "glow": 1.3
+    },
+    "notes": {
+      "art": "Balance the fierce organic mineral textures against deep violet negative space.",
+      "threeD": "Scale up crystal ribbon counts on wide shots to maintain grand epic scale.",
+      "motion": "Lock camera cuts strictly to bar lines with violent impact frames on the drop.",
+      "lighting": "Transition smoothly from warm candlelight intro to blinding EDM drop stroboscopic flashes.",
+      "performance": "Keep vertex displacement optimized for stable mobile 60fps frame pacing."
+    }
+  }
+}

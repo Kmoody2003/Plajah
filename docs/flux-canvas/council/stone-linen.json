@@ -1,0 +1,312 @@
+{
+  "id": "stone-linen",
+  "name": "Stone & Linen",
+  "at": "2026-11-07T00:44:43.116Z",
+  "deliberation": {
+    "proposals": [
+      {
+        "seat": "The Classical Mind, the Classical Mind",
+        "proposal": "The travertine and woven linen tiles must observe strict proportional relationships, recalling Carlo Scarpa's layered masonry. Use the 'Sanctuary Gold' look during the intro, allowing the travertine pits to cast accurate shadow maps under a measured plate push.",
+        "risk": "Might feel too architectural for a high-energy dance drop."
+      },
+      {
+        "seat": "The Rebellious Hand, the Rebellious Hand",
+        "proposal": "Tear the clean vector seams apart. Let the linen fray under heavy bass wobbles and use the 'Rock Chase' look to scratch raw white light across the stone pits like jagged ink on coarse paper.",
+        "risk": "Aggressive texturing could obscure the subtle material contrast."
+      },
+      {
+        "seat": "The Futurist, the Futurist",
+        "proposal": "Map audio frequency bins directly to normal-map displacement offsets on the travertine slabs. Use 'Cyan Stab' to pulse lighting states based on kick transients, keeping 60fps frame pacing strictly locked.",
+        "risk": "Algorithmic mapping can sometimes feel cold and disconnected from organic stone."
+      },
+      {
+        "seat": "The World-Eclectic Traveler, the World-Eclectic Traveller",
+        "proposal": "These are Roman travertine and fine Japanese textiles combined. Ground the world-space view in the tactile weight of Mediterranean quarries, using 'Warm Day' lighting to honor the physical craft without borrowing motifs out of context.",
+        "risk": "Traditional warmth might fight with modern electronic drop gestures."
+      },
+      {
+        "seat": "The Baroque Dramatist, the Baroque Dramatist",
+        "proposal": "Treat the panel seams as theatrical curtains opening. At the drop, trigger an 'explode' gesture with 'Sunset Stadium' lighting, casting long, dramatic shadows across the travertine pits as if lit by low afternoon footlights.",
+        "risk": "Over-dramatizing a minimalist texture risks visual clutter."
+      },
+      {
+        "seat": "The Radical Minimalist, the Radical Minimalist",
+        "proposal": "Remove half the lighting channels. Rely entirely on one pristine hairline shadow between the stone and linen plates. Let silence do the work during the breakdown.",
+        "risk": "Owner explicitly asked to raise the 'wow' factor, which requires more than just reduction."
+      },
+      {
+        "seat": "The Silicon Pioneer & Pixel Architect",
+        "proposal": "Bake the travertine porosity into a tight 8-bit normal map with sub-pixel UV scrolling. Ensure the plate-to-world transitions snap cleanly on bar lines without dropping a single frame on mobile devices.",
+        "risk": "Procedural noise might alias if pixel-grid integrity isn't guarded carefully."
+      },
+      {
+        "seat": "The Real-Time 3D Engine & Shader Guru",
+        "proposal": "Deploy multi-layer 3D height displacement on the travertine slabs so they physically push forward during bass builds. Pair with PBR specular highlights on the linen weave for maximum cinematic relief.",
+        "risk": "High displacement cost on mobile GPUs if vertex density isn't managed."
+      },
+      {
+        "seat": "The Fun & Level Design Virtuoso",
+        "proposal": "Make the 3D world explorable with a satisfying camera drift that reacts to the kick drum. When the drop hits, use an 'EDM Drop' flash to reward the player's navigation with an instant burst of tactile feedback.",
+        "risk": "Interactive exploration might distract from a pure music-driven visualizer."
+      },
+      {
+        "seat": "The Japanese Game Auteur & World Director",
+        "proposal": "Treat the split-screen world map like a miniature diorama. Use intentional 'ma' (atmospheric pauses) during the breakdown, letting the travertine shapes rest in poetic stillness before the next build.",
+        "risk": "Stillness might conflict with the owner's demand for high energy and drops."
+      },
+      {
+        "seat": "The 3D Dramatist, the 3D Dramatist",
+        "proposal": "Coordinate camera speed directly with the track's energy curve. Use a sweeping 'vertigo' shot during builds, pulling back dramatically to reveal the full thickness of the stone slabs just as the drop hits.",
+        "risk": "Fast camera moves can induce motion sickness on mobile screens."
+      },
+      {
+        "seat": "The Generative Artist, the Generative Artist",
+        "proposal": "Drive the curvature of the dividing seams with a reactive noise field tied to the snare onsets, ensuring every bar line generates a unique organic boundary mutation.",
+        "risk": "Unpredictable geometry could break the recognition of the core stone-and-linen pattern."
+      },
+      {
+        "seat": "The Signal Bender, the Signal Bender",
+        "proposal": "Feed the audio waveform into chromatic aberration passes on the linen texture channels, letting tape-saturation artifacts bloom across the screen during heavy bass wobbles.",
+        "risk": "Heavy signal distortion might wash out the elegant earth tones."
+      },
+      {
+        "seat": "The Lighting Director",
+        "proposal": "Call 'Amber Anthem' during verses to highlight the warm travertine, switch to 'EDM Drop' for the chorus with sharp white flickers on the kick, and settle into 'Moonlight' for the breakdown.",
+        "risk": "Rapid cue changes might fight the natural subtlety of the textures."
+      }
+    ],
+    "disputes": [
+      {
+        "between": [
+          "The Radical Minimalist, the Radical Minimalist",
+          "The Baroque Dramatist, the Baroque Dramatist"
+        ],
+        "issue": "Minimalist restraint vs theatrical explosion during the drop.",
+        "resolution": "Use a clean, single-pixel displacement for verses (minimalist), then trigger a full 3D 'explode' gesture with 'Sunset Stadium' lighting only on the main drop."
+      },
+      {
+        "between": [
+          "The Japanese Game Auteur & World Director",
+          "The 3D Dramatist, the 3D Dramatist"
+        ],
+        "issue": "Poetic stillness (ma) versus constant energy-curve camera movement.",
+        "resolution": "Reserve stillness exclusively for breakdowns, while builds and drops follow the 3D Dramatist's high-energy camera sweeps."
+      }
+    ],
+    "consensus": "The visualizer will honor the natural stone-and-linen material fidelity through PBR normal mapping and depth displacement, alternating between disciplined 2.5D plate pans during verses and fully explorable 3D world reliefs that expand, explode, and react dynamically to kicks, snares, and drops."
+  },
+  "synthesis": {
+    "summary": "Stone and linen shapes breathe in depth with PBR normal mapping, transitioning from disciplined plate pans during verses to full 3D world reliefs that explode on the drop. The visualizer locks camera movement directly to the audio energy curve while preserving tactile material authenticity.",
+    "looks": {
+      "intro": "Sanctuary Gold",
+      "verse": "Warm Day",
+      "build": "Amber Anthem",
+      "drop": "EDM Drop",
+      "breakdown": "Moonlight",
+      "outro": "Sanctuary Gold"
+    },
+    "lightPalette": [
+      "#d2b48c",
+      "#829984",
+      "#a5b8cc"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "orbit",
+          "crane"
+        ],
+        "build": [
+          "flythrough",
+          "vertigo"
+        ],
+        "drop": [
+          "hero",
+          "wide",
+          "flythrough"
+        ],
+        "breakdown": [
+          "top",
+          "macro"
+        ],
+        "outro": [
+          "wide",
+          "orbit"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "push",
+          "drift"
+        ],
+        "verse": [
+          "pan",
+          "pull"
+        ],
+        "build": [
+          "rack",
+          "push"
+        ],
+        "drop": [
+          "snap",
+          "dutch"
+        ],
+        "breakdown": [
+          "drift",
+          "pull"
+        ],
+        "outro": [
+          "push",
+          "drift"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "plate",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "plate"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "rise",
+        "brighten"
+      ],
+      "breakdown": [
+        "slow",
+        "sparse"
+      ]
+    },
+    "intensity": {
+      "camera": 1.1,
+      "reactivity": 1.2,
+      "glow": 0.9
+    },
+    "notes": {
+      "art": "Maintains strict proportional balance between travertine and linen textures, honoring Carlo Scarpa's masonry layering.",
+      "threeD": "Deploys multi-layer 3D height displacement on travertine slabs so they physically push forward during bass builds.",
+      "motion": "Synchronizes camera speed with the energy curve, sweeping through vertigo shots on builds and hard-cutting on bar lines.",
+      "lighting": "Transitions smoothly from Sanctuary Gold and Warm Day to EDM Drop white flickers, keeping the earth-toned palette in charge.",
+      "performance": "Optimizes vertex density and normal maps for smooth 60fps frame pacing across mobile and desktop viewports."
+    }
+  },
+  "direction": {
+    "summary": "Stone and linen shapes breathe in depth with PBR normal mapping, transitioning from disciplined plate pans during verses to full 3D world reliefs that explode on the drop. The visualizer locks camera movement directly to the audio energy curve while preserving tactile material authenticity.",
+    "looks": {
+      "intro": "Sanctuary Gold",
+      "verse": "Warm Day",
+      "build": "Amber Anthem",
+      "drop": "EDM Drop",
+      "breakdown": "Moonlight",
+      "outro": "Sanctuary Gold"
+    },
+    "lightPalette": [
+      "#d2b48c",
+      "#829984",
+      "#a5b8cc"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "orbit",
+          "crane"
+        ],
+        "build": [
+          "flythrough",
+          "vertigo"
+        ],
+        "drop": [
+          "hero",
+          "wide",
+          "flythrough"
+        ],
+        "breakdown": [
+          "top",
+          "macro"
+        ],
+        "outro": [
+          "wide",
+          "orbit"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "push",
+          "drift"
+        ],
+        "verse": [
+          "pan",
+          "pull"
+        ],
+        "build": [
+          "rack",
+          "push"
+        ],
+        "drop": [
+          "snap",
+          "dutch"
+        ],
+        "breakdown": [
+          "drift",
+          "pull"
+        ],
+        "outro": [
+          "push",
+          "drift"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "plate",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "plate"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "rise",
+        "brighten"
+      ],
+      "breakdown": [
+        "slow",
+        "sparse"
+      ]
+    },
+    "intensity": {
+      "camera": 1.1,
+      "reactivity": 1.2,
+      "glow": 0.9
+    },
+    "notes": {
+      "art": "Maintains strict proportional balance between travertine and linen textures, honoring Carlo Scarpa's masonry layering.",
+      "threeD": "Deploys multi-layer 3D height displacement on travertine slabs so they physically push forward during bass builds.",
+      "motion": "Synchronizes camera speed with the energy curve, sweeping through vertigo shots on builds and hard-cutting on bar lines.",
+      "lighting": "Transitions smoothly from Sanctuary Gold and Warm Day to EDM Drop white flickers, keeping the earth-toned palette in charge.",
+      "performance": "Optimizes vertex density and normal maps for smooth 60fps frame pacing across mobile and desktop viewports."
+    }
+  }
+}

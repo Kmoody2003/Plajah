@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flux Canvas Lab</title>
+<style>
+  :root{--bg:#07080b;--panel:#101218;--line:#22252e;--ink:#ece8e1;--dim:#9a958c;--accent:#e8b86a}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+  main{max-width:1500px;margin:0 auto;padding:16px}
+  .stage{position:relative;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+  .stage:fullscreen{border-radius:0;aspect-ratio:auto}
+  canvas{width:100%;height:100%;display:block;cursor:grab;touch-action:none}canvas:active{cursor:grabbing}
+  .hint{position:absolute;right:12px;top:10px;font-size:11px;color:rgba(255,255,255,.6);pointer-events:none}
+  .head{display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;justify-content:space-between;margin:14px 0 6px}
+  h1{margin:0;font-size:22px;font-weight:600}#mood{color:var(--accent);font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-left:10px}
+  .lines{display:grid;grid-template-columns:1fr 1fr;gap:16px;color:var(--dim);margin:4px 0 12px}.lines b{color:var(--ink);font-weight:600}
+  @media (max-width:720px){.lines{grid-template-columns:1fr}}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+  button,.upload{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:8px 12px;font:inherit;cursor:pointer}
+  button[aria-pressed=true]{border-color:var(--accent);color:var(--accent)}
+  .upload input{display:none}
+  .meters{display:flex;gap:10px}.meters label{font-size:10px;color:var(--dim);letter-spacing:.1em}.meters span{display:block;width:80px;height:5px;background:#1b1e26;border-radius:3px;overflow:hidden;margin-top:3px}
+  .meters i{display:block;height:100%;background:var(--accent);transform-origin:left;transform:scaleX(0)}
+  #audio-state,#approved{color:var(--dim);font-size:12px}
+  nav{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:14px}
+  .tile{position:relative;padding:0;overflow:hidden;text-align:left;display:flex;flex-direction:column}
+  .tile img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
+  .tile .nm{padding:6px 8px 0;font-weight:600}.tile .md{padding:0 8px 8px;color:var(--dim);font-size:11px}
+  .tile .ok{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.65);color:#9be39b;font-size:11px;border-radius:4px;padding:1px 6px}
+  .tile .ok:empty{display:none}
+  .tile[aria-selected=true]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+</style></head>
+<body><main>
+  <div class="stage"><canvas id="screen"></canvas><div class="hint">Drag to orbit · scroll to zoom</div></div>
+  <div class="head"><div><h1 id="title" style="display:inline">Flux Canvas</h1><span id="mood"></span></div>
+    <div class="row"><button data-mode="show">Show (directed)</button><button data-mode="plate">A · Living Plate</button><button data-mode="world">B · Image World</button><button data-mode="compare">Compare A | B</button></div></div>
+  <canvas id="strip" title="Song map — click to seek" style="width:100%;height:28px;display:block;border-radius:4px;margin:8px 0 2px;cursor:pointer"></canvas>
+  <div id="readout" style="font:12px ui-monospace,Consolas,monospace;color:#cfc8bc;min-height:16px;margin-bottom:8px"></div>
+  <div class="lines"><p><b>A · Living Plate.</b> <span id="lineA"></span></p><p><b>B · Image World.</b> <span id="lineB"></span></p></div>
+  <div class="row">
+    <button id="song">Play test song (drops)</button><button id="demo">Play test groove</button><label class="upload" tabindex="0">Load a song<input id="audio" type="file" accept="audio/*"></label><button id="mic">Use microphone</button>
+    <button id="pause">Pause</button><button id="director" aria-pressed="true">Director: on</button><button id="morph" aria-pressed="true">Morph: on</button><button id="reset">Reset camera</button><button id="fullscreen">Full screen</button>
+    <label style="color:var(--dim);font-size:12px">Device <select id="tier" style="background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px"><option value="">Auto</option><option value="1">High</option><option value="0.6">Medium</option><option value="0.35">Phone</option></select></label>
+    <label style="color:var(--dim);font-size:12px">Response <input id="response" type="range" min="0.5" max="3" step="0.1" value="1.4"> <output id="response-value">1.4×</output></label>
+    <div class="meters"><label>BASS<span><i id="meter-bass"></i></span></label><label>MIDS<span><i id="meter-mid"></i></span></label><label>HIGHS<span><i id="meter-treble"></i></span></label></div>
+  </div>
+  <div class="row"><span id="audio-state" role="status"></span></div>
+  <p id="council" style="margin:6px 0 2px;color:#e8d9bf"></p><p id="council-detail" style="margin:0 0 8px;color:var(--dim);font-size:12px"></p>
+  <div class="row"><button id="approve-plate">Approve A · Plate</button><button id="approve-world">Approve B · World</button><button id="approve-show">Approve Show</button><span id="approved"></span></div>
+  <nav aria-label="Choose an image"></nav>
+</main>
+<script type="module" src="/components/plajahPixels/dev/fluxCanvasGallery.ts"></script></body></html>

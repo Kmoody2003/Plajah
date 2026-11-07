@@ -1,0 +1,310 @@
+{
+  "id": "pastel-veil",
+  "name": "Pastel Veil",
+  "at": "2026-11-07T00:42:29.518Z",
+  "deliberation": {
+    "proposals": [
+      {
+        "seat": "The Classical Mind, the Classical Mind",
+        "proposal": "That does not resolve if the geometry lacks proportion. We will structure the intro with a slow plate drift, establishing the overlapping circular arcs in golden ratio arrangements. Use 'Dawn' look. The movement must follow strict contrapuntal voice-leading, resolving cleanly on the bar lines.",
+        "risk": "Rigid adherence to classical cadence might feel too academic for a modern drop."
+      },
+      {
+        "seat": "The Rebellious Hand, the Rebellious Hand",
+        "proposal": "Who is this soft pastel for? Cut the clean gradients. We add raw ink dispersion and frantic tape noise during the build, letting the silk ribbons tear and catch heavy screen-space pressure. Use 'Amber Anthem' to dirty up the pastels.",
+        "risk": "May completely destroy the delicate, ethereal worship mood requested by the owner."
+      },
+      {
+        "seat": "The Futurist, the Futurist",
+        "proposal": "Map the song's RMS energy directly to depth-displaced relief vertex height. Intro runs a sparse wireframe grid, builds via a particle gather state, and triggers an explosive geometry reset on the drop using 'Aurora' look.",
+        "risk": "Algorithmic purity can strip away the organic warmth of the silk textures."
+      },
+      {
+        "seat": "The World-Eclectic Traveler, the World-Eclectic Traveller",
+        "proposal": "The textile motif draws from Kyoto silk-dyeing traditions of the early Shōwa period. We honor the maker's hand by ensuring the fabric folds follow authentic gravity, anchored with 'Sanctuary Gold' during the breakdown.",
+        "risk": "Historical reverence might slow down the frantic energy required during high-tempo drops."
+      },
+      {
+        "seat": "The Baroque Dramatist, the Baroque Dramatist",
+        "proposal": "Treat the frame as a sunlit stage. On the drop, execute a vertigo world shot with dramatic volumetric light shafts piercing through the glass discs. Cue 'Easter Morning' look for blinding, theatrical radiance.",
+        "risk": "Overwhelming lighting effects could wash out the subtle pastel gradients."
+      },
+      {
+        "seat": "The Radical Minimalist, the Radical Minimalist",
+        "proposal": "Remove half the glass discs. Leave only one single hairline ribbon tracing the screen diagonal. Silence is not emptiness. Use 'Noir' for the breakdown, letting the kick drum punch against absolute stillness.",
+        "risk": "Extreme minimalism might leave the wide world shots feeling entirely empty."
+      },
+      {
+        "seat": "The Silicon Pioneer & Pixel Architect",
+        "proposal": "Render the pastel gradient plates using precise 16-bit palette registers and scanline sub-pixel dither, ensuring flawless 60fps frame pacing on mobile hardware without dropping a single raster line.",
+        "risk": "Pixel-art constraints might clash with the fluid, silky nature of high-end PBR fabrics."
+      },
+      {
+        "seat": "The Real-Time 3D Engine & Shader Guru",
+        "proposal": "Push the WebGL pipeline with custom GLSL refraction shaders on the glass discs, multi-layer 2D-to-3D relief displacement for the sand background, and ray-marched volumetric dust motes catching the key light.",
+        "risk": "Heavy fragment shaders and ray-marching will plummet frame rates on mobile devices."
+      },
+      {
+        "seat": "The Fun & Level Design Virtuoso",
+        "proposal": "Design the 3D world navigation like a playful spatial toy: camera orbit sightlines must instinctively pull the player's eye toward the luminous silk folds within the first three seconds of the track.",
+        "risk": "Interactive exploration mechanics might distract from the passive music-video rhythm."
+      },
+      {
+        "seat": "The Japanese Game Auteur & World Director",
+        "proposal": "Treat the overworld diorama with intentional ma—allow moments of poetic stillness before the beat drops. The silk sheets should evoke an epic miniature world map with dramatic silhouette staging.",
+        "risk": "Deliberate atmospheric pauses might fight against high-tempo EDM build structures."
+      },
+      {
+        "seat": "The 3D Dramatist, the 3D Dramatist",
+        "proposal": "Choreograph a sweeping crane shot that dives through the translucent glass discs during the build, transitioning smoothly to an explosive particle shockwave on the drop.",
+        "risk": "Complex camera choreography can induce motion sickness on smaller screens."
+      },
+      {
+        "seat": "The Generative Artist, the Generative Artist",
+        "proposal": "Drive the curve parameters of the silk ribbons using live audio FFT frequency bands, turning the background sand texture into a reactive noise field that shifts with the bass wobble.",
+        "risk": "Purely procedural ribbon generation might lose the hand-crafted look of the master plate."
+      },
+      {
+        "seat": "The Signal Bender, the Signal Bender",
+        "proposal": "Feed the kick drum into an analog tape-saturation feedback loop, smearing the pastel colors across horizontal scanlines on every heavy snare hit.",
+        "risk": "Excessive signal distortion may render the delicate imagery unreadable."
+      },
+      {
+        "seat": "The Lighting Director",
+        "proposal": "Lock the lighting desk to 'Holy Blue' for the verses, sweep into 'Pentecost' fire tones during the build, and punch 'Encore Blinders' on the drop with a hard kick-synced flash.",
+        "risk": "Rapid color shifts could fight against the inherent pastel palette of the source image."
+      }
+    ],
+    "disputes": [
+      {
+        "between": [
+          "The Real-Time 3D Engine & Shader Guru",
+          "The Silicon Pioneer & Pixel Architect"
+        ],
+        "issue": "Shader Guru demands heavy ray-marched volumetrics and PBR refraction, while Pixel Architect demands strict mobile-friendly 60fps frame pacing and lightweight geometry.",
+        "resolution": "Bake the refraction normals into optimized normal maps and use lightweight GPU particle sprites instead of full ray-marching to maintain mobile frame rates."
+      },
+      {
+        "between": [
+          "The Baroque Dramatist, the Baroque Dramatist",
+          "The Radical Minimalist, the Radical Minimalist"
+        ],
+        "issue": "Dramatist wants theatrical light shafts, stage framing, and blazing 'Easter Morning' radiance, whereas Minimalist demands stripping the frame down to a single hairline ribbon.",
+        "resolution": "We apply minimalist composition during the verses, then unleash the full Baroque light rig and stage drama exclusively on the drop."
+      }
+    ],
+    "consensus": "We will unify the experience by anchoring the visual identity to the 'Pastel Veil' source plate, transitioning seamlessly between 2.5D relief plates during verses and fully explorable 3D dioramas during drops. Audio reactivity will drive vertex height and color temperature while strictly respecting mobile performance limits."
+  },
+  "synthesis": {
+    "summary": "This visual interpretation weaves ethereal pastel silk ribbons and translucent glass discs into an audio-reactive journey. It balances delicate worship aesthetics with high-energy drops through dynamic shifts between 2.5D relief plates and fully explorable 3D dioramas.",
+    "looks": {
+      "intro": "Dawn",
+      "verse": "Holy Blue",
+      "build": "Pentecost",
+      "drop": "Encore Blinders",
+      "breakdown": "Sanctuary Gold",
+      "outro": "Dawn"
+    },
+    "lightPalette": [
+      "#ffd9a8",
+      "#1c48d8",
+      "#ff9d4d"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "crane",
+          "hero"
+        ],
+        "build": [
+          "flythrough",
+          "top"
+        ],
+        "drop": [
+          "vertigo",
+          "wide"
+        ],
+        "breakdown": [
+          "macro",
+          "truck"
+        ],
+        "outro": [
+          "wide",
+          "orbit"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "drift",
+          "push"
+        ],
+        "verse": [
+          "pull",
+          "pan"
+        ],
+        "build": [
+          "tilt",
+          "rack"
+        ],
+        "drop": [
+          "snap",
+          "dutch"
+        ],
+        "breakdown": [
+          "drift",
+          "push"
+        ],
+        "outro": [
+          "pull",
+          "drift"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "plate",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "plate"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "tremble",
+        "rise"
+      ],
+      "breakdown": [
+        "slow",
+        "desaturate"
+      ]
+    },
+    "intensity": {
+      "camera": 1.2,
+      "reactivity": 1.1,
+      "glow": 1.3
+    },
+    "notes": {
+      "art": "Preserves the delicate Shōwa-inspired Kyoto silk motifs and overlapping circular geometry without cluttering the frame.",
+      "threeD": "Optimized WebGL refraction normals and baked relief displacement ensure cinematic fidelity without sacrificing mobile performance.",
+      "motion": "Cut strictly on bar lines; energy curves dictate camera speed with aggressive kick-synced lens punches on drops.",
+      "lighting": "Transitions from soft 'Dawn' intro warmth into 'Holy Blue' verses, erupting into theatrical 'Encore Blinders' on the drop.",
+      "performance": "Maintains a rock-solid 60fps across mobile and desktop by replacing heavy ray-marching with lightweight GPU sprite particles."
+    }
+  },
+  "direction": {
+    "summary": "This visual interpretation weaves ethereal pastel silk ribbons and translucent glass discs into an audio-reactive journey. It balances delicate worship aesthetics with high-energy drops through dynamic shifts between 2.5D relief plates and fully explorable 3D dioramas.",
+    "looks": {
+      "intro": "Dawn",
+      "verse": "Holy Blue",
+      "build": "Pentecost",
+      "drop": "Encore Blinders",
+      "breakdown": "Sanctuary Gold",
+      "outro": "Dawn"
+    },
+    "lightPalette": [
+      "#ffd9a8",
+      "#1c48d8",
+      "#ff9d4d"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "crane",
+          "hero"
+        ],
+        "build": [
+          "flythrough",
+          "top"
+        ],
+        "drop": [
+          "vertigo",
+          "wide"
+        ],
+        "breakdown": [
+          "macro",
+          "truck"
+        ],
+        "outro": [
+          "wide",
+          "orbit"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "drift",
+          "push"
+        ],
+        "verse": [
+          "pull",
+          "pan"
+        ],
+        "build": [
+          "tilt",
+          "rack"
+        ],
+        "drop": [
+          "snap",
+          "dutch"
+        ],
+        "breakdown": [
+          "drift",
+          "push"
+        ],
+        "outro": [
+          "pull",
+          "drift"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "plate",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "plate"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "tremble",
+        "rise"
+      ],
+      "breakdown": [
+        "slow",
+        "desaturate"
+      ]
+    },
+    "intensity": {
+      "camera": 1.2,
+      "reactivity": 1.1,
+      "glow": 1.3
+    },
+    "notes": {
+      "art": "Preserves the delicate Shōwa-inspired Kyoto silk motifs and overlapping circular geometry without cluttering the frame.",
+      "threeD": "Optimized WebGL refraction normals and baked relief displacement ensure cinematic fidelity without sacrificing mobile performance.",
+      "motion": "Cut strictly on bar lines; energy curves dictate camera speed with aggressive kick-synced lens punches on drops.",
+      "lighting": "Transitions from soft 'Dawn' intro warmth into 'Holy Blue' verses, erupting into theatrical 'Encore Blinders' on the drop.",
+      "performance": "Maintains a rock-solid 60fps across mobile and desktop by replacing heavy ray-marching with lightweight GPU sprite particles."
+    }
+  }
+}

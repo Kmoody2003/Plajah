@@ -1,0 +1,313 @@
+{
+  "id": "prism-silk",
+  "name": "Prism Silk",
+  "at": "2026-11-07T00:42:18.518Z",
+  "deliberation": {
+    "proposals": [
+      {
+        "seat": "The Classical Mind, the Classical Mind",
+        "proposal": "That does not resolve if the ribbons crash without cadence. We shall open with a long slow PLATE drift in Sunset Stadium, letting the proportion of the folds establish three full bars before any cutting begins.",
+        "risk": "May feel too restrained for modern club expectations."
+      },
+      {
+        "seat": "The Rebellious Hand, the Rebellious Hand",
+        "proposal": "Tear the glass panes apart. Use Red Wall and Neon Split. Let the kick punch ink-spill distortions directly across the tactile silk surface with zero polish.",
+        "risk": "Can easily become a muddy, unreadable visual mess."
+      },
+      {
+        "seat": "The Futurist, the Futurist",
+        "proposal": "Map the song's RMS energy curve directly to vertex displacement arrays in a GPU compute shader. Trigger EDM Drop look precisely at the 0.0s drop threshold.",
+        "risk": "Cold algorithmic precision may strip away organic warmth."
+      },
+      {
+        "seat": "The World-Eclectic Traveler, the World-Eclectic Traveller",
+        "proposal": "Incorporate textile weaving motifs inspired by Andean backstrap looms into the ribbon displacement, anchored by Amber Anthem lighting.",
+        "risk": "Motifs might clash with the sleek futuristic chrome aesthetic."
+      },
+      {
+        "seat": "The Baroque Dramatist, the Baroque Dramatist",
+        "proposal": "Treat the frame as a proscenium stage. Use Ultraviolet for the verse breakdown, then raise a magnificent Curtain Warmer swell as the chorus peaks.",
+        "risk": "Overwhelm mobile devices with too many simultaneous lighting layers."
+      },
+      {
+        "seat": "The Radical Minimalist, the Radical Minimalist",
+        "proposal": "Strip thirty-five of the ribbons away. Leave one single, pristine hairline silk curve slicing through absolute black under Flicker White.",
+        "risk": "Audience might mistake a minimalist sparse frame for a broken load."
+      },
+      {
+        "seat": "The Silicon Pioneer & Pixel Architect",
+        "proposal": "Bake the master color gradients into a tight tilemap palette register with hardware CRT scanline overlays to maintain a rock-solid 60fps frame pacing on mobile.",
+        "risk": "Modern high-res glass shaders might suffer under tight retro constraints."
+      },
+      {
+        "seat": "The Real-Time 3D Engine & Shader Guru",
+        "proposal": "Push the WORLD view with multi-layer 2.5D relief displacement, custom GLSL specular sheen, and ray-marched volumetric mist reacting to bass wobbles.",
+        "risk": "High GPU cost will tank frame rates on lower-end mobile hardware."
+      },
+      {
+        "seat": "The Fun & Level Design Virtuoso",
+        "proposal": "Make the 3D world explorable with tactile camera feedback: every kick adds hit-stop punch and camera juice to make navigating the silk ribbons feel like a toy.",
+        "risk": "Interactive exploration mechanics might fight a fixed music video track."
+      },
+      {
+        "seat": "The Japanese Game Auteur & World Director",
+        "proposal": "Treat the overworld diorama with intentional ma. Let the silk ribbons hang suspended in serene atmospheric stillness before an epic drop gesture.",
+        "risk": "Poetic stillness can kill the high-energy drive of an EDM track."
+      },
+      {
+        "seat": "The 3D Dramatist, the 3D Dramatist",
+        "proposal": "Use an aggressive vertigo dolly shot on the build, snapping into a massive world-space explosion gesture right as the drop hits.",
+        "risk": "Too many sudden camera moves can cause motion sickness."
+      },
+      {
+        "seat": "The Generative Artist, the Generative Artist",
+        "proposal": "Drive ribbon flow vectors through a multi-octave simplex noise field modulated live by audio frequency bands.",
+        "risk": "Purely generative flow can wander away from the song's structural narrative."
+      },
+      {
+        "seat": "The Signal Bender, the Signal Bender",
+        "proposal": "Feed the composite frame through an analog video feedback loop with chromatic aberration spikes mapped directly to snare onsets.",
+        "risk": "Heavy feedback processing may obscure the underlying art asset completely."
+      },
+      {
+        "seat": "The Lighting Director",
+        "proposal": "Call Aurora for the intro verse, transition to Magenta Rush on the build, and hit Encores Blinders hard on the drop, keeping the image's palette fully in charge.",
+        "risk": "Rapid lighting changes might wash out subtle material gradients."
+      }
+    ],
+    "disputes": [
+      {
+        "between": [
+          "The Futurist, the Futurist",
+          "The Radical Minimalist, the Radical Minimalist"
+        ],
+        "issue": "Futurist wants complex compute-shader vertex displacement for all thirty-six ribbons; Minimalist insists on stripping down to a single hairline curve.",
+        "resolution": "We scale dynamically: plate view uses the minimalist single ribbon for mobile efficiency, while the world view unleashes the full compute-driven 36-ribbon simulation on drops."
+      },
+      {
+        "seat": "The Silicon Pioneer & Pixel Architect",
+        "issue": "Shader Guru demands heavy PBR ray-marched volumetrics and GLSL relief displacement; Pixel Architect demands strict mobile-friendly tilemap and 60fps frame pacing constraints.",
+        "resolution": "Bake the heavy PBR normal maps into optimized 2.5D plate relief textures for mobile, reserving true real-time volumetric ray-marching for desktop world-mode views."
+      },
+      {
+        "seat": "The Rebellious Hand, the Rebellious Hand",
+        "issue": "Auteur demands intentional ma (poetic stillness and diorama breathing room); Rebellious Hand wants constant ink pressure, tape distortion, and aggressive cuts.",
+        "resolution": "We alternate: verses use the Auteur's serene diorama ma, while drops trigger the Rebellious Hand's chaotic ink-spill shockwaves."
+      }
+    ],
+    "consensus": "The councils agree to build a hybrid rhythm-driven experience: SHOW mode alternates between optimized 2.5D plate moves for verses and sweeping 3D world flythroughs for drops. Audio analysis maps kicks to lens-punch impacts, builds to rising particle gatherings, and drops to full-screen explosion gestures under strict mobile-safe performance budgets."
+  },
+  "synthesis": {
+    "summary": "Prism Silk flows across the display as iridescent chrome ribbons and translucent glass planes, translating the song's energy through dynamic color sweeps and reactive depth displacement. On the drop, thirty-six silk strands explode outward in a 3D world space, driven by real-time audio onsets and precision lighting.",
+    "looks": {
+      "intro": "Aurora",
+      "verse": "Sunset Stadium",
+      "build": "Magenta Rush",
+      "drop": "EDM Drop",
+      "breakdown": "Ballad Silhouette",
+      "outro": "Amber Anthem"
+    },
+    "lightPalette": [
+      "#00e0ff",
+      "#ff1a8c",
+      "#ffd9a0"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "crane",
+          "top"
+        ],
+        "build": [
+          "flythrough",
+          "hero"
+        ],
+        "drop": [
+          "vertigo",
+          "wide",
+          "flythrough"
+        ],
+        "breakdown": [
+          "macro",
+          "top"
+        ],
+        "outro": [
+          "orbit",
+          "wide"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "drift",
+          "pan"
+        ],
+        "verse": [
+          "slow",
+          "push"
+        ],
+        "build": [
+          "pull",
+          "rack"
+        ],
+        "drop": [
+          "snap",
+          "dutch"
+        ],
+        "breakdown": [
+          "drift",
+          "tilt"
+        ],
+        "outro": [
+          "pull",
+          "drift"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "plate",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "world"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "rise",
+        "brighten"
+      ],
+      "breakdown": [
+        "desaturate",
+        "sparse"
+      ]
+    },
+    "intensity": {
+      "camera": 1.2,
+      "reactivity": 1.4,
+      "glow": 1.3
+    },
+    "notes": {
+      "art": "Balanced rich iridescent gradients with moments of serene stillness during breakdowns to preserve emotional narrative structure.",
+      "threeD": "Optimized multi-layer 2.5D relief displacement for mobile plates while unleashing full 36-ribbon particle and glass world views for desktop drops.",
+      "motion": "Cut strictly on bar lines with accelerations tied to the song's energy curve, mapping kick transients directly to lens-punch impacts.",
+      "lighting": "Shifted through Aurora, Magenta Rush, and EDM Drop to dynamically match harmonic frequencies without washing out material color integrity.",
+      "performance": "Maintained rock-solid 60fps frame pacing by conditionally toggling heavy volumetric shaders only during world-mode drops."
+    }
+  },
+  "direction": {
+    "summary": "Prism Silk flows across the display as iridescent chrome ribbons and translucent glass planes, translating the song's energy through dynamic color sweeps and reactive depth displacement. On the drop, thirty-six silk strands explode outward in a 3D world space, driven by real-time audio onsets and precision lighting.",
+    "looks": {
+      "intro": "Aurora",
+      "verse": "Sunset Stadium",
+      "build": "Magenta Rush",
+      "drop": "EDM Drop",
+      "breakdown": "Ballad Silhouette",
+      "outro": "Amber Anthem"
+    },
+    "lightPalette": [
+      "#00e0ff",
+      "#ff1a8c",
+      "#ffd9a0"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "crane",
+          "top"
+        ],
+        "build": [
+          "flythrough",
+          "hero"
+        ],
+        "drop": [
+          "vertigo",
+          "wide",
+          "flythrough"
+        ],
+        "breakdown": [
+          "macro",
+          "top"
+        ],
+        "outro": [
+          "orbit",
+          "wide"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "drift",
+          "pan"
+        ],
+        "verse": [
+          "push"
+        ],
+        "build": [
+          "pull",
+          "rack"
+        ],
+        "drop": [
+          "snap",
+          "dutch"
+        ],
+        "breakdown": [
+          "drift",
+          "tilt"
+        ],
+        "outro": [
+          "pull",
+          "drift"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "plate",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "world"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "rise",
+        "brighten"
+      ],
+      "breakdown": [
+        "desaturate",
+        "sparse"
+      ]
+    },
+    "intensity": {
+      "camera": 1.2,
+      "reactivity": 1.4,
+      "glow": 1.3
+    },
+    "notes": {
+      "art": "Balanced rich iridescent gradients with moments of serene stillness during breakdowns to preserve emotional narrative structure.",
+      "threeD": "Optimized multi-layer 2.5D relief displacement for mobile plates while unleashing full 36-ribbon particle and glass world views for desktop drops.",
+      "motion": "Cut strictly on bar lines with accelerations tied to the song's energy curve, mapping kick transients directly to lens-punch impacts.",
+      "lighting": "Shifted through Aurora, Magenta Rush, and EDM Drop to dynamically match harmonic frequencies without washing out material color integrity.",
+      "performance": "Maintained rock-solid 60fps frame pacing by conditionally toggling heavy volumetric shaders only during world-mode drops."
+    }
+  }
+}

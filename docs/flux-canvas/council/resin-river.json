@@ -1,0 +1,309 @@
+{
+  "id": "resin-river",
+  "name": "Resin River",
+  "at": "2026-11-07T00:46:39.312Z",
+  "deliberation": {
+    "proposals": [
+      {
+        "seat": "The Classical Mind, the Classical Mind",
+        "proposal": "That does not resolve if the resin strips ignore the underlying wood grain cadence. For the intro, use a slow plate drift under Moonlight to establish proportion; let the bar lines dictate strict 4/4 framing before the build.",
+        "risk": "Strict structural pacing risks feeling overly academic during high-energy drops."
+      },
+      {
+        "seat": "The Rebellious Hand, the Rebellious Hand",
+        "proposal": "Who is this clean resin for? Crank the bump map pressure, let the teal and crimson smear like fresh ink under a heavy thumb. Cut fast on the snare hits with Rock Chase.",
+        "risk": "Aggressive distortion may muddy the fluid silhouettes on smaller mobile screens."
+      },
+      {
+        "seat": "The Futurist, the Futurist",
+        "proposal": "Execute a depth-displaced relief where resin height-maps map directly to bass wobble frequencies. Input: kick/snare onsets. Response: dynamic normal-map displacement vectors at 60fps.",
+        "risk": "Complex GPU displacement calculations could drop frame pacing on low-end hardware."
+      },
+      {
+        "seat": "The World-Eclectic Traveler, the World-Eclectic Traveller",
+        "proposal": "These organic pours echo traditional lacquerware and burl-wood joinery from Hida-Takayama, circa mid-century. Use Sunset Stadium for the build to honor the warmth of the amber resin without appropriation.",
+        "risk": "Historical references might get lost in fast EDM drops."
+      },
+      {
+        "seat": "The Baroque Dramatist, the Baroque Dramatist",
+        "proposal": "Treat every curve as a stage drape. When the drop hits, use an explode gesture under Magenta Rush, casting dramatic specular highlights across the resin rivers as if illuminated by 17th-century candle starlight.",
+        "risk": "Heavy theatrical lighting could wash out the fine wood grain texture."
+      },
+      {
+        "seat": "The Radical Minimalist, the Radical Minimalist",
+        "proposal": "Strip the clutter. Leave only the primary teal ribbon and one hairline wood grain contour. Silence is not empty; let the breakdown breathe with a sparse plate pull.",
+        "risk": "Extreme minimalism might feel too barren during peak energy sections."
+      },
+      {
+        "seat": "The Silicon Pioneer & Pixel Architect",
+        "proposal": "Maintain crisp 1x silhouettes by baking the resin highlights into custom palette registers. Use CRT scanline overlays sparingly during the breakdown to keep 60fps frame pacing rock-solid across all devices.",
+        "risk": "Retro constraints may clash with modern PBR lighting expectations."
+      },
+      {
+        "seat": "The Real-Time 3D Engine & Shader Guru",
+        "proposal": "Push the WebGL pipeline to its absolute limit: combine multi-layer 3D height displacement with physically based specular lighting and ray-marched volumetric mist in the world view.",
+        "risk": "High shader complexity could impact mobile thermal limits and battery life."
+      },
+      {
+        "seat": "The Fun & Level Design Virtuoso",
+        "proposal": "Make the resin rivers feel like a toy you cannot put down. Hook the 3-second fun loop with tactile camera juice—every kick punch snaps the lens forward along the primary teal sightline.",
+        "risk": "Aggressive camera juice can cause motion sickness if not dampened."
+      },
+      {
+        "seat": "The Japanese Game Auteur & World Director",
+        "proposal": "Treat the world view as an overworld diorama. Introduce intentional ma—a poetic breath of stillness—during the breakdown before the heroic flythrough arrival.",
+        "risk": "Slowing down the pacing might frustrate players expecting constant action."
+      },
+      {
+        "seat": "The 3D Dramatist, the 3D Dramatist",
+        "proposal": "Choreograph a vertigo world shot during the build, spiraling outward from the crimson resin pool to reveal the full wood-grain terrain before the drop snaps back to the plate.",
+        "risk": "Complex camera moves can disorient the viewer if mistimed with the beat clock."
+      },
+      {
+        "seat": "The Generative Artist, the Generative Artist",
+        "proposal": "Algorithmic flow fields should drive the secondary resin ripples, ensuring no two playback loops render the exact same fluid paths while respecting the base palette limits.",
+        "risk": "Procedural generation overhead may introduce stutter during rapid scene transitions."
+      },
+      {
+        "seat": "The Signal Bender, the Signal Bender",
+        "proposal": "Glitch the color channels on every snare hit using an EDM Drop look, tearing the teal and orange resin planes apart before snapping them back into place.",
+        "risk": "Heavy artifacting could obscure the underlying visual harmony."
+      },
+      {
+        "seat": "The Lighting Director",
+        "proposal": "Call looks by name: Amber Anthem for the verse, Magenta Rush for the build, and EDM Drop with flicker for the drop. Keep the image's own palette in charge, lighting directly to the kick and snare."
+      }
+    ],
+    "disputes": [
+      {
+        "between": [
+          "The Real-Time 3D Engine & Shader Guru",
+          "The Silicon Pioneer & Pixel Architect"
+        ],
+        "issue": "Shader Guru pushes heavy PBR volumetric displacement, while Pixel Architect demands strict 60fps mobile-safe efficiency and grid integrity.",
+        "resolution": "Scale down ray-marched volumetrics on mobile devices, falling back to a pre-baked normal-mapped relief plate when performance thresholds drop."
+      },
+      {
+        "between": [
+          "The Baroque Dramatist, the Baroque Dramatist",
+          "The Radical Minimalist, the Radical Minimalist"
+        ],
+        "issue": "Dramatist wants rich, theatrical specular lighting and explode gestures, while Minimalist demands sparse emptiness and single-hairline restraint.",
+        "resolution": "Reserve theatrical drama exclusively for the drop and build sections, while keeping verses and breakdowns strictly minimal and unadorned."
+      }
+    ],
+    "consensus": "We unite on a hybrid presentation: structural 4/4 plate movements driven by the Classical Mind and Lighting Director during verses, exploding into high-performance 3D world dioramas and shader-driven relief displacements on every drop, strictly bound to the 60fps frame-pacing floor."
+  },
+  "synthesis": {
+    "summary": "Glossy resin rivers of teal, crimson, and orange surge across an organic wood-grain landscape, pulsing dynamically to the music's beat. The engine alternates between structural plate drifts and explorable 3D world dioramas, exploding with high-contrast specular light on every drop.",
+    "looks": {
+      "intro": "Moonlight",
+      "verse": "Amber Anthem",
+      "build": "Magenta Rush",
+      "drop": "EDM Drop",
+      "breakdown": "Noir",
+      "outro": "Curtain Warmers"
+    },
+    "lightPalette": [
+      "#00a8ff",
+      "#ff1a8c",
+      "#ff8a2a"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "crane",
+          "top"
+        ],
+        "build": [
+          "vertigo",
+          "flythrough"
+        ],
+        "drop": [
+          "hero",
+          "flythrough"
+        ],
+        "breakdown": [
+          "wide",
+          "macro"
+        ],
+        "outro": [
+          "orbit",
+          "wide"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "drift",
+          "pull"
+        ],
+        "verse": [
+          "push",
+          "pan"
+        ],
+        "build": [
+          "rack",
+          "tilt"
+        ],
+        "drop": [
+          "snap",
+          "dutch"
+        ],
+        "breakdown": [
+          "pull",
+          "drift"
+        ],
+        "outro": [
+          "drift",
+          "push"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "plate",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "plate"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "rise",
+        "brighten"
+      ],
+      "breakdown": [
+        "slow",
+        "sparse"
+      ]
+    },
+    "intensity": {
+      "camera": 1.2,
+      "reactivity": 1.3,
+      "glow": 1.1
+    },
+    "notes": {
+      "art": "Honors the natural wood grain and organic resin curves while injecting dramatic theatrical contrast.",
+      "threeD": "Deploys multi-layer 3D height displacement and dioramas without sacrificing mobile frame rates.",
+      "motion": "Bar-locked cuts and reactive camera juice ensure every kick and snare punch physically lands.",
+      "lighting": "Dynamic transitions from Moonlight through Amber Anthem into EDM Drop flicker keep the palette locked to the image.",
+      "performance": "Optimized shader pipelines and adaptive fallback states guarantee rock-solid 60fps across all devices."
+    }
+  },
+  "direction": {
+    "summary": "Glossy resin rivers of teal, crimson, and orange surge across an organic wood-grain landscape, pulsing dynamically to the music's beat. The engine alternates between structural plate drifts and explorable 3D world dioramas, exploding with high-contrast specular light on every drop.",
+    "looks": {
+      "intro": "Moonlight",
+      "verse": "Amber Anthem",
+      "build": "Magenta Rush",
+      "drop": "EDM Drop",
+      "breakdown": "Noir",
+      "outro": "Curtain Warmers"
+    },
+    "lightPalette": [
+      "#00a8ff",
+      "#ff1a8c",
+      "#ff8a2a"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "crane",
+          "top"
+        ],
+        "build": [
+          "vertigo",
+          "flythrough"
+        ],
+        "drop": [
+          "hero",
+          "flythrough"
+        ],
+        "breakdown": [
+          "wide",
+          "macro"
+        ],
+        "outro": [
+          "orbit",
+          "wide"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "drift",
+          "pull"
+        ],
+        "verse": [
+          "push",
+          "pan"
+        ],
+        "build": [
+          "rack",
+          "tilt"
+        ],
+        "drop": [
+          "snap",
+          "dutch"
+        ],
+        "breakdown": [
+          "pull",
+          "drift"
+        ],
+        "outro": [
+          "drift",
+          "push"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "plate",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "plate"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "rise",
+        "brighten"
+      ],
+      "breakdown": [
+        "slow",
+        "sparse"
+      ]
+    },
+    "intensity": {
+      "camera": 1.2,
+      "reactivity": 1.3,
+      "glow": 1.1
+    },
+    "notes": {
+      "art": "Honors the natural wood grain and organic resin curves while injecting dramatic theatrical contrast.",
+      "threeD": "Deploys multi-layer 3D height displacement and dioramas without sacrificing mobile frame rates.",
+      "motion": "Bar-locked cuts and reactive camera juice ensure every kick and snare punch physically lands.",
+      "lighting": "Dynamic transitions from Moonlight through Amber Anthem into EDM Drop flicker keep the palette locked to the image.",
+      "performance": "Optimized shader pipelines and adaptive fallback states guarantee rock-solid 60fps across all devices."
+    }
+  }
+}
