@@ -2353,6 +2353,8 @@ export interface Post {
   orgTargetLabels?: string[];
   /** Elevate: shared by the per-department copies of one post aimed at several departments (shown once). */
   orgPostGroupId?: string;
+  /** Elevate: 'ANNOUNCEMENT' = posted from the org page's Announcements box (shown there, not in the org feed). */
+  orgPostKind?: 'ANNOUNCEMENT';
   text: string;
   /** Creator-applied safety labels — viewer settings decide blur/consent gating */
   contentLabels?: ('GRAPHIC_VIOLENCE' | 'MATURE_18' | 'ARTISTIC_NUDITY' | 'SENSITIVE_OTHER')[];

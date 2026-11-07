@@ -11,6 +11,8 @@ import { auth } from '../services/firebase';
 import { TYPE } from '../src/lib/designSystem';
 import OrgAudienceToggle, {
   type OrgPostTarget,
+  type OrgPostAudience,
+  defaultOrgPostTarget,
   orgTargetToPostFields,
 } from './elevate/OrgAudienceToggle';
 import UniversalPostComposer, { type ComposerSubmitData } from './UniversalPostComposer';
@@ -30,25 +32,23 @@ const ChurchAnnouncements: React.FC<{
   canPost?: boolean;
 }> = ({ orgId, orgName, orgPhoto, org, isOwner, canPost }) => {
   const mayPost = canPost ?? isOwner;
-  const [target, setTarget] = useState<OrgPostTarget>({
-    scope: 'PUBLIC',
-    departmentIds: [],
-    subGroupIds: [],
-    rosterGroups: [],
-    targetLabels: [],
-  });
+  // Announcements default to Public (the old target shape had no `mode`, so every announcement silently
+  // saved as members-only).
+  const [target, setTarget] = useState<OrgPostTarget>(() => defaultOrgPostTarget('PUBLIC'));
   const [posts, setPosts] = useState<Post[]>([]);
   const uid = auth.currentUser?.uid;
 
-  useEffect(() => listenToOrgPosts(orgId, setPosts), [orgId]);
+  // Only posts made here as announcements; ordinary posts belong to the org feed below.
+  useEffect(() => listenToOrgPosts(orgId, setPosts, { announcementsOnly: true }), [orgId]);
 
   const handlePublishAnnouncement = async (data: ComposerSubmitData) => {
     const resolvedMedia = await resolveComposerMedia(data.attachments || [], uid || orgId);
     const embedFields = await postFieldsForAssetEmbed(data.assetEmbed);
-    const targetFields = orgTargetToPostFields(target, org);
+    const targetFields = orgTargetToPostFields(target);
 
     await createOrgPost(orgId, orgName, orgPhoto, {
       text: (data.text || '').trim(),
+      orgPostKind: 'ANNOUNCEMENT',
       ...targetFields,
       ...(resolvedMedia.length ? { media: resolvedMedia } : {}),
       ...(data.poll ? { poll: data.poll } : {}),
@@ -77,9 +77,10 @@ const ChurchAnnouncements: React.FC<{
             destinationSlot={
               <OrgAudienceToggle
                 org={org}
+                value={target.orgAudience}
+                onChange={(_: OrgPostAudience) => {}}
                 target={target}
                 onTargetChange={setTarget}
-                compact
               />
             }
             onPost={handlePublishAnnouncement}

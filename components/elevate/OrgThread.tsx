@@ -17,6 +17,7 @@ import {
   listenToOrgInternal,
   listenToOrgDepartmentInternal,
   createOrgPost,
+  createOrgFeedPostAsMe,
   togglePostLike,
   deletePost,
   subscribeToPostComments,
@@ -106,7 +107,10 @@ const OrgThread: React.FC<Props> = ({ org, myMembership, ministry, onVisitUser, 
   const isMember = myMembership?.status === 'ACTIVE';
   const isLeader = isOrgFeedAdminOrLeader(myMembership, org, uid);
   const canModerate = elevateCan(myMembership, org, 'MODERATE_THREADS', { ministryId: ministry?.id });
-  const canPost = !readOnly && elevateCan(myMembership, org, 'POST_AS_ORG', { ministryId: ministry?.id });
+  // Anyone signed in may post to a public feed as themselves (like any account); members also reach the
+  // members-only feed; only staff with POST_AS_ORG may speak AS the org. Rules enforce the members-only part.
+  const canPostAsOrg = !readOnly && elevateCan(myMembership, org, 'POST_AS_ORG', { ministryId: ministry?.id });
+  const canPost = !!uid;
   const inDept = ministry ? isDepartmentMember(myMembership, org, ministry) || isLeader : false;
 
   const { departments } = useMemo(() => extractOrgDepartmentsAndGroups(org), [org]);
@@ -147,7 +151,8 @@ const OrgThread: React.FC<Props> = ({ org, myMembership, ministry, onVisitUser, 
   const chooseView = (v: FeedView) => { setView(v); try { localStorage.setItem(VIEW_KEY(org.id, ministry?.id), v); } catch { /* private mode */ } };
 
   const membersPosts = useMemo(() => [...internalPosts, ...Object.values(deptPosts).flat()], [internalPosts, deptPosts]);
-  const visiblePublic = useMemo(() => publicPosts.filter(p => !isMembersOnly(p)), [publicPosts]);
+  // Announcements have their own box on the org page; the feed shows everything else.
+  const visiblePublic = useMemo(() => publicPosts.filter(p => !isMembersOnly(p) && p.orgPostKind !== 'ANNOUNCEMENT'), [publicPosts]);
 
   const shown = useMemo(() => {
     const base = [
@@ -173,8 +178,9 @@ const OrgThread: React.FC<Props> = ({ org, myMembership, ministry, onVisitUser, 
 
   // ── Composer target ─────────────────────────────────────────────────────────
   const [orgTarget, setOrgTarget] = useState<OrgPostTarget>(() => defaultOrgPostTarget(audience === 'PUBLIC' ? 'PUBLIC' : 'MEMBERS'));
-  const [deptMembersOnly, setDeptMembersOnly] = useState(audience === 'DEPARTMENT');
-  useEffect(() => { setDeptMembersOnly(audience === 'DEPARTMENT'); }, [audience, ministry?.id]);
+  // Only department members can post members-only; everyone else starts (and stays) on Public.
+  const [deptMembersOnly, setDeptMembersOnly] = useState(audience === 'DEPARTMENT' && inDept);
+  useEffect(() => { setDeptMembersOnly(audience === 'DEPARTMENT' && inDept); }, [audience, ministry?.id, inDept]);
   // Picking the Members view points the composer at the members-only feed.
   useEffect(() => {
     if (!canSeeInternal) return;
@@ -183,24 +189,39 @@ const OrgThread: React.FC<Props> = ({ org, myMembership, ministry, onVisitUser, 
     else if (view === 'PUBLIC') setOrgTarget(defaultOrgPostTarget(audience === 'PUBLIC' ? 'PUBLIC' : 'MEMBERS'));
   }, [view, canSeeInternal, ministry?.id]);
 
+  // The default public flavour for this feed (PUBLIC = anyone comments, MEMBERS = members + followers comment).
+  const publicTarget = () => defaultOrgPostTarget(audience === 'PUBLIC' ? 'PUBLIC' : 'MEMBERS');
+  const orgTargetIsPublic = orgTarget.mode === 'PUBLIC' || orgTarget.mode === 'MEMBERS';
+
   const postFieldsList = (): Partial<Post>[] => {
-    if (!ministry) return orgTargetToPostFieldsList(orgTarget, org);
-    return [deptMembersOnly
+    if (!ministry) {
+      // Visitors only ever post publicly, whatever the target state says.
+      if (!canSeeInternal) return orgTargetToPostFieldsList(publicTarget(), org);
+      return orgTargetToPostFieldsList(orgTarget, org);
+    }
+    return [deptMembersOnly && inDept
       ? { isPublic: false, orgAudience: 'DEPARTMENT', orgDepartmentId: ministry.id, orgTargetLabels: [ministry.name] }
       : { isPublic: true, orgAudience: audience === 'PUBLIC' ? 'PUBLIC' : 'MEMBERS', orgDepartmentId: ministry.id, orgTargetLabels: [ministry.name] }];
   };
+
+  // Who the post is from. Your own name by default; speaking as the org is an explicit choice.
+  const [postAsOrgPref, setPostAsOrg] = useState(false);
+  useEffect(() => { setPostAsOrg(false); }, [org.id, ministry?.id]);
+  const postAsOrg = canPostAsOrg && postAsOrgPref;
 
   const handlePublish = async (data: ComposerPostData) => {
     const resolvedMedia = await resolveComposerMedia(data.attachments || [], uid || org.creatorId || org.id);
     const embedFields = await postFieldsForAssetEmbed(data.assetEmbed);
     for (const targetFields of postFieldsList()) {
-      await createOrgPost(org.id, org.name, org.logoUrl || '', {
+      const body = {
         text: (data.text || '').trim(),
         ...targetFields,
         ...(resolvedMedia.length ? { media: resolvedMedia } : {}),
         ...(data.poll ? { poll: data.poll } : {}),
         ...embedFields,
-      } as Partial<Post>);
+      } as Partial<Post>;
+      if (postAsOrg) await createOrgPost(org.id, org.name, org.logoUrl || '', body);
+      else await createOrgFeedPostAsMe(org.id, body);
     }
   };
 
@@ -217,7 +238,7 @@ const OrgThread: React.FC<Props> = ({ org, myMembership, ministry, onVisitUser, 
 
   const available = useMemo(() => AUDIENCES.filter(a => ministry ? true : a.key !== 'DEPARTMENT'), [ministry]);
   const membersLabel = ministry ? `${ministry.name} members` : 'Members & Depts';
-  const composerMembersOnly = ministry ? deptMembersOnly : orgTarget.mode !== 'PUBLIC' && orgTarget.mode !== 'MEMBERS';
+  const composerMembersOnly = ministry ? deptMembersOnly && inDept : canSeeInternal && !orgTargetIsPublic;
 
   return (
     <div>
@@ -273,13 +294,25 @@ const OrgThread: React.FC<Props> = ({ org, myMembership, ministry, onVisitUser, 
 
       {canPost && (
         <div className="mb-4">
+          {canPostAsOrg && (
+          <div className="flex flex-wrap items-center gap-1.5 mb-2" role="radiogroup" aria-label="Posting as">
+            <span className="text-[9px] font-black uppercase tracking-widest text-white/40 mr-1">Posting as</span>
+            {([[false, auth.currentUser?.displayName || 'You'], [true, org.name]] as const).map(([asOrg, label]) => (
+              <button key={String(asOrg)} type="button" role="radio" aria-checked={postAsOrg === asOrg} onClick={() => setPostAsOrg(asOrg)}
+                className={`flex items-center gap-1.5 pl-1 pr-2.5 py-0.5 rounded-full text-[10px] font-bold border transition-all ${postAsOrg === asOrg ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/60 hover:text-white'}`}>
+                <img src={(asOrg ? org.logoUrl : auth.currentUser?.photoURL) || ''} alt="" className="w-4 h-4 rounded-full object-cover bg-white/10" />
+                <span className="truncate max-w-[10rem]">{label}</span>
+              </button>
+            ))}
+          </div>
+          )}
           <UniversalPostComposer
             currentUser={auth.currentUser}
             compact
-            avatarUrl={org.logoUrl || auth.currentUser?.photoURL || undefined}
+            avatarUrl={(postAsOrg ? org.logoUrl : auth.currentUser?.photoURL) || undefined}
             placeholder={composerMembersOnly
-              ? `Members-only post to ${ministry?.name || orgTarget.targetLabels.join(', ') || org.name}…`
-              : `Post to ${ministry?.name || org.name} as ${org.name}…`}
+              ? `Members-only post to ${ministry?.name || orgTarget.targetLabels.join(', ') || org.name}${postAsOrg ? ` as ${org.name}` : ''}…`
+              : `Post to ${ministry?.name || org.name}${postAsOrg ? ` as ${org.name}` : ''}…`}
             postLabel="Publish"
             destinationSlot={ministry ? (
               <div className="flex flex-wrap items-center gap-1.5">
@@ -294,8 +327,25 @@ const OrgThread: React.FC<Props> = ({ org, myMembership, ministry, onVisitUser, 
                   <Lock size={10} /> {ministry.name} members
                 </button>
               </div>
-            ) : (
+            ) : canPostAsOrg || isLeader ? (
+              // Staff/leaders: full targeting (departments, sub-groups, roster groups).
               <OrgAudienceToggle org={org} value={orgTarget.orgAudience} onChange={(_: OrgPostAudience) => {}} target={orgTarget} onTargetChange={setOrgTarget} onOrgUpdated={onOrgChange} />
+            ) : canSeeInternal ? (
+              // Members: the public feed or the members-only feed.
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[9px] font-black uppercase tracking-widest text-white/40 mr-1">Post to</span>
+                <button type="button" onClick={() => setOrgTarget(publicTarget())}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${orgTargetIsPublic ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/55 hover:text-white'}`}>
+                  <Globe size={10} /> Public
+                </button>
+                <button type="button" onClick={() => setOrgTarget(defaultOrgPostTarget('INTERNAL'))}
+                  title="Only members of this organization can see it"
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${!orgTargetIsPublic ? 'bg-[#7A1FC0] text-white border-[#D0BCFF]/60' : 'bg-white/5 border-white/10 text-white/55 hover:text-white'}`}>
+                  <Lock size={10} /> Members only
+                </button>
+              </div>
+            ) : (
+              <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-white/40"><Globe size={10} /> Posting publicly</span>
             )}
             onPost={handlePublish}
           />
@@ -323,7 +373,7 @@ const OrgThread: React.FC<Props> = ({ org, myMembership, ministry, onVisitUser, 
               <div key={p.id} className="rounded-2xl p-4 border" data-audience={internal ? 'internal' : 'public'} style={{ background: tone.bg, borderColor: tone.border }}>
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <UserAvatar uid={p.authorId} src={p.authorPhoto || org.logoUrl || ''} className="w-8 h-8 rounded-full border border-white/10 object-cover" alt="" />
-                  <p className="text-sm font-black text-white flex-1 min-w-0 truncate">{p.authorName || org.name}
+                  <p className="text-sm font-black text-white flex-1 min-w-0 truncate">{p.authorName || (p.authorIsOrg === false ? 'Member' : org.name)}
                     <span className="text-white/30 font-bold text-[9px]"> · {new Date(p.timestamp).toLocaleDateString()}</span></p>
                   {orgFeed && p.orgTargetLabels && p.orgTargetLabels.length > 0 && (
                     <span className="text-[9px] font-black uppercase tracking-wider flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-500/25 border border-purple-400/35 text-purple-200">

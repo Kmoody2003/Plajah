@@ -1614,7 +1614,8 @@ export const createPost = async (post: Partial<Post>, opts?: { postId?: string }
       authorName,
       authorPhoto,
       ...eduFields,
-      ...(orgId ? { authorIsOrg: true, authorOrgId: orgId } : {}),
+      // authorIsOrg:false = a member posting as THEMSELF into the org's feed (authorOrgId only routes it there).
+      ...(orgId ? { authorIsOrg: (post as any).authorIsOrg !== false, authorOrgId: orgId } : {}),
       likesCount: 0,
       commentsCount: 0,
       timestamp: Date.now(),
@@ -1995,12 +1996,14 @@ export const listenToChildrenPosts = (childUids: string[], callback: (posts: Pos
  * authorOrgId) live in the shared `posts` collection; an org page surfaces its
  * feed by filtering to its id. Client-side sort avoids a composite index.
  */
-export const listenToOrgPosts = (orgId: string, callback: (posts: Post[]) => void) => {
+export const listenToOrgPosts = (orgId: string, callback: (posts: Post[]) => void, opts?: { announcementsOnly?: boolean }) => {
   const q = query(collection(db, 'posts'), where('authorOrgId', '==', orgId), where('isPublic', '==', true), limit(50));
   return onSnapshot(q, snapshot => {
     const items = snapshot.docs
       .map(d => ({ id: d.id, ...d.data(), sourceCollection: 'posts', timestamp: safeToMillis(d.data().timestamp) } as Post))
       .filter(p => p.timestamp > 0)
+      // Announcements box: only what was posted AS an announcement, never ordinary feed posts.
+      .filter(p => !opts?.announcementsOnly || p.orgPostKind === 'ANNOUNCEMENT')
       .sort((a, b) => b.timestamp - a.timestamp);
     callback(items);
   }, (err) => handleFirestoreError(err, OperationType.LIST, 'posts'));
@@ -2078,7 +2081,16 @@ export const listenToOrgDepartmentInternal = (
 export const createOrgPost = async (
   orgId: string, orgName: string, orgPhoto: string, post: Partial<Post>,
 ): Promise<string | undefined> =>
-  createPost({ ...post, authorOrgId: orgId, authorName: orgName, authorPhoto: orgPhoto } as any);
+  createPost({ ...post, authorOrgId: orgId, authorName: orgName, authorPhoto: orgPhoto, authorIsOrg: true } as any);
+
+/**
+ * Post into an org's feed as YOURSELF (your name + photo), not as the org. authorOrgId only places it on
+ * the org's page/feed; authorIsOrg stays false so nobody reads it as the organization speaking.
+ */
+export const createOrgFeedPostAsMe = async (orgId: string, post: Partial<Post>): Promise<string | undefined> => {
+  const { authorName: _n, authorPhoto: _p, ...rest } = post as any;
+  return createPost({ ...rest, authorOrgId: orgId, authorIsOrg: false } as any);
+};
 
 /**
  * Genre-based FOR_YOU feed — no ML needed.
