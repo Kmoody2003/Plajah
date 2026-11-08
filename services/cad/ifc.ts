@@ -63,7 +63,8 @@ export async function parseIfc(api: IfcAPI, bytes: Uint8Array, name = 'model.ifc
 
     if (opts.properties !== false) {
       for (const [expressID, el] of elements) {
-        if (!el.meshIds.length) continue;
+        // Spaces are not meshed by web-ifc, but their names and areas are what room schedules need.
+        if (!el.meshIds.length && el.cls !== 'IfcSpace' && el.cls !== 'IfcZone') continue;
         try {
           const sets = await api.properties.getPropertySets(id, expressID, true);
           for (const s of sets) {

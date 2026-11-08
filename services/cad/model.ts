@@ -29,8 +29,26 @@ export type CadEntity2D =
   | (Base2D & { type: 'text'; at: Vec3; height: number; rotation: number; text: string; align?: 'left' | 'center' | 'right' })
   | (Base2D & { type: 'point'; at: Vec3 })
   | (Base2D & { type: 'face'; points: Vec3[] })
-  | (Base2D & { type: 'hatch'; loops: Vec3[][]; pattern: string; solid: boolean })
-  | (Base2D & { type: 'insert'; block: string; at: Vec3; scale: Vec3; rotation: number });
+  | (Base2D & { type: 'hatch'; loops: Vec3[][]; pattern: string; solid: boolean; /** Pattern spacing multiplier and angle (degrees), as DXF codes 41 and 52. */ patternScale?: number; patternAngle?: number })
+  | (Base2D & { type: 'insert'; block: string; at: Vec3; scale: Vec3; rotation: number })
+  /** Aligned dimension from a to b; the dimension line passes through `at`. `text` overrides the measured value. */
+  | (Base2D & { type: 'dimension'; a: Vec3; b: Vec3; at: Vec3; height: number; decimals: number; text?: string })
+  /** A wall: centreline a to b, thickness, height, and the doors/windows it hosts. The start of BIM. */
+  | (Base2D & { type: 'wall'; a: Vec3; b: Vec3; thickness: number; height: number; openings: WallOpening[]; /** Drawing units per millimetre (library geometry is in mm). */ unitsPerMm: number })
+  /** Room tag: names the room it sits in; its area is computed live from the surrounding walls. */
+  | (Base2D & { type: 'room'; at: Vec3; name: string; number: string; height: number; unitsPerMm: number });
+
+/** A door, window or plain opening hosted by a wall. `at` is the distance from the wall's start to the opening's start. */
+export interface WallOpening {
+  id: string; kind: 'door' | 'window' | 'opening';
+  at: number; width: number;
+  /** Library item drawn in the opening, with its parameters (mm). */
+  item?: string; params?: Record<string, number | string | boolean>;
+  /** Swing/face on the wall's right side instead of its left. */
+  flip?: boolean;
+  /** Sill and head heights (drawing units), for 3D and schedules. */
+  sill?: number; head?: number;
+}
 
 export interface CadBlock { name: string; base: Vec3; entities: CadEntity2D[] }
 

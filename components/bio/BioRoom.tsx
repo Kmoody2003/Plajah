@@ -249,14 +249,35 @@ function PathwayTab({ narrow, add, onError, loadModel }: { narrow: boolean; add?
     loadModel().then(({ xml, tEnd: te }) => choose(parseSbml(xml), undefined, te)).catch(e => onError(e?.message || String(e))).finally(() => setBusy(''));
   }, [loadModel]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Re-simulates on every slider move: most models run in milliseconds; a time budget stops hard ones.
-  const result = useMemo((): { r?: SimResult & { events?: number }; err?: string } => {
-    try {
-      if (mode === 'stochastic') return { r: simulateStochastic(model, { tEnd, points: 400, params, initial, unit, seed, budgetMs: 4000 }) };
-      // Live runs use rtol 1e-5: visually identical, several times faster on stiff models.
-      return { r: simulate(model, { tEnd, points: 400, params, initial, method: starter?.method ?? 'auto', budgetMs: 6000, rtol: 1e-5 }) };
+  // Re-simulates on every change in a background worker: the page never freezes, and a newer
+  // request makes older answers irrelevant (only the latest id is shown). Falls back to the
+  // main thread where workers are unavailable (tests, very old browsers).
+  const [result, setResult] = useState<{ r?: SimResult & { events?: number }; err?: string }>({});
+  const [running, setRunning] = useState(false);
+  const worker = useRef<Worker | null>(null); const reqId = useRef(0);
+  useEffect(() => {
+    try { worker.current = new Worker(new URL('../../services/bio/sim.worker.ts', import.meta.url), { type: 'module' }); } catch { worker.current = null; }
+    return () => { worker.current?.terminate(); worker.current = null; };
+  }, []);
+  useEffect(() => {
+    const id = ++reqId.current;
+    const stochastic = { tEnd, points: 400, params, initial, unit, seed, budgetMs: 8000 };
+    // Live runs use rtol 1e-5: visually identical, several times faster on stiff models.
+    const ode = { tEnd, points: 400, params, initial, method: starter?.method ?? 'auto', budgetMs: 20000, rtol: 1e-5 } as const;
+    const w = worker.current;
+    if (!w) {
+      try { setResult({ r: mode === 'stochastic' ? simulateStochastic(model, stochastic) : simulate(model, ode) }); } catch (e: any) { setResult({ err: e?.message || String(e) }); }
+      return;
     }
-    catch (e: any) { return { err: e?.message || String(e) }; }
+    setRunning(true);
+    const timer = window.setTimeout(() => {
+      w.onmessage = (ev: MessageEvent) => {
+        const msg = ev.data; if (msg.id !== reqId.current) return; // a newer run was asked for
+        setRunning(false); setResult(msg.ok ? { r: msg.result } : { err: msg.error });
+      };
+      w.postMessage(mode === 'stochastic' ? { id, model, mode, options: stochastic } : { id, model, mode, options: ode });
+    }, 30); // coalesce a burst of slider events into one run
+    return () => window.clearTimeout(timer);
   }, [model, tEnd, params, initial, starter, mode, unit, seed]);
   const names = useMemo(() => new Map(model.species.map(s => [s.id, s.name])), [model]);
   const plotted = shown.filter(id => result.r?.series[id]);
@@ -301,6 +322,7 @@ function PathwayTab({ narrow, add, onError, loadModel }: { narrow: boolean; add?
         <button className="bio-btn w-full justify-center" onClick={() => setSeed(s => s + 1)} data-testid="bio-run-again"><RotateCcw size={13}/>Run again (new random draw)</button>
         <div className="text-[10px] mt-1" style={{ color: C.dim }}>Each reaction fires one molecule at a time (Gillespie). Fewer molecules, more noise.</div>
       </div>}
+      {running && <div className="text-[11px] mb-0.5" style={{ color: C.accent }} data-testid="bio-running">Running…</div>}
       {result.r && <div className="text-[11px]" style={{ color: C.dim }} data-testid="bio-sim-stats">{mode === 'stochastic' ? `Gillespie · ${(result.r.events ?? 0).toLocaleString()} reaction events · seed ${seed}` : `${result.r.solution.method === 'ros23' ? 'Stiff solver (Rosenbrock)' : 'Dormand–Prince'}${result.r.solution.stiffSwitch ? ' · switched: stiff' : ''} · ${result.r.solution.steps} steps`} · {result.r.ms.toFixed(1)} ms</div>}
       {result.err && <div className="text-[12px]" style={{ color: '#fca5a5' }}>{result.err}</div>}
     </Section>

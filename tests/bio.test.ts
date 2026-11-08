@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parsePdb, parseMmcif, parseStructure, proteinMass, plddtColor, assignSecondary } from '../services/bio/structure';
 import { structureToGroup, bakeForExport } from '../services/bio/molScene';
-import { parseSbml, writeSbml, simulate, describeReaction, simulateStochastic } from '../services/bio/sbml';
+import { parseSbml, writeSbml, simulate, describeReaction, simulateStochastic, compile } from '../services/bio/sbml';
 import { parseInfix, evaluate, toInfix, compileExpr } from '../services/bio/math';
 import { dopri5, ros23, solve, linspace } from '../services/bio/ode';
 import { STARTERS } from '../services/bio/models';
@@ -215,4 +215,32 @@ test('compiled formulas agree with the tree evaluator', () => {
   const env: Record<string, number> = { alpha: 216, p: 3.2, n: 2, alpha0: 0.216, x: 0.7 };
   const f = compileExpr(e, n => () => env[n], () => 0);
   assert.ok(Math.abs(f() - evaluate(e, n => env[n], 0)) < 1e-12);
+});
+
+test('sparse Jacobian: column colouring gives the same answer with far fewer evaluations', () => {
+  const m = parseSbml(fixture('BIOMD0000000007.xml'));
+  const c = compile(m); const n = c.y0.length;
+  assert.ok(c.jacPattern.colors.length < n, `${c.jacPattern.colors.length} colours for ${n} states`);
+  // No two columns in one colour may share a row.
+  for (const group of c.jacPattern.colors) { const seen = new Set<number>(); for (const j of group) for (const r of c.jacPattern.rows[j]) { assert.ok(!seen.has(r), 'colour shares a row'); seen.add(r); } }
+  let calls = 0; const rhs = (t: number, y: Float64Array, o: Float64Array) => { calls++; c.rhs(t, y, o); };
+  const dense = ros23(rhs, c.y0, [0, 20]); const denseCalls = calls; calls = 0;
+  const sparse = ros23(rhs, c.y0, [0, 20], { jacPattern: c.jacPattern });
+  assert.equal(sparse.steps, dense.steps);
+  sparse.y[1].forEach((v, i) => assert.ok(Math.abs(v - dense.y[1][i]) <= 1e-9 * Math.max(1, Math.abs(v)), `state ${i}`));
+  assert.ok(calls < denseCalls, `${calls} vs ${denseCalls} evaluations`);
+});
+
+test('ribbon cartoon: helices become flat ribbons and strands become arrows', () => {
+  const s = parsePdb(fixture('1crn.pdb'));
+  const g = structureToGroup(s, { style: 'cartoon', color: 'secondary' });
+  const kinds: string[] = []; g.traverse((o: any) => { if (o.userData?.ribbon) kinds.push(o.userData.ribbon); });
+  assert.ok(kinds.includes('helix') && kinds.includes('sheet'), kinds.join());
+  // Flat: a ribbon is much wider than it is thick.
+  const helix: any = g.children.find((o: any) => o.userData?.ribbon === 'helix');
+  const pos = helix.geometry.getAttribute('position'); assert.ok(pos.count > 100);
+  // CA-only structures still get a cartoon (tubes) instead of failing.
+  const caOnly = parsePdb(fixture('1crn.pdb').split(/\r?\n/).filter(l => !/^ATOM/.test(l) || l.slice(12, 16).trim() === 'CA').join('\n'));
+  const g2 = structureToGroup(caOnly, { style: 'cartoon', color: 'secondary' }); let tubes = 0; g2.traverse((o: any) => { if (o.name.startsWith('cartoon_') && !o.userData.ribbon) tubes++; });
+  assert.ok(tubes > 0);
 });

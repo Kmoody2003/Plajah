@@ -6,6 +6,9 @@
 // INSERT, DIMENSION (drawn from its block), LEADER. Anything else is counted in warnings.
 
 import { type CadModel, type CadEntity2D, type CadLayer, type CadBlock, type Vec3, type CadUnit, emptyModel, emptyBounds, growBounds, boundsValid } from './model';
+import { findJoins, wallGeometry, type Wall } from './walls';
+import { hatchStrokes } from './hatchPatterns';
+import { detectRooms, roomTagLines, type Room } from './rooms';
 
 // ── ACI colours ─────────────────────────────────────────────────────────────
 
@@ -206,7 +209,12 @@ export function parseDxf(input: string | Uint8Array, name = 'drawing.dxf'): CadM
         case 'POINT': out.push({ ...base, type: 'point', at: r.pt(10) }); break;
         case '3DFACE': { const p = [r.pt(10), r.pt(11), r.pt(12), r.pt(13)]; out.push({ ...base, type: 'face', points: samePt(p[2], p[3]) ? p.slice(0, 3) : p }); break; }
         case 'SOLID': case 'TRACE': { const p = [r.pt(10), r.pt(11), r.pt(13), r.pt(12)]; out.push({ ...base, type: 'hatch', loops: [samePt(p[2], p[3]) ? p.slice(0, 3) : p], pattern: 'SOLID', solid: true }); break; }
-        case 'HATCH': out.push({ ...base, type: 'hatch', loops: hatchLoops(r), pattern: r.str(2, 'SOLID'), solid: r.num(70) === 1 }); break;
+        case 'HATCH': {
+          const k = r.g.findIndex(x => x[0] === 75 || x[0] === 76); const after = k >= 0 ? r.g.slice(k) : [];
+          const pick = (code: number, d: number) => { const x = after.find(y => y[0] === code); const v = x ? parseFloat(x[1]) : NaN; return Number.isFinite(v) ? v : d; };
+          out.push({ ...base, type: 'hatch', loops: hatchLoops(r), pattern: r.str(2, 'SOLID'), solid: r.num(70) === 1, patternScale: pick(41, 1), patternAngle: pick(52, 0) });
+          break;
+        }
         case 'INSERT': out.push({ ...base, type: 'insert', block: r.str(2), at: r.pt(10), scale: [r.num(41, 1), r.num(42, 1), r.num(43, 1)], rotation: r.num(50, 0) }); break;
         case 'DIMENSION': { const b = r.str(2); if (b) out.push({ ...base, type: 'insert', block: b, at: [0, 0, 0], scale: [1, 1, 1], rotation: 0 }); break; }
         case 'LEADER': {
@@ -314,6 +322,33 @@ function hatchLoops(r: Rec): Vec3[][] {
   return loops;
 }
 
+// ── Dimensions (architectural style: extension lines, tick marks, text above) ─
+
+export function formatLength(v: number, decimals: number) {
+  return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals, useGrouping: false });
+}
+
+export function dimensionGeometry(e: Extract<CadEntity2D, { type: 'dimension' }>) {
+  const dx = e.b[0] - e.a[0], dy = e.b[1] - e.a[1]; const len = Math.hypot(dx, dy) || 1e-12;
+  const ux = dx / len, uy = dy / len; const nx = -uy, ny = ux;
+  const off = (e.at[0] - e.a[0]) * nx + (e.at[1] - e.a[1]) * ny; const sgn = off >= 0 ? 1 : -1;
+  const h = e.height; const gap = h * 0.4, ext = h * 0.6, tick = h * 0.5;
+  const A: [number, number] = [e.a[0] + nx * off, e.a[1] + ny * off]; const B: [number, number] = [e.b[0] + nx * off, e.b[1] + ny * off];
+  const lines: Array<[[number, number], [number, number]]> = [];
+  if (Math.abs(off) > gap) {
+    lines.push([[e.a[0] + nx * gap * sgn, e.a[1] + ny * gap * sgn], [A[0] + nx * ext * sgn, A[1] + ny * ext * sgn]]);
+    lines.push([[e.b[0] + nx * gap * sgn, e.b[1] + ny * gap * sgn], [B[0] + nx * ext * sgn, B[1] + ny * ext * sgn]]);
+  }
+  lines.push([[A[0] - ux * ext, A[1] - uy * ext], [B[0] + ux * ext, B[1] + uy * ext]]);
+  // 45-degree ticks through each end of the dimension line.
+  const tx = (ux + nx) * tick / Math.SQRT2, ty = (uy + ny) * tick / Math.SQRT2;
+  for (const P of [A, B]) lines.push([[P[0] - tx, P[1] - ty], [P[0] + tx, P[1] + ty]]);
+  let ang = Math.atan2(uy, ux) * 180 / Math.PI; if (ang > 90.0001 || ang <= -90) ang += 180; // keep text upright
+  const up = ang === Math.atan2(uy, ux) * 180 / Math.PI ? 1 : -1;
+  const mid: [number, number] = [(A[0] + B[0]) / 2 + nx * h * 0.35 * up, (A[1] + B[1]) / 2 + ny * h * 0.35 * up];
+  return { lines, text: { at: mid, rotation: ((ang % 360) + 360) % 360, value: e.text ?? formatLength(len, e.decimals) }, length: len };
+}
+
 // ── Flatten to drawable paths ───────────────────────────────────────────────
 
 export interface Path2D { layer: string; color: string; pts: Array<[number, number]>; closed: boolean; fill?: boolean }
@@ -398,6 +433,8 @@ export function flatten2D(m: Pick<CadModel, 'entities' | 'blocks' | 'layers'>, o
   const blocks = new Map(m.blocks.map(b => [b.name, b])); const layers = new Map(m.layers.map(l => [l.name, l]));
   const out: Flat2D = { paths: [], texts: [] };
   const walk = (ents: CadEntity2D[], mt: M2, depth: number, inheritLayer?: string, inheritColor?: string) => {
+    const walls = ents.filter((e): e is Wall => e.type === 'wall'); const joins = walls.length ? findJoins(walls) : null;
+    let rooms: Room[] | null = null; const roomsNow = () => (rooms ??= detectRooms(ents));
     for (const e of ents) {
       const layerName = e.layer === '0' && inheritLayer ? inheritLayer : e.layer;
       const L = layers.get(layerName);
@@ -413,11 +450,27 @@ export function flatten2D(m: Pick<CadModel, 'entities' | 'blocks' | 'layers'>, o
         case 'spline': push(splinePoints(e.points, e.degree, e.fit, e.closed), e.closed); break;
         case 'point': push([e.at], false); break;
         case 'face': push(e.points, true); break;
-        case 'hatch': for (const l of e.loops) push(l, true, e.solid); break;
+        case 'hatch': {
+          for (const l of e.loops) push(l, true, e.solid);
+          if (!e.solid && e.pattern.toUpperCase() !== 'SOLID') {
+            const loops2 = e.loops.map(l => l.map(p => [p[0], p[1]] as [number, number]));
+            for (const st of hatchStrokes(loops2, e.pattern, e.patternScale ?? 1, e.patternAngle ?? 0)) push([[st.a[0], st.a[1], 0], [st.b[0], st.b[1], 0]], false);
+          }
+          break;
+        }
+        case 'wall': walk(wallGeometry(e, joins?.get(e) ?? []), mt, depth + 1, layerName, color); break;
+        case 'room': { const [x, y] = ap(mt, e.at[0], e.at[1]); const k = Math.hypot(mt[0], mt[1]); for (const l of roomTagLines(e, roomsNow())) out.texts.push({ layer: layerName, color, at: [x, y + l.dy * k], height: l.h * k, rotation: 0, text: l.text, align: 'center' }); break; }
         case 'text': {
           const [x, y] = ap(mt, e.at[0], e.at[1]); const sx = Math.hypot(mt[0], mt[1]);
           const rot = e.rotation + Math.atan2(mt[1], mt[0]) * 180 / Math.PI;
           out.texts.push({ layer: layerName, color, at: [x, y], height: e.height * sx, rotation: rot, text: e.text, align: e.align || 'left' });
+          break;
+        }
+        case 'dimension': {
+          const g = dimensionGeometry(e);
+          for (const seg of g.lines) push(seg.map(p => [p[0], p[1], 0] as Vec3), false);
+          const [x, y] = ap(mt, g.text.at[0], g.text.at[1]);
+          out.texts.push({ layer: layerName, color, at: [x, y], height: e.height * Math.hypot(mt[0], mt[1]), rotation: g.text.rotation + Math.atan2(mt[1], mt[0]) * 180 / Math.PI, text: g.text.value, align: 'center' });
           break;
         }
         case 'insert': {
@@ -494,7 +547,7 @@ export function writeDxf(m: CadModel): string {
   for (const l of layers) { g(0, 'LAYER'); g(2, l.name); g(70, String(l.frozen ? 1 : 0)); g(62, String((l.visible ? 1 : -1) * hexToAci(l.color))); g(6, 'CONTINUOUS'); }
   g(0, 'ENDTAB'); g(0, 'ENDSEC');
   g(0, 'SECTION'); g(2, 'ENTITIES');
-  const blocks = new Map(m.blocks.map(b => [b.name, b]));
+  const blocks = new Map(m.blocks.map(b => [b.name, b])); let roomList: Room[] | null = null;
   const head = (type: string, e: CadEntity2D) => { g(0, type); g(8, e.layer); if (e.color) g(62, String(hexToAci(e.color))); };
   const poly = (e: CadEntity2D, pts: Vec3[], closed: boolean, bulges?: number[]) => {
     head('POLYLINE', e); g(66, '1'); pt(10, [0, 0, 0]); g(70, String(closed ? 1 : 0));
@@ -513,7 +566,19 @@ export function writeDxf(m: CadModel): string {
         if (e.align && e.align !== 'left') { g(72, e.align === 'center' ? '1' : '2'); pt(11, e.at); } break;
       case 'point': head('POINT', e); pt(10, e.at); break;
       case 'face': { head('3DFACE', e); const p = e.points; [0, 1, 2, 3].forEach(k => pt(10 + k, p[Math.min(k, p.length - 1)])); break; }
-      case 'hatch': for (const l of e.loops) poly(e, l, true); break;
+      case 'hatch': {
+        for (const l of e.loops) poly(e, l, true);
+        if (!e.solid && e.pattern.toUpperCase() !== 'SOLID') for (const st of hatchStrokes(e.loops.map(l => l.map(p => [p[0], p[1]] as [number, number])), e.pattern, e.patternScale ?? 1, e.patternAngle ?? 0)) { head('LINE', e); pt(10, [st.a[0], st.a[1], 0]); pt(11, [st.b[0], st.b[1], 0]); }
+        break;
+      }
+      case 'wall': break; // written together below, so corners stay mitred
+      case 'room': { for (const l of roomTagLines(e, roomList ??= detectRooms(m.entities))) { head('TEXT', e); pt(10, [e.at[0], e.at[1] + l.dy, 0]); g(40, l.h); g(1, l.text); g(72, '1'); pt(11, [e.at[0], e.at[1] + l.dy, 0]); } break; }
+      case 'dimension': { // exploded to lines and text so every program shows it the same way
+        const dg = dimensionGeometry(e);
+        for (const seg of dg.lines) { head('LINE', e); pt(10, [seg[0][0], seg[0][1], 0]); pt(11, [seg[1][0], seg[1][1], 0]); }
+        head('TEXT', e); pt(10, [dg.text.at[0], dg.text.at[1], 0]); g(40, e.height); g(1, dg.text.value); if (dg.text.rotation) g(50, dg.text.rotation); g(72, '1'); pt(11, [dg.text.at[0], dg.text.at[1], 0]);
+        break;
+      }
       case 'insert': { // exploded: R12 blocks would need the BLOCKS section and anonymous names
         const b = blocks.get(e.block); if (!b || depth > 8) break;
         const sub = flatten2D({ entities: [e], blocks: m.blocks, layers: m.layers });
@@ -524,6 +589,12 @@ export function writeDxf(m: CadModel): string {
     }
   };
   emit(m.entities, 0);
+  // Walls: their faces, caps and hosted doors/windows, exploded to lines on their own layers.
+  const wallEnts = m.entities.filter(e => e.type === 'wall');
+  if (wallEnts.length) {
+    const f = flatten2D({ entities: wallEnts, blocks: m.blocks, layers: m.layers });
+    for (const p of f.paths) { if (p.pts.length === 2) { g(0, 'LINE'); g(8, p.layer); pt(10, [p.pts[0][0], p.pts[0][1], 0]); pt(11, [p.pts[1][0], p.pts[1][1], 0]); } else poly({ type: 'line', layer: p.layer, a: [0, 0, 0], b: [0, 0, 0] } as CadEntity2D, p.pts.map(([x, y]) => [x, y, 0] as Vec3), p.closed); }
+  }
   g(0, 'ENDSEC'); g(0, 'EOF');
   return o.join('\r\n') + '\r\n';
 }

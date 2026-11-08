@@ -83,6 +83,10 @@ function cartoonTubes(s: Structure, o: MolOptions, chainIndex: Map<string, numbe
     if (a.het || o.hiddenChains?.has(a.chain)) continue;
     if ((AMINO[a.resName] && a.name === 'CA') || (NUCLEIC[a.resName] && a.name === 'P')) { const l = byChain.get(a.chain) ?? []; l.push(a); byChain.set(a.chain, l); }
   }
+  // Backbone C and O per residue: the C=O direction orients ribbons (the classic cartoon rule).
+  const carbonyl = new Map<string, THREE.Vector3>();
+  { const cs = new Map<string, Atom>(); for (const a of s.atoms) if (!a.het && AMINO[a.resName] && (a.name === 'C' || a.name === 'O')) { const k = `${a.chain}:${a.resSeq}:${a.insCode}`; if (a.name === 'C') cs.set(k, a); else { const c = cs.get(k); if (c) carbonyl.set(k, new THREE.Vector3(a.x - c.x, a.y - c.y, a.z - c.z)); else cs.set(k + ':O', a); } }
+    for (const [k, o2] of cs) if (k.endsWith(':O')) { const c = cs.get(k.slice(0, -2)); if (c) carbonyl.set(k.slice(0, -2), new THREE.Vector3(o2.x - c.x, o2.y - c.y, o2.z - c.z)); } }
   for (const [chain, trace] of byChain) {
     if (trace.length < 2) continue;
     // Break the trace where residues are missing (gap > 4.5 Å between CAs, > 8 Å between Ps).
@@ -99,7 +103,15 @@ function cartoonTubes(s: Structure, o: MolOptions, chainIndex: Map<string, numbe
         const kindOf = (a: Atom) => a.name === 'P' ? 'coil' : secondaryAt(s, a.chain, a.resSeq) ?? 'coil';
         if (i < seg.length && kindOf(seg[i]) === kindOf(seg[start])) continue;
         const run = seg.slice(Math.max(0, start - 1), Math.min(seg.length, i + 1)); const kind = kindOf(seg[start]);
-        if (run.length >= 2) {
+        const residueColorOf = (a: Atom) => o.highlightChain === chain ? '#ffb020' : o.color === 'confidence' && s.predicted ? plddtColor(a.b) : o.color === 'chain' ? CHAIN_COLORS[(chainIndex.get(chain) ?? 0) % CHAIN_COLORS.length] : SS_COLOR[kind];
+        const sides = kind !== 'coil' ? run.map(a => carbonyl.get(`${a.chain}:${a.resSeq}:${a.insCode}`)) : [];
+        if (run.length >= 2 && kind !== 'coil' && sides.every(Boolean)) {
+          // Ribbon (helix) or arrow (strand): flat, oriented by C=O, arrowhead on the strand's last residue.
+          const geo = ribbonGeometry(run.map(a => new THREE.Vector3(a.x, a.y, a.z)), sides as THREE.Vector3[], kind, run.map(residueColorOf), start > 0, i < seg.length);
+          const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.05, side: THREE.DoubleSide }));
+          mesh.name = `cartoon_${chain}_${seg[start].resSeq}`; mesh.userData.chain = chain; mesh.userData.ribbon = kind;
+          out.push(mesh);
+        } else if (run.length >= 2) {
           const curve = new THREE.CatmullRomCurve3(run.map(a => new THREE.Vector3(a.x, a.y, a.z)), false, 'centripetal');
           const radius = kind === 'helix' ? 0.9 : kind === 'sheet' ? 0.7 : 0.3;
           const tubular = Math.max(4, run.length * 6), radial = kind === 'coil' ? 6 : 10;
@@ -121,6 +133,40 @@ function cartoonTubes(s: Structure, o: MolOptions, chainIndex: Map<string, numbe
     }
   }
   return out;
+}
+
+/**
+ * A flat ribbon through C-alpha positions. `sides` are the residues' C=O vectors; for strands they
+ * alternate direction, so each is flipped to agree with the previous one. Helix: 1.6 x 0.35 Å.
+ * Strand: 1.6 Å wide, widening to 2.6 Å at the last residue and narrowing to a point (arrow).
+ * `trimStart`/`trimEnd` skip the half-residue shared with the neighbouring run.
+ */
+export function ribbonGeometry(pts: THREE.Vector3[], sides: THREE.Vector3[], kind: 'helix' | 'sheet', colors: string[], trimStart = false, trimEnd = false): THREE.BufferGeometry {
+  const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
+  const n = pts.length; const per = 8; const samples = (n - 1) * per;
+  const fixed: THREE.Vector3[] = []; for (let i = 0; i < n; i++) { const v = sides[i].clone().normalize(); if (i && v.dot(fixed[i - 1]) < 0) v.negate(); fixed.push(v); }
+  const pos: number[] = []; const col: number[] = []; const c = new THREE.Color();
+  const ring: Array<{ corners: THREE.Vector3[]; color: THREE.Color }> = [];
+  const i0 = trimStart ? Math.floor(per / 2) : 0, i1 = trimEnd ? samples - Math.floor(per / 2) : samples;
+  for (let k = i0; k <= i1; k++) {
+    const u = k / samples; const p = curve.getPointAt(u); const t = curve.getTangentAt(u).normalize();
+    const f = u * (n - 1); const a = Math.min(n - 2, Math.floor(f)); const w = f - a;
+    const side = fixed[a].clone().multiplyScalar(1 - w).add(fixed[a + 1].clone().multiplyScalar(w));
+    side.sub(t.clone().multiplyScalar(side.dot(t))).normalize(); // perpendicular to the path
+    const up = new THREE.Vector3().crossVectors(t, side).normalize();
+    let half = 0.8; const thick = kind === 'helix' ? 0.35 : 0.3;
+    if (kind === 'sheet' && !trimEnd) { const lastStart = (n - 2) / (n - 1); if (u >= lastStart) half = 1.3 * (1 - (u - lastStart) / (1 - lastStart)) + 0.0001; }
+    const corners = [[1, 1], [-1, 1], [-1, -1], [1, -1]].map(([sx, sy]) => p.clone().add(side.clone().multiplyScalar(sx * half)).add(up.clone().multiplyScalar(sy * thick / 2)));
+    ring.push({ corners, color: c.set(colors[Math.min(n - 1, Math.round(f))]).clone() });
+  }
+  const tri = (a: THREE.Vector3, b: THREE.Vector3, d: THREE.Vector3, ca: THREE.Color, cb: THREE.Color) => { for (const [v, cc] of [[a, ca], [b, cb], [d, cb]] as const) { pos.push(v.x, v.y, v.z); col.push(cc.r, cc.g, cc.b); } };
+  for (let k = 0; k + 1 < ring.length; k++) {
+    const A = ring[k], B = ring[k + 1];
+    for (let e = 0; e < 4; e++) { const e2 = (e + 1) % 4; tri(A.corners[e], B.corners[e], B.corners[e2], A.color, B.color); tri(A.corners[e], B.corners[e2], A.corners[e2], A.color, B.color); }
+  }
+  for (const end of [ring[0], ring[ring.length - 1]]) if (end) { tri(end.corners[0], end.corners[1], end.corners[2], end.color, end.color); tri(end.corners[0], end.corners[2], end.corners[3], end.color, end.color); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
+  return g;
 }
 
 /** Instances become plain coloured meshes, so a GLB opens in any viewer (model-viewer too). */

@@ -8,8 +8,8 @@
 // is a rate in substance per time; d(amount)/dt = sum of stoichiometry x rate.
 
 import { parseXml, type XNode } from '../tela/geometry/xml';
-import { type Expr, type Fn, type Getter, fromMathML, lambdaArgs, evaluate, toInfix, compileExpr } from './math';
-import { solve, ros23, dopri5, linspace, type Solution } from './ode';
+import { type Expr, type Fn, type Getter, fromMathML, lambdaArgs, evaluate, toInfix, compileExpr, symbols } from './math';
+import { solve, ros23, dopri5, linspace, colorColumns, type Solution, type JacPattern } from './ode';
 
 export interface Species { id: string; name: string; compartment: string; initial: number; initialIsAmount: boolean; boundary: boolean; constant: boolean; onlySubstance: boolean }
 export interface Param { id: string; name: string; value: number; constant: boolean }
@@ -209,7 +209,21 @@ export function compile(m: BioModel, o: Pick<SimOptions, 'params' | 'initial'> =
     else if (par.has(name)) par.set(name, v);
     else throw new Error(`Event assigns ${name}, which is not supported yet`);
   };
-  return { rhs, y0, stateIds, report, rates, events, at, assign, laws, effects, sIdx };
+  // Jacobian sparsity: which states each equation reads (assignment rules and function bodies followed).
+  const reads = (e: Expr, seen = new Set<string>(), out = new Set<number>()): Set<number> => {
+    for (const name of symbols(e)) {
+      if (seen.has(name)) continue; seen.add(name);
+      if (sIdx.has(name)) out.add(sIdx.get(name)!);
+      if (assignVars.has(name)) reads(assignVars.get(name)!, seen, out);
+    }
+    const walk = (x: Expr) => { if (x.k === 'call' && m.functions[x.fn]) reads(m.functions[x.fn].body, seen, out); if (x.k === 'op' || x.k === 'call') x.args.forEach(walk); if (x.k === 'piece') x.pieces.forEach(([a, b]) => { walk(a); walk(b); }); };
+    walk(e); return out;
+  };
+  const rowsOfCol: number[][] = stateIds.map(() => []);
+  m.reactions.forEach((r, i) => { if (!r.law) return; const deps = reads(r.law); for (const [k] of effects[i]) for (const j of deps) rowsOfCol[j].push(k); });
+  for (const r of m.rules) if (r.kind === 'rate') { const k = sIdx.get(r.variable)!; for (const j of reads(r.math)) rowsOfCol[j].push(k); }
+  const jacPattern: JacPattern = colorColumns(rowsOfCol.map(l => [...new Set(l)]), stateIds.length);
+  return { rhs, y0, stateIds, report, rates, events, at, assign, laws, effects, sIdx, jacPattern };
 }
 
 export function simulate(m: BioModel, o: SimOptions): SimResult {
@@ -218,7 +232,7 @@ export function simulate(m: BioModel, o: SimOptions): SimResult {
   const times = linspace(0, o.tEnd, Math.max(2, o.points ?? 400));
   // Absolute tolerance follows the model's own scale: models in femtolitres hold amounts near 1e-21.
   let scale = 0; for (const v of y0) scale = Math.max(scale, Math.abs(v)); if (!scale) scale = 1;
-  const opts = { rtol: o.rtol ?? 1e-6, atol: o.atol ?? 1e-9 * Math.min(1, scale), budgetMs: o.budgetMs, nonNegative: false };
+  const opts = { rtol: o.rtol ?? 1e-6, atol: o.atol ?? 1e-9 * Math.min(1, scale), budgetMs: o.budgetMs, nonNegative: false, jacPattern: c.jacPattern };
   const sol = c.events.length ? withEvents(c, times, opts, o.method ?? 'auto') : o.method === 'stiff' ? ros23(rhs, y0, times, opts) : o.method === 'explicit' ? dopri5(rhs, y0, times, opts) : solve(rhs, y0, times, opts);
   const series: Record<string, number[]> = {};
   sol.y.forEach((y, i) => { const r = c.report(sol.t[i], y); for (const [k, v] of Object.entries(r)) (series[k] ??= []).push(v); });
@@ -232,7 +246,7 @@ type Compiled = ReturnType<typeof compile>;
  * false to true is located by bisection (re-integrating from the start of the piece), its
  * assignments run (now, or after its delay), and integration restarts from that moment.
  */
-function withEvents(c: Compiled, times: number[], opts: { rtol: number; atol: number; budgetMs?: number }, method: 'auto' | 'stiff' | 'explicit'): Solution {
+function withEvents(c: Compiled, times: number[], opts: { rtol: number; atol: number; budgetMs?: number; jacPattern?: JacPattern }, method: 'auto' | 'stiff' | 'explicit'): Solution {
   const out: Solution = { t: [times[0]], y: [c.y0.slice()], steps: 0, rejected: 0, method: method === 'stiff' ? 'ros23' : 'dopri5' };
   let useStiff = method === 'stiff'; const started = Date.now();
   const step = (y: Float64Array, a: number, b: number): Float64Array => {

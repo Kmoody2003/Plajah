@@ -5,7 +5,23 @@
 //   solve   tries dopri5 and switches to ros23 when it detects stiffness.
 
 export type Rhs = (t: number, y: Float64Array, out: Float64Array) => void;
-export interface SolveOptions { rtol?: number; atol?: number; maxSteps?: number; hInit?: number; nonNegative?: boolean; /** Wall-clock limit (ms), so a hard model cannot freeze the page. */ budgetMs?: number }
+export interface SolveOptions { rtol?: number; atol?: number; maxSteps?: number; hInit?: number; nonNegative?: boolean; /** Wall-clock limit (ms), so a hard model cannot freeze the page. */ budgetMs?: number; /** Which rows each state (column) affects; enables grouped finite differences. */ jacPattern?: JacPattern }
+
+/** Sparsity of the Jacobian: rows[j] lists the equations that read state j; colors group columns that share no row. */
+export interface JacPattern { rows: number[][]; colors: number[][] }
+
+/** Greedy column colouring (Curtis-Powell-Reid): columns in one colour never touch the same row, so one perturbation estimates them all. */
+export function colorColumns(rows: number[][], n: number): JacPattern {
+  const colorOf = new Int32Array(n).fill(-1); const colors: number[][] = []; const used: Array<Set<number>> = [];
+  // Columns touching many rows first: fewer colours in practice.
+  const order = Array.from({ length: n }, (_, j) => j).sort((a, b) => rows[b].length - rows[a].length);
+  for (const j of order) {
+    let c = 0; while (c < colors.length && rows[j].some(r => used[c].has(r))) c++;
+    if (c === colors.length) { colors.push([]); used.push(new Set()); }
+    colors[c].push(j); for (const r of rows[j]) used[c].add(r); colorOf[j] = c;
+  }
+  return { rows, colors };
+}
 
 export class SolverError extends Error {}
 const clock = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -92,8 +108,17 @@ function luSolve(a: Float64Array, n: number, piv: Int32Array, b: Float64Array) {
 }
 
 /** Forward-difference Jacobian. */
-function jacobian(f: Rhs, t: number, y: Float64Array, f0: Float64Array, J: Float64Array) {
+function jacobian(f: Rhs, t: number, y: Float64Array, f0: Float64Array, J: Float64Array, pattern?: JacPattern) {
   const n = y.length; const yp = y.slice(); const fp = new Float64Array(n);
+  if (pattern) {
+    J.fill(0); const d = new Float64Array(n);
+    for (const group of pattern.colors) {
+      for (const j of group) { d[j] = Math.sqrt(2.2e-16) * Math.max(1e-5, Math.abs(y[j])); yp[j] = y[j] + d[j]; }
+      f(t, yp, fp);
+      for (const j of group) { for (const i of pattern.rows[j]) J[i * n + j] = (fp[i] - f0[i]) / d[j]; yp[j] = y[j]; }
+    }
+    return;
+  }
   for (let j = 0; j < n; j++) {
     const d = Math.sqrt(2.2e-16) * Math.max(1e-5, Math.abs(y[j])); yp[j] = y[j] + d; f(t, yp, fp); yp[j] = y[j];
     for (let i = 0; i < n; i++) J[i * n + j] = (fp[i] - f0[i]) / d;
@@ -114,7 +139,7 @@ export function ros23(f: Rhs, y0: ArrayLike<number>, times: number[], o: SolveOp
     guard(out, maxSteps, started, o.budgetMs, t, h);
     const target = times[next]; if (t + h > target) h = target - t;
     if (needJ) {
-      jacobian(f, t, y, F0, J);
+      jacobian(f, t, y, F0, J, o.jacPattern);
       const dt = Math.sqrt(2.2e-16) * Math.max(1e-5, Math.abs(t)); f(t + dt, y, tmp); for (let i = 0; i < n; i++) T[i] = (tmp[i] - F0[i]) / dt;
       needJ = false;
     }

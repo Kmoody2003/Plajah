@@ -275,3 +275,188 @@ Built (not committed at writing). All our own code except three.js; the data sou
 - Sequence tools.
 
 **Safety:** this lab is for teaching and research modelling. Pathogen-enhancement tooling stays out of scope.
+
+## 13. Drafting editor and faster, sharper biology (2026-11-08, later)
+
+**CAD: the 2D room is now an editor (`components/cad/DraftView.tsx`, `services/cad/draft.ts`).**
+- **Tools:** select, pan, line (chains), polyline (C closes, U undoes a point), rectangle, circle, arc (centre/start/end), aligned dimension, text, move, copy (repeats), measure.
+- **Object snaps:** endpoint, midpoint, centre, quadrant, intersection, perpendicular, grid, with AutoCAD-style markers and labels. Toggles: OSNAP (F3), GRID (F7/F9), ORTHO (F8).
+- **Selection:** click, Shift to add or remove, window (left to right), crossing (right to left). Grips show; Delete erases. The status bar shows length and area of what is selected, a quick takeoff.
+- **Command line:** aliases (L, PL, REC, C, A, DIM, T, M, CO, E, U, Z, DI) and typed points (`x,y`, `@dx,dy`, `@d<angle`, or a bare distance along the cursor). Typing anywhere goes to the command line.
+- **Undo/redo:** 200 steps, Ctrl+Z / Ctrl+Y.
+- **View:** stays put while you edit; Z zooms to extents.
+- **Drawings:**
+  - "New drawing" starts with US National CAD Standard layer names (A-WALL, A-DOOR, A-GLAZ, A-FLOR, S-GRID, A-ANNO-DIMS, A-ANNO-TEXT).
+  - Clicking a layer makes it current, and you can add layers.
+  - An edited drawing is saved to Tela as DXF, so edited DWG originals are kept as DXF.
+- **Dimensions:** a new entity type, drawn architectural style with ticks and upright text, and written to DXF as lines and text.
+- **Checked in the lab, all by typed input:** a 6 × 4 m room as a closed polyline, a dimension, a label, a column. Then with the mouse: endpoint snap reads exactly 6, 4 m; picking the wall reports a 20 m perimeter and 24 m² area; move by `@0,1000` changes the drawing depth from 4.86 to 5.86 m; undo and redo restore it; "Add to document" saves a DXF with all layers.
+- **Next:** offset, trim/extend, fillet, mirror, rotate, scale, hatch, blocks, walls with thickness (the start of BIM authoring), layouts/sheets.
+
+**Biology:**
+- **Sparse Jacobians:** the dependency pattern comes from the rate laws (following assignment rules and functions), then columns are grouped (Curtis–Powell–Reid). The 93-species EGF model (BIOMD19) needs 20 evaluations per Jacobian instead of 93, with bit-identical results. A full 3600 s run takes 2.5 s in node. All 28 real models tested now run.
+- **Background worker:** `services/bio/sim.worker.ts`. Bursts of slider moves are coalesced and stale answers dropped. During a multi-second run the page's worst pause was 17 ms.
+- **Ribbons:**
+  - Flat helix ribbons and β-strand arrows, oriented by each residue's C=O vector (flipped to stay consistent on strands); loops stay tubes.
+  - CA-only files fall back to tubes.
+- `npm run test:bio`: 21 pass. `npm run test:cad`: 22 pass.
+- **Next:** a higher-order stiff solver (Rodas4 or variable-order BDF) for fewer steps; sparse LU.
+
+## 14. Architectural library and edit tools (2026-11-08, later)
+
+**Library (`services/cad/library.ts`, `components/cad/LibraryPanel.tsx`).** 51 parametric items, all our own drawings and none copied from a vendor library:
+- **Doors:** single, double, sliding, pocket, bi-fold, overhead, cased opening.
+- **Windows:** fixed, casement (1 or 2 sashes), sliding, bay.
+- **Stairs:** straight with break line and UP, L with landing, spiral, 1:12 ramp.
+- **Furniture:** beds Single to King, sofa by seats, armchair, chair, dining table with chairs, round table with chairs, desk, wardrobe, bookshelf.
+- **Kitchen:** counter run, sink, range, fridge, dishwasher, island with stools.
+- **Bathroom:** WC, basin, bath, shower, urinal, 1525 mm ADA turning space, grab bar.
+- **Structure:** square, round and steel-H columns, grid line with bubble.
+- **Electrical:** receptacle, switch, ceiling light, downlight, smoke detector.
+- **Landscape:** tree, shrub, person.
+- **Vehicles and parking:** car, parking row with an accessible aisle.
+- **Annotation:** north arrow, section mark, elevation marker, level, scale bar, ISO sheet border and title block.
+
+How it behaves:
+- Each item is built from its parameters and placed as a real block reference. The block name encodes the settings, so the same settings reuse the same block.
+- Items land on National CAD Standard layers (A-DOOR, A-FURN, P-FIXT, S-COLS…), created with colours as needed.
+- Parameters show in the drawing's own units; inch drawings scale correctly.
+- Placing: type an angle, R rotates 90, F flips, Esc stops.
+- **Your own libraries:** "Blocks in this drawing" lists the named blocks of any opened DWG/DXF. "Load blocks from a DWG/DXF" merges another file's blocks (nested ones too) and layers, converting units.
+
+**Edit tools:**
+- **Rotate:** base point, then a click or typed angle.
+- **Scale:** base point, then a typed factor or a reference point and a new point.
+- **Mirror:** copies by default, keeps text readable (MIRRTEXT 0) and mirrors block references correctly.
+- **Offset:** typed or picked distance. Lines, circles and arcs work; polylines get mitred corners, and a closed outline offsets in or out regardless of drawing direction. This is the quick way from a room outline to wall faces.
+- Aliases: RO, SC, MI, O.
+
+**Checked in the lab:**
+- Room outline, offset 200 outward (6.4 × 4.4 m).
+- Library door set to a 200 mm wall placed on the wall line; king bed placed rotated 90° with R.
+- Door mirrored across the centre line, then the copy rotated 180° by typed angle.
+- DOOR900 loaded from a DXF.
+- `npm run test:cad`: 27 pass.
+
+**Next:** trim/extend, fillet/chamfer, hatching tool, wall tool with thickness, cleanups at joins, and door/window insertion that cuts the wall automatically (BIM authoring begins). Then layouts/sheets with viewports.
+
+## 15. Walls, hosted openings, hatching, trim/extend/fillet (2026-11-08, later)
+
+- **Walls** (`services/cad/walls.ts`): a centreline with thickness and height.
+  - Where exactly two walls share an end, the corner mitres; free ends get square caps.
+  - Doors, windows and openings are hosted: each sits at a distance along its wall and on a side, and the wall's faces break around it.
+  - The opening is drawn with its library symbol and moves, rotates and mirrors with the wall. Mirroring flips the swing side and the hinge correctly.
+  - DXF export explodes walls together, so corners stay mitred.
+- **Wall tool (`W`):** chain clicks or typed points, `C` closes, and a thickness field (default 200 mm).
+- **Library doors and windows snap into walls:** placed over a wall they become hosted openings, centred on the click and facing the side the cursor is on, rejected if they don't fit or overlap. Anywhere else they stay free blocks.
+- **Hatching** (`services/cad/hatchPatterns.ts`): SOLID, ANSI31, ANSI37, NET, AR-BRSTD brick and LINE, clipped even-odd so holes work.
+  - The `H` tool picks the smallest closed shape around the click.
+  - Imported DXF hatches now show their patterns, reading pattern scale (41) and angle (52).
+  - Patterns are written to R12 DXF as lines.
+  - Brick defaults to real size; line patterns default to plan scale.
+- **Trim (`TR`):** lines, circles and arcs, with everything else acting as cutting edges.
+- **Extend (`EX`):** lines and wall centrelines.
+- **Fillet (`F`):** lines with a radius, or radius 0 for a sharp corner. Walls always join at their centrelines and then mitre.
+- **Fix:** pointer maths reads the canvas size at the moment of the event, so a layout change can't misplace a click before the resize observer reports.
+- **Checked in the lab:**
+  - A closed room of 4 walls.
+  - A library door hosted in the south wall at 1050 (centred on the click) swinging inward.
+  - An 1800 window hosted in the east wall.
+  - Two separate walls joined into a corner by fillet.
+  - Brick and ANSI31 hatches.
+- `npm run test:cad`: 32 pass.
+
+## 16. Winning architects: delighters, and the Autodesk pain points we design out
+
+**Delighters, roughly in build order (most stand on things already built):**
+1. **Schedules that write themselves.** Door and window schedules from hosted openings, room area tags and wall takeoffs, live as you draw. The data is already in the wall model.
+2. **Code check while you draw.** ADA clearances (turning circle, door manoeuvring space), egress widths, stair riser/tread, ramp slope: shown green or red on the plan as you place things, not at plan review.
+3. **Share a link, not a file.** Clients and consultants open the drawing or model in a browser (Tela), comment on the spot, and approve. No viewer install and no seat for them.
+4. **Live co-editing** (the coedit layer already exists). No central-model sync, no worksharing conflicts.
+5. **Visual diff between versions.** Red/green overlay of what changed between issues; revision clouds drafted automatically.
+6. **Napkin sketch or site photo to plan.** A hand sketch becomes clean walls, doors and dimensions, using the image-understanding work from Plajah 3D, run on device.
+7. **Context in one step.** Type an address and get the site, terrain (Terra and USGS 3DEP), sun path and shadows.
+8. **Plain-language command line.** "Add a 900 door here", "make this room 12 m²", alongside the AutoCAD aliases people already know.
+9. **Cost as you draw.** Quantities from walls, floors and openings feed a running estimate.
+10. **On-site markup from a phone.** Photo plus markup goes back into the drawing as a task.
+
+**Autodesk pain points, and our answer:**
+| Pain | Our answer |
+|---|---|
+| Subscription cost (thousands a year per seat; Revit is subscription only) | Free core, kept free through development |
+| DWG/RVT version lock-in: newer files won't open in older versions, no save-down for Revit | Open formats first: read any DWG version, write DXF, IFC as the BIM exchange, and our own documents open in a browser |
+| Revit is Windows-only and needs heavy hardware | Browser plus the desktop app; runs on Mac, Chromebook, tablet and phone. Heavy work in workers or on the GPU |
+| Collaboration costs extra (BIM 360 / Autodesk Construction Cloud), central files conflict | Live co-editing and comments built in, free |
+| Licence friction: sign-in, named users, offline problems | Works offline, syncs later; nothing to activate |
+| Hunting for blocks and families | Parametric library plus your firm's own DWG/DXF block files |
+| AutoCAD isn't BIM, and Revit's 2D drafting is weak | One tool: AutoCAD-style drafting and BIM walls/openings in the same drawing |
+| Plotting setup (page setups, CTB pen tables) | Tela pages are the sheets; PDF output at true size |
+| Steep learning curve | Same command aliases, plain-language help, Academia courses |
+| Data locked in a vendor cloud | Your files stay yours, and everything exports |
+
+## 17. Schedules that write themselves and live accessibility checks (2026-11-08, later)
+
+- **Rooms** (`services/cad/rooms.ts`):
+  - Wall centrelines are split at crossings and T-junctions into a planar graph, and its enclosed faces are traced as rooms.
+  - Each room's net polygon is pulled in by half of each bounding wall's thickness, so its area is floor area inside the faces.
+  - **Room tags** (`RT`): click inside a room and type a name. Numbering is automatic (101, 102…). The tag shows number, name and area, live: move a wall and the area changes. Areas are in m², or ft² in imperial drawings.
+- **Schedules** (`services/cad/schedules.ts`, `components/cad/SchedulesPanel.tsx`), computed on every edit:
+  - **Doors:** mark, type, width, height, hinge, room it opens into, wall, hosted or free.
+  - **Windows:** mark, type, width, height, sill, head, room.
+  - **Rooms:** number, name, net area, perimeter, gross area, total.
+  - **Walls:** grouped by thickness, with count, length, and face area less openings.
+  - Imperial drawings show feet-and-inches (3'-0").
+  - Free library door/window blocks count too; their parameters are read back from the block name.
+  - Each schedule has CSV download and "Add to document", which makes a native Tela grid.
+- **Plan marks:** D01, D02, W01 sit next to each opening (MARKS toggle), from the same source as the schedules.
+- **Accessibility pre-checks** (`services/cad/codeCheck.ts`): rules in our own words, each citing the 2010 ADA Standards (public-domain federal regulation):
+  - §404.2.3 door clear width ≥ 815 mm. Estimated as leaf width minus 50 mm; one leaf of a pair.
+  - §404.2.4.1 latch-side clearance ≥ 455 mm on the pull side, stopping at the wall's end or the next opening.
+  - §603.2.1 / §304.3.1 a 1525 mm turning circle in rooms named bath/toilet/WC/restroom/washroom (largest inscribed circle).
+  - §604.2 toilet centreline 405–455 mm from a parallel side wall.
+  - §504.2 stair treads ≥ 279 mm (riser height not modelled yet).
+  - Results show as counts and a list with citations, red "!" markers and green dots on the plan, and a CHECKS n toggle in the status bar. A disclaimer says it is a pre-check, not a code review.
+- **Picking:** clicking inside a wall's thickness selects the wall.
+- **Checked in the lab:**
+  - A two-room plan tagged Living (15.96 m²) and Bath (5.32 m²).
+  - A 900 door passes; a 750 door into the bath fails clear width (about 700 mm).
+  - The 1400 mm-wide bath fails turning space. Moving the partition 300 mm makes it 6.46 m² and the check passes (1700 mm), live.
+  - The door schedule was sent to the document as a table.
+- `npm run test:cad`: 35 pass.
+- **Next:** door manoeuvring clearances on the push side; toilet clear floor space (§604.3); corridor width on named corridors (§403.5.1); hatching rooms from walls; schedules placed on sheets; then the 3D view from walls (heights already stored) and IFC export of walls, doors and windows.
+
+## 18. Plajah BIM stack: our own 3D model and IFC4 writer (2026-11-08, later)
+
+Kenne, 2026-11-08: we are building our own BIM stack. Open-source engines are for checking our output, not for producing it.
+
+- **3D from the plan** (`services/cad/bim3d.ts`, all ours):
+  - Walls rise to their stored height in pieces around each opening. A door keeps the wall above its head; a window keeps it below the sill and above the head. Ends use the mitred plan corners.
+  - Door leaves and glazing fill the openings; each room gets a floor slab (ear-clipped).
+  - Every piece is a closed solid (tested).
+  - The output is a CadModel whose elements carry IFC classes (IfcWall, IfcDoor, IfcWindow, IfcSlab) and dimensions.
+  - The "3D" button in the CAD room flips the plan into it, with the Model tree, properties, section cut and measure.
+- **IFC4 writer** (`services/cad/ifcWrite.ts`, all ours):
+  - Spatial structure: IfcProject > IfcSite > IfcBuilding > IfcBuildingStorey.
+  - **IfcWall:** an extruded arbitrary profile, the true mitred plan shape, plus Qto_WallBaseQuantities.
+  - **Openings:** an IfcOpeningElement plus IfcRelVoidsElement for each opening.
+  - **Doors and windows:** IfcDoor/IfcWindow plus IfcRelFillsElement, with mark, overall size and operation type (single swing left/right, double, sliding, folding, rolling up).
+  - **Rooms:** an IfcSpace for each room (number, long name, net floor polygon, Qto_SpaceBaseQuantities: NetFloorArea m², NetPerimeter, Height), and an IfcSlab .FLOOR. under it.
+  - Encoding: lengths in mm, areas in m²; GlobalIds in IFC base-64; strings escaped (\X2\) and REALs formatted per STEP.
+  - The "IFC" button exports the file.
+- **Independent check:** tests read our IFC back with web-ifc (a separate engine). It sees 5 walls, door, window, 2 spaces, 2 slabs and the spatial structure, at the right size (6.2 m outer, 2.7 m tall). Its geometry engine applies our voids, and space areas come through.
+- **Importer fix:** web-ifc doesn't mesh IfcSpace, and our importer only read properties for meshed elements, so room areas were lost from any opened IFC. Spaces and zones now keep their property and quantity sets.
+- **3D view fix:** drei's infinite grid scales its plane by fadeDistance, which in millimetre models made a plane about 600 km across. Depth precision broke and the grid drew through every solid. The view now uses a finite grid sized to the model, and the unneeded polygon offset is gone.
+- **Checked in the lab:**
+  - Two-room plan with two doors and two windows.
+  - 3D shows walls cut around openings, door leaves, glazing and slabs.
+  - The exported IFC (15 KB: 5 walls, 2 doors, 2 windows, 4 openings, 2 spaces, 2 slabs) re-opens through web-ifc in the browser with every class.
+- `npm run test:cad`: 38 pass.
+- **Next for the BIM stack:**
+  - Levels/storeys (multiple floors, wall base and top constraints).
+  - Slabs and roofs as objects of their own.
+  - Columns and beams to IFC.
+  - Wall types (layered: finish, stud, insulation) into IfcMaterialLayerSet.
+  - Property sets for fire rating and acoustics.
+  - Read IFC back into editable walls (round trip).
+  - BCF issues.
+  - Our own CSG for arbitrary voids.

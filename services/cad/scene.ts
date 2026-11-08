@@ -19,7 +19,7 @@ export function modelToGroup(m: CadModel, opts: SceneOptions = {}): THREE.Group 
   const mats = new Map<string, THREE.MeshStandardMaterial>();
   const mat = (color = '#c9c4d6', opacity = 1, hi = false) => {
     const key = `${color}|${opacity}|${hi}`; let mm = mats.get(key);
-    if (!mm) { mm = new THREE.MeshStandardMaterial({ color: hi ? '#ffb020' : color, roughness: 0.62, metalness: 0.05, transparent: opacity < 0.999, opacity, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }); mats.set(key, mm); }
+    if (!mm) { mm = new THREE.MeshStandardMaterial({ color: hi ? '#ffb020' : color, roughness: 0.62, metalness: 0.05, transparent: opacity < 0.999, opacity, side: THREE.DoubleSide }); mats.set(key, mm); }
     return mm;
   };
   for (const mesh of m.meshes) {

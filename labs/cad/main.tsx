@@ -26,4 +26,5 @@ const sendToTela = async (model: any, source: { name: string; bytes: Uint8Array 
 };
 
 (window as any).cad = { importCadFile, browserEngines, dxf, mesh };
-createRoot(document.getElementById('root')!).render(<CadRoom loadInitial={loadInitial} onSendToTela={sendToTela}/>);
+const sendTable = async (title: string, rows: string[][]) => { (window as any).lastTable = { title, rows }; console.log('[cad-lab] table', title, rows); };
+createRoot(document.getElementById('root')!).render(<CadRoom loadInitial={loadInitial} onSendToTela={sendToTela} onSendTable={sendTable}/>);

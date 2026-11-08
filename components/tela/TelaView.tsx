@@ -3133,6 +3133,13 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
         initialFile={cadOpen.file ?? null}
         loadInitial={cadOpen.cad ? () => fetchCadSource(cadOpen.cad!) : undefined}
         onClose={() => setCadOpen(null)}
+        onSendTable={showHome ? undefined : async (title, rows) => {
+          // A schedule becomes a native Tela grid: editable, chartable, exportable like any sheet.
+          const cells: Record<string, string> = {};
+          rows.forEach((r, ri) => r.forEach((v, ci) => { if (v !== '') cells[cellKey(ci, ri)] = v; }));
+          const grid: TelaGridDevice = { id: uid('dev'), type: 'GRID', rows: Math.max(8, rows.length + 2), cols: Math.max(4, ...rows.map(r => r.length)) + 1, cells };
+          addFrame('BOARD', 'FREE', grid, title);
+        }}
         onSendToTela={showHome ? undefined : async (model, source) => {
           const device = await cadToTelaDevice(model, source, f => uploadTelaAsset(f), () => uid('dev'));
           addFrame('BOARD', 'FREE', device, source.name.replace(/\.[^.]+$/, ''), { size: { w: device.width, h: device.height } });

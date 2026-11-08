@@ -7,7 +7,7 @@ import { createPortal } from 'react-dom';
 import * as THREE from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Grid, Line, Html } from '@react-three/drei';
-import { X, FolderOpen, Eye, EyeOff, Layers, ListTree, Download, FilePlus2, Ruler, AlertTriangle, CheckCircle2, Box, Square, Crosshair, Scissors, Info } from 'lucide-react';
+import { X, FilePlus, FolderOpen, Armchair, ClipboardList, Building2, Eye, EyeOff, Layers, ListTree, Download, FilePlus2, Ruler, AlertTriangle, CheckCircle2, Box, Square, Crosshair, Scissors, Info } from 'lucide-react';
 import type { CadModel, CadElement } from '../../services/cad/model';
 import { MM_PER_UNIT } from '../../services/cad/model';
 import { importCadFile, CAD_ACCEPT, CAD_FORMATS, detectCadFormat } from '../../services/cad/importer';
@@ -15,10 +15,21 @@ import { browserEngines } from '../../services/cad/engines';
 import { drawingToSvg, writeDxf, flatten2D, drawingFrame } from '../../services/cad/dxf';
 import { modelToGroup, isZUp } from '../../services/cad/scene';
 import { modelStats, type MeshStats } from '../../services/cad/mesh';
+import { newDrawing, setLayer } from '../../services/cad/draft';
+import DraftView from './DraftView';
+import LibraryPanel, { type Placing } from './LibraryPanel';
+import SchedulesPanel from './SchedulesPanel';
+import { allSchedules, type Table } from '../../services/cad/schedules';
+import { runChecks, type Finding } from '../../services/cad/codeCheck';
+import { bimTo3D } from '../../services/cad/bim3d';
+import { writeIfc } from '../../services/cad/ifcWrite';
+import { userBlocks, scaleEntities } from '../../services/cad/library';
 import { engineById } from '../../services/cad/licences';
 
 export interface CadRoomProps {
   onClose?: () => void;
+  /** Present when opened from a Tela document: puts a schedule into the document as a table. */
+  onSendTable?: (title: string, rows: string[][]) => Promise<void>;
   /** Present when opened from a Tela document. */
   onSendToTela?: (model: CadModel, source: { name: string; bytes: Uint8Array }) => Promise<void>;
   /** Reopen a file (e.g. the original kept on a Tela device). */
@@ -27,6 +38,7 @@ export interface CadRoomProps {
 }
 
 type ViewDir = 'iso' | 'top' | 'front' | 'right';
+const NO_LAYERS = new Set<string>();
 /** A clip plane across the model: axis in viewer space (y = up), t = 0..1 through the bounds. */
 type Section = { axis: 'x' | 'y' | 'z'; t: number };
 const C = { bg: '#0d0c12', panel: '#15131d', line: 'rgba(255,255,255,.08)', text: 'rgba(255,255,255,.86)', dim: 'rgba(255,255,255,.5)', accent: '#7dd3fc', warm: '#ffb020' };
@@ -42,7 +54,7 @@ const fmtVol = (mm3: number, imperial: boolean, large: boolean) => imperial
   ? large ? `${(mm3 / 28316846.6).toLocaleString(undefined, { maximumFractionDigits: 2 })} ft³` : `${(mm3 / 16387.064).toLocaleString(undefined, { maximumFractionDigits: 2 })} in³`
   : large ? `${(mm3 / 1e9).toLocaleString(undefined, { maximumFractionDigits: 3 })} m³` : `${(mm3 / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })} cm³`;
 
-export default function CadRoom({ onClose, onSendToTela, initialFile, loadInitial }: CadRoomProps) {
+export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFile, loadInitial }: CadRoomProps) {
   const [model, setModel] = useState<CadModel | null>(null);
   const [source, setSource] = useState<{ name: string; bytes: Uint8Array } | null>(null);
   const [busy, setBusy] = useState<string>('');
@@ -50,13 +62,23 @@ export default function CadRoom({ onClose, onSendToTela, initialFile, loadInitia
   const [hiddenLayers, setHiddenLayers] = useState<Set<string>>(new Set());
   const [hiddenEls, setHiddenEls] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<string | null>(null);
-  const [tab, setTab] = useState<'layers' | 'tree'>('tree');
+  const [tab, setTab] = useState<'layers' | 'tree' | 'library' | 'schedules'>('tree');
   const [view, setView] = useState<ViewDir>('iso');
   const [viewNonce, setViewNonce] = useState(0);
   const [imperial, setImperial] = useState(false);
   const [sent, setSent] = useState('');
   const [dragging, setDragging] = useState(false);
   const [measuring, setMeasuring] = useState(false);
+  // Drafting: current layer, selection, undo/redo of whole models, and whether it was edited.
+  const [currentLayer, setCurrentLayer] = useState('0');
+  const [draftSel, setDraftSel] = useState<number[]>([]);
+  const undoStack = useRef<CadModel[]>([]); const redoStack = useRef<CadModel[]>([]);
+  const [edited, setEdited] = useState(false);
+  const [newLayer, setNewLayer] = useState('');
+  const [placing, setPlacing] = useState<Placing | null>(null);
+  const [showChecks, setShowChecks] = useState(true);
+  // Our own BIM view: the plan's walls, openings and rooms as a 3D model (same model the IFC export writes).
+  const [view3d, setView3d] = useState(false);
   const [section, setSection] = useState<Section | null>(null);
   // Under 900 px the side panels become drawers opened from the top bar.
   const narrow = useNarrow(900);
@@ -65,6 +87,7 @@ export default function CadRoom({ onClose, onSendToTela, initialFile, loadInitia
 
   const open = useCallback(async (name: string, bytes: Uint8Array) => {
     setError(''); setSent(''); setSelected(null); setHiddenEls(new Set()); setHiddenLayers(new Set()); setMeasuring(false); setSection(null);
+    undoStack.current = []; redoStack.current = []; setEdited(false); setDraftSel([]); setCurrentLayer('0'); setPlacing(null); setView3d(false);
     const fmt = detectCadFormat(name, bytes);
     setBusy(fmt ? `Reading ${CAD_FORMATS[fmt].label}…` : 'Reading…');
     const t0 = performance.now();
@@ -83,22 +106,62 @@ export default function CadRoom({ onClose, onSendToTela, initialFile, loadInitia
 
   const onFile = async (f: File) => open(f.name, new Uint8Array(await f.arrayBuffer()));
 
+  const startNew = () => {
+    const m = newDrawing('Drawing.dxf', imperial ? 'in' : 'mm');
+    undoStack.current = []; redoStack.current = []; setEdited(true); setDraftSel([]); setCurrentLayer('A-WALL');
+    setError(''); setSent(''); setHiddenLayers(new Set()); setModel(m); setSource(null); setTab('layers'); setView('top'); setViewNonce(n => n + 1);
+  };
+  const commit = (next: CadModel) => { if (model) undoStack.current.push(model); if (undoStack.current.length > 200) undoStack.current.shift(); redoStack.current = []; setModel(next); setEdited(true); };
+  const undo = () => { const prev = undoStack.current.pop(); if (!prev || !model) return; redoStack.current.push(model); setModel(prev); setDraftSel([]); };
+  const redo = () => { const next = redoStack.current.pop(); if (!next || !model) return; undoStack.current.push(model); setModel(next); setDraftSel([]); };
+  /** Merge the named blocks (and their layers) of another DWG/DXF into this drawing, in this drawing's units. */
+  const loadBlocks = async (file: File) => {
+    if (!model) return;
+    setBusy(`Reading blocks from ${file.name}…`);
+    try {
+      const src = await importCadFile(file.name, new Uint8Array(await file.arrayBuffer()), browserEngines);
+      const k = src.units !== 'unitless' && model.units !== 'unitless' ? MM_PER_UNIT[src.units] / MM_PER_UNIT[model.units] : 1;
+      const have = new Set(model.blocks.map(b => b.name));
+      // Nested blocks come along too, so inserts inside blocks still resolve.
+      const incoming = src.blocks.filter(b => !have.has(b.name)).map(b => ({ ...b, base: [b.base[0] * k, b.base[1] * k, b.base[2] * k] as [number, number, number], entities: scaleEntities(b.entities, k) }));
+      const named = userBlocks({ ...src, blocks: incoming }).length;
+      if (!named) { setError(`${file.name} has no named blocks${src.warnings.length ? ` (${src.warnings[0]})` : ''}.`); return; }
+      const haveLayers = new Set(model.layers.map(l => l.name));
+      commit({ ...model, blocks: [...model.blocks, ...incoming], layers: [...model.layers, ...src.layers.filter(l => !haveLayers.has(l.name))] });
+      setSent(`Loaded ${named} block${named > 1 ? 's' : ''} from ${file.name}${k !== 1 ? ` (scaled ${src.units} to ${model.units})` : ''}.`);
+    } catch (e: any) { setError(e?.message || String(e)); } finally { setBusy(''); }
+  };
+  const addLayer = () => {
+    const name = newLayer.trim().replace(/[<>/\\":;?*|=,]/g, '').slice(0, 64); if (!name || !model || model.layers.some(l => l.name === name)) return;
+    commit({ ...model, layers: [...model.layers, { name, color: '#ffffff', visible: true }] }); setCurrentLayer(name); setNewLayer('');
+  };
+
   const stats: MeshStats | null = useMemo(() => model && model.meshes.length ? modelStats(model) : null, [model]);
   const sizeMm = useMemo(() => model ? [0, 1, 2].map(i => (model.bounds.max[i] - model.bounds.min[i]) * MM_PER_UNIT[model.units]) : [0, 0, 0], [model]);
   const engine = model ? engineById(model.engine) : undefined;
   const large = Math.max(...sizeMm) >= 5000; // past 5 m, read it in metres / feet
   const isBim = model?.format === 'ifc';
   const u2 = model ? MM_PER_UNIT[model.units] ** 2 : 1; const u3 = model ? MM_PER_UNIT[model.units] ** 3 : 1;
-  const selectedEl = model?.elements.find(e => e.id === selected) ?? null;
+  const hasWalls = !!model?.is2D && model.entities.some(e => e.type === 'wall');
+  const bim = useMemo(() => view3d && model && hasWalls ? bimTo3D(model) : null, [view3d, model, hasWalls]);
+  const in3d = !!bim;
+  const selectedEl = (bim ?? model)?.elements.find(e => e.id === selected) ?? null;
+  // Schedules and checks follow the model: recomputed on every edit, never typed.
+  const hasBim = !!model?.is2D && model.entities.some(e => e.type === 'wall' || e.type === 'insert' || e.type === 'room');
+  const tables: Table[] = useMemo(() => model?.is2D && hasBim ? allSchedules(model) : [], [model, hasBim]);
+  const findings: Finding[] = useMemo(() => model?.is2D && hasBim ? runChecks(model) : [], [model, hasBim]);
+  const sendTable = async (t: Table) => { if (!onSendTable) return; setBusy(`Adding the ${t.title.toLowerCase()}…`); try { await onSendTable(t.title, [t.columns, ...t.rows]); setSent(`${t.title} added to the document.`); } catch (e: any) { setError(e?.message || String(e)); } finally { setBusy(''); } };
 
   const toggle = (set: Set<string>, key: string, apply: (s: Set<string>) => void) => { const n = new Set(set); n.has(key) ? n.delete(key) : n.add(key); apply(n); };
 
   const download = (name: string, data: BlobPart, type: string) => { const url = URL.createObjectURL(new Blob([data], { type })); const a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000); };
 
   const send = async () => {
-    if (!model || !source || !onSendToTela) return;
+    if (!model || !onSendToTela || (!source && !edited)) return;
     setBusy('Adding to your document…');
-    try { await onSendToTela(model, source); setSent('Added to the document.'); } catch (e: any) { setError(e?.message || String(e)); } finally { setBusy(''); }
+    // An edited drawing (or a new one) is kept as DXF: that file is what reopens later.
+    const src = edited || !source ? { name: model.name.replace(/\.[^.]+$/, '') + '.dxf', bytes: new TextEncoder().encode(writeDxf(model)) } : source;
+    try { await onSendToTela(edited ? { ...model, format: 'dxf', name: src.name } : model, src); setSent('Added to the document.'); } catch (e: any) { setError(e?.message || String(e)); } finally { setBusy(''); }
   };
 
   // Portal to <body>: inside the app the workspace column is its own stacking context, so a
@@ -116,14 +179,17 @@ export default function CadRoom({ onClose, onSendToTela, initialFile, loadInitia
           <div className="leading-tight cad-title"><div className="text-[13px] font-bold">CAD &amp; BIM</div><div className="text-[10px]" style={{ color: C.dim }}>{model ? model.name : 'Open a drawing or model'}</div></div>
         </div>
         <button className="cad-btn" onClick={() => fileRef.current?.click()}><FolderOpen size={14}/><span className="cad-label">Open</span></button>
+        <button className="cad-btn" onClick={startNew} data-testid="cad-new"><FilePlus size={14}/><span className="cad-label">New drawing</span></button>
         {model && <>
-          <div className="flex items-center rounded-lg overflow-hidden ml-1 shrink-0" style={{ border: `1px solid ${C.line}` }}>
-            {(model.is2D ? ['top'] as ViewDir[] : ['iso', 'top', 'front', 'right'] as ViewDir[]).map(v => <button key={v} onClick={() => { setView(v); setViewNonce(n => n + 1); }} className="px-2.5 h-8 text-[11px] font-semibold capitalize" style={{ background: view === v ? 'rgba(125,211,252,.16)' : 'transparent', color: view === v ? C.accent : C.dim }}>{v === 'iso' ? '3D' : model.is2D ? 'Fit' : v}</button>)}
+          <div className={`${model.is2D && !in3d ? 'hidden' : 'flex'} items-center rounded-lg overflow-hidden ml-1 shrink-0`} style={{ border: `1px solid ${C.line}` }}>
+            {(model.is2D && !in3d ? [] as ViewDir[] : ['iso', 'top', 'front', 'right'] as ViewDir[]).map(v => <button key={v} onClick={() => { setView(v); setViewNonce(n => n + 1); }} className="px-2.5 h-8 text-[11px] font-semibold capitalize" style={{ background: view === v ? 'rgba(125,211,252,.16)' : 'transparent', color: view === v ? C.accent : C.dim }}>{v === 'iso' ? '3D' : model.is2D ? 'Fit' : v}</button>)}
           </div>
           <button className="cad-btn" onClick={() => setImperial(x => !x)} title="Switch metric / imperial">{imperial ? 'Imperial' : 'Metric'}</button>
-          <button className={`cad-btn${measuring ? ' cad-on' : ''}`} onClick={() => setMeasuring(x => !x)} title="Click two points to measure" data-testid="cad-measure"><Crosshair size={14}/><span className="cad-label">Measure</span></button>
-          {!model.is2D && <button className={`cad-btn${section ? ' cad-on' : ''}`} onClick={() => setSection(s => s ? null : { axis: isBim ? 'y' : 'z', t: 0.5 })} title="Cut the model open" data-testid="cad-section"><Scissors size={14}/><span className="cad-label">Section</span></button>}
-          {section && !model.is2D && <div className="flex items-center gap-1.5 h-8 px-2 rounded-lg shrink-0" style={{ border: `1px solid ${C.line}` }}>
+          {hasWalls && <button className={`cad-btn${view3d ? ' cad-on' : ''}`} onClick={() => { setView3d(x => !x); setSelected(null); setSection(null); setMeasuring(false); setView('iso'); setViewNonce(n => n + 1); }} title="See the walls, doors, windows and floors in 3D" data-testid="cad-3d"><Building2 size={14}/><span className="cad-label">{view3d ? 'Plan' : '3D'}</span></button>}
+          {hasWalls && <button className="cad-btn" onClick={() => download(model.name.replace(/\.[^.]+$/, '') + '.ifc', writeIfc(model), 'application/x-step')} title="Export IFC4 for Revit, ArchiCAD, BIMcollab and other BIM tools" data-testid="cad-ifc"><Download size={14}/><span className="cad-label">IFC</span></button>}
+          {(!model.is2D || in3d) && <button className={`cad-btn${measuring ? ' cad-on' : ''}`} onClick={() => setMeasuring(x => !x)} title="Click two points to measure" data-testid="cad-measure"><Crosshair size={14}/><span className="cad-label">Measure</span></button>}
+          {(!model.is2D || in3d) && <button className={`cad-btn${section ? ' cad-on' : ''}`} onClick={() => setSection(s => s ? null : { axis: isBim || in3d ? 'y' : 'z', t: 0.5 })} title="Cut the model open" data-testid="cad-section"><Scissors size={14}/><span className="cad-label">Section</span></button>}
+          {section && (!model.is2D || in3d) && <div className="flex items-center gap-1.5 h-8 px-2 rounded-lg shrink-0" style={{ border: `1px solid ${C.line}` }}>
             {(['x', 'y', 'z'] as const).map(a => <button key={a} onClick={() => setSection({ ...section, axis: a })} className="w-6 h-6 rounded text-[11px] font-bold uppercase" style={{ background: section.axis === a ? 'rgba(125,211,252,.16)' : 'transparent', color: section.axis === a ? C.accent : C.dim }} title={a === 'y' ? 'Plan cut (height)' : `Cut along ${a.toUpperCase()}`}>{a}</button>)}
             <input type="range" min={0} max={1} step={0.005} value={section.t} onChange={e => setSection({ ...section, t: +e.target.value })} className="w-28 accent-sky-400" aria-label="Section position" data-testid="cad-section-slider"/>
           </div>}
@@ -142,29 +208,38 @@ export default function CadRoom({ onClose, onSendToTela, initialFile, loadInitia
 
       <div className="flex-1 min-h-0 flex relative">
         {/* Left: layers / tree */}
-        {model && (!narrow || drawer === 'tree') && <aside className={narrow ? 'absolute left-0 top-0 bottom-0 z-20 flex flex-col min-h-0 shadow-2xl' : 'w-64 shrink-0 flex flex-col min-h-0'} style={{ width: narrow ? 'min(300px, 86vw)' : undefined, borderRight: `1px solid ${C.line}`, background: C.panel }}>
+        {model && (!narrow || drawer === 'tree') && <aside className={narrow ? 'absolute left-0 top-0 bottom-0 z-20 flex flex-col min-h-0 shadow-2xl' : `${tab === 'library' || tab === 'schedules' ? 'w-80' : 'w-64'} shrink-0 flex flex-col min-h-0`} style={{ width: narrow ? 'min(300px, 86vw)' : undefined, borderRight: `1px solid ${C.line}`, background: C.panel }}>
           <div className="flex" style={{ borderBottom: `1px solid ${C.line}` }}>
-            {((model.is2D || model.layers.length) ? ['tree', 'layers'] as const : ['tree'] as const).map(t => <button key={t} onClick={() => setTab(t)} className="flex-1 h-9 text-[11px] font-bold flex items-center justify-center gap-1.5" style={{ color: tab === t ? C.accent : C.dim, borderBottom: tab === t ? `2px solid ${C.accent}` : '2px solid transparent' }}>{t === 'tree' ? <><ListTree size={13}/>Model</> : <><Layers size={13}/>Layers ({model.layers.length})</>}</button>)}
+            {(model.is2D ? (in3d ? ['tree', 'layers', 'library', 'schedules'] as const : ['layers', 'library', 'schedules'] as const) : model.layers.length ? ['tree', 'layers'] as const : ['tree'] as const).map(t => <button key={t} onClick={() => setTab(t)} className="flex-1 h-9 text-[11px] font-bold flex items-center justify-center gap-1.5" style={{ color: tab === t ? C.accent : C.dim, borderBottom: tab === t ? `2px solid ${C.accent}` : '2px solid transparent' }}>{t === 'tree' ? <><ListTree size={13}/>Model</> : t === 'library' ? <><Armchair size={13}/>Library</> : t === 'schedules' ? <><ClipboardList size={13}/>Schedules{findings.some(f => f.status === 'fail') ? <span className="ml-0.5 px-1 rounded text-[9px]" style={{ background: '#f8717133', color: '#f87171' }}>{findings.filter(f => f.status === 'fail').length}</span> : null}</> : <><Layers size={13}/>{model.is2D ? 'Layers' : `Layers (${model.layers.length})`}</>}</button>)}
           </div>
           <div className="flex-1 overflow-auto p-1.5 text-[12px]">
+            {tab === 'layers' && model.is2D && <form className="flex gap-1 px-1 pb-1.5" onSubmit={e => { e.preventDefault(); addLayer(); }}><input value={newLayer} onChange={e => setNewLayer(e.target.value)} placeholder="New layer name" aria-label="New layer name" className="flex-1 min-w-0 h-7 rounded-md bg-white/5 border border-white/10 px-2 text-[11px] text-white"/><button className="cad-btn" style={{ height: 28 }} type="submit" disabled={!newLayer.trim()}>Add</button></form>}
             {tab === 'layers' && (model.layers.length ? model.layers.map(l => {
               const hidden = hiddenLayers.has(l.name) || !l.visible;
               return <div key={l.name} className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/5">
                 <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: l.color, border: '1px solid rgba(255,255,255,.25)' }}/>
-                <span className="flex-1 truncate" style={{ opacity: hidden ? 0.45 : 1 }}>{l.name}</span>
+                <button className="flex-1 truncate text-left" style={{ opacity: hidden ? 0.45 : 1, color: model.is2D && currentLayer === l.name ? '#7dd3fc' : undefined, fontWeight: model.is2D && currentLayer === l.name ? 700 : 400 }} onClick={() => model.is2D && setCurrentLayer(l.name)} title={model.is2D ? 'Make this the current layer' : undefined}>{l.name}{model.is2D && currentLayer === l.name ? '  ·  current' : ''}</button>
                 <button onClick={() => toggle(hiddenLayers, l.name, setHiddenLayers)} style={{ color: C.dim }} aria-label={`Toggle ${l.name}`}>{hidden ? <EyeOff size={13}/> : <Eye size={13}/>}</button>
               </div>;
             }) : <div className="p-3" style={{ color: C.dim }}>No layers in this file.</div>)}
-            {tab === 'tree' && <ElementTree model={model} hidden={hiddenEls} selected={selected} onSelect={setSelected} onToggle={id => toggle(hiddenEls, id, setHiddenEls)}/>}
+            {tab === 'schedules' && model.is2D && <SchedulesPanel tables={tables} findings={findings} drawingName={model.name} onSendTable={onSendTable ? t => void sendTable(t) : undefined} onPickFinding={f => { if (f.entityIndex !== undefined) setDraftSel([f.entityIndex]); }}/>}
+            {tab === 'library' && model.is2D && <LibraryPanel model={model} currentLayer={currentLayer} onPlace={pl => setPlacing(pl)} onLoadBlocks={f => void loadBlocks(f)} placingLabel={placing?.label}/>}
+            {tab === 'tree' && <ElementTree model={bim ?? model} hidden={hiddenEls} selected={selected} onSelect={setSelected} onToggle={id => toggle(hiddenEls, id, setHiddenEls)}/>}
           </div>
         </aside>}
 
         {/* Viewport */}
         <main className="flex-1 min-w-0 relative">
-          {model ? (model.is2D
-            ? <DrawingView model={model} hiddenLayers={hiddenLayers} fitNonce={viewNonce} measuring={measuring} fmt={d => fmtLen(d * MM_PER_UNIT[model.units], imperial, large)}/>
+          {model ? (in3d && bim
+            ? <ModelView model={bim} hiddenLayers={NO_LAYERS} hiddenEls={hiddenEls} selected={selected} onSelect={setSelected} view={view} nonce={viewNonce} measuring={measuring} section={section} fmt={d => fmtLen(d * MM_PER_UNIT[model.units], imperial, large)}/>
+            : model.is2D
+            ? <DraftView model={model} hiddenLayers={hiddenLayers} currentLayer={model.layers.some(l => l.name === currentLayer) ? currentLayer : '0'} fitNonce={viewNonce}
+                fmt={d => fmtLen(d * MM_PER_UNIT[model.units], imperial, large)} fmtArea={a => fmtArea(a * u2, imperial, large)}
+                onChange={next => commit(next)} onUndo={undo} onRedo={redo} selection={draftSel} setSelection={setDraftSel}
+                layers={model.layers.map(l => l.name)} onSetLayer={layer => { if (draftSel.length) commit(setLayer(model, draftSel, layer)); else setCurrentLayer(layer); }}
+                placing={placing} onStopPlacing={() => setPlacing(null)} findings={showChecks ? findings : []} showChecks={showChecks} onToggleChecks={() => setShowChecks(x => !x)} failCount={findings.filter(f => f.status === 'fail').length}/>
             : <ModelView model={model} hiddenLayers={hiddenLayers} hiddenEls={hiddenEls} selected={selected} onSelect={setSelected} view={view} nonce={viewNonce} measuring={measuring} section={section} fmt={d => fmtLen(d * MM_PER_UNIT[model.units], imperial, large)}/>)
-            : <EmptyState onOpen={() => fileRef.current?.click()} dragging={dragging}/>}
+            : <EmptyState onOpen={() => fileRef.current?.click()} onNew={startNew} dragging={dragging}/>}
           {busy && <div className="absolute inset-0 grid place-items-center" style={{ background: 'rgba(13,12,18,.6)' }}><div className="px-4 py-2.5 rounded-xl text-[13px] font-semibold" style={{ background: C.panel, border: `1px solid ${C.line}` }} data-testid="cad-busy">{busy}</div></div>}
           {error && <div role="alert" className="absolute top-3 left-1/2 -translate-x-1/2 max-w-[560px] px-4 py-2.5 rounded-xl text-[12px] flex gap-2 items-start" style={{ background: '#2a1416', border: '1px solid rgba(248,113,113,.4)', color: '#fecaca' }}><AlertTriangle size={14} className="shrink-0 mt-0.5"/><span className="flex-1">{error}</span><button onClick={() => setError('')}><X size={13}/></button></div>}
           {sent && <div className="absolute top-3 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl text-[12px] flex gap-2 items-center" style={{ background: '#0f2a1d', border: '1px solid rgba(52,211,153,.4)', color: '#a7f3d0' }}><CheckCircle2 size={14}/>{sent}</div>}
@@ -232,14 +307,14 @@ function Row({ k, v, good }: { k: string; v: string; good?: boolean }) {
   return <div className="flex justify-between gap-3 py-0.5"><span style={{ color: C.dim }} className="shrink-0">{k}</span><span className="text-right break-words min-w-0" style={{ color: good === undefined ? C.text : good ? '#6ee7b7' : '#fca5a5' }}>{v}</span></div>;
 }
 
-function EmptyState({ onOpen, dragging }: { onOpen: () => void; dragging: boolean }) {
+function EmptyState({ onOpen, onNew, dragging }: { onOpen: () => void; onNew: () => void; dragging: boolean }) {
   const groups = Object.values(CAD_FORMATS).reduce<Record<string, typeof CAD_FORMATS[keyof typeof CAD_FORMATS][]>>((a, f) => { (a[f.family] ??= []).push(f); return a; }, {});
   return <div className="absolute inset-0 grid place-items-center p-6">
     <div className="max-w-[640px] w-full rounded-2xl p-8 text-center" style={{ border: `2px dashed ${dragging ? C.accent : 'rgba(255,255,255,.14)'}`, background: dragging ? 'rgba(125,211,252,.06)' : 'transparent' }}>
       <div className="w-14 h-14 mx-auto rounded-2xl grid place-items-center mb-4" style={{ background: 'linear-gradient(135deg,#0ea5e9,#6366f1)' }}><Box size={26} color="#fff"/></div>
       <div className="text-[18px] font-bold mb-1">Drop a drawing or model here</div>
       <div className="text-[13px] mb-5" style={{ color: C.dim }}>Everything is read on your device. The original file is kept with your document.</div>
-      <button className="cad-btn cad-primary mx-auto" onClick={onOpen}><FolderOpen size={14}/>Choose a file</button>
+      <div className="flex gap-2 justify-center"><button className="cad-btn cad-primary" onClick={onOpen}><FolderOpen size={14}/>Choose a file</button><button className="cad-btn" onClick={onNew} data-testid="cad-new-empty"><FilePlus size={14}/>Start a new drawing</button></div>
       <div className="grid grid-cols-2 gap-3 mt-7 text-left">
         {Object.entries(groups).map(([fam, list]) => <div key={fam} className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,.03)', border: `1px solid ${C.line}` }}>
           <div className="text-[10px] font-extrabold uppercase tracking-[.12em] mb-1.5" style={{ color: C.accent }}>{fam}</div>
@@ -275,77 +350,6 @@ function ElementTree({ model, hidden, selected, onSelect, onToggle }: { model: C
   })}</>;
 }
 
-// ── 2D drawing view: SVG with wheel zoom, drag pan and snapping measure ─────
-
-type P2 = [number, number];
-
-function DrawingView({ model, hiddenLayers, fitNonce, measuring, fmt }: { model: CadModel; hiddenLayers: Set<string>; fitNonce: number; measuring: boolean; fmt: (d: number) => string }) {
-  const svg = useMemo(() => drawingToSvg(model, { width: 2400, background: null, hiddenLayers }), [model, hiddenLayers]);
-  const url = useMemo(() => URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })), [svg]);
-  useEffect(() => () => URL.revokeObjectURL(url), [url]);
-  // Same frame the SVG was plotted in, plus every vertex for snapping.
-  const { frame, snaps } = useMemo(() => {
-    const f = flatten2D(model, { hiddenLayers });
-    const pts: P2[] = []; for (const p of f.paths) for (const q of p.pts) pts.push(q); for (const t of f.texts) pts.push(t.at);
-    return { frame: drawingFrame(f), snaps: pts };
-  }, [model, hiddenLayers]);
-  const [t, setT] = useState({ x: 0, y: 0, s: 1 });
-  const [size, setSize] = useState({ w: 800, h: 600 });
-  const [pts, setPts] = useState<P2[]>([]);
-  const [hover, setHover] = useState<{ p: P2; snapped: boolean } | null>(null);
-  const drag = useRef<{ x: number; y: number; moved: number } | null>(null);
-  const box = useRef<HTMLDivElement>(null);
-  useEffect(() => setT({ x: 0, y: 0, s: 1 }), [fitNonce]);
-  useEffect(() => { if (!measuring) { setPts([]); setHover(null); } }, [measuring]);
-  useEffect(() => {
-    const el = box.current; if (!el) return;
-    const ro = new ResizeObserver(() => setSize({ w: el.clientWidth, h: el.clientHeight })); ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  // Pixels per model unit at 100%, fitting 92% of the view.
-  const k = Math.min(size.w * 0.92 / frame.spanX, size.h * 0.92 / frame.spanY);
-  const toScreen = (p: P2): P2 => [size.w / 2 + t.x + (p[0] - frame.x0 - frame.spanX / 2) * k * t.s, size.h / 2 + t.y + (frame.y1 - p[1] - frame.spanY / 2) * k * t.s];
-  const toModel = (sx: number, sy: number): P2 => [frame.x0 + frame.spanX / 2 + (sx - size.w / 2 - t.x) / (k * t.s), frame.y1 - frame.spanY / 2 - (sy - size.h / 2 - t.y) / (k * t.s)];
-  const pick = (e: React.PointerEvent): { p: P2; snapped: boolean } => {
-    const r = box.current!.getBoundingClientRect(); const sx = e.clientX - r.left, sy = e.clientY - r.top;
-    const raw = toModel(sx, sy); const tol = 10 / (k * t.s); let best: P2 | null = null; let bd = tol * tol;
-    for (const q of snaps) { const d = (q[0] - raw[0]) ** 2 + (q[1] - raw[1]) ** 2; if (d < bd) { bd = d; best = q; } }
-    return best ? { p: best, snapped: true } : { p: raw, snapped: false };
-  };
-  const onWheel = (e: React.WheelEvent) => {
-    const r = box.current!.getBoundingClientRect(); const mx = e.clientX - r.left - r.width / 2, my = e.clientY - r.top - r.height / 2;
-    const f = Math.exp(-e.deltaY * 0.0015);
-    setT(p => { const s = Math.min(400, Math.max(0.05, p.s * f)); const q = s / p.s; return { s, x: mx - (mx - p.x) * q, y: my - (my - p.y) * q }; });
-  };
-  const live = measuring && pts.length === 1 && hover ? [pts[0], hover.p] : pts.length === 2 ? pts : null;
-  const dist = live ? Math.hypot(live[1][0] - live[0][0], live[1][1] - live[0][1]) : 0;
-  const imgPos = toScreen([frame.x0, frame.y1]);
-  return <div ref={box} className="absolute inset-0 overflow-hidden" style={{ background: '#0a0a0e', backgroundImage: 'radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px)', backgroundSize: '24px 24px', cursor: measuring ? 'crosshair' : drag.current ? 'grabbing' : 'grab' }}
-    onWheel={onWheel}
-    onPointerDown={e => { drag.current = { x: e.clientX, y: e.clientY, moved: 0 }; (e.target as HTMLElement).setPointerCapture(e.pointerId); }}
-    onPointerMove={e => {
-      if (drag.current) { const dx = e.clientX - drag.current.x, dy = e.clientY - drag.current.y; drag.current = { x: e.clientX, y: e.clientY, moved: drag.current.moved + Math.abs(dx) + Math.abs(dy) }; if (drag.current.moved > 3) setT(p => ({ ...p, x: p.x + dx, y: p.y + dy })); }
-      else if (measuring) setHover(pick(e));
-    }}
-    onPointerUp={e => {
-      const clicked = drag.current && drag.current.moved <= 3; drag.current = null;
-      if (clicked && measuring) { const h = pick(e); setPts(p => p.length >= 2 ? [h.p] : [...p, h.p]); }
-    }} data-testid="cad-drawing">
-    <img src={url} alt={model.name} draggable={false} className="absolute select-none pointer-events-none" style={{ left: imgPos[0], top: imgPos[1], width: frame.spanX * k * t.s, height: frame.spanY * k * t.s, maxWidth: 'none' }}/>
-    {measuring && <svg className="absolute inset-0 pointer-events-none" width={size.w} height={size.h}>
-      {hover && (() => { const [x, y] = toScreen(hover.p); return hover.snapped ? <rect x={x - 5} y={y - 5} width={10} height={10} fill="none" stroke={C.warm} strokeWidth={1.5}/> : <circle cx={x} cy={y} r={3} fill={C.warm}/>; })()}
-      {live && (() => { const [a, b] = [toScreen(live[0]), toScreen(live[1])]; return <g>
-        <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={C.warm} strokeWidth={1.5} strokeDasharray={pts.length === 2 ? undefined : '5 4'}/>
-        <circle cx={a[0]} cy={a[1]} r={3.5} fill={C.warm}/><circle cx={b[0]} cy={b[1]} r={3.5} fill={C.warm}/>
-      </g>; })()}
-    </svg>}
-    {live && <div className="absolute pointer-events-none px-2 py-1 rounded-md text-[12px] font-bold" data-testid="cad-measure-label" style={(() => { const a = toScreen(live[0]), b = toScreen(live[1]); return { left: (a[0] + b[0]) / 2 + 8, top: (a[1] + b[1]) / 2 - 28, background: 'rgba(20,16,8,.92)', color: C.warm, border: '1px solid rgba(255,176,32,.4)' }; })()}>{fmt(dist)}</div>}
-    <div className="absolute left-3 bottom-3 text-[11px] px-2 py-1 rounded-md" style={{ background: 'rgba(0,0,0,.5)', color: C.dim }}>
-      {measuring ? (live ? `${fmt(dist)} · ΔX ${fmt(Math.abs(live[1][0] - live[0][0]))} · ΔY ${fmt(Math.abs(live[1][1] - live[0][1]))} · squares snap to points` : 'Click two points · squares snap to points') : `Scroll to zoom · drag to pan · ${Math.round(t.s * 100)}%`}
-    </div>
-  </div>;
-}
-
 // ── 3D model view ───────────────────────────────────────────────────────────
 
 function ModelView({ model, hiddenLayers, hiddenEls, selected, onSelect, view, nonce, measuring, section, fmt }: { model: CadModel; hiddenLayers: Set<string>; hiddenEls: Set<string>; selected: string | null; onSelect: (id: string | null) => void; view: ViewDir; nonce: number; measuring: boolean; section: Section | null; fmt: (d: number) => string }) {
@@ -373,7 +377,7 @@ function ModelView({ model, hiddenLayers, hiddenEls, selected, onSelect, view, n
         <div data-testid="cad-measure-label" className="px-2 py-1 rounded-md text-[12px] font-bold whitespace-nowrap pointer-events-none" style={{ background: 'rgba(20,16,8,.92)', color: C.warm, border: '1px solid rgba(255,176,32,.4)' }}>{fmt(dist)}</div>
       </Html>
     </>}
-    <Grid position={[box.getCenter(new THREE.Vector3()).x, box.min.y - radius * 0.001, box.getCenter(new THREE.Vector3()).z]} args={[radius * 6, radius * 6]} cellSize={niceStep(radius / 10)} sectionSize={niceStep(radius / 10) * 10} cellColor="#2a2838" sectionColor="#3d3a52" fadeDistance={radius * 8} infiniteGrid/>
+    <Grid position={[box.getCenter(new THREE.Vector3()).x, box.min.y - radius * 0.001, box.getCenter(new THREE.Vector3()).z]} args={[radius * 6, radius * 6]} cellSize={niceStep(radius / 10)} sectionSize={niceStep(radius / 10) * 10} cellColor="#2a2838" sectionColor="#3d3a52" fadeDistance={radius * 8} fadeStrength={1.5}/>
     <SectionPlane box={box} section={section}/>
     <CameraRig box={box} view={view} nonce={nonce}/>
   </Canvas>;
