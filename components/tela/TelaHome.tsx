@@ -254,6 +254,7 @@ export default function TelaHome({
   onOpenStoryIntel,
   onOpenArgilla,
   onOpenCad,
+  onOpenBio,
   onBack,
   viewerUid = null,
   memberOrgIds = [],
@@ -277,6 +278,7 @@ export default function TelaHome({
   onOpenStoryIntel?: () => void;
   onOpenArgilla?: () => void;
   onOpenCad?: () => void;
+  onOpenBio?: () => void;
   onBack?: () => void;
 }) {
   const [promptText, setPromptText] = useState('');
@@ -737,6 +739,17 @@ export default function TelaHome({
         </div>
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          {onOpenBio && (
+            <button
+              onClick={onOpenBio}
+              className="h-9 px-3.5 flex items-center gap-2 rounded-[10px] text-[.72rem] font-bold text-white/85 bg-white/[.05] border border-teal-300/30 hover:bg-teal-300/10 hover:text-white transition-all font-sans"
+              title="Molecules from the PDB and AlphaFold, and pathway simulations you can play with"
+              data-testid="tela-home-bio"
+            >
+              <span className="hidden sm:inline">Biology Lab</span>
+              <span className="sm:hidden">Bio</span>
+            </button>
+          )}
           {onOpenCad && (
             <button
               onClick={onOpenCad}

@@ -148,7 +148,14 @@ export function renderDevice(device: TelaDevice, ctx: RenderDeviceCtx, readOnly 
     );
   }
   if (device.type === 'CHART') {
-    return <TelaChart key={device.id} device={device} devices={devices} formulaContext={formulaContext} readOnly={readOnly} onUpdate={patch => dispatchOp({ type:'UPDATE_CHART_DEVICE', deviceId:device.id, patch })}/>;
+    const chart = <TelaChart key={device.id} device={device} devices={devices} formulaContext={formulaContext} readOnly={readOnly} onUpdate={patch => dispatchOp({ type:'UPDATE_CHART_DEVICE', deviceId:device.id, patch })}/>;
+    // A chart made by the Biology Lab carries its model: offer to reopen the simulation.
+    if (!device.bio || readOnly) return chart;
+    const sim = device.bio;
+    return <div key={device.id} style={{ position: 'relative', width: '100%', height: '100%' }}>
+      {chart}
+      <button onClick={() => window.dispatchEvent(new CustomEvent('tela:open-bio', { detail: { simulation: sim } }))} data-testid="tela-chart-open-bio" style={{ position: 'absolute', right: 10, bottom: 10, padding: '5px 10px', borderRadius: 8, border: 'none', cursor: 'pointer', color: '#fff', background: 'linear-gradient(135deg,#14b8a6,#8b5cf6)', fontWeight: 700, fontSize: 11, zIndex: 2 }}>Open in Biology Lab</button>
+    </div>;
   }
   if (device.type === 'NOTES') {
     return <TelaNotes key={device.id} device={device} readOnly={readOnly} onChange={patch => dispatchOp({ type: 'UPDATE_NOTES_DEVICE', deviceId: device.id, patch })}/>;

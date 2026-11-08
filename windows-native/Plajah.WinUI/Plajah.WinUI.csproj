@@ -39,6 +39,7 @@
     <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.30.0" />
     <!-- ASIO driver host for Chora multitrack capture (AsioMultitrackRecorder). MIT. -->
     <PackageReference Include="NAudio.Asio" Version="2.2.1" />
+    <PackageReference Include="ACadSharp" Version="3.8.35" />
     <!-- DirectX Shader Compiler for Chora's GPU audio DSP (rust/plajah-gpu-dsp) on D3D12: wgpu's
          default FXC compiler never finishes its kernels. Official Microsoft build; only the two DLLs
          for this platform are copied next to Plajah.WinUI.exe, where gpu::dxc_dir() finds them. -->

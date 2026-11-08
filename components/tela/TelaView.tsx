@@ -17,14 +17,14 @@ import { createPortal } from 'react-dom';
 import {
   BarChart3, Blend, BookHeart, BookOpen, Brush, CheckCircle2, ChevronDown, ChevronLeft, Circle, CircleHelp, Clipboard, Copy, CopyPlus, Database, Eye, EyeOff, Feather, FileDown, FilePlus2, FileText, FileUp, FlipHorizontal, Folder, FormInput,
   Grid3X3, Hand, Hexagon, Image as ImageIcon, ImagePlus, Lasso, Layers, LayoutPanelTop, Link as LinkIcon, Link2, Loader2, Maximize2, Minimize2,
-  Minus, Monitor, ShieldAlert, ShieldCheck, MousePointer2, MousePointerClick, Music2, Paintbrush, Eraser, Palette, Pencil, PenLine, PenTool, Pipette, Plus, SquarePlus, Redo2, Cpu, Images, Library as LibraryIcon, Scan, Shapes, Sliders, Sparkles, Spline, Square, Star, TextQuote, Trash2, Type, Undo2, Wand2, X, ZoomIn, History as HistoryIcon, Printer, Box as BoxIcon, MoreHorizontal, GraduationCap, LayoutTemplate, Ruler } from 'lucide-react';
+  Minus, Monitor, ShieldAlert, ShieldCheck, MousePointer2, MousePointerClick, Music2, Paintbrush, Eraser, Palette, Pencil, PenLine, PenTool, Pipette, Plus, SquarePlus, Redo2, Cpu, Images, Library as LibraryIcon, Scan, Shapes, Sliders, Sparkles, Spline, Square, Star, TextQuote, Trash2, Type, Undo2, Wand2, X, ZoomIn, History as HistoryIcon, Printer, Box as BoxIcon, MoreHorizontal, GraduationCap, LayoutTemplate, Ruler, Dna } from 'lucide-react';
 import { NON_PRINTING_LABEL, isNonPrinting, type SpotColor } from '../../services/print/types';
 import { defaultSpecFor } from '../../services/print/products';
 import { vehiclePlacements, type WrapJob } from '../../services/print/wrap';
 import { translatePath } from '../../services/print/paths';
 import type {
   TelaAssignmentAudienceRole, TelaBaseDevice, TelaBinding, TelaBlock, TelaDevice, TelaDoc, TelaDocMeta, TelaField,
-  TelaFormDevice, TelaFrame, TelaFramePreset, TelaGridDevice, TelaImageDevice, TelaImageLayer, TelaMediaDevice, TelaMediaKind, TelaNotesDevice, TelaCadRef,
+  TelaFormDevice, TelaFrame, TelaFramePreset, TelaGridDevice, TelaImageDevice, TelaImageLayer, TelaMediaDevice, TelaMediaKind, TelaNotesDevice, TelaCadRef, TelaBioStructureRef, TelaBioSimulationRef,
   TelaRow, TelaVectorDevice, TelaVectorObject, TelaWriterDevice,
 } from '../../types';
 import {
@@ -152,6 +152,7 @@ const MerchDesignerStudio = React.lazy(() => import('./merch/MerchDesignerStudio
 const StoryIntelWorkspace = React.lazy(() => import('./storyIntel/StoryIntelWorkspace'));
 const ArgillaStudio = React.lazy(() => import('../argilla/ArgillaStudio'));
 const CadRoom = React.lazy(() => import('../cad/CadRoom'));
+const BioRoom = React.lazy(() => import('../bio/BioRoom'));
 const PrepressPanel = React.lazy(() => import('./print/PrepressPanel'));
 const LocalCreativeStudio = React.lazy(() => import('../Fabula/LocalCreativeStudio').then(m => ({ default: m.LocalCreativeStudio })));
 const TelaWritingStudio = React.lazy(() => import('./TelaWritingStudio').then(m => ({ default: m.TelaWritingStudio })));
@@ -521,6 +522,13 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const [argillaOpen, setArgillaOpen] = useState<{ projectId?: string } | null>(null);
   // CAD & BIM room: empty, a file picked in Tela, or a CAD device being reopened from its kept original.
   const [cadOpen, setCadOpen] = useState<{ file?: { name: string; bytes: Uint8Array }; cad?: TelaCadRef } | null>(null);
+  // Biology Lab: molecules and pathway simulation; a molecule device reopens from its kept file.
+  const [bioOpen, setBioOpen] = useState<{ tab?: 'molecule' | 'pathway'; structure?: TelaBioStructureRef; simulation?: TelaBioSimulationRef } | null>(null);
+  useEffect(() => {
+    const reopen = (event: Event) => { const d = (event as CustomEvent<{ structure?: TelaBioStructureRef; simulation?: TelaBioSimulationRef }>).detail; setBioOpen({ structure: d?.structure, simulation: d?.simulation, tab: d?.simulation ? 'pathway' : undefined }); };
+    window.addEventListener('tela:open-bio', reopen);
+    return () => window.removeEventListener('tela:open-bio', reopen);
+  }, []);
   useEffect(() => {
     const reopen = (event: Event) => setCadOpen({ cad: (event as CustomEvent<{ cad?: TelaCadRef }>).detail?.cad });
     window.addEventListener('tela:open-cad', reopen);
@@ -3096,6 +3104,29 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     );
   }
 
+  if (bioOpen) {
+    const ref = bioOpen.structure;
+    return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0b0d10] text-white/60">Loading Biology Lab…</div>}>
+      <BioRoom
+        initialTab={bioOpen.tab}
+        loadStructure={ref ? async () => {
+          const r = await fetch(ref.sourceSrc, { credentials: 'include' }); if (!r.ok) throw new Error(`Could not load ${ref.sourceName} (${r.status})`);
+          return { name: ref.sourceName, text: await r.text(), credit: ref.credit, licence: ref.licence, url: '' };
+        } : undefined}
+        loadModel={bioOpen.simulation ? async () => {
+          const sim = bioOpen.simulation!; const r = await fetch(sim.sbmlSrc, { credentials: 'include' }); if (!r.ok) throw new Error(`Could not load the model (${r.status})`);
+          return { xml: await r.text(), tEnd: sim.tEnd, name: sim.modelName };
+        } : undefined}
+        onClose={() => setBioOpen(null)}
+        upload={f => uploadTelaAsset(f)}
+        makeId={() => uid('dev')}
+        onAddToTela={showHome ? undefined : async device => {
+          addFrame('BOARD', 'FREE', device, device.type === 'CHART' ? device.title : (device.bio?.id ?? device.name), { size: { w: device.width, h: device.height } });
+        }}
+      />
+    </React.Suspense>;
+  }
+
   if (cadOpen) {
     return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0d0c12] text-white/60">Loading CAD &amp; BIM…</div>}>
       <CadRoom
@@ -3144,7 +3175,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
       {designImport && <React.Suspense fallback={null}><DesignImportDialog state={designImport} onClose={() => setDesignImport(null)} onOpenSmart={(id, name) => void openImportedSmartObject(id, name)}/></React.Suspense>}
       {libraryPanel && <React.Suspense fallback={null}><TelaLibraryPanel initialTab={libraryPanel.tab} note={libraryPanel.note} onClose={() => setLibraryPanel(null)} onPlaceShape={placeLibraryShape} onUseColor={useLibraryColor} onUsePattern={p => void useLibraryPattern(p)} onUseBrush={useLibraryBrush}/></React.Suspense>}
       {accessEndedNote && <div role="alert" className="fixed top-4 left-1/2 -translate-x-1/2 z-[9000] max-w-[min(560px,calc(100vw-32px))] flex items-start gap-3 rounded-xl border border-amber-300/30 bg-[#1b1710] px-4 py-3 text-xs text-amber-100"><span className="flex-1">{accessEndedNote}</span><button className="font-bold text-white/70 hover:text-white" onClick={() => setAccessEndedNote('')}>Dismiss</button></div>}
-      <TelaHome recent={canvasList || []} viewerUid={auth.currentUser?.uid || null} memberOrgIds={memberOrgIds} orgNames={orgNames} onOpen={id => void openCanvas(id)} onCreate={kind => void createHomeDocument(kind)} onChooseStyle={entry => void createStyleDocument(entry)} onChoosePublication={template => void createPublicationDocument(template)} onChooseTemplate={template => void createTemplateDocument(template)} onImport={() => fileRef.current?.click()} onOpenMerch={() => setMerchStudioOpen(true)} onOpenStoryIntel={() => setStoryIntel({})} onOpenArgilla={() => setArgillaOpen({})} onOpenCad={() => setCadOpen({})} onBack={onBack}/>
+      <TelaHome recent={canvasList || []} viewerUid={auth.currentUser?.uid || null} memberOrgIds={memberOrgIds} orgNames={orgNames} onOpen={id => void openCanvas(id)} onCreate={kind => void createHomeDocument(kind)} onChooseStyle={entry => void createStyleDocument(entry)} onChoosePublication={template => void createPublicationDocument(template)} onChooseTemplate={template => void createTemplateDocument(template)} onImport={() => fileRef.current?.click()} onOpenMerch={() => setMerchStudioOpen(true)} onOpenStoryIntel={() => setStoryIntel({})} onOpenArgilla={() => setArgillaOpen({})} onOpenCad={() => setCadOpen({})} onOpenBio={() => setBioOpen({})} onBack={onBack}/>
     </>;
   }
 
@@ -3549,6 +3580,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               <button className={menuBarItem} onClick={() => { setComicStudioOpen(true); setAppMenuOpen(null); }}><BookOpen size={14} color="#a78bfa"/>Comic & Storybook Studio<span className="ml-auto text-[9px] text-[#34d399]">Local GPU</span></button>
               <button className={menuBarItem} onClick={() => { setMerchStudioOpen(true); setAppMenuOpen(null); }}><BoxIcon size={14} color="#ff5a8a"/>Merch Designer<span className="ml-auto text-[9px] text-[#34d399]">3D + GPU</span></button>
               <button className={menuBarItem} onClick={() => { setArgillaOpen({}); setAppMenuOpen(null); }}><BoxIcon size={14} color="#a78bfa"/>Sculpt in 3D<span className="ml-auto text-[9px] text-[#34d399]">GPU</span></button>
+              <button className={menuBarItem} data-testid="open-tela-bio" onClick={() => { setBioOpen({}); setAppMenuOpen(null); }}><Dna size={14} color="#5eead4"/>Biology Lab<span className="ml-auto text-[9px] text-white/25">PDB · AlphaFold · SBML</span></button>
               <button className={menuBarItem} data-testid="open-tela-cad" onClick={() => { setCadOpen({}); setAppMenuOpen(null); }}><Ruler size={14} color="#38bdf8"/>CAD &amp; BIM file<span className="ml-auto text-[9px] text-white/25">.dxf .ifc .step .3mf</span></button>
               <button className={menuBarItem} onClick={() => { setLocalStudioOpen(true); setAppMenuOpen(null); }}><Wand2 size={14} color="#f59e0b"/>Local Creative Studio<span className="ml-auto text-[9px] text-[#34d399]">Local GPU</span></button>
               <div className="px-3 py-2 text-[9px] leading-relaxed text-white/35">Images · audio · video · PDF · 3D · fonts · archives · other files</div>

@@ -194,13 +194,84 @@ Built, not committed:
   - `licences.ts`: licence rules, enforced by a test.
 - `components/cad/CadRoom.tsx`: the room (2D view, 3D view, layers, model tree, properties, size, print check, DXF/SVG export, "Add to document").
 - Tela: a `cad` field on MEDIA devices (`TelaCadRef` in types.ts). Entry points are an "Open in CAD" button on the board, Insert → "CAD & BIM file", the "CAD & BIM" button on Tela home, and Tela's import (CAD files open the room).
-- Lab: `cad-lab` on :3229 (`?file=/tests/fixtures/cad/example.ifc`). Tests: `npm run test:cad` (15 pass). Type check: `npm run typecheck:cad`.
+- Lab: `cad-lab` on :3229 (`?file=/tests/fixtures/cad/example.ifc`). Tests: `npm run test:cad` (16 pass). Type check: `npm run typecheck:cad`.
 - Checked in the real app as a guest: DXF imported → room → added to the document → "Open in CAD" reopened it from the kept original.
 - Not checked: signed-in upload to tela-media, and reopening after a page reload.
 
+Added later the same day:
+- **DWG** through ACadSharp 3.8.35 (MIT). `windows-native/Plajah.WinUI/CadDwgService.cs` converts DWG to DXF and our DXF reader does the rest.
+  - The desktop app gets it through the `CAD_DWG_TO_DXF` bridge message; the browser uses it only when running inside the desktop app.
+  - `windows-native/tools/CadDwg` is the same code as a command-line tool, built with `npm run build:cad-dwg`. Tests use it, and a server can later.
+  - ACadSharp's own 2004 and 2018 sample files read the same drawing in about 0.5 s.
+- **DXF reader** now also draws MULTILEADER, MLINE (centre line), TOLERANCE and MESH. It skips paper-space and invisible entities, and hides XLINE/RAY with a note.
+- **Viewer:**
+  - Measure, with point snapping in 2D.
+  - Section cut along X, Y or Z in 3D.
+  - Narrow screens (under 900 px): the side panels become drawers and the buttons go icon-only. The camera fit accounts for portrait screens.
+
 Phase 0 still to do:
-- DWG through ACadSharp (.NET, desktop bridge + server).
+- DWG on the web without the desktop app: a .NET WASM build, or a server service.
 - The OCCT modelling kernel (not only import).
 - IFC write.
 - Large-model streaming.
-- Measuring and sections in the viewport.
+- Snapping for the 3D measure tool.
+- ACIS solids (3DSOLID/REGION) in DWG/DXF. ACIS is a closed format with no free reader, so this needs our own SAT parser later.
+
+## 12. Biology Lab, phase 0 (2026-11-08)
+
+Built (not committed at writing). All our own code except three.js; the data sources are open.
+
+**Molecules (`services/bio/structure.ts`, `molScene.ts`, `sources.ts`)**
+- Our own PDB and mmCIF readers, handling alternate locations, multiple models, waters, ligands and element guessing.
+- Bonds found from distances, plus CONECT records; disulfides found. Chains, sequences and protein mass.
+- Secondary structure: taken from the file, or worked out from C-alpha geometry when the file lists none (all AlphaFold models). It's a simplified P-SEA-style rule, not DSSP.
+- Styles: cartoon (tube by helix/sheet/coil), ball-and-stick, space-filling.
+- Colours: by structure, element, chain, or AlphaFold confidence (pLDDT bands).
+- Live fetch from RCSB PDB (CC0) and AlphaFold DB (CC-BY 4.0). The credit travels with the Tela item.
+
+**Pathways (`sbml.ts`, `math.ts`, `ode.ts`, `models.ts`)**
+- Our own SBML level 2/3 core reader and writer: compartments, species, parameters, function definitions, initial assignments, assignment and rate rules, local parameters. Events and algebraic rules are reported, not simulated.
+- MathML is read into our own expression tree; there's no `eval`. An infix parser handles rate laws people type.
+- Solvers:
+  - Dormand–Prince 5(4) for smooth models.
+  - Rosenbrock 2(3) (the ode23s scheme) for stiff ones.
+  - Auto mode detects stiffness (Hairer's test) and switches; Robertson takes 222 steps instead of 34,574.
+- Five starter models written from the published equations: enzyme kinetics, repressilator (Elowitz & Leibler 2000), predator–prey, SIR, Robertson. Checked against reference values: Robertson at t=40 to 5 digits, SIR final size 0.9405.
+- Sliders re-run the model live; the repressilator takes about 47 ms per run.
+
+**Room and Tela:**
+- `components/bio/BioRoom.tsx` has two tabs, Molecule and Pathway, and a phone layout.
+- Opened from Tela home ("Biology Lab"), Insert → Biology Lab, or the "Open in Biology Lab" button on a molecule item.
+- A molecule becomes a MODEL_3D media device with `bio: TelaBioStructureRef`: a GLB, the original file kept, and the credit.
+- A simulation becomes a native CHART device with `bio: TelaBioSimulationRef`, holding the SBML with the slider values used.
+- Lab: `bio-lab` on :3230 (`?tab=pathway`). `npm run test:bio` (13 pass), `npm run typecheck:bio`.
+
+**Checked:**
+- Crambin, hemoglobin (4 chains, 4 hemes, 574 residues) and AlphaFold P69905 loaded live in the lab.
+- Molecule and chart devices built in the lab.
+- The chart was added to a real Tela document (guest) and rendered.
+
+**Not checked:** reopening a saved molecule after a page reload, and signed-in uploads.
+
+**Added later the same day:**
+- **SBML events:** triggers are located exactly by bisection between output points. Delays, values taken at trigger time, re-arming triggers, and events that set parameters or boundary species all work. The writer saves events too.
+- **Compiled formulas:** each rate law becomes closures once instead of being walked as a tree on every call. That's 5–10× faster; a 300-reaction model runs in 57 ms.
+  - The tolerance scales to the model's own magnitudes (femtolitre models hold amounts near 1e-21).
+  - A rejected step counts toward the step limit, a not-a-number error estimate shrinks the step, and a wall-clock budget stops any run that would freeze the page.
+- **Stochastic simulation:** Gillespie's direct method, seeded and repeatable, with a molecules-per-unit setting. The "Run again" button gives a new random draw.
+- **BioModels:** search, load by ID, and eight famous curated models. Curated models are CC0, and the credit is shown.
+  - Their search backend returned nothing on 2026-11-08 while downloads worked, so loading by ID and the picks don't depend on search.
+- **Real models checked:** BIOMD 1–20 plus eight famous models. 27 of 28 run cleanly. The 100-species EGF model (BIOMD19) hits the time budget.
+- **Reopening:** a Biology Lab chart in Tela has an "Open in Biology Lab" button that reopens the model with the slider values it was made with. Checked in the real app as a guest.
+- `npm run test:bio`: 19 pass.
+
+**Next for biology:**
+- Real ribbon cartoons (flat helices and arrows).
+- Reopening a chart's simulation from Tela.
+- A faster stiff solver (higher-order BDF) for big signalling models like BIOMD19.
+- Tau-leaping for large stochastic runs.
+- Cell populations and reaction-diffusion on the shared GPU physics core.
+- Molecular dynamics through OpenMM on the desktop app.
+- Sequence tools.
+
+**Safety:** this lab is for teaching and research modelling. Pathogen-enhancement tooling stays out of scope.

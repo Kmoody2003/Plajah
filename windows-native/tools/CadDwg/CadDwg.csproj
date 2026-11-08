@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- cad-dwg: DWG -> DXF on the command line (tests, server). Same code as the desktop app. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>cad-dwg</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\Plajah.WinUI\CadDwgService.cs" Link="CadDwgService.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="ACadSharp" Version="3.8.35" />
+  </ItemGroup>
+</Project>

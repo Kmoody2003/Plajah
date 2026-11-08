@@ -32,7 +32,7 @@ export const CAD_ENGINES: CadEngine[] = [
   { id: 'three', name: 'three.js + three-stdlib', licence: 'MIT', tier: 'permissive', linkage: 'linked', runs: ['browser', 'desktop'], role: 'Viewport, GLB read/write', status: 'in-use' },
   { id: 'web-ifc', name: 'web-ifc (That Open Company)', licence: 'MPL-2.0', tier: 'weak-copyleft', linkage: 'separate-module', runs: ['browser', 'desktop', 'server'], role: 'IFC 2x3/4/4.3 read', status: 'in-use' },
   { id: 'occt-import-js', name: 'occt-import-js (OpenCASCADE)', licence: 'LGPL-2.1', tier: 'weak-copyleft', linkage: 'separate-module', runs: ['browser', 'desktop', 'server'], role: 'STEP / IGES / BREP read', status: 'in-use' },
-  { id: 'acadsharp', name: 'ACadSharp', licence: 'MIT', tier: 'permissive', linkage: 'linked', runs: ['desktop', 'server'], role: 'DWG read/write (.NET)', status: 'planned' },
+  { id: 'acadsharp', name: 'ACadSharp', licence: 'MIT', tier: 'permissive', linkage: 'linked', runs: ['desktop', 'server'], role: 'DWG to DXF (.NET: desktop app + cad-dwg tool)', status: 'in-use' },
   { id: 'opencascade-js', name: 'OpenCASCADE modelling kernel (opencascade.js / native)', licence: 'LGPL-2.1 + exception', tier: 'weak-copyleft', linkage: 'separate-module', runs: ['browser', 'desktop', 'server'], role: 'Solid modelling, booleans, fillets, HLR drawings', status: 'planned' },
   { id: 'manifold', name: 'Manifold', licence: 'Apache-2.0', tier: 'permissive', linkage: 'linked', runs: ['browser', 'desktop', 'server'], role: 'Mesh booleans and repair', status: 'planned' },
   { id: 'planegcs', name: 'PlaneGCS (FreeCAD)', licence: 'LGPL-2.1', tier: 'weak-copyleft', linkage: 'separate-module', runs: ['browser', 'desktop'], role: 'Sketch constraints until ours lands', status: 'planned' },

@@ -5,7 +5,8 @@ import type { IfcAPI } from 'web-ifc';
 import ifcWasmUrl from 'web-ifc/web-ifc.wasm?url';
 import occtWasmUrl from 'occt-import-js/dist/occt-import-js.wasm?url';
 import type { OcctApi } from './step';
-import type { CadEngines } from './importer';
+import type { CadEngines, DwgConversion } from './importer';
+import { isWindowsApp, nativeDwgToDxf } from '../windowsBridgeService';
 import type { CadModel } from './model';
 
 let ifcP: Promise<IfcAPI> | null = null;
@@ -35,4 +36,13 @@ async function readGltf(bytes: Uint8Array, name: string): Promise<CadModel> {
   return gltfToModel(bytes, name);
 }
 
-export const browserEngines: CadEngines = { ifc: loadIfc, occt: loadOcct, gltf: readGltf };
+const toB64 = (b: Uint8Array) => { let s = ''; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000)); return btoa(s); };
+const fromB64 = (s: string) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+/** DWG needs .NET (ACadSharp), which only the desktop app has today. */
+async function dwgViaDesktop(bytes: Uint8Array): Promise<DwgConversion> {
+  const r = await nativeDwgToDxf(toB64(bytes));
+  return { success: r.success, dxf: r.dxf ? fromB64(r.dxf) : undefined, version: r.version, notes: r.notes, error: r.error };
+}
+
+export const browserEngines: CadEngines = { ifc: loadIfc, occt: loadOcct, gltf: readGltf, ...(isWindowsApp() ? { dwg: dwgViaDesktop } : {}) };

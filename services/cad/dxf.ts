@@ -129,13 +129,20 @@ export function parseDxf(input: string | Uint8Array, name = 'drawing.dxf'): CadM
     m.layers.push({ name: r.str(2, '0'), color: tc ? '#' + (parseInt(tc[1], 10) & 0xffffff).toString(16).padStart(6, '0') : aciToHex(aci), visible: aci >= 0, frozen: (flags & 1) === 1, lineType: r.str(6) || undefined });
   }
   const layerMap = new Map(m.layers.map(l => [l.name, l]));
-  const skipped: Record<string, number> = {};
+  const skipped: Record<string, number> = {}; let paperSpace = 0; let construction = 0;
   const ensureLayer = (n: string) => { if (!layerMap.has(n)) { const l: CadLayer = { name: n, color: '#ffffff', visible: true }; layerMap.set(n, l); m.layers.push(l); } };
 
   const convert = (recs: Rec[]): CadEntity2D[] => {
     const out: CadEntity2D[] = [];
     for (let i = 0; i < recs.length; i++) {
-      const r = recs[i]; const layer = r.str(8, '0'); ensureLayer(layer);
+      const r = recs[i];
+      // Paper-space entities (67=1) belong to layouts, not the model; invisible ones (60=1) are hidden.
+      if (r.num(67) === 1 || r.num(60) === 1) {
+        if (r.type === 'POLYLINE') while (recs[i + 1] && (recs[i + 1].type === 'VERTEX' || recs[i + 1].type === 'SEQEND')) i++;
+        if (r.num(67) === 1) paperSpace++;
+        continue;
+      }
+      const layer = r.str(8, '0'); ensureLayer(layer);
       const tc = r.g.find(x => x[0] === 420); const aci = r.num(62, 256);
       const color = tc ? '#' + (parseInt(tc[1], 10) & 0xffffff).toString(16).padStart(6, '0') : aci > 0 && aci < 256 ? aciToHex(aci) : undefined;
       const base = { layer, ...(color ? { color } : {}) };
@@ -208,7 +215,24 @@ export function parseDxf(input: string | Uint8Array, name = 'drawing.dxf'): CadM
           if (pts.length > 1) out.push({ ...base, type: 'polyline', points: pts, closed: false });
           break;
         }
-        case 'VERTEX': case 'SEQEND': case 'ATTDEF': case 'ENDBLK': break;
+        case 'MLINE': { // the centre line; style offsets come later
+          const pts: Vec3[] = [];
+          for (const [c, v] of r.g) { if (c === 11) pts.push([parseFloat(v), 0, 0]); else if (c === 21 && pts.length) pts[pts.length - 1][1] = parseFloat(v); else if (c === 31 && pts.length) pts[pts.length - 1][2] = parseFloat(v); }
+          if (pts.length > 1) out.push({ ...base, type: 'polyline', points: pts, closed: (r.num(71) & 2) === 2 });
+          break;
+        }
+        case 'MULTILEADER': out.push(...multileader(r, base)); break;
+        case 'TOLERANCE': out.push({ ...base, type: 'text', at: r.pt(10), height: r.num(40, 2.5) || 2.5, rotation: 0, text: cleanMText(r.str(1)).replace(/%%v/gi, ' | '), align: 'left' }); break;
+        case 'MESH': {
+          const verts: Vec3[] = []; let k = r.g.findIndex(x => x[0] === 92);
+          const nv = k >= 0 ? parseInt(r.g[k][1], 10) : 0;
+          for (let j = k + 1; j < r.g.length && verts.length < nv; j++) if (r.g[j][0] === 10) verts.push([parseFloat(r.g[j][1]), parseFloat(r.g[j + 1]?.[1] ?? '0'), parseFloat(r.g[j + 2]?.[1] ?? '0')]);
+          k = r.g.findIndex(x => x[0] === 93);
+          if (k >= 0) { const list = r.g.slice(k + 1).filter(x => x[0] === 90).map(x => parseInt(x[1], 10)); for (let j = 0; j < list.length;) { const n = list[j++]; const face = list.slice(j, j + n).map(q => verts[q]).filter(Boolean); j += n; if (face.length >= 3) out.push({ ...base, type: 'face', points: face }); } }
+          break;
+        }
+        case 'XLINE': case 'RAY': construction++; break;
+        case 'VERTEX': case 'SEQEND': case 'ATTDEF': case 'ENDBLK': case 'VIEWPORT': break;
         default: skipped[r.type] = (skipped[r.type] || 0) + 1;
       }
     }
@@ -230,10 +254,33 @@ export function parseDxf(input: string | Uint8Array, name = 'drawing.dxf'): CadM
   if (es) m.entities = convert(splitRecords(pairs, es[0], es[1]));
   else m.warnings.push('No ENTITIES section found.');
 
-  for (const [t, n] of Object.entries(skipped)) m.warnings.push(`${n} ${t} not drawn yet`);
+  const WHY: Record<string, string> = { '3DSOLID': 'ACIS solid', REGION: 'ACIS region', BODY: 'ACIS body', IMAGE: 'linked image', PDFUNDERLAY: 'linked PDF', DWFUNDERLAY: 'linked DWF', DGNUNDERLAY: 'linked DGN', OLE2FRAME: 'embedded object' };
+  for (const [t, n] of Object.entries(skipped)) m.warnings.push(`${n} ${t}${WHY[t] ? ` (${WHY[t]})` : ''} not drawn yet`);
+  if (construction) m.warnings.push(`${construction} construction line${construction > 1 ? 's' : ''} (XLINE/RAY) hidden`);
+  if (paperSpace) m.meta.paperSpaceEntities = String(paperSpace);
   if (!m.layers.some(l => l.name === '0')) m.layers.unshift({ name: '0', color: '#ffffff', visible: true });
   m.bounds = paths2DBounds(flatten2D(m));
   return m;
+}
+
+/** MULTILEADER: its text (304 + 12/22/32 + 41 height) and each LEADER_LINE's vertices. */
+function multileader(r: Rec, base: { layer: string; color?: string }): CadEntity2D[] {
+  const out: CadEntity2D[] = []; const g = r.g; let line: Vec3[] | null = null; let landing: Vec3 | null = null; let inLeader = false;
+  for (let i = 0; i < g.length; i++) {
+    const [c, v] = g[i]; const t = v.trim();
+    if (c === 302 && t === 'LEADER{') { inLeader = true; landing = null; continue; }
+    if (c === 303 && t === '}') { inLeader = false; continue; }
+    if (c === 304 && t === 'LEADER_LINE{') { line = []; continue; }
+    if (c === 305 && t === '}') { if (line && line.length) { const pts = landing ? [...line, landing] : line; if (pts.length > 1) out.push({ ...base, type: 'polyline', points: pts, closed: false }); } line = null; continue; }
+    if (c === 10) { const p: Vec3 = [parseFloat(v), parseFloat(g[i + 1]?.[1] ?? '0'), parseFloat(g[i + 2]?.[1] ?? '0')]; if (line) line.push(p); else if (inLeader) landing = p; }
+  }
+  const text = g.find(x => x[0] === 304 && !/^LEADER_LINE\{$/.test(x[1].trim()));
+  if (text && text[1].trim()) {
+    const at = g.findIndex(x => x[0] === 12);
+    const pos: Vec3 = at >= 0 ? [parseFloat(g[at][1]), parseFloat(g[at + 1]?.[1] ?? '0'), 0] : [0, 0, 0];
+    const h = g.find(x => x[0] === 41); out.push({ ...base, type: 'text', at: pos, height: h ? parseFloat(h[1]) || 2.5 : 2.5, rotation: 0, text: cleanMText(text[1]), align: 'left' });
+  }
+  return out;
 }
 
 const samePt = (a: Vec3, b: Vec3) => Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9 && Math.abs(a[2] - b[2]) < 1e-9;
@@ -404,6 +451,13 @@ export function paths2DBounds(f: Flat2D) {
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 
 /** Plot the drawing to SVG (y flipped so up is up). `background` null leaves it transparent. */
+/** The plotted sheet in model units: SVG x = x - x0, SVG y = y1 - y. Viewers use it to map clicks back. */
+export function drawingFrame(f: Flat2D) {
+  const b = paths2DBounds(f); const w = Math.max(1e-6, b.max[0] - b.min[0]), h = Math.max(1e-6, b.max[1] - b.min[1]);
+  const pad = Math.max(w, h) * 0.03;
+  return { x0: b.min[0] - pad, y1: b.max[1] + pad, spanX: w + 2 * pad, spanY: h + 2 * pad };
+}
+
 export function drawingToSvg(m: CadModel, opts: { width?: number; background?: string | null; hiddenLayers?: Set<string>; mono?: string } = {}): string {
   const f = flatten2D(m, { hiddenLayers: opts.hiddenLayers });
   const b = paths2DBounds(f); const w = Math.max(1e-6, b.max[0] - b.min[0]), h = Math.max(1e-6, b.max[1] - b.min[1]);

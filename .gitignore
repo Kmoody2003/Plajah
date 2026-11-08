@@ -171,3 +171,7 @@ public/games/ravencrest/assets/characters/jack_thorne_rigged.glb
 # FFmpeg binaries: node scripts/fetchFfmpeg.mjs
 windows-native/third_party/ffmpeg/
 windows-native/third_party/uv/
+
+# cad-dwg tool build output
+windows-native/tools/CadDwg/bin/
+windows-native/tools/CadDwg/obj/

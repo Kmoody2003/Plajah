@@ -8437,6 +8437,7 @@ export interface TelaChartDevice {
     out: 'NONE' | 'FADE' | 'WIPE' | 'ZOOM' | 'FLIP';
   };
   camera?: { yaw: number; pitch: number; depth: number };
+  bio?: TelaBioSimulationRef;
 }
 
 export type TelaMediaKind = 'IMAGE' | 'AUDIO' | 'VIDEO' | 'MODEL_3D' | 'PDF' | 'FONT' | 'ARCHIVE' | 'FILE';
@@ -8460,6 +8461,36 @@ export interface TelaMediaDevice {
   /** Set when this is a CAD/BIM model or drawing (services/cad). `src` is the display
    * (GLB for 3D, SVG for a 2D drawing), so surfaces that ignore this still show it. */
   cad?: TelaCadRef;
+  /** Set when this is a molecular structure from the Biology Lab (services/bio). */
+  bio?: TelaBioStructureRef;
+}
+
+export interface TelaBioStructureRef {
+  kind: 'STRUCTURE';
+  /** PDB ID, AlphaFold entry or file name. */
+  id: string;
+  title: string;
+  /** The original PDB/mmCIF text, kept so the lab can reopen it. */
+  sourceSrc: string;
+  sourceStoragePath?: string;
+  sourceName: string;
+  /** Required by CC-BY sources (AlphaFold); shown on the item. */
+  credit: string;
+  licence: string;
+  style: string;
+  color: string;
+  stats: { atoms: number; residues: number; chains: number };
+}
+
+/** Set on a CHART made from a Biology Lab simulation: the model and settings that produced it. */
+export interface TelaBioSimulationRef {
+  kind: 'SIMULATION';
+  modelName: string;
+  /** SBML of the model with the slider values at the time it was added. */
+  sbmlSrc: string;
+  sbmlStoragePath?: string;
+  tEnd: number;
+  method: string;
 }
 
 export interface TelaCadRef {

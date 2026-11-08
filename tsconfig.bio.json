@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true, "types": ["vite/client", "node"] },
+  "include": ["services/bio/*.ts", "components/bio/*.tsx", "labs/bio/main.tsx", "tests/bio.test.ts"]
+}

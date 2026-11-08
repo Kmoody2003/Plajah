@@ -1056,6 +1056,13 @@ public sealed partial class MainWindow : Window
             {
                 PostNativeMessage("TELA3D_ENSURE_RESULT", await Tela3dRuntimeService.EnsureAsync());
             }
+            else if (type == "CAD_DWG_TO_DXF")
+            {
+                var dwgId = root.TryGetProperty("id", out var dwgIdValue) ? dwgIdValue.GetString() ?? "" : "";
+                var data = root.TryGetProperty("data", out var dwgData) ? dwgData.GetString() ?? "" : "";
+                var converted = await System.Threading.Tasks.Task.Run(() => CadDwgService.ConvertToDxf(Convert.FromBase64String(data)));
+                PostNativeMessage("CAD_DWG_TO_DXF_RESULT", new { id = dwgId, success = converted.Success, dxf = converted.Dxf is null ? null : Convert.ToBase64String(converted.Dxf), version = converted.Version, notes = converted.Notes, error = converted.Error });
+            }
             else if (type == "ARGILLA_NPU_ENSURE")
             {
                 PostNativeMessage("ARGILLA_NPU_ENSURE_RESULT", await ArgillaNpuService.EnsureAsync());

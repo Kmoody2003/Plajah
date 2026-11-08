@@ -2,7 +2,10 @@
 //   npm run test:cad
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync, mkdtempSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 import { zipSync, strToU8 } from 'fflate';
 import * as WebIFC from 'web-ifc';
@@ -14,7 +17,17 @@ import { toModelJson } from '../services/cad/model';
 
 const require = createRequire(import.meta.url);
 const fixture = (n: string) => new Uint8Array(readFileSync(new URL(`./fixtures/cad/${n}`, import.meta.url)));
+// DWG goes through the cad-dwg tool (ACadSharp). Build it with `npm run build:cad-dwg`.
+const CAD_DWG = new URL('../windows-native/tools/CadDwg/bin/Release/net8.0/cad-dwg.dll', import.meta.url);
+const dwgEngine = async (bytes: Uint8Array) => {
+  const dir = mkdtempSync(join(tmpdir(), 'cad-dwg-')); const inp = join(dir, 'in.dwg'); const out = join(dir, 'out.dxf');
+  (await import('node:fs')).writeFileSync(inp, bytes);
+  try { execFileSync('dotnet', [CAD_DWG.pathname.replace(/^\/([A-Za-z]:)/, '$1'), inp, out], { stdio: ['ignore', 'ignore', 'pipe'] }); }
+  catch (e: any) { return { success: false, error: String(e.stderr || e.message) }; }
+  return { success: true, dxf: new Uint8Array(readFileSync(out)) };
+};
 const engines = {
+  dwg: dwgEngine,
   occt: async () => require('occt-import-js')(),
   ifc: async () => { const api = new WebIFC.IfcAPI(); await api.Init(); return api; },
 };
@@ -156,7 +169,22 @@ test('IFC through web-ifc: classes, storeys, property sets', async () => {
   const json = toModelJson(m); assert.equal(json.meshes.length, m.meshes.length); assert.ok(!('positions' in json.meshes[0]));
 });
 
-test('DWG is recognised and explained, not faked', async () => {
+test('DWG through ACadSharp: 2004 and 2018 files read the same drawing', { skip: !existsSync(CAD_DWG) && 'run npm run build:cad-dwg first' }, async () => {
+  const a = await importCadFile('s18.dwg', fixture('sample_AC1018.dwg'), engines);
+  const b = await importCadFile('s32.dwg', fixture('sample_AC1032.dwg'), engines);
+  for (const m of [a, b]) {
+    assert.equal(m.format, 'dwg'); assert.equal(m.engine, 'acadsharp'); assert.equal(m.units, 'in'); assert.ok(m.is2D);
+    assert.equal(m.blocks.length, 27);
+    assert.ok(m.entities.filter(e => e.type === 'text').length >= 50);
+    assert.ok(!m.warnings.some(w => /VIEWPORT|MULTILEADER|MLINE|MESH/.test(w)), m.warnings.join('; '));
+    assert.ok(m.warnings.some(w => /3DSOLID \(ACIS solid\)/.test(w)));
+  }
+  assert.equal(a.meta.version, 'AC1018'); assert.equal(b.meta.version, 'AC1032');
+  assert.deepEqual(a.bounds, b.bounds);
+  assert.equal(flatten2D(a).paths.length, flatten2D(b).paths.length);
+});
+
+test('DWG without the converter is recognised and explained, not faked', async () => {
   const m = await importCadFile('old.dwg', strToU8('AC1027' + '\0'.repeat(100)));
-  assert.equal(m.format, 'dwg'); assert.equal(m.meta.version, 'AC1027'); assert.match(m.warnings[0], /DXF/); assert.equal(m.entities.length, 0);
+  assert.equal(m.format, 'dwg'); assert.equal(m.meta.version, 'AC1027'); assert.match(m.warnings[0], /desktop app/); assert.equal(m.entities.length, 0);
 });

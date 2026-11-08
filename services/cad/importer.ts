@@ -14,13 +14,17 @@ export interface CadEngines {
   occt?: () => Promise<OcctApi>;
   /** GLB/GLTF is read by three.js in the browser; tests can leave it out. */
   gltf?: (bytes: Uint8Array, name: string) => Promise<CadModel>;
+  /** DWG -> DXF through ACadSharp (desktop app bridge, or the cad-dwg tool in node). */
+  dwg?: (bytes: Uint8Array) => Promise<DwgConversion>;
 }
+
+export interface DwgConversion { success: boolean; dxf?: Uint8Array; version?: string; notes?: string[]; error?: string }
 
 export interface CadFormatInfo { format: CadFormat; label: string; family: '2D drawing' | 'BIM' | 'Solid (B-rep)' | 'Mesh'; ready: boolean; note?: string }
 
 export const CAD_FORMATS: Record<CadFormat, CadFormatInfo> = {
   dxf: { format: 'dxf', label: 'AutoCAD DXF', family: '2D drawing', ready: true },
-  dwg: { format: 'dwg', label: 'AutoCAD DWG', family: '2D drawing', ready: false, note: 'DWG reading (ACadSharp, MIT) is next. For now save as DXF from any CAD program.' },
+  dwg: { format: 'dwg', label: 'AutoCAD DWG', family: '2D drawing', ready: true, note: 'DWG opens in the Plajah desktop app. On the web, save it as DXF from any CAD program for now.' },
   ifc: { format: 'ifc', label: 'IFC (open BIM)', family: 'BIM', ready: true },
   step: { format: 'step', label: 'STEP', family: 'Solid (B-rep)', ready: true },
   iges: { format: 'iges', label: 'IGES', family: 'Solid (B-rep)', ready: true },
@@ -73,10 +77,28 @@ export async function importCadFile(name: string, bytes: Uint8Array, engines: Ca
       if (!engines.gltf) throw new Error('glTF reader not available here');
       model = await engines.gltf(bytes, name); break;
     }
-    case 'dwg': default: {
+    case 'dwg': {
+      if (engines.dwg) {
+        const r = await engines.dwg(bytes);
+        if (r.success && r.dxf) {
+          model = parseDxf(r.dxf, name); model.format = 'dwg'; model.engine = 'acadsharp';
+          if (r.version) model.meta.version = r.version;
+          model.warnings.push(...(r.notes ?? []).map(n => `DWG: ${n}`));
+          break;
+        }
+        model = emptyModel(name, 'dwg', 'acadsharp'); model.is2D = true;
+        model.warnings.push(`This DWG could not be read: ${r.error || 'unknown error'}`);
+        break;
+      }
       model = emptyModel(name, format, 'none'); model.is2D = true;
-      model.warnings.push(CAD_FORMATS[format].note || 'Not readable yet.');
+      model.warnings.push(CAD_FORMATS.dwg.note!);
       model.meta.version = new TextDecoder('latin1').decode(bytes.subarray(0, 6));
+      break;
+    }
+    default: { // every format is handled above; kept for formats added to CadFormat later
+      const f = format as CadFormat;
+      model = emptyModel(name, f, 'none');
+      model.warnings.push(CAD_FORMATS[f]?.note || 'Not readable yet.');
     }
   }
   return model;

@@ -934,6 +934,12 @@ export async function extractStudioThumbnails(paths: string[], targetSize: numbe
   }
 }
 
+/** DWG -> DXF through ACadSharp in the desktop app (services/cad/engines.ts). Bytes travel as base64. */
+export function nativeDwgToDxf(base64: string): Promise<{ id: string; success: boolean; dxf?: string; version?: string; notes?: string[]; error?: string }> {
+  const id = `dwg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  return requestNativeResponse('CAD_DWG_TO_DXF', 'CAD_DWG_TO_DXF_RESULT', { id, data: base64 }, m => m?.id === id, 120_000);
+}
+
 function requestNativeResponse<T>(requestType: string, responseType: string, payload: object = {}, matches?: (message: any) => boolean, timeoutMs = 30_000): Promise<T> {
   return new Promise((resolve, reject) => {
     const webview = (window as any).chrome?.webview;
