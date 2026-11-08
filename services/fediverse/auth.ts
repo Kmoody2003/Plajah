@@ -4,8 +4,7 @@
 // Handles Mastodon OAuth2 (multi-step, per-instance) and Bluesky App Password
 // session creation with in-process refresh token caching.
 
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
-import { v4 as uuidv4 } from 'uuid';
+import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'node:crypto';
 import { bskyCreateSession, bskyRefreshSession, bskyRefreshIfNeeded } from './bluesky.js';
 import { mastodonAdapter } from './mastodon.js';
 import type {
@@ -498,7 +497,8 @@ export class DecentralizedAuthService {
     const adapter = adapters[protocol];
     const profile = await adapter.verifyCredentials(creds);
 
-    const accountId = uuidv4();
+    // Deterministic per account so reconnecting replaces the row instead of duplicating it.
+    const accountId = `${protocol}-${createHash('sha256').update(`${protocol}|${(creds.instanceUrl ?? '').toLowerCase()}|${profile.handle.toLowerCase()}`).digest('hex').slice(0, 24)}`;
     const accountDoc: FediverseAccountDoc = {
       id: accountId,
       protocol,

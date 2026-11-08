@@ -202,14 +202,17 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       const timeout = setTimeout(() => { reject(new Error('OAuth timed out')); cleanup(); }, 3 * 60 * 1000);
 
-      function cleanup() {
+      let cleanup = function () {
         clearTimeout(timeout);
         window.removeEventListener('message', onMessage);
-      }
+      };
 
+      let handled = false;
       async function onMessage(e: MessageEvent) {
         if (e.origin !== window.location.origin) return;
+        if (handled) return;
         if (e.data?.type === 'FEDIVERSE_AUTH_SUCCESS') {
+          handled = true;
           cleanup();
           try {
             const { account } = await serverJson<{ account: FediverseAccount }>(
@@ -220,12 +223,26 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             resolve();
           } catch (err) { reject(err); }
         } else if (e.data?.type === 'FEDIVERSE_AUTH_ERROR') {
+          handled = true;
           cleanup();
           reject(new Error(String(e.data.error ?? 'OAuth failed')));
         }
       }
 
       window.addEventListener('message', onMessage);
+      // The opener link can be severed by the instance's cross-origin-opener-policy; the callback page also
+      // broadcasts on a same-origin channel, which survives that.
+      let bc: BroadcastChannel | null = null;
+      try { bc = new BroadcastChannel('plajah-fediverse-oauth'); bc.onmessage = ev => { onMessage({ origin: window.location.origin, data: ev.data } as MessageEvent); }; } catch { /* unsupported */ }
+      const closedPoll = setInterval(() => {
+        if (popup.closed && !handled) {
+          // Give a just-sent broadcast a moment to arrive before calling it a cancel.
+          setTimeout(() => { if (!handled) { handled = true; cleanup(); reject(new Error('The sign-in window was closed before Mastodon finished.')); } }, 1500);
+          clearInterval(closedPoll);
+        }
+      }, 800);
+      const origCleanup = cleanup;
+      cleanup = function () { origCleanup(); clearInterval(closedPoll); if (bc) bc.close(); } as typeof cleanup;
     });
   }, [uid]);
 
@@ -265,14 +282,28 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       ({ url } = await serverJson<{ url: string }>(`/api/fediverse/bluesky/oauth/start?handle=${encodeURIComponent((handle ?? '').trim())}`, token));
     } catch (e) { popup.close(); throw e; }
     popup.location.href = url;
+    // bsky.social's cross-origin-opener-policy can sever window.opener, so also listen on a BroadcastChannel, and
+    // when the popup closes without a message, ask the server whether the account actually got linked.
+    const startedAt = Date.now() - 5000;
     await new Promise<void>((resolve, reject) => {
-      const done = (fn: () => void) => { window.removeEventListener('message', onMsg); clearInterval(poll); fn(); };
-      const onMsg = (ev: MessageEvent) => {
-        if (ev.origin !== window.location.origin || ev.data?.type !== 'plajah-bsky-oauth') return;
-        done(() => (ev.data.ok ? resolve() : reject(new Error(ev.data.error || 'Bluesky sign-in failed.'))));
-      };
+      let bc: BroadcastChannel | null = null;
+      try { bc = new BroadcastChannel('plajah-bsky-oauth'); } catch { /* unsupported */ }
+      const done = (fn: () => void) => { window.removeEventListener('message', onMsg); if (bc) bc.close(); clearInterval(poll); fn(); };
+      const handle_ = (d: any) => { if (d?.type === 'plajah-bsky-oauth') done(() => (d.ok ? resolve() : reject(new Error(d.error || 'Bluesky sign-in failed.')))); };
+      const onMsg = (ev: MessageEvent) => { if (ev.origin === window.location.origin) handle_(ev.data); };
       window.addEventListener('message', onMsg);
-      const poll = setInterval(() => { if (popup.closed) done(() => reject(new Error('The sign-in window was closed.'))); }, 800);
+      if (bc) bc.onmessage = ev => handle_(ev.data);
+      let checking = false;
+      const poll = setInterval(async () => {
+        if (!popup.closed || checking) return;
+        checking = true;
+        try {
+          const t = await getToken();
+          const { accounts: list } = await serverJson<{ accounts: FediverseAccount[] }>('/api/fediverse/accounts', t!);
+          if ((list || []).some(a => a.protocol === 'bluesky' && Number(a.connectedAt || 0) >= startedAt)) return done(resolve);
+        } catch { /* fall through */ }
+        done(() => reject(new Error('The sign-in window was closed.')));
+      }, 800);
     });
     await loadAccounts();
   }, [uid, loadAccounts]);
