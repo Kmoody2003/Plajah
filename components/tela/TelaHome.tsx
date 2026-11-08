@@ -253,6 +253,7 @@ export default function TelaHome({
   onOpenMerch,
   onOpenStoryIntel,
   onOpenArgilla,
+  onOpenCad,
   onBack,
   viewerUid = null,
   memberOrgIds = [],
@@ -275,6 +276,7 @@ export default function TelaHome({
   /** Story Intelligence workspace: what it read in your videos, filed into your Worlds. */
   onOpenStoryIntel?: () => void;
   onOpenArgilla?: () => void;
+  onOpenCad?: () => void;
   onBack?: () => void;
 }) {
   const [promptText, setPromptText] = useState('');
@@ -735,6 +737,17 @@ export default function TelaHome({
         </div>
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          {onOpenCad && (
+            <button
+              onClick={onOpenCad}
+              className="h-9 px-3.5 flex items-center gap-2 rounded-[10px] text-[.72rem] font-bold text-white/85 bg-white/[.05] border border-sky-300/30 hover:bg-sky-300/10 hover:text-white transition-all font-sans"
+              title="Open DXF drawings, IFC buildings, STEP parts and 3MF prints"
+              data-testid="tela-home-cad"
+            >
+              <span className="hidden sm:inline">CAD &amp; BIM</span>
+              <span className="sm:hidden">CAD</span>
+            </button>
+          )}
           {onOpenArgilla && (
             <button
               onClick={onOpenArgilla}

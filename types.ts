@@ -8457,6 +8457,24 @@ export interface TelaMediaDevice {
   sessionOnly?: boolean;
   /** Set when this model was sculpted in Argilla, so it can be reopened as clay. */
   argillaProjectId?: string;
+  /** Set when this is a CAD/BIM model or drawing (services/cad). `src` is the display
+   * (GLB for 3D, SVG for a 2D drawing), so surfaces that ignore this still show it. */
+  cad?: TelaCadRef;
+}
+
+export interface TelaCadRef {
+  /** MODEL: 3D part/assembly/building. DRAFT_2D: an AutoCAD-style drawing. */
+  role: 'MODEL' | 'DRAFT_2D';
+  format: string;
+  units: string;
+  /** Semantic model (layers, entities, elements, property sets) as JSON. */
+  modelSrc: string;
+  modelStoragePath?: string;
+  /** The original file, kept so nothing is lost when our reading is partial. */
+  sourceSrc: string;
+  sourceStoragePath?: string;
+  sourceName: string;
+  stats: { elements: number; meshes: number; triangles: number; layers: number; entities: number; sizeMm: [number, number, number] };
 }
 
 /** A typed teaching figure (plate, audio, video, diagram, timeline, graph). Data charts use the native CHART device instead. */

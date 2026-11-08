@@ -1,11 +1,23 @@
 import React from 'react';
-import { Box, Download, File, FileArchive, FileType2, Music2 } from 'lucide-react';
+import { Box, Download, File, FileArchive, FileType2, Music2, Ruler } from 'lucide-react';
 import type { TelaMediaDevice } from '../../types';
 
 const shell: React.CSSProperties = { width: '100%', height: '100%', minHeight: 180, display: 'grid', placeItems: 'center', overflow: 'hidden', background: '#111018', color: '#fff' };
 
 export default function TelaMedia({ device, readOnly }: { device: TelaMediaDevice; readOnly?: boolean }) {
   const common = { src: device.src, title: device.name };
+  if (device.cad) {
+    const c = device.cad; const big = Math.max(...c.stats.sizeMm) >= 5000;
+    const size = c.stats.sizeMm.slice(0, c.role === 'DRAFT_2D' ? 2 : 3).map(v => big ? `${(v / 1000).toFixed(2)} m` : `${Math.round(v)} mm`).join(' × ');
+    const reopen = () => window.dispatchEvent(new CustomEvent('tela:open-cad', { detail: { deviceId: device.id, cad: c } }));
+    return <div style={{ ...shell, position: 'relative', minHeight: device.height, background: c.role === 'DRAFT_2D' ? '#0b0b10' : 'radial-gradient(circle,#232a36,#0d0f14 70%)' }}>
+      {c.role === 'DRAFT_2D'
+        ? <img src={device.src} alt={device.name} draggable={false} style={{ width: '100%', height: '100%', objectFit: 'contain' }}/>
+        : React.createElement('model-viewer', { src: device.src, alt: device.name, 'camera-controls': true, 'shadow-intensity': '0.6', style: { width: '100%', height: '100%', background: 'transparent' } })}
+      <div style={{ position: 'absolute', left: 10, bottom: 8, display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, opacity: .75 }}><Ruler size={13}/>{device.name} · {c.format.toUpperCase()} · {size}{c.stats.elements ? ` · ${c.stats.elements} elements` : ''}</div>
+      {!readOnly && <button onClick={reopen} style={{ position: 'absolute', right: 10, top: 10, padding: '6px 11px', borderRadius: 8, border: 'none', cursor: 'pointer', color: '#fff', background: 'linear-gradient(135deg,#0ea5e9,#6366f1)', fontWeight: 700, fontSize: 12 }}>Open in CAD</button>}
+    </div>;
+  }
   if (device.kind === 'IMAGE') return <div style={shell}><img {...common} alt={device.name} draggable={false} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /></div>;
   if (device.kind === 'AUDIO') return <div style={{ ...shell, padding: 28, background: 'radial-gradient(circle at 50% 20%,#312044,#111018 62%)' }}><div style={{ width: 'min(560px,90%)', textAlign: 'center' }}><Music2 size={48} style={{ margin: '0 auto 18px', color: '#D0BCFF' }}/><strong style={{ display: 'block', marginBottom: 18, overflow: 'hidden', textOverflow: 'ellipsis' }}>{device.name}</strong><audio {...common} controls preload="metadata" style={{ width: '100%' }}/></div></div>;
   if (device.kind === 'VIDEO') return <div style={shell}><video {...common} controls preload="metadata" playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }}/></div>;

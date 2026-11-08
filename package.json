@@ -102,6 +102,8 @@
     "test:comicproject": "npx tsx --test tests/comicProject.test.ts",
     "test:merch": "npx tsx --test tests/merchStudio.test.ts",
     "test:argilla": "npx tsx --test tests/argilla.test.ts",
+    "test:cad": "npx tsx --test tests/cad.test.ts",
+    "typecheck:cad": "tsc -p tsconfig.cad.json",
     "test:creativecloud": "npx tsx --test tests/creativeCloud.test.ts",
     "test:anima": "npx tsx --test tests/animaEngine.test.ts",
     "test:showcaselive": "npx tsx --test tests/showcaseLive*.test.ts",
@@ -210,6 +212,7 @@
     "mediabunny": "1.55.7",
     "motion": "^12.38.0",
     "mp4-muxer": "^5.2.2",
+    "occt-import-js": "^0.0.23",
     "onnxruntime-web": "^1.27.0",
     "pdf-lib": "^1.17.1",
     "qrcode": "^1.5.4",
@@ -231,7 +234,8 @@
     "tus-js-client": "^4.3.1",
     "uuid": "^14.0.0",
     "verovio": "^6.2.0",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "web-ifc": "^0.0.78"
   },
   "overrides": {
     "node-domexception": "file:./mocks/node-domexception",
