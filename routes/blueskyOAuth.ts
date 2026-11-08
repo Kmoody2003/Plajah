@@ -34,6 +34,7 @@ function page(p: { ok: boolean; error?: string; handle?: string }): string {
 .c{max-width:360px;padding:32px;text-align:center}h1{font-size:19px;margin:0 0 10px}p{margin:0;font-size:14px;line-height:1.5;color:rgba(255,255,255,.62)}.h{margin-top:20px;font-size:12px;color:rgba(255,255,255,.35)}</style></head>
 <body><div class="c"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(detail)}</p><div class="h">${p.ok ? 'You can close this window.' : 'Close this window and try again.'}</div></div>
 <script>(function(){var m=${msg};try{if(window.opener&&!window.opener.closed){window.opener.postMessage(m,window.location.origin)}}catch(e){}
+try{var bc=new BroadcastChannel('plajah-bsky-oauth');bc.postMessage(m);setTimeout(function(){bc.close()},500)}catch(e){}
 if(m.ok){setTimeout(function(){try{window.close()}catch(e){}},1200)}})();</script></body></html>`;
 }
 

@@ -7687,9 +7687,11 @@ async function startServer() {
     const msg = err
       ? { type: 'FEDIVERSE_AUTH_ERROR', error: err }
       : { type: 'FEDIVERSE_AUTH_SUCCESS', code, state };
-    if (window.opener) {
-      window.opener.postMessage(msg, window.location.origin);
-      document.getElementById('s').textContent = 'Connected! Closing…';
+    let sent = false;
+    try { if (window.opener && !window.opener.closed) { window.opener.postMessage(msg, window.location.origin); sent = true; } } catch (e) {}
+    try { const bc = new BroadcastChannel('plajah-fediverse-oauth'); bc.postMessage(msg); setTimeout(() => bc.close(), 500); sent = true; } catch (e) {}
+    if (sent) {
+      document.getElementById('s').textContent = err ? 'Sign-in was not completed. You can close this window.' : 'Connected! Closing…';
       setTimeout(() => window.close(), 600);
     } else {
       document.getElementById('s').textContent = 'No opener found. Please close this window.';

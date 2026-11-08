@@ -484,7 +484,7 @@ export default function FediverseSettings() {
             </thead>
             <tbody>
               {([
-                ['OAuth sign-in',     ['✅', '❌', '❌']],
+                ['OAuth sign-in',     ['✅', '✅', '❌']],
                 ['Home timeline',     ['✅', '✅', '❌']],
                 ['Publish posts',     ['✅', '✅', '✅']],
                 ['Rich link cards',   ['✅', '✅', '❌']],

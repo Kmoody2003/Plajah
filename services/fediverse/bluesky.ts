@@ -80,7 +80,7 @@ async function agentFor(creds: FediverseCredentials, forceRefresh = false): Prom
   if (creds.oauth) {
     if (!oauthRestorer || !creds.did) throw new FediverseError('bluesky', 'AUTH_EXPIRED', 'Bluesky sign-in is unavailable — reconnect this account');
     try { return (await oauthRestorer(creds.did)) as unknown as AtpAgent; }
-    catch { throw new FediverseError('bluesky', 'AUTH_EXPIRED', 'Bluesky access was revoked or expired — reconnect this account'); }
+    catch (e) { console.warn('[bsky-oauth] restore failed for', creds.did, '-', (e as Error)?.message || e); throw new FediverseError('bluesky', 'AUTH_EXPIRED', 'Bluesky access was revoked or expired — reconnect this account'); }
   }
   const agent = new AtpAgent({
     service: (creds.pdsUrl || DEFAULT_PDS).replace(/\/$/, ''),
