@@ -30,6 +30,7 @@ export const CAD_ENGINES: CadEngine[] = [
   { id: 'plajah-dxf', name: 'Plajah DXF reader/writer', licence: 'Plajah', tier: 'ours', linkage: 'linked', runs: ['browser', 'desktop', 'server'], role: 'DXF read and R12 write', status: 'in-use' },
   { id: 'plajah-mesh', name: 'Plajah STL / OBJ / 3MF readers', licence: 'Plajah', tier: 'ours', linkage: 'linked', runs: ['browser', 'desktop', 'server'], role: 'Printer and mesh formats, print checks', status: 'in-use' },
   { id: 'plajah-bim', name: 'Plajah BIM (walls to 3D, IFC4 writer)', licence: 'Plajah', tier: 'ours', linkage: 'linked', runs: ['browser', 'desktop', 'server'], role: 'BIM geometry and IFC4 export', status: 'in-use' },
+  { id: 'plajah-mech', name: 'Plajah mechanical parts (parametric, CC0)', licence: 'Plajah / CC0 content', tier: 'ours', linkage: 'linked', runs: ['browser', 'desktop', 'server'], role: 'Standard parts, STL', status: 'in-use' },
   { id: 'three', name: 'three.js + three-stdlib', licence: 'MIT', tier: 'permissive', linkage: 'linked', runs: ['browser', 'desktop'], role: 'Viewport, GLB read/write', status: 'in-use' },
   { id: 'web-ifc', name: 'web-ifc (That Open Company)', licence: 'MPL-2.0', tier: 'weak-copyleft', linkage: 'separate-module', runs: ['browser', 'desktop', 'server'], role: 'IFC 2x3/4/4.3 read', status: 'in-use' },
   { id: 'occt-import-js', name: 'occt-import-js (OpenCASCADE)', licence: 'LGPL-2.1', tier: 'weak-copyleft', linkage: 'separate-module', runs: ['browser', 'desktop', 'server'], role: 'STEP / IGES / BREP read', status: 'in-use' },

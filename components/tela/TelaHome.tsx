@@ -254,6 +254,7 @@ export default function TelaHome({
   onOpenStoryIntel,
   onOpenArgilla,
   onOpenCad,
+  onOpenElec,
   onOpenBio,
   onBack,
   viewerUid = null,
@@ -278,6 +279,7 @@ export default function TelaHome({
   onOpenStoryIntel?: () => void;
   onOpenArgilla?: () => void;
   onOpenCad?: () => void;
+  onOpenElec?: () => void;
   onOpenBio?: () => void;
   onBack?: () => void;
 }) {
@@ -748,6 +750,17 @@ export default function TelaHome({
             >
               <span className="hidden sm:inline">Biology Lab</span>
               <span className="sm:hidden">Bio</span>
+            </button>
+          )}
+          {onOpenElec && (
+            <button
+              onClick={onOpenElec}
+              className="h-9 px-3.5 flex items-center gap-2 rounded-[10px] text-[.72rem] font-bold text-white/85 bg-white/[.05] border border-amber-300/30 hover:bg-amber-300/10 hover:text-white transition-all font-sans"
+              title="Draw circuits, simulate them, and check parts and regulations before you build"
+              data-testid="tela-home-elec"
+            >
+              <span className="hidden sm:inline">Electronics</span>
+              <span className="sm:hidden">Elec</span>
             </button>
           )}
           {onOpenCad && (

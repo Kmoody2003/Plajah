@@ -8463,6 +8463,17 @@ export interface TelaMediaDevice {
   cad?: TelaCadRef;
   /** Set when this is a molecular structure from the Biology Lab (services/bio). */
   bio?: TelaBioStructureRef;
+  /** Set when this is a schematic from the Electronics Lab (services/elec). `src` is the SVG sheet. */
+  elec?: TelaElecRef;
+}
+
+/** A circuit drawn in the Electronics Lab: the editable circuit is kept so the lab can reopen it. */
+export interface TelaElecRef {
+  name: string;
+  /** services/elec Circuit as JSON. */
+  circuitSrc: string;
+  circuitStoragePath?: string;
+  stats: { parts: number; nets: number; errors: number; warnings: number };
 }
 
 export interface TelaBioStructureRef {

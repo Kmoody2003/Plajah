@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": { "allowJs": false, "noEmit": true, "types": ["vite/client", "node"] },
-  "include": ["services/cad/*.ts", "components/cad/*.tsx", "labs/cad/main.tsx", "tests/cad.test.ts", "types/occt-import-js.d.ts"]
+  "include": ["services/mech/*.ts", "services/fab/*.ts", "components/fab/*.tsx", "tests/fab.test.ts", "services/cad/*.ts", "components/cad/*.tsx", "labs/cad/main.tsx", "tests/cad.test.ts", "types/occt-import-js.d.ts"]
 }

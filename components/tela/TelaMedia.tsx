@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Dna, Download, File, FileArchive, FileType2, Music2, Ruler } from 'lucide-react';
+import { Box, CircuitBoard, Dna, Download, File, FileArchive, FileType2, Music2, Ruler } from 'lucide-react';
 import type { TelaMediaDevice } from '../../types';
 
 const shell: React.CSSProperties = { width: '100%', height: '100%', minHeight: 180, display: 'grid', placeItems: 'center', overflow: 'hidden', background: '#111018', color: '#fff' };
@@ -13,6 +13,15 @@ export default function TelaMedia({ device, readOnly }: { device: TelaMediaDevic
       {React.createElement('model-viewer', { src: device.src, alt: b.title, 'camera-controls': true, 'auto-rotate': true, style: { width: '100%', height: '100%', background: 'transparent' } })}
       <div style={{ position: 'absolute', left: 10, bottom: 8, right: 10, display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, opacity: .8, flexWrap: 'wrap' }}><Dna size={13}/><strong>{b.id}</strong><span>{b.stats.residues} residues · {b.stats.chains} chain{b.stats.chains === 1 ? '' : 's'}</span><span style={{ opacity: .75 }}>{b.credit} · {b.licence}</span></div>
       {!readOnly && <button onClick={reopen} style={{ position: 'absolute', right: 10, top: 10, padding: '6px 11px', borderRadius: 8, border: 'none', cursor: 'pointer', color: '#fff', background: 'linear-gradient(135deg,#14b8a6,#8b5cf6)', fontWeight: 700, fontSize: 12 }}>Open in Biology Lab</button>}
+    </div>;
+  }
+  if (device.elec) {
+    const e = device.elec;
+    const reopen = () => window.dispatchEvent(new CustomEvent('tela:open-elec', { detail: { elec: e } }));
+    return <div style={{ ...shell, position: 'relative', minHeight: device.height, background: '#fff' }}>
+      <img src={device.src} alt={e.name} draggable={false} style={{ width: '100%', height: '100%', objectFit: 'contain' }}/>
+      <div style={{ position: 'absolute', left: 10, bottom: 8, display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, color: '#334155' }}><CircuitBoard size={13}/>{e.stats.parts} parts · {e.stats.nets} nets{e.stats.errors ? ` · ${e.stats.errors} problem${e.stats.errors === 1 ? '' : 's'}` : e.stats.warnings ? ` · ${e.stats.warnings} warning${e.stats.warnings === 1 ? '' : 's'}` : ' · checks pass'}</div>
+      {!readOnly && <button onClick={reopen} data-testid="tela-open-elec" style={{ position: 'absolute', right: 10, top: 10, padding: '6px 11px', borderRadius: 8, border: 'none', cursor: 'pointer', color: '#fff', background: 'linear-gradient(135deg,#f59e0b,#ef4444)', fontWeight: 700, fontSize: 12 }}>Open in Electronics Lab</button>}
     </div>;
   }
   if (device.cad) {

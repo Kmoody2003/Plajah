@@ -460,3 +460,59 @@ Kenne, 2026-11-08: we are building our own BIM stack. Open-source engines are fo
   - Read IFC back into editable walls (round trip).
   - BCF issues.
   - Our own CSG for arbitrary voids.
+
+## 19. Mechanical parts, Electronics Lab, and fabrication (2026-11-08, later)
+
+**Mechanical parts (CC0).** `services/mech/geometry.ts` (extrude with holes, lathe, helix tube, STL
+writer) and `services/mech/parts.ts`: 11 parametric standard parts built from published standard
+dimensions (hex bolt, socket screw, nut, washer, ball bearing, involute spur gear, 2020 extrusion,
+NEMA 17 plate, L-bracket, spacer, compression spring). All closed solids (tested). CAD room: **Parts**
+button and tab, STL export in mm.
+
+**Electronics Lab** (`services/elec`, `components/elec/ElecRoom.tsx`, lab `elec-lab` on :3231):
+- Component library with symbols, ratings and models: passives, LED, diodes, NPN, N-MOSFET,
+  batteries (incl. CR2032), USB 5 V, DC supply, AC mains, switch, fuse, speaker, 555, 7805.
+- Our own simulator (`sim.ts`): nodal analysis, Newton-Raphson with junction limiting (and limiting
+  counted against convergence), backward-Euler C/L, behavioural 555 (5k divider, flip-flop) and
+  7805 (regulation, dropout, quiescent). Matches textbook results: 555 f = 1.44/((R1+2R2)C) within
+  1%, RC charge to 1 − e⁻¹ at τ, divider, LED currents.
+- Seven starter designs released CC0 (USB LED lamp, coin-cell keychain light, 555 blinker, 555 tone
+  into a speaker, 5 V regulated supply, transistor switch, RC filter), verified wire-by-wire.
+- Checks (`checks.ts`): wiring (open pins, shorted supplies, no ground), stress with 50% resistor
+  derating, LED/diode/capacitor/transistor/regulator limits, 7805 junction temperature, USB budget,
+  battery life; regulatory pre-checks in our own words citing the source: FCC Part 15 (15.3(k),
+  15.103(h), 15.5, 2.906/2.938, 15.19, 15.105), Reese's Law (16 CFR 1263, PL 117-171), OSHA
+  1910.303/1910.7 NRTL, toy rules (16 CFR 1250/1107), EU LVD 2014/35, EMC 2014/30, RoHS 2011/65 +
+  2015/863, WEEE 2012/19, Battery Regulation 2023/1542 Art. 11. Market switch US / EU / both.
+- Editor: place/rotate/move (wires follow), orthogonal wires, undo, live LED glow and net voltages,
+  transient playback, 4-channel scope, part properties with live readings, parts list.
+- Exports: SVG sheet, SPICE netlist (ngspice/LTspice/KiCad), circuit JSON. Tela: **Add to
+  document** puts the sheet (MEDIA with `elec` ref, reopens in the lab) plus the parts list as a
+  GRID; Insert menu and home button.
+
+**Fabrication: Plajah Build Make** (`services/fab`, `components/fab/MakePanel.tsx`, CAD room
+**Make** tab). Not just printing: every way a design reaches a machine.
+- 23 processes with design rules: FDM, resin, SLS, MJF, material jetting; metal LPBF/SLM/DMLS,
+  EBM, binder jetting, bound-metal extrusion, DED/WAAM; 3-axis and 5-axis mills, router, lathe,
+  wire EDM; CO₂/fiber/diode lasers, plasma, waterjet, drag knife; press brake.
+- 30 machine profiles with dialect and link: Klipper (Moonraker), PrusaLink, OctoPrint, Duet,
+  Marlin USB, GRBL/FluidNC, LinuxCNC, Fanuc/Haas-style ISO, lathes, plasma (QtPlasmaC), fiber, Ruida
+  (file), resin and closed printers (3MF handoff), metal machines (CLI + 3MF).
+- Our own CAM: polygon offsetting (no clipping library), kerf-compensated cutting with holes first
+  and lead-ins from scrap, router depth passes, pocketing, a basic FDM slicer (walls, rectilinear
+  infill, solid skins), lathe roughing + finish from the turned profile, CLI layers for powder bed,
+  3MF writer (with sintering shrink scale).
+- Post-processors: Marlin, Klipper, RepRapFirmware, GRBL, GRBL laser (M4 dynamic power), LinuxCNC,
+  ISO (program number, tool change, coolant), plasma, ISO lathe (G18/G7 diameter mode).
+- DFM: machine fit, thin walls (slice and shrink), overhangs, sintering shrink, turning axis, small
+  holes (plasma 1.5× thickness), sharp inside corners vs tool radius, max thickness, PVC-on-laser
+  block.
+- Connectors: Moonraker, OctoPrint, PrusaLink, Duet upload-and-start; USB streaming with the
+  firmware "ok" handshake over Web Serial; CORS caveat noted (desktop app has none).
+- Tests: `npm run test:elec` (13), `npm run test:fab` (15), mech tests in `test:cad` (40 total);
+  `typecheck:elec`, `typecheck:cad`.
+
+**Next:** 3D surfacing CAM (waterline/parallel), adaptive clearing, tabs/onion-skin for routers,
+supports for FDM/resin, sheet-metal flat patterns with K-factor and bend tables, PCB layout from the
+schematic (footprints, Gerber/Excellon export, DRC), CPU designer (logic simulator, HDL), the desktop
+app's serial/LAN bridge.

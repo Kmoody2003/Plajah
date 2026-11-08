@@ -564,3 +564,38 @@ test('IFC4 writer: web-ifc (an independent engine) reads our file with walls voi
   assert.ok(Math.abs(Number(living.props.Qto_SpaceBaseQuantities.NetFloorArea) - 16.15) < 0.01, JSON.stringify(living.props)); // (4400 - 100 - 50) x (4000 - 200)
   const door = m.elements.find(e => e.cls === 'IfcDoor')!; assert.equal(door.name, 'D01');
 });
+
+// ---- Mechanical parts library (services/mech) ----
+import { MECH_PARTS, mechModel, mechDefaults, spurGearOutline } from '../services/mech/parts';
+import { writeStl } from '../services/mech/geometry';
+
+/** Closed 2-manifold: after welding by position, every edge is used exactly twice, once each way. */
+function watertight(positions: Float32Array, indices: Uint32Array | number[]): boolean {
+  const key = (i: number) => `${positions[i * 3].toFixed(4)},${positions[i * 3 + 1].toFixed(4)},${positions[i * 3 + 2].toFixed(4)}`;
+  const id = new Map<string, number>(); const v = (i: number) => { const k = key(i); let n = id.get(k); if (n === undefined) { n = id.size; id.set(k, n); } return n; };
+  const edges = new Map<string, number>();
+  for (let t = 0; t < indices.length; t += 3) {
+    const a = v(indices[t]), b = v(indices[t + 1]), c = v(indices[t + 2]); if (a === b || b === c || a === c) continue;
+    for (const [p, q] of [[a, b], [b, c], [c, a]]) edges.set(`${p}>${q}`, (edges.get(`${p}>${q}`) ?? 0) + 1);
+  }
+  for (const [k, n] of edges) { const [p, q] = k.split('>'); if (n !== 1 || edges.get(`${q}>${p}`) !== 1) return false; }
+  return edges.size > 0;
+}
+
+test('every standard mechanical part is a closed solid at its default size', () => {
+  for (const p of MECH_PARTS) {
+    const m = mechModel(p, mechDefaults(p)); assert.equal(m.units, 'mm'); assert.ok(m.meshes.length > 0, p.id);
+    for (const mesh of m.meshes) assert.ok(watertight(mesh.positions, mesh.indices), `${p.id} is not watertight`);
+  }
+});
+
+test('mechanical parts follow their published dimensions', () => {
+  const gear = MECH_PARTS.find(p => p.id === 'spur-gear')!;
+  const pts = spurGearOutline(1, 24, 20); const r = Math.max(...pts.map(([x, y]) => Math.hypot(x, y)));
+  assert.ok(Math.abs(r - 13) < 0.05, `addendum radius ${r}`); // (z + 2)·m / 2
+  const m = mechModel(gear, { ...mechDefaults(gear), m: 1, z: 24 }); const xs: number[] = [];
+  for (const mesh of m.meshes) for (let i = 0; i < mesh.positions.length; i += 3) xs.push(mesh.positions[i]);
+  assert.ok(Math.abs(Math.max(...xs) - Math.min(...xs) - 26) < 0.1);
+  const stl = writeStl(m.meshes, 'gear'); const tris = m.meshes.reduce((s, x) => s + x.indices.length / 3, 0);
+  assert.equal(stl.byteLength, 84 + 50 * tris);
+});
