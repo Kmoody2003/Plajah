@@ -107,6 +107,18 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v3
 
+      # A push that moves collections to plajah-ops (services/opsCollections.ts changed) copies their data
+      # over BEFORE the new app goes live (this job starts alongside the hosting build, which takes minutes),
+      # so the moved features never open empty. sync_ops_data repeats it after every deploy to sweep up writes
+      # that old open tabs made to the plajah-prod originals in between. Copies only missing/newer docs.
+      - name: Copy moved collections to plajah-ops (before the new app goes live)
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.event.before }}" 2>/dev/null || true
+          if git diff --quiet "${{ github.event.before }}" "${{ github.sha }}" -- services/opsCollections.ts 2>/dev/null; then
+            echo "services/opsCollections.ts unchanged; nothing to copy."; exit 0
+          fi
+          RULES_ACCESS_TOKEN=$(gcloud auth print-access-token) node scripts/migrateOpsCollections.mjs --apply
+
       # firebase-tools authenticates via the ADC the auth step exported
       # (GOOGLE_APPLICATION_CREDENTIALS). storage MUST be included — uploads
       # (UploadContext → uploads/<type>s/…) are denied by the default fallback
@@ -188,6 +200,33 @@ jobs:
             echo "Live Firestore rules verified: $DB identical to $FILE."
           done
 
+
+  # ── Second copy of moved collections, after the new app + rules are live ─────
+  sync_ops_data:
+    needs: [build_and_deploy, deploy_rules, deploy_api]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0665118474 }}
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+      - name: Copy writes made during the deploy to plajah-ops
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.event.before }}" 2>/dev/null || true
+          if git diff --quiet "${{ github.event.before }}" "${{ github.sha }}" -- services/opsCollections.ts 2>/dev/null; then
+            echo "services/opsCollections.ts unchanged; nothing to copy."; exit 0
+          fi
+          RULES_ACCESS_TOKEN=$(gcloud auth print-access-token) node scripts/migrateOpsCollections.mjs --apply
 
   # ── API backend (server.ts) → Cloud Run ──────────────────────────────────────
   deploy_api:

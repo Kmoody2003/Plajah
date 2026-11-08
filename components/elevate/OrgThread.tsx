@@ -10,7 +10,7 @@
 
 import { UserAvatar } from '../avatar/UserAvatar';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Heart, MessageCircle, Trash2, Lock, Globe, Users, UserPlus, Layers } from 'lucide-react';
+import { Heart, MessageCircle, Trash2, Lock, Globe, Users, UserPlus, Layers, BadgeCheck } from 'lucide-react';
 import type { Organization, OrgMembership, Ministry, Post } from '../../types';
 import {
   listenToOrgThread,
@@ -372,8 +372,16 @@ const OrgThread: React.FC<Props> = ({ org, myMembership, ministry, onVisitUser, 
             return (
               <div key={p.id} className="rounded-2xl p-4 border" data-audience={internal ? 'internal' : 'public'} style={{ background: tone.bg, borderColor: tone.border }}>
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  <UserAvatar uid={p.authorId} src={p.authorPhoto || org.logoUrl || ''} className="w-8 h-8 rounded-full border border-white/10 object-cover" alt="" />
-                  <p className="text-sm font-black text-white flex-1 min-w-0 truncate">{p.authorName || (p.authorIsOrg === false ? 'Member' : org.name)}
+                  {/* Only a rules-verified org post (authorIsOrg, staff-only) wears the org's logo, name fallback and Official mark;
+                      a member's post shows the member, and one whose name copies the org's says it isn't the org. */}
+                  {p.authorIsOrg === true
+                    ? <img src={p.authorPhoto || org.logoUrl || ''} className="w-8 h-8 rounded-full border border-white/10 object-cover" alt="" />
+                    : <UserAvatar uid={p.authorId} src={p.authorPhoto || ''} className="w-8 h-8 rounded-full border border-white/10 object-cover" alt="" />}
+                  <p className="text-sm font-black text-white flex-1 min-w-0 truncate">{p.authorName || (p.authorIsOrg === true ? org.name : 'Member')}
+                    {p.authorIsOrg === true
+                      ? <span className="inline-flex items-center gap-0.5 ml-1.5 align-middle text-[9px] font-black uppercase tracking-widest text-sky-300" title="Posted by the organization's team"><BadgeCheck size={11} /> Official</span>
+                      : (p.authorName || '').trim().toLowerCase() === (org.name || '').trim().toLowerCase() &&
+                        <span className="ml-1.5 align-middle text-[9px] font-black uppercase tracking-widest text-amber-300" title="This is a person's account, not the organization">Not the org</span>}
                     <span className="text-white/30 font-bold text-[9px]"> · {new Date(p.timestamp).toLocaleDateString()}</span></p>
                   {orgFeed && p.orgTargetLabels && p.orgTargetLabels.length > 0 && (
                     <span className="text-[9px] font-black uppercase tracking-wider flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-500/25 border border-purple-400/35 text-purple-200">

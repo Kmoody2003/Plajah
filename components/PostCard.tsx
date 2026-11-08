@@ -4,7 +4,7 @@ import { Post, Album, Club, UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 const PollCard = lazy(() => import('./PollCard'));
 const LabsDataVisualizer = lazy(() => import('./LabsDataVisualizer'));
-import { Heart, MessageSquare, Share2, MoreHorizontal, ExternalLink, Play, Volume2, Image as ImageIcon, Link as LinkIcon, Edit2, Check, X as XIcon, ChevronRight, Gift, Banknote, Layers, Users, Maximize2, Swords, Clock } from 'lucide-react';
+import { Heart, MessageSquare, Share2, MoreHorizontal, ExternalLink, Play, Volume2, Image as ImageIcon, Link as LinkIcon, Edit2, Check, X as XIcon, ChevronRight, Gift, Banknote, Layers, Users, Maximize2, Swords, Clock, BadgeCheck } from 'lucide-react';
 import PostDebateModal from './PostDebateModal';
 import Portal from './Portal';
 import MiniMusicPlayer from './MiniMusicPlayer';
@@ -761,6 +761,12 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
               >
                 {post.authorName}
               </button>
+              {/* authorIsOrg is rules-checked (only the org's staff can set it), so this mark is the one a look-alike name can't copy. */}
+              {post.authorIsOrg === true && (
+                <span title="Posted by the organization's team" className="inline-flex items-center gap-0.5 text-[9px] font-black uppercase tracking-widest text-sky-300 flex-shrink-0">
+                  <BadgeCheck size={12} /> Official
+                </span>
+              )}
               {isTargeted && (
                 <>
                   <ChevronRight size={12} className="text-white/20 flex-shrink-0" />

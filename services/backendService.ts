@@ -1657,7 +1657,8 @@ export const createPost = async (post: Partial<Post>, opts?: { postId?: string }
       authorId: auth.currentUser.uid,
       authorName,
       authorPhoto,
-      ...(orgId ? { authorIsOrg: true, authorOrgId: orgId } : {}),
+      // Same mark as the post: a member posting as themself into an org feed stays authorIsOrg:false here too.
+      ...(orgId ? { authorIsOrg: postData.authorIsOrg === true, authorOrgId: orgId } : {}),
       type: mediaFeedType(post.media),
       content: post.text || '',
       timestamp: Date.now(),

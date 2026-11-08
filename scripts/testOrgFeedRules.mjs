@@ -79,6 +79,15 @@ t('stranger posts AS the business', 'DENY', OUT, 'create', PN, { data: asOrg(OUT
 t('author flips own post to AS the org later', 'DENY', MEM, 'update', `${DB}/posts/pm`, { existing: feedPost(MEM, { authorIsOrg: false }), data: feedPost(MEM, { authorIsOrg: true }) });
 t('author edits own post text', 'ALLOW', MEM, 'update', `${DB}/posts/pm`, { existing: feedPost(MEM, { authorIsOrg: false }), data: feedPost(MEM, { authorIsOrg: false, text: 'edited' }) });
 
+// The world-readable feed mirror: your own uid only, and the same org-voice gate
+const FN = `${DB}/feed/fnew`;
+const feedItem = (uid, o = {}) => ({ authorId: uid, authorName: uid, authorPhoto: '', type: 'NEWS', content: 'hello', timestamp: 1, ...o });
+t('member mirrors own post into the feed', 'ALLOW', MEM, 'create', FN, { data: feedItem(MEM, { authorOrgId: ORG, authorIsOrg: false }) });
+t('feed item under someone else’s uid', 'DENY', MEM, 'create', FN, { data: feedItem(PASTOR) });
+t('member mirrors a feed item AS the org', 'DENY', MEM, 'create', FN, { data: feedItem(MEM, { authorName: 'Grace', authorOrgId: ORG, authorIsOrg: true }) });
+t('org staff mirror a feed item AS the org', 'ALLOW', STAFFER, 'create', FN, { data: feedItem(STAFFER, { authorName: 'Grace', authorOrgId: ORG, authorIsOrg: true }) });
+t('author flips own feed item to AS the org', 'DENY', MEM, 'update', `${DB}/feed/fm`, { existing: feedItem(MEM, { authorOrgId: ORG, authorIsOrg: false }), data: feedItem(MEM, { authorOrgId: ORG, authorIsOrg: true }) });
+
 // Likes — only people who can see the post
 t('department member likes a department post', 'ALLOW', YOUTHM, 'update', PD, { existing: deptPost, data: { ...deptPost, likedBy: [YOUTHM], likesCount: 1 } });
 t('outsider likes a department post by id', 'DENY', MEM, 'update', PD, { existing: deptPost, data: { ...deptPost, likedBy: [MEM], likesCount: 1 } });

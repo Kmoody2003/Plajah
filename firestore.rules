@@ -396,7 +396,9 @@ service cloud.firestore {
 
     function isValidFeedItem(data) {
       return hasRequiredFields(['authorId', 'authorName', 'authorPhoto', 'type', 'content', 'timestamp']) &&
-             data.type in ['PICTURE', 'SONG', 'COMMENT', 'VIDEO', 'BOOK', 'NEWS', 'GAME', 'WATCH_ALONG', 'LIVE_FEED', 'RESEARCH_PAPER'];
+             data.type in ['PICTURE', 'SONG', 'COMMENT', 'VIDEO', 'BOOK', 'NEWS', 'GAME', 'WATCH_ALONG', 'LIVE_FEED', 'RESEARCH_PAPER'] &&
+             // The world-readable mirror carries the author's own uid (admins: the posts→feed one-off) and the same org-voice gate as posts.
+             (data.authorId == request.auth.uid || isAdmin()) && orgVoiceOk(data);
     }
 
     // A comment must carry SOMETHING: text, or media from the composer (GIF/sticker, photo,
@@ -513,10 +515,14 @@ service cloud.firestore {
              (!('commentsCount' in data) || data.commentsCount is number) &&
              (!('isPublic' in data) || data.isPublic is bool) &&
              (!('modifiedAt' in data) || data.modifiedAt is number) &&
-             // Carrying an org's/business page's name (authorIsOrg) needs the power to speak for it: org owners/admins/
-             // pastors/leaders/staffUids (MANAGE_CONTENT, which every POST_AS_ORG role has); a business page's owner.
-             // Covers create AND later edits (no flipping your own post to the org). A missing page errors = false under ||.
-             (data.get('authorIsOrg', false) != true || get(/databases/$(database)/documents/businessPages/$(data.authorOrgId)).data.ownerId == request.auth.uid || orgMobilizeStaff(data.authorOrgId));
+             orgVoiceOk(data);
+    }
+
+    // Carrying an org's/business page's name (authorIsOrg) needs the power to speak for it: org owners/admins/
+    // pastors/leaders/staffUids (MANAGE_CONTENT, which every POST_AS_ORG role has); a business page's owner.
+    // Covers create AND later edits (no flipping your own post to the org). A missing page errors = false under ||.
+    function orgVoiceOk(data) {
+      return data.get('authorIsOrg', false) != true || get(/databases/$(database)/documents/businessPages/$(data.authorOrgId)).data.ownerId == request.auth.uid || orgMobilizeStaff(data.authorOrgId);
     }
 
     function isValidVideo(data) {
