@@ -20,6 +20,7 @@ import { ReplySheet, BskyVideo, stripHtml } from '../FediversePostCard';
 import { favoriteAudiusTrack, unfavoriteAudiusTrack, repostAudiusTrack, unrepostAudiusTrack } from '../../services/audiusService';
 import { getAudiusSession, startAudiusAuth } from '../../services/audiusAuth';
 import { invalidateAudiusLibrary } from '../../services/audiusLibrary';
+import AudiusComments from './AudiusComments';
 import { bskyBookmarkPost, bskyUnbookmarkPost } from '../../services/fediverse/blueskyClient';
 
 const NET: Record<string, { label: string; color: string; logo: string }> = {
@@ -46,6 +47,9 @@ const ExternalPostCard: React.FC<ExternalPostCardProps> = ({ post, onOpenProfile
   const [localReposted, setLocalReposted] = useState<boolean | null>(null);
   const [localBookmarked, setLocalBookmarked] = useState<boolean | null>(null);
   const net = NET[post.protocol] ?? NET.bluesky;
+  const isAudius = (post.protocol as string) === 'audius';
+  const [addedComments, setAddedComments] = useState(0);
+  const replyCount = post.replyCount + addedComments;
 
   const isLiked = localLiked ?? post.isLiked;
   const isReposted = localReposted ?? post.isReposted;
@@ -75,16 +79,16 @@ const ExternalPostCard: React.FC<ExternalPostCardProps> = ({ post, onOpenProfile
           const next = !isLiked;
           setLocalLiked(next);
           const ok = next
-            ? await favoriteAudiusTrack(trackId, session.accessToken, session.userId)
-            : await unfavoriteAudiusTrack(trackId, session.accessToken, session.userId);
+            ? await favoriteAudiusTrack(trackId)
+            : await unfavoriteAudiusTrack(trackId);
           if (ok) invalidateAudiusLibrary();
           else setLocalLiked(!next);
         } else {
           const next = !isReposted;
           setLocalReposted(next);
           const ok = next
-            ? await repostAudiusTrack(trackId, session.accessToken, session.userId)
-            : await unrepostAudiusTrack(trackId, session.accessToken, session.userId);
+            ? await repostAudiusTrack(trackId)
+            : await unrepostAudiusTrack(trackId);
           if (ok) invalidateAudiusLibrary();
           else setLocalReposted(!next);
         }
@@ -237,12 +241,11 @@ const ExternalPostCard: React.FC<ExternalPostCardProps> = ({ post, onOpenProfile
 
             {/* Action bar — same buttons, spacing and icons as a native post */}
             <div className="flex items-center gap-1 mt-3 -ml-1.5">
-              {(post.protocol as string) !== 'audius' && (
-                <motion.button whileTap={{ scale: 0.85 }} onClick={() => setReplying(r => !r)}
-                  className={`tap flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all ${replying ? 'text-sky-400 bg-sky-400/10' : 'text-white/40 hover:text-sky-400 hover:bg-sky-400/10'}`}>
-                  <MessageSquare size={16} strokeWidth={1.5} />{post.replyCount > 0 && <span className="text-[12px]">{post.replyCount}</span>}
-                </motion.button>
-              )}
+              <motion.button whileTap={{ scale: 0.85 }} onClick={() => setReplying(r => !r)}
+                title={isAudius ? 'Comments on Audius' : 'Reply'}
+                className={`tap flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all ${replying ? 'text-sky-400 bg-sky-400/10' : 'text-white/40 hover:text-sky-400 hover:bg-sky-400/10'}`}>
+                <MessageSquare size={16} strokeWidth={1.5} />{replyCount > 0 && <span className="text-[12px]">{replyCount}</span>}
+              </motion.button>
 
               <motion.button whileTap={{ scale: 0.85 }} onClick={() => act('like')} disabled={acting === 'like' || post.protocol === 'threads'}
                 className={`tap flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all disabled:opacity-50 ${isLiked ? 'text-red-400 bg-red-400/10' : 'text-white/40 hover:text-red-400 hover:bg-red-400/10'}`}>
@@ -269,7 +272,9 @@ const ExternalPostCard: React.FC<ExternalPostCardProps> = ({ post, onOpenProfile
               </motion.button>
             </div>
 
-            {replying && <ReplySheet post={post} onClose={() => setReplying(false)} />}
+            {replying && (isAudius
+              ? <AudiusComments trackId={post.id} trackNumericId={(post as any).audiusTrackNumericId} disabled={(post as any).audiusCommentsDisabled} onPosted={() => setAddedComments(n => n + 1)} />
+              : <ReplySheet post={post} onClose={() => setReplying(false)} />)}
           </div>
         </div>
       </div>

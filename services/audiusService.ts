@@ -977,8 +977,9 @@ export async function unrepostAudiusTrack(trackId: string): Promise<boolean> {
   }
 }
 
-function mapAudiusComment(c: any): AudiusComment {
-  const u = c.user ?? {};
+function mapAudiusComment(c: any, users?: Map<string, any>): AudiusComment {
+  // The comments endpoint sends profiles once, in `related.users`, keyed by the comment's user_id.
+  const u = c.user ?? users?.get(String(c.user_id)) ?? {};
   return {
     id: String(c.id ?? ''),
     userId: String(c.user_id ?? u.id ?? ''),
@@ -990,46 +991,51 @@ function mapAudiusComment(c: any): AudiusComment {
     trackTimestampS: typeof c.track_timestamp_s === 'number' ? c.track_timestamp_s : undefined,
     createdAt: c.created_at ? Date.parse(c.created_at) || Date.now() : Date.now(),
     reactCount: Number(c.react_count ?? 0),
-    replies: Array.isArray(c.replies) ? c.replies.map(mapAudiusComment) : undefined,
+    replies: Array.isArray(c.replies) ? c.replies.map((r: any) => mapAudiusComment(r, users)) : undefined,
   };
 }
 
 export async function fetchAudiusTrackComments(trackId: string, limit = 30): Promise<AudiusComment[]> {
   const cleanId = trackId.replace(/^audius_/, '');
   try {
-    const data = await audiusFetch(`/v1/tracks/${encodeURIComponent(cleanId)}/comments`, { limit: String(limit) });
-    return (data.data ?? []).map(mapAudiusComment);
+    const data = await audiusFetch(`/v1/tracks/${encodeURIComponent(cleanId)}/comments`, { limit: String(limit), sort_method: 'newest' });
+    const users = new Map<string, any>((data.related?.users ?? []).map((u: any) => [String(u.id), u]));
+    return (data.data ?? []).filter((c: any) => !c.is_tombstone).map((c: any) => mapAudiusComment(c, users));
   } catch {
     return [];
   }
 }
 
+/**
+ * Comment on an Audius track as the connected user. Audius wants the NUMERIC track id
+ * (`entityId: integer`, camelCase body); `parentId` makes it a reply.
+ */
 export async function postAudiusTrackComment(
-  trackId: string,
+  trackNumericId: number,
   message: string,
-  trackTimestampS?: number
+  opts: { trackTimestampS?: number; parentId?: number } = {},
 ): Promise<AudiusComment | null> {
-  const cleanId = trackId.replace(/^audius_/, '');
+  const body = message.trim().slice(0, 500);
+  if (!body || !Number.isFinite(trackNumericId)) return null;
   try {
     const res = await audiusMutate('/v1/comments', 'POST', {
-      entity_id: cleanId,
-      entity_type: 'Track',
-      body: message.trim(),
-      ...(typeof trackTimestampS === 'number' ? { track_timestamp_s: Math.floor(trackTimestampS) } : {}),
+      entityType: 'Track',
+      entityId: trackNumericId,
+      body,
+      ...(typeof opts.trackTimestampS === 'number' ? { trackTimestampS: Math.max(0, Math.floor(opts.trackTimestampS)) } : {}),
+      ...(typeof opts.parentId === 'number' ? { parentId: opts.parentId } : {}),
     });
-    const d = res?.data ?? res;
-    if (d?.id) return mapAudiusComment(d);
     const { getAudiusSession } = await import('./audiusAuth');
     const s = getAudiusSession();
     return {
-      id: `audius_c_${Date.now()}`,
+      id: String(res?.comment_id ?? res?.data?.comment_id ?? `audius_c_${Date.now()}`),
       userId: s?.userId ?? '',
       userName: s?.name ?? 'You',
       userHandle: s?.handle ?? '',
       userAvatar: s?.profilePicture,
       userVerified: !!s?.verified,
-      message: message.trim(),
-      trackTimestampS,
+      message: body,
+      trackTimestampS: opts.trackTimestampS,
       createdAt: Date.now(),
       reactCount: 0,
     };
@@ -1059,82 +1065,99 @@ export async function fetchAudiusFollowing(userId: string, limit = 30): Promise<
   }
 }
 
+/** Which Audius feed: the network's personalized picks, or new tracks + reposts from the people you follow. */
+export type AudiusFeedMode = 'for-you' | 'latest';
+
 /**
- * Fetches recent track releases and reposts from the connected user's followed Audius artists,
- * normalized as FediversePost items so they weave chronologically into Plajah's main social timeline.
+ * The connected user's Audius feed (`/v1/users/{id}/feed/for-you` or `/feed`), shaped like the
+ * FediversePost items Plajah's Social Stream already weaves in by time. Personal flags (liked,
+ * reposted, follows) need the user's own token; without a usable one it falls back to the public feed.
  */
-export async function fetchAudiusSocialFeed(limit = 20): Promise<any[]> {
+export async function fetchAudiusFeed(
+  mode: AudiusFeedMode,
+  opts: { limit?: number; offset?: number } = {},
+): Promise<any[]> {
   try {
-    const { getAudiusSession } = await import('./audiusAuth');
-    const { fetchAudiusLibrary } = await import('./audiusLibrary');
+    const { getAudiusSession, getAudiusAccessToken } = await import('./audiusAuth');
     const session = getAudiusSession();
     if (!session?.userId) return [];
-
     const host = await getAudiusHost();
-    const lib = await fetchAudiusLibrary({ limit: 25 });
-    const followed = lib.following.slice(0, 8);
+    const path = `/v1/users/${encodeURIComponent(session.userId)}/${mode === 'for-you' ? 'feed/for-you' : 'feed'}`;
+    const params: Record<string, string> = { limit: String(opts.limit ?? 30), offset: String(opts.offset ?? 0) };
+    if (mode === 'for-you') params.max_per_artist = '2';
+    else params.tracks_only = 'true';
 
-    // Fetch latest tracks from followed artists concurrently
-    const rawTracksByArtist = await Promise.all(
-      followed.map(async artist => {
-        try {
-          const data = await audiusFetch(`/v1/users/${encodeURIComponent(artist.id)}/tracks`, { limit: '4' });
-          return (data.data ?? []).map((t: any) => ({ raw: t, artist }));
-        } catch {
-          return [];
-        }
-      })
-    );
-
-    const favIds = new Set(lib.favorites.map(f => f.id.replace(/^audius_/, '')));
-    const repostIds = new Set(lib.reposts.map(r => r.id.replace(/^audius_/, '')));
-    const flat = rawTracksByArtist.flat();
-
-    const posts = flat.map(({ raw: t, artist }) => {
-      const mapped = mapTrack(t, host);
-      const createdAt = t.release_date
-        ? Date.parse(t.release_date) || Date.now() - 3600_000
-        : t.created_at
-          ? Date.parse(t.created_at) || Date.now() - 3600_000
-          : Date.now() - 3600_000;
-      const desc = t.description ? String(t.description).trim() : '';
-      const content = desc ? `🎵 ${mapped.title}${mapped.genre ? ` (${mapped.genre})` : ''}\n${desc}` : `🎵 Released "${mapped.title}"${mapped.genre ? ` · ${mapped.genre}` : ''}`;
-      return {
-        id: `audius_${t.id}`,
-        uri: `audius://track/${t.id}`,
-        protocol: 'audius',
-        accountId: session.userId,
-        authorHandle: `@${artist.handle}`,
-        authorDisplayName: artist.name,
-        authorAvatarUrl: artist.profilePicture || undefined,
-        authorDid: `audius:${artist.id}`,
-        content,
-        contentText: content,
-        createdAt,
-        url: mapped.sourcePageUrl || `https://audius.co/${artist.handle}`,
-        replyCount: Number(t.comment_count ?? 0),
-        repostCount: Number(t.repost_count ?? 0),
-        likeCount: Number(t.favorite_count ?? 0),
-        isLiked: favIds.has(String(t.id)),
-        isReposted: repostIds.has(String(t.id)),
-        isBookmarked: false,
-        media: [
-          {
-            type: 'audio' as const,
-            url: mapped.url,
-            previewUrl: mapped.thumbnailUrl,
-            altText: `${mapped.title} — ${artist.name}`,
-          },
-        ],
-      };
-    });
-
-    posts.sort((a, b) => b.createdAt - a.createdAt);
-    return posts.slice(0, limit);
+    const get = async (personal: boolean) => {
+      const q = new URLSearchParams({ app_name: APP_NAME, ...params, ...(personal ? { user_id: session.userId } : {}) });
+      const token = personal ? await getAudiusAccessToken().catch(() => null) : null;
+      if (personal && !token) return null;
+      const res = await fetch(`${host}${path}?${q}`, {
+        headers: { ...audiusHeaders(), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (!res.ok) return null;
+      return res.json();
+    };
+    const data = (await get(true)) ?? (await get(false));
+    const items: any[] = Array.isArray(data?.data) ? data.data : [];
+    return items
+      .filter(x => x?.type === 'track' && x.item && !x.item.is_delete && x.item.access?.stream !== false)
+      .map(x => audiusTrackToPost(x.item, host, session.userId, x.timestamp, mode));
   } catch (err) {
-    console.warn('[Audius] fetchAudiusSocialFeed:', err);
+    console.warn('[Audius] fetchAudiusFeed:', err);
     return [];
   }
+}
+
+/** Latest from the people you follow (kept for older callers). */
+export async function fetchAudiusSocialFeed(limit = 20): Promise<any[]> {
+  return fetchAudiusFeed('latest', { limit });
+}
+
+function audiusTrackToPost(t: any, host: string, viewerId: string, feedTime: string | undefined, mode: AudiusFeedMode) {
+  const mapped = mapTrack(t, host);
+  const u = t.user ?? {};
+  const handle = u.handle ?? '';
+  const when = (v: unknown) => (typeof v === 'string' ? Date.parse(v) : NaN);
+  // Feed time is when it landed in this feed (a repost lands when reposted), so use it first.
+  const createdAt = [when(feedTime), when(t.release_date), when(t.created_at)].find(n => Number.isFinite(n) && n > 0) ?? Date.now();
+  const desc = t.description ? String(t.description).trim() : '';
+  const content = desc ? `${mapped.title}${mapped.genre ? ` · ${mapped.genre}` : ''}
+${desc}` : `New track: "${mapped.title}"${mapped.genre ? ` · ${mapped.genre}` : ''}`;
+  // In Latest, a track from someone you don't follow is there because a follow reposted it.
+  const reposted = mode === 'latest' && Array.isArray(t.followee_reposts) && t.followee_reposts.length > 0 && u.does_current_user_follow === false;
+  return {
+    id: `audius_${t.id}`,
+    uri: `audius://track/${t.id}`,
+    protocol: 'audius',
+    accountId: viewerId,
+    authorHandle: `@${handle}`,
+    authorDisplayName: u.name || handle,
+    authorAvatarUrl: u.profile_picture?.['150x150'] ?? u.profile_picture?.['480x480'] ?? undefined,
+    authorDid: `audius:${u.id ?? ''}`,
+    content,
+    contentText: content,
+    createdAt,
+    url: mapped.sourcePageUrl || (handle ? `https://audius.co/${handle}` : 'https://audius.co/'),
+    replyCount: Number(t.comment_count ?? 0),
+    repostCount: Number(t.repost_count ?? 0),
+    likeCount: Number(t.favorite_count ?? 0),
+    isLiked: !!t.has_current_user_saved,
+    isReposted: !!t.has_current_user_reposted,
+    isBookmarked: false,
+    ...(reposted ? { repostedBy: 'Someone you follow' } : {}),
+    // Comments are posted against the numeric track id; the feed is either For You or Latest.
+    audiusTrackNumericId: typeof t.track_id === 'number' ? t.track_id : undefined,
+    audiusCommentsDisabled: !!t.comments_disabled,
+    audiusFeed: mode,
+    media: [
+      {
+        type: 'audio' as const,
+        url: mapped.url,
+        previewUrl: mapped.thumbnailUrl,
+        altText: mapped.title,
+      },
+    ],
+  };
 }
 
 // ─── Native normalization (Audius → Plajah Album/Track) ────────────────────────

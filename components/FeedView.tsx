@@ -95,7 +95,7 @@ import { withAltText, linkPreviewMedia } from '../services/postingLogic';
 import { isModerationHiddenFor } from '../services/safety/safetyPolicy';
 import { publishComposerPost } from '../services/postingService';
 import { crosspostNative } from '../services/fediverse/crosspostClient';
-import { fetchAudiusSocialFeed } from '../services/audiusService';
+import { fetchAudiusFeed, type AudiusFeedMode } from '../services/audiusService';
 import { getAudiusSession } from '../services/audiusAuth';
 import type { FediversePost } from '../services/fediverse/types';
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
@@ -1676,16 +1676,20 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
     try { localStorage.setItem('plajah.feed.sourcesOff', JSON.stringify(next)); } catch { /* private mode */ }
     return next;
   });
-  const [audiusSocialPosts, setAudiusSocialPosts] = useState<FediversePost[]>([]);
+  // Audius rides the same lenses as Plajah: For You gets Audius's For You picks, Following gets
+  // Latest (new tracks and reposts from the people you follow there). Each mode loads once per visit.
+  const audiusMode: AudiusFeedMode = plajahFilter === 'FOLLOWING' ? 'latest' : 'for-you';
+  const [audiusFeeds, setAudiusFeeds] = useState<Partial<Record<AudiusFeedMode, FediversePost[]>>>({});
   useEffect(() => {
     const session = getAudiusSession();
-    if (!session?.userId || activeTab !== 'GLOBAL') return;
+    if (!session?.userId || activeTab !== 'GLOBAL' || sourcesOff.includes('audius') || audiusFeeds[audiusMode]) return;
     let alive = true;
-    fetchAudiusSocialFeed(session.userId, 24)
-      .then(posts => { if (alive) setAudiusSocialPosts(posts as unknown as FediversePost[]); })
+    fetchAudiusFeed(audiusMode, { limit: 30 })
+      .then(posts => { if (alive) setAudiusFeeds(cur => ({ ...cur, [audiusMode]: posts as unknown as FediversePost[] })); })
       .catch(() => {});
     return () => { alive = false; };
-  }, [activeTab, currentUser?.uid]);
+  }, [activeTab, audiusMode, currentUser?.uid, sourcesOff, audiusFeeds]);
+  const audiusSocialPosts = audiusFeeds[audiusMode] ?? [];
 
   const combinedExternalFeed = React.useMemo(
     () => [...fediverseFeed, ...audiusSocialPosts],
@@ -2420,7 +2424,7 @@ const toggleFavoriteTeam = async (team: string) => {
     { id: 'plajah', label: 'Plajah', detail: 'Everyone here', color: '#D40055', on: true },
     ...(fediverseAccounts.some(a => a.protocol === 'bluesky') ? [{ id: 'bluesky', label: 'Bluesky', detail: 'Your home timeline', color: '#1185FE', on: !sourcesOff.includes('bluesky') }] : []),
     ...(fediverseAccounts.some(a => (a.protocol as string) === 'mastodon') ? [{ id: 'mastodon', label: 'Mastodon', detail: 'Your home timeline', color: '#6364FF', on: !sourcesOff.includes('mastodon') }] : []),
-    ...(getAudiusSession()?.userId ? [{ id: 'audius', label: 'Audius', detail: 'Artists you follow', color: '#A855F7', on: !sourcesOff.includes('audius') }] : []),
+    ...(getAudiusSession()?.userId ? [{ id: 'audius', label: 'Audius', detail: 'For You picks, and Latest in Following', color: '#A855F7', on: !sourcesOff.includes('audius') }] : []),
   ];
   const socialScopeLabel = activeTab === 'LIVETALK' ? 'Live talks' : activeTab === 'ONAIR' ? 'On Air' : activeTab === 'NOW' ? 'Friends right now'
     : activeTab === 'PULSE' ? 'Debates' : activeTab === 'MINE' ? 'My posts' : activeTab === 'GLOBAL' && plajahFilter === 'LIKED' && !hashtagView ? 'Liked' : null;
