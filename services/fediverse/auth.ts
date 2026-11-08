@@ -11,6 +11,7 @@ import type {
   FediverseCredentials, FediverseAccount, FediverseAccountDoc, FediverseProtocol,
 } from './types.js';
 import { FediverseError } from './types.js';
+import { fsGetStrict as adminFsGetStrict, fsList as adminFsList, fsSet as adminFsSet, fsDelete as adminFsDelete } from '../firebaseAdminRest.js';
 
 // ─── Encryption ───────────────────────────────────────────────────────────────
 // AES-256-GCM. ENCRYPTION_KEY must be 64 hex chars (32 bytes) in env.
@@ -137,34 +138,25 @@ function decodeDoc(doc: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
-async function fsGet(path: string, token: string): Promise<Record<string, unknown> | null> {
-  const doc = await fsReq('GET', path, token) as Record<string, unknown> | null;
-  return doc ? decodeDoc(doc) : null;
+// Account rows are read/written with the SERVER's own credentials. The route has already authenticated the user
+// (authMiddleware → req.uid) and every path below is scoped to that uid, so this does not widen access. Using the
+// caller's ID token here meant a rules mismatch (403 PERMISSION_DENIED) made every account look "not connected".
+// The `token` parameters are kept so call sites stay unchanged; they are intentionally unused.
+async function fsGet(path: string, _token: string): Promise<Record<string, unknown> | null> {
+  return adminFsGetStrict(path);
 }
 
-async function fsList(path: string, token: string): Promise<Record<string, unknown>[]> {
-  const data = await fsReq('GET', path, token) as Record<string, unknown> | null;
-  if (!data) return [];
-  const docs = (data.documents as Record<string, unknown>[]) ?? [];
-  return docs.map(decodeDoc);
+async function fsList(path: string, _token: string): Promise<Record<string, unknown>[]> {
+  const rows = await adminFsList(path, { strict: true });
+  return rows.map(r => r.data);
 }
 
-async function fsSet(path: string, data: Record<string, unknown>, token: string): Promise<void> {
-  const fields: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(data)) {
-    fields[k] = encodeField(v);
-  }
-  await fsReq('PATCH', path, token, { fields });
+async function fsSet(path: string, data: Record<string, unknown>, _token: string): Promise<void> {
+  if (!(await adminFsSet(path, data))) throw new Error(`Firestore write failed: /${path}`);
 }
 
-async function fsDelete(path: string, token: string): Promise<void> {
-  const res = await fetch(`${FS_BASE}/${path}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok && res.status !== 404) {
-    throw new Error(`Firestore DELETE /${path}: ${res.status}`);
-  }
+async function fsDelete(path: string, _token: string): Promise<void> {
+  if (!(await adminFsDelete(path))) throw new Error(`Firestore delete failed: /${path}`);
 }
 
 // ─── In-process caches ────────────────────────────────────────────────────────
