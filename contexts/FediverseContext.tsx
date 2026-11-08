@@ -46,6 +46,8 @@ interface FediverseContextValue {
   notifications: FediverseNotification[];
   feedErrors: FediverseFeedResult['errors'];
   isLoadingAccounts: boolean;
+  accountsError: string | null;
+  reloadAccounts: () => Promise<void>;
   isLoadingFeed: boolean;
   isCrossPosting: boolean;
 
@@ -90,6 +92,7 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [feedErrors, setFeedErrors]       = useState<FediverseFeedResult['errors']>([]);
   const [notifications, setNotifications] = useState<FediverseNotification[]>([]);
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
+  const [accountsError, setAccountsError] = useState<string | null>(null);
   const [isLoadingFeed, setIsLoadingFeed]         = useState(false);
   const [isCrossPosting, setIsCrossPosting]       = useState(false);
   const [dmConversations, setDmConversations]     = useState<BskyConversation[]>([]);
@@ -107,9 +110,11 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const data = await serverJson<{ accounts: FediverseAccount[] }>('/api/fediverse/accounts', token);
       setAccounts(data.accounts);
+      setAccountsError(null);
     } catch (err) {
       console.error('[Fediverse] Failed to load accounts:', err);
-      setAccounts([]);
+      // A failed load is not "no accounts": keep what we had and say so.
+      setAccountsError(err instanceof Error ? err.message : 'Could not load your linked accounts.');
     } finally {
       setIsLoadingAccounts(false);
     }
@@ -234,15 +239,8 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       // broadcasts on a same-origin channel, which survives that.
       let bc: BroadcastChannel | null = null;
       try { bc = new BroadcastChannel('plajah-fediverse-oauth'); bc.onmessage = ev => { onMessage({ origin: window.location.origin, data: ev.data } as MessageEvent); }; } catch { /* unsupported */ }
-      const closedPoll = setInterval(() => {
-        if (popup.closed && !handled) {
-          // Give a just-sent broadcast a moment to arrive before calling it a cancel.
-          setTimeout(() => { if (!handled) { handled = true; cleanup(); reject(new Error('The sign-in window was closed before Mastodon finished.')); } }, 1500);
-          clearInterval(closedPoll);
-        }
-      }, 800);
       const origCleanup = cleanup;
-      cleanup = function () { origCleanup(); clearInterval(closedPoll); if (bc) bc.close(); } as typeof cleanup;
+      cleanup = function () { origCleanup(); if (bc) bc.close(); } as typeof cleanup;
     });
   }, [uid]);
 
@@ -293,17 +291,22 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const onMsg = (ev: MessageEvent) => { if (ev.origin === window.location.origin) handle_(ev.data); };
       window.addEventListener('message', onMsg);
       if (bc) bc.onmessage = ev => handle_(ev.data);
+      // popup.closed is NOT trustworthy here: once the popup navigates to bsky.social (cross-origin-opener-policy)
+      // the browser reports it as closed while it is still open. So never fail on it — poll the server for the
+      // linked account instead, and only give up after a generous timeout.
       let checking = false;
+      const deadline = Date.now() + 4 * 60_000;
       const poll = setInterval(async () => {
-        if (!popup.closed || checking) return;
+        if (Date.now() > deadline) return done(() => reject(new Error('Bluesky sign-in timed out. Try again.')));
+        if (checking) return;
         checking = true;
         try {
           const t = await getToken();
           const { accounts: list } = await serverJson<{ accounts: FediverseAccount[] }>('/api/fediverse/accounts', t!);
-          if ((list || []).some(a => a.protocol === 'bluesky' && Number(a.connectedAt || 0) >= startedAt)) return done(resolve);
-        } catch { /* fall through */ }
-        done(() => reject(new Error('The sign-in window was closed.')));
-      }, 800);
+          if ((list || []).some(a => a.protocol === 'bluesky' && Number(a.connectedAt || 0) >= startedAt)) done(resolve);
+        } catch { /* transient — keep waiting */ }
+        finally { checking = false; }
+      }, 2500);
     });
     await loadAccounts();
   }, [uid, loadAccounts]);
@@ -488,7 +491,7 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const value: FediverseContextValue = {
     accounts, feed, notifications, feedErrors,
-    isLoadingAccounts, isLoadingFeed, isCrossPosting,
+    isLoadingAccounts, accountsError, reloadAccounts: loadAccounts, isLoadingFeed, isCrossPosting,
     connectMastodonOAuth, connectMastodonToken,
     connectBlueskyAccount, connectBlueskyOAuth, connectThreadsAccount, disconnectAccount,
     refreshFeed, refreshNotifications,

@@ -199,7 +199,7 @@ interface FediverseHubProps {
 
 export default function FediverseHub({ onOpenSettings }: FediverseHubProps) {
   const {
-    accounts, feed, notifications, isLoadingAccounts, isLoadingFeed,
+    accounts, feed, notifications, isLoadingAccounts, accountsError, reloadAccounts, isLoadingFeed,
     refreshFeed, refreshNotifications, hasProtocol,
     dmConversations, isDmLoading, dmError, loadDmConversations,
   } = useFediverse();
@@ -221,6 +221,18 @@ export default function FediverseHub({ onOpenSettings }: FediverseHubProps) {
   const unreadDms = dmConversations.reduce((sum, c) => sum + (c.unreadCount ?? 0), 0);
 
   // ── No accounts connected ─────────────────────────────────────────────────
+
+  if (!isLoadingAccounts && !accounts.length && accountsError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+        <p className="text-sm font-black uppercase tracking-widest text-white/60">Couldn't load your accounts</p>
+        <p className="text-[10px] text-white/40 max-w-xs">Your linked Bluesky and Mastodon accounts are still saved — the connection to Plajah's server failed. {accountsError}</p>
+        <button onClick={() => { void reloadAccounts(); }}
+          className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest"
+          style={{ background: '#0085ff', color: '#fff' }}>Retry</button>
+      </div>
+    );
+  }
 
   if (!isLoadingAccounts && !accounts.length) {
     return (

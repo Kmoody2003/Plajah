@@ -8210,6 +8210,7 @@ async function startServer() {
         .then(m => m.registerFediverseHandles({ firestoreAuthHeaders, firestoreIncrement: (p: string, inc: Record<string, number>) => firestoreIncrement(p, inc) }, req.uid, accounts))
         .catch(() => {});
     } catch (err: any) {
+      console.error('[Fediverse] Accounts load failed:', err?.message || err);
       res.status(500).json({ error: err.message ?? 'Failed to load accounts' });
     }
   });
