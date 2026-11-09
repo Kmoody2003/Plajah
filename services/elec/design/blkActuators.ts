@@ -4,16 +4,28 @@ import type { BlockDef } from './block';
 import { n, sid } from './block';
 
 export const speaker: BlockDef = {
-  id: 'speaker', label: 'Speaker + amplifier', plural: 'speakers', about: 'PWM tone or audio through an RC filter into a 2.5 W class-D amp and a 4 Ω driver.', max: 1,
-  words: /\b(speaker|buzzer|beep(er|s)?|chime|alarm sound|sound|audio|tones?|melod(y|ies)|doorbell)\b/i, needsMcu: () => true,
-  pins: () => [{ role: 'pwm', cap: 'pwm', label: 'Audio out' }], loads: () => [{ rail: 'v5', typ: 0.1, peak: 0.6, what: 'class-D amp at full volume' }],
+  id: 'speaker', label: 'Speaker + amplifier', plural: 'speakers', about: 'Tones through a PWM filter and a 2.5 W class-D amp, or real audio (music, speech) through an I²S amplifier; 4 Ω driver.', max: 1,
+  words: /\b(speaker|buzzer|beep(er|s)?|chime|alarm sound|sound|audio|tones?|melod(y|ies)|doorbell|music|mp3|wav|internet radio|voice)\b/i, needsMcu: () => true,
+  opts: [{ key: 'kind', label: 'Audio', choices: ['pwm', 'i2s'], default: 'pwm' }],
+  notOnFor: o => (o.kind === 'i2s' ? { nano: 'the ATmega328P has no I²S audio (use PWM tones, or an ESP32/Pico)', rpi: 'this Pi symbol does not expose the I²S pins (GPIO19/21); use a USB or HAT sound card' } : {}),
+  pins: i => (i.opt.kind === 'i2s' ? [{ role: 'bclk', cap: 'i2s', label: 'I²S bit clock' }, { role: 'lrc', cap: 'i2s', label: 'I²S word select' }, { role: 'din', cap: 'gpio', label: 'I²S data' }] : [{ role: 'pwm', cap: 'pwm', label: 'Audio out' }]),
+  loads: i => [{ rail: 'v5', typ: 0.1, peak: i.opt.kind === 'i2s' ? 0.65 : 0.6, what: `${i.opt.kind === 'i2s' ? 'I²S' : 'class-D'} amp at full volume` }],
   draw(i, d) {
+    if (i.opt.kind === 'i2s') {
+      const amp = d.part('i2samp', 0, 0); const ls = d.part('speaker', 14, 0, 0, { R: 4, P: '3' });
+      d.net('V5', [amp, 'VIN']); d.net('GND', [amp, 'GND']); d.net('@bclk', [amp, 'BCLK']); d.net('@lrc', [amp, 'LRC']); d.net('@din', [amp, 'DIN']); d.net('sp', [amp, 'SPK+'], [ls, '+']); d.net('sm', [amp, 'SPK-'], [ls, '-']); return;
+    }
     const ra = d.part('resistor', 0, 0, 0, { R: '1k' }); const cf = d.part('capacitor', 5, 5, 1, { C: '10n' }); const cc = d.part('capacitor', 10, 0, 0, { C: '1u' });
     const amp = d.part('amp', 22, 2, 0, { gain: 24, P: '2.5' }); const ls = d.part('speaker', 34, 2, 0, { R: 4, P: '3' });
     d.net('@pwm', [ra, '1']); d.net('filt', [ra, '2'], [cf, '1'], [cc, '1']); d.net('GND', [cf, '2']); d.net('ain', [cc, '2'], [amp, 'IN']);
     d.net('V5', [amp, 'VCC']); d.net('GND', [amp, 'GND']); d.net('op', [amp, 'OUT+'], [ls, '+']); d.net('om', [amp, 'OUT-'], [ls, '-']);
   },
   fw(i, f) {
+    if (i.opt.kind === 'i2s') {
+      const { bclk, lrc, din } = i.pins;
+      if (f.fw === 'esphome') { f.esp('i2s_audio', `- id: i2s_out\n  i2s_lrclk_pin: ${f.pin(lrc)}\n  i2s_bclk_pin: ${f.pin(bclk)}`); f.esp('speaker', `- platform: i2s_audio\n  id: spk\n  i2s_audio_id: i2s_out\n  dac_type: external\n  i2s_dout_pin: ${f.pin(din)}\n  channel: mono`); f.esp('media_player', `- platform: speaker\n  name: "Speaker"\n  announcement_pipeline:\n    speaker: spk\n    format: WAV`); return; }
+      f.imp('import audiobusio', 'import synthio'); f.setup(`audio = audiobusio.I2SOut(bit_clock=${f.bpin(bclk)}, word_select=${f.bpin(lrc)}, data=${f.bpin(din)})\nsynth = synthio.Synthesizer(sample_rate=22050)\naudio.play(synth)\nfor note in (72, 76, 79):  # start-up chime; play WAV/MP3 files with audiocore / audiomp3\n    synth.press(note)\n    time.sleep(0.15)\n    synth.release(note)`); return;
+    }
     const p = i.pins.pwm;
     if (f.fw === 'esphome') { f.esp('output', `- platform: ledc\n  pin: ${f.pin(p)}\n  id: ${sid(i, 'out')}`); f.esp('rtttl', `output: ${sid(i, 'out')}`); f.esp('button', `- platform: template\n  name: "Chime"\n  on_press:\n    - rtttl.play: "chime:d=8,o=6,b=180:c,e,g,8c7"`); return; }
     if (f.fw === 'python') { f.imp('from gpiozero import TonalBuzzer'); f.setup(`chime = TonalBuzzer(${f.pin(p)})\nfor note in ("C5", "E5", "G5"):\n    chime.play(note)\n    time.sleep(0.12)\nchime.stop()`); return; }
@@ -21,7 +33,7 @@ export const speaker: BlockDef = {
     f.imp('import simpleio'); f.lib('simpleio'); f.setup(`for hz in (523, 659, 784):  # start-up chime\n    simpleio.tone(${f.pin(p)}, hz, 0.12)`);
   },
   extras: () => [['1', '40-57 mm 4 Ω speaker, ≥ 3 W', 'behind a hole grille'], ['1', 'Foam or felt', 'damp the box']],
-  notes: () => ['PWM audio is fine for tones and chimes; for music use an I²S DAC/amp (MAX98357A) instead.'],
+  notes: i => (i.opt.kind === 'i2s' ? ['MAX98357A: SD floats high (on) and GAIN floats at 9 dB on the breakout; tie GAIN to GND for 12 dB.'] : ['PWM audio is fine for tones and chimes; ask for music or speech to get an I²S amplifier instead.']),
 };
 
 export const servo: BlockDef = {
@@ -64,16 +76,16 @@ export const motor: BlockDef = {
 };
 
 export const relay: BlockDef = {
-  id: 'relay', label: 'Relay (isolated)', plural: 'relays', about: 'Opto-isolated 5 V relay module per channel; the contacts are screw terminals for your load.', max: 8,
+  id: 'relay', label: 'Relay (isolated)', plural: 'relays', about: 'Opto-isolated 5 V relay module per channel; the contacts are screw terminals for your load.', max: 16,
   words: /\b(relays?|switch (a|the|my) (lamp|light|fan|heater|appliance|pump)|channel (relay|switch)|power switch board)\b/i, needsMcu: () => true,
-  pins: i => [{ role: 'out', cap: 'gpio', high: true, label: `Relay ${n(i)}` }], loads: i => [{ rail: 'v5', typ: 0.072, peak: 0.075, what: `relay ${n(i)} coil` }],
+  pins: i => [{ role: 'out', cap: 'gpio', high: true, label: `Relay ${n(i)}`, exp: true }], loads: i => [{ rail: 'v5', typ: 0.072, peak: 0.075, what: `relay ${n(i)} coil` }],
   draw(i, d) { const k = d.part('relay', 0, 0); d.net('V5', [k, 'VCC']); d.net('GND', [k, 'GND']); d.net('@out', [k, 'IN']); },
   fw(i, f) {
     const v = sid(i); const p = i.pins.out;
-    if (f.fw === 'esphome') { f.esp('switch', `- platform: gpio\n  pin: ${f.pin(p)}\n  name: "Relay ${n(i)}"\n  id: ${v}\n  restore_mode: ALWAYS_OFF  # never switch a load on by itself after a power cut`); return; }
-    if (f.fw === 'python') { f.imp('from gpiozero import OutputDevice'); f.setup(`${v} = OutputDevice(${f.pin(p)}, active_high=True, initial_value=False)`); return; }
-    if (f.fw === 'arduino') { f.setup(`pinMode(${f.pin(p)}, OUTPUT);\n  digitalWrite(${f.pin(p)}, LOW);  // relay ${n(i)} off at start`); return; }
-    f.imp('import digitalio'); f.setup(`${v} = digitalio.DigitalInOut(${f.pin(p)})\n${v}.switch_to_output(value=False)  # relay ${n(i)} off at start`);
+    if (f.fw === 'esphome') { f.esp('switch', `- platform: gpio\n${f.espPin(p)}\n  name: "Relay ${n(i)}"\n  id: ${v}\n  restore_mode: ALWAYS_OFF  # never switch a load on by itself after a power cut`); return; }
+    if (f.fw === 'python' && !f.isExp(p)) { f.imp('from gpiozero import OutputDevice'); f.setup(`${v} = OutputDevice(${f.pin(p)}, active_high=True, initial_value=False)`); return; }
+    if (f.fw === 'arduino') { const a = f.ard(p); f.setup(`${a.mode('OUTPUT')}\n  ${a.write('LOW')}  // relay ${n(i)} off at start`); return; }
+    f.imp('import digitalio'); f.setup(`${v} = ${f.dio(p)}\n${v}.switch_to_output(value=False)  # relay ${n(i)} off at start`);
   },
   notes: i => (i.k === 0 ? ['Relay modules come active-high or active-low (some have a jumper): set it to active-high to match the firmware, so every relay starts off.', 'Keep load wiring low-voltage unless the whole product is built and tested as mains equipment (see Safety).'] : []),
   extras: i => (i.k === 0 ? [['1', 'Cable glands / strain reliefs', 'one per load cable']] : []),

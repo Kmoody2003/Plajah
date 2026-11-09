@@ -35,6 +35,20 @@ const PROMPTS: Array<[string, string[], string?]> = [
   ['a dimmable lantern with 8 white LEDs and a rechargeable battery', ['lamp']],
   ['a usb keyboard macro pad with 6 keys', ['button'], 'pico'],
   ['a mains powered 2-channel relay switch with wifi for europe', ['relay'], 'esp32'],
+  // Gaps closed in the second pass.
+  ['a macro pad with 9 keys and a volume knob encoder', ['keymatrix', 'encoder'], 'pico'],
+  ['an esp32 with 16 relays', ['relay'], 'esp32'],
+  ['an arduino nano with 14 separate buttons and 4 leds', ['button', 'led'], 'nano'],
+  ['a camera slider with a stepper motor and 2 buttons', ['stepper', 'button']],
+  ['a small turntable with a 28byj stepper', ['stepper']],
+  ['an internet radio with an esp32, speaker and a knob', ['speaker', 'pot'], 'esp32'],
+  ['a pico music box that plays mp3 with 3 buttons', ['speaker', 'button'], 'pico'],
+  ['a robot with 3 time of flight sensors and 2 motors', ['distance', 'motor']],
+  ['an arduino nano with a color tft display and temperature sensor', ['tft', 'temp'], 'nano'],
+  ['a raspberry pi 4 with a colour tft screen and a light sensor', ['tft', 'light'], 'rpi'],
+  ['a pico w weather station with temperature and oled', ['temp', 'oled'], 'picow'],
+  ['an esp32-s3 midi controller with wifi, 4 knobs and 8 buttons', ['pot', 'button'], 'esp32s3'],
+  ['a battery robot car with 2 motors, a servo and an ultrasonic sensor', ['motor', 'servo', 'distance']],
 ];
 
 for (const [prompt, blocks, board] of PROMPTS) {
@@ -72,9 +86,12 @@ test('pin allocation: analog first, I²C bus reserved, ADS1115 added when analog
   assert.equal(e.mcu?.kind, 'esp32'); assert.deepEqual(e.insts.filter(i => i.block === 'soil').map(i => i.pins.adc), ['IO32', 'IO33']);
   assert.ok(e.insts.filter(i => i.block === 'button').every(i => !['IO2', 'IO5'].includes(i.pins.in)));
   // Too many pins fails honestly; USB MIDI forces a board with native USB.
-  assert.match(plan(S([{ block: 'button', count: 16 }], { mcu: 'nano' })).errors.join(' '), /runs out/);
+  // Out of pins: separate buttons move to an MCP23017; native-only needs that cannot fit still fail honestly.
+  const many = plan(S([{ block: 'button', count: 14 }, { block: 'led', count: 4 }], { mcu: 'nano' })); assert.deepEqual(many.errors, []); assert.equal(many.exp, 1);
+  assert.ok(many.insts.some(i => i.pins.in?.startsWith('EXP:0:')));
+  assert.match(plan(S([{ block: 'pot', count: 2 }, { block: 'servo', count: 6 }, { block: 'motor', count: 4 }], { mcu: 'nano' })).errors.join(' '), /runs out/);
   assert.equal(plan(S([{ block: 'button', count: 2 }], { conn: ['usb-midi'] })).mcu?.kind, 'pico');
-  assert.match(plan(S([{ block: 'tft', count: 1 }], { mcu: 'nano' })).errors.join(' '), /3\.3 V part/);
+  assert.deepEqual(plan(S([{ block: 'tft', count: 1 }], { mcu: 'nano' })).errors, [], 'TFT on a Nano gets an LDO and a level shifter');
   assert.match(plan(S([{ block: 'oled', count: 3 }])).errors.join(' '), /at most 2|only 2 can share/);
 });
 
@@ -87,7 +104,8 @@ test('power budget: rails add up, the supply is sized from them, and impossible 
   assert.equal(plan(S([{ block: 'neopixel', count: 120, opt: { cap: '1' } }], { power: 'adapter5' })).power.adapterA, 8);
   const strip = plan(S([{ block: 'strip12', count: 1, opt: { watts: 12 } }], { conn: ['wifi'] }));
   assert.equal(strip.power.source, 'adapter12'); assert.ok(strip.power.buck && strip.power.fuseA && strip.power.fuseA >= 1);
-  const robot = plan(S([{ block: 'motor', count: 2 }, { block: 'servo', count: 1 }], { power: 'liion' })); assert.match(robot.errors.join(' '), /cannot supply/);
+  const robot = plan(S([{ block: 'motor', count: 2 }, { block: 'servo', count: 1 }], { power: 'liion' })); assert.deepEqual(robot.errors, []); assert.equal(robot.power.source, 'liion2s', 'heavy 5 V loads move to a 2-cell pack');
+  assert.match(plan(S([{ block: 'motor', count: 4 }, { block: 'servo', count: 4 }], { power: 'liion' })).errors.join(' '), /beyond a 3 A buck/);
   const lantern = plan(S([{ block: 'lamp', count: 6 }], { power: 'liion' })); assert.ok(lantern.power.cell && !lantern.power.boost && lantern.power.powerSwitch && !lantern.mcu);
   const picoBat = plan(S([{ block: 'temp', count: 1 }, { block: 'oled', count: 1 }], { mcu: 'pico', power: 'liion' })); assert.equal(picoBat.power.boost, undefined, 'Pico runs from the cell on VSYS');
   const espBat = plan(S([{ block: 'temp', count: 1 }], { conn: ['wifi'], power: 'liion' })); assert.equal(espBat.power.boost?.V, 5);
@@ -129,7 +147,29 @@ test('reader and on-device model fill the same checked spec', () => {
   const r = readSpec('a 4-channel relay board for europe'); assert.equal(r.spec.needs[0].count, 4); assert.equal(r.spec.market, 'EU');
   assert.ok(r.assumed.some(a => /Wi-Fi/.test(a)) && r.heard.includes('4 relays'));
   const m = specFromLlm('ok {"spec":{"name":"Box","needs":[{"block":"relay","count":40},{"block":"laser","count":1},{"block":"neopixel","count":30,"opt":{"cap":"9"}}],"mcu":"esp32","power":"nuclear","conn":["wifi","telepathy"]}}', 'a relay box');
-  assert.deepEqual(m.spec.needs.map(n => [n.block, n.count]), [['relay', 8], ['neopixel', 30]]); assert.equal(m.spec.needs[1].opt?.cap, undefined);
+  assert.deepEqual(m.spec.needs.map(n => [n.block, n.count]), [['relay', 16], ['neopixel', 30]]); assert.equal(m.spec.needs[1].opt?.cap, undefined);
   assert.equal(m.spec.power, 'auto'); assert.deepEqual(m.spec.conn, ['wifi']); assert.equal(m.spec.mcu, 'esp32');
   assert.equal(specFromLlm('not json', 'a plant monitor with soil moisture').spec.needs[0].block, 'soil');
+});
+
+test('second pass: expander, key matrix, I²S pins, ToF re-addressing, Nano TFT, Pico W / ESP32-S3, 2S pack', () => {
+  const relays = designFromSpec(S([{ block: 'relay', count: 16 }], { mcu: 'esp32', conn: ['wifi'] })); assert.equal(relays.plan.exp, 1);
+  assert.match(relays.build!.firmware!.code, /mcp23017:\n  - id: mcp0\n    address: 0x20/); assert.match(relays.build!.firmware!.code, /mcp23xxx: mcp0/);
+  const km = designFromSpec(S([{ block: 'keymatrix', count: 12 }], { conn: ['usb-hid'] })).build!;
+  assert.equal(km.circuit.parts.filter(p => p.kind === 'diode').length, 12); assert.match(km.firmware!.code, /keypad\.KeyMatrix\(.*columns_to_anodes=True/);
+  assert.equal(plan(S([{ block: 'keymatrix', count: 12 }])).pins.length, 7, '3 × 4 matrix = 7 pins');
+  const i2s = plan(S([{ block: 'speaker', count: 1, opt: { kind: 'i2s' } }, { block: 'button', count: 3 }], { mcu: 'pico' })); const sp = i2s.insts.find(i => i.block === 'speaker')!;
+  assert.equal(+sp.pins.lrc.slice(2), +sp.pins.bclk.slice(2) + 1, 'RP2040 word select is the pin after the bit clock');
+  assert.match(plan(S([{ block: 'speaker', count: 1, opt: { kind: 'i2s' } }], { mcu: 'nano' })).errors.join(' '), /no I²S/);
+  const tof = designFromSpec(S([{ block: 'distance', count: 3 }], { mcu: 'nano' })).build!.firmware!.code;
+  assert.ok(tof.indexOf('hold ToF 3 in reset') < tof.indexOf('distance1.begin'), 'every ToF is held in reset before the first is started'); assert.match(tof, /distance3\.begin\(0x31\)/);
+  const nt = designFromSpec(S([{ block: 'tft', count: 1 }], { mcu: 'nano' })).build!; assert.ok(nt.circuit.parts.some(p => p.kind === 'hc4050') && nt.circuit.parts.some(p => p.kind === 'ldo'));
+  assert.match(nt.firmware!.code, /Adafruit_ST7789 tft\(/);
+  const s3 = designFromSpec(S([{ block: 'pot', count: 2 }, { block: 'button', count: 2 }], { conn: ['usb-midi', 'wifi'] })); assert.equal(s3.plan.mcu?.kind, 'esp32s3'); assert.equal(s3.build!.firmware!.file, 'code.py');
+  assert.match(s3.build!.firmware!.code, /usb_midi/); assert.match(s3.build!.firmware!.code, /mqtt\.publish/); assert.ok(s3.build!.firmware!.extra?.some(x => x.file === 'settings.toml'));
+  const s3ha = designFromSpec(S([{ block: 'temp', count: 1 }], { mcu: 'esp32s3', conn: ['homeassistant'] })).build!.firmware!; assert.match(s3ha.code, /variant: esp32s3/);
+  const pw = designFromSpec(S([{ block: 'temp', count: 1 }], { mcu: 'picow', conn: ['wifi'] })).build!; assert.equal(pw.circuit.parts.find(p => p.kind === 'pico')?.params.variant, 'Pico W');
+  const st = designFromSpec(S([{ block: 'stepper', count: 1 }], { mcu: 'esp32', conn: ['wifi'] })); assert.equal(st.plan.power.source, 'adapter12'); assert.match(st.build!.firmware!.code, /platform: a4988/);
+  const two = designFromSpec(S([{ block: 'servo', count: 4 }], { power: 'liion2s' })).build!; const cell = two.circuit.parts.find(p => p.kind === 'liion')!; assert.equal(Number(cell.params.V), 7.4);
+  assert.ok(designHazards({ circuit: two.circuit }).some(h => h.id === 'li-ion-cell'));
 });

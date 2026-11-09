@@ -213,7 +213,7 @@ export function simulate(c: Circuit, o: SimOptions): SimResult {
           }
           break;
         }
-        case 'pico': case 'esp32': case 'nano': case 'rpi': {
+        case 'pico': case 'esp32': case 'esp32s3': case 'nano': case 'rpi': {
           const info = BOARD_INFO[st.kind]; const GN = node(st, 'GND'); let PW = node(st, info.power);
           if (st.kind === 'pico') { stampG(ctx, node(st, 'VBUS'), node(st, 'VSYS'), 2); if (!PW) PW = node(st, 'VBUS'); }
           const vsup = V(PW) - V(GN); const on = boardOn(st.kind, vsup); st.on = on; // ramps on, so Newton sees a continuous source
@@ -254,7 +254,7 @@ export function simulate(c: Circuit, o: SimOptions): SimResult {
     for (const u of m.pullups ?? []) stampG(ctx, nd(u.pin), nd(u.to), 1 / u.R);
     for (const u of m.inputs ?? []) stampG(ctx, nd(u.pin), nd(u.gnd), 1 / u.R);
     (m.drives ?? []).forEach((d, k) => {
-      const out = nd(d.pin), sup = nd(d.sup), g = nd(d.gnd); if (!out) return; const G = 1 / d.R;
+      const out = nd(d.pin), sup = nd(d.sup), g = nd(d.gnd); if (!out || (d.active && !d.active(pp))) return; const G = 1 / d.R;
       const f = d.ctrl ? st.ctl![k] : (d.frac?.(pp) ?? 1);
       // Current into the device at `out` = G (Vout − Vg − f (Vsup − Vg)); it returns through the supply when driving high, ground when low.
       const row = [G, -G * f, -G * (1 - f)]; const I0 = G * (V(out) - V(g) - f * (V(sup) - V(g)));
@@ -345,7 +345,7 @@ export function simulate(c: Circuit, o: SimOptions): SimResult {
         case 'ledstrip': { const Vs = P(p, 'V'); i = vab * P(p, 'W') / (Vs * Vs); pw = i * vab; break; }
         case 'acdc': { const plus = node(st, '+'), minus = node(st, '-'); const vo = V(plus) - V(minus); i = (P(p, 'V') - vo) / 0.05; pw = vo * i; ex('v', vo); ex('pin', pw / Math.max(0.3, P(p, 'eff'))); break; }
         case 'amp': { const OP = node(st, 'OUT+'), OM = node(st, 'OUT-'), GN = node(st, 'GND'); const vd = V(OP) - V(OM); ex('vout', vd); ex('vcc', V(node(st, 'VCC')) - V(GN)); i = 0.004 + (st.lag ?? 0); pw = i * (V(node(st, 'VCC')) - V(GN)); break; }
-        case 'pico': case 'esp32': case 'nano': case 'rpi': {
+        case 'pico': case 'esp32': case 'esp32s3': case 'nano': case 'rpi': {
           const info = BOARD_INFO[st.kind]; const GN = node(st, 'GND'); let PW = node(st, info.power); if (st.kind === 'pico' && !PW) PW = node(st, 'VBUS');
           const vsup = V(PW) - V(GN); i = boardDraw(p) * Math.tanh(Math.max(0, vsup)) + (st.lag ?? 0); pw = i * vsup; ex('vsup', vsup);
           const on = boardOn(st.kind, vsup); const r33 = node(st, '3V3'); ex('i3v3', r33 ? Math.max(0, (3.3 * on - (V(r33) - V(GN))) * 10) : 0);
@@ -357,7 +357,7 @@ export function simulate(c: Circuit, o: SimOptions): SimResult {
           if (info.supply) { const vs = V(nd(info.supply.pin)) - V(nd(info.supply.gnd)); ex('vsup', vs); }
           if (m.draw) { const vs = V(nd(m.draw.pwr)) - V(nd(m.draw.gnd)); i += m.draw.A(pp) * Math.tanh(Math.max(0, vs)); pw += i * vs; }
           for (const l of m.links ?? []) { const vl = V(nd(l.a)) - V(nd(l.b)); const il = vl / Math.max(1e-3, l.R(pp)); ex(`link:${l.a}`, il); if (st.kind === 'dcmotor' || st.kind === 'relay') { i += Math.abs(il); pw += Math.abs(il * vl); } }
-          (m.drives ?? []).forEach((d, k) => { const f = d.ctrl ? st.ctl![k] : (d.frac?.(pp) ?? 1); ex(`out:${d.pin}`, -(V(nd(d.pin)) - V(nd(d.gnd)) - f * (V(nd(d.sup)) - V(nd(d.gnd)))) / d.R); });
+          (m.drives ?? []).forEach((d, k) => { if (d.active && !d.active(pp)) return; const f = d.ctrl ? st.ctl![k] : (d.frac?.(pp) ?? 1); ex(`out:${d.pin}`, -(V(nd(d.pin)) - V(nd(d.gnd)) - f * (V(nd(d.sup)) - V(nd(d.gnd)))) / d.R); });
           if (m.reg) {
             const r = m.reg; const vin = V(nd(r.vin)) - V(nd(r.gnd)), vout = V(nd(r.vout)) - V(nd(r.gnd)); const vset = r.V(pp);
             const iout = st.regMode === 'reg' ? Math.max(0, -20 * (vout - vset)) : st.regMode === 'drop' ? Math.max(0, -20 * (V(nd(r.vout)) - V(nd(r.vin)) + r.dropout(pp))) : 0;

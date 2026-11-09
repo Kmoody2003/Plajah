@@ -25,10 +25,11 @@ export interface BoardInfo {
   firmware: string[];
 }
 export const BOARD_INFO: Record<string, BoardInfo> = {
-  pico: { power: 'VSYS', draw: 0.03, recommend: 0.5, logic: 3.3, pinMax: 0.012, rail3v3Max: 0.3, radio: false, gpio: ['GP2', 'GP3', 'GP4', 'GP5', 'GP14', 'GP15', 'GP16', 'GP17', 'GP26', 'GP27', 'GP28'], footprint: [51, 21, 4], firmware: ['CircuitPython', 'MicroPython', 'Arduino', 'C SDK'] },
-  esp32: { power: '5V', draw: 0.08, recommend: 0.5, logic: 3.3, pinMax: 0.02, rail3v3Max: 0.5, radio: true, gpio: ['IO2', 'IO4', 'IO5', 'IO13', 'IO14', 'IO18', 'IO19', 'IO21', 'IO22', 'IO25', 'IO26', 'IO32', 'IO33'], footprint: [55, 28, 8], firmware: ['ESPHome', 'MicroPython', 'Arduino', 'ESP-IDF'] },
-  nano: { power: '5V', draw: 0.02, recommend: 0.5, logic: 5, pinMax: 0.02, rail3v3Max: 0.05, radio: false, gpio: ['D2', 'D3', 'D4', 'D5', 'D6', 'D9', 'D10', 'D11', 'A0', 'A1', 'A4', 'A5'], footprint: [45, 18, 7], firmware: ['Arduino'] },
-  rpi: { power: '5V', draw: 0.8, recommend: 5, logic: 3.3, pinMax: 0.016, rail3v3Max: 0.5, radio: true, gpio: ['GPIO2', 'GPIO3', 'GPIO4', 'GPIO17', 'GPIO27', 'GPIO22', 'GPIO18', 'GPIO23', 'GPIO24', 'GPIO25'], footprint: [85, 56, 17], firmware: ['Python (gpiozero)', 'Node-RED', 'Home Assistant OS'] },
+  pico: { power: 'VSYS', draw: 0.03, recommend: 0.5, logic: 3.3, pinMax: 0.012, rail3v3Max: 0.3, radio: false, gpio: ['GP2', 'GP3', 'GP4', 'GP5', 'GP14', 'GP15', 'GP16', 'GP17', 'GP26', 'GP27', 'GP28', 'GP22'], footprint: [51, 21, 4], firmware: ['CircuitPython', 'MicroPython', 'Arduino', 'C SDK'] },
+  esp32: { power: '5V', draw: 0.08, recommend: 0.5, logic: 3.3, pinMax: 0.02, rail3v3Max: 0.5, radio: true, gpio: ['IO2', 'IO4', 'IO5', 'IO13', 'IO14', 'IO18', 'IO19', 'IO21', 'IO22', 'IO25', 'IO26', 'IO32', 'IO33', 'IO23', 'IO27'], footprint: [55, 28, 8], firmware: ['ESPHome', 'MicroPython', 'Arduino', 'ESP-IDF'] },
+  nano: { power: '5V', draw: 0.02, recommend: 0.5, logic: 5, pinMax: 0.02, rail3v3Max: 0.05, radio: false, gpio: ['D2', 'D3', 'D4', 'D5', 'D6', 'D9', 'D10', 'D11', 'A0', 'A1', 'A4', 'A5', 'D12', 'D13'], footprint: [45, 18, 7], firmware: ['Arduino'] },
+  esp32s3: { power: '5V', draw: 0.1, recommend: 0.5, logic: 3.3, pinMax: 0.02, rail3v3Max: 0.5, radio: true, gpio: ['IO1', 'IO2', 'IO4', 'IO5', 'IO6', 'IO7', 'IO8', 'IO9', 'IO10', 'IO11', 'IO12', 'IO13', 'IO14', 'IO15', 'IO16', 'IO17', 'IO18', 'IO21', 'IO38', 'IO39', 'IO40', 'IO41', 'IO42'], footprint: [63, 26, 8], firmware: ['ESPHome', 'CircuitPython', 'Arduino', 'ESP-IDF'] },
+  rpi: { power: '5V', draw: 0.8, recommend: 5, logic: 3.3, pinMax: 0.016, rail3v3Max: 0.5, radio: true, gpio: ['GPIO2', 'GPIO3', 'GPIO4', 'GPIO17', 'GPIO27', 'GPIO22', 'GPIO18', 'GPIO23', 'GPIO24', 'GPIO25', 'GPIO10', 'GPIO11', 'GPIO8'], footprint: [85, 56, 17], firmware: ['Python (gpiozero)', 'Node-RED', 'Home Assistant OS'] },
 };
 /** Raspberry Pi models: typical draw under light load and the maker's recommended supply. */
 export const PI_MODELS: Record<string, { draw: number; recommend: number; note: string }> = {
@@ -38,10 +39,11 @@ export const PI_MODELS: Record<string, { draw: number; recommend: number; note: 
   'Pi 3B+': { draw: 0.6, recommend: 2.5, note: '5 V 2.5 A micro-USB supply.' },
 };
 
-const pico = block('Pico', ['VBUS', 'VSYS', 'GND', '3V3', 'GP26', 'GP27', 'GP28'], ['GP2', 'GP3', 'GP4', 'GP5', 'GP14', 'GP15', 'GP16', 'GP17']);
-const esp32 = block('ESP32', ['5V', 'GND', '3V3', 'IO32', 'IO33', 'IO25', 'IO26'], ['IO2', 'IO4', 'IO5', 'IO13', 'IO14', 'IO18', 'IO19', 'IO21', 'IO22']);
-const nano = block('Nano', ['5V', 'GND', 'A0', 'A1', 'A4', 'A5'], ['D2', 'D3', 'D4', 'D5', 'D6', 'D9', 'D10', 'D11']);
-const rpi = block('Raspberry Pi', ['5V', 'GND', '3V3', 'GPIO2', 'GPIO3'], ['GPIO4', 'GPIO17', 'GPIO27', 'GPIO22', 'GPIO18', 'GPIO23', 'GPIO24', 'GPIO25'], 8);
+const pico = block('Pico', ['VBUS', 'VSYS', 'GND', '3V3', 'GP26', 'GP27', 'GP28', 'GP22'], ['GP2', 'GP3', 'GP4', 'GP5', 'GP14', 'GP15', 'GP16', 'GP17']);
+const esp32 = block('ESP32', ['5V', 'GND', '3V3', 'IO32', 'IO33', 'IO25', 'IO26', 'IO23', 'IO27'], ['IO2', 'IO4', 'IO5', 'IO13', 'IO14', 'IO18', 'IO19', 'IO21', 'IO22']);
+const nano = block('Nano', ['5V', 'GND', 'A0', 'A1', 'A4', 'A5', 'D12', 'D13'], ['D2', 'D3', 'D4', 'D5', 'D6', 'D9', 'D10', 'D11']);
+const rpi = block('Raspberry Pi', ['5V', 'GND', '3V3', 'GPIO2', 'GPIO3', 'GPIO10', 'GPIO11', 'GPIO8'], ['GPIO4', 'GPIO17', 'GPIO27', 'GPIO22', 'GPIO18', 'GPIO23', 'GPIO24', 'GPIO25'], 8);
+const esp32s3 = block('ESP32-S3', ['5V', 'GND', '3V3', 'IO1', 'IO2', 'IO4', 'IO5', 'IO6', 'IO7', 'IO15', 'IO16', 'IO17'], ['IO8', 'IO9', 'IO10', 'IO11', 'IO12', 'IO13', 'IO14', 'IO18', 'IO21', 'IO38', 'IO39', 'IO40', 'IO41', 'IO42'], 7);
 const amp = block('AMP', ['VCC', 'GND', 'IN'], ['OUT+', 'OUT-'], 5);
 const acdc = block('AC-DC', ['L', 'N'], ['+', '-'], 5);
 const sensor = block('BME280', ['VIN', 'GND'], ['SCL', 'SDA'], 5);
@@ -52,6 +54,8 @@ export const BOARD_COMPONENTS: CompDef[] = [
     params: [{ key: 'variant', label: 'Variant', default: 'Pico', kind: 'choice', choices: ['Pico', 'Pico W', 'Pico 2', 'Pico 2 W'] }, highParam, { key: 'draw', label: 'Board current', unit: 'A', default: '30m' }], label: p => String(p.variant) },
   { kind: 'esp32', name: 'ESP32 dev board', prefix: 'U', category: 'Integrated circuit', ...esp32, about: 'ESP32-WROOM module board with Wi-Fi + Bluetooth. 5 V in, 3.3 V logic, about 20 mA per pin (40 mA absolute). Wi-Fi bursts draw ~250 mA.',
     params: [highParam, { key: 'draw', label: 'Average current', unit: 'A', default: '80m' }], label: () => 'ESP32-WROOM' },
+  { kind: 'esp32s3', name: 'ESP32-S3 dev board', prefix: 'U', category: 'Integrated circuit', ...esp32s3, about: 'ESP32-S3-DevKitC-1: Wi-Fi + Bluetooth LE and native USB (MIDI, keyboard) on one chip. 5 V in, 3.3 V logic, about 20 mA per pin. ADC1 on IO1-IO10 works with Wi-Fi on.',
+    params: [highParam, { key: 'draw', label: 'Average current', unit: 'A', default: '100m' }], label: () => 'ESP32-S3' },
   { kind: 'nano', name: 'Arduino Nano (5 V)', prefix: 'U', category: 'Integrated circuit', ...nano, about: 'ATmega328P board, 5 V logic, 20 mA per pin recommended (40 mA absolute), 200 mA total.',
     params: [highParam, { key: 'draw', label: 'Board current', unit: 'A', default: '20m' }], label: () => 'Nano' },
   { kind: 'rpi', name: 'Raspberry Pi', prefix: 'U', category: 'Integrated circuit', ...rpi, about: 'Single-board computer (40-pin header subset). 5 V in, 3.3 V GPIO at about 16 mA per pin; not 5 V tolerant.',

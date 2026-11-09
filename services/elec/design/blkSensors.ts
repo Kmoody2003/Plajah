@@ -8,6 +8,7 @@ import type { FwApi, Inst } from './types';
 
 const i2cDraw = (kind: string, vcc = 'VCC') => (i: Inst, d: Parameters<BlockDef['draw']>[1]) => {
   const u = d.part(kind, 0, 0, 0, i.addr ? { addr: i.addr } : {}); d.net('LOGIC', [u, kind === 'sensor' ? 'VIN' : vcc]); d.net('GND', [u, 'GND']); d.net('@sda', [u, 'SDA']); d.net('@scl', [u, 'SCL']);
+  if (kind === 'tof' && i.pins.xshut) d.net('@xshut', [u, 'XSHUT']);
 };
 const addrNote = (i: Inst, deflt: string, how: string) => (i.addr && i.addr !== deflt ? [`${i.label}: set address ${i.addr} by ${how}.`] : []);
 
@@ -21,10 +22,17 @@ export const oled: BlockDef = {
 export const tft: BlockDef = {
   id: 'tft', label: 'Colour TFT display', plural: 'TFT displays', about: '1.3" 240 × 240 IPS on SPI (ST7789), 3.3 V.', max: 1, bus: 'spi',
   words: /\b(tft|lcd|colou?r (screen|display)|ips|st7789)\b/i, needsMcu: () => true,
-  notOn: { nano: 'the ST7789 is a 3.3 V part and the Nano drives 5 V logic (use the OLED, or an ESP32/Pico)', rpi: 'this Pi symbol does not expose the SPI pins (use the OLED, or HDMI)' },
   pins: () => [{ role: 'cs', cap: 'gpio', label: 'TFT CS' }, { role: 'dc', cap: 'gpio', label: 'TFT DC' }, { role: 'rst', cap: 'gpio', label: 'TFT reset' }],
   loads: () => [{ rail: 'logic', typ: 0.07, peak: 0.08, what: 'TFT + backlight' }],
-  draw(i, d) { const u = d.part('tft', 0, 0); d.net('LOGIC', [u, 'VCC'], [u, 'BL']); d.net('GND', [u, 'GND']); d.net('@sck', [u, 'SCK']); d.net('@mosi', [u, 'MOSI']); d.net('@cs', [u, 'CS']); d.net('@dc', [u, 'DC']); d.net('@rst', [u, 'RST']); },
+  draw(i, d) {
+    const u = d.part('tft', i.logicV < 4 ? 0 : -24, 0); d.net('GND', [u, 'GND']);
+    if (i.logicV < 4) { d.net('LOGIC', [u, 'VCC'], [u, 'BL']); d.net('@sck', [u, 'SCK']); d.net('@mosi', [u, 'MOSI']); d.net('@cs', [u, 'CS']); d.net('@dc', [u, 'DC']); d.net('@rst', [u, 'RST']); return; }
+    // 5 V board: the display gets its own 3.3 V LDO, and a 74HC4050 shifts the five signals down to 3.3 V.
+    const ldo = d.part('ldo', -24, -16, 0, { V: 3.3, I: '0.6' }); const sh = d.part('hc4050', 0, 0, 2);
+    d.net('V5', [ldo, 'VIN']); d.net('GND', [ldo, 'GND']); d.net('v33', [ldo, 'VOUT'], [u, 'VCC'], [u, 'BL'], [sh, 'VCC']); d.net('GND', [sh, 'GND']);
+    (['sck', 'mosi', 'cs', 'dc', 'rst'] as const).forEach((r, k) => { d.net(`@${r}`, [sh, `${k + 1}A`]); d.net(`y${k}`, [sh, `${k + 1}Y`], [u, r.toUpperCase()]); });
+  },
+  notes: i => (i.logicV > 4 ? ['The ST7789 is a 3.3 V part: on the 5 V Nano it runs from its own LDO, and a 74HC4050 (inputs 5 V tolerant, powered at 3.3 V) shifts SCK, MOSI, CS, DC and RST down. The Nano has 2 KB of RAM, so keep the screen to text.'] : []),
   fw: (i, f) => f.screen('tft', sid(i), ''),
 };
 
@@ -66,13 +74,13 @@ export const light: BlockDef = {
 };
 
 export const distance: BlockDef = {
-  id: 'distance', label: 'Distance sensor', plural: 'distance sensors', about: 'Laser time-of-flight (VL53L0X, I²C) by default; ultrasonic HC-SR04 on request, with a divider on its 5 V echo for 3.3 V boards.', max: 1,
+  id: 'distance', label: 'Distance sensor', plural: 'distance sensors', about: 'Laser time-of-flight (VL53L0X, I²C) by default; ultrasonic HC-SR04 on request, with a divider on its 5 V echo for 3.3 V boards. Several ToF sensors share the bus via their XSHUT pins.', max: 4, addrs: ['0x29', '0x30', '0x31', '0x32'],
   words: /\b(distance|range ?finder|proximity|ultrasonic|sonar|hc-?sr04|time[- ]of[- ]flight|tof|parking (sensor|assist)|level sensor)\b/i,
   opts: [{ key: 'kind', label: 'Sensor', choices: ['tof', 'ultrasonic'], default: 'tof' }], needsMcu: () => true, bus: o => (o.kind === 'ultrasonic' ? undefined : 'i2c'),
-  pins: i => (i.opt.kind === 'ultrasonic' ? [{ role: 'trig', cap: 'gpio', label: 'Sonar trigger' }, { role: 'echo', cap: 'in', label: 'Sonar echo' }] : []),
+  pins: i => (i.opt.kind === 'ultrasonic' ? [{ role: 'trig', cap: 'gpio', label: `Sonar ${n(i)} trigger` }, { role: 'echo', cap: 'in', label: `Sonar ${n(i)} echo` }] : (i.of ?? 1) > 1 ? [{ role: 'xshut', cap: 'gpio', label: `ToF ${n(i)} XSHUT`, exp: true }] : []),
   loads: i => (i.opt.kind === 'ultrasonic' ? [{ rail: 'v5', typ: 0.015, peak: 0.015, what: 'HC-SR04' }] : [{ rail: 'logic', typ: 0.02, peak: 0.03, what: 'VL53L0X' }]),
   draw(i, d) {
-    if (i.opt.kind !== 'ultrasonic') return i2cDraw('tof')(i, d);
+    if (i.opt.kind !== 'ultrasonic') { i2cDraw('tof')(i, d); if (i.pins.xshut) { /* re-addressed at boot */ } return; }
     const u = d.part('sonar', 12, 0); d.net('V5', [u, 'VCC']); d.net('GND', [u, 'GND']); d.net('@trig', [u, 'TRIG']);
     if (i.logicV < 4) { const r1 = d.part('resistor', 2, 2, 0, { R: '1k' }); const r2 = d.part('resistor', -2, 6, 1, { R: '1.8k' }); d.net('echo5', [u, 'ECHO'], [r1, '2']); d.net('@echo', [r1, '1'], [r2, '1']); d.net('GND', [r2, '2']); }
     else d.net('@echo', [u, 'ECHO']);
@@ -86,9 +94,17 @@ export const distance: BlockDef = {
       if (f.fw === 'arduino') { f.glob(`float ${v}_cm() { digitalWrite(${f.pin(trig)}, HIGH); delayMicroseconds(10); digitalWrite(${f.pin(trig)}, LOW); return pulseIn(${f.pin(echo)}, HIGH, 30000) / 58.0; }`); f.setup(`pinMode(${f.pin(trig)}, OUTPUT);\n  pinMode(${f.pin(echo)}, INPUT);`); f.read('Dist', `${v}_cm()`, 'cm'); return; }
       f.imp('import adafruit_hcsr04'); f.lib('adafruit_hcsr04'); f.setup(`${v} = adafruit_hcsr04.HCSR04(trigger_pin=${f.pin(trig)}, echo_pin=${f.pin(echo)})`); f.glob(`def ${v}_cm():\n    try:\n        return round(${v}.distance)\n    except RuntimeError:  # no echo (nothing in range)\n        return -1`); f.read('Dist', `${v}_cm()`, 'cm'); return;
     }
-    if (f.fw === 'esphome') { f.esp('sensor', `- platform: vl53l0x\n  address: 0x29\n  name: "Distance"\n  id: ${v}\n  update_interval: 500ms`); f.read('Dist', v, 'm'); return; }
-    if (f.fw === 'arduino') { f.imp('#include <Adafruit_VL53L0X.h>'); f.lib('Adafruit_VL53L0X'); f.glob(`Adafruit_VL53L0X ${v};\nint ${v}_mm() { VL53L0X_RangingMeasurementData_t m; ${v}.rangingTest(&m, false); return m.RangeStatus != 4 ? m.RangeMilliMeter : -1; }`); f.setup(`${v}.begin();`); f.read('Dist', `${v}_mm()`, 'mm'); return; }
-    f.imp('import adafruit_vl53l0x'); f.lib('adafruit_vl53l0x'); f.setup(`${v} = adafruit_vl53l0x.VL53L0X(i2c)`); f.read('Dist', `${v}.range`, 'mm');
+    const x = i.pins.xshut; const addr = i.addr ?? '0x29'; const lbl = `Dist${i.k ? n(i) : ''}`;
+    if (f.fw === 'esphome') { f.esp('sensor', `- platform: vl53l0x\n  address: ${addr}\n${x ? `${f.espPin(x).replace('  pin:', '  enable_pin:')}\n` : ''}  name: "Distance${i.k ? ` ${n(i)}` : ''}"\n  id: ${v}\n  update_interval: 500ms`); f.read(lbl, v, 'm'); return; }
+    if (f.fw === 'arduino') {
+      f.imp('#include <Adafruit_VL53L0X.h>'); f.lib('Adafruit_VL53L0X'); f.glob(`Adafruit_VL53L0X ${v};\nint ${v}_mm() { VL53L0X_RangingMeasurementData_t m; ${v}.rangingTest(&m, false); return m.RangeStatus != 4 ? m.RangeMilliMeter : -1; }`);
+      if (x) { const a = f.ard(x); f.early(`${a.mode('OUTPUT')} ${a.write('LOW')}  // hold ToF ${n(i)} in reset`); f.setup(`${a.write('HIGH')} delay(10);  // wake ToF ${n(i)} alone, then give it ${addr}\n${v}.begin(${addr});`); } else f.setup(`${v}.begin();`);
+      f.read(lbl, `${v}_mm()`, 'mm'); return;
+    }
+    f.imp('import adafruit_vl53l0x'); f.lib('adafruit_vl53l0x');
+    if (x) { f.imp('import digitalio'); f.early(`${v}_x =${f.dio(x)}\n${v}_x.switch_to_output(value=False)  # all ToF sensors held in reset first`); f.setup(`${v}_x.value = True  # wake this one alone and move it off 0x29\ntime.sleep(0.01)\n${v} = adafruit_vl53l0x.VL53L0X(i2c)\n${v}.set_address(${addr})`); }
+    else f.setup(`${v} = adafruit_vl53l0x.VL53L0X(i2c)`);
+    f.read(lbl, `${v}.range`, 'mm');
   },
   notes: i => (i.opt.kind === 'ultrasonic' && i.logicV < 4 ? ['HC-SR04 echo is 5 V: the 1k / 1.8k divider brings it to about 3.2 V for the 3.3 V board.'] : []),
 };
@@ -115,14 +131,14 @@ export const soil: BlockDef = {
 export const motion: BlockDef = {
   id: 'motion', label: 'Motion detector (PIR)', plural: 'motion detectors', about: 'HC-SR501 PIR on 5 V; its output is 3.3 V, safe for any board.', max: 2,
   words: /\b(pir|motion (sensor|detector|activated|sensing)|occupancy|presence|someone walks|intruder)\b/i, needsMcu: () => true,
-  pins: i => [{ role: 'in', cap: 'in', label: `PIR ${n(i)}` }], loads: () => [{ rail: 'v5', typ: 0.0001, peak: 0.0002, what: 'PIR' }],
+  pins: i => [{ role: 'in', cap: 'in', label: `PIR ${n(i)}`, exp: true }], loads: () => [{ rail: 'v5', typ: 0.0001, peak: 0.0002, what: 'PIR' }],
   draw(i, d) { const u = d.part('pir', 0, 0); d.net('V5', [u, 'VCC']); d.net('GND', [u, 'GND']); d.net('@in', [u, 'OUT']); },
   fw(i, f) {
     const v = sid(i); const p = i.pins.in;
-    if (f.fw === 'esphome') { f.esp('binary_sensor', `- platform: gpio\n  pin: ${f.pin(p)}\n  name: "Motion${i.k ? ` ${n(i)}` : ''}"\n  device_class: motion`); return; }
-    if (f.fw === 'python') { f.imp('from gpiozero import MotionSensor'); f.setup(`${v} = MotionSensor(${f.pin(p)})`); f.read('Motion', `int(${v}.motion_detected)`, ''); return; }
-    if (f.fw === 'arduino') { f.setup(`pinMode(${f.pin(p)}, INPUT);`); f.read('Motion', `digitalRead(${f.pin(p)})`, ''); return; }
-    f.imp('import digitalio'); f.setup(`${v} = digitalio.DigitalInOut(${f.pin(p)})\n${v}.switch_to_input()`); f.read('Motion', `int(${v}.value)`, '');
+    if (f.fw === 'esphome') { f.esp('binary_sensor', `- platform: gpio\n${f.espPin(p, { input: true })}\n  name: "Motion${i.k ? ` ${n(i)}` : ''}"\n  device_class: motion`); return; }
+    if (f.fw === 'python' && !f.isExp(p)) { f.imp('from gpiozero import MotionSensor'); f.setup(`${v} = MotionSensor(${f.pin(p)})`); f.read('Motion', `int(${v}.motion_detected)`, ''); return; }
+    if (f.fw === 'arduino') { const a = f.ard(p); f.setup(a.mode('INPUT')); f.read('Motion', a.read, ''); return; }
+    f.imp('import digitalio'); f.setup(`${v} = ${f.dio(p)}\n${v}.switch_to_input()`); f.read('Motion', `int(${v}.value)`, '');
   },
 };
 

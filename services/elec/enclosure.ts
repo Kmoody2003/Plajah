@@ -34,6 +34,7 @@ export const PHYSICAL: Record<string, (p: Record<string, number | string>) => Om
   ne555: () => ({ w: 10, d: 7, h: 4, face: 'inside' }),
   pico: () => ({ w: 51, d: 21, h: 4, face: 'back', cutout: { shape: 'rect', w: 11, h: 6 }, note: 'Pico USB port at the back edge' }),
   esp32: () => ({ w: 55, d: 28, h: 8, face: 'back', cutout: { shape: 'rect', w: 11, h: 6 }, note: 'Dev board USB at the back edge' }),
+  esp32s3: () => ({ w: 63, d: 26, h: 8, face: 'back', cutout: { shape: 'rect', w: 11, h: 6 }, note: 'Use the port marked USB (native) for MIDI/keyboard; keep the antenna end clear' }),
   nano: () => ({ w: 45, d: 18, h: 7, face: 'back', cutout: { shape: 'rect', w: 10, h: 6 } }),
   rpi: () => ({ w: 85, d: 56, h: 17, face: 'inside', note: 'Leave the side open or cut ports for USB/Ethernet/HDMI; vent above the CPU' }),
   amp: () => ({ w: 25, d: 18, h: 4, face: 'inside' }),

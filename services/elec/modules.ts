@@ -41,7 +41,7 @@ export interface ModuleModel {
   /** Input loads to ground (opto LEDs, internal pull-downs). */
   inputs?: Array<{ pin: string; gnd: string; R: number }>;
   /** Outputs driven to a fraction of the supply, or (with `ctrl`) following a logic input (H-bridge). */
-  drives?: Array<{ pin: string; sup: string; gnd: string; R: number; frac?: (p: Params) => number; ctrl?: string }>;
+  drives?: Array<{ pin: string; sup: string; gnd: string; R: number; frac?: (p: Params) => number; ctrl?: string; /** Only drives when true (expander outputs set high). */ active?: (p: Params) => boolean }>;
   /** Pins that may stay unconnected (screw terminals, unused channels). */
   free?: string[];
 }
@@ -57,12 +57,16 @@ export interface ModuleInfo {
 
 const S = (p: string, gnd = 'GND') => ({ pwr: p, gnd });
 export const MODULES: Record<string, ModuleInfo> = {
-  liion: { model: {}, physical: () => ({ w: 77, d: 22, h: 21, face: 'inside', note: '18650 holder (or a LiPo pouch in a padded pocket); keep it away from heat and screws' }),
-    query: () => ({ query: '18650 Li-ion cell protected 2500mAh', note: 'Buy cells from an authorised distributor (counterfeit and re-wrapped cells are common); ask for the UN 38.3 test summary.', authorised: true }) },
+  liion: { model: {}, physical: p => (num(p, 'cells', 1) > 1 ? { w: 77, d: 42, h: 21, face: 'inside', note: '2 × 18650 holder (series) or a 2S pack with BMS; keep it away from heat and screws' } : { w: 77, d: 22, h: 21, face: 'inside', note: '18650 holder (or a LiPo pouch in a padded pocket); keep it away from heat and screws' }),
+    query: p => ({ query: num(p, 'cells', 1) > 1 ? '2S 18650 Li-ion pack with BMS 7.4V 2500mAh' : '18650 Li-ion cell protected 2500mAh', note: 'Buy cells from an authorised distributor (counterfeit and re-wrapped cells are common); ask for the UN 38.3 test summary.', authorised: true }) },
   charger: { model: { draw: { pwr: 'IN+', gnd: 'IN-', A: p => num(p, 'Icharge', 0.4) }, links: [{ a: 'B+', b: 'OUT+', R: () => 0.05 }, { a: 'B-', b: 'OUT-', R: () => 0.05 }] },
     supply: { pin: 'IN+', gnd: 'IN-', min: 4.5, max: 6 }, limits: { Ich: 1 },
     physical: () => ({ w: 26, d: 17, h: 5, face: 'back', cutout: { shape: 'rect', w: 9.5, h: 3.8 }, note: 'USB-C charge port + charge LEDs (light pipe or a 3 mm hole)' }),
     query: () => ({ query: 'TP4056 USB-C lithium charger module DW01 protection' }) },
+  charger2s: { model: { draw: { pwr: 'IN+', gnd: 'IN-', A: p => num(p, 'Icharge', 1) * 8.4 / (0.88 * 5) }, links: [{ a: 'B+', b: 'OUT+', R: () => 0.05 }, { a: 'B-', b: 'OUT-', R: () => 0.05 }], free: ['BM'] },
+    supply: { pin: 'IN+', gnd: 'IN-', min: 4.5, max: 5.5 }, limits: { Ich: 2 },
+    physical: () => ({ w: 30, d: 20, h: 5, face: 'back', cutout: { shape: 'rect', w: 9.5, h: 3.8 }, note: 'USB-C 2S charger with balancing: charge port + LEDs' }),
+    query: () => ({ query: 'IP2326 USB-C 2S lithium boost charger balance module', note: 'Use with a 2S BMS (protection) on the pack; never charge a 2S pack from a 1S charger.' }) },
   buck: { model: { reg: { vin: 'VIN', vout: 'VOUT', gnd: 'GND', V: p => num(p, 'V', 5), dropout: () => 1, eff: p => num(p, 'eff', 0.9) } },
     limits: { Iout: p => num(p, 'I', 2), vinMax: () => 28 },
     physical: () => ({ w: 22, d: 17, h: 5, face: 'inside', note: 'Buck converter: keep its inductor away from the radio antenna' }),
@@ -88,7 +92,7 @@ export const MODULES: Record<string, ModuleInfo> = {
     physical: () => ({ w: 21, d: 16, h: 3, face: 'inside', note: 'Screw the IMU down flat; it measures the box\'s motion' }), query: () => ({ query: 'MPU-6050 accelerometer gyro module GY-521' }) },
   lux: { model: { draw: { ...S('VCC'), A: () => 0.001 }, pullups: [{ pin: 'SCL', to: 'VCC', R: 4.7e3 }, { pin: 'SDA', to: 'VCC', R: 4.7e3 }] }, supply: { pin: 'VCC', gnd: 'GND', min: 3, max: 5.5 },
     physical: () => ({ w: 19, d: 14, h: 3, face: 'top', cutout: { shape: 'circle', d: 6 }, note: 'Light sensor under a 6 mm window' }), query: () => ({ query: 'BH1750 light sensor module I2C' }) },
-  tof: { model: { draw: { ...S('VCC'), A: () => 0.02 }, pullups: [{ pin: 'SCL', to: 'VCC', R: 10e3 }, { pin: 'SDA', to: 'VCC', R: 10e3 }] }, supply: { pin: 'VCC', gnd: 'GND', min: 2.8, max: 5.5 },
+  tof: { model: { draw: { ...S('VCC'), A: () => 0.02 }, pullups: [{ pin: 'SCL', to: 'VCC', R: 10e3 }, { pin: 'SDA', to: 'VCC', R: 10e3 }, { pin: 'XSHUT', to: 'VCC', R: 47e3 }], free: ['XSHUT'] }, supply: { pin: 'VCC', gnd: 'GND', min: 2.8, max: 5.5 },
     physical: () => ({ w: 25, d: 13, h: 3, face: 'front', cutout: { shape: 'rect', w: 8, h: 4 }, note: 'Time-of-flight sensor: clear window, no tinted plastic' }), query: () => ({ query: 'VL53L0X time of flight distance sensor module' }) },
   sonar: { model: { draw: { ...S('VCC'), A: () => 0.015 }, inputs: [{ pin: 'TRIG', gnd: 'GND', R: 1e5 }], drives: [{ pin: 'ECHO', sup: 'VCC', gnd: 'GND', R: 100, frac: () => 1 }] }, supply: { pin: 'VCC', gnd: 'GND', min: 4.5, max: 5.5 },
     physical: () => ({ w: 45, d: 20, h: 15, face: 'front', cutout: { shape: 'rect', w: 42, h: 17 }, note: 'HC-SR04 transducers through the front (two 16 mm holes or one slot)' }), query: () => ({ query: 'HC-SR04 ultrasonic distance sensor' }) },
@@ -107,6 +111,26 @@ export const MODULES: Record<string, ModuleInfo> = {
   relay: { model: { links: [{ a: 'VCC', b: 'GND', R: () => 70 }], inputs: [{ pin: 'IN', gnd: 'GND', R: 1e3 }], free: ['COM', 'NO', 'NC'] }, supply: { pin: 'VCC', gnd: 'GND', min: 4.5, max: 5.5 },
     physical: () => ({ w: 50, d: 26, h: 19, face: 'inside', note: 'Relay module: load wiring through a strain-relieved gland into its own closed compartment' }),
     query: () => ({ query: '5V relay module optocoupler isolated 10A', note: 'Pick a module whose relay is UL/VDE recognised and whose board has a slot between coil and contacts.' }) },
+  mcp23017: { model: { draw: { pwr: 'VDD', gnd: 'GND', A: () => 0.001 }, pullups: [{ pin: 'SCL', to: 'VDD', R: 10e3 }, { pin: 'SDA', to: 'VDD', R: 10e3 }],
+      drives: ['GPA0', 'GPA1', 'GPA2', 'GPA3', 'GPA4', 'GPA5', 'GPA6', 'GPA7', 'GPB0', 'GPB1', 'GPB2', 'GPB3', 'GPB4', 'GPB5', 'GPB6', 'GPB7'].map(pin => ({ pin, sup: 'VDD', gnd: 'GND', R: 40, frac: () => 1, active: (p: Params) => String(p.high ?? '').split(',').includes(pin) })), free: ['GPA0', 'GPA1', 'GPA2', 'GPA3', 'GPA4', 'GPA5', 'GPA6', 'GPA7', 'GPB0', 'GPB1', 'GPB2', 'GPB3', 'GPB4', 'GPB5', 'GPB6', 'GPB7'] },
+    supply: { pin: 'VDD', gnd: 'GND', min: 1.8, max: 5.5 }, physical: () => ({ w: 30, d: 20, h: 3, face: 'inside' }),
+    query: () => ({ query: 'MCP23017 I2C 16-bit GPIO expander module', note: 'Pick a board with I²C pull-ups and address jumpers (A0-A2).' }) },
+  hc4050: { model: { draw: { pwr: 'VCC', gnd: 'GND', A: () => 0.0001 }, inputs: ['1A', '2A', '3A', '4A', '5A'].map(pin => ({ pin, gnd: 'GND', R: 1e6 })),
+      drives: [1, 2, 3, 4, 5].map(k => ({ pin: `${k}Y`, ctrl: `${k}A`, sup: 'VCC', gnd: 'GND', R: 50 })) },
+    supply: { pin: 'VCC', gnd: 'GND', min: 2, max: 6 },
+    physical: () => ({ w: 20, d: 8, h: 5, face: 'inside' }), query: () => ({ query: '74HC4050 hex buffer DIP-16', note: 'Powered from 3.3 V, its inputs accept 5 V: a one-way 5 V to 3.3 V level shifter.' }) },
+  a4988: { model: { draw: { pwr: 'VMOT', gnd: 'GND', A: p => num(p, 'Irun', 0.4) }, inputs: ['STEP', 'DIR', 'EN'].map(pin => ({ pin, gnd: 'GND', R: 1e5 })), free: ['EN'] },
+    supply: { pin: 'VMOT', gnd: 'GND', min: 8, max: 35 },
+    physical: () => ({ w: 20, d: 15, h: 12, face: 'inside', note: 'Stepper driver with heatsink: set its current limit (Vref) before connecting the motor; never unplug the motor while powered' }),
+    query: () => ({ query: 'A4988 stepper driver module heatsink' }) },
+  stepper: { model: { links: [{ a: 'A1', b: 'A2', R: () => 2.4 }, { a: 'B1', b: 'B2', R: () => 2.4 }] },
+    physical: () => ({ w: 0, d: 0, h: 0, face: 'inside', note: 'NEMA 17 motor on the mechanism; 4-wire cable to the driver' }), query: () => ({ query: 'NEMA 17 stepper motor 1.5A 42mm' }) },
+  uln2003: { model: { draw: { pwr: '+', gnd: '-', A: () => 0.16 }, inputs: ['IN1', 'IN2', 'IN3', 'IN4'].map(pin => ({ pin, gnd: '-', R: 2.7e3 })) },
+    supply: { pin: '+', gnd: '-', min: 4.5, max: 5.5 },
+    physical: () => ({ w: 35, d: 32, h: 15, face: 'inside', note: 'ULN2003 board; the 28BYJ-48 motor plugs into its 5-pin socket' }), query: () => ({ query: '28BYJ-48 stepper motor with ULN2003 driver board' }) },
+  i2samp: { model: { draw: { pwr: 'VIN', gnd: 'GND', A: () => 0.004 }, inputs: ['BCLK', 'LRC', 'DIN'].map(pin => ({ pin, gnd: 'GND', R: 1e5 })), free: ['SD', 'GAIN'] },
+    supply: { pin: 'VIN', gnd: 'GND', min: 2.5, max: 5.5 },
+    physical: () => ({ w: 18, d: 18, h: 3, face: 'inside' }), query: () => ({ query: 'MAX98357A I2S amplifier breakout' }) },
   ads1115: { model: { draw: { ...S('VDD'), A: () => 0.001 }, pullups: [{ pin: 'SCL', to: 'VDD', R: 10e3 }, { pin: 'SDA', to: 'VDD', R: 10e3 }], free: ['A0', 'A1', 'A2', 'A3'] }, supply: { pin: 'VDD', gnd: 'GND', min: 2, max: 5.5 },
     physical: () => ({ w: 28, d: 17, h: 3, face: 'inside' }), query: () => ({ query: 'ADS1115 16-bit ADC module I2C' }) },
 };
@@ -121,9 +145,11 @@ const addr = (d: string) => ({ key: 'addr', label: 'I²C address', default: d })
 
 export const MODULE_COMPONENTS: CompDef[] = [
   C('liion', 'Li-ion cell (18650 / LiPo)', 'BT', 'Power', cell, 'Single lithium-ion cell: 3.0 V empty, 3.7 V nominal, 4.2 V full. Needs a protection circuit and a matched charger.',
-    [{ key: 'V', label: 'Voltage', unit: 'V', default: 3.7 }, { key: 'Rint', label: 'Internal resistance', unit: 'Ω', default: 0.08 }, { key: 'mAh', label: 'Capacity', unit: 'mAh', default: 2500 }], p => `${p.mAh}mAh`),
+    [{ key: 'V', label: 'Voltage', unit: 'V', default: 3.7 }, { key: 'Rint', label: 'Internal resistance', unit: 'Ω', default: 0.08 }, { key: 'mAh', label: 'Capacity', unit: 'mAh', default: 2500 }, { key: 'cells', label: 'Cells in series', default: 1 }], p => `${num(p, 'cells', 1) > 1 ? `${p.cells}S ` : ''}${p.mAh}mAh`),
   C('charger', 'Li-ion charger + protection (TP4056/DW01)', 'U', 'Power', block('CHARGE', ['IN+', 'IN-'], ['B+', 'B-', 'OUT+', 'OUT-'], 6), 'USB-C single-cell charger (TP4056-class, 4.2 V CC/CV, current set by R_PROG) with DW01 + dual-FET protection against over-charge, over-discharge and short circuit. Load goes on OUT, never straight on the cell.',
     [{ key: 'Icharge', label: 'Charge current', unit: 'A', default: '0.4' }, { key: 'Rprog', label: 'R_PROG', unit: 'Ω', default: '3k' }], p => `${num(p, 'Icharge', 0.4) * 1000}mA`),
+  C('charger2s', '2S Li-ion charger (USB-C, balancing)', 'U', 'Power', block('CHARGE 2S', ['IN+', 'IN-'], ['B+', 'BM', 'B-', 'OUT+', 'OUT-'], 7), 'Boost charger from USB-C 5 V to a 2-cell pack (8.4 V CC/CV, IP2326-class) with cell balancing via the midpoint (BM); the pack carries its own 2S BMS (protection).',
+    [{ key: 'Icharge', label: 'Charge current', unit: 'A', default: '1' }], p => `${num(p, 'Icharge', 1) * 1000}mA 2S`),
   C('buck', 'Buck converter module', 'U', 'Power', block('BUCK', ['VIN', 'GND'], ['VOUT'], 5), 'Step-down switching regulator (MP1584-class): 4.5-28 V in, about 90% efficient, up to 2-3 A.',
     [{ key: 'V', label: 'Output', unit: 'V', default: 5 }, { key: 'I', label: 'Rated current', unit: 'A', default: '2' }, { key: 'eff', label: 'Efficiency', default: 0.9 }], p => `${p.V}V`),
   C('ldo', 'Low-dropout regulator', 'U', 'Power', block('LDO', ['VIN', 'GND'], ['VOUT'], 5), 'Linear LDO (AP2112K-class): 600 mA, about 0.25 V dropout at full load; burns (Vin − Vout) × I as heat.',
@@ -137,7 +163,7 @@ export const MODULE_COMPONENTS: CompDef[] = [
   C('tft', 'TFT display (ST7789, SPI)', 'DS', 'Output', block('TFT', ['VCC', 'GND', 'BL'], ['SCK', 'MOSI', 'CS', 'DC', 'RST'], 6), '1.3" 240 × 240 colour IPS on SPI; 3.3 V only; backlight about 30 mA.', [], () => '240x240'),
   C('imu', 'Motion sensor (MPU-6050)', 'U', 'Integrated circuit', block('IMU', ['VCC', 'GND'], ['SCL', 'SDA'], 5), '3-axis accelerometer + gyro, I²C at 0x68 (0x69 with AD0 high).', [addr('0x68')], () => 'MPU-6050'),
   C('lux', 'Light sensor (BH1750)', 'U', 'Integrated circuit', block('LUX', ['VCC', 'GND'], ['SCL', 'SDA'], 5), 'Ambient light in lux, I²C at 0x23 (0x5C with ADDR high).', [addr('0x23')], () => 'BH1750'),
-  C('tof', 'Distance sensor (VL53L0X)', 'U', 'Integrated circuit', block('TOF', ['VCC', 'GND'], ['SCL', 'SDA'], 5), 'Laser time-of-flight ranging to about 2 m, I²C at 0x29 (Class 1 laser).', [addr('0x29')], () => 'VL53L0X'),
+  C('tof', 'Distance sensor (VL53L0X)', 'U', 'Integrated circuit', block('TOF', ['VCC', 'GND'], ['SCL', 'SDA', 'XSHUT'], 5), 'Laser time-of-flight ranging to about 2 m, I²C at 0x29 (Class 1 laser). XSHUT holds it in reset so several can be given new addresses at boot.', [addr('0x29')], () => 'VL53L0X'),
   C('sonar', 'Ultrasonic distance (HC-SR04)', 'U', 'Integrated circuit', block('SONAR', ['VCC', 'GND'], ['TRIG', 'ECHO'], 5), '2 cm to 4 m ultrasonic ranging. 5 V part: its ECHO output is 5 V, so 3.3 V boards need a divider.', [], () => 'HC-SR04'),
   C('soil', 'Soil moisture probe (capacitive)', 'U', 'Integrated circuit', block('SOIL', ['VCC', 'GND'], ['AOUT'], 5), 'Capacitive probe (no exposed electrodes to corrode); analog out falls as the soil gets wetter.', [], () => 'Capacitive'),
   C('pir', 'Motion detector (PIR, HC-SR501)', 'U', 'Integrated circuit', block('PIR', ['VCC', 'GND'], ['OUT'], 5), 'Passive infrared motion detector, 4.5-20 V in, 3.3 V logic output, adjustable hold time.', [], () => 'HC-SR501'),
@@ -145,6 +171,12 @@ export const MODULE_COMPONENTS: CompDef[] = [
   C('hbridge', 'Dual H-bridge motor driver (DRV8833)', 'U', 'Integrated circuit', block('DRV8833', ['VM', 'GND', 'AIN1', 'AIN2', 'BIN1', 'BIN2'], ['AO1', 'AO2', 'BO1', 'BO2'], 6), 'Two brushed-motor channels, 2.7-10.8 V, 1.2 A each (1.5 A peak), with current limiting and thermal shutdown.', [], () => 'DRV8833'),
   C('dcmotor', 'DC gear motor', 'M', 'Electromechanical', twoPin('M'), 'Small brushed gear motor (TT-class), 3-6 V; about 250 mA running, 1 A stalled.', [{ key: 'R', label: 'Running resistance', unit: 'Ω', default: 20 }], () => 'TT motor'),
   C('relay', 'Relay module (opto-isolated)', 'K', 'Electromechanical', block('RELAY', ['VCC', 'GND', 'IN'], ['COM', 'NO', 'NC'], 6), '5 V relay with optocoupler input, transistor driver and flyback diode on the module; contacts on screw terminals (typically 10 A 250 V AC rated relay).', [], () => '5V relay'),
+  C('mcp23017', 'I²C port expander (MCP23017)', 'U', 'Integrated circuit', block('MCP23017', ['VDD', 'GND', 'SCL', 'SDA'], ['GPA0', 'GPA1', 'GPA2', 'GPA3', 'GPA4', 'GPA5', 'GPA6', 'GPA7', 'GPB0', 'GPB1', 'GPB2', 'GPB3', 'GPB4', 'GPB5', 'GPB6', 'GPB7'], 6), '16 extra digital pins on I²C (0x20-0x27 by A0-A2), 25 mA per pin, internal pull-ups: for buttons, LEDs and relays when the board runs out.', [addr('0x20'), { key: 'high', label: 'Pins set high (comma list)', default: '' }], p => String(p.addr ?? '0x20')),
+  C('hc4050', 'Level shifter (74HC4050)', 'U', 'Integrated circuit', block('74HC4050', ['VCC', 'GND', '1A', '2A', '3A', '4A', '5A'], ['1Y', '2Y', '3Y', '4Y', '5Y'], 6), 'Hex buffer whose inputs tolerate 5 V while it runs from 3.3 V: shifts 5 V logic down for 3.3 V parts (SPI displays on an Arduino).', [], () => '74HC4050'),
+  C('a4988', 'Stepper driver (A4988)', 'U', 'Integrated circuit', block('A4988', ['VMOT', 'GND', 'VDD', 'STEP', 'DIR', 'EN'], ['1A', '1B', '2A', '2B'], 6), 'Bipolar stepper driver: 8-35 V motor supply, up to about 1 A per coil without a fan (set by its Vref trimmer), microstepping, STEP/DIR control.', [{ key: 'Irun', label: 'Supply current', unit: 'A', default: '0.4' }], () => 'A4988'),
+  C('stepper', 'Stepper motor (NEMA 17)', 'M', 'Electromechanical', block('NEMA17', ['A1', 'A2', 'B1', 'B2'], [], 5), 'Bipolar 1.8° stepper, two coils (about 2.4 Ω each); the driver limits the coil current.', [], () => 'NEMA 17'),
+  C('uln2003', 'Stepper driver (ULN2003 + 28BYJ-48)', 'U', 'Integrated circuit', block('ULN2003', ['+', '-'], ['IN1', 'IN2', 'IN3', 'IN4'], 6), 'Darlington driver board for the small 5 V 28BYJ-48 geared stepper (about 160 mA), with the motor socket and step LEDs.', [], () => '28BYJ-48'),
+  C('i2samp', 'I²S amplifier (MAX98357A)', 'U', 'Integrated circuit', block('MAX98357', ['VIN', 'GND', 'BCLK', 'LRC', 'DIN'], ['SPK+', 'SPK-', 'SD', 'GAIN'], 6), 'Digital audio in (I²S), 3.2 W class-D out into 4 Ω at 5 V: real music and speech, not just tones.', [], () => 'MAX98357A'),
   C('ads1115', 'I²C ADC (ADS1115)', 'U', 'Integrated circuit', block('ADS1115', ['VDD', 'GND', 'SCL', 'SDA'], ['A0', 'A1', 'A2', 'A3'], 6), '4-channel 16-bit ADC on I²C (0x48-0x4B by the ADDR pin): adds analog inputs to boards that have too few (or none, like the Raspberry Pi).', [addr('0x48')], p => String(p.addr ?? '0x48')),
 ];
 
@@ -156,7 +188,7 @@ export function moduleHazards(kinds: Set<string>): ModuleHazard[] {
     mitigate: ['Keep the charger + protection module (over-charge, over-discharge, short-circuit) between the cell and every load; never wire a load straight to the cell.', 'Protected cells from an authorised distributor only; no salvaged or re-wrapped cells.', 'Hold the cell in a holder or padded pocket away from screws, heat and sharp edges; vent the case.', 'Charge where you can see it during prototyping; stop if the cell swells or gets hot.', 'Shipping or selling: UN 38.3 test summary and IEC 62133-2 for the pack.'], cite: 'IEC 62133-2; UL 1642; UL 2054; UN 38.3' });
   if (kinds.has('relay')) out.push({ id: 'relay-mains', stage: 'schematic', severity: 'critical', ack: true, title: 'Relay contacts may switch mains', why: 'Relays are often used to switch lamps and appliances. Mains on a hobby relay board can shock through thin board gaps, loose screw terminals or an open case, and overloaded contacts can start a fire.',
     mitigate: ['Low-voltage loads (under 30 V) are the safe default; treat any mains use as a mains product.', 'For mains: a relay rated for the load (inductive loads derate heavily), a fuse in the line, at least 6 mm between mains and low-voltage copper, a closed flame-rated (UL 94 V-0) compartment and strain-relieved cords.', 'Prefer a listed smart plug or a certified relay module with mains-rated isolation.', 'Never work on it plugged in; have mains products tested by an accredited lab.'], cite: 'UL/IEC 62368-1; IEC 61810-1; 29 CFR 1910.303; Directive 2014/35/EU' });
-  if (kinds.has('servo') || kinds.has('dcmotor')) out.push({ id: 'moving-parts', stage: 'build', severity: 'medium', title: 'Moving parts: pinching and stalled motors', why: 'Gears and arms can pinch fingers, and a stalled motor draws several times its running current and heats the motor, driver and wiring.',
+  if (kinds.has('servo') || kinds.has('dcmotor') || kinds.has('stepper') || kinds.has('uln2003')) out.push({ id: 'moving-parts', stage: 'build', severity: 'medium', title: 'Moving parts: pinching and stalled motors', why: 'Gears and arms can pinch fingers, and a stalled motor draws several times its running current and heats the motor, driver and wiring.',
     mitigate: ['Guard gears and pinch points; limit servo travel in firmware.', 'Size the supply and wiring for stall current; the driver\'s current limit and thermal shutdown are the last line.', 'Add a power switch the user can reach.'], cite: 'ISO 13857 (safety distances); IEC 60335-1 §20 (stability and mechanical hazards)' });
   if (kinds.has('tof')) out.push({ id: 'laser-class1', stage: 'idea', severity: 'low', title: 'Class 1 laser emitter', why: 'Time-of-flight sensors emit invisible 940 nm laser light; Class 1 is eye-safe in normal use, which stops being true if the optics are altered.', mitigate: ['Do not add lenses in front of the emitter; keep the maker\'s Class 1 label information in your manual.'], cite: 'IEC 60825-1; 21 CFR 1040.10' });
   return out;

@@ -17,7 +17,7 @@ const numIn = (s: string) => { const n = parseFloat(s); return Number.isFinite(n
 const grab = (p: string, unit: string) => { const m = new RegExp(`${NUM}\\s*-?\\s*(?:[a-z-]+\\s+){0,2}?(?:${unit})\\b`, 'i').exec(p); return m ? numIn(m[1]) : undefined; };
 
 /** Count nouns per block (the detection words live on the blocks). */
-const COUNT: Partial<Record<BlockId, string>> = { lamp: 'leds?|bulbs?', led: 'leds?|indicators?', neopixel: 'neo ?pixels?|pixels?|leds?', button: 'buttons?|keys?|pads?|switches', encoder: 'encoders?', pot: 'knobs?|pots?|potentiometers?|faders?|sliders?|dials?', soil: 'soil (?:sensors?|probes?)|probes?|plants', servo: 'servos?', motor: 'motors?|wheels?', relay: 'relays?|channels?|outlets?', temp: 'temperature sensors?|sensors?', motion: 'pir sensors?|motion sensors?' };
+const COUNT: Partial<Record<BlockId, string>> = { distance: 'time[- ]of[- ]flight sensors?|tof sensors?|distance sensors?|ultrasonic sensors?|sonars?|range ?finders?', stepper: 'steppers?|stepper motors?', keymatrix: 'keys?|buttons?|switches', lamp: 'leds?|bulbs?', led: 'leds?|indicators?', neopixel: 'neo ?pixels?|pixels?|leds?', button: 'buttons?|keys?|pads?|switches', encoder: 'encoders?', pot: 'knobs?|pots?|potentiometers?|faders?|sliders?|dials?', soil: 'soil (?:sensors?|probes?)|probes?|plants', servo: 'servos?', motor: 'motors?|wheels?', relay: 'relays?|channels?|outlets?', temp: 'temperature sensors?|sensors?', motion: 'pir sensors?|motion sensors?' };
 const DEFAULT_COUNT: Partial<Record<BlockId, number>> = { lamp: 4, neopixel: 8, button: 1, pot: 1, relay: 1, motor: 1, servo: 1, soil: 1, led: 1, encoder: 1 };
 
 export function readSpec(prompt: string): SpecReading {
@@ -31,7 +31,10 @@ export function readSpec(prompt: string): SpecReading {
   if (/\bscreen|display\b/.test(p) && found.has('tft')) found.delete('oled');
   if (found.has('soil') && /\bpots?\b/.test(p) && !/\b(knob|potentiometer)/.test(p)) found.delete('pot');
   if (found.has('motor') && /\bfan\b/.test(p) && !/\bmotor\b/.test(p) && found.has('relay')) found.delete('motor');
-  if (has(/\bmacro ?pad|keypad|stream deck|shortcut keys?\b/) && !found.has('button')) found.add('button');
+  if (has(/\bmacro ?pad|keypad|stream deck|shortcut keys?\b/) && !found.has('button') && !found.has('keymatrix')) found.add('button');
+  if (found.has('keymatrix')) found.delete('button');
+  if (found.has('stepper') && found.has('motor') && !/\b(dc motors?|gear motors?|wheels?|rover|robot car)\b/.test(p)) found.delete('motor');
+  if (found.has('pot') && /\b(camera|linear) slider\b/.test(p) && !/\b(knobs?|pots?|potentiometers?|faders?|dials?)\b/.test(p)) found.delete('pot');
   if (has(/\b(robot car|rover|line follower)\b/)) found.add('motor');
   const joysticks = /\bjoysticks?\b/.test(p) ? (grab(p, 'joysticks?') ?? 1) : 0; if (joysticks) { found.add('pot'); found.add('button'); }
   if (found.has('encoder') && found.has('pot') && !grab(p, COUNT.pot!) && !joysticks) found.delete('pot');
@@ -52,6 +55,9 @@ export function readSpec(prompt: string): SpecReading {
     needs.push({ block: id, count: n, opt });
     if (count) heard.push(`${n} ${n > 1 ? b.plural : b.label.toLowerCase()}`); else { heard.push(b.label.toLowerCase()); if (DEFAULT_COUNT[id] && DEFAULT_COUNT[id]! > 1) assumed.push(`${n} ${b.plural} (say how many)`); }
   }
+  // Nine or more keys read best as a diode matrix (fewer pins, any keys at once).
+  const bi = needs.findIndex(x => x.block === 'button');
+  if (bi >= 0 && needs[bi].count >= 9 && !/\b(separate|individual)\b/.test(p) && !needs.some(x => x.block === 'keymatrix')) { needs[bi] = { block: 'keymatrix', count: needs[bi].count, opt: {} }; heard.push(`${needs[bi].count}-key matrix`); }
   const conn: Conn[] = [];
   if (has(/\bmidi\b/)) conn.push('usb-midi');
   if (has(/\b(usb )?(keyboard|hid|macro ?pad|keypad|stream deck|shortcut|gamepad|mouse)\b/) && !conn.includes('usb-midi')) conn.push('usb-hid');
@@ -62,18 +68,24 @@ export function readSpec(prompt: string): SpecReading {
   if (!conn.length && !inputs && needs.some(n => n.block === 'relay' || n.block === 'strip12' || (n.block === 'lamp' && n.opt?.dim))) { conn.push('wifi'); assumed.push('Wi-Fi control from a phone or Home Assistant (no buttons asked for)'); }
   for (const c of conn) heard.push({ wifi: 'Wi-Fi', bluetooth: 'Bluetooth', homeassistant: 'Home Assistant', 'usb-midi': 'USB MIDI', 'usb-hid': 'USB keyboard (HID)' }[c]);
   let power: PowerChoice = 'auto';
-  if (has(/\b(li-?ion|lipo|li-?po|lithium|18650|rechargeable|usb-?c charg\w*|charg(es|ing) (over|via|from) usb|built-in battery)\b/)) power = 'liion';
+  if (has(/\b(2s|7\.4 ?v|two[- ]cell|2[- ]cell|18650 pack)\b/)) power = 'liion2s';
+  else if (has(/\b(li-?ion|lipo|li-?po|lithium|18650|rechargeable|usb-?c charg\w*|charg(es|ing) (over|via|from) usb|built-in battery)\b/)) power = 'liion';
   else if (has(/\b(aa|aaa|alkaline|battery|batteries|battery-powered|portable|cordless)\b/)) { power = has(/\b(aa|aaa|alkaline)\b/) ? 'aa' : 'liion'; }
   else if (has(/\b(mains|wall power|plugs? into the wall|ac[- ]powered|120 ?v|230 ?v|240 ?v)\b/)) power = 'mains';
   else if (has(/\b12 ?v\b/) && !found.has('strip12')) power = 'adapter12';
   else if (has(/\b(5 ?v adapter|barrel jack|dc jack|power adapter)\b/)) power = 'adapter5';
   else if (has(/\busb\b/)) power = 'usb';
-  if (power !== 'auto') heard.push({ usb: 'USB power', liion: 'rechargeable Li-ion', aa: 'AA batteries', adapter5: '5 V adapter', adapter12: '12 V adapter', mains: 'mains powered' }[power]);
+  if (power !== 'auto') heard.push({ usb: 'USB power', liion: 'rechargeable Li-ion', liion2s: '2-cell Li-ion pack', aa: 'AA batteries', adapter5: '5 V adapter', adapter12: '12 V adapter', mains: 'mains powered' }[power]);
   else assumed.push('Power: chosen from the loads (USB, or an adapter for big loads); say "battery" for portable');
   let mcu: Spec['mcu'] = 'auto'; let piModel: string | undefined;
-  if (has(/\besp-?32\b/)) mcu = 'esp32'; else if (has(/\b(pico|rp2040|rp2350)\b/)) mcu = 'pico'; else if (has(/\b(arduino|nano|atmega)\b/)) mcu = 'nano';
+  if (has(/\besp-?32-?s3\b|\bs3\b/)) mcu = 'esp32s3'; else if (has(/\besp-?32\b/)) mcu = 'esp32'; else if (has(/\bpico ?(2 ?)?w\b/)) mcu = 'picow'; else if (has(/\b(pico|rp2040|rp2350)\b/)) mcu = 'pico'; else if (has(/\b(arduino|nano|atmega)\b/)) mcu = 'nano';
   else if (has(/\b(raspberry ?pi|rpi|pi ?[345]|pi zero)\b/)) { mcu = 'rpi'; piModel = Object.keys(PI_MODELS).find(k => p.includes(k.toLowerCase())) ?? 'Pi 5'; }
-  if (mcu !== 'auto') heard.push(mcu === 'rpi' ? `Raspberry ${piModel}` : mcu === 'esp32' ? 'ESP32' : mcu === 'pico' ? 'Pico' : 'Arduino Nano'); else if (needs.some(n => blockById(n.block)!.needsMcu(n.opt ?? {})) || conn.length) assumed.push('Controller: picked to fit (radio, USB, pins)');
+  if (mcu !== 'auto') heard.push(mcu === 'rpi' ? `Raspberry ${piModel}` : ({ esp32: 'ESP32', esp32s3: 'ESP32-S3', pico: 'Pico', picow: 'Pico W', nano: 'Arduino Nano' } as Record<string, string>)[mcu]); else if (needs.some(n => blockById(n.block)!.needsMcu(n.opt ?? {})) || conn.length) assumed.push('Controller: picked to fit (radio, USB, pins)');
+  const sp = needs.find(x => x.block === 'speaker');
+  if (sp && /\b(music|mp3|wav|internet radio|radio|speech|voice|podcast|songs?|sound files?)\b/.test(p)) {
+    if (mcu === 'nano' || mcu === 'rpi') assumed.push(`Audio: PWM tones (the ${mcu === 'nano' ? 'Nano has' : 'Pi symbol exposes'} no I²S); pick an ESP32 or Pico for music`);
+    else { sp.opt = { ...sp.opt, kind: 'i2s' }; heard.push('I²S audio (music)'); }
+  }
   const market: Spec['market'] = /\b(eu|europe|european|uk|britain|germany|france|230 ?v|240 ?v)\b/.test(p) ? 'EU' : /\b(us|usa|america|canada|120 ?v|110 ?v)\b/.test(p) ? 'US' : 'both';
   if (market !== 'both') heard.push(market === 'EU' ? 'EU/UK market' : 'US market'); else assumed.push('Market: US and EU checks');
   const nm = prompt.trim().replace(/^(i want |make |build |design |create )?(me )?(an? |my |the )?/i, '').split(/\s+(with|that|which|for|using|powered|running|,)\s+|[,.;]/i)[0].trim();
@@ -127,7 +139,7 @@ export function specFromLlm(reply: string, prompt: string): SpecReading {
     }
     if (!needs.length) return base;
     const mcu = ['auto', 'none', 'esp32', 'pico', 'nano', 'rpi'].includes(s.mcu) ? s.mcu as Spec['mcu'] : base.spec.mcu;
-    const power = ['auto', 'usb', 'liion', 'aa', 'adapter5', 'adapter12', 'mains'].includes(s.power) ? s.power as PowerChoice : base.spec.power;
+    const power = ['auto', 'usb', 'liion', 'liion2s', 'aa', 'adapter5', 'adapter12', 'mains'].includes(s.power) ? s.power as PowerChoice : base.spec.power;
     const conn = Array.isArray(s.conn) ? s.conn.filter((c: string) => ['wifi', 'bluetooth', 'homeassistant', 'usb-midi', 'usb-hid'].includes(c)) as Conn[] : base.spec.conn;
     const market = s.market === 'US' || s.market === 'EU' ? s.market : base.spec.market;
     const name = typeof s.name === 'string' && s.name.trim() ? s.name.trim().slice(0, 48) : base.spec.name;

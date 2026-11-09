@@ -18,12 +18,13 @@ export function assemble(p: Plan, name: string, market: 'US' | 'EU' | 'both', sp
   const mcu = p.mcu; const pw = p.power; const mcuRef = mcu ? 'U1' : undefined; if (mcu) counters.U = 1;
   const add = (net: string, pin: [string, string]) => { const l = nets.get(net) ?? []; if (!l.some(x => x[0] === pin[0] && x[1] === pin[1])) l.push(pin); nets.set(net, l); };
   const rail = (n: string) => (n === 'SYS' ? pw.sysIs : n === 'LOGIC' ? (mcu?.logic === 5 ? 'V5' : 'LOGIC') : n);
-  const adsRefs: string[] = [];
+  const adsRefs: string[] = []; const expRefs: string[] = [];
   const resolve = (inst: Inst | null, gid: string, nm: string, pin: [string, string]) => {
     if (nm === 'GND') { gnd.push(pin); return; }
     if (['V5', 'SYS', 'LOGIC', 'V12'].includes(nm)) { add(rail(nm), pin); return; }
     if (nm.startsWith('@') && inst) {
       const bp = inst.pins[nm.slice(1)]; if (!bp) throw new Error(`${inst.label}: no pin for ${nm}`);
+      const x = /^EXP:(\d+):(GP[AB]\d)$/.exec(bp); if (x) { const net = `EXP${x[1]}.${x[2]}`; add(net, [expRefs[+x[1]], x[2]]); add(net, pin); return; }
       const m = /^ADS:(\d+):A(\d)$/.exec(bp); if (m) { const net = `ADS${m[1]}.A${m[2]}`; add(net, [adsRefs[+m[1]], `A${m[2]}`]); add(net, pin); return; }
       add(`IO:${bp}`, [mcuRef!, bp]); add(`IO:${bp}`, pin); return;
     }
@@ -56,22 +57,28 @@ export function assemble(p: Plan, name: string, market: 'US' | 'EU' | 'both', sp
       const j = d.part('usb5v', 0, 0, 0, { Imax: '0.5' }); const c = d.part('charger', 0, 0, 0, { Icharge: String(pw.cell!.chargeA), Rprog: '3k' }); const bt = d.part('liion', 0, 0, 0, { mAh: pw.cell!.mAh });
       d.net('vusb', [j, 'VBUS'], [c, 'IN+']); d.net('GND', [j, 'GND']); d.net('GND', [c, 'IN-']); d.net('GND', [c, 'OUT-']); d.net('batp', [bt, '+'], [c, 'B+']); d.net('batn', [bt, '-'], [c, 'B-']);
       const s = d.part('switch', 0, 0, 0, { state: 'closed', I: '3' }); d.net('bout', [c, 'OUT+'], [s, '1']); d.net('SYS', [s, '2']);
+    } else if (pw.source === 'liion2s') {
+      const j = d.part('usb5v', 0, 0, 0, { Imax: '3' }); const c = d.part('charger2s', 0, 0, 0, { Icharge: '1' }); const bt = d.part('liion', 0, 0, 0, { V: 7.4, Rint: 0.15, mAh: 2500, cells: 2 });
+      d.net('vusb', [j, 'VBUS'], [c, 'IN+']); d.net('GND', [j, 'GND']); d.net('GND', [c, 'IN-']); d.net('GND', [c, 'OUT-']); d.net('batp', [bt, '+'], [c, 'B+']); d.net('batn', [bt, '-'], [c, 'B-']);
+      const s = d.part('switch', 0, 0, 0, { state: 'closed', I: '3' }); d.net('bout', [c, 'OUT+'], [s, '1']); d.net('SYS', [s, '2']);
     } else if (pw.source === 'aa') {
       const bt = d.part('battery', 0, 0, 0, { V: 4.5, Rint: 0.3, mAh: 2400 }); const s = d.part('switch', 0, 0, 0, { state: 'closed', I: '3' });
       d.net('bp', [bt, '+'], [s, '1']); d.net('SYS', [s, '2']); d.net('GND', [bt, '-']);
     }
-    if (pw.source !== 'liion' && pw.source !== 'aa' && pw.powerSwitch) swTo('V5', 'SYS');
-    if (pw.buck) { const u = d.part('buck', 0, 0, 0, { V: pw.buck.V, I: String(pw.buck.I) }); d.net('V12', [u, 'VIN']); d.net('GND', [u, 'GND']); d.net('V5', [u, 'VOUT']); }
+    if (pw.source !== 'liion' && pw.source !== 'liion2s' && pw.source !== 'aa' && pw.powerSwitch) swTo('V5', 'SYS');
+    if (pw.buck) { const u = d.part('buck', 0, 0, 0, { V: pw.buck.V, I: String(pw.buck.I) }); d.net(pw.source === 'liion2s' ? 'SYS' : 'V12', [u, 'VIN']); d.net('GND', [u, 'GND']); d.net('V5', [u, 'VOUT']); }
     if (pw.boost) { const u = d.part('boost', 0, 0, 0, { V: pw.boost.V, I: String(pw.boost.I) }); d.net('SYS', [u, 'VIN']); d.net('GND', [u, 'GND']); d.net('V5', [u, 'VOUT']); }
     if (pw.ldo3) { const u = d.part('ldo', 0, 0, 0, { V: 3.3, I: '0.6' }); d.net('V5', [u, 'VIN']); d.net('GND', [u, 'GND']); d.net('LOGIC', [u, 'VOUT']); }
   }, true);
 
   // ---- board
   if (mcu) {
-    const high = p.insts.flatMap(i => blockById(i.block)!.pins(i).filter(n => n.high).map(n => i.pins[n.role])).filter(x => x && !x.startsWith('ADS'));
-    const params: Params = { high: high.join(',') }; if (mcu.kind === 'rpi') params.model = p.power.rows[0]?.what.replace('Raspberry ', '') || 'Pi 5';
-    groups.push({ id: 'mcu', side: 'mcu', parts: [makePart(mcu.kind, mcuRef!, 0, 0, 0, params)] });
+    const highAll = p.insts.flatMap(i => blockById(i.block)!.pins(i).filter(n => n.high).map(n => i.pins[n.role])).filter(Boolean);
+    const high = highAll.filter(x => !x.startsWith('ADS') && !x.startsWith('EXP'));
+    const params: Params = { high: high.join(',') }; if (mcu.variant) params.variant = mcu.variant; if (mcu.kind === 'rpi') params.model = p.power.rows[0]?.what.replace('Raspberry ', '') || 'Pi 5';
+    groups.push({ id: 'mcu', side: 'mcu', parts: [makePart(mcu.part, mcuRef!, 0, 0, 0, params)] });
     const on5 = pw.rows[0]?.rail === '5 V'; add(on5 ? 'V5' : rail('SYS'), [mcuRef!, on5 ? mcu.pin5v : mcu.pinBattery!]); gnd.push([mcuRef!, 'GND']);
+    for (let k = 0; k < (p.exp ?? 0); k++) group(`exp${k}`, 'right', null, d => { const hi = highAll.filter(x => x.startsWith(`EXP:${k}:`)).map(x => x.split(':')[2]); const u = d.part('mcp23017', 0, 0, 0, { addr: `0x${(0x20 + k).toString(16)}`, high: hi.join(',') }); expRefs.push(u); d.net('LOGIC', [u, 'VDD']); d.net('GND', [u, 'GND']); add(`IO:${p.i2c![0]}`, [mcuRef!, p.i2c![0]]); add(`IO:${p.i2c![0]}`, [u, 'SDA']); add(`IO:${p.i2c![1]}`, [mcuRef!, p.i2c![1]]); add(`IO:${p.i2c![1]}`, [u, 'SCL']); });
     for (let k = 0; k < p.ads; k++) group(`ads${k}`, 'right', null, d => { const u = d.part('ads1115', 0, 0, 0, { addr: `0x${(0x48 + k).toString(16)}` }); adsRefs.push(u); d.net('LOGIC', [u, 'VDD']); d.net('GND', [u, 'GND']); add(`IO:${p.i2c![0]}`, [mcuRef!, p.i2c![0]]); add(`IO:${p.i2c![0]}`, [u, 'SDA']); add(`IO:${p.i2c![1]}`, [mcuRef!, p.i2c![1]]); add(`IO:${p.i2c![1]}`, [u, 'SCL']); });
   }
   // ---- blocks

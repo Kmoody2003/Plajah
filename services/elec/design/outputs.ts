@@ -49,10 +49,10 @@ export function bomLines(c: Circuit): SourceLine[] { return sourceLines(c); }
 
 export function extrasFor(p: Plan): string[][] {
   const pw = p.power; const out: string[][] = [];
-  if (pw.source === 'usb' || pw.source === 'liion') out.push(['1', pw.usbA && pw.usbA > 0.5 ? `USB-C power adapter, 5 V ${pw.usbA} A (listed)` : 'USB power adapter 5 V 1 A (listed)', 'the adapter is the mains part: buy a certified one']);
+  if (pw.source === 'usb' || pw.source === 'liion' || pw.source === 'liion2s') out.push(['1', pw.usbA && pw.usbA > 0.5 ? `USB-C power adapter, 5 V ${pw.usbA} A (listed)` : 'USB power adapter 5 V 1 A (listed)', 'the adapter is the mains part: buy a certified one']);
   if (pw.source === 'adapter5' || pw.source === 'adapter12') out.push(['1', `${pw.adapterV} V ${pw.adapterA} A power adapter, 5.5 × 2.1 mm plug (listed)`, 'buy a certified one']);
   if (pw.source === 'mains') out.push(['1', 'IEC inlet or approved cord with strain relief', 'never improvise mains connections'], ['1', 'V-0 flame-rated enclosure (PC or PC/ABS)', 'PLA is not acceptable around mains']);
-  if (pw.cell) out.push(['1', '18650 holder or LiPo pocket', 'cell must not touch screws or sharp edges']);
+  if (pw.cell) out.push(['1', pw.cell.cells === 2 ? '2S BMS board (if the pack has none) + 2 × 18650 series holder' : '18650 holder or LiPo pocket', 'cells must not touch screws or sharp edges']);
   if (p.mcu) out.push(['1', p.mcu.kind === 'rpi' ? 'microSD card 32 GB+' : 'USB data cable for flashing', '']);
   for (const i of p.insts) out.push(...(blockById(i.block)!.extras?.(i) ?? []));
   out.push(['1', 'Perfboard 70 × 90 mm (or the PCB from the Board tab)', ''], ['1', 'Hook-up wire, headers, heat-shrink', ''], ['4', 'M3 × 8 screws', 'lid']);

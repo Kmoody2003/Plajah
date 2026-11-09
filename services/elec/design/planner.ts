@@ -8,7 +8,7 @@
 // Released by Plajah as public domain (CC0).
 import { blockById } from './blocks';
 import { busOf } from './block';
-import { MCUS, railMax, type McuDef, type McuKind } from './mcus';
+import { MCUS, railMax, frameworkFor, type Framework, type McuDef, type McuKind } from './mcus';
 import { PI_MODELS } from '../boards';
 import type { Inst, Load, PinNeed, PowerChoice, Spec } from './types';
 
@@ -18,7 +18,7 @@ export interface PowerPlan {
   /** USB port limit (A) when a USB socket feeds the design. */
   usbA?: number; adapterV?: number; adapterA?: number; mainsV?: number; acdc?: { V: number; I: number };
   fuseA?: number; buck?: { V: number; I: number }; boost?: { V: number; I: number }; ldo3?: boolean;
-  cell?: { mAh: number; chargeA: number }; aa?: boolean; powerSwitch: boolean;
+  cell?: { mAh: number; chargeA: number; cells?: number }; aa?: boolean; powerSwitch: boolean;
   /** SYS rail: what lamp LEDs and battery-powered boards run from. */
   sysV: number; sysIs: 'V5' | 'SYS';
   rows: Array<{ what: string; rail: string; typ: number; peak: number }>;
@@ -28,6 +28,7 @@ export interface PowerPlan {
 export interface Plan {
   errors: string[]; notes: string[]; mcu: McuDef | null; insts: Inst[]; pins: PinRow[];
   i2c?: [string, string]; spi?: [string, string]; ads: number; power: PowerPlan; logicV: number; tried: string[];
+  framework?: Framework; wifi?: boolean; exp?: number;
 }
 
 const STD_A = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10];
@@ -48,36 +49,55 @@ function instances(spec: Spec, errors: string[]): Inst[] {
       out.push({ block: b.id, id: `${b.id}${prev + 1}`, k: prev, count: c, opt, label: `${b.label}${counts.length > 1 || prev ? ` ${prev + 1}` : ''}`, pins: {}, addr: b.addrs?.[prev], mcu: null, logicV: 3.3, sysV: 5, usbMidi, usbHid, ha });
     });
   }
+  for (const i of out) i.of = out.filter(x => x.block === i.block).length;
   return out;
 }
 
 function candidates(spec: Spec): McuKind[] {
   if (spec.mcu !== 'auto' && spec.mcu !== 'none') return [spec.mcu];
-  if (spec.conn.includes('usb-midi') || spec.conn.includes('usb-hid')) return ['pico'];
-  if (spec.conn.some(c => c === 'wifi' || c === 'homeassistant' || c === 'bluetooth')) return ['esp32', 'rpi'];
-  return ['pico', 'esp32', 'nano'];
+  const usb = spec.conn.includes('usb-midi') || spec.conn.includes('usb-hid'); const radio = spec.conn.some(c => c === 'wifi' || c === 'homeassistant' || c === 'bluetooth');
+  if (usb && radio) return ['esp32s3', 'picow'];
+  if (usb) return ['pico', 'esp32s3'];
+  if (radio) return ['esp32', 'esp32s3', 'picow', 'rpi'];
+  return ['pico', 'esp32', 'nano', 'esp32s3'];
 }
 
 /** Allocate pins; returns the reason on failure. */
-function allocate(mcu: McuDef, insts: Inst[], spec: Spec): { pins: PinRow[]; i2c?: [string, string]; spi?: [string, string]; ads: number } | string {
+function allocate(mcu: McuDef, insts: Inst[], spec: Spec): { pins: PinRow[]; i2c?: [string, string]; spi?: [string, string]; ads: number; exp: number } | string {
   const conn = spec.conn;
   if ((conn.includes('usb-midi') || conn.includes('usb-hid')) && !mcu.usbDevice) return `${mcu.label} has no native USB for ${conn.includes('usb-midi') ? 'USB MIDI' : 'USB HID'}`;
   if ((conn.includes('wifi') || conn.includes('homeassistant')) && !mcu.wifi) return `${mcu.label} has no Wi-Fi`;
   if (conn.includes('bluetooth') && !mcu.ble) return `${mcu.label} has no Bluetooth`;
-  for (const i of insts) { const why = blockById(i.block)!.notOn?.[mcu.kind]; if (why) return `${i.label} cannot run on ${mcu.label}: ${why}`; }
+  for (const i of insts) { const bd = blockById(i.block)!; const why = bd.notOn?.[mcu.kind] ?? bd.notOnFor?.(i.opt)[mcu.kind]; if (why) return `${i.label} cannot run on ${mcu.label}: ${why}`; }
   const free = [...mcu.gpio]; const take = (p: string) => free.splice(free.indexOf(p), 1);
   const rows: PinRow[] = []; let i2c: [string, string] | undefined, spi: [string, string] | undefined;
   for (const i of insts) i.mcu = mcu;
   const needs: Array<{ i: Inst; n: PinNeed }> = insts.flatMap(i => blockById(i.block)!.pins(i).map(n => ({ i, n })));
   const adcNeeds = needs.filter(x => x.n.cap === 'adc').length;
-  const wantI2c = insts.some(i => busOf(blockById(i.block)!, i.opt) === 'i2c') || adcNeeds > mcu.adc.length;
+  // Digital pins short? Then the bus is needed for an MCP23017 too (counted before handing pins out).
+  const busPins = (insts.some(i => busOf(blockById(i.block)!, i.opt) === 'spi') ? 2 : 0) + 2;
+  const nativeOnly = needs.filter(x => x.n.cap !== 'adc' && !x.n.exp).length + Math.min(adcNeeds, mcu.adc.length);
+  const digitalShort = needs.filter(x => x.n.cap !== 'adc').length + Math.min(adcNeeds, mcu.adc.length) + busPins > mcu.gpio.length && needs.some(x => x.n.exp);
+  if (digitalShort && nativeOnly + busPins > mcu.gpio.length) return `${mcu.label} runs out of pins even with a port expander (${nativeOnly} pins must be on the board)`;
+  const wantI2c = insts.some(i => busOf(blockById(i.block)!, i.opt) === 'i2c') || adcNeeds > mcu.adc.length || digitalShort;
   if (wantI2c) { const o = mcu.i2c.find(([a, b]) => free.includes(a) && free.includes(b)); if (!o) return `${mcu.label} has no free I²C pins`; i2c = o; take(o[0]); take(o[1]); rows.push({ pin: o[0], role: 'sda', label: 'I²C SDA (shared bus)', inst: 'bus' }, { pin: o[1], role: 'scl', label: 'I²C SCL (shared bus)', inst: 'bus' }); }
   if (insts.some(i => busOf(blockById(i.block)!, i.opt) === 'spi')) { const o = mcu.spi.find(([a, b]) => free.includes(a) && free.includes(b)); if (!o) return `${mcu.label} has no free SPI pins`; spi = o; take(o[0]); take(o[1]); rows.push({ pin: o[0], role: 'sck', label: 'SPI clock', inst: 'bus' }, { pin: o[1], role: 'mosi', label: 'SPI data (MOSI)', inst: 'bus' }); }
   for (const i of insts) { if (i2c) { i.pins.sda = i2c[0]; i.pins.scl = i2c[1]; } if (spi) { i.pins.sck = spi[0]; i.pins.mosi = spi[1]; } }
-  const order = { adc: 0, pwm: 1, gpio: 2, in: 2 } as const;
+  const order = { adc: 0, pwm: 1, gpio: 2, in: 2, i2s: -1 } as const;
   // Pi neopixels need the hardware PWM pin; claim it before anything else.
   needs.sort((a, b) => (b.i.block === 'neopixel' ? 1 : 0) - (a.i.block === 'neopixel' ? 1 : 0) || order[a.n.cap] - order[b.n.cap]);
-  let adsCh = 0;
+  // I²S: bit clock + word select. The RP2040's PIO wants word select on the pin right after the clock.
+  for (const i of insts) {
+    const ns = needs.filter(x => x.i === i && x.n.cap === 'i2s'); if (!ns.length) continue;
+    const pair = mcu.part === 'pico' ? free.map(p => [p, `GP${+p.slice(2) + 1}`]).find(([, b]) => free.includes(b)) : free.length >= 2 ? [free[0], free[1]] : undefined;
+    if (!pair) return `${mcu.label} has no free ${mcu.part === 'pico' ? 'consecutive pin pair' : 'pins'} for I²S audio`;
+    for (const [k, x] of ns.entries()) { const pn = pair[k]; take(pn); i.pins[x.n.role] = pn; rows.push({ pin: pn, role: x.n.role, label: x.n.label, inst: i.id }); }
+  }
+  for (let k = needs.length - 1; k >= 0; k--) if (needs[k].n.cap === 'i2s') needs.splice(k, 1);
+  let adsCh = 0, expCh = 0;
+  // Expander-capable needs go last so native-only ones get board pins first.
+  needs.sort((a, b) => (a.n.exp ? 1 : 0) - (b.n.exp ? 1 : 0));
+  needs.sort((a, b) => (b.i.block === 'neopixel' ? 1 : 0) - (a.i.block === 'neopixel' ? 1 : 0) || order[a.n.cap] - order[b.n.cap] || (a.n.exp ? 1 : 0) - (b.n.exp ? 1 : 0));
   for (const { i, n } of needs) {
     let pool: string[];
     if (n.cap === 'adc') pool = mcu.adc.filter(p => free.includes(p));
@@ -89,25 +109,35 @@ function allocate(mcu: McuDef, insts: Inst[], spec: Spec): { pins: PinRow[]; i2c
       if (adsCh >= 16) return 'More than 16 analog inputs (four ADS1115s) is beyond this designer';
       i.pins[n.role] = `ADS:${Math.floor(adsCh / 4)}:A${adsCh % 4}`; rows.push({ pin: `ADS1115 #${Math.floor(adsCh / 4) + 1} A${adsCh % 4}`, role: n.role, label: n.label, inst: i.id }); adsCh++; continue;
     }
+    if (!pool.length && n.exp && i2c && (n.cap === 'in' || n.cap === 'gpio')) {
+      if (expCh >= 32) return 'More than 32 expander pins (two MCP23017s) is beyond this designer';
+      const pin = `EXP:${Math.floor(expCh / 16)}:GP${expCh % 16 < 8 ? 'A' : 'B'}${expCh % 8}`; i.pins[n.role] = pin; rows.push({ pin: `MCP23017 #${Math.floor(expCh / 16) + 1} GP${expCh % 16 < 8 ? 'A' : 'B'}${expCh % 8}`, role: n.role, label: n.label, inst: i.id }); expCh++; continue;
+    }
     if (!pool.length) return `${mcu.label} runs out of ${n.cap === 'pwm' ? 'PWM-capable' : n.cap === 'in' ? 'input' : 'GPIO'} pins (needed for ${n.label}; ${needs.length + (i2c ? 2 : 0) + (spi ? 2 : 0)} pins wanted, ${mcu.gpio.length} available)`;
     const p = pool[0]; take(p); i.pins[n.role] = p; rows.push({ pin: p, role: n.role, label: n.label, inst: i.id });
   }
-  return { pins: rows, i2c, spi, ads: Math.ceil(adsCh / 4) };
+  return { pins: rows, i2c, spi, ads: Math.ceil(adsCh / 4), exp: Math.ceil(expCh / 16) };
 }
 
-function powerPlan(spec: Spec, mcu: McuDef | null, insts: Inst[], ads: number, errors: string[], notes: string[]): PowerPlan {
+function powerPlan(spec: Spec, mcu: McuDef | null, insts: Inst[], ads: number, errors: string[], notes: string[], exp = 0): PowerPlan {
   const loads: Load[] = insts.flatMap(i => blockById(i.block)!.loads(i));
   if (ads) loads.push({ rail: 'logic', typ: 0.001 * ads, peak: 0.001 * ads, what: `${ads} × ADS1115` });
+  if (exp) loads.push({ rail: 'logic', typ: 0.001 * exp, peak: 0.002 * exp, what: `${exp} × MCP23017` });
   const pi = mcu?.kind === 'rpi' ? PI_MODELS[spec.piModel ?? 'Pi 5'] ?? PI_MODELS['Pi 5'] : null;
-  const battery0 = spec.power === 'liion' || spec.power === 'aa';
+  const battery0 = spec.power === 'liion' || spec.power === 'aa'; // 2S packs are above VSYS's 5.5 V, so boards run from 5 V there
   const mcuOn5 = !!mcu && !(battery0 && mcu.pinBattery && !pi);
   const mcuLoad: Load | null = mcu ? { rail: mcuOn5 ? 'v5' : 'sys', typ: pi ? pi.draw : mcu.typ, peak: pi ? Math.min(pi.recommend, pi.draw * 3) : mcu.peak, what: mcu.kind === 'rpi' ? `Raspberry ${spec.piModel ?? 'Pi 5'}` : mcu.label } : null;
   const v12 = loads.some(l => l.rail === 'v12');
   let source: PowerPlan['source'] = spec.power === 'auto' ? (v12 ? 'adapter12' : 'usb') : spec.power;
   if (v12 && (source === 'usb' || source === 'liion' || source === 'aa' || source === 'adapter5')) { errors.push('A 12 V LED strip needs a 12 V adapter (or mains module); USB and single cells cannot run it.'); source = 'adapter12'; }
-  if (pi && (source === 'liion' || source === 'aa')) { errors.push(`A Raspberry Pi needs a 5 V ${pi.recommend} A supply; this designer does not run it from a cell. Use USB-C power, or pick an ESP32 / Pico for battery products.`); source = 'usb'; }
-  const battery = source === 'liion' || source === 'aa';
-  const sysV = source === 'liion' ? 3.7 : source === 'aa' ? 4.5 : 5;
+  // One cell through a boost cannot carry motors/servos/many pixels: move up to a 2-cell pack with a buck.
+  if (source === 'liion') {
+    const peak5 = loads.filter(l => l.rail === 'v5').reduce((s, l) => s + design(l.typ, l.peak), 0) + (mcu && !mcu.pinBattery ? design(mcu.typ, mcu.peak) : 0);
+    if (peak5 > 1.0) { source = 'liion2s'; notes.push(`The 5 V loads want about ${peak5.toFixed(2)} A, too much for one cell through a boost converter, so the design uses a 2-cell (7.4 V) pack with a USB-C 2S charger and a buck to 5 V.`); }
+  }
+  if (pi && (source === 'liion' || source === 'liion2s' || source === 'aa')) { errors.push(`A Raspberry Pi needs a 5 V ${pi.recommend} A supply; this designer does not run it from a cell. Use USB-C power, or pick an ESP32 / Pico for battery products.`); source = 'usb'; }
+  const battery = source === 'liion' || source === 'liion2s' || source === 'aa';
+  const sysV = source === 'liion' ? 3.7 : source === 'liion2s' ? 7.4 : source === 'aa' ? 4.5 : 5;
   for (const i of insts) { i.sysV = sysV; i.logicV = mcu?.logic ?? 3.3; }
   // Logic rail: the board's 3.3 V pin unless it is overloaded (then an LDO from 5 V).
   const logicLoads = loads.filter(l => l.rail === 'logic');
@@ -142,6 +172,12 @@ function powerPlan(spec: Spec, mcu: McuDef | null, insts: Inst[], ads: number, e
     if (v12) { const I = sizeUp((i12 + v5Need * 5 / (0.9 * 12)) * 1.3, [0.5, 1, 1.25, 2, 3]); plan.acdc = { V: 12, I }; if (needs5) plan.buck = { V: 5, I: v5Need > 1.5 ? 3 : 2 }; plan.capacity['12 V'] = I; }
     else { plan.acdc = { V: 5, I: sizeUp((v5Need + iSys) * 1.3, [0.6, 1, 2, 3, 4, 6]) }; plan.capacity['5 V'] = plan.acdc.I; }
     plan.fuseA = plan.acdc.V * plan.acdc.I > 20 ? 2 : 1; plan.summary = `${plan.mainsV} V mains through a T${plan.fuseA}A fuse into a certified ${plan.acdc.V} V ${plan.acdc.I} A AC-DC module${plan.buck ? ', buck to 5 V' : ''}`;
+  } else if (source === 'liion2s') {
+    plan.cell = { mAh: 2500, chargeA: 1, cells: 2 }; plan.buck = { V: 5, I: v5Need > 1.5 ? 3 : 2 }; plan.capacity['5 V'] = plan.buck.I; plan.usbA = 3;
+    if (v5Need > 2.6) errors.push(`The 5 V loads want about ${v5Need.toFixed(2)} A, beyond a 3 A buck from a 2-cell pack. Use mains or an adapter.`);
+    const avg = rows.reduce((s, r) => s + r.typ, 0) * 5 / (0.9 * 7.4), worst = rows.reduce((s, r) => s + r.peak, 0) * 5 / (0.9 * 7.4);
+    plan.notes.push(`Runtime estimate: about ${(2500 / Math.max(1, avg * 1000)).toFixed(1)} h at typical draw, ${(2500 / Math.max(1, worst * 1000)).toFixed(1)} h with everything at full, from a 2S 2500 mAh pack.`, 'Charging a 2S pack from USB-C takes a 5 V 3 A adapter (the charger boosts to 8.4 V).');
+    plan.summary = `2-cell Li-ion pack (7.4 V, 2500 mAh, BMS) with USB-C 2S charging (1 A, balanced), buck to 5 V (${plan.buck.I} A), power switch`;
   } else {
     // Battery: Li-ion with charger, or 3 × AA; a boost makes 5 V when anything needs it.
     if (source === 'liion') plan.cell = { mAh: 2500, chargeA: 0.4 }; else plan.aa = true;
@@ -161,10 +197,20 @@ function powerPlan(spec: Spec, mcu: McuDef | null, insts: Inst[], ads: number, e
 }
 
 export function plan(spec: Spec): Plan {
+  const first = planOnce(spec);
+  // Out of pins with six or more buttons: try them as a key matrix before giving up.
+  const b = spec.needs.find(n => n.block === 'button');
+  if (first.errors.some(e => /runs out of/.test(e)) && b && b.count >= 6) {
+    const again = planOnce({ ...spec, needs: spec.needs.map(n => (n === b ? { block: 'keymatrix', count: n.count, opt: {} } : n)) });
+    if (!again.errors.length) { again.notes.push(`${b.count} separate buttons did not fit the board's pins, so they are wired as a key matrix.`); return again; }
+  }
+  return first;
+}
+function planOnce(spec: Spec): Plan {
   const errors: string[] = []; const notes: string[] = []; const insts = instances(spec, errors);
   const needMcu = insts.some(i => blockById(i.block)!.needsMcu(i.opt)) || spec.conn.length > 0 || (spec.mcu !== 'auto' && spec.mcu !== 'none');
   if (!insts.length) errors.push('Nothing to build yet: no blocks were recognised.');
-  let mcu: McuDef | null = null; let alloc: Exclude<ReturnType<typeof allocate>, string> = { pins: [], ads: 0 }; const tried: string[] = [];
+  let mcu: McuDef | null = null; let alloc: Exclude<ReturnType<typeof allocate>, string> = { pins: [], ads: 0, exp: 0 }; const tried: string[] = [];
   if (needMcu) {
     if (spec.mcu === 'none') errors.push('These functions need a controller board; pick one (or Auto).');
     else {
@@ -177,6 +223,6 @@ export function plan(spec: Spec): Plan {
     }
   }
   for (const i of insts) i.mcu = mcu;
-  const power = powerPlan(spec, mcu, insts, alloc.ads, errors, notes);
-  return { errors, notes, mcu, insts, pins: alloc.pins, i2c: alloc.i2c, spi: alloc.spi, ads: alloc.ads, power, logicV: mcu?.logic ?? 3.3, tried };
+  const power = powerPlan(spec, mcu, insts, alloc.ads, errors, notes, alloc.exp);
+  return { errors, notes, mcu, insts, pins: alloc.pins, i2c: alloc.i2c, spi: alloc.spi, ads: alloc.ads, power, logicV: mcu?.logic ?? 3.3, tried, framework: mcu ? frameworkFor(mcu, spec.conn) : undefined, wifi: spec.conn.includes('wifi') || spec.conn.includes('homeassistant'), exp: alloc.exp };
 }

@@ -43,7 +43,7 @@ export function designFromSpec(spec: Spec): DesignResult {
     recipe: 'design', title, summary, circuit: c, sim: simOpts, pairs: a!.pairs, values: { spec: JSON.stringify(spec) }, market: spec.market,
     enclosure: designEnclosure(items(c), { name: title.toLowerCase().replace(/[^a-z0-9]+/g, '-'), wall: spec.power === 'mains' ? 3 : 2.4 }), firmware: fw,
     extras: extrasFor(p), steps: stepsFor(p), notes: [...p.power.notes, ...p.notes],
-    design: { spec, board: p.mcu?.label ?? 'No controller', framework: p.mcu?.framework, pins: p.pins, power: p.power, review: rev, bom: bomLines(c), counts: { errors: rev.filter(r => r.level === 'error').length, warnings: rev.filter(r => r.level === 'warn').length } },
+    design: { spec, board: p.mcu?.label ?? 'No controller', framework: p.framework, pins: p.pins, power: p.power, review: rev, bom: bomLines(c), counts: { errors: rev.filter(r => r.level === 'error').length, warnings: rev.filter(r => r.level === 'warn').length } },
   };
   return { build, plan: p, errors: [] };
 }
