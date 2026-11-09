@@ -7,9 +7,9 @@ import { softTemplateById, softDefaults, type Pattern } from '../services/soft/p
 import { area, bbox, rect, type Pt } from '../services/soft/geometry';
 import { buildBody, bakeSdf, sampleSdf, surfaceNets, measuresForSize, poseFor, sdBody } from '../services/soft/drape/avatar';
 import { meshPiece } from '../services/soft/drape/mesh';
-import { setupDrape, drapeSync, sitTestSync } from '../services/soft/drape/drape';
+import { setupDrape, setupOutfit, drapeSync, sitTestSync } from '../services/soft/drape/drape';
 import { seamGap, meshVolume } from '../services/soft/drape/cloth';
-import { fitReport, fitMaps } from '../services/soft/drape/fit';
+import { fitReport, fitMaps, clothGirth } from '../services/soft/drape/fit';
 import { deriveGrading, gradePattern, gradePiece, ruleMove, nestSvg, type GradeTable } from '../services/soft/drape/grading';
 import { writeAama, readAama, readRul, writeRul } from '../services/soft/drape/aama';
 import { importSvg } from '../services/soft/drape/importPattern';
@@ -145,4 +145,29 @@ test('fit hazards: tight neck on a child blocks, loose children\'s sleepwear blo
   const hz = fitHazards(kid, 'child', base, s); const ids = hz.map(h => h.id);
   assert.ok(ids.includes('fit-neck-tight') && hz.find(h => h.id === 'fit-neck-tight')!.block); assert.ok(ids.includes('fit-sleepwear-loose')); assert.ok(ids.includes('fit-sleepwear-long'));
   const adult = fitHazards(build('hoodie') as Pattern, 'adult', { ...base, neckPressure: 2.5 }, { body: bodyM } as never); assert.ok(!adult.some(h => h.id === 'fit-neck-tight' || h.id.startsWith('fit-sleepwear')));
+});
+
+test('layering: a tee under a hoodie stays underneath, outer ease is measured to the tee', () => {
+  const s = setupOutfit([build('tee'), build('hoodie')], { body: bodyM, sdf: sdfM, spacing: 28 }); const m = s.model; assert.equal(m.layers, 2);
+  const sim = drapeSync(s, 2.0, { substeps: 10 }); assert.ok(!sim.hasNaN());
+  let bad = 0, tot = 0;
+  for (let i = 0; i < m.n; i++) { if (m.layer[i] !== 1) continue; const di = sampleSdf(sdfM, m.pos[3 * i], m.pos[3 * i + 1], m.pos[3 * i + 2]); let worst = Infinity;
+    for (let j = 0; j < m.n; j++) { if (m.layer[j] !== 0) continue; const dx = m.pos[3 * i] - m.pos[3 * j], dy = m.pos[3 * i + 1] - m.pos[3 * j + 1], dz = m.pos[3 * i + 2] - m.pos[3 * j + 2]; if (dx * dx + dy * dy + dz * dz < 144) worst = Math.min(worst, di - sampleSdf(sdfM, m.pos[3 * j], m.pos[3 * j + 1], m.pos[3 * j + 2])); }
+    if (worst < Infinity) { tot++; if (worst < 0) bad++; } }
+  assert.ok(tot > 100 && bad / tot < 0.03, `${bad} of ${tot} overlapping hoodie vertices are inside the tee`);
+  for (const [k, sm] of m.seams.entries()) if (/(Side|Shoulder|Armhole)/.test(sm.name)) assert.ok(seamGap(m, k) < 15, `${sm.name} ${seamGap(m, k).toFixed(1)}`);
+  const maps = fitMaps(m, sim, s.sdf); let gIn = 0, gBody = 0, k = 0;
+  for (let i = 0; i < m.n; i++) if (m.layer[i] === 1) { gIn += maps.gap[i]; gBody += Math.max(0, sampleSdf(sdfM, m.pos[3 * i], m.pos[3 * i + 1], m.pos[3 * i + 2]) - m.offset[i]); k++; }
+  assert.ok(gIn / k < gBody / k - 2, `hoodie gap to tee ${(gIn / k).toFixed(1)} vs to body ${(gBody / k).toFixed(1)}`);
+  const hood = fitReport(s, sim, maps, 'regular', 1), tee = fitReport(s, sim, maps, 'regular', 0); assert.ok(hood.poms.length && tee.poms.length);
+});
+
+test('layering: leggings under an elastic-waist skirt on a child, elastic gathers the waist', () => {
+  const kid = buildBody(measuresForSize('6')); const s = setupOutfit([build('leggings', { size: '6' }), build('skirt', { waist: 560, hip: 720, len: 300 })], { body: kid, spacing: 22 });
+  assert.equal(s.model.gathers.length, 4); const sim = drapeSync(s, 1.8, { substeps: 10 }); assert.ok(!sim.hasNaN());
+  const m = s.model; const skirt = new Set(m.pieces.map((p, i) => (p.garment === 1 ? i : -1)).filter(i => i >= 0));
+  let top = -Infinity; for (let i = 0; i < m.n; i++) if (m.garment[i] === 1) top = Math.max(top, m.pos[3 * i + 1]);
+  const g = clothGirth(m, [0, top - 15, 0], [0, 1, 0], skirt); const panel = 4 * Math.max(...build('skirt', { waist: 560, hip: 720, len: 300 }).pieces[0].seam.map(q => q[0]));
+  assert.ok(g < panel * 0.8, `gathered waist ${g.toFixed(0)} vs flat ${panel.toFixed(0)}`);
+  for (const [k, sm] of m.seams.entries()) assert.ok(seamGap(m, k) < 20, `${sm.name} ${seamGap(m, k).toFixed(1)}`);
 });

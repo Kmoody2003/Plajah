@@ -5,9 +5,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Play, Pause, RotateCcw, Shirt, Ruler, Layers, Camera, Video, ShieldAlert } from 'lucide-react';
 import type { Audience, ParamValue, Pattern, SoftTemplate } from '../../../services/soft/patterns';
-import { CHILD_SIZES, SIZE_CHART } from '../../../services/soft/patterns';
+import { CHILD_SIZES, SIZE_CHART, SOFT_TEMPLATES, softDefaults } from '../../../services/soft/patterns';
 import { type BodyMeasures, type PoseName, measuresForSize, poseFor, buildBody, bakeSdf, surfaceNets, WALK_FRAMES } from '../../../services/soft/drape/avatar';
-import { setupDrape, simFor, startSitTest, type DrapeSetup } from '../../../services/soft/drape/drape';
+import { setupOutfit, simFor, startSitTest, type DrapeSetup } from '../../../services/soft/drape/drape';
 import type { ClothSim } from '../../../services/soft/drape/cloth';
 import { fitMaps, fitReport, tryEverySize, type FitMaps, type FitReport, type SizeRow } from '../../../services/soft/drape/fit';
 import { clothColors, MAP_SCALE, rampCss, type MapMode } from '../../../services/soft/drape/colors';
@@ -36,6 +36,15 @@ export default function FitRoom({ pattern, template, params, audience, unit }: F
   const defaultSize = pattern.size && SIZE_CHART[pattern.size] ? pattern.size : 'M';
   const [bodySize, setBodySize] = useState(defaultSize); const [custom, setCustom] = useState<Partial<BodyMeasures>>({});
   const [pose, setPose] = useState<PoseName>('a-pose'); const [walkFrame, setWalkFrame] = useState(0);
+  // Other garments worn with this one (an outfit), innermost first round the pattern being drafted.
+  const [layers, setLayers] = useState<Array<{ id: string; pos: 'under' | 'over' }>>([]);
+  const garments = useMemo<Pattern[]>(() => {
+    const mk = (id: string) => { const t = SOFT_TEMPLATES.find(x => x.id === id)!; const v = softDefaults(t); const sp = t.params.find(q => q.key === 'size');
+      if (sp && pattern.size && sp.options?.some(o => o.value === pattern.size)) v.size = pattern.size; return t.build(v); };
+    return [...layers.filter(l => l.pos === 'under').map(l => mk(l.id)), pattern, ...layers.filter(l => l.pos === 'over').map(l => mk(l.id))];
+  }, [pattern, JSON.stringify(layers)]); // eslint-disable-line react-hooks/exhaustive-deps
+  const mainIdx = garments.indexOf(pattern);
+  const [layerReports, setLayerReports] = useState<Array<{ name: string; score: number; verdict: string }>>([]);
   const [fabricId, setFabricId] = useState<string>(''); const [customFab, setCustomFab] = useState<Partial<Fabric>>({});
   const [mode, setMode] = useState<MapMode>('fabric'); const [tab, setTab] = useState<Tab>('fit');
   const [running, setRunning] = useState(true); const [progress, setProgress] = useState(0); const [engine, setEngine] = useState<'cpu' | 'gpu'>('cpu');
@@ -53,7 +62,7 @@ export default function FitRoom({ pattern, template, params, audience, unit }: F
   useEffect(() => {
     let dead = false; setReport(null); setMaps(null); setProgress(0); setMsg('');
     const body = buildBody(measures, poseFor(pose, walkFrame));
-    let s: DrapeSetup; try { s = setupDrape(pattern, { body, fabric: (r) => fab(r) }); } catch (e) { setMsg(`Could not arrange this pattern in 3D: ${String((e as Error).message ?? e)}`); return; }
+    let s: DrapeSetup; try { s = setupOutfit(garments, { body, fabricFor: k => (k === mainIdx ? (r: string) => fab(r) : undefined) }); } catch (e) { setMsg(`Could not arrange this pattern in 3D: ${String((e as Error).message ?? e)}`); return; }
     setupRef.current = s; simRef.current = simFor(s); gpuRef.current?.destroy(); gpuRef.current = null;
     vp.current?.setAvatar(s.body && s.sdf ? surfaceNets(s.sdf) : null); vp.current?.setCloth(s.model); vp.current?.updateCloth(clothColors(s.model, 'fabric')); vp.current?.frame(s.body ? 'body' : 'plush');
     (window as unknown as Record<string, unknown>).drapeState = { setup: s, sim: simRef.current };
@@ -62,15 +71,15 @@ export default function FitRoom({ pattern, template, params, audience, unit }: F
     else setEngine('cpu');
     setRunning(true); setRev(r => r + 1);
     return () => { dead = true; };
-  }, [pattern, measures, pose, walkFrame, fabricId, JSON.stringify(customFab), seed]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [garments, measures, pose, walkFrame, fabricId, JSON.stringify(customFab), seed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Run loop: one display frame per animation frame until settled, then analyse.
   useEffect(() => {
     if (!running) return; let raf = 0; let f = 0; let busy = false; const s = setupRef.current, sim = simRef.current; if (!s || !sim) return;
-    const finish = () => { sim.recordContact = false; const mp = fitMaps(s.model, sim, s.sdf); setMaps(mp); setReport(fitReport(s, sim, mp, String(params.fit ?? 'regular'))); setRunning(false); };
+    const finish = () => { sim.recordContact = false; const mp = fitMaps(s.model, sim, s.sdf); setMaps(mp); setReport(fitReport(s, sim, mp, String(params.fit ?? 'regular'), garments.length > 1 ? mainIdx : undefined)); setLayerReports(garments.length > 1 ? garments.map((g, k) => ({ g, k })).filter(x => x.k !== mainIdx).map(({ g, k }) => { const r = fitReport(s, sim, mp, 'regular', k); return { name: `${k < mainIdx ? 'Under' : 'Over'}: ${g.name}`, score: r.score, verdict: r.verdict[0] ?? '' }; }) : []); setRunning(false); };
     const tick = async () => {
       if (dead) return; if (busy) { next(); return; } busy = true;
-      if (f === frames - 18) { sim.recordContact = true; sim.contact.fill(0); sim.contactSteps = 0; }
+      if (f === frames - 18) sim.startRecording();
       const g = gpuRef.current;
       if (g) { await g.frame(1 / 60, sim.recordContact); g.syncTo(sim); } else sim.frame(1 / 60);
       vp.current?.updateCloth(); f++; setProgress(f / frames); busy = false;
@@ -104,6 +113,9 @@ export default function FitRoom({ pattern, template, params, audience, unit }: F
         {!isPlush && <select className={sel} value={bodySize} onChange={e => { setBodySize(e.target.value); setCustom({}); }} data-testid="drape-body" title="Avatar size (our size chart)">{Object.keys(SIZE_CHART).map(s => <option key={s} value={s}>Body {CHILD_SIZES.includes(s) ? `kids ${s}` : s}</option>)}</select>}
         {!isPlush && <select className={sel} value={pose} onChange={e => setPose(e.target.value as PoseName)} data-testid="drape-pose">{POSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>}
         {pose === 'walk' && <input type="range" min={0} max={WALK_FRAMES - 1} value={walkFrame} onChange={e => setWalkFrame(Number(e.target.value))} title="Walk frame" data-testid="drape-walk"/>}
+        {!isPlush && <select className={sel} value="" onChange={e => { const [pos, id] = e.target.value.split(':'); if (id) setLayers(l => [...l, { id, pos: pos as 'under' | 'over' }]); }} data-testid="drape-add-layer" title="Wear it with another garment">
+          <option value="">Layers…</option>{(['under', 'over'] as const).map(pos => <optgroup key={pos} label={pos === 'under' ? 'Wear underneath' : 'Wear over it'}>{SOFT_TEMPLATES.filter(t => t.kind === 'apparel' && t.id !== template.id).map(t => <option key={t.id} value={`${pos}:${t.id}`}>{t.name}</option>)}</optgroup>)}</select>}
+        {layers.map((l, k) => <button key={k} className="h-7 px-2 rounded-full text-[11px] bg-white/10" onClick={() => setLayers(x => x.filter((_, j) => j !== k))} title="Remove this layer" data-testid={`drape-layer-${k}`}>{l.pos === 'under' ? '↓' : '↑'} {SOFT_TEMPLATES.find(t => t.id === l.id)?.name} ×</button>)}
         <select className={sel} value={fabricId} onChange={e => setFabricId(e.target.value)} data-testid="drape-fabric"><option value="">Fabric: pattern default</option>{FABRICS.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}<option value="custom">Custom…</option></select>
         <select className={sel} value={mode} onChange={e => setMode(e.target.value as MapMode)} data-testid="drape-map"><option value="fabric">Show fabric</option><option value="strain">Strain map</option><option value="pressure">Pressure map</option><option value="gap">Ease / gap map</option></select>
         <span className="ml-auto flex items-center gap-1">
@@ -138,6 +150,8 @@ export default function FitRoom({ pattern, template, params, audience, unit }: F
           {report && <>
             <div className="flex items-baseline gap-2 mb-2"><span className="text-[28px] font-extrabold tabular-nums" data-testid="drape-score">{report.score}</span><span style={{ color: C.dim }}>fit score {isPlush ? '(stuffing)' : `on body ${bodySize}`}</span></div>
             {report.verdict.map((v, i) => <div key={i} className="mb-1">• {v}</div>)}
+            {layerReports.length > 0 && <div className="mt-2 p-2 rounded-lg bg-white/5" data-testid="drape-layer-reports"><div className="sew-h">Worn with</div>{layerReports.map(l => <div key={l.name} className="text-[11px] mb-1"><b>{l.score}</b> {l.name}<div style={{ color: C.dim }}>{l.verdict}</div></div>)}
+              <div className="text-[10.5px]" style={{ color: C.dim }}>Ease maps for outer layers measure to the garment underneath; pressure on the body includes what the outer layers add.</div></div>}
             {report.poms.length > 0 && <table className="w-full mt-2 text-[11px]" data-testid="drape-poms"><thead><tr style={{ color: C.dim }}><td>Point</td><td>Body</td><td>Garment</td><td>Ease</td><td>Spec</td></tr></thead>
               <tbody>{report.poms.map(p => <tr key={p.name} className="border-t" style={{ borderColor: C.line }}><td className="py-1">{p.name}</td><td>{fmt(p.body, unit)}</td><td>{fmt(p.garment, unit)}</td><td style={{ color: p.ease < 30 ? '#fda4af' : undefined }}>{fmt(p.ease, unit)}</td><td style={{ color: C.dim }}>{p.spec ? fmt(p.spec, unit) : '–'}</td></tr>)}</tbody></table>}
             <div className="grid grid-cols-2 gap-1 mt-2 text-[11px]">

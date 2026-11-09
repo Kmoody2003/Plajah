@@ -13,7 +13,8 @@ const WG = 64; const SLOTS = 8;
 
 const WGSL = /* wgsl */`
 struct Params { h:f32, h2:f32, gy:f32, damp:f32, sew:f32, floorY:f32, n:u32, record:u32,
-  sdfO:vec3<f32>, cell:f32, dims:vec3<u32>, hasSdf:u32, far:f32, selfR:f32, hashMask:u32, selfOn:u32 };
+  sdfO:vec3<f32>, cell:f32, dims:vec3<u32>, hasSdf:u32, far:f32, selfR:f32, hashMask:u32, selfOn:u32,
+  cs:f32, lr:f32, layered:u32, pad:u32 };
 struct Con { a0:i32, a1:i32, b0:i32, b1:i32, wa:f32, wb:f32, rest:f32, compT:f32, compC:f32, kind:u32, p0:u32, p1:u32 };
 struct Color { offset:u32, count:u32, p0:u32, p1:u32 };
 @group(0) @binding(0) var<uniform> P: Params;
@@ -76,7 +77,7 @@ fn friction(i: u32, n: vec3<f32>, depth: f32) {
   if (pos[i].y < P.floorY + off) { let d = P.floorY + off - pos[i].y; pos[i].y = pos[i].y + d; push = push + d; friction(i, vec3<f32>(0.0, 1.0, 0.0), d); }
   if (P.record == 1u && push > 0.0) { delta[i].w = delta[i].w + push; }
 }
-fn cellOf(p: vec3<f32>) -> vec3<i32> { return vec3<i32>(floor(p / (2.0 * P.selfR))); }
+fn cellOf(p: vec3<f32>) -> vec3<i32> { return vec3<i32>(floor(p / (2.0 * P.selfR))); } // selfR = half the hash cell
 fn hashCell(c: vec3<i32>) -> u32 { return ((bitcast<u32>(c.x) * 73856093u) ^ (bitcast<u32>(c.y) * 19349663u) ^ (bitcast<u32>(c.z) * 83492791u)) & P.hashMask; }
 @compute @workgroup_size(${WG}) fn hclear(@builtin(global_invocation_id) id: vec3<u32>) { if (id.x <= P.hashMask) { atomicStore(&grid[id.x], 0u); } }
 @compute @workgroup_size(${WG}) fn hinsert(@builtin(global_invocation_id) id: vec3<u32>) {
@@ -85,16 +86,27 @@ fn hashCell(c: vec3<i32>) -> u32 { return ((bitcast<u32>(c.x) * 73856093u) ^ (bi
 }
 @compute @workgroup_size(${WG}) fn hsolve(@builtin(global_invocation_id) id: vec3<u32>) {
   let i = id.x; if (i >= P.n) { return; } delta[i] = vec4<f32>(0.0, 0.0, 0.0, delta[i].w);
-  let pi = props[2u * i]; let fi = bitcast<u32>(pi.z); if ((fi & 1u) != 0u || pos[i].w == 0.0) { return; }
-  let xi = pos[i].xyz; let cs = 2.0 * P.selfR; let c = cellOf(xi); let ri = props[2u * i + 1u].xy; let near2 = (cs * 1.25) * (cs * 1.25);
+  let pi = props[2u * i]; let fi = bitcast<u32>(pi.z); if (pos[i].w == 0.0) { return; }
+  let xi = pos[i].xyz; let cs = P.cs; let c = cellOf(xi); let ri = props[2u * i + 1u]; let near2 = (cs * 1.25) * (cs * 1.25); let li = (fi >> 8u) & 255u;
+  // Layers: keep an outer garment outside the one beneath it along the body normal (wider lateral reach).
+  var nrm = vec3<f32>(0.0); if (P.layered == 1u && P.hasSdf == 1u) { let sg = sampleSdf(xi); let gl = length(sg.yzw); if (gl > 1e-9) { nrm = sg.yzw / gl; } }
   var acc = vec3<f32>(0.0);
   for (var dz = -1; dz <= 1; dz++) { for (var dy = -1; dy <= 1; dy++) { for (var dx = -1; dx <= 1; dx++) {
     let h = hashCell(c + vec3<i32>(dx, dy, dz)); let cnt = min(atomicLoad(&grid[h]), ${SLOTS}u);
     for (var s = 0u; s < cnt; s++) { let j = atomicLoad(&grid[P.hashMask + 1u + h * ${SLOTS}u + s]); if (j == i) { continue; }
-      let pj = props[2u * j]; let fj = bitcast<u32>(pj.z); if ((fj & 1u) != 0u) { continue; } if ((fi & 2u) != 0u && (fj & 2u) != 0u) { continue; }
-      if (bitcast<u32>(pi.w) == bitcast<u32>(pj.w)) { let e = ri - props[2u * j + 1u].xy; if (dot(e, e) < near2) { continue; } }
-      let u = pos[j].xyz - xi; let d2 = dot(u, u); if (d2 >= cs * cs || d2 < 1e-12) { continue; }
-      let d = sqrt(d2); let w = pos[i].w + pos[j].w; if (w == 0.0) { continue; } acc = acc - u * ((cs - d) / d * pos[i].w / w);
+      let pj = props[2u * j]; let fj = bitcast<u32>(pj.z); let lj = (fj >> 8u) & 255u; let u = pos[j].xyz - xi; let d2 = dot(u, u);
+      let w = pos[i].w + pos[j].w; if (w == 0.0) { continue; }
+      if (li != lj && dot(nrm, nrm) > 0.0) {
+        if (d2 >= P.lr * P.lr * 2.0) { continue; }
+        var sg = 1.0; if (li > lj) { sg = -1.0; }
+        let along = dot(u, nrm) * sg; let lat2 = d2 - along * along; if (lat2 > P.lr * P.lr) { continue; }
+        let sep = (ri.z + props[2u * j + 1u].z) * 0.5 + 1.5; if (along >= sep) { continue; }
+        acc = acc - nrm * (sg * (sep - along) * pos[i].w / w); continue;
+      }
+      if ((fi & 1u) != 0u || (fj & 1u) != 0u) { continue; } if ((fi & 2u) != 0u && (fj & 2u) != 0u) { continue; }
+      if (bitcast<u32>(pi.w) == bitcast<u32>(pj.w)) { let e = ri.xy - props[2u * j + 1u].xy; if (dot(e, e) < near2) { continue; } }
+      if (d2 >= cs * cs || d2 < 1e-12) { continue; }
+      let d = sqrt(d2); acc = acc - u * ((cs - d) / d * pos[i].w / w);
     } } } }
   delta[i] = vec4<f32>(acc, delta[i].w);
 }
@@ -114,14 +126,14 @@ export async function createGpuCloth(m: ClothModel, sdf: SdfGrid | null, o: SimO
   const v4 = (src: Float32Array, w?: Float32Array) => { const a = new Float32Array(4 * n); for (let i = 0; i < n; i++) { a[4 * i] = src[3 * i]; a[4 * i + 1] = src[3 * i + 1]; a[4 * i + 2] = src[3 * i + 2]; a[4 * i + 3] = w ? w[i] : 0; } return a; };
   const pos = mk(v4(m.pos, m.invMass), S), prv = mk(v4(m.prev, m.invMass), S), vel = mk(v4(m.vel), S);
   const props = new Float32Array(8 * n); const pu = new Uint32Array(props.buffer);
-  for (let i = 0; i < n; i++) { props[8 * i] = m.offset[i]; props[8 * i + 1] = m.friction[i]; pu[8 * i + 2] = (m.seamVert[i] ? 1 : 0) | (m.seamNear[i] ? 2 : 0); pu[8 * i + 3] = m.vPiece[i]; props[8 * i + 4] = m.rest2[2 * i]; props[8 * i + 5] = m.rest2[2 * i + 1]; }
+  for (let i = 0; i < n; i++) { props[8 * i] = m.offset[i]; props[8 * i + 1] = m.friction[i]; pu[8 * i + 2] = (m.seamVert[i] ? 1 : 0) | (m.seamNear[i] ? 2 : 0) | ((m.layer?.[i] ?? 0) << 8); props[8 * i + 6] = m.thick?.[i] ?? 1; pu[8 * i + 3] = m.vPiece[i]; props[8 * i + 4] = m.rest2[2 * i]; props[8 * i + 5] = m.rest2[2 * i + 1]; }
   const propsB = mk(props, S);
   const cb = new ArrayBuffer(48 * m.nc); const ci = new Int32Array(cb), cf = new Float32Array(cb), cu = new Uint32Array(cb);
   for (let c = 0; c < m.nc; c++) { const k = 12 * c; ci[k] = m.a0[c]; ci[k + 1] = m.a1[c]; ci[k + 2] = m.b0[c]; ci[k + 3] = m.b1[c]; cf[k + 4] = m.wa[c]; cf[k + 5] = m.wb[c]; cf[k + 6] = m.rest[c]; cf[k + 7] = m.compT[c]; cf[k + 8] = m.compC[c]; cu[k + 9] = m.kind[c]; }
   const consB = mk(new Uint8Array(cb), S);
   const sdfB = mk(sdf ? sdf.data : new Float32Array(4), S); const deltaB = mk(new Float32Array(4 * n), S);
   const hashSize = 1 << Math.ceil(Math.log2(Math.max(1024, n * 2))); const gridB = mk((hashSize * (1 + SLOTS)) * 4, S);
-  const pbuf = new ArrayBuffer(80); const pf = new Float32Array(pbuf), pi = new Uint32Array(pbuf); const paramsB = mk(80, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
+  const pbuf = new ArrayBuffer(96); const pf = new Float32Array(pbuf), pi = new Uint32Array(pbuf); const paramsB = mk(96, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
   const module = device.createShaderModule({ code: WGSL });
   const info = await module.getCompilationInfo?.(); if (info?.messages.some(x => x.type === 'error')) { console.error('[drape gpu]', info.messages.map(x => x.message).join('\n')); device.destroy(); return null; }
   const bgl0 = device.createBindGroupLayout({ entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, ...[1, 2, 3].map(b => ({ binding: b, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' as const } })),
@@ -143,7 +155,7 @@ export async function createGpuCloth(m: ClothModel, sdf: SdfGrid | null, o: SimO
       const ns = o.substeps; const h = dt / ns; const ramp = Math.min(1, 0.25 + t / 0.6);
       pf[0] = h; pf[1] = h * h; pf[2] = -o.gravity * ramp; pf[3] = Math.exp(-o.damping * h); pf[4] = o.sewSpeed * h; pf[5] = o.floor; pi[6] = n; pi[7] = record ? 1 : 0;
       if (sdf) { pf[8] = sdf.origin[0]; pf[9] = sdf.origin[1]; pf[10] = sdf.origin[2]; pf[11] = sdf.cell; pi[12] = sdf.nx; pi[13] = sdf.ny; pi[14] = sdf.nz; pi[15] = 1; pf[16] = sdf.far; } else { pi[15] = 0; pf[16] = 60; }
-      pf[17] = Math.max(1.5, m.spacing * 0.32); pi[18] = hashSize - 1; pi[19] = o.selfCollision ? 1 : 0; device.queue.writeBuffer(paramsB, 0, pbuf);
+      const csz = 2 * Math.max(1.5, m.spacing * 0.32); const layered = m.layers > 1 && !!sdf; const lr = layered ? Math.max(csz, m.spacing * 0.75) : csz; pf[17] = Math.max(csz, lr) / 2; pf[20] = csz; pf[21] = lr; pi[22] = layered ? 1 : 0; pi[18] = hashSize - 1; pi[19] = o.selfCollision ? 1 : 0; device.queue.writeBuffer(paramsB, 0, pbuf);
       const enc = device.createCommandEncoder(); const pass = enc.beginComputePass(); pass.setBindGroup(0, bg0); pass.setBindGroup(1, dummy);
       const run = (p: GPUComputePipeline, g: number) => { pass.setPipeline(p); pass.dispatchWorkgroups(g); };
       for (let s = 0; s < ns; s++) {

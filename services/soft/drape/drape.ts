@@ -6,24 +6,28 @@
 import type { Pattern } from '../patterns';
 import { type Body, type BodyMeasures, type Pose, type SdfGrid, buildBody, bakeSdf, measuresForSize, poseFor } from './avatar';
 import { buildCloth, ClothSim, DEFAULT_SIM, type ClothModel, type SimOptions } from './cloth';
-import { rigFor, type FabricFor, type Rig } from './garment';
+import { outfitRig, type FabricFor, type Rig } from './garment';
 
-export interface DrapeSetup { pattern: Pattern; body: Body | null; sdf: SdfGrid | null; rig: Rig; model: ClothModel }
-export interface DrapeOptions { measures?: BodyMeasures; pose?: Pose; body?: Body; sdf?: SdfGrid; fabric?: FabricFor; spacing?: number }
+export interface DrapeSetup { pattern: Pattern; body: Body | null; sdf: SdfGrid | null; rig: Rig; model: ClothModel; /** Every garment in the outfit, innermost first (pattern is garments[0]). */ garments: Pattern[] }
+export interface DrapeOptions { measures?: BodyMeasures; pose?: Pose; body?: Body; sdf?: SdfGrid; fabric?: FabricFor; spacing?: number; /** Per-garment fabric chooser for outfits. */ fabricFor?: (garment: number) => FabricFor | undefined }
 
 export function bodyForPattern(pattern: Pattern, measures?: BodyMeasures, pose?: Pose): Body {
   return buildBody(measures ?? measuresForSize(pattern.size && /^(2T|\d+|XS|S|M|L|XL|2XL|3XL)$/.test(pattern.size) ? pattern.size : 'M'), pose ?? poseFor('a-pose'));
 }
 
-export function setupDrape(pattern: Pattern, o: DrapeOptions = {}): DrapeSetup {
-  const body = o.body ?? bodyForPattern(pattern, o.measures, o.pose);
-  const rig = rigFor(pattern, body, o.fabric);
+export function setupDrape(pattern: Pattern, o: DrapeOptions = {}): DrapeSetup { return setupOutfit([pattern], o); }
+
+/** Several garments on one body, innermost first (a tee under a hoodie, leggings under a skirt). */
+export function setupOutfit(garments: Pattern[], o: DrapeOptions = {}): DrapeSetup {
+  const pattern = garments[0]; const sized = garments.find(g => g.size) ?? pattern;
+  const body = o.body ?? bodyForPattern(sized, o.measures, o.pose);
+  const rig = outfitRig(garments, body, o.fabricFor ?? (() => o.fabric));
   const useBody = rig.needsBody ? body : null; const sdf = useBody ? (o.sdf ?? bakeSdf(useBody)) : null;
   const plush = rig.kind === 'plush'; const size = Math.max(...rig.placed.map(p => Math.max(...p.seam.map(q => q[1])) - Math.min(...p.seam.map(q => q[1]))));
   const h = o.spacing ?? (plush ? Math.max(6, Math.min(16, size / 28)) : 20);
-  const model = buildCloth(rig.placed, rig.seams, h, { pressure: rig.pressure });
+  const model = buildCloth(rig.placed, rig.seams, h, { pressure: rig.pressure, gathers: rig.gathers });
   if (plush && pattern.fill) addFillMass(model, pattern.fill.grams, pattern.features.beads ? pattern.fill.grams * 0.4 : 0);
-  return { pattern, body: useBody, sdf, rig, model };
+  return { pattern, body: useBody, sdf, rig, model, garments };
 }
 
 export function simFor(s: DrapeSetup, over: Partial<SimOptions> = {}) {
@@ -34,7 +38,7 @@ export function simFor(s: DrapeSetup, over: Partial<SimOptions> = {}) {
 /** Run to rest on the CPU: sew, settle, then record contact for the pressure map. */
 export function drapeSync(s: DrapeSetup, seconds = 2.5, over: Partial<SimOptions> = {}, onFrame?: (sim: ClothSim, f: number) => void): ClothSim {
   const sim = simFor(s, over); const frames = Math.round(seconds * 60); const rec = Math.max(6, Math.round(frames * 0.12));
-  for (let f = 0; f < frames; f++) { if (f === frames - rec) { sim.recordContact = true; sim.contact.fill(0); sim.contactSteps = 0; } sim.frame(1 / 60); onFrame?.(sim, f); }
+  for (let f = 0; f < frames; f++) { if (f === frames - rec) sim.startRecording(); sim.frame(1 / 60); onFrame?.(sim, f); }
   return sim;
 }
 

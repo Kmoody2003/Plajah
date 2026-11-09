@@ -23,11 +23,15 @@ export interface PlacedPiece {
   map: (p: Pt) => V3;
   /** Triangles are wound so normals face away from this point (needed for plush pressure). */
   outwardFrom?: V3;
+  /** Layer order on the body (0 = next to the skin) and which garment of an outfit it belongs to. */
+  layer?: number; garment?: number;
 }
+/** An edge drawn in by elastic (or a drawcord): its boundary edges rest at `ratio` of their cut length. */
+export interface GatherSpec { name: string; piece: string; from: Pt; to: Pt; via?: Pt; ratio: number; /** Elastic force at 100% stretch, N. */ force?: number }
 export interface SeamSide { piece: string; from: Pt; to: Pt; via?: Pt }
 export interface SeamSpec { name: string; a: SeamSide[]; b: SeamSide[] }
 
-export interface ClothPiece { id: string; name: string; pieceId: string; role: PieceRole; fabric: Fabric; v0: number; vn: number; t0: number; tn: number; boundary: number[]; grainAngle: number }
+export interface ClothPiece { id: string; name: string; pieceId: string; role: PieceRole; fabric: Fabric; v0: number; vn: number; t0: number; tn: number; boundary: number[]; grainAngle: number; garment: number; layer: number }
 export const K_STRETCH = 0, K_BEND = 1, K_STITCH = 2;
 
 export interface ClothModel {
@@ -35,6 +39,9 @@ export interface ClothModel {
   rest2: Float32Array; vPiece: Int32Array; vArea: Float32Array; offset: Float32Array; friction: Float32Array; seamVert: Uint8Array;
   /** Seam vertices and their mesh neighbours: self-collision skips pairs that are both near a seam. */
   seamNear: Uint8Array;
+  /** Layer (0 = skin side), garment index, cloth thickness (mm) per vertex. */
+  layer: Uint8Array; garment: Uint8Array; thick: Float32Array; layers: number;
+  gathers: Array<{ name: string; ids: number[]; ratio: number }>;
   tris: Uint32Array; triPiece: Int32Array;
   nc: number; a0: Int32Array; a1: Int32Array; b0: Int32Array; b1: Int32Array; wa: Float32Array; wb: Float32Array; rest: Float32Array; compT: Float32Array; compC: Float32Array; kind: Uint8Array;
   colors: number[];
@@ -60,15 +67,16 @@ function seamPath(P: ClothPiece, rest2: Float32Array, s: SeamSide): number[] {
 }
 
 /** Build the cloth: mesh every placed piece, wire stretch/bend constraints, then stitch the seams. */
-export function buildCloth(placed: PlacedPiece[], seams: SeamSpec[], h = 20, opts: { pressure?: { targetVolume: number; p0: number; planned?: number } } = {}): ClothModel {
+export function buildCloth(placed: PlacedPiece[], seams: SeamSpec[], h = 20, opts: { pressure?: { targetVolume: number; p0: number; planned?: number }; gathers?: GatherSpec[] } = {}): ClothModel {
   const meshes = placed.map(p => meshPiece(p.seam, h));
   const n = meshes.reduce((s, m) => s + m.verts.length, 0), nt = meshes.reduce((s, m) => s + m.tris.length, 0);
   const pos = new Float32Array(3 * n), rest2 = new Float32Array(2 * n), vPiece = new Int32Array(n), mass = new Float32Array(n), vArea = new Float32Array(n), offset = new Float32Array(n), friction = new Float32Array(n);
+  const layer = new Uint8Array(n), garment = new Uint8Array(n), thick = new Float32Array(n);
   const tris = new Uint32Array(3 * nt), triPiece = new Int32Array(nt); const pieces: ClothPiece[] = []; const cons: Con[] = [];
   let v0 = 0, t0 = 0;
   placed.forEach((P, pi) => {
     const m = meshes[pi]; const f = P.fabric;
-    m.verts.forEach((q, i) => { const w = P.map(q); pos.set(w, 3 * (v0 + i)); rest2[2 * (v0 + i)] = q[0]; rest2[2 * (v0 + i) + 1] = q[1]; vPiece[v0 + i] = pi; offset[v0 + i] = f.thickness * 0.5 + 2; friction[v0 + i] = f.friction; });
+    m.verts.forEach((q, i) => { const w = P.map(q); pos.set(w, 3 * (v0 + i)); rest2[2 * (v0 + i)] = q[0]; rest2[2 * (v0 + i) + 1] = q[1]; vPiece[v0 + i] = pi; offset[v0 + i] = f.thickness * 0.5 + 2; friction[v0 + i] = f.friction; layer[v0 + i] = P.layer ?? 0; garment[v0 + i] = P.garment ?? 0; thick[v0 + i] = f.thickness; });
     // Wind triangles outward if asked (majority vote against the reference point).
     let flip = false;
     if (P.outwardFrom) { let vote = 0; for (const [a, b, c] of m.tris) { const A = P.map(m.verts[a]), B = P.map(m.verts[b]), C = P.map(m.verts[c]);
@@ -87,7 +95,7 @@ export function buildCloth(placed: PlacedPiece[], seams: SeamSpec[], h = 20, opt
       cons.push({ a0: v0 + e.u, a1: -1, b0: v0 + e.v, b1: -1, wa: 0, wb: 0, rest: L, compT: 1 / k, compC: 1 / (k * 0.04), kind: K_STRETCH });
       if (e.opp.length === 2) { const L2 = dst2(m.verts[e.opp[0]], m.verts[e.opp[1]]); cons.push({ a0: v0 + e.opp[0], a1: -1, b0: v0 + e.opp[1], b1: -1, wa: 0, wb: 0, rest: L2, compT: 1 / kb, compC: 1 / kb, kind: K_BEND }); }
     }
-    pieces.push({ id: P.id, name: P.name, pieceId: P.pieceId, role: P.role, fabric: f, v0, vn: m.verts.length, t0, tn: m.tris.length, boundary: m.boundary.map(i => v0 + i), grainAngle: ga });
+    pieces.push({ garment: P.garment ?? 0, layer: P.layer ?? 0, id: P.id, name: P.name, pieceId: P.pieceId, role: P.role, fabric: f, v0, vn: m.verts.length, t0, tn: m.tris.length, boundary: m.boundary.map(i => v0 + i), grainAngle: ga });
     v0 += m.verts.length; t0 += m.tris.length;
   });
   // Seams: arc-length matched stitches both ways.
@@ -112,6 +120,15 @@ export function buildCloth(placed: PlacedPiece[], seams: SeamSpec[], h = 20, opt
     link(A, sA, LA, B, sB, LB); link(B, sB, LB, A, sA, LA);
     seamInfo.push({ name: S.name, c0, cn: cons.length - c0, lenA: LA, lenB: LB });
   }
+  // Elastic and drawcords: the gathered edge's boundary edges rest short and pull with the elastic's force.
+  const gathersOut: ClothModel['gathers'] = [];
+  if (opts.gathers?.length) {
+    const edgeIdx = new Map<string, number>(); cons.forEach((c, k) => { if (c.kind === K_STRETCH) edgeIdx.set(c.a0 < c.b0 ? `${c.a0},${c.b0}` : `${c.b0},${c.a0}`, k); });
+    for (const gs of opts.gathers) { const P = pieceBy.get(gs.piece); if (!P) continue; const path = seamPath(P, rest2, gs); const ids: number[] = [];
+      for (let k = 1; k < path.length; k++) { const a = path[k - 1], b = path[k]; const ci = edgeIdx.get(a < b ? `${a},${b}` : `${b},${a}`); if (ci == null) continue;
+        const c = cons[ci]; const L = c.rest; c.rest = L * gs.ratio; const kE = (gs.force ?? 8) * 1e6 / Math.max(1, c.rest); c.compT = 1 / kE; c.compC = 1 / (kE * 0.02); ids.push(ci); }
+      gathersOut.push({ name: gs.name, ids, ratio: gs.ratio }); }
+  }
   // Greedy colouring: no two constraints of a colour share a particle (Gauss-Seidel on the GPU).
   let nColors = 0; const color = new Int32Array(cons.length);
   const pc = new Map<number, Set<number>>(); const parts = (c: Con) => [c.a0, c.a1, c.b0, c.b1].filter(x => x >= 0);
@@ -125,6 +142,7 @@ export function buildCloth(placed: PlacedPiece[], seams: SeamSpec[], h = 20, opt
   colourPass(false, 0); colourPass(true, nColors); void pc;
   const sorted = cons.map((_, i) => i).sort((i, j) => color[i] - color[j] || i - j);
   const back = new Int32Array(cons.length); sorted.forEach((ci, k) => { back[ci] = k; });
+  const gathersSorted = gathersOut.map(g => ({ ...g, ids: g.ids.map(k => back[k]) }));
   const seamsOut = seamInfo.map(s => ({ name: s.name, lenA: s.lenA, lenB: s.lenB, ids: Array.from({ length: s.cn }, (_, k) => back[s.c0 + k]) }));
   const nc = cons.length; const a0 = new Int32Array(nc), a1 = new Int32Array(nc), b0 = new Int32Array(nc), b1 = new Int32Array(nc), wa = new Float32Array(nc), wb = new Float32Array(nc), rest = new Float32Array(nc), compT = new Float32Array(nc), compC = new Float32Array(nc), kind = new Uint8Array(nc);
   const colors: number[] = []; let last = -1;
@@ -132,7 +150,7 @@ export function buildCloth(placed: PlacedPiece[], seams: SeamSpec[], h = 20, opt
   colors.push(nc); void nColors;
   const seamNear = seamVert.slice(); for (const c of cons) if (c.kind === K_STRETCH && (seamVert[c.a0] || seamVert[c.b0])) { seamNear[c.a0] = 1; seamNear[c.b0] = 1; }
   const invMass = new Float32Array(n); for (let i = 0; i < n; i++) invMass[i] = mass[i] > 0 ? 1 / mass[i] : 0;
-  return { n, pos, prev: pos.slice(), vel: new Float32Array(3 * n), invMass, mass, rest2, vPiece, vArea, offset, friction, seamVert, seamNear, tris, triPiece, nc, a0, a1, b0, b1, wa, wb, rest, compT, compC, kind, colors, pieces, seams: seamsOut, spacing: h, pressure: opts.pressure };
+  return { n, pos, prev: pos.slice(), vel: new Float32Array(3 * n), invMass, mass, rest2, vPiece, vArea, offset, friction, seamVert, seamNear, tris, triPiece, nc, a0, a1, b0, b1, wa, wb, rest, compT, compC, kind, colors, pieces, seams: seamsOut, spacing: h, pressure: opts.pressure, layer, garment, thick, layers: Math.max(1, ...placed.map(p => (p.layer ?? 0) + 1)), gathers: gathersSorted };
 }
 
 export interface SimOptions { gravity: number; damping: number; sewSpeed: number; selfCollision: boolean; floor: number; substeps: number; /** Plush: hold gravity off until sewn and stuffed (seconds after the seams close). */ gravityAfterStuffing?: number; /** Plush: outward push per substep while under-filled (mm). */ inflateStep?: number }
@@ -140,12 +158,12 @@ export const DEFAULT_SIM: SimOptions = { gravity: 9810, damping: 1.2, sewSpeed: 
 
 /** CPU cloth solver. `contact` accumulates normal collision push (mm·g) for pressure maps. */
 export class ClothSim {
-  t = 0; steps = 0; pressureStart = 0; lastPressure = 0; /** Plush: height when stuffed, before it is sat down. */ stuffedHeight?: number; private grad?: Float64Array; readonly contact: Float32Array; contactSteps = 0; recordContact = false;
+  t = 0; steps = 0; pressureStart = 0; lastPressure = 0; /** Plush: height when stuffed, before it is sat down. */ stuffedHeight?: number; private grad?: Float64Array; readonly contact: Float32Array; contactSteps = 0; recordContact = false; /** Push received from the layer beneath (outer-garment vertices). */ layerContact: Float32Array;
   private hashNext: Int32Array; private hashHead: Int32Array; private g = new Float64Array(3);
   constructor(public m: ClothModel, public sdf: SdfGrid | null, public o: SimOptions = { ...DEFAULT_SIM }) {
     let maxRest = 0; for (let c = 0; c < m.nc; c++) if (m.kind[c] === K_STITCH) maxRest = Math.max(maxRest, m.rest[c]);
     this.pressureStart = maxRest / Math.max(1, o.sewSpeed) + 0.3;
-    this.contact = new Float32Array(m.n); this.hashNext = new Int32Array(m.n); this.hashHead = new Int32Array(1 << Math.ceil(Math.log2(Math.max(64, m.n * 2))));
+    this.contact = new Float32Array(m.n); this.layerContact = new Float32Array(m.n); this.hashNext = new Int32Array(m.n); this.hashHead = new Int32Array(1 << Math.ceil(Math.log2(Math.max(64, m.n * 2))));
   }
   setCollider(sdf: SdfGrid | null) { this.sdf = sdf; }
 
@@ -188,16 +206,33 @@ export class ClothSim {
   }
   private selfCollide() {
     const m = this.m, X = m.pos, n = m.n, W = m.invMass; const r = Math.max(1.5, m.spacing * 0.32); const cs = 2 * r; const head = this.hashHead, next = this.hashNext; const mask = head.length - 1;
+    // Layers: an outer garment must stay outside the one beneath it, measured along the body normal,
+    // over a wider lateral reach than plain self-collision (layers slide over each other).
+    const layered = m.layers > 1 && !!this.sdf; const lr = layered ? Math.max(cs, m.spacing * 0.75) : cs; const cell = lr; const g = this.g;
     head.fill(-1);
     const hash = (x: number, y: number, z: number) => (((x * 73856093) ^ (y * 19349663) ^ (z * 83492791)) >>> 0) & mask;
-    for (let i = 0; i < n; i++) { const hh = hash(Math.floor(X[3 * i] / cs), Math.floor(X[3 * i + 1] / cs), Math.floor(X[3 * i + 2] / cs)); next[i] = head[hh]; head[hh] = i; }
+    for (let i = 0; i < n; i++) { const hh = hash(Math.floor(X[3 * i] / cell), Math.floor(X[3 * i + 1] / cell), Math.floor(X[3 * i + 2] / cell)); next[i] = head[hh]; head[hh] = i; }
     const near2 = (cs * 1.25) ** 2;
-    for (let i = 0; i < n; i++) { const si = m.seamNear[i]; if (m.seamVert[i]) continue; const xi = X[3 * i], yi = X[3 * i + 1], zi = X[3 * i + 2]; const cx = Math.floor(xi / cs), cy = Math.floor(yi / cs), cz = Math.floor(zi / cs);
+    for (let i = 0; i < n; i++) { const si = m.seamNear[i]; const xi = X[3 * i], yi = X[3 * i + 1], zi = X[3 * i + 2]; const cx = Math.floor(xi / cell), cy = Math.floor(yi / cell), cz = Math.floor(zi / cell);
+      let nx = 0, ny = 0, nz = 0; if (layered) { sampleSdf(this.sdf!, xi, yi, zi, g); const l = Math.hypot(g[0], g[1], g[2]); if (l > 1e-9) { nx = g[0] / l; ny = g[1] / l; nz = g[2] / l; } }
       for (let dz = -1; dz <= 1; dz++) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
         for (let j = head[hash(cx + dx, cy + dy, cz + dz)]; j >= 0; j = next[j]) {
-          if (j <= i || m.seamVert[j] || (si && m.seamNear[j])) continue;
+          if (j <= i) continue;
+          const ux = X[3 * j] - xi, uy = X[3 * j + 1] - yi, uz = X[3 * j + 2] - zi; const d2 = ux * ux + uy * uy + uz * uz;
+          if (layered && m.layer[i] !== m.layer[j] && (nx || ny || nz)) {
+            if (d2 >= lr * lr * 2) continue;
+            const inner = m.layer[i] < m.layer[j] ? i : j, outer = inner === i ? j : i; const sgn = outer === j ? 1 : -1;
+            const sAlong = (ux * nx + uy * ny + uz * nz) * sgn; const lat2 = d2 - sAlong * sAlong; if (lat2 > lr * lr) continue;
+            const sep = (m.thick[i] + m.thick[j]) * 0.5 + 1.5; if (sAlong >= sep) continue;
+            const w = W[i] + W[j]; if (w === 0) continue; const corr = (sep - sAlong) / w;
+            X[3 * outer] += nx * corr * W[outer]; X[3 * outer + 1] += ny * corr * W[outer]; X[3 * outer + 2] += nz * corr * W[outer];
+            X[3 * inner] -= nx * corr * W[inner]; X[3 * inner + 1] -= ny * corr * W[inner]; X[3 * inner + 2] -= nz * corr * W[inner];
+            if (this.recordContact) { this.contact[outer] += corr * W[outer]; this.layerContact[outer] += corr * W[outer]; }
+            continue;
+          }
+          if (m.seamVert[i] || m.seamVert[j] || (si && m.seamNear[j])) continue;
           if (m.vPiece[i] === m.vPiece[j]) { const ex = m.rest2[2 * i] - m.rest2[2 * j], ey = m.rest2[2 * i + 1] - m.rest2[2 * j + 1]; if (ex * ex + ey * ey < near2) continue; }
-          const ux = X[3 * j] - xi, uy = X[3 * j + 1] - yi, uz = X[3 * j + 2] - zi; const d2 = ux * ux + uy * uy + uz * uz; if (d2 >= cs * cs || d2 < 1e-12) continue;
+          if (d2 >= cs * cs || d2 < 1e-12) continue;
           const d = Math.sqrt(d2); const w = W[i] + W[j]; if (w === 0) continue; const corr = (cs - d) / d / w;
           X[3 * i] -= ux * corr * W[i]; X[3 * i + 1] -= uy * corr * W[i]; X[3 * i + 2] -= uz * corr * W[i];
           X[3 * j] += ux * corr * W[j]; X[3 * j + 1] += uy * corr * W[j]; X[3 * j + 2] += uz * corr * W[j];
@@ -237,6 +272,8 @@ export class ClothSim {
     const tension = T / Math.max(1, k) / Math.max(1, m.spacing); const R = Math.cbrt(3 * Math.max(1, meshVolume(m)) / (4 * Math.PI));
     return 2 * tension / R;
   }
+  /** Start accumulating contact for the pressure maps. */
+  startRecording() { this.recordContact = true; this.contact.fill(0); this.layerContact.fill(0); this.contactSteps = 0; }
   kinetic() { const m = this.m; let e = 0; for (let i = 0; i < m.n; i++) e += 0.5 * m.mass[i] * (m.vel[3 * i] ** 2 + m.vel[3 * i + 1] ** 2 + m.vel[3 * i + 2] ** 2); return e; }
   /** Kinetic + gravitational + elastic (stretch and bend) energy, g·mm²/s². */
   energy() {

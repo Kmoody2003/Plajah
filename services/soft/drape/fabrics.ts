@@ -22,6 +22,7 @@ export interface Fabric {
 
 export const FABRICS: Fabric[] = [
   { id: 'jersey', name: 'Cotton jersey', knit: true, gsm: 180, stretchWarp: 20, stretchWeft: 55, bend: 0.03, thickness: 0.6, friction: 0.35, pricePerMetre: 12, colour: '#7c9cbf' },
+  { id: 'stretch-jersey', name: 'Cotton-spandex jersey (95/5)', knit: true, gsm: 210, stretchWarp: 45, stretchWeft: 90, bend: 0.03, thickness: 0.6, friction: 0.4, pricePerMetre: 15, colour: '#5f7f9c' },
   { id: 'rib', name: '1×1 rib knit', knit: true, gsm: 230, stretchWarp: 25, stretchWeft: 90, bend: 0.05, thickness: 1.0, friction: 0.4, pricePerMetre: 14, colour: '#6b8aa9' },
   { id: 'fleece', name: 'French terry / fleece', knit: true, gsm: 300, stretchWarp: 12, stretchWeft: 35, bend: 0.12, thickness: 2.0, friction: 0.45, pricePerMetre: 16, colour: '#8c7fb5' },
   { id: 'denim', name: 'Denim 12 oz', knit: false, gsm: 400, stretchWarp: 1.5, stretchWeft: 2.5, bend: 1.2, thickness: 0.9, friction: 0.5, pricePerMetre: 15, colour: '#3d5a80' },
