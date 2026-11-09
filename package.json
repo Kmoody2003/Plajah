@@ -109,6 +109,7 @@
     "test:pcb": "npx tsx --test tests/pcb.test.ts",
     "test:design": "npx tsx --test tests/design.test.ts",
     "test:fab": "npx tsx --test tests/fab.test.ts",
+    "test:bridge": "npx tsx --test tests/bridge.test.ts",
     "test:soft": "npx tsx --test tests/soft.test.ts",
     "test:stem": "npx tsx --test tests/stem.test.ts",
     "test:drape": "npx tsx --test tests/drape.test.ts",

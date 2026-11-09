@@ -25,7 +25,10 @@ import { sliceMesh, type Layer, type MeshIn } from '../../services/fab/slice';
 import { post, fileExtension } from '../../services/fab/gcode';
 import { dfm2d, dfm3d, type DfmFinding } from '../../services/fab/dfm';
 import { write3mf } from '../../services/fab/threeMf';
-import { sendToMachine, streamGcode, openWebSerial } from '../../services/fab/connect';
+import { sendToMachine } from '../../services/fab/connect';
+import { flavorOf, type GrblStatus } from '../../services/fab/protocol';
+import { portSender, openWebSerialPort, openBridgeSender, listBridgeDevices, jobPreflight, isEnergetic, programHomes, type MachineSender, type BridgeDevices, type NativeBus } from '../../services/fab/sender';
+import { isWindowsApp, postToNative, onNativeMessage } from '../../services/windowsBridgeService';
 import { writeStl } from '../../services/mech/geometry';
 import { FILAMENTS, filamentById, RESINS } from '../../services/fab/materials';
 import { RESIN_PRINTERS, resinJob, writeSl1, type ResinJob } from '../../services/fab/resin';
@@ -40,6 +43,8 @@ interface Output { name: string; data: BlobPart; type: string; gcode?: string }
 const lsStore = { get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k: string, v: string) => { localStorage.setItem(k, v); } };
 /** The signed-in user's id from their ID token (its `sub` claim), so saved profiles stay per user. */
 const userFromToken = (t: string | null) => { try { const p = JSON.parse(atob((t ?? '').split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); return String(p.user_id ?? p.sub ?? ''); } catch { return ''; } };
+const nativeBus: NativeBus = { post: postToNative, on: onNativeMessage };
+type Live = { sender: MachineSender & { onStatus?: (cb: (s: GrblStatus) => void) => void }; label: string };
 const KIND_LABEL: Record<ProfileKind, string> = { printer: 'Printer profile', filament: 'Filament profile', process: 'Process profile' };
 
 export default function MakePanel({ model, getToken }: { model: CadModel; getToken?: () => Promise<string | null> }) {
@@ -115,6 +120,17 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
   const [layer, setLayer] = useState(0); const [progress, setProgress] = useState<[number, number] | null>(null); const stopRef = useRef({ stop: false });
   const [target, setTarget] = useState<{ host: string; apiKey: string }>(() => store.get(`target.${machineId}`) ?? { host: '', apiKey: '' });
   useEffect(() => { setTarget(store.get(`target.${machineId}`) ?? { host: '', apiKey: '' }); }, [machineId]);
+  // Machine connection. In the desktop app the native bridge owns serial ports and TCP sockets and finds
+  // machines on the network; in the browser we fall back to Web Serial (Chrome / Edge).
+  const desktop = useMemo(() => isWindowsApp(), []);
+  const [devices, setDevices] = useState<BridgeDevices | null>(null); const [scanning, setScanning] = useState(false);
+  const [pick_, setPick] = useState<string>(() => store.get('bridge.pick') ?? ''); const [tcpHost, setTcpHost] = useState<string>(() => store.get('bridge.tcp') ?? '');
+  const [live, setLive] = useState<Live | null>(null); const [status, setStatus] = useState<GrblStatus | null>(null); const [log, setLog] = useState<string[]>([]);
+  const [homed, setHomed] = useState(false); const [held, setHeld] = useState(false);
+  const scan = async (lan = true) => { if (!desktop) return; setScanning(true); try { const d = await listBridgeDevices(nativeBus, lan); setDevices(d); if (!pick_ && d.serial[0]) setPick(`serial:${d.serial[0].port}`); } catch (e: any) { setMsg(String(e?.message ?? e)); } finally { setScanning(false); } };
+  useEffect(() => { if (desktop) void scan(true); }, [desktop]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { void live?.sender.close(); }, [live]);
+  useEffect(() => { setHomed(false); }, [out]);
 
   const findings = useMemo<DfmFinding[]>(() => is2D ? dfm2d(paths.loops, proc, { thickness: s.thickness, material: s.material, tool: proc.id === 'router' || proc.id === 'mill3' ? s.tool : undefined }) : dfm3d(meshes, proc, machine), [is2D, paths, meshes, proc, machine, s.thickness, s.material, s.tool]);
   const blocked = findings.some(f => f.level === 'error');
@@ -194,14 +210,48 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
     }, 20);
   };
 
+  const flavor = flavorOf(machine?.dialect);
+  const energetic = isEnergetic(proc.id, machine?.dialect);
+  const preflight = out?.gcode ? jobPreflight({ processId: proc.id, dialect: machine?.dialect, gcode: out.gcode, hazardsAcknowledged: openCritical.length === 0, homingConfirmed: homed }) : null;
+  const connect = async () => {
+    if (!machine || machine.link.kind !== 'serial') return; setMsg(''); setLog([]); setStatus(null); setHeld(false);
+    try {
+      let l: Live;
+      if (desktop) {
+        store.set('bridge.pick', pick_); store.set('bridge.tcp', tcpHost);
+        const [kind, ...rest] = pick_.split(':');
+        const tgt = kind === 'tcp' ? { transport: 'tcp' as const, host: (rest[0] || tcpHost).trim(), tcpPort: +(rest[1] || 23) } : { transport: 'serial' as const, port: rest[0], baud: machine.link.baud };
+        if (tgt.transport === 'tcp' && !tgt.host) throw new Error('Enter the controller\'s network address.');
+        if (tgt.transport === 'serial' && !tgt.port) throw new Error('Pick a port. Plug the machine in and press Refresh if it is not listed.');
+        const label = tgt.transport === 'tcp' ? `${tgt.host}:${tgt.tcpPort}` : tgt.port;
+        const s = await openBridgeSender(nativeBus, tgt, flavor, label);
+        // A dropped link ends the job; nothing resumes until the person reconnects and starts again.
+        s.onDisconnect(during => { setLive(null); setProgress(null); setMsg(during ? 'The connection dropped during the job. It was not resumed: check the machine, then reconnect and start again deliberately.' : 'The machine disconnected.'); });
+        s.onStatus(setStatus);
+        l = { sender: s, label };
+      } else {
+        const port = await openWebSerialPort(machine.link.baud);
+        l = { sender: portSender(port, flavor, 'USB (Web Serial)'), label: 'USB (Web Serial)' };
+      }
+      setLive(l);
+    } catch (e: any) { setMsg(String(e?.message ?? e)); }
+  };
+  const disconnect = async () => { const l = live; setLive(null); setProgress(null); setStatus(null); await l?.sender.close().catch(() => {}); };
+  const start = async () => {
+    if (!out?.gcode || !live || !machine) return; setMsg('');
+    if (preflight?.blockers.length) { setMsg(preflight.blockers.join(' ')); return; }
+    setProgress([0, 1]); setHeld(false);
+    try {
+      const r = await live.sender.run(out.gcode, { safety: { energetic, hazardsAcknowledged: openCritical.length === 0, homingConfirmed: homed }, onProgress: (d, t) => setProgress([d, t]), onStatus: setStatus, onLine: l => setLog(x => [...x.slice(-5), l]) });
+      setMsg(r.message);
+    } catch (e: any) { setMsg(String(e?.message ?? e)); setLive(null); } finally { setProgress(null); setHomed(false); }
+  };
+  const hold = async () => { await live?.sender.realtime(held ? 'resume' : 'hold'); setHeld(h => !h); };
+  const stopNow = async () => { stopRef.current.stop = true; await live?.sender.stop().catch(() => {}); setHeld(false); setMsg(flavor === 'grbl' ? 'Stopped: feed hold, then soft reset. GRBL may need $X (unlock) or $H (home) before the next job.' : 'Stopped: sending ended, quick stop, heaters and laser off.'); };
+
   const send = async () => {
     if (!out || !machine) return; setMsg(''); store.set(`target.${machine.id}`, target);
-    if (machine.link.kind === 'serial') {
-      if (!out.gcode) return; stopRef.current = { stop: false };
-      try { const port = await openWebSerial(machine.link.baud); setProgress([0, 1]); const r = await streamGcode(port, out.gcode, (d, t) => setProgress([d, t]), stopRef.current); await port.close(); setMsg(r.message); }
-      catch (e: any) { setMsg(String(e?.message ?? e)); } finally { setProgress(null); }
-      return;
-    }
+    if (machine.link.kind === 'serial') { if (!live) await connect(); return; }
     setBusy(true); const r = await sendToMachine(machine.link, target, out.name, new Blob([out.data], { type: out.type }), true); setMsg(r.message); setBusy(false);
   };
 
@@ -300,18 +350,50 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
       <button className="cad-btn" onClick={() => dl(out.name, out.data, out.type)} data-testid="fab-download"><Download size={13}/>{out.name.split('.').pop()!.toUpperCase()}</button>
       {kind !== 'cut' && !is2D && <button className="cad-btn" onClick={() => dl(`${base}.stl`, writeStl(meshes, base) as BlobPart, 'model/stl')}><Download size={13}/>STL</button>}
     </div>}
-    {out && machine && machine.link.kind !== 'file' && <div className="mt-2 p-2 rounded-lg" style={{ background: 'rgba(251,191,36,.05)', border: '1px solid rgba(251,191,36,.2)' }}>
-      {machine.link.kind !== 'serial' && <>
+    {machine && machine.link.kind === 'serial' && <div className="mt-2 p-2 rounded-lg" style={{ background: 'rgba(251,191,36,.05)', border: '1px solid rgba(251,191,36,.2)' }} data-testid="fab-connection">
+      <div className="flex items-center justify-between mb-1"><span className="font-semibold">Machine connection</span><span className="text-[10px]" style={{ color: DIM }}>{desktop ? 'Desktop app' : 'Web Serial (Chrome / Edge)'} · {flavor === 'grbl' ? 'GRBL / FluidNC' : flavor === 'klipper' ? 'Klipper' : 'Marlin'}</span></div>
+      {desktop && !live && <>
+        <div className="flex gap-1 mb-1">
+          <select value={pick_} onChange={e => setPick(e.target.value)} className="flex-1 h-7 rounded bg-white/5 border border-white/10 text-[11px] text-white" aria-label="Port" data-testid="fab-bridge-port">
+            <option value="" style={{ background: '#15131d' }}>{devices?.serial.length ? 'Pick a port…' : 'No USB machines found'}</option>
+            {devices?.serial.map(d => <option key={d.port} value={`serial:${d.port}`} style={{ background: '#15131d' }}>{d.name.includes(d.port) ? d.name : `${d.port} · ${d.name}`}</option>)}
+            {flavor === 'grbl' && devices?.lan.filter(d => d.service === 'fluidnc' || d.service === 'esp3d').map(d => <option key={d.host} value={`tcp:${d.host}:${d.port}`} style={{ background: '#15131d' }}>{d.name} ({d.host}, network)</option>)}
+            {flavor === 'grbl' && <option value="tcp" style={{ background: '#15131d' }}>Network address (FluidNC / ESP3D telnet)…</option>}
+          </select>
+          <button className="cad-btn" onClick={() => void scan(true)} disabled={scanning} title="Look for USB ports and machines on the network">{scanning ? '…' : 'Refresh'}</button>
+        </div>
+        {pick_ === 'tcp' && <input value={tcpHost} onChange={e => setTcpHost(e.target.value)} placeholder="192.168.1.50 (port 23)" className="w-full h-7 rounded bg-white/5 border border-white/10 px-2 text-[11px] text-white mb-1" aria-label="Controller address" data-testid="fab-bridge-host"/>}
+      </>}
+      {!live ? <button className="cad-btn w-full justify-center" onClick={() => void connect()} data-testid="fab-connect"><Send size={13}/>{desktop ? 'Connect' : 'Connect over USB'}</button>
+        : <div className="flex items-center justify-between text-[11px]"><span>Connected: {live.label}{status ? ` · ${status.state}${status.wpos ? ` · X${status.wpos[0]} Y${status.wpos[1]} Z${status.wpos[2]}` : ''}` : ''}</span><button className="cad-btn" onClick={() => void disconnect()} disabled={!!progress}>Disconnect</button></div>}
+      {status && /^(Alarm|Door|Hold)/.test(status.state) && !progress && <div className="text-[10.5px] mt-1" style={{ color: LV.warn }}>The machine reports {status.state}. We never resume or unlock it for you: check the machine, then home ($H) or unlock ($X) from its own controls.</div>}
+      {out?.gcode && live && preflight && <>
+        {!programHomes(out.gcode) && <label className="flex items-start gap-1.5 mt-1.5 text-[11px]"><input type="checkbox" checked={homed} onChange={e => setHomed(e.target.checked)} className="mt-0.5" data-testid="fab-homed"/><span>The machine is homed, its limits are on and work zero is set. This program does not home itself.</span></label>}
+        {preflight.reminders.map((r, i) => <div key={i} className="text-[10px] mt-0.5" style={{ color: DIM }}>{r}</div>)}
+        {preflight.blockers.map((r, i) => <div key={i} className="text-[10.5px] mt-0.5" style={{ color: LV.error }}>{r}</div>)}
+        <button className="cad-btn cad-primary w-full justify-center mt-1.5" onClick={() => void start()} disabled={!!progress || preflight.blockers.length > 0} data-testid="fab-start"><Play size={13}/>{energetic ? 'Start cutting' : 'Start job'}</button>
+      </>}
+      {!out?.gcode && <div className="text-[10px] mt-1" style={{ color: DIM }}>Prepare the job above, then start it here.</div>}
+      {progress && <div className="mt-1.5 h-1.5 rounded bg-white/10 overflow-hidden"><div className="h-full" style={{ width: `${progress[0] / progress[1] * 100}%`, background: '#fbbf24' }}/></div>}
+      {log.length > 0 && <pre className="text-[9.5px] leading-tight mt-1 p-1 rounded bg-black/40 max-h-20 overflow-auto">{log.join('\n')}</pre>}
+    </div>}
+    {live && <div className="fixed left-1/2 -translate-x-1/2 bottom-4 z-[1000] flex items-center gap-2 px-3 py-2 rounded-xl shadow-2xl text-[12px]" style={{ background: '#1b1622', border: '1px solid rgba(244,63,94,.6)' }} role="toolbar" aria-label="Machine controls" data-testid="fab-machine-bar">
+      <span className="font-semibold">{live.label}</span><span style={{ color: DIM }}>{status?.state ?? (progress ? 'Running' : 'Idle')}{progress ? ` · ${Math.round(progress[0] / progress[1] * 100)}%` : ''}</span>
+      <button className="cad-btn" onClick={() => void hold()} data-testid="fab-hold">{held ? 'Resume' : flavor === 'grbl' ? 'Feed hold' : 'Pause sending'}</button>
+      <button className="cad-btn" onClick={() => void stopNow()} style={{ background: '#dc2626', color: '#fff', fontWeight: 700 }} data-testid="fab-stop"><Square size={13}/>STOP</button>
+    </div>}
+    {out && machine && machine.link.kind !== 'file' && machine.link.kind !== 'serial' && <div className="mt-2 p-2 rounded-lg" style={{ background: 'rgba(251,191,36,.05)', border: '1px solid rgba(251,191,36,.2)' }}>
+      {desktop && devices?.lan.some(d => d.service === machine.link.kind) && <div className="flex flex-wrap gap-1 mb-1">{devices.lan.filter(d => d.service === machine.link.kind).map(d => <button key={d.host} className="cad-btn" onClick={() => setTarget(t => ({ ...t, host: `${d.host}:${d.port}` }))} title="Found on your network">{d.name} · {d.host}</button>)}</div>}
+      {<>
         <input value={target.host} onChange={e => setTarget(t => ({ ...t, host: e.target.value }))} placeholder="Machine address, e.g. 192.168.1.40" className="w-full h-7 rounded bg-white/5 border border-white/10 px-2 text-[11px] text-white mb-1" aria-label="Machine address" data-testid="fab-host"/>
         {machine.link.kind !== 'moonraker' && machine.link.kind !== 'duet' && <input value={target.apiKey} onChange={e => setTarget(t => ({ ...t, apiKey: e.target.value }))} placeholder="API key (from the machine's settings)" type="password" className="w-full h-7 rounded bg-white/5 border border-white/10 px-2 text-[11px] text-white mb-1" aria-label="API key"/>}
       </>}
       <div className="flex gap-1.5">
-        <button className="cad-btn cad-primary flex-1 justify-center" onClick={() => void send()} disabled={busy || !!progress || (machine.link.kind !== 'serial' && !target.host)} data-testid="fab-send"><Send size={13}/>{machine.link.kind === 'serial' ? 'Connect over USB and run' : 'Send and start'}</button>
-        {progress && <button className="cad-btn" onClick={() => { stopRef.current.stop = true; }} aria-label="Stop"><Square size={13}/></button>}
+        <button className="cad-btn cad-primary flex-1 justify-center" onClick={() => void send()} disabled={busy || !target.host} data-testid="fab-send"><Send size={13}/>Send and start</button>
       </div>
-      {progress && <div className="mt-1.5 h-1.5 rounded bg-white/10 overflow-hidden"><div className="h-full" style={{ width: `${progress[0] / progress[1] * 100}%`, background: '#fbbf24' }}/></div>}
-      <div className="text-[10px] mt-1" style={{ color: DIM }}>Stay with the machine while it runs; the stop button halts sending, not motion already queued. Use the machine's own emergency stop.</div>
+      <div className="text-[10px] mt-1" style={{ color: DIM }}>Stay with the machine while it runs and stop it from its own screen or emergency stop.</div>
     </div>}
+    {machine?.link.kind === 'serial' && <div className="text-[10px] mt-1" style={{ color: DIM }}>Stay with the machine while it runs. STOP halts it from here ({flavor === 'grbl' ? 'feed hold, then soft reset' : 'quick stop, heaters and laser off'}); the machine's own emergency stop is still the one to trust.</div>}
     {out && machine?.link.kind === 'file' && <div className="text-[10.5px] mt-2" style={{ color: DIM }}>{machine.link.note}</div>}
     {msg && <div className="text-[11px] mt-2" style={{ color: /could not|refused|said|error|stopped/i.test(msg) ? LV.error : LV.pass }} data-testid="fab-msg">{msg}</div>}
   </div>;
