@@ -13,8 +13,8 @@
 
 import type { Pt } from '../geometry';
 import { type SdfGrid, type V3, sampleSdf } from './avatar';
-import { type Fabric, edgeStiffness, bendStiffness } from './fabrics';
-import { meshPiece } from './mesh';
+import { type Fabric, edgeStiffness, bendRigidity } from './fabrics';
+import { meshPiece, type Sizing } from './mesh';
 
 export type PieceRole = 'body' | 'sleeve' | 'hood' | 'rib' | 'pocket' | 'plush' | 'other';
 export interface PlacedPiece {
@@ -23,11 +23,19 @@ export interface PlacedPiece {
   map: (p: Pt) => V3;
   /** Triangles are wound so normals face away from this point (needed for plush pressure). */
   outwardFrom?: V3;
+  /** Layer order on the body (0 = next to the skin) and which garment of an outfit it belongs to. */
+  layer?: number; garment?: number;
+  /** Adaptive mesh: local spacing (mm) on the flat piece; finer where folds formed in a first pass. */
+  sizing?: Sizing;
 }
+/** An edge drawn in by elastic (or a drawcord): its boundary edges rest at `ratio` of their cut length. */
+/** A patch sewn onto another piece's face (a pocket): its edge vertices stitch to the target piece at `at(q)` in the target's flat coordinates. */
+export interface AttachSpec { name: string; piece: string; from: Pt; to: Pt; via?: Pt; target: string; at: (q: Pt) => Pt }
+export interface GatherSpec { name: string; piece: string; from: Pt; to: Pt; via?: Pt; ratio: number; /** Elastic force at 100% stretch, N. */ force?: number }
 export interface SeamSide { piece: string; from: Pt; to: Pt; via?: Pt }
 export interface SeamSpec { name: string; a: SeamSide[]; b: SeamSide[] }
 
-export interface ClothPiece { id: string; name: string; pieceId: string; role: PieceRole; fabric: Fabric; v0: number; vn: number; t0: number; tn: number; boundary: number[]; grainAngle: number }
+export interface ClothPiece { id: string; name: string; pieceId: string; role: PieceRole; fabric: Fabric; v0: number; vn: number; t0: number; tn: number; boundary: number[]; grainAngle: number; garment: number; layer: number }
 export const K_STRETCH = 0, K_BEND = 1, K_STITCH = 2;
 
 export interface ClothModel {
@@ -35,6 +43,9 @@ export interface ClothModel {
   rest2: Float32Array; vPiece: Int32Array; vArea: Float32Array; offset: Float32Array; friction: Float32Array; seamVert: Uint8Array;
   /** Seam vertices and their mesh neighbours: self-collision skips pairs that are both near a seam. */
   seamNear: Uint8Array;
+  /** Layer (0 = skin side), garment index, cloth thickness (mm) per vertex. */
+  layer: Uint8Array; garment: Uint8Array; thick: Float32Array; layers: number;
+  gathers: Array<{ name: string; ids: number[]; ratio: number }>;
   tris: Uint32Array; triPiece: Int32Array;
   nc: number; a0: Int32Array; a1: Int32Array; b0: Int32Array; b1: Int32Array; wa: Float32Array; wb: Float32Array; rest: Float32Array; compT: Float32Array; compC: Float32Array; kind: Uint8Array;
   colors: number[];
@@ -44,6 +55,25 @@ export interface ClothModel {
 }
 
 const dst2 = (a: Pt, b: Pt) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+
+/**
+ * Isometric (quadratic) bending on the hinge of edge x0x1 with opposite vertices x2, x3 (Bergou et
+ * al. 2006): K = cot-weights from the flat rest shape, Σ Kᵢxᵢ = 0 when flat and grows with the
+ * dihedral angle. Written as the distance between two weighted points (our generic constraint):
+ * A = (K0 x0 + K1 x1)/S, B = (−K2 x2 − K3 x3)/S, C = S·|A − B| ≈ |e|·θ. Matching the hinge energy to
+ * the plate energy ½·D·κ² over the hinge's share of area (A₁+A₂)/3 gives E = 3D·C²/(8(A₁+A₂)), so the
+ * compliance on |A − B| ≈ 4(A₁+A₂)/(3·D·S²) for an ideal equilateral mesh. On our Delaunay meshes the
+ * constant was calibrated so a converged solve reproduces Peirce's cantilever (41.5° at overhang 2c):
+ * HINGE_K = 0.8 (tests/drape.test.ts re-checks it).
+ */
+export const HINGE_K = 0.8;
+function hingeBend(x0: Pt, x1: Pt, x2: Pt, x3: Pt, D: number) {
+  const cot = (o: Pt, a: Pt, b: Pt) => { const ux = a[0] - o[0], uy = a[1] - o[1], vx = b[0] - o[0], vy = b[1] - o[1]; const cr = Math.abs(ux * vy - uy * vx); return cr < 1e-9 ? 0 : (ux * vx + uy * vy) / cr; };
+  const c01 = cot(x0, x1, x2), c02 = cot(x0, x1, x3), c03 = cot(x1, x0, x2), c04 = cot(x1, x0, x3);
+  const K0 = c03 + c04, K1 = c01 + c02; const S = K0 + K1; if (S < 0.2 || !(D > 0)) return null;
+  const tri = (a: Pt, b: Pt, c: Pt) => Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1])) / 2; const Ae = tri(x0, x1, x2) + tri(x0, x1, x3);
+  return { wa: K1 / S, wb: (c02 + c04) / S, comp: HINGE_K * Ae / (D * S * S) };
+}
 
 interface Con { a0: number; a1: number; b0: number; b1: number; wa: number; wb: number; rest: number; compT: number; compC: number; kind: number }
 
@@ -60,15 +90,16 @@ function seamPath(P: ClothPiece, rest2: Float32Array, s: SeamSide): number[] {
 }
 
 /** Build the cloth: mesh every placed piece, wire stretch/bend constraints, then stitch the seams. */
-export function buildCloth(placed: PlacedPiece[], seams: SeamSpec[], h = 20, opts: { pressure?: { targetVolume: number; p0: number; planned?: number } } = {}): ClothModel {
-  const meshes = placed.map(p => meshPiece(p.seam, h));
+export function buildCloth(placed: PlacedPiece[], seams: SeamSpec[], h = 20, opts: { pressure?: { targetVolume: number; p0: number; planned?: number }; gathers?: GatherSpec[]; attach?: AttachSpec[] } = {}): ClothModel {
+  const meshes = placed.map(p => meshPiece(p.seam, h, p.sizing));
   const n = meshes.reduce((s, m) => s + m.verts.length, 0), nt = meshes.reduce((s, m) => s + m.tris.length, 0);
   const pos = new Float32Array(3 * n), rest2 = new Float32Array(2 * n), vPiece = new Int32Array(n), mass = new Float32Array(n), vArea = new Float32Array(n), offset = new Float32Array(n), friction = new Float32Array(n);
+  const layer = new Uint8Array(n), garment = new Uint8Array(n), thick = new Float32Array(n);
   const tris = new Uint32Array(3 * nt), triPiece = new Int32Array(nt); const pieces: ClothPiece[] = []; const cons: Con[] = [];
   let v0 = 0, t0 = 0;
   placed.forEach((P, pi) => {
     const m = meshes[pi]; const f = P.fabric;
-    m.verts.forEach((q, i) => { const w = P.map(q); pos.set(w, 3 * (v0 + i)); rest2[2 * (v0 + i)] = q[0]; rest2[2 * (v0 + i) + 1] = q[1]; vPiece[v0 + i] = pi; offset[v0 + i] = f.thickness * 0.5 + 2; friction[v0 + i] = f.friction; });
+    m.verts.forEach((q, i) => { const w = P.map(q); pos.set(w, 3 * (v0 + i)); rest2[2 * (v0 + i)] = q[0]; rest2[2 * (v0 + i) + 1] = q[1]; vPiece[v0 + i] = pi; offset[v0 + i] = f.thickness * 0.5 + 2; friction[v0 + i] = f.friction; layer[v0 + i] = P.layer ?? 0; garment[v0 + i] = P.garment ?? 0; thick[v0 + i] = f.thickness; });
     // Wind triangles outward if asked (majority vote against the reference point).
     let flip = false;
     if (P.outwardFrom) { let vote = 0; for (const [a, b, c] of m.tris) { const A = P.map(m.verts[a]), B = P.map(m.verts[b]), C = P.map(m.verts[c]);
@@ -80,14 +111,14 @@ export function buildCloth(placed: PlacedPiece[], seams: SeamSpec[], h = 20, opt
     // Edges and their opposite vertices.
     const edges = new Map<string, { u: number; v: number; opp: number[] }>();
     for (const [a, b, c] of m.tris) for (const [u, v, o] of [[a, b, c], [b, c, a], [c, a, b]]) { const k = u < v ? `${u},${v}` : `${v},${u}`; const e = edges.get(k); if (e) e.opp.push(o); else edges.set(k, { u, v, opp: [o] }); }
-    const ga = P.grainAngle; const kb = bendStiffness(f);
+    const ga = P.grainAngle; const kb = bendRigidity(f);
     for (const e of edges.values()) {
       const pu = m.verts[e.u], pv = m.verts[e.v]; const L = dst2(pu, pv); const ang = Math.atan2(pv[1] - pu[1], pv[0] - pu[0]) - ga;
       const k = edgeStiffness(f, Math.cos(ang), Math.sin(ang));
       cons.push({ a0: v0 + e.u, a1: -1, b0: v0 + e.v, b1: -1, wa: 0, wb: 0, rest: L, compT: 1 / k, compC: 1 / (k * 0.04), kind: K_STRETCH });
-      if (e.opp.length === 2) { const L2 = dst2(m.verts[e.opp[0]], m.verts[e.opp[1]]); cons.push({ a0: v0 + e.opp[0], a1: -1, b0: v0 + e.opp[1], b1: -1, wa: 0, wb: 0, rest: L2, compT: 1 / kb, compC: 1 / kb, kind: K_BEND }); }
+      if (e.opp.length === 2) { const bc = hingeBend(m.verts[e.u], m.verts[e.v], m.verts[e.opp[0]], m.verts[e.opp[1]], kb); if (bc) cons.push({ a0: v0 + e.u, a1: v0 + e.v, wa: bc.wa, b0: v0 + e.opp[0], b1: v0 + e.opp[1], wb: bc.wb, rest: 0, compT: bc.comp, compC: bc.comp, kind: K_BEND }); }
     }
-    pieces.push({ id: P.id, name: P.name, pieceId: P.pieceId, role: P.role, fabric: f, v0, vn: m.verts.length, t0, tn: m.tris.length, boundary: m.boundary.map(i => v0 + i), grainAngle: ga });
+    pieces.push({ garment: P.garment ?? 0, layer: P.layer ?? 0, id: P.id, name: P.name, pieceId: P.pieceId, role: P.role, fabric: f, v0, vn: m.verts.length, t0, tn: m.tris.length, boundary: m.boundary.map(i => v0 + i), grainAngle: ga });
     v0 += m.verts.length; t0 += m.tris.length;
   });
   // Seams: arc-length matched stitches both ways.
@@ -112,6 +143,20 @@ export function buildCloth(placed: PlacedPiece[], seams: SeamSpec[], h = 20, opt
     link(A, sA, LA, B, sB, LB); link(B, sB, LB, A, sA, LA);
     seamInfo.push({ name: S.name, c0, cn: cons.length - c0, lenA: LA, lenB: LB });
   }
+  // Patches (pockets): each edge vertex is stitched to the nearest vertex of the target piece at its mapped spot.
+  for (const at of opts.attach ?? []) { const P = pieceBy.get(at.piece), T = pieceBy.get(at.target); if (!P || !T) continue; const path = seamPath(P, rest2, at); const c0 = cons.length;
+    for (const i of path) { const q = at.at([rest2[2 * i], rest2[2 * i + 1]]); let bj = -1, bd = Infinity; for (let j = T.v0; j < T.v0 + T.vn; j++) { const d = Math.hypot(rest2[2 * j] - q[0], rest2[2 * j + 1] - q[1]); if (d < bd) { bd = d; bj = j; } }
+      if (bj < 0) continue; const off = (thick[i] + thick[bj]) * 0.5 + 0.5; cons.push({ a0: i, a1: -1, b0: bj, b1: -1, wa: 0, wb: 0, rest: Math.max(off, Math.hypot(pos[3 * i] - pos[3 * bj], pos[3 * i + 1] - pos[3 * bj + 1], pos[3 * i + 2] - pos[3 * bj + 2])), compT: 1e-9, compC: 1e-6, kind: K_STITCH }); seamVert[i] = 1; seamVert[bj] = 1; }
+    seamInfo.push({ name: at.name, c0, cn: cons.length - c0, lenA: 0, lenB: 0 }); }
+  // Elastic and drawcords: the gathered edge's boundary edges rest short and pull with the elastic's force.
+  const gathersOut: ClothModel['gathers'] = [];
+  if (opts.gathers?.length) {
+    const edgeIdx = new Map<string, number>(); cons.forEach((c, k) => { if (c.kind === K_STRETCH) edgeIdx.set(c.a0 < c.b0 ? `${c.a0},${c.b0}` : `${c.b0},${c.a0}`, k); });
+    for (const gs of opts.gathers) { const P = pieceBy.get(gs.piece); if (!P) continue; const path = seamPath(P, rest2, gs); const ids: number[] = [];
+      for (let k = 1; k < path.length; k++) { const a = path[k - 1], b = path[k]; const ci = edgeIdx.get(a < b ? `${a},${b}` : `${b},${a}`); if (ci == null) continue;
+        const c = cons[ci]; const L = c.rest; c.rest = L * gs.ratio; const kE = (gs.force ?? 8) * 1e6 / Math.max(1, c.rest); c.compT = 1 / kE; c.compC = 1 / (kE * 0.02); ids.push(ci); }
+      gathersOut.push({ name: gs.name, ids, ratio: gs.ratio }); }
+  }
   // Greedy colouring: no two constraints of a colour share a particle (Gauss-Seidel on the GPU).
   let nColors = 0; const color = new Int32Array(cons.length);
   const pc = new Map<number, Set<number>>(); const parts = (c: Con) => [c.a0, c.a1, c.b0, c.b1].filter(x => x >= 0);
@@ -125,6 +170,7 @@ export function buildCloth(placed: PlacedPiece[], seams: SeamSpec[], h = 20, opt
   colourPass(false, 0); colourPass(true, nColors); void pc;
   const sorted = cons.map((_, i) => i).sort((i, j) => color[i] - color[j] || i - j);
   const back = new Int32Array(cons.length); sorted.forEach((ci, k) => { back[ci] = k; });
+  const gathersSorted = gathersOut.map(g => ({ ...g, ids: g.ids.map(k => back[k]) }));
   const seamsOut = seamInfo.map(s => ({ name: s.name, lenA: s.lenA, lenB: s.lenB, ids: Array.from({ length: s.cn }, (_, k) => back[s.c0 + k]) }));
   const nc = cons.length; const a0 = new Int32Array(nc), a1 = new Int32Array(nc), b0 = new Int32Array(nc), b1 = new Int32Array(nc), wa = new Float32Array(nc), wb = new Float32Array(nc), rest = new Float32Array(nc), compT = new Float32Array(nc), compC = new Float32Array(nc), kind = new Uint8Array(nc);
   const colors: number[] = []; let last = -1;
@@ -132,20 +178,20 @@ export function buildCloth(placed: PlacedPiece[], seams: SeamSpec[], h = 20, opt
   colors.push(nc); void nColors;
   const seamNear = seamVert.slice(); for (const c of cons) if (c.kind === K_STRETCH && (seamVert[c.a0] || seamVert[c.b0])) { seamNear[c.a0] = 1; seamNear[c.b0] = 1; }
   const invMass = new Float32Array(n); for (let i = 0; i < n; i++) invMass[i] = mass[i] > 0 ? 1 / mass[i] : 0;
-  return { n, pos, prev: pos.slice(), vel: new Float32Array(3 * n), invMass, mass, rest2, vPiece, vArea, offset, friction, seamVert, seamNear, tris, triPiece, nc, a0, a1, b0, b1, wa, wb, rest, compT, compC, kind, colors, pieces, seams: seamsOut, spacing: h, pressure: opts.pressure };
+  return { n, pos, prev: pos.slice(), vel: new Float32Array(3 * n), invMass, mass, rest2, vPiece, vArea, offset, friction, seamVert, seamNear, tris, triPiece, nc, a0, a1, b0, b1, wa, wb, rest, compT, compC, kind, colors, pieces, seams: seamsOut, spacing: h, pressure: opts.pressure, layer, garment, thick, layers: Math.max(1, ...placed.map(p => (p.layer ?? 0) + 1)), gathers: gathersSorted };
 }
 
-export interface SimOptions { gravity: number; damping: number; sewSpeed: number; selfCollision: boolean; floor: number; substeps: number; /** Plush: hold gravity off until sewn and stuffed (seconds after the seams close). */ gravityAfterStuffing?: number; /** Plush: outward push per substep while under-filled (mm). */ inflateStep?: number }
+export interface SimOptions { gravity: number; damping: number; sewSpeed: number; selfCollision: boolean; floor: number; substeps: number; /** Constraint passes per substep (XPBD with accumulated multipliers); 1 = small-steps. */ iterations?: number; /** Plush: hold gravity off until sewn and stuffed (seconds after the seams close). */ gravityAfterStuffing?: number; /** Plush: outward push per substep while under-filled (mm). */ inflateStep?: number }
 export const DEFAULT_SIM: SimOptions = { gravity: 9810, damping: 1.2, sewSpeed: 350, selfCollision: true, floor: 0, substeps: 14 };
 
 /** CPU cloth solver. `contact` accumulates normal collision push (mm·g) for pressure maps. */
 export class ClothSim {
-  t = 0; steps = 0; pressureStart = 0; lastPressure = 0; /** Plush: height when stuffed, before it is sat down. */ stuffedHeight?: number; private grad?: Float64Array; readonly contact: Float32Array; contactSteps = 0; recordContact = false;
+  t = 0; steps = 0; private lambda?: Float32Array; pressureStart = 0; lastPressure = 0; /** Plush: height when stuffed, before it is sat down. */ stuffedHeight?: number; private grad?: Float64Array; readonly contact: Float32Array; contactSteps = 0; recordContact = false; /** Push received from the layer beneath (outer-garment vertices). */ layerContact: Float32Array;
   private hashNext: Int32Array; private hashHead: Int32Array; private g = new Float64Array(3);
   constructor(public m: ClothModel, public sdf: SdfGrid | null, public o: SimOptions = { ...DEFAULT_SIM }) {
     let maxRest = 0; for (let c = 0; c < m.nc; c++) if (m.kind[c] === K_STITCH) maxRest = Math.max(maxRest, m.rest[c]);
     this.pressureStart = maxRest / Math.max(1, o.sewSpeed) + 0.3;
-    this.contact = new Float32Array(m.n); this.hashNext = new Int32Array(m.n); this.hashHead = new Int32Array(1 << Math.ceil(Math.log2(Math.max(64, m.n * 2))));
+    this.contact = new Float32Array(m.n); this.layerContact = new Float32Array(m.n); this.hashNext = new Int32Array(m.n); this.hashHead = new Int32Array(1 << Math.ceil(Math.log2(Math.max(64, m.n * 2))));
   }
   setCollider(sdf: SdfGrid | null) { this.sdf = sdf; }
 
@@ -162,13 +208,17 @@ export class ClothSim {
       P[k] = X[k]; P[k + 1] = X[k + 1]; P[k + 2] = X[k + 2]; X[k] += V[k] * h; X[k + 1] += V[k + 1] * h; X[k + 2] += V[k + 2] * h; }
     // Sewing: stitch rest lengths shrink to zero.
     const sew = this.o.sewSpeed * h;
-    for (let c = 0; c < m.nc; c++) if (m.kind[c] === K_STITCH && m.rest[c] > 0) m.rest[c] = Math.max(0, m.rest[c] - sew);
+    for (let c = 0; c < m.nc; c++) if (m.kind[c] === K_STITCH && m.rest[c] > 0) m.rest[c] = Math.max(m.compC[c] > 1e-8 ? 1.5 : 0, m.rest[c] - sew);
     const h2 = h * h;
     if (m.pressure) this.solveVolume(h2);
-    for (let c = 0; c < m.nc; c++) solveConstraint(m, c, h2);
+    if (this.fill) this.solveFill(h2);
+    const it = Math.max(1, this.o.iterations ?? 1); if (it > 1) { if (!this.lambda || this.lambda.length !== m.nc) this.lambda = new Float32Array(m.nc); this.lambda.fill(0); }
+    for (let k = 0; k < it; k++) for (let c = 0; c < m.nc; c++) solveConstraint(m, c, h2, it > 1 ? this.lambda : undefined);
     this.collide();
     if (this.o.selfCollision && (this.steps & 1) === 0) this.selfCollide();
     const ih = 1 / h; for (let k = 0; k < 3 * n; k++) V[k] = (X[k] - P[k]) * ih;
+    // Stuffing in the air (no gravity): the toy is being held, so remove any net drift and spin.
+    if (m.pressure && this.o.gravity === 0) this.removeRigidMotion(h);
     this.t += h; this.steps++; if (this.recordContact) this.contactSteps++;
   }
 
@@ -184,24 +234,81 @@ export class ClothSim {
   private friction(i: number, nx: number, ny: number, nz: number, depth: number) {
     const X = this.m.pos, P = this.m.prev, k = 3 * i; const dx = X[k] - P[k], dy = X[k + 1] - P[k + 1], dz = X[k + 2] - P[k + 2];
     const dn = dx * nx + dy * ny + dz * nz; const tx = dx - dn * nx, ty = dy - dn * ny, tz = dz - dn * nz; const tl = Math.hypot(tx, ty, tz); if (tl < 1e-12) return;
-    const f = Math.min(1, this.m.friction[i] * depth / tl); X[k] -= tx * f; X[k + 1] -= ty * f; X[k + 2] -= tz * f;
+    // Coulomb: stick while the slip is under the static limit (μs ≈ 1.3 μk), else slide losing μk·depth.
+    const mu = this.m.friction[i]; const f = tl < 1.3 * mu * depth ? 1 : Math.min(1, mu * depth / tl); X[k] -= tx * f; X[k + 1] -= ty * f; X[k + 2] -= tz * f;
   }
   private selfCollide() {
     const m = this.m, X = m.pos, n = m.n, W = m.invMass; const r = Math.max(1.5, m.spacing * 0.32); const cs = 2 * r; const head = this.hashHead, next = this.hashNext; const mask = head.length - 1;
+    // Layers: an outer garment must stay outside the one beneath it, measured along the body normal,
+    // over a wider lateral reach than plain self-collision (layers slide over each other).
+    const layered = m.layers > 1 && !!this.sdf; const lr = layered ? Math.max(cs, m.spacing * 0.75) : cs; const cell = lr; const g = this.g;
     head.fill(-1);
     const hash = (x: number, y: number, z: number) => (((x * 73856093) ^ (y * 19349663) ^ (z * 83492791)) >>> 0) & mask;
-    for (let i = 0; i < n; i++) { const hh = hash(Math.floor(X[3 * i] / cs), Math.floor(X[3 * i + 1] / cs), Math.floor(X[3 * i + 2] / cs)); next[i] = head[hh]; head[hh] = i; }
+    for (let i = 0; i < n; i++) { const hh = hash(Math.floor(X[3 * i] / cell), Math.floor(X[3 * i + 1] / cell), Math.floor(X[3 * i + 2] / cell)); next[i] = head[hh]; head[hh] = i; }
     const near2 = (cs * 1.25) ** 2;
-    for (let i = 0; i < n; i++) { const si = m.seamNear[i]; if (m.seamVert[i]) continue; const xi = X[3 * i], yi = X[3 * i + 1], zi = X[3 * i + 2]; const cx = Math.floor(xi / cs), cy = Math.floor(yi / cs), cz = Math.floor(zi / cs);
+    for (let i = 0; i < n; i++) { const si = m.seamNear[i]; const xi = X[3 * i], yi = X[3 * i + 1], zi = X[3 * i + 2]; const cx = Math.floor(xi / cell), cy = Math.floor(yi / cell), cz = Math.floor(zi / cell);
+      let nx = 0, ny = 0, nz = 0; if (layered) { sampleSdf(this.sdf!, xi, yi, zi, g); const l = Math.hypot(g[0], g[1], g[2]); if (l > 1e-9) { nx = g[0] / l; ny = g[1] / l; nz = g[2] / l; } }
       for (let dz = -1; dz <= 1; dz++) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
         for (let j = head[hash(cx + dx, cy + dy, cz + dz)]; j >= 0; j = next[j]) {
-          if (j <= i || m.seamVert[j] || (si && m.seamNear[j])) continue;
+          if (j <= i) continue;
+          const ux = X[3 * j] - xi, uy = X[3 * j + 1] - yi, uz = X[3 * j + 2] - zi; const d2 = ux * ux + uy * uy + uz * uz;
+          if (layered && m.layer[i] !== m.layer[j] && (nx || ny || nz)) {
+            if (d2 >= lr * lr * 2) continue;
+            const inner = m.layer[i] < m.layer[j] ? i : j, outer = inner === i ? j : i; const sgn = outer === j ? 1 : -1;
+            const sAlong = (ux * nx + uy * ny + uz * nz) * sgn; const lat2 = d2 - sAlong * sAlong; if (lat2 > lr * lr) continue;
+            const sep = (m.thick[i] + m.thick[j]) * 0.5 + 1.5; if (sAlong >= sep) continue;
+            const w = W[i] + W[j]; if (w === 0) continue; const corr = (sep - sAlong) / w;
+            X[3 * outer] += nx * corr * W[outer]; X[3 * outer + 1] += ny * corr * W[outer]; X[3 * outer + 2] += nz * corr * W[outer];
+            X[3 * inner] -= nx * corr * W[inner]; X[3 * inner + 1] -= ny * corr * W[inner]; X[3 * inner + 2] -= nz * corr * W[inner];
+            if (this.recordContact) { this.contact[outer] += corr * W[outer]; this.layerContact[outer] += corr * W[outer]; }
+            continue;
+          }
+          if (m.seamVert[i] || m.seamVert[j] || (si && m.seamNear[j])) continue;
           if (m.vPiece[i] === m.vPiece[j]) { const ex = m.rest2[2 * i] - m.rest2[2 * j], ey = m.rest2[2 * i + 1] - m.rest2[2 * j + 1]; if (ex * ex + ey * ey < near2) continue; }
-          const ux = X[3 * j] - xi, uy = X[3 * j + 1] - yi, uz = X[3 * j + 2] - zi; const d2 = ux * ux + uy * uy + uz * uz; if (d2 >= cs * cs || d2 < 1e-12) continue;
+          if (d2 >= cs * cs || d2 < 1e-12) continue;
           const d = Math.sqrt(d2); const w = W[i] + W[j]; if (w === 0) continue; const corr = (cs - d) / d / w;
           X[3 * i] -= ux * corr * W[i]; X[3 * i + 1] -= uy * corr * W[i]; X[3 * i + 2] -= uz * corr * W[i];
           X[3 * j] += ux * corr * W[j]; X[3 * j + 1] += uy * corr * W[j]; X[3 * j + 2] += uz * corr * W[j];
         } } }
+  }
+  /** Fibre fill as an elastic body: random internal links across the stuffed toy (see addFillLinks). */
+  fill?: { a: Int32Array; b: Int32Array; rest: Float32Array; comp: Float32Array };
+  /**
+   * Fibre fill resists shape change (a stuffed toy does not flop), which a volume alone cannot.
+   * Links between random far-apart shell vertices, rest at the stuffed shape, form an isotropic
+   * spring network whose effective Young's modulus ≈ N·k·L²/(9V); k is set for `modulusPa`
+   * (firm fibre fill ≈ 3-8 kPa).
+   */
+  addFillLinks(modulusPa = 5000, perVertex = 3, seed = 7) {
+    const m = this.m, X = m.pos; const V = Math.max(1, meshVolume(m)); const n = m.n; let r = seed >>> 0; const rnd = () => { r = (r * 1664525 + 1013904223) >>> 0; return r / 4294967296; };
+    let lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity]; for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], X[3 * i + k]); hi[k] = Math.max(hi[k], X[3 * i + k]); }
+    const size = Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]); const A: number[] = [], B: number[] = [], R: number[] = [];
+    for (let i = 0; i < n; i += 2) for (let t = 0, tries = 0; t < perVertex && tries < 20; tries++) { const j = Math.floor(rnd() * n); const d = Math.hypot(X[3 * i] - X[3 * j], X[3 * i + 1] - X[3 * j + 1], X[3 * i + 2] - X[3 * j + 2]); if (d < size * 0.3) continue; A.push(i); B.push(j); R.push(d); t++; }
+    const N = A.length; let L2 = 0; for (const d of R) L2 += d * d; L2 /= Math.max(1, N); const k = 9 * modulusPa * V / Math.max(1, N * L2);
+    this.fill = { a: Int32Array.from(A), b: Int32Array.from(B), rest: Float32Array.from(R), comp: new Float32Array(N).fill(1 / k) };
+  }
+  private solveFill(h2: number) {
+    const f = this.fill!, X = this.m.pos, W = this.m.invMass;
+    for (let k = 0; k < f.a.length; k++) { const i = f.a[k], j = f.b[k]; const dx = X[3 * i] - X[3 * j], dy = X[3 * i + 1] - X[3 * j + 1], dz = X[3 * i + 2] - X[3 * j + 2]; const L = Math.hypot(dx, dy, dz); if (L < 1e-9) continue;
+      const w = W[i] + W[j]; if (!w) continue; const lam = -(L - f.rest[k]) / (w + f.comp[k] / h2); const s = lam / L;
+      X[3 * i] += dx * s * W[i]; X[3 * i + 1] += dy * s * W[i]; X[3 * i + 2] += dz * s * W[i]; X[3 * j] -= dx * s * W[j]; X[3 * j + 1] -= dy * s * W[j]; X[3 * j + 2] -= dz * s * W[j]; }
+  }
+  private removeRigidMotion(h: number) {
+    const m = this.m, X = m.pos, V = m.vel, P = m.prev; let M = 0; const c = [0, 0, 0], v = [0, 0, 0];
+    for (let i = 0; i < m.n; i++) { const w = m.mass[i]; M += w; for (let a = 0; a < 3; a++) { c[a] += w * X[3 * i + a]; v[a] += w * V[3 * i + a]; } }
+    for (let a = 0; a < 3; a++) { c[a] /= M; v[a] /= M; }
+    // Angular momentum L and inertia tensor I about the centre; ω = I⁻¹L.
+    const L = [0, 0, 0]; const I = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    for (let i = 0; i < m.n; i++) { const w = m.mass[i]; const rx = X[3 * i] - c[0], ry = X[3 * i + 1] - c[1], rz = X[3 * i + 2] - c[2]; const vx = V[3 * i] - v[0], vy = V[3 * i + 1] - v[1], vz = V[3 * i + 2] - v[2];
+      L[0] += w * (ry * vz - rz * vy); L[1] += w * (rz * vx - rx * vz); L[2] += w * (rx * vy - ry * vx); const r2 = rx * rx + ry * ry + rz * rz;
+      I[0] += w * (r2 - rx * rx); I[4] += w * (r2 - ry * ry); I[8] += w * (r2 - rz * rz); I[1] -= w * rx * ry; I[2] -= w * rx * rz; I[5] -= w * ry * rz; }
+    I[3] = I[1]; I[6] = I[2]; I[7] = I[5];
+    const det = I[0] * (I[4] * I[8] - I[5] * I[7]) - I[1] * (I[3] * I[8] - I[5] * I[6]) + I[2] * (I[3] * I[7] - I[4] * I[6]); if (Math.abs(det) < 1e-12) return;
+    const inv = [(I[4] * I[8] - I[5] * I[7]) / det, (I[2] * I[7] - I[1] * I[8]) / det, (I[1] * I[5] - I[2] * I[4]) / det, (I[5] * I[6] - I[3] * I[8]) / det, (I[0] * I[8] - I[2] * I[6]) / det, (I[2] * I[3] - I[0] * I[5]) / det, (I[3] * I[7] - I[4] * I[6]) / det, (I[1] * I[6] - I[0] * I[7]) / det, (I[0] * I[4] - I[1] * I[3]) / det];
+    const w0 = inv[0] * L[0] + inv[1] * L[1] + inv[2] * L[2], w1 = inv[3] * L[0] + inv[4] * L[1] + inv[5] * L[2], w2 = inv[6] * L[0] + inv[7] * L[1] + inv[8] * L[2];
+    for (let i = 0; i < m.n; i++) { const rx = X[3 * i] - c[0], ry = X[3 * i + 1] - c[1], rz = X[3 * i + 2] - c[2];
+      const dvx = v[0] + (w1 * rz - w2 * ry), dvy = v[1] + (w2 * rx - w0 * rz), dvz = v[2] + (w0 * ry - w1 * rx);
+      V[3 * i] -= dvx; V[3 * i + 1] -= dvy; V[3 * i + 2] -= dvz; X[3 * i] -= dvx * h; X[3 * i + 1] -= dvy * h; X[3 * i + 2] -= dvz * h; P[3 * i] = X[3 * i] - V[3 * i] * h; P[3 * i + 1] = X[3 * i + 1] - V[3 * i + 1] * h; P[3 * i + 2] = X[3 * i + 2] - V[3 * i + 2] * h; }
   }
   /** A little pressure while sewing keeps panels from passing through each other; full once sewn. */
   pressureRamp() { return Math.max(0, Math.min(1, (this.t - this.pressureStart) / 0.5)); }
@@ -227,7 +334,7 @@ export class ClothSim {
     let sx = 0, sy = 0, sz = 0; for (let i = 0; i < m.n; i++) { sx += g[3 * i]; sy += g[3 * i + 1]; sz += g[3 * i + 2]; } sx /= m.n; sy /= m.n; sz /= m.n;
     let wsum = 0, gmax = 0; for (let i = 0; i < m.n; i++) { g[3 * i] -= sx; g[3 * i + 1] -= sy; g[3 * i + 2] -= sz; const l2 = g[3 * i] ** 2 + g[3 * i + 1] ** 2 + g[3 * i + 2] ** 2; wsum += W[i] * l2; gmax = Math.max(gmax, W[i] * Math.sqrt(l2)); }
     const alpha = (0.15 * pr.targetVolume / pr.p0) / Math.max(0.05, ramp) / h2;
-    let lam = -C / (wsum + alpha); if (gmax * lam > 0.25) lam = 0.25 / gmax; this.lastPressure = lam / h2;
+    let lam = -C / (wsum + alpha); const cap = ramp < 1 ? 0.25 : 2; if (gmax * lam > cap) lam = cap / gmax; this.lastPressure = lam / h2;
     for (let i = 0; i < m.n; i++) { const s = W[i] * lam; X[3 * i] += g[3 * i] * s; X[3 * i + 1] += g[3 * i + 1] * s; X[3 * i + 2] += g[3 * i + 2] * s; }
   }
   /** Stuffing pressure (Pa) from the mean fabric tension over the stretch edges and the toy's size. */
@@ -237,6 +344,8 @@ export class ClothSim {
     const tension = T / Math.max(1, k) / Math.max(1, m.spacing); const R = Math.cbrt(3 * Math.max(1, meshVolume(m)) / (4 * Math.PI));
     return 2 * tension / R;
   }
+  /** Start accumulating contact for the pressure maps. */
+  startRecording() { this.recordContact = true; this.contact.fill(0); this.layerContact.fill(0); this.contactSteps = 0; }
   kinetic() { const m = this.m; let e = 0; for (let i = 0; i < m.n; i++) e += 0.5 * m.mass[i] * (m.vel[3 * i] ** 2 + m.vel[3 * i + 1] ** 2 + m.vel[3 * i + 2] ** 2); return e; }
   /** Kinetic + gravitational + elastic (stretch and bend) energy, g·mm²/s². */
   energy() {
@@ -255,7 +364,7 @@ export function constraintValue(m: ClothModel, c: number) {
   return Math.hypot(ax - bx, ay - by, az - bz) - m.rest[c];
 }
 
-export function solveConstraint(m: ClothModel, c: number, h2: number) {
+export function solveConstraint(m: ClothModel, c: number, h2: number, lambda?: Float32Array) {
   const X = m.pos, W = m.invMass; const a0 = m.a0[c], a1 = m.a1[c], b0 = m.b0[c], b1 = m.b1[c]; const wa = m.wa[c], wb = m.wb[c];
   const ca0 = 1 - wa, ca1 = a1 >= 0 ? wa : 0, cb0 = 1 - wb, cb1 = b1 >= 0 ? wb : 0;
   let ax = X[3 * a0] * ca0, ay = X[3 * a0 + 1] * ca0, az = X[3 * a0 + 2] * ca0; if (a1 >= 0) { ax += X[3 * a1] * ca1; ay += X[3 * a1 + 1] * ca1; az += X[3 * a1 + 2] * ca1; }
@@ -263,7 +372,8 @@ export function solveConstraint(m: ClothModel, c: number, h2: number) {
   const dx = ax - bx, dy = ay - by, dz = az - bz; const L = Math.hypot(dx, dy, dz); if (L < 1e-9) return;
   const C = L - m.rest[c]; const alpha = (C > 0 ? m.compT[c] : m.compC[c]) / h2;
   const wsum = W[a0] * ca0 * ca0 + (a1 >= 0 ? W[a1] * ca1 * ca1 : 0) + W[b0] * cb0 * cb0 + (b1 >= 0 ? W[b1] * cb1 * cb1 : 0); if (wsum === 0) return;
-  const lam = -C / (wsum + alpha); const nx = dx / L * lam, ny = dy / L * lam, nz = dz / L * lam;
+  // XPBD: with several iterations a substep, the multiplier accumulates (Macklin et al. 2016).
+  const l0 = lambda ? lambda[c] : 0; const lam = (-C - alpha * l0) / (wsum + alpha); if (lambda) lambda[c] = l0 + lam; const nx = dx / L * lam, ny = dy / L * lam, nz = dz / L * lam;
   let s = W[a0] * ca0; X[3 * a0] += nx * s; X[3 * a0 + 1] += ny * s; X[3 * a0 + 2] += nz * s;
   if (a1 >= 0) { s = W[a1] * ca1; X[3 * a1] += nx * s; X[3 * a1 + 1] += ny * s; X[3 * a1 + 2] += nz * s; }
   s = -W[b0] * cb0; X[3 * b0] += nx * s; X[3 * b0 + 1] += ny * s; X[3 * b0 + 2] += nz * s;

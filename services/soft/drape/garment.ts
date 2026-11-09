@@ -7,11 +7,11 @@
 import { type Pt, bbox, rect } from '../geometry';
 import { type Pattern, type Piece, unfold } from '../patterns';
 import { type Body, type V3, ellPerim, torsoAt } from './avatar';
-import type { PlacedPiece, SeamSpec } from './cloth';
-import { type Fabric, defaultFabric } from './fabrics';
+import type { PlacedPiece, SeamSpec, GatherSpec, AttachSpec } from './cloth';
+import { type Fabric, defaultFabric, fabricById } from './fabrics';
 
 export type FabricFor = (role: string, piece: Piece) => Fabric;
-export interface Rig { placed: PlacedPiece[]; seams: SeamSpec[]; kind: 'garment' | 'plush' | 'loose'; notes: string[]; pressure?: { targetVolume: number; p0: number; planned: number }; needsBody: boolean }
+export interface Rig { placed: PlacedPiece[]; seams: SeamSpec[]; gathers?: GatherSpec[]; attach?: AttachSpec[]; kind: 'garment' | 'plush' | 'loose'; notes: string[]; pressure?: { targetVolume: number; p0: number; planned: number }; needsBody: boolean }
 
 const grainAngle = (p: Piece) => Math.atan2(p.grain[1][1] - p.grain[0][1], p.grain[1][0] - p.grain[0][0]);
 const nearestIdx = (ring: Pt[], q: Pt) => { let bi = 0, bd = Infinity; ring.forEach((p, i) => { const d = Math.hypot(p[0] - q[0], p[1] - q[1]); if (d < bd) { bd = d; bi = i; } }); return bi; };
@@ -38,14 +38,14 @@ function bodiceMarks(seam: Pt[]) {
 }
 
 /** Tee / hoodie (and other set-in-sleeve tops drafted by `bodice`). */
-function topRig(pattern: Pattern, body: Body, fab: FabricFor): Rig {
+function topRig(pattern: Pattern, body: Body, fab: FabricFor, off = 0): Rig {
   const by = (id: string) => pattern.pieces.find(p => p.id === id);
   const fr = by('front'), bk = by('back'), sl = by('sleeve'); if (!fr || !bk || !sl) return looseRig(pattern, body, fab);
   const F = unfold(fr), B = unfold(bk); const fm = bodiceMarks(F.seam), bm = bodiceMarks(B.seam);
   const placed: PlacedPiece[] = []; const seams: SeamSpec[] = []; const notes: string[] = [];
   const yHps = body.y.neckBase + 8; const L = fm.L;
   const ringsA = Math.max(...body.rings.slice(0, 6).map(r => r.a)), ringsB = Math.max(...body.rings.slice(0, 6).map(r => r.b + Math.abs(r.cz)));
-  const cyl = ellipseWalker(ringsA + 38, ringsB + 46);
+  const cyl = ellipseWalker(ringsA + 38 + off, ringsB + 46 + off);
   const wrap = (back: boolean) => (q: Pt): V3 => { const th = cyl.theta(q[0]); const [x, z] = cyl.at(back ? Math.PI - th : th); return [x, yHps - (L - q[1]), z]; };
   placed.push({ id: 'front', name: 'Front', pieceId: 'front', role: 'body', seam: F.seam, fabric: fab(F.fabric, F), grainAngle: grainAngle(F), map: wrap(false) });
   placed.push({ id: 'back', name: 'Back', pieceId: 'back', role: 'body', seam: B.seam, fabric: fab(B.fabric, B), grainAngle: grainAngle(B), map: wrap(true) });
@@ -61,7 +61,7 @@ function topRig(pattern: Pattern, body: Body, fab: FabricFor): Rig {
     const s = i === 0 ? 1 : -1; const tag = s > 0 ? 'L' : 'R'; const d = arm.dir;
     const up = (() => { const u: V3 = [-d[0] * d[1], 1 - d[1] * d[1], -d[2] * d[1]]; const l = Math.hypot(...u) || 1; return u.map(x => x / l) as V3; })();
     const fw = (() => { const u: V3 = [-d[0] * d[2], -d[1] * d[2], 1 - d[2] * d[2]]; const l = Math.hypot(...u) || 1; return u.map(x => x / l) as V3; })();
-    const R = Math.max(Bw / Math.PI, arm.r + 26); const a0 = -(len - capY) * 0.35;
+    const R = Math.max(Bw / Math.PI, arm.r + 26 + off); const a0 = -(len - capY) * 0.35;
     const id = `sleeve-${tag}`;
     placed.push({ id, name: `Sleeve ${tag}`, pieceId: 'sleeve', role: 'sleeve', seam: sl.seam, fabric: fab(sl.fabric, sl), grainAngle: grainAngle(sl),
       map: q => { const ax = a0 + (len - q[1]); const ph = q[0] / R; const c = Math.cos(ph) * R, sn = Math.sin(ph) * R; return [arm.root[0] + d[0] * ax + up[0] * c + fw[0] * sn, arm.root[1] + d[1] * ax + up[1] * c + fw[1] * sn, arm.root[2] + d[2] * ax + up[2] * c + fw[2] * sn]; } });
@@ -70,7 +70,7 @@ function topRig(pattern: Pattern, body: Body, fab: FabricFor): Rig {
     seams.push({ name: `Underarm ${tag}`, a: [{ piece: id, from: [Bw, capY], to: [hw, 0] }], b: [{ piece: id, from: [-Bw, capY], to: [-hw, 0] }] });
     const cuff = by('cuff');
     if (cuff) {
-      const cw = bbox(cuff.seam).w, ch = bbox(cuff.seam).h / 2; const cid = `cuff-${tag}`; const Rc = Math.max(cw / (2 * Math.PI), arm.r * 0.55 + 14);
+      const cw = bbox(cuff.seam).w, ch = bbox(cuff.seam).h / 2; const cid = `cuff-${tag}`; const Rc = Math.max(cw / (2 * Math.PI), arm.r * 0.55 + 14 + off);
       const wristAx = Math.hypot(arm.end[0] - arm.root[0], arm.end[1] - arm.root[1], arm.end[2] - arm.root[2]);
       const ax0 = Math.min(a0 + len, wristAx + 30);
       placed.push({ id: cid, name: `Cuff ${tag}`, pieceId: 'cuff', role: 'rib', seam: rect(0, 0, cw, ch), fabric: fab('rib', cuff), grainAngle: 0,
@@ -82,7 +82,7 @@ function topRig(pattern: Pattern, body: Body, fab: FabricFor): Rig {
   const hood = by('hood');
   if (hood) {
     const hb = bbox(hood.seam); const half = Math.max(...hood.seam.filter(p => p[1] < 1).map(p => p[0])); const topPt = hood.seam.reduce((b, p) => (p[1] > b[1] || (p[1] === b[1] && p[0] > b[0]) ? p : b), [0, -1] as Pt);
-    const hx = body.head.r[0] + 34, zFront = body.head.c[2] + body.head.r[2] * 0.95;
+    const hx = body.head.r[0] + 34 + off, zFront = body.head.c[2] + body.head.r[2] * 0.95;
     for (const s of [1, -1]) {
       const id = `hood-${s > 0 ? 'L' : 'R'}`; const f = fm.side(s), b = bm.side(s);
       placed.push({ id, name: `Hood ${s > 0 ? 'L' : 'R'}`, pieceId: 'hood', role: 'hood', seam: hood.seam, fabric: fab(hood.fabric, hood), grainAngle: grainAngle(hood),
@@ -94,7 +94,7 @@ function topRig(pattern: Pattern, body: Body, fab: FabricFor): Rig {
   const band = by('waistband');
   if (band) {
     const w = bbox(band.seam).w, hh = bbox(band.seam).h / 2; const hemY = yHps - L; const r = torsoAt(body, hemY - hh / 2); const k = r.b / r.a;
-    const a = Math.max(w / ellPerim(1, k), r.a + 18); const el = ellipseWalker(a, a * k);
+    const a = Math.max(w / ellPerim(1, k), r.a + 18 + off); const el = ellipseWalker(a, a * k);
     placed.push({ id: 'waistband', name: 'Waistband', pieceId: 'waistband', role: 'rib', seam: rect(0, 0, w, hh), fabric: fab('rib', band), grainAngle: 0,
       map: q => { const [x, z] = el.at(-Math.PI / 2 + (q[0] / w) * Math.PI * 2); return [x, hemY - hh + q[1] - 6, z + r.cz]; } });
     seams.push({ name: 'Waistband', a: [{ piece: 'waistband', from: [0, hh], to: [w, hh] }], b: [{ piece: 'front', from: fm.side(-1).hem, to: fm.side(1).hem }, { piece: 'back', from: bm.side(1).hem, to: bm.side(-1).hem }] });
@@ -102,15 +102,67 @@ function topRig(pattern: Pattern, body: Body, fab: FabricFor): Rig {
   }
   const nb = by('neckband');
   if (nb) {
-    const w = bbox(nb.seam).w, hh = bbox(nb.seam).h / 2; const a = Math.max(w / (2 * Math.PI), body.neckR + 16);
+    const w = bbox(nb.seam).w, hh = bbox(nb.seam).h / 2; const a = Math.max(w / (2 * Math.PI), body.neckR + 16 + off);
     placed.push({ id: 'neckband', name: 'Neckband', pieceId: 'neckband', role: 'rib', seam: rect(0, 0, w, hh), fabric: fab('rib', nb), grainAngle: 0,
       map: q => { const th = Math.PI - (q[0] / w) * Math.PI * 2; return [a * Math.sin(th), body.y.neckBase - 22 + q[1], a * 1.05 * Math.cos(th) - 6]; } });
     const L1 = fm.side(1), L2 = fm.side(-1), B1 = bm.side(1), B2 = bm.side(-1);
     seams.push({ name: 'Neckband', a: [{ piece: 'neckband', from: [0, 0], to: [w, 0] }], b: [{ piece: 'back', from: bm.cn, to: B1.np }, { piece: 'front', from: L1.np, to: L2.np, via: fm.cn }, { piece: 'back', from: B2.np, to: bm.cn }] });
     seams.push({ name: 'Neckband join', a: [{ piece: 'neckband', from: [0, 0], to: [0, hh] }], b: [{ piece: 'neckband', from: [w, 0], to: [w, hh] }] });
   }
-  if (by('pocket')) notes.push('The kangaroo pocket is drawn in 2D only; it is not simulated on the body yet.');
-  return { placed, seams, kind: 'garment', notes, needsBody: true };
+  const pk = by('pocket'); const attach: AttachSpec[] = [];
+  if (pk) {
+    // Kangaroo pocket: centred on the front, its lower edge 45 mm above the hem, sewn along the top
+    // and bottom edges; the outer ends stay open as the hand openings.
+    const P = unfold(pk); const pb = bbox(P.seam); const hw = (pb.x1 - pb.x0) / 2, ph = pb.h; const cx = (pb.x0 + pb.x1) / 2; const y0 = 45;
+    const at = (q: Pt): Pt => [q[0] - cx, q[1] - pb.y0 + y0]; const fmap = placed[0].map;
+    placed.push({ id: 'pocket', name: 'Kangaroo pocket', pieceId: 'pocket', role: 'pocket', seam: P.seam, fabric: fab(P.fabric, P), grainAngle: grainAngle(P),
+      map: q => { const w = fmap(at(q)); const r = Math.hypot(w[0], w[2]) || 1; return [w[0] + w[0] / r * 8, w[1], w[2] + w[2] / r * 8]; } });
+    const open = hw * 0.3;
+    attach.push({ name: 'Pocket bottom', piece: 'pocket', from: [pb.x0, pb.y0], to: [pb.x1, pb.y0], target: 'front', at },
+      { name: 'Pocket top', piece: 'pocket', from: [pb.x0 + open, pb.y1], to: [pb.x1 - open, pb.y1], target: 'front', at });
+    if (2 * hw > 2 * fm.W) notes.push(`The kangaroo pocket (${Math.round(2 * hw / 10)} cm) is wider than the front (${Math.round(2 * fm.W / 10)} cm): it wraps past the side seams. Check the pocket draft.`);
+  }
+  return { placed, seams, attach, kind: 'garment', notes, needsBody: true };
+}
+
+/** Gathered elastic-waist skirt: front and back panels round the hips, side seams, elastic waist. */
+function skirtRig(pattern: Pattern, body: Body, fab: FabricFor, off = 0): Rig {
+  const pc = pattern.pieces.find(p => p.id === 'panel'); if (!pc) return looseRig(pattern, body, fab);
+  const P = unfold(pc); const b = bbox(P.seam); const hw = b.x1, len = b.y1; const full = 4 * hw;
+  const r = torsoAt(body, body.y.hip); const k = r.b / r.a; const a = Math.max(full / ellPerim(1, k), r.a + 30 + off); const el = ellipseWalker(a, a * k);
+  const scale = el.perimeter / full; const yTop = body.y.waist + 20;
+  const wrap = (back: boolean) => (q: Pt): V3 => { const th = el.theta(q[0] * scale); const [x, z] = el.at(back ? Math.PI - th : th); return [x, yTop - (len - q[1]), z + r.cz]; };
+  const placed: PlacedPiece[] = [{ id: 'front', name: 'Skirt front', pieceId: 'panel', role: 'body', seam: P.seam, fabric: fab(P.fabric, P), grainAngle: grainAngle(P), map: wrap(false) },
+    { id: 'back', name: 'Skirt back', pieceId: 'panel', role: 'body', seam: P.seam, fabric: fab(P.fabric, P), grainAngle: grainAngle(P), map: wrap(true) }];
+  const seams: SeamSpec[] = [1, -1].map(s => ({ name: `Side seam ${s > 0 ? 'L' : 'R'}`, a: [{ piece: 'front', from: [s * hw, 0] as Pt, to: [s * hw, len] as Pt }], b: [{ piece: 'back', from: [s * hw, 0] as Pt, to: [s * hw, len] as Pt }] }));
+  const elastic = pattern.finished.find(f => /elastic/i.test(f[0]))?.[1] ?? full * 0.6; const ratio = Math.min(1, elastic / full);
+  const gathers: GatherSpec[] = ['front', 'back'].map(id => ({ name: `Waist elastic (${id})`, piece: id, from: [-hw, len] as Pt, to: [hw, len] as Pt, ratio, force: 10 }));
+  return { placed, seams, gathers, kind: 'garment', notes: [], needsBody: true };
+}
+
+/** One-piece legs (leggings): each leg round its thigh and calf, inseam, front and back crotch, elastic waist. */
+function leggingsRig(pattern: Pattern, body: Body, fab: FabricFor, off = 0): Rig {
+  const leg = pattern.pieces.find(p => p.id === 'leg'); if (!leg) return looseRig(pattern, body, fab);
+  const sm = leg.seam; const ha = Math.max(...sm.filter(q => q[1] < 0.5).map(q => q[0]));
+  const crF = sm.reduce((a, q) => (q[0] < a[0] ? q : a)), crB = sm.reduce((a, q) => (q[0] > a[0] ? q : a)); const yc = (crF[1] + crB[1]) / 2;
+  const top = sm.filter(q => q[1] > yc + 1); const wF = top.filter(q => q[0] < 0).reduce((a, q) => (q[1] > a[1] ? q : a)), wB = top.filter(q => q[0] > 0).reduce((a, q) => (q[1] > a[1] ? q : a));
+  const hipF: Pt = leg.notches?.[0] ?? [crF[0] + 20, yc + 30], hipB: Pt = leg.notches?.[1] ?? [crB[0] - 20, yc + 30];
+  const width = crB[0] - crF[0]; const placed: PlacedPiece[] = []; const seams: SeamSpec[] = []; const gathers: GatherSpec[] = [];
+  const elastic = pattern.finished.find(f => /elastic/i.test(f[0]))?.[1] ?? width; const waistEdge = Math.hypot(wB[0] - wF[0], wB[1] - wF[1]);
+  body.legs.forEach((lg, i) => {
+    const s = i === 0 ? 1 : -1; const tag = s > 0 ? 'L' : 'R'; const d = lg.dir; const R = Math.max(width / (2 * Math.PI), lg.r + 14 + off);
+    // Lateral (the leg's outer side, where the one-piece leg has no seam) and forward, both across the leg axis.
+    const lat: V3 = (() => { const u: V3 = [s - d[0] * d[0] * s, -d[1] * d[0] * s, -d[2] * d[0] * s]; const l = Math.hypot(...u) || 1; return u.map(x => x / l) as V3; })();
+    const fw0: V3 = [lat[1] * d[2] - lat[2] * d[1], lat[2] * d[0] - lat[0] * d[2], lat[0] * d[1] - lat[1] * d[0]]; const fw: V3 = fw0[2] >= 0 ? fw0 : [-fw0[0], -fw0[1], -fw0[2]];
+    const id = `leg-${tag}`; const a0 = lg.r * 0.2;
+    placed.push({ id, name: `Leg ${tag}`, pieceId: 'leg', role: 'body', seam: sm, fabric: fab(leg.fabric, leg), grainAngle: grainAngle(leg),
+      map: q => { const ax = (yc - q[1]) + a0; const ph = -q[0] / R; const c = Math.cos(ph) * R, sn = Math.sin(ph) * R; return [lg.root[0] + d[0] * ax + lat[0] * c + fw[0] * sn, lg.root[1] + d[1] * ax + lat[1] * c + fw[1] * sn, lg.root[2] + d[2] * ax + lat[2] * c + fw[2] * sn]; } });
+    seams.push({ name: `Inseam ${tag}`, a: [{ piece: id, from: [-ha, 0], to: crF }], b: [{ piece: id, from: [ha, 0], to: crB }] });
+    gathers.push({ name: `Waist elastic ${tag}`, piece: id, from: wF, to: wB, ratio: Math.min(1, elastic / (2 * waistEdge)), force: 8 });
+  });
+  seams.push({ name: 'Front crotch', a: [{ piece: 'leg-L', from: crF, to: wF, via: hipF }], b: [{ piece: 'leg-R', from: crF, to: wF, via: hipF }] });
+  seams.push({ name: 'Back crotch', a: [{ piece: 'leg-L', from: crB, to: wB, via: hipB }], b: [{ piece: 'leg-R', from: crB, to: wB, via: hipB }] });
+  return { placed, seams, gathers, kind: 'garment', notes: [], needsBody: true };
 }
 
 /** Two-panel plush critter with a base: front and back sewn round the outline, base into the bottom. */
@@ -132,7 +184,7 @@ function plushPalRig(pattern: Pattern, fab: FabricFor): Rig {
     seams.push({ name: 'Base back', a: [{ piece: 'back', from: [-BR[0], BR[1]], to: [-BL[0], BL[1]] }], b: [{ piece: 'base', from: [A, 0], to: [-A, 0], via: [0, -D] }] });
   }
   const litres = pattern.fill?.litres ?? 1;
-  return { placed, seams, kind: 'plush', notes: pattern.pieces.some(p => p.id === 'ear-inner') ? ['Inner-ear appliqués are flat on the front; shown in 2D only.'] : [], pressure: { targetVolume: litres * 1e6 * 1.3, p0: 2500, planned: litres * 1e6 }, needsBody: false };
+  return { placed, seams, kind: 'plush', notes: pattern.pieces.some(p => p.id === 'ear-inner') ? ['Inner-ear appliqués are flat on the front; shown in 2D only.'] : [], pressure: { targetVolume: litres * 1e6 * 1.02, p0: 2500, planned: litres * 1e6 }, needsBody: false };
 }
 
 /** Plush ball: N gores laid on a sphere, each sewn to the next. */
@@ -145,7 +197,7 @@ function plushBallRig(pattern: Pattern, fab: FabricFor): Rig {
       map: q => { const lat = q[1] / R; const cl = Math.max(0.04, Math.cos(lat)); const lon = lon0 + q[0] / (R * cl); return [c[0] + Rr * cl * Math.sin(lon), c[1] + Rr * Math.sin(lat), c[2] + Rr * cl * Math.cos(lon)]; } });
   }
   for (let i = 0; i < N; i++) seams.push({ name: `Panel ${i + 1}–${((i + 1) % N) + 1}`, a: [{ piece: `gore-${i}`, from: [0, b.y0], to: [0, b.y1], via: [wmax, 0] }], b: [{ piece: `gore-${(i + 1) % N}`, from: [0, b.y0], to: [0, b.y1], via: [-wmax, 0] }] });
-  return { placed, seams, kind: 'plush', notes: [], pressure: { targetVolume: (pattern.fill?.litres ?? 1) * 1e6 * 1.3, p0: 2500, planned: (pattern.fill?.litres ?? 1) * 1e6 }, needsBody: false };
+  return { placed, seams, kind: 'plush', notes: [], pressure: { targetVolume: (pattern.fill?.litres ?? 1) * 1e6 * 1.02, p0: 2500, planned: (pattern.fill?.litres ?? 1) * 1e6 }, needsBody: false };
 }
 
 /** Anything else (imported pieces, home goods): hang each piece flat round the body, unsewn. */
@@ -158,11 +210,30 @@ export function looseRig(pattern: Pattern, body: Body | null, fab: FabricFor): R
   return { placed, seams: [], kind: 'loose', notes: ['These pieces have no seam plan yet, so they hang unsewn to show the drape and fabric.'], needsBody: !!body };
 }
 
-export function rigFor(pattern: Pattern, body: Body, fab: FabricFor = (r, p) => defaultFabric(r, pattern.kind) ?? defaultFabric(p.fabric, pattern.kind)): Rig {
-  if (pattern.template === 'plush-pal') return plushPalRig(pattern, fab);
+export function rigFor(pattern: Pattern, body: Body, fab: FabricFor = (r, p) => (pattern.features.snug && r !== 'rib' ? fabricById('stretch-jersey')! : defaultFabric(r, pattern.kind) ?? defaultFabric(p.fabric, pattern.kind)), off = 0): Rig {
+  if (pattern.template === 'plush-pal' || pattern.template === 'plush-drawing') return plushPalRig(pattern, fab);
   if (pattern.template === 'plush-ball') return plushBallRig(pattern, fab);
-  if (pattern.kind === 'apparel' && pattern.pieces.some(p => p.id === 'sleeve') && pattern.pieces.some(p => p.id === 'front')) return topRig(pattern, body, fab);
+  if (pattern.template === 'skirt') return skirtRig(pattern, body, fab, off);
+  if (pattern.template === 'leggings') return leggingsRig(pattern, body, fab, off);
+  if (pattern.kind === 'apparel' && pattern.pieces.some(p => p.id === 'sleeve') && pattern.pieces.some(p => p.id === 'front')) return topRig(pattern, body, fab, off);
   return looseRig(pattern, body, fab);
 }
 
-export { nearestIdx };
+/**
+ * An outfit: several garments on one body, innermost first. Each garment's pieces start a little
+ * further out (so layers begin in order) and carry their layer and garment index for the solver's
+ * layer separation; ids and seams are prefixed so garments never sew to each other.
+ */
+export function outfitRig(patterns: Pattern[], body: Body, fab?: (garment: number) => FabricFor | undefined): Rig {
+  const rigs = patterns.map((p, k) => rigFor(p, body, fab?.(k) ?? undefined, k * 16));
+  if (rigs.length === 1) return { ...rigs[0], placed: rigs[0].placed.map(pp => ({ ...pp, layer: 0, garment: 0 })) };
+  const pre = (k: number, id: string) => `g${k}:${id}`; const out: Rig = { placed: [], seams: [], gathers: [], kind: 'garment', notes: [], needsBody: true };
+  rigs.forEach((r, k) => {
+    out.placed.push(...r.placed.map(pp => ({ ...pp, id: pre(k, pp.id), layer: k, garment: k })));
+    out.seams.push(...r.seams.map(sm => ({ ...sm, name: `${patterns[k].name}: ${sm.name}`, a: sm.a.map(x => ({ ...x, piece: pre(k, x.piece) })), b: sm.b.map(x => ({ ...x, piece: pre(k, x.piece) })) })));
+    out.gathers!.push(...(r.gathers ?? []).map(g => ({ ...g, name: `${patterns[k].name}: ${g.name}`, piece: pre(k, g.piece) })));
+    (out.attach ??= []).push(...(r.attach ?? []).map(a => ({ ...a, name: `${patterns[k].name}: ${a.name}`, piece: pre(k, a.piece), target: pre(k, a.target) })));
+    out.notes.push(...r.notes.map(n => `${patterns[k].name}: ${n}`));
+  });
+  return out;
+}

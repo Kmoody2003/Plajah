@@ -6,7 +6,7 @@
 import { type Pattern, type SoftTemplate, type ParamValue, softDefaults } from '../patterns';
 import { type Body, type SdfGrid, sampleSdf, torsoAt, ellPerim } from './avatar';
 import { type ClothModel, ClothSim, K_STITCH, constraintValue, meshVolume } from './cloth';
-import { setupDrape, drapeSync, type DrapeSetup } from './drape';
+import { setupDrape, drapeSync, sitAdvice, type DrapeSetup } from './drape';
 import { maxStretch } from './fabrics';
 
 export interface FitMaps { strain: Float32Array; pressure: Float32Array; gap: Float32Array; triStrain: Float32Array }
@@ -37,7 +37,23 @@ export function fitMaps(m: ClothModel, sim: ClothSim, sdf: SdfGrid | null): FitM
     pressure[i] = (sim.contact[i] / steps) * m.mass[i] / (h * h) / Math.max(1, m.vArea[i]) / 1000;
     gap[i] = sdf ? Math.max(0, sampleSdf(sdf, m.pos[3 * i], m.pos[3 * i + 1], m.pos[3 * i + 2]) - m.offset[i]) : Math.max(0, m.pos[3 * i + 1] - m.offset[i]);
   }
+  if (m.layers > 1 && sdf) layerGap(m, sdf, gap);
   return { strain: vert, pressure, gap, triStrain: tri };
+}
+
+/**
+ * Outer layers: ease is measured to the garment underneath where there is one (a hoodie over a tee
+ * is roomy only by what clears the tee), along the body normal, else to the body.
+ */
+export function layerGap(m: ClothModel, sdf: SdfGrid, gap: Float32Array) {
+  const X = m.pos; const cell = 40; const grid = new Map<string, number[]>(); const g = [0, 0, 0];
+  for (let i = 0; i < m.n; i++) { const k = `${Math.floor(X[3 * i] / cell)},${Math.floor(X[3 * i + 1] / cell)},${Math.floor(X[3 * i + 2] / cell)}`; const l = grid.get(k); if (l) l.push(i); else grid.set(k, [i]); }
+  for (let i = 0; i < m.n; i++) { if (m.layer[i] === 0) continue; sampleSdf(sdf, X[3 * i], X[3 * i + 1], X[3 * i + 2], g); const gl = Math.hypot(g[0], g[1], g[2]) || 1; const nx = g[0] / gl, ny = g[1] / gl, nz = g[2] / gl;
+    const cx = Math.floor(X[3 * i] / cell), cy = Math.floor(X[3 * i + 1] / cell), cz = Math.floor(X[3 * i + 2] / cell); let best = Infinity;
+    for (let dz = -1; dz <= 1; dz++) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) for (const j of grid.get(`${cx + dx},${cy + dy},${cz + dz}`) ?? []) {
+      if (m.layer[j] >= m.layer[i]) continue; const ux = X[3 * i] - X[3 * j], uy = X[3 * i + 1] - X[3 * j + 1], uz = X[3 * i + 2] - X[3 * j + 2]; const along = ux * nx + uy * ny + uz * nz; const lat = Math.sqrt(Math.max(0, ux * ux + uy * uy + uz * uz - along * along));
+      if (lat > 15 || along < -5) continue; best = Math.min(best, Math.max(0, along - (m.thick[i] + m.thick[j]) * 0.5)); }
+    if (best < Infinity) gap[i] = Math.min(gap[i], best); }
 }
 
 type P2 = [number, number];
@@ -66,25 +82,29 @@ export interface FitReport {
   poms: Pom[]; score: number; verdict: string[];
   tightPct: number; loosePct: number; maxPressure: number; meanStrain: number; maxStrain: number;
   sleeveEnd?: number; hemY?: number; neckOpening?: number; neckPressure?: number; seamGap: number;
-  plush?: { volume: number; target: number; fillPct: number; seamStrain: number; pressurePa: number; sitsUp: boolean; sitTested: boolean; /** Seam strain ÷ the fabric's own stretch. */ seamLoad?: number };
+  plush?: { volume: number; target: number; fillPct: number; seamStrain: number; pressurePa: number; sitsUp: boolean; sitTested: boolean; dropUpright?: boolean; advice?: string[]; /** Seam strain ÷ the fabric's own stretch. */ seamLoad?: number };
 }
 
 const EASE_BAND: Record<string, [number, number]> = { fitted: [30, 90], regular: [60, 170], oversized: [140, 330] };
 
-export function fitReport(s: DrapeSetup, sim: ClothSim, maps = fitMaps(s.model, sim, s.sdf), fit = 'regular'): FitReport {
+export function fitReport(s: DrapeSetup, sim: ClothSim, maps = fitMaps(s.model, sim, s.sdf), fit = 'regular', garment?: number): FitReport {
   const m = s.model; const body = s.body; let tA = 0, tight = 0, loose = 0, mp = 0, ms = 0, mx = 0;
-  for (let i = 0; i < m.n; i++) { const A = m.vArea[i]; tA += A; const knit = m.pieces[m.vPiece[i]].fabric.knit; if (maps.strain[i] > (knit ? 0.12 : 0.04)) tight += A; if (maps.gap[i] > 40) loose += A; mp = Math.max(mp, maps.pressure[i]); ms += maps.strain[i] * A; mx = Math.max(mx, maps.strain[i]); }
+  const gv = (i: number) => garment == null || m.garment[i] === garment; const gp = (pi: number) => garment == null || m.pieces[pi].garment === garment; const pat = s.garments?.[garment ?? 0] ?? s.pattern;
+  for (let i = 0; i < m.n; i++) { if (!gv(i)) continue; const A = m.vArea[i]; tA += A; const knit = m.pieces[m.vPiece[i]].fabric.knit; if (maps.strain[i] > (knit ? 0.12 : 0.04)) tight += A; if (maps.gap[i] > 40) loose += A; mp = Math.max(mp, maps.pressure[i]); ms += maps.strain[i] * A; mx = Math.max(mx, maps.strain[i]); }
   // Peak stretch as the 99th percentile by count, so a single crease triangle does not set it.
-  { const a = Array.from(maps.strain).sort((x, y) => x - y); mx = a.length ? a[Math.floor(a.length * 0.99)] : 0; }
-  let seamGap = 0; for (let c = 0; c < m.nc; c++) if (m.kind[c] === K_STITCH) seamGap = Math.max(seamGap, constraintValue(m, c) + m.rest[c]);
+  { const a = Array.from(maps.strain).filter((_, i) => gv(i)).sort((x, y) => x - y); mx = a.length ? a[Math.floor(a.length * 0.99)] : 0; }
+  let seamGap = 0; for (let c = 0; c < m.nc; c++) if (m.kind[c] === K_STITCH && gv(m.a0[c])) seamGap = Math.max(seamGap, constraintValue(m, c) + m.rest[c]);
   const rep: FitReport = { poms: [], score: 100, verdict: [], tightPct: tight / tA * 100, loosePct: loose / tA * 100, maxPressure: mp, meanStrain: ms / tA, maxStrain: mx, seamGap };
   if (s.rig.kind === 'plush') {
     const vol = meshVolume(m); const target = m.pressure?.planned ?? m.pressure?.targetVolume ?? vol;
     // Seam strain: 75th percentile over seam vertices (corner creases are solver artefacts, not weak seams).
     const ss = (() => { const a: number[] = []; for (let i = 0; i < m.n; i++) if (m.seamVert[i]) a.push(maps.strain[i]); a.sort((x, y) => x - y); return a.length ? a[Math.floor(a.length * 0.75)] : 0; })();
     let lo = Infinity, hi = -Infinity; for (let i = 0; i < m.n; i++) { lo = Math.min(lo, m.pos[3 * i + 1]); hi = Math.max(hi, m.pos[3 * i + 1]); }
-    const tested = sim.stuffedHeight != null; const sits = tested ? (hi - lo) / sim.stuffedHeight! > 0.8 : true;
-    rep.plush = { volume: vol, target, fillPct: vol / target * 100, seamStrain: ss, pressurePa: Math.max(0, sim.lastPressure), sitsUp: sits, sitTested: tested };
+    // Sits up = static balance: the stuffed toy's centre of mass (fabric + fill) over its base. The
+    // drop simulation is reported too, but it rocks over too readily (no fill compliance at the base).
+    const tested = sim.stuffedHeight != null; const dropUpright = tested ? (hi - lo) / sim.stuffedHeight! > 0.8 : true;
+    const advice = tested ? sitAdvice(s, sim) : null; const sits = advice ? advice.direction === 'none' : true;
+    rep.plush = { volume: vol, target, fillPct: vol / target * 100, seamStrain: ss, pressurePa: Math.max(0, sim.lastPressure), sitsUp: sits, sitTested: tested, dropUpright, advice: advice?.text };
     // Seam strain is judged against what the fabric itself gives (minky stretches, felt does not).
     const give = Math.max(0.05, Math.max(...m.pieces.map(p => maxStretch(p.fabric)))); const over = ss / give;
     rep.plush.seamLoad = over;
@@ -96,30 +116,30 @@ export function fitReport(s: DrapeSetup, sim: ClothSim, maps = fitMaps(s.model, 
     return rep;
   }
   if (!body) return rep;
-  const ids = (role: string) => new Set(m.pieces.map((p, i) => (p.role === role ? i : -1)).filter(i => i >= 0));
-  const torso = ids('body'); const spec = (name: string) => s.pattern.grading?.rows.find(r => r.pom.startsWith(name))?.values[s.pattern.grading.sizes.indexOf(s.pattern.size ?? '')];
+  const ids = (role: string) => new Set(m.pieces.map((p, i) => (p.role === role && gp(i) ? i : -1)).filter(i => i >= 0));
+  const torso = ids('body'); const spec = (name: string) => pat.grading?.rows.find(r => r.pom.startsWith(name))?.values[pat.grading.sizes.indexOf(pat.size ?? '')];
   const ring = (y: number) => { const r = torsoAt(body, y); return ellPerim(r.a, r.b); };
   if (torso.size) {
     for (const [name, y, key] of [['Chest', body.y.chest, 'Chest'], ['Waist', body.y.waist, ''], ['Hip', body.y.hip, '']] as Array<[string, number, string]>) {
       const g = clothGirth(m, [0, y, 0], [0, 1, 0], torso); if (g < 50) continue; const b = ring(y); rep.poms.push({ name, body: b, garment: g, ease: g - b, spec: key ? spec(key) : undefined });
     }
   }
-  const sleeves = m.pieces.map((p, i) => (p.role === 'sleeve' ? i : -1)).filter(i => i >= 0);
+  const sleeves = m.pieces.map((p, i) => (p.role === 'sleeve' && gp(i) ? i : -1)).filter(i => i >= 0);
   if (sleeves.length && body) {
     const arm = body.arms[0]; const d = arm.dir; const o = [arm.root[0] + (arm.mid[0] - arm.root[0]) * 0.45, arm.root[1] + (arm.mid[1] - arm.root[1]) * 0.45, arm.root[2] + (arm.mid[2] - arm.root[2]) * 0.45];
     const g = clothGirth(m, o, d as unknown as number[], new Set([sleeves[0]])); const b = 2 * Math.PI * arm.r * 0.97; if (g > 30) rep.poms.push({ name: 'Bicep', body: b, garment: g, ease: g - b });
     // Sleeve end: furthest sleeve or cuff vertex along the arm, against the wrist.
-    const ends = m.pieces.map((p, i) => ((p.role === 'sleeve' || p.role === 'rib') && /L$/.test(p.id) ? i : -1)).filter(i => i >= 0);
+    const ends = m.pieces.map((p, i) => ((p.role === 'sleeve' || p.role === 'rib') && /L$/.test(p.id) && gp(i) ? i : -1)).filter(i => i >= 0);
     let far = -Infinity; for (const pi of ends) { const P = m.pieces[pi]; for (let i = P.v0; i < P.v0 + P.vn; i++) far = Math.max(far, (m.pos[3 * i] - arm.root[0]) * d[0] + (m.pos[3 * i + 1] - arm.root[1]) * d[1] + (m.pos[3 * i + 2] - arm.root[2]) * d[2]); }
     const wrist = (arm.end[0] - arm.root[0]) * d[0] + (arm.end[1] - arm.root[1]) * d[1] + (arm.end[2] - arm.root[2]) * d[2]; rep.sleeveEnd = far - wrist;
   }
   // Hem: the lowest torso/waistband vertex.
-  let hem = Infinity; m.pieces.forEach((p, pi) => { if (p.role === 'body' || p.id === 'waistband') for (let i = p.v0; i < p.v0 + p.vn; i++) hem = Math.min(hem, m.pos[3 * i + 1]); }); rep.hemY = hem;
+  let hem = Infinity; m.pieces.forEach((p, pi) => { if (gp(pi) && (p.role === 'body' || /waistband$/.test(p.id))) for (let i = p.v0; i < p.v0 + p.vn; i++) hem = Math.min(hem, m.pos[3 * i + 1]); }); rep.hemY = hem;
   // Neck: opening (flat neckline length × the knit's stretch) and pressure on the band round the neck.
-  const neckSeams = m.seams.filter(x => /^Hood neck|^Neckband$/.test(x.name)); if (neckSeams.length) {
-    const flat = neckSeams.reduce((a, x) => a + x.lenB, 0); const f = m.pieces.find(p => p.role === 'body')!.fabric; rep.neckOpening = flat * (1 + maxStretch(f) * 0.6);
+  const neckSeams = m.seams.filter((x, k) => /(^|: )(Hood neck|Neckband$)/.test(x.name) && (garment == null || m.garment[m.a0[x.ids[0]] ?? 0] === garment) && k >= 0); if (neckSeams.length) {
+    const flat = neckSeams.reduce((a, x) => a + x.lenB, 0); const f = m.pieces.find((p, pi) => p.role === 'body' && gp(pi))!.fabric; rep.neckOpening = flat * (1 + maxStretch(f) * 0.6);
   }
-  let np = 0; for (let i = 0; i < m.n; i++) { const y = m.pos[3 * i + 1]; if (y > body.y.neckBase - 50 && y < body.y.chin && Math.hypot(m.pos[3 * i], m.pos[3 * i + 2]) < body.neckR + 60) np = Math.max(np, maps.pressure[i]); } rep.neckPressure = np;
+  let np = 0; for (let i = 0; i < m.n; i++) { const y = m.pos[3 * i + 1]; if (gv(i) && y > body.y.neckBase - 50 && y < body.y.chin && Math.hypot(m.pos[3 * i], m.pos[3 * i + 2]) < body.neckR + 60) np = Math.max(np, maps.pressure[i]); } rep.neckPressure = np;
   // Score.
   const band = EASE_BAND[fit] ?? EASE_BAND.regular; let score = 100; const chest = rep.poms.find(p => p.name === 'Chest');
   if (chest) { const e = chest.ease; if (e < band[0]) { score -= Math.min(45, (band[0] - e) * 0.6); rep.verdict.push(`Tight at the chest: ${Math.round(e / 10)} cm ease (aim for ${band[0] / 10}-${band[1] / 10} cm for a ${fit} fit).`); }
@@ -127,7 +147,7 @@ export function fitReport(s: DrapeSetup, sim: ClothSim, maps = fitMaps(s.model, 
   score -= Math.min(25, rep.tightPct * 1.5); if (rep.tightPct > 5) rep.verdict.push(`${Math.round(rep.tightPct)}% of the garment is stretched past comfortable.`);
   if (mp > 4) { score -= 15; rep.verdict.push(`Contact pressure peaks at ${mp.toFixed(1)} kPa (over 4 kPa feels like compression wear).`); } else if (mp > 2) score -= 6;
   if (rep.sleeveEnd != null) { const e = rep.sleeveEnd; if (e < -40) { score -= Math.min(20, (-40 - e) * 0.3); rep.verdict.push(`Sleeves end ${Math.round(-e / 10)} cm above the wrist.`); } else if (e > 60) { score -= Math.min(15, (e - 60) * 0.2); rep.verdict.push(`Sleeves run ${Math.round(e / 10)} cm past the wrist.`); } }
-  if (rep.hemY != null && isFinite(rep.hemY)) { if (rep.hemY > body.y.hip + 40) { score -= 10; rep.verdict.push('Hem sits above the hip: cropped on this body.'); } else if (rep.hemY < body.y.crotch - 140) { score -= 8; rep.verdict.push('Hem falls well below the seat: long on this body.'); } }
+  if (rep.hemY != null && isFinite(rep.hemY) && sleeves.length) { if (rep.hemY > body.y.hip + 40) { score -= 10; rep.verdict.push('Hem sits above the hip: cropped on this body.'); } else if (rep.hemY < body.y.crotch - 140) { score -= 8; rep.verdict.push('Hem falls well below the seat: long on this body.'); } }
   if (seamGap > 15) { score -= 10; rep.verdict.push(`Some seams cannot close on this body (${Math.round(seamGap)} mm apart): a piece is too small where it meets the body.`); }
   rep.score = Math.max(0, Math.round(score)); if (!rep.verdict.length) rep.verdict.push('Good fit: ease, length and pressure all in range.');
   return rep;
