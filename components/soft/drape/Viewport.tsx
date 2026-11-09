@@ -29,12 +29,14 @@ export interface ViewportHandle {
   /** A grid of `n` views round the garment (PNG data URL), rendered off-screen: works with the pane hidden. */
   turntableSheet(n?: number, size?: number): string;
   setQuality(q: 'draft' | 'product'): void;
+  /** Buttons riding on cloth vertices. */
+  setButtons(list: Array<{ vertex: number; diameterMm: number }>): void;
 }
 export interface PickHit { point: [number, number, number]; normal: [number, number, number]; on: 'body' | 'cloth'; vertex?: number }
 
 const Viewport = forwardRef<ViewportHandle, { onPick?: (h: PickHit) => void; className?: string }>(function Viewport({ onPick, className }, ref) {
   const host = useRef<HTMLDivElement>(null);
-  const W = useRef<{ renderer: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.PerspectiveCamera; orbit: OrbitControls; avatar?: THREE.Mesh; cloth?: THREE.Mesh; model?: ClothModel | null; decal?: THREE.Mesh; markers?: THREE.Group; spin?: number; nrm?: Float32Array; composer?: EffectComposer; key?: THREE.DirectionalLight; seams?: THREE.LineSegments; seamIdx?: Uint32Array; quality: 'draft' | 'product' } | null>(null);
+  const W = useRef<{ renderer: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.PerspectiveCamera; orbit: OrbitControls; avatar?: THREE.Mesh; cloth?: THREE.Mesh; model?: ClothModel | null; decal?: THREE.Mesh; markers?: THREE.Group; spin?: number; nrm?: Float32Array; composer?: EffectComposer; key?: THREE.DirectionalLight; seams?: THREE.LineSegments; seamIdx?: Uint32Array; quality: 'draft' | 'product'; buttons?: Array<{ vertex: number; mesh: THREE.Mesh }> } | null>(null);
   const pickRef = useRef(onPick); pickRef.current = onPick;
 
   useEffect(() => {
@@ -103,6 +105,7 @@ const Viewport = forwardRef<ViewportHandle, { onPick?: (h: PickHit) => void; cla
       // Colours arrive in sRGB (swatches, the map ramp); the renderer works in linear light.
       if (colors) { const c = g.getAttribute('color') as THREE.BufferAttribute; const A = c.array as Float32Array; for (let k = 0; k < colors.length; k++) { const v = colors[k]; A[k] = v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); } c.needsUpdate = true; }
       g.computeBoundingSphere();
+      for (const b of w.buttons ?? []) { const i = b.vertex, nn = w.nrm!; const n = new THREE.Vector3(nn[3 * i], nn[3 * i + 1], nn[3 * i + 2]); b.mesh.position.set(w.model.pos[3 * i], w.model.pos[3 * i + 1], w.model.pos[3 * i + 2]).addScaledVector(n, 2); b.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n); }
       if (w.seams && w.seamIdx) { const P = w.seams.geometry.getAttribute('position') as THREE.BufferAttribute; const A = P.array as Float32Array; const X = w.model.pos, nn = w.nrm!; const I = w.seamIdx;
         for (let k = 0; k < I.length; k += 2) { const a = I[k], b = I[k + 1]; // nudge toward the piece interior: average of neighbour direction is not stored, so lift off the surface instead
           for (const [o, i] of [[k, a], [k + 1, b]] as const) { A[3 * o] = X[3 * i] + nn[3 * i] * 1.2; A[3 * o + 1] = X[3 * i + 1] + nn[3 * i + 1] * 1.2; A[3 * o + 2] = X[3 * i + 2] + nn[3 * i + 2] * 1.2; } }
@@ -157,6 +160,11 @@ const Viewport = forwardRef<ViewportHandle, { onPick?: (h: PickHit) => void; cla
       return out.toDataURL('image/png');
     },
     setQuality(q) { const w = W.current; if (w) w.quality = q; },
+    setButtons(list) {
+      const w = W.current; if (!w) return; for (const b of w.buttons ?? []) { w.scene.remove(b.mesh); b.mesh.geometry.dispose(); }
+      w.buttons = list.map(b => { const r = b.diameterMm / 2; const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.92, Math.max(2, r * 0.3), 24), new THREE.MeshPhysicalMaterial({ color: 0xe8e1d4, roughness: 0.35, clearcoat: 0.6 })); mesh.castShadow = true; w.scene.add(mesh); return { vertex: b.vertex, mesh }; });
+      this.updateCloth();
+    },
   }), []);
 
   return <div ref={host} className={className ?? 'w-full h-full'} style={{ minHeight: 300, touchAction: 'none' }}/>;

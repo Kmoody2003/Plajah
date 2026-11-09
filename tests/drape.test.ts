@@ -20,6 +20,7 @@ import { flattenRegion } from '../services/soft/drape/flatten';
 import { projectDecal, printPieces } from '../services/soft/drape/printMap';
 import { costPerSize } from '../services/soft/drape/cost';
 import { fitHazards } from '../services/soft/drape/safety';
+import { trimHazards, cordEnds } from '../services/soft/drape/trims';
 
 const build = (id: string, over: Record<string, unknown> = {}) => { const t = softTemplateById(id)!; return t.build({ ...softDefaults(t), ...over } as never); };
 const bodyM = buildBody(measuresForSize('M')); const sdfM = bakeSdf(bodyM);
@@ -221,4 +222,16 @@ test('sit advice: a toy whose balance point overhangs its base gets pellet grams
   // Push the stuffed shape's balance point forward by moving the head region 60 mm to the front.
   const m = s.model; const X = (sim as unknown as { stuffedPos: Float32Array }).stuffedPos; for (let i = 0; i < m.n; i++) if (X[3 * i + 1] > 120) X[3 * i + 2] += 120;
   const a = sitAdvice(s, sim); assert.equal(a.direction, 'front'); assert.ok(a.pelletGrams > 0 && a.widenBaseMm > 0); assert.ok(a.text.join(' ').includes('pellets'));
+});
+
+test('trims: a hood drawcord hangs and is blocked on children, cord ends and small buttons are flagged, a zip stays stable', () => {
+  const h = build('hoodie', { drawstring: true }) as Pattern; const s = setupDrape(h, { body: bodyM, sdf: sdfM, spacing: 26 }); assert.equal(s.trimState?.cords.length, 1);
+  const sim = drapeSync(s, 1.5, { substeps: 10 }); assert.ok(!sim.hasNaN()); const [e0, e1] = cordEnds(s.model, s.trimState!.cords[0]); assert.ok(e0 > 120 && e1 > 120, `ends ${e0} ${e1}`);
+  assert.deepEqual(trimHazards(h, 'adult', s.trimState!, s.model).filter(x => x.severity === 'critical'), []);
+  assert.ok(trimHazards(h, 'child', s.trimState!, s.model).some(x => x.id === 'trim-cord-hood-child' && x.block));
+  const lg = build('leggings', { size: '6' }) as Pattern; const ls = setupDrape(lg, { spacing: 24, trims: [{ kind: 'drawcord', where: 'waist', endMm: 120, label: 'Waist cord', casing: [{ piece: 'leg-L', from: [-150, 330], to: [150, 330] }] }, { kind: 'button', piece: 'leg-L', at: [0, 300], diameterMm: 15 }] });
+  const lsim = drapeSync(ls, 1.0, { substeps: 8 }); assert.ok(!lsim.hasNaN()); const ids = trimHazards(lg, 'under3', ls.trimState!, ls.model).map(x => x.id); assert.ok(ids.includes('trim-small-part') && ids.includes('trim-cord-ends'));
+  const before = setupDrape(build('hoodie'), { body: bodyM, sdf: sdfM, spacing: 26 }).model.mass.reduce((a, b) => a + b, 0);
+  const z = setupDrape(build('hoodie'), { body: bodyM, sdf: sdfM, spacing: 26, trims: [{ kind: 'zip', piece: 'front', from: [0, 0], to: [0, 600] }] }); assert.ok(z.model.mass.reduce((a, b) => a + b, 0) > before + 10);
+  const zs = drapeSync(z, 1.0, { substeps: 8 }); assert.ok(!zs.hasNaN());
 });

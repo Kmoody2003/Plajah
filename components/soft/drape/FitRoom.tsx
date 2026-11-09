@@ -18,6 +18,8 @@ import { sortHazards } from '../../../services/safety/hazards';
 import { createGpuCloth, type GpuCloth } from '../../../services/soft/drape/gpu';
 import Viewport, { type ViewportHandle, type PickHit } from './Viewport';
 import FabricLab from './FabricLab';
+import TrimsPanel from './TrimsPanel';
+import { trimHazards, type TrimSpec } from '../../../services/soft/drape/trims';
 import GradingPanel from './GradingPanel';
 import PrintPanel from './PrintPanel';
 import FlattenPanel from './FlattenPanel';
@@ -27,7 +29,7 @@ export interface FitRoomProps { pattern: Pattern; template: SoftTemplate; params
 
 const C = { line: 'rgba(255,255,255,.08)', dim: 'rgba(255,255,255,.5)', panel: '#14121a' };
 const POSES: Array<[PoseName, string]> = [['a-pose', 'A-pose'], ['t-pose', 'T-pose'], ['sitting', 'Sitting'], ['walk', 'Walking'], ['custom', 'Custom pose']];
-type Tab = 'fit' | 'sizes' | 'grading' | 'print' | 'flatten' | 'cost' | 'safety';
+type Tab = 'fit' | 'sizes' | 'grading' | 'print' | 'flatten' | 'cost' | 'safety' | 'trims';
 const fmt = (mm: number, unit: 'cm' | 'in') => (unit === 'in' ? `${(mm / 25.4).toFixed(1)}″` : `${(mm / 10).toFixed(1)} cm`);
 const download = (name: string, data: Blob | string, type = 'application/octet-stream') => { const b = typeof data === 'string' ? new Blob([data], { type }) : data; const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(u), 3000); };
 
@@ -48,6 +50,7 @@ export default function FitRoom({ pattern, template, params, audience, unit }: F
   }, [pattern, JSON.stringify(layers)]); // eslint-disable-line react-hooks/exhaustive-deps
   const mainIdx = garments.indexOf(pattern);
   const [layerReports, setLayerReports] = useState<Array<{ name: string; score: number; verdict: string }>>([]);
+  const [trims, setTrims] = useState<TrimSpec[] | null>(null);
   const [fabricId, setFabricId] = useState<string>(''); const [measured, setMeasured] = useState<Fabric | null>(null); const [customFab, setCustomFab] = useState<Partial<Fabric>>({});
   const [mode, setMode] = useState<MapMode>('fabric'); const [tab, setTab] = useState<Tab>('fit');
   const [running, setRunning] = useState(true); const [progress, setProgress] = useState(0); const [engine, setEngine] = useState<'cpu' | 'gpu'>('cpu');
@@ -66,16 +69,16 @@ export default function FitRoom({ pattern, template, params, audience, unit }: F
   useEffect(() => {
     let dead = false; setReport(null); setMaps(null); setProgress(0); setMsg('');
     const body = buildBody(measures, poseNow());
-    let s: DrapeSetup; try { s = setupOutfit(garments, { body, fabricFor: k => (k === mainIdx ? (r: string) => fab(r) : undefined) }); } catch (e) { setMsg(`Could not arrange this pattern in 3D: ${String((e as Error).message ?? e)}`); return; }
+    let s: DrapeSetup; try { s = setupOutfit(garments, { body, fabricFor: k => (k === mainIdx ? (r: string) => fab(r) : undefined), trims: trims ?? undefined }); } catch (e) { setMsg(`Could not arrange this pattern in 3D: ${String((e as Error).message ?? e)}`); return; }
     setupRef.current = s; simRef.current = simFor(s); setRefined(false); setFrames(isPlush ? 200 : 170); gpuRef.current?.destroy(); gpuRef.current = null;
-    vp.current?.setAvatar(s.body && s.sdf ? smoothMesh(surfaceNets(s.sdf), s.sdf, 3) : null); vp.current?.setCloth(s.model); vp.current?.updateCloth(clothColors(s.model, 'fabric')); vp.current?.frame(s.body ? 'body' : 'plush');
+    vp.current?.setAvatar(s.body && s.sdf ? smoothMesh(surfaceNets(s.sdf), s.sdf, 3) : null); vp.current?.setCloth(s.model); vp.current?.setButtons(s.trimState?.buttons ?? []); vp.current?.updateCloth(clothColors(s.model, 'fabric')); vp.current?.frame(s.body ? 'body' : 'plush');
     (window as unknown as Record<string, unknown>).drapeState = { setup: s, sim: simRef.current, vp: vp.current };
     // Desktop GPU first: the WebGPU solver for garments (plush stuffing stays on the CPU solver).
     if (!isPlush && typeof navigator !== 'undefined' && 'gpu' in navigator) createGpuCloth(s.model, s.sdf, simRef.current.o).then(g => { if (dead) { g?.destroy(); return; } if (g) { gpuRef.current = g; setEngine('gpu'); } else setEngine('cpu'); }).catch(() => setEngine('cpu'));
     else setEngine('cpu');
     setRunning(true); setRev(r => r + 1);
     return () => { dead = true; };
-  }, [garments, measures, pose, walkFrame, JSON.stringify(customPose), fabricId, JSON.stringify(customFab), JSON.stringify(measured), seed]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [garments, JSON.stringify(trims), measures, pose, walkFrame, JSON.stringify(customPose), fabricId, JSON.stringify(customFab), JSON.stringify(measured), seed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Run loop: one display frame per animation frame until settled, then analyse.
   useEffect(() => {
@@ -104,8 +107,8 @@ export default function FitRoom({ pattern, template, params, audience, unit }: F
     const out = await tryEverySize(template, params, s.body, s.sdf, sizes, (done, row) => { setRowsBusy(done + 1); if (row) setRows(r => [...(r ?? []), row]); }, { fabric: r => fab(r) });
     setRows(out); setRowsBusy(0);
   };
-  const hazards = useMemo(() => sortHazards([...softHazards(pattern, audience), ...(report ? fitHazards(pattern, audience, report, setupRef.current) : [])]), [pattern, audience, report]);
-  const fitHz = hazards.filter(h => h.id.startsWith('fit-'));
+  const hazards = useMemo(() => sortHazards([...softHazards(pattern, audience), ...(report ? fitHazards(pattern, audience, report, setupRef.current) : []), ...(report && setupRef.current?.trimState ? trimHazards(pattern, audience, setupRef.current.trimState, setupRef.current.model) : [])]), [pattern, audience, report]);
+  const fitHz = hazards.filter(h => h.id.startsWith('fit-') || h.id.startsWith('trim-'));
   const snap = () => { const url = vp.current?.snapshot(1600, 2000); if (url) { const a = document.createElement('a'); a.href = url; a.download = `${pattern.name} 3D.png`; a.click(); } };
   const turn = () => { setMsg('Recording a 6 s turntable…'); vp.current?.turntable(6, b => { if (b) { download(`${pattern.name} turntable.webm`, b); setMsg('Turntable saved.'); } else setMsg('This browser cannot record the canvas; use the PNG instead.'); }); };
   const onPick = (h: PickHit) => pick?.(h);
@@ -148,7 +151,7 @@ export default function FitRoom({ pattern, template, params, audience, unit }: F
     </div>
     <div className="lg:w-[330px] shrink-0 flex flex-col min-h-0 rounded-xl border" style={{ borderColor: C.line, background: C.panel }}>
       <div className="flex flex-wrap gap-1 p-1.5 border-b" style={{ borderColor: C.line }}>
-        {([['fit', 'Fit'], ...(isPlush ? [] : [['sizes', 'Every size'], ['grading', 'Grading']]), ['print', 'Print'], ...(isPlush ? [] : [['flatten', '3D→2D']]), ['cost', 'Cost'], ['safety', fitHz.length ? `Safety (${fitHz.length})` : 'Safety']] as Array<[Tab, string]>).map(([id, l]) =>
+        {([['fit', 'Fit'], ...(isPlush ? [] : [['sizes', 'Every size'], ['grading', 'Grading']]), ['print', 'Print'], ...(isPlush ? [] : [['flatten', '3D→2D']]), ...(isPlush ? [] : [['trims', 'Trims']]), ['cost', 'Cost'], ['safety', fitHz.length ? `Safety (${fitHz.length})` : 'Safety']] as Array<[Tab, string]>).map(([id, l]) =>
           <button key={id} className={`sew-tab${tab === id ? ' sew-tab-on' : ''}`} onClick={() => { setTab(id); setPick(null); }} data-testid={`drape-tab-${id}`}>{l}</button>)}
       </div>
       <div className="flex-1 overflow-y-auto p-2.5 text-[12px]">
@@ -200,6 +203,7 @@ export default function FitRoom({ pattern, template, params, audience, unit }: F
         {tab === 'grading' && <GradingPanel pattern={pattern} template={template} params={params} unit={unit}/>}
         {tab === 'print' && <PrintPanel setup={setupRef.current} vp={vp} setPick={setPick} pattern={pattern}/>}
         {tab === 'flatten' && <FlattenPanel setup={setupRef.current} vp={vp} setPick={setPick} unit={unit}/>}
+        {tab === 'trims' && <TrimsPanel setup={setupRef.current} trims={trims ?? setupRef.current?.trims ?? []} setTrims={t => setTrims(t)} setPick={setPick} prefix={garments.length > 1 ? `g${mainIdx}:` : ''}/>}
         {tab === 'cost' && <CostPanel pattern={pattern} template={template} params={params} unit={unit}/>}
         {tab === 'safety' && <div data-testid="drape-safety"><div className="sew-h"><ShieldAlert size={12}/>From the fit</div>
           {fitHz.length === 0 && <div style={{ color: C.dim }}>{report ? 'No fit-related hazards on this body.' : 'Waiting for the drape to settle.'}</div>}

@@ -8,11 +8,12 @@ import { type Body, type BodyMeasures, type Pose, type SdfGrid, buildBody, bakeS
 import { buildCloth, ClothSim, DEFAULT_SIM, vertexNormals, type ClothModel, type SimOptions, type PlacedPiece } from './cloth';
 import { strainMap } from './fit';
 import { polyDist } from './mesh';
+import { trimsForPattern, trimsIntoRig, trimsIntoModel, type TrimSpec, type TrimState } from './trims';
 import type { Pt } from '../geometry';
 import { outfitRig, type FabricFor, type Rig } from './garment';
 
-export interface DrapeSetup { pattern: Pattern; body: Body | null; sdf: SdfGrid | null; rig: Rig; model: ClothModel; /** Every garment in the outfit, innermost first (pattern is garments[0]). */ garments: Pattern[] }
-export interface DrapeOptions { measures?: BodyMeasures; pose?: Pose; body?: Body; sdf?: SdfGrid; fabric?: FabricFor; spacing?: number; /** Per-garment fabric chooser for outfits. */ fabricFor?: (garment: number) => FabricFor | undefined }
+export interface DrapeSetup { trims?: TrimSpec[]; trimState?: TrimState; pattern: Pattern; body: Body | null; sdf: SdfGrid | null; rig: Rig; model: ClothModel; /** Every garment in the outfit, innermost first (pattern is garments[0]). */ garments: Pattern[] }
+export interface DrapeOptions { measures?: BodyMeasures; pose?: Pose; body?: Body; sdf?: SdfGrid; fabric?: FabricFor; spacing?: number; /** Per-garment fabric chooser for outfits. */ fabricFor?: (garment: number) => FabricFor | undefined; /** Trims; by default the ones the pattern asks for (a hood drawcord when the hoodie has one). */ trims?: TrimSpec[] }
 
 export function bodyForPattern(pattern: Pattern, measures?: BodyMeasures, pose?: Pose): Body {
   return buildBody(measures ?? measuresForSize(pattern.size && /^(2T|\d+|XS|S|M|L|XL|2XL|3XL)$/.test(pattern.size) ? pattern.size : 'M'), pose ?? poseFor('a-pose'));
@@ -24,7 +25,8 @@ export function setupDrape(pattern: Pattern, o: DrapeOptions = {}): DrapeSetup {
 export function setupOutfit(garments: Pattern[], o: DrapeOptions = {}): DrapeSetup {
   const pattern = garments[0]; const sized = garments.find(g => g.size) ?? pattern;
   const body = o.body ?? bodyForPattern(sized, o.measures, o.pose);
-  const rig = outfitRig(garments, body, o.fabricFor ?? (() => o.fabric));
+  let rig = outfitRig(garments, body, o.fabricFor ?? (() => o.fabric));
+  const trims = o.trims ?? garments.flatMap((g, k) => trimsForPattern(g, rig, garments.length > 1 ? `g${k}:` : '')); if (trims.length) rig = trimsIntoRig(rig, trims);
   const useBody = rig.needsBody ? body : null; const sdf = useBody ? (o.sdf ?? bakeSdf(useBody)) : null;
   const plush = rig.kind === 'plush'; const size = Math.max(...rig.placed.map(p => Math.max(...p.seam.map(q => q[1])) - Math.min(...p.seam.map(q => q[1]))));
   const h = o.spacing ?? (plush ? Math.max(6, Math.min(16, size / 28)) : 20);
@@ -34,7 +36,8 @@ export function setupOutfit(garments: Pattern[], o: DrapeOptions = {}): DrapeSet
     return { ...P, sizing: (q: Pt) => Math.min(h, ...paths.map(pp => hMin + 0.5 * polyDist(q, pp, false))) }; });
   const model = buildCloth(rig.placed, rig.seams, h, { pressure: rig.pressure, gathers: rig.gathers, attach: rig.attach });
   if (plush && pattern.fill) addFillMass(model, pattern.fill.grams, pattern.features.beads ? pattern.fill.grams * 0.4 : 0);
-  return { pattern, body: useBody, sdf, rig, model, garments };
+  const trimState = trims.length ? trimsIntoModel(model, trims) : undefined;
+  return { pattern, body: useBody, sdf, rig, model, garments, trims, trimState };
 }
 
 export function simFor(s: DrapeSetup, over: Partial<SimOptions> = {}) {
