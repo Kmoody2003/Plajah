@@ -21,7 +21,7 @@ export type Move =
   | { t: 'layer'; n: number; z: number } | { t: 'comment'; text: string } | { t: 'tool'; n: number; dia: number }
   | { t: 'fan'; s: number } | { t: 'temp'; s: number; bed?: boolean };
 
-export interface Job { process: ProcessId; kind: 'cut' | 'pocket' | 'fdm' | 'lathe'; moves: Move[]; warnings: string[]; stats: { cutLength: number; rapidLength: number; seconds: number; layers?: number; filamentMm?: number; filamentG?: number; pierces?: number }; bounds: { min: P2; max: P2 }; meta: Record<string, number | string> }
+export interface Job { process: ProcessId; kind: 'cut' | 'pocket' | 'adaptive' | 'surface' | 'fdm' | 'lathe'; moves: Move[]; warnings: string[]; stats: { cutLength: number; rapidLength: number; seconds: number; layers?: number; filamentMm?: number; filamentG?: number; pierces?: number }; bounds: { min: P2; max: P2 }; meta: Record<string, number | string> }
 
 const dist = (a: P2, b: P2) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 function rotateTo(l: Loop, i: number): Loop { return [...l.slice(i), ...l.slice(0, i)]; }
@@ -45,12 +45,32 @@ export interface CutOptions {
   process: ProcessId; kerf: number; feed: number; power?: number;
   /** Router/mill: material thickness, depth per pass, safe height. */ thickness?: number; stepDown?: number; safeZ?: number;
   leadIn?: number; pierceDelay?: number; passes?: number; plunge?: number;
+  /** Router/mill through-cuts: tabs left on each outline (count, width along the part, height above the bottom). */
+  tabs?: { count: number; width: number; height: number } | null;
+  /** Router/mill: leave this much skin at the bottom on every pass, then cut it in one last pass around each part. */
+  onionSkin?: number;
+}
+
+/** A closed path's points with tabs: the stretches around evenly spaced tab centres are flagged (split exactly at their ends). */
+export function tabSpans(pts: Loop, count: number, span: number): Array<{ p: P2; tab: boolean }> {
+  const ring = [...pts, pts[0]]; const cum = [0]; for (let i = 1; i < ring.length; i++) cum.push(cum[i - 1] + dist(ring[i - 1], ring[i]));
+  const P = cum[cum.length - 1]; if (count <= 0 || P <= 0) return ring.map(p => ({ p, tab: false }));
+  const half = Math.min(span / 2, P / count / 2 - 1e-6);
+  const cuts: Array<[number, number]> = Array.from({ length: count }, (_, i) => { const c = (i + 0.5) * P / count; return [c - half, c + half]; });
+  const inTab = (sv: number) => cuts.some(([a, b]) => sv > a + 1e-9 && sv < b - 1e-9);
+  const at = (sv: number): P2 => { let i = 1; while (i < cum.length - 1 && cum[i] < sv) i++; const t = (sv - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1); return [ring[i - 1][0] + (ring[i][0] - ring[i - 1][0]) * t, ring[i - 1][1] + (ring[i][1] - ring[i - 1][1]) * t]; };
+  const marks = [...cum.map((sv, i) => ({ sv, p: ring[i] })), ...cuts.flat().map(sv => ({ sv, p: at(sv) }))].sort((a, b) => a.sv - b.sv);
+  // Each point says whether the move arriving at it runs over a tab.
+  return marks.map((m, i) => ({ p: m.p, tab: i > 0 && inTab((marks[i - 1].sv + m.sv) / 2) }));
 }
 export function cutJob(loops: Loop[], open: P2[][], o: CutOptions): Job {
   const warnings: string[] = []; const moves: Move[] = []; const k = o.kerf / 2;
   const spindle = ['router', 'mill3', 'mill5'].includes(o.process); const torch = !spindle;
   const safeZ = o.safeZ ?? 5; const depth = o.thickness ?? 0; const step = spindle ? Math.max(0.1, o.stepDown ?? depth) : depth;
-  const levels = spindle ? Array.from({ length: Math.max(1, Math.ceil(depth / step - 1e-9)) }, (_, i) => -Math.min(depth, (i + 1) * step)) : [0];
+  const skin = spindle && depth > 0 ? Math.max(0, Math.min(o.onionSkin ?? 0, depth / 2)) : 0; const rough = depth - skin;
+  const levels = spindle ? Array.from({ length: Math.max(1, Math.ceil(rough / step - 1e-9)) }, (_, i) => -Math.min(rough, (i + 1) * step)) : [0];
+  const tabs = spindle && o.tabs && o.tabs.count > 0 && o.tabs.height > 0 && o.tabs.height < depth ? o.tabs : null; const tabZ = tabs ? -(depth - tabs.height) : 0;
+  if (spindle && o.tabs && o.tabs.count > 0 && !tabs) warnings.push('Tabs need a height between 0 and the material thickness; none were added.');
   const lead = o.leadIn ?? (o.process === 'plasma' ? 4 : o.process === 'waterjet' ? 2 : 0);
   type Path = { pts: Loop; closed: boolean; hole: boolean };
   const paths: Path[] = [];
@@ -72,6 +92,25 @@ export function cutJob(loops: Loop[], open: P2[][], o: CutOptions): Job {
   moves.push({ t: 'comment', text: `${order.length} paths, kerf ${o.kerf} mm` });
   if (spindle) moves.push({ t: 'rapid', z: safeZ }, { t: 'on', s: o.power ?? 18000 });
   let pierces = 0;
+  function runPath(p: Path, entry: P2, z: number) {
+    const start = p.pts[0];
+    moves.push({ t: 'rapid', x: entry[0], y: entry[1] });
+    const withTabs = !!tabs && p.closed && !p.hole && z < tabZ;
+    if (spindle) moves.push({ t: 'feed', z, f: o.plunge ?? o.feed / 3 });
+    else { moves.push({ t: 'on', s: o.power ?? 100 }); pierces++; if (o.pierceDelay) moves.push({ t: 'dwell', s: o.pierceDelay }); }
+    if (entry !== start) moves.push({ t: 'feed', x: start[0], y: start[1], f: o.feed });
+    if (withTabs) {
+      let cur = z;
+      for (const m of tabSpans(p.pts, tabs!.count, tabs!.width + o.kerf).slice(1)) {
+        const want = m.tab ? tabZ : z; if (want !== cur) { moves.push({ t: 'feed', z: want, f: o.plunge ?? o.feed / 3 }); cur = want; }
+        moves.push({ t: 'feed', x: m.p[0], y: m.p[1], f: o.feed });
+      }
+    } else {
+      for (const q of p.pts.slice(1)) moves.push({ t: 'feed', x: q[0], y: q[1], f: o.feed });
+      if (p.closed) moves.push({ t: 'feed', x: start[0], y: start[1], f: o.feed });
+    }
+    if (spindle) moves.push({ t: 'rapid', z: safeZ }); else moves.push({ t: 'off' });
+  }
   for (const p of order) {
     const start = p.pts[0];
     // Lead-in from scrap: outside an outline, inside a hole.
@@ -81,21 +120,13 @@ export function cutJob(loops: Loop[], open: P2[][], o: CutOptions): Job {
       const right: P2 = [dy / L, -dx / L]; // outlines run CCW: right is outside; holes run CW: right is inside the hole
       entry = [start[0] + right[0] * lead, start[1] + right[1] * lead];
     }
-    for (const z of levels) {
-      for (let pass = 0; pass < (o.passes ?? 1); pass++) {
-        moves.push({ t: 'rapid', x: entry[0], y: entry[1] });
-        if (spindle) moves.push({ t: 'feed', z, f: o.plunge ?? o.feed / 3 });
-        else { moves.push({ t: 'on', s: o.power ?? 100 }); pierces++; if (o.pierceDelay) moves.push({ t: 'dwell', s: o.pierceDelay }); }
-        if (entry !== start) moves.push({ t: 'feed', x: start[0], y: start[1], f: o.feed });
-        for (const q of p.pts.slice(1)) moves.push({ t: 'feed', x: q[0], y: q[1], f: o.feed });
-        if (p.closed) moves.push({ t: 'feed', x: start[0], y: start[1], f: o.feed });
-        if (spindle) moves.push({ t: 'rapid', z: safeZ }); else moves.push({ t: 'off' });
-      }
-    }
+    for (const z of levels) for (let pass = 0; pass < (o.passes ?? 1); pass++) runPath(p, entry, z);
   }
+  // Onion skin: one last pass at full depth around everything, holes first as before.
+  if (skin > 0) { moves.push({ t: 'comment', text: `Onion skin: final ${skin} mm pass` }); for (const p of order) runPath(p, p.pts[0], -depth); }
   if (spindle) moves.push({ t: 'off' });
   if (torch) moves.unshift({ t: 'comment', text: o.process === 'plasma' ? 'Torch height control and pierce height are set on the machine' : 'Focus the head before running' });
-  const job = finishStats({ process: o.process, kind: 'cut', moves, warnings, meta: { kerf: o.kerf, feed: o.feed } }, spindle ? 3000 : 6000);
+  const job = finishStats({ process: o.process, kind: 'cut', moves, warnings, meta: { kerf: o.kerf, feed: o.feed, ...(tabs ? { tabs: tabs.count, tabZ } : {}), ...(skin ? { onionSkin: skin } : {}) } }, spindle ? 3000 : 6000);
   job.stats.pierces = pierces; return job;
 }
 

@@ -365,3 +365,173 @@ test('time estimate accounts for acceleration and corners', () => {
   const j = fdmJob(box(20, 2), { accel: 500, adhesion: 'none' }); assert.ok(j.stats.seconds > Number(j.meta.secondsNoAccel), 'longer than the constant-speed sum');
   assert.ok(fdmJob(box(20, 2), { accel: 5000, adhesion: 'none' }).stats.seconds < j.stats.seconds);
 });
+
+// ---------------------------------------------------------------- machining gaps: 3D surfacing
+import { DropField, rasterJob, waterlineJob, stepoverForScallop, scallopForStepover } from '../services/fab/surface';
+import { distToLoop } from '../services/fab/geom2d';
+
+/** A UV sphere, radius r about the origin. */
+function sphere(r: number, lat = 24, lon = 48) {
+  const P: number[] = [], I: number[] = [];
+  for (let i = 0; i <= lat; i++) for (let j = 0; j < lon; j++) { const th = Math.PI * i / lat, ph = 2 * Math.PI * j / lon; P.push(r * Math.sin(th) * Math.cos(ph), r * Math.sin(th) * Math.sin(ph), r * Math.cos(th)); }
+  for (let i = 0; i < lat; i++) for (let j = 0; j < lon; j++) { const a = i * lon + j, b = i * lon + (j + 1) % lon, c = (i + 1) * lon + j, d = (i + 1) * lon + (j + 1) % lon; I.push(a, c, b, b, c, d); }
+  return [{ positions: P, indices: I }];
+}
+
+test('drop-cutter: flat and ball against a box, exact edge and vertex contacts, stock to leave', () => {
+  const b = box(20, 10); // x, y in ±10, z 0..10
+  const flat = new DropField(b, { shape: 'flat', dia: 6 }), ball = new DropField(b, { shape: 'ball', dia: 6 });
+  assert.ok(Math.abs(flat.drop(0, 0) - 10) < 1e-9 && Math.abs(ball.drop(0, 0) - 10) < 1e-9);
+  assert.ok(Math.abs(flat.drop(12, 0) - 10) < 1e-9, 'the flat rim still rests on the top edge 2 mm away');
+  assert.ok(Math.abs(ball.drop(12, 0) - (10 + Math.sqrt(5) - 3)) < 1e-9, 'ball on an edge 2 mm off: centre at 10 + √(9 − 4)');
+  assert.ok(Math.abs(ball.drop(12, 12) - (10 + Math.sqrt(9 - 8) - 3)) < 1e-9, 'ball on the corner vertex');
+  assert.equal(flat.drop(14, 0), 0, 'past the part the tool drops to the floor');
+  assert.ok(Math.abs(new DropField(b, { shape: 'ball', dia: 6 }, { stockToLeave: 0.5 }).drop(0, 0) - 10.5) < 1e-9);
+});
+
+test('scallop height sets the step-over and round-trips', () => {
+  assert.ok(Math.abs(stepoverForScallop(3, 0.01) - 2 * Math.sqrt(0.01 * 5.99)) < 1e-12);
+  assert.ok(Math.abs(scallopForStepover(3, stepoverForScallop(3, 0.02)) - 0.02) < 1e-9);
+});
+
+test('waterline: contours sit one tool radius off the box walls and touch the sphere', () => {
+  const j = waterlineJob(box(20, 10), { cutter: { shape: 'flat', dia: 6 }, feed: 800, stepDown: 2.5, resolution: 1 });
+  const sq10 = sq(10); const mid = j.levels.filter(L => L.z > 0.5 && L.z < 9.5);
+  assert.ok(mid.length >= 3 && mid.every(L => L.loops.length === 1));
+  for (const L of mid) for (const p of L.loops[0]) assert.ok(Math.abs(distToLoop(p, sq10) - 3) < 2e-3, `${p} is ${distToLoop(p, sq10)} off the wall`);
+  // Ball on a sphere: the ball centre at every contour point is R + r from the sphere's centre (the tool touches it).
+  const s = sphere(10); const R = 3; const w = waterlineJob(s, { cutter: { shape: 'ball', dia: 2 * R }, feed: 800, stepDown: 2, resolution: 0.8 });
+  const upper = w.levels.filter(L => L.z > 0.5 && L.z < 9); assert.ok(upper.length >= 3);
+  for (const L of upper) { assert.equal(L.loops.length, 1); for (const p of L.loops[0]) { const d = Math.hypot(p[0], p[1], L.z + R); assert.ok(Math.abs(d - 13) < 0.05, `centre ${d.toFixed(3)} from the sphere`); } }
+  // Every contour runs with the part on the right (climb cutting with M3) in the moves.
+  const g = post(j, { dialect: 'grbl' }); assert.match(g, /S12000 M3/); assert.ok(parseGcode(g).some(m => Math.abs(m.z - mid[0].z) < 1e-3));
+});
+
+test('raster finish: no gouge anywhere, rows on the scallop step-over, stock left on', () => {
+  const s = sphere(10); const R = 2;
+  const j = rasterJob(s, { cutter: { shape: 'ball', dia: 2 * R }, scallop: 0.02, feed: 1200, resolution: 0.5 });
+  assert.ok(Math.abs(Number(j.meta.stepover) - stepoverForScallop(R, 0.02)) < 1e-3);
+  // Ball centre never closer to the sphere than R (minus the faceting sag), and it does touch it.
+  let touch = 0;
+  for (const row of j.rows) for (const [x, y, z] of row) { const d = Math.hypot(x, y, z + R); if (z > -9.9) { assert.ok(d > 12 - 0.05, `gouge: ${d}`); if (d < 12 + 0.05) touch++; } }
+  assert.ok(touch > 100);
+  const left = rasterJob(s, { cutter: { shape: 'ball', dia: 2 * R }, stepover: 2, feed: 1200, stockToLeave: 0.5 });
+  assert.ok(left.rows.flat().every(([x, y, z]) => z <= -9.99 || Math.hypot(x, y, z + R) > 12.5 - 0.05));
+  assert.match(rasterJob(box(20, 30), { cutter: { shape: 'flat', dia: 6 }, feed: 800, reach: 20 }).warnings.join(' '), /holder would hit/);
+});
+
+// ---------------------------------------------------------------- machining gaps: adaptive clearing
+import { adaptiveJob, engagementAngle } from '../services/fab/adaptive';
+import { distToLoop as dLoop } from '../services/fab/geom2d';
+
+test('adaptive clearing: light steady engagement, never gouges walls or islands, clears the floor', () => {
+  for (const loops of [[sq(20)], [sq(20), sq(5, 5, 0)]]) {
+    const j = adaptiveJob(loops, { tool: 6, depth: 12, feed: 1500 });
+    const maxEng = engagementAngle(3, 0.9) * 1.3; const pts = j.path.pts.filter(p => !Number.isNaN(p.x));
+    const over = pts.filter(p => p.e > maxEng);
+    assert.ok(over.length / pts.length < 0.12, `${(over.length / pts.length * 100).toFixed(1)}% of the path over the engagement limit`);
+    // Wherever the cut does get heavier, the feed drops in proportion (constant chip load).
+    assert.ok(over.every(p => p.f <= 1500 * maxEng / p.e + 1));
+    // Tool centre at least a radius from every wall and island.
+    for (const p of pts) for (const l of loops) assert.ok(dLoop([p.x, p.y], l) > 3 - 1e-3, `gouge at ${p.x},${p.y}`);
+    assert.ok(j.path.uncleared < 0.02, `uncleared ${j.path.uncleared}`);
+    if (loops.length > 1) assert.ok(pts.every(p => !(Math.abs(p.x - 5) < 5 && Math.abs(p.y) < 5)), 'nothing inside the island');
+    // Full flute depth at once (2 × D default), with a helical entry; G-code carries the spindle and depths.
+    const g = post(j, { dialect: 'grbl' }); const zs = new Set(parseGcode(g).filter(m => m.g === 1).map(m => m.z));
+    assert.ok(zs.has(-12) && !zs.has(-6), 'one 12 mm level'); assert.ok(j.path.entry && j.path.entry.r > 1);
+  }
+  // Compared with plain concentric pocketing, the worst engagement is far lower.
+  assert.ok(adaptiveJob([sq(20)], { tool: 6, depth: 6, feed: 1500, stockToLeave: 0.5 }).path.pts.every(p => Number.isNaN(p.x) || dLoop([p.x, p.y], sq(20)) > 3.5 - 1e-3), 'stock to leave on the walls');
+  assert.match(adaptiveJob([sq(2)], { tool: 6, depth: 3, feed: 1000 }).warnings.join(' '), /narrower than/);
+});
+
+// ---------------------------------------------------------------- machining gaps: router holding
+import { tabSpans } from '../services/fab/cam';
+import { machiningHazards } from '../services/fab/camSafety';
+
+/** XY length cut at each Z, walking the moves. */
+function lengthByZ(moves: any[]) {
+  const out = new Map<number, number>(); let x = 0, y = 0, z = 0;
+  for (const m of moves) { if (m.t !== 'rapid' && m.t !== 'feed') continue; const nx = m.x ?? x, ny = m.y ?? y, nz = m.z ?? z; if (m.t === 'feed' && nz === z) { const k = +z.toFixed(4); out.set(k, (out.get(k) ?? 0) + Math.hypot(nx - x, ny - y)); } x = nx; y = ny; z = nz; }
+  return out;
+}
+
+test('tabs: evenly spaced, the right width and height, only on outlines and only below the tab top', () => {
+  const sp = tabSpans(sq(50), 4, 12); const tabLen = sp.reduce((s, m, i) => s + (m.tab ? Math.hypot(m.p[0] - sp[i - 1].p[0], m.p[1] - sp[i - 1].p[1]) : 0), 0);
+  assert.ok(Math.abs(tabLen - 48) < 1e-9);
+  const j = cutJob([sq(50), sq(10, 20, 20)], [], { process: 'router', kerf: 6, feed: 1500, thickness: 12, stepDown: 4, tabs: { count: 4, width: 6, height: 2 } });
+  const byZ = lengthByZ(j.moves);
+  // Tool centre runs 3 mm outside the 100 mm square: perimeter 400 + 2π·3; tabs lift for 4 × (6 + 6) mm.
+  const outline = 400 + 2 * Math.PI * 3, hole = 4 * 14 * 1; // the hole's path is 6 mm in from its 20 mm square
+  assert.ok(Math.abs((byZ.get(-10) ?? 0) - 48) < 0.5, `tab length ${byZ.get(-10)}`);
+  assert.ok(Math.abs((byZ.get(-12) ?? 0) - (outline - 48 + 4 * 14)) < 0.5, `full depth ${byZ.get(-12)} vs ${outline - 48 + hole}`);
+  assert.ok(Math.abs((byZ.get(-8) ?? 0) - (outline + 56)) < 0.5, 'no tabs above the tab top');
+  assert.equal(j.meta.tabs, 4);
+});
+
+test('onion skin: every pass stops short, then one last full-depth pass per part, tabs kept', () => {
+  const j = cutJob([sq(50)], [], { process: 'router', kerf: 6, feed: 1500, thickness: 12, stepDown: 4, onionSkin: 0.5 });
+  const zs = [...lengthByZ(j.moves).keys()].sort((a, b) => b - a); assert.deepEqual(zs, [-4, -8, -11.5, -12]);
+  const both = cutJob([sq(50)], [], { process: 'router', kerf: 6, feed: 1500, thickness: 12, stepDown: 4, onionSkin: 0.5, tabs: { count: 3, width: 5, height: 3 } });
+  const bz = lengthByZ(both.moves); assert.ok(Math.abs((bz.get(-9) ?? 0) - 2 * 3 * 11) < 0.5, 'tabs on the last rough level and in the onion-skin pass'); assert.ok(bz.has(-11.5) && bz.has(-12));
+  assert.match(post(both, { dialect: 'grbl' }), /Onion skin/);
+});
+
+test('machining hazards: unheld through-cuts, one tab, holder crash; each cites its rule', () => {
+  const ids = (h: ReturnType<typeof machiningHazards>) => h.map(x => x.id);
+  assert.ok(ids(machiningHazards({ op: 'profile', throughCut: true })).includes('parts-fling'));
+  assert.ok(!ids(machiningHazards({ op: 'profile', throughCut: true, tabs: { count: 3, width: 6, height: 2 } })).includes('parts-fling'));
+  assert.ok(ids(machiningHazards({ op: 'profile', throughCut: true, tabs: { count: 1, width: 6, height: 2 } })).includes('one-tab'));
+  assert.ok(ids(machiningHazards({ op: 'profile', throughCut: true, onionSkin: 0.4, smallestPart: 100 })).includes('small-parts'));
+  const crash = machiningHazards({ op: 'surface', depth: 50, reach: 30, toolDia: 6 }); assert.ok(crash.find(h => h.id === 'holder-crash')?.block);
+  assert.ok(machiningHazards({ op: 'surface', depth: 50, reach: 60, toolDia: 6, finishFromStock: true }).every(h => h.cite));
+});
+
+// ---------------------------------------------------------------- machining gaps: sheet metal
+import { flatPattern, flatToDxf, bendTable, bendAllowance, bendDeduction, outsideSetback, kFactor, sheetChecks, type ProfilePart } from '../services/fab/sheetMetal';
+import { parseDxf } from '../services/cad/dxf';
+
+test('sheet metal: K-factor (DIN 6935), BA and BD, bend tables per material and thickness', () => {
+  assert.ok(Math.abs(kFactor(2, 2) - 0.325) < 1e-12); assert.equal(kFactor(20, 2), 0.5);
+  const ba = bendAllowance(90, 2, 2, 0.4); assert.ok(Math.abs(ba - Math.PI / 2 * 2.8) < 1e-12);
+  assert.ok(Math.abs(bendDeduction(90, 2, 2, 0.4) - (2 * 4 - ba)) < 1e-12); assert.ok(Math.abs(outsideSetback(90, 2, 2) - 4) < 1e-12);
+  const tb = bendTable('steel-cr', 2); assert.equal(tb.V, 16); assert.ok(Math.abs(tb.R - 2.5) < 0.01); assert.equal(tb.rows.length, 6);
+  assert.ok(Math.abs(tb.forcePerM - 1.42 * 400 * 4 / 16) < 0.1, `${tb.forcePerM} kN/m`); // ~14.5 t/m for 2 mm mild steel on V16
+  assert.ok(bendTable('al6061', 2).R >= 6, '6061-T6 gets a 3·t radius'); assert.ok(bendTable('ss304', 2).forcePerM > tb.forcePerM);
+});
+
+test('sheet metal: flat length is the flanges plus the bend allowances (and outside dims less BD)', () => {
+  const flat: ProfilePart = { kind: 'profile', material: 'steel-cr', t: 2, width: 100, radius: 2, k: 0.4, segments: [30, 50, 30], dims: 'flat', bends: [{ angle: 90, dir: 'up' }, { angle: 90, dir: 'up' }] };
+  const f = flatPattern(flat); const ba = bendAllowance(90, 2, 2, 0.4);
+  assert.ok(Math.abs(f.total - (110 + 2 * ba)) < 1e-9); assert.deepEqual(f.size.map(v => +v.toFixed(6)), [+(110 + 2 * ba).toFixed(6), 100]);
+  const out = flatPattern({ ...flat, dims: 'outside', segments: [40, 60, 40], bends: [{ angle: 90, dir: 'up' }, { angle: 45, dir: 'down' }] });
+  assert.ok(Math.abs(out.total - (140 - bendDeduction(90, 2, 2, 0.4) - bendDeduction(45, 2, 2, 0.4))) < 1e-9);
+  // Bend lines sit in the middle of each bend zone.
+  assert.ok(Math.abs(f.bends[0].a[0] - (30 + ba / 2)) < 1e-9 && Math.abs(f.bends[1].a[0] - (30 + ba + 50 + ba / 2)) < 1e-9);
+  assert.throws(() => flatPattern({ ...flat, segments: [30, 50] }), /needs 3 flange lengths/);
+});
+
+test('sheet metal: tray flat pattern with corner reliefs; DXF keeps bend lines on their own layer', () => {
+  const t = 1.5, R = 1.5; const f = flatPattern({ kind: 'tray', material: 'al5052', t, radius: R, k: 0.4, w: 120, l: 80, flanges: { s: 20, e: 20, n: 20, w: 20 } });
+  const bd = bendDeduction(90, R, t, 0.4); assert.ok(Math.abs(f.size[0] - (120 + 40 - 2 * bd)) < 1e-6 && Math.abs(f.size[1] - (80 + 40 - 2 * bd)) < 1e-6);
+  assert.equal(f.bends.length, 4); assert.ok(area(f.outline) > 0, 'counter-clockwise outline');
+  // Each relief circle is cut around the meeting point of two bend lines' zone edges.
+  const near = (p: number[], q: number[]) => Math.hypot(p[0] - q[0], p[1] - q[1]);
+  const W = 120 - 2 * outsideSetback(90, R, t); assert.ok(f.outline.some(p => Math.abs(near(p, [0, 0]) - t) < 1e-9 && p[0] > 0 && p[1] > 0), 'relief bites into the base corner');
+  assert.ok(f.outline.some(p => Math.abs(near(p, [W, 0]) - t) < 1e-9));
+  const dxf = flatToDxf(f, t, 'tray'); const m = parseDxf(dxf, 'tray.dxf');
+  assert.equal(m.entities.filter(e => e.layer === 'BEND' && e.type === 'line').length, 4);
+  assert.equal(m.entities.filter(e => e.layer === 'CUT').length, 1); assert.ok(m.entities.some(e => e.layer === 'BEND_NOTES' && e.type === 'text' && /UP 90/.test(e.text)));
+  const noW = flatPattern({ kind: 'tray', material: 'al5052', t, radius: R, w: 120, l: 80, flanges: { s: 20, e: 20, n: 20, w: 0 } }); assert.equal(noW.bends.length, 3);
+});
+
+test('sheet metal checks: tight radius cracks 6061, short flanges, holes by bends, brake overload blocks', () => {
+  const part: ProfilePart = { kind: 'profile', material: 'al6061', t: 2, width: 1000, radius: 2, segments: [30, 8, 30], dims: 'outside', bends: [{ angle: 90, dir: 'up' }, { angle: 90, dir: 'up' }], holes: [{ seg: 0, at: 25, y: 50, dia: 4 }] };
+  const c = sheetChecks(part, { brakeTons: 5 });
+  assert.ok(c.findings.some(f => /tighter than/.test(f.title)));
+  assert.ok(c.findings.some(f => f.level === 'error' && /shorter than/.test(f.title)));
+  assert.ok(c.findings.some(f => /too close to a bend/.test(f.title)));
+  assert.ok(c.hazards.find(h => h.id === 'brake-overload')?.block); assert.ok(c.hazards.every(h => h.cite));
+  const ok = sheetChecks({ ...part, material: 'steel-cr', radius: 3, segments: [40, 40, 40], holes: [{ seg: 0, at: 10, y: 50, dia: 4 }] }, { brakeTons: 100 });
+  assert.ok(!ok.findings.some(f => f.level === 'error'), JSON.stringify(ok.findings.filter(f => f.level === 'error'))); assert.ok(!ok.hazards.some(h => h.block));
+});

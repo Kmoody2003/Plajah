@@ -4,7 +4,12 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Factory, Play, Download, Send, Square, Store, Upload, Trash2 } from 'lucide-react';
-import { processHazards, profileHazards, needsAck, sortHazards } from '../../services/safety/hazards';
+import { processHazards, profileHazards, openHazards, sortHazards } from '../../services/safety/hazards';
+import { rasterJob, waterlineJob, type CutterShape } from '../../services/fab/surface';
+import { machiningHazards } from '../../services/fab/camSafety';
+import { adaptiveJob } from '../../services/fab/adaptive';
+import SheetMetalPanel from './SheetMetalPanel';
+import { meshBounds } from '../../services/fab/slice';
 import { importProfiles, applyProfiles, loadProfiles, saveProfiles, mergeProfiles, renderGcode, settingsVars, jobVars, type SavedProfile, type ProfileKind, type Flat } from '../../services/fab/profiles';
 import { INFILL_PATTERNS, type InfillPattern } from '../../services/fab/infill';
 import type { SeamMode, FdmOptions } from '../../services/fab/cam';
@@ -15,7 +20,7 @@ import type { CadModel } from '../../services/cad/model';
 import { MM_PER_UNIT } from '../../services/cad/model';
 import { PROCESSES, machinesFor, type Process, type Machine, type Family } from '../../services/fab/machines';
 import { type Job, cutJob, fdmJob, latheJob, turnedProfile, writeCli, FDM_DEFAULTS } from '../../services/fab/cam';
-import { entitiesToPaths, type Loop, type P2 } from '../../services/fab/geom2d';
+import { entitiesToPaths, regions, area, type Loop, type P2 } from '../../services/fab/geom2d';
 import { sliceMesh, type Layer, type MeshIn } from '../../services/fab/slice';
 import { post, fileExtension } from '../../services/fab/gcode';
 import { dfm2d, dfm3d, type DfmFinding } from '../../services/fab/dfm';
@@ -51,7 +56,9 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
   const [s, setS] = useState({ layer: 0.2, infill: 20, walls: 2, nozzleTemp: 210, bedTemp: 60, kerf: proc.rules.kerf ?? 0.15, feed: 1200, power: 80, thickness: 3, material: '', tool: 6.35, stepDown: 3, stock: 25, doc: 1, metalLayer: 0.04,
     filament: 'pla', supports: 'none' as 'none' | 'buildplate' | 'everywhere', adhesion: 'skirt' as 'none' | 'skirt' | 'brim',
     resinPrinter: 'sl1s', resin: 'standard', resinLayer: 0.05, resinSupports: true,
-    infillPattern: 'lines' as InfillPattern, seam: 'aligned' as SeamMode, supportStyle: 'grid' as 'grid' | 'tree', ironing: false, adaptive: false, maxVolumetric: 0 });
+    infillPattern: 'lines' as InfillPattern, seam: 'aligned' as SeamMode, supportStyle: 'grid' as 'grid' | 'tree', ironing: false, adaptive: false, maxVolumetric: 0,
+    strategy: 'waterline' as 'waterline' | 'raster', cutter: 'ball' as CutterShape, scallop: 0.02, stockToLeave: 0, reach: 40, rpm: 12000,
+    routerOp: 'profile' as 'profile' | 'adaptive', pocketDepth: 6, load: 15, tabCount: 4, tabWidth: 8, tabHeight: 2, onionSkin: 0 });
   // Imported slicer profiles (OrcaSlicer, Bambu Studio, PrusaSlicer, SuperSlicer, 3MF projects), saved per user on this device.
   const [user, setUser] = useState('');
   useEffect(() => { let on = true; getToken?.().then(t => { if (on) setUser(userFromToken(t)); }).catch(() => {}); return () => { on = false; }; }, [getToken]);
@@ -113,14 +120,17 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
   const blocked = findings.some(f => f.level === 'error');
   // Machine safety: critical hazards must be acknowledged before preparing, downloading or sending.
   const hazards = useMemo(() => {
-    const base = processHazards(proc.id, s.material || applied.filamentType || s.filament);
+    const base0 = processHazards(proc.id, s.material || applied.filamentType || s.filament);
+    const surfacing = (proc.id === 'mill3' || proc.id === 'mill5') && !is2D && meshes.length > 0;
+    const routerExtra = proc.id === 'router' && is2D ? machiningHazards(s.routerOp === 'adaptive' ? { op: 'adaptive', engagement: s.load / 100, depth: s.pocketDepth, reach: s.reach, toolDia: s.tool } : { op: 'profile', throughCut: true, tabs: s.tabCount > 0 ? { count: s.tabCount, width: s.tabWidth, height: s.tabHeight } : null, onionSkin: s.onionSkin, smallestPart: Math.min(...regions(paths.loops).map(r => Math.abs(area(r.outer)))) }) : [];
+    const base = routerExtra.length ? sortHazards([...base0, ...routerExtra]) : surfacing ? (() => { const b = meshBounds(meshes); return sortHazards([...base0, ...machiningHazards({ op: 'surface', depth: b.max[2] - b.min[2], reach: s.reach, toolDia: s.tool, finishFromStock: true })]); })() : base0;
     if (!fdmLike || (!picked.printer && !picked.filament && !picked.process)) return base;
     const f = applied.fdm; const speeds = [f.speed, f.outerWallSpeed, f.innerWallSpeed, f.infillSpeed, f.solidSpeed].filter((v): v is number => typeof v === 'number');
     return sortHazards([...base, ...profileHazards({ material: applied.filamentType || filamentById(s.filament)?.name, nozzleTemp: s.nozzleTemp, bedTemp: s.bedTemp, firstLayerNozzleTemp: f.firstLayerNozzleTemp, firstLayerBedTemp: f.firstLayerBedTemp,
       speed: Math.max(0, ...speeds), travel: f.travel ?? 0, maxX: applied.limits?.maxX, maxY: applied.limits?.maxY, gcode: profileGcode, source: [picked.printer, picked.filament, picked.process].filter(Boolean).map(p => p!.name).join(', ') })]);
-  }, [proc.id, s.material, s.filament, s.nozzleTemp, s.bedTemp, applied, picked, fdmLike, profileGcode]);
-  const [acks, setAcks] = useState<string[]>([]); const [terms, setTerms] = useState(termsAccepted); const [exchange, setExchange] = useState(false);
-  const openCritical = needsAck(hazards).filter(h => !acks.includes(h.id));
+  }, [proc.id, s.material, s.filament, s.nozzleTemp, s.bedTemp, applied, picked, fdmLike, profileGcode, is2D, meshes, s.reach, s.tool, s.routerOp, s.load, s.pocketDepth, s.tabCount, s.tabWidth, s.tabHeight, s.onionSkin, paths]);
+  const [sheet, setSheet] = useState(false); const [acks, setAcks] = useState<string[]>([]); const [terms, setTerms] = useState(termsAccepted); const [exchange, setExchange] = useState(false);
+  const openCritical = openHazards(hazards, acks);
   const base = model.name.replace(/\.[^.]+$/, '') || 'part';
 
   const prepare = () => {
@@ -160,12 +170,22 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
         } else if (proc.id === 'lathe') {
           const j = latheJob(turnedProfile(meshes), { stock: s.stock, doc: s.doc, finish: 0.2, feed: s.feed / 8, finishFeed: s.feed / 15, rpm: 1200 });
           const g = post(j, { dialect: machine?.dialect ?? 'lathe-iso', name: base, coolant: true }); setJob(j); setOut({ name: `${base}.${fileExtension(machine?.dialect ?? 'lathe-iso')}`, data: g, type: 'text/plain', gcode: g });
+        } else if ((proc.id === 'mill3' || proc.id === 'mill5') && machine?.dialect) {
+          // Our own 3D surfacing: waterline for steep walls, parallel rows for gentle surfaces.
+          const so = { process: proc.id, cutter: { shape: s.cutter, dia: s.tool }, scallop: s.scallop, stockToLeave: s.stockToLeave, feed: s.feed, rpm: s.rpm, reach: s.reach };
+          const j = s.strategy === 'raster' ? rasterJob(meshes, so) : waterlineJob(meshes, so);
+          const g = post(j, { dialect: machine.dialect, name: base, coolant: machine.dialect === 'iso' }); setJob(j); setOut({ name: `${base}.${fileExtension(machine.dialect)}`, data: g, type: 'text/plain', gcode: g });
+          if (proc.id === 'mill5') setMsg('These are 3-axis toolpaths with the head vertical; tilt-axis surfacing is not done yet.');
         } else if (proc.input === '3d') {
           // 3D milling / DED: we export the model for full 3D CAM, plus a profile job from its footprint.
           const data = write3mf(meshes.map(m => ({ ...m, name: base })), { title: base });
-          setOut({ name: `${base}.3mf`, data: data as BlobPart, type: 'model/3mf' }); setMsg('Full 3D surfacing toolpaths are coming next; this exports the checked model for your CAM. Drawings can be profiled and pocketed now.');
+          setOut({ name: `${base}.3mf`, data: data as BlobPart, type: 'model/3mf' }); setMsg('Exports the checked model for the deposition machine’s own path planner.');
+        } else if (proc.id === 'router' && s.routerOp === 'adaptive' && machine?.dialect) {
+          const j = adaptiveJob(paths.loops, { process: 'router', tool: s.tool, load: s.tool * s.load / 100, depth: s.pocketDepth, stepDown: Math.min(s.pocketDepth, s.reach), feed: s.feed, rpm: 18000, stockToLeave: s.stockToLeave });
+          const g = post(j, { dialect: machine.dialect, name: base }); setJob(j); setOut({ name: `${base}.${fileExtension(machine.dialect)}`, data: g, type: 'text/plain', gcode: g });
         } else if (proc.outputs.includes('gcode') && machine?.dialect) {
-          const j = cutJob(paths.loops, paths.open, { process: proc.id, kerf: s.kerf, feed: s.feed, power: proc.id === 'router' ? 18000 : s.power, thickness: proc.id === 'router' ? s.thickness : undefined, stepDown: s.stepDown, pierceDelay: proc.id === 'plasma' ? 0.5 : undefined });
+          const j = cutJob(paths.loops, paths.open, { process: proc.id, kerf: s.kerf, feed: s.feed, power: proc.id === 'router' ? 18000 : s.power, thickness: proc.id === 'router' ? s.thickness : undefined, stepDown: s.stepDown, pierceDelay: proc.id === 'plasma' ? 0.5 : undefined,
+            tabs: proc.id === 'router' && s.tabCount > 0 ? { count: s.tabCount, width: s.tabWidth, height: s.tabHeight } : null, onionSkin: proc.id === 'router' ? s.onionSkin : 0 });
           const g = post(j, { dialect: machine.dialect, name: base }); setJob(j); setOut({ name: `${base}.${fileExtension(machine.dialect)}`, data: g, type: 'text/plain', gcode: g });
         } else {
           setMsg('This machine reads DXF or SVG from its own software: use DXF export in the CAD room header.');
@@ -187,7 +207,7 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
 
   const num = (key: keyof typeof s, label: string, unit = '', step = 1) => <label className="flex items-center justify-between py-0.5 gap-2"><span style={{ color: DIM }}>{label}{unit ? ` (${unit})` : ''}</span><input type="number" step={step} value={s[key] as number} onChange={e => setS(x => ({ ...x, [key]: +e.target.value }))} className="w-20 h-6 rounded bg-white/5 border border-white/10 px-1.5 text-[11px] text-white text-right" aria-label={label}/></label>;
   const pick = (key: keyof typeof s, label: string, opts: string[][], on?: (v: string) => void) => <label className="flex items-center justify-between py-0.5 gap-2"><span style={{ color: DIM }}>{label}</span><select value={String(s[key])} onChange={e => on ? on(e.target.value) : setS(x => ({ ...x, [key]: e.target.value }))} className="w-32 h-6 rounded bg-white/5 border border-white/10 text-[11px] text-white" aria-label={label} data-testid={`fab-${String(key)}`}>{opts.map(([v, t]) => <option key={v} value={v} style={{ background: '#15131d' }}>{t}</option>)}</select></label>;
-  const kind = proc.id === 'resin' ? 'resin' : proc.id === 'fdm' || proc.id === 'bound-metal' ? 'fdm' : proc.id === 'lpbf' || proc.id === 'ebm' ? 'metal' : proc.id === 'lathe' ? 'lathe' : proc.input === '2d' ? 'cut' : 'export';
+  const kind = (proc.id === 'mill3' || proc.id === 'mill5') && !is2D ? 'surface' : proc.id === 'resin' ? 'resin' : proc.id === 'fdm' || proc.id === 'bound-metal' ? 'fdm' : proc.id === 'lpbf' || proc.id === 'ebm' ? 'metal' : proc.id === 'lathe' ? 'lathe' : proc.input === '2d' ? 'cut' : 'export';
 
   return <div className="text-[12px]" data-testid="fab-make">
     <div className="flex items-center gap-1.5 font-bold mb-2"><Factory size={14} color="#fbbf24"/>Make it</div>
@@ -235,10 +255,23 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
       {kind === 'metal' && <>{num('metalLayer', 'Layer thickness', 'mm', 0.01)}<div className="text-[10px] mt-1" style={{ color: DIM }}>Slices to CLI contours; your build processor adds hatching and supports for its laser parameters.</div></>}
       {kind === 'lathe' && <>{num('stock', 'Bar stock Ø', 'mm', 1)}{num('doc', 'Depth of cut', 'mm', 0.1)}{num('feed', 'Feed base', 'mm/min', 50)}</>}
       {kind === 'cut' && <>
-        {proc.id === 'router' ? <>{num('tool', 'Tool Ø', 'mm', 0.1)}{num('thickness', 'Sheet thickness', 'mm', 0.5)}{num('stepDown', 'Depth per pass', 'mm', 0.5)}</> : <>{num('kerf', 'Kerf', 'mm', 0.05)}{num('thickness', 'Material thickness', 'mm', 0.5)}{proc.id !== 'waterjet' && proc.id !== 'drag-knife' && num('power', 'Power', '%', 5)}</>}
+        {proc.id === 'router' ? <>{pick('routerOp', 'Operation', [['profile', 'Cut out (profile)'], ['adaptive', 'Adaptive pocket']])}{num('tool', 'Tool Ø', 'mm', 0.1)}
+          {s.routerOp === 'adaptive' ? <div data-testid="fab-adaptive-pocket">{num('pocketDepth', 'Pocket depth', 'mm', 0.5)}{num('load', 'Radial load', '% of Ø', 1)}{num('stockToLeave', 'Wall stock to leave', 'mm', 0.1)}{num('reach', 'Flute length', 'mm', 1)}
+            <div className="text-[10px] mt-0.5" style={{ color: DIM }}>Clears closed shapes from the middle out with a light, steady cut at full flute depth; islands inside a shape are left standing. The feed eases off where the cut gets heavier.</div></div>
+          : <div data-testid="fab-holding">{num('thickness', 'Sheet thickness', 'mm', 0.5)}{num('stepDown', 'Depth per pass', 'mm', 0.5)}
+            {num('tabCount', 'Tabs per part (0 = none)', '', 1)}{s.tabCount > 0 && <>{num('tabWidth', 'Tab width', 'mm', 0.5)}{num('tabHeight', 'Tab height', 'mm', 0.5)}</>}{num('onionSkin', 'Onion skin (0 = off)', 'mm', 0.1)}
+            <div className="text-[10px] mt-0.5" style={{ color: DIM }}>Tabs keep cut-out parts attached to the sheet so they cannot be thrown; snap them free and sand flush afterwards. An onion skin leaves a thin floor on every pass and cuts it in one last light pass.</div></div>}</> : <>{num('kerf', 'Kerf', 'mm', 0.05)}{num('thickness', 'Material thickness', 'mm', 0.5)}{proc.id !== 'waterjet' && proc.id !== 'drag-knife' && num('power', 'Power', '%', 5)}</>}
         {num('feed', 'Feed', 'mm/min', 50)}
         <label className="flex items-center justify-between py-0.5 gap-2"><span style={{ color: DIM }}>Material</span><input value={s.material} onChange={e => setS(x => ({ ...x, material: e.target.value }))} placeholder={proc.materials[0]} className="w-28 h-6 rounded bg-white/5 border border-white/10 px-1.5 text-[11px] text-white" aria-label="Material"/></label>
       </>}
+      {kind === 'surface' && <div data-testid="fab-surface">
+        {pick('strategy', 'Finishing', [['waterline', 'Waterline (Z levels)'], ['raster', 'Parallel rows']])}
+        {pick('cutter', 'Cutter', [['ball', 'Ball end mill'], ['flat', 'Flat end mill']])}
+        {num('tool', 'Tool Ø', 'mm', 0.5)}{num('reach', 'Reach below holder', 'mm', 1)}
+        {num('scallop', 'Scallop height', 'mm', 0.005)}{num('stockToLeave', 'Stock to leave', 'mm', 0.1)}
+        {num('feed', 'Feed', 'mm/min', 50)}{num('rpm', 'Spindle', 'rpm', 500)}
+        <div className="text-[10px] mt-1" style={{ color: DIM }}>The step-over comes from the scallop height; the part's top is the top of stock. Rough the bulk out first, leaving a little stock, then finish.</div>
+      </div>}
       {kind === 'export' && <div className="text-[10.5px]" style={{ color: DIM }}>{proc.rules.shrink ? `Exports 3MF enlarged ${((1 / (1 - proc.rules.shrink) - 1) * 100).toFixed(1)}% for sintering shrinkage.` : 'Exports a checked, bed-placed 3MF for the machine\'s build software.'}</div>}
     </div>
 
@@ -252,6 +285,8 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
     {exchange && <ExchangeRoom onClose={() => setExchange(false)} getToken={getToken} initialCategory={(PROCESS_CATEGORY[proc.id] ?? ['3d-print'])[0]} prefill={{ title: `Make: ${base}`, processes: [proc.id].filter(id => ['fdm', 'resin', 'sls', 'lpbf', 'mill3', 'router', 'lathe', 'laser-co2', 'laser-fiber', 'plasma', 'waterjet', 'press-brake'].includes(id)), details: `${proc.name}. ${is2D ? 'Drawing' : 'Model'}: ${model.name}.`, hazards: hazards.filter(h => h.severity === 'critical').map(h => h.title) }}/>}
     {!terms && <BuildTermsGate onAccepted={() => setTerms(true)} getToken={getToken}/>}
 
+    {proc.id !== 'press-brake' && <button className="cad-btn w-full justify-center mt-2" onClick={() => setSheet(v => !v)} data-testid="fab-sheet-toggle">{sheet ? 'Hide sheet-metal part' : 'Sheet-metal part: flat pattern and bends'}</button>}
+    {(sheet || proc.id === 'press-brake') && <SheetMetalPanel name={base} brakeLength={proc.id === 'press-brake' ? machine?.bed[0] : undefined}/>}
     {(job || cliLayers) && <Preview job={job} layers={cliLayers ?? job?.layers ?? null} layer={layer} setLayer={setLayer}/>}
     {rjob && <ResinPreview job={rjob} layer={layer} setLayer={setLayer}/>}
     {rjob && <div className="text-[11px] mt-1.5" data-testid="fab-stats">About {(rjob.seconds / 3600).toFixed(1)} h · {rjob.layers.length} layers ({rjob.supportLayers} raft/lift) · {rjob.ml.toFixed(1)} ml resin</div>}
