@@ -44,7 +44,7 @@ export interface AccountFacts {
 
 export type AccessDenial = 'restricted_account' | 'adult_only' | 'lane_locked';
 
-export function canUseEngine(e: Engine, a: AccountFacts): { ok: true } | { ok: false; reason: AccessDenial; upgradeTo?: PlanId } {
+export function canUseEngine(e: Engine, a: AccountFacts): { ok: true; reason?: undefined; upgradeTo?: undefined } | { ok: false; reason: AccessDenial; upgradeTo?: PlanId } {
   if (a.restricted && (e.kind === 'video' || e.adultOnly)) return { ok: false, reason: 'restricted_account' };
   if (e.adultOnly && !a.verifiedAdult) return { ok: false, reason: 'adult_only' };
   const lanes = PLAN_GRANTS[a.plan].lanes;

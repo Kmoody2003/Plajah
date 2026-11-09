@@ -9,7 +9,8 @@
 import { createHash, createHmac } from 'node:crypto';
 
 export interface PresignInput {
-  method: 'GET' | 'PUT' | 'DELETE' | 'HEAD';
+  /** POST is used server-side for multipart create/complete (services/objectStore/s3ops.ts). */
+  method: 'GET' | 'PUT' | 'DELETE' | 'HEAD' | 'POST';
   /** https://s3.us-east-005.backblazeb2.com */
   endpoint: string;
   bucket: string;

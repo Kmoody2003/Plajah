@@ -113,6 +113,7 @@ import { activeRecipients, allocateSplits, checkSplitConfig, createCreatorPayout
 import { createCreativeStorageRouter } from './routes/creativeStorage';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { makerBuildRouter } from './routes/makerBuild';
+import { driveRouter } from './routes/drive';
 import { kithSightingsRouter } from './routes/kithSightings';
 import { createAriaSpeakRouter, decideAriaVoiceAccess } from './routes/ariaSpeak';
 import { createRtcIceRouter } from './routes/rtcIce';
@@ -15356,6 +15357,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 
   // Plajah Build: recalls, maker terms, part prices, maker exchange (routes/makerBuild.ts).
   app.use('/api/build', express.json({ limit: '64kb' }), makerBuildRouter);
+  // Plajah Drive (B2 + Bunny). Answers 503 drive_off until DRIVE_ENABLED=1.
+  app.use('/api/drive', rateLimit({ windowMs: 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '64kb' }), driveRouter);
 
   // Kith Sightings — the mascots turn up rarely; the user logs it for points.
   // Rate-limited because spawn-check is the farm surface: the deterministic

@@ -471,6 +471,7 @@ const TV_BLOCKED_VIEWS: Partial<Record<string, { feature: TvDisabledFeature; tit
   CHORA_MIXER:     { feature: 'creatorStudio', title: 'Chora Studio Mixer' },
   LD_MODE:         { feature: 'creatorStudio', title: 'LD' },
   PLAJAH_BUILD:    { feature: 'creatorStudio', title: 'Plajah Build' },
+  PLAJAH_DRIVE:    { feature: 'upload',         title: 'Drive' },
   TELEPROMPTER:    { feature: 'documentEditing', title: 'Teleprompter' },
   ARTICLE_EDITOR:  { feature: 'documentEditing', title: 'The editor' },
   CREATOR:         { feature: 'upload',         title: 'Uploading' },
@@ -482,6 +483,7 @@ const CrossoverView = retryLazy(() => import('./components/CrossoverView'));
 const PlajahPixelsView = retryLazy(() => import('./components/PlajahPixelsView'));
 const LightingDesigner = retryLazy(() => import('./components/LightingDesigner'));
 const PlajahBuildHub = retryLazy(() => import('./components/build/PlajahBuildHub'));
+const PlajahDriveView = retryLazy(() => import('./components/drive/PlajahDriveView'));
 const TeleprompterApp = retryLazy(() => import('./components/teleprompter/TeleprompterApp'));
 const SpatialMixer = retryLazy(() => import('./components/spatialMixer/SpatialMixer'));
 const ChoraStudioMixer = retryLazy(() => import('./components/chora/ChoraStudioMixer'));
@@ -639,7 +641,7 @@ import { PENDING_GIFT_KEY } from './services/stripeService';
 import type { ReturnInfo } from './components/SupportReturnModal';
 import { auth, fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd, fetchSystemSettingsConfig, allocateChannelNumber, fetchAllLiveFeeds } from './services/backendService';
 import { initFeatureFlagListener } from './services/featureFlagService';
-import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ClipboardList, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Library, Cctv, Bug, AlertTriangle, MapPin, Cross, MonitorPlay, Factory } from 'lucide-react';
+import { HardDrive, Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ClipboardList, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Library, Cctv, Bug, AlertTriangle, MapPin, Cross, MonitorPlay, Factory } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 
 class ErrorBlock extends React.Component<{ componentName: string, children: React.ReactNode }, { hasError: boolean }> {
@@ -5405,7 +5407,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         POSTMAN: { label: 'The Postman', icon: Mail },
                         FEED: { label: 'Plajah Social', icon: Rss },
                         LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
-                        FABULA: { label: 'Fabula', icon: Film }, PLAJAH_BUILD: { label: 'Plajah Build', icon: Factory },
+                        FABULA: { label: 'Fabula', icon: Film }, PLAJAH_BUILD: { label: 'Plajah Build', icon: Factory }, PLAJAH_DRIVE: { label: 'Drive', icon: HardDrive },
                         TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Plajah Stage', icon: MonitorPlay },
                         AMBO_PRO: { label: 'Stage', icon: MonitorPlay },
                         MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv },
@@ -5557,7 +5559,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart }, CHAT: { label: 'Chat', icon: MessageSquare },
                       DISCUSSION: { label: 'Discussion', icon: MessageCircle }, POSTMAN: { label: 'The Postman', icon: Mail },
                       FEED: { label: 'Plajah Social', icon: Rss }, LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
-                      FABULA: { label: 'Fabula', icon: Film }, PLAJAH_BUILD: { label: 'Plajah Build', icon: Factory }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Plajah Stage', icon: MonitorPlay }, AMBO_PRO: { label: 'Stage', icon: MonitorPlay }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
+                      FABULA: { label: 'Fabula', icon: Film }, PLAJAH_BUILD: { label: 'Plajah Build', icon: Factory }, PLAJAH_DRIVE: { label: 'Drive', icon: HardDrive }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Plajah Stage', icon: MonitorPlay }, AMBO_PRO: { label: 'Stage', icon: MonitorPlay }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
                       HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
                       BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, TERRA: { label: 'Terra', icon: MapPin }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                       ARTIST_MANAGER: { label: 'Chora Artist Manager', icon: Music2 },
@@ -5590,7 +5592,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       { id: 'sports', label: 'Sports & News', ids: ['PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES'] },
                       { id: 'education', label: 'Education', ids: ['BOOKS', 'CLASSROOMS', 'PLAJAH_LABS'] },
                       { id: 'community', label: 'Community', ids: ['CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'SACRED_LIBRARY', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB'] },
-                      { id: 'creator', label: 'Creator Tools', ids: ['CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'FABULA', 'PLAJAH_BUILD', 'TV_STUDIO', 'AMBO_PRO', 'MEDIA_ROUTER', 'POSTMAN'] },
+                      { id: 'creator', label: 'Creator Tools', ids: ['CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'FABULA', 'PLAJAH_BUILD', ...(userProfile?.role === 'admin' || user?.email === 'kmoody2003@gmail.com' ? ['PLAJAH_DRIVE'] : []), 'TV_STUDIO', 'AMBO_PRO', 'MEDIA_ROUTER', 'POSTMAN'] },
                       { id: 'platform', label: 'Platform', ids: ['PLAJAH_HOME', 'HELP_CENTER', 'BROWSER'] },
                     ];
                     return groups.map(group => {
@@ -5653,14 +5655,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart }, CHAT: { label: 'Chat', icon: MessageSquare },
                       DISCUSSION: { label: 'Discussion', icon: MessageCircle }, POSTMAN: { label: 'The Postman', icon: Mail },
                       FEED: { label: 'Plajah Social', icon: Rss }, LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
-                      FABULA: { label: 'Fabula', icon: Film }, PLAJAH_BUILD: { label: 'Plajah Build', icon: Factory }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Plajah Stage', icon: MonitorPlay }, AMBO_PRO: { label: 'Stage', icon: MonitorPlay }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
+                      FABULA: { label: 'Fabula', icon: Film }, PLAJAH_BUILD: { label: 'Plajah Build', icon: Factory }, PLAJAH_DRIVE: { label: 'Drive', icon: HardDrive }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Plajah Stage', icon: MonitorPlay }, AMBO_PRO: { label: 'Stage', icon: MonitorPlay }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
                       HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
                       BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, TERRA: { label: 'Terra', icon: MapPin }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                       ARTIST_MANAGER: { label: 'Chora Artist Manager', icon: Music2 },
                       PLAJAH_STUDIO: { label: 'Marketing', icon: Megaphone },
                       CREATOR: { label: 'Creator Hub', icon: Clapperboard },
                     };
-                    const allNavIds = ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS', 'PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES', 'BOOKS', 'CLASSROOMS', 'PLAJAH_LABS', 'PLAJAH_HOME', 'CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB', 'LIVE_HUB', 'FABULA', 'PLAJAH_BUILD', 'TV_STUDIO', 'MEDIA_ROUTER', 'POSTMAN', 'HELP_CENTER', 'BROWSER', 'CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : [])];
+                    const allNavIds = ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS', 'PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES', 'BOOKS', 'CLASSROOMS', 'PLAJAH_LABS', 'PLAJAH_HOME', 'CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB', 'LIVE_HUB', 'FABULA', 'PLAJAH_BUILD', ...(userProfile?.role === 'admin' || user?.email === 'kmoody2003@gmail.com' ? ['PLAJAH_DRIVE'] : []), 'TV_STUDIO', 'MEDIA_ROUTER', 'POSTMAN', 'HELP_CENTER', 'BROWSER', 'CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : [])];
                     const handleNavClick = (id: string) => {
                       if (id === 'PAY_IT_FORWARD') { setIsPIFModalOpen(true); return; }
                       if (id === 'USER_PROFILE') { if (user) { handleVisitUser(user.uid); } else { loginWithGoogle(); } return; }
@@ -7896,6 +7898,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'PLAJAH_BUILD' && !tvBlocked && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <PlajahBuildHub onBack={() => setView('DASHBOARD')} />
+              </Suspense>
+            )}
+
+            {view === 'PLAJAH_DRIVE' && !tvBlocked && (
+              <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <PlajahDriveView onBack={() => setView('DASHBOARD')} />
               </Suspense>
             )}
 

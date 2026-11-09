@@ -40,7 +40,7 @@ export interface GatewayDeps {
   saveJob: (job: GenJob) => Promise<void>;
   /** Copy a provider result into Plajah storage; returns the stored URL. */
   persist: (bytes: Uint8Array, out: GenOutput, ctx: { job: GenJob; index: number }) => Promise<string>;
-  moderate: (req: GenRequest, account: AccountFacts) => Promise<{ ok: true } | { ok: false; reason: string }>;
+  moderate: (req: GenRequest, account: AccountFacts) => Promise<{ ok: true; reason?: undefined } | { ok: false; reason: string }>;
   now: () => number;
   newId: () => string;
 }

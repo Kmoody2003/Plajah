@@ -4301,7 +4301,9 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   // LD — Lighting Designer (top-level experience, peer to Chora/Pixels/Melos)
   | 'LD_MODE'
   // Plajah Build — maker & engineering hub (Electronics, CAD/BIM/Make, Sewing & Plush, Biology, Maker Exchange)
-  | 'PLAJAH_BUILD';
+  | 'PLAJAH_BUILD'
+  // Plajah Drive — personal + org file storage (B2 + Bunny); owner preview until DRIVE_ENABLED
+  | 'PLAJAH_DRIVE';
 
 const APP_VIEW_RUNTIME_ALIASES: Record<string, AppView> = {
   TELA_STUDIO: 'TELA',
