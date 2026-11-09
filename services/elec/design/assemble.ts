@@ -57,12 +57,16 @@ export function assemble(p: Plan, name: string, market: 'US' | 'EU' | 'both', sp
       const j = d.part('usb5v', 0, 0, 0, { Imax: '0.5' }); const c = d.part('charger', 0, 0, 0, { Icharge: String(pw.cell!.chargeA), Rprog: '3k' }); const bt = d.part('liion', 0, 0, 0, { mAh: pw.cell!.mAh });
       d.net('vusb', [j, 'VBUS'], [c, 'IN+']); d.net('GND', [j, 'GND']); d.net('GND', [c, 'IN-']); d.net('GND', [c, 'OUT-']); d.net('batp', [bt, '+'], [c, 'B+']); d.net('batn', [bt, '-'], [c, 'B-']);
       const s = d.part('switch', 0, 0, 0, { state: 'closed', I: '3' }); d.net('bout', [c, 'OUT+'], [s, '1']); d.net('SYS', [s, '2']);
+    } else if (pw.source === 'liion2s') {
+      const j = d.part('usb5v', 0, 0, 0, { Imax: '3' }); const c = d.part('charger2s', 0, 0, 0, { Icharge: '1' }); const bt = d.part('liion', 0, 0, 0, { V: 7.4, Rint: 0.15, mAh: 2500, cells: 2 });
+      d.net('vusb', [j, 'VBUS'], [c, 'IN+']); d.net('GND', [j, 'GND']); d.net('GND', [c, 'IN-']); d.net('GND', [c, 'OUT-']); d.net('batp', [bt, '+'], [c, 'B+']); d.net('batn', [bt, '-'], [c, 'B-']);
+      const s = d.part('switch', 0, 0, 0, { state: 'closed', I: '3' }); d.net('bout', [c, 'OUT+'], [s, '1']); d.net('SYS', [s, '2']);
     } else if (pw.source === 'aa') {
       const bt = d.part('battery', 0, 0, 0, { V: 4.5, Rint: 0.3, mAh: 2400 }); const s = d.part('switch', 0, 0, 0, { state: 'closed', I: '3' });
       d.net('bp', [bt, '+'], [s, '1']); d.net('SYS', [s, '2']); d.net('GND', [bt, '-']);
     }
-    if (pw.source !== 'liion' && pw.source !== 'aa' && pw.powerSwitch) swTo('V5', 'SYS');
-    if (pw.buck) { const u = d.part('buck', 0, 0, 0, { V: pw.buck.V, I: String(pw.buck.I) }); d.net('V12', [u, 'VIN']); d.net('GND', [u, 'GND']); d.net('V5', [u, 'VOUT']); }
+    if (pw.source !== 'liion' && pw.source !== 'liion2s' && pw.source !== 'aa' && pw.powerSwitch) swTo('V5', 'SYS');
+    if (pw.buck) { const u = d.part('buck', 0, 0, 0, { V: pw.buck.V, I: String(pw.buck.I) }); d.net(pw.source === 'liion2s' ? 'SYS' : 'V12', [u, 'VIN']); d.net('GND', [u, 'GND']); d.net('V5', [u, 'VOUT']); }
     if (pw.boost) { const u = d.part('boost', 0, 0, 0, { V: pw.boost.V, I: String(pw.boost.I) }); d.net('SYS', [u, 'VIN']); d.net('GND', [u, 'GND']); d.net('V5', [u, 'VOUT']); }
     if (pw.ldo3) { const u = d.part('ldo', 0, 0, 0, { V: 3.3, I: '0.6' }); d.net('V5', [u, 'VIN']); d.net('GND', [u, 'GND']); d.net('LOGIC', [u, 'VOUT']); }
   }, true);

@@ -57,12 +57,16 @@ export interface ModuleInfo {
 
 const S = (p: string, gnd = 'GND') => ({ pwr: p, gnd });
 export const MODULES: Record<string, ModuleInfo> = {
-  liion: { model: {}, physical: () => ({ w: 77, d: 22, h: 21, face: 'inside', note: '18650 holder (or a LiPo pouch in a padded pocket); keep it away from heat and screws' }),
-    query: () => ({ query: '18650 Li-ion cell protected 2500mAh', note: 'Buy cells from an authorised distributor (counterfeit and re-wrapped cells are common); ask for the UN 38.3 test summary.', authorised: true }) },
+  liion: { model: {}, physical: p => (num(p, 'cells', 1) > 1 ? { w: 77, d: 42, h: 21, face: 'inside', note: '2 × 18650 holder (series) or a 2S pack with BMS; keep it away from heat and screws' } : { w: 77, d: 22, h: 21, face: 'inside', note: '18650 holder (or a LiPo pouch in a padded pocket); keep it away from heat and screws' }),
+    query: p => ({ query: num(p, 'cells', 1) > 1 ? '2S 18650 Li-ion pack with BMS 7.4V 2500mAh' : '18650 Li-ion cell protected 2500mAh', note: 'Buy cells from an authorised distributor (counterfeit and re-wrapped cells are common); ask for the UN 38.3 test summary.', authorised: true }) },
   charger: { model: { draw: { pwr: 'IN+', gnd: 'IN-', A: p => num(p, 'Icharge', 0.4) }, links: [{ a: 'B+', b: 'OUT+', R: () => 0.05 }, { a: 'B-', b: 'OUT-', R: () => 0.05 }] },
     supply: { pin: 'IN+', gnd: 'IN-', min: 4.5, max: 6 }, limits: { Ich: 1 },
     physical: () => ({ w: 26, d: 17, h: 5, face: 'back', cutout: { shape: 'rect', w: 9.5, h: 3.8 }, note: 'USB-C charge port + charge LEDs (light pipe or a 3 mm hole)' }),
     query: () => ({ query: 'TP4056 USB-C lithium charger module DW01 protection' }) },
+  charger2s: { model: { draw: { pwr: 'IN+', gnd: 'IN-', A: p => num(p, 'Icharge', 1) * 8.4 / (0.88 * 5) }, links: [{ a: 'B+', b: 'OUT+', R: () => 0.05 }, { a: 'B-', b: 'OUT-', R: () => 0.05 }], free: ['BM'] },
+    supply: { pin: 'IN+', gnd: 'IN-', min: 4.5, max: 5.5 }, limits: { Ich: 2 },
+    physical: () => ({ w: 30, d: 20, h: 5, face: 'back', cutout: { shape: 'rect', w: 9.5, h: 3.8 }, note: 'USB-C 2S charger with balancing: charge port + LEDs' }),
+    query: () => ({ query: 'IP2326 USB-C 2S lithium boost charger balance module', note: 'Use with a 2S BMS (protection) on the pack; never charge a 2S pack from a 1S charger.' }) },
   buck: { model: { reg: { vin: 'VIN', vout: 'VOUT', gnd: 'GND', V: p => num(p, 'V', 5), dropout: () => 1, eff: p => num(p, 'eff', 0.9) } },
     limits: { Iout: p => num(p, 'I', 2), vinMax: () => 28 },
     physical: () => ({ w: 22, d: 17, h: 5, face: 'inside', note: 'Buck converter: keep its inductor away from the radio antenna' }),
@@ -141,9 +145,11 @@ const addr = (d: string) => ({ key: 'addr', label: 'I²C address', default: d })
 
 export const MODULE_COMPONENTS: CompDef[] = [
   C('liion', 'Li-ion cell (18650 / LiPo)', 'BT', 'Power', cell, 'Single lithium-ion cell: 3.0 V empty, 3.7 V nominal, 4.2 V full. Needs a protection circuit and a matched charger.',
-    [{ key: 'V', label: 'Voltage', unit: 'V', default: 3.7 }, { key: 'Rint', label: 'Internal resistance', unit: 'Ω', default: 0.08 }, { key: 'mAh', label: 'Capacity', unit: 'mAh', default: 2500 }], p => `${p.mAh}mAh`),
+    [{ key: 'V', label: 'Voltage', unit: 'V', default: 3.7 }, { key: 'Rint', label: 'Internal resistance', unit: 'Ω', default: 0.08 }, { key: 'mAh', label: 'Capacity', unit: 'mAh', default: 2500 }, { key: 'cells', label: 'Cells in series', default: 1 }], p => `${num(p, 'cells', 1) > 1 ? `${p.cells}S ` : ''}${p.mAh}mAh`),
   C('charger', 'Li-ion charger + protection (TP4056/DW01)', 'U', 'Power', block('CHARGE', ['IN+', 'IN-'], ['B+', 'B-', 'OUT+', 'OUT-'], 6), 'USB-C single-cell charger (TP4056-class, 4.2 V CC/CV, current set by R_PROG) with DW01 + dual-FET protection against over-charge, over-discharge and short circuit. Load goes on OUT, never straight on the cell.',
     [{ key: 'Icharge', label: 'Charge current', unit: 'A', default: '0.4' }, { key: 'Rprog', label: 'R_PROG', unit: 'Ω', default: '3k' }], p => `${num(p, 'Icharge', 0.4) * 1000}mA`),
+  C('charger2s', '2S Li-ion charger (USB-C, balancing)', 'U', 'Power', block('CHARGE 2S', ['IN+', 'IN-'], ['B+', 'BM', 'B-', 'OUT+', 'OUT-'], 7), 'Boost charger from USB-C 5 V to a 2-cell pack (8.4 V CC/CV, IP2326-class) with cell balancing via the midpoint (BM); the pack carries its own 2S BMS (protection).',
+    [{ key: 'Icharge', label: 'Charge current', unit: 'A', default: '1' }], p => `${num(p, 'Icharge', 1) * 1000}mA 2S`),
   C('buck', 'Buck converter module', 'U', 'Power', block('BUCK', ['VIN', 'GND'], ['VOUT'], 5), 'Step-down switching regulator (MP1584-class): 4.5-28 V in, about 90% efficient, up to 2-3 A.',
     [{ key: 'V', label: 'Output', unit: 'V', default: 5 }, { key: 'I', label: 'Rated current', unit: 'A', default: '2' }, { key: 'eff', label: 'Efficiency', default: 0.9 }], p => `${p.V}V`),
   C('ldo', 'Low-dropout regulator', 'U', 'Power', block('LDO', ['VIN', 'GND'], ['VOUT'], 5), 'Linear LDO (AP2112K-class): 600 mA, about 0.25 V dropout at full load; burns (Vin − Vout) × I as heat.',

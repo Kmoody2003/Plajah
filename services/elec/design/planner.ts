@@ -18,7 +18,7 @@ export interface PowerPlan {
   /** USB port limit (A) when a USB socket feeds the design. */
   usbA?: number; adapterV?: number; adapterA?: number; mainsV?: number; acdc?: { V: number; I: number };
   fuseA?: number; buck?: { V: number; I: number }; boost?: { V: number; I: number }; ldo3?: boolean;
-  cell?: { mAh: number; chargeA: number }; aa?: boolean; powerSwitch: boolean;
+  cell?: { mAh: number; chargeA: number; cells?: number }; aa?: boolean; powerSwitch: boolean;
   /** SYS rail: what lamp LEDs and battery-powered boards run from. */
   sysV: number; sysIs: 'V5' | 'SYS';
   rows: Array<{ what: string; rail: string; typ: number; peak: number }>;
@@ -124,15 +124,20 @@ function powerPlan(spec: Spec, mcu: McuDef | null, insts: Inst[], ads: number, e
   if (ads) loads.push({ rail: 'logic', typ: 0.001 * ads, peak: 0.001 * ads, what: `${ads} × ADS1115` });
   if (exp) loads.push({ rail: 'logic', typ: 0.001 * exp, peak: 0.002 * exp, what: `${exp} × MCP23017` });
   const pi = mcu?.kind === 'rpi' ? PI_MODELS[spec.piModel ?? 'Pi 5'] ?? PI_MODELS['Pi 5'] : null;
-  const battery0 = spec.power === 'liion' || spec.power === 'aa';
+  const battery0 = spec.power === 'liion' || spec.power === 'aa'; // 2S packs are above VSYS's 5.5 V, so boards run from 5 V there
   const mcuOn5 = !!mcu && !(battery0 && mcu.pinBattery && !pi);
   const mcuLoad: Load | null = mcu ? { rail: mcuOn5 ? 'v5' : 'sys', typ: pi ? pi.draw : mcu.typ, peak: pi ? Math.min(pi.recommend, pi.draw * 3) : mcu.peak, what: mcu.kind === 'rpi' ? `Raspberry ${spec.piModel ?? 'Pi 5'}` : mcu.label } : null;
   const v12 = loads.some(l => l.rail === 'v12');
   let source: PowerPlan['source'] = spec.power === 'auto' ? (v12 ? 'adapter12' : 'usb') : spec.power;
   if (v12 && (source === 'usb' || source === 'liion' || source === 'aa' || source === 'adapter5')) { errors.push('A 12 V LED strip needs a 12 V adapter (or mains module); USB and single cells cannot run it.'); source = 'adapter12'; }
-  if (pi && (source === 'liion' || source === 'aa')) { errors.push(`A Raspberry Pi needs a 5 V ${pi.recommend} A supply; this designer does not run it from a cell. Use USB-C power, or pick an ESP32 / Pico for battery products.`); source = 'usb'; }
-  const battery = source === 'liion' || source === 'aa';
-  const sysV = source === 'liion' ? 3.7 : source === 'aa' ? 4.5 : 5;
+  // One cell through a boost cannot carry motors/servos/many pixels: move up to a 2-cell pack with a buck.
+  if (source === 'liion') {
+    const peak5 = loads.filter(l => l.rail === 'v5').reduce((s, l) => s + design(l.typ, l.peak), 0) + (mcu && !mcu.pinBattery ? design(mcu.typ, mcu.peak) : 0);
+    if (peak5 > 1.0) { source = 'liion2s'; notes.push(`The 5 V loads want about ${peak5.toFixed(2)} A, too much for one cell through a boost converter, so the design uses a 2-cell (7.4 V) pack with a USB-C 2S charger and a buck to 5 V.`); }
+  }
+  if (pi && (source === 'liion' || source === 'liion2s' || source === 'aa')) { errors.push(`A Raspberry Pi needs a 5 V ${pi.recommend} A supply; this designer does not run it from a cell. Use USB-C power, or pick an ESP32 / Pico for battery products.`); source = 'usb'; }
+  const battery = source === 'liion' || source === 'liion2s' || source === 'aa';
+  const sysV = source === 'liion' ? 3.7 : source === 'liion2s' ? 7.4 : source === 'aa' ? 4.5 : 5;
   for (const i of insts) { i.sysV = sysV; i.logicV = mcu?.logic ?? 3.3; }
   // Logic rail: the board's 3.3 V pin unless it is overloaded (then an LDO from 5 V).
   const logicLoads = loads.filter(l => l.rail === 'logic');
@@ -167,6 +172,12 @@ function powerPlan(spec: Spec, mcu: McuDef | null, insts: Inst[], ads: number, e
     if (v12) { const I = sizeUp((i12 + v5Need * 5 / (0.9 * 12)) * 1.3, [0.5, 1, 1.25, 2, 3]); plan.acdc = { V: 12, I }; if (needs5) plan.buck = { V: 5, I: v5Need > 1.5 ? 3 : 2 }; plan.capacity['12 V'] = I; }
     else { plan.acdc = { V: 5, I: sizeUp((v5Need + iSys) * 1.3, [0.6, 1, 2, 3, 4, 6]) }; plan.capacity['5 V'] = plan.acdc.I; }
     plan.fuseA = plan.acdc.V * plan.acdc.I > 20 ? 2 : 1; plan.summary = `${plan.mainsV} V mains through a T${plan.fuseA}A fuse into a certified ${plan.acdc.V} V ${plan.acdc.I} A AC-DC module${plan.buck ? ', buck to 5 V' : ''}`;
+  } else if (source === 'liion2s') {
+    plan.cell = { mAh: 2500, chargeA: 1, cells: 2 }; plan.buck = { V: 5, I: v5Need > 1.5 ? 3 : 2 }; plan.capacity['5 V'] = plan.buck.I; plan.usbA = 3;
+    if (v5Need > 2.6) errors.push(`The 5 V loads want about ${v5Need.toFixed(2)} A, beyond a 3 A buck from a 2-cell pack. Use mains or an adapter.`);
+    const avg = rows.reduce((s, r) => s + r.typ, 0) * 5 / (0.9 * 7.4), worst = rows.reduce((s, r) => s + r.peak, 0) * 5 / (0.9 * 7.4);
+    plan.notes.push(`Runtime estimate: about ${(2500 / Math.max(1, avg * 1000)).toFixed(1)} h at typical draw, ${(2500 / Math.max(1, worst * 1000)).toFixed(1)} h with everything at full, from a 2S 2500 mAh pack.`, 'Charging a 2S pack from USB-C takes a 5 V 3 A adapter (the charger boosts to 8.4 V).');
+    plan.summary = `2-cell Li-ion pack (7.4 V, 2500 mAh, BMS) with USB-C 2S charging (1 A, balanced), buck to 5 V (${plan.buck.I} A), power switch`;
   } else {
     // Battery: Li-ion with charger, or 3 × AA; a boost makes 5 V when anything needs it.
     if (source === 'liion') plan.cell = { mAh: 2500, chargeA: 0.4 }; else plan.aa = true;

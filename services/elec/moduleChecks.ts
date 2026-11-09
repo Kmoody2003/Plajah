@@ -37,9 +37,9 @@ export function moduleFindings(c: Circuit, sim: SimResult | null | undefined, o:
         const theta = info.limits?.theta; if (theta) { const pd = Math.max(0, (vin - vout) * iout); const tj = ambient + pd * theta; add({ id: `regtj-${p.ref}`, level: tj > 125 ? 'error' : tj > 100 ? 'warn' : 'pass', area: 'Thermal', refs: [p.ref], title: `${p.ref} junction about ${Math.round(tj)} °C`, detail: `${f(pd, 'W')} × ${theta} °C/W over ${ambient} °C (limit 125 °C). Linear regulators turn the voltage difference into heat.` }); }
         const iinMax = info.limits?.Iin; if (iinMax && iin > iinMax) add({ id: `regiin-${p.ref}`, level: 'error', area: 'Stress', refs: [p.ref], title: `${p.ref} input current ${f(iin, 'A')} over its ${iinMax} A switch limit`, detail: 'A boost converter draws more current than it delivers; lower the 5 V load.' });
       }
-      if (p.kind === 'charger') {
-        const ich = num(pp, 'Icharge', 0.4); const cellPart = c.parts.find(q => q.kind === 'liion'); const mAh = cellPart ? num(cellPart.params, 'mAh', 2500) : 0;
-        if (ich > (info.limits?.Ich ?? 1)) add({ id: `chg-${p.ref}`, level: 'error', area: 'Battery', refs: [p.ref], title: `${p.ref} charge current ${f(ich, 'A')} above 1 A`, detail: 'TP4056-class chargers top out at 1 A.' });
+      if (p.kind === 'charger' || p.kind === 'charger2s') {
+        const ich = num(pp, 'Icharge', p.kind === 'charger2s' ? 1 : 0.4); const cellPart = c.parts.find(q => q.kind === 'liion'); const mAh = cellPart ? num(cellPart.params, 'mAh', 2500) : 0;
+        const ichMax = info.limits?.Ich ?? 1; if (ich > ichMax) add({ id: `chg-${p.ref}`, level: 'error', area: 'Battery', refs: [p.ref], title: `${p.ref} charge current ${f(ich, 'A')} above ${ichMax} A`, detail: 'Above what this charger class can deliver.' });
         else if (mAh && ich * 1000 > mAh) add({ id: `chg-${p.ref}`, level: 'warn', area: 'Battery', refs: [p.ref], title: `${p.ref} charges faster than 1C`, detail: `${f(ich, 'A')} into ${mAh} mAh; most cells want 0.5C or less. Raise R_PROG.` });
         else add({ id: `chg-${p.ref}`, level: 'pass', area: 'Battery', refs: [p.ref], title: `${p.ref} charges at ${f(ich, 'A')}`, detail: `${mAh ? `${(ich * 1000 / mAh).toFixed(2)}C for a ${mAh} mAh cell; ` : ''}R_PROG ${pp.Rprog ?? '3k'}.` });
       }

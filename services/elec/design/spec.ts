@@ -68,13 +68,14 @@ export function readSpec(prompt: string): SpecReading {
   if (!conn.length && !inputs && needs.some(n => n.block === 'relay' || n.block === 'strip12' || (n.block === 'lamp' && n.opt?.dim))) { conn.push('wifi'); assumed.push('Wi-Fi control from a phone or Home Assistant (no buttons asked for)'); }
   for (const c of conn) heard.push({ wifi: 'Wi-Fi', bluetooth: 'Bluetooth', homeassistant: 'Home Assistant', 'usb-midi': 'USB MIDI', 'usb-hid': 'USB keyboard (HID)' }[c]);
   let power: PowerChoice = 'auto';
-  if (has(/\b(li-?ion|lipo|li-?po|lithium|18650|rechargeable|usb-?c charg\w*|charg(es|ing) (over|via|from) usb|built-in battery)\b/)) power = 'liion';
+  if (has(/\b(2s|7\.4 ?v|two[- ]cell|2[- ]cell|18650 pack)\b/)) power = 'liion2s';
+  else if (has(/\b(li-?ion|lipo|li-?po|lithium|18650|rechargeable|usb-?c charg\w*|charg(es|ing) (over|via|from) usb|built-in battery)\b/)) power = 'liion';
   else if (has(/\b(aa|aaa|alkaline|battery|batteries|battery-powered|portable|cordless)\b/)) { power = has(/\b(aa|aaa|alkaline)\b/) ? 'aa' : 'liion'; }
   else if (has(/\b(mains|wall power|plugs? into the wall|ac[- ]powered|120 ?v|230 ?v|240 ?v)\b/)) power = 'mains';
   else if (has(/\b12 ?v\b/) && !found.has('strip12')) power = 'adapter12';
   else if (has(/\b(5 ?v adapter|barrel jack|dc jack|power adapter)\b/)) power = 'adapter5';
   else if (has(/\busb\b/)) power = 'usb';
-  if (power !== 'auto') heard.push({ usb: 'USB power', liion: 'rechargeable Li-ion', aa: 'AA batteries', adapter5: '5 V adapter', adapter12: '12 V adapter', mains: 'mains powered' }[power]);
+  if (power !== 'auto') heard.push({ usb: 'USB power', liion: 'rechargeable Li-ion', liion2s: '2-cell Li-ion pack', aa: 'AA batteries', adapter5: '5 V adapter', adapter12: '12 V adapter', mains: 'mains powered' }[power]);
   else assumed.push('Power: chosen from the loads (USB, or an adapter for big loads); say "battery" for portable');
   let mcu: Spec['mcu'] = 'auto'; let piModel: string | undefined;
   if (has(/\besp-?32-?s3\b|\bs3\b/)) mcu = 'esp32s3'; else if (has(/\besp-?32\b/)) mcu = 'esp32'; else if (has(/\bpico ?(2 ?)?w\b/)) mcu = 'picow'; else if (has(/\b(pico|rp2040|rp2350)\b/)) mcu = 'pico'; else if (has(/\b(arduino|nano|atmega)\b/)) mcu = 'nano';
@@ -138,7 +139,7 @@ export function specFromLlm(reply: string, prompt: string): SpecReading {
     }
     if (!needs.length) return base;
     const mcu = ['auto', 'none', 'esp32', 'pico', 'nano', 'rpi'].includes(s.mcu) ? s.mcu as Spec['mcu'] : base.spec.mcu;
-    const power = ['auto', 'usb', 'liion', 'aa', 'adapter5', 'adapter12', 'mains'].includes(s.power) ? s.power as PowerChoice : base.spec.power;
+    const power = ['auto', 'usb', 'liion', 'liion2s', 'aa', 'adapter5', 'adapter12', 'mains'].includes(s.power) ? s.power as PowerChoice : base.spec.power;
     const conn = Array.isArray(s.conn) ? s.conn.filter((c: string) => ['wifi', 'bluetooth', 'homeassistant', 'usb-midi', 'usb-hid'].includes(c)) as Conn[] : base.spec.conn;
     const market = s.market === 'US' || s.market === 'EU' ? s.market : base.spec.market;
     const name = typeof s.name === 'string' && s.name.trim() ? s.name.trim().slice(0, 48) : base.spec.name;

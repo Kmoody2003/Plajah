@@ -2,7 +2,7 @@
 import type { Framework, McuDef, McuKind } from './mcus';
 
 export type BlockId = 'keymatrix' | 'stepper' | 'led' | 'lamp' | 'neopixel' | 'strip12' | 'button' | 'encoder' | 'pot' | 'oled' | 'tft' | 'temp' | 'imu' | 'light' | 'distance' | 'soil' | 'motion' | 'speaker' | 'servo' | 'motor' | 'relay';
-export type PowerChoice = 'auto' | 'usb' | 'liion' | 'aa' | 'adapter5' | 'adapter12' | 'mains';
+export type PowerChoice = 'auto' | 'usb' | 'liion' | 'liion2s' | 'aa' | 'adapter5' | 'adapter12' | 'mains';
 export type Conn = 'wifi' | 'bluetooth' | 'homeassistant' | 'usb-midi' | 'usb-hid';
 export type Opt = Record<string, string | number | boolean>;
 export interface Need { block: BlockId; count: number; opt?: Opt }

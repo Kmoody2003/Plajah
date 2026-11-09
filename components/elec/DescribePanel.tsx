@@ -15,8 +15,8 @@ import type { BlockId, Conn, PowerChoice, Spec } from '../../services/elec/desig
 const DIM = 'rgba(255,255,255,.55)';
 const SEL = 'h-6 rounded bg-white/5 border border-white/10 text-[11px] text-white';
 const NOVEL = ['a plant monitor with soil moisture, OLED and Wi-Fi', 'a 4-channel relay board', 'a battery LED lantern with USB-C charging', 'a robot car with an ultrasonic distance sensor'];
-const POWER: Array<[PowerChoice, string]> = [['auto', 'Auto (from the loads)'], ['usb', 'USB 5 V'], ['liion', 'Li-ion + USB-C charging'], ['aa', '3 × AA'], ['adapter5', '5 V adapter'], ['adapter12', '12 V adapter'], ['mains', 'Mains (certified module)']];
-const MCU: Array<[Spec['mcu'], string]> = [['auto', 'Auto'], ['esp32', 'ESP32 (Wi-Fi)'], ['pico', 'Raspberry Pi Pico'], ['nano', 'Arduino Nano'], ['rpi', 'Raspberry Pi'], ['none', 'No controller']];
+const POWER: Array<[PowerChoice, string]> = [['auto', 'Auto (from the loads)'], ['usb', 'USB 5 V'], ['liion', 'Li-ion + USB-C charging'], ['liion2s', '2-cell Li-ion (motors)'], ['aa', '3 × AA'], ['adapter5', '5 V adapter'], ['adapter12', '12 V adapter'], ['mains', 'Mains (certified module)']];
+const MCU: Array<[Spec['mcu'], string]> = [['auto', 'Auto'], ['esp32', 'ESP32 (Wi-Fi)'], ['esp32s3', 'ESP32-S3 (Wi-Fi + USB)'], ['pico', 'Raspberry Pi Pico'], ['picow', 'Pico W (Wi-Fi)'], ['nano', 'Arduino Nano'], ['rpi', 'Raspberry Pi'], ['none', 'No controller']];
 const CONN: Array<[Conn, string]> = [['wifi', 'Wi-Fi'], ['homeassistant', 'Home Assistant'], ['bluetooth', 'Bluetooth'], ['usb-midi', 'USB MIDI'], ['usb-hid', 'USB keyboard']];
 
 export default function DescribePanel({ onBuild, initialPrompt }: { onBuild: (b: Build) => void; initialPrompt?: string }) {
