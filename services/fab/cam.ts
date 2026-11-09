@@ -21,7 +21,7 @@ export type Move =
   | { t: 'layer'; n: number; z: number } | { t: 'comment'; text: string } | { t: 'tool'; n: number; dia: number }
   | { t: 'fan'; s: number } | { t: 'temp'; s: number; bed?: boolean };
 
-export interface Job { process: ProcessId; kind: 'cut' | 'pocket' | 'fdm' | 'lathe'; moves: Move[]; warnings: string[]; stats: { cutLength: number; rapidLength: number; seconds: number; layers?: number; filamentMm?: number; filamentG?: number; pierces?: number }; bounds: { min: P2; max: P2 }; meta: Record<string, number | string> }
+export interface Job { process: ProcessId; kind: 'cut' | 'pocket' | 'adaptive' | 'surface' | 'fdm' | 'lathe'; moves: Move[]; warnings: string[]; stats: { cutLength: number; rapidLength: number; seconds: number; layers?: number; filamentMm?: number; filamentG?: number; pierces?: number }; bounds: { min: P2; max: P2 }; meta: Record<string, number | string> }
 
 const dist = (a: P2, b: P2) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 function rotateTo(l: Loop, i: number): Loop { return [...l.slice(i), ...l.slice(0, i)]; }

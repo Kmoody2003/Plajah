@@ -4,7 +4,10 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Factory, Play, Download, Send, Square, Store, Upload, Trash2 } from 'lucide-react';
-import { processHazards, profileHazards, needsAck, sortHazards } from '../../services/safety/hazards';
+import { processHazards, profileHazards, openHazards, sortHazards } from '../../services/safety/hazards';
+import { rasterJob, waterlineJob, type CutterShape } from '../../services/fab/surface';
+import { machiningHazards } from '../../services/fab/camSafety';
+import { meshBounds } from '../../services/fab/slice';
 import { importProfiles, applyProfiles, loadProfiles, saveProfiles, mergeProfiles, renderGcode, settingsVars, jobVars, type SavedProfile, type ProfileKind, type Flat } from '../../services/fab/profiles';
 import { INFILL_PATTERNS, type InfillPattern } from '../../services/fab/infill';
 import type { SeamMode, FdmOptions } from '../../services/fab/cam';
@@ -51,7 +54,8 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
   const [s, setS] = useState({ layer: 0.2, infill: 20, walls: 2, nozzleTemp: 210, bedTemp: 60, kerf: proc.rules.kerf ?? 0.15, feed: 1200, power: 80, thickness: 3, material: '', tool: 6.35, stepDown: 3, stock: 25, doc: 1, metalLayer: 0.04,
     filament: 'pla', supports: 'none' as 'none' | 'buildplate' | 'everywhere', adhesion: 'skirt' as 'none' | 'skirt' | 'brim',
     resinPrinter: 'sl1s', resin: 'standard', resinLayer: 0.05, resinSupports: true,
-    infillPattern: 'lines' as InfillPattern, seam: 'aligned' as SeamMode, supportStyle: 'grid' as 'grid' | 'tree', ironing: false, adaptive: false, maxVolumetric: 0 });
+    infillPattern: 'lines' as InfillPattern, seam: 'aligned' as SeamMode, supportStyle: 'grid' as 'grid' | 'tree', ironing: false, adaptive: false, maxVolumetric: 0,
+    strategy: 'waterline' as 'waterline' | 'raster', cutter: 'ball' as CutterShape, scallop: 0.02, stockToLeave: 0, reach: 40, rpm: 12000 });
   // Imported slicer profiles (OrcaSlicer, Bambu Studio, PrusaSlicer, SuperSlicer, 3MF projects), saved per user on this device.
   const [user, setUser] = useState('');
   useEffect(() => { let on = true; getToken?.().then(t => { if (on) setUser(userFromToken(t)); }).catch(() => {}); return () => { on = false; }; }, [getToken]);
@@ -113,14 +117,16 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
   const blocked = findings.some(f => f.level === 'error');
   // Machine safety: critical hazards must be acknowledged before preparing, downloading or sending.
   const hazards = useMemo(() => {
-    const base = processHazards(proc.id, s.material || applied.filamentType || s.filament);
+    const base0 = processHazards(proc.id, s.material || applied.filamentType || s.filament);
+    const surfacing = (proc.id === 'mill3' || proc.id === 'mill5') && !is2D && meshes.length > 0;
+    const base = surfacing ? (() => { const b = meshBounds(meshes); return sortHazards([...base0, ...machiningHazards({ op: 'surface', depth: b.max[2] - b.min[2], reach: s.reach, toolDia: s.tool, finishFromStock: true })]); })() : base0;
     if (!fdmLike || (!picked.printer && !picked.filament && !picked.process)) return base;
     const f = applied.fdm; const speeds = [f.speed, f.outerWallSpeed, f.innerWallSpeed, f.infillSpeed, f.solidSpeed].filter((v): v is number => typeof v === 'number');
     return sortHazards([...base, ...profileHazards({ material: applied.filamentType || filamentById(s.filament)?.name, nozzleTemp: s.nozzleTemp, bedTemp: s.bedTemp, firstLayerNozzleTemp: f.firstLayerNozzleTemp, firstLayerBedTemp: f.firstLayerBedTemp,
       speed: Math.max(0, ...speeds), travel: f.travel ?? 0, maxX: applied.limits?.maxX, maxY: applied.limits?.maxY, gcode: profileGcode, source: [picked.printer, picked.filament, picked.process].filter(Boolean).map(p => p!.name).join(', ') })]);
-  }, [proc.id, s.material, s.filament, s.nozzleTemp, s.bedTemp, applied, picked, fdmLike, profileGcode]);
+  }, [proc.id, s.material, s.filament, s.nozzleTemp, s.bedTemp, applied, picked, fdmLike, profileGcode, is2D, meshes, s.reach, s.tool]);
   const [acks, setAcks] = useState<string[]>([]); const [terms, setTerms] = useState(termsAccepted); const [exchange, setExchange] = useState(false);
-  const openCritical = needsAck(hazards).filter(h => !acks.includes(h.id));
+  const openCritical = openHazards(hazards, acks);
   const base = model.name.replace(/\.[^.]+$/, '') || 'part';
 
   const prepare = () => {
@@ -160,10 +166,16 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
         } else if (proc.id === 'lathe') {
           const j = latheJob(turnedProfile(meshes), { stock: s.stock, doc: s.doc, finish: 0.2, feed: s.feed / 8, finishFeed: s.feed / 15, rpm: 1200 });
           const g = post(j, { dialect: machine?.dialect ?? 'lathe-iso', name: base, coolant: true }); setJob(j); setOut({ name: `${base}.${fileExtension(machine?.dialect ?? 'lathe-iso')}`, data: g, type: 'text/plain', gcode: g });
+        } else if ((proc.id === 'mill3' || proc.id === 'mill5') && machine?.dialect) {
+          // Our own 3D surfacing: waterline for steep walls, parallel rows for gentle surfaces.
+          const so = { process: proc.id, cutter: { shape: s.cutter, dia: s.tool }, scallop: s.scallop, stockToLeave: s.stockToLeave, feed: s.feed, rpm: s.rpm, reach: s.reach };
+          const j = s.strategy === 'raster' ? rasterJob(meshes, so) : waterlineJob(meshes, so);
+          const g = post(j, { dialect: machine.dialect, name: base, coolant: machine.dialect === 'iso' }); setJob(j); setOut({ name: `${base}.${fileExtension(machine.dialect)}`, data: g, type: 'text/plain', gcode: g });
+          if (proc.id === 'mill5') setMsg('These are 3-axis toolpaths with the head vertical; tilt-axis surfacing is not done yet.');
         } else if (proc.input === '3d') {
           // 3D milling / DED: we export the model for full 3D CAM, plus a profile job from its footprint.
           const data = write3mf(meshes.map(m => ({ ...m, name: base })), { title: base });
-          setOut({ name: `${base}.3mf`, data: data as BlobPart, type: 'model/3mf' }); setMsg('Full 3D surfacing toolpaths are coming next; this exports the checked model for your CAM. Drawings can be profiled and pocketed now.');
+          setOut({ name: `${base}.3mf`, data: data as BlobPart, type: 'model/3mf' }); setMsg('Exports the checked model for the deposition machine’s own path planner.');
         } else if (proc.outputs.includes('gcode') && machine?.dialect) {
           const j = cutJob(paths.loops, paths.open, { process: proc.id, kerf: s.kerf, feed: s.feed, power: proc.id === 'router' ? 18000 : s.power, thickness: proc.id === 'router' ? s.thickness : undefined, stepDown: s.stepDown, pierceDelay: proc.id === 'plasma' ? 0.5 : undefined });
           const g = post(j, { dialect: machine.dialect, name: base }); setJob(j); setOut({ name: `${base}.${fileExtension(machine.dialect)}`, data: g, type: 'text/plain', gcode: g });
@@ -187,7 +199,7 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
 
   const num = (key: keyof typeof s, label: string, unit = '', step = 1) => <label className="flex items-center justify-between py-0.5 gap-2"><span style={{ color: DIM }}>{label}{unit ? ` (${unit})` : ''}</span><input type="number" step={step} value={s[key] as number} onChange={e => setS(x => ({ ...x, [key]: +e.target.value }))} className="w-20 h-6 rounded bg-white/5 border border-white/10 px-1.5 text-[11px] text-white text-right" aria-label={label}/></label>;
   const pick = (key: keyof typeof s, label: string, opts: string[][], on?: (v: string) => void) => <label className="flex items-center justify-between py-0.5 gap-2"><span style={{ color: DIM }}>{label}</span><select value={String(s[key])} onChange={e => on ? on(e.target.value) : setS(x => ({ ...x, [key]: e.target.value }))} className="w-32 h-6 rounded bg-white/5 border border-white/10 text-[11px] text-white" aria-label={label} data-testid={`fab-${String(key)}`}>{opts.map(([v, t]) => <option key={v} value={v} style={{ background: '#15131d' }}>{t}</option>)}</select></label>;
-  const kind = proc.id === 'resin' ? 'resin' : proc.id === 'fdm' || proc.id === 'bound-metal' ? 'fdm' : proc.id === 'lpbf' || proc.id === 'ebm' ? 'metal' : proc.id === 'lathe' ? 'lathe' : proc.input === '2d' ? 'cut' : 'export';
+  const kind = (proc.id === 'mill3' || proc.id === 'mill5') && !is2D ? 'surface' : proc.id === 'resin' ? 'resin' : proc.id === 'fdm' || proc.id === 'bound-metal' ? 'fdm' : proc.id === 'lpbf' || proc.id === 'ebm' ? 'metal' : proc.id === 'lathe' ? 'lathe' : proc.input === '2d' ? 'cut' : 'export';
 
   return <div className="text-[12px]" data-testid="fab-make">
     <div className="flex items-center gap-1.5 font-bold mb-2"><Factory size={14} color="#fbbf24"/>Make it</div>
@@ -239,6 +251,14 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
         {num('feed', 'Feed', 'mm/min', 50)}
         <label className="flex items-center justify-between py-0.5 gap-2"><span style={{ color: DIM }}>Material</span><input value={s.material} onChange={e => setS(x => ({ ...x, material: e.target.value }))} placeholder={proc.materials[0]} className="w-28 h-6 rounded bg-white/5 border border-white/10 px-1.5 text-[11px] text-white" aria-label="Material"/></label>
       </>}
+      {kind === 'surface' && <div data-testid="fab-surface">
+        {pick('strategy', 'Finishing', [['waterline', 'Waterline (Z levels)'], ['raster', 'Parallel rows']])}
+        {pick('cutter', 'Cutter', [['ball', 'Ball end mill'], ['flat', 'Flat end mill']])}
+        {num('tool', 'Tool Ø', 'mm', 0.5)}{num('reach', 'Reach below holder', 'mm', 1)}
+        {num('scallop', 'Scallop height', 'mm', 0.005)}{num('stockToLeave', 'Stock to leave', 'mm', 0.1)}
+        {num('feed', 'Feed', 'mm/min', 50)}{num('rpm', 'Spindle', 'rpm', 500)}
+        <div className="text-[10px] mt-1" style={{ color: DIM }}>The step-over comes from the scallop height; the part's top is the top of stock. Rough the bulk out first, leaving a little stock, then finish.</div>
+      </div>}
       {kind === 'export' && <div className="text-[10.5px]" style={{ color: DIM }}>{proc.rules.shrink ? `Exports 3MF enlarged ${((1 / (1 - proc.rules.shrink) - 1) * 100).toFixed(1)}% for sintering shrinkage.` : 'Exports a checked, bed-placed 3MF for the machine\'s build software.'}</div>}
     </div>
 

@@ -365,3 +365,57 @@ test('time estimate accounts for acceleration and corners', () => {
   const j = fdmJob(box(20, 2), { accel: 500, adhesion: 'none' }); assert.ok(j.stats.seconds > Number(j.meta.secondsNoAccel), 'longer than the constant-speed sum');
   assert.ok(fdmJob(box(20, 2), { accel: 5000, adhesion: 'none' }).stats.seconds < j.stats.seconds);
 });
+
+// ---------------------------------------------------------------- machining gaps: 3D surfacing
+import { DropField, rasterJob, waterlineJob, stepoverForScallop, scallopForStepover } from '../services/fab/surface';
+import { distToLoop } from '../services/fab/geom2d';
+
+/** A UV sphere, radius r about the origin. */
+function sphere(r: number, lat = 24, lon = 48) {
+  const P: number[] = [], I: number[] = [];
+  for (let i = 0; i <= lat; i++) for (let j = 0; j < lon; j++) { const th = Math.PI * i / lat, ph = 2 * Math.PI * j / lon; P.push(r * Math.sin(th) * Math.cos(ph), r * Math.sin(th) * Math.sin(ph), r * Math.cos(th)); }
+  for (let i = 0; i < lat; i++) for (let j = 0; j < lon; j++) { const a = i * lon + j, b = i * lon + (j + 1) % lon, c = (i + 1) * lon + j, d = (i + 1) * lon + (j + 1) % lon; I.push(a, c, b, b, c, d); }
+  return [{ positions: P, indices: I }];
+}
+
+test('drop-cutter: flat and ball against a box, exact edge and vertex contacts, stock to leave', () => {
+  const b = box(20, 10); // x, y in ±10, z 0..10
+  const flat = new DropField(b, { shape: 'flat', dia: 6 }), ball = new DropField(b, { shape: 'ball', dia: 6 });
+  assert.ok(Math.abs(flat.drop(0, 0) - 10) < 1e-9 && Math.abs(ball.drop(0, 0) - 10) < 1e-9);
+  assert.ok(Math.abs(flat.drop(12, 0) - 10) < 1e-9, 'the flat rim still rests on the top edge 2 mm away');
+  assert.ok(Math.abs(ball.drop(12, 0) - (10 + Math.sqrt(5) - 3)) < 1e-9, 'ball on an edge 2 mm off: centre at 10 + √(9 − 4)');
+  assert.ok(Math.abs(ball.drop(12, 12) - (10 + Math.sqrt(9 - 8) - 3)) < 1e-9, 'ball on the corner vertex');
+  assert.equal(flat.drop(14, 0), 0, 'past the part the tool drops to the floor');
+  assert.ok(Math.abs(new DropField(b, { shape: 'ball', dia: 6 }, { stockToLeave: 0.5 }).drop(0, 0) - 10.5) < 1e-9);
+});
+
+test('scallop height sets the step-over and round-trips', () => {
+  assert.ok(Math.abs(stepoverForScallop(3, 0.01) - 2 * Math.sqrt(0.01 * 5.99)) < 1e-12);
+  assert.ok(Math.abs(scallopForStepover(3, stepoverForScallop(3, 0.02)) - 0.02) < 1e-9);
+});
+
+test('waterline: contours sit one tool radius off the box walls and touch the sphere', () => {
+  const j = waterlineJob(box(20, 10), { cutter: { shape: 'flat', dia: 6 }, feed: 800, stepDown: 2.5, resolution: 1 });
+  const sq10 = sq(10); const mid = j.levels.filter(L => L.z > 0.5 && L.z < 9.5);
+  assert.ok(mid.length >= 3 && mid.every(L => L.loops.length === 1));
+  for (const L of mid) for (const p of L.loops[0]) assert.ok(Math.abs(distToLoop(p, sq10) - 3) < 2e-3, `${p} is ${distToLoop(p, sq10)} off the wall`);
+  // Ball on a sphere: the ball centre at every contour point is R + r from the sphere's centre (the tool touches it).
+  const s = sphere(10); const R = 3; const w = waterlineJob(s, { cutter: { shape: 'ball', dia: 2 * R }, feed: 800, stepDown: 2, resolution: 0.8 });
+  const upper = w.levels.filter(L => L.z > 0.5 && L.z < 9); assert.ok(upper.length >= 3);
+  for (const L of upper) { assert.equal(L.loops.length, 1); for (const p of L.loops[0]) { const d = Math.hypot(p[0], p[1], L.z + R); assert.ok(Math.abs(d - 13) < 0.05, `centre ${d.toFixed(3)} from the sphere`); } }
+  // Every contour runs with the part on the right (climb cutting with M3) in the moves.
+  const g = post(j, { dialect: 'grbl' }); assert.match(g, /S12000 M3/); assert.ok(parseGcode(g).some(m => Math.abs(m.z - mid[0].z) < 1e-3));
+});
+
+test('raster finish: no gouge anywhere, rows on the scallop step-over, stock left on', () => {
+  const s = sphere(10); const R = 2;
+  const j = rasterJob(s, { cutter: { shape: 'ball', dia: 2 * R }, scallop: 0.02, feed: 1200, resolution: 0.5 });
+  assert.ok(Math.abs(Number(j.meta.stepover) - stepoverForScallop(R, 0.02)) < 1e-3);
+  // Ball centre never closer to the sphere than R (minus the faceting sag), and it does touch it.
+  let touch = 0;
+  for (const row of j.rows) for (const [x, y, z] of row) { const d = Math.hypot(x, y, z + R); if (z > -9.9) { assert.ok(d > 12 - 0.05, `gouge: ${d}`); if (d < 12 + 0.05) touch++; } }
+  assert.ok(touch > 100);
+  const left = rasterJob(s, { cutter: { shape: 'ball', dia: 2 * R }, stepover: 2, feed: 1200, stockToLeave: 0.5 });
+  assert.ok(left.rows.flat().every(([x, y, z]) => z <= -9.99 || Math.hypot(x, y, z + R) > 12.5 - 0.05));
+  assert.match(rasterJob(box(20, 30), { cutter: { shape: 'flat', dia: 6 }, feed: 800, reach: 20 }).warnings.join(' '), /holder would hit/);
+});
