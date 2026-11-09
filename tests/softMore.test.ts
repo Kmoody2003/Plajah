@@ -62,3 +62,69 @@ test('plush side gusset: closed pieces, gusset length matches the front and back
   assert.ok(!softHazards(p, 'under3').some(h => h.block)); assert.ok(softHazards(eyes, 'child').some(h => h.id === 'plush-eyes' && !h.block));
   closedPieces('plush base', build('plush-drawing', { outline }).pieces);
 });
+
+import { gradeSet, sizesOf, sizeRange } from '../services/soft/grading';
+import { printSheet, gradedModel } from '../services/soft/layout';
+import { writeDxf } from '../services/cad/dxf';
+import { deriveGrading } from '../services/soft/drape/grading';
+import { writeAama, readAama } from '../services/soft/drape/aama';
+import { CHILD_SIZES } from '../services/soft/patterns';
+
+/** Side seam and inseam of a trouser leg: the side runs from the topmost left point down to the hem corner (ring index 0); the inseam from index 1 to the crotch point. */
+function legSeams(r: Pt[]) {
+  let top = -1; r.forEach((q, i) => { if (q[0] < 0 && (top < 0 || q[1] > r[top][1])) top = i; });
+  let cr = 0; r.forEach((q, i) => { if (q[0] > r[cr][0]) cr = i; });
+  return { side: pathLength([...r.slice(top), r[0]]), inseam: pathLength(r.slice(1, cr + 1)) };
+}
+
+test('fly-front trousers: closed pieces in every size, side seams and inseams match, waistband fits the waist', () => {
+  const t = softTemplateById('trousers')!;
+  for (const size of sizesOf(t)) for (const waist of ['elastic', 'fly']) {
+    const p = build('trousers', { size, waist }); closedPieces(`trousers ${waist} ${size}`, p.pieces);
+    const f = p.pieces.find(x => x.id === 'front')!, b = p.pieces.find(x => x.id === 'back')!; const sf = legSeams(f.seam), sb = legSeams(b.seam);
+    assert.ok(Math.abs(sf.side - sb.side) < 3, `${size} ${waist} side ${sf.side} vs ${sb.side}`);
+    assert.ok(sb.inseam >= sf.inseam && sb.inseam - sf.inseam <= 10, `${size} ${waist} inseam: back eases onto front by ≤ 1 cm (${sf.inseam} / ${sb.inseam})`);
+    if (waist === 'fly') {
+      assert.ok(p.pieces.some(x => x.id === 'fly-shield') && p.features.zip && !p.features.elastic, 'fly parts');
+      // Waist edge on each leg (top edge, less the fly extension and the dart) ×2 + extension = waistband length.
+      const edge = (pc: typeof f, fly: number) => { const yt = Math.max(...pc.seam.map(q => q[1])); let cfTop = pc.seam.filter(q => q[1] > yt - 30 && q[0] > 0).reduce((a, q) => (q[1] > a[1] ? q : a)); const swp = pc.seam.filter(q => q[0] < 0).reduce((a, q) => (q[1] > a[1] ? q : a));
+        cfTop = [cfTop[0] - fly, cfTop[1]]; const dart = pc.lines?.find(l => l.label === 'dart'); const dw = dart ? dist(dart.pts[0], dart.pts[2]) : 0; return dist(cfTop, swp) - dw; };
+      const flyW = CHILD_SIZES.includes(size) ? 28 : 35; const band = bbox(p.pieces.find(x => x.id === 'waistband')!.seam).w;
+      const fw = edge(f, flyW), bw = edge(b, 0); assert.ok(Math.abs(band - (flyW + 5) - 2 * (fw + bw)) < 3, `${size} band ${band} vs ${2 * (fw + bw)}`);
+      const finWaist = p.finished.find(x => x[0] === 'Waist (finished)')![1]; assert.ok(Math.abs(2 * (fw + bw) - finWaist) < 3);
+    }
+  }
+  assert.ok(!build('trousers', { waist: 'fly', use: 'pajama' }).pieces.some(x => x.id === 'fly-shield'), 'pajamas stay elastic');
+  // Safety: a fly button on a 2T is flagged (acknowledge, not blocked); a child drawcord is impossible with a fly.
+  const kid = build('trousers', { size: '2T', waist: 'fly', drawstring: true }); const hz = softHazards(kid, 'under3');
+  assert.ok(hz.some(h => h.id === 'button-toddler' && !h.block) && hz.some(h => h.id === 'zip-toddler')); assert.ok(!kid.features.waistDrawstring);
+});
+
+test('princess dress: closed panels in every size, princess seams match, bodice and skirt waists join', () => {
+  const t = softTemplateById('dress')!;
+  for (const size of sizesOf(t)) {
+    const p = build('dress', { size, bodice: 'princess' }); closedPieces(`dress ${size}`, p.pieces);
+    const by = (id: string) => p.pieces.find(x => x.id === id)!;
+    for (const [c, s] of [['bodice-cf', 'bodice-sf'], ['bodice-cb', 'bodice-sb']]) {
+      const C = by(c), S = by(s); const shared = C.seam.filter(q => S.seam.some(r => dist(q, r) < 1e-6)); assert.ok(shared.length >= 10, `${size} ${c}/${s} share the princess curve`);
+      const seamOf = (r: Pt[]) => { const on = r.map(q => shared.some(z => dist(z, q) < 1e-6)); let L = 0; for (let i = 0; i < r.length; i++) if (on[i] && on[(i + 1) % r.length]) L += dist(r[i], r[(i + 1) % r.length]); return L; };
+      assert.ok(Math.abs(seamOf(C.seam) - seamOf(S.seam)) < 1e-6, `${size} ${c}/${s} princess seam lengths`);
+    }
+    // Waist: centre + side panel widths at y = 0 equal the skirt front's waist less its dart (as the darted bodice does).
+    const w0 = (r: Pt[]) => { const xs = r.filter(q => Math.abs(q[1]) < 1e-6).map(q => q[0]); return Math.max(...xs) - Math.min(...xs); };
+    const sk = by('skirt-front'); const skTop = Math.max(...sk.seam.filter(q => q[0] > 0 && q[1] > bbox(sk.seam).y1 - 10).map(q => q[0])); const skDart = sk.lines?.[0] ? Math.abs(sk.lines[0].pts[2][0] - sk.lines[0].pts[0][0]) : 0;
+    assert.ok(Math.abs(w0(by('bodice-cf').seam) + w0(by('bodice-sf').seam) - (skTop - skDart)) < 2.5, `${size} waist join`);
+  }
+});
+
+test('graded nests and AAMA DXF: fly trousers 2T–14 and princess dress XS–3XL grow with every size', () => {
+  for (const [id, over, from, to] of [['trousers', { waist: 'fly' }, '2T', '14'], ['trousers', { waist: 'fly' }, 'XS', '3XL'], ['dress', { bodice: 'princess' }, 'XS', '3XL'], ['dress', { bodice: 'princess' }, '2T', '14']] as const) {
+    const t = softTemplateById(id)!; const sizes = sizeRange(sizesOf(t), from, to); const v = { ...softDefaults(t), ...over }; const g = gradeSet(t, v, sizes)!; assert.ok(g, `${id} ${from}`);
+    const sheet = printSheet(g.base, undefined, 15, g);
+    for (const it of sheet.items) { assert.equal(it.nest!.length, sizes.length); const ar = it.nest!.map(n => area(n.cut)); for (let i = 1; i < ar.length; i++) assert.ok(ar[i] > ar[i - 1], `${id}/${it.piece.id} ${sizes[i]} > ${sizes[i - 1]}`); }
+    const dxf = writeDxf(gradedModel(g)); for (const s of sizes) assert.ok(dxf.includes(`SIZE-${s}`), `${id} DXF ${s}`);
+    const drafts = Object.fromEntries(sizes.map((s, i) => [s, g.patterns[i]])); const gr = deriveGrading(drafts, sizes, sizes[Math.floor(sizes.length / 2)]);
+    const aama = writeAama(gr, { allSizes: true }); const back = readAama(aama.dxf); assert.deepEqual(back.sizes, sizes, `${id} AAMA sizes`);
+    assert.equal(back.graded.pattern.pieces.length, gr.pattern.pieces.length);
+  }
+});
