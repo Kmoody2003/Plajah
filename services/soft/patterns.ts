@@ -403,49 +403,77 @@ function withGrading(p: Pattern, sizes: string[], fin: (s: string) => Array<[str
 
 // Trousers / pajama pants ----------------------------------------------------------------------
 
-/** One trouser leg: crease (grain) on x = 0, hem on y = 0, waist on top; inseam and crotch on the right. */
-function trouserLeg(H: number, R: number, I: number, hemHalf: number, back: boolean, a: number, hem: number) {
+/**
+ * One trouser leg: crease (grain) on x = 0, hem on y = 0, waist on top; inseam and crotch on the right.
+ * `take` shapes the side seam in at the waist and `dart` adds a waist dart (a fitted, fly-front waist);
+ * `fly` grows a fly extension of that width on the front centre seam, from the waist to the hip notch.
+ */
+function trouserLeg(H: number, R: number, I: number, hemHalf: number, back: boolean, a: number, hem: number, take = 0, dart = 0, fly = 0) {
   const W = H / 4 + (back ? 10 : -10), ext = back ? H / 10 : H / 16, A = (W + ext) / 2;
   const xs = -A, xc = W - A, xt = xc + ext, yc = I, hip = yc + R * 0.42, yw = I + R; const wc: Pt = [xc - (back ? 22 : 6), yw + (back ? 25 : 0)];
+  const sw: Pt = [xs + take, yw]; const yfb = hip + 5;
+  const cf: Array<[Pt[], number]> = fly > 0
+    ? [[[[xc, hip]], a], [run([xc, yfb], [xc, yfb + fly * 0.4], [xc + fly * 0.6, yfb + fly * 0.2], [xc + fly, yfb + fly], 8), a], [[[wc[0] + fly, yw]], a]]
+    : [[[[xc, hip]], a], [[wc], a]];
   const r = ringOf([
     [[[-hemHalf, 0]], hem],
     [run([hemHalf, 0], [hemHalf + (xt - hemHalf) * 0.15, yc * 0.45], [xt - ext * 0.5, yc - 25], [xt, yc]), a],
     [run([xt, yc], [xc + ext * 0.3, yc], [xc, yc + R * 0.1], [xc, hip]), a],
-    [[[xc, hip]], a],
-    [[wc], a],
-    [[[xs, yw]], a],
+    ...cf,
+    [run(sw, [sw[0] - take * 0.3, yw - (yw - hip) * 0.4], [xs, hip + (yw - hip) * 0.35], [xs, hip]), a],
     [run([xs, hip], [xs, hip * 0.7], [-hemHalf, yc * 0.45], [-hemHalf, 0]), a],
   ]);
-  return { ...r, notches: back ? [[xs, hip], [xs, hip - 10]] as Pt[] : [[xs, hip]] as Pt[], waist: dist(wc, [xs, yw]), legTop: W + ext };
+  // The dart sits at the middle of the waist edge (centre front/back to side), square to it.
+  const wl = dist(wc, sw), ux = (sw[0] - wc[0]) / wl, uy = (sw[1] - wc[1]) / wl; const mid: Pt = [(wc[0] + sw[0]) / 2, (wc[1] + sw[1]) / 2]; const dl = Math.min(back ? 120 : 90, R * 0.4);
+  const lines: Array<{ pts: Pt[]; label?: string }> = dart > 0 ? [{ pts: [[mid[0] - ux * dart / 2, mid[1] - uy * dart / 2], [mid[0] - uy * dl, mid[1] + ux * dl], [mid[0] + ux * dart / 2, mid[1] + uy * dart / 2]], label: 'dart' }] : [];
+  if (fly > 0) lines.push({ pts: [[xc, yfb], wc], label: 'centre front: fold the fly facing back here' }, { pts: [[xc, yfb], [xc + fly * 0.75, yfb + fly * 0.9], [wc[0] + fly * 0.75, yw]], label: 'fly topstitching' });
+  const notches: Pt[] = back ? [[xs, hip], [xs, hip - 10]] : [[xs, hip]]; if (fly > 0) notches.push([xc, yfb]);
+  return { ...r, notches, lines, waist: wl - dart, dart, legTop: W + ext, fly: yw - yfb, cf: wc, sw, hipPt: [xs, hip] as Pt, crotch: [xt, yc] as Pt, hemHalf };
 }
 
 function trousersDraft(v: Record<string, ParamValue>, size: string): Pattern {
-  const fit = str(v, 'fit', 'regular'), pj = str(v, 'use', 'trousers') === 'pajama', cord = bool(v, 'drawstring'); const child = CHILD_SIZES.includes(size);
+  const fit = str(v, 'fit', 'regular'), pj = str(v, 'use', 'trousers') === 'pajama', flyFront = !pj && str(v, 'waist', 'elastic') === 'fly', cord = !flyFront && bool(v, 'drawstring'); const child = CHILD_SIZES.includes(size);
   const m = body(size); const ease = ({ snug: 40, regular: 80, relaxed: 140 } as Record<string, number>)[fit] ?? 80;
   const H = m.hip + ease, R = m.rise + 15, I = Math.max(150, m.inseam + num(v, 'length', 0)); const a = 15, hem = 30;
   const hemC = Math.max(H * (fit === 'snug' ? 0.36 : 0.42), m.hip * 0.3);
-  const front = trouserLeg(H, R, I, hemC / 4 - 6, false, a, hem), back = trouserLeg(H, R, I, hemC / 4 + 6, true, a, hem);
-  const elW = child ? 20 : 25, bandH = 2 * elW + 16, bandL = Math.round(2 * (front.waist + back.waist)), elastic = Math.round(m.waist * (child ? 0.92 : 0.9));
+  let front = trouserLeg(H, R, I, hemC / 4 - 6, false, a, hem), back = trouserLeg(H, R, I, hemC / 4 + 6, true, a, hem);
+  const Wt = m.waist + (child ? 20 : 25); const flyW = child ? 28 : 35;
+  if (flyFront) {
+    // Fitted waist: the hip-to-waist difference comes out as a waist dart and a shaped side seam on each leg.
+    const shape = (leg: typeof front, target: number) => { const red = Math.max(0, leg.waist - target); const dart = red * 0.4 >= 8 ? Math.min(30, red * 0.4) : 0; return { take: red - dart, dart }; };
+    const sf = shape(front, Wt / 4 - 5), sb = shape(back, Wt / 4 + 5);
+    front = trouserLeg(H, R, I, hemC / 4 - 6, false, a, hem, sf.take, sf.dart, flyW); back = trouserLeg(H, R, I, hemC / 4 + 6, true, a, hem, sb.take, sb.dart);
+  }
+  const elW = child ? 20 : 25, bandH = flyFront ? 2 * (child ? 30 : 38) : 2 * elW + 16, overlap = flyFront ? flyW + 5 : 0;
+  const bandL = Math.round(2 * (front.waist + back.waist) + overlap), elastic = Math.round(m.waist * (child ? 0.92 : 0.9));
   const gr = (r: Pt[]): [Pt, Pt] => { const b = bbox(r); return [[0, b.h * 0.15], [0, b.h * 0.6]]; };
   const pieces: Piece[] = [
-    { id: 'front', name: 'Front leg', seam: front.seam, allowance: front.allowance, cut: 2, pair: true, fabric: 'main', grain: gr(front.seam), notches: front.notches },
-    { id: 'back', name: 'Back leg', seam: back.seam, allowance: back.allowance, cut: 2, pair: true, fabric: 'main', grain: gr(back.seam), notches: back.notches },
-    rectPiece('waistband', 'Waistband (elastic casing)', bandL, bandH, [a, a, a, a], { grain: [[bandL * 0.2, bandH / 2], [bandL * 0.8, bandH / 2]], note: `Cut lengthways. Fold in half over ${elW} mm elastic${cord ? '; work two buttonholes 2 cm apart at centre front first' : ''}.` }),
+    { id: 'front', name: 'Front leg', seam: front.seam, allowance: front.allowance, cut: 2, pair: true, fabric: 'main', grain: gr(front.seam), notches: front.notches, ...(front.lines.length ? { lines: front.lines } : {}) },
+    { id: 'back', name: 'Back leg', seam: back.seam, allowance: back.allowance, cut: 2, pair: true, fabric: 'main', grain: gr(back.seam), notches: back.notches, ...(back.lines.length ? { lines: back.lines } : {}) },
+    flyFront
+      ? rectPiece('waistband', 'Waistband (fitted)', bandL, bandH, [a, a, a, a], { grain: [[bandL * 0.2, bandH / 2], [bandL * 0.8, bandH / 2]], notches: [[overlap, 0], [overlap + front.waist, 0], [overlap + front.waist + 2 * back.waist, 0]], note: `Cut lengthways; interface one half. The ${overlap} mm extension laps under at the left front for the button.` })
+      : rectPiece('waistband', 'Waistband (elastic casing)', bandL, bandH, [a, a, a, a], { grain: [[bandL * 0.2, bandH / 2], [bandL * 0.8, bandH / 2]], note: `Cut lengthways. Fold in half over ${elW} mm elastic${cord ? '; work two buttonholes 2 cm apart at centre front first' : ''}.` }),
   ];
-  const notions: Notion[] = [{ item: `${elW} mm elastic`, qty: `${(elastic / 1000).toFixed(2)} m`, note: 'Overlap the ends 2 cm and zigzag' }, { item: 'Thread', qty: '1 spool' }];
+  if (flyFront) pieces.push(rectPiece('fly-shield', 'Fly shield', 2 * (flyW + 10), Math.round(front.fly + 15), [a, a, a, a], { note: 'Fold in half lengthways; it sits behind the zip on the right front.' }));
+  const zip = Math.max(80, Math.round((front.fly - 15) / 10) * 10);
+  const notions: Notion[] = flyFront
+    ? [{ item: 'Trouser zip (metal or nylon)', qty: `1 × ${zip / 10} cm` }, { item: 'Button or jeans tack', qty: '1', note: `${child ? 15 : 18} mm, through the waistband extension` }, { item: 'Fusible interfacing', qty: `${((bandL + 50) / 1000).toFixed(2)} m × ${bandH / 2} mm` }, { item: 'Thread', qty: '1 spool' }]
+    : [{ item: `${elW} mm elastic`, qty: `${(elastic / 1000).toFixed(2)} m`, note: 'Overlap the ends 2 cm and zigzag' }, { item: 'Thread', qty: '1 spool' }];
   if (cord) notions.push({ item: 'Drawcord', qty: `${((child ? m.waist + 150 : m.waist + 500) / 1000).toFixed(2)} m`, note: child ? 'Children: each end no more than 7.5 cm out with the waist flat and relaxed, no toggles or knots, bartacked at centre back' : 'Bartack at centre back so it cannot pull out' });
   const label = pj ? 'Pajama pants' : 'Trousers';
-  const rH = H / TAU, rl = (front.legTop + back.legTop) / TAU * 0.9;
-  return { template: 'trousers', name: `${label} size ${size}`, size, kind: 'apparel', fabricWidth: 1400, features: { elastic: true, sleepwear: pj, waistDrawstring: cord, snug: fit === 'snug' }, pieces, notions,
-    steps: ['Sew each front leg to its back leg at the side seam and the inseam, matching notches; finish the seams.', 'Turn one leg right side out and slip it inside the other, right sides together; sew the crotch seam in one pass from front waist to back waist, then stitch it again 3 mm away for strength.', `Join the waistband into a ring${cord ? ' (buttonholes at centre front)' : ''}, fold it in half and sew it to the waist, leaving 5 cm open.`, `Thread ${(elastic / 1000).toFixed(2)} m of elastic${cord ? ' and the drawcord' : ''} through; overlap and zigzag the elastic; close the gap.${cord ? ' Bartack the cord at centre back.' : ''}`, 'Hem: press 1 cm then 2 cm, stitch.'],
-    notes: [pj && child ? 'Children\'s pajama pants are sleepwear: flame-resistant fabric, or a snug fit to the federal dimensions with the snug-fitting label.' : '', cord && child ? 'Children\'s waist drawcord: short ends, no toggles or knots, bartacked; never on under-3s.' : ''].filter(Boolean),
-    finished: [['Hip (finished)', H], ['Waist (elastic, relaxed)', elastic], ['Inseam', I], ['Rise', R], ['Hem circumference', hemC]] };
+  const steps = flyFront
+    ? ['Sew the waist darts on the fronts and backs; press towards the centre.', 'Fly: fold the left front\'s fly facing back on the centre-front line; sew the zip to it, then the right front and the fly shield to the other tape. Topstitch the J-curve through the facing only.', 'Sew the crotch seam from the fly notch round to the back waist; stitch again 3 mm away for strength.', 'Sew the side seams, then the inseam in one pass from hem to hem, matching notches; finish the seams.', 'Interface the waistband; sew it to the waist matching the side and centre-back notches, the extension at the left front. Fold, close the ends, stitch in the ditch.', `Buttonhole on the right front end, button on the extension (${child ? 15 : 18} mm).`, 'Hem: press 1 cm then 2 cm, stitch.']
+    : ['Sew each front leg to its back leg at the side seam and the inseam, matching notches; finish the seams.', 'Turn one leg right side out and slip it inside the other, right sides together; sew the crotch seam in one pass from front waist to back waist, then stitch it again 3 mm away for strength.', `Join the waistband into a ring${cord ? ' (buttonholes at centre front)' : ''}, fold it in half and sew it to the waist, leaving 5 cm open.`, `Thread ${(elastic / 1000).toFixed(2)} m of elastic${cord ? ' and the drawcord' : ''} through; overlap and zigzag the elastic; close the gap.${cord ? ' Bartack the cord at centre back.' : ''}`, 'Hem: press 1 cm then 2 cm, stitch.'];
+  return { template: 'trousers', name: `${label}${flyFront ? ' (fly front)' : ''} size ${size}`, size, kind: 'apparel', fabricWidth: 1400, features: { elastic: !flyFront, zip: flyFront, buttons: flyFront, sleepwear: pj, waistDrawstring: cord, snug: fit === 'snug' }, pieces, notions, steps,
+    notes: [pj && child ? 'Children\'s pajama pants are sleepwear: flame-resistant fabric, or a snug fit to the federal dimensions with the snug-fitting label.' : '', cord && child ? 'Children\'s waist drawcord: short ends, no toggles or knots, bartacked; never on under-3s.' : '', flyFront && child ? 'Children\'s fly: the fly shield sits behind the zip so it cannot catch skin; pull-test the button.' : ''].filter(Boolean),
+    finished: [['Hip (finished)', H], [flyFront ? 'Waist (finished)' : 'Waist (elastic, relaxed)', flyFront ? 2 * (front.waist + back.waist) : elastic], ['Inseam', I], ['Rise', R], ['Hem circumference', hemC]] };
 }
 
 const trousers: SoftTemplate = {
-  id: 'trousers', name: 'Straight-leg trousers / pajama pants', kind: 'apparel', audience: 'adult', blurb: 'Pull-on front and back legs with a crotch curve and an elastic waistband. Woven fabric.',
+  id: 'trousers', name: 'Straight-leg trousers / pajama pants', kind: 'apparel', audience: 'adult', blurb: 'Front and back legs with a crotch curve: elastic pull-on, or a fly front with darts and a fitted waistband. Woven fabric.',
   params: [{ key: 'size', label: 'Size', type: 'select', default: 'M', options: sizeOptions(SIZE_ORDER) },
     { key: 'use', label: 'Made as', type: 'select', default: 'trousers', options: [{ value: 'trousers', label: 'Trousers (day wear)' }, { value: 'pajama', label: 'Pajama pants (sleepwear)' }] },
+    { key: 'waist', label: 'Waist', type: 'select', default: 'elastic', options: [{ value: 'elastic', label: 'Elastic pull-on' }, { value: 'fly', label: 'Fly front: zip, fitted waistband, button' }], help: 'Pajama pants are always elastic.' },
     { key: 'fit', label: 'Fit', type: 'select', default: 'regular', options: [{ value: 'snug', label: 'Snug' }, { value: 'regular', label: 'Regular' }, { value: 'relaxed', label: 'Relaxed' }] },
     { key: 'length', label: 'Length adjustment', type: 'length', default: 0, min: -150, max: 100 },
     { key: 'drawstring', label: 'Waist drawcord', type: 'bool', default: false, help: 'Children: short ends (7.5 cm max), no toggles or knots, bartacked. Never for under-3s.' }],
@@ -465,6 +493,22 @@ function dressDraft(v: Record<string, ParamValue>, size: string): Pattern {
     return { seam, allowance, lines: dart ? [{ pts: [[dx - dart / 2, 0], [dx, apex], [dx + dart / 2, 0]] as Pt[], label: 'dart' }] : [], notches: dart ? [[dx - dart / 2, 0], [dx + dart / 2, 0]] as Pt[] : [] };
   };
   const dxF = b.W * 0.42, dxB = b.W * 0.46; const bf = bod(b.front, dF, dxF, b.L * 0.42, true), bb = bod(b.back, dB, dxB, b.L * 0.55, false);
+  /**
+   * Princess seams: the waist dart is carried up through its point into the armhole, splitting the
+   * bodice into a centre panel and a side panel. Both panels share the same curve, so the princess
+   * seam lengths match exactly; their waist widths add up to the darted bodice's waist.
+   */
+  const princess = (ring: Pt[], dart: number, dx: number, apexY: number, fold: boolean) => {
+    const n = ring.length; const top = ring.reduce((k, q, i) => (q[1] > ring[k][1] + 1e-9 ? i : k), 0); const shI = top - 1;
+    const arcs = [0]; for (let i = 3; i <= shI; i++) arcs.push(arcs[arcs.length - 1] + dist(ring[i - 1], ring[i]));
+    let k = 3; while (k < shI && arcs[k - 2] < arcs[arcs.length - 1] * 0.4) k++;
+    const P = ring[k], apex: Pt = [dx, apexY]; const c1: Pt = [apex[0], apex[1] + (P[1] - apex[1]) * 0.5], c2: Pt = [P[0] - (P[0] - apex[0]) * 0.3, P[1] - (P[1] - apex[1]) * 0.3];
+    const curve = bez(apex, c1, c2, P, 12); const mid = curve[5];
+    const centre = ringOf([[[[0, 0], [dx - dart / 2, 0]], a], [[apex, ...curve.slice(0, -1)], a], [ring.slice(k, n - 1), a], [[ring[n - 1]], fold ? 0 : cb]]);
+    const side = ringOf([[[[dx + dart / 2, 0], ...ring.slice(1, k)], a], [[P, ...[...curve].reverse().slice(1), apex], a]]);
+    return { centre: { ...centre, notches: [[dx - dart / 2, 0], mid] as Pt[] }, side: { ...side, notches: [[dx + dart / 2, 0], mid] as Pt[] }, seamLen: pathLength([[dx - dart / 2, 0], apex, ...curve]) };
+  };
+  const prin = str(v, 'bodice', 'darts') === 'princess';
   const S = Math.min(num(v, 'skirt', 600), m.inseam + m.rise * 0.3), Hq = (m.hip + 40) / 4, hipD = m.rise * 0.75;
   const sd = Math.max(0, Math.min(Hq - Wq - 20, 35)); const flare = ({ slim: 0.12, a: 0.22, full: 0.38 } as Record<string, number>)[str(v, 'flare', 'a')] ?? 0.22;
   const hemX = Hq + S * flare;
@@ -475,17 +519,27 @@ function dressDraft(v: Record<string, ParamValue>, size: string): Pattern {
   };
   const sf = skirtQ(dxF, true), sb = skirtQ(dxB, false);
   const gb = (r: Pt[]): [Pt, Pt] => { const q = bbox(r); return [[q.w * 0.3, q.h * 0.2], [q.w * 0.3, q.h * 0.75]]; };
-  const pieces: Piece[] = [
+  const darted: Piece[] = [
     { id: 'bodice-front', name: 'Bodice front', seam: bf.seam, allowance: bf.allowance, fold: bf.seam.length - 1, cut: 1, fabric: 'main', grain: gb(bf.seam), lines: bf.lines, notches: bf.notches },
     { id: 'bodice-back', name: 'Bodice back', seam: bb.seam, allowance: bb.allowance, cut: 2, pair: true, fabric: 'main', grain: gb(bb.seam), lines: bb.lines, notches: bb.notches, note: 'Centre back takes the zip: 2 cm allowance.' },
+  ];
+  const vg = (r: Pt[]): [Pt, Pt] => { const q = bbox(r); const x = (q.x0 + q.x1) / 2; return [[x, q.y0 + q.h * 0.2], [x, q.y0 + q.h * 0.75]]; };
+  const pf = prin ? princess(bf.seam, dF, dxF, b.L * 0.42, true) : null, pb = prin ? princess(bb.seam, dB, dxB, b.L * 0.55, false) : null;
+  const pieces: Piece[] = pf && pb ? [
+    { id: 'bodice-cf', name: 'Bodice centre front', seam: pf.centre.seam, allowance: pf.centre.allowance, fold: pf.centre.seam.length - 1, cut: 1, fabric: 'main', grain: vg(pf.centre.seam), notches: pf.centre.notches },
+    { id: 'bodice-sf', name: 'Bodice side front', seam: pf.side.seam, allowance: pf.side.allowance, cut: 2, pair: true, fabric: 'main', grain: vg(pf.side.seam), notches: pf.side.notches, note: 'Princess seam: match the notch to the centre front; ease over the bust.' },
+    { id: 'bodice-cb', name: 'Bodice centre back', seam: pb.centre.seam, allowance: pb.centre.allowance, cut: 2, pair: true, fabric: 'main', grain: vg(pb.centre.seam), notches: pb.centre.notches, note: 'Centre back takes the zip: 2 cm allowance.' },
+    { id: 'bodice-sb', name: 'Bodice side back', seam: pb.side.seam, allowance: pb.side.allowance, cut: 2, pair: true, fabric: 'main', grain: vg(pb.side.seam), notches: pb.side.notches },
+  ] : [...darted];
+  pieces.push(
     { id: 'skirt-front', name: 'Skirt front', seam: sf.seam, allowance: sf.allowance, fold: sf.seam.length - 1, cut: 1, fabric: 'main', grain: gb(sf.seam), lines: sf.lines, notches: sf.notches },
     { id: 'skirt-back', name: 'Skirt back', seam: sb.seam, allowance: sb.allowance, cut: 2, pair: true, fabric: 'main', grain: gb(sb.seam), lines: sb.lines, notches: sb.notches },
-  ];
-  if (lined) pieces.push({ ...pieces[0], id: 'lining-front', name: 'Bodice lining front', fabric: 'lining' }, { ...pieces[1], id: 'lining-back', name: 'Bodice lining back', fabric: 'lining' });
+  );
+  if (lined) pieces.push({ ...darted[0], id: 'lining-front', name: 'Bodice lining front', fabric: 'lining' }, { ...darted[1], id: 'lining-back', name: 'Bodice lining back', fabric: 'lining' });
   const zip = Math.round((waistLen - 60 + hipD) / 10) * 10;
   const notions: Notion[] = [{ item: 'Invisible zip', qty: `1 × ${Math.round(zip / 10)} cm`, note: 'Centre back, from the neckline to below the hip line' }, { item: 'Hook and eye', qty: '1', note: 'Top of the zip' }, { item: 'Thread', qty: '1 spool' }, ...(lined ? [] : [{ item: 'Fusible interfacing', qty: '0.3 m', note: 'For neck and armhole facings' }])];
-  return { template: 'dress', name: `Dress size ${size}`, size, kind: 'apparel', fabricWidth: 1400, features: { zip: true, sleepwear: bool(v, 'sleepwear') }, pieces, notions,
-    steps: ['Sew all darts: stitch from the waist to the point, tie off (do not backstitch at the point), press towards the centre.', 'Bodice: sew the shoulder seams. Lining: same. Put bodice and lining right sides together and sew the neckline and armholes; understitch, clip, turn through the shoulders (burrito method), press.', 'Sew the bodice side seams (lining too) in one pass through the underarm.', 'Skirt: sew the side seams. Sew the skirt to the bodice at the waist, matching side seams and darts.', 'Insert the invisible zip in the centre back; sew the rest of the centre-back seam below it. Slip-stitch the lining to the zip tape.', 'Hem: press 1 cm then 2 cm, stitch or blind-hem.'],
+  return { template: 'dress', name: `Dress${prin ? ' (princess seams)' : ''} size ${size}`, size, kind: 'apparel', fabricWidth: 1400, features: { zip: true, sleepwear: bool(v, 'sleepwear') }, pieces, notions,
+    steps: [prin ? 'Princess seams: sew each side front to the centre front and each side back to its centre back, notches matching, easing over the bust; clip the curve, press towards the centre. Sew the skirt darts.' : 'Sew all darts: stitch from the waist to the point, tie off (do not backstitch at the point), press towards the centre.', 'Bodice: sew the shoulder seams. Lining: same. Put bodice and lining right sides together and sew the neckline and armholes; understitch, clip, turn through the shoulders (burrito method), press.', 'Sew the bodice side seams (lining too) in one pass through the underarm.', 'Skirt: sew the side seams. Sew the skirt to the bodice at the waist, matching side seams and darts.', 'Insert the invisible zip in the centre back; sew the rest of the centre-back seam below it. Slip-stitch the lining to the zip tape.', 'Hem: press 1 cm then 2 cm, stitch or blind-hem.'],
     notes: [], finished: [['Bust (finished)', 4 * b.W], ['Waist (finished)', 4 * Wq], ['Hip (finished)', 4 * Hq], ['Bodice length (HPS to waist)', b.L], ['Skirt length', S], ['Hem circumference', 4 * hemX]] };
 }
 
@@ -493,6 +547,7 @@ const dress: SoftTemplate = {
   id: 'dress', name: 'Fitted bodice dress (A-line skirt)', kind: 'apparel', audience: 'adult', blurb: 'Sleeveless bodice with waist darts, A-line skirt, centre-back zip. Woven fabric.',
   params: [{ key: 'size', label: 'Size', type: 'select', default: 'M', options: sizeOptions(SIZE_ORDER) },
     { key: 'skirt', label: 'Skirt length (waist to hem)', type: 'length', default: 600, min: 250, max: 1100, help: 'Kids\' sizes are capped at a sensible length for the size.' },
+    { key: 'bodice', label: 'Bodice shaping', type: 'select', default: 'darts', options: [{ value: 'darts', label: 'Waist darts' }, { value: 'princess', label: 'Princess seams (armhole)' }], help: 'Princess seams carry the dart into the armhole: four bodice panels instead of two. The lining stays darted.' },
     { key: 'flare', label: 'Skirt', type: 'select', default: 'a', options: [{ value: 'slim', label: 'Slim A-line' }, { value: 'a', label: 'A-line' }, { value: 'full', label: 'Full A-line' }] },
     { key: 'lined', label: 'Lined bodice', type: 'bool', default: true }, { key: 'sleepwear', label: 'Sold or marketed as sleepwear (nightdress)', type: 'bool', default: false }],
   build: v => { const size = str(v, 'size', 'M'); return withGrading(dressDraft(v, size), groupOf(size), s => dressDraft(v, s).finished); },
@@ -625,12 +680,13 @@ const plushDrawing: SoftTemplate = {
   id: 'plush-drawing', name: 'Plush from your drawing', kind: 'plush', audience: 'child', blurb: 'Upload a drawing or photo: we trace the silhouette into front and back panels with a sit-flat base.',
   params: [{ key: 'outline', label: 'Traced outline', type: 'select', default: '', hidden: true },
     { key: 'height', label: 'Height', type: 'length', default: 300, min: 100, max: 900 },
-    { key: 'base', label: 'Sit-flat base gusset', type: 'bool', default: true }, { key: 'flat', label: 'Flat bottom (share of the height)', type: 'number', default: 0.06, min: 0.01, max: 0.3, step: 0.01, help: 'Where the drawing is cut flat for the base.' },
+    { key: 'base', label: 'Sit-flat base gusset', type: 'bool', default: true },
+    { key: 'side', label: 'Side gusset all round (gives depth; replaces the base)', type: 'bool', default: false }, { key: 'gussetW', label: 'Side gusset width', type: 'length', default: 60, min: 20, max: 250, help: 'The finished depth of the toy front to back.' }, { key: 'flat', label: 'Flat bottom (share of the height)', type: 'number', default: 0.06, min: 0.01, max: 0.3, step: 0.01, help: 'Where the drawing is cut flat for the base.' },
     { key: 'depth', label: 'Base depth (share of its width)', type: 'number', default: 0.6, min: 0.3, max: 1, step: 0.05 },
     { key: 'face', label: 'Eyes', type: 'select', default: 'embroidered', options: [{ value: 'embroidered', label: 'Embroidered (safest; required under 3)' }, { value: 'safety-eyes', label: 'Plastic safety eyes (3+ only)' }, { value: 'felt', label: 'Felt, stitched all round' }, { value: 'drawn', label: 'As in my drawing (embroider it)' }] },
     { key: 'a', label: 'Seam allowance', type: 'length', default: 6, min: 4, max: 12 }],
   build: v => {
-    const H = num(v, 'height', 300), base = v.base !== false, flat = Math.min(0.3, Math.max(0.01, num(v, 'flat', 0.06))), depthK = num(v, 'depth', 0.6), face = str(v, 'face', 'embroidered'), a = num(v, 'a', 6);
+    const H = num(v, 'height', 300), side = bool(v, 'side'), G = Math.max(20, num(v, 'gussetW', 60)), base = !side && v.base !== false, flat = Math.min(0.3, Math.max(0.01, num(v, 'flat', 0.06))), depthK = num(v, 'depth', 0.6), face = str(v, 'face', 'embroidered'), a = num(v, 'a', 6);
     const traced = decodeOutline(v.outline); let ring = ccw(clean(traced ?? sampleDrawing()));
     if (ring.length < 6 || Math.abs(area(ring)) < 1e-6) throw new Error('The traced outline is too small: try a lower threshold.');
     // Normalise to unit height, cut the bottom flat for the base, then scale to the asked height.
@@ -638,6 +694,7 @@ const plushDrawing: SoftTemplate = {
     if (base) ring = clipBelow(ring, flat);
     b = bbox(ring); const sc = H / b.h; let seam = ccw(clean(ring.map(([x, y]) => [x * sc, (y - b.y0) * sc] as Pt)));
     seam = ccw(clean(simplify(seam, Math.max(0.15, H / 1500)).map(([x, y]) => [x, Math.abs(y) < 1e-6 ? 0 : y] as Pt)));
+    if (side) { let i0 = 0; seam.forEach((q, i) => { const r = seam[i0]; if (q[1] < r[1] - 0.5 || (Math.abs(q[1] - r[1]) <= 0.5 && Math.abs(q[0]) < Math.abs(r[0]))) i0 = i; }); seam = [...seam.slice(i0), ...seam.slice(0, i0)]; }
     const bb = bbox(seam); const notchesFrom = (r: Pt[]) => [0.15, 0.35, 0.5, 0.65, 0.85].map(f => r[Math.floor(f * r.length)]);
     const eyeY = bb.h * 0.72, eyeX = bb.w * 0.12, eyeR = Math.max(4, Math.round(bb.w * 0.035)), cx = 0;
     const marks = face === 'drawn' ? [] : face === 'safety-eyes' ? [{ at: [cx - eyeX, eyeY] as Pt, label: `${eyeR * 2} mm safety eye (move to suit)`, r: eyeR }, { at: [cx + eyeX, eyeY] as Pt, label: 'safety eye', r: eyeR }]
@@ -652,18 +709,29 @@ const plushDrawing: SoftTemplate = {
       const oval = ccw(ellipse(0, 0, A, A * depthK, 64)); baseDepth = Math.max(i ? baseDepth : 0, 2 * A * depthK);
       pieces.push({ id: runs.length > 1 ? `base-${i + 1}` : 'base', name: runs.length > 1 ? `Foot pad ${i + 1}` : 'Base', seam: oval, allowance: a, cut: 1, fabric: 'contrast', grain: [[0, -A * depthK * 0.6], [0, A * depthK * 0.6]], notches: [[A, 0], [-A, 0]], note: 'Side notches meet the front/back side seams.' });
     });
-    const litres = Math.abs(area(seam)) / 1e6 * (baseDepth / 1000) * 1000 * 0.7; const grams = Math.round(litres * 45);
+    const perim = pathLength([...seam, seam[0]]);
+    if (side) {
+      // The gusset runs once round the outline from the bottom centre (front seam[0]); its notches sit at the same arc lengths as the front's.
+      const arcAt: number[] = [0]; for (let i = 1; i < seam.length; i++) arcAt.push(arcAt[i - 1] + dist(seam[i - 1], seam[i]));
+      const ns = [0.15, 0.35, 0.5, 0.65, 0.85].map(f => arcAt[Math.floor(f * seam.length)]);
+      pieces[0].marks = [...(pieces[0].marks ?? []), { at: seam[0], label: 'gusset ends meet here', r: 2 }];
+      pieces.push({ id: 'gusset', name: 'Side gusset', seam: rect(0, 0, perim, G), allowance: a, cut: 1, fabric: 'fur', grain: [[perim * 0.2, G / 2], [perim * 0.8, G / 2]],
+        notches: [...ns.map(x => [x, 0] as Pt), ...ns.map(x => [x, G] as Pt)], marks: [{ at: [perim * 0.5, G / 2], label: `leave ${Math.round(Math.max(50, H * 0.2))} mm of the back seam open here to stuff`, r: 3 }],
+        note: 'One strip round the whole outline: the short ends join at the bottom centre. Clip the allowance at inner corners as you go.' });
+    }
+    const depth = side ? G : baseDepth; const litres = Math.abs(area(seam)) / 1e6 * depth * (side ? 1.0 : 0.7); const grams = Math.round(litres * 45);
     const notions: Notion[] = [{ item: 'Polyester fibre fill (toy-safe, new material)', qty: `about ${grams} g` }, { item: 'Thread', qty: '1 spool, strong polyester' }];
     if (face === 'safety-eyes') notions.push({ item: 'Plastic safety eyes with locking washers', qty: '2', note: `${eyeR * 2} mm` });
     else notions.push({ item: 'Embroidery floss', qty: '1 skein each colour' });
     return { template: 'plush-drawing', name: `Plush from ${traced ? 'your drawing' : 'the sample drawing'} ${Math.round(H / 10)} cm`, kind: 'plush', fabricWidth: 1500,
       features: { safetyEyes: face === 'safety-eyes', longPile: true }, pieces, fill: { grams, litres: Math.round(litres * 10) / 10 }, notions,
       steps: [face === 'safety-eyes' ? 'Fit the safety eyes on the front before sewing; press the washers fully home.' : 'Transfer your drawing\'s face to the front and embroider it BEFORE sewing; knot securely on the back.',
-        `Front and back right sides together; stitch round at ${a} mm with a 2 mm stitch, leaving the base edge${base ? '' : ' and the marked gap'} open.`,
+        side ? `Join the gusset's short ends into a ring; pin it round the front, notches matching, ends at the bottom centre; stitch at ${a} mm with a 2 mm stitch. Sew the back on the same way, leaving the marked gap open.`
+          : `Front and back right sides together; stitch round at ${a} mm with a 2 mm stitch, leaving the base edge${base ? '' : ' and the marked gap'} open.`,
         base ? (runs.length > 1 ? 'Pin each foot pad into its opening, side notches to the side seams; stitch round.' : 'Pin the base in, side notches to the side seams; stitch round, leaving the marked gap on the back open.') : '',
         'Clip curves and into inner corners (not through the stitching); turn; push out thin parts with a blunt tool.', 'Stuff firmly in small tufts, thin parts first.', 'Ladder-stitch the gap closed; pull-test every seam and eye.'].filter(Boolean),
       notes: ['Thin parts under about 25 mm finished are hard to turn and stuff: thicken them in the drawing or raise the smoothing.', ...(runs.length > 1 ? [`Your drawing stands on ${runs.length} feet: each gets its own pad.`] : [])],
-      finished: [['Height', H], ['Width', bb.w], ...(base ? [['Base seam length (front+back)', 2 * runs.reduce((s, L) => s + L, 0)] as [string, number]] : [])] };
+      finished: [['Height', H], ['Width', bb.w], ...(side ? [['Depth (side gusset)', G], ['Gusset length', perim]] as Array<[string, number]> : []), ...(base ? [['Base seam length (front+back)', 2 * runs.reduce((s, L) => s + L, 0)] as [string, number]] : [])] };
   },
 };
 

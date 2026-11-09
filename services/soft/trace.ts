@@ -5,7 +5,7 @@
 // outer silhouette, so a closed pen outline works as well as a filled shape; eyes and other inner
 // marks are ignored. Pure functions: the room feeds them canvas pixels, the tests synthetic ones.
 
-import { type Pt, contour, area, bbox } from './geometry';
+import { type Pt, contour, area, bbox, ccw, simplify } from './geometry';
 
 export interface Gray { w: number; h: number; data: Float32Array }
 export interface TraceOptions {
@@ -44,9 +44,11 @@ export function blur(g: Gray, r: number): Gray {
 export function otsu(g: Gray): number {
   const hist = new Float64Array(256); for (const v of g.data) hist[Math.max(0, Math.min(255, Math.round(v)))]++;
   const n = g.data.length; let sum = 0; for (let i = 0; i < 256; i++) sum += i * hist[i];
-  let sB = 0, wB = 0, best = 0, t = 128;
-  for (let i = 0; i < 256; i++) { wB += hist[i]; if (!wB) continue; const wF = n - wB; if (!wF) break; sB += i * hist[i]; const mB = sB / wB, mF = (sum - sB) / wF; const v = wB * wF * (mB - mF) ** 2; if (v > best) { best = v; t = i + 0.5; } }
-  return t;
+  // A clean two-tone picture has a plateau of equally good levels: take the middle of it, not its dark end.
+  let sB = 0, wB = 0, best = 0, t0 = 127.5, t1 = 127.5;
+  for (let i = 0; i < 256; i++) { wB += hist[i]; if (!wB) continue; const wF = n - wB; if (!wF) break; sB += i * hist[i]; const mB = sB / wB, mF = (sum - sB) / wF; const v = wB * wF * (mB - mF) ** 2;
+    if (v > best * (1 + 1e-9)) { best = v; t0 = t1 = i + 0.5; } else if (v >= best * (1 - 1e-9)) t1 = i + 0.5; }
+  return (t0 + t1) / 2;
 }
 
 /**
@@ -85,3 +87,35 @@ export function smoothRing(r: Pt[], k: number): Pt[] {
 
 /** How much of the picture the silhouette covers, for a sanity hint (a frame around the photo traces as everything). */
 export function coverage(ring: Pt[], g: Gray) { if (!ring.length) return 0; const b = bbox(ring); return (b.w * b.h) / (g.w * g.h); }
+
+/**
+ * Plush from a drawn path: one or more freehand strokes (y up, any units) become one outline. Each
+ * stroke is closed end to start and filled with the non-zero rule, so a scribbled or overlapping
+ * loop still gives its outer silhouette; the strokes are unioned, rasterised at about `res` px on the
+ * long side, and traced like a picture. Returns a CCW ring in the strokes' own units, simplified to
+ * `tol` (a fraction of the height), or [] when the strokes enclose nothing.
+ */
+export function outlineFromStrokes(strokes: Pt[][], o: { res?: number; smooth?: number; tol?: number } = {}): Pt[] {
+  const polys = strokes.filter(s => s.length >= 3); if (!polys.length) return [];
+  const b = bbox(polys.flat()); if (!(b.w > 0 && b.h > 0)) return [];
+  const res = o.res ?? 400, m = 4; const k = res / Math.max(b.w, b.h); const w = Math.ceil(b.w * k) + 2 * m + 1, h = Math.ceil(b.h * k) + 2 * m + 1;
+  const data = new Float32Array(w * h).fill(240);
+  for (const s of polys) {
+    const P = s.map(([x, y]) => [(x - b.x0) * k + m, (b.y1 - y) * k + m] as Pt);
+    for (let row = 0; row < h; row++) {
+      const xs: Array<[number, number]> = [];
+      for (let i = 0; i < P.length; i++) { const p = P[i], q = P[(i + 1) % P.length]; if ((p[1] <= row) !== (q[1] <= row)) xs.push([p[0] + (q[0] - p[0]) * (row - p[1]) / (q[1] - p[1]), q[1] > p[1] ? 1 : -1]); }
+      xs.sort((u, v) => u[0] - v[0]); let wind = 0;
+      for (let j = 0; j < xs.length - 1; j++) { wind += xs[j][1]; if (wind !== 0) for (let px = Math.ceil(xs[j][0]); px <= Math.floor(xs[j + 1][0]) && px < w; px++) if (px >= 0) data[row * w + px] = 20; }
+    }
+  }
+  const ring = traceSilhouette({ w, h, data }, { threshold: 130, smooth: o.smooth ?? 0 }); if (!ring.length) return [];
+  const back = ring.map(([px, yUp]) => [b.x0 + (px - m) / k, b.y1 - (h - 1 - yUp - m) / k] as Pt);
+  return ccw(simplify(back, (o.tol ?? 0.002) * b.h));
+}
+
+/** Trace an uploaded picture end to end: grey, automatic threshold unless given, outline simplified (pixel units, y up). */
+export function traceImage(rgba: Uint8ClampedArray | Uint8Array, w: number, h: number, o: Partial<TraceOptions> & { tol?: number } = {}): Pt[] {
+  const g = toGray(rgba, w, h); const ring = traceSilhouette(g, { threshold: o.threshold ?? otsu(g), smooth: o.smooth, invert: o.invert, mirror: o.mirror });
+  return ring.length ? ccw(simplify(ring, o.tol ?? 0.4)) : [];
+}

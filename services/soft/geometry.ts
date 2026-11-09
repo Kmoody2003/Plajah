@@ -54,7 +54,7 @@ export function offset(p: Pt[], d: number | number[]): Pt[] {
     const t0: Pt = [-n0[1], n0[0]], t1: Pt = [-n1[1], n1[0]]; const den = t0[0] * t1[1] - t0[1] * t1[0];
     if (Math.abs(den) < 1e-6) { if (Math.abs(d0 - d1) < 1e-6) out.push(a1); else out.push(a0, a1); continue; }
     const s = ((a1[0] - a0[0]) * t1[1] - (a1[1] - a0[1]) * t1[0]) / den; const m: Pt = [a0[0] + t0[0] * s, a0[1] + t0[1] * s];
-    const lim = 3 * Math.max(d0, d1, 1);
+    const lim = 3 * Math.max(Math.abs(d0), Math.abs(d1), 1);
     if (dist(m, v) > lim) out.push(a0, a1); else out.push(m);
   }
   return out;
