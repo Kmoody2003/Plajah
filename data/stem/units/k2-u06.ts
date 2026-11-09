@@ -1,0 +1,258 @@
+// K–2 · Unit 6 · Plants, Animals and Patterns in Nature (science). Original Plajah Academia writing.
+import type { StemUnit } from '../types';
+import { M, num, say } from '../kit';
+
+const INTL = { uk: 'KS1 Science — plants; animals including humans', cambridge: 'Stage 1–2 Biology — living things and their environment', ib: 'PYP Sharing the planet — phase 1' };
+const OUTDOOR = 'Outdoor walks stay with an adult and in sight. Look, do not pick or taste; wash hands after touching soil or plants. Check the class allergy list before handling seeds.';
+
+export const K2_U06: StemUnit = {
+  id: 'stem-k2-u06',
+  band: 'K-2',
+  n: 6,
+  title: 'Plants, Animals and Patterns in Nature',
+  kind: 'science',
+  strands: ['science', 'math', 'technology'],
+  status: 'complete',
+  weeks: 4,
+  bigIdea: 'Living things have parts that help them live and grow, and young plants and animals look like, but not exactly like, their parents. Nature is full of patterns we can observe and count.',
+  essentialQuestion: 'What can we learn about living things by looking closely and counting carefully?',
+  standards: { ngss: ['K-LS1-1', '1-LS1-1', '1-LS3-1', '2-LS2-1', '2-LS4-1'], ccss: [M('1.MD.C.4'), M('K.MD.B.3')], intl: INTL },
+  projectIds: [],
+  museion: 'biology',
+  lessons: [
+    {
+      id: 'stem-k2-u06-l1',
+      title: 'Look Closely: What Do Plants Need?',
+      minutes: 35,
+      strands: ['science', 'math'],
+      objectives: [
+        'I can use a magnifier to look closely at a living thing.',
+        'I can name what a plant needs to grow: water, light and air.',
+        'I can measure how much my bean grows each day.',
+      ],
+      vocab: [
+        ['magnifier', 'A lens that makes small things look bigger.'],
+        ['root', 'The part of a plant that drinks water from the ground.'],
+        ['sprout', 'A tiny new plant coming out of a seed.'],
+      ],
+      hook: 'This bean is dry and hard. If we put it in a bag with a wet paper towel and tape it to the window, what will happen in one week? Draw your guess.',
+      build: {
+        title: 'A bean in a bag, and a plant model in Build Studio',
+        steps: [
+          'Look at a leaf with a magnifier and draw three things you see.',
+          'Put a bean on a wet paper towel in a zip bag and tape it to the window.',
+          'Open Build Studio and build a model plant: a pot, a stem, leaves and roots.',
+          'Each day, measure the sprout with cubes and colour one bar on the growth chart.',
+          'Put a second bean in a dark cupboard and compare after a week.',
+        ],
+        launch: {
+          room: 'studio',
+          prompt: 'A simple model plant in a pot with roots, a stem and leaves, that children can label.',
+          starter: { shapes: ['cylinder', 'cone', 'sphere', 'text'], note: 'Use text labels for root, stem and leaf.' },
+          lesson: 'stem-k2-u06-l1',
+        },
+        materials: ['Hand magnifiers', 'Dried beans', 'Zip bags and paper towels', 'Linking cubes'],
+      },
+      worked: [
+        {
+          prompt: 'On Monday the sprout was 2 cubes tall. On Friday it was 7 cubes tall. How much did it grow?',
+          steps: ['Start at 2.', 'Count on to 7: 3, 4, 5, 6, 7. That is 5.'],
+          answer: 'It grew 5 cubes.',
+        },
+      ],
+      practice: [
+        num('A sprout was 3 cubes tall and grew 4 more. How tall is it now?', '7 cubes.', 7, 'sum', [3, 4], 1, 'cubes'),
+        num('The window bean is 9 cubes tall. The cupboard bean is 4 cubes. How much taller is the window bean?', '5 cubes taller.', 5, 'difference', [9, 4], 2, 'cubes'),
+        say('Name three things a plant needs to grow.', 'Water, light and air (and space/soil).', 1),
+        say('Which part of the plant drinks water?', 'The roots.', 1),
+        say('Why did we put one bean in the dark?', 'To see if light makes a difference: it is our comparison.', 3),
+      ],
+      exitTicket: { q: 'Point to the root and the leaf on your model plant.', answer: 'Roots at the bottom, leaves on the stem.' },
+      differentiation: {
+        support: ['Use a labelled picture of a plant to match.', 'Measure with large cubes.'],
+        extension: ['Make a bar chart of a week of growth.', 'Predict the height next Monday and check.'],
+        ell: 'Frames: "Plants need ___." "It grew ___ cubes."',
+        supports: ['readAloud', 'chunk', 'untimed'],
+      },
+      safety: { level: 'low', note: OUTDOOR },
+      standards: { ngss: ['K-LS1-1', '2-LS2-1'], ccss: [M('1.MD.A.2'), M('1.OA.A.1')], intl: INTL },
+      mathFocus: 'measuring growth with equal units',
+      museion: 'biology',
+    },
+    {
+      id: 'stem-k2-u06-l2',
+      title: 'Leaf and Petal Patterns: Count and Sort',
+      minutes: 30,
+      strands: ['science', 'math'],
+      objectives: [
+        'I can count the petals on a flower.',
+        'I can sort leaves by shape, size and edge.',
+        'I can show my sort on a picture graph.',
+      ],
+      vocab: [
+        ['petal', 'A coloured part of a flower.'],
+        ['pattern', 'Something that repeats in the same way.'],
+        ['sort', 'Put things into groups that are alike.'],
+      ],
+      hook: 'Look at these three flowers through a magnifier. Count the petals. Do flowers of the same kind always have the same number? Nature keeps a secret pattern.',
+      build: {
+        title: 'Flower patterns in Build Studio',
+        steps: [
+          'Sort a pile of fallen leaves into groups: smooth edge or bumpy edge.',
+          'Count each group and make a picture graph with one leaf sticker per leaf.',
+          'Open Build Studio and make a flower with a star shape and petal shapes around a centre.',
+          'Make a second flower with a different number of petals and count both.',
+          'Tell a partner: which group of leaves had the most?',
+        ],
+        launch: {
+          room: 'studio',
+          prompt: 'A flower model: a round centre with petals placed in a ring, so children can count and change the petals.',
+          starter: { shapes: ['sphere', 'star', 'cone', 'cylinder'], note: 'The sphere is the centre of the flower.' },
+          lesson: 'stem-k2-u06-l2',
+        },
+        materials: ['Fallen leaves collected with an adult', 'Hand magnifiers', 'Picture-graph sheet and stickers'],
+      },
+      worked: [
+        {
+          prompt: '6 leaves have smooth edges and 9 have bumpy edges. How many more bumpy leaves?',
+          steps: ['Start at 6 and count on to 9.', '7, 8, 9 is 3.'],
+          answer: '3 more bumpy leaves.',
+        },
+      ],
+      practice: [
+        num('A flower has 5 petals. Another has 5 petals. How many petals in all?', '10 petals.', 10, 'sum', [5, 5], 1, 'petals'),
+        num('Three flowers each have 4 petals. How many petals?', '12 petals (4, 8, 12).', 12, 'product', [3, 4], 2, 'petals'),
+        num('We sorted 8 big leaves and 5 small leaves. How many more big leaves?', '3 more.', 3, 'difference', [8, 5], 1, 'leaves'),
+        say('Look at the picture graph. How do you find the biggest group?', 'Find the tallest row or column (the one with the most pictures).', 2),
+        say('Sort these: oak leaf, pine needle, maple leaf, grass blade. Which are long and thin?', 'Pine needle and grass blade.', 3),
+      ],
+      exitTicket: { q: 'How many petals does your Build Studio flower have?', answer: 'A correct count of their petals.' },
+      differentiation: {
+        support: ['Sort by one rule only (big or small).', 'Count petals by touching each one.'],
+        extension: ['Sort leaves two ways and make a two-column graph.', 'Find a flower with 3, 5 and 8 petals in picture books.'],
+        ell: 'Frames: "This group has ___." "There are ___ more ___."',
+        supports: ['readAloud', 'chunk', 'fewerChoices'],
+      },
+      safety: { level: 'low', note: OUTDOOR },
+      standards: { ngss: ['1-LS1-1', '2-LS4-1'], ccss: [M('K.MD.B.3'), M('1.MD.C.4')], intl: INTL },
+      mathFocus: 'sorting, counting and picture graphs',
+      museion: 'biology',
+    },
+    {
+      id: 'stem-k2-u06-l3',
+      title: 'Babies and Parents: Alike and Different',
+      minutes: 30,
+      strands: ['science', 'math'],
+      objectives: [
+        'I can tell how a baby animal is like its parent.',
+        'I can tell one way a baby is different from its parent.',
+        'I can compare sizes by measuring.',
+      ],
+      vocab: [
+        ['parent', 'A grown-up animal or plant that has young.'],
+        ['offspring', 'The babies of a plant or animal.'],
+        ['alike', 'The same in some way.'],
+      ],
+      hook: 'Match the cards: puppy and dog, kitten and cat, duckling and duck, chick and hen. How did you know which baby goes with which parent? Is the baby exactly the same?',
+      build: {
+        title: 'Parent and baby models in Build Studio',
+        steps: [
+          'Match baby and parent picture cards.',
+          'Open Build Studio. Build a parent animal from shapes: a body, a head, ears and legs.',
+          'Copy it and make a baby: same shapes, smaller size.',
+          'Measure both with the ruler tool and write their heights.',
+          'Tell one way they are alike and one way they are different.',
+        ],
+        launch: {
+          room: 'studio',
+          prompt: 'A simple animal made from shapes, and a smaller copy as its baby, so children can compare sizes and features.',
+          starter: { shapes: ['sphere', 'box', 'cone', 'cylinder'], note: 'Make the baby with the same shapes, only smaller.' },
+          lesson: 'stem-k2-u06-l3',
+        },
+        materials: ['Baby and parent picture cards', 'Rulers'],
+      },
+      worked: [
+        {
+          prompt: 'The parent model is 12 cm tall. The baby is 5 cm tall. How much taller is the parent?',
+          steps: ['Find the difference: 12 − 5.', 'Count back 5 from 12: 11, 10, 9, 8, 7.'],
+          answer: 'The parent is 7 cm taller.',
+        },
+      ],
+      practice: [
+        num('A hen is 30 cm tall and its chick is 8 cm. How much taller is the hen?', '22 cm taller.', 22, 'difference', [30, 8], 3, 'cm'),
+        num('A dog has 4 legs and its puppy has 4 legs. How many legs in all?', '8 legs.', 8, 'sum', [4, 4], 1, 'legs'),
+        say('How is a kitten like a cat?', 'Any shared feature: fur, whiskers, four legs, tail, says meow.', 1),
+        say('How is a tadpole different from a frog?', 'It has a tail and no legs (and lives only in water).', 2),
+        say('Two puppies from the same parents have different spots. Why can that happen?', 'Young look like their parents but not exactly; each one is a little different.', 3),
+      ],
+      exitTicket: { q: 'Tell one way a baby is like its parent.', answer: 'Any correct shared feature.' },
+      differentiation: {
+        support: ['Use only three pairs of cards.', 'Compare sizes with cubes.'],
+        extension: ['Find a baby that looks very different from its parent (caterpillar, tadpole).', 'Compare three generations: grandparent, parent, baby.'],
+        ell: 'Frames: "The baby has ___ like its parent." "The baby is ___ than its parent."',
+        supports: ['readAloud', 'chunk', 'fewerChoices'],
+      },
+      safety: { level: 'low', note: 'Picture cards and screens only. Talk about families with care; not every child lives with a birth parent.' },
+      standards: { ngss: ['1-LS3-1'], ccss: [M('2.MD.B.5'), M('1.MD.A.2')], intl: INTL },
+      mathFocus: 'comparing lengths',
+      museion: 'biology',
+    },
+    {
+      id: 'stem-k2-u06-l4',
+      title: 'Who Lives Here? Counting Animals in a Habitat',
+      minutes: 35,
+      strands: ['science', 'math', 'technology'],
+      objectives: [
+        'I can tell what a habitat gives the animals that live there.',
+        'I can count animals in a picture model.',
+        'I can see that when there is more food, there can be more animals.',
+      ],
+      vocab: [
+        ['habitat', 'The place where a plant or animal lives and finds what it needs.'],
+        ['predator', 'An animal that hunts other animals for food.'],
+        ['prey', 'An animal that is hunted for food.'],
+      ],
+      hook: 'A meadow has grass, bunnies and foxes. If there are lots of bunnies, do the foxes have an easy time or a hard time finding food? What might happen to the number of foxes?',
+      build: {
+        title: 'Bunnies and foxes in the Biology Lab picture model',
+        steps: [
+          'Open the Biology Lab. The model shows bunnies and foxes in a meadow over time.',
+          'Press play. Count the bunnies and foxes at the start.',
+          'Watch the bunnies go up. What do the foxes do next?',
+          'Stop at three times and count each animal. Write the numbers in a table.',
+          'Tell a partner the pattern you see.',
+        ],
+        launch: {
+          room: 'bio',
+          template: 'lotka_volterra',
+          starter: { note: 'Read the picture view: bunnies are prey, foxes are predators.' },
+          lesson: 'stem-k2-u06-l4',
+        },
+      },
+      worked: [
+        {
+          prompt: 'At the start there were 10 bunnies. Later there were 18 bunnies. How many more bunnies?',
+          steps: ['Start at 10.', 'Count on to 18: that is 8.', 'Check: 10 + 8 = 18.'],
+          answer: '8 more bunnies.',
+        },
+      ],
+      practice: [
+        num('There are 6 foxes and 14 bunnies. How many animals?', '20 animals.', 20, 'sum', [6, 14], 2, 'animals'),
+        num('There were 15 bunnies. Foxes caught some, and now there are 9. How many fewer bunnies?', '6 fewer.', 6, 'difference', [15, 9], 2, 'bunnies'),
+        say('What does a meadow habitat give a bunny?', 'Food (grass), water and places to hide (burrows).', 1),
+        say('When there are lots of bunnies, what happens to the foxes after a while?', 'The foxes go up too, because there is plenty of food.', 3),
+      ],
+      exitTicket: { q: 'Name a predator and its prey.', answer: 'Any correct pair, e.g. fox and bunny, owl and mouse.' },
+      differentiation: {
+        support: ['Count with picture counters on a mat.', 'Read the model with a partner who points.'],
+        extension: ['Make a bar graph of bunnies and foxes at three times.', 'Predict what happens if all the grass dries up.'],
+        ell: 'Frames: "The ___ eats the ___." "There are ___ bunnies."',
+        supports: ['readAloud', 'chunk', 'untimed'],
+      },
+      safety: { level: 'sim-only', note: 'Picture model in the Biology Lab only. Talk about predators gently.' },
+      standards: { ngss: ['K-LS1-1', '2-LS4-1'], ccss: [M('1.MD.C.4'), M('1.OA.A.1')], intl: INTL },
+      mathFocus: 'organising and comparing data',
+      museion: 'biology',
+    },
+  ],
+};

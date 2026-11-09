@@ -1,0 +1,256 @@
+// K–2 · Unit 7 · Weather Watchers (science). Original Plajah Academia writing.
+import type { StemUnit } from '../types';
+import { K2_ELEC_SIM, M, num, say } from '../kit';
+
+const INTL = { uk: 'KS1 Science — seasonal changes (Y1)', cambridge: 'Stage 1–2 Earth and space — weather', ib: 'PYP How the world works — phase 1' };
+const OUTSIDE = 'Weather checks happen with an adult. Never look straight at the sun. Stay inside during thunder or lightning.';
+
+export const K2_U07: StemUnit = {
+  id: 'stem-k2-u07',
+  band: 'K-2',
+  n: 7,
+  title: 'Weather Watchers',
+  kind: 'science',
+  strands: ['science', 'math', 'technology', 'engineering'],
+  status: 'complete',
+  weeks: 3,
+  bigIdea: 'Weather changes from day to day, but when we write it down every day we start to see patterns, and patterns help us get ready for what comes next.',
+  essentialQuestion: 'How can counting the weather help us plan our day?',
+  standards: { ngss: ['K-ESS2-1', 'K-ESS3-2', 'K-PS3-1', 'K-PS3-2'], ccss: [M('K.MD.B.3'), M('1.MD.C.4'), M('2.MD.D.10')], intl: INTL },
+  projectIds: [],
+  museion: 'earth',
+  lessons: [
+    {
+      id: 'stem-k2-u07-l1',
+      title: 'Our Weather Chart: Tally the Week',
+      minutes: 30,
+      strands: ['science', 'math'],
+      objectives: [
+        'I can describe today\'s weather with words like sunny, cloudy, rainy and windy.',
+        'I can make a tally mark for each day.',
+        'I can count tallies in groups of five.',
+      ],
+      vocab: [
+        ['weather', 'What the air outside is like: hot or cold, wet or dry, still or windy.'],
+        ['tally', 'A mark that counts one thing; every fifth mark crosses the four before it.'],
+        ['pattern', 'Something that happens again and again.'],
+      ],
+      hook: 'Look out of the window. Is it sunny, cloudy, rainy or windy? Would you wear a coat? A hat? How could we remember what the weather was every day this month?',
+      build: {
+        title: 'Weather symbols and a tally board',
+        steps: [
+          'Look out of the window with your teacher and choose today\'s weather card.',
+          'Make a tally mark next to that weather on the class board.',
+          'Open Build Studio and make a weather symbol: a sun from a sphere and a star, a cloud from spheres.',
+          'At the end of the week, count each row of tallies.',
+          'Say which weather happened most.',
+        ],
+        launch: {
+          room: 'studio',
+          prompt: 'Simple weather symbols made from shapes: a sun, a cloud, a raindrop and a wind swirl, for a class weather board.',
+          starter: { shapes: ['sphere', 'star', 'cone', 'torus'], note: 'Spheres stuck together make a cloud.' },
+          lesson: 'stem-k2-u07-l1',
+        },
+        materials: ['Weather picture cards', 'Class tally chart', 'Dry-wipe markers'],
+      },
+      worked: [
+        {
+          prompt: 'This week had 3 sunny days and 2 rainy days. How many school days did we record?',
+          steps: ['Add the tallies: 3 + 2.', 'Count on from 3: 4, 5.'],
+          answer: '5 school days.',
+        },
+      ],
+      practice: [
+        num('The sunny row has 4 tallies and the cloudy row has 6. How many days in all?', '10 days.', 10, 'sum', [4, 6], 1, 'days'),
+        num('Rainy has 7 tallies and windy has 2. How many more rainy days?', '5 more.', 5, 'difference', [7, 2], 2, 'days'),
+        say('How do you draw 5 with tallies?', 'Four lines and one line crossing them.', 1),
+        say('It is cold and rainy. What should you wear outside?', 'A coat or raincoat and boots (any sensible answer).', 2),
+        say('Why do we write the weather down every day?', 'So we can count and see patterns, and plan what to wear and do.', 3),
+      ],
+      exitTicket: { q: 'Make tally marks for 7.', answer: 'One group of five (four lines and a crossing line) and two more lines.' },
+      differentiation: {
+        support: ['Use stickers instead of tally marks.', 'Choose from two weather cards only.'],
+        extension: ['Add a "temperature" row: hot, warm or cold.', 'Compare this week with last week.'],
+        ell: 'Frames: "Today it is ___." "There are ___ sunny days."',
+        supports: ['readAloud', 'chunk', 'schedule'],
+      },
+      safety: { level: 'low', note: OUTSIDE },
+      standards: { ngss: ['K-ESS2-1'], ccss: [M('K.MD.B.3'), M('1.OA.A.1')], intl: INTL },
+      mathFocus: 'tallying and counting in fives',
+      museion: 'earth',
+    },
+    {
+      id: 'stem-k2-u07-l2',
+      title: 'Picture Graph of the Month',
+      minutes: 30,
+      strands: ['science', 'math'],
+      objectives: [
+        'I can turn tallies into a picture graph.',
+        'I can read a picture graph to find most and fewest.',
+        'I can answer "how many more" questions from a graph.',
+      ],
+      vocab: [
+        ['graph', 'A picture that shows numbers so we can compare them.'],
+        ['most', 'The biggest number.'],
+        ['fewest', 'The smallest number.'],
+      ],
+      hook: 'Our tally chart is full. It is hard to see which weather won! What if each day became a little picture in a tall column? Which column would be tallest?',
+      build: {
+        title: 'Weather picture graph',
+        steps: [
+          'Count each row of the month\'s tallies.',
+          'Stick one weather picture for each day in the right column, starting at the bottom.',
+          'Find the tallest and shortest columns.',
+          'Open Build Studio and stack one cube for each day to make a 3D bar graph.',
+          'Ask a partner one "how many more" question about the graph.',
+        ],
+        launch: {
+          room: 'studio',
+          prompt: 'A 3D bar graph of a month of weather: one column of cubes for sunny, cloudy, rainy and windy days.',
+          starter: { shapes: ['box', 'box', 'box', 'text'], note: 'One cube is one day.' },
+          lesson: 'stem-k2-u07-l2',
+        },
+        materials: ['Weather picture stickers', 'Picture-graph sheet', 'Linking cubes'],
+      },
+      worked: [
+        {
+          prompt: 'The month had 9 sunny days and 4 rainy days. How many more sunny days?',
+          steps: ['Start at 4 and count on to 9.', '5, 6, 7, 8, 9 is 5.'],
+          answer: '5 more sunny days.',
+        },
+      ],
+      practice: [
+        num('Sunny 8, cloudy 6, rainy 5, windy 1. How many days in all?', '20 days.', 20, 'sum', [8, 6, 5, 1], 3, 'days'),
+        num('Cloudy 11, rainy 3. How many more cloudy days?', '8 more.', 8, 'difference', [11, 3], 2, 'days'),
+        num('Sunny 7, windy 2. How many more sunny days?', '5 more.', 5, 'difference', [7, 2], 1, 'days'),
+        say('Which column shows the weather we had most?', 'The tallest column.', 1),
+      ],
+      exitTicket: { q: 'Which weather did we have fewest of this month?', answer: 'The shortest column on the class graph.' },
+      differentiation: {
+        support: ['Graph only two kinds of weather.', 'Count each column with a finger on each picture.'],
+        extension: ['Make a bar graph with a number scale.', 'Write two questions the graph can answer.'],
+        ell: 'Frames: "There were ___ ___ days." "___ is the most."',
+        supports: ['readAloud', 'chunk', 'untimed'],
+      },
+      safety: { level: 'low', note: 'Paper, stickers and cubes only. Cubes stay on the table.' },
+      standards: { ngss: ['K-ESS2-1'], ccss: [M('1.MD.C.4'), M('2.MD.D.10')], intl: INTL },
+      mathFocus: 'picture and bar graphs',
+      museion: 'earth',
+    },
+    {
+      id: 'stem-k2-u07-l3',
+      title: 'The Sun Warms Things: A Shade Test',
+      minutes: 35,
+      strands: ['science', 'math', 'technology'],
+      objectives: [
+        'I can show that sunlight warms the ground and objects.',
+        'I can read a simple thermometer number.',
+        'I can compare a sunny spot and a shady spot.',
+      ],
+      vocab: [
+        ['sunlight', 'Light and warmth that come from the sun.'],
+        ['shade', 'A spot where something blocks the sunlight.'],
+        ['thermometer', 'A tool that measures how hot or cold something is.'],
+      ],
+      hook: 'On a sunny day, put one hand on a step in the sun and one on a step in the shade. Which feels warmer? Can a machine tell us how much warmer, with a number?',
+      build: {
+        title: 'Sun and shade with a simulated thermometer',
+        steps: [
+          'Put two cups of water outside with an adult: one in the sun, one in the shade.',
+          'Open the simulated Electronics Lab. A temperature sensor shows a number on a little screen.',
+          'Move the sensor into the sun picture and then the shade picture. Write both numbers.',
+          'After an hour, feel the real cups. Which is warmer?',
+          'Say which number is bigger and what that means.',
+        ],
+        launch: {
+          room: 'elec',
+          prompt: 'A simulated temperature sensor with a big number display, placed first in sunshine and then in shade, for young children to compare readings.',
+          lesson: 'stem-k2-u07-l3',
+        },
+        materials: ['Two paper cups of water', 'A sunny spot and a shady spot'],
+      },
+      worked: [
+        {
+          prompt: 'The sensor reads 30 degrees in the sun and 22 degrees in the shade. How much warmer is the sun?',
+          steps: ['Find the difference: 30 − 22.', 'Count on from 22 to 30: 8.'],
+          answer: '8 degrees warmer in the sun.',
+        },
+      ],
+      practice: [
+        num('Sun 25 degrees, shade 19 degrees. How much warmer in the sun?', '6 degrees.', 6, 'difference', [25, 19], 2, 'degrees'),
+        num('In the morning it was 12 degrees. By lunch it was 7 degrees warmer. What was it at lunch?', '19 degrees.', 19, 'sum', [12, 7], 2, 'degrees'),
+        say('Which cup will be warmer after an hour: sun or shade?', 'The cup in the sun.', 1),
+        say('How could you keep a toy from getting hot on a sunny day?', 'Put it in the shade or cover it (make a shelter).', 3),
+      ],
+      exitTicket: { q: 'Which number is warmer: 18 degrees or 26 degrees?', answer: '26 degrees.' },
+      differentiation: {
+        support: ['Use "warm" and "cool" picture cards before numbers.', 'Compare numbers on a number line.'],
+        extension: ['Test a third spot, under a tree or a dark mat.', 'Graph the sun and shade numbers every 10 minutes.'],
+        ell: 'Frames: "In the sun it is ___ degrees." "The sun is ___ degrees warmer."',
+        supports: ['readAloud', 'chunk', 'fewerChoices'],
+      },
+      safety: { level: 'sim-only', note: `${K2_ELEC_SIM} ${OUTSIDE}` },
+      standards: { ngss: ['K-PS3-1'], ccss: [M('1.OA.A.1'), M('K.CC.C.7')], intl: INTL },
+      mathFocus: 'comparing numbers',
+      museion: 'physics',
+    },
+    {
+      id: 'stem-k2-u07-l4',
+      title: 'Build a Sun Shelter',
+      minutes: 40,
+      strands: ['engineering', 'science', 'math'],
+      objectives: [
+        'I can design a shelter that makes shade.',
+        'I can test my shelter with the simulated thermometer.',
+        'I can make my shelter better and tell what changed.',
+      ],
+      vocab: [
+        ['shelter', 'Something that covers and protects.'],
+        ['roof', 'The top part that keeps out sun and rain.'],
+        ['improve', 'To change a design so it works better.'],
+      ],
+      hook: 'Our class pet toy has to sit outside all afternoon in the sun. How can we build it a shelter that keeps it cool? What shapes and materials will make the best shade?',
+      build: {
+        title: 'Sun shelter in Build Studio, then from craft materials',
+        steps: [
+          'Open Build Studio. A toy sits in the sun on a flat ground.',
+          'Build a shelter with a roof using boxes, wedges and cylinders.',
+          'Check that the toy is fully under the roof from above.',
+          'Build a real shelter from card and craft sticks. Put a cup of water under it in the sun.',
+          'Compare it with a cup in full sun. Change one thing and test again.',
+        ],
+        launch: {
+          room: 'studio',
+          prompt: 'A small toy sitting in the sun on flat ground, ready for children to build a shelter with a roof that shades it.',
+          starter: { shapes: ['box', 'wedge', 'cylinder', 'pyramid'], note: 'The roof must cover the toy from above.' },
+          lesson: 'stem-k2-u07-l4',
+        },
+        materials: ['Card, craft sticks and tape', 'Two paper cups of water', 'A small toy'],
+      },
+      worked: [
+        {
+          prompt: 'The cup in full sun warmed up 9 degrees. The cup under the shelter warmed up 3 degrees. How many fewer degrees with the shelter?',
+          steps: ['Find the difference: 9 − 3.', 'Count back 3 from 9: 8, 7, 6.'],
+          answer: '6 fewer degrees with the shelter.',
+        },
+      ],
+      practice: [
+        num('Full sun warmed 10 degrees. Shelter A warmed 4. How many fewer degrees with Shelter A?', '6 fewer.', 6, 'difference', [10, 4], 2, 'degrees'),
+        num('The roof used 3 sticks and the legs used 4 sticks. How many sticks?', '7 sticks.', 7, 'sum', [3, 4], 1, 'sticks'),
+        say('Which roof gives more shade: a small one or a big one?', 'A big one (it blocks more sunlight).', 1),
+        say('Your shelter blew over. What could you change?', 'A wider base, heavier legs, or tape it down.', 3),
+      ],
+      exitTicket: { q: 'Tell one change you made to your shelter and what happened.', answer: 'Any change and result.' },
+      differentiation: {
+        support: ['Start from a shelter with legs already placed.', 'Compare "cooler" and "warmer" before numbers.'],
+        extension: ['Use the fewest sticks that still shade the toy.', 'Test a white roof and a dark roof.'],
+        ell: 'Frames: "My shelter has ___." "It made the cup ___."',
+        supports: ['readAloud', 'chunk', 'untimed'],
+      },
+      safety: { level: 'low', note: `${OUTSIDE} Craft sticks and tape only; an adult cuts card.` },
+      standards: { ngss: ['K-PS3-2', 'K-ESS3-2', 'K-2-ETS1-1'], ccss: [M('1.OA.A.1'), M('K.MD.A.2')], intl: INTL },
+      mathFocus: 'comparing measured differences',
+      museion: 'engineering',
+    },
+  ],
+};
