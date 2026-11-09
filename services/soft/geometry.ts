@@ -109,3 +109,29 @@ export const sdCircle = (x: number, y: number, cx: number, cy: number, r: number
 export const sdEllipse = (x: number, y: number, cx: number, cy: number, a: number, b: number) => { const k = Math.hypot((x - cx) / a, (y - cy) / b); return (k - 1) * Math.min(a, b); };
 export function sdCapsule(x: number, y: number, a: Pt, b: Pt, r: number) { const pax = x - a[0], pay = y - a[1], bax = b[0] - a[0], bay = b[1] - a[1]; const h = Math.max(0, Math.min(1, (pax * bax + pay * bay) / (bax * bax + bay * bay))); return Math.hypot(pax - bax * h, pay - bay * h) - r; }
 export const smin = (a: number, b: number, k: number) => { const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k / 4; };
+
+/** Clip a CCW ring to the half-plane y ≥ yc (Sutherland-Hodgman); the cut becomes straight edges on y = yc. */
+export function clipBelow(p: Pt[], yc: number): Pt[] {
+  const out: Pt[] = [];
+  for (let i = 0; i < p.length; i++) {
+    const a = p[i], b = p[(i + 1) % p.length]; const ia = a[1] >= yc, ib = b[1] >= yc;
+    if (ia) out.push(a);
+    if (ia !== ib) { const t = (yc - a[1]) / (b[1] - a[1]); out.push([a[0] + (b[0] - a[0]) * t, yc]); }
+  }
+  return clean(out, 1e-9);
+}
+
+/** Annular sector (a flattened cone band) hanging below its centre: outer arc at the bottom, symmetric about x = 0, bottom on y = 0. */
+export function sector(r1: number, r2: number, theta: number, n = 28): Pt[] {
+  const a0 = -Math.PI / 2 - theta / 2, a1 = -Math.PI / 2 + theta / 2; const out: Pt[] = [];
+  for (let i = 0; i <= n; i++) { const t = a0 + (a1 - a0) * i / n; out.push([r2 * Math.cos(t), r2 * Math.sin(t) + r2]); }
+  for (let i = 0; i <= n; i++) { const t = a1 - (a1 - a0) * i / n; out.push([r1 * Math.cos(t), r1 * Math.sin(t) + r2]); }
+  return ccw(clean(out));
+}
+
+/** A cone band laid flat: bottom edge length cb, top edge ct, slant height h (a rectangle when they match). */
+export function coneBand(cb: number, ct: number, h: number): Pt[] {
+  if (Math.abs(cb - ct) < 2) return rect(-cb / 2, 0, cb, h);
+  if (ct > cb) { const r = coneBand(ct, cb, h); const top = bbox(r).y1; return ccw(r.map(([x, y]) => [x, top - y] as Pt)); }
+  const R2 = h * cb / (cb - ct), R1 = R2 - h; return sector(R1, R2, cb / R2);
+}
