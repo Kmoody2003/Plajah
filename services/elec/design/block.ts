@@ -13,6 +13,8 @@ export interface BlockDef {
   needsMcu: (o: Opt) => boolean;
   /** Boards that cannot run it, with the reason. */
   notOn?: Partial<Record<McuKind, string>>;
+  /** Same, depending on options (I²S audio). */
+  notOnFor?: (o: Opt) => Partial<Record<McuKind, string>>;
   bus?: 'i2c' | 'spi' | ((o: Opt) => 'i2c' | 'spi' | undefined); addrs?: string[];
   /** How many drawn instances `count` becomes (a lamp of 6 LEDs is one instance). */
   instances?: (count: number, o: Opt) => number[];

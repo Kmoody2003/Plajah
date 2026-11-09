@@ -17,7 +17,7 @@ const numIn = (s: string) => { const n = parseFloat(s); return Number.isFinite(n
 const grab = (p: string, unit: string) => { const m = new RegExp(`${NUM}\\s*-?\\s*(?:[a-z-]+\\s+){0,2}?(?:${unit})\\b`, 'i').exec(p); return m ? numIn(m[1]) : undefined; };
 
 /** Count nouns per block (the detection words live on the blocks). */
-const COUNT: Partial<Record<BlockId, string>> = { keymatrix: 'keys?|buttons?|switches', lamp: 'leds?|bulbs?', led: 'leds?|indicators?', neopixel: 'neo ?pixels?|pixels?|leds?', button: 'buttons?|keys?|pads?|switches', encoder: 'encoders?', pot: 'knobs?|pots?|potentiometers?|faders?|sliders?|dials?', soil: 'soil (?:sensors?|probes?)|probes?|plants', servo: 'servos?', motor: 'motors?|wheels?', relay: 'relays?|channels?|outlets?', temp: 'temperature sensors?|sensors?', motion: 'pir sensors?|motion sensors?' };
+const COUNT: Partial<Record<BlockId, string>> = { distance: 'time[- ]of[- ]flight sensors?|tof sensors?|distance sensors?|ultrasonic sensors?|sonars?|range ?finders?', stepper: 'steppers?|stepper motors?', keymatrix: 'keys?|buttons?|switches', lamp: 'leds?|bulbs?', led: 'leds?|indicators?', neopixel: 'neo ?pixels?|pixels?|leds?', button: 'buttons?|keys?|pads?|switches', encoder: 'encoders?', pot: 'knobs?|pots?|potentiometers?|faders?|sliders?|dials?', soil: 'soil (?:sensors?|probes?)|probes?|plants', servo: 'servos?', motor: 'motors?|wheels?', relay: 'relays?|channels?|outlets?', temp: 'temperature sensors?|sensors?', motion: 'pir sensors?|motion sensors?' };
 const DEFAULT_COUNT: Partial<Record<BlockId, number>> = { lamp: 4, neopixel: 8, button: 1, pot: 1, relay: 1, motor: 1, servo: 1, soil: 1, led: 1, encoder: 1 };
 
 export function readSpec(prompt: string): SpecReading {
@@ -33,6 +33,8 @@ export function readSpec(prompt: string): SpecReading {
   if (found.has('motor') && /\bfan\b/.test(p) && !/\bmotor\b/.test(p) && found.has('relay')) found.delete('motor');
   if (has(/\bmacro ?pad|keypad|stream deck|shortcut keys?\b/) && !found.has('button') && !found.has('keymatrix')) found.add('button');
   if (found.has('keymatrix')) found.delete('button');
+  if (found.has('stepper') && found.has('motor') && !/\b(dc motors?|gear motors?|wheels?|rover|robot car)\b/.test(p)) found.delete('motor');
+  if (found.has('pot') && /\b(camera|linear) slider\b/.test(p) && !/\b(knobs?|pots?|potentiometers?|faders?|dials?)\b/.test(p)) found.delete('pot');
   if (has(/\b(robot car|rover|line follower)\b/)) found.add('motor');
   const joysticks = /\bjoysticks?\b/.test(p) ? (grab(p, 'joysticks?') ?? 1) : 0; if (joysticks) { found.add('pot'); found.add('button'); }
   if (found.has('encoder') && found.has('pot') && !grab(p, COUNT.pot!) && !joysticks) found.delete('pot');
@@ -78,6 +80,11 @@ export function readSpec(prompt: string): SpecReading {
   if (has(/\besp-?32-?s3\b|\bs3\b/)) mcu = 'esp32s3'; else if (has(/\besp-?32\b/)) mcu = 'esp32'; else if (has(/\bpico ?(2 ?)?w\b/)) mcu = 'picow'; else if (has(/\b(pico|rp2040|rp2350)\b/)) mcu = 'pico'; else if (has(/\b(arduino|nano|atmega)\b/)) mcu = 'nano';
   else if (has(/\b(raspberry ?pi|rpi|pi ?[345]|pi zero)\b/)) { mcu = 'rpi'; piModel = Object.keys(PI_MODELS).find(k => p.includes(k.toLowerCase())) ?? 'Pi 5'; }
   if (mcu !== 'auto') heard.push(mcu === 'rpi' ? `Raspberry ${piModel}` : ({ esp32: 'ESP32', esp32s3: 'ESP32-S3', pico: 'Pico', picow: 'Pico W', nano: 'Arduino Nano' } as Record<string, string>)[mcu]); else if (needs.some(n => blockById(n.block)!.needsMcu(n.opt ?? {})) || conn.length) assumed.push('Controller: picked to fit (radio, USB, pins)');
+  const sp = needs.find(x => x.block === 'speaker');
+  if (sp && /\b(music|mp3|wav|internet radio|radio|speech|voice|podcast|songs?|sound files?)\b/.test(p)) {
+    if (mcu === 'nano' || mcu === 'rpi') assumed.push(`Audio: PWM tones (the ${mcu === 'nano' ? 'Nano has' : 'Pi symbol exposes'} no I²S); pick an ESP32 or Pico for music`);
+    else { sp.opt = { ...sp.opt, kind: 'i2s' }; heard.push('I²S audio (music)'); }
+  }
   const market: Spec['market'] = /\b(eu|europe|european|uk|britain|germany|france|230 ?v|240 ?v)\b/.test(p) ? 'EU' : /\b(us|usa|america|canada|120 ?v|110 ?v)\b/.test(p) ? 'US' : 'both';
   if (market !== 'both') heard.push(market === 'EU' ? 'EU/UK market' : 'US market'); else assumed.push('Market: US and EU checks');
   const nm = prompt.trim().replace(/^(i want |make |build |design |create )?(me )?(an? |my |the )?/i, '').split(/\s+(with|that|which|for|using|powered|running|,)\s+|[,.;]/i)[0].trim();

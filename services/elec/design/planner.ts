@@ -49,6 +49,7 @@ function instances(spec: Spec, errors: string[]): Inst[] {
       out.push({ block: b.id, id: `${b.id}${prev + 1}`, k: prev, count: c, opt, label: `${b.label}${counts.length > 1 || prev ? ` ${prev + 1}` : ''}`, pins: {}, addr: b.addrs?.[prev], mcu: null, logicV: 3.3, sysV: 5, usbMidi, usbHid, ha });
     });
   }
+  for (const i of out) i.of = out.filter(x => x.block === i.block).length;
   return out;
 }
 
@@ -67,7 +68,7 @@ function allocate(mcu: McuDef, insts: Inst[], spec: Spec): { pins: PinRow[]; i2c
   if ((conn.includes('usb-midi') || conn.includes('usb-hid')) && !mcu.usbDevice) return `${mcu.label} has no native USB for ${conn.includes('usb-midi') ? 'USB MIDI' : 'USB HID'}`;
   if ((conn.includes('wifi') || conn.includes('homeassistant')) && !mcu.wifi) return `${mcu.label} has no Wi-Fi`;
   if (conn.includes('bluetooth') && !mcu.ble) return `${mcu.label} has no Bluetooth`;
-  for (const i of insts) { const why = blockById(i.block)!.notOn?.[mcu.kind]; if (why) return `${i.label} cannot run on ${mcu.label}: ${why}`; }
+  for (const i of insts) { const bd = blockById(i.block)!; const why = bd.notOn?.[mcu.kind] ?? bd.notOnFor?.(i.opt)[mcu.kind]; if (why) return `${i.label} cannot run on ${mcu.label}: ${why}`; }
   const free = [...mcu.gpio]; const take = (p: string) => free.splice(free.indexOf(p), 1);
   const rows: PinRow[] = []; let i2c: [string, string] | undefined, spi: [string, string] | undefined;
   for (const i of insts) i.mcu = mcu;
@@ -82,9 +83,17 @@ function allocate(mcu: McuDef, insts: Inst[], spec: Spec): { pins: PinRow[]; i2c
   if (wantI2c) { const o = mcu.i2c.find(([a, b]) => free.includes(a) && free.includes(b)); if (!o) return `${mcu.label} has no free I²C pins`; i2c = o; take(o[0]); take(o[1]); rows.push({ pin: o[0], role: 'sda', label: 'I²C SDA (shared bus)', inst: 'bus' }, { pin: o[1], role: 'scl', label: 'I²C SCL (shared bus)', inst: 'bus' }); }
   if (insts.some(i => busOf(blockById(i.block)!, i.opt) === 'spi')) { const o = mcu.spi.find(([a, b]) => free.includes(a) && free.includes(b)); if (!o) return `${mcu.label} has no free SPI pins`; spi = o; take(o[0]); take(o[1]); rows.push({ pin: o[0], role: 'sck', label: 'SPI clock', inst: 'bus' }, { pin: o[1], role: 'mosi', label: 'SPI data (MOSI)', inst: 'bus' }); }
   for (const i of insts) { if (i2c) { i.pins.sda = i2c[0]; i.pins.scl = i2c[1]; } if (spi) { i.pins.sck = spi[0]; i.pins.mosi = spi[1]; } }
-  const order = { adc: 0, pwm: 1, gpio: 2, in: 2 } as const;
+  const order = { adc: 0, pwm: 1, gpio: 2, in: 2, i2s: -1 } as const;
   // Pi neopixels need the hardware PWM pin; claim it before anything else.
   needs.sort((a, b) => (b.i.block === 'neopixel' ? 1 : 0) - (a.i.block === 'neopixel' ? 1 : 0) || order[a.n.cap] - order[b.n.cap]);
+  // I²S: bit clock + word select. The RP2040's PIO wants word select on the pin right after the clock.
+  for (const i of insts) {
+    const ns = needs.filter(x => x.i === i && x.n.cap === 'i2s'); if (!ns.length) continue;
+    const pair = mcu.part === 'pico' ? free.map(p => [p, `GP${+p.slice(2) + 1}`]).find(([, b]) => free.includes(b)) : free.length >= 2 ? [free[0], free[1]] : undefined;
+    if (!pair) return `${mcu.label} has no free ${mcu.part === 'pico' ? 'consecutive pin pair' : 'pins'} for I²S audio`;
+    for (const [k, x] of ns.entries()) { const pn = pair[k]; take(pn); i.pins[x.n.role] = pn; rows.push({ pin: pn, role: x.n.role, label: x.n.label, inst: i.id }); }
+  }
+  for (let k = needs.length - 1; k >= 0; k--) if (needs[k].n.cap === 'i2s') needs.splice(k, 1);
   let adsCh = 0, expCh = 0;
   // Expander-capable needs go last so native-only ones get board pins first.
   needs.sort((a, b) => (a.n.exp ? 1 : 0) - (b.n.exp ? 1 : 0));

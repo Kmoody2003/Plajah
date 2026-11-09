@@ -8,6 +8,7 @@ import type { FwApi, Inst } from './types';
 
 const i2cDraw = (kind: string, vcc = 'VCC') => (i: Inst, d: Parameters<BlockDef['draw']>[1]) => {
   const u = d.part(kind, 0, 0, 0, i.addr ? { addr: i.addr } : {}); d.net('LOGIC', [u, kind === 'sensor' ? 'VIN' : vcc]); d.net('GND', [u, 'GND']); d.net('@sda', [u, 'SDA']); d.net('@scl', [u, 'SCL']);
+  if (kind === 'tof' && i.pins.xshut) d.net('@xshut', [u, 'XSHUT']);
 };
 const addrNote = (i: Inst, deflt: string, how: string) => (i.addr && i.addr !== deflt ? [`${i.label}: set address ${i.addr} by ${how}.`] : []);
 
@@ -66,13 +67,13 @@ export const light: BlockDef = {
 };
 
 export const distance: BlockDef = {
-  id: 'distance', label: 'Distance sensor', plural: 'distance sensors', about: 'Laser time-of-flight (VL53L0X, I²C) by default; ultrasonic HC-SR04 on request, with a divider on its 5 V echo for 3.3 V boards.', max: 1,
+  id: 'distance', label: 'Distance sensor', plural: 'distance sensors', about: 'Laser time-of-flight (VL53L0X, I²C) by default; ultrasonic HC-SR04 on request, with a divider on its 5 V echo for 3.3 V boards. Several ToF sensors share the bus via their XSHUT pins.', max: 4, addrs: ['0x29', '0x30', '0x31', '0x32'],
   words: /\b(distance|range ?finder|proximity|ultrasonic|sonar|hc-?sr04|time[- ]of[- ]flight|tof|parking (sensor|assist)|level sensor)\b/i,
   opts: [{ key: 'kind', label: 'Sensor', choices: ['tof', 'ultrasonic'], default: 'tof' }], needsMcu: () => true, bus: o => (o.kind === 'ultrasonic' ? undefined : 'i2c'),
-  pins: i => (i.opt.kind === 'ultrasonic' ? [{ role: 'trig', cap: 'gpio', label: 'Sonar trigger' }, { role: 'echo', cap: 'in', label: 'Sonar echo' }] : []),
+  pins: i => (i.opt.kind === 'ultrasonic' ? [{ role: 'trig', cap: 'gpio', label: `Sonar ${n(i)} trigger` }, { role: 'echo', cap: 'in', label: `Sonar ${n(i)} echo` }] : (i.of ?? 1) > 1 ? [{ role: 'xshut', cap: 'gpio', label: `ToF ${n(i)} XSHUT`, exp: true }] : []),
   loads: i => (i.opt.kind === 'ultrasonic' ? [{ rail: 'v5', typ: 0.015, peak: 0.015, what: 'HC-SR04' }] : [{ rail: 'logic', typ: 0.02, peak: 0.03, what: 'VL53L0X' }]),
   draw(i, d) {
-    if (i.opt.kind !== 'ultrasonic') return i2cDraw('tof')(i, d);
+    if (i.opt.kind !== 'ultrasonic') { i2cDraw('tof')(i, d); if (i.pins.xshut) { /* re-addressed at boot */ } return; }
     const u = d.part('sonar', 12, 0); d.net('V5', [u, 'VCC']); d.net('GND', [u, 'GND']); d.net('@trig', [u, 'TRIG']);
     if (i.logicV < 4) { const r1 = d.part('resistor', 2, 2, 0, { R: '1k' }); const r2 = d.part('resistor', -2, 6, 1, { R: '1.8k' }); d.net('echo5', [u, 'ECHO'], [r1, '2']); d.net('@echo', [r1, '1'], [r2, '1']); d.net('GND', [r2, '2']); }
     else d.net('@echo', [u, 'ECHO']);
@@ -86,9 +87,17 @@ export const distance: BlockDef = {
       if (f.fw === 'arduino') { f.glob(`float ${v}_cm() { digitalWrite(${f.pin(trig)}, HIGH); delayMicroseconds(10); digitalWrite(${f.pin(trig)}, LOW); return pulseIn(${f.pin(echo)}, HIGH, 30000) / 58.0; }`); f.setup(`pinMode(${f.pin(trig)}, OUTPUT);\n  pinMode(${f.pin(echo)}, INPUT);`); f.read('Dist', `${v}_cm()`, 'cm'); return; }
       f.imp('import adafruit_hcsr04'); f.lib('adafruit_hcsr04'); f.setup(`${v} = adafruit_hcsr04.HCSR04(trigger_pin=${f.pin(trig)}, echo_pin=${f.pin(echo)})`); f.glob(`def ${v}_cm():\n    try:\n        return round(${v}.distance)\n    except RuntimeError:  # no echo (nothing in range)\n        return -1`); f.read('Dist', `${v}_cm()`, 'cm'); return;
     }
-    if (f.fw === 'esphome') { f.esp('sensor', `- platform: vl53l0x\n  address: 0x29\n  name: "Distance"\n  id: ${v}\n  update_interval: 500ms`); f.read('Dist', v, 'm'); return; }
-    if (f.fw === 'arduino') { f.imp('#include <Adafruit_VL53L0X.h>'); f.lib('Adafruit_VL53L0X'); f.glob(`Adafruit_VL53L0X ${v};\nint ${v}_mm() { VL53L0X_RangingMeasurementData_t m; ${v}.rangingTest(&m, false); return m.RangeStatus != 4 ? m.RangeMilliMeter : -1; }`); f.setup(`${v}.begin();`); f.read('Dist', `${v}_mm()`, 'mm'); return; }
-    f.imp('import adafruit_vl53l0x'); f.lib('adafruit_vl53l0x'); f.setup(`${v} = adafruit_vl53l0x.VL53L0X(i2c)`); f.read('Dist', `${v}.range`, 'mm');
+    const x = i.pins.xshut; const addr = i.addr ?? '0x29'; const lbl = `Dist${i.k ? n(i) : ''}`;
+    if (f.fw === 'esphome') { f.esp('sensor', `- platform: vl53l0x\n  address: ${addr}\n${x ? `${f.espPin(x).replace('  pin:', '  enable_pin:')}\n` : ''}  name: "Distance${i.k ? ` ${n(i)}` : ''}"\n  id: ${v}\n  update_interval: 500ms`); f.read(lbl, v, 'm'); return; }
+    if (f.fw === 'arduino') {
+      f.imp('#include <Adafruit_VL53L0X.h>'); f.lib('Adafruit_VL53L0X'); f.glob(`Adafruit_VL53L0X ${v};\nint ${v}_mm() { VL53L0X_RangingMeasurementData_t m; ${v}.rangingTest(&m, false); return m.RangeStatus != 4 ? m.RangeMilliMeter : -1; }`);
+      if (x) { const a = f.ard(x); f.early(`${a.mode('OUTPUT')} ${a.write('LOW')}  // hold ToF ${n(i)} in reset`); f.setup(`${a.write('HIGH')} delay(10);  // wake ToF ${n(i)} alone, then give it ${addr}\n${v}.begin(${addr});`); } else f.setup(`${v}.begin();`);
+      f.read(lbl, `${v}_mm()`, 'mm'); return;
+    }
+    f.imp('import adafruit_vl53l0x'); f.lib('adafruit_vl53l0x');
+    if (x) { f.imp('import digitalio'); f.early(`${v}_x =${f.dio(x)}\n${v}_x.switch_to_output(value=False)  # all ToF sensors held in reset first`); f.setup(`${v}_x.value = True  # wake this one alone and move it off 0x29\ntime.sleep(0.01)\n${v} = adafruit_vl53l0x.VL53L0X(i2c)\n${v}.set_address(${addr})`); }
+    else f.setup(`${v} = adafruit_vl53l0x.VL53L0X(i2c)`);
+    f.read(lbl, `${v}.range`, 'mm');
   },
   notes: i => (i.opt.kind === 'ultrasonic' && i.logicV < 4 ? ['HC-SR04 echo is 5 V: the 1k / 1.8k divider brings it to about 3.2 V for the 3.3 V board.'] : []),
 };

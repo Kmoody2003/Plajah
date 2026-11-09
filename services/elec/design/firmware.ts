@@ -20,10 +20,10 @@ const expAddr = (k: number) => `0x${(0x20 + k).toString(16)}`;
 
 export function firmware(p: Plan, name: string): Firmware | undefined {
   const mcu = p.mcu; if (!mcu) return undefined; const fw = p.framework ?? mcu.framework;
-  const esp = new Map<string, string[]>(); const imps: string[] = [], libs: string[] = [], globs: string[] = [], setups: string[] = [], loops: string[] = [];
+  const esp = new Map<string, string[]>(); const earlies: string[] = [], imps: string[] = [], libs: string[] = [], globs: string[] = [], setups: string[] = [], loops: string[] = [];
   const reads: Array<{ label: string; expr: string; unit: string }> = []; const screens: Array<{ kind: 'oled' | 'tft'; id: string; addr: string }> = [];
   const api: FwApi = {
-    fw, esp: (s, item) => esp.set(s, [...(esp.get(s) ?? []), item]), imp: (...l) => imps.push(...l), lib: (...l) => libs.push(...l), glob: c => globs.push(c), setup: c => setups.push(c), loop: c => loops.push(c),
+    fw, early: c => earlies.push(c), esp: (s, item) => esp.set(s, [...(esp.get(s) ?? []), item]), imp: (...l) => imps.push(...l), lib: (...l) => libs.push(...l), glob: c => globs.push(c), setup: c => setups.push(c), loop: c => loops.push(c),
     read: (label, expr, unit) => reads.push({ label, expr, unit }), screen: (kind, id, addr) => screens.push({ kind, id, addr }),
     pin: pn => (fw === 'esphome' ? pn.replace(/^IO/, 'GPIO') : fw === 'circuitpython' ? `board.${pn}` : fw === 'python' ? pn.replace('GPIO', '') : pn.replace(/^D/, '')),
     bpin: pn => (fw === 'python' ? `board.D${pn.replace('GPIO', '')}` : `board.${pn}`),
@@ -67,6 +67,7 @@ export function firmware(p: Plan, name: string): Firmware | undefined {
     if (p.ads) libList.push('Adafruit ADS1X15'); if (p.exp) libList.push('Adafruit MCP23017'); if (oled) libList.push('Adafruit SSD1306', 'Adafruit GFX');
     const g = [...Array.from({ length: p.exp ?? 0 }, (_, k) => `Adafruit_MCP23X17 mcp${k};`), ...(p.ads ? Array.from({ length: p.ads }, (_, k) => `Adafruit_ADS1115 ads${k};`) : []), ...(oled ? ['Adafruit_SSD1306 oled(128, 64, &Wire, -1);'] : []), ...globs, 'unsigned long lastReport = 0;'];
     const st = ['Serial.begin(115200);', ...(p.i2c ? ['Wire.begin();'] : []), ...Array.from({ length: p.exp ?? 0 }, (_, k) => `mcp${k}.begin_I2C(${expAddr(k)});`), ...Array.from({ length: p.ads }, (_, k) => `ads${k}.begin(0x${(0x48 + k).toString(16)});`), ...(oled ? [`oled.begin(SSD1306_SWITCHCAPVCC, ${oled.addr});`, 'oled.setTextColor(SSD1306_WHITE);'] : []), ...setups];
+    st.splice(1, 0, ...earlies);
     const rep = reads.map(r => `Serial.print("${r.label}: "); Serial.println(${r.expr});`);
     const scr = oled ? ['oled.clearDisplay(); oled.setCursor(0, 0);', ...reads.slice(0, 6).map(r => `oled.print("${r.label}: "); oled.println(${r.expr});`), 'oled.display();'] : [];
     const code = [`// ${head('').trim()}`, `// Arduino IDE: board "Arduino Nano". Libraries (Library Manager): ${uniq(libList).join(', ') || 'none'}.`, ...inc, '', ...g, '', 'void setup() {', ind(st.join('\n'), 2), '}', '', 'void loop() {', ind(loops.join('\n'), 2), '  if (millis() - lastReport > 1000) {', '    lastReport = millis();', ind([...rep, ...scr].join('\n'), 4), '  }', '}', ''].join('\n');
@@ -97,7 +98,7 @@ export function firmware(p: Plan, name: string): Firmware | undefined {
   const readDict = reads.length ? `readings = {${reads.map(r => `"${r.label}": ${r.expr}`).join(', ')}}` : 'readings = {}';
   const show = [...(oled ? ['oled.fill(0)', 'for row, (k, v) in enumerate(readings.items()):', '    oled.text(f"{k}: {v}", 0, row * 10, 1)', 'oled.show()'] : []), ...(tft ? ['tft_text.text = "\\n".join(f"{k}: {v}" for k, v in readings.items()) or tft_text.text'] : [])];
   const code = [`# ${head('').trim()}`, py ? `# Raspberry Pi OS: enable I2C in raspi-config, then: pip install ${uniq(libList).map(l => `adafruit-circuitpython-${l.replace(/^adafruit_/, '').replace(/_/g, '-')}`).join(' ') || 'gpiozero'} --break-system-packages` : `# Copy to the CIRCUITPY drive as code.py. Libraries (circup install): ${uniq(libList).join(' ') || 'none'}`,
-    ...top, '', ...pre, ...globs, ...setups, '', 'last_report = 0', 'while True:', ind(loops.join('\n'), 4), '    if time.monotonic() - last_report > 1:', '        last_report = time.monotonic()', ind([readDict, 'print(readings)', ...(cpWifi ? ['mqtt.publish(STATE_TOPIC, json.dumps(readings))'] : []), ...show].join('\n'), 8), `    time.sleep(${py ? '0.05' : '0.005'})`, ''].join('\n');
+    ...top, '', ...pre, ...earlies, ...globs, ...setups, '', 'last_report = 0', 'while True:', ind(loops.join('\n'), 4), '    if time.monotonic() - last_report > 1:', '        last_report = time.monotonic()', ind([readDict, 'print(readings)', ...(cpWifi ? ['mqtt.publish(STATE_TOPIC, json.dumps(readings))'] : []), ...show].join('\n'), 8), `    time.sleep(${py ? '0.05' : '0.005'})`, ''].join('\n');
   return py
     ? { file: 'device.py', lang: 'python', code, about: 'Python service for Raspberry Pi OS (gpiozero + Blinka). Run it with python3; start it at boot with a systemd unit.', extra: [{ file: 'requirements.txt', code: ['gpiozero', 'adafruit-blinka', ...uniq(libList).map(l => `adafruit-circuitpython-${l.replace(/^adafruit_/, '').replace(/_/g, '-')}`)].join('\n') + '\n' }] }
     : { file: 'code.py', lang: 'python', code, ...(cpWifi ? { extra: [{ file: 'settings.toml', code: 'CIRCUITPY_WIFI_SSID = ""\nCIRCUITPY_WIFI_PASSWORD = ""\nMQTT_BROKER = ""   # your Home Assistant / Mosquitto host\nMQTT_USER = ""\nMQTT_PASSWORD = ""  # a unique password per device\n' }] } : {}), about: `Install CircuitPython on the Pico (hold BOOTSEL, plug in, drop the .uf2), copy the libraries (${uniq(libList).join(', ') || 'none needed'}) into lib/, then save this as code.py.${oled ? ' The OLED text needs font5x8.bin in the root of CIRCUITPY (from the adafruit_framebuf examples).' : ''}` };

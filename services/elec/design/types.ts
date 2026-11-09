@@ -12,7 +12,7 @@ export interface Spec {
   piModel?: string;
 }
 
-export type Cap = 'adc' | 'pwm' | 'gpio' | 'in';
+export type Cap = 'adc' | 'pwm' | 'gpio' | 'in' | 'i2s';
 export interface PinNeed { role: string; cap: Cap; /** Driven high in the simulation (worst-case on). */ high?: boolean; label: string; /** May move to an MCP23017 pin when the board runs out. */ exp?: boolean }
 export type Rail = 'v5' | 'logic' | 'v12' | 'sys';
 export interface Load { rail: Rail; typ: number; peak: number; what: string }
@@ -20,6 +20,7 @@ export type Params = Record<string, number | string>;
 
 export interface Inst {
   block: BlockId; id: string; k: number; count: number; opt: Opt; label: string;
+  /** How many instances of this block the design has. */ of?: number;
   /** Role -> board pin ("IO4") or ADS1115 channel ("ADS:0:A1"). Bus roles: sda, scl, sck, mosi. */
   pins: Record<string, string>; addr?: string;
   mcu: McuDef | null; logicV: number; sysV: number; usbMidi: boolean; usbHid: boolean; ha: boolean;
@@ -29,6 +30,7 @@ export interface FwApi {
   fw: Framework;
   /** ESPHome: add a YAML list item (text starting "- ") or singleton mapping to a top-level section. */
   esp(section: string, item: string): void;
+  /** Runs before every other setup line (hold pins in a safe state). */ early(code: string): void;
   imp(...lines: string[]): void; lib(...names: string[]): void; glob(code: string): void; setup(code: string): void; loop(code: string): void;
   /** A value for the display / serial print: label, expression (ESPHome: sensor id), unit. */
   read(label: string, expr: string, unit: string): void;
