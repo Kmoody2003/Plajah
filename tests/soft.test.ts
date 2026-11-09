@@ -130,8 +130,7 @@ test('geometry helpers', () => {
 import { gradeSet, gradePom, sizesOf, sizeRange } from '../services/soft/grading';
 import { gradedModel } from '../services/soft/layout';
 import { traceSilhouette, otsu, type Gray } from '../services/soft/trace';
-import { encodeOutline, CHILD_SIZES, type Piece } from '../services/soft/patterns';
-import { formOf, inflate } from '../services/soft/form3d';
+import { encodeOutline, CHILD_SIZES, patternsForSizes, type Piece } from '../services/soft/patterns';
 
 const validPieces = (label: string, pcs: Piece[]) => {
   for (const x of pcs) {
@@ -181,6 +180,7 @@ test('grading: nests grow monotonically, every size in the PDF, DXF and spec', a
   const pdf = await printPdf(build('tee', { size: 'M' }), 'letter', 'cm', g); assert.ok(pdf.pages > 2);
   const pack = await techPackPdf(g.base, { audience: 'Adults', hazards: [], labels: [], grade: g }); assert.ok(pack.length > 3000);
   assert.equal(gradeSet(tee, softDefaults(tee), ['M']), null);
+  assert.deepEqual(patternsForSizes(tee, softDefaults(tee), ['S', 'L']).map(x => x.size), ['S', 'L'], 'per-size drafts in the order asked');
 });
 
 /** A synthetic drawing: dark figure on white, as a canvas would give it. */
@@ -211,15 +211,6 @@ test('plush from a drawing: traced panels are valid CCW pieces and the base matc
   // Light-on-dark needs invert; a blank page traces to nothing rather than crashing.
   const neg: Gray = { ...img, data: img.data.map(v => 255 - v) }; assert.ok(area(traceSilhouette(neg, { threshold: T, invert: true })) > 0);
   assert.equal(traceSilhouette(drawing(50, 50, () => false), { threshold: 128 }).length, 0);
-});
-
-test('3D preview forms: every template has solids; plush inflates to a closed pillow', () => {
-  for (const t of SOFT_TEMPLATES) { const f = formOf(t.build(softDefaults(t))); assert.ok(f.length > 0, t.id); }
-  const p = build('plush-pal'); const inf = formOf(p).find(x => x.kind === 'inflate'); assert.ok(inf && inf.kind === 'inflate');
-  if (inf?.kind !== 'inflate') return;
-  const m = inflate(inf.outline, inf.depth, 32); assert.ok(m.indices.length > 300 && m.positions.length % 3 === 0);
-  let zmax = 0, zmin = 0; for (let i = 2; i < m.positions.length; i += 3) { zmax = Math.max(zmax, m.positions[i]); zmin = Math.min(zmin, m.positions[i]); }
-  assert.ok(zmax > 0 && Math.abs(zmax + zmin) < 1e-6 && zmax <= inf.depth / 2 + 1e-6);
 });
 
 test('safety for the new items: waist cords, sleepwear, chin cords, toddler zips', () => {

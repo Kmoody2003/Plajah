@@ -34,13 +34,6 @@ export interface Piece {
 export interface Notion { item: string; qty: string; note?: string }
 export interface SoftFeatures { safetyEyes?: boolean; buttons?: boolean; beads?: boolean; magnets?: boolean; sound?: boolean; drawstring?: boolean; sleepwear?: boolean; weighted?: boolean; longPile?: boolean; cords?: boolean; zip?: boolean; elastic?: boolean; waistDrawstring?: boolean; chinCord?: boolean; snug?: boolean }
 
-/** A simple solid for the 3D preview (millimetres, y up). Not a drape simulation. */
-export type FormPart =
-  | { kind: 'tube'; a: [number, number, number]; b: [number, number, number]; ra: number; rb: number; squash?: number; fabric?: FabricRole }
-  | { kind: 'box'; at: [number, number, number]; size: [number, number, number]; fabric?: FabricRole }
-  | { kind: 'ellipsoid'; at: [number, number, number]; r: [number, number, number]; fabric?: FabricRole }
-  | { kind: 'inflate'; outline: Pt[]; depth: number; fabric?: FabricRole };
-
 export interface Pattern {
   template: string; name: string; kind: SoftKind; size?: string;
   pieces: Piece[]; notions: Notion[]; steps: string[]; notes: string[];
@@ -52,8 +45,6 @@ export interface Pattern {
   finished: Array<[string, number]>;
   /** Graded points of measure across sizes (apparel). */
   grading?: { sizes: string[]; rows: Array<{ pom: string; values: number[] }> };
-  /** Solids for the 3D preview; derived from the template when absent (see form3d.ts). */
-  form?: FormPart[];
 }
 
 export type ParamValue = number | string | boolean;
@@ -363,7 +354,6 @@ const garment = (hood: boolean): SoftTemplate => ({
       steps: [`Stitch shoulders right sides together (serger, or narrow zigzag at ${a} mm); stabilise with clear elastic.`, hood ? 'Sew the hood centre seam; fold and stitch the front edge casing; baste the hood to the neckline, centre back matched.' : 'Join the neckband into a ring, fold, quarter-mark it and the neckline; stretch the band to fit and stitch.',
         'Set the sleeves flat: match the cap centre to the shoulder seam and the notches.', 'Sew underarm and side seams in one pass.', hood ? 'Hem the pocket openings, topstitch the pocket to the front; attach cuffs and waistband as rings, stretched to fit.' : 'Hem sleeves and body with a twin needle or coverstitch.', 'Press with a cool iron.'],
       notes: [child ? 'Children\'s sizes: no drawstrings at the hood or neck; keep any trims sewn on securely.' : ''].filter(Boolean),
-      form: shirtForm(4 * b.W, b.L, b.AD, long ? ls * 10 : ss * 10, bbox(sl.seam).w, hood ? headH * 10 : 0),
       finished: [['Chest (finished)', SIZE_CHART[size][0] * 10 + (EASE[fit] ?? 100)], ['Length (HPS)', b.L], ['Sleeve', long ? ls * 10 : ss * 10]],
       grading: { sizes, rows: [['Chest (finished)', 0], ['Length (HPS)', 1], ['Shoulder', 2], ['Neck width', 3], [long ? 'Sleeve (long)' : 'Sleeve (short)', long ? 5 : 4]].map(([pom, i]) => ({ pom: pom as string, values: sizes.map(s => SIZE_CHART[s][i as number] * 10 + (i === 0 ? (EASE[fit] ?? 100) : 0)) })) } };
   },
@@ -385,7 +375,6 @@ const skirt: SoftTemplate = {
 
 // ── More clothing, a zip pouch, and plush from your own drawing ─────────────────────────────────
 
-type V3 = [number, number, number];
 const sizeOptions = (sizes: string[]) => sizes.map(s => ({ value: s, label: CHILD_SIZES.includes(s) ? `Kids ${s}` : s }));
 const ADULT_SIZES = SIZE_ORDER.filter(s => !CHILD_SIZES.includes(s));
 /** The sizes a garment grades across: its own group (kids or adults), or the template's own list. */
@@ -407,15 +396,6 @@ const run = (a: Pt, c1: Pt, c2: Pt, b: Pt, n = 14): Pt[] => [a, ...bez(a, c1, c2
 function withGrading(p: Pattern, sizes: string[], fin: (s: string) => Array<[string, number]>): Pattern {
   const all = sizes.map(s => (s === p.size ? p.finished : fin(s)));
   return { ...p, grading: { sizes, rows: p.finished.map(([pom], i) => ({ pom, values: all.map(f => f[i]?.[1] ?? 0) })) } };
-}
-
-/** Torso, shoulders and sleeves for a tee or hoodie preview. */
-function shirtForm(chest: number, L: number, AD: number, sleeveLen: number, bicep: number, hood: number): FormPart[] {
-  const r = chest / TAU, rb = bicep / TAU, yU = L - AD; const sx = r * 1.05;
-  const parts: FormPart[] = [{ kind: 'tube', a: [0, 0, 0], b: [0, yU, 0], ra: r, rb: r, squash: 0.62 }, { kind: 'tube', a: [0, yU, 0], b: [0, L, 0], ra: r, rb: r * 0.45, squash: 0.62 },
-    ...[-1, 1].map(s => ({ kind: 'tube' as const, a: [s * sx * 0.92, L - AD * 0.45, 0] as V3, b: [s * (sx + sleeveLen * 0.55), L - AD * 0.45 - sleeveLen * 0.8, 0] as V3, ra: rb, rb: rb * (sleeveLen > 300 ? 0.55 : 0.9), squash: 0.9 }))];
-  if (hood) parts.push({ kind: 'ellipsoid', at: [0, L + hood * 0.35, -r * 0.35], r: [r * 0.55, hood * 0.55, r * 0.5] });
-  return parts;
 }
 
 // Trousers / pajama pants ----------------------------------------------------------------------
@@ -456,9 +436,7 @@ function trousersDraft(v: Record<string, ParamValue>, size: string): Pattern {
   return { template: 'trousers', name: `${label} size ${size}`, size, kind: 'apparel', fabricWidth: 1400, features: { elastic: true, sleepwear: pj, waistDrawstring: cord, snug: fit === 'snug' }, pieces, notions,
     steps: ['Sew each front leg to its back leg at the side seam and the inseam, matching notches; finish the seams.', 'Turn one leg right side out and slip it inside the other, right sides together; sew the crotch seam in one pass from front waist to back waist, then stitch it again 3 mm away for strength.', `Join the waistband into a ring${cord ? ' (buttonholes at centre front)' : ''}, fold it in half and sew it to the waist, leaving 5 cm open.`, `Thread ${(elastic / 1000).toFixed(2)} m of elastic${cord ? ' and the drawcord' : ''} through; overlap and zigzag the elastic; close the gap.${cord ? ' Bartack the cord at centre back.' : ''}`, 'Hem: press 1 cm then 2 cm, stitch.'],
     notes: [pj && child ? 'Children\'s pajama pants are sleepwear: flame-resistant fabric, or a snug fit to the federal dimensions with the snug-fitting label.' : '', cord && child ? 'Children\'s waist drawcord: short ends, no toggles or knots, bartacked; never on under-3s.' : ''].filter(Boolean),
-    finished: [['Hip (finished)', H], ['Waist (elastic, relaxed)', elastic], ['Inseam', I], ['Rise', R], ['Hem circumference', hemC]],
-    form: [{ kind: 'tube', a: [0, I + 20, 0], b: [0, I + R, 0], ra: rH, rb: rH * 0.94, squash: 0.78 }, { kind: 'tube', a: [0, I + R, 0], b: [0, I + R + bandH / 2, 0], ra: rH * 0.94, rb: rH * 0.94, squash: 0.78 },
-      ...[-1, 1].map(s => ({ kind: 'tube' as const, a: [s * rH * 0.5, I + 40, 0] as V3, b: [s * rH * 0.52, 0, 0] as V3, ra: rl, rb: hemC / TAU, squash: 0.92 }))] };
+    finished: [['Hip (finished)', H], ['Waist (elastic, relaxed)', elastic], ['Inseam', I], ['Rise', R], ['Hem circumference', hemC]] };
 }
 
 const trousers: SoftTemplate = {
@@ -505,9 +483,7 @@ function dressDraft(v: Record<string, ParamValue>, size: string): Pattern {
   const notions: Notion[] = [{ item: 'Invisible zip', qty: `1 × ${Math.round(zip / 10)} cm`, note: 'Centre back, from the neckline to below the hip line' }, { item: 'Hook and eye', qty: '1', note: 'Top of the zip' }, { item: 'Thread', qty: '1 spool' }, ...(lined ? [] : [{ item: 'Fusible interfacing', qty: '0.3 m', note: 'For neck and armhole facings' }])];
   return { template: 'dress', name: `Dress size ${size}`, size, kind: 'apparel', fabricWidth: 1400, features: { zip: true, sleepwear: bool(v, 'sleepwear') }, pieces, notions,
     steps: ['Sew all darts: stitch from the waist to the point, tie off (do not backstitch at the point), press towards the centre.', 'Bodice: sew the shoulder seams. Lining: same. Put bodice and lining right sides together and sew the neckline and armholes; understitch, clip, turn through the shoulders (burrito method), press.', 'Sew the bodice side seams (lining too) in one pass through the underarm.', 'Skirt: sew the side seams. Sew the skirt to the bodice at the waist, matching side seams and darts.', 'Insert the invisible zip in the centre back; sew the rest of the centre-back seam below it. Slip-stitch the lining to the zip tape.', 'Hem: press 1 cm then 2 cm, stitch or blind-hem.'],
-    notes: [], finished: [['Bust (finished)', 4 * b.W], ['Waist (finished)', 4 * Wq], ['Hip (finished)', 4 * Hq], ['Bodice length (HPS to waist)', b.L], ['Skirt length', S], ['Hem circumference', 4 * hemX]],
-    form: [{ kind: 'tube', a: [0, S, 0], b: [0, S + b.L - b.AD, 0], ra: Wq * 4 / TAU, rb: b.W * 4 / TAU, squash: 0.68 }, { kind: 'tube', a: [0, S + b.L - b.AD, 0], b: [0, S + b.L, 0], ra: b.W * 4 / TAU, rb: b.W * 4 / TAU * 0.5, squash: 0.62 },
-      { kind: 'tube', a: [0, S, 0], b: [0, 0, 0], ra: Wq * 4 / TAU, rb: hemX * 4 / TAU, squash: 0.8 }] };
+    notes: [], finished: [['Bust (finished)', 4 * b.W], ['Waist (finished)', 4 * Wq], ['Hip (finished)', 4 * Hq], ['Bodice length (HPS to waist)', b.L], ['Skirt length', S], ['Hem circumference', 4 * hemX]] };
 }
 
 const dress: SoftTemplate = {
@@ -534,14 +510,13 @@ function leggingsDraft(v: Record<string, ParamValue>, size: string): Pattern {
     [run([-Hh / 2, hip], [-Hh / 2, yc + R * 0.1], [-Hh / 2 - extF * 0.3, yc], [-Hh / 2 - extF, yc]), a],
     [run([-Hh / 2 - extF, yc], [-Hh / 2 - extF * 0.6, yc - 20], [-ha - 10, yc * 0.5], [-ha, 0]), a],
   ]);
-  const elastic = Math.round(m.waist * 0.9); const rH = H / TAU;
+  const elastic = Math.round(m.waist * 0.9);
   return { template: 'leggings', name: `Kids' leggings size ${size}`, size, kind: 'apparel', fabricWidth: 1500, features: { elastic: true, snug: true, sleepwear: bool(v, 'sleepwear') },
     pieces: [{ id: 'leg', name: 'Leg (front + back in one)', seam: r.seam, allowance: r.allowance, cut: 2, pair: true, fabric: 'main', grain: [[0, I * 0.2], [0, I * 0.8]], notches: [[-Hh / 2, hip], [Hh / 2, hip], [Hh / 2, hip - 10]], note: 'Stretch knit with at least 50% stretch across the grain (cotton or bamboo spandex). Front crotch is the shorter curve (single notch).' }],
     notions: [{ item: `${elW} mm elastic`, qty: `${(elastic / 1000).toFixed(2)} m` }, { item: 'Thread', qty: '2 spools or serger cones' }, { item: 'Ballpoint / stretch needle', qty: '1' }],
     steps: ['Fold each leg right sides together and sew the inseam (serger, or narrow zigzag).', 'Turn one leg right side out, slip it inside the other and sew the crotch seam in one pass, front notch to back notches.', `Join the elastic into a ring (overlap 2 cm). Fold the top edge over it twice the elastic width and stitch with a zigzag, stretching as you go.`, 'Hem the ankles with a twin needle or zigzag.'],
     notes: ['Snug fit: about 10% negative ease at the hip. Tag the centre back so it goes on the right way round.'],
-    finished: [['Hip (relaxed)', H], ['Waist elastic', elastic], ['Inseam', I], ['Rise', R], ['Ankle opening', 2 * ha]],
-    form: [{ kind: 'tube', a: [0, I + 20, 0], b: [0, I + R, 0], ra: rH, rb: rH * 0.92, squash: 0.78 }, ...[-1, 1].map(s => ({ kind: 'tube' as const, a: [s * rH * 0.48, I + 30, 0] as V3, b: [s * rH * 0.3, 0, 0] as V3, ra: (Hh + extF + extB) / TAU, rb: 2 * ha / TAU, squash: 0.95 }))] };
+    finished: [['Hip (relaxed)', H], ['Waist elastic', elastic], ['Inseam', I], ['Rise', R], ['Ankle opening', 2 * ha]] };
 }
 
 const leggings: SoftTemplate = {
@@ -573,8 +548,7 @@ function hatDraft(v: Record<string, ParamValue>, size: string): Pattern {
   return { template: 'bucket-hat', name: `Bucket hat size ${size} (${Math.round(m.head / 10)} cm head)`, size, kind: 'apparel', fabricWidth: 1120, features: { cords: cord, chinCord: cord }, pieces, notions,
     steps: ['Sew the two crown side halves together at the side seams; press open. Repeat for the lining.', 'Pin the crown top into the side band, matching the notches to the seams and centre marks; stitch with the band on top, easing round. Repeat for the lining.', 'Sew the brim halves into a ring; same for the under-brim. Sew brim to under-brim round the outer edge, turn, press, topstitch rows 6 mm apart.', `Sew the brim to the crown at the head opening${cord ? ', with the chin cord ends caught in at the sides' : ''}. Put the lining inside, turn the raw edge under and stitch in the ditch.`],
     notes: cord ? ['Chin cord: breakaway clasp only, and none for under-3s.'] : [],
-    finished: [['Head opening', Cb], ['Crown height', hc], ['Brim width', bw]],
-    form: [{ kind: 'tube', a: [0, 0, 0], b: [0, hc, 0], ra: Cb / TAU, rb: Ct / TAU, squash: 0.9 }, { kind: 'ellipsoid', at: [0, hc, 0], r: [Ct / TAU, 8, Ct / TAU * 0.9] }, { kind: 'tube', a: [0, 0, 0], b: [0, -bw * Math.sin(28 * Math.PI / 180), 0], ra: Cb / TAU, rb: Cout / TAU, squash: 0.92, fabric: 'contrast' }] };
+    finished: [['Head opening', Cb], ['Crown height', hc], ['Brim width', bw]] };
 }
 
 const bucketHat: SoftTemplate = {
@@ -601,8 +575,7 @@ const zipPouch: SoftTemplate = {
     return { template: 'zip-pouch', name: `Zip pouch ${Math.round(w / 10)}×${Math.round(h / 10)} cm`, kind: 'bag', fabricWidth: 1120, features: { zip: true }, pieces,
       notions: [{ item: 'Nylon coil zip', qty: `1 × ${Math.round(zip / 10)} cm (or longer; trim it)`, note: 'With a pull that is sewn in and cannot come off' }, { item: 'Thread', qty: '1 spool' }],
       steps: ['Trim the zip to length and wrap each end in a tab.', `Sandwich the zip between outer and lining along the top edge (right sides facing the zip), stitch with a zip foot at ${a} mm; repeat for the other side. Topstitch.`, 'Open the zip halfway. Put outers right sides together and linings right sides together; stitch round, leaving the corner notches open and 8 cm open in the lining bottom.', 'Box the corners: flatten each notch so the side seam meets the bottom seam, stitch across.', 'Turn through the lining gap, stitch it closed, push the lining in.'],
-      notes: [], finished: [['Width', w], ['Height', h], ['Depth', g], ['Zip', zip]],
-      form: [{ kind: 'box', at: [0, h / 2, 0], size: [w, h, Math.max(15, g)] }] };
+      notes: [], finished: [['Width', w], ['Height', h], ['Depth', g], ['Zip', zip]] };
   },
 };
 
@@ -687,13 +660,17 @@ const plushDrawing: SoftTemplate = {
         base ? (runs.length > 1 ? 'Pin each foot pad into its opening, side notches to the side seams; stitch round.' : 'Pin the base in, side notches to the side seams; stitch round, leaving the marked gap on the back open.') : '',
         'Clip curves and into inner corners (not through the stitching); turn; push out thin parts with a blunt tool.', 'Stuff firmly in small tufts, thin parts first.', 'Ladder-stitch the gap closed; pull-test every seam and eye.'].filter(Boolean),
       notes: ['Thin parts under about 25 mm finished are hard to turn and stuff: thicken them in the drawing or raise the smoothing.', ...(runs.length > 1 ? [`Your drawing stands on ${runs.length} feet: each gets its own pad.`] : [])],
-      finished: [['Height', H], ['Width', bb.w], ...(base ? [['Base seam length (front+back)', 2 * runs.reduce((s, L) => s + L, 0)] as [string, number]] : [])],
-      form: [{ kind: 'inflate', outline: seam, depth: baseDepth, fabric: 'fur' }] };
+      finished: [['Height', H], ['Width', bb.w], ...(base ? [['Base seam length (front+back)', 2 * runs.reduce((s, L) => s + L, 0)] as [string, number]] : [])] };
   },
 };
 
 export const SOFT_TEMPLATES: SoftTemplate[] = [plushPal, plushDrawing, plushBall, pillow, throwBlanket, duvet, fittedSheet, tote, zipPouch, garment(false), garment(true), skirt, trousers, dress, leggings, bucketHat];
 export const softTemplateById = (id: string) => SOFT_TEMPLATES.find(t => t.id === id);
+/**
+ * The pattern drafted in each size (stable API for grading and later grade-rule work): sizes in
+ * the order given, each a full parametric draft from our own size chart.
+ */
+export function patternsForSizes(t: SoftTemplate, v: Record<string, ParamValue>, sizes: string[]): Pattern[] { return sizes.map(size => t.build({ ...v, size })); }
 export const softDefaults = (t: SoftTemplate) => Object.fromEntries(t.params.map(p => [p.key, p.default])) as Record<string, ParamValue>;
 
 /** The cutting line for a piece (seam line + allowance). */

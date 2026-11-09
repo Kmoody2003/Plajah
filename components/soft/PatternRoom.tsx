@@ -9,7 +9,6 @@ import { X, Download, ShieldAlert, Store, Scissors, Printer, FileText, Ruler, Li
 import { SOFT_TEMPLATES, softTemplateById, softDefaults, fmtLen, CHILD_SIZES, type Audience, type ParamValue, type ParamDef, type Pattern, type FabricRole } from '../../services/soft/patterns';
 import { printSheet, marker, rolesOf, yardage, FABRIC_LABEL, cutChart, patternModel, gradedModel, markerSvg, pieceCaption, type SheetItem, type Marker } from '../../services/soft/layout';
 import { sizesOf, sizeRange, gradeSet, gradePom, sizeStyle, sizeRangeLabel } from '../../services/soft/grading';
-import Preview3D from './Preview3D';
 import DrawingTracer from './DrawingTracer';
 import { printPdf, techPackPdf, type Paper } from '../../services/soft/pdf';
 import { writeDxf } from '../../services/cad/dxf';
@@ -78,7 +77,7 @@ export default function PatternRoom({ onClose, getToken, apiBase = '', initialTe
   const [audienceBy, setAudienceBy] = useState<Record<string, Audience>>({});
   const audience = audienceBy[tid] ?? tpl.audience;
   const [selling, setSelling] = useState(false);
-  const [view, setView] = useState<'pieces' | 'layout' | '3d'>('pieces');
+  const [view, setView] = useState<'pieces' | 'layout'>('pieces');
   const [gradeBy, setGradeBy] = useState<Record<string, { on: boolean; from: string; to: string }>>({});
   const [right, setRight] = useState<'safety' | 'make' | 'materials' | 'steps'>('safety');
   const [cutter, setCutter] = useState('scissors'); const [laserFabric, setLaserFabric] = useState('Cotton');
@@ -170,13 +169,12 @@ export default function PatternRoom({ onClose, getToken, apiBase = '', initialTe
       </div>
       <div className="flex-1 min-w-0 min-h-0 flex flex-col">
         <div className="flex items-center gap-1 px-3 h-10 border-b shrink-0" style={{ borderColor: C.line }}>
-          {(['pieces', 'layout', '3d'] as const).map(x => <button key={x} className={`sew-tab${view === x ? ' sew-tab-on' : ''}`} onClick={() => setView(x)} data-testid={`sew-view-${x}`}>{x === 'pieces' ? (grade ? `Graded nest ${sizeRangeLabel(grade.sizes)}` : 'Pattern pieces') : x === 'layout' ? 'Fabric layout' : '3D preview'}</button>)}
+          {(['pieces', 'layout'] as const).map(x => <button key={x} className={`sew-tab${view === x ? ' sew-tab-on' : ''}`} onClick={() => setView(x)} data-testid={`sew-view-${x}`}>{x === 'pieces' ? 'Pattern pieces' : 'Fabric layout'}</button>)}
           {pattern?.fill && <span className="ml-auto text-[11px]" style={{ color: C.dim }}>Fill ≈ {pattern.fill.grams} g</span>}
         </div>
         <div className="flex-1 min-h-0 overflow-auto p-3">
           {!pattern && <div className="text-[12px]" style={{ color: '#fda4af' }}>These measurements do not make a valid pattern. Try values nearer the defaults.</div>}
           {pattern && view === 'pieces' && grade && <SizeKey sizes={grade.sizes}/>}
-          {pattern && view === '3d' && <div className="h-full min-h-[360px]"><Preview3D pattern={pattern}/></div>}
           {pattern && view === 'pieces' && sheet && (sheet.items.length ? <div className="h-full min-h-[320px]"><SheetSvg items={sheet.items} width={sheet.width} height={sheet.height} size={grade ? sizeRangeLabel(grade.sizes) : pattern.size} unit={unit} sizes={grade?.sizes}/></div>
             : <div className="text-[12px]" style={{ color: C.dim }}>Every piece is a rectangle: no printing needed. Cut from the sizes below, or see the fabric layout.</div>)}
           {pattern && view === 'pieces' && sheet && sheet.skipped.length > 0 && <table className="mt-3 text-[11.5px] w-full max-w-[640px]" data-testid="sew-cutchart"><tbody>{cutChart(pattern, unit).map((r, i) => <tr key={i} className={i ? '' : 'font-bold'}>{r.map((c, j) => <td key={j} className="py-1 pr-3 border-b" style={{ borderColor: C.line }}>{c}</td>)}</tr>)}</tbody></table>}

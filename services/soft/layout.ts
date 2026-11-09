@@ -8,6 +8,7 @@ import { emptyModel, emptyBounds, growBounds } from '../cad/model';
 import { type Pt, area, bbox } from './geometry';
 import { type Pattern, type Piece, type FabricRole, cutInstances, cutLine, unfold } from './patterns';
 import { type GradeSet, sizeStyle, sizeRangeLabel } from './grading';
+export { gradeSet, gradePom, sizesOf, sizeRange, sizeStyle, sizeRangeLabel, SIZE_COLOURS, SIZE_DASHES, type GradeSet, type PomRow } from './grading';
 
 export interface Placed { piece: Piece; copy: number; mirrored: boolean; cut: Pt[]; seam: Pt[]; notches: Pt[]; grain: [Pt, Pt]; lines: Pt[][]; at: Pt; w: number; h: number; label: string }
 export interface Marker { role: FabricRole; width: number; length: number; placed: Placed[]; efficiency: number; tooWide: string[] }

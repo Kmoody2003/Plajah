@@ -4,7 +4,7 @@
 // cutting line per size, each in its own colour and line style, with a size key. The same nest
 // goes to the preview, the print PDF, the DXF and the tech pack's graded spec (POM table).
 
-import { type Pattern, type ParamValue, type SoftTemplate, SIZE_CHART } from './patterns';
+import { type Pattern, type ParamValue, type SoftTemplate, SIZE_CHART, patternsForSizes } from './patterns';
 
 export interface GradeSet { sizes: string[]; patterns: Pattern[]; /** The largest size: its labels, grain and notches carry the nest. */ base: Pattern }
 
@@ -29,7 +29,7 @@ export function sizeRange(all: string[], from: string, to: string): string[] {
 /** Draft every size; null when fewer than two sizes are asked for or a size fails to draft. */
 export function gradeSet(t: SoftTemplate, v: Record<string, ParamValue>, sizes: string[]): GradeSet | null {
   if (sizes.length < 2) return null;
-  try { const patterns = sizes.map(size => t.build({ ...v, size })); return { sizes, patterns, base: patterns[patterns.length - 1] }; } catch { return null; }
+  try { const patterns = patternsForSizes(t, v, sizes); return { sizes, patterns, base: patterns[patterns.length - 1] }; } catch { return null; }
 }
 
 export interface PomRow { pom: string; values: number[]; /** Average grade increment between neighbouring sizes (mm). */ step: number }
