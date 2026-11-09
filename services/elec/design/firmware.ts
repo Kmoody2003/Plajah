@@ -15,6 +15,8 @@ ota_password: ""
 `;
 const ind = (code: string, n: number) => code.split('\n').map(l => (l ? ' '.repeat(n) + l : l)).join('\n');
 const uniq = (a: string[]) => [...new Set(a.filter(Boolean))];
+const expOf = (pn: string) => { const m = /^EXP:(\d+):GP([AB])(\d)$/.exec(pn ?? ''); return m ? { idx: +m[1], n: (m[2] === 'B' ? 8 : 0) + +m[3] } : null; };
+const expAddr = (k: number) => `0x${(0x20 + k).toString(16)}`;
 
 export function firmware(p: Plan, name: string): Firmware | undefined {
   const mcu = p.mcu; if (!mcu) return undefined; const fw = p.framework ?? mcu.framework;
@@ -26,6 +28,15 @@ export function firmware(p: Plan, name: string): Firmware | undefined {
     pin: pn => (fw === 'esphome' ? pn.replace(/^IO/, 'GPIO') : fw === 'circuitpython' ? `board.${pn}` : fw === 'python' ? pn.replace('GPIO', '') : pn.replace(/^D/, '')),
     bpin: pn => (fw === 'python' ? `board.D${pn.replace('GPIO', '')}` : `board.${pn}`),
     ads: ch => { const m = /^ADS:(\d+):A(\d)$/.exec(ch ?? ''); return m ? { idx: +m[1], ch: +m[2] } : null; },
+    isExp: pn => !!expOf(pn),
+    dio: pn => { const e = expOf(pn); return e ? `mcp${e.idx}.get_pin(${e.n})` : `digitalio.DigitalInOut(${api.bpin(pn)})`; },
+    espPin: (pn, o = {}) => {
+      const e = expOf(pn); const lines = e ? [`mcp23xxx: mcp${e.idx}`, `number: ${e.n}`] : [`number: ${api.pin(pn)}`];
+      if (o.input || o.pullup) lines.push('mode:', '  input: true', ...(o.pullup ? ['  pullup: true'] : [])); else if (e) lines.push('mode:', '  output: true');
+      if (o.inverted) lines.push('inverted: true');
+      return lines.length === 1 ? `  pin: ${api.pin(pn)}` : `  pin:\n${lines.map(l => `    ${l}`).join('\n')}`;
+    },
+    ard: pn => { const e = expOf(pn); return e ? { mode: m => `mcp${e.idx}.pinMode(${e.n}, ${m});`, read: `mcp${e.idx}.digitalRead(${e.n})`, write: v => `mcp${e.idx}.digitalWrite(${e.n}, ${v});` } : { mode: m => `pinMode(${api.pin(pn)}, ${m});`, read: `digitalRead(${api.pin(pn)})`, write: v => `digitalWrite(${api.pin(pn)}, ${v});` }; },
   };
   for (const i of p.insts) blockById(i.block)!.fw(i, api);
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) || 'device';
@@ -37,6 +48,7 @@ export function firmware(p: Plan, name: string): Firmware | undefined {
       'wifi:\n  ssid: !secret wifi_ssid\n  password: !secret wifi_password\n  ap:\n    password: !secret fallback_password', '', 'captive_portal:', '', 'api:\n  encryption:\n    key: !secret api_key', '', 'ota:\n  - platform: esphome\n    password: !secret ota_password', '', 'logger:', ''];
     if (p.i2c) out.push(`i2c:\n  sda: ${api.pin(p.i2c[0])}\n  scl: ${api.pin(p.i2c[1])}\n  scan: true`, '');
     if (p.spi) out.push(`spi:\n  clk_pin: ${api.pin(p.spi[0])}\n  mosi_pin: ${api.pin(p.spi[1])}`, '');
+    if (p.exp) out.push(`mcp23017:\n${Array.from({ length: p.exp }, (_, k) => `  - id: mcp${k}\n    address: ${expAddr(k)}`).join('\n')}`, '');
     if (p.ads) out.push(`ads1115:\n${Array.from({ length: p.ads }, (_, k) => `  - address: 0x${(0x48 + k).toString(16)}\n    id: ads${k}`).join('\n')}`, '');
     for (const s of screens) {
       const size = s.kind === 'oled' ? 12 : 20; const step = s.kind === 'oled' ? 13 : 26;
@@ -51,10 +63,10 @@ export function firmware(p: Plan, name: string): Firmware | undefined {
 
   if (fw === 'arduino') {
     const oled = screens.find(s => s.kind === 'oled');
-    const inc = uniq([p.i2c ? '#include <Wire.h>' : '', ...imps.filter(l => l.startsWith('#')), p.ads ? '#include <Adafruit_ADS1X15.h>' : '', oled ? '#include <Adafruit_SSD1306.h>' : '']);
-    if (p.ads) libList.push('Adafruit ADS1X15'); if (oled) libList.push('Adafruit SSD1306', 'Adafruit GFX');
-    const g = [...(p.ads ? Array.from({ length: p.ads }, (_, k) => `Adafruit_ADS1115 ads${k};`) : []), ...(oled ? ['Adafruit_SSD1306 oled(128, 64, &Wire, -1);'] : []), ...globs, 'unsigned long lastReport = 0;'];
-    const st = ['Serial.begin(115200);', ...(p.i2c ? ['Wire.begin();'] : []), ...Array.from({ length: p.ads }, (_, k) => `ads${k}.begin(0x${(0x48 + k).toString(16)});`), ...(oled ? [`oled.begin(SSD1306_SWITCHCAPVCC, ${oled.addr});`, 'oled.setTextColor(SSD1306_WHITE);'] : []), ...setups];
+    const inc = uniq([p.i2c ? '#include <Wire.h>' : '', ...imps.filter(l => l.startsWith('#')), p.ads ? '#include <Adafruit_ADS1X15.h>' : '', p.exp ? '#include <Adafruit_MCP23X17.h>' : '', oled ? '#include <Adafruit_SSD1306.h>' : '']);
+    if (p.ads) libList.push('Adafruit ADS1X15'); if (p.exp) libList.push('Adafruit MCP23017'); if (oled) libList.push('Adafruit SSD1306', 'Adafruit GFX');
+    const g = [...Array.from({ length: p.exp ?? 0 }, (_, k) => `Adafruit_MCP23X17 mcp${k};`), ...(p.ads ? Array.from({ length: p.ads }, (_, k) => `Adafruit_ADS1115 ads${k};`) : []), ...(oled ? ['Adafruit_SSD1306 oled(128, 64, &Wire, -1);'] : []), ...globs, 'unsigned long lastReport = 0;'];
+    const st = ['Serial.begin(115200);', ...(p.i2c ? ['Wire.begin();'] : []), ...Array.from({ length: p.exp ?? 0 }, (_, k) => `mcp${k}.begin_I2C(${expAddr(k)});`), ...Array.from({ length: p.ads }, (_, k) => `ads${k}.begin(0x${(0x48 + k).toString(16)});`), ...(oled ? [`oled.begin(SSD1306_SWITCHCAPVCC, ${oled.addr});`, 'oled.setTextColor(SSD1306_WHITE);'] : []), ...setups];
     const rep = reads.map(r => `Serial.print("${r.label}: "); Serial.println(${r.expr});`);
     const scr = oled ? ['oled.clearDisplay(); oled.setCursor(0, 0);', ...reads.slice(0, 6).map(r => `oled.print("${r.label}: "); oled.println(${r.expr});`), 'oled.display();'] : [];
     const code = [`// ${head('').trim()}`, `// Arduino IDE: board "Arduino Nano". Libraries (Library Manager): ${uniq(libList).join(', ') || 'none'}.`, ...inc, '', ...g, '', 'void setup() {', ind(st.join('\n'), 2), '}', '', 'void loop() {', ind(loops.join('\n'), 2), '  if (millis() - lastReport > 1000) {', '    lastReport = millis();', ind([...rep, ...scr].join('\n'), 4), '  }', '}', ''].join('\n');
@@ -74,6 +86,7 @@ export function firmware(p: Plan, name: string): Firmware | undefined {
   }
   if (p.i2c) pre.push(py ? 'i2c = busio.I2C(board.SCL, board.SDA)' : `i2c = busio.I2C(${api.bpin(p.i2c[1])}, ${api.bpin(p.i2c[0])})  # SCL, SDA`);
   if (p.spi) pre.push(`spi = busio.SPI(clock=${api.bpin(p.spi[0])}, MOSI=${api.bpin(p.spi[1])})`);
+  if (p.exp) { top.push('from adafruit_mcp230xx.mcp23017 import MCP23017'); libList.push('adafruit_mcp230xx'); pre.push(...Array.from({ length: p.exp }, (_, k) => `mcp${k} = MCP23017(i2c, address=${expAddr(k)})`)); }
   if (p.ads) { top.push('import adafruit_ads1x15.ads1115 as ADS'); libList.push('adafruit_ads1x15'); pre.push(...Array.from({ length: p.ads }, (_, k) => `ads${k} = ADS.ADS1115(i2c, address=0x${(0x48 + k).toString(16)})`)); }
   if (oled) { top.push('import adafruit_ssd1306'); libList.push('adafruit_ssd1306', 'adafruit_framebuf'); pre.push(`oled = adafruit_ssd1306.SSD1306_I2C(128, 64, i2c, addr=${oled.addr})`); }
   if (tft) {

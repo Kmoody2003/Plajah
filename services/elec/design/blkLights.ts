@@ -12,7 +12,7 @@ export const led: BlockDef = {
   id: 'led', label: 'Indicator LED', plural: 'indicator LEDs', about: 'A status LED on a pin, with its series resistor.', max: 6,
   words: /\b(status|indicator|power) (leds?|lights?)\b|\bleds?\b(?!.*\b(strip|lamp|lantern|light)\b)/i,
   opts: [{ key: 'color', label: 'Colour', choices: COLORS, default: 'green' }], needsMcu: () => true,
-  pins: i => [{ role: 'led', cap: 'gpio', high: true, label: `LED ${n(i)}` }],
+  pins: i => [{ role: 'led', cap: 'gpio', high: true, label: `LED ${n(i)}`, exp: true }],
   loads: i => [{ rail: 'logic', typ: 0.008, peak: 0.009, what: `LED ${n(i)}` }],
   draw(i, d) {
     const color = String(i.opt.color ?? 'green'); const I = Math.min(0.008, (i.mcu?.part === 'pico' ? 0.012 : 0.02) * 0.7);
@@ -21,10 +21,10 @@ export const led: BlockDef = {
   },
   fw(i, f) {
     const p = i.pins.led;
-    if (f.fw === 'esphome') { f.esp('output', `- platform: gpio\n  pin: ${f.pin(p)}\n  id: ${sid(i, 'out')}`); f.esp('light', `- platform: binary\n  name: "LED ${n(i)}"\n  output: ${sid(i, 'out')}`); }
-    else if (f.fw === 'circuitpython') { f.imp('import digitalio'); f.setup(`${sid(i)} = digitalio.DigitalInOut(${f.pin(p)})\n${sid(i)}.switch_to_output(value=True)`); }
-    else if (f.fw === 'python') { f.imp('from gpiozero import LED'); f.setup(`${sid(i)} = LED(${f.pin(p)})\n${sid(i)}.on()`); }
-    else { f.setup(`pinMode(${f.pin(p)}, OUTPUT);\n  digitalWrite(${f.pin(p)}, HIGH);`); }
+    if (f.fw === 'esphome') { f.esp('output', `- platform: gpio\n${f.espPin(p)}\n  id: ${sid(i, 'out')}`); f.esp('light', `- platform: binary\n  name: "LED ${n(i)}"\n  output: ${sid(i, 'out')}`); }
+    else if (f.fw === 'python' && !f.isExp(p)) { f.imp('from gpiozero import LED'); f.setup(`${sid(i)} = LED(${f.pin(p)})\n${sid(i)}.on()`); }
+    else if (f.fw === 'arduino') { const a = f.ard(p); f.setup(`${a.mode('OUTPUT')}\n  ${a.write('HIGH')}`); }
+    else { f.imp('import digitalio'); f.setup(`${sid(i)} = ${f.dio(p)}\n${sid(i)}.switch_to_output(value=True)`); }
   },
 };
 

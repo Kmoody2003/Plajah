@@ -41,7 +41,7 @@ export interface ModuleModel {
   /** Input loads to ground (opto LEDs, internal pull-downs). */
   inputs?: Array<{ pin: string; gnd: string; R: number }>;
   /** Outputs driven to a fraction of the supply, or (with `ctrl`) following a logic input (H-bridge). */
-  drives?: Array<{ pin: string; sup: string; gnd: string; R: number; frac?: (p: Params) => number; ctrl?: string }>;
+  drives?: Array<{ pin: string; sup: string; gnd: string; R: number; frac?: (p: Params) => number; ctrl?: string; /** Only drives when true (expander outputs set high). */ active?: (p: Params) => boolean }>;
   /** Pins that may stay unconnected (screw terminals, unused channels). */
   free?: string[];
 }
@@ -107,6 +107,10 @@ export const MODULES: Record<string, ModuleInfo> = {
   relay: { model: { links: [{ a: 'VCC', b: 'GND', R: () => 70 }], inputs: [{ pin: 'IN', gnd: 'GND', R: 1e3 }], free: ['COM', 'NO', 'NC'] }, supply: { pin: 'VCC', gnd: 'GND', min: 4.5, max: 5.5 },
     physical: () => ({ w: 50, d: 26, h: 19, face: 'inside', note: 'Relay module: load wiring through a strain-relieved gland into its own closed compartment' }),
     query: () => ({ query: '5V relay module optocoupler isolated 10A', note: 'Pick a module whose relay is UL/VDE recognised and whose board has a slot between coil and contacts.' }) },
+  mcp23017: { model: { draw: { pwr: 'VDD', gnd: 'GND', A: () => 0.001 }, pullups: [{ pin: 'SCL', to: 'VDD', R: 10e3 }, { pin: 'SDA', to: 'VDD', R: 10e3 }],
+      drives: ['GPA0', 'GPA1', 'GPA2', 'GPA3', 'GPA4', 'GPA5', 'GPA6', 'GPA7', 'GPB0', 'GPB1', 'GPB2', 'GPB3', 'GPB4', 'GPB5', 'GPB6', 'GPB7'].map(pin => ({ pin, sup: 'VDD', gnd: 'GND', R: 40, frac: () => 1, active: (p: Params) => String(p.high ?? '').split(',').includes(pin) })), free: ['GPA0', 'GPA1', 'GPA2', 'GPA3', 'GPA4', 'GPA5', 'GPA6', 'GPA7', 'GPB0', 'GPB1', 'GPB2', 'GPB3', 'GPB4', 'GPB5', 'GPB6', 'GPB7'] },
+    supply: { pin: 'VDD', gnd: 'GND', min: 1.8, max: 5.5 }, physical: () => ({ w: 30, d: 20, h: 3, face: 'inside' }),
+    query: () => ({ query: 'MCP23017 I2C 16-bit GPIO expander module', note: 'Pick a board with I²C pull-ups and address jumpers (A0-A2).' }) },
   ads1115: { model: { draw: { ...S('VDD'), A: () => 0.001 }, pullups: [{ pin: 'SCL', to: 'VDD', R: 10e3 }, { pin: 'SDA', to: 'VDD', R: 10e3 }], free: ['A0', 'A1', 'A2', 'A3'] }, supply: { pin: 'VDD', gnd: 'GND', min: 2, max: 5.5 },
     physical: () => ({ w: 28, d: 17, h: 3, face: 'inside' }), query: () => ({ query: 'ADS1115 16-bit ADC module I2C' }) },
 };
@@ -145,6 +149,7 @@ export const MODULE_COMPONENTS: CompDef[] = [
   C('hbridge', 'Dual H-bridge motor driver (DRV8833)', 'U', 'Integrated circuit', block('DRV8833', ['VM', 'GND', 'AIN1', 'AIN2', 'BIN1', 'BIN2'], ['AO1', 'AO2', 'BO1', 'BO2'], 6), 'Two brushed-motor channels, 2.7-10.8 V, 1.2 A each (1.5 A peak), with current limiting and thermal shutdown.', [], () => 'DRV8833'),
   C('dcmotor', 'DC gear motor', 'M', 'Electromechanical', twoPin('M'), 'Small brushed gear motor (TT-class), 3-6 V; about 250 mA running, 1 A stalled.', [{ key: 'R', label: 'Running resistance', unit: 'Ω', default: 20 }], () => 'TT motor'),
   C('relay', 'Relay module (opto-isolated)', 'K', 'Electromechanical', block('RELAY', ['VCC', 'GND', 'IN'], ['COM', 'NO', 'NC'], 6), '5 V relay with optocoupler input, transistor driver and flyback diode on the module; contacts on screw terminals (typically 10 A 250 V AC rated relay).', [], () => '5V relay'),
+  C('mcp23017', 'I²C port expander (MCP23017)', 'U', 'Integrated circuit', block('MCP23017', ['VDD', 'GND', 'SCL', 'SDA'], ['GPA0', 'GPA1', 'GPA2', 'GPA3', 'GPA4', 'GPA5', 'GPA6', 'GPA7', 'GPB0', 'GPB1', 'GPB2', 'GPB3', 'GPB4', 'GPB5', 'GPB6', 'GPB7'], 6), '16 extra digital pins on I²C (0x20-0x27 by A0-A2), 25 mA per pin, internal pull-ups: for buttons, LEDs and relays when the board runs out.', [addr('0x20'), { key: 'high', label: 'Pins set high (comma list)', default: '' }], p => String(p.addr ?? '0x20')),
   C('ads1115', 'I²C ADC (ADS1115)', 'U', 'Integrated circuit', block('ADS1115', ['VDD', 'GND', 'SCL', 'SDA'], ['A0', 'A1', 'A2', 'A3'], 6), '4-channel 16-bit ADC on I²C (0x48-0x4B by the ADDR pin): adds analog inputs to boards that have too few (or none, like the Raspberry Pi).', [addr('0x48')], p => String(p.addr ?? '0x48')),
 ];
 

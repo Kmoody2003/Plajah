@@ -18,12 +18,13 @@ export function assemble(p: Plan, name: string, market: 'US' | 'EU' | 'both', sp
   const mcu = p.mcu; const pw = p.power; const mcuRef = mcu ? 'U1' : undefined; if (mcu) counters.U = 1;
   const add = (net: string, pin: [string, string]) => { const l = nets.get(net) ?? []; if (!l.some(x => x[0] === pin[0] && x[1] === pin[1])) l.push(pin); nets.set(net, l); };
   const rail = (n: string) => (n === 'SYS' ? pw.sysIs : n === 'LOGIC' ? (mcu?.logic === 5 ? 'V5' : 'LOGIC') : n);
-  const adsRefs: string[] = [];
+  const adsRefs: string[] = []; const expRefs: string[] = [];
   const resolve = (inst: Inst | null, gid: string, nm: string, pin: [string, string]) => {
     if (nm === 'GND') { gnd.push(pin); return; }
     if (['V5', 'SYS', 'LOGIC', 'V12'].includes(nm)) { add(rail(nm), pin); return; }
     if (nm.startsWith('@') && inst) {
       const bp = inst.pins[nm.slice(1)]; if (!bp) throw new Error(`${inst.label}: no pin for ${nm}`);
+      const x = /^EXP:(\d+):(GP[AB]\d)$/.exec(bp); if (x) { const net = `EXP${x[1]}.${x[2]}`; add(net, [expRefs[+x[1]], x[2]]); add(net, pin); return; }
       const m = /^ADS:(\d+):A(\d)$/.exec(bp); if (m) { const net = `ADS${m[1]}.A${m[2]}`; add(net, [adsRefs[+m[1]], `A${m[2]}`]); add(net, pin); return; }
       add(`IO:${bp}`, [mcuRef!, bp]); add(`IO:${bp}`, pin); return;
     }
@@ -68,10 +69,12 @@ export function assemble(p: Plan, name: string, market: 'US' | 'EU' | 'both', sp
 
   // ---- board
   if (mcu) {
-    const high = p.insts.flatMap(i => blockById(i.block)!.pins(i).filter(n => n.high).map(n => i.pins[n.role])).filter(x => x && !x.startsWith('ADS'));
+    const highAll = p.insts.flatMap(i => blockById(i.block)!.pins(i).filter(n => n.high).map(n => i.pins[n.role])).filter(Boolean);
+    const high = highAll.filter(x => !x.startsWith('ADS') && !x.startsWith('EXP'));
     const params: Params = { high: high.join(',') }; if (mcu.variant) params.variant = mcu.variant; if (mcu.kind === 'rpi') params.model = p.power.rows[0]?.what.replace('Raspberry ', '') || 'Pi 5';
     groups.push({ id: 'mcu', side: 'mcu', parts: [makePart(mcu.part, mcuRef!, 0, 0, 0, params)] });
     const on5 = pw.rows[0]?.rail === '5 V'; add(on5 ? 'V5' : rail('SYS'), [mcuRef!, on5 ? mcu.pin5v : mcu.pinBattery!]); gnd.push([mcuRef!, 'GND']);
+    for (let k = 0; k < (p.exp ?? 0); k++) group(`exp${k}`, 'right', null, d => { const hi = highAll.filter(x => x.startsWith(`EXP:${k}:`)).map(x => x.split(':')[2]); const u = d.part('mcp23017', 0, 0, 0, { addr: `0x${(0x20 + k).toString(16)}`, high: hi.join(',') }); expRefs.push(u); d.net('LOGIC', [u, 'VDD']); d.net('GND', [u, 'GND']); add(`IO:${p.i2c![0]}`, [mcuRef!, p.i2c![0]]); add(`IO:${p.i2c![0]}`, [u, 'SDA']); add(`IO:${p.i2c![1]}`, [mcuRef!, p.i2c![1]]); add(`IO:${p.i2c![1]}`, [u, 'SCL']); });
     for (let k = 0; k < p.ads; k++) group(`ads${k}`, 'right', null, d => { const u = d.part('ads1115', 0, 0, 0, { addr: `0x${(0x48 + k).toString(16)}` }); adsRefs.push(u); d.net('LOGIC', [u, 'VDD']); d.net('GND', [u, 'GND']); add(`IO:${p.i2c![0]}`, [mcuRef!, p.i2c![0]]); add(`IO:${p.i2c![0]}`, [u, 'SDA']); add(`IO:${p.i2c![1]}`, [mcuRef!, p.i2c![1]]); add(`IO:${p.i2c![1]}`, [u, 'SCL']); });
   }
   // ---- blocks

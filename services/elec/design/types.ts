@@ -1,7 +1,7 @@
 // Shared shapes for the open-ended designer. Released by Plajah as public domain (CC0).
 import type { Framework, McuDef, McuKind } from './mcus';
 
-export type BlockId = 'led' | 'lamp' | 'neopixel' | 'strip12' | 'button' | 'encoder' | 'pot' | 'oled' | 'tft' | 'temp' | 'imu' | 'light' | 'distance' | 'soil' | 'motion' | 'speaker' | 'servo' | 'motor' | 'relay';
+export type BlockId = 'keymatrix' | 'stepper' | 'led' | 'lamp' | 'neopixel' | 'strip12' | 'button' | 'encoder' | 'pot' | 'oled' | 'tft' | 'temp' | 'imu' | 'light' | 'distance' | 'soil' | 'motion' | 'speaker' | 'servo' | 'motor' | 'relay';
 export type PowerChoice = 'auto' | 'usb' | 'liion' | 'aa' | 'adapter5' | 'adapter12' | 'mains';
 export type Conn = 'wifi' | 'bluetooth' | 'homeassistant' | 'usb-midi' | 'usb-hid';
 export type Opt = Record<string, string | number | boolean>;
@@ -13,7 +13,7 @@ export interface Spec {
 }
 
 export type Cap = 'adc' | 'pwm' | 'gpio' | 'in';
-export interface PinNeed { role: string; cap: Cap; /** Driven high in the simulation (worst-case on). */ high?: boolean; label: string }
+export interface PinNeed { role: string; cap: Cap; /** Driven high in the simulation (worst-case on). */ high?: boolean; label: string; /** May move to an MCP23017 pin when the board runs out. */ exp?: boolean }
 export type Rail = 'v5' | 'logic' | 'v12' | 'sys';
 export interface Load { rail: Rail; typ: number; peak: number; what: string }
 export type Params = Record<string, number | string>;
@@ -39,4 +39,12 @@ export interface FwApi {
   ads(ch: string): { idx: number; ch: number } | null;
   /** A display that shows every reading (drawn by firmware.ts). */
   screen(kind: 'oled' | 'tft', id: string, addr: string): void;
+  /** Digital pins that may be on an MCP23017 ("EXP:0:GPA3"). */
+  isExp(p: string): boolean;
+  /** CircuitPython / Blinka DigitalInOut-like object for a pin. */
+  dio(p: string): string;
+  /** ESPHome "  pin: ..." lines (two-space indent) for a digital pin. */
+  espPin(p: string, o?: { input?: boolean; pullup?: boolean; inverted?: boolean }): string;
+  /** Arduino digital pin calls. */
+  ard(p: string): { mode: (m: 'INPUT' | 'INPUT_PULLUP' | 'OUTPUT') => string; read: string; write: (v: 'HIGH' | 'LOW') => string };
 }

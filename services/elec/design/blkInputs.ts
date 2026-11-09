@@ -15,14 +15,14 @@ const adsCode = (i: Inst, f: FwApi, role: string, name: string) => {
 export const button: BlockDef = {
   id: 'button', label: 'Push button', plural: 'buttons', about: 'Momentary button from a pin to ground; the firmware turns on the pin\'s pull-up.', max: 16,
   words: /\b(buttons?|push ?buttons?|switches|keys|pads?|arcade buttons?|macro keys?)\b/i, needsMcu: () => true,
-  pins: i => [{ role: 'in', cap: 'in', label: `Button ${n(i)}` }], loads: () => [],
+  pins: i => [{ role: 'in', cap: 'in', label: `Button ${n(i)}`, exp: true }], loads: () => [],
   draw(i, d) { const s = d.part('switch', 0, 0, 0, { state: 'open', I: '0.05' }); d.net('@in', [s, '1']); d.net('GND', [s, '2']); },
   fw(i, f) {
     const p = i.pins.in; const v = sid(i);
-    if (f.fw === 'esphome') { f.esp('binary_sensor', `- platform: gpio\n  pin:\n    number: ${f.pin(p)}\n    mode:\n      input: true\n      pullup: true\n    inverted: true\n  name: "Button ${n(i)}"\n  filters:\n    - delayed_on_off: 10ms`); return; }
-    if (f.fw === 'python') { f.imp('from gpiozero import Button'); f.setup(`${v} = Button(${f.pin(p)})  # internal pull-up\n${v}.when_pressed = lambda: print("button ${n(i)} pressed", flush=True)`); return; }
-    if (f.fw === 'arduino') { f.glob(`bool ${v}_last = HIGH;`); f.setup(`pinMode(${f.pin(p)}, INPUT_PULLUP);`); f.loop(`{ bool b = digitalRead(${f.pin(p)}); if (b != ${v}_last) { ${v}_last = b; if (b == LOW) Serial.println("button ${n(i)} pressed"); delay(5); } }`); return; }
-    f.imp('import digitalio'); f.setup(`${v} = digitalio.DigitalInOut(${f.pin(p)})\n${v}.switch_to_input(pull=digitalio.Pull.UP)  # pressed = pulled to ground\n${v}_last = True`);
+    if (f.fw === 'esphome') { f.esp('binary_sensor', `- platform: gpio\n${f.espPin(p, { input: true, pullup: true, inverted: true })}\n  name: "Button ${n(i)}"\n  filters:\n    - delayed_on_off: 10ms`); return; }
+    if (f.fw === 'python' && !f.isExp(p)) { f.imp('from gpiozero import Button'); f.setup(`${v} = Button(${f.pin(p)})  # internal pull-up\n${v}.when_pressed = lambda: print("button ${n(i)} pressed", flush=True)`); return; }
+    if (f.fw === 'arduino') { const a = f.ard(p); f.glob(`bool ${v}_last = HIGH;`); f.setup(a.mode('INPUT_PULLUP')); f.loop(`{ bool b = ${a.read}; if (b != ${v}_last) { ${v}_last = b; if (b == LOW) Serial.println("button ${n(i)} pressed"); delay(5); } }`); return; }
+    f.imp('import digitalio'); f.setup(`${v} = ${f.dio(p)}\n${v}.switch_to_input(pull=digitalio.Pull.UP)  # pressed = pulled to ground\n${v}_last = True`);
     const press = i.usbMidi ? `midi.write(bytes([0x90, ${36 + i.k}, 100]))` : i.usbHid ? `kbd.press(Keycode.F${13 + (i.k % 12)})` : `print("button ${n(i)} pressed")`;
     const rel = i.usbMidi ? `midi.write(bytes([0x80, ${36 + i.k}, 0]))` : i.usbHid ? `kbd.release(Keycode.F${13 + (i.k % 12)})` : 'pass';
     f.loop(`if ${v}.value != ${v}_last:\n    ${v}_last = ${v}.value\n    if not ${v}_last:\n        ${press}\n    else:\n        ${rel}`);
@@ -34,15 +34,15 @@ export const button: BlockDef = {
 export const encoder: BlockDef = {
   id: 'encoder', label: 'Rotary encoder', plural: 'encoders', about: 'Endless knob with a push switch (KY-040-class module with pull-ups).', max: 4,
   words: /\b(rotary )?encoders?\b|\bendless knobs?\b|\bjog wheel\b/i, needsMcu: () => true,
-  pins: i => [{ role: 'a', cap: 'in', label: `Encoder ${n(i)} A` }, { role: 'b', cap: 'in', label: `Encoder ${n(i)} B` }, { role: 'sw', cap: 'in', label: `Encoder ${n(i)} push` }],
+  pins: i => [{ role: 'a', cap: 'in', label: `Encoder ${n(i)} A` }, { role: 'b', cap: 'in', label: `Encoder ${n(i)} B` }, { role: 'sw', cap: 'in', label: `Encoder ${n(i)} push`, exp: true }],
   loads: () => [],
   draw(i, d) { const e = d.part('encoder', 0, 0); d.net('LOGIC', [e, '+']); d.net('GND', [e, 'GND']); d.net('@a', [e, 'CLK']); d.net('@b', [e, 'DT']); d.net('@sw', [e, 'SW']); },
   fw(i, f) {
     const v = sid(i); const { a, b, sw } = i.pins;
-    if (f.fw === 'esphome') { f.esp('sensor', `- platform: rotary_encoder\n  name: "Encoder ${n(i)}"\n  id: ${v}\n  pin_a: ${f.pin(a)}\n  pin_b: ${f.pin(b)}`); f.esp('binary_sensor', `- platform: gpio\n  pin:\n    number: ${f.pin(sw)}\n    mode:\n      input: true\n      pullup: true\n    inverted: true\n  name: "Encoder ${n(i)} push"`); f.read(`Enc ${n(i)}`, v, ''); return; }
-    if (f.fw === 'python') { f.imp('from gpiozero import RotaryEncoder, Button'); f.setup(`${v} = RotaryEncoder(${f.pin(a)}, ${f.pin(b)}, max_steps=0)\n${v}_sw = Button(${f.pin(sw)})`); f.read(`Enc ${n(i)}`, `${v}.steps`, ''); return; }
-    if (f.fw === 'arduino') { f.imp('#include <Encoder.h>'); f.lib('Encoder (Paul Stoffregen)'); f.glob(`Encoder ${v}(${f.pin(a)}, ${f.pin(b)});`); f.setup(`pinMode(${f.pin(sw)}, INPUT_PULLUP);`); f.read(`Enc ${n(i)}`, `${v}.read() / 4`, ''); return; }
-    f.imp('import rotaryio', 'import digitalio'); f.setup(`${v} = rotaryio.IncrementalEncoder(${f.pin(a)}, ${f.pin(b)})\n${v}_last = 0\n${v}_sw = digitalio.DigitalInOut(${f.pin(sw)})\n${v}_sw.switch_to_input(pull=digitalio.Pull.UP)`);
+    if (f.fw === 'esphome') { f.esp('sensor', `- platform: rotary_encoder\n  name: "Encoder ${n(i)}"\n  id: ${v}\n  pin_a: ${f.pin(a)}\n  pin_b: ${f.pin(b)}`); f.esp('binary_sensor', `- platform: gpio\n${f.espPin(sw, { input: true, pullup: true, inverted: true })}\n  name: "Encoder ${n(i)} push"`); f.read(`Enc ${n(i)}`, v, ''); return; }
+    if (f.fw === 'python') { f.imp('from gpiozero import RotaryEncoder, Button'); f.setup(`${v} = RotaryEncoder(${f.pin(a)}, ${f.pin(b)}, max_steps=0)\n${f.isExp(sw) ? `${v}_sw = ${f.dio(sw)}` : `${v}_sw = Button(${f.pin(sw)})`}`); f.read(`Enc ${n(i)}`, `${v}.steps`, ''); return; }
+    if (f.fw === 'arduino') { f.imp('#include <Encoder.h>'); f.lib('Encoder (Paul Stoffregen)'); f.glob(`Encoder ${v}(${f.pin(a)}, ${f.pin(b)});`); f.setup(f.ard(sw).mode('INPUT_PULLUP')); f.read(`Enc ${n(i)}`, `${v}.read() / 4`, ''); return; }
+    f.imp('import rotaryio', 'import digitalio'); f.setup(`${v} = rotaryio.IncrementalEncoder(${f.pin(a)}, ${f.pin(b)})\n${v}_last = 0\n${v}_sw = ${f.dio(sw)}\n${v}_sw.switch_to_input(pull=digitalio.Pull.UP)`);
     if (i.usbMidi) f.loop(`if ${v}.position != ${v}_last:\n    ${v}_last = ${v}.position\n    midi.write(bytes([0xB0, ${30 + i.k}, max(0, min(127, 64 + ${v}_last))]))`);
     else if (i.usbHid) f.loop(`if ${v}.position != ${v}_last:\n    step = ${v}.position - ${v}_last\n    ${v}_last = ${v}.position\n    for _ in range(abs(step)):\n        cc.send(ConsumerControlCode.VOLUME_INCREMENT if step > 0 else ConsumerControlCode.VOLUME_DECREMENT)`);
     else f.read(`Enc ${n(i)}`, `${v}.position`, '');

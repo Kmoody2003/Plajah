@@ -28,7 +28,7 @@ export interface PowerPlan {
 export interface Plan {
   errors: string[]; notes: string[]; mcu: McuDef | null; insts: Inst[]; pins: PinRow[];
   i2c?: [string, string]; spi?: [string, string]; ads: number; power: PowerPlan; logicV: number; tried: string[];
-  framework?: Framework; wifi?: boolean;
+  framework?: Framework; wifi?: boolean; exp?: number;
 }
 
 const STD_A = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10];
@@ -62,7 +62,7 @@ function candidates(spec: Spec): McuKind[] {
 }
 
 /** Allocate pins; returns the reason on failure. */
-function allocate(mcu: McuDef, insts: Inst[], spec: Spec): { pins: PinRow[]; i2c?: [string, string]; spi?: [string, string]; ads: number } | string {
+function allocate(mcu: McuDef, insts: Inst[], spec: Spec): { pins: PinRow[]; i2c?: [string, string]; spi?: [string, string]; ads: number; exp: number } | string {
   const conn = spec.conn;
   if ((conn.includes('usb-midi') || conn.includes('usb-hid')) && !mcu.usbDevice) return `${mcu.label} has no native USB for ${conn.includes('usb-midi') ? 'USB MIDI' : 'USB HID'}`;
   if ((conn.includes('wifi') || conn.includes('homeassistant')) && !mcu.wifi) return `${mcu.label} has no Wi-Fi`;
@@ -73,14 +73,22 @@ function allocate(mcu: McuDef, insts: Inst[], spec: Spec): { pins: PinRow[]; i2c
   for (const i of insts) i.mcu = mcu;
   const needs: Array<{ i: Inst; n: PinNeed }> = insts.flatMap(i => blockById(i.block)!.pins(i).map(n => ({ i, n })));
   const adcNeeds = needs.filter(x => x.n.cap === 'adc').length;
-  const wantI2c = insts.some(i => busOf(blockById(i.block)!, i.opt) === 'i2c') || adcNeeds > mcu.adc.length;
+  // Digital pins short? Then the bus is needed for an MCP23017 too (counted before handing pins out).
+  const busPins = (insts.some(i => busOf(blockById(i.block)!, i.opt) === 'spi') ? 2 : 0) + 2;
+  const nativeOnly = needs.filter(x => x.n.cap !== 'adc' && !x.n.exp).length + Math.min(adcNeeds, mcu.adc.length);
+  const digitalShort = needs.filter(x => x.n.cap !== 'adc').length + Math.min(adcNeeds, mcu.adc.length) + busPins > mcu.gpio.length && needs.some(x => x.n.exp);
+  if (digitalShort && nativeOnly + busPins > mcu.gpio.length) return `${mcu.label} runs out of pins even with a port expander (${nativeOnly} pins must be on the board)`;
+  const wantI2c = insts.some(i => busOf(blockById(i.block)!, i.opt) === 'i2c') || adcNeeds > mcu.adc.length || digitalShort;
   if (wantI2c) { const o = mcu.i2c.find(([a, b]) => free.includes(a) && free.includes(b)); if (!o) return `${mcu.label} has no free I²C pins`; i2c = o; take(o[0]); take(o[1]); rows.push({ pin: o[0], role: 'sda', label: 'I²C SDA (shared bus)', inst: 'bus' }, { pin: o[1], role: 'scl', label: 'I²C SCL (shared bus)', inst: 'bus' }); }
   if (insts.some(i => busOf(blockById(i.block)!, i.opt) === 'spi')) { const o = mcu.spi.find(([a, b]) => free.includes(a) && free.includes(b)); if (!o) return `${mcu.label} has no free SPI pins`; spi = o; take(o[0]); take(o[1]); rows.push({ pin: o[0], role: 'sck', label: 'SPI clock', inst: 'bus' }, { pin: o[1], role: 'mosi', label: 'SPI data (MOSI)', inst: 'bus' }); }
   for (const i of insts) { if (i2c) { i.pins.sda = i2c[0]; i.pins.scl = i2c[1]; } if (spi) { i.pins.sck = spi[0]; i.pins.mosi = spi[1]; } }
   const order = { adc: 0, pwm: 1, gpio: 2, in: 2 } as const;
   // Pi neopixels need the hardware PWM pin; claim it before anything else.
   needs.sort((a, b) => (b.i.block === 'neopixel' ? 1 : 0) - (a.i.block === 'neopixel' ? 1 : 0) || order[a.n.cap] - order[b.n.cap]);
-  let adsCh = 0;
+  let adsCh = 0, expCh = 0;
+  // Expander-capable needs go last so native-only ones get board pins first.
+  needs.sort((a, b) => (a.n.exp ? 1 : 0) - (b.n.exp ? 1 : 0));
+  needs.sort((a, b) => (b.i.block === 'neopixel' ? 1 : 0) - (a.i.block === 'neopixel' ? 1 : 0) || order[a.n.cap] - order[b.n.cap] || (a.n.exp ? 1 : 0) - (b.n.exp ? 1 : 0));
   for (const { i, n } of needs) {
     let pool: string[];
     if (n.cap === 'adc') pool = mcu.adc.filter(p => free.includes(p));
@@ -92,15 +100,20 @@ function allocate(mcu: McuDef, insts: Inst[], spec: Spec): { pins: PinRow[]; i2c
       if (adsCh >= 16) return 'More than 16 analog inputs (four ADS1115s) is beyond this designer';
       i.pins[n.role] = `ADS:${Math.floor(adsCh / 4)}:A${adsCh % 4}`; rows.push({ pin: `ADS1115 #${Math.floor(adsCh / 4) + 1} A${adsCh % 4}`, role: n.role, label: n.label, inst: i.id }); adsCh++; continue;
     }
+    if (!pool.length && n.exp && i2c && (n.cap === 'in' || n.cap === 'gpio')) {
+      if (expCh >= 32) return 'More than 32 expander pins (two MCP23017s) is beyond this designer';
+      const pin = `EXP:${Math.floor(expCh / 16)}:GP${expCh % 16 < 8 ? 'A' : 'B'}${expCh % 8}`; i.pins[n.role] = pin; rows.push({ pin: `MCP23017 #${Math.floor(expCh / 16) + 1} GP${expCh % 16 < 8 ? 'A' : 'B'}${expCh % 8}`, role: n.role, label: n.label, inst: i.id }); expCh++; continue;
+    }
     if (!pool.length) return `${mcu.label} runs out of ${n.cap === 'pwm' ? 'PWM-capable' : n.cap === 'in' ? 'input' : 'GPIO'} pins (needed for ${n.label}; ${needs.length + (i2c ? 2 : 0) + (spi ? 2 : 0)} pins wanted, ${mcu.gpio.length} available)`;
     const p = pool[0]; take(p); i.pins[n.role] = p; rows.push({ pin: p, role: n.role, label: n.label, inst: i.id });
   }
-  return { pins: rows, i2c, spi, ads: Math.ceil(adsCh / 4) };
+  return { pins: rows, i2c, spi, ads: Math.ceil(adsCh / 4), exp: Math.ceil(expCh / 16) };
 }
 
-function powerPlan(spec: Spec, mcu: McuDef | null, insts: Inst[], ads: number, errors: string[], notes: string[]): PowerPlan {
+function powerPlan(spec: Spec, mcu: McuDef | null, insts: Inst[], ads: number, errors: string[], notes: string[], exp = 0): PowerPlan {
   const loads: Load[] = insts.flatMap(i => blockById(i.block)!.loads(i));
   if (ads) loads.push({ rail: 'logic', typ: 0.001 * ads, peak: 0.001 * ads, what: `${ads} × ADS1115` });
+  if (exp) loads.push({ rail: 'logic', typ: 0.001 * exp, peak: 0.002 * exp, what: `${exp} × MCP23017` });
   const pi = mcu?.kind === 'rpi' ? PI_MODELS[spec.piModel ?? 'Pi 5'] ?? PI_MODELS['Pi 5'] : null;
   const battery0 = spec.power === 'liion' || spec.power === 'aa';
   const mcuOn5 = !!mcu && !(battery0 && mcu.pinBattery && !pi);
@@ -164,10 +177,20 @@ function powerPlan(spec: Spec, mcu: McuDef | null, insts: Inst[], ads: number, e
 }
 
 export function plan(spec: Spec): Plan {
+  const first = planOnce(spec);
+  // Out of pins with six or more buttons: try them as a key matrix before giving up.
+  const b = spec.needs.find(n => n.block === 'button');
+  if (first.errors.some(e => /runs out of/.test(e)) && b && b.count >= 6) {
+    const again = planOnce({ ...spec, needs: spec.needs.map(n => (n === b ? { block: 'keymatrix', count: n.count, opt: {} } : n)) });
+    if (!again.errors.length) { again.notes.push(`${b.count} separate buttons did not fit the board's pins, so they are wired as a key matrix.`); return again; }
+  }
+  return first;
+}
+function planOnce(spec: Spec): Plan {
   const errors: string[] = []; const notes: string[] = []; const insts = instances(spec, errors);
   const needMcu = insts.some(i => blockById(i.block)!.needsMcu(i.opt)) || spec.conn.length > 0 || (spec.mcu !== 'auto' && spec.mcu !== 'none');
   if (!insts.length) errors.push('Nothing to build yet: no blocks were recognised.');
-  let mcu: McuDef | null = null; let alloc: Exclude<ReturnType<typeof allocate>, string> = { pins: [], ads: 0 }; const tried: string[] = [];
+  let mcu: McuDef | null = null; let alloc: Exclude<ReturnType<typeof allocate>, string> = { pins: [], ads: 0, exp: 0 }; const tried: string[] = [];
   if (needMcu) {
     if (spec.mcu === 'none') errors.push('These functions need a controller board; pick one (or Auto).');
     else {
@@ -180,6 +203,6 @@ export function plan(spec: Spec): Plan {
     }
   }
   for (const i of insts) i.mcu = mcu;
-  const power = powerPlan(spec, mcu, insts, alloc.ads, errors, notes);
-  return { errors, notes, mcu, insts, pins: alloc.pins, i2c: alloc.i2c, spi: alloc.spi, ads: alloc.ads, power, logicV: mcu?.logic ?? 3.3, tried, framework: mcu ? frameworkFor(mcu, spec.conn) : undefined, wifi: spec.conn.includes('wifi') || spec.conn.includes('homeassistant') };
+  const power = powerPlan(spec, mcu, insts, alloc.ads, errors, notes, alloc.exp);
+  return { errors, notes, mcu, insts, pins: alloc.pins, i2c: alloc.i2c, spi: alloc.spi, ads: alloc.ads, power, logicV: mcu?.logic ?? 3.3, tried, framework: mcu ? frameworkFor(mcu, spec.conn) : undefined, wifi: spec.conn.includes('wifi') || spec.conn.includes('homeassistant'), exp: alloc.exp };
 }

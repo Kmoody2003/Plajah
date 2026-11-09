@@ -115,14 +115,14 @@ export const soil: BlockDef = {
 export const motion: BlockDef = {
   id: 'motion', label: 'Motion detector (PIR)', plural: 'motion detectors', about: 'HC-SR501 PIR on 5 V; its output is 3.3 V, safe for any board.', max: 2,
   words: /\b(pir|motion (sensor|detector|activated|sensing)|occupancy|presence|someone walks|intruder)\b/i, needsMcu: () => true,
-  pins: i => [{ role: 'in', cap: 'in', label: `PIR ${n(i)}` }], loads: () => [{ rail: 'v5', typ: 0.0001, peak: 0.0002, what: 'PIR' }],
+  pins: i => [{ role: 'in', cap: 'in', label: `PIR ${n(i)}`, exp: true }], loads: () => [{ rail: 'v5', typ: 0.0001, peak: 0.0002, what: 'PIR' }],
   draw(i, d) { const u = d.part('pir', 0, 0); d.net('V5', [u, 'VCC']); d.net('GND', [u, 'GND']); d.net('@in', [u, 'OUT']); },
   fw(i, f) {
     const v = sid(i); const p = i.pins.in;
-    if (f.fw === 'esphome') { f.esp('binary_sensor', `- platform: gpio\n  pin: ${f.pin(p)}\n  name: "Motion${i.k ? ` ${n(i)}` : ''}"\n  device_class: motion`); return; }
-    if (f.fw === 'python') { f.imp('from gpiozero import MotionSensor'); f.setup(`${v} = MotionSensor(${f.pin(p)})`); f.read('Motion', `int(${v}.motion_detected)`, ''); return; }
-    if (f.fw === 'arduino') { f.setup(`pinMode(${f.pin(p)}, INPUT);`); f.read('Motion', `digitalRead(${f.pin(p)})`, ''); return; }
-    f.imp('import digitalio'); f.setup(`${v} = digitalio.DigitalInOut(${f.pin(p)})\n${v}.switch_to_input()`); f.read('Motion', `int(${v}.value)`, '');
+    if (f.fw === 'esphome') { f.esp('binary_sensor', `- platform: gpio\n${f.espPin(p, { input: true })}\n  name: "Motion${i.k ? ` ${n(i)}` : ''}"\n  device_class: motion`); return; }
+    if (f.fw === 'python' && !f.isExp(p)) { f.imp('from gpiozero import MotionSensor'); f.setup(`${v} = MotionSensor(${f.pin(p)})`); f.read('Motion', `int(${v}.motion_detected)`, ''); return; }
+    if (f.fw === 'arduino') { const a = f.ard(p); f.setup(a.mode('INPUT')); f.read('Motion', a.read, ''); return; }
+    f.imp('import digitalio'); f.setup(`${v} = ${f.dio(p)}\n${v}.switch_to_input()`); f.read('Motion', `int(${v}.value)`, '');
   },
 };
 

@@ -64,16 +64,16 @@ export const motor: BlockDef = {
 };
 
 export const relay: BlockDef = {
-  id: 'relay', label: 'Relay (isolated)', plural: 'relays', about: 'Opto-isolated 5 V relay module per channel; the contacts are screw terminals for your load.', max: 8,
+  id: 'relay', label: 'Relay (isolated)', plural: 'relays', about: 'Opto-isolated 5 V relay module per channel; the contacts are screw terminals for your load.', max: 16,
   words: /\b(relays?|switch (a|the|my) (lamp|light|fan|heater|appliance|pump)|channel (relay|switch)|power switch board)\b/i, needsMcu: () => true,
-  pins: i => [{ role: 'out', cap: 'gpio', high: true, label: `Relay ${n(i)}` }], loads: i => [{ rail: 'v5', typ: 0.072, peak: 0.075, what: `relay ${n(i)} coil` }],
+  pins: i => [{ role: 'out', cap: 'gpio', high: true, label: `Relay ${n(i)}`, exp: true }], loads: i => [{ rail: 'v5', typ: 0.072, peak: 0.075, what: `relay ${n(i)} coil` }],
   draw(i, d) { const k = d.part('relay', 0, 0); d.net('V5', [k, 'VCC']); d.net('GND', [k, 'GND']); d.net('@out', [k, 'IN']); },
   fw(i, f) {
     const v = sid(i); const p = i.pins.out;
-    if (f.fw === 'esphome') { f.esp('switch', `- platform: gpio\n  pin: ${f.pin(p)}\n  name: "Relay ${n(i)}"\n  id: ${v}\n  restore_mode: ALWAYS_OFF  # never switch a load on by itself after a power cut`); return; }
-    if (f.fw === 'python') { f.imp('from gpiozero import OutputDevice'); f.setup(`${v} = OutputDevice(${f.pin(p)}, active_high=True, initial_value=False)`); return; }
-    if (f.fw === 'arduino') { f.setup(`pinMode(${f.pin(p)}, OUTPUT);\n  digitalWrite(${f.pin(p)}, LOW);  // relay ${n(i)} off at start`); return; }
-    f.imp('import digitalio'); f.setup(`${v} = digitalio.DigitalInOut(${f.pin(p)})\n${v}.switch_to_output(value=False)  # relay ${n(i)} off at start`);
+    if (f.fw === 'esphome') { f.esp('switch', `- platform: gpio\n${f.espPin(p)}\n  name: "Relay ${n(i)}"\n  id: ${v}\n  restore_mode: ALWAYS_OFF  # never switch a load on by itself after a power cut`); return; }
+    if (f.fw === 'python' && !f.isExp(p)) { f.imp('from gpiozero import OutputDevice'); f.setup(`${v} = OutputDevice(${f.pin(p)}, active_high=True, initial_value=False)`); return; }
+    if (f.fw === 'arduino') { const a = f.ard(p); f.setup(`${a.mode('OUTPUT')}\n  ${a.write('LOW')}  // relay ${n(i)} off at start`); return; }
+    f.imp('import digitalio'); f.setup(`${v} = ${f.dio(p)}\n${v}.switch_to_output(value=False)  # relay ${n(i)} off at start`);
   },
   notes: i => (i.k === 0 ? ['Relay modules come active-high or active-low (some have a jumper): set it to active-high to match the firmware, so every relay starts off.', 'Keep load wiring low-voltage unless the whole product is built and tested as mains equipment (see Safety).'] : []),
   extras: i => (i.k === 0 ? [['1', 'Cable glands / strain reliefs', 'one per load cable']] : []),
