@@ -4297,7 +4297,9 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   // Plajah Home — Matter smart home controller, repurposed device hub, intercom & digital frames
   | 'PLAJAH_HOME'
   // LD — Lighting Designer (top-level experience, peer to Chora/Pixels/Melos)
-  | 'LD_MODE';
+  | 'LD_MODE'
+  // Plajah Build — maker & engineering hub (Electronics, CAD/BIM/Make, Sewing & Plush, Biology, Maker Exchange)
+  | 'PLAJAH_BUILD';
 
 const APP_VIEW_RUNTIME_ALIASES: Record<string, AppView> = {
   TELA_STUDIO: 'TELA',

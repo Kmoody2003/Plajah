@@ -106,6 +106,7 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'TERRA', label: 'Terra', icon: MapPin, requiresUser: true },
     { id: 'TELA', label: 'Tela', icon: LayoutPanelTop },
     { id: 'FABULA', label: 'Fabula', icon: Film },
+    { id: 'PLAJAH_BUILD', label: 'Plajah Build', icon: Factory },
     { id: 'BOOKS', label: 'Lorea', icon: BookOpen },
     { id: 'DJ_CONSOLE', label: 'DJ Console', icon: Disc3 },
     { id: 'PLAJAH_PIXELS', label: 'Plajah Pixels', icon: Grid3x3 },
@@ -120,6 +121,7 @@ export const NAV_SECTIONS: NavSection[] = [
   { key: 'Plajah Business', icon: Building2, items: [
     { id: 'PLAJAH_BUSINESS', label: 'Plajah Business', icon: Briefcase, requiresUser: true },
     { id: 'STORE_HUB', label: 'Plajah Store', icon: ShoppingBag },
+    { id: 'PLAJAH_BUILD', label: 'Plajah Build', icon: Factory },
     { id: 'TERRA', label: 'Terra', icon: MapPin, requiresUser: true },
     { id: 'CHAT', label: 'Chat', icon: MessageSquare },
     { id: 'TELA', label: 'Tela', icon: LayoutPanelTop },
