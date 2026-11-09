@@ -52,7 +52,7 @@ const lamp: Recipe = {
     const mA = Math.round((Vs - vf) / R * 1000 * n);
     return { recipe: 'lamp', title: c.name, circuit: c, sim: { mode: 'dc' }, pairs: b.pairs, values: { leds: n, color, power: usb ? 'usb' : 'battery', brightness: str(v, 'brightness', 'normal') }, market: 'both',
       summary: `${n} × ${color} LED, each with a ${fmtR(R)} Ω resistor (about ${Math.round((Vs - vf) / R * 1000)} mA each, ${mA} mA total) from ${usb ? 'USB 5 V' : '3 × AA (4.5 V)'}.`,
-      enclosure: designEnclosure(items(c), { name: 'lamp' }), extras: [['1', 'Diffuser (frosted acrylic or a printed thin-wall shade)', 'over the LEDs'], ['4', 'M3 × 8 screws', 'lid'], ['1', 'Perfboard 50 × 70 mm', 'or the PCB when layout lands']],
+      enclosure: designEnclosure(items(c), { name: 'lamp' }), extras: [['1', 'Diffuser (frosted acrylic or a printed thin-wall shade)', 'over the LEDs'], ['4', 'M3 × 8 screws', 'lid'], ['1', 'Perfboard 50 × 70 mm', 'or the PCB from the Board tab']],
       steps: ['Solder each LED with its own resistor (long LED leg = anode = A).', 'Wire the switch in the positive lead.', 'Print the base and lid; push the LEDs into the top holes.', 'Run the checks again with your exact LED colour.'],
       notes: usb ? ['Under 500 mA, so any USB port can run it.'] : ['3 × AA alkaline give roughly 2400 mAh.'] };
   },

@@ -51,6 +51,23 @@ export function designHazards(ctx: DesignContext): Hazard[] {
   return sortHazards(out);
 }
 
+/** Hazards of turning the schematic into a printed circuit board. Critical ones gate the Gerber download. */
+export function pcbHazards(c?: Circuit): Hazard[] {
+  const out: Hazard[] = []; const parts = c?.parts ?? []; const has = (k: string) => parts.some(p => p.kind === k);
+  if (has('acdc') || has('mains')) out.push({ id: 'pcb-mains-creepage', stage: 'make', severity: 'critical', ack: true, title: 'Mains on the board: creepage and clearance',
+    why: 'Copper carrying mains must stay far enough from low-voltage copper that a surge, dust or damp cannot arc across the board to parts a person can touch.',
+    mitigate: ['The router keeps 6.0 mm between mains and low-voltage copper (above the reinforced-insulation creepage for 250 V, pollution degree 2) and 2.5 mm line to neutral; do not move tracks closer by hand.', 'Mill a slot in the board between the mains and low-voltage sides of the module if you need more creepage.', 'No vias, test points or ground pour in the mains area; keep the module\'s mains pins on the board edge nearest the inlet.', 'A test lab still has to confirm insulation (hi-pot) before anyone else uses it.'],
+    cite: 'IEC 62368-1:2018 §5.4.2 (clearances), §5.4.3 (creepage distances); UL 62368-1' });
+  if (has('battery') || has('coincell')) {
+    const fused = parts.some(p => p.kind === 'fuse');
+    out.push({ id: 'pcb-battery-protect', stage: 'make', severity: fused ? 'medium' : 'high', title: 'Battery protection on the board',
+      why: 'A board short (a solder bridge, a scratched track, a stray screw) across a battery dumps its full current into copper that was sized for milliamps.',
+      mitigate: [fused ? 'Keep the fuse as close to the battery connector as the layout allows.' : 'Add a fuse or resettable PTC right at the battery connector before the board goes to fab.', 'Polarised battery connector so the pack cannot plug in backwards (or a series diode / P-MOSFET for reverse protection).', 'Keep battery + and − tracks apart and away from mounting holes and screws.', 'For lithium cells, a protection IC (BMS) with over-current, over-discharge and over-charge cut-off.'],
+      cite: 'IEC 62368-1 Annex M (batteries); IEC 62133-2; UL 2054' });
+  }
+  return sortHazards(out);
+}
+
 /** Hazards of running a machine or process. */
 export function processHazards(processId: string, material = ''): Hazard[] {
   const out: Hazard[] = []; const m = material.toLowerCase();
