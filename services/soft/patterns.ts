@@ -327,7 +327,10 @@ const garment = (hood: boolean): SoftTemplate => ({
   build: v => {
     const size = str(v, 'size', 'M'), fit = str(v, 'fit', 'regular'), long = str(v, 'sleeve', hood ? 'long' : 'short') === 'long'; const a = 10, hem = hood ? 10 : 25; const child = CHILD_SIZES.includes(size);
     const b = bodice(size, fit, num(v, 'length', 0) - (hood ? 60 : 0)); const [, , , , ss, ls, headH] = SIZE_CHART[size] ?? SIZE_CHART.M;
-    const sl = sleeve(b, (long ? ls * 10 - (hood ? 60 : 0) : ss * 10), long ? (SIZE_CHART[size][0] * 10 * 0.055) : undefined);
+    // Wrist about 16.5% of chest. A rib cuff is 15% bigger than the wrist and sewn to a hem 25% bigger
+    // than itself (eased in); a cuffless long sleeve needs 1.5 x wrist to pass the hand.
+    const wrist = SIZE_CHART[size][0] * 10 * 0.165; const cuffRing = wrist * 1.15;
+    const sl = sleeve(b, (long ? ls * 10 - (hood ? 60 : 0) : ss * 10), long ? (hood ? cuffRing / 0.8 : wrist * 1.5) / 2 : undefined);
     const gr = (r: Pt[]): [Pt, Pt] => { const bb = bbox(r); return [[bb.w * 0.5, bb.h * 0.25], [bb.w * 0.5, bb.h * 0.7]]; };
     const pieces: Piece[] = [
       { id: 'front', name: 'Front', seam: ccw(b.front), allowance: bodiceAllowance(ccw(b.front), a, hem), fold: b.front.length - 1, cut: 1, fabric: 'main', grain: gr(b.front), notches: [[b.W, b.L - b.AD]] },
@@ -343,7 +346,7 @@ const garment = (hood: boolean): SoftTemplate => ({
       const hoodRing = ccw(clean([[0, 0], ...bez([0, 0], [half * 0.4, -12], [half * 0.75, -8], [half, 0], 12), ...bez([half, 0], [depth + 30, HH * 0.3], [depth + 10, HH * 0.85], [depth * 0.55, HH], 16), [0, HH]]));
       drawstring = bool(v, 'drawstring');
       pieces.push({ id: 'hood', name: 'Hood', seam: hoodRing, allowance: hoodRing.map((p, i) => { const q = hoodRing[(i + 1) % hoodRing.length]; return p[0] === 0 && q[0] === 0 ? 30 : a; }), cut: 2, pair: true, fabric: 'main', grain: [[depth * 0.3, HH * 0.2], [depth * 0.3, HH * 0.75]], note: drawstring ? 'Front edge folds back 2.5 cm as the drawstring casing; work two eyelets.' : 'Front edge folds back 2.5 cm and is topstitched.' });
-      const hemC = 4 * b.hemW; const cuffC = SIZE_CHART[size][0] * 10 * 0.2;
+      const hemC = 4 * b.hemW; const cuffC = cuffRing;
       pieces.push(rectPiece('pocket', 'Kangaroo pocket', b.W * 1.1, b.L * 0.28, [a, a, a, a], { note: 'Hem the slanted hand openings (cut the top corners off at 45° on the seam line).', fold: 3 }),
         rectPiece('waistband', 'Waistband (rib)', Math.round(hemC * 0.82), 160, [a, a, a, a], { fabric: 'rib' }), rectPiece('cuff', 'Cuff (rib)', Math.round(cuffC), 160, [a, a, a, a], { fabric: 'rib', cut: 2 }));
       if (drawstring) notions.push({ item: 'Drawstring cord + 2 eyelets', qty: `${((half * 2 + 300) / 1000).toFixed(2)} m`, note: 'Adult sizes only; bartack at the centre back so it cannot pull out' });
