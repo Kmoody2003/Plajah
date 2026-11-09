@@ -599,3 +599,7 @@ test('mechanical parts follow their published dimensions', () => {
   const stl = writeStl(m.meshes, 'gear'); const tris = m.meshes.reduce((s, x) => s + x.indices.length / 3, 0);
   assert.equal(stl.byteLength, 84 + 50 * tris);
 });
+
+test('print check: every library part reads as a closed solid (no false open edges)', () => {
+  for (const p of MECH_PARTS) { const s = modelStats(mechModel(p, mechDefaults(p))); assert.ok(s.watertight, `${p.id}: ${s.openEdges} open, ${s.nonManifoldEdges} non-manifold`); }
+});

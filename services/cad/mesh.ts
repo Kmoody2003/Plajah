@@ -192,7 +192,9 @@ export function meshStats(positions: Float32Array, indices: Uint32Array): MeshSt
 export function modelStats(m: CadModel): MeshStats {
   const s: MeshStats = { triangles: 0, vertices: 0, area: 0, volume: 0, watertight: m.meshes.length > 0, openEdges: 0, nonManifoldEdges: 0 };
   for (const mesh of m.meshes) {
-    const w = mesh.indices.length && m.format === 'stl' ? mesh : { ...mesh, ...weld(expand(mesh)) };
+    // Always weld first: generated parts (and some exporters) keep separate corners per face, which
+    // would read as open edges even on a closed solid. Welding an already-welded mesh changes nothing.
+    const w = { ...mesh, ...weld(expand(mesh)) };
     const r = meshStats(w.positions, w.indices);
     s.triangles += r.triangles; s.vertices += r.vertices; s.area += r.area; s.volume += r.volume; s.openEdges += r.openEdges; s.nonManifoldEdges += r.nonManifoldEdges; s.watertight &&= r.watertight;
   }

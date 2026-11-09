@@ -58,6 +58,10 @@ export default function FitRoom({ pattern, template, params, audience, unit }: F
   const [rows, setRows] = useState<SizeRow[] | null>(null); const [rowsBusy, setRowsBusy] = useState(0);
   const [pick, setPick] = useState<((h: PickHit) => void) | null>(null); const [msg, setMsg] = useState('');
   const [rev, setRev] = useState(0); const [seed, setSeed] = useState(0);
+  // A size comparison belongs to one pattern at one setting: clear it (and stop a run still in
+  // flight) when the pattern or its settings change, and leave tabs this pattern does not have.
+  const sizesRun = useRef(0);
+  useEffect(() => { sizesRun.current++; setRows(null); setRowsBusy(0); setTab(t => (isPlush && (t === 'sizes' || t === 'grading' || t === 'flatten' || t === 'trims') ? 'fit' : t)); }, [template.id, JSON.stringify(params)]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const measures = useMemo<BodyMeasures>(() => ({ ...(age ? measuresForAge(age) : measuresForSize(bodySize)), ...custom, shape }), [bodySize, age, JSON.stringify(custom), JSON.stringify(shape)]);
   const poseNow = () => (pose === 'custom' ? limitPose(customPose) : poseFor(pose, walkFrame)); // eslint-disable-line react-hooks/exhaustive-deps
@@ -104,8 +108,9 @@ export default function FitRoom({ pattern, template, params, audience, unit }: F
   const sizes = pattern.grading?.sizes ?? [];
   const runSizes = async () => {
     const s = setupRef.current; if (!s?.body || !s.sdf) return; setRows([]); setRowsBusy(1); setTab('sizes');
-    const out = await tryEverySize(template, params, s.body, s.sdf, sizes, (done, row) => { setRowsBusy(done + 1); if (row) setRows(r => [...(r ?? []), row]); }, { fabric: r => fab(r) });
-    setRows(out); setRowsBusy(0);
+    const run = ++sizesRun.current; const live = () => run === sizesRun.current;
+    const out = await tryEverySize(template, params, s.body, s.sdf, sizes, (done, row) => { if (!live()) return; setRowsBusy(done + 1); if (row) setRows(r => [...(r ?? []), row]); }, { fabric: r => fab(r) });
+    if (!live()) return; setRows(out); setRowsBusy(0);
   };
   const hazards = useMemo(() => sortHazards([...softHazards(pattern, audience), ...(report ? fitHazards(pattern, audience, report, setupRef.current) : []), ...(report && setupRef.current?.trimState ? trimHazards(pattern, audience, setupRef.current.trimState, setupRef.current.model) : [])]), [pattern, audience, report]);
   const fitHz = hazards.filter(h => h.id.startsWith('fit-') || h.id.startsWith('trim-'));
