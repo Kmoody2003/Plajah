@@ -42,7 +42,7 @@ export function setupOutfit(garments: Pattern[], o: DrapeOptions = {}): DrapeSet
 
 export function simFor(s: DrapeSetup, over: Partial<SimOptions> = {}) {
   const plush = s.rig.kind === 'plush';
-  return new ClothSim(s.model, s.sdf, { ...DEFAULT_SIM, ...(plush ? { damping: 2.5, selfCollision: true, sewSpeed: 250, gravity: 0, substeps: 18, iterations: 3 } : {}), ...over });
+  return new ClothSim(s.model, s.sdf, { ...DEFAULT_SIM, ...(plush ? { damping: 2.5, selfCollision: true, sewSpeed: 250, gravity: 0, substeps: 18, iterations: 3 } : {}), ...(s.rig.solver ?? {}), ...over });
 }
 
 /** Run to rest on the CPU: sew, settle, then record contact for the pressure map. */
