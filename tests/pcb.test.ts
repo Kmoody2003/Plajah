@@ -10,6 +10,8 @@ import { layoutBoard, footprintFor, drc, drcCounts, ipcWidth, type Board } from 
 import { gerberFiles, gerberZip, excellon, placementCsv, bomCsv, packageZip } from '../services/elec/pcb/gerber';
 import { toKicadPcb } from '../services/elec/pcb/kicad';
 import { boardSvg } from '../services/elec/pcb/svg';
+import { understand } from '../services/elec/design/spec';
+import { designFromSpec } from '../services/elec/design';
 import { pcbHazards, openHazards } from '../services/safety/hazards';
 
 /** Minimal RS-274X reader: aperture functions from %TA.AperFunction% and D03 flashes per function. */
@@ -115,4 +117,13 @@ test('PCB hazards: mains creepage gates the download until acknowledged; battery
   const lamp = RECIPES.find(x => x.id === 'lamp')!.build({ power: 'battery' }).circuit;
   assert.ok(pcbHazards(lamp).some(h => h.id === 'pcb-battery-protect'));
   assert.equal(pcbHazards(RECIPES.find(x => x.id === 'midi')!.build({}).circuit).length, 0);
+});
+
+test('describe-it designs built from breakout modules lay out, route and pass DRC', () => {
+  for (const q of ['a plant monitor with soil moisture, OLED and Wi-Fi', 'a 4-channel relay board', 'a robot car with an ultrasonic distance sensor', 'a 16-bit voltage logger with an ADS1115 and OLED']) {
+    const u = understand(q); assert.equal(u.kind, 'design', q);
+    const d = designFromSpec(u.reading.spec); assert.ok(d.build, `${q}: ${d.errors.join('; ')}`);
+    const l = layoutBoard(d.build!.circuit, { budgetMs: 20000 });
+    assert.equal(l.route.failed.length, 0, `${q}: unrouted nets`); assert.equal(drcCounts(l.drc).errors, 0, `${q}: DRC errors`);
+  }
 });

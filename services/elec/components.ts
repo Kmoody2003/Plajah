@@ -38,6 +38,7 @@ const LED_COLORS: Record<string, { vf: number; hex: string }> = { red: { vf: 2.0
 export const ledColor = (c: string) => LED_COLORS[c] ?? LED_COLORS.red;
 
 import { BOARD_COMPONENTS } from './boards';
+import { MODULE_COMPONENTS } from './modules';
 
 export const COMPONENTS: CompDef[] = [
   { kind: 'resistor', name: 'Resistor', prefix: 'R', category: 'Passive', about: 'Fixed resistor. Rating is its power limit.',
@@ -101,6 +102,7 @@ export const COMPONENTS: CompDef[] = [
     pins: [{ name: 'IN', at: [-3, 0] }, { name: 'GND', at: [0, 2] }, { name: 'OUT', at: [3, 0] }], params: [{ key: 'theta', label: 'Thermal resistance', unit: '°C/W', default: 65 }],
     symbol: [{ kind: 'poly', pts: [[-2, -1], [2, -1], [2, 1], [-2, 1]], closed: true }, L([-3, 0], [-2, 0]), L([2, 0], [3, 0]), L([0, 1], [0, 2]), T([0, 0.3], '7805', 0.7)], label: () => '7805' },
   ...BOARD_COMPONENTS,
+  ...MODULE_COMPONENTS,
 ];
 
 export const compByKind = (k: string) => COMPONENTS.find(c => c.kind === k);

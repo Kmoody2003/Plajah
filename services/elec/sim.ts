@@ -9,6 +9,7 @@
 import { compByKind, ledColor, parseSi } from './components';
 import { type Circuit, type CPart, netlist, type Netlist } from './circuit';
 import { BOARD_INFO, PI_MODELS } from './boards';
+import { MODULES, num as mnum } from './modules';
 
 const VT = 0.025852; // thermal voltage at 27 °C
 const GMIN = 1e-12;
@@ -65,7 +66,7 @@ function luSolve(A: Float64Array, b: Float64Array, n: number): Float64Array | nu
   return x;
 }
 
-interface PartState { kind: string; part: CPart; nodes: Record<string, number>; internal: number[]; vPrev?: number; iPrev?: number; q?: number; vd?: number[]; lastQ?: number; edges?: number[]; lag?: number; on?: number }
+interface PartState { kind: string; part: CPart; nodes: Record<string, number>; internal: number[]; ctl?: number[]; regMode?: string; vPrev?: number; iPrev?: number; q?: number; vd?: number[]; lastQ?: number; edges?: number[]; lag?: number; on?: number }
 
 /** Board current: the parameter, or the Raspberry Pi model's typical draw when 'auto'. */
 export function boardDraw(p: CPart): number {
@@ -89,7 +90,8 @@ export function simulate(c: Circuit, o: SimOptions): SimResult {
     if (p.kind === 'speaker') st.internal.push(nodeCount++);
     if (p.kind === 'pickup') { st.internal.push(nodeCount++); st.iPrev = 0; }
     if (p.kind === 'jack') st.vPrev = 0;
-    if (BOARD_INFO[p.kind] || p.kind === 'amp' || p.kind === 'acdc') st.lag = 0;
+    if (BOARD_INFO[p.kind] || p.kind === 'amp' || p.kind === 'acdc' || MODULES[p.kind]?.model.reg) st.lag = 0;
+    if (MODULES[p.kind]?.model.drives) st.ctl = MODULES[p.kind].model.drives!.map(() => 0);
     if (p.kind === 'ne555') { st.internal.push(nodeCount++); st.q = 1; st.lastQ = 1; st.edges = []; }
     if (p.kind === 'led' || p.kind === 'diode') st.vd = [0];
     if (p.kind === 'npn') st.vd = [0, 0];
@@ -130,7 +132,7 @@ export function simulate(c: Circuit, o: SimOptions): SimResult {
           if (!tran) stampG(ctx, mid, node(st, '-'), 1e3); else { const g = dt / 1e-4; stampG(ctx, mid, node(st, '-'), g); stampI(ctx, mid, node(st, '-'), st.iPrev ?? 0); }
           break;
         }
-        case 'battery': case 'coincell': case 'usb5v': case 'dcsupply': {
+        case 'battery': case 'coincell': case 'liion': case 'usb5v': case 'dcsupply': {
           const Rint = st.kind === 'usb5v' || st.kind === 'dcsupply' ? 0.05 : Math.max(0.01, P(p, 'Rint'));
           const plus = node(st, '+') || node(st, 'VBUS'), minus = node(st, '-') || node(st, 'GND');
           stampG(ctx, plus, minus, 1 / Rint); stampI(ctx, minus, plus, P(p, 'V') / Rint); break;
@@ -239,13 +241,49 @@ export function simulate(c: Circuit, o: SimOptions): SimResult {
           stampI(ctx, IN, GN, 0.005); // quiescent current
           break;
         }
+        default: if (MODULES[st.kind]) stampModule(st, ctx);
       }
+    }
+  };
+
+  // Breakout modules (modules.ts): data-driven draw, rails, pull-ups, links and driven outputs.
+  const stampModule = (st: PartState, ctx: Ctx) => {
+    const m = MODULES[st.kind].model; const pp = st.part.params; const nd = (pin: string) => node(st, pin);
+    if (m.draw) { const a = nd(m.draw.pwr), g = nd(m.draw.gnd); stampI(ctx, a, g, m.draw.A(pp) * Math.tanh(Math.max(0, V(a) - V(g)))); }
+    for (const l of m.links ?? []) stampG(ctx, nd(l.a), nd(l.b), 1 / Math.max(1e-3, l.R(pp)));
+    for (const u of m.pullups ?? []) stampG(ctx, nd(u.pin), nd(u.to), 1 / u.R);
+    for (const u of m.inputs ?? []) stampG(ctx, nd(u.pin), nd(u.gnd), 1 / u.R);
+    (m.drives ?? []).forEach((d, k) => {
+      const out = nd(d.pin), sup = nd(d.sup), g = nd(d.gnd); if (!out) return; const G = 1 / d.R;
+      const f = d.ctrl ? st.ctl![k] : (d.frac?.(pp) ?? 1);
+      // Current into the device at `out` = G (Vout − Vg − f (Vsup − Vg)); it returns through the supply when driving high, ground when low.
+      const row = [G, -G * f, -G * (1 - f)]; const I0 = G * (V(out) - V(g) - f * (V(sup) - V(g)));
+      const back = f > 0.5 ? 1 : 2; const rows = [row, [0, 0, 0], [0, 0, 0]]; rows[back] = row.map(x => -x); const I = [I0, 0, 0]; I[back] = -I0;
+      stampDevice(ctx, [out, sup, g], I, rows);
+    });
+    if (m.reg) {
+      const r = m.reg; const vi = nd(r.vin), vo = nd(r.vout), g = nd(r.gnd); const G = 20; const vset = r.V(pp), drop = r.dropout(pp); const vin = V(vi) - V(g);
+      const mode = r.boost ? (vin < (r.vinMin ?? 0) ? 'off' : vin - drop > vset ? 'drop' : 'reg') : (vin - drop >= vset ? 'reg' : vin - drop > 0 ? 'drop' : 'off'); st.regMode = mode;
+      if (mode === 'reg') { const I0 = G * (V(vo) - V(g) - vset); stampDevice(ctx, [vo, g], [I0, -I0], [[G, -G], [-G, G]]); stampI(ctx, vi, g, st.lag ?? 0); }
+      else if (mode === 'drop') { const I0 = G * (V(vo) - V(vi) + drop); stampDevice(ctx, [vo, vi], [I0, -I0], [[G, -G], [-G, G]]); }
+      else stampG(ctx, vo, g, 1e-3);
+    }
+  };
+  const moduleLag = (st: PartState) => {
+    const m = MODULES[st.kind].model; const pp = st.part.params; const nd = (pin: string) => node(st, pin);
+    (m.drives ?? []).forEach((d, k) => { if (d.ctrl) { const vc = V(nd(d.ctrl)) - V(nd(d.gnd)); st.ctl![k] = 1 / (1 + Math.exp(-(vc - 1.5) / 0.1)); } });
+    if (m.reg) {
+      const r = m.reg; const vi = nd(r.vin), vo = nd(r.vout), g = nd(r.gnd); const vset = r.V(pp); const vin = V(vi) - V(g);
+      const iout = st.regMode === 'reg' ? Math.max(0, -20 * (V(vo) - V(g) - vset)) : 0;
+      const want = st.regMode !== 'reg' ? 0 : r.eff ? iout * vset / (r.eff(pp) * Math.max(vin, r.boost ? 2 : 3)) : iout + 0.0001;
+      st.lag = 0.5 * (st.lag ?? 0) + 0.5 * want;
     }
   };
 
   // Lagged supply currents: power a module delivers is drawn from its supply pin (fixed-point updated).
   const updateLags = () => {
     for (const st of states) {
+      if (MODULES[st.kind]) { moduleLag(st); continue; }
       if (st.lag === undefined) continue; const p = st.part;
       if (st.kind === 'amp') {
         const GN = node(st, 'GND'), IN = node(st, 'IN'), VCC = node(st, 'VCC'); const vcc = V(VCC) - V(GN); const k = P(p, 'gain') / 2; let pout = 0;
@@ -293,7 +331,7 @@ export function simulate(c: Circuit, o: SimOptions): SimResult {
         case 'capacitor': case 'electrolytic': i = tran ? P(p, 'C') / dt * (vab - (st.vPrev ?? 0)) : 0; ex('v', vab); break;
         case 'inductor': i = tran ? (st.iPrev ?? 0) + dt / P(p, 'L') * vab : vab * 1e3; break;
         case 'speaker': { const mid = st.internal[0]; i = (V(node(st, '+')) - V(mid)) / Math.max(0.1, P(p, 'R')); pw = i * i * P(p, 'R'); break; }
-        case 'battery': case 'coincell': case 'usb5v': case 'dcsupply': { const Rint = st.kind === 'usb5v' || st.kind === 'dcsupply' ? 0.05 : Math.max(0.01, P(p, 'Rint')); const plus = node(st, '+') || node(st, 'VBUS'), minus = node(st, '-') || node(st, 'GND'); const vt = V(plus) - V(minus); i = (P(p, 'V') - vt) / Rint; pw = vt * i; ex('v', vt); break; }
+        case 'battery': case 'coincell': case 'liion': case 'usb5v': case 'dcsupply': { const Rint = st.kind === 'usb5v' || st.kind === 'dcsupply' ? 0.05 : Math.max(0.01, P(p, 'Rint')); const plus = node(st, '+') || node(st, 'VBUS'), minus = node(st, '-') || node(st, 'GND'); const vt = V(plus) - V(minus); i = (P(p, 'V') - vt) / Rint; pw = vt * i; ex('v', vt); break; }
         case 'mains': { i = 0; break; }
         case 'led': case 'diode': { const { Is, nn } = diodeParams(st); i = Is * (Math.exp(Math.min(vab / (nn * VT), 80)) - 1); pw = i * vab; ex('vr', -vab); break; }
         case 'npn': { const C = node(st, 'C'), B = node(st, 'B'), E = node(st, 'E'); const Is = 1e-14, bf = Number(p.params.beta ?? 100); const e1 = Math.exp(Math.min((V(B) - V(E)) / VT, 80)), e2 = Math.exp(Math.min((V(B) - V(C)) / VT, 80)); const ic = Is * (e1 - e2) - Is * (e2 - 1), ib = Is / bf * (e1 - 1) + Is * (e2 - 1); i = ic; pw = ic * (V(C) - V(E)) + ib * (V(B) - V(E)); ex('vce', V(C) - V(E)); ex('ib', ib); break; }
@@ -312,6 +350,21 @@ export function simulate(c: Circuit, o: SimOptions): SimResult {
           const vsup = V(PW) - V(GN); i = boardDraw(p) * Math.tanh(Math.max(0, vsup)) + (st.lag ?? 0); pw = i * vsup; ex('vsup', vsup);
           const on = boardOn(st.kind, vsup); const r33 = node(st, '3V3'); ex('i3v3', r33 ? Math.max(0, (3.3 * on - (V(r33) - V(GN))) * 10) : 0);
           for (const g of info.gpio) { const nd = node(st, g); if (!nd) continue; const hi = highPins(p).has(g.toUpperCase()); ex(`gpio:${g}`, hi ? (info.logic * on - (V(nd) - V(GN))) / 40 : (V(nd) - V(GN)) * 1e-6); }
+          break;
+        }
+        default: {
+          const info = MODULES[st.kind]; if (!info) break; const m = info.model; const nd = (pin: string) => node(st, pin); const pp = p.params;
+          if (info.supply) { const vs = V(nd(info.supply.pin)) - V(nd(info.supply.gnd)); ex('vsup', vs); }
+          if (m.draw) { const vs = V(nd(m.draw.pwr)) - V(nd(m.draw.gnd)); i += m.draw.A(pp) * Math.tanh(Math.max(0, vs)); pw += i * vs; }
+          for (const l of m.links ?? []) { const vl = V(nd(l.a)) - V(nd(l.b)); const il = vl / Math.max(1e-3, l.R(pp)); ex(`link:${l.a}`, il); if (st.kind === 'dcmotor' || st.kind === 'relay') { i += Math.abs(il); pw += Math.abs(il * vl); } }
+          (m.drives ?? []).forEach((d, k) => { const f = d.ctrl ? st.ctl![k] : (d.frac?.(pp) ?? 1); ex(`out:${d.pin}`, -(V(nd(d.pin)) - V(nd(d.gnd)) - f * (V(nd(d.sup)) - V(nd(d.gnd)))) / d.R); });
+          if (m.reg) {
+            const r = m.reg; const vin = V(nd(r.vin)) - V(nd(r.gnd)), vout = V(nd(r.vout)) - V(nd(r.gnd)); const vset = r.V(pp);
+            const iout = st.regMode === 'reg' ? Math.max(0, -20 * (vout - vset)) : st.regMode === 'drop' ? Math.max(0, -20 * (V(nd(r.vout)) - V(nd(r.vin)) + r.dropout(pp))) : 0;
+            const iin = st.regMode === 'reg' ? (st.lag ?? 0) : iout; ex('vin', vin); ex('vout', vout); ex('iout', iout); ex('iin', iin);
+            i = iout; pw = Math.max(0, vin * iin - vout * iout);
+          }
+          void mnum;
           break;
         }
       }

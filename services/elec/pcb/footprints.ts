@@ -5,7 +5,8 @@
 // Released by Plajah to the public domain (CC0).
 
 import type { CPart } from '../circuit';
-import { parseSi } from '../components';
+import { parseSi, compByKind } from '../components';
+import { MODULES } from '../modules';
 import type { Footprint, PadDef } from './types';
 
 export type FpStyle = 'tht' | 'smd';
@@ -121,6 +122,25 @@ export function footprintFor(p: CPart, style: FpStyle = 'tht'): Footprint | null
     case 'esp32': return dual('Module_ESP32_DevKitC', 'ESP32 DevKitC-class (2 × 19, 25.4 mm rows)', ESP_L, ESP_R, { span: 25.4, body: [28, 55], note: 'Dev-board pinouts vary (30- and 38-pin): this is the 38-pin DevKitC layout.' });
     case 'nano': return dual('Module_Arduino_Nano', 'Arduino Nano (2 × 15, 15.24 mm rows)', NANO_L, NANO_R, { span: 15.24, body: [18, 45] });
     case 'rpi': return dual('RPi_40pin_Header', 'Raspberry Pi 40-pin header (2 × 20 female, HAT style)', PI_ODD, PI_EVEN, { span: 2.54, body: [5.1, 51], note: 'The Pi plugs into this header; the board sits on it like a HAT.' });
-    default: return null;
+    default: return moduleFootprint(p);
   }
+}
+
+/**
+ * Breakout modules (from the describe-it block library): a 1 x N pin header in schematic pin order,
+ * the outline sized from the module's physical size. Off-board parts (strips, servos, motors, probes)
+ * get a labelled lead connector. The relay keeps its contacts on 5.08 mm terminals at the far end of
+ * the board, away from the low-voltage header, so load wiring gets its own clearance.
+ */
+function moduleFootprint(p: CPart): Footprint | null {
+  const info = MODULES[p.kind]; const def = compByKind(p.kind); if (!info || !def) return null;
+  const names = def.pins.map(pin => pin.name); const phys = info.physical(p.params ?? {});
+  const note = 'Breakout pin orders differ: match the silkscreen of the module you buy.';
+  if (p.kind === 'relay') {
+    const ctl = names.filter(n => !['COM', 'NO', 'NC'].includes(n)), load = names.filter(n => ['COM', 'NO', 'NC'].includes(n));
+    const pads = [...ctl.map((n, i) => th(n, -21, (i - (ctl.length - 1) / 2) * 2.54, 1.0, 1.7, i === 0)), ...load.map((n, i) => th(n, 21, (i - (load.length - 1) / 2) * 5.08, 1.3, 2.4))];
+    return fp('Module_Relay_1ch', 'Relay module: 2.54 mm control header, 5.08 mm screw terminals for the load', pads, { body: [-25, -13, 25, 13], note: 'Load side carries the switched current: keep its wiring in its own closed compartment. Match the terminal order on your module.' });
+  }
+  if (!phys.w || !phys.d) return row(`Lead_${p.kind}_1x${names.length}`, `${def.name} lead: 1 × ${names.length} 2.54 mm header (off-board part)`, names, { note: phys.note });
+  return row(`Module_${p.kind}_1x${names.length}`, `${def.name} breakout, 1 × ${names.length} header`, names, { body: [Math.max(phys.w, names.length * 2.54 + 2), phys.d], bodyDy: phys.d / 2 - 1.5, note });
 }

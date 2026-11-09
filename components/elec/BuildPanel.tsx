@@ -5,6 +5,7 @@
 import React, { useMemo, useState } from 'react';
 import { Download, Copy, Box } from 'lucide-react';
 import type { Build } from '../../services/elec/recipes';
+import type { ReviewItem } from '../../services/elec/design/outputs';
 import { writeStl } from '../../services/mech/geometry';
 import { writeDxf } from '../../services/cad/dxf';
 import { write3mf } from '../../services/fab/threeMf';
@@ -20,6 +21,7 @@ export default function BuildPanel({ build, guard }: { build: Build; guard: (fn:
     <div className="font-bold text-[13px]">{build.title}</div>
     <div className="text-[11.5px] mt-0.5 leading-snug" style={{ color: 'rgba(255,255,255,.8)' }}>{build.summary}</div>
     {build.notes.map((n, i) => <div key={i} className="text-[11px] mt-1" style={{ color: DIM }}>• {n}</div>)}
+    {build.design && <DesignSections build={build} guard={guard} base={base}/>}
 
     {enc && <div className="mt-3" data-testid="elec-enclosure">
       <div className="text-[10px] font-extrabold uppercase tracking-[.12em] mb-1 flex items-center gap-1" style={{ color: DIM }}><Box size={11}/>Enclosure</div>
@@ -80,4 +82,34 @@ function BodyView({ build }: { build: Build }) {
     {m.entities.map((e, i) => e.type === 'polyline' ? <polyline key={i} points={e.points.map(p => `${X(p[0])},${Y(p[1])}`).join(' ') + (e.closed ? ` ${X(e.points[0][0])},${Y(e.points[0][1])}` : '')} fill="none" stroke={col[e.layer] ?? '#fff'} strokeWidth={1}/>
       : e.type === 'line' ? <line key={i} x1={X(e.a[0])} y1={Y(e.a[1])} x2={X(e.b[0])} y2={Y(e.b[1])} stroke={col[e.layer] ?? '#fff'} strokeWidth={0.7}/> : null)}
   </svg>;
+}
+
+const LEVEL: Record<ReviewItem['level'], string> = { error: '#f87171', warn: '#fbbf24', info: '#93c5fd', pass: '#4ade80' };
+const H = ({ children }: { children: React.ReactNode }) => <div className="text-[10px] font-extrabold uppercase tracking-[.12em] mb-1 mt-3" style={{ color: DIM }}>{children}</div>;
+const amps = (a: number) => (a >= 1 ? `${a.toFixed(2)} A` : `${Math.round(a * 1000)} mA`);
+const csv = (rows: string[][]) => rows.map(r => r.map(c => /[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c).join(',')).join('\n') + '\n';
+
+/** Open-ended designs: review list, pin map, power budget, and the BOM with distributor search terms. */
+function DesignSections({ build, guard, base }: { build: Build; guard: (fn: () => void) => void; base: string }) {
+  const d = build.design!; const [all, setAll] = useState(false);
+  const shown = all ? d.review : d.review.filter(r => r.level !== 'pass').slice(0, 14);
+  return <div data-testid="elec-design">
+    <H>Design review · {d.counts.errors} errors · {d.counts.warnings} warnings</H>
+    <div data-testid="elec-review">{shown.map((r, i) => <div key={i} className="flex gap-1.5 py-0.5 text-[10.5px] leading-snug" style={{ borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+      <span className="mt-1 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: LEVEL[r.level] }}/>
+      <div><span className="font-semibold">{r.area} · {r.title}</span><div style={{ color: DIM }}>{r.detail}{r.cite ? ` (${r.cite})` : ''}</div></div></div>)}</div>
+    <button className="text-[10px] mt-1 underline" style={{ color: DIM }} onClick={() => setAll(v => !v)}>{all ? 'Show issues only' : `Show all ${d.review.length} items, passes included`}</button>
+    {d.pins.length > 0 && <><H>Pin map · {d.board}</H>
+      <table className="w-full text-[10.5px]" data-testid="elec-pinmap"><tbody>{d.pins.map((r, i) => <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,.06)' }}><td className="py-0.5 pr-2 font-mono">{r.pin}</td><td style={{ color: DIM }}>{r.label}</td></tr>)}</tbody></table></>}
+    <H>Power budget</H>
+    <div className="text-[10.5px] mb-1">{d.power.summary}</div>
+    <table className="w-full text-[10.5px]" data-testid="elec-power"><tbody>
+      <tr style={{ color: DIM }}><td>Load</td><td>Rail</td><td className="text-right">Typical</td><td className="text-right">Peak</td></tr>
+      {d.power.rows.map((r, i) => <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,.06)' }}><td className="py-0.5 pr-1">{r.what}</td><td className="pr-1" style={{ color: DIM }}>{r.rail}</td><td className="text-right">{amps(r.typ)}</td><td className="text-right">{amps(r.peak)}</td></tr>)}
+      {Object.entries(d.power.totals).map(([rail, t]) => <tr key={rail} className="font-semibold"><td>Total {rail}</td><td style={{ color: DIM }}>{d.power.capacity[rail] ? `of ${d.power.capacity[rail]} A` : ''}</td><td className="text-right">{amps(t.typ)}</td><td className="text-right">{amps(t.peak)}</td></tr>)}
+    </tbody></table>
+    <H>Parts and sourcing</H>
+    <table className="w-full text-[10.5px]" data-testid="elec-bom"><tbody>{d.bom.map((l, i) => <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,.06)' }} title={l.note}><td className="py-0.5 pr-1 align-top">{l.qty}×</td><td className="pr-1 align-top">{l.part}<div style={{ color: DIM }}>{l.refs.join(', ')}</div></td><td className="align-top font-mono text-[10px]" style={{ color: DIM }}>{l.query}{l.authorised ? ' · authorised seller' : ''}</td></tr>)}</tbody></table>
+    <button className="elec-btn mt-1.5" onClick={() => guard(() => dl(`${base} BOM.csv`, csv([['Qty', 'References', 'Part', 'Search', 'Note'], ...d.bom.map(l => [String(l.qty), l.refs.join(' '), l.part, l.query, l.note ?? '']), ...build.extras.map(e => [e[0], '', e[1], '', e[2]])]), 'text/csv'))} data-testid="elec-bom-csv"><Download size={13}/>BOM (CSV)</button>
+  </div>;
 }

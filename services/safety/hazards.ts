@@ -6,6 +6,7 @@
 import type { Circuit } from '../elec/circuit';
 import { parseSi } from '../elec/components';
 import { materialLimit } from '../fab/materials';
+import { moduleHazards } from '../elec/modules';
 
 export type Stage = 'idea' | 'schematic' | 'enclosure' | 'build' | 'make' | 'source' | 'sell';
 export type Severity = 'critical' | 'high' | 'medium' | 'low';
@@ -48,6 +49,7 @@ export function designHazards(ctx: DesignContext): Hazard[] {
     add({ id: 'magnets', stage: 'idea', severity: 'high', title: 'Magnets in children\'s products', why: 'Two swallowed strong magnets attract through intestine walls and cause perforation.', mitigate: ['Avoid loose or loosely held magnets; fully enclose and test any magnet.'], cite: 'ASTM F963 §4.38; 16 CFR part 1262' });
   }
   if (ctx.selling) add({ id: 'sell-ready', stage: 'sell', severity: 'high', title: 'Before you sell', why: 'Selling makes you the manufacturer in law: you carry product liability and must meet labelling, certification and recall duties.', mitigate: ['Get the required tests and declarations (see Checks › Regulatory).', 'Keep a technical file, a batch/date code on each unit and a list of buyers to support a recall.', 'Consider product liability insurance.'], cite: '15 U.S.C. 2064(b) (reporting); Regulation (EU) 2023/988 (GPSR)' });
+  for (const m of moduleHazards(new Set(parts.map(p => p.kind)))) add(m);
   add({ id: 'soldering', stage: 'build', severity: 'low', title: 'Soldering', why: 'Solder fumes (flux) irritate lungs; leaded solder is toxic if ingested; irons run at 350 °C.', mitigate: ['Fume extraction or a fan pulling fumes away; wash hands after; lead-free solder for products sold in the EU.', 'Safety glasses when clipping leads.'] });
   return sortHazards(out);
 }
@@ -155,7 +157,7 @@ export interface Advisory { id: string; kinds: string[]; severity: Severity; tit
 /** Our own component advisories: patterns that cause recalls, fires and counterfeit failures. */
 export const ADVISORIES: Advisory[] = [
   { id: 'adv-uncert-acdc', kinds: ['acdc'], severity: 'high', title: 'Uncertified mains modules', detail: 'Many low-cost encapsulated AC-DC modules on marketplaces carry no recognised safety certificate or carry copied marks. Buy from an authorised distributor and check the certificate number on the certifier\'s public database (e.g. UL Product iQ).' },
-  { id: 'adv-li-counterfeit', kinds: ['battery'], severity: 'high', title: 'Counterfeit and re-wrapped lithium cells', detail: 'Re-wrapped used cells and inflated capacity ratings are common. Buy cells from authorised distributors; reject packs with no UN 38.3 test summary.' },
+  { id: 'adv-li-counterfeit', kinds: ['battery', 'liion'], severity: 'high', title: 'Counterfeit and re-wrapped lithium cells', detail: 'Re-wrapped used cells and inflated capacity ratings are common. Buy cells from authorised distributors; reject packs with no UN 38.3 test summary.' },
   { id: 'adv-coin-charger', kinds: ['coincell'], severity: 'critical', title: 'Coin-cell products are a top recall category', detail: 'Products with coin cells keep being recalled for failing the battery-compartment and warning requirements of Reese\'s Law. Design the screw-secured door in from the start.' },
   { id: 'adv-usb-charger', kinds: ['acdc', 'usbload'], severity: 'high', title: 'USB chargers and power adapters', detail: 'Chargers are recalled for shock (inadequate insulation between mains and USB) and fire. Keep creepage distances, use certified modules, and test before selling.' },
   { id: 'adv-counterfeit-ic', kinds: ['esp32', 'pico', 'nano', 'amp', 'reg7805', 'ne555', 'nmos', 'npn'], severity: 'medium', title: 'Counterfeit chips', detail: 'Clone and remarked ICs (regulators, MOSFETs, microcontrollers) often fail early or run hot. Buy from authorised distributors (they publish their franchise lines).' },
@@ -166,7 +168,7 @@ export const advisoriesFor = (c?: Circuit) => { const kinds = new Set((c?.parts 
 /** Search terms for public recall databases (CPSC in the US) from a design's parts and product type. */
 export function recallQueries(c?: Circuit, recipe?: string): string[] {
   const kinds = new Set((c?.parts ?? []).map(p => p.kind)); const q = new Set<string>();
-  const map: Record<string, string[]> = { acdc: ['power adapter', 'charger'], usbload: ['USB charger'], coincell: ['coin battery', 'button battery'], battery: ['battery pack'], ledstrip: ['LED strip light'], speaker: ['speaker'], amp: ['speaker'], rpi: ['Raspberry Pi'], esp32: ['smart plug'], mains: ['extension cord'] };
+  const map: Record<string, string[]> = { acdc: ['power adapter', 'charger'], usbload: ['USB charger'], coincell: ['coin battery', 'button battery'], battery: ['battery pack'], ledstrip: ['LED strip light'], speaker: ['speaker'], amp: ['speaker'], rpi: ['Raspberry Pi'], esp32: ['smart plug'], mains: ['extension cord'], liion: ['lithium-ion battery', 'power bank'], relay: ['smart plug', 'relay'], servo: ['toy robot'], neopixel: ['LED light'] };
   for (const k of kinds) for (const s of map[k] ?? []) q.add(s);
   const byRecipe: Record<string, string[]> = { lamp: ['lamp', 'night light'], 'smart-lamp': ['LED light'], charger: ['USB charger', 'wall charger'], speaker: ['speaker'], guitar: ['guitar amplifier'], midi: ['USB'], sensor: ['thermometer'], pi: ['Raspberry Pi'], plush: ['plush toy', 'stuffed animal'], apparel: ['drawstring', 'children\'s sleepwear'], textile: ['weighted blanket', 'pillow'] };
   for (const s of byRecipe[recipe ?? ''] ?? []) q.add(s);
