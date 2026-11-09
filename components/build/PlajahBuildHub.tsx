@@ -6,27 +6,20 @@
 
 import React, { Suspense, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, ArrowRight, ShieldCheck, Sparkles, Ruler, Scissors, Dna, Store, Cog } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ShieldCheck, Sparkles, Ruler, Scissors, Dna, Store, Cog, Blocks } from 'lucide-react';
 import { auth } from '../../services/backendService';
+import { parseLaunch, routeIdea, PENDING_BUILD_KEY, type BuildLaunch, type Room } from '../../services/build/launch';
+export { routeIdea, parseLaunch, PENDING_BUILD_KEY, type BuildLaunch };
 
 const ElecRoom = React.lazy(() => import('../elec/ElecRoom'));
 const CadRoom = React.lazy(() => import('../cad/CadRoom'));
 const PatternRoom = React.lazy(() => import('../soft/PatternRoom'));
 const BioRoom = React.lazy(() => import('../bio/BioRoom'));
 const ExchangeRoom = React.lazy(() => import('../supply/ExchangeRoom'));
+const BuildStudio = React.lazy(() => import('./studio/BuildStudio'));
 
-type Room = 'elec' | 'cad' | 'sew' | 'bio' | 'exchange';
 const getToken = async () => (auth.currentUser ? auth.currentUser.getIdToken() : null);
 
-/** Which room an idea belongs in. Sewing words pick the pattern; buildings go to CAD. */
-export function routeIdea(text: string): { room: Room; template?: string } {
-  const t = text.toLowerCase();
-  const sew: Array<[RegExp, string]> = [[/plush|stuffed|teddy|stuffie|softie|toy animal/, 'plush-pal'], [/\bball\b|sphere/, 'plush-ball'], [/pillow|cushion/, 'pillow-envelope'], [/blanket|throw|quilt/, 'throw'], [/duvet|comforter cover/, 'duvet'], [/fitted sheet|bed sheet|crib sheet|\bsheet\b/, 'fitted-sheet'], [/tote|bag/, 'tote'], [/hoodie|sweatshirt/, 'hoodie'], [/t-?shirt|\btee\b|shirt/, 'tee'], [/skirt/, 'skirt']];
-  for (const [re, template] of sew) if (re.test(t)) return { room: 'sew', template };
-  if (/house|floor ?plan|building|room layout|kitchen|cabin|shed|church|office layout|\bdwg\b|\bdxf\b|\bifc\b/.test(t)) return { room: 'cad' };
-  if (/protein|molecule|enzyme|pathway|sbml|\bpdb\b/.test(t)) return { room: 'bio' };
-  return { room: 'elec' };
-}
 
 const EXAMPLES = ['a MIDI controller with 3 knobs and 7 buttons', 'a 30 cm plush bunny', 'my own electric guitar, 25.5" scale', 'a hoodie in size L', 'a USB desk lamp with 6 warm LEDs', 'a queen fitted sheet'];
 const TICKER = ['Ω · V · mA', 'E12 values', 'mm / in', '1:1 test square', 'IFC4', 'DXF · DWG · STEP', 'G-code · 9 dialects', 'SL1 resin', '3MF', 'seam allowance', 'grainline', 'yardage', 'CPSC recalls', '16 CFR 1501', 'ASTM F963', 'ADA 2010', 'FCC Part 15', 'Reese’s Law'];
@@ -71,6 +64,16 @@ const Helix = () => <svg viewBox="0 0 200 90" className="pbh-art" aria-hidden="t
   {[18, 38, 58, 92, 112, 132, 168, 186].map(x => <path key={x} d={`M${x} 28 V62`} stroke="rgba(94,234,212,.35)" strokeWidth="1.5"/>)}
 </svg>;
 
+const Studio = () => <svg viewBox="0 0 320 150" className="pbh-art" aria-hidden="true">
+  <g fill="none" stroke="rgba(0,218,243,.22)" strokeWidth="1">{[0, 1, 2, 3, 4, 5].map(i => <path key={i} d={`M${20 + i * 22} 120 l60 -30`}/>)}{[0, 1, 2, 3].map(i => <path key={`b${i}`} d={`M20 ${120 - i * 0} l${110} 0`} transform={`translate(${i * 15} ${-i * 7.5})`}/>)}</g>
+  <path d="M60 96 l34 -17 l34 17 l-34 17 z" fill="rgba(255,140,0,.25)" stroke="#FF8C00" strokeWidth="2"/><path d="M60 96 v-26 l34 -17 l34 17 v26" fill="none" stroke="#FF8C00" strokeWidth="2"/><path d="M94 79 v-26" stroke="#FF8C00" strokeWidth="1.5" strokeDasharray="3 3"/>
+  <circle cx="94" cy="66" r="7" fill="#08070b" stroke="#9aa4b2" strokeWidth="1.5" strokeDasharray="2 2"/>
+  <g transform="translate(176 22)"><rect width="120" height="22" rx="7" fill="#f76707"/><text x="10" y="15" fill="#fff" fontSize="10" fontFamily="Outfit, sans-serif" fontWeight="700">turn pin 13 on</text>
+    <rect y="27" width="120" height="22" rx="7" fill="#0b98b8"/><text x="10" y="42" fill="#fff" fontSize="10" fontFamily="Outfit, sans-serif" fontWeight="700">wait 500 ms</text>
+    <rect y="54" width="120" height="22" rx="7" fill="#f76707"/><text x="10" y="69" fill="#fff" fontSize="10" fontFamily="Outfit, sans-serif" fontWeight="700">turn pin 13 off</text>
+    <circle className="pbh-led" cx="60" cy="104" r="8" fill="#ff4d4d"/><path d="M56 112 v14 M64 112 v10" stroke="rgba(255,255,255,.5)" strokeWidth="2"/></g>
+</svg>;
+
 const ROOMS: Array<{ id: Room; size: 'wide' | 'tall' | 'std' | 'band'; kicker: string; title: string; body: string; icon: React.ComponentType<{ size?: number }>; tone: string; art: React.ReactNode; chips: string[] }> = [
   { id: 'elec', size: 'wide', kicker: 'Electronics Lab', title: 'Describe it. We design it.', icon: Sparkles, tone: '#FF8C00', art: <Circuit/>,
     body: 'A lamp, a charger, a speaker, a MIDI controller, your own guitar. Plajah drafts the circuit, sizes every part, simulates it, fits it in a printable case and writes the firmware.',
@@ -84,17 +87,27 @@ const ROOMS: Array<{ id: Room; size: 'wide' | 'tall' | 'std' | 'band'; kicker: s
     body: 'Slice for filament and resin, cut on laser, router and plasma, turn on a lathe, and send over your network or USB.', chips: ['Supports & brim', 'Klipper · PrusaLink · OctoPrint'] },
   { id: 'exchange', size: 'std', kicker: 'Maker Exchange', title: 'Find who can make it.', icon: Store, tone: '#D0BCFF', art: <Network/>,
     body: 'Parts with live prices, local maker shops, manufacturers for plush and cut-and-sew. Quotes come with the maker’s own payment link.', chips: ['35 suppliers', '0% held'] },
-  { id: 'bio', size: 'band', kicker: 'Biology Lab', title: 'Molecules & pathways.', icon: Dna, tone: '#5eead4', art: <Helix/>,
+  { id: 'studio', size: 'wide', kicker: 'Build Studio', title: 'Shapes, circuits, blocks.', icon: Blocks, tone: '#00DAF3', art: <Studio/>,
+    body: 'The free place to start: drag shapes into a keychain and print it, wire LEDs on a breadboard, and make them blink with blocks that turn into real Arduino and MicroPython code. Lessons check each step.',
+    chips: ['3D for beginners', 'Breadboard + simulator', 'Blocks → C++ / MicroPython', 'Classroom lessons'] },
+  { id: 'bio', size: 'std', kicker: 'Biology Lab', title: 'Molecules & pathways.', icon: Dna, tone: '#5eead4', art: <Helix/>,
     body: 'PDB and AlphaFold structures, SBML models on our own solver.', chips: ['BioModels by ID'] },
 ];
 
 export default function PlajahBuildHub({ onBack }: { onBack?: () => void }) {
-  const [room, setRoom] = useState<{ id: Room; prompt?: string; template?: string } | null>(null);
+  const [room, setRoom] = useState<{ id: Room; prompt?: string; template?: string; starter?: string; lesson?: string } | null>(null);
   const [idea, setIdea] = useState('');
   const [ex, setEx] = useState(0);
   useEffect(() => { const t = setInterval(() => setEx(i => (i + 1) % EXAMPLES.length), 3200); return () => clearInterval(t); }, []);
   const close = () => setRoom(null);
-  const go = (text: string) => { const t = text.trim(); if (!t) return; const r = routeIdea(t); setRoom({ id: r.room, prompt: r.room === 'elec' ? t : undefined, template: r.template }); };
+  // Launch requests: a 'plajah:openBuild' window event, or one left in sessionStorage before this page mounted.
+  useEffect(() => {
+    const open = (l: BuildLaunch | null) => { if (l) setRoom({ id: l.room, prompt: l.prompt, template: l.template, starter: l.starter, lesson: l.lesson }); };
+    try { const pending = sessionStorage.getItem(PENDING_BUILD_KEY); if (pending) { sessionStorage.removeItem(PENDING_BUILD_KEY); open(parseLaunch(pending)); } } catch { /* storage blocked */ }
+    const onLaunch = (e: Event) => { open(parseLaunch((e as CustomEvent).detail)); try { sessionStorage.removeItem(PENDING_BUILD_KEY); } catch { /* storage blocked */ } };
+    window.addEventListener('plajah:openBuild', onLaunch); return () => window.removeEventListener('plajah:openBuild', onLaunch);
+  }, []);
+  const go = (text: string) => { const t = text.trim(); if (!t) return; const r = routeIdea(t); setRoom({ id: r.room, prompt: r.room === 'elec' ? t : undefined, template: r.template, starter: r.starter }); };
 
   // Rooms are full-screen; a portal on <body> lifts them above the app's header and navigation.
   const layer = (label: string, node: React.ReactNode) => createPortal(<div className="fixed inset-0 z-[9990]"><Suspense fallback={<Loading label={label}/>}>{node}</Suspense></div>, document.body);
@@ -102,6 +115,7 @@ export default function PlajahBuildHub({ onBack }: { onBack?: () => void }) {
   if (room?.id === 'cad') return layer('CAD & BIM', <CadRoom getToken={getToken} onClose={close}/>);
   if (room?.id === 'sew') return layer('Sewing & Plush', <PatternRoom getToken={getToken} onClose={close} initialTemplate={room.template}/>);
   if (room?.id === 'bio') return layer('Biology Lab', <BioRoom onClose={close}/>);
+  if (room?.id === 'studio') return layer('Build Studio', <BuildStudio getToken={getToken} onClose={close} starter={room.starter} lesson={room.lesson}/>);
 
   return <div className="pbh" data-testid="plajah-build-hub">
     <section className="pbh-hero">
@@ -144,7 +158,7 @@ export default function PlajahBuildHub({ onBack }: { onBack?: () => void }) {
     </section>
 
     <section className="pbh-stats" aria-label="By the numbers">
-      {[['8', 'products you can describe'], ['10', 'sewing & plush patterns'], ['23', 'fabrication processes'], ['35', 'suppliers & makers'], ['0%', 'of your money held']].map(([n, l]) => <div key={l}><b>{n}</b><span>{l}</span></div>)}
+      {[['3-in-1', 'beginner studio: 3D, circuits, blocks'], ['8', 'products you can describe'], ['10', 'sewing & plush patterns'], ['23', 'fabrication processes'], ['35', 'suppliers & makers'], ['0%', 'of your money held']].map(([n, l]) => <div key={l}><b>{n}</b><span>{l}</span></div>)}
     </section>
     <p className="pbh-note">Working in a Tela document? The same rooms are in Tela’s app menu and put schematics, drawings, layouts and parts lists right into your page.</p>
 
@@ -219,7 +233,7 @@ export default function PlajahBuildHub({ onBack }: { onBack?: () => void }) {
 .pbh .pbh-safety > div{padding:26px 28px 26px 0}
 .pbh .pbh-safety h2{margin:0 0 6px;font-family:var(--font-display,Outfit,sans-serif);font-weight:900;font-size:clamp(22px,2.6vw,30px);letter-spacing:-.02em;color:#fff}
 .pbh .pbh-safety p{margin:0;max-width:78ch;font-size:14.5px;line-height:1.55;color:rgba(220,255,244,.82)}
-.pbh .pbh-stats{max-width:1180px;margin:28px auto 0;padding:0 24px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.pbh .pbh-stats{max-width:1180px;margin:28px auto 0;padding:0 24px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
 .pbh .pbh-stats div{padding:18px 4px;border-top:2px solid rgba(255,255,255,.1)}
 .pbh .pbh-stats b{display:block;font-family:var(--font-display,Outfit,sans-serif);font-weight:900;font-size:clamp(34px,4.4vw,56px);line-height:1;letter-spacing:-.03em;background:linear-gradient(95deg,#fff,#FFB347);-webkit-background-clip:text;background-clip:text;color:transparent}
 .pbh .pbh-stats span{display:block;margin-top:6px;font:600 11px/1.3 var(--font-mono-tech,'JetBrains Mono',monospace);letter-spacing:.08em;text-transform:uppercase;color:rgba(246,243,250,.5)}
