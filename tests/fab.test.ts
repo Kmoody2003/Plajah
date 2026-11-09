@@ -170,3 +170,198 @@ test('resin job builds raft, pillars and a valid SL1 package', () => {
   assert.equal(Object.keys(zip).filter(k => k.endsWith('.png')).length, rj.layers.length);
   const tiny = encodePngGray(2, 2, new Uint8Array([0, 255, 255, 0])); assert.equal(tiny[25], 0); // colour type 0
 });
+
+// ---------------------------------------------------------------- slicer profiles and quality features
+import { readFileSync } from 'node:fs';
+import { zipSync, strToU8 } from 'fflate';
+import { importProfiles, applyProfiles, renderGcode, settingsVars, jobVars, parseIni, loadProfiles, saveProfiles, mergeProfiles } from '../services/fab/profiles';
+import { profileHazards } from '../services/safety/hazards';
+import { infillPaths, gyroidFill } from '../services/fab/infill';
+import { estimateSeconds, trapezoid } from '../services/fab/estimate';
+import { layerHeights } from '../services/fab/slice';
+import { FDM_DEFAULTS, seamIndex, type FdmOptions } from '../services/fab/cam';
+
+const fixture = (f: string) => readFileSync(new URL(`./fixtures/fab/${f}`, import.meta.url), 'utf8');
+const byKind = (r: ReturnType<typeof importProfiles>, k: string) => r.profiles.find(p => p.kind === k)!;
+/** Square pyramid: base 2s × 2s at z = 0, apex at height h. */
+const pyramid = (s: number, h: number) => ({ positions: [-s, -s, 0, s, -s, 0, s, s, 0, -s, s, 0, 0, 0, h], indices: [0, 2, 1, 0, 3, 2, 0, 1, 4, 1, 2, 4, 2, 3, 4, 3, 0, 4] });
+const monotonicE = (g: string) => { const es = parseGcode(g).filter(m => m.e !== undefined).map(m => m.e!); return es.length > 0 && es.every(Number.isFinite); };
+const noNaN = (g: string) => !/NaN|Infinity|undefined/.test(g);
+
+test('OrcaSlicer JSON: inherits chains resolve and map onto our options', () => {
+  const r = importProfiles([{ name: 'voron.json', data: fixture('orca_machine_chain.json') }]);
+  assert.equal(r.profiles.length, 4, 'abstract parents (instantiation false) are not listed on their own'); assert.deepEqual(r.warnings, []);
+  const pr = r.profiles.find(p => p.name === 'My Voron 350')!; assert.equal(pr.name, 'My Voron 350'); assert.equal(pr.source, 'orca');
+  assert.deepEqual(pr.printer!.bed, [350, 350, 330]); assert.deepEqual(pr.printer!.bedCenter, [175, 175]); assert.equal(pr.printer!.bedShape, 'rect');
+  assert.equal(pr.printer!.nozzle, 0.4); assert.equal(pr.printer!.dialect, 'klipper');
+  assert.equal(pr.printer!.retract, 0.5, 'own value wins'); assert.equal(pr.printer!.zHop, 0.4, 'grandparent value inherited');
+  assert.equal(pr.printer!.limits.maxX, 500); assert.equal(pr.printer!.limits.accel, 5000); assert.match(pr.printer!.startGcode!, /^PRINT_START BED=/);
+  const fi = byKind(r, 'filament'); assert.equal(fi.filament!.type, 'PLA'); assert.equal(fi.filament!.nozzleTemp, 215); assert.equal(fi.filament!.firstLayerNozzleTemp, 220);
+  assert.equal(fi.filament!.bedTemp, 55); assert.equal(fi.filament!.firstLayerBedTemp, 60); assert.equal(fi.filament!.fan, 0.8); assert.equal(fi.filament!.maxVolumetric, 15);
+  const ps = byKind(r, 'process').process!;
+  assert.deepEqual({ layer: ps.layer, firstLayer: ps.firstLayer, walls: ps.walls, infill: ps.infill, pattern: ps.infillPattern, top: ps.topLayers, bottom: ps.solidLayers, seam: ps.seam, ironing: ps.ironing, supports: ps.supports, style: ps.supportStyle, overhang: ps.overhang, adhesion: ps.adhesion },
+    { layer: 0.2, firstLayer: 0.25, walls: 4, infill: 0.25, pattern: 'gyroid', top: 4, bottom: 3, seam: 'rear', ironing: true, supports: 'buildplate', style: 'tree', overhang: 40, adhesion: 'skirt' });
+  assert.deepEqual([ps.outerWallSpeed, ps.innerWallSpeed, ps.infillSpeed, ps.travel, ps.firstLayerSpeed], [120, 200, 250, 400, 50]);
+  // Combined: process speeds, filament flow cap and the printer's acceleration.
+  const a = applyProfiles({ printer: pr, filament: fi, process: byKind(r, 'process') });
+  assert.equal(a.dialect, 'klipper'); assert.equal(a.fdm.maxVolumetric, 15); assert.equal(a.fdm.accel, 4000); assert.equal(a.fdm.retract, 0.5); assert.equal(a.fdm.nozzleTemp, 215);
+});
+
+test('OrcaSlicer user preset alone: the missing system parent is reported, and found later in the library', () => {
+  const user = JSON.parse(fixture('orca_machine_chain.json')).find((p: any) => p.name === 'My PLA');
+  const alone = importProfiles([{ name: 'My PLA.json', data: JSON.stringify(user) }]);
+  assert.equal(alone.profiles.length, 1); assert.match(alone.profiles[0].warnings[0], /inherits from "fdm_filament_pla"/); assert.equal(alone.profiles[0].filament!.diameter, undefined);
+  const sys = JSON.parse(fixture('orca_machine_chain.json')).find((p: any) => p.name === 'fdm_filament_pla');
+  const lib = importProfiles([{ name: 'pla.json', data: JSON.stringify({ ...sys, instantiation: 'true' }) }]).profiles;
+  const again = importProfiles([{ name: 'My PLA.json', data: JSON.stringify(user) }], lib);
+  assert.deepEqual(again.profiles[0].warnings, []); assert.equal(again.profiles[0].filament!.diameter, 1.75); assert.equal(again.profiles[0].filament!.nozzleTemp, 215);
+});
+
+test('PrusaSlicer config bundle: sections, abstract parents, percentages and quoted G-code', () => {
+  const r = importProfiles([{ name: 'PrusaSlicer_config_bundle.ini', data: fixture('prusa_bundle.ini') }]);
+  assert.equal(r.profiles.length, 3); assert.deepEqual(r.profiles.map(p => p.name).sort(), ['0.20mm QUALITY @MK3', 'Original Prusa i3 MK3S', 'Prusament PETG']);
+  const pr = byKind(r, 'printer').printer!;
+  assert.deepEqual(pr.bed, [250, 210, 210]); assert.deepEqual(pr.bedCenter, [125, 105]); assert.equal(pr.dialect, 'marlin'); assert.equal(pr.limits.maxX, 200); assert.equal(pr.limits.accel, 1250);
+  assert.equal(pr.startGcode!.split('\n').length, 11, 'escaped newlines become lines');
+  const fi = byKind(r, 'filament').filament!;
+  assert.deepEqual([fi.type, fi.nozzleTemp, fi.firstLayerNozzleTemp, fi.bedTemp, fi.firstLayerBedTemp, fi.fan, fi.fanFirstLayers, fi.maxVolumetric, fi.retract], ['PETG', 240, 230, 90, 85, 0.5, 3, 8, 1]);
+  assert.equal(fi.startGcode, 'M900 K0.08 ; Filament gcode');
+  const ps = byKind(r, 'process').process!;
+  assert.deepEqual({ layer: ps.layer, firstLayer: ps.firstLayer, walls: ps.walls, infill: ps.infill, pattern: ps.infillPattern, top: ps.topLayers, bottom: ps.solidLayers, seam: ps.seam, ironing: ps.ironing, ironFlow: ps.ironingFlow, ironSpacing: ps.ironingSpacing, supports: ps.supports, style: ps.supportStyle, overhang: ps.overhang, maxVol: ps.maxVolumetric, adhesion: ps.adhesion },
+    { layer: 0.2, firstLayer: 0.2, walls: 2, infill: 0.2, pattern: 'cubic', top: 5, bottom: 4, seam: 'rear', ironing: true, ironFlow: 0.15, ironSpacing: 0.1, supports: 'buildplate', style: 'tree', overhang: 55, maxVol: 11, adhesion: 'skirt' });
+  assert.equal(ps.outerWallSpeed, 22.5, '50% of the 45 mm/s perimeter speed'); assert.equal(ps.solidSpeed, 40);
+  // A single exported .ini (no sections) is split by what it contains.
+  const flat = parseIni('layer_height = 0.3\nperimeters = 3\nfill_density = 10%\nbed_shape = 0x0,200x0,200x200,0x200\ntemperature = 205\nfilament_type = PLA\n').root;
+  const single = importProfiles([{ name: 'config.ini', data: Object.entries(flat).map(([k, v]) => `${k} = ${v}`).join('\n') }]);
+  assert.deepEqual(single.profiles.map(p => p.kind).sort(), ['filament', 'printer', 'process']);
+});
+
+test('3MF projects: PrusaSlicer and OrcaSlicer settings inside Metadata/', () => {
+  const prusaCfg = '; generated by PrusaSlicer\n; layer_height = 0.1\n; perimeters = 3\n; fill_density = 30%\n; bed_shape = 0x0,180x0,180x180,0x180\n; temperature = 200\n; filament_type = PLA\n; printer_settings_id = Mini\n; filament_settings_id = Generic PLA\n; print_settings_id = 0.10mm DETAIL\n';
+  const p3 = zipSync({ '3D/3dmodel.model': strToU8('<model/>'), 'Metadata/Slic3r_PE.config': strToU8(prusaCfg) });
+  const a = importProfiles([{ name: 'part.3mf', data: p3 }]);
+  assert.deepEqual(a.profiles.map(p => `${p.kind}:${p.name}`).sort(), ['filament:Generic PLA', 'printer:Mini', 'process:0.10mm DETAIL']);
+  assert.equal(byKind(a, 'printer').printer!.bed[0], 180); assert.equal(byKind(a, 'process').process!.infill, 0.3);
+  const orcaCfg = JSON.stringify({ layer_height: '0.16', wall_loops: '3', sparse_infill_density: '12%', printable_area: ['0x0', '256x0', '256x256', '0x256'], nozzle_temperature: ['230'], filament_type: ['PETG'], printer_settings_id: 'Bambu Lab X1 Carbon 0.4 nozzle', filament_settings_id: ['Bambu PETG Basic'], print_settings_id: '0.16mm Optimal' });
+  const b = importProfiles([{ name: 'plate.3mf', data: zipSync({ 'Metadata/project_settings.config': strToU8(orcaCfg) }) }]);
+  assert.equal(b.profiles.length, 3); assert.equal(byKind(b, 'filament').name, 'Bambu PETG Basic'); assert.equal(byKind(b, 'filament').filament!.nozzleTemp, 230); assert.equal(byKind(b, 'process').process!.layer, 0.16);
+  // Orca preset bundles are zips of JSON.
+  const bundle = zipSync({ 'bundle_structure.json': strToU8('{}'), 'printer/My Voron.json': strToU8(fixture('orca_machine_chain.json')) });
+  assert.equal(importProfiles([{ name: 'voron.orca_printer', data: bundle }]).profiles.length, 4);
+  assert.match(importProfiles([{ name: 'broken.json', data: '{ nope' }]).warnings[0], /could not be read/);
+});
+
+test('custom G-code templates: placeholders, conditionals, and unresolved lines commented out', () => {
+  const vars = { ...settingsVars({ nozzle_diameter: ['0.6'], filament_type: 'PETG,PLA', printer_model: 'MK3S' }), ...jobVars({ ...FDM_DEFAULTS, nozzle: 0.6, nozzleTemp: 240, bedTemp: 85, firstLayerNozzleTemp: 230 }) };
+  const r = renderGcode('M104 S[first_layer_temperature]\nM190 S{first_layer_bed_temperature[0]}\nM109 S{nozzle_temperature_initial_layer[initial_extruder] + 5}\n{if nozzle_diameter[0] > 0.5}M900 K0.02{elsif nozzle_diameter[0] > 0.3}M900 K0.04{else}M900 K0.06{endif}\n{if filament_type[0]=="PETG"}M221 S95{endif}\nM862.3 P "[printer_model]"\nM117 {plate_name}\n{if is_superslicer}\nG29 L1\n{endif}\nG1 Z5', vars);
+  assert.deepEqual(r.text.split('\n').slice(0, 6), ['M104 S230', 'M190 S85', 'M109 S235', 'M900 K0.02', 'M221 S95', 'M862.3 P "MK3S"']);
+  assert.match(r.text, /^; PLAJAH SKIPPED.*M117 \{plate_name\}$/m); assert.match(r.text, /^; PLAJAH SKIPPED.*conditional block/m);
+  assert.ok(!/^G29 L1$/m.test(r.text), 'contents of an unreadable conditional are not emitted'); assert.match(r.text, /G1 Z5$/);
+  assert.equal(r.skipped.length, 2);
+});
+
+test('an imported profile slices: bed centre, flavour, rendered start G-code, first-layer temperatures', () => {
+  const r = importProfiles([{ name: 'bundle.ini', data: fixture('prusa_bundle.ini') }]);
+  const a = applyProfiles({ printer: byKind(r, 'printer'), filament: byKind(r, 'filament'), process: byKind(r, 'process') });
+  const o: FdmOptions = { ...FDM_DEFAULTS, ...a.fdm, supports: 'none', center: a.bedCenter, bed: { w: a.bed![0], d: a.bed![1] } };
+  const j = fdmJob(box(20, 4), o);
+  const xs = j.moves.flatMap(m => (m.t === 'feed' && m.x !== undefined ? [m.x] : [])); assert.ok(Math.min(...xs) > 100 && Math.max(...xs) < 150, 'centred on the 250 × 210 bed');
+  assert.equal(j.stats.layers, 1 + Math.round((4 - 0.2) / 0.2));
+  const pr = byKind(r, 'printer').printer!; const vars = { ...settingsVars({ ...byKind(r, 'printer').settings, ...byKind(r, 'filament').settings }), ...jobVars(o) };
+  const st = renderGcode(pr.startGcode!, vars), en = renderGcode(pr.endGcode!, vars);
+  assert.deepEqual(st.skipped, []);
+  const g = post(j, { dialect: a.dialect!, nozzleTemp: o.firstLayerNozzleTemp, bedTemp: o.firstLayerBedTemp, startGcode: st.text, endGcode: en.text });
+  assert.match(g, /M190 S85 ; wait for bed temp[\s\S]*M109 S230[\s\S]*M221 S95[\s\S]*G92 E0/); assert.match(g, /M104 S240/, 'switches to the normal temperature after layer 1');
+  assert.match(g, /M140 S90/); assert.match(g, /M84 ; disable motors\n$/); assert.ok(!/PRINT_START|\[first_layer/.test(g)); assert.ok(monotonicE(g) && noNaN(g));
+  // Volumetric cap from the filament (8 mm³/s) slows fast infill: 8 / (0.2 × 0.45) ≈ 89 mm/s.
+  const fs = parseGcode(g).length; assert.ok(fs > 100); assert.ok(!j.moves.some(m => m.t === 'feed' && m.e !== undefined && (m.f ?? 0) / 60 > 8 / (0.2 * 0.45) + 1e-6));
+});
+
+test('profile safety: temperatures over the material limit, speeds over the machine, risky G-code', () => {
+  const ok = profileHazards({ material: 'PLA', nozzleTemp: 210, bedTemp: 60, speed: 100, travel: 150, maxX: 300, maxY: 300 }); assert.equal(ok.length, 0);
+  const hot = profileHazards({ material: 'PLA', nozzleTemp: 215, firstLayerNozzleTemp: 260, bedTemp: 60, speed: 100, travel: 150 });
+  const t = hot.find(h => h.id === 'profile-nozzle-temp')!; assert.equal(t.severity, 'critical'); assert.ok(t.ack && t.cite); assert.ok(hot.some(h => h.id === 'profile-ptfe'));
+  assert.ok(profileHazards({ material: 'PETG', nozzleTemp: 240, bedTemp: 130, speed: 50, travel: 50 }).some(h => h.id === 'profile-bed-temp' && h.severity === 'critical'));
+  const fast = profileHazards({ material: 'PLA', nozzleTemp: 210, bedTemp: 60, speed: 120, travel: 400, maxX: 200, maxY: 200 }); assert.ok(fast.some(h => h.id === 'profile-speed' && h.ack));
+  const g = profileHazards({ material: 'PLA', nozzleTemp: 210, bedTemp: 60, speed: 50, travel: 50, gcode: [{ label: 'Start', text: 'G28\nM502 ; reset\nM302 S0\nM104 S280\nM117 ok ; M500 in a comment is fine' }] });
+  const gh = g.find(h => h.id === 'profile-gcode-start')!; assert.equal(gh.severity, 'critical'); assert.match(gh.why, /M502/); assert.match(gh.why, /M302/); assert.match(gh.why, /280/); assert.ok(!/M500 in/.test(gh.why));
+  assert.equal(profileHazards({ nozzleTemp: 295, bedTemp: 110, speed: 50, travel: 50 }).filter(h => h.severity === 'critical').length, 0, 'unknown filament: generic 300/120 ceiling');
+});
+
+test('saved profiles are per user and survive a reload', () => {
+  const mem = new Map<string, string>(); const st = { get: (k: string) => mem.get(k) ?? null, set: (k: string, v: string) => { mem.set(k, v); } };
+  const r = importProfiles([{ name: 'bundle.ini', data: fixture('prusa_bundle.ini') }]);
+  assert.ok(saveProfiles(st, r.profiles, 'uid-a')); assert.equal(loadProfiles(st, 'uid-a').length, 3); assert.equal(loadProfiles(st, 'uid-b').length, 0);
+  const again = importProfiles([{ name: 'bundle.ini', data: fixture('prusa_bundle.ini') }]);
+  assert.equal(mergeProfiles(loadProfiles(st, 'uid-a'), again.profiles).length, 3, 're-importing replaces by kind and name');
+});
+
+test('infill patterns: grid, cubic and gyroid stay inside and print valid G-code', () => {
+  const area = [sq(15)];
+  for (const pat of ['lines', 'grid', 'cubic', 'gyroid'] as const) {
+    const paths = infillPaths(area, pat, 2, 3, 1); assert.ok(paths.length > 3, pat);
+    assert.ok(paths.flat().every(p => Math.abs(p[0]) <= 15.01 && Math.abs(p[1]) <= 15.01), `${pat} stays inside`);
+    const j = fdmJob(box(30, 3), { infillPattern: pat, infill: 0.2, solidLayers: 1, adhesion: 'none' }); const g = post(j, { dialect: 'marlin' }); assert.ok(monotonicE(g) && noNaN(g), pat);
+  }
+  // Gyroid: curved lines, and the pattern changes with height.
+  const gy = gyroidFill(area, 2, 0.6); assert.ok(gy.some(l => l.length > 6), 'curves, not straight lines');
+  assert.notDeepEqual(gyroidFill(area, 2, 0.6)[0], gyroidFill(area, 2, 1.4)[0]);
+  // Cubic shifts with height; grid crosses itself in one layer.
+  assert.notDeepEqual(infillPaths(area, 'cubic', 2, 0.2, 0)[0], infillPaths(area, 'cubic', 2, 1.2, 5)[0]);
+  const angles = new Set(infillPaths(area, 'grid', 2, 1, 0).map(l => Math.round(Math.atan2(l[1][1] - l[0][1], l[1][0] - l[0][0]) * 180 / Math.PI + 360) % 180)); assert.equal(angles.size, 2);
+});
+
+test('adaptive layers: thin on shallow slopes, thick on vertical walls, exact tops', () => {
+  const walls = layerHeights(box(20, 10), { layer: 0.2, adaptive: true, nozzle: 0.4 }); // vertical sides: thick layers
+  assert.ok(walls.length < 50, `${walls.length}`); assert.ok(Math.abs(walls[walls.length - 1] - 10) < 1e-6);
+  const shallow = layerHeights([pyramid(20, 5)], { layer: 0.2, adaptive: true, nozzle: 0.4 }); // ~14° slope: thin layers
+  const steps = shallow.map((z, i) => z - (i ? shallow[i - 1] : 0)); assert.ok(Math.max(...steps.slice(1)) < 0.2, `${Math.max(...steps)}`); assert.ok(shallow.length > 25);
+  const j = fdmJob([pyramid(20, 5)], { adaptive: true, adhesion: 'none' }); const g = post(j, { dialect: 'marlin' });
+  const zs = [...new Set(parseGcode(g).filter(m => m.g === 1 && m.e !== undefined).map(m => +m.z.toFixed(3)))]; assert.ok(zs.length > 20); assert.ok(monotonicE(g) && noNaN(g));
+  // A first layer of its own height.
+  assert.equal(layerHeights(box(20, 2), { layer: 0.2, firstLayer: 0.3 })[0], 0.3);
+});
+
+test('seams: rear puts the start at the back, aligned follows the layer below into a corner', () => {
+  const l: Loop = [[-10, -10], [10, -10], [10, 10], [0, 12], [-10, 10]];
+  assert.equal(seamIndex(l, 'rear', { pos: [0, 0], prev: [], li: 0, k: 0 }), 3);
+  assert.equal(seamIndex(l, 'aligned', { pos: [0, 0], prev: [[10, -9.5]], li: 1, k: 0 }), 1);
+  assert.equal(seamIndex(l, 'nearest', { pos: [-11, 9], prev: [], li: 0, k: 0 }), 4);
+  // In a job, every layer's outer wall starts at the back.
+  const j = fdmJob(box(20, 2), { seam: 'rear', walls: 1, infill: 0, solidLayers: 0, adhesion: 'none', retract: 0, zHop: 0 });
+  const starts: number[] = []; let y = 0, fresh = false;
+  for (const m of j.moves) { if (m.t === 'layer') fresh = true; if (m.t !== 'rapid' && m.t !== 'feed') continue; if (fresh && m.t === 'feed' && m.x !== undefined) { starts.push(y); fresh = false; } y = m.y ?? y; }
+  assert.equal(starts.length, j.stats.layers); assert.ok(starts.every(v => v > 9), `${starts}`);
+});
+
+test('ironing: a light, slow pass over top surfaces only', () => {
+  const plain = fdmJob(tee(), { adhesion: 'none' }); const ironed = fdmJob(tee(), { adhesion: 'none', ironing: true });
+  assert.ok(Number(ironed.meta.ironingFilamentMm) > 0); assert.equal(plain.meta.ironingFilamentMm, undefined);
+  const slow = ironed.moves.filter(m => m.t === 'feed' && m.x !== undefined && m.f === 15 * 60); assert.ok(slow.length > 50);
+  // Ironing happens on the wing tops (z = 10) and the stem's top layer... not on the bottom.
+  const layerOf = (idx: number) => { for (let i = idx; i >= 0; i--) { const m = ironed.moves[i]; if (m.t === 'layer') return m.z; } return 0; };
+  const zs = new Set(ironed.moves.map((m, i) => (m.t === 'feed' && m.f === 900 ? layerOf(i) : -1)).filter(z => z > 0)); assert.ok([...zs].every(z => z >= 9.9), `${[...zs]}`);
+  assert.ok(monotonicE(post(ironed, { dialect: 'marlin' })));
+});
+
+test('tree supports reach the wings from the bed and print as rings', () => {
+  const t = fdmJob(tee(), { supports: 'buildplate', supportStyle: 'tree' }); const s = Number(t.meta.supportFilamentMm);
+  assert.ok(s > 20, `support ${s}`);
+  assert.ok(t.moves.some(m => m.t === 'feed' && m.x !== undefined && Math.abs(m.x) > 6), 'printed under the wings');
+  const g = t.supportGrids!; const at = (L: number, x: number) => { const m = g[L]; let n = 0; for (let r = 0; r < m.h; r++) { const c = Math.floor((x - m.x0) / m.cell); if (m.bits[r * m.w + c]) n++; } return n; };
+  assert.ok([10, 11, 12, 13, 14].some(x => at(2, x) > 0) || [-10, -11, -12, -13, -14].some(x => at(2, x) > 0), 'branches near the bed under the wings');
+  assert.equal(Number(fdmJob(box(20, 10), { supports: 'everywhere', supportStyle: 'tree' }).meta.supportFilamentMm ?? 0), 0);
+  assert.ok(monotonicE(post(t, { dialect: 'marlin' })));
+});
+
+test('time estimate accounts for acceleration and corners', () => {
+  assert.ok(Math.abs(trapezoid(100, 50, 1e9, 0, 0) - 2) < 1e-6); // instant acceleration: L / v
+  assert.ok(Math.abs(trapezoid(10, 100, 1000, 0, 0) - 2 * Math.sqrt(10 / 1000)) < 1e-6); // never reaches cruise
+  const zig = Array.from({ length: 200 }, (_, i) => ({ t: 'feed' as const, x: i % 2 ? 20 : 0, y: i * 0.4, e: i, f: 6000 }));
+  const slow = estimateSeconds(zig, { accel: 500 }), fast = estimateSeconds(zig, { accel: 20000 });
+  assert.ok(slow > fast * 1.5, `${slow} vs ${fast}`);
+  const straight = [{ t: 'feed' as const, x: 50, f: 3000 }, { t: 'feed' as const, x: 100, f: 3000 }]; const corner = [{ t: 'feed' as const, x: 50, f: 3000 }, { t: 'feed' as const, x: 50, y: 50, f: 3000 }];
+  assert.ok(estimateSeconds(corner, { accel: 1000 }) > estimateSeconds(straight, { accel: 1000 }), 'stopping at a sharp corner costs time');
+  const j = fdmJob(box(20, 2), { accel: 500, adhesion: 'none' }); assert.ok(j.stats.seconds > Number(j.meta.secondsNoAccel), 'longer than the constant-speed sum');
+  assert.ok(fdmJob(box(20, 2), { accel: 5000, adhesion: 'none' }).stats.seconds < j.stats.seconds);
+});

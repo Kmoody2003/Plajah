@@ -3,8 +3,11 @@
 // the file or send it straight to the machine.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Factory, Play, Download, Send, Square, Store } from 'lucide-react';
-import { processHazards, needsAck } from '../../services/safety/hazards';
+import { Factory, Play, Download, Send, Square, Store, Upload, Trash2 } from 'lucide-react';
+import { processHazards, profileHazards, needsAck, sortHazards } from '../../services/safety/hazards';
+import { importProfiles, applyProfiles, loadProfiles, saveProfiles, mergeProfiles, renderGcode, settingsVars, jobVars, type SavedProfile, type ProfileKind, type Flat } from '../../services/fab/profiles';
+import { INFILL_PATTERNS, type InfillPattern } from '../../services/fab/infill';
+import type { SeamMode, FdmOptions } from '../../services/fab/cam';
 import SafetyPanel, { BuildTermsGate, termsAccepted } from '../safety/SafetyPanel';
 import ExchangeRoom from '../supply/ExchangeRoom';
 import { PROCESS_CATEGORY } from '../../services/supply/directory';
@@ -29,6 +32,10 @@ const dl = (name: string, data: BlobPart, type: string) => { const u = URL.creat
 const store = { get: (k: string) => { try { return JSON.parse(localStorage.getItem(`plajah.fab.${k}`) ?? 'null'); } catch { return null; } }, set: (k: string, v: unknown) => { try { localStorage.setItem(`plajah.fab.${k}`, JSON.stringify(v)); } catch { /* private mode */ } } };
 
 interface Output { name: string; data: BlobPart; type: string; gcode?: string }
+const lsStore = { get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k: string, v: string) => { localStorage.setItem(k, v); } };
+/** The signed-in user's id from their ID token (its `sub` claim), so saved profiles stay per user. */
+const userFromToken = (t: string | null) => { try { const p = JSON.parse(atob((t ?? '').split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); return String(p.user_id ?? p.sub ?? ''); } catch { return ''; } };
+const KIND_LABEL: Record<ProfileKind, string> = { printer: 'Printer profile', filament: 'Filament profile', process: 'Process profile' };
 
 export default function MakePanel({ model, getToken }: { model: CadModel; getToken?: () => Promise<string | null> }) {
   const is2D = model.is2D || !model.meshes.length; const k = MM_PER_UNIT[model.units] || 1;
@@ -38,12 +45,62 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
   const [procId, setProcId] = useState<string>(() => (is2D ? 'laser-co2' : 'fdm'));
   const proc = (procs.find(p => p.id === procId) ?? procs[0]) as Process;
   const machines = machinesFor(proc.id); const [machineId, setMachineId] = useState(machines[0]?.id ?? '');
-  const machine = (machines.find(m => m.id === machineId) ?? machines[0]) as Machine | undefined;
+  const baseMachine = (machines.find(m => m.id === machineId) ?? machines[0]) as Machine | undefined;
   useEffect(() => { setMachineId(machinesFor(proc.id)[0]?.id ?? ''); setJob(null); setOut(null); }, [proc.id]);
   // Settings.
   const [s, setS] = useState({ layer: 0.2, infill: 20, walls: 2, nozzleTemp: 210, bedTemp: 60, kerf: proc.rules.kerf ?? 0.15, feed: 1200, power: 80, thickness: 3, material: '', tool: 6.35, stepDown: 3, stock: 25, doc: 1, metalLayer: 0.04,
     filament: 'pla', supports: 'none' as 'none' | 'buildplate' | 'everywhere', adhesion: 'skirt' as 'none' | 'skirt' | 'brim',
-    resinPrinter: 'sl1s', resin: 'standard', resinLayer: 0.05, resinSupports: true });
+    resinPrinter: 'sl1s', resin: 'standard', resinLayer: 0.05, resinSupports: true,
+    infillPattern: 'lines' as InfillPattern, seam: 'aligned' as SeamMode, supportStyle: 'grid' as 'grid' | 'tree', ironing: false, adaptive: false, maxVolumetric: 0 });
+  // Imported slicer profiles (OrcaSlicer, Bambu Studio, PrusaSlicer, SuperSlicer, 3MF projects), saved per user on this device.
+  const [user, setUser] = useState('');
+  useEffect(() => { let on = true; getToken?.().then(t => { if (on) setUser(userFromToken(t)); }).catch(() => {}); return () => { on = false; }; }, [getToken]);
+  const [profiles, setProfiles] = useState<SavedProfile[]>([]);
+  useEffect(() => { setProfiles(loadProfiles(lsStore, user)); }, [user]);
+  const [sel, setSel] = useState<Record<ProfileKind, string>>({ printer: '', filament: '', process: '' });
+  const [importNote, setImportNote] = useState<string[]>([]);
+  const picked = useMemo(() => ({ printer: profiles.find(p => p.id === sel.printer) ?? null, filament: profiles.find(p => p.id === sel.filament) ?? null, process: profiles.find(p => p.id === sel.process) ?? null }), [profiles, sel]);
+  const applied = useMemo(() => applyProfiles(picked), [picked]);
+  const [rendered, setRendered] = useState<{ start?: string; end?: string; skipped: string[] } | null>(null);
+  useEffect(() => { setRendered(null); }, [sel.printer, sel.filament]);
+  const fdmLike = proc.id === 'fdm';
+  // A printer profile reshapes the chosen machine (bed, nozzle, G-code flavour); the connection stays the machine's.
+  const machine: Machine | undefined = baseMachine && fdmLike && picked.printer ? { ...baseMachine, bed: applied.bed ?? baseMachine.bed, nozzle: applied.nozzle ?? baseMachine.nozzle, dialect: applied.dialect ?? baseMachine.dialect } : baseMachine;
+  const persist = (list: SavedProfile[]) => { setProfiles(list); if (!saveProfiles(lsStore, list, user)) setImportNote(n => [...n, 'Could not save profiles on this device (storage full or private mode); they last until you close the page.']); };
+  const onImport = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const list = await Promise.all([...files].map(async f => ({ name: f.name, data: new Uint8Array(await f.arrayBuffer()) })));
+    const r = importProfiles(list, profiles);
+    const next = mergeProfiles(profiles, r.profiles); persist(next);
+    const latest = (k: ProfileKind) => r.profiles.filter(p => p.kind === k).pop();
+    const nextSel = { ...sel }; (['printer', 'filament', 'process'] as ProfileKind[]).forEach(k => { const p = latest(k); if (p) nextSel[k] = p.id; });
+    setSel(nextSel); const f = latest('filament'); const ps = latest('process'); if (f) applyFilamentProfile(f); if (ps) applyProcessProfile(ps);
+    setImportNote([r.profiles.length ? `Imported ${r.profiles.map(p => `${p.name} (${p.kind})`).join(', ')}.` : 'No profiles found in those files.', ...r.warnings, ...r.profiles.flatMap(p => p.warnings)]);
+  };
+  // Choosing a filament or process profile fills the visible settings, so what slices is what you see and can edit.
+  const applyFilamentProfile = (p: SavedProfile | null) => { const f = p?.filament; if (!f) return; setS(x => ({ ...x, nozzleTemp: f.nozzleTemp ?? x.nozzleTemp, bedTemp: f.bedTemp ?? x.bedTemp, maxVolumetric: f.maxVolumetric ?? x.maxVolumetric })); };
+  const applyProcessProfile = (p: SavedProfile | null) => {
+    const q = p?.process; if (!q) return;
+    setS(x => ({ ...x, layer: q.layer ?? x.layer, infill: q.infill !== undefined ? Math.round(q.infill * 100) : x.infill, walls: q.walls ?? x.walls, infillPattern: q.infillPattern ?? x.infillPattern, seam: q.seam ?? x.seam,
+      ironing: q.ironing ?? x.ironing, supports: q.supports ?? x.supports, supportStyle: q.supportStyle ?? x.supportStyle, adhesion: q.adhesion ?? x.adhesion }));
+  };
+  const choose = (k: ProfileKind, id: string) => { setSel(x => ({ ...x, [k]: id })); const p = profiles.find(q => q.id === id) ?? null; if (k === 'filament') applyFilamentProfile(p); if (k === 'process') applyProcessProfile(p); };
+  const removeProfile = (k: ProfileKind) => { const id = sel[k]; if (!id) return; persist(profiles.filter(p => p.id !== id)); setSel(x => ({ ...x, [k]: '' })); };
+  /** Everything the FDM slicer gets: built-in filament, then profiles, then the visible settings. */
+  const fdmOptions = (): FdmOptions => {
+    const fil = filamentById(proc.id === 'bound-metal' ? 'bound-316l' : s.filament) ?? FILAMENTS[0];
+    const bed = machine?.bed ?? [220, 220, 250];
+    return { ...FDM_DEFAULTS, fan: fil.fan, retract: fil.retract, retractSpeed: fil.retractSpeed, density: fil.density, speed: fil.speed, ...(fdmLike ? applied.fdm : {}),
+      layer: s.layer, infill: s.infill / 100, walls: s.walls, nozzleTemp: s.nozzleTemp, bedTemp: s.bedTemp, nozzle: machine?.nozzle ?? 0.4, process: proc.id,
+      supports: s.supports, supportStyle: s.supportStyle, adhesion: s.adhesion, infillPattern: s.infillPattern, seam: s.seam, ironing: s.ironing,
+      adaptive: s.adaptive ? (typeof applied.fdm.adaptive === 'object' ? applied.fdm.adaptive : true) : false, maxVolumetric: s.maxVolumetric > 0 ? s.maxVolumetric : undefined,
+      center: applied.bedCenter ?? [bed[0] / 2, bed[1] / 2], bed: { w: bed[0], d: bed[1], shape: applied.bedShape } };
+  };
+  const profileGcode = useMemo(() => {
+    const g: Array<{ label: string; text: string }> = []; const pr = picked.printer?.printer, fi = picked.filament?.filament;
+    const st = [rendered?.start ?? [pr?.startGcode, fi?.startGcode].filter(Boolean).join('\n')].filter(Boolean)[0]; const en = [rendered?.end ?? [fi?.endGcode, pr?.endGcode].filter(Boolean).join('\n')].filter(Boolean)[0];
+    if (st) g.push({ label: 'Start', text: st }); if (en) g.push({ label: 'End', text: en }); return g;
+  }, [picked, rendered]);
   const [rjob, setRjob] = useState<ResinJob | null>(null);
   useEffect(() => { setS(x => ({ ...x, kerf: proc.id === 'router' ? x.tool : proc.rules.kerf ?? 0, feed: proc.id === 'plasma' ? 2500 : proc.id === 'router' ? 1500 : proc.id.startsWith('laser') ? 1200 : 800 })); }, [proc.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [job, setJob] = useState<(Job & { layers?: Layer[] }) | null>(null); const [cliLayers, setCliLayers] = useState<Layer[] | null>(null);
@@ -55,7 +112,13 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
   const findings = useMemo<DfmFinding[]>(() => is2D ? dfm2d(paths.loops, proc, { thickness: s.thickness, material: s.material, tool: proc.id === 'router' || proc.id === 'mill3' ? s.tool : undefined }) : dfm3d(meshes, proc, machine), [is2D, paths, meshes, proc, machine, s.thickness, s.material, s.tool]);
   const blocked = findings.some(f => f.level === 'error');
   // Machine safety: critical hazards must be acknowledged before preparing, downloading or sending.
-  const hazards = useMemo(() => processHazards(proc.id, s.material || s.filament), [proc.id, s.material, s.filament]);
+  const hazards = useMemo(() => {
+    const base = processHazards(proc.id, s.material || applied.filamentType || s.filament);
+    if (!fdmLike || (!picked.printer && !picked.filament && !picked.process)) return base;
+    const f = applied.fdm; const speeds = [f.speed, f.outerWallSpeed, f.innerWallSpeed, f.infillSpeed, f.solidSpeed].filter((v): v is number => typeof v === 'number');
+    return sortHazards([...base, ...profileHazards({ material: applied.filamentType || filamentById(s.filament)?.name, nozzleTemp: s.nozzleTemp, bedTemp: s.bedTemp, firstLayerNozzleTemp: f.firstLayerNozzleTemp, firstLayerBedTemp: f.firstLayerBedTemp,
+      speed: Math.max(0, ...speeds), travel: f.travel ?? 0, maxX: applied.limits?.maxX, maxY: applied.limits?.maxY, gcode: profileGcode, source: [picked.printer, picked.filament, picked.process].filter(Boolean).map(p => p!.name).join(', ') })]);
+  }, [proc.id, s.material, s.filament, s.nozzleTemp, s.bedTemp, applied, picked, fdmLike, profileGcode]);
   const [acks, setAcks] = useState<string[]>([]); const [terms, setTerms] = useState(termsAccepted); const [exchange, setExchange] = useState(false);
   const openCritical = needsAck(hazards).filter(h => !acks.includes(h.id));
   const base = model.name.replace(/\.[^.]+$/, '') || 'part';
@@ -67,10 +130,21 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
         const scale = proc.rules.shrink ? 1 / (1 - proc.rules.shrink) : 1;
         if (proc.id === 'fdm' || proc.id === 'bound-metal') {
           const scaled = scale === 1 ? meshes : meshes.map(m => ({ positions: Float32Array.from(m.positions, v => v * scale), indices: m.indices }));
-          const fil = filamentById(proc.id === 'bound-metal' ? 'bound-316l' : s.filament) ?? FILAMENTS[0];
-          const j = fdmJob(scaled, { ...FDM_DEFAULTS, layer: s.layer, infill: s.infill / 100, walls: s.walls, nozzleTemp: s.nozzleTemp, bedTemp: s.bedTemp, nozzle: machine?.nozzle ?? 0.4, process: proc.id,
-            supports: s.supports, adhesion: s.adhesion, fan: fil.fan, retract: fil.retract, retractSpeed: fil.retractSpeed, density: fil.density, speed: fil.speed });
-          const g = post(j, { dialect: machine?.dialect ?? 'marlin', name: base, nozzleTemp: s.nozzleTemp, bedTemp: s.bedTemp }); setJob(j); setLayer(0);
+          const fo = fdmOptions(); const j = fdmJob(scaled, fo);
+          // Profile start/end G-code: filled from our values, never run here; unresolved lines are commented out for review.
+          let startGcode: string | undefined, endGcode: string | undefined; let skipped: string[] = [];
+          const pr = fdmLike ? picked.printer?.printer : undefined, fi = fdmLike ? picked.filament?.filament : undefined;
+          if (pr?.startGcode || pr?.endGcode) {
+            const raw: Flat = { ...(picked.printer?.settings ?? {}), ...(picked.filament?.settings ?? {}), ...(picked.process?.settings ?? {}) };
+            let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const l of j.layers[0]?.loops ?? []) for (const p of l) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
+            const bedMin = pr.bedMin, bedMax: P2 = [pr.bedMin[0] + pr.bed[0], pr.bedMin[1] + pr.bed[1]];
+            const vars = { ...settingsVars(raw), ...jobVars(fo, { bedMin, bedMax, firstLayerMin: Number.isFinite(x0) ? [x0, y0] : bedMin, firstLayerMax: Number.isFinite(x1) ? [x1, y1] : bedMax, layers: j.layers.length, maxZ: j.layers[j.layers.length - 1]?.z, filamentType: applied.filamentType }) };
+            const st = renderGcode([pr.startGcode, fi?.startGcode].filter(Boolean).join('\n'), vars), en = renderGcode([fi?.endGcode, pr.endGcode].filter(Boolean).join('\n'), vars);
+            startGcode = pr.startGcode ? st.text : undefined; endGcode = pr.endGcode ? en.text : undefined; skipped = [...st.skipped, ...en.skipped];
+            setRendered({ start: startGcode, end: endGcode, skipped });
+          }
+          const g = post(j, { dialect: machine?.dialect ?? 'marlin', name: base, nozzleTemp: fo.firstLayerNozzleTemp ?? s.nozzleTemp, bedTemp: fo.firstLayerBedTemp ?? s.bedTemp, startGcode, endGcode }); setJob(j); setLayer(0);
+          if (skipped.length) setMsg(`${skipped.length} line${skipped.length > 1 ? 's' : ''} of profile G-code used placeholders we could not fill; they are commented out. Review them under Custom G-code.`);
           setOut({ name: `${base}.gcode`, data: g, type: 'text/plain', gcode: g });
         } else if (proc.id === 'resin') {
           const ro = { printer: s.resinPrinter, resin: s.resin, layer: s.resinLayer, supports: s.resinSupports };
@@ -124,11 +198,31 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
     {machines.length > 0 && <select value={machine?.id} onChange={e => setMachineId(e.target.value)} className="w-full h-7 rounded bg-white/5 border border-white/10 text-[11.5px] text-white mb-2" aria-label="Machine" data-testid="fab-machine">{machines.map(m => <option key={m.id} value={m.id} style={{ background: '#15131d' }}>{m.name}</option>)}</select>}
 
     <div className="p-2 rounded-lg mb-2" style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)' }}>
+      {kind === 'fdm' && proc.id === 'fdm' && <div className="mb-2 pb-2" style={{ borderBottom: '1px solid rgba(255,255,255,.07)' }} data-testid="fab-profiles">
+        <div className="flex items-center justify-between mb-1"><span className="font-semibold">Slicer profiles</span>
+          <label className="cad-btn cursor-pointer" title="OrcaSlicer / Bambu Studio JSON or preset bundle, PrusaSlicer / SuperSlicer .ini or config bundle, or a .3mf project"><Upload size={12}/>Import
+            <input type="file" multiple accept=".json,.ini,.3mf,.zip,.orca_printer,.orca_filament,.bbscfg,.bbsflmt" className="hidden" onChange={e => { void onImport(e.target.files); e.target.value = ''; }} data-testid="fab-profile-import"/></label></div>
+        <div className="text-[10px] mb-1" style={{ color: DIM }}>Use the presets you already have from OrcaSlicer, Bambu Studio, PrusaSlicer or SuperSlicer. Select a printer preset together with the presets it inherits from. Saved on this device for your account.</div>
+        {(['printer', 'filament', 'process'] as ProfileKind[]).map(k => { const list = profiles.filter(p => p.kind === k); return <label key={k} className="flex items-center justify-between py-0.5 gap-2"><span style={{ color: DIM }}>{KIND_LABEL[k]}</span><span className="flex items-center gap-1">
+          <select value={sel[k]} onChange={e => choose(k, e.target.value)} className="w-32 h-6 rounded bg-white/5 border border-white/10 text-[11px] text-white" aria-label={KIND_LABEL[k]} data-testid={`fab-profile-${k}`}><option value="" style={{ background: '#15131d' }}>Built-in</option>{list.map(p => <option key={p.id} value={p.id} style={{ background: '#15131d' }}>{p.name}</option>)}</select>
+          {sel[k] && <button className="opacity-60 hover:opacity-100" onClick={() => removeProfile(k)} aria-label={`Delete ${KIND_LABEL[k]}`}><Trash2 size={12}/></button>}</span></label>; })}
+        {picked.printer?.printer && <div className="text-[10px] mt-0.5" style={{ color: DIM }} data-testid="fab-profile-summary">Bed {picked.printer.printer.bedShape === 'circle' ? `Ø${picked.printer.printer.bed[0]}` : `${picked.printer.printer.bed[0]} × ${picked.printer.printer.bed[1]}`} × {picked.printer.printer.bed[2]} mm · nozzle {picked.printer.printer.nozzle ?? '?'} mm · {picked.printer.printer.dialect ?? `${baseMachine?.dialect ?? 'marlin'} (flavour not recognised)`}{applied.limits?.maxX ? ` · max ${applied.limits.maxX} mm/s` : ''}{applied.limits?.accel ? ` · ${applied.limits.accel} mm/s²` : ''}</div>}
+        {importNote.map((n, i) => <div key={i} className="text-[10px] mt-0.5" style={{ color: i ? LV.warn : LV.pass }}>{n}</div>)}
+        {profileGcode.length > 0 && <details className="mt-1" data-testid="fab-profile-gcode"><summary className="cursor-pointer text-[10.5px]">Custom G-code from the profile (review before printing{rendered?.skipped.length ? `, ${rendered.skipped.length} skipped` : ''})</summary>
+          {profileGcode.map(g => <div key={g.label}><div className="text-[10px] mt-1" style={{ color: DIM }}>{g.label}{rendered ? ' (as it goes in the file)' : ' (template; filled in when you prepare)'}</div><pre className="text-[9.5px] leading-tight whitespace-pre-wrap max-h-40 overflow-auto p-1.5 rounded bg-black/40 border border-white/10">{g.text}</pre></div>)}
+          <div className="text-[10px] mt-1" style={{ color: DIM }}>We never run this ourselves; it is copied into the G-code file as text. Lines we could not fill are commented out.</div></details>}
+      </div>}
       {kind === 'fdm' && proc.id === 'fdm' && <>
         {pick('filament', 'Filament', FILAMENTS.map(f => [f.id, f.name]), v => { const f = filamentById(v); if (f) setS(x => ({ ...x, filament: v, nozzleTemp: f.nozzle, bedTemp: f.bed })); })}
         <div className="text-[10px] mb-1" style={{ color: DIM }}>{filamentById(s.filament)?.notes}</div>
         {pick('supports', 'Supports', [['none', 'None'], ['buildplate', 'From the bed'], ['everywhere', 'Everywhere']])}
+        {s.supports !== 'none' && pick('supportStyle', 'Support style', [['grid', 'Grid columns'], ['tree', 'Tree (branches)']])}
         {pick('adhesion', 'Bed adhesion', [['none', 'None'], ['skirt', 'Skirt'], ['brim', 'Brim']])}
+        {pick('infillPattern', 'Infill pattern', INFILL_PATTERNS)}
+        {pick('seam', 'Seam', [['aligned', 'Aligned'], ['rear', 'Rear'], ['nearest', 'Nearest'], ['random', 'Scattered']])}
+        <label className="flex items-center justify-between py-0.5 gap-2"><span style={{ color: DIM }}>Adaptive layer height</span><input type="checkbox" checked={s.adaptive} onChange={e => setS(x => ({ ...x, adaptive: e.target.checked }))} aria-label="Adaptive layer height" data-testid="fab-adaptive"/></label>
+        <label className="flex items-center justify-between py-0.5 gap-2"><span style={{ color: DIM }}>Iron top surfaces</span><input type="checkbox" checked={s.ironing} onChange={e => setS(x => ({ ...x, ironing: e.target.checked }))} aria-label="Ironing" data-testid="fab-ironing"/></label>
+        {num('maxVolumetric', 'Max flow (0 = off)', 'mm³/s', 1)}
       </>}
       {kind === 'resin' && <>
         {pick('resinPrinter', 'Printer', RESIN_PRINTERS.map(p => [p.id, p.name]))}
