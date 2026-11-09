@@ -10,6 +10,7 @@ import { SOFT_TEMPLATES, softTemplateById, softDefaults, fmtLen, CHILD_SIZES, ty
 import { printSheet, marker, rolesOf, yardage, FABRIC_LABEL, cutChart, patternModel, gradedModel, markerSvg, pieceCaption, type SheetItem, type Marker } from '../../services/soft/layout';
 import { sizesOf, sizeRange, gradeSet, gradePom, sizeStyle, sizeRangeLabel } from '../../services/soft/grading';
 import DrawingTracer from './DrawingTracer';
+import PodExport from './PodExport';
 import { printPdf, techPackPdf, type Paper } from '../../services/soft/pdf';
 import { writeDxf } from '../../services/cad/dxf';
 import type { Pt } from '../../services/soft/geometry';
@@ -209,6 +210,7 @@ export default function PatternRoom({ onClose, getToken, apiBase = '', initialTe
             <div><div className="sew-h"><FileText size={12}/>Tech pack (for a seamstress or factory)</div>
               {(['style', 'designer', 'season', 'colourways'] as const).map(k => <input key={k} className="sew-in mb-1" placeholder={k[0].toUpperCase() + k.slice(1)} value={pack[k]} onChange={e => setPack(p => ({ ...p, [k]: e.target.value }))}/>)}
               <button className="sew-btn sew-primary w-full justify-center" onClick={() => guard(runPack)} disabled={!!busy} data-testid="sew-techpack"><FileText size={12}/>{busy === 'pack' ? 'Building…' : 'Download tech pack PDF'}</button></div>
+            <PodExport pattern={pattern} name={name} guard={guard}/>
             <div><div className="sew-h"><Store size={12}/>Get it made</div>
               <button className="sew-btn w-full justify-center mb-1.5" onClick={() => setExchange(true)}>Request quotes from makers</button>
               {suppliersFor(cats).slice(0, 6).map(s => <a key={s.id} href={s.url} target="_blank" rel="noreferrer" className="block p-1.5 rounded mb-1" style={{ background: 'rgba(255,255,255,.03)' }}><div className="flex items-center gap-1 text-[11.5px] font-semibold">{s.name}<ExternalLink size={9}/><span className="ml-auto text-[9.5px] px-1 rounded bg-white/10">{s.connect}</span></div><div className="text-[10.5px]" style={{ color: C.dim }}>{s.about}</div></a>)}</div>

@@ -128,3 +128,37 @@ test('graded nests and AAMA DXF: fly trousers 2T–14 and princess dress XS–3X
     assert.equal(back.graded.pattern.pieces.length, gr.pattern.pieces.length);
   }
 });
+
+import { POD_PROFILES, podPanels, podFiles } from '../services/soft/pod';
+import { cutInstances } from '../services/soft/patterns';
+
+test('print-on-demand panels: one per cut piece, bleed > cut > seam > safe, grain up the file, exact pixel size, no credentials', () => {
+  const tee = build('tee', { size: 'M' }); const art = { mode: 'tile' as const, image: { href: 'data:image/png;base64,AAAA', px: [1200, 1200] as [number, number] }, tileMm: 200 };
+  for (const prov of Object.values(POD_PROFILES)) {
+    const h = podPanels(tee, art, prov); assert.equal(h.panels.length, cutInstances(tee).length, prov.id);
+    for (const q of h.panels) {
+      const A = (r: Pt[]) => Math.abs(area(r)); assert.ok(A(q.bleed) > A(q.cut) && A(q.cut) > A(q.seam) && A(q.seam) > A(q.safe) && A(q.safe) > 0, `${q.file} nesting`);
+      assert.equal(q.widthPx, Math.round(q.widthMm / 25.4 * prov.dpi)); assert.equal(q.heightPx, Math.round(q.heightMm / 25.4 * prov.dpi));
+      assert.ok(Math.abs(q.grain[0][0] - q.grain[1][0]) < 1e-6 && q.grain[1][1] < q.grain[0][1], `${q.file} grain runs up the file`);
+      const bb = bbox(q.bleed), cb = bbox(q.cut); assert.ok(bb.w - cb.w >= 2 * prov.bleedMm - 0.5 && bb.w - cb.w <= 6 * prov.bleedMm && bb.x0 >= -1e-6 && bb.y0 >= -1e-6, `${q.file} bleed`);
+      assert.match(q.printSvg, /clip-path/); assert.doesNotMatch(q.printSvg, /stroke/, 'no guides in the print file'); assert.match(q.guideSvg, /stroke-dasharray/);
+      assert.equal(q.notches.length, unfoldNotches(tee, q.pieceId));
+    }
+    // Pairs: the second sleeve is the mirror image; artwork is not mirrored.
+    const sl = h.panels.filter(q => q.pieceId === 'sleeve'); assert.equal(sl.length, 2); assert.ok(!sl[0].mirrored && sl[1].mirrored);
+    assert.ok(Math.abs(Math.abs(area(sl[0].cut)) - Math.abs(area(sl[1].cut))) < 1e-3); assert.doesNotMatch(sl[1].printSvg, /scale\(-1/);
+    const m = JSON.parse(h.manifest); assert.equal(m.provider, prov.id); assert.equal(m.panels.length, h.panels.length); assert.match(m.payment, /directly/);
+    assert.doesNotMatch(h.manifest, /token|api[_-]?key|password|secret/i, 'no credentials in the hand-off');
+    const files = podFiles(h, Object.fromEntries(h.panels.map(q => [q.file, new Uint8Array([137, 80, 78, 71])])));
+    assert.ok(files['manifest.json'] && files['README.txt'] && h.panels.every(q => files[q.file] && files[q.file.replace('.png', '_guides.svg')]));
+  }
+  // Resolution check: a small picture tiled large is flagged; a flat colour never is.
+  const low = podPanels(tee, { ...art, image: { ...art.image, px: [300, 300] } }, POD_PROFILES.printful); assert.ok(low.warnings.some(w => /ppi/.test(w)));
+  assert.equal(podPanels(tee, { mode: 'colour', colour: '#fff' }, POD_PROFILES.printful).warnings.length, 0);
+  // A plush and a graded garment (fly trousers kids 8) work the same; per-piece art leaves other pieces blank with a warning.
+  const pl = podPanels(build('plush-drawing', { side: true }), { mode: 'per-piece', images: { front: art.image } }, POD_PROFILES.gooten);
+  assert.ok(pl.panels.some(q => q.pieceId === 'gusset') && pl.warnings.some(w => /blank/.test(w)));
+  assert.ok(podPanels(build('trousers', { size: '8', waist: 'fly' }), art, POD_PROFILES.printify).panels.every(q => q.size === '8'));
+});
+
+function unfoldNotches(p: Pattern, id: string) { const pc = p.pieces.find(x => x.id === id)!; return (pc.fold != null ? 2 : 1) * (pc.notches?.length ?? 0); }
