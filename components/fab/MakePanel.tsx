@@ -8,6 +8,7 @@ import { processHazards, profileHazards, openHazards, sortHazards } from '../../
 import { rasterJob, waterlineJob, type CutterShape } from '../../services/fab/surface';
 import { machiningHazards } from '../../services/fab/camSafety';
 import { adaptiveJob } from '../../services/fab/adaptive';
+import SheetMetalPanel from './SheetMetalPanel';
 import { meshBounds } from '../../services/fab/slice';
 import { importProfiles, applyProfiles, loadProfiles, saveProfiles, mergeProfiles, renderGcode, settingsVars, jobVars, type SavedProfile, type ProfileKind, type Flat } from '../../services/fab/profiles';
 import { INFILL_PATTERNS, type InfillPattern } from '../../services/fab/infill';
@@ -128,7 +129,7 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
     return sortHazards([...base, ...profileHazards({ material: applied.filamentType || filamentById(s.filament)?.name, nozzleTemp: s.nozzleTemp, bedTemp: s.bedTemp, firstLayerNozzleTemp: f.firstLayerNozzleTemp, firstLayerBedTemp: f.firstLayerBedTemp,
       speed: Math.max(0, ...speeds), travel: f.travel ?? 0, maxX: applied.limits?.maxX, maxY: applied.limits?.maxY, gcode: profileGcode, source: [picked.printer, picked.filament, picked.process].filter(Boolean).map(p => p!.name).join(', ') })]);
   }, [proc.id, s.material, s.filament, s.nozzleTemp, s.bedTemp, applied, picked, fdmLike, profileGcode, is2D, meshes, s.reach, s.tool, s.routerOp, s.load, s.pocketDepth, s.tabCount, s.tabWidth, s.tabHeight, s.onionSkin, paths]);
-  const [acks, setAcks] = useState<string[]>([]); const [terms, setTerms] = useState(termsAccepted); const [exchange, setExchange] = useState(false);
+  const [sheet, setSheet] = useState(false); const [acks, setAcks] = useState<string[]>([]); const [terms, setTerms] = useState(termsAccepted); const [exchange, setExchange] = useState(false);
   const openCritical = openHazards(hazards, acks);
   const base = model.name.replace(/\.[^.]+$/, '') || 'part';
 
@@ -284,6 +285,8 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
     {exchange && <ExchangeRoom onClose={() => setExchange(false)} getToken={getToken} initialCategory={(PROCESS_CATEGORY[proc.id] ?? ['3d-print'])[0]} prefill={{ title: `Make: ${base}`, processes: [proc.id].filter(id => ['fdm', 'resin', 'sls', 'lpbf', 'mill3', 'router', 'lathe', 'laser-co2', 'laser-fiber', 'plasma', 'waterjet', 'press-brake'].includes(id)), details: `${proc.name}. ${is2D ? 'Drawing' : 'Model'}: ${model.name}.`, hazards: hazards.filter(h => h.severity === 'critical').map(h => h.title) }}/>}
     {!terms && <BuildTermsGate onAccepted={() => setTerms(true)} getToken={getToken}/>}
 
+    {proc.id !== 'press-brake' && <button className="cad-btn w-full justify-center mt-2" onClick={() => setSheet(v => !v)} data-testid="fab-sheet-toggle">{sheet ? 'Hide sheet-metal part' : 'Sheet-metal part: flat pattern and bends'}</button>}
+    {(sheet || proc.id === 'press-brake') && <SheetMetalPanel name={base} brakeLength={proc.id === 'press-brake' ? machine?.bed[0] : undefined}/>}
     {(job || cliLayers) && <Preview job={job} layers={cliLayers ?? job?.layers ?? null} layer={layer} setLayer={setLayer}/>}
     {rjob && <ResinPreview job={rjob} layer={layer} setLayer={setLayer}/>}
     {rjob && <div className="text-[11px] mt-1.5" data-testid="fab-stats">About {(rjob.seconds / 3600).toFixed(1)} h · {rjob.layers.length} layers ({rjob.supportLayers} raft/lift) · {rjob.ml.toFixed(1)} ml resin</div>}

@@ -486,3 +486,52 @@ test('machining hazards: unheld through-cuts, one tab, holder crash; each cites 
   const crash = machiningHazards({ op: 'surface', depth: 50, reach: 30, toolDia: 6 }); assert.ok(crash.find(h => h.id === 'holder-crash')?.block);
   assert.ok(machiningHazards({ op: 'surface', depth: 50, reach: 60, toolDia: 6, finishFromStock: true }).every(h => h.cite));
 });
+
+// ---------------------------------------------------------------- machining gaps: sheet metal
+import { flatPattern, flatToDxf, bendTable, bendAllowance, bendDeduction, outsideSetback, kFactor, sheetChecks, type ProfilePart } from '../services/fab/sheetMetal';
+import { parseDxf } from '../services/cad/dxf';
+
+test('sheet metal: K-factor (DIN 6935), BA and BD, bend tables per material and thickness', () => {
+  assert.ok(Math.abs(kFactor(2, 2) - 0.325) < 1e-12); assert.equal(kFactor(20, 2), 0.5);
+  const ba = bendAllowance(90, 2, 2, 0.4); assert.ok(Math.abs(ba - Math.PI / 2 * 2.8) < 1e-12);
+  assert.ok(Math.abs(bendDeduction(90, 2, 2, 0.4) - (2 * 4 - ba)) < 1e-12); assert.ok(Math.abs(outsideSetback(90, 2, 2) - 4) < 1e-12);
+  const tb = bendTable('steel-cr', 2); assert.equal(tb.V, 16); assert.ok(Math.abs(tb.R - 2.5) < 0.01); assert.equal(tb.rows.length, 6);
+  assert.ok(Math.abs(tb.forcePerM - 1.42 * 400 * 4 / 16) < 0.1, `${tb.forcePerM} kN/m`); // ~14.5 t/m for 2 mm mild steel on V16
+  assert.ok(bendTable('al6061', 2).R >= 6, '6061-T6 gets a 3·t radius'); assert.ok(bendTable('ss304', 2).forcePerM > tb.forcePerM);
+});
+
+test('sheet metal: flat length is the flanges plus the bend allowances (and outside dims less BD)', () => {
+  const flat: ProfilePart = { kind: 'profile', material: 'steel-cr', t: 2, width: 100, radius: 2, k: 0.4, segments: [30, 50, 30], dims: 'flat', bends: [{ angle: 90, dir: 'up' }, { angle: 90, dir: 'up' }] };
+  const f = flatPattern(flat); const ba = bendAllowance(90, 2, 2, 0.4);
+  assert.ok(Math.abs(f.total - (110 + 2 * ba)) < 1e-9); assert.deepEqual(f.size.map(v => +v.toFixed(6)), [+(110 + 2 * ba).toFixed(6), 100]);
+  const out = flatPattern({ ...flat, dims: 'outside', segments: [40, 60, 40], bends: [{ angle: 90, dir: 'up' }, { angle: 45, dir: 'down' }] });
+  assert.ok(Math.abs(out.total - (140 - bendDeduction(90, 2, 2, 0.4) - bendDeduction(45, 2, 2, 0.4))) < 1e-9);
+  // Bend lines sit in the middle of each bend zone.
+  assert.ok(Math.abs(f.bends[0].a[0] - (30 + ba / 2)) < 1e-9 && Math.abs(f.bends[1].a[0] - (30 + ba + 50 + ba / 2)) < 1e-9);
+  assert.throws(() => flatPattern({ ...flat, segments: [30, 50] }), /needs 3 flange lengths/);
+});
+
+test('sheet metal: tray flat pattern with corner reliefs; DXF keeps bend lines on their own layer', () => {
+  const t = 1.5, R = 1.5; const f = flatPattern({ kind: 'tray', material: 'al5052', t, radius: R, k: 0.4, w: 120, l: 80, flanges: { s: 20, e: 20, n: 20, w: 20 } });
+  const bd = bendDeduction(90, R, t, 0.4); assert.ok(Math.abs(f.size[0] - (120 + 40 - 2 * bd)) < 1e-6 && Math.abs(f.size[1] - (80 + 40 - 2 * bd)) < 1e-6);
+  assert.equal(f.bends.length, 4); assert.ok(area(f.outline) > 0, 'counter-clockwise outline');
+  // Each relief circle is cut around the meeting point of two bend lines' zone edges.
+  const near = (p: number[], q: number[]) => Math.hypot(p[0] - q[0], p[1] - q[1]);
+  const W = 120 - 2 * outsideSetback(90, R, t); assert.ok(f.outline.some(p => Math.abs(near(p, [0, 0]) - t) < 1e-9 && p[0] > 0 && p[1] > 0), 'relief bites into the base corner');
+  assert.ok(f.outline.some(p => Math.abs(near(p, [W, 0]) - t) < 1e-9));
+  const dxf = flatToDxf(f, t, 'tray'); const m = parseDxf(dxf, 'tray.dxf');
+  assert.equal(m.entities.filter(e => e.layer === 'BEND' && e.type === 'line').length, 4);
+  assert.equal(m.entities.filter(e => e.layer === 'CUT').length, 1); assert.ok(m.entities.some(e => e.layer === 'BEND_NOTES' && e.type === 'text' && /UP 90/.test(e.text)));
+  const noW = flatPattern({ kind: 'tray', material: 'al5052', t, radius: R, w: 120, l: 80, flanges: { s: 20, e: 20, n: 20, w: 0 } }); assert.equal(noW.bends.length, 3);
+});
+
+test('sheet metal checks: tight radius cracks 6061, short flanges, holes by bends, brake overload blocks', () => {
+  const part: ProfilePart = { kind: 'profile', material: 'al6061', t: 2, width: 1000, radius: 2, segments: [30, 8, 30], dims: 'outside', bends: [{ angle: 90, dir: 'up' }, { angle: 90, dir: 'up' }], holes: [{ seg: 0, at: 25, y: 50, dia: 4 }] };
+  const c = sheetChecks(part, { brakeTons: 5 });
+  assert.ok(c.findings.some(f => /tighter than/.test(f.title)));
+  assert.ok(c.findings.some(f => f.level === 'error' && /shorter than/.test(f.title)));
+  assert.ok(c.findings.some(f => /too close to a bend/.test(f.title)));
+  assert.ok(c.hazards.find(h => h.id === 'brake-overload')?.block); assert.ok(c.hazards.every(h => h.cite));
+  const ok = sheetChecks({ ...part, material: 'steel-cr', radius: 3, segments: [40, 40, 40], holes: [{ seg: 0, at: 10, y: 50, dia: 4 }] }, { brakeTons: 100 });
+  assert.ok(!ok.findings.some(f => f.level === 'error'), JSON.stringify(ok.findings.filter(f => f.level === 'error'))); assert.ok(!ok.hazards.some(h => h.block));
+});
