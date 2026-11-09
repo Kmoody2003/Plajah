@@ -15,6 +15,8 @@ import type { FixId } from '../../../services/educationCouncil/heuristics';
 import { TelaStaticSvg } from '../../tela/TelaVector';
 import EducationCouncilView from './EducationCouncilView';
 import type { TelaDoc } from '../../../types';
+import { stemLessonsForCcss } from '../../../data/stem';
+import { openStemTrack, BUILD_ROOM_LABEL } from '../../../services/stem/launch';
 
 interface Props { user?: { uid: string; displayName?: string | null } | null; onBack?: () => void; onNavigate?: (v: string) => void }
 
@@ -134,6 +136,20 @@ export default function YearCurriculumView({ user, onBack, onNavigate }: Props) 
                 {open && (
                   <div className="px-3 pb-3 space-y-1.5">
                     <p className="text-[12px] text-white/70 italic">{u.essentialQuestion}</p>
+                    {u.subject === 'math' && (() => {
+                      // STEM Track lessons that teach this unit's standards, with a circuit or a model as the context.
+                      const build = stemLessonsForCcss(u.ccss).slice(0, 3);
+                      return build.length ? (
+                        <div className="rounded-xl border border-[#5fd1c2]/30 bg-[#0E8074]/15 p-2 space-y-1" data-testid="year-build-links">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-[#9ff0e4]">Build it · STEM Track</p>
+                          {build.map(l => (
+                            <button key={l.id} type="button" onClick={() => openStemTrack({ lessonId: l.id })} className="block w-full text-left text-[12px] text-white/85 hover:text-white">
+                              {l.title} <span className="text-white/45">· Gr {l.band} · {BUILD_ROOM_LABEL[l.build.launch.room]}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
                     {rows.map(r => (
                       <div key={r.week} className="flex items-center gap-1.5">
                         <span className="w-9 text-[11px] text-white/50">Wk {r.week}</span>

@@ -114,6 +114,9 @@ const TOOLS = [
   },
 ];
 
+// Build Labs: STEM Track lessons that run in Plajah Build (data/stem), loaded with the section, not the hub.
+const MuseionBuildLabs = React.lazy(() => import('./stem/MuseionBuildLabs'));
+
 const DISC_ID_MAP: Record<string, LabsDisciplineId> = {
   astronomy: 'astronomy', physics: 'physics', chemistry: 'chemistry',
   biology: 'biology', cs: 'cs', engineering: 'engineering',
@@ -298,6 +301,9 @@ const PlajahLabsView: React.FC<PlajahLabsViewProps> = ({ currentUser, onNavigate
           })}
         </AdaptiveGrid>
       </div>
+
+      {/* ── Build Labs (Plajah Build × STEM Track) ───────────────────────── */}
+      <React.Suspense fallback={null}><MuseionBuildLabs /></React.Suspense>
 
       {/* ── Science Live Hub ─────────────────────────────────────────────── */}
       <div className="px-6 py-8 max-w-7xl mx-auto">

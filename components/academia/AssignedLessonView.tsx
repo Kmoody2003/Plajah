@@ -12,7 +12,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, Check, Clock, Target, ExternalLink, Send, Loader2,
-  BookOpen, Scale, Lightbulb, CircleCheck,
+  BookOpen, Scale, Lightbulb, CircleCheck, Hammer,
 } from 'lucide-react';
 import {
   fetchAssignment, submitLesson, fetchMySubmission, resolveHostedBooks, bookLink, loadTemplate,
@@ -24,6 +24,7 @@ import { T, cardStyle, btn, badge } from './integrityTheme';
 import type { AssignmentTemplate } from '../../data/assignmentTemplates';
 import LessonGradingPanel from './LessonGradingPanel';
 import { openJournalismSchool } from '../../services/journalismSchool/newsroomStore';
+import { openBuild, BUILD_ROOM_LABEL } from '../../services/stem/launch';
 
 const Section: React.FC<{ icon: React.ElementType; title: string; children: React.ReactNode }> =
   ({ icon: Icon, title, children }) => (
@@ -55,6 +56,7 @@ const AssignedLessonView: React.FC<Props> = ({ assignmentId, assignment: preload
   const [loading, setLoading] = useState(!preloaded);
   const [done, setDone] = useState<number[]>([]);
   const [reflection, setReflection] = useState('');
+  const [buildLink, setBuildLink] = useState('');
   const [selfScores, setSelfScores] = useState<RubricScores>({});
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
@@ -153,6 +155,7 @@ const AssignedLessonView: React.FC<Props> = ({ assignmentId, assignment: preload
     const id = await submitLesson({
       assignment, studentId, studentName,
       stepsDone: done, reflection, selfScores,
+      ...(buildLink.trim() ? { buildLink: buildLink.trim() } : {}),
     });
     setBusy(false);
     if (id) setSent(true);
@@ -348,6 +351,18 @@ const AssignedLessonView: React.FC<Props> = ({ assignmentId, assignment: preload
           </Section>
         )}
 
+        {/* ── STEM Track work happens in a Plajah Build room ── */}
+        {assignment.buildLaunch && !graded && (
+          <Section icon={Hammer} title={`Build it in ${BUILD_ROOM_LABEL[assignment.buildLaunch.room]}`}>
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: T.muted, lineHeight: 1.65 }}>
+              Your starter is ready. Build and test it in Plajah Build, then share it and paste the link below when you turn in.
+            </p>
+            <button onClick={() => openBuild(assignment.buildLaunch!)} style={btn('solid', T.orange)} data-testid="assignment-open-build">
+              <Hammer size={14} /> Open Plajah Build
+            </button>
+          </Section>
+        )}
+
         {/* ── Turn in ── */}
         {!alreadyIn && !assignment.newsroomKitId && (
           <Section icon={Send} title="Turn it in">
@@ -363,6 +378,17 @@ const AssignedLessonView: React.FC<Props> = ({ assignmentId, assignment: preload
                 }}
               />
             </label>
+            {assignment.buildLaunch && (
+              <label style={{ fontSize: 11.5, color: T.muted, display: 'grid', gap: 6, marginBottom: 14 }}>
+                Link to your build (Plajah Build share link or a photo)
+                <input
+                  value={buildLink}
+                  onChange={e => setBuildLink(e.target.value)}
+                  placeholder="https://"
+                  style={{ background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, color: T.ink, padding: '9px 11px', fontSize: 13, fontFamily: 'inherit' }}
+                />
+              </label>
+            )}
             {!allStepsDone && (
               <p style={{ margin: '0 0 12px', fontSize: 12, color: T.warning, lineHeight: 1.6 }}>
                 You still have {assignment.steps.length - done.length} step

@@ -4236,6 +4236,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'PHILOSOPHY_SCHOOL'
   // School of Journalism — PreK → J-School curriculum, Student Newsroom and Press Room
   | 'JOURNALISM_SCHOOL'
+  // STEM Track — K–12 science/technology/engineering/math on Plajah Build (data/stem, components/StemTrackView)
+  | 'STEM_TRACK'
   // Art College — four-year studio + scholarship curriculum with live museum study (data/artCollege)
   | 'ART_COLLEGE'
   // Music Law Library — statutes, landmark cases, live feed and the law-music course (components/academia/MusicLawLibrary)
