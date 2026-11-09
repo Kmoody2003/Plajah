@@ -99,7 +99,8 @@ test('print sheet skips rectangles; DXF and SVG come out', () => {
 test('print PDF tiles at 1:1 and the tech pack builds', async () => {
   const p = build('hoodie', { size: 'L' });
   const r = await printPdf(p, 'letter'); assert.ok(r.pages === r.cols * r.rows + 1 && r.pages > 4); assert.equal(String.fromCharCode(...r.bytes.slice(0, 5)), '%PDF-');
-  const big = await printPdf(p, 'a0'); assert.equal(big.pages, 2);
+  const big = await printPdf(p, 'a0'); assert.equal(big.pages, big.rows + 1); assert.equal(big.cols, 1);
+  assert.ok(printSheet(p, 841 - 20).height <= big.rows * (1189 - 20), 'every A0 row printed: nothing falls off the sheet');
   const pack = await techPackPdf(p, { audience: 'Adults', hazards: softHazards(p, 'adult', true), labels: softLabels(p, 'adult', true) }); assert.ok(pack.length > 3000);
 });
 
@@ -123,4 +124,116 @@ test('safety: small parts and child drawstrings block; acknowledging cannot clea
 test('geometry helpers', () => {
   assert.ok(Math.abs(ellipsePerimeter(10, 10) - 2 * Math.PI * 10) < 1e-6);
   const m = mirror([[1, 2]], [0, 0], [0, 1]); assert.deepEqual(m[0].map(x => Math.round(x * 1e9) / 1e9), [-1, 2]);
+});
+
+// ── Grading, plush from a drawing, new garments, 3D preview, new safety rules ──────────────────
+import { gradeSet, gradePom, sizesOf, sizeRange } from '../services/soft/grading';
+import { gradedModel } from '../services/soft/layout';
+import { traceSilhouette, otsu, type Gray } from '../services/soft/trace';
+import { encodeOutline, CHILD_SIZES, type Piece } from '../services/soft/patterns';
+import { formOf, inflate } from '../services/soft/form3d';
+
+const validPieces = (label: string, pcs: Piece[]) => {
+  for (const x of pcs) {
+    assert.ok(area(x.seam) > 0, `${label}/${x.id} CCW`);
+    const al = typeof x.allowance === 'number' ? x.seam.map(() => x.allowance as number) : x.allowance; assert.equal(al.length, x.seam.length, `${label}/${x.id} allowance per edge`);
+    assert.ok(area(cutLine(x)) >= area(x.seam) - 1e-6, `${label}/${x.id} cut ≥ seam`);
+    assert.ok(x.seam.every(q => Number.isFinite(q[0]) && Number.isFinite(q[1])), `${label}/${x.id} finite`);
+    if (x.fold != null) assert.ok(Math.abs(area(unfold(x).seam) - 2 * area(x.seam)) < 1, `${label}/${x.id} unfolds`);
+  }
+};
+
+test('new garments draft valid pieces in every size', () => {
+  for (const id of ['trousers', 'dress', 'leggings', 'bucket-hat']) {
+    const t = softTemplateById(id)!; const sizes = sizesOf(t); assert.ok(sizes.length >= 7, id);
+    for (const size of sizes) { const p = build(id, { size }); assert.equal(p.size, size); validPieces(`${id} ${size}`, p.pieces); assert.ok(p.grading && p.grading.sizes.includes(size), `${id} ${size} graded spec`); }
+  }
+  assert.deepEqual(sizesOf(softTemplateById('leggings')!), CHILD_SIZES);
+  assert.deepEqual(sizesOf(softTemplateById('fitted-sheet')!), [], 'mattress sizes are not graded');
+  validPieces('zip-pouch', build('zip-pouch').pieces); validPieces('zip-pouch flat', build('zip-pouch', { g: 0 }).pieces);
+  // Dress: bodice and skirt waists match once the dart intake is taken out; darts are internal lines.
+  const d = build('dress', { size: 'M' }); const bf = d.pieces.find(x => x.id === 'bodice-front')!, sf = d.pieces.find(x => x.id === 'skirt-front')!;
+  assert.ok(bf.lines!.length === 1 && sf.lines!.length === 1);
+  const dartW = (l: Pt[]) => Math.abs(l[2][0] - l[0][0]); const bodWaist = bf.seam[1][0] - dartW(bf.lines![0].pts);
+  const sw = Math.max(...sf.seam.map(q => q[0]).filter((_, i) => sf.seam[i][1] > bbox(sf.seam).y1 - 1)) - dartW(sf.lines![0].pts);
+  assert.ok(Math.abs(bodWaist - sw) < 2, `waist ${bodWaist} vs ${sw}`);
+  // Trousers: back leg wider (deeper crotch extension); the waistband passes over the hip.
+  const tr = build('trousers', { size: 'M' }); const f = tr.pieces.find(x => x.id === 'front')!, b = tr.pieces.find(x => x.id === 'back')!;
+  assert.ok(bbox(b.seam).w > bbox(f.seam).w); const band = tr.pieces.find(x => x.id === 'waistband')!; assert.ok(bbox(band.seam).w >= 1040, `${bbox(band.seam).w}`);
+  // Hat: the two side halves' bottom edges make the head opening (57 cm head + 1.5 cm ease).
+  const hat = build('bucket-hat', { size: 'M' }); const side = hat.pieces.find(x => x.id === 'side')!;
+  const exp = (585 / 2 + 585 * 0.9 / 2) / 2 * Math.round(570 * 0.13); assert.ok(Math.abs(area(side.seam) - exp) / exp < 0.005, `side ${area(side.seam)} vs ${exp}`);
+  assert.ok(Math.abs(hat.finished[0][1] - 585) < 1e-6);
+});
+
+test('grading: nests grow monotonically, every size in the PDF, DXF and spec', async () => {
+  for (const [id, from, to] of [['tee', 'XS', '3XL'], ['trousers', 'S', 'XL'], ['dress', '2T', '14'], ['leggings', '2T', '14'], ['bucket-hat', 'XS', '3XL']] as const) {
+    const t = softTemplateById(id)!; const sizes = sizeRange(sizesOf(t), from, to); const g = gradeSet(t, softDefaults(t), sizes)!; assert.ok(g, id);
+    const sheet = printSheet(g.base, undefined, 15, g); assert.ok(sheet.items.length > 0, id);
+    for (const it of sheet.items) {
+      assert.equal(it.nest!.length, sizes.length, `${id}/${it.piece.id} one line per size`);
+      const areas = it.nest!.map(n => area(n.cut)); for (let i = 1; i < areas.length; i++) assert.ok(areas[i] > areas[i - 1], `${id}/${it.piece.id} ${sizes[i]} > ${sizes[i - 1]}`);
+    }
+    const pom = gradePom(g); assert.deepEqual(pom.sizes, sizes); assert.ok(pom.rows.length >= 3 && pom.rows.every(r => r.values.length === sizes.length));
+  }
+  const tee = softTemplateById('tee')!; const g = gradeSet(tee, softDefaults(tee), ['S', 'M', 'L', 'XL'])!;
+  const dxf = writeDxf(gradedModel(g)); for (const s of ['SIZE-S', 'SIZE-M', 'SIZE-L', 'SIZE-XL']) assert.ok(dxf.includes(s), s);
+  const pdf = await printPdf(build('tee', { size: 'M' }), 'letter', 'cm', g); assert.ok(pdf.pages > 2);
+  const pack = await techPackPdf(g.base, { audience: 'Adults', hazards: [], labels: [], grade: g }); assert.ok(pack.length > 3000);
+  assert.equal(gradeSet(tee, softDefaults(tee), ['M']), null);
+});
+
+/** A synthetic drawing: dark figure on white, as a canvas would give it. */
+function drawing(w: number, h: number, inside: (x: number, y: number) => boolean): Gray {
+  const data = new Float32Array(w * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) data[y * w + x] = inside(x, y) ? 20 : 240; return { w, h, data };
+}
+
+test('plush from a drawing: traced panels are valid CCW pieces and the base matches the bottom seam', () => {
+  // A round critter with one ear on the left only (asymmetric).
+  const img = drawing(200, 240, (x, y) => Math.hypot(x - 100, y - 140) < 70 || Math.hypot(x - 100, y - 70) < 45 || Math.hypot(x - 62, y - 30) < 16);
+  const T = otsu(img); assert.ok(T > 20 && T < 240);
+  const ring = traceSilhouette(img, { threshold: T, smooth: 1 }); assert.ok(area(ring) > 0 && ring.length > 30);
+  const b0 = bbox(ring); assert.ok(Math.abs(b0.h - 196) < 6, `height ${b0.h}`);
+  const p = build('plush-drawing', { outline: encodeOutline(ring), height: 300 });
+  validPieces('plush-drawing', p.pieces);
+  const front = p.pieces.find(x => x.id === 'front')!, back = p.pieces.find(x => x.id === 'back')!, base = p.pieces.find(x => x.id === 'base')!;
+  assert.ok(Math.abs(bbox(front.seam).h - 300) < 0.5, 'exact height');
+  assert.ok(Math.abs(area(front.seam) - area(back.seam)) < 1 && Math.abs(bbox(back.seam).x0 + bbox(front.seam).x1) < 0.5, 'back mirrors front');
+  const L = front.seam.reduce((s, q, i) => { const r = front.seam[(i + 1) % front.seam.length]; return s + (q[1] === 0 && r[1] === 0 ? Math.abs(r[0] - q[0]) : 0); }, 0);
+  assert.ok(L > 20, `bottom ${L}`); const per = pathLength([...base.seam, base.seam[0]]); assert.ok(Math.abs(per - 2 * L) / (2 * L) < 0.02, `base ${per} vs ${2 * L}`);
+  assert.ok(p.fill!.grams > 20);
+  // Mirror half: the left ear is copied to the right, so the outline becomes symmetric.
+  const sym = traceSilhouette(img, { threshold: T, smooth: 1, mirror: 'left' }); const sb = bbox(sym);
+  assert.ok(Math.abs((sb.x0 + sb.x1) / 2 - 100) < 2 && area(sym) > area(ring), 'mirrored left half');
+  // Two feet: each gets its own pad.
+  const feet = drawing(200, 240, (x, y) => Math.hypot(x - 100, y - 100) < 70 || (y > 150 && y < 220 && ((x > 50 && x < 85) || (x > 115 && x < 150))));
+  const p2 = build('plush-drawing', { outline: encodeOutline(traceSilhouette(feet, { threshold: 128 })), flat: 0.03 }); assert.equal(p2.pieces.filter(x => x.id.startsWith('base-')).length, 2);
+  // Light-on-dark needs invert; a blank page traces to nothing rather than crashing.
+  const neg: Gray = { ...img, data: img.data.map(v => 255 - v) }; assert.ok(area(traceSilhouette(neg, { threshold: T, invert: true })) > 0);
+  assert.equal(traceSilhouette(drawing(50, 50, () => false), { threshold: 128 }).length, 0);
+});
+
+test('3D preview forms: every template has solids; plush inflates to a closed pillow', () => {
+  for (const t of SOFT_TEMPLATES) { const f = formOf(t.build(softDefaults(t))); assert.ok(f.length > 0, t.id); }
+  const p = build('plush-pal'); const inf = formOf(p).find(x => x.kind === 'inflate'); assert.ok(inf && inf.kind === 'inflate');
+  if (inf?.kind !== 'inflate') return;
+  const m = inflate(inf.outline, inf.depth, 32); assert.ok(m.indices.length > 300 && m.positions.length % 3 === 0);
+  let zmax = 0, zmin = 0; for (let i = 2; i < m.positions.length; i += 3) { zmax = Math.max(zmax, m.positions[i]); zmin = Math.min(zmin, m.positions[i]); }
+  assert.ok(zmax > 0 && Math.abs(zmax + zmin) < 1e-6 && zmax <= inf.depth / 2 + 1e-6);
+});
+
+test('safety for the new items: waist cords, sleepwear, chin cords, toddler zips', () => {
+  const kidCord = build('trousers', { size: '8', drawstring: true }); const h = softHazards(kidCord, 'child');
+  assert.ok(h.some(x => x.id === 'drawstring-waist-child' && !x.block && x.cite?.includes('1120')));
+  assert.ok(softHazards(build('trousers', { size: '2T', drawstring: true }), 'under3').some(x => x.id === 'drawstring-waist-child' && x.block));
+  assert.ok(!softHazards(build('trousers', { size: 'M', drawstring: true }), 'adult').some(x => x.block));
+  const pj = build('trousers', { size: '6', use: 'pajama' }); const hp = softHazards(pj, 'child');
+  assert.ok(hp.some(x => x.id === 'sleepwear') && hp.some(x => x.id === 'sleepwear-fit' && x.cite?.includes('1616')));
+  assert.ok(!softHazards(build('trousers', { size: '6', use: 'pajama', fit: 'snug' }), 'child').some(x => x.id === 'sleepwear-fit'));
+  assert.ok(softHazards(build('bucket-hat', { size: '2T', cord: true }), 'under3').some(x => x.id === 'chin-cord-young' && x.block));
+  assert.ok(softHazards(build('bucket-hat', { size: '8', cord: true }), 'child').some(x => x.id === 'chin-cord-child' && !x.block));
+  assert.ok(softHazards(build('zip-pouch'), 'under3').some(x => x.id === 'zip-toddler'));
+  assert.ok(softHazards(build('dress', { size: '2T' }), 'under3').some(x => x.id === 'zip-toddler'));
+  assert.ok(!softHazards(build('dress', { size: 'M' }), 'adult').some(x => x.id === 'zip-toddler'));
+  assert.ok(softRecallQueries(kidCord, 'child').includes("children's pants drawstring"));
 });
