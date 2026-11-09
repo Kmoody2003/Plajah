@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": { "allowJs": false, "noEmit": true, "types": ["vite/client", "node"] },
-  "include": ["services/elec/*.ts", "components/elec/*.tsx", "services/safety/*.ts", "services/supply/*.ts", "components/safety/*.tsx", "components/supply/*.tsx", "labs/elec/main.tsx", "tests/elec.test.ts", "routes/makerBuild.ts"]
+  "include": ["services/elec/*.ts", "services/elec/design/*.ts", "components/elec/*.tsx", "services/safety/*.ts", "services/supply/*.ts", "components/safety/*.tsx", "components/supply/*.tsx", "labs/elec/main.tsx", "tests/elec.test.ts", "tests/design.test.ts", "routes/makerBuild.ts"]
 }

@@ -6,6 +6,7 @@
 import { type P2, extrude, translate, circlePts, merge, type Solid } from '../mech/geometry';
 import { type CadModel, emptyModel, type CadEntity2D } from '../cad/model';
 import { addMesh, finish } from '../cad/mesh';
+import { MODULES } from './modules';
 
 export type Face = 'top' | 'front' | 'back' | 'left' | 'right' | 'inside';
 export type Cutout = { shape: 'circle'; d: number } | { shape: 'rect'; w: number; h: number } | { shape: 'grille'; d: number };
@@ -43,6 +44,7 @@ export const PHYSICAL: Record<string, (p: Record<string, number | string>) => Om
   jack: () => ({ w: 12, d: 30, h: 12, face: 'right', cutout: { shape: 'circle', d: 9.6 }, note: '¼" jack, 3/8" (9.5 mm) hole' }),
   pickup: () => ({ w: 0, d: 0, h: 0, face: 'inside' }),
   signal: () => ({ w: 12, d: 14, h: 6, face: 'back', cutout: { shape: 'circle', d: 6.2 }, note: '3.5 mm audio-in jack' }),
+  ...Object.fromEntries(Object.entries(MODULES).map(([k, m]) => [k, m.physical])),
 };
 
 export interface Placement extends Item { x: number; y: number; z: number }

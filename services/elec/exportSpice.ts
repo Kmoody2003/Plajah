@@ -23,7 +23,7 @@ export function spiceNetlist(c: Circuit): string {
       case 'diode': { const m = p.params.type === 'rectifier' ? 'D1N4007' : 'D1N4148'; if (!models.has(m)) { models.add(m); lines.push(m === 'D1N4007' ? '.model D1N4007 D(IS=1n N=1.8 BV=1000)' : '.model D1N4148 D(IS=2.5n N=1.75 BV=75)'); } lines.push(`D${r} ${N(p.id, 'A')} ${N(p.id, 'K')} ${m}`); break; }
       case 'npn': if (!models.has('QNPN')) { models.add('QNPN'); lines.push(`.model QNPN NPN(IS=1e-14 BF=${p.params.beta ?? 100})`); } lines.push(`Q${r} ${N(p.id, 'C')} ${N(p.id, 'B')} ${N(p.id, 'E')} QNPN`); break;
       case 'nmos': if (!models.has('MN')) { models.add('MN'); lines.push(`.model MN NMOS(VTO=${p.params.vth ?? 2} KP=0.5 LAMBDA=0.01)`); } lines.push(`M${r} ${N(p.id, 'D')} ${N(p.id, 'G')} ${N(p.id, 'S')} ${N(p.id, 'S')} MN`); break;
-      case 'battery': case 'coincell': lines.push(`V${r} ${r}_int ${N(p.id, '-')} DC ${P(p, 'V')}`, `R${r}int ${r}_int ${N(p.id, '+')} ${P(p, 'Rint')}`); break;
+      case 'battery': case 'coincell': case 'liion': lines.push(`V${r} ${r}_int ${N(p.id, '-')} DC ${P(p, 'V')}`, `R${r}int ${r}_int ${N(p.id, '+')} ${P(p, 'Rint')}`); break;
       case 'usb5v': lines.push(`V${r} ${N(p.id, 'VBUS')} ${N(p.id, 'GND')} DC ${P(p, 'V')}`); break;
       case 'dcsupply': lines.push(`V${r} ${N(p.id, '+')} ${N(p.id, '-')} DC ${P(p, 'V')}`); break;
       case 'mains': lines.push(`V${r} ${N(p.id, 'L')} ${N(p.id, 'N')} SIN(0 ${+(P(p, 'Vrms') * Math.SQRT2).toFixed(1)} ${P(p, 'f')})`); break;

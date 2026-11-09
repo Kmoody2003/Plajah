@@ -7,6 +7,8 @@ import { compByKind, parseSi } from './components';
 import { type Circuit, netlist } from './circuit';
 import { type SimResult, boardDraw } from './sim';
 import { BOARD_INFO, PI_MODELS } from './boards';
+import { MODULES } from './modules';
+import { moduleFindings } from './moduleChecks';
 
 export type Level = 'error' | 'warn' | 'info' | 'pass';
 export interface Finding { id: string; level: Level; area: 'Wiring' | 'Stress' | 'Thermal' | 'Battery' | 'Regulatory' | 'Security'; title: string; detail: string; refs?: string[]; cite?: string; market?: 'US' | 'EU' | 'UK' }
@@ -33,13 +35,13 @@ export function checkCircuit(c: Circuit, sim?: SimResult | null, o: CheckOptions
     const def = compByKind(p.kind)!;
     for (const pin of def.pins) {
       const n = nl.pinNet[p.id]?.[pin.name]; if (n === undefined) continue;
-      if (n !== 0 && nl.members[n].length === 1 && !BOARD_INFO[p.kind]) { // unused board pins are normal
+      if (n !== 0 && nl.members[n].length === 1 && !BOARD_INFO[p.kind] && !MODULES[p.kind]?.model.free?.includes(pin.name)) { // unused board pins are normal
         const optional = p.kind === 'ne555' && pin.name === 'CTRL';
         add({ id: `open-${p.ref}-${pin.name}`, level: optional ? 'info' : p.kind === 'ne555' && pin.name === 'RESET' ? 'warn' : 'error', area: 'Wiring', refs: [p.ref],
           title: `${p.ref} pin ${pin.name} is not connected`, detail: optional ? 'The 555 control pin can float, but a 10 nF capacitor to ground makes the timing steadier.' : p.kind === 'ne555' && pin.name === 'RESET' ? 'Tie RESET to the supply, or the 555 may reset at random.' : 'An unconnected pin usually means a missing wire.' });
       }
     }
-    if (['battery', 'coincell', 'usb5v', 'dcsupply', 'mains'].includes(p.kind)) {
+    if (['battery', 'coincell', 'liion', 'usb5v', 'dcsupply', 'mains'].includes(p.kind)) {
       const nets = Object.values(nl.pinNet[p.id] ?? {}); if (nets.length === 2 && nets[0] === nets[1]) add({ id: `short-${p.ref}`, level: 'error', area: 'Wiring', refs: [p.ref], title: `${p.ref} is shorted`, detail: 'Both supply terminals are on the same net. A real supply would overheat or blow.' });
     }
   }
@@ -169,7 +171,7 @@ export function checkCircuit(c: Circuit, sim?: SimResult | null, o: CheckOptions
           break;
         }
         case 'dcsupply': { const lim = P(p, 'Imax'); if (Iavg > lim) add({ id: `dc-${p.ref}`, level: 'error', area: 'Stress', refs: [p.ref], title: `${p.ref} overloaded`, detail: `Draws ${fmt(Iavg, 'A')}, supply limit ${fmt(lim, 'A')}.` }); break; }
-        case 'battery': case 'coincell': {
+        case 'battery': case 'coincell': case 'liion': {
           const mAh = P(p, 'mAh'); const mA = Iavg * 1000;
           if (mA > 0.001) { const h = mAh / mA; add({ id: `life-${p.ref}`, level: p.kind === 'coincell' && mA > 3 ? 'warn' : 'info', area: 'Battery', refs: [p.ref], title: `${p.ref} lasts about ${h >= 48 ? `${Math.round(h / 24)} days` : `${h.toPrecision(2)} hours`}`, detail: `${mAh} mAh at ${fmt(Iavg, 'A')} ${avgWord}.${p.kind === 'coincell' && mA > 3 ? ' Coin cells deliver much less than their rated capacity above a few mA; expect shorter life.' : ''} Real capacity drops with temperature and age.` }); }
           break;
@@ -184,7 +186,7 @@ export function checkCircuit(c: Circuit, sim?: SimResult | null, o: CheckOptions
   const vMax = Math.max(0, ...parts.filter(p => p.kind === 'dcsupply' || p.kind === 'battery').map(p => P(p, 'V')));
   const oscillators = parts.filter(p => p.kind === 'ne555');
   const fMax = Math.max(0, ...oscillators.map(p => sim?.freq[p.id] ?? 0));
-  const coin = parts.filter(p => p.kind === 'coincell'); const batteries = parts.filter(p => p.kind === 'battery' || p.kind === 'coincell');
+  const coin = parts.filter(p => p.kind === 'coincell'); const batteries = parts.filter(p => p.kind === 'battery' || p.kind === 'coincell' || p.kind === 'liion');
 
   if (us) {
     if (oscillators.length || fMax) {
@@ -228,6 +230,7 @@ export function checkCircuit(c: Circuit, sim?: SimResult | null, o: CheckOptions
   }
   if (parts.some(p => p.kind === 'acdc')) reg({ id: 'acdc-module', level: 'info', refs: parts.filter(p => p.kind === 'acdc').map(p => p.ref), cite: 'UL/IEC 62368-1', title: 'Certified AC-DC module', detail: 'Choose a module certified to IEC/UL 62368-1 and follow its datasheet: input fuse, creepage and clearance on your board (keep at least 6 mm between mains and low-voltage copper as a starting point) and an enclosure that keeps fingers off mains. The finished product still needs its own approval.' });
 
+  for (const m of moduleFindings(c, sim, o)) add(m);
   const order: Level[] = ['error', 'warn', 'info', 'pass'];
   return out.sort((a, b) => order.indexOf(a.level) - order.indexOf(b.level));
 }

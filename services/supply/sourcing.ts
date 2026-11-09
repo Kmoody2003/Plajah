@@ -3,6 +3,7 @@
 
 import type { Circuit, CPart } from '../elec/circuit';
 import { compByKind, ledColor } from '../elec/components';
+import { MODULES } from '../elec/modules';
 
 export interface SourceLine { refs: string[]; qty: number; part: string; query: string; note?: string; authorised?: boolean }
 export interface Offer { supplier: 'digikey' | 'mouser'; mpn: string; maker: string; description: string; stock: number; price: number | null; currency: string; url: string; datasheet?: string; rohs?: string; lifecycle?: string }
@@ -34,7 +35,7 @@ const q1 = (p: CPart): { query: string; note?: string; authorised?: boolean } =>
     case 'usbload': return { query: 'USB-A receptacle through hole' }; case 'ledstrip': return { query: `${v('V')}V LED strip` };
     case 'signal': return { query: '3.5mm audio jack panel mount' };
     case 'mains': return { query: 'IEC C14 inlet fused', note: 'Panel-mount, certified inlet.', authorised: true };
-    default: return { query: compByKind(p.kind)?.name ?? p.kind };
+    default: return MODULES[p.kind]?.query(p.params) ?? { query: compByKind(p.kind)?.name ?? p.kind };
   }
 };
 
