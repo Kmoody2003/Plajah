@@ -12,6 +12,7 @@ import type { MeshIn } from './slice';
 import { meshBounds } from './slice';
 import type { ProcessId } from './machines';
 import type { Job, Move } from './cam';
+import { sampleGrid, contoursOf, type Box, type FieldGrid } from './contour';
 
 export type CutterShape = 'ball' | 'flat';
 export interface Cutter { shape: CutterShape; dia: number }
@@ -194,44 +195,9 @@ export function rasterJob(meshes: MeshIn[], o: SurfaceOptions): Job & { rows: nu
 
 // ---------------------------------------------------------------- waterline
 /** Contours at height z of the region where the tool, with its tip at z, would cut into the part. */
-export function waterlineAt(field: DropField, z: number, box: { x0: number; y0: number; x1: number; y1: number }, res: number): Loop[] {
-  const nx = Math.max(2, Math.ceil((box.x1 - box.x0) / res) + 1), ny = Math.max(2, Math.ceil((box.y1 - box.y0) / res) + 1);
-  const dx = (box.x1 - box.x0) / (nx - 1), dy = (box.y1 - box.y0) / (ny - 1);
-  const X = (i: number) => box.x0 + i * dx, Y = (j: number) => box.y0 + j * dy;
-  const h = new Float64Array(nx * ny);
-  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) h[j * nx + i] = field.drop(X(i), Y(j)) - z;
-  // Cells on the outer rim are forced outside so every contour closes.
-  const inside = (i: number, j: number) => i > 0 && j > 0 && i < nx - 1 && j < ny - 1 && h[j * nx + i] > 0;
-  // Crossing on the edge between two grid nodes, refined by bisection on the true drop.
-  const memo = new Map<string, P2>();
-  const cross = (i0: number, j0: number, i1: number, j1: number): P2 => {
-    const key = i0 < i1 || j0 < j1 ? `${i0},${j0},${i1},${j1}` : `${i1},${j1},${i0},${j0}`; const got = memo.get(key); if (got) return got;
-    let a: P2 = [X(i0), Y(j0)], b: P2 = [X(i1), Y(j1)]; if (!inside(i0, j0)) [a, b] = [b, a]; // a inside, b outside
-    for (let it = 0; it < 24; it++) { const m: P2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; if (field.drop(m[0], m[1]) - z > 0) a = m; else b = m; if (Math.hypot(a[0] - b[0], a[1] - b[1]) < 1e-5) break; }
-    const p: P2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; memo.set(key, p); return p;
-  };
-  // Marching squares: directed segments with the inside on the left, so outer contours run counter-clockwise.
-  const segs: Array<[P2, P2, string, string]> = [];
-  for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
-    const c = [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]] as const; const In = c.map(([a, b]) => inside(a, b));
-    const code = (In[0] ? 1 : 0) | (In[1] ? 2 : 0) | (In[2] ? 4 : 0) | (In[3] ? 8 : 0); if (code === 0 || code === 15) continue;
-    const e = [[0, 1], [1, 2], [2, 3], [3, 0]] as const; const eKey = (k: number) => { const [p, q] = e[k]; const A = c[p], B = c[q]; return A[0] < B[0] || A[1] < B[1] ? `${A[0]},${A[1]},${B[0]},${B[1]}` : `${B[0]},${B[1]},${A[0]},${A[1]}`; };
-    const pt = (k: number) => { const [p, q] = e[k]; return cross(c[p][0], c[p][1], c[q][0], c[q][1]); };
-    // Walking each cell's corners counter-clockwise, a contour leaves where inside turns to outside.
-    const outs: number[] = [], ins: number[] = [];
-    for (let k = 0; k < 4; k++) { const a = In[e[k][0]], b = In[e[k][1]]; if (a && !b) outs.push(k); else if (!a && b) ins.push(k); }
-    // Pair each entry (outside→inside) with the next exit going round; saddles split the inside corners apart.
-    for (const k of ins) { let m = (k + 1) % 4; while (!outs.includes(m)) m = (m + 1) % 4; segs.push([pt(m), pt(k), eKey(m), eKey(k)]); }
-  }
-  // Stitch by shared edge keys.
-  const byStart = new Map<string, number>(); segs.forEach((s, i) => byStart.set(s[2], i));
-  const used = new Uint8Array(segs.length); const loops: Loop[] = [];
-  for (let i = 0; i < segs.length; i++) {
-    if (used[i]) continue; const loop: Loop = []; let k = i;
-    while (k !== undefined && !used[k]) { used[k] = 1; loop.push(segs[k][0]); k = byStart.get(segs[k][3]) as number; }
-    if (loop.length >= 3) loops.push(loop);
-  }
-  return loops;
+export function waterlineAt(field: DropField, z: number, box: Box, res: number, grid?: FieldGrid): Loop[] {
+  const fn = (x: number, y: number) => field.drop(x, y);
+  return contoursOf(grid ?? sampleGrid(fn, box, res), fn, z);
 }
 
 /** Z-level finishing: contours from the top down, every wall climb-cut. */
@@ -247,8 +213,10 @@ export function waterlineJob(meshes: MeshIn[], o: SurfaceOptions): Job & { level
   moves.push({ t: 'tool', n: 1, dia: o.cutter.dia }, { t: 'rapid', z: safeZ }, { t: 'on', s: o.rpm ?? 12000 });
   const levels: Array<{ z: number; loops: Loop[] }> = [];
   const zTop = b.max[2] + (o.stockToLeave ?? 0) - 1e-3; const zBot = field.floor + 1e-3;
-  for (let z = zTop - dz * 0.5; z > zBot; z -= dz) levels.push({ z, loops: waterlineAt(field, z, box, res) });
-  if (levels.length === 0 || levels[levels.length - 1].z - zBot > dz * 0.25) levels.push({ z: zBot, loops: waterlineAt(field, zBot, box, res) });
+  // One sampled height field serves every level; each crossing is still refined on the exact drop.
+  const grid = sampleGrid((x, y) => field.drop(x, y), box, res);
+  for (let z = zTop - dz * 0.5; z > zBot; z -= dz) levels.push({ z, loops: waterlineAt(field, z, box, res, grid) });
+  if (levels.length === 0 || levels[levels.length - 1].z - zBot > dz * 0.25) levels.push({ z: zBot, loops: waterlineAt(field, zBot, box, res, grid) });
   for (const L of levels) {
     for (const found of L.loops) {
       // Contours come with the part on their left; reversed, the part is on the right: climb cutting with M3.

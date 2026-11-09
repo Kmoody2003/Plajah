@@ -7,6 +7,7 @@ import { Factory, Play, Download, Send, Square, Store, Upload, Trash2 } from 'lu
 import { processHazards, profileHazards, openHazards, sortHazards } from '../../services/safety/hazards';
 import { rasterJob, waterlineJob, type CutterShape } from '../../services/fab/surface';
 import { machiningHazards } from '../../services/fab/camSafety';
+import { adaptiveJob } from '../../services/fab/adaptive';
 import { meshBounds } from '../../services/fab/slice';
 import { importProfiles, applyProfiles, loadProfiles, saveProfiles, mergeProfiles, renderGcode, settingsVars, jobVars, type SavedProfile, type ProfileKind, type Flat } from '../../services/fab/profiles';
 import { INFILL_PATTERNS, type InfillPattern } from '../../services/fab/infill';
@@ -55,7 +56,8 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
     filament: 'pla', supports: 'none' as 'none' | 'buildplate' | 'everywhere', adhesion: 'skirt' as 'none' | 'skirt' | 'brim',
     resinPrinter: 'sl1s', resin: 'standard', resinLayer: 0.05, resinSupports: true,
     infillPattern: 'lines' as InfillPattern, seam: 'aligned' as SeamMode, supportStyle: 'grid' as 'grid' | 'tree', ironing: false, adaptive: false, maxVolumetric: 0,
-    strategy: 'waterline' as 'waterline' | 'raster', cutter: 'ball' as CutterShape, scallop: 0.02, stockToLeave: 0, reach: 40, rpm: 12000 });
+    strategy: 'waterline' as 'waterline' | 'raster', cutter: 'ball' as CutterShape, scallop: 0.02, stockToLeave: 0, reach: 40, rpm: 12000,
+    routerOp: 'profile' as 'profile' | 'adaptive', pocketDepth: 6, load: 15 });
   // Imported slicer profiles (OrcaSlicer, Bambu Studio, PrusaSlicer, SuperSlicer, 3MF projects), saved per user on this device.
   const [user, setUser] = useState('');
   useEffect(() => { let on = true; getToken?.().then(t => { if (on) setUser(userFromToken(t)); }).catch(() => {}); return () => { on = false; }; }, [getToken]);
@@ -119,12 +121,13 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
   const hazards = useMemo(() => {
     const base0 = processHazards(proc.id, s.material || applied.filamentType || s.filament);
     const surfacing = (proc.id === 'mill3' || proc.id === 'mill5') && !is2D && meshes.length > 0;
-    const base = surfacing ? (() => { const b = meshBounds(meshes); return sortHazards([...base0, ...machiningHazards({ op: 'surface', depth: b.max[2] - b.min[2], reach: s.reach, toolDia: s.tool, finishFromStock: true })]); })() : base0;
+    const routerExtra = proc.id === 'router' && is2D ? machiningHazards(s.routerOp === 'adaptive' ? { op: 'adaptive', engagement: s.load / 100, depth: s.pocketDepth, reach: s.reach, toolDia: s.tool } : { op: 'profile' }) : [];
+    const base = routerExtra.length ? sortHazards([...base0, ...routerExtra]) : surfacing ? (() => { const b = meshBounds(meshes); return sortHazards([...base0, ...machiningHazards({ op: 'surface', depth: b.max[2] - b.min[2], reach: s.reach, toolDia: s.tool, finishFromStock: true })]); })() : base0;
     if (!fdmLike || (!picked.printer && !picked.filament && !picked.process)) return base;
     const f = applied.fdm; const speeds = [f.speed, f.outerWallSpeed, f.innerWallSpeed, f.infillSpeed, f.solidSpeed].filter((v): v is number => typeof v === 'number');
     return sortHazards([...base, ...profileHazards({ material: applied.filamentType || filamentById(s.filament)?.name, nozzleTemp: s.nozzleTemp, bedTemp: s.bedTemp, firstLayerNozzleTemp: f.firstLayerNozzleTemp, firstLayerBedTemp: f.firstLayerBedTemp,
       speed: Math.max(0, ...speeds), travel: f.travel ?? 0, maxX: applied.limits?.maxX, maxY: applied.limits?.maxY, gcode: profileGcode, source: [picked.printer, picked.filament, picked.process].filter(Boolean).map(p => p!.name).join(', ') })]);
-  }, [proc.id, s.material, s.filament, s.nozzleTemp, s.bedTemp, applied, picked, fdmLike, profileGcode, is2D, meshes, s.reach, s.tool]);
+  }, [proc.id, s.material, s.filament, s.nozzleTemp, s.bedTemp, applied, picked, fdmLike, profileGcode, is2D, meshes, s.reach, s.tool, s.routerOp, s.load, s.pocketDepth]);
   const [acks, setAcks] = useState<string[]>([]); const [terms, setTerms] = useState(termsAccepted); const [exchange, setExchange] = useState(false);
   const openCritical = openHazards(hazards, acks);
   const base = model.name.replace(/\.[^.]+$/, '') || 'part';
@@ -176,6 +179,9 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
           // 3D milling / DED: we export the model for full 3D CAM, plus a profile job from its footprint.
           const data = write3mf(meshes.map(m => ({ ...m, name: base })), { title: base });
           setOut({ name: `${base}.3mf`, data: data as BlobPart, type: 'model/3mf' }); setMsg('Exports the checked model for the deposition machine’s own path planner.');
+        } else if (proc.id === 'router' && s.routerOp === 'adaptive' && machine?.dialect) {
+          const j = adaptiveJob(paths.loops, { process: 'router', tool: s.tool, load: s.tool * s.load / 100, depth: s.pocketDepth, stepDown: Math.min(s.pocketDepth, s.reach), feed: s.feed, rpm: 18000, stockToLeave: s.stockToLeave });
+          const g = post(j, { dialect: machine.dialect, name: base }); setJob(j); setOut({ name: `${base}.${fileExtension(machine.dialect)}`, data: g, type: 'text/plain', gcode: g });
         } else if (proc.outputs.includes('gcode') && machine?.dialect) {
           const j = cutJob(paths.loops, paths.open, { process: proc.id, kerf: s.kerf, feed: s.feed, power: proc.id === 'router' ? 18000 : s.power, thickness: proc.id === 'router' ? s.thickness : undefined, stepDown: s.stepDown, pierceDelay: proc.id === 'plasma' ? 0.5 : undefined });
           const g = post(j, { dialect: machine.dialect, name: base }); setJob(j); setOut({ name: `${base}.${fileExtension(machine.dialect)}`, data: g, type: 'text/plain', gcode: g });
@@ -247,7 +253,10 @@ export default function MakePanel({ model, getToken }: { model: CadModel; getTok
       {kind === 'metal' && <>{num('metalLayer', 'Layer thickness', 'mm', 0.01)}<div className="text-[10px] mt-1" style={{ color: DIM }}>Slices to CLI contours; your build processor adds hatching and supports for its laser parameters.</div></>}
       {kind === 'lathe' && <>{num('stock', 'Bar stock Ø', 'mm', 1)}{num('doc', 'Depth of cut', 'mm', 0.1)}{num('feed', 'Feed base', 'mm/min', 50)}</>}
       {kind === 'cut' && <>
-        {proc.id === 'router' ? <>{num('tool', 'Tool Ø', 'mm', 0.1)}{num('thickness', 'Sheet thickness', 'mm', 0.5)}{num('stepDown', 'Depth per pass', 'mm', 0.5)}</> : <>{num('kerf', 'Kerf', 'mm', 0.05)}{num('thickness', 'Material thickness', 'mm', 0.5)}{proc.id !== 'waterjet' && proc.id !== 'drag-knife' && num('power', 'Power', '%', 5)}</>}
+        {proc.id === 'router' ? <>{pick('routerOp', 'Operation', [['profile', 'Cut out (profile)'], ['adaptive', 'Adaptive pocket']])}{num('tool', 'Tool Ø', 'mm', 0.1)}
+          {s.routerOp === 'adaptive' ? <div data-testid="fab-adaptive-pocket">{num('pocketDepth', 'Pocket depth', 'mm', 0.5)}{num('load', 'Radial load', '% of Ø', 1)}{num('stockToLeave', 'Wall stock to leave', 'mm', 0.1)}{num('reach', 'Flute length', 'mm', 1)}
+            <div className="text-[10px] mt-0.5" style={{ color: DIM }}>Clears closed shapes from the middle out with a light, steady cut at full flute depth; islands inside a shape are left standing. The feed eases off where the cut gets heavier.</div></div>
+          : <>{num('thickness', 'Sheet thickness', 'mm', 0.5)}{num('stepDown', 'Depth per pass', 'mm', 0.5)}</>}</> : <>{num('kerf', 'Kerf', 'mm', 0.05)}{num('thickness', 'Material thickness', 'mm', 0.5)}{proc.id !== 'waterjet' && proc.id !== 'drag-knife' && num('power', 'Power', '%', 5)}</>}
         {num('feed', 'Feed', 'mm/min', 50)}
         <label className="flex items-center justify-between py-0.5 gap-2"><span style={{ color: DIM }}>Material</span><input value={s.material} onChange={e => setS(x => ({ ...x, material: e.target.value }))} placeholder={proc.materials[0]} className="w-28 h-6 rounded bg-white/5 border border-white/10 px-1.5 text-[11px] text-white" aria-label="Material"/></label>
       </>}

@@ -419,3 +419,28 @@ test('raster finish: no gouge anywhere, rows on the scallop step-over, stock lef
   assert.ok(left.rows.flat().every(([x, y, z]) => z <= -9.99 || Math.hypot(x, y, z + R) > 12.5 - 0.05));
   assert.match(rasterJob(box(20, 30), { cutter: { shape: 'flat', dia: 6 }, feed: 800, reach: 20 }).warnings.join(' '), /holder would hit/);
 });
+
+// ---------------------------------------------------------------- machining gaps: adaptive clearing
+import { adaptiveJob, engagementAngle } from '../services/fab/adaptive';
+import { distToLoop as dLoop } from '../services/fab/geom2d';
+
+test('adaptive clearing: light steady engagement, never gouges walls or islands, clears the floor', () => {
+  for (const loops of [[sq(20)], [sq(20), sq(5, 5, 0)]]) {
+    const j = adaptiveJob(loops, { tool: 6, depth: 12, feed: 1500 });
+    const maxEng = engagementAngle(3, 0.9) * 1.3; const pts = j.path.pts.filter(p => !Number.isNaN(p.x));
+    const over = pts.filter(p => p.e > maxEng);
+    assert.ok(over.length / pts.length < 0.12, `${(over.length / pts.length * 100).toFixed(1)}% of the path over the engagement limit`);
+    // Wherever the cut does get heavier, the feed drops in proportion (constant chip load).
+    assert.ok(over.every(p => p.f <= 1500 * maxEng / p.e + 1));
+    // Tool centre at least a radius from every wall and island.
+    for (const p of pts) for (const l of loops) assert.ok(dLoop([p.x, p.y], l) > 3 - 1e-3, `gouge at ${p.x},${p.y}`);
+    assert.ok(j.path.uncleared < 0.02, `uncleared ${j.path.uncleared}`);
+    if (loops.length > 1) assert.ok(pts.every(p => !(Math.abs(p.x - 5) < 5 && Math.abs(p.y) < 5)), 'nothing inside the island');
+    // Full flute depth at once (2 × D default), with a helical entry; G-code carries the spindle and depths.
+    const g = post(j, { dialect: 'grbl' }); const zs = new Set(parseGcode(g).filter(m => m.g === 1).map(m => m.z));
+    assert.ok(zs.has(-12) && !zs.has(-6), 'one 12 mm level'); assert.ok(j.path.entry && j.path.entry.r > 1);
+  }
+  // Compared with plain concentric pocketing, the worst engagement is far lower.
+  assert.ok(adaptiveJob([sq(20)], { tool: 6, depth: 6, feed: 1500, stockToLeave: 0.5 }).path.pts.every(p => Number.isNaN(p.x) || dLoop([p.x, p.y], sq(20)) > 3.5 - 1e-3), 'stock to leave on the walls');
+  assert.match(adaptiveJob([sq(2)], { tool: 6, depth: 3, feed: 1000 }).warnings.join(' '), /narrower than/);
+});
