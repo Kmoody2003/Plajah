@@ -53,6 +53,8 @@ function dual(id: string, name: string, left: string[], right: string[], o: { pi
 const PICO_L = ['GP0', 'GP1', 'GND', 'GP2', 'GP3', 'GP4', 'GP5', 'GND', 'GP6', 'GP7', 'GP8', 'GP9', 'GND', 'GP10', 'GP11', 'GP12', 'GP13', 'GND', 'GP14', 'GP15'];
 const PICO_R = ['VBUS', 'VSYS', 'GND', '3V3_EN', '3V3', 'ADC_VREF', 'GP28', 'GND', 'GP27', 'GP26', 'RUN', 'GP22', 'GND', 'GP21', 'GP20', 'GP19', 'GP18', 'GND', 'GP17', 'GP16'];
 const ESP_L = ['3V3', 'EN', 'IO36', 'IO39', 'IO34', 'IO35', 'IO32', 'IO33', 'IO25', 'IO26', 'IO27', 'IO14', 'IO12', 'GND', 'IO13', 'IO9', 'IO10', 'IO11', '5V'];
+const ESP_S3_L = ['3V3', '3V3', 'RST', 'IO4', 'IO5', 'IO6', 'IO7', 'IO15', 'IO16', 'IO17', 'IO18', 'IO8', 'IO3', 'IO46', 'IO9', 'IO10', 'IO11', 'IO12', 'IO13', 'IO14', '5V', 'GND'];
+const ESP_S3_R = ['GND', 'TX', 'RX', 'IO1', 'IO2', 'IO42', 'IO41', 'IO40', 'IO39', 'IO38', 'IO37', 'IO36', 'IO35', 'IO0', 'IO45', 'IO48', 'IO47', 'IO21', 'IO20', 'IO19', 'GND', 'GND'];
 const ESP_R = ['GND', 'IO23', 'IO22', 'IO1', 'IO3', 'IO21', 'GND', 'IO19', 'IO18', 'IO5', 'IO17', 'IO16', 'IO4', 'IO0', 'IO2', 'IO15', 'IO8', 'IO7', 'IO6'];
 const NANO_L = ['D1', 'D0', 'RST', 'GND', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9', 'D10', 'D11', 'D12'];
 const NANO_R = ['VIN', 'GND', 'RST', '5V', 'A7', 'A6', 'A5', 'A4', 'A3', 'A2', 'A1', 'A0', 'AREF', '3V3', 'D13'];
@@ -68,7 +70,7 @@ function radialCap(c: number, v: number): Footprint {
     { body: [-D / 2, -D / 2, D / 2, D / 2], silk: [...circle(0, 0, D / 2), [-D / 2 - 0.6, -D / 2 + 0.6, -D / 2 + 0.4, -D / 2 + 0.6], [-D / 2 - 0.1, -D / 2 + 0.1, -D / 2 - 0.1, -D / 2 + 1.1]] });
 }
 
-const BOARD_POWER_PINS = new Set(['pico.VBUS', 'pico.VSYS', 'esp32.5V', 'nano.5V', 'rpi.5V']);
+const BOARD_POWER_PINS = new Set(['pico.VBUS', 'pico.VSYS', 'esp32.5V', 'esp32s3.5V', 'nano.5V', 'rpi.5V']);
 /** A USB supply wired only to a module's own USB rail is that module's USB socket, not a separate part. */
 export const usbIsModulePort = (kindPin: string) => BOARD_POWER_PINS.has(kindPin);
 
@@ -92,6 +94,7 @@ export function footprintFor(p: CPart, style: FpStyle = 'tht'): Footprint | null
     case 'nmos': return smd ? fp('SOT-23_NMOS', 'SOT-23 N-MOSFET (AO3400 class: 1 G, 2 S, 3 D)', [sm('G', -0.95, 1.0, 0.6, 0.9), sm('S', 0.95, 1.0, 0.6, 0.9), sm('D', 0, -1.0, 0.6, 0.9)], { body: [-1.5, -0.7, 1.5, 0.7], margin: 0.3 })
       : row('TO-220_Vertical_GDS', 'TO-220 vertical (G D S)', ['G', 'D', 'S'], { drill: 1.1, d: 1.8, body: [10.4, 4.6], bodyDy: -1.0 });
     case 'reg7805': return row('TO-220_Vertical_7805', 'TO-220 vertical 7805 (IN GND OUT)', ['IN', 'GND', 'OUT'], { drill: 1.1, d: 1.8, body: [10.4, 4.6], bodyDy: -1.0 });
+    case 'esp32s3': return dual('Module_ESP32S3_DevKitC1', 'ESP32-S3-DevKitC-1 (2 × 22 headers J1/J3)', ESP_S3_L, ESP_S3_R, { span: 22.86, body: [26, 63], note: 'Laid out to the ESP32-S3-DevKitC-1 J1/J3 headers. Measure the row spacing on your board before ordering: clones differ.' });
     case 'ne555': {
       const L = ['GND', 'TRIG', 'OUT', 'RESET'], R = ['VCC', 'DIS', 'THR', 'CTRL']; // DIP numbering: 1-4 down the left, 5-8 up the right
       if (smd) { const pads = [...L.map((n, i) => sm(n, -2.7, -1.905 + i * 1.27, 1.55, 0.6)), ...R.map((n, i) => sm(n, 2.7, -1.905 + i * 1.27, 1.55, 0.6))]; return fp('SOIC-8', 'SOIC-8 (NE555)', pads, { body: [-1.95, -2.45, 1.95, 2.45], silk: [[-1.95, -2.45, 1.95, -2.45], [-1.95, 2.45, 1.95, 2.45], [-3.6, -2.6, -2.1, -2.6]], margin: 0.3 }); }
