@@ -1,9 +1,9 @@
 // STEM track, Grades K–2 · Tinkerers.
 //
-// Seven units across the year. Two are fully authored:
+// Seven units across the year, all fully authored. The two anchors live here:
 //   u01 Build It Strong      engineering design: ask, imagine, plan, build, test, improve (Build Studio)
 //   u02 Lights That Count    electronics-math: counting, patterns, joining and skip-counting, with LEDs as counters
-// The rest are scope & sequence outlines, authored next.
+// Units 3–7 (forces, coding, felt critters, living things, weather) live in data/stem/units/k2-u0*.ts.
 //
 // Safety for this band: nothing hot, nothing plugged in. Circuits live in the simulated Electronics Lab first; the
 // only physical circuit is a 3 V coin cell, an LED and copper tape, and an adult holds and places every coin cell
@@ -12,6 +12,11 @@
 
 import type { RubricCriterion } from '../assignmentTemplates';
 import type { Check, CheckFn, PracticeItem, StemProject, StemUnit } from './types';
+import { K2_U03 as U03, K2_U03_PROJECTS } from './units/k2-u03';
+import { K2_U04 as U04 } from './units/k2-u04';
+import { K2_U05 as U05 } from './units/k2-u05';
+import { K2_U06 as U06 } from './units/k2-u06';
+import { K2_U07 as U07 } from './units/k2-u07';
 
 const M = (code: string) => `CCSS.MATH.CONTENT.${code}`;
 const MP = (n: number) => `CCSS.MATH.PRACTICE.MP${n}`;
@@ -530,128 +535,10 @@ const U02: StemUnit = {
   ],
 };
 
-// ── Units 3–7 · scope & sequence outlines ─────────────────────────────────────
 
-const U03: StemUnit = {
-  id: 'stem-k2-u03',
-  band: 'K-2',
-  n: 3,
-  title: 'Pushes, Pulls and Simple Machines',
-  kind: 'science',
-  strands: ['science', 'engineering'],
-  status: 'outline',
-  weeks: 4,
-  bigIdea: 'A push or a pull can start something moving, stop it, speed it up or change its direction. Ramps, wheels and levers make pushes and pulls easier.',
-  essentialQuestion: 'What happens when we push or pull harder, softer, or from a different side?',
-  standards: { ngss: ['K-PS2-1', 'K-PS2-2', 'K-2-ETS1-1'], ccss: [M('K.MD.A.2'), M('1.MD.A.2')], intl: { uk: 'KS1 Science — working scientifically; forces (introduced in Y3)', cambridge: 'Stage 1 Physics — forces and motion', ib: 'PYP How the world works — phase 1' } },
-  lessons: [],
-  outline: [
-    'Push or Pull? Sorting how things move',
-    'Harder and Softer: how far does the ball roll?',
-    'Ramp Races: a steeper slope in Build Studio',
-    'Wheels Make It Easy',
-    'Seesaw Balance: a lever for toys',
-    'Design a Ball Stopper',
-  ],
-  projectIds: [],
-  museion: 'physics',
-};
 
-const U04: StemUnit = {
-  id: 'stem-k2-u04',
-  band: 'K-2',
-  n: 4,
-  title: 'Code a Robot Friend',
-  kind: 'technology',
-  strands: ['technology', 'math'],
-  status: 'outline',
-  weeks: 3,
-  bigIdea: 'A computer follows steps exactly in the order we give them. Clear steps, in the right order, make a program work; finding and fixing a wrong step is called debugging.',
-  essentialQuestion: 'How do we give directions so clearly that a robot gets them right?',
-  standards: { csta: ['1A-AP-08', '1A-AP-10', '1A-AP-11', '1A-AP-14'], ccss: [M('K.G.A.1'), M('1.G.A.1')], intl: { uk: 'KS1 Computing — algorithms and debugging', cambridge: 'Stage 1–2 Computing — computational thinking', ib: 'PYP Technology — phase 1' } },
-  lessons: [],
-  outline: [
-    'Brushing Teeth in Order: everyday algorithms',
-    'Be the Robot: arrow cards on a floor grid',
-    'Loops Save Steps: repeat 3 times',
-    'Bug Hunt: find the wrong arrow',
-    'Program the Light Show: an unplugged blink sequence',
-  ],
-  projectIds: [],
-  museion: 'cs',
-};
 
-const U05: StemUnit = {
-  id: 'stem-k2-u05',
-  band: 'K-2',
-  n: 5,
-  title: 'Felt Critters: Materials and Textiles',
-  kind: 'engineering',
-  strands: ['science', 'engineering', 'math'],
-  status: 'outline',
-  weeks: 4,
-  bigIdea: 'Every material has properties: soft or stiff, stretchy or firm, thick or thin. Designers choose materials that fit what the thing has to do.',
-  essentialQuestion: 'How do we choose the best material for a soft toy?',
-  standards: { ngss: ['2-PS1-1', '2-PS1-2', '2-PS1-3', 'K-2-ETS1-2'], ccss: [M('2.MD.A.1'), M('1.G.A.2')], intl: { uk: 'KS1 Science — everyday materials; KS1 Design & technology — textiles', cambridge: 'Stage 1–2 Chemistry — materials and their properties', ib: 'PYP How we express ourselves — phase 1' } },
-  lessons: [],
-  outline: [
-    'Touch and Sort: soft, stiff, stretchy, smooth',
-    'Which Fabric Is Best? A squish and stretch test',
-    'Shapes Make a Critter: circles, ovals and triangles',
-    'Draw My Critter Plan in Sewing & Plush',
-    'Stuff, Glue and Decorate (an adult does all cutting and sewing)',
-  ],
-  projectIds: ['stem-k2-proj-felt-critter'],
-  museion: 'engineering',
-};
 
-const U06: StemUnit = {
-  id: 'stem-k2-u06',
-  band: 'K-2',
-  n: 6,
-  title: 'Plants, Animals and Patterns in Nature',
-  kind: 'science',
-  strands: ['science', 'math'],
-  status: 'outline',
-  weeks: 4,
-  bigIdea: 'Living things have parts that help them live and grow, and young plants and animals look like, but not exactly like, their parents. Nature is full of patterns we can observe and count.',
-  essentialQuestion: 'What can we learn about living things by looking closely and counting carefully?',
-  standards: { ngss: ['K-LS1-1', '1-LS1-1', '1-LS3-1', '2-LS2-1', '2-LS4-1'], ccss: [M('1.MD.C.4'), M('K.MD.B.3')], intl: { uk: 'KS1 Science — plants; animals including humans', cambridge: 'Stage 1–2 Biology — living things and their environment', ib: 'PYP Sharing the planet — phase 1' } },
-  lessons: [],
-  outline: [
-    'Look Closely: a magnifier walk',
-    'What Do Plants Need? A bean in a bag',
-    'Leaf and Petal Patterns: count and sort',
-    'Babies and Parents: alike and different',
-    'Who Lives Here? Counting animals in a habitat (Biology Lab picture model)',
-  ],
-  projectIds: [],
-  museion: 'biology',
-};
-
-const U07: StemUnit = {
-  id: 'stem-k2-u07',
-  band: 'K-2',
-  n: 7,
-  title: 'Weather Watchers',
-  kind: 'science',
-  strands: ['science', 'math', 'technology'],
-  status: 'outline',
-  weeks: 3,
-  bigIdea: 'Weather changes from day to day, but when we write it down every day we start to see patterns, and patterns help us get ready for what comes next.',
-  essentialQuestion: 'How can counting the weather help us plan our day?',
-  standards: { ngss: ['K-ESS2-1', 'K-ESS3-2', 'K-PS3-1', 'K-PS3-2'], ccss: [M('K.MD.B.3'), M('1.MD.C.4'), M('2.MD.D.10')], intl: { uk: 'KS1 Science — seasonal changes (Y1)', cambridge: 'Stage 1–2 Earth and space — weather', ib: 'PYP How the world works — phase 1' } },
-  lessons: [],
-  outline: [
-    'What Is the Weather Today? Our class chart',
-    'Tally the Week: sunny, cloudy, rainy',
-    'Picture Graph of the Month',
-    'Sun Warms Things: a shade test',
-    'Build a Sun Shelter in Build Studio',
-  ],
-  projectIds: [],
-  museion: 'earth',
-};
 
 export const K2_UNITS: StemUnit[] = [U01, U02, U03, U04, U05, U06, U07];
 
@@ -774,4 +661,5 @@ export const K2_PROJECTS: StemProject[] = [
     },
     safety: { level: 'supervised', note: 'An adult does all cutting and machine sewing. Children use felt glue, not needles, unless an adult is sitting beside them. Glue-on eyes are for older children only; embroider or use felt eyes for any critter given to a child under three.' },
   },
+  ...K2_U03_PROJECTS,
 ];

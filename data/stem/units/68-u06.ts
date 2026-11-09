@@ -1,0 +1,283 @@
+// 6–8 · Unit 6 · Keep It Cool: A Thermal Energy Design Challenge (engineering). Original Plajah Academia writing.
+import type { StemProject, StemUnit } from '../types';
+import { M, crit, num, say } from '../kit';
+
+const INTL = { uk: 'KS3 Physics: energy and heating', cambridge: 'Lower Secondary Stage 9 Physics: thermal energy transfer', ib: 'MYP year 3 Sciences', singapore: 'Lower Secondary Science: transfer of heat' };
+const THERMAL = 'Use ice water and warm tap water (no hotter than about 45 °C) only: no kettles, hot plates or boiling water. Wipe spills at once. The temperature sensor runs from a USB port and its probe goes in a sealed bag or a waterproof sheath.';
+
+export const G68_U06: StemUnit = {
+  id: 'stem-68-u06',
+  band: '6-8',
+  n: 6,
+  title: 'Keep It Cool: A Thermal Energy Design Challenge',
+  kind: 'engineering',
+  strands: ['science', 'engineering', 'math', 'technology'],
+  status: 'complete',
+  weeks: 3,
+  bigIdea: 'Thermal energy always moves from warmer to cooler by conduction, convection and radiation. Good insulation design slows that flow, and data from a sensor proves whether it worked.',
+  essentialQuestion: 'How can we design a container that slows the flow of thermal energy the most for the least cost?',
+  standards: { ngss: ['MS-PS3-3', 'MS-PS3-4', 'MS-PS3-5', 'MS-ETS1-1', 'MS-ETS1-2', 'MS-ETS1-3', 'MS-ETS1-4'], ccss: [M('6.SP.B.5'), M('7.RP.A.2')], csta: ['2-DA-08'], intl: INTL },
+  projectIds: ['stem-68-proj-lunch-cooler'],
+  museion: 'physics',
+  lessons: [
+    {
+      id: 'stem-68-u06-l1',
+      title: 'Heat on the Move: Conduction, Convection and Radiation',
+      minutes: 50,
+      strands: ['science', 'math'],
+      objectives: [
+        'I can identify conduction, convection and radiation in everyday situations.',
+        'I can explain that thermal energy flows from warmer to cooler objects.',
+        'I can calculate a rate of temperature change in °C per minute.',
+      ],
+      vocab: [
+        ['conduction', 'Thermal energy passing through a material by particles bumping into each other.'],
+        ['convection', 'Thermal energy carried by a moving liquid or gas.'],
+        ['radiation', 'Thermal energy carried by infrared light, even through empty space.'],
+        ['insulator', 'A material that slows the flow of thermal energy.'],
+      ],
+      hook: 'Put a metal spoon and a plastic spoon in a cup of warm water. After a minute, touch the handles. The metal one feels warm, but did "cold" flow out of your hand, or did heat flow in? Which way does thermal energy always go?',
+      build: {
+        title: 'Three transfer stations and a sensor log',
+        steps: [
+          'Station 1: metal and plastic spoons in warm water; feel and compare after 2 minutes (conduction).',
+          'Station 2: a drop of food colouring in warm water over cold; watch it rise (convection).',
+          'Station 3: two cups under a lamp, one wrapped in black paper and one in foil; compare after 10 minutes (radiation).',
+          'Open the Electronics Lab sensor starter, set it to log every 30 s, and log a cup of ice water warming for 10 minutes.',
+          'Find the rate of change in °C per minute from the first and last readings.',
+        ],
+        launch: { room: 'elec', template: 'sensor', starter: { values: { interval: 30 }, note: 'Log a cup of ice water warming to room temperature.' }, lesson: 'stem-68-u06-l1' },
+        materials: ['Metal and plastic spoons', 'Cups of warm tap water and ice water', 'Food colouring', 'Desk lamp', 'Foil and black paper'],
+      },
+      worked: [
+        {
+          prompt: 'Ice water reads 2 °C at 0 min and 8 °C at 10 min. What is the rate of warming?',
+          steps: ['Change: 8 − 2 = 6 °C.', 'Time: 10 min.', 'Rate: 6 ÷ 10 = 0.6 °C per minute.'],
+          answer: '0.6 °C per minute.',
+        },
+      ],
+      practice: [
+        num('A drink warms from 4 °C to 13 °C in 15 min. Rate in °C/min?', '0.6 °C/min.', 0.6, 'slope', [0, 4, 15, 13], 2, '°C/min'),
+        num('Warm water cools from 45 °C to 33 °C in 20 min. Rate (negative = cooling)?', '−0.6 °C/min.', -0.6, 'slope', [0, 45, 20, 33], 2, '°C/min'),
+        num('At 0.5 °C/min, how many degrees does a drink warm in 18 min?', '9 °C.', 9, 'product', [0.5, 18], 1, '°C'),
+        say('Is a warm car seat on a sunny day mostly conduction, convection or radiation? Then what warms your legs?', 'Radiation warms the seat; conduction warms your legs.', 2),
+        say('Why do we say "heat flows in" rather than "cold flows out" when you hold ice?', 'Thermal energy always moves from warmer to cooler: from your hand into the ice.', 3),
+      ],
+      exitTicket: { q: 'Give one example of each transfer type from home.', answer: 'e.g. pan handle (conduction), hot air rising from a radiator (convection), sunlight warming skin (radiation).' },
+      differentiation: {
+        support: ['Picture sort for the three transfer types.', 'Rate template: change ÷ time.'],
+        extension: ['Explain why a vacuum flask blocks all three.', 'Compare the warming rate in the first and last 5 minutes and explain the difference.'],
+        ell: 'Frames: "This is ___ because ___." "The rate is ___ °C per minute."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'low', note: THERMAL },
+      standards: { ngss: ['MS-PS3-3', 'MS-PS3-5'], ccss: [M('7.RP.A.2'), M('7.NS.A.3')], csta: ['2-DA-08'], intl: INTL },
+      mathFocus: 'rate of change (unit rate)',
+      museion: 'physics',
+    },
+    {
+      id: 'stem-68-u06-l2',
+      title: 'Define the Problem: Criteria and Constraints for a Lunch Cooler',
+      minutes: 45,
+      strands: ['engineering', 'math'],
+      objectives: [
+        'I can write measurable criteria and constraints for a design problem.',
+        'I can compute material costs and stay inside a budget.',
+        'I can model a cooler design in Build Studio with real dimensions.',
+      ],
+      vocab: [
+        ['criterion', 'A measurable requirement a design must meet.'],
+        ['constraint', 'A limit, such as cost, size, materials or time.'],
+        ['surface area', 'The total area of all faces of a solid: where heat gets in.'],
+      ],
+      hook: 'A student\'s yoghurt is warm by lunch. The cafeteria has no fridge. You have $3 of materials and a shoebox-sized space. What would "good enough" mean, in numbers?',
+      build: {
+        title: 'Write the brief and model the cooler',
+        steps: [
+          'As a class, agree one measurable criterion (e.g. a 200 mL cup of ice water stays below 8 °C for 3 hours).',
+          'List constraints: budget, outer size, allowed materials, build time.',
+          'Price the materials list and check your design is under budget.',
+          'Open Build Studio: model the outer box and the inner cup space with real dimensions.',
+          'Find the outer surface area of your design.',
+        ],
+        launch: {
+          room: 'studio',
+          prompt: 'A lunch cooler: an outer box no larger than 20 by 15 by 12 centimetres with an insulating layer around a cup, and a lid.',
+          starter: { shapes: ['box', 'box', 'cylinder'], note: 'Outer box, insulation layer, cup.' },
+          lesson: 'stem-68-u06-l2',
+        },
+        materials: ['Material price list', 'Design-brief template'],
+      },
+      worked: [
+        {
+          prompt: 'Foam board costs $0.80 per sheet and you need 2; foil costs $0.15 per piece and you need 4; tape is $0.50. Total? Under a $3 budget?',
+          steps: ['Foam: 2 × 0.80 = $1.60.', 'Foil: 4 × 0.15 = $0.60.', 'Total: 1.60 + 0.60 + 0.50 = $2.70 < $3.'],
+          answer: '$2.70: under budget by $0.30.',
+        },
+      ],
+      practice: [
+        num('3 foam sheets at $0.80 each. Cost?', '$2.40.', 2.4, 'product', [3, 0.8], 1, '$'),
+        num('Costs $1.60, $0.60 and $0.50. Total?', '$2.70.', 2.7, 'sum', [1.6, 0.6, 0.5], 1, '$'),
+        num('A box is 20 × 15 × 12 cm. Surface area = 2(20·15 + 20·12 + 15·12). Find 20·15 + 20·12 + 15·12 first.', '300 + 240 + 180 = 720 cm² (so the surface area is 1440 cm²).', 720, 'sum', [300, 240, 180], 2, 'cm²'),
+        say('Is "keeps food cold" a good criterion? Improve it.', 'Not measurable; better: "keeps 200 mL of ice water below 8 °C for 3 hours".', 3),
+        say('Why might a smaller cooler stay cold longer, with the same insulation?', 'Less surface area for heat to come in through.', 2),
+      ],
+      exitTicket: { q: 'Write one measurable criterion and one constraint.', answer: 'e.g. below 8 °C after 3 h; cost ≤ $3.' },
+      differentiation: {
+        support: ['Brief template with sentence starters.', 'Price list with a pre-built cost table.'],
+        extension: ['Compare surface area for two shapes with the same volume.', 'Add a weighted criterion for weight carried.'],
+        ell: 'Frames: "Our cooler must ___." "It cannot ___."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'sim-only', note: 'Planning and Build Studio only.' },
+      standards: { ngss: ['MS-ETS1-1'], ccss: [M('7.EE.B.3'), M('6.G.A.4')], intl: INTL },
+      mathFocus: 'decimal operations; surface area',
+      museion: 'engineering',
+    },
+    {
+      id: 'stem-68-u06-l3',
+      title: 'Insulator Trials Logged with the Temperature Sensor',
+      minutes: 55,
+      strands: ['science', 'technology', 'math'],
+      objectives: [
+        'I can run a fair test comparing insulating materials.',
+        'I can log temperature with a sensor and read the data.',
+        'I can compare insulators using warming rate and percent difference.',
+      ],
+      vocab: [
+        ['control', 'The trial with no insulation, used for comparison.'],
+        ['sampling interval', 'Time between sensor readings.'],
+        ['percent decrease', '(old − new) ÷ old × 100.'],
+      ],
+      hook: 'Bubble wrap, felt, foil, foam, newspaper: each has a fan club. A sensor does not have opinions. Let\'s let the data decide.',
+      build: {
+        title: 'Four insulators against a control',
+        steps: [
+          'Wrap identical cups of 200 mL ice water: one bare (control), and one each in foam, felt, foil and newspaper, same thickness.',
+          'Set the sensor to log every 60 s and record each cup for 30 minutes (or rotate one sensor among cups every 5 minutes).',
+          'Export the log and find each cup\'s rise in temperature.',
+          'Compute the warming rate and percent decrease compared with the control.',
+          'Rank the materials and note cost per sheet next to each.',
+        ],
+        launch: { room: 'elec', template: 'sensor', starter: { values: { interval: 60 }, note: 'Label each log with the material.' }, lesson: 'stem-68-u06-l3' },
+        materials: ['Identical cups', 'Ice water', 'Foam, felt, foil, newspaper', 'Rubber bands'],
+      },
+      worked: [
+        {
+          prompt: 'In 30 min the bare cup warmed 12 °C and the foam cup warmed 3 °C. What is the percent decrease in warming?',
+          steps: ['Decrease: 12 − 3 = 9 °C.', '9 ÷ 12 = 0.75.', '0.75 × 100 = 75%.'],
+          answer: 'Foam cut warming by 75%.',
+        },
+      ],
+      practice: [
+        num('Bare cup warmed 12 °C, felt cup 6 °C. Percent decrease?', '50%.', 50, 'pct', [6, 12], 2, '%'),
+        num('Newspaper cup warmed 9 °C vs 12 °C bare. Percent decrease?', '25%.', 25, 'pct', [3, 12], 2, '%'),
+        num('Foam warmed 3 °C in 30 min. Rate in °C/min?', '0.1 °C/min.', 0.1, 'quotient', [3, 30], 1, '°C/min'),
+        num('Three foam trials warmed 3, 4 and 2 °C. Mean?', '3 °C.', 3, 'mean', [3, 4, 2], 1, '°C'),
+        say('One group used 100 mL of water and another 200 mL. Can they compare results?', 'No: the amount of water changes how fast it warms; keep it the same.', 3),
+      ],
+      exitTicket: { q: 'Which insulator won, by what percent, and how sure are you?', answer: 'Best material, a correct percent, and a note on repeat trials or range.' },
+      differentiation: {
+        support: ['Pre-made log table and percent template.', 'Two materials plus control only.'],
+        extension: ['Plot all cooling curves on one graph and compare slopes.', 'Calculate percent decrease per dollar.'],
+        ell: 'Frames: "___ warmed ___ °C, which is ___% less than the control."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'low', note: THERMAL },
+      standards: { ngss: ['MS-PS3-3', 'MS-ETS1-3'], ccss: [M('7.RP.A.3'), M('6.SP.B.5')], csta: ['2-DA-08'], intl: INTL },
+      mathFocus: 'percent decrease',
+      museion: 'physics',
+    },
+    {
+      id: 'stem-68-u06-l4',
+      title: 'Optimise, Retest and Present the Cooling Curves',
+      minutes: 55,
+      strands: ['engineering', 'math', 'technology'],
+      objectives: [
+        'I can combine the best features of several designs into one.',
+        'I can compare before and after cooling curves using slope.',
+        'I can present a trade-off between performance and cost with evidence.',
+      ],
+      vocab: [
+        ['optimise', 'Improve a design to best meet the criteria within the constraints.'],
+        ['cooling curve', 'A graph of temperature against time.'],
+        ['trade-off', 'Giving up some of one quality to gain another.'],
+      ],
+      hook: 'Team A\'s foam cooler wins but costs $2.90. Team B\'s newspaper and foil cooler is nearly as good for $0.70. Which is the better design? It depends on the criteria, and the data.',
+      build: {
+        title: 'Build the optimised cooler and log it',
+        steps: [
+          'Choose features from the trials (layers, reflective foil, a tight lid) and redesign in Build Studio.',
+          'Check the cost is within budget.',
+          'Build it and log 200 mL of ice water for 60 minutes.',
+          'Plot the new cooling curve over your first design\'s and find both slopes.',
+          'Present: criteria met?, cost, and the trade-off you chose.',
+        ],
+        launch: { room: 'elec', template: 'sensor', starter: { values: { interval: 60 }, note: 'Log the optimised cooler for 60 minutes.' }, lesson: 'stem-68-u06-l4' },
+        materials: ['Chosen insulating materials', 'Tape', 'Ice water'],
+      },
+      worked: [
+        {
+          prompt: 'Version 1 warmed from 2 °C to 14 °C in 60 min. Version 2 warmed from 2 °C to 8 °C. Compare slopes.',
+          steps: ['V1 slope: (14 − 2) ÷ 60 = 0.2 °C/min.', 'V2 slope: (8 − 2) ÷ 60 = 0.1 °C/min.', 'V2 warms at half the rate.'],
+          answer: 'V1 0.2 °C/min, V2 0.1 °C/min: version 2 halves the warming rate.',
+        },
+      ],
+      practice: [
+        num('A curve goes from (0, 2) to (60, 11). Slope in °C/min?', '0.15 °C/min.', 0.15, 'slope', [0, 2, 60, 11], 2, '°C/min'),
+        num('At 0.15 °C/min, how long until 2 °C water reaches 8 °C?', '6 ÷ 0.15 = 40 min.', 40, 'quotient', [6, 0.15], 3, 'min'),
+        num('Cooler A costs $2.90 and Cooler B $0.70. How many times more does A cost?', '≈ 4.1 times.', 4.14, 'quotient', [2.9, 0.7], 2, 'times'),
+        num('A cooler limits warming to 4 °C; the control warmed 16 °C. Percent of the control\'s warming?', '25%.', 25, 'pct', [4, 16], 1, '%'),
+        say('Your cooler met the temperature criterion but went over budget. What should you report?', 'That it fails a constraint; propose a cheaper change and the expected cost in performance.', 3),
+      ],
+      exitTicket: { q: 'State your design\'s slope, cost, and whether it met the criterion.', answer: 'Three values with units and a yes/no against the brief.' },
+      differentiation: {
+        support: ['Graph template with both curves pre-scaled.', 'Presentation frame: claim, evidence, reasoning.'],
+        extension: ['Fit a line to each curve and use it to predict 3-hour temperatures.', 'Explain why the curve flattens as it nears room temperature.'],
+        ell: 'Frames: "Our design warmed at ___ °C per minute, which is ___ than before."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'low', note: THERMAL },
+      standards: { ngss: ['MS-ETS1-2', 'MS-ETS1-4', 'MS-PS3-3'], ccss: [M('7.RP.A.2'), M('8.F.B.4')], csta: ['2-DA-08'], intl: INTL },
+      mathFocus: 'slope as a rate; comparing rates',
+      museion: 'engineering',
+    },
+  ],
+};
+
+export const G68_U06_PROJECTS: StemProject[] = [
+  {
+    id: 'stem-68-proj-lunch-cooler',
+    band: '6-8',
+    unitId: 'stem-68-u06',
+    title: 'The $3 Lunch Cooler',
+    subject: 'science',
+    drivingQuestion: 'Can we design a lunch cooler that keeps 200 mL of ice water below 8 °C for three hours, for $3 or less?',
+    brief: 'Design, model and build a lunch cooler within a $3 materials budget and a 20 × 15 × 12 cm size limit. Prove its performance with a sensor log, compare it with an unwrapped control, and present the cooling curve, its slope, the cost and the trade-offs you made.',
+    deliverables: ['A design brief with measurable criteria and constraints', 'A Build Studio model with dimensions and a priced materials list', 'Sensor logs for the control and the final cooler', 'A cooling-curve graph with slopes and a percent decrease', 'A one-page design report'],
+    steps: [
+      'Write the brief and price the materials.',
+      'Model the cooler in Build Studio.',
+      'Run insulator trials and choose materials.',
+      'Build, log for at least 60 minutes and compare with the control.',
+      'Improve one feature and retest.',
+      'Present the evidence and the trade-offs.',
+    ],
+    launch: { room: 'elec', template: 'sensor', starter: { values: { interval: 60 }, note: 'Log the control and the final cooler.' }, lesson: 'stem-68-proj-lunch-cooler' },
+    rubric: {
+      criteria: [
+        crit('Science explanation', 'Transfer types not mentioned', 'Names transfer types loosely', 'Explains how each design feature slows conduction, convection or radiation', 'Uses data to show which transfer the design reduced most'),
+        crit('Data and math', 'No log', 'Log without analysis', 'Correct slopes and percent decrease with units', 'Prediction to 3 hours from the slope, checked against a long run'),
+        crit('Design process', 'Built once, no test', 'Tested once', 'Brief, trials, build, retest', 'Iterations logged with evidence driving each change'),
+        crit('Constraints and trade-offs', 'Over budget or size', 'Within limits, no discussion', 'Within limits with costs shown', 'Explains the performance-cost trade-off with numbers'),
+      ],
+    },
+    standards: { ngss: ['MS-PS3-3', 'MS-ETS1-1', 'MS-ETS1-2', 'MS-ETS1-4'], ccss: [M('7.RP.A.2'), M('7.RP.A.3'), M('6.SP.B.5')], csta: ['2-DA-08'], intl: INTL },
+    minutes: 240,
+    differentiation: {
+      support: 'Provide two pre-tested insulators and a report template; focus on one improvement round.',
+      extension: 'Model warming with a line, then explain why real data curves (Newton\'s law of cooling) and fit a better model.',
+    },
+    safety: { level: 'low', note: THERMAL },
+  },
+];

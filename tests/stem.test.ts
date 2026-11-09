@@ -127,6 +127,21 @@ test('math answer keys check numerically against independent formulas', () => {
   assert.ok(checked >= 60, `only ${checked} machine-checked answers`);
 });
 
+test('every unit is fully authored: no outline units remain', () => {
+  const outline = STEM_UNITS.filter(u => u.status !== 'complete' || u.lessons.length < 3).map(u => u.id);
+  assert.deepEqual(outline, []);
+});
+
+test('every numeric answer key carries a check, so no number reaches a student unverified', () => {
+  const unchecked = STEM_LESSONS.flatMap(l => l.practice.filter(p => typeof p.value === 'number' && !p.check).map(p => `${l.id}: ${p.q}`));
+  assert.deepEqual(unchecked, []);
+});
+
+test('every lesson launch names its own lesson id for routing work back', () => {
+  const bad = STEM_LESSONS.filter(l => l.build.launch.lesson && l.build.launch.lesson !== l.id).map(l => `${l.id} → ${l.build.launch.lesson}`);
+  assert.deepEqual(bad, []);
+});
+
 test('the fret formula in the lessons matches the guitar designer in Electronics Lab', () => {
   for (const n of [1, 5, 7, 12, 19, 24]) assert.ok(Math.abs(F.fret([648, n]) - fretPosition(648, n)) < 1e-9);
   assert.ok(Math.abs(fretPosition(648, 12) - 324) < 1e-9, 'the 12th fret sits at half the scale');

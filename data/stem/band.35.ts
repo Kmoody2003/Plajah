@@ -1,11 +1,17 @@
-// STEM track, grades 3–5 · Makers. Scope & sequence, two fully authored units and the band's Build projects.
-// See data/stem/types.ts for the model. All prose is original Plajah Academia writing.
+// STEM track, grades 3–5 · Makers. Scope & sequence (all eight units authored), the two anchor units and the band's Build projects.
+// Units 1 and 4–8 live in data/stem/units/35-u0*.ts. See data/stem/types.ts for the model. All prose is original Plajah Academia writing.
 //
 // Safety for this band: simulated Electronics Lab first; physical circuits only on AA alkaline packs (≤ 6 V), every
 // LED with its own resistor, never a wire straight across a battery. No heat tools. Needles with an adult nearby.
 
 import type { RubricCriterion } from '../assignmentTemplates';
 import type { StemProject, StemUnit } from './types';
+import { G35_U01 as U01 } from './units/35-u01';
+import { G35_U04 as U04, G35_U04_PROJECTS } from './units/35-u04';
+import { G35_U05 as U05, G35_U05_PROJECTS } from './units/35-u05';
+import { G35_U06 as U06 } from './units/35-u06';
+import { G35_U07 as U07 } from './units/35-u07';
+import { G35_U08 as U08 } from './units/35-u08';
 
 const C = (code: string) => `CCSS.MATH.CONTENT.${code}`;
 
@@ -624,181 +630,6 @@ const U03: StemUnit = {
   ],
 };
 
-// ───────────────────────────────────────────────────────────────────────────────────────────────
-// Outline units
-// ───────────────────────────────────────────────────────────────────────────────────────────────
-const U01: StemUnit = {
-  id: 'stem-35-u01',
-  band: '3-5',
-  n: 1,
-  title: 'Think Like an Engineer: Problems, Criteria & Constraints',
-  kind: 'engineering',
-  strands: ['engineering', 'technology', 'math'],
-  status: 'outline',
-  weeks: 3,
-  bigIdea: 'Engineers start with a real person’s problem, say what success looks like and what limits them, then build, test and improve more than once.',
-  essentialQuestion: 'How do we know if a design is good enough, and how do we make it better?',
-  standards: {
-    ngss: ['3-5-ETS1-1', '3-5-ETS1-2', '3-5-ETS1-3'],
-    ccss: [C('3.MD.B.3'), C('4.MD.A.2')],
-    intl: { uk: 'Y4 Design & technology — design, make, evaluate', cambridge: 'Stage 4 — Science: thinking and working scientifically', ib: 'PYP How we organise ourselves', singapore: 'Primary Science — scientific inquiry' },
-  },
-  lessons: [],
-  outline: [
-    'Whose problem is it? Interviewing a user',
-    'Criteria and constraints: writing a design brief',
-    'Sketch three ideas, then pick one with a decision table',
-    'Fair tests and failure points: the paper-bridge challenge',
-    'Iterate and present: what we changed and why',
-  ],
-  projectIds: [],
-  museion: 'engineering',
-};
-
-const U04: StemUnit = {
-  id: 'stem-35-u04',
-  band: '3-5',
-  n: 4,
-  title: 'Pushes, Pulls & Simple Machines',
-  kind: 'engineering',
-  strands: ['science', 'engineering', 'math'],
-  status: 'outline',
-  weeks: 4,
-  bigIdea: 'Forces can be balanced or unbalanced; simple machines like levers, pulleys and gears trade distance for an easier push.',
-  essentialQuestion: 'How can a simple machine make a hard job feel easy?',
-  standards: {
-    ngss: ['3-PS2-1', '3-PS2-2', '3-PS2-4', '3-5-ETS1-2'],
-    ccss: [C('3.OA.A.3'), C('4.OA.A.2'), C('3.NF.A.3')],
-    intl: { uk: 'Y5 Science — Forces: levers, pulleys and gears', cambridge: 'Stage 5 — Physics: forces and motion', ib: 'PYP How the world works — forces', singapore: 'Primary Science P5 — Interactions: forces' },
-  },
-  lessons: [],
-  outline: [
-    'Balanced and unbalanced forces: the tug-of-war table',
-    'Patterns of motion: a pendulum timer you can predict',
-    'Levers: how far from the pivot? (effort arm ÷ load arm)',
-    'Gears in Build Studio: teeth ratios and turning speed',
-    'Pulleys and ramps: trading distance for force',
-    'Design a machine that lifts a 100 g load with the smallest push',
-  ],
-  projectIds: [],
-  museion: 'physics',
-};
-
-const U05: StemUnit = {
-  id: 'stem-35-u05',
-  band: '3-5',
-  n: 5,
-  title: 'Loops & Events: Coding a Light Show',
-  kind: 'technology',
-  strands: ['technology', 'math', 'engineering'],
-  status: 'outline',
-  weeks: 4,
-  bigIdea: 'Programs are step-by-step instructions; loops repeat steps and events make a program react to the world.',
-  essentialQuestion: 'How can a few lines of code make a light show that responds to a button?',
-  standards: {
-    csta: ['1B-AP-08', '1B-AP-10', '1B-AP-11', '1B-AP-12', '1B-AP-15'],
-    ccss: [C('4.OA.C.5'), C('3.OA.D.9')],
-    intl: { uk: 'KS2 Computing — sequence, selection and repetition', cambridge: 'Stage 5 — Computing: programming', ib: 'PYP Technology — computational thinking', singapore: 'Code for Fun — primary' },
-  },
-  lessons: [],
-  outline: [
-    'Algorithms out loud: program a classmate robot',
-    'Repeat blocks: blink an LED in the simulated Pico',
-    'Events: when the button is pressed, change the colour',
-    'Number patterns in loops: count by 2s, 5s and 10s in code',
-    'Debugging: find the bug, fix the bug, explain the bug',
-    'Light-show showcase with a reaction-time game',
-  ],
-  projectIds: [],
-  museion: 'cs',
-};
-
-const U06: StemUnit = {
-  id: 'stem-35-u06',
-  band: '3-5',
-  n: 6,
-  title: 'Materials Matter: 3D Design & Fabrication',
-  kind: 'engineering',
-  strands: ['science', 'engineering', 'technology', 'math'],
-  status: 'outline',
-  weeks: 4,
-  bigIdea: 'Every material has properties we can measure; designers choose materials and shapes for the job, then model and make them.',
-  essentialQuestion: 'How do we pick the right material and shape for something we want to make?',
-  standards: {
-    ngss: ['5-PS1-3', '5-PS1-4', '3-5-ETS1-2'],
-    ccss: [C('5.MD.C.5'), C('5.G.B.3'), C('4.MD.A.1')],
-    intl: { uk: 'Y5 Science — Properties and changes of materials', cambridge: 'Stage 5 — Chemistry: materials and their properties', ib: 'PYP How the world works — materials', singapore: 'Primary Science P3 — Diversity of materials' },
-  },
-  lessons: [],
-  outline: [
-    'Property detectives: hardness, flexibility, magnetism, conductivity',
-    'Shapes in Build Studio: box, cylinder, cone and how they combine',
-    'Units that fit: designing in millimetres and centimetres',
-    'Strong shapes: triangles, arches and tubes under load',
-    'From screen to object: a printed name tag or keychain (adult runs the printer)',
-  ],
-  projectIds: [],
-  museion: 'engineering',
-};
-
-const U07: StemUnit = {
-  id: 'stem-35-u07',
-  band: '3-5',
-  n: 7,
-  title: 'Soft Engineering: Sewing & Plush Patterns',
-  kind: 'engineering',
-  strands: ['engineering', 'math', 'technology'],
-  status: 'outline',
-  weeks: 3,
-  bigIdea: 'A pattern is a flat plan for a 3D object. Measuring, seam allowances and the area of each piece decide how much fabric we need and whether it fits together.',
-  essentialQuestion: 'How does a flat pattern become a soft 3D friend?',
-  standards: {
-    ngss: ['3-5-ETS1-1', '3-5-ETS1-3'],
-    ccss: [C('3.MD.C.7'), C('4.MD.A.3'), C('3.MD.B.4'), C('4.MD.A.1')],
-    intl: { uk: 'Y4 Design & technology — textiles', cambridge: 'Stage 4 — Geometry and measure: area', ib: 'PYP How we express ourselves — design', singapore: 'Primary Mathematics P4 — area of composite figures' },
-  },
-  lessons: [],
-  outline: [
-    'Flat to 3D: unfolding a box and a plush into pattern pieces',
-    'Measure twice: centimetres, millimetres and seam allowance',
-    'Area of pattern pieces: how much fabric for the whole plush?',
-    'Stitch sampler with an adult: running stitch and back stitch',
-    'Stuff, close and test: does it sit flat?',
-  ],
-  projectIds: ['stem-35-proj-plush-pal'],
-  museion: 'engineering',
-};
-
-const U08: StemUnit = {
-  id: 'stem-35-u08',
-  band: '3-5',
-  n: 8,
-  title: 'Data Stories: Ecosystems & Weather Sensors',
-  kind: 'science',
-  strands: ['science', 'math', 'technology'],
-  status: 'outline',
-  weeks: 4,
-  bigIdea: 'Living things and weather both change in patterns we can see in data: predators and prey rise and fall together, and temperature follows the day and the season.',
-  essentialQuestion: 'What can graphs tell us about the living and non-living world around us?',
-  standards: {
-    ngss: ['5-LS2-1', '3-LS4-3', '3-ESS2-1', '3-ESS2-2'],
-    ccss: [C('3.MD.B.3'), C('5.MD.B.2'), C('5.G.A.2')],
-    csta: ['1B-DA-06', '1B-DA-07'],
-    intl: { uk: 'Y4 Science — Living things and their habitats', cambridge: 'Stage 5 — Biology: ecosystems; Earth and space: weather', ib: 'PYP Sharing the planet', singapore: 'Primary Science P5 — Interactions within the environment' },
-  },
-  lessons: [],
-  outline: [
-    'Food webs: who eats whom in a schoolyard',
-    'Foxes and rabbits: a predator–prey picture graph in the Biology Lab',
-    'Reading the rise and fall: line graphs of populations over time',
-    'Weather station in the simulated Electronics Lab: temperature every hour',
-    'Mean, highest and lowest: a week of classroom weather data',
-    'Data story presentation: what our graphs say',
-  ],
-  projectIds: [],
-  museion: 'biology',
-};
-
 export const G35_UNITS: StemUnit[] = [U01, U02, U03, U04, U05, U06, U07, U08];
 
 // ───────────────────────────────────────────────────────────────────────────────────────────────
@@ -933,4 +764,6 @@ export const G35_PROJECTS: StemProject[] = [
     },
     safety: { level: 'supervised', note: 'An adult supervises needles and pins at all times and counts them in and out. Sharp scissors stay with the adult; sewing machines only as school policy allows.' },
   },
+  ...G35_U04_PROJECTS,
+  ...G35_U05_PROJECTS,
 ];

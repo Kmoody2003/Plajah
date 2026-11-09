@@ -1,0 +1,282 @@
+// 9–12 · Unit 7 · Energy & Power Systems (engineering). Original Plajah Academia writing.
+import type { StemProject, StemUnit } from '../types';
+import { G912_BENCH, M, crit, num, say } from '../kit';
+
+const INTL = { uk: 'GCSE/A level Physics — energy, power, efficiency, electromagnetic induction', ib: 'DP Physics — energy production; electromagnetic induction', cambridge: 'IGCSE/A level Physics — energy and electromagnetism' };
+const LITHIUM = 'Lithium cells only as protected, purchased packs with a matched charger. Never puncture, crush, short, heat or modify a cell; never charge unattended or on a soft surface. A swollen, hot or damaged pack is isolated in a metal bin outdoors and reported. Bench tests use a current-limited supply.';
+const NODE = 'An ESP32 environment sensor node with deep sleep, a protected 3.7 volt 2000 milliampere-hour lithium-ion pack with a charge controller, and a 6 volt 1 watt solar panel.';
+
+export const G912_U07: StemUnit = {
+  id: 'stem-912-u07',
+  band: '9-12',
+  n: 7,
+  title: 'Energy & Power Systems',
+  kind: 'engineering',
+  strands: ['science', 'engineering', 'math'],
+  status: 'complete',
+  weeks: 4,
+  bigIdea: 'Every device converts energy from one form to another and loses some on the way; sizing a battery or a solar panel is an energy budget.',
+  essentialQuestion: 'How big a battery does a device really need, and where does the rest of the energy go?',
+  standards: { ngss: ['HS-PS3-3', 'HS-PS3-1', 'HS-PS2-5', 'HS-ETS1-3'], ccss: [M('HSN.Q.A.1'), M('HSA.CED.A.1'), M('HSA.CED.A.4')], intl: INTL },
+  projectIds: ['stem-912-proj-solar-node'],
+  museion: 'physics',
+  lessons: [
+    {
+      id: 'stem-912-u07-l1',
+      title: 'Energy, Power and Efficiency: Following the Joules Through a Speaker',
+      minutes: 55,
+      strands: ['science', 'math', 'engineering'],
+      objectives: [
+        'I can distinguish energy (J, Wh) from power (W) and convert between them.',
+        'I can compute efficiency as useful output ÷ input and identify where losses go.',
+        'I can draw a Sankey diagram for a device.',
+      ],
+      vocab: [
+        ['energy', 'The capacity to do work, in joules (J); 1 Wh = 3600 J.'],
+        ['power', 'Rate of energy transfer, in watts (W = J/s).'],
+        ['efficiency', 'Useful energy out ÷ total energy in, as a percent.'],
+        ['Sankey diagram', 'A flow diagram where arrow widths show energy amounts.'],
+      ],
+      hook: 'A 10 W speaker playing loud music makes far less than 10 W of sound. Touch the amplifier after an hour: it is warm. Where did the joules go?',
+      build: {
+        title: 'Trace the energy in the speaker recipe',
+        steps: [
+          'Open the speaker recipe and read the supply voltage and current at a moderate volume.',
+          'Compute input power, and energy used in one hour in Wh and J.',
+          'Use the amplifier\'s stated efficiency to find power delivered to the driver and lost as heat.',
+          'Assume the driver converts about 1% of its input to sound; find the acoustic power.',
+          'Draw a Sankey diagram from supply to sound and heat.',
+        ],
+        launch: { room: 'elec', template: 'speaker', starter: { note: 'Read the supply V and I, and the amplifier efficiency.' }, lesson: 'stem-912-u07-l1' },
+      },
+      worked: [
+        {
+          prompt: 'Supply 12 V at 0.5 A. Amplifier 85% efficient; driver converts 1% to sound. Input power, heat in the amp, acoustic power?',
+          steps: ['Input: 12 × 0.5 = 6 W.', 'To driver: 0.85 × 6 = 5.1 W; amp heat 0.9 W.', 'Sound: 0.01 × 5.1 = 0.051 W; the rest of the 5.1 W heats the voice coil.'],
+          answer: '6 W in; 0.9 W amp heat; about 0.05 W of sound.',
+        },
+      ],
+      practice: [
+        num('12 V at 0.5 A. Power?', '6 W.', 6, 'power', [12, 0.5], 1, 'W'),
+        num('6 W for 1 hour, in joules (6 × 3600)?', '21 600 J.', 21600, 'product', [6, 3600], 1, 'J'),
+        num('Useful output 5.1 W from 6 W input. Efficiency?', '85%.', 85, 'pct', [5.1, 6], 1, '%'),
+        num('Overall: 0.051 W of sound from 6 W. Efficiency?', '0.85%.', 0.85, 'pct', [0.051, 6], 2, '%'),
+        num('Amplifier output power is 20 V across 8 Ω: P = V²/R, i.e. 20 × (20 ÷ 8)?', '50 W.', 50, 'power', [20, 2.5], 3, 'W'),
+        say('Is energy "lost" when a speaker warms up?', 'Not destroyed: it is converted to thermal energy that spreads into the room and is no longer useful to us.', 2),
+      ],
+      exitTicket: { q: 'Sketch a Sankey diagram for the speaker with three output arrows and their watts.', answer: 'Input 6 W → amp heat 0.9 W, coil heat ≈ 5.05 W, sound ≈ 0.05 W.' },
+      differentiation: {
+        support: ['Energy/power unit card.', 'Sankey template with arrow widths to fill.'],
+        extension: ['Compare class-AB (≈ 60%) and class-D (≈ 90%) amps over a year of use.', 'Estimate voice-coil temperature rise from its heat capacity.'],
+        ell: 'Frames: "Of ___ W in, ___ W becomes ___."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'sim-only', note: 'Simulation only; keep any listening at safe volume.' },
+      standards: { ngss: ['HS-PS3-1', 'HS-PS3-3'], ccss: [M('HSN.Q.A.1'), M('HSA.CED.A.4')], intl: INTL },
+      mathFocus: 'unit conversion and percent efficiency',
+      museion: 'physics',
+    },
+    {
+      id: 'stem-912-u07-l2',
+      title: 'Battery Sizing: mAh, Duty Cycle and Sleep; Lithium Cells Safely',
+      minutes: 60,
+      strands: ['engineering', 'math', 'science'],
+      objectives: [
+        'I can compute the average current of a device that wakes, works and sleeps.',
+        'I can size a battery for a target run time with a derating margin.',
+        'I can state and justify the safety rules for lithium-ion packs.',
+      ],
+      vocab: [
+        ['capacity (mAh)', 'How much charge a battery stores: 1 mAh supplies 1 mA for 1 hour.'],
+        ['duty cycle', 'Fraction of time the device is awake.'],
+        ['average current', 'Weighted mean: Σ(current × time) ÷ total time.'],
+        ['protected pack', 'A lithium pack with a built-in circuit that cuts off on overcharge, overdischarge, overcurrent and short.'],
+      ],
+      hook: 'An ESP32 awake with Wi-Fi draws about 120 mA: a 2000 mAh pack lasts under a day. The same node sleeping between readings can run for weeks. The difference is all arithmetic, and a little physics.',
+      build: {
+        title: 'Duty-cycle budget for the sensor node',
+        steps: [
+          'Open the sensor recipe and note the awake current and how long a reading-plus-send takes.',
+          'Choose an interval and compute the duty cycle.',
+          'Compute the average current with a 10 µA deep-sleep current.',
+          'Size the pack for 30 days with a 20% derating; compare with 2000 mAh.',
+          'Read the lithium safety sheet and write the three rules that apply to your node and why.',
+        ],
+        launch: { room: 'elec', template: 'sensor', starter: { values: { interval: 300 }, note: 'Wake every 5 minutes; record awake time and current.' }, lesson: 'stem-912-u07-l2' },
+      },
+      worked: [
+        {
+          prompt: 'Awake 4 s at 120 mA every 300 s; asleep 296 s at 0.01 mA. Average current? Hours on 2000 mAh?',
+          steps: ['Charge per cycle: 4 × 120 + 296 × 0.01 = 480 + 2.96 = 482.96 mA·s.', 'Average: 482.96 ÷ 300 ≈ 1.61 mA.', 'Run time: 2000 ÷ 1.61 ≈ 1242 h ≈ 52 days.'],
+          answer: '≈ 1.61 mA average; ≈ 1240 h (about 52 days).',
+        },
+      ],
+      practice: [
+        num('Duty cycle: 4 s awake per 300 s, as a percent?', '≈ 1.33%.', 1.333, 'pct', [4, 300], 1, '%'),
+        num('Average current: 482.96 mA·s ÷ 300 s?', '≈ 1.61 mA.', 1.61, 'quotient', [482.96, 300], 2, 'mA'),
+        num('Run time on 2000 mAh at 1.61 mA?', '≈ 1242 h.', 1242, 'batteryHours', [2000, 1.61], 2, 'h'),
+        num('Always awake at 120 mA on 2000 mAh?', '≈ 16.7 h.', 16.67, 'batteryHours', [2000, 120], 1, 'h'),
+        num('Need 30 days (720 h) at 1.61 mA with 20% derating: 720 × 1.61 ÷ 0.8?', '≈ 1449 mAh.', 1449, 'quotient', [1159.2, 0.8], 3, 'mAh'),
+        say('Why must a lithium-ion pack never be charged unattended on a bed or sofa?', 'A fault can cause thermal runaway (fire); soft surfaces trap heat and catch fire, and no one is there to respond.', 2),
+      ],
+      exitTicket: { q: 'Your node\'s average current and run time on 2000 mAh?', answer: 'Values computed from their interval and awake time.' },
+      differentiation: {
+        support: ['Weighted-average template with awake/asleep rows.', 'Safety rules card to annotate.'],
+        extension: ['Account for Wi-Fi reconnect spikes and battery self-discharge (≈ 2%/month).', 'Graph run time against interval and find diminishing returns.'],
+        ell: 'Frames: "Average current = (___ × ___ + ___ × ___) ÷ ___."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'supervised', note: LITHIUM },
+      standards: { ngss: ['HS-ETS1-3', 'HS-PS3-3'], ccss: [M('HSN.Q.A.1'), M('HSA.CED.A.1'), M('HSN.Q.A.3')], intl: INTL },
+      mathFocus: 'weighted averages and rational equations',
+      museion: 'engineering',
+    },
+    {
+      id: 'stem-912-u07-l3',
+      title: 'Generators and Motors: Electromagnetic Induction on a Hand-Crank',
+      minutes: 55,
+      strands: ['science', 'math', 'engineering'],
+      objectives: [
+        'I can explain how a changing magnetic flux induces a voltage.',
+        'I can show that a motor and a generator are the same machine run in opposite directions.',
+        'I can relate crank speed, gear ratio, voltage and power delivered to a load.',
+      ],
+      vocab: [
+        ['electromagnetic induction', 'A voltage produced in a coil when the magnetic field through it changes.'],
+        ['back-EMF', 'The voltage a spinning motor generates, opposing the supply.'],
+        ['load', 'The device the generator powers.'],
+        ['gear ratio', 'Driven turns per driver turn (or teeth ratio) in a gear train.'],
+      ],
+      hook: 'Crank a hand generator with no load: it spins easily. Connect a bulb: suddenly it fights back. Short its terminals: you can barely turn it. You are feeling the energy you are converting.',
+      build: {
+        title: 'Model a hand-crank generator',
+        steps: [
+          'In the Electronics Lab, model a small DC motor used as a generator: a voltage source proportional to speed, with 4 Ω internal resistance, feeding a 20 Ω load.',
+          'At a generator speed producing 6 V open-circuit, compute load current and power.',
+          'Halve the load resistance and recompute: what happens to current and to how hard it is to crank?',
+          'A 1:8 gear train lets a 90 rpm crank spin the motor faster: compute motor rpm.',
+          'If available, a teacher demonstrates a hand-crank generator lighting an LED and a bulb.',
+        ],
+        launch: { room: 'elec', prompt: 'A hand-crank generator modelled as a 6 volt source with 4 ohms internal resistance driving a 20 ohm load, with an ammeter and voltmeter; option to switch the load to 10 ohms.', lesson: 'stem-912-u07-l3' },
+      },
+      worked: [
+        {
+          prompt: 'EMF 6 V, internal 4 Ω, load 20 Ω. Current, load voltage, load power?',
+          steps: ['Total R = 4 + 20 = 24 Ω; I = 6 ÷ 24 = 0.25 A.', 'Load voltage = 0.25 × 20 = 5 V.', 'Load power = 5 × 0.25 = 1.25 W.'],
+          answer: '0.25 A, 5 V, 1.25 W.',
+        },
+      ],
+      practice: [
+        num('Total resistance 4 + 20?', '24 Ω.', 24, 'series', [4, 20], 1, 'Ω'),
+        num('Current: 6 V ÷ 24 Ω?', '0.25 A.', 0.25, 'ohmI', [6, 24], 1, 'A'),
+        num('Load 10 Ω instead: current 6 ÷ 14?', '≈ 0.429 A.', 0.4286, 'ohmI', [6, 14], 2, 'A'),
+        num('Load voltage then: 0.4286 A × 10 Ω?', '≈ 4.29 V.', 4.286, 'ohmV', [0.4286, 10], 2, 'V'),
+        num('Crank 90 rpm through a 1:8 step-up (driver 80 teeth, driven 10 teeth). Gear ratio (driven ÷ driver)?', '0.125: the motor turns 8× faster, 720 rpm.', 0.125, 'gear', [80, 10], 2),
+        say('Why is the crank harder to turn with a smaller load resistance?', 'More current flows, so more electrical power is drawn; that energy must come from your arm (and the current\'s magnetic force opposes the motion).', 3),
+      ],
+      exitTicket: { q: 'In one sentence: how is a generator like a motor?', answer: 'Same coil-and-magnet machine: current in → motion (motor); motion in → current (generator).' },
+      differentiation: {
+        support: ['Circuit diagram with internal resistance drawn.', 'Formula card: I = E ÷ (r + R).'],
+        extension: ['Show maximum load power occurs when R = r (4 Ω) and compute it.', 'Relate induced EMF to Faraday\'s law N·ΔΦ/Δt for a given coil.'],
+        ell: 'Frames: "When the load is ___, the current is ___ and cranking is ___."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'low', note: `${G912_BENCH} Hand-crank generators produce low voltage; keep fingers away from gears.` },
+      standards: { ngss: ['HS-PS2-5', 'HS-PS3-3'], ccss: [M('HSA.CED.A.4'), M('HSA.REI.B.3')], intl: INTL },
+      mathFocus: 'solving circuit equations with internal resistance',
+      museion: 'physics',
+    },
+    {
+      id: 'stem-912-u07-l4',
+      title: 'Solar Harvesting for an Outdoor Sensor: Panel Area and Worst-Case Days',
+      minutes: 60,
+      strands: ['engineering', 'science', 'math'],
+      objectives: [
+        'I can compute daily energy use of a node in Wh.',
+        'I can size a solar panel from peak sun hours, efficiency and a worst-case month.',
+        'I can size the battery to ride through several cloudy days.',
+      ],
+      vocab: [
+        ['peak sun hours', 'The equivalent number of hours per day at 1000 W/m² of sunlight.'],
+        ['panel efficiency', 'Electrical power out ÷ solar power in.'],
+        ['autonomy', 'How many days the battery can run the load with no sun.'],
+        ['charge efficiency', 'Fraction of harvested energy actually stored in the battery.'],
+      ],
+      hook: 'A node on the school roof works all summer and dies every December. The panel did not break; the design was sized for an average day, not the worst one.',
+      build: {
+        title: 'Size the panel and pack for the class node',
+        steps: [
+          'From last lesson, convert the node\'s average current to daily energy at 3.7 V.',
+          'Look up peak sun hours for your town in the worst month (use 1.5 h if unknown).',
+          'Compute the panel power needed with 70% charge efficiency and a 1.5 safety factor.',
+          'Compute panel area at 200 W/m² of panel rating (20% efficiency at 1000 W/m²).',
+          'Check the 2000 mAh pack gives at least 5 days of autonomy.',
+        ],
+        launch: { room: 'elec', prompt: NODE, lesson: 'stem-912-u07-l4' },
+      },
+      worked: [
+        {
+          prompt: 'Node averages 1.61 mA at 3.7 V. Daily energy? Panel rating needed for 1.5 peak sun hours, 70% charge efficiency, ×1.5 safety?',
+          steps: ['Power: 3.7 × 0.00161 ≈ 0.00596 W; per day × 24 h ≈ 0.143 Wh.', 'Harvest needed: 0.143 ÷ 0.7 ≈ 0.204 Wh/day.', 'Panel: 0.204 ÷ 1.5 h × 1.5 ≈ 0.204 W: a 1 W panel has ample margin.'],
+          answer: '≈ 0.143 Wh/day; ≈ 0.2 W of panel needed; the 1 W panel is about 5× oversized for safety.',
+        },
+      ],
+      practice: [
+        num('3.7 V × 0.00161 A, in W?', '≈ 0.00596 W.', 0.005957, 'power', [3.7, 0.00161], 1, 'W', 0.0001),
+        num('0.00596 W × 24 h, in Wh?', '≈ 0.143 Wh.', 0.143, 'product', [0.00596, 24], 1, 'Wh', 0.002),
+        num('0.143 Wh ÷ 0.7 charge efficiency?', '≈ 0.204 Wh.', 0.204, 'quotient', [0.143, 0.7], 2, 'Wh', 0.003),
+        num('Area of a 1 W panel at 200 W/m², in cm² (1 ÷ 200 × 10 000)?', '50 cm².', 50, 'product', [0.005, 10000], 2, 'cm²'),
+        num('Pack energy 3.7 V × 2 Ah = 7.4 Wh. Days of autonomy at 0.143 Wh/day?', '≈ 51.7 days.', 51.75, 'quotient', [7.4, 0.143], 3, 'days'),
+        say('Why size for the worst month instead of the average?', 'If harvest falls below use in winter, the battery drains and the node dies exactly when you most need data; worst-case sizing keeps it running year-round.', 2),
+      ],
+      exitTicket: { q: 'State your panel rating and days of autonomy, with one sentence of justification.', answer: 'Panel W and autonomy days computed from their node\'s budget.' },
+      differentiation: {
+        support: ['Step-by-step sizing worksheet.', 'Table of peak sun hours by month for one city.'],
+        extension: ['Include panel tilt and temperature derating.', 'Simulate a 10-day cloudy spell with 20% harvest and plot battery state of charge.'],
+        ell: 'Frames: "The node uses ___ Wh per day, so the panel must give ___ W."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'supervised', note: LITHIUM },
+      standards: { ngss: ['HS-ETS1-3', 'HS-PS3-3'], ccss: [M('HSN.Q.A.1'), M('HSN.Q.A.2'), M('HSA.CED.A.1')], intl: INTL },
+      mathFocus: 'multi-step unit analysis and worst-case design',
+      museion: 'environment',
+    },
+  ],
+};
+
+export const G912_U07_PROJECTS: StemProject[] = [
+  {
+    id: 'stem-912-proj-solar-node',
+    band: '9-12',
+    unitId: 'stem-912-u07',
+    title: 'Off-Grid Sensor Node: An Energy Budget You Can Defend',
+    subject: 'science',
+    drivingQuestion: 'Can our outdoor sensor node run all year on sunlight alone, and how do we prove it before we install it?',
+    brief: 'Design the power system for an outdoor environment node: measure or simulate its awake and sleep currents, choose a reporting interval, size a protected lithium pack and a solar panel for the worst month with stated margins, and simulate a cloudy spell. Present a one-page energy budget and a safety plan for the battery.',
+    deliverables: ['Current profile (awake/sleep) and duty-cycle calculation', 'Daily energy budget in Wh', 'Panel and pack sizing with worst-month data and margins', 'A cloudy-spell simulation of battery state of charge', 'A lithium safety plan for installation, charging and disposal'],
+    steps: [
+      'Profile the node\'s current in the simulator.',
+      'Choose an interval and compute the average current and daily energy.',
+      'Find worst-month sun hours and size the panel with margins.',
+      'Size the pack for at least five days of autonomy.',
+      'Simulate ten cloudy days and plot state of charge.',
+      'Write the budget and safety plan; present for review.',
+    ],
+    launch: { room: 'elec', prompt: NODE, lesson: 'stem-912-proj-solar-node' },
+    rubric: {
+      criteria: [
+        crit('Energy accounting', 'Units confused', 'Some correct steps', 'Correct average current, Wh/day and sizing', 'Includes self-discharge, temperature and conversion losses'),
+        crit('Worst-case design', 'Average day only', 'Worst month mentioned, not used', 'Panel and pack sized for the worst month with margins', 'Sensitivity of run time to interval and sun hours shown'),
+        crit('Simulation evidence', 'None', 'Simulation with errors', 'Cloudy-spell simulation supports the sizing', 'Identifies the failure point and how to extend it'),
+        crit('Safety plan', 'Missing', 'Generic', 'Specific lithium rules for charging, mounting and disposal', 'Includes temperature limits and an incident response'),
+      ],
+    },
+    standards: { ngss: ['HS-PS3-3', 'HS-ETS1-3'], ccss: [M('HSN.Q.A.1'), M('HSN.Q.A.2'), M('HSA.CED.A.1')], intl: INTL },
+    minutes: 300,
+    differentiation: {
+      support: 'Provide the current profile and sun-hour table; focus on the sizing chain and the safety plan.',
+      extension: 'Add maximum-power-point reasoning and compare a supercapacitor with a lithium pack.',
+    },
+    safety: { level: 'supervised', note: LITHIUM },
+  },
+];

@@ -1,0 +1,301 @@
+// K–2 · Unit 3 · Pushes, Pulls and Simple Machines (science). Original Plajah Academia writing.
+import type { StemProject, StemUnit } from '../types';
+import { M, MP, crit, num, say } from '../kit';
+
+const INTL = { uk: 'KS1 Science — working scientifically; forces (introduced in Y3)', cambridge: 'Stage 1 Physics — forces and motion', ib: 'PYP How the world works — phase 1' };
+const SAFE = 'Roll balls on the floor or a table, away from walkways and faces. Ramps stay below knee height.';
+
+export const K2_U03: StemUnit = {
+  id: 'stem-k2-u03',
+  band: 'K-2',
+  n: 3,
+  title: 'Pushes, Pulls and Simple Machines',
+  kind: 'science',
+  strands: ['science', 'engineering', 'math'],
+  status: 'complete',
+  weeks: 4,
+  bigIdea: 'A push or a pull can start something moving, stop it, speed it up or change its direction. Ramps, wheels and levers make pushes and pulls easier.',
+  essentialQuestion: 'What happens when we push or pull harder, softer, or from a different side?',
+  standards: { ngss: ['K-PS2-1', 'K-PS2-2', 'K-2-ETS1-1'], ccss: [M('K.MD.A.2'), M('1.MD.A.2')], intl: INTL },
+  projectIds: ['stem-k2-proj-ball-stopper'],
+  museion: 'physics',
+  lessons: [
+    {
+      id: 'stem-k2-u03-l1',
+      title: 'Push or Pull? Harder and Softer',
+      minutes: 30,
+      strands: ['science', 'math'],
+      objectives: [
+        'I can tell if something moves because of a push or a pull.',
+        'I can see that a harder push makes a ball roll farther.',
+        'I can measure how far a ball rolls by counting steps or blocks.',
+      ],
+      vocab: [
+        ['push', 'Moving something away from you.'],
+        ['pull', 'Moving something toward you.'],
+        ['force', 'A push or a pull.'],
+      ],
+      hook: 'Open a door, close a drawer, kick a ball, tug a wagon. Each time, say "push!" or "pull!" with a hand signal. Then roll a ball gently and then a little harder: which one went farther?',
+      build: {
+        title: 'Roll test in Build Studio',
+        steps: [
+          'Open Build Studio. A ball sits at a start line on a long flat floor of boxes.',
+          'Give the ball a small push. Count how many floor blocks it rolls.',
+          'Give it a bigger push. Count again.',
+          'Write both numbers on the class chart next to a small and a big arrow.',
+          'On the carpet, roll a real ball softly and harder, and count the steps it rolls.',
+        ],
+        launch: {
+          room: 'studio',
+          prompt: 'A ball on a long flat floor with a start line and blocks marking the distance, for a soft-push and hard-push test.',
+          starter: { shapes: ['sphere', 'box', 'box', 'box'], note: 'Each floor block is one step.' },
+          lesson: 'stem-k2-u03-l1',
+        },
+        materials: ['A soft ball', 'Masking tape for a start line', 'Building blocks to mark distance'],
+      },
+      worked: [
+        {
+          prompt: 'A soft push rolls the ball 4 blocks. A hard push rolls it 9 blocks. How many more blocks did the hard push go?',
+          steps: ['Start at 4.', 'Count on to 9: 5, 6, 7, 8, 9. That is 5 counts.', 'Check: 4 + 5 = 9.'],
+          answer: 'The hard push went 5 more blocks.',
+        },
+      ],
+      practice: [
+        say('You open a drawer toward you. Is that a push or a pull?', 'A pull.', 1),
+        say('You kick a ball away from you. Is that a push or a pull?', 'A push.', 1),
+        num('A soft push rolls 3 blocks. A hard push rolls 8 blocks. How many more blocks for the hard push?', '5 more blocks.', 5, 'difference', [8, 3], 2, 'blocks'),
+        num('The ball rolled 6 steps, then 4 more steps. How far did it go in all?', '10 steps.', 10, 'sum', [6, 4], 2, 'steps'),
+        say('What happens to how far a ball rolls when you push it harder?', 'It rolls farther.', 3),
+      ],
+      exitTicket: { q: 'Show me a pull with your hands. What could you pull in our classroom?', answer: 'Any pull toward the body: a chair, a drawer, a wagon, a door.' },
+      differentiation: {
+        support: ['Use picture cards of push and pull to sort.', 'Count blocks with a finger on each one.'],
+        extension: ['Predict how far a medium push will go, then test.', 'Push from the side: which way does the ball go now?'],
+        ell: 'Frames: "This is a ___ (push/pull)." "It rolled ___ blocks." Act out each word.',
+        supports: ['readAloud', 'chunk', 'fewerChoices'],
+      },
+      safety: { level: 'low', note: SAFE },
+      standards: { ngss: ['K-PS2-1'], ccss: [M('K.MD.A.2'), M('1.OA.A.1')], intl: INTL },
+      mathFocus: 'comparing lengths by counting on',
+      museion: 'physics',
+    },
+    {
+      id: 'stem-k2-u03-l2',
+      title: 'Ramp Races: A Steeper Slope',
+      minutes: 35,
+      strands: ['science', 'engineering', 'math'],
+      objectives: [
+        'I can change how steep a ramp is.',
+        'I can test which ramp makes a car go farther.',
+        'I can measure with the same unit every time.',
+      ],
+      vocab: [
+        ['ramp', 'A slope that goes from low to high.'],
+        ['steep', 'Going up quickly, like a slide.'],
+        ['measure', 'Finding how long or how far something is.'],
+      ],
+      hook: 'Hold a book flat and roll a toy car off it: nothing happens. Now lift one end a little. Now a lot. What changed, and what will happen to the car?',
+      build: {
+        title: 'Ramp race in Build Studio',
+        steps: [
+          'Open Build Studio. A wedge is the ramp and a small box is the car.',
+          'Set the ramp low. Let the car go from the top and count the floor blocks it travels.',
+          'Make the ramp taller by stacking a box under it. Run the same car from the same spot and count again.',
+          'Make a third ramp even taller and test.',
+          'Tell a partner the pattern: taller ramp, farther or shorter?',
+        ],
+        launch: {
+          room: 'studio',
+          prompt: 'A ramp made from a wedge with boxes underneath to change its height, and a small toy car at the top.',
+          starter: { shapes: ['wedge', 'box', 'box', 'cylinder'], note: 'Stack boxes under the wedge to make it steeper.' },
+          lesson: 'stem-k2-u03-l2',
+        },
+        materials: ['A board or stiff card for a ramp', 'Books to raise it', 'A toy car', 'Blocks to measure distance'],
+      },
+      worked: [
+        {
+          prompt: 'On a 1-book ramp the car went 5 blocks. On a 3-book ramp it went 12 blocks. How much farther on the taller ramp?',
+          steps: ['Start at 5 and count on to 12.', '6, 7, 8, 9, 10, 11, 12 is 7 counts.', 'Check: 5 + 7 = 12.'],
+          answer: '7 blocks farther on the 3-book ramp.',
+        },
+      ],
+      practice: [
+        num('A 2-book ramp sends the car 8 blocks. A 4-book ramp sends it 14 blocks. How many more blocks?', '6 more blocks.', 6, 'difference', [14, 8], 2, 'blocks'),
+        num('The car went 7 blocks, then rolled 3 more. How far in all?', '10 blocks.', 10, 'sum', [7, 3], 1, 'blocks'),
+        say('Ben measured with blocks. Ada measured with her feet. Can they compare their numbers?', 'Not fairly. They must use the same unit, like the same blocks.', 2),
+        say('Which ramp will send the car farther: 1 book or 3 books?', 'The 3-book ramp (steeper).', 1),
+        say('Why do we let the car go from the same spot every time?', 'So the test is fair: only the ramp height changes.', 3),
+      ],
+      exitTicket: { q: 'Draw two ramps. Circle the one that sends the car farther.', answer: 'The steeper ramp is circled.' },
+      differentiation: {
+        support: ['Use a number line on the floor so distances can be read.', 'Test only two heights.'],
+        extension: ['Make a bar graph of three ramp heights.', 'Try a heavier car: does it change the result?'],
+        ell: 'Frames: "The steep ramp ___." "It went ___ blocks." Gesture steep and flat.',
+        supports: ['readAloud', 'chunk', 'untimed'],
+      },
+      safety: { level: 'low', note: SAFE },
+      standards: { ngss: ['K-PS2-1', 'K-PS2-2'], ccss: [M('1.MD.A.2'), M('1.OA.A.1')], intl: INTL },
+      mathFocus: 'measuring with equal units',
+      museion: 'physics',
+    },
+    {
+      id: 'stem-k2-u03-l3',
+      title: 'Wheels and Seesaws: Machines Make It Easy',
+      minutes: 35,
+      strands: ['science', 'engineering', 'math'],
+      objectives: [
+        'I can show that wheels make something easier to move.',
+        'I can balance a seesaw by moving toys closer or farther from the middle.',
+        'I can count to compare two sides.',
+      ],
+      vocab: [
+        ['wheel', 'A round part that turns so things roll instead of slide.'],
+        ['lever', 'A bar that tips on a point, like a seesaw.'],
+        ['balance', 'When both sides are even and nothing tips.'],
+      ],
+      hook: 'Drag a box of books across the carpet. Now put it on a toy truck and pull. Which was easier? Then sit two teddies on a ruler over a pencil: why does one side go down?',
+      build: {
+        title: 'Wheels and a toy seesaw in Build Studio',
+        steps: [
+          'Open Build Studio. Put a box on four cylinder wheels, and another box with no wheels next to it.',
+          'Push each one with the same small push. Count how far each moves.',
+          'Now build a seesaw: a long flat box on a wedge in the middle.',
+          'Put 2 small cubes on one end and 2 on the other. Does it balance?',
+          'Move one side\'s cubes closer to the middle. What happens?',
+        ],
+        launch: {
+          room: 'studio',
+          prompt: 'A toy cart on four wheels next to a box with no wheels, and a seesaw made from a long plank on a wedge with small cubes for weights.',
+          starter: { shapes: ['box', 'cylinder', 'cylinder', 'wedge'], note: 'The wedge is the middle point of the seesaw.' },
+          lesson: 'stem-k2-u03-l3',
+        },
+        materials: ['A ruler and a thick crayon for a seesaw', 'Small counters or cubes', 'A toy truck'],
+      },
+      worked: [
+        {
+          prompt: 'The cart with wheels rolled 9 blocks. The box with no wheels slid 2 blocks. How many more blocks did the cart go?',
+          steps: ['Start at 2.', 'Count on to 9: 3, 4, 5, 6, 7, 8, 9. That is 7.', 'Check: 2 + 7 = 9.'],
+          answer: 'The cart went 7 more blocks.',
+        },
+      ],
+      practice: [
+        num('One side of the seesaw has 3 cubes. The other has 5. How many cubes must you add to the first side to make them the same?', '2 cubes.', 2, 'difference', [5, 3], 1, 'cubes'),
+        num('A cart rolled 11 blocks. A box slid 4 blocks. How many more for the cart?', '7 more blocks.', 7, 'difference', [11, 4], 2, 'blocks'),
+        num('Each side of a balanced seesaw has 4 cubes. How many cubes are on the seesaw?', '8 cubes.', 8, 'sum', [4, 4], 1, 'cubes'),
+        say('Why do wheels make a heavy box easier to move?', 'The wheels roll, so there is less rubbing (friction) than sliding.', 2),
+        say('A big teddy and a small teddy are on a seesaw. How can you make it balance?', 'Move the big teddy closer to the middle (or the small one farther out).', 3),
+      ],
+      exitTicket: { q: 'Name one thing at school that has wheels to make moving easier.', answer: 'Any: a cart, a chair, a wagon, a trolley, a bike.' },
+      differentiation: {
+        support: ['Use a balance scale with cubes before the screen seesaw.', 'Compare with "more" and "fewer" first.'],
+        extension: ['Balance 1 cube against 2 cubes by moving them.', 'Find three classroom things that use a lever.'],
+        ell: 'Frames: "With wheels it is ___." "The seesaw goes down on the ___ side."',
+        supports: ['readAloud', 'chunk', 'calm'],
+      },
+      safety: { level: 'low', note: 'Ruler seesaws stay on the table. Counters are small: count them back into the cup and keep them away from mouths.' },
+      standards: { ngss: ['K-PS2-1', 'K-2-ETS1-1'], ccss: [M('1.OA.A.1'), M('K.MD.A.2')], intl: INTL },
+      mathFocus: 'comparing and making equal groups',
+      museion: 'physics',
+    },
+    {
+      id: 'stem-k2-u03-l4',
+      title: 'Design a Ball Stopper',
+      minutes: 40,
+      strands: ['engineering', 'science', 'math'],
+      objectives: [
+        'I can design something that stops or turns a rolling ball.',
+        'I can test my design and count how many times it works.',
+        'I can change my design to make it work better.',
+      ],
+      vocab: [
+        ['stop', 'To make something that is moving stand still.'],
+        ['direction', 'The way something is going.'],
+        ['design', 'A plan for how to make something.'],
+      ],
+      hook: 'A ball rolls down the ramp and right off the table! How could we build something that stops it, or turns it into a cup, without anyone catching it?',
+      build: {
+        title: 'Ball stopper in Build Studio, then on the table',
+        steps: [
+          'Open Build Studio. A ramp sends a ball toward the edge of a table.',
+          'Place shapes to stop the ball or turn it into the goal box.',
+          'Run the ball 5 times. Count how many times your design works.',
+          'Change one thing and run it 5 more times.',
+          'Build your best idea with blocks and a ball on the real table.',
+        ],
+        launch: {
+          room: 'studio',
+          prompt: 'A ramp that rolls a ball toward the edge of a table, with a goal box at the side, ready for a wall or bumper that stops or turns the ball.',
+          starter: { shapes: ['wedge', 'sphere', 'box', 'cylinder'], note: 'The goal box is where the ball should end up.' },
+          lesson: 'stem-k2-u03-l4',
+        },
+        materials: ['Blocks, cardboard pieces and tape', 'A soft ball', 'A small box for the goal'],
+      },
+      worked: [
+        {
+          prompt: 'Jada\'s first stopper worked 2 times out of 5. After she made the wall taller, it worked 5 times out of 5. How many more times did it work?',
+          steps: ['Start at 2 and count on to 5.', '3, 4, 5 is 3 counts.'],
+          answer: 'It worked 3 more times after the change.',
+        },
+      ],
+      practice: [
+        num('A stopper worked 1 time, then after a change it worked 4 times. How many more times?', '3 more times.', 3, 'difference', [4, 1], 1, 'times'),
+        num('Team A\'s design worked 3 times and Team B\'s worked 5 times. How many times did both teams\' designs work in all?', '8 times.', 8, 'sum', [3, 5], 2, 'times'),
+        say('The ball keeps bouncing over your wall. What could you change?', 'Make the wall taller, softer (a towel), or slow the ball with a gentler ramp.', 2),
+        say('Is a push or a pull what stops the ball when it hits the wall?', 'A push: the wall pushes back on the ball.', 3),
+      ],
+      exitTicket: { q: 'Tell one change you made and if it helped.', answer: 'Any change and a result, e.g. "I made the wall taller and it stopped the ball every time."' },
+      differentiation: {
+        support: ['Start with a block wall already placed; the child moves it.', 'Use a tally sheet with five boxes to tick.'],
+        extension: ['Design a stopper that turns the ball into the goal, not just stops it.', 'Use the fewest blocks that still work 5 out of 5.'],
+        ell: 'Frames: "My design ___ the ball." "It worked ___ times."',
+        supports: ['readAloud', 'chunk', 'untimed'],
+      },
+      safety: { level: 'low', note: SAFE },
+      standards: { ngss: ['K-PS2-1', 'K-PS2-2', 'K-2-ETS1-1'], ccss: [M('K.MD.A.2'), M('1.OA.A.1'), MP(4)], intl: INTL },
+      mathFocus: 'counting and comparing test results',
+      museion: 'engineering',
+    },
+  ],
+};
+
+export const K2_U03_PROJECTS: StemProject[] = [
+  {
+    id: 'stem-k2-proj-ball-stopper',
+    band: 'K-2',
+    unitId: 'stem-k2-u03',
+    title: 'The Great Ball Stopper',
+    subject: 'science',
+    drivingQuestion: 'How can we build something that stops a rolling ball, or turns it into a goal, every time?',
+    brief: 'A ball rolls down a ramp toward the edge of the table. Design a stopper in Build Studio, test it five times, change one thing and test again. Then build it from blocks and show the class how it uses a push to stop or turn the ball.',
+    deliverables: ['A drawing of your stopper', 'A tally of 5 tests before and 5 after your change', 'A sentence or recording: "My stopper pushes the ball ___."'],
+    steps: [
+      'Watch the ball roll off the table and say the problem.',
+      'Draw a stopper idea.',
+      'Build it in Build Studio and test it 5 times. Tally each time it works.',
+      'Change one thing and test 5 more times.',
+      'Build your best design with blocks on the real table.',
+      'Show the class and tell which way your stopper pushes the ball.',
+    ],
+    launch: {
+      room: 'studio',
+      prompt: 'A ramp that rolls a ball toward the edge of a table, with a goal box at the side, ready for a stopper design.',
+      starter: { shapes: ['wedge', 'sphere', 'box', 'cylinder'] },
+      lesson: 'stem-k2-proj-ball-stopper',
+    },
+    rubric: {
+      criteria: [
+        crit('Design', 'No drawing', 'A drawing that does not match the build', 'A drawing the build follows', 'A labelled drawing with a reason for each part'),
+        crit('Test', 'Did not test', 'Tested fewer than 5 times', 'Tested 5 times and tallied', 'Tested 5 times before and after and compared the counts'),
+        crit('Improve', 'No change', 'Changed something but did not test it', 'Changed one thing and tested again', 'Changed one thing, tested, and explained why it helped'),
+        crit('Science words', 'No explanation', 'Said it stops the ball', 'Said the stopper pushes the ball', 'Explained push, direction and stopping in their own words'),
+      ],
+    },
+    standards: { ngss: ['K-PS2-1', 'K-PS2-2', 'K-2-ETS1-1'], ccss: [M('K.MD.A.2'), M('1.OA.A.1')], intl: INTL },
+    minutes: 90,
+    differentiation: {
+      support: 'Provide a tally card with five boxes and a block wall to start from; accept a spoken explanation.',
+      extension: 'Make the ball turn into the goal box instead of just stopping, using the fewest blocks.',
+    },
+    safety: { level: 'low', note: SAFE },
+  },
+];

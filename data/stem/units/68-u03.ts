@@ -1,0 +1,277 @@
+// 6–8 · Unit 3 · Code a Controller: Variables, Loops and Functions on a Pico (technology). Original Plajah Academia writing.
+import type { StemProject, StemUnit } from '../types';
+import { M, crit, num, say } from '../kit';
+
+const INTL = { uk: 'KS3 Computing: variables, selection, iteration and procedures', cambridge: 'Lower Secondary Computing Stage 8: programming', ib: 'MYP Design year 2: digital design', singapore: 'Lower Secondary Computing: programming' };
+const USB = 'Simulate first. A physical controller is powered only by the computer\'s USB port: no batteries, no other supply. Unplug before moving wires; header soldering, if any, is done by an adult.';
+
+export const G68_U03: StemUnit = {
+  id: 'stem-68-u03',
+  band: '6-8',
+  n: 3,
+  title: 'Code a Controller: Variables, Loops and Functions on a Pico',
+  kind: 'technology',
+  strands: ['technology', 'engineering', 'math'],
+  status: 'complete',
+  weeks: 4,
+  bigIdea: 'A microcontroller runs one loop forever: read the inputs, decide, act. Variables remember, conditionals decide, and functions package a job so it can be reused.',
+  essentialQuestion: 'How does a few dozen lines of code turn knobs and buttons into music?',
+  standards: { csta: ['2-AP-10', '2-AP-11', '2-AP-12', '2-AP-13', '2-CS-02'], ccss: [M('6.EE.A.2'), M('7.RP.A.2'), M('6.EE.A.1')], intl: INTL },
+  projectIds: ['stem-68-proj-midi-controller'],
+  museion: 'cs',
+  lessons: [
+    {
+      id: 'stem-68-u03-l1',
+      title: 'Reading the Firmware: Variables That Remember',
+      minutes: 50,
+      strands: ['technology', 'math'],
+      objectives: [
+        'I can explain what each section of the MIDI controller firmware does.',
+        'I can trace how a variable\'s value changes as the loop runs.',
+        'I can evaluate an expression in the code for given variable values.',
+      ],
+      vocab: [
+        ['firmware', 'The program stored on a microcontroller that runs when it powers up.'],
+        ['variable', 'A named place in memory that holds a value that can change.'],
+        ['main loop', 'The part of the program that repeats forever: read, decide, act.'],
+        ['trace table', 'A table showing each variable\'s value after each step.'],
+      ],
+      hook: 'Plug a USB MIDI controller into a computer and turn a knob: a filter sweeps in the music app. Nothing magic happened: a small program read a number, compared it to the last one, and sent a message. Let\'s read that program line by line.',
+      build: {
+        title: 'Open the MIDI controller recipe and annotate its code',
+        steps: [
+          'Open the Electronics Lab MIDI controller starter and switch to the firmware view.',
+          'Find the setup (runs once) and the main loop (runs forever). Comment each section in your own words.',
+          'Find the variable that stores the last knob value. Why does the code keep it?',
+          'Turn the simulated knob and fill a trace table: reading, last value, message sent?',
+          'Change one variable name to something clearer and check the code still runs.',
+        ],
+        launch: { room: 'elec', template: 'midi', starter: { note: 'Open the firmware tab and trace the main loop.' }, lesson: 'stem-68-u03-l1' },
+      },
+      worked: [
+        {
+          prompt: 'The code sends a message only if abs(value − last) > 1. last = 64. The next three readings are 65, 68, 68. Which readings send a message, and what is last afterwards?',
+          steps: ['65: |65 − 64| = 1, not > 1, no message; last stays 64.', '68: |68 − 64| = 4 > 1, send; last = 68.', '68: |68 − 68| = 0, no message.'],
+          answer: 'Only the reading 68 (the first time) sends a message; last ends at 68.',
+        },
+      ],
+      practice: [
+        num('last = 40 and the knob reads 47. What is value − last?', '7.', 7, 'difference', [47, 40], 1),
+        num('The loop runs every 5 ms. How many times does it run in one second?', '1000 ÷ 5 = 200 times.', 200, 'quotient', [1000, 5], 2, 'times'),
+        num('Evaluate 3n + 4 for n = 12 (the code\'s note offset for knob n).', '40.', 40, 'sum', [36, 4], 2),
+        say('Why does the controller compare with the last value instead of sending every reading?', 'To avoid flooding the computer with repeated messages when nothing changed (and to ignore tiny jitter).', 3),
+        say('What is the difference between setup and the main loop?', 'Setup runs once at power-on; the loop repeats forever.', 1),
+      ],
+      exitTicket: { q: 'In one sentence: what does the variable last do?', answer: 'It remembers the previous reading so the code can tell whether the knob actually moved.' },
+      differentiation: {
+        support: ['Code printed with sections colour-coded.', 'Trace table with the first two rows filled.'],
+        extension: ['Change the threshold from 1 to 3 and explain the trade-off (smoothness versus responsiveness).', 'Add a second knob variable.'],
+        ell: 'Frames: "This line ___." "The variable ___ stores ___." Cognates: variable, función.',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'sim-only', note: USB },
+      standards: { csta: ['2-AP-11', '2-CS-02'], ccss: [M('6.EE.A.2'), M('6.EE.A.2.C')], intl: INTL },
+      mathFocus: 'evaluating expressions; absolute difference',
+      museion: 'cs',
+    },
+    {
+      id: 'stem-68-u03-l2',
+      title: 'Loops and Conditionals: Scanning Knobs and Buttons',
+      minutes: 50,
+      strands: ['technology', 'engineering', 'math'],
+      objectives: [
+        'I can use a for loop to read every knob in a list.',
+        'I can write if/elif/else to handle a button press, a hold and a release.',
+        'I can work out how long one scan takes and how often each knob is read.',
+      ],
+      vocab: [
+        ['for loop', 'A loop that runs once for each item in a list.'],
+        ['conditional', 'An if statement that runs code only when a condition is true.'],
+        ['list', 'An ordered collection of values, such as the pins the knobs use.'],
+        ['scan', 'One pass through every input.'],
+      ],
+      hook: 'Your controller has 8 knobs and 8 buttons. Copying the same three lines 16 times works, but adding a ninth knob means editing everywhere. How do programmers handle "do this for every knob"?',
+      build: {
+        title: 'Refactor the scan into loops',
+        steps: [
+          'Find the knob pins list in the firmware.',
+          'Rewrite repeated knob code as one for loop over the list.',
+          'For buttons, write: if pressed and was not pressed → note on; elif released and was pressed → note off.',
+          'Run the simulator and press, hold and release a button; check the message log.',
+          'Time one scan in the simulator and calculate how many scans happen per second.',
+        ],
+        launch: { room: 'elec', template: 'midi', starter: { note: 'Turn repeated knob code into a for loop.' }, lesson: 'stem-68-u03-l2' },
+      },
+      worked: [
+        {
+          prompt: 'Reading one knob takes 0.25 ms and one button 0.05 ms. How long is one scan of 8 knobs and 8 buttons, and how many scans per second?',
+          steps: ['Knobs: 8 × 0.25 = 2 ms.', 'Buttons: 8 × 0.05 = 0.4 ms.', 'Scan: 2.4 ms. Per second: 1000 ÷ 2.4 ≈ 417 scans.'],
+          answer: '2.4 ms per scan, about 417 scans per second.',
+        },
+      ],
+      practice: [
+        num('6 knobs at 0.25 ms each. How long to read them all?', '1.5 ms.', 1.5, 'product', [6, 0.25], 1, 'ms'),
+        num('A scan takes 4 ms. How many scans per second?', '250.', 250, 'quotient', [1000, 4], 2, 'scans'),
+        num('A for loop over 8 knobs runs 3 lines each pass. How many lines run per scan?', '24.', 24, 'product', [8, 3], 1, 'lines'),
+        say('The button sends "note on" over and over while held. What condition is missing?', 'It must check the button was NOT pressed on the previous scan (detect the change, not the state).', 3),
+        say('Why is a for loop over a list easier to extend than copied code?', 'Add a pin to the list and the loop handles it; no repeated edits.', 2),
+      ],
+      exitTicket: { q: 'Write the condition for "button just released".', answer: 'not pressed_now and pressed_before (any equivalent).' },
+      differentiation: {
+        support: ['Fill-in-the-blank loop skeleton.', 'State diagram for press/hold/release.'],
+        extension: ['Add a long-press action after 500 ms held, using a timestamp variable.', 'Measure how scan time grows with more knobs and graph it.'],
+        ell: 'Frames: "For each ___, the loop ___." "If ___ then ___."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'sim-only', note: USB },
+      standards: { csta: ['2-AP-12', '2-AP-13'], ccss: [M('6.NS.B.3'), M('7.RP.A.2')], intl: INTL },
+      mathFocus: 'multiplying decimals; rates per second',
+      museion: 'cs',
+    },
+    {
+      id: 'stem-68-u03-l3',
+      title: 'Map a Range: 0–65535 to 0–127',
+      minutes: 50,
+      strands: ['math', 'technology'],
+      objectives: [
+        'I can explain why a knob reading must be scaled to fit a MIDI value.',
+        'I can scale a value with division and with a proportion.',
+        'I can use powers of 2 to explain why a bit shift divides by 512.',
+      ],
+      vocab: [
+        ['analogue-to-digital converter (ADC)', 'The part that turns a knob voltage into a number.'],
+        ['range', 'The span of possible values, from smallest to largest.'],
+        ['bit', 'A single 0 or 1; n bits can count 2ⁿ different values.'],
+        ['bit shift', 'Moving all bits right by k places, which divides by 2ᵏ and drops the remainder.'],
+      ],
+      hook: 'The Pico\'s knob reading goes from 0 to 65535, but MIDI only understands 0 to 127. Send 65535 and the music app ignores you. How do you squeeze a big range into a small one without losing the middle?',
+      build: {
+        title: 'Scale knob readings in the firmware',
+        steps: [
+          'Find the line in the firmware that converts the knob reading to a MIDI value.',
+          'Turn the simulated knob to 0, a quarter, half, three-quarters and full; record raw and MIDI values.',
+          'Check the rule MIDI = raw ÷ 512 (rounded down) against your table.',
+          'Replace the division with raw >> 9 and confirm the values match.',
+          'Map the knob to a different range, 36 to 84 (four octaves of notes), and test.',
+        ],
+        launch: { room: 'elec', template: 'midi', starter: { note: 'Find the scaling line; compare division and bit shift.' }, lesson: 'stem-68-u03-l3' },
+      },
+      worked: [
+        {
+          prompt: 'A 16-bit reading of 32768 is scaled to 7 bits. What MIDI value is sent?',
+          steps: ['16 bits give 2¹⁶ = 65536 values; 7 bits give 2⁷ = 128.', 'Each MIDI step covers 65536 ÷ 128 = 512 raw values.', '32768 ÷ 512 = 64.'],
+          answer: 'MIDI value 64 (the middle).',
+        },
+      ],
+      practice: [
+        num('How many values can 7 bits represent?', '2⁷ = 128.', 128, 'pow', [2, 7], 1, 'values'),
+        num('How many values can 16 bits represent?', '2¹⁶ = 65536.', 65536, 'pow', [2, 16], 2, 'values'),
+        num('Raw reading 16384. MIDI value = raw ÷ 512?', '32.', 32, 'quotient', [16384, 512], 2),
+        num('512 = 2ᵏ. Find k (how many places to shift right).', 'k = 9.', 9, 'log2', [512], 3),
+        say('Why scale with a proportion instead of just cutting off values above 127?', 'Cutting off would make most of the knob do nothing; scaling spreads the full turn across 0 to 127.', 2),
+      ],
+      exitTicket: { q: 'A raw reading of 49152 becomes which MIDI value?', answer: '49152 ÷ 512 = 96.' },
+      differentiation: {
+        support: ['Double-number-line from 0–65536 to 0–128 with quarters marked.', 'Powers of 2 table to 2¹⁶.'],
+        extension: ['Write a general map(x, in_lo, in_hi, out_lo, out_hi) expression and test it.', 'Explain why rounding down means the top MIDI value needs raw ≥ 65024.'],
+        ell: 'Frames: "Each MIDI step is ___ raw values." "2 to the ___ is ___."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'sim-only', note: USB },
+      standards: { csta: ['2-AP-11'], ccss: [M('6.EE.A.1'), M('6.RP.A.3'), M('7.RP.A.2')], intl: INTL },
+      mathFocus: 'proportional scaling and powers of 2',
+      museion: 'mathematics',
+    },
+    {
+      id: 'stem-68-u03-l4',
+      title: 'Write Your Own Function: A Chord Button, Then Jam',
+      minutes: 55,
+      strands: ['technology', 'engineering', 'math'],
+      objectives: [
+        'I can write a function with parameters that plays a chord from a root note.',
+        'I can use semitone offsets (add 4, add 7) to build a chord.',
+        'I can test and debug my controller by playing it in Chora.',
+      ],
+      vocab: [
+        ['function', 'A named block of code that does one job and can be reused.'],
+        ['parameter', 'An input a function receives, such as the root note.'],
+        ['semitone', 'The smallest step between notes on a piano; one MIDI number.'],
+        ['chord', 'Three or more notes played together.'],
+      ],
+      hook: 'A major chord is always "root, plus 4, plus 7" semitones, whatever note you start on. That rule is a function waiting to be written: give it a root, it returns three notes.',
+      build: {
+        title: 'Add a chord function and play it in Chora',
+        steps: [
+          'Write def chord(root): return [root, root + 4, root + 7] in the firmware.',
+          'Call it from a button: on press, send note on for every note in chord(60).',
+          'Add a minor version with offsets 0, 3, 7 on a second button.',
+          'Run the simulated controller and check the message log shows three notes.',
+          'Connect to Chora, play your chord buttons with the class and note any bug to fix.',
+        ],
+        launch: { room: 'elec', template: 'midi', starter: { note: 'Add a chord(root) function and map it to a button.' }, lesson: 'stem-68-u03-l4' },
+      },
+      worked: [
+        {
+          prompt: 'chord(root) returns root, root + 4, root + 7. What notes does chord(62) return?',
+          steps: ['62 + 0 = 62.', '62 + 4 = 66.', '62 + 7 = 69.'],
+          answer: '[62, 66, 69] (D major).',
+        },
+      ],
+      practice: [
+        num('chord(57): what is the top note (root + 7)?', '64.', 64, 'sum', [57, 7], 1),
+        num('A minor chord uses root + 3. For root 64, what is that note?', '67.', 67, 'sum', [64, 3], 1),
+        num('An octave is 12 semitones and doubles the frequency. Middle A is 440 Hz. What is the A two octaves up?', '440 × 2² = 1760 Hz.', 1760, 'product', [440, 4], 2, 'Hz'),
+        num('A chord button sends 3 note-on and 3 note-off messages, 3 bytes each. How many bytes per press?', '18 bytes.', 18, 'product', [6, 3], 3, 'bytes'),
+        say('Why write chord() as a function instead of typing three notes for every button?', 'Reuse: one tested function serves every button; fixing it once fixes all of them.', 2),
+      ],
+      exitTicket: { q: 'Write a function call that plays a major chord starting on note 65.', answer: 'chord(65) → [65, 69, 72].' },
+      differentiation: {
+        support: ['Function skeleton with blanks for the offsets.', 'Keyboard diagram labelled with MIDI numbers.'],
+        extension: ['Add a seventh chord (offset 10 or 11) as an optional parameter.', 'Use a knob to choose the root note with the map from last lesson.'],
+        ell: 'Frames: "The function takes ___ and returns ___." "Root plus ___ is ___."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'low', note: `${USB} Keep headphone volume low.` },
+      standards: { csta: ['2-AP-13', '2-AP-10'], ccss: [M('6.EE.A.2'), M('6.EE.B.6')], intl: INTL },
+      mathFocus: 'expressions with variables',
+      museion: 'cs',
+    },
+  ],
+};
+
+export const G68_U03_PROJECTS: StemProject[] = [
+  {
+    id: 'stem-68-proj-midi-controller',
+    band: '6-8',
+    unitId: 'stem-68-u03',
+    title: 'Design a Class MIDI Controller',
+    subject: 'math',
+    drivingQuestion: 'How can we design and program a controller that lets a classmate who has never played an instrument make music in Chora?',
+    brief: 'Customise the Pico MIDI controller for a specific player. Choose the knobs and buttons, write at least one function (a chord or scale button), scale every knob to a sensible MIDI range, and document your mappings with the math. Test it with a real user and improve one thing.',
+    deliverables: ['Annotated firmware with at least one function and one loop', 'A mapping table: each control, its raw range, its MIDI range and the scaling expression', 'A user-test note and the change you made', 'A 1-minute jam recorded in Chora'],
+    steps: [
+      'Interview a classmate about what they want to play.',
+      'Choose controls and sketch the layout.',
+      'Program the scan loop, scaling and at least one function.',
+      'Fill the mapping table and check two values by hand.',
+      'User-test in Chora, record feedback, change one thing.',
+      'Record the jam and present the controller.',
+    ],
+    launch: { room: 'elec', template: 'midi', starter: { note: 'Design the controller for one real user.' }, lesson: 'stem-68-proj-midi-controller' },
+    rubric: {
+      criteria: [
+        crit('Programming', 'Recipe unchanged', 'Edits run but no function', 'Loop, conditional and a working function', 'Clean functions with parameters reused by several controls'),
+        crit('Scaling math', 'No mapping table', 'Table with errors', 'Correct expressions, two values checked by hand', 'General map formula derived and used for a custom range'),
+        crit('User-centred design', 'No user input', 'User asked, no change', 'Feedback recorded and one change made', 'Two rounds of feedback with evidence of improvement'),
+        crit('Communication', 'No demo', 'Demo without explanation', 'Demo explains one function and one scaling', 'Clear technical write-up a peer could rebuild from'),
+      ],
+    },
+    standards: { csta: ['2-AP-10', '2-AP-13', '2-AP-15'], ccss: [M('6.EE.A.2'), M('7.RP.A.2')], intl: INTL },
+    minutes: 240,
+    differentiation: {
+      support: 'Start from a four-control version with scaling already written; focus on one chord function.',
+      extension: 'Add a scale-lock mode so any key plays only notes in a chosen scale.',
+    },
+    safety: { level: 'low', note: USB },
+  },
+];

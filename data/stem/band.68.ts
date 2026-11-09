@@ -5,7 +5,8 @@
 //                                                  drawings, all with a real LED circuit as the context
 //   u04 Classroom Weather Station (technology)     the 'sensor' recipe as a data instrument: sampling, mean and range,
 //                                                  comparison, and an engineering-design cycle on a radiation shield
-// The other six units are scope & sequence outlines (lesson titles + standards), authored next.
+// Units 2, 3 and 5–8 (fields and forces, Pico controller, fabrication, thermal design, Biology Lab models, soft
+// circuits) are fully authored in data/stem/units/68-u0*.ts.
 //
 // All prose is original Plajah Academia writing. Standards are cited by code only.
 // Numbers follow the simulator: LED forward voltage red 2.0 V, yellow 2.1 V, green 2.2 V, blue/white 3.0 V;
@@ -13,6 +14,12 @@
 
 import type { StemProject, StemUnit } from './types';
 import type { RubricCriterion } from '../assignmentTemplates';
+import { G68_U02 as U02 } from './units/68-u02';
+import { G68_U03 as U03, G68_U03_PROJECTS } from './units/68-u03';
+import { G68_U05 as U05 } from './units/68-u05';
+import { G68_U06 as U06, G68_U06_PROJECTS } from './units/68-u06';
+import { G68_U07 as U07 } from './units/68-u07';
+import { G68_U08 as U08 } from './units/68-u08';
 
 const M = (code: string) => `CCSS.MATH.CONTENT.${code}`;
 
@@ -387,63 +394,6 @@ const U01: StemUnit = {
 };
 
 // ════════════════════════════════════════════════════════════════════════════
-// u02 · Fields & Forces (outline)
-// ════════════════════════════════════════════════════════════════════════════
-
-const U02: StemUnit = {
-  id: 'stem-68-u02',
-  band: '6-8',
-  n: 2,
-  title: 'Fields & Forces: Electromagnets, Speakers and Motors',
-  kind: 'science',
-  strands: ['science', 'engineering'],
-  status: 'outline',
-  weeks: 3,
-  bigIdea: 'Electric current makes magnetic fields, and fields push on magnets and wires without touching them. Coils, speakers and motors are the same idea arranged differently.',
-  essentialQuestion: 'How can an invisible field push something across a gap, and how do engineers make that push stronger?',
-  standards: { ngss: ['MS-PS2-3', 'MS-PS2-5', 'MS-PS3-2'], ccss: [M('7.SP.A.2')], intl: { uk: 'KS3 Physics: magnetism and electromagnets', cambridge: 'Lower Secondary Stage 8 Physics: magnetism', ib: 'MYP year 2 Sciences', singapore: 'Lower Secondary Science: magnets and electromagnets' } },
-  lessons: [],
-  outline: [
-    'Invisible pushes: mapping magnetic fields with compasses',
-    'Turns and current: what makes an electromagnet stronger (a fair test)',
-    'Inside a speaker: a coil, a magnet and a cone (the speaker recipe)',
-    'Motion from current: build and explain a simple motor',
-    'Forces at a distance: graphing pull against gap size',
-  ],
-  projectIds: [],
-  museion: 'physics',
-};
-
-// ════════════════════════════════════════════════════════════════════════════
-// u03 · Code a Controller (outline)
-// ════════════════════════════════════════════════════════════════════════════
-
-const U03: StemUnit = {
-  id: 'stem-68-u03',
-  band: '6-8',
-  n: 3,
-  title: 'Code a Controller: Variables, Loops and Functions on a Pico',
-  kind: 'technology',
-  strands: ['technology', 'engineering', 'math'],
-  status: 'outline',
-  weeks: 4,
-  bigIdea: 'A microcontroller runs one loop forever: read the inputs, decide, act. Variables remember, conditionals decide, and functions package a job so it can be reused.',
-  essentialQuestion: 'How does a few dozen lines of code turn knobs and buttons into music?',
-  standards: { csta: ['2-AP-10', '2-AP-11', '2-AP-12', '2-AP-13', '2-CS-02'], ccss: [M('6.EE.A.2'), M('7.RP.A.2')], intl: { uk: 'KS3 Computing: variables, selection, iteration and procedures', cambridge: 'Lower Secondary Computing Stage 8: programming', ib: 'MYP Design year 2: digital design', singapore: 'Lower Secondary Computing: programming' } },
-  lessons: [],
-  outline: [
-    'Reading the firmware: what each line of the MIDI controller code does',
-    'Variables that remember: last values and why the code compares them',
-    'Loops and conditionals: scanning knobs and buttons',
-    'Map a range: from 0–65535 to 0–127 with division and bit shifts',
-    'Write your own function: a scale or chord button',
-    'Test, debug and jam: playing the class controllers in Chora',
-  ],
-  projectIds: [],
-  museion: 'cs',
-};
-
-// ════════════════════════════════════════════════════════════════════════════
 // u04 · Classroom Weather Station (technology, complete)
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -736,107 +686,6 @@ const U04: StemUnit = {
   ],
 };
 
-// ════════════════════════════════════════════════════════════════════════════
-// u05–u08 · outlines
-// ════════════════════════════════════════════════════════════════════════════
-
-const U05: StemUnit = {
-  id: 'stem-68-u05',
-  band: '6-8',
-  n: 5,
-  title: 'Design for Fabrication: Scale, Tolerance and Print Time',
-  kind: 'engineering',
-  strands: ['engineering', 'technology', 'math'],
-  status: 'outline',
-  weeks: 3,
-  bigIdea: 'A design that looks right on screen still has to be made. Scale, tolerances, wall thickness and print time decide whether a part fits, holds and finishes before the bell.',
-  essentialQuestion: 'What changes when a design leaves the screen and becomes a real object?',
-  standards: { ngss: ['MS-ETS1-2', 'MS-ETS1-4'], ccss: [M('7.G.A.1'), M('7.G.B.6'), M('7.RP.A.2')], intl: { uk: 'KS3 Design and technology: CAD/CAM', cambridge: 'Lower Secondary Stage 8 Geometry and measure', ib: 'MYP Design year 2: product design', singapore: 'Lower Secondary Design & Technology' } },
-  lessons: [],
-  outline: [
-    'From sketch to solid: primitives and holes in Build Studio',
-    'Tolerance: why a 20 mm peg will not fit a 20 mm hole',
-    'Volume, infill and estimating print time',
-    'Joints that work: snap fits, screw bosses and lids',
-    'Test print, measure, revise: keeping an iteration log',
-  ],
-  projectIds: [],
-  museion: 'engineering',
-};
-
-const U06: StemUnit = {
-  id: 'stem-68-u06',
-  band: '6-8',
-  n: 6,
-  title: 'Keep It Cool: A Thermal Energy Design Challenge',
-  kind: 'engineering',
-  strands: ['science', 'engineering', 'math'],
-  status: 'outline',
-  weeks: 3,
-  bigIdea: 'Thermal energy always moves from warmer to cooler by conduction, convection and radiation. Good insulation design slows that flow, and data from a sensor proves whether it worked.',
-  essentialQuestion: 'How can we design a container that slows the flow of thermal energy the most for the least cost?',
-  standards: { ngss: ['MS-PS3-3', 'MS-PS3-4', 'MS-PS3-5', 'MS-ETS1-1', 'MS-ETS1-2', 'MS-ETS1-3', 'MS-ETS1-4'], ccss: [M('6.SP.B.5'), M('7.RP.A.2')], csta: ['2-DA-08'], intl: { uk: 'KS3 Physics: energy and heating', cambridge: 'Lower Secondary Stage 9 Physics: thermal energy transfer', ib: 'MYP year 3 Sciences', singapore: 'Lower Secondary Science: transfer of heat' } },
-  lessons: [],
-  outline: [
-    'Heat on the move: conduction, convection and radiation',
-    'Define the problem: criteria and constraints for a lunch cooler',
-    'Insulator trials logged with the temperature sensor',
-    'Combine the best features: optimise and retest',
-    'Cooling curves and trade-offs: presenting the evidence',
-  ],
-  projectIds: [],
-  museion: 'physics',
-};
-
-const U07: StemUnit = {
-  id: 'stem-68-u07',
-  band: '6-8',
-  n: 7,
-  title: 'Cells to Communities: Modeling Life in Biology Lab',
-  kind: 'science',
-  strands: ['science', 'math', 'technology'],
-  status: 'outline',
-  weeks: 4,
-  bigIdea: 'Living systems run on rates: enzymes speed reactions inside cells, body systems pass materials between them, and illnesses spread through communities at rates we can model and change.',
-  essentialQuestion: 'How can a computer model help us understand, and protect, living systems from cells to schools?',
-  standards: { ngss: ['MS-LS1-1', 'MS-LS1-2', 'MS-LS1-3', 'MS-LS1-7', 'MS-LS2-1'], csta: ['2-DA-09', '2-AP-11'], ccss: [M('7.RP.A.3'), M('6.SP.B.5')], intl: { uk: 'KS3 Biology: cells and organisation; health', cambridge: 'Lower Secondary Stage 8 Biology: cells and body systems', ib: 'MYP year 2 Sciences', singapore: 'Lower Secondary Science: cells, digestion and disease' } },
-  lessons: [],
-  outline: [
-    'Cells are the unit of life: a tour at every scale',
-    'Enzymes as tiny machines: running the enzyme kinetics model',
-    'More substrate, more speed? Experimenting with model rates',
-    'Body systems working together: from digestion to cells',
-    'How an illness spreads: the SIR model',
-    'Vaccination and herd protection: changing the model to protect a school',
-  ],
-  projectIds: ['stem-68-proj-outbreak'],
-  museion: 'biology',
-};
-
-const U08: StemUnit = {
-  id: 'stem-68-u08',
-  band: '6-8',
-  n: 8,
-  title: 'Soft Circuits: Engineering a Light-Up Plush',
-  kind: 'engineering',
-  strands: ['engineering', 'science', 'technology', 'math'],
-  status: 'outline',
-  weeks: 3,
-  bigIdea: 'Materials have properties we can design with: conductive thread carries current, fabric bends and stretches, and stuffing insulates. A wearable or plush circuit has to be safe, soft and still work after a hug.',
-  essentialQuestion: 'How do engineers choose materials when a circuit has to bend, wash and be cuddled?',
-  standards: { ngss: ['MS-ETS1-1', 'MS-ETS1-2', 'MS-PS1-3'], ccss: [M('7.G.B.4'), M('7.RP.A.2')], intl: { uk: 'KS3 Design and technology: textiles and electronics', cambridge: 'Lower Secondary Stage 8 Science: materials and their properties', ib: 'MYP Design year 2: product design', singapore: 'Lower Secondary Design & Technology' } },
-  lessons: [],
-  outline: [
-    'Materials matter: fibres, fabrics and conductive thread',
-    'A circuit you can sew: coin cell, LED and the resistance of thread',
-    'Pattern geometry: the plush-pal pattern and seam allowance',
-    'Sew, test and troubleshoot a light-up plush (adult-supervised)',
-    'Design notes and safety labels: coin cells stay sealed away',
-  ],
-  projectIds: [],
-  museion: 'engineering',
-};
-
 export const G68_UNITS: StemUnit[] = [U01, U02, U03, U04, U05, U06, U07, U08];
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -979,4 +828,6 @@ export const G68_PROJECTS: StemProject[] = [
     },
     safety: { level: 'sim-only', note: 'Entirely a computer model; no specimens or lab materials. Discuss illness respectfully, without naming or blaming anyone.' },
   },
+  ...G68_U03_PROJECTS,
+  ...G68_U06_PROJECTS,
 ];

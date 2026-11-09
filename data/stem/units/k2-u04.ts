@@ -1,0 +1,256 @@
+// K–2 · Unit 4 · Code a Robot Friend (technology). Original Plajah Academia writing.
+import type { StemUnit } from '../types';
+import { K2_ELEC_SIM, M, num, say } from '../kit';
+
+const INTL = { uk: 'KS1 Computing — algorithms and debugging', cambridge: 'Stage 1–2 Computing — computational thinking', ib: 'PYP Technology — phase 1' };
+const GRID = 'A floor grid of square tiles with a small robot (a cylinder) on the start tile and a star on the goal tile.';
+
+export const K2_U04: StemUnit = {
+  id: 'stem-k2-u04',
+  band: 'K-2',
+  n: 4,
+  title: 'Code a Robot Friend',
+  kind: 'technology',
+  strands: ['technology', 'math', 'engineering'],
+  status: 'complete',
+  weeks: 3,
+  bigIdea: 'A computer follows steps exactly in the order we give them. Clear steps, in the right order, make a program work; finding and fixing a wrong step is called debugging.',
+  essentialQuestion: 'How do we give directions so clearly that a robot gets them right?',
+  standards: { csta: ['1A-AP-08', '1A-AP-10', '1A-AP-11', '1A-AP-14'], ccss: [M('K.G.A.1'), M('1.G.A.1'), M('1.OA.A.1')], intl: INTL },
+  projectIds: [],
+  museion: 'cs',
+  lessons: [
+    {
+      id: 'stem-k2-u04-l1',
+      title: 'Steps in Order: Be the Robot',
+      minutes: 30,
+      strands: ['technology', 'math'],
+      objectives: [
+        'I can put the steps of an everyday job in order.',
+        'I can use arrow cards to move a robot on a grid.',
+        'I can count the steps in my program.',
+      ],
+      vocab: [
+        ['algorithm', 'A list of steps in order that gets a job done.'],
+        ['program', 'Steps written so a computer or robot can follow them.'],
+        ['grid', 'Rows and columns of squares, like a game board.'],
+      ],
+      hook: 'Tell me how to brush my teeth, and I will do exactly what you say. "Brush!" I brush with no toothpaste and no water! What did we forget? Order matters.',
+      build: {
+        title: 'Robot on a grid in Build Studio',
+        steps: [
+          'Put three picture cards for brushing teeth in order with a partner.',
+          'Open Build Studio. The robot is on the start tile and the star is the goal.',
+          'Lay out arrow cards (forward, turn left, turn right) on your desk to plan the path.',
+          'Move the robot one tile for each arrow card. Did it land on the star?',
+          'Count your arrow cards. Can you find a path with fewer?',
+        ],
+        launch: {
+          room: 'studio',
+          prompt: GRID,
+          starter: { shapes: ['box', 'cylinder', 'star'], note: 'One box tile is one step.' },
+          lesson: 'stem-k2-u04-l1',
+        },
+        materials: ['Arrow cards', 'Picture cards for a daily routine', 'Masking-tape grid on the floor (optional)'],
+      },
+      worked: [
+        {
+          prompt: 'The robot must go 3 tiles forward, turn right, then 2 tiles forward. How many arrow cards is that?',
+          steps: ['Forward cards: 3.', 'Turn card: 1.', 'Forward cards: 2.', 'Add: 3 + 1 + 2 = 6.'],
+          answer: '6 arrow cards.',
+        },
+      ],
+      practice: [
+        say('Put these in order: put on shoes, put on socks, tie laces.', 'Socks, shoes, tie laces.', 1),
+        num('A program has 4 forward arrows and 2 turn arrows. How many cards?', '6 cards.', 6, 'sum', [4, 2], 1, 'cards'),
+        num('The star is 5 tiles away in a straight line. The robot has gone 2. How many more forward arrows?', '3 more.', 3, 'difference', [5, 2], 2, 'arrows'),
+        say('Why does a robot need the steps in the right order?', 'It does exactly what we say, in that order; a step in the wrong place gives the wrong result.', 3),
+      ],
+      exitTicket: { q: 'Tell a partner 3 steps, in order, to get from your desk to the door.', answer: 'Any three ordered steps that would reach the door.' },
+      differentiation: {
+        support: ['Use only forward arrows on a straight path first.', 'Walk the floor grid before using the screen.'],
+        extension: ['Find two different programs that reach the star.', 'Add a wall block the robot must go around.'],
+        ell: 'Frames: "First ___, next ___, last ___." Point and move for forward, left, right.',
+        supports: ['readAloud', 'chunk', 'fewerChoices'],
+      },
+      safety: { level: 'low', note: 'Floor-grid games: walk, do not run, and keep the grid clear of bags and chairs.' },
+      standards: { csta: ['1A-AP-08', '1A-AP-10'], ccss: [M('1.OA.A.1'), M('K.G.A.1')], intl: INTL },
+      mathFocus: 'adding steps along a path',
+      museion: 'cs',
+    },
+    {
+      id: 'stem-k2-u04-l2',
+      title: 'Loops Save Steps',
+      minutes: 30,
+      strands: ['technology', 'math'],
+      objectives: [
+        'I can spot steps that repeat.',
+        'I can use a "repeat" card to make my program shorter.',
+        'I can skip-count to find how many steps a loop makes.',
+      ],
+      vocab: [
+        ['loop', 'Doing the same steps again and again.'],
+        ['repeat', 'Do it again.'],
+        ['pattern', 'Something that happens over and over in the same way.'],
+      ],
+      hook: 'Clap, stomp. Clap, stomp. Clap, stomp. How could I write that dance with fewer cards? What if one card said "repeat 3 times"?',
+      build: {
+        title: 'Loop a path in Build Studio',
+        steps: [
+          'Open Build Studio. The star is 6 tiles straight ahead.',
+          'Write the long program: 6 forward arrows.',
+          'Now write it short: one forward arrow inside a "repeat 6" card.',
+          'Try a stair path: forward, turn, forward, turn. Find the part that repeats.',
+          'Move the robot with your short program and check it lands on the star.',
+        ],
+        launch: {
+          room: 'studio',
+          prompt: `${GRID} The path is a staircase so a short pattern repeats.`,
+          starter: { shapes: ['box', 'cylinder', 'star'], note: 'Look for the part of the path that repeats.' },
+          lesson: 'stem-k2-u04-l2',
+        },
+        materials: ['Arrow cards', '"Repeat" cards with a number'],
+      },
+      worked: [
+        {
+          prompt: 'A program says: repeat 3 times [forward, forward]. How many tiles does the robot move?',
+          steps: ['Each time through the loop it moves 2 tiles.', 'Skip-count by 2, three times: 2, 4, 6.'],
+          answer: 'The robot moves 6 tiles.',
+        },
+      ],
+      practice: [
+        num('Repeat 4 times [forward]. How many tiles does the robot move?', '4 tiles.', 4, 'product', [4, 1], 1, 'tiles'),
+        num('Repeat 5 times [forward, forward]. How many tiles?', '10 tiles (2, 4, 6, 8, 10).', 10, 'product', [5, 2], 2, 'tiles'),
+        num('Repeat 3 times [clap, clap, stomp]. How many moves in all?', '9 moves (3, 6, 9).', 9, 'product', [3, 3], 2, 'moves'),
+        say('Which is shorter to write: 8 forward cards, or "repeat 8 [forward]"?', 'The repeat card: 2 cards instead of 8.', 1),
+        say('Find the part that repeats: up, right, up, right, up, right.', '"up, right" repeats 3 times.', 3),
+      ],
+      exitTicket: { q: 'Write "forward, forward, forward, forward, forward" with a loop.', answer: 'Repeat 5 [forward].' },
+      differentiation: {
+        support: ['Circle repeating parts with a crayon before writing the loop.', 'Use cubes to skip-count each pass of the loop.'],
+        extension: ['Write a loop inside a loop for a square path.', 'Make a dance with a loop and teach it to the class.'],
+        ell: 'Frames: "___ repeats ___ times." Clap the pattern while saying it.',
+        supports: ['readAloud', 'chunk', 'untimed'],
+      },
+      safety: { level: 'low', note: 'Movement games stay in a clear space; dancers keep arms-length apart.' },
+      standards: { csta: ['1A-AP-10'], ccss: [M('2.OA.C.4'), M('1.OA.A.1')], intl: INTL },
+      mathFocus: 'repeated addition and skip-counting',
+      museion: 'cs',
+    },
+    {
+      id: 'stem-k2-u04-l3',
+      title: 'Bug Hunt: Find the Wrong Arrow',
+      minutes: 30,
+      strands: ['technology', 'math'],
+      objectives: [
+        'I can test a program step by step.',
+        'I can find the step that is wrong (the bug).',
+        'I can fix the bug and test again.',
+      ],
+      vocab: [
+        ['bug', 'A mistake in a program.'],
+        ['debug', 'Find the mistake and fix it.'],
+        ['test', 'Run the program to see if it works.'],
+      ],
+      hook: 'My robot was supposed to reach the star, but it crashed into the wall! I will run the program one step at a time. Shout "stop!" when you see the bug.',
+      build: {
+        title: 'Debug a path in Build Studio',
+        steps: [
+          'Open Build Studio. Your teacher gives you a program with one wrong arrow.',
+          'Move the robot one step for each card, slowly, with your finger on the card.',
+          'Stop when the robot goes the wrong way. That card is the bug.',
+          'Swap the bug card for the right one.',
+          'Run the whole program again to check it works.',
+        ],
+        launch: {
+          room: 'studio',
+          prompt: `${GRID} A wall blocks the straight path, so the program must turn.`,
+          starter: { shapes: ['box', 'cylinder', 'star', 'box'], note: 'The second box is a wall.' },
+          lesson: 'stem-k2-u04-l3',
+        },
+        materials: ['Arrow cards with one deliberate mistake', 'Sticky note to mark the bug'],
+      },
+      worked: [
+        {
+          prompt: 'The program has 7 cards. The robot goes wrong on card 5. How many cards worked before the bug?',
+          steps: ['Cards 1, 2, 3, 4 worked.', 'That is 5 − 1 = 4 cards.'],
+          answer: '4 cards worked before the bug.',
+        },
+      ],
+      practice: [
+        num('A program has 8 cards and 1 bug. How many cards are right?', '7 cards.', 7, 'difference', [8, 1], 1, 'cards'),
+        num('Ali found 2 bugs and Bea found 3 bugs. How many bugs in all?', '5 bugs.', 5, 'sum', [2, 3], 1, 'bugs'),
+        say('The robot turned left but the star is on the right. What is the bug?', 'A turn-left card that should be turn-right.', 2),
+        say('Why do we test again after fixing a bug?', 'To make sure the fix worked and did not make a new bug.', 3),
+      ],
+      exitTicket: { q: 'What do you do when your program does not work?', answer: 'Go step by step, find the wrong step, fix it, then test again.' },
+      differentiation: {
+        support: ['Give programs of only 3 or 4 cards.', 'Act out the program on the floor grid.'],
+        extension: ['Write a program with a hidden bug for a partner to find.', 'Fix a program that has two bugs.'],
+        ell: 'Frames: "The bug is card ___." "I fixed it by ___."',
+        supports: ['readAloud', 'chunk', 'calm'],
+      },
+      safety: { level: 'low', note: 'Screen and paper cards only. Mistakes are part of coding: celebrate every bug found.' },
+      standards: { csta: ['1A-AP-14', '1A-AP-11'], ccss: [M('1.OA.A.1')], intl: INTL },
+      mathFocus: 'part–whole subtraction',
+      museion: 'cs',
+    },
+    {
+      id: 'stem-k2-u04-l4',
+      title: 'Program the Light Show',
+      minutes: 35,
+      strands: ['technology', 'math', 'engineering'],
+      objectives: [
+        'I can write a blink pattern for lights using a loop.',
+        'I can count how many times the lights blink.',
+        'I can turn my blink pattern into a simulated light show.',
+      ],
+      vocab: [
+        ['LED', 'A tiny light used in circuits.'],
+        ['on and off', 'A light can be lit (on) or dark (off).'],
+        ['sequence', 'Things happening one after another in order.'],
+      ],
+      hook: 'Four friends hold up paper lights. When I point, you turn "on" (hold it up); when I point again, you turn "off". Can we make a wave that goes down the row and back?',
+      build: {
+        title: 'A blinking light show in the simulated Electronics Lab',
+        steps: [
+          'Plan the show on paper: draw 4 circles and colour the ones that are on in each step.',
+          'Act it out as a class with paper lights.',
+          'Open the simulated Electronics Lab with four LEDs, each with its own switch.',
+          'Press the switches in the order of your plan, step by step.',
+          'Put your pattern inside a "repeat 3 times" loop and count every blink.',
+        ],
+        launch: {
+          room: 'elec',
+          prompt: 'A 3 V coin-cell light board with four LEDs in a row, each with its own resistor and press switch, for a young child to make a blinking sequence.',
+          lesson: 'stem-k2-u04-l4',
+        },
+        materials: ['Paper circles for lights', 'Crayons'],
+      },
+      worked: [
+        {
+          prompt: 'One pass of the show blinks 4 lights, one after another. The show repeats 3 times. How many blinks?',
+          steps: ['Each pass is 4 blinks.', 'Skip-count by 4, three times: 4, 8, 12.'],
+          answer: '12 blinks.',
+        },
+      ],
+      practice: [
+        num('One pass blinks 2 lights. Repeat 5 times. How many blinks?', '10 blinks.', 10, 'product', [5, 2], 2, 'blinks'),
+        num('One pass blinks 5 lights. Repeat 2 times. How many blinks?', '10 blinks.', 10, 'product', [2, 5], 2, 'blinks'),
+        num('3 lights are on and 1 is off. How many lights in the row?', '4 lights.', 4, 'sum', [3, 1], 1, 'lights'),
+        say('Your show should go left to right, but it goes right to left. What is the bug?', 'The order of the steps is backwards; swap them.', 3),
+      ],
+      exitTicket: { q: 'Draw one step of your light show. How many lights are on?', answer: 'Any drawing with the on-lights counted correctly.' },
+      differentiation: {
+        support: ['Use two lights only.', 'Colour the plan with a partner.'],
+        extension: ['Make a pattern that lights 1, then 2, then 3, then 4 lights and count the total blinks.', 'Write the show as a loop and teach it to another class.'],
+        ell: 'Frames: "Light ___ is on." "It blinks ___ times."',
+        supports: ['readAloud', 'chunk', 'fewerChoices'],
+      },
+      safety: { level: 'sim-only', note: K2_ELEC_SIM },
+      standards: { csta: ['1A-AP-08', '1A-AP-10'], ccss: [M('2.OA.C.4'), M('1.OA.A.1')], intl: INTL },
+      mathFocus: 'equal groups and skip-counting',
+      museion: 'cs',
+    },
+  ],
+};
