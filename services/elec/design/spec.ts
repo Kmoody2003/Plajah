@@ -26,7 +26,7 @@ export function readSpec(prompt: string): SpecReading {
   const found = new Set<BlockId>(BLOCKS.filter(b => b.words.test(p)).map(b => b.id));
   // Disambiguation: lamps, pixels and strips are not indicator LEDs; a light *sensor* is not a lamp; "pots" in a plant prompt are flower pots.
   if (found.has('lamp') || found.has('neopixel') || found.has('strip12')) { if (!/\b(status|indicator)\b/.test(p)) found.delete('led'); }
-  if (found.has('neopixel') && found.has('lamp') && !/\b(lamp|lantern)\b/.test(p)) found.delete('lamp');
+  if (found.has('neopixel') && found.has('lamp') && !/\b(white|warm)\b/.test(p)) found.delete('lamp');
   if (found.has('strip12') && found.has('neopixel')) found.delete('strip12');
   if (/\bscreen|display\b/.test(p) && found.has('tft')) found.delete('oled');
   if (found.has('soil') && /\bpots?\b/.test(p) && !/\b(knob|potentiometer)/.test(p)) found.delete('pot');

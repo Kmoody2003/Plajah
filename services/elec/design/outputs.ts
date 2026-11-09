@@ -23,10 +23,10 @@ export function review(p: Plan, c: Circuit, verify: string[], sim: SimResult, fi
   // Power budget per rail.
   const pw = p.power; add({ level: 'info', area: 'Power', title: `Power: ${pw.summary}`, detail: pw.rows.map(r => `${r.what} ${mA(r.typ)} typ / ${mA(r.peak)} peak (${r.rail})`).join('; ') });
   for (const [rail, t] of Object.entries(pw.totals)) {
-    const cap = pw.capacity[rail]; const use = cap ? t.design / cap : 0;
+    if (t.peak < 0.001) continue; const cap = pw.capacity[rail]; const use = cap ? t.design / cap : 0;
     add({ level: !cap ? 'info' : use > 1 ? 'error' : use > 0.8 ? 'warn' : 'pass', area: 'Power', title: `${rail} rail: ${mA(t.typ)} typical, ${mA(t.peak)} peak`, detail: cap ? `Sized for ${mA(t.design)} (typical + half the surges) from a ${cap} A source: ${Math.round(use * 100)}% used.` : 'Supplied from the board regulator or the battery directly.' });
   }
-  for (const n of [...pw.notes, ...p.notes]) add({ level: 'info', area: 'Power', title: n.split(/[.:]/)[0], detail: n });
+  for (const n of [...pw.notes, ...p.notes]) add({ level: 'info', area: 'Power', title: n.split(/[.:;](?:\s|$)/)[0], detail: n });
   // Pins.
   if (p.mcu) {
     const used = p.pins.filter(r => !r.pin.startsWith('ADS')).length; add({ level: 'pass', area: 'Pins', title: `${used} of ${p.mcu.gpio.length} ${p.mcu.label} pins used, no conflicts`, detail: p.pins.map(r => `${r.pin} ${r.label}`).join('; ') });
@@ -41,7 +41,7 @@ export function review(p: Plan, c: Circuit, verify: string[], sim: SimResult, fi
     add({ level: f.level, area, title: f.title, detail: f.detail, cite: f.cite });
   }
   for (const h of hazards.filter(x => x.severity === 'critical' || x.severity === 'high')) add({ level: h.severity === 'critical' ? 'warn' : 'info', area: 'Safety', title: h.title, detail: `${h.why} ${h.severity === 'critical' ? 'Acknowledge it in Safety before exporting.' : ''}`.trim(), cite: h.cite });
-  for (const i of p.insts) for (const n of blockById(i.block)!.notes?.(i) ?? []) add({ level: 'info', area: 'Design', title: n.split(/[.:;]/)[0], detail: n });
+  for (const i of p.insts) for (const n of blockById(i.block)!.notes?.(i) ?? []) add({ level: 'info', area: 'Design', title: n.split(/[.:;](?:\s|$)/)[0], detail: n });
   const order = ['error', 'warn', 'info', 'pass']; return out.sort((a, b) => order.indexOf(a.level) - order.indexOf(b.level));
 }
 

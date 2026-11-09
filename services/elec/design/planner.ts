@@ -151,7 +151,8 @@ function powerPlan(spec: Spec, mcu: McuDef | null, insts: Inst[], ads: number, e
       plan.capacity['5 V'] = I;
     }
     const avg = rows.reduce((s, r) => s + r.typ, 0) * (needs5 ? 5 / (0.85 * sysV) : 1);
-    const mAh = source === 'liion' ? 2500 : 2400; plan.notes.push(`Runtime estimate: about ${(mAh / Math.max(1, avg * 1000)).toFixed(1)} h at typical draw from ${source === 'liion' ? 'one 2500 mAh cell' : '3 × AA (2400 mAh)'}.`);
+    const worst = rows.reduce((s, r) => s + r.peak, 0) * (needs5 ? 5 / (0.85 * sysV) : 1);
+    const mAh = source === 'liion' ? 2500 : 2400; plan.notes.push(`Runtime estimate: about ${(mAh / Math.max(1, avg * 1000)).toFixed(1)} h at typical draw, ${(mAh / Math.max(1, worst * 1000)).toFixed(1)} h with everything at full, from ${source === 'liion' ? 'one 2500 mAh cell' : '3 × AA (2400 mAh)'}.`);
     plan.summary = source === 'liion' ? `One Li-ion cell (2500 mAh) with USB-C charging (0.4 A) and protection${plan.boost ? `, boost to 5 V (${plan.boost.I} A)` : ''}, power switch` : `3 × AA (4.5 V)${plan.boost ? `, boost to 5 V (${plan.boost.I} A)` : ''}, power switch`;
     if (source === 'liion') plan.usbA = 0.5;
   }
