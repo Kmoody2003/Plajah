@@ -89,7 +89,7 @@ export interface LanDevice { name: string; host: string; port: number; service: 
 export interface BridgeDevices { serial: SerialDevice[]; lan: LanDevice[] }
 
 const rid = (p: string) => `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
-function request<T>(bus: NativeBus, msg: object & { type: string }, reply: string, match: (m: any) => boolean, ms: number): Promise<T> {
+function request<T>(bus: NativeBus, msg: { type: string; [k: string]: unknown }, reply: string, match: (m: any) => boolean, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
     const off = bus.on(m => { if (m?.type === reply && match(m)) { clearTimeout(t); off(); resolve(m as T); } });
     const t = setTimeout(() => { off(); reject(new Error('The desktop app did not answer. Update Plajah for Windows to use machine control.')); }, ms);
@@ -107,15 +107,15 @@ export async function listBridgeDevices(bus: NativeBus, scanLan = true): Promise
 export type BridgeTarget = { transport: 'serial'; port: string; baud: number } | { transport: 'tcp'; host: string; tcpPort: number };
 
 /** Open a machine through the desktop app and drive it like any other sender. */
-export async function openBridgeSender(bus: NativeBus, target: BridgeTarget, flavor: Flavor, label: string): Promise<MachineSender & { onDisconnect(cb: (duringJob: boolean) => void): void }> {
+export async function openBridgeSender(bus: NativeBus, target: BridgeTarget, flavor: Flavor, label: string): Promise<MachineSender & { onDisconnect(cb: (duringJob: boolean) => void): void; onStatus(cb: (s: GrblStatus) => void): void }> {
   const id = rid('fab');
   const r = await request<any>(bus, { type: 'FAB_MACHINE_OPEN', id, flavor, ...target }, 'FAB_MACHINE_OPEN_RESULT', m => m.id === id, 10000);
   if (!r.ok) throw new Error(r.error || 'Could not open the machine.');
-  let disconnectCb: ((duringJob: boolean) => void) | null = null; let running: RunOptions | null = null;
+  let disconnectCb: ((duringJob: boolean) => void) | null = null; let statusCb: ((s: GrblStatus) => void) | null = null; let running: RunOptions | null = null;
   const off = bus.on(m => {
     if (m?.id !== id) return;
     if (m.type === 'FAB_MACHINE_PROGRESS') running?.onProgress?.(m.done, m.total);
-    else if (m.type === 'FAB_MACHINE_STATUS') { const s = parseGrblStatus(String(m.raw ?? '')); if (s) running?.onStatus?.(s); }
+    else if (m.type === 'FAB_MACHINE_STATUS') { const s = parseGrblStatus(String(m.raw ?? '')); if (s) (running?.onStatus ?? statusCb)?.(s); }
     else if (m.type === 'FAB_MACHINE_LINE') running?.onLine?.(String(m.line ?? ''));
     else if (m.type === 'FAB_MACHINE_DISCONNECTED') disconnectCb?.(!!m.duringJob);
   });
@@ -135,5 +135,7 @@ export async function openBridgeSender(bus: NativeBus, target: BridgeTarget, fla
     async stop() { bus.post({ type: 'FAB_MACHINE_STOP', id }); },
     async close() { off(); bus.post({ type: 'FAB_MACHINE_CLOSE', id }); },
     onDisconnect(cb) { disconnectCb = cb; },
+    /** Status reports while no job runs (the bridge polls GRBL with "?" every second). */
+    onStatus(cb) { statusCb = cb; },
   };
 }
