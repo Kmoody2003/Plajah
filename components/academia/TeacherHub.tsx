@@ -28,7 +28,8 @@ import {
 import OrgEducationScopeGovernancePanel from '../church/OrgEducationScopeGovernancePanel';
 import EduPhoneShell, { type EduPhoneTab } from '../edu/EduPhoneShell';
 import { useViewport } from '../../hooks/useViewport';
-import { Compass, Home as HomeIcon, Wrench } from 'lucide-react';
+import { Compass, Home as HomeIcon, Wrench, Cpu, Hammer } from 'lucide-react';
+import { openStemTrack } from '../../services/stem/launch';
 
 /**
  * Teacher hub (ACADEMIA_HOME for teachers), top to bottom:
@@ -268,6 +269,8 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens, o
       { label: 'Classroom Club & Live', meta: 'Feed · Photos · Lecture · Whiteboard', icon: Users, color: '#D40055', tab: 'classroomClub' },
       { label: 'Year curriculum', meta: '180 days · Math & ELA', icon: CalendarRange, color: '#F5B83D', view: 'ACADEMIA_YEAR' },
       { label: 'Education Council', meta: 'Global educators', icon: Landmark, color: '#c4b5fd', view: 'EDUCATION_COUNCIL' },
+      { label: 'STEM Track', meta: 'K–12 · Plajah Build', icon: Cpu, color: '#5fd1c2', onClick: () => openStemTrack({ tab: 'MAP' }) },
+      { label: 'Build projects', meta: 'Assign & grade', icon: Hammer, color: '#F0603E', onClick: () => openStemTrack({ tab: 'PROJECTS' }) },
       { label: 'Build a lesson', meta: templates ? `${templates.length} saved` : undefined, icon: PenTool, color: '#FF8C00', tab: 'templates' },
       { label: 'Scan worksheet', meta: 'Paper & Doc → Tela', icon: ScanLine, color: '#06D6A0', tab: 'worksheet' },
       { label: 'Scan a flyer', meta: 'Dates to calendar', icon: CalendarRange, color: '#36c5f0', view: 'ACADEMIA_SCAN' },

@@ -19,6 +19,8 @@ import { gateForCommercialUse, mostRestrictive, type GateResult, type License } 
 import { libraryItemById, ledgerFrameworkFor } from '../data/oerLibrary';
 import type { AssignmentTemplate, TemplateSeed, TemplateStructure, Rubric } from '../data/assignmentTemplates';
 import { SEED_KIT } from './journalismSchool/storyKits';
+import { stemLaunchForSeed } from './stem/classwork';
+import type { BuildLaunch } from '../data/stem/types';
 import type { NewsroomReview, NewsroomSnapshot } from './journalismSchool/newsroomReview';
 
 const TEMPLATES = 'assignmentTemplates';
@@ -208,6 +210,8 @@ export async function assignTemplate(input: AssignInput): Promise<AssignResult> 
       guardianUids,
       // School of Journalism lessons are drafted in the Student Newsroom and turned in from there.
       newsroomKitId: SEED_KIT[template.remixOf ?? ''] ?? null,
+      // STEM Track projects and lessons open a Plajah Build room with their starter (services/stem/classwork).
+      buildLaunch: stemLaunchForSeed(template.remixOf),
       dueDate: dueDate ?? null,
       createdAt: Date.now(),
     });
@@ -308,6 +312,8 @@ export interface TemplateAssignment {
   guardianUids?: string[];
   /** Set when the template came from a School of Journalism seed: the Student Newsroom kit to draft in. */
   newsroomKitId?: string | null;
+  /** Set when the template came from a STEM Track seed: the Plajah Build room + starter the work happens in. */
+  buildLaunch?: BuildLaunch | null;
   dueDate: number | null;
   createdAt: number;
 }
@@ -345,6 +351,8 @@ export interface TemplateSubmission {
   status: 'submitted' | 'graded' | 'returned';
   /** A Student Newsroom story, frozen at turn-in (services/journalismSchool/newsroomReview). */
   newsroom?: NewsroomSnapshot | null;
+  /** STEM Track: the student's Plajah Build share link or a photo URL of the physical build. */
+  buildLink?: string;
   /** The teacher's editorial decision on a newsroom story. Only the teacher may write it. */
   review?: NewsroomReview | null;
   grade: {
@@ -376,6 +384,7 @@ export async function submitLesson(input: {
   stepsDone: number[];
   reflection: string;
   selfScores: RubricScores;
+  buildLink?: string;
 }): Promise<string | null> {
   try {
     const ref = await addDoc(collection(opsDb, 'templateSubmissions'), {
@@ -389,6 +398,7 @@ export async function submitLesson(input: {
       stepsDone: input.stepsDone,
       reflection: input.reflection,
       selfScores: input.selfScores,
+      ...(input.buildLink ? { buildLink: input.buildLink.slice(0, 500) } : {}),
       submittedAt: Date.now(),
       status: 'submitted',
       grade: null,

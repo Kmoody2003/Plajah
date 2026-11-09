@@ -145,6 +145,14 @@ const GradeForm: React.FC<{
         </p>
       )}
 
+      {submission.buildLink && (
+        <p style={{ margin: '0 0 14px', fontSize: 12.5, color: T.muted, lineHeight: 1.65 }}>
+          Build: {/^https?:\/\//i.test(submission.buildLink)
+            ? <a href={submission.buildLink} target="_blank" rel="noopener noreferrer" style={{ color: T.cyan, wordBreak: 'break-all' }}>{submission.buildLink}</a>
+            : <span style={{ wordBreak: 'break-all' }}>{submission.buildLink}</span>}
+        </p>
+      )}
+
       {rubric.criteria.map(c => {
         const selfPick = submission.selfScores?.[c.name];
         return (

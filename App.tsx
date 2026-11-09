@@ -278,6 +278,7 @@ const RealEstateSchoolView = retryLazy(() => import('./components/RealEstateScho
 const EconSchoolView = retryLazy(() => import('./components/EconSchoolView'));
 const PhilosophySchoolView = retryLazy(() => import('./components/PhilosophySchoolView'));
 const JournalismSchoolView = retryLazy(() => import('./components/JournalismSchoolView'));
+const StemTrackView = retryLazy(() => import('./components/StemTrackView'));
 const ArtCollegeView = retryLazy(() => import('./components/artCollege/ArtCollegeView'));
 const MusicLawLibrary = retryLazy(() => import('./components/academia/MusicLawLibrary'));
 const PublicationStudio = retryLazy(() => import('./components/publication/PublicationStudio'));
@@ -2289,6 +2290,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     };
     window.addEventListener('OPEN_LABS_DISCIPLINE', handleOpenLabsDiscipline);
 
+    // Plajah Build launch contract (services/stem/launch.ts): the request is already parked in
+    // sessionStorage['plajah:pendingBuild']; the Build hub reads it. App only switches the view.
+    const handleOpenBuild = () => setView('PLAJAH_BUILD' as AppView);
+    window.addEventListener('plajah:openBuild', handleOpenBuild);
+
     // Language Arts: open a classic in the Lorea reader, or a Chora Vault shelf. See services/loreaOpen.ts.
     const handleOpenLoreaBook = (e: Event) => {
       const album = (e as CustomEvent)?.detail?.album;
@@ -2449,6 +2455,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('plajah:visit-user', handleVisitUserEvent);
       window.removeEventListener('OPEN_SMART_DIRECTOR', handleOpenSmartDirector);
       window.removeEventListener('OPEN_LABS_DISCIPLINE', handleOpenLabsDiscipline);
+      window.removeEventListener('plajah:openBuild', handleOpenBuild);
       window.removeEventListener('OPEN_NOTES', handleOpenNotes);
       window.removeEventListener('OPEN_LOREA_BOOK', handleOpenLoreaBook);
       window.removeEventListener('OPEN_CHORA_VAULT', handleOpenChoraVault);
@@ -2985,6 +2992,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('PHILOSOPHY_SCHOOL');
     } else if (target === 'JOURNALISM_SCHOOL') {
       setView('JOURNALISM_SCHOOL');
+    } else if (target === 'STEM_TRACK') {
+      setView('STEM_TRACK');
     } else if (target === 'ART_COLLEGE') {
       setView('ART_COLLEGE');
     } else if (target === 'MUSIC_LAW') {
@@ -8009,6 +8018,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'MUSIC_LAW' && (
               <Suspense fallback={null}>
                 <MusicLawLibrary onBack={() => goBack('LEARN')} onNavigate={(v) => setView(v as AppView)} />
+              </Suspense>
+            )}
+            {view === 'STEM_TRACK' && (
+              <Suspense fallback={null}>
+                <StemTrackView onBack={() => goBack('ACADEMIA_LANDING')} onNavigate={(v) => setView(v as AppView)} user={user} profile={userProfile} />
               </Suspense>
             )}
             {view === 'JOURNALISM_SCHOOL' && (
