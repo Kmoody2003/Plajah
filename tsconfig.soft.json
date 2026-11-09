@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": { "allowJs": false, "noEmit": true, "types": ["vite/client", "node"] },
-  "include": ["services/soft/*.ts", "components/soft/*.tsx", "services/safety/*.ts", "components/safety/*.tsx", "components/supply/*.tsx", "labs/sew/main.tsx", "tests/soft.test.ts"]
+  "include": ["services/soft/*.ts", "components/soft/*.tsx", "services/safety/*.ts", "components/safety/*.tsx", "components/supply/*.tsx", "labs/sew/main.tsx", "tests/soft.test.ts", "tests/softMore.test.ts"]
 }

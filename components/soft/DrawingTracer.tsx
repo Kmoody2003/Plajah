@@ -2,15 +2,39 @@
 // pink outline hugs the character, optionally mirror one half. Runs on this device: the picture is
 // read into a canvas here and never uploaded.
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { Upload, Wand2 } from 'lucide-react';
-import { toGray, otsu, traceSilhouette, coverage, type Gray } from '../../services/soft/trace';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Upload, Wand2, PenLine, Eraser } from 'lucide-react';
+import { toGray, otsu, traceSilhouette, coverage, outlineFromStrokes, type Gray } from '../../services/soft/trace';
 import { encodeOutline } from '../../services/soft/patterns';
 import type { Pt } from '../../services/soft/geometry';
 
 const MAX = 400;
 
+/** Draw the outline by hand: each stroke is closed and filled, strokes are unioned, then traced. */
+function DrawPad({ onOutline }: { onOutline: (encoded: string) => void }) {
+  const [strokes, setStrokes] = useState<Pt[][]>([]); const cur = useRef<Pt[] | null>(null); const [, force] = useState(0); const S = 280;
+  const ring = useMemo(() => outlineFromStrokes(strokes.map(s => s.map(([x, y]) => [x, S - y] as Pt)), { smooth: 3 }), [strokes]);
+  useEffect(() => { if (ring.length >= 6) onOutline(encodeOutline(ring)); }, [ring]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pt = (e: React.PointerEvent<SVGSVGElement>): Pt => { const r = e.currentTarget.getBoundingClientRect(); return [(e.clientX - r.left) * S / r.width, (e.clientY - r.top) * S / r.height]; };
+  const path = (s: Pt[]) => `M${s.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join('L')}`;
+  return <div className="mt-2">
+    <svg viewBox={`0 0 ${S} ${S}`} className="block w-full rounded touch-none" style={{ background: '#fff', cursor: 'crosshair' }} data-testid="sew-draw-pad"
+      onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); cur.current = [pt(e)]; force(x => x + 1); }}
+      onPointerMove={e => { if (cur.current) { cur.current.push(pt(e)); force(x => x + 1); } }}
+      onPointerUp={() => { const s = cur.current; cur.current = null; if (s && s.length > 2) setStrokes(v => [...v, s]); else force(x => x + 1); }}>
+      {ring.length > 0 && <path d={`${path(ring.map(([x, y]) => [x, S - y] as Pt))}Z`} fill="rgba(236,72,153,.18)" stroke="#db2777" strokeWidth={1.5}/>}
+      {[...strokes, ...(cur.current ? [cur.current] : [])].map((s, i) => <path key={i} d={path(s)} fill="none" stroke="#111" strokeWidth={2} strokeLinecap="round"/>)}
+    </svg>
+    <div className="flex items-center gap-2 mt-1 text-[10px]" style={{ color: 'rgba(255,255,255,.5)' }}>
+      <span className="flex-1">Draw the outline as one loop (it closes itself); extra loops add ears or arms.</span>
+      <button className="sew-btn" style={{ height: 24 }} onClick={() => setStrokes(v => v.slice(0, -1))} disabled={!strokes.length}>Undo</button>
+      <button className="sew-btn" style={{ height: 24 }} onClick={() => setStrokes([])} disabled={!strokes.length}><Eraser size={11}/>Clear</button>
+    </div>
+  </div>;
+}
+
 export default function DrawingTracer({ onOutline }: { onOutline: (encoded: string) => void }) {
+  const [mode, setMode] = useState<'picture' | 'draw'>('picture');
   const [img, setImg] = useState<{ url: string; gray: Gray } | null>(null);
   const [threshold, setThreshold] = useState(128); const [smooth, setSmooth] = useState(1);
   const [invert, setInvert] = useState(false); const [mirror, setMirror] = useState<'off' | 'left' | 'right'>('off'); const [err, setErr] = useState('');
@@ -32,6 +56,9 @@ export default function DrawingTracer({ onOutline }: { onOutline: (encoded: stri
   const h = img?.gray.h ?? 1;
   return <div className="mb-2 p-2 rounded-lg" style={{ background: 'rgba(244,114,182,.06)', border: '1px solid rgba(244,114,182,.25)' }} data-testid="sew-tracer">
     <div className="text-[10px] font-extrabold uppercase tracking-[.12em] mb-1" style={{ color: 'rgba(255,255,255,.5)' }}>Your drawing</div>
+    <div className="flex gap-1 mb-1"><button className="sew-btn flex-1 justify-center" style={{ opacity: mode === 'picture' ? 1 : 0.55 }} onClick={() => setMode('picture')} data-testid="sew-trace-mode-picture"><Upload size={12}/>Picture</button>
+      <button className="sew-btn flex-1 justify-center" style={{ opacity: mode === 'draw' ? 1 : 0.55 }} onClick={() => setMode('draw')} data-testid="sew-trace-mode-draw"><PenLine size={12}/>Draw it</button></div>
+    {mode === 'draw' ? <DrawPad onOutline={onOutline}/> : <>
     <label className="sew-btn w-full justify-center cursor-pointer"><Upload size={12}/>{img ? 'Choose another picture' : 'Upload a drawing or photo'}
       <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) load(f); }} data-testid="sew-trace-file"/></label>
     <div className="text-[10px] mt-1" style={{ color: 'rgba(255,255,255,.5)' }}>A dark drawing on light paper works best; a closed outline or a filled shape. Stays on this device.</div>
@@ -52,6 +79,7 @@ export default function DrawingTracer({ onOutline }: { onOutline: (encoded: stri
       <label className="flex items-center gap-2 text-[11.5px] py-1"><input type="checkbox" checked={invert} onChange={e => setInvert(e.target.checked)} data-testid="sew-trace-invert"/>Light drawing on dark</label>
       <label className="block text-[11px]" style={{ color: 'rgba(255,255,255,.55)' }}>Mirror half (symmetric characters)
         <select className="sew-in" value={mirror} onChange={e => setMirror(e.target.value as 'off' | 'left' | 'right')} data-testid="sew-trace-mirror"><option value="off">Off: trace as drawn</option><option value="left">Keep the left half, mirror it</option><option value="right">Keep the right half, mirror it</option></select></label>
+    </>}
     </>}
   </div>;
 }

@@ -169,6 +169,7 @@ function leggingsRig(pattern: Pattern, body: Body, fab: FabricFor, off = 0): Rig
 function plushPalRig(pattern: Pattern, fab: FabricFor): Rig {
   const fr = pattern.pieces.find(p => p.id === 'front'), bk = pattern.pieces.find(p => p.id === 'back'), base = pattern.pieces.find(p => p.id === 'base');
   if (!fr || !bk) return looseRig(pattern, null, fab);
+  const gu = pattern.pieces.find(p => p.id === 'gusset'); if (gu) return gussetRig(pattern, fr, bk, gu, fab);
   const ys = Math.min(...fr.seam.map(p => p[1])); const bottom = fr.seam.filter(p => p[1] < ys + 0.6);
   const BL = bottom.reduce((a, p) => (p[0] < a[0] ? p : a)), BR = bottom.reduce((a, p) => (p[0] > a[0] ? p : a)); const top = fr.seam.reduce((a, p) => (p[1] > a[1] ? p : a));
   const H = bbox(fr.seam).h; const A = base ? bbox(base.seam).w / 2 : (BR[0] - BL[0]) / 2; const D = base ? bbox(base.seam).h / 2 : A * 0.6;
@@ -185,6 +186,30 @@ function plushPalRig(pattern: Pattern, fab: FabricFor): Rig {
   }
   const litres = pattern.fill?.litres ?? 1;
   return { placed, seams, kind: 'plush', notes: pattern.pieces.some(p => p.id === 'ear-inner') ? ['Inner-ear appliqués are flat on the front; shown in 2D only.'] : [], pressure: { targetVolume: litres * 1e6 * 1.02, p0: 2500, planned: litres * 1e6 }, needsBody: false };
+}
+
+/** Plush with a side gusset: front and back a gusset-width apart, the strip wrapped round the outline from the bottom centre (front seam[0]). */
+function gussetRig(pattern: Pattern, fr: Piece, bk: Piece, gu: Piece, fab: FabricFor): Rig {
+  const S = fr.seam, n = S.length; const arc: number[] = [0]; for (let i = 1; i <= n; i++) arc.push(arc[i - 1] + Math.hypot(S[i % n][0] - S[i - 1][0], S[i % n][1] - S[i - 1][1]));
+  const P = arc[n]; const gb = bbox(gu.seam); const G = gb.h, L = gb.w; const ys = Math.min(...S.map(p => p[1])); const lift = 4, d = G / 2 + 4; const H = bbox(S).h; const centre: V3 = [0, H * 0.42, 0];
+  const at = (s: number): Pt => { const u = Math.max(0, Math.min(P, s * P / L)); let i = 1; while (i < n && arc[i] < u) i++; const f = (u - arc[i - 1]) / (arc[i] - arc[i - 1] || 1); const a = S[i - 1], b = S[i % n]; return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; };
+  const sAt = (f: number) => S[Math.min(n - 1, Math.round(f * n)) % n];
+  const placed: PlacedPiece[] = [
+    { id: 'front', name: 'Front', pieceId: 'front', role: 'plush', seam: S, fabric: fab(fr.fabric, fr), grainAngle: grainAngle(fr), map: q => [q[0], q[1] - ys + lift, d], outwardFrom: centre },
+    { id: 'back', name: 'Back', pieceId: 'back', role: 'plush', seam: bk.seam, fabric: fab(bk.fabric, bk), grainAngle: grainAngle(bk), map: q => [-q[0], q[1] - ys + lift, -d], outwardFrom: centre },
+    { id: 'gusset', name: 'Side gusset', pieceId: 'gusset', role: 'plush', seam: gu.seam, fabric: fab(gu.fabric, gu), grainAngle: grainAngle(gu), outwardFrom: centre,
+      map: q => { const p = at(q[0]); return [p[0], p[1] - ys + lift, d - (q[1] / G) * 2 * d]; } },
+  ];
+  const m = (p: Pt): Pt => [-p[0], p[1]]; const half = Math.round(n / 2) % n;
+  const seams: SeamSpec[] = [
+    { name: 'Gusset front A', a: [{ piece: 'front', from: S[0], to: S[half], via: sAt(0.25) }], b: [{ piece: 'gusset', from: [0, 0], to: [L / 2, 0], via: [L / 4, 0] }] },
+    { name: 'Gusset front B', a: [{ piece: 'front', from: S[half], to: S[0], via: sAt(0.75) }], b: [{ piece: 'gusset', from: [L / 2, 0], to: [L, 0], via: [3 * L / 4, 0] }] },
+    { name: 'Gusset back A', a: [{ piece: 'back', from: m(S[0]), to: m(S[half]), via: m(sAt(0.25)) }], b: [{ piece: 'gusset', from: [0, G], to: [L / 2, G], via: [L / 4, G] }] },
+    { name: 'Gusset back B', a: [{ piece: 'back', from: m(S[half]), to: m(S[0]), via: m(sAt(0.75)) }], b: [{ piece: 'gusset', from: [L / 2, G], to: [L, G], via: [3 * L / 4, G] }] },
+    { name: 'Gusset join', a: [{ piece: 'gusset', from: [0, 0], to: [0, G] }], b: [{ piece: 'gusset', from: [L, 0], to: [L, G] }] },
+  ];
+  const litres = pattern.fill?.litres ?? 1;
+  return { placed, seams, kind: 'plush', notes: [], pressure: { targetVolume: litres * 1e6 * 1.02, p0: 2500, planned: litres * 1e6 }, needsBody: false };
 }
 
 /** Plush ball: N gores laid on a sphere, each sewn to the next. */

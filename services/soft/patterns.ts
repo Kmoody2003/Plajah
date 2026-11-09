@@ -625,12 +625,13 @@ const plushDrawing: SoftTemplate = {
   id: 'plush-drawing', name: 'Plush from your drawing', kind: 'plush', audience: 'child', blurb: 'Upload a drawing or photo: we trace the silhouette into front and back panels with a sit-flat base.',
   params: [{ key: 'outline', label: 'Traced outline', type: 'select', default: '', hidden: true },
     { key: 'height', label: 'Height', type: 'length', default: 300, min: 100, max: 900 },
-    { key: 'base', label: 'Sit-flat base gusset', type: 'bool', default: true }, { key: 'flat', label: 'Flat bottom (share of the height)', type: 'number', default: 0.06, min: 0.01, max: 0.3, step: 0.01, help: 'Where the drawing is cut flat for the base.' },
+    { key: 'base', label: 'Sit-flat base gusset', type: 'bool', default: true },
+    { key: 'side', label: 'Side gusset all round (gives depth; replaces the base)', type: 'bool', default: false }, { key: 'gussetW', label: 'Side gusset width', type: 'length', default: 60, min: 20, max: 250, help: 'The finished depth of the toy front to back.' }, { key: 'flat', label: 'Flat bottom (share of the height)', type: 'number', default: 0.06, min: 0.01, max: 0.3, step: 0.01, help: 'Where the drawing is cut flat for the base.' },
     { key: 'depth', label: 'Base depth (share of its width)', type: 'number', default: 0.6, min: 0.3, max: 1, step: 0.05 },
     { key: 'face', label: 'Eyes', type: 'select', default: 'embroidered', options: [{ value: 'embroidered', label: 'Embroidered (safest; required under 3)' }, { value: 'safety-eyes', label: 'Plastic safety eyes (3+ only)' }, { value: 'felt', label: 'Felt, stitched all round' }, { value: 'drawn', label: 'As in my drawing (embroider it)' }] },
     { key: 'a', label: 'Seam allowance', type: 'length', default: 6, min: 4, max: 12 }],
   build: v => {
-    const H = num(v, 'height', 300), base = v.base !== false, flat = Math.min(0.3, Math.max(0.01, num(v, 'flat', 0.06))), depthK = num(v, 'depth', 0.6), face = str(v, 'face', 'embroidered'), a = num(v, 'a', 6);
+    const H = num(v, 'height', 300), side = bool(v, 'side'), G = Math.max(20, num(v, 'gussetW', 60)), base = !side && v.base !== false, flat = Math.min(0.3, Math.max(0.01, num(v, 'flat', 0.06))), depthK = num(v, 'depth', 0.6), face = str(v, 'face', 'embroidered'), a = num(v, 'a', 6);
     const traced = decodeOutline(v.outline); let ring = ccw(clean(traced ?? sampleDrawing()));
     if (ring.length < 6 || Math.abs(area(ring)) < 1e-6) throw new Error('The traced outline is too small: try a lower threshold.');
     // Normalise to unit height, cut the bottom flat for the base, then scale to the asked height.
@@ -638,6 +639,7 @@ const plushDrawing: SoftTemplate = {
     if (base) ring = clipBelow(ring, flat);
     b = bbox(ring); const sc = H / b.h; let seam = ccw(clean(ring.map(([x, y]) => [x * sc, (y - b.y0) * sc] as Pt)));
     seam = ccw(clean(simplify(seam, Math.max(0.15, H / 1500)).map(([x, y]) => [x, Math.abs(y) < 1e-6 ? 0 : y] as Pt)));
+    if (side) { let i0 = 0; seam.forEach((q, i) => { const r = seam[i0]; if (q[1] < r[1] - 0.5 || (Math.abs(q[1] - r[1]) <= 0.5 && Math.abs(q[0]) < Math.abs(r[0]))) i0 = i; }); seam = [...seam.slice(i0), ...seam.slice(0, i0)]; }
     const bb = bbox(seam); const notchesFrom = (r: Pt[]) => [0.15, 0.35, 0.5, 0.65, 0.85].map(f => r[Math.floor(f * r.length)]);
     const eyeY = bb.h * 0.72, eyeX = bb.w * 0.12, eyeR = Math.max(4, Math.round(bb.w * 0.035)), cx = 0;
     const marks = face === 'drawn' ? [] : face === 'safety-eyes' ? [{ at: [cx - eyeX, eyeY] as Pt, label: `${eyeR * 2} mm safety eye (move to suit)`, r: eyeR }, { at: [cx + eyeX, eyeY] as Pt, label: 'safety eye', r: eyeR }]
@@ -652,18 +654,29 @@ const plushDrawing: SoftTemplate = {
       const oval = ccw(ellipse(0, 0, A, A * depthK, 64)); baseDepth = Math.max(i ? baseDepth : 0, 2 * A * depthK);
       pieces.push({ id: runs.length > 1 ? `base-${i + 1}` : 'base', name: runs.length > 1 ? `Foot pad ${i + 1}` : 'Base', seam: oval, allowance: a, cut: 1, fabric: 'contrast', grain: [[0, -A * depthK * 0.6], [0, A * depthK * 0.6]], notches: [[A, 0], [-A, 0]], note: 'Side notches meet the front/back side seams.' });
     });
-    const litres = Math.abs(area(seam)) / 1e6 * (baseDepth / 1000) * 1000 * 0.7; const grams = Math.round(litres * 45);
+    const perim = pathLength([...seam, seam[0]]);
+    if (side) {
+      // The gusset runs once round the outline from the bottom centre (front seam[0]); its notches sit at the same arc lengths as the front's.
+      const arcAt: number[] = [0]; for (let i = 1; i < seam.length; i++) arcAt.push(arcAt[i - 1] + dist(seam[i - 1], seam[i]));
+      const ns = [0.15, 0.35, 0.5, 0.65, 0.85].map(f => arcAt[Math.floor(f * seam.length)]);
+      pieces[0].marks = [...(pieces[0].marks ?? []), { at: seam[0], label: 'gusset ends meet here', r: 2 }];
+      pieces.push({ id: 'gusset', name: 'Side gusset', seam: rect(0, 0, perim, G), allowance: a, cut: 1, fabric: 'fur', grain: [[perim * 0.2, G / 2], [perim * 0.8, G / 2]],
+        notches: [...ns.map(x => [x, 0] as Pt), ...ns.map(x => [x, G] as Pt)], marks: [{ at: [perim * 0.5, G / 2], label: `leave ${Math.round(Math.max(50, H * 0.2))} mm of the back seam open here to stuff`, r: 3 }],
+        note: 'One strip round the whole outline: the short ends join at the bottom centre. Clip the allowance at inner corners as you go.' });
+    }
+    const depth = side ? G : baseDepth; const litres = Math.abs(area(seam)) / 1e6 * depth * (side ? 1.0 : 0.7); const grams = Math.round(litres * 45);
     const notions: Notion[] = [{ item: 'Polyester fibre fill (toy-safe, new material)', qty: `about ${grams} g` }, { item: 'Thread', qty: '1 spool, strong polyester' }];
     if (face === 'safety-eyes') notions.push({ item: 'Plastic safety eyes with locking washers', qty: '2', note: `${eyeR * 2} mm` });
     else notions.push({ item: 'Embroidery floss', qty: '1 skein each colour' });
     return { template: 'plush-drawing', name: `Plush from ${traced ? 'your drawing' : 'the sample drawing'} ${Math.round(H / 10)} cm`, kind: 'plush', fabricWidth: 1500,
       features: { safetyEyes: face === 'safety-eyes', longPile: true }, pieces, fill: { grams, litres: Math.round(litres * 10) / 10 }, notions,
       steps: [face === 'safety-eyes' ? 'Fit the safety eyes on the front before sewing; press the washers fully home.' : 'Transfer your drawing\'s face to the front and embroider it BEFORE sewing; knot securely on the back.',
-        `Front and back right sides together; stitch round at ${a} mm with a 2 mm stitch, leaving the base edge${base ? '' : ' and the marked gap'} open.`,
+        side ? `Join the gusset's short ends into a ring; pin it round the front, notches matching, ends at the bottom centre; stitch at ${a} mm with a 2 mm stitch. Sew the back on the same way, leaving the marked gap open.`
+          : `Front and back right sides together; stitch round at ${a} mm with a 2 mm stitch, leaving the base edge${base ? '' : ' and the marked gap'} open.`,
         base ? (runs.length > 1 ? 'Pin each foot pad into its opening, side notches to the side seams; stitch round.' : 'Pin the base in, side notches to the side seams; stitch round, leaving the marked gap on the back open.') : '',
         'Clip curves and into inner corners (not through the stitching); turn; push out thin parts with a blunt tool.', 'Stuff firmly in small tufts, thin parts first.', 'Ladder-stitch the gap closed; pull-test every seam and eye.'].filter(Boolean),
       notes: ['Thin parts under about 25 mm finished are hard to turn and stuff: thicken them in the drawing or raise the smoothing.', ...(runs.length > 1 ? [`Your drawing stands on ${runs.length} feet: each gets its own pad.`] : [])],
-      finished: [['Height', H], ['Width', bb.w], ...(base ? [['Base seam length (front+back)', 2 * runs.reduce((s, L) => s + L, 0)] as [string, number]] : [])] };
+      finished: [['Height', H], ['Width', bb.w], ...(side ? [['Depth (side gusset)', G], ['Gusset length', perim]] as Array<[string, number]> : []), ...(base ? [['Base seam length (front+back)', 2 * runs.reduce((s, L) => s + L, 0)] as [string, number]] : [])] };
   },
 };
 
