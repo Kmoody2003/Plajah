@@ -1552,6 +1552,21 @@ public sealed partial class MainWindow : Window
                         default: result = new { success = false, error = "Unknown command." }; break;
                     }
                 }
+                else if (cmd.StartsWith("disc_"))
+                {
+                    string DStr(string name) => argsObj.ValueKind == JsonValueKind.Object && argsObj.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+                    long DLong(string name) => argsObj.ValueKind == JsonValueKind.Object && argsObj.TryGetProperty(name, out var v) && v.TryGetInt64(out var l) ? l : 0;
+                    bool DBool(string name) => argsObj.ValueKind == JsonValueKind.Object && argsObj.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.True;
+                    result = cmd switch
+                    {
+                        "disc_recorders" => DiscImageService.Recorders(),
+                        "disc_make_iso" => await DiscImageService.MakeIsoAsync(DStr("folder"), DStr("isoPath"), DStr("volumeName"), DLong("capacityBytes")),
+                        "disc_burn" => await DiscImageService.BurnAsync(DStr("recorderId"), DStr("source"), DStr("volumeName"), DBool("verify")),
+                        "disc_status" => DiscImageService.Status(),
+                        "disc_cancel" => DiscImageService.Cancel(),
+                        _ => new { success = false, error = "Unknown command." },
+                    };
+                }
                 else if (cmd == "list_sources")
                 {
                     var sourceList = new List<object>();

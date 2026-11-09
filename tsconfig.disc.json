@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true, "types": ["vite/client", "node"] },
+  "include": ["services/disc/*.ts", "services/disc/councilTemplates/*.ts", "components/fabula/DiscAuthoring.tsx", "tests/disc.test.ts", "tests/discMux.test.ts"]
+}

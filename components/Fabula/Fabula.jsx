@@ -17,10 +17,11 @@ import {
   Palette, Box, Cpu, Lock, Unlock, Camera, Brush, Type, Captions, Keyboard,
   Scissors, MousePointer2, FlagTriangleRight, FlagTriangleLeft,
   SlidersHorizontal, Mic2, FolderOpen, Search, Tag, FileText, RefreshCw,
-  Image as ImageIcon, HardDrive, Eye, BookOpen,
+  Image as ImageIcon, HardDrive, Eye, BookOpen, Disc3,
 } from "lucide-react";
 import SpatialStudio from "./SpatialStudio";
 const AnimaStudio = lazy(() => import("./anima/AnimaStudio"));
+const DiscAuthoring = lazy(() => import("./DiscAuthoring"));
 import * as THREE from "three";
 import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from "idb-keyval";
 import { putBytes as mediaPutBytes, getBytes as mediaGetBytes, delBytes as mediaDelBytes } from "../../services/fabula/mediaStore";
@@ -6765,7 +6766,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         D,
         { label: `Snapping: ${snapOn ? "On" : "Off"}`, fn: () => setSnapOn((s) => !s) },
         D,
-        ...[["media", "MEDIA"], ["edit", "EDIT"], ["script", "TIMECODE SCRIPT"], ["anima", "ANIMA 2D/3D"], ["vfx", "VFX"], ["color", "COLOR"], ["audio", "AUDIO"], ["deliver", "DELIVER"]].map(([id, lab]) => ({ label: `Workspace: ${lab}`, fn: () => setEditWs(id), active: editWs === id })),
+        ...[["media", "MEDIA"], ["edit", "EDIT"], ["script", "TIMECODE SCRIPT"], ["anima", "ANIMA 2D/3D"], ["vfx", "VFX"], ["color", "COLOR"], ["audio", "AUDIO"], ["deliver", "DELIVER"], ["disc", "DISC AUTHORING"]].map(([id, lab]) => ({ label: `Workspace: ${lab}`, fn: () => setEditWs(id), active: editWs === id })),
         D,
         { label: "Keyboard shortcuts…", fn: () => setShowShortcuts(true) },
       ],
@@ -9782,6 +9783,25 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                   />
                 )}
 
+                {editWs === "disc" && prod && (
+                  <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", width: "100%", height: "100%", overflow: "auto" }}>
+                    <Suspense fallback={<div className="p-8 text-center text-xs opacity-50">Loading Disc Authoring…</div>}>
+                      <DiscAuthoring
+                        discs={prod.discProjects || []}
+                        onChange={(next) => updateProd((p) => { p.discProjects = next; })}
+                        productionTitle={prod.title}
+                        ownerId={prod.ownerId}
+                        ping={ping}
+                        sources={[
+                          ...(container && seqEnd > 0 ? [{ id: `timeline_${container.id || "open"}`, name: container.name || container.title || prod.title || "Current timeline", durationSec: seqEnd, kind: "timeline", markers: (markers || []).map((m) => ({ t: m.t, label: m.label || m.name || m.note })) }] : []),
+                          ...(prod.edits || []).filter((e) => e !== container).map((e) => ({ id: `edit_${e.id}`, name: e.name || e.title || "Edit", durationSec: (e.timeline?.clips || []).reduce((mx, c) => Math.max(mx, (c.start || 0) + (c.duration || 0)), 0), kind: "edit" })).filter((x) => x.durationSec > 0),
+                          ...(prod.mediaPool || []).filter((a) => a.type === "video" && a.duration > 0).map((a) => ({ id: a.id, name: a.name, durationSec: a.duration, kind: "asset", url: a.url, path: a.localPath || a.path })),
+                        ]}
+                      />
+                    </Suspense>
+                  </div>
+                )}
+
                 {editWs === "deliver" && (() => {
                   // ── Four-band DELIVER. The export VERBS (RENDER MP4 / FCPXML / EDL) live in the
                   //    band-2 tool bar like every other room; the work surface holds the deliverables:
@@ -9998,7 +10018,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
           {page === "edit" && prod && container && (
             <>
               <span className="raildiv" />
-              {[["media", "MEDIA", MonitorPlay], ["edit", "EDIT", Film], ["script", "TIMECODE SCRIPT", FileText], ["anima", "ANIMA 2D/3D", Sparkles], ["vfx", "VFX", Box], ["color", "COLOR", Palette], ["audio", "AUDIO", Music], ["spatial", "SPATIAL 3D", Eye], ["deliver", "DELIVER", ListVideo]].map(([id, lab, Ic]) => (
+              {[["media", "MEDIA", MonitorPlay], ["edit", "EDIT", Film], ["script", "TIMECODE SCRIPT", FileText], ["anima", "ANIMA 2D/3D", Sparkles], ["vfx", "VFX", Box], ["color", "COLOR", Palette], ["audio", "AUDIO", Music], ["spatial", "SPATIAL 3D", Eye], ["deliver", "DELIVER", ListVideo], ["disc", "DISC AUTHORING", Disc3]].map(([id, lab, Ic]) => (
                 <button key={id} className={`raildot ws ${editWs === id ? "on" : ""}`} onClick={() => setEditWs(id)} title={lab}>
                   <Ic size={13} />
                 </button>

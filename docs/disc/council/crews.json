@@ -1,0 +1,600 @@
+{
+  "generatedBy": "scripts/council/castDiscTemplateCrews.ts",
+  "crews": [
+    {
+      "id": "feature",
+      "name": "Proscenium",
+      "concept": "Navigation as architecture: a vertical bay on the left third, the film breathing in the open right two-thirds.",
+      "animationLead": {
+        "id": "GOLDEN_AGE",
+        "name": "The Golden-Age Feature Naturalist",
+        "guild": "CARTOON",
+        "lineage": "The 1930s–50s American feature tradition — \"the illusion of life\", the twelve principles codified, multiplane depth and lush painted backgrounds.",
+        "ethos": "A drawing can think and feel; full animation on ones and true weight are how you earn an audience's tears.",
+        "protects": "the illusion of life, appeal, solid drawing, and the full twelve principles",
+        "timing": {
+          "fps": 24,
+          "on": 1,
+          "ease": "ease-in-out"
+        }
+      },
+      "animationCrew": [
+        {
+          "id": "MODERNIST_TITLE",
+          "name": "The Modernist Title Designer",
+          "guild": "GRAPHIC",
+          "lineage": "The 1950s–60s film title sequence as a graphic overture — cut-paper shapes, a single symbol and a jazz score.",
+          "ethos": "Reduce the whole film to one symbol, then make it move like music.",
+          "protects": "the single idea, the symbol, graphic clarity, and the score",
+          "timing": {
+            "fps": 24,
+            "on": 2,
+            "ease": "ease-out"
+          }
+        },
+        {
+          "id": "MIDCENTURY",
+          "name": "The Mid-Century Modernist",
+          "guild": "CARTOON",
+          "lineage": "The 1950s modernist animation movement that rejected naturalism for flat graphic design, stylised backgrounds and limited motion by intent.",
+          "ethos": "Animation is design that moves — a flat shape, a single colour field and a confident pose say more than a realistic body.",
+          "protects": "graphic stylisation, the pose, the colour field, and design integrity",
+          "timing": {
+            "fps": 24,
+            "on": 2,
+            "ease": "ease-out"
+          }
+        }
+      ],
+      "graphicDesigner": {
+        "id": "MODERNIST_TITLE",
+        "name": "The Modernist Title Designer",
+        "guild": "GRAPHIC",
+        "lineage": "The 1950s–60s film title sequence as a graphic overture — cut-paper shapes, a single symbol and a jazz score.",
+        "ethos": "Reduce the whole film to one symbol, then make it move like music.",
+        "protects": "the single idea, the symbol, graphic clarity, and the score",
+        "timing": {
+          "fps": 24,
+          "on": 2,
+          "ease": "ease-out"
+        }
+      },
+      "lightingDirector": {
+        "seat": "CINEMATIC",
+        "name": "The 3D Dramatist",
+        "plan": "Single motivated top-light from upper right, deep slate falloff into a 35% vignette; the gold bar is the only warm source."
+      },
+      "artCouncil": {
+        "lead": "CLASSICAL",
+        "counterpoint": "REBEL",
+        "direction": "A strictly proportioned architectural menu system anchored inside the 80% title-safe rectangle (x: 192 to 1728, y: 108 to 972), built with Cormorant Garamond, Marcellus, and EB Garamond typography over a deep slate (#14161B) canvas. Primary navigation is anchored to a left-side bay (x: 192 to 576), while the Pop-up bar remains locked to y: 864–1026 to guarantee the playing picture center is never obscured. Selected button states trigger an instant vertical 4×32px gold bar (#D4AF37) snapped flush to the text margin, combined with REBEL's zero-latency D-pad state flips. All backgrounds and subpicture overlays are generated purely via Plajah Tela GLSL shaders and vector paths, observing the 255-color palette limit.",
+        "keep": "REBEL's zero-latency state transitions and instantaneous D-pad visual feedback snap, ensuring remote interactions feel crisp and immediate across a three-metre viewing distance.",
+        "cut": "RADICAL_MINIMAL excised the simulated manuscript corner-notch brackets and structural background grid lines, preventing UI ornament from competing with the film frame."
+      }
+    },
+    {
+      "id": "collector4k",
+      "name": "Light Slit",
+      "concept": "Navigation as light: one vertical slit of light carries every item; the selected item is where the beam spills out.",
+      "animationLead": {
+        "id": "ABSTRACT_LOOP",
+        "name": "The Abstract 3D Loop Artist",
+        "guild": "CG",
+        "lineage": "The 2010s daily 3D render and satisfying-loop culture — soft bodies, pastel materials and perfect loops.",
+        "ethos": "A perfect loop is a meditation — one material, one motion, studio light, and an ending that is the beginning.",
+        "protects": "the seamless loop, material pleasure, calm, and simplicity",
+        "timing": {
+          "fps": 30,
+          "on": 1,
+          "ease": "ease-in-out",
+          "shutter": 180
+        }
+      },
+      "animationCrew": [
+        {
+          "id": "MIDCENTURY",
+          "name": "The Mid-Century Modernist",
+          "guild": "CARTOON",
+          "lineage": "The 1950s modernist animation movement that rejected naturalism for flat graphic design, stylised backgrounds and limited motion by intent.",
+          "ethos": "Animation is design that moves — a flat shape, a single colour field and a confident pose say more than a realistic body.",
+          "protects": "graphic stylisation, the pose, the colour field, and design integrity",
+          "timing": {
+            "fps": 24,
+            "on": 2,
+            "ease": "ease-out"
+          }
+        },
+        {
+          "id": "DEMOSCENE",
+          "name": "The Demoscene Coder",
+          "guild": "GAME",
+          "lineage": "The demoscene — 4k and 64k intros, real-time effects on fixed hardware and synced to tracker music.",
+          "ethos": "Do the impossible in real time with almost nothing — code is the art, and the sync is everything.",
+          "protects": "real-time, technical elegance, sync, and the size budget",
+          "timing": {
+            "fps": 60,
+            "on": 1,
+            "ease": "linear"
+          }
+        }
+      ],
+      "graphicDesigner": {
+        "id": "CHROME_80S",
+        "name": "The Chrome Broadcast Designer",
+        "guild": "GRAPHIC",
+        "lineage": "The 1980s broadcast package — chrome logos, laser grids, star filters and the slit-scan streak.",
+        "ethos": "The future was chrome, and the logo deserves a launch — reflections, streaks and a sunset grid.",
+        "protects": "spectacle, the logo reveal, reflection, and showmanship",
+        "timing": {
+          "fps": 30,
+          "on": 1,
+          "ease": "ease-out",
+          "shutter": 180
+        }
+      },
+      "lightingDirector": {
+        "seat": "CINEMATIC",
+        "name": "The 3D Dramatist",
+        "plan": "Pure black ground; a narrow 1000-nit vertical slit with soft bloom; selection spills a horizontal beam; slow 12 s breathing of the slit."
+      },
+      "artCouncil": null
+    },
+    {
+      "id": "boxset",
+      "name": "Shelf",
+      "concept": "Navigation as objects: a horizontal row of upright spines; selection pulls a spine forward and reveals its face.",
+      "animationLead": {
+        "id": "MINIATURE",
+        "name": "The Tabletop Miniaturist",
+        "guild": "STOP_MOTION",
+        "lineage": "Handmade miniature worlds — felt and yarn animation, papercraft, brick films and tilt-shift photography of real places.",
+        "ethos": "Small worlds feel safe and wondrous; make it tiny, make it tactile, and let the depth of field tell you it is a toy.",
+        "protects": "scale, coziness, the material, and wonder",
+        "timing": {
+          "fps": 12,
+          "on": 1,
+          "ease": "ease-in-out"
+        }
+      },
+      "animationCrew": [
+        {
+          "id": "CLAY",
+          "name": "The Clay Animator",
+          "guild": "STOP_MOTION",
+          "lineage": "The British and American claymation traditions — thumbprints left in, boiling surfaces and replacement mouths.",
+          "ethos": "Leave the thumbprints in — the audience loves it because they can tell a person pushed this, frame by frame.",
+          "protects": "the thumbprint, the boil, tactile charm, and handmade comedy",
+          "timing": {
+            "fps": 24,
+            "on": 2,
+            "ease": "ease-in-out"
+          }
+        },
+        {
+          "id": "GEOMETRIC_CALLIGRAPHIC",
+          "name": "The Geometric & Calligraphic Animator",
+          "guild": "WORLD",
+          "lineage": "Islamic geometric pattern-making, Arabic and Persian calligraphic scripts, and the flat multi-perspective space of Persian miniatures.",
+          "ethos": "Infinite pattern from compass and straightedge, and letters that are drawn with breath — order and grace unfold together.",
+          "protects": "geometric truth, stroke order and script correctness, symmetry, and reverence",
+          "timing": {
+            "fps": 24,
+            "on": 1,
+            "ease": "ease-in-out"
+          }
+        }
+      ],
+      "graphicDesigner": {
+        "id": "EXPLAINER",
+        "name": "The Explainer Systematist",
+        "guild": "GRAPHIC",
+        "lineage": "The 2010s flat-design explainer — icon systems, shape morphs and graph-editor curves serving a clear argument.",
+        "ethos": "Clarity is kindness — every move should explain cause and effect, and nothing should move unless it teaches.",
+        "protects": "clarity, the idea, consistent systems, and the viewer's understanding",
+        "timing": {
+          "fps": 30,
+          "on": 1,
+          "ease": "ease-in-out"
+        }
+      },
+      "lightingDirector": {
+        "seat": "CINEMATIC",
+        "name": "The 3D Dramatist",
+        "plan": "Warm practical lamp from the left, soft shelf shadow under each spine; selected spine catches a rim light."
+      },
+      "artCouncil": null
+    },
+    {
+      "id": "concert",
+      "name": "Stage Rig",
+      "concept": "Navigation as a stage: items are lines on a taped setlist set at an angle; a follow-spot cone lands on the selection.",
+      "animationLead": {
+        "id": "VISUAL_MUSIC",
+        "name": "The Visual Music Abstractionist",
+        "guild": "EXPERIMENTAL",
+        "lineage": "The visual-music lineage — Oskar Fischinger's abstract films, the Whitney brothers' mechanical and computer animation — where form is choreographed like a score.",
+        "ethos": "Shapes can be music — compose with form, colour and rhythm the way a composer writes counterpoint.",
+        "protects": "musical structure, counterpoint, abstraction, and harmony of form",
+        "timing": {
+          "fps": 24,
+          "on": 1,
+          "ease": "ease-in-out"
+        }
+      },
+      "animationCrew": [
+        {
+          "id": "MODERNIST_TITLE",
+          "name": "The Modernist Title Designer",
+          "guild": "GRAPHIC",
+          "lineage": "The 1950s–60s film title sequence as a graphic overture — cut-paper shapes, a single symbol and a jazz score.",
+          "ethos": "Reduce the whole film to one symbol, then make it move like music.",
+          "protects": "the single idea, the symbol, graphic clarity, and the score",
+          "timing": {
+            "fps": 24,
+            "on": 2,
+            "ease": "ease-out"
+          }
+        },
+        {
+          "id": "AFRO_PATTERN",
+          "name": "The Afrofuturist Pattern Animator",
+          "guild": "WORLD",
+          "lineage": "West African textile and symbol traditions (kente, adinkra, bògòlanfini) and the Afrofuturist movement in music, art and film.",
+          "ethos": "Pattern carries memory and the future at once — motion should move in polyrhythm, not just four-on-the-floor.",
+          "protects": "pattern meaning, polyrhythm, the ancestral and the futuristic together, and attribution",
+          "timing": {
+            "fps": 24,
+            "on": 1,
+            "ease": "ease-out"
+          }
+        }
+      ],
+      "graphicDesigner": {
+        "id": "PSYCHEDELIC",
+        "name": "The Psychedelic Colourist",
+        "guild": "GRAPHIC",
+        "lineage": "The 1960s–70s psychedelic poster and liquid-light-show tradition, with Art Nouveau lettering melted and recoloured.",
+        "ethos": "Colour is a drug and form is liquid — let the letters melt, the hues vibrate and the frame breathe.",
+        "protects": "saturated vibrating colour, liquid form, ornament, and the trip",
+        "timing": {
+          "fps": 24,
+          "on": 2,
+          "ease": "ease-in-out"
+        }
+      },
+      "lightingDirector": {
+        "seat": "CINEMATIC",
+        "name": "The 3D Dramatist",
+        "plan": "Truss of PAR cans across the top throwing coloured beams; haze; a hard white follow-spot on the selection; beams sweep on a slow chase."
+      },
+      "artCouncil": null
+    },
+    {
+      "id": "arthouse",
+      "name": "Programme",
+      "concept": "Navigation as reading: items live inside a paragraph of text; selection is a hand-drawn pencil circle.",
+      "animationLead": {
+        "id": "INK_WASH",
+        "name": "The Ink-Wash Animator",
+        "guild": "WORLD",
+        "lineage": "The ink-wash animation films of the 1960s Shanghai Animation Film Studio and the shan shui and xieyi painting traditions behind them.",
+        "ethos": "The empty space is part of the painting — ink spreads, the brush breathes, and the motion lives in suggestion.",
+        "protects": "negative space, the brush, suggestion, and harmony with nature",
+        "timing": {
+          "fps": 24,
+          "on": 2,
+          "ease": "ease-in-out"
+        }
+      },
+      "animationCrew": [
+        {
+          "id": "PASTORAL",
+          "name": "The Pastoral Naturalist",
+          "guild": "ANIME",
+          "lineage": "The Japanese theatrical-feature tradition of the 1980s–2000s — everyday tasks animated with full weight, hand-painted backgrounds, and the deliberate pause.",
+          "ethos": "Ma — the pause between actions — is where the audience breathes; the wind in the grass matters as much as the hero.",
+          "protects": "quiet, everyday weight, the natural world, and the held moment",
+          "timing": {
+            "fps": 24,
+            "on": 2,
+            "ease": "ease-in-out"
+          }
+        },
+        {
+          "id": "Y2K",
+          "name": "The Y2K Interface Futurist",
+          "guild": "GRAPHIC",
+          "lineage": "The late-90s/2000s millennium aesthetic — translucent plastics, iridescent blobs, glossy bubbles, techno HUD graphics.",
+          "ethos": "Optimism is translucent — everything glossy, bubbly, chrome and iridescent, like the future came out of a gadget.",
+          "protects": "gloss, optimism, translucency, and techno precision",
+          "timing": {
+            "fps": 30,
+            "on": 1,
+            "ease": "overshoot"
+          }
+        }
+      ],
+      "graphicDesigner": {
+        "id": "CONSTRUCTIVIST",
+        "name": "The Constructivist Agitator",
+        "guild": "GRAPHIC",
+        "lineage": "The 1910s–30s Constructivist and Bauhaus avant-garde — diagonals, red and black, photomontage and montage-theory editing.",
+        "ethos": "Design is a call to action — diagonals push, type shouts, and the cut collides two images to make a third idea.",
+        "protects": "urgency, the diagonal, collision editing, and message",
+        "timing": {
+          "fps": 24,
+          "on": 1,
+          "ease": "linear"
+        }
+      },
+      "lightingDirector": {
+        "seat": "CINEMATIC",
+        "name": "The 3D Dramatist",
+        "plan": "Flat daylight on paper, a faint window-light gradient from the left; no drama — the paper is lit like a book on a table."
+      },
+      "artCouncil": null
+    },
+    {
+      "id": "screener",
+      "name": "Slate",
+      "concept": "Navigation as data: a technical table; each menu item is a row; selection inverts the row like a terminal.",
+      "animationLead": {
+        "id": "UI_MOTION",
+        "name": "The Interface Motion Designer",
+        "guild": "GAME",
+        "lineage": "Product interface motion — spring physics, shared-element transitions and motion as feedback.",
+        "ethos": "Motion in an interface is feedback, not flourish — fast, meaningful, interruptible, and respectful of reduced motion.",
+        "protects": "responsiveness, meaning, accessibility, and speed",
+        "timing": {
+          "fps": 60,
+          "on": 1,
+          "ease": "ease-out"
+        }
+      },
+      "animationCrew": [
+        {
+          "id": "EXPLAINER",
+          "name": "The Explainer Systematist",
+          "guild": "GRAPHIC",
+          "lineage": "The 2010s flat-design explainer — icon systems, shape morphs and graph-editor curves serving a clear argument.",
+          "ethos": "Clarity is kindness — every move should explain cause and effect, and nothing should move unless it teaches.",
+          "protects": "clarity, the idea, consistent systems, and the viewer's understanding",
+          "timing": {
+            "fps": 30,
+            "on": 1,
+            "ease": "ease-in-out"
+          }
+        },
+        {
+          "id": "CONSTRUCTIVIST",
+          "name": "The Constructivist Agitator",
+          "guild": "GRAPHIC",
+          "lineage": "The 1910s–30s Constructivist and Bauhaus avant-garde — diagonals, red and black, photomontage and montage-theory editing.",
+          "ethos": "Design is a call to action — diagonals push, type shouts, and the cut collides two images to make a third idea.",
+          "protects": "urgency, the diagonal, collision editing, and message",
+          "timing": {
+            "fps": 24,
+            "on": 1,
+            "ease": "linear"
+          }
+        }
+      ],
+      "graphicDesigner": {
+        "id": "DATA_STORY",
+        "name": "The Data Storyteller",
+        "guild": "GRAPHIC",
+        "lineage": "The data-journalism and information-design tradition — honest axes, scale reveals and the chart as narrative.",
+        "ethos": "Motion should reveal truth in the numbers, never inflate it — animate the comparison, not the decoration.",
+        "protects": "honest scale, the comparison, readability, and the source",
+        "timing": {
+          "fps": 30,
+          "on": 1,
+          "ease": "ease-out"
+        }
+      },
+      "lightingDirector": {
+        "seat": "CINEMATIC",
+        "name": "The 3D Dramatist",
+        "plan": "No theatrical light: an even neutral grey field, ruled lines, a single status LED dot that pulses."
+      },
+      "artCouncil": null
+    },
+    {
+      "id": "documentary",
+      "name": "Archive",
+      "concept": "Navigation as filing: menu items are folder tabs along the top edge; the selected tab rises and its folder opens.",
+      "animationLead": {
+        "id": "STRUCTURAL",
+        "name": "The Structural Filmmaker",
+        "guild": "EXPERIMENTAL",
+        "lineage": "The 1960s–70s structural film movement — flicker films, single-frame rhythm, and cinema about its own machinery.",
+        "ethos": "The frame is the material — rhythm built from single frames is the purest motion there is.",
+        "protects": "the single frame, rhythm, perceptual effect, and rigour",
+        "timing": {
+          "fps": 24,
+          "on": 1,
+          "ease": "linear"
+        }
+      },
+      "animationCrew": [
+        {
+          "id": "SILHOUETTE",
+          "name": "The Silhouette & Cutout Animator",
+          "guild": "STOP_MOTION",
+          "lineage": "The 1920s silhouette feature (Lotte Reiniger's cut-paper films) and the far older shadow-puppet theatres of Java, China and Turkey.",
+          "ethos": "A silhouette is pure gesture — with no face to hide behind, every hinge and profile has to act.",
+          "protects": "profile, gesture, the hinge, and the beauty of the cut",
+          "timing": {
+            "fps": 24,
+            "on": 2,
+            "ease": "ease-in-out"
+          }
+        },
+        {
+          "id": "SHOUJO",
+          "name": "The Shoujo Romanticist",
+          "guild": "ANIME",
+          "lineage": "The 1970s–90s shoujo manga and anime tradition — flowers, sparkles and bubbles as emotion, and still illustration panned like a painting.",
+          "ethos": "Feeling is decoration on purpose — the background blooms when the heart does, and a still image held right can out-act a hundred drawings.",
+          "protects": "emotion made visible, the beautiful still, softness, and the eyes",
+          "timing": {
+            "fps": 24,
+            "on": 3,
+            "ease": "ease-in-out",
+            "shutter": 0
+          }
+        }
+      ],
+      "graphicDesigner": {
+        "id": "COLLAGE",
+        "name": "The Collage Zinester",
+        "guild": "GRAPHIC",
+        "lineage": "Punk and DIY zine culture, Dada collage, and the editorial mixed-media motion that came out of them.",
+        "ethos": "Cut it out, stick it down, shoot it on threes — the scissors and the scanner are the style.",
+        "protects": "the hand, found material, roughness, and attitude",
+        "timing": {
+          "fps": 24,
+          "on": 3,
+          "ease": "linear"
+        }
+      },
+      "lightingDirector": {
+        "seat": "CINEMATIC",
+        "name": "The 3D Dramatist",
+        "plan": "Desk lamp pool from the top-left, paper warmth, a hard shadow under each tab; dust in the lamp beam."
+      },
+      "artCouncil": null
+    },
+    {
+      "id": "family",
+      "name": "Storybook Hills",
+      "concept": "Navigation as a landscape: big pill buttons sit on rolling hill crests; selection lifts the button with a sun-glow ring.",
+      "animationLead": {
+        "id": "RUBBER_HOSE",
+        "name": "The Rubber-Hose Vaudevillian",
+        "guild": "CARTOON",
+        "lineage": "The 1920s–30s rubber-hose cartoon — boneless limbs, pie-cut eyes, everything bouncing on the music — and its modern revivals.",
+        "ethos": "Everything is alive and everything dances; a teapot, a tree and a car all keep time with the band.",
+        "protects": "bounce, the music, cycles, and joyous impossibility",
+        "timing": {
+          "fps": 24,
+          "on": 2,
+          "ease": "overshoot"
+        }
+      },
+      "animationCrew": [
+        {
+          "id": "GOLDEN_AGE",
+          "name": "The Golden-Age Feature Naturalist",
+          "guild": "CARTOON",
+          "lineage": "The 1930s–50s American feature tradition — \"the illusion of life\", the twelve principles codified, multiplane depth and lush painted backgrounds.",
+          "ethos": "A drawing can think and feel; full animation on ones and true weight are how you earn an audience's tears.",
+          "protects": "the illusion of life, appeal, solid drawing, and the full twelve principles",
+          "timing": {
+            "fps": 24,
+            "on": 1,
+            "ease": "ease-in-out"
+          }
+        },
+        {
+          "id": "ROTOSCOPE",
+          "name": "The Rotoscope Painter",
+          "guild": "EXPERIMENTAL",
+          "lineage": "Rotoscoping from its 1910s invention through interpolated digital rotoscope and fully painted features over filmed actors.",
+          "ethos": "Real performance, transformed by the hand — trace the truth of a body and paint it into a dream.",
+          "protects": "the real performance, the painterly hand, the wobble, and the uncanny",
+          "timing": {
+            "fps": 24,
+            "on": 2,
+            "ease": "linear"
+          }
+        }
+      ],
+      "graphicDesigner": {
+        "id": "BOLD_FLAT",
+        "name": "The Bold-Flat TV Stylist",
+        "guild": "CARTOON",
+        "lineage": "The late-90s/2000s TV revival of mid-century graphics with thick outlines, geometric characters and snap timing, through to modern streaming cartoons.",
+        "ethos": "Hit the pose and hold it — snappy, graphic, loud, with timing that cracks like a whip.",
+        "protects": "snap, the hold, graphic silhouettes, and attitude",
+        "timing": {
+          "fps": 24,
+          "on": 2,
+          "ease": "anticipation"
+        }
+      },
+      "lightingDirector": {
+        "seat": "CINEMATIC",
+        "name": "The 3D Dramatist",
+        "plan": "Bright warm sun high left, soft cel shadows under each button; clouds drift across slowly."
+      },
+      "artCouncil": null
+    },
+    {
+      "id": "genre",
+      "name": "Midnight",
+      "concept": "Navigation as a fan of cards: items are tarot cards fanned in an arc; selection lifts and tilts a card into the candle glow.",
+      "animationLead": {
+        "id": "SILHOUETTE",
+        "name": "The Silhouette & Cutout Animator",
+        "guild": "STOP_MOTION",
+        "lineage": "The 1920s silhouette feature (Lotte Reiniger's cut-paper films) and the far older shadow-puppet theatres of Java, China and Turkey.",
+        "ethos": "A silhouette is pure gesture — with no face to hide behind, every hinge and profile has to act.",
+        "protects": "profile, gesture, the hinge, and the beauty of the cut",
+        "timing": {
+          "fps": 24,
+          "on": 2,
+          "ease": "ease-in-out"
+        }
+      },
+      "animationCrew": [
+        {
+          "id": "STRUCTURAL",
+          "name": "The Structural Filmmaker",
+          "guild": "EXPERIMENTAL",
+          "lineage": "The 1960s–70s structural film movement — flicker films, single-frame rhythm, and cinema about its own machinery.",
+          "ethos": "The frame is the material — rhythm built from single frames is the purest motion there is.",
+          "protects": "the single frame, rhythm, perceptual effect, and rigour",
+          "timing": {
+            "fps": 24,
+            "on": 1,
+            "ease": "linear"
+          }
+        },
+        {
+          "id": "SATSUEI",
+          "name": "The Digital Compositing Director",
+          "guild": "ANIME",
+          "lineage": "Modern anime post-production: the photography department that adds light, depth and atmosphere to 2D drawings over 3D camera moves.",
+          "ethos": "The drawing is half the shot — light rays, bloom, depth of field and particles are what make a 2D frame feel like air and sunlight.",
+          "protects": "light, atmosphere, depth, and the seam between 2D characters and 3D space",
+          "timing": {
+            "fps": 24,
+            "on": 2,
+            "ease": "ease-out",
+            "shutter": 180
+          }
+        }
+      ],
+      "graphicDesigner": {
+        "id": "ART_DECO",
+        "name": "The Art Deco Showman",
+        "guild": "GRAPHIC",
+        "lineage": "The 1920s–30s Art Deco and Streamline Moderne era — stepped geometry, sunbursts and gold hairlines, silent-film intertitles, and the overhead kaleidoscopic dance numbers of 1930s musicals.",
+        "ethos": "Luxury is geometry in motion — every reveal is a curtain rising, symmetrical, gilded and timed like a fanfare.",
+        "protects": "symmetry, the gilded line, the stepped reveal, and glamour",
+        "timing": {
+          "fps": 24,
+          "on": 1,
+          "ease": "ease-in-out"
+        }
+      },
+      "lightingDirector": {
+        "seat": "CINEMATIC",
+        "name": "The 3D Dramatist",
+        "plan": "One candle low centre: warm 2000 K pool with irregular flicker, everything else falls to ink; a cold blue rim from behind."
+      },
+      "artCouncil": null
+    }
+  ]
+}

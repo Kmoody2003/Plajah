@@ -1,0 +1,200 @@
+{
+  "slot": "feature",
+  "name": "Feature Presentation",
+  "id": "mw8kvrbuxdqr0s",
+  "uid": "disc-templates",
+  "createdAt": 1794187448346,
+  "depth": "FULL",
+  "status": "DONE",
+  "brief": {
+    "ask": "Direct the flagship feature-film disc template: the menus a prestige drama or thriller ships with.",
+    "domain": "independent feature films released by Plajah filmmakers",
+    "audience": "film lovers who bought the disc to keep it",
+    "feeling": "premium, cinematic, quietly confident — the opening of a film, not a website",
+    "surface": "Fabula disc menu template \"Feature Presentation\"",
+    "constraints": [
+      "Surface: Blu-ray and Ultra HD Blu-ray disc menus on a living-room TV, a 1920×1080 graphics plane (UHD menus are HD graphics the player scales), seen from a couch three metres away, driven only by a remote: arrow keys + OK.",
+      "Menus to direct as ONE family: Main menu, Scene selection (six chapter thumbnails per page, Previous/Next/Back), Setup (audio and subtitle choices), Special Features list, and a Pop-up bar that rises over the film while it plays. Series templates add an Episodes page.",
+      "Every button has three designed states — normal, selected, activated — and the selected state must read instantly from across a room. Say exactly what the selection mark is (shape, colour, size).",
+      "Built in Plajah Tela as vector art: rectangles, ellipses, lines, SVG paths, text, image slots (the film's own frames), linear/radial gradients, shadows, opacity, blend modes. Fonts available: Display/serif: Playfair Display, Fraunces, DM Serif Display, Cormorant Garamond, EB Garamond, Bodoni Moda, Instrument Serif, Gloock, Cinzel, Italiana, Forum, Abril Fatface, Marcellus, Tenor Sans. Condensed/poster: Bebas Neue, Anton, Oswald, League Gothic, Six Caps, Big Shoulders Display, Staatliches, Archivo Black, Syne, Unbounded. Sans: Inter, DM Sans, Manrope, Space Grotesk, Sora, Outfit, Bricolage Grotesque, Josefin Sans, Raleway, Work Sans, Epilogue. Mono/typewriter: JetBrains Mono, IBM Plex Mono, Space Mono, Courier Prime, Special Elite. Genre: Monoton, Limelight, Poiret One, Righteous, Orbitron, Michroma, UnifrakturMaguntia, Pirata One, Almendra Display, Fredoka, Baloo 2, DynaPuff, Sniglet, Caveat Brush, Permanent Marker.",
+      "Disc graphics law: each menu page's buttons share a 255-colour palette, so button art stays flat (no wide gradients inside buttons — gradients belong in the background art); action-safe 90%, title-safe 80%; body text ≥ 28px, nothing thinner than 2px (TV scaling shimmers); on UHD avoid large full-white fields.",
+      "The main-menu background is a loop of the film itself or a still from it, with your art over it; the Pop-up draws over the playing film, so it must not cover the picture's centre.",
+      "Give production-ready specifics: palette as hex, fonts from the list, the layout with pixel positions on the 1920×1080 plane, button sizes, ornament vocabulary, and how the menus feel in motion."
+    ],
+    "references": [
+      "Fabula Disc Authoring (menus become Blu-ray interactive graphics)",
+      "Plajah Tela vector stack"
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "The Archival Cantus Firmus",
+      "idea": "A strictly proportioned architectural menu system anchored by a triple-column grid and a mobile brass hairline rule, framing the film with the permanence of a medieval scriptorium page.",
+      "geometry": "Structured upon an 80% title-safe bounding rectangle (x:192 to 1728, y:108 to 972). Navigation is anchored to a left-side bay (x:192 to 576, width 384px). Main menu choices stack vertically at y=540, 604, 668, and 732. Scene selection places six 16:9 chapter frames (384×216px) in a 3×2 array (x:616, 1032, 1448; y:216, 504) with 32px gutters. The pop-up menu occupies a fixed architectural dado band along the bottom (y:864 to 1026, height 162px), keeping the central screen completely clear.",
+      "typography": "Display titles in Cormorant Garamond (Medium, 56px, letter-spacing 0.12em, All-Caps). Menu labels in Marcellus (Regular, 32px, letter-spacing 0.08em, All-Caps). Body text and technical audio notes in EB Garamond (Regular, 28px). Palette capped at muted silver (#C5C8D0), deeply muted slate (#14161B), and antiqued gold (#D4AF37) for focus states—no raw #FFFFFF fields.",
+      "imageLogic": "Film loops or stills sit in the lower layer behind a procedural 35% density vignette and faint 2px structural grid lines (#2C3038 at 30% opacity). Chapter thumbnails are framed in crisp 2px solid vector borders (#3A3E48); when selected, the frame stroke widens to 4px in #D4AF37 with 12×12px corner notch brackets derived from illuminated manuscript page borders.",
+      "texture": "Procedural GLSL shader simulating silver-halide film grain and physical paper tooth overlay. Buttons are rendered as flat 8-bit vector shapes under Tela, strictly complying with the 255-color graphics plane limit.",
+      "motion": "Strictly linear, 200ms architectural transitions. No bounce or dynamic spring. When focus moves across remote inputs, a 4×32px vertical gold selection bar (#D4AF37) glides smoothly along the left margin of the target label in 150ms ease-out, while selected text shifts from #C5C8D0 to #D4AF37 instantly.",
+      "productionMethod": "Executed entirely in Plajah Tela using native SVG paths, vector text nodes, and layered procedural shader passes for background light falloff, eliminating any non-generative photography or manual assets.",
+      "humanTrace": "Direct compositional pacing and light-slice structure adapted from Alfred Stieglitz's 'Sun Rays—Paula, Berlin' (1889, Art Institute of Chicago), transforming the physical rhythm of light passing through window blinds into a fixed geometric layout system.",
+      "risk": "The strict structural grid and classical typography risk appearing rigid or unyielding compared to modern dynamic UIs, but this exact formal discipline establishes a durable, gallery-grade presentation that respects the film as high art.",
+      "arguesWith": {
+        "directorId": "FUTURIST",
+        "why": "The Futurist demands dynamic, reconfiguring menu containers that morph on interaction; I hold that a system which cannot be read twice the same way destroys spatial legibility and reduces architectural hierarchy to temporary noise."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Bitten Ink and Offset Slip",
+      "idea": "Strip away polite home-video elegance in favor of raw, high-pressure mechanical press urgency with zero-latency visual feedback.",
+      "geometry": "Asymmetrical left-heavy strike zone anchored at title-safe x=192, y=580 to y=920 for main actions; pop-up bar locked strictly to the bottom third (y=840 to y=1026) to protect picture center. Scene selection runs a 3×2 asymmetric grid of 440×248px frames starting at x=192, y=180 with 32px gaps. Selection marker is a hard 12×48px solid safety-yellow (#FFE600) vertical block snapped flush to the button's left edge.",
+      "typography": "Archivo Black in all-caps (36px, tracking -1px) for primary commands, slammed against Space Mono (28px, uppercase) for chapter counts and audio telemetry. Heavy weight, high contrast, zero shimmer.",
+      "imageLogic": "Film stills forced into hard 4px black containment borders with simulated 2px mechanical offset slip (cyan/magenta channel separation at edges). Textures draw inspiration from the dense, etched cross-hatching in Théodule Augustin Ribot's *The Menu* (c. 1870, Art Institute of Chicago).",
+      "texture": "Procedural zinc-plate bite, heavy mechanical ink-starvation voids, and high-contrast shadow cuts influenced by Alfred Stieglitz's *Sun Rays—Paula, Berlin* (1889, Art Institute of Chicago). No smooth vector gradients inside buttons; background uses dithered film grain.",
+      "motion": "Zero-fade instantaneous state flips. On button selection, the label executes a violent 2-frame offset snap (+6px horizontal jump, then locks). Pop-up menu slams upward in 4 frames with zero ease.",
+      "productionMethod": "Generative procedural GLSL shaders inside Plajah Tela simulating multi-pass photolithographic ink bite, registration jitter, and 16mm grain noise over standard Tela vector primitives.",
+      "humanTrace": "The simulated slip of high-pressure press registration—visible physical misalignment where color channels peek 2px out from under the line work on focus state.",
+      "risk": "Risks alienating viewers expecting a smooth, slick studio UI; worth it because it creates immediate graphic authority, tactile urgency, and absolute readability from three meters away on a couch.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind wants everything to resolve into polite symmetry and harmonic balance. Film menus aren't museum catalogues—they are triggers for an experience, and they should carry the raw pressure of a print shop floor."
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "Luminance Aperture Vector Grid",
+      "idea": "An optical-instrument menu system where UI reticles act as precision apertures, sampling background footage luminance to modulate vector line weight and target contrast across state inputs.",
+      "geometry": "Strict 8-column grid anchored to 80% title-safe boundary (X: 192 to 1728, Y: 108 to 972). Main menu sits in a low-slung left quadrant (X: 192, Y: 680–972). Scene selection uses a 2×3 thumbnail matrix (440×248px per frame at X: 192, 680, 1168; Y: 180, 500) bounded by 2px sharp coordinate crosshairs. Pop-up bar docks strictly to the lower edge (Y: 860 to 990, height 130px), leaving the central 70% of the film frame unobstructed.",
+      "typography": "Headers in Bodoni Moda (48px, uppercase, 0.12em tracking). Interactive menu labels in Space Grotesk (32px, medium, 0.06em tracking). UI state counters, timecodes, and metadata in Unbounded (28px, light, 0.04em tracking). Selected state triggers a weight-shift from regular to bold without spatial reflow.",
+      "imageLogic": "Underlying film loop is sampled through a procedural 24×14 luminance coordinate matrix derived from Alfred Stieglitz’s light-study logic in 'Sun Rays—Paula, Berlin' (1889). The Tela vector layer dynamically flips vector target marks between hex #0A0D12 (abyssal black) and hex #F4F6F9 (luminous white) based on the underlying raster block's light density.",
+      "texture": "Photographic light-leak halation simulated on video backdrops; crisp, untextured 2-bit indexed graphics on the button plane. Vector reticles feature zero synthetic drop shadows, relying entirely on dual-line high-contrast offset borders (2px inner line in #E0E6ED, 2px outer gap in #11141A).",
+      "motion": "State transitions execute instantly on D-pad input (0ms response time), followed by a 160ms damped spring animation (damping ratio 0.82) on the target reticle expansion. Pop-up bar slides up along the Y-axis over 220ms with a cubic-bezier curve (0.16, 1, 0.3, 1), mimicking an optical shutter blade.",
+      "productionMethod": "Fully generative pipeline: background atmospheric loops synthesized via diffusion video models calibrated to cinematic light pulls; Tela interactive overlay exported as indexed 255-color PNG frame states driven by automated vector layout scripts.",
+      "humanTrace": "Timing curves for button focus transitions are derived from high-speed camera recordings of mechanical manual lens aperture stops (f/1.4 to f/11) clicking into physical detents.",
+      "risk": "Risks appearing visually austere to audiences expecting rich skeuomorphic textures, but worth it to achieve instant remote-control responsiveness and absolute dimensional clarity across 3-metre viewing distances.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind builds static architectural monuments with fixed proportions; I build responsive optical instruments where state logic and footage luminance govern the system's geometry in real time."
+      }
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "The Provenance Ledger Disc System",
+      "idea": "A dual-script disc interface engineered as an archival field notebook where film footage coexists with exact geographical coordinates, camera metadata, and local script parity.",
+      "geometry": "Left-anchored vertical axis (x=192px to 680px, sitting inside 90% action-safe bounds) reserving 60% of the 1920×1080 plane for uncropped 16:9 moving image; secondary script and coordinate ledgers sit in the 80% title-safe margin at y=920px.",
+      "typography": "Cormorant Garamond (36px, normal weight) for primary menu options paired with Space Mono (28px, tracking +1.5px) for field coordinates, bitrates, and timecodes; second-script titles rendered in equal point size to prevent Western-first visual hierarchy.",
+      "imageLogic": "Chapter thumbnails in Scene Selection are framed as 35mm contact-sheet windows with procedural edge-code numbering; background loops utilize generative film-emulsion shaders calibrated to named solar latitudes (such as 31.7°N) rather than generic night skies.",
+      "texture": "Generative silver-halide grain shader overlay paired with a dark slate background (#18191B) and warm papyrus micro-mesh (#EADCC9) for button borders; completely avoids full-white fields to protect TV display phosphor life.",
+      "motion": "Unhurried 400ms vertical slide transitions mimicking the turn of an archival ledger; selection indicator is a 2px copper hairline box (#C87D55) with a 6px offset that settles with gentle mechanical damped-spring deceleration.",
+      "productionMethod": "Plajah Tela vector stack running procedural GLSL grain shaders over native SVG path elements; image assets generated through latitude-seeded AI video models matching specific regional light curves documented in field notes.",
+      "humanTrace": "Hand-inked line-weight irregularities simulated in ledger dividing rules, paired with real geographic coordinates (lat/long) and attribution metadata for every visual motif.",
+      "risk": "Including dual-script tracks and coordinate metadata risks visual density on a TV screen, but it prevents prestige international cinema from being flattened into anonymous global consumer tech.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Minimalist insists on stripping away secondary script tracks and geographical metadata to achieve a 'clean, universal' interface, but there is no universal screen—only the deliberate erasure of local context."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "Proscenium of Shadows and Light",
+      "idea": "A dramatic theatrical reveal where deep chiaroscuro light shafts cut across an ink-black stage frame, turning the disc menu into a grand opera house proscenium before the picture begins.",
+      "geometry": "Asymmetrical left-heavy stage layout anchored inside title-safe bounds (x: 192px to 720px for the primary text tower; x: 800px to 1728px reserved for the live film stage). Scene selection uses a 2x3 grid of 420x236px thumbnail frames with 32px gutters. The bottom Pop-up bar locks strictly to y: 810px–972px (height 162px), keeping the picture center unobstructed during playback.",
+      "typography": "Primary menu headers in Instrument Serif (48px, uppercase, 0.12em letter-spacing); metadata and chapter titles in Marcellus (28px, all-caps, 0.08em letter-spacing); selection labels in DM Sans Medium (32px, minimum 2.5px stem width to prevent 1080p TV scaling shimmer).",
+      "imageLogic": "Live film background loop framed by dark volumetric vignette layers and dynamic light shafts inspired by Alfred Stieglitz's 'Sun Rays—Paula, Berlin' (1889, Art Institute of Chicago https://www.artic.edu/artworks/66284). Chapter thumbnails feature recessed 4px inner borders in midnight umber (#120F0D) with edge chiaroscuro burning.",
+      "texture": "Generative velvet indigo-black canvas (#07080C) overlaid with procedural 3% silver halide grain, accented by 2px burnished gold vector rule lines (#D4AF37 at 40% opacity). Zero flat digital grays—shadows carry deep umber and midnight blue undertones.",
+      "motion": "600ms theatrical opening sequence: atmospheric light beam flares from 0 to 75% opacity over 300ms, followed by menu items sliding in staggered 50ms intervals from -30px left with an exponential ease-out curve. Pop-up menu rises smoothly in 250ms like an orchestra pit rising.",
+      "productionMethod": "100% generative pipeline: volumetric light-beam overlays pre-rendered via procedural GLSL shaders and composite video clips; 8-bit index-mapped subpicture overlay masks generated in Plajah Tela vector paths to strictly satisfy Blu-ray 255-color subpicture constraints without visual banding.",
+      "humanTrace": "Motion easing timing modeled directly on manual theatrical curtain pull-ropes and physical spotlight iris controls; atmospheric dust motes in the light shaft follow procedural Brownian motion with organic acceleration curves.",
+      "risk": "Bold chiaroscuro contrast and theatrical scale risk overwhelming quiet, understated films, but for prestige drama and thrillers this weight creates an unmistakable sense of event that elevates home viewing into cinema.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Radical Minimalist mistakes empty space for sophistication; a flat, featureless screen treats a prestige film like a utility app, whereas light, depth, and theatrical reveal honor the scale of cinematic storytelling."
+      }
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "The Hairline Datum",
+      "idea": "Strip the disc interface down to a single horizontal structural axis—a 2px hairline datum line—where typographic titles anchor into low-density negative space, letting the film's footage breathe without frame panels, cards, or decorative chrome.",
+      "geometry": "1920×1080 canvas with a strict 10% (192px) margin grid. Main structural anchor is a single horizontal 2px line at y=880px. Main menu buttons sit aligned to x=192px at y=820px as a single-line horizontal array. Selected button state is indicated exclusively by a 4×4px solid square (#FFFFFF) anchored directly on the hairline 8px below the active label. Pop-up menu strictly occupies y=920px to y=1080px (160px high) to guarantee zero interference with the visual center.",
+      "typography": "Instrument Serif (Display, 48px uppercase, tracking 0.12em) for film title and primary options; IBM Plex Mono (30px regular, tracking 0.05em) for chapter numbers and audio channel parameters. All strokes locked to ≥2px thickness to eliminate 1080p Interlaced/UHD scaling shimmer on TV panels.",
+      "imageLogic": "Full-bleed 1080p moving background clip bounded by a procedural downward dark gradient (receding from 0% opacity at y=720px to 92% opacity #08080A at y=1080px). Direct dialogue with Alfred Stieglitz’s 'Sun Rays—Paula, Berlin' (1889, Art Institute of Chicago), utilizing light bands cutting across extreme darkness to establish spatial priority without visual clutter.",
+      "texture": "Absolute optical flatness in subpicture UI elements (strictly complying with 255-color graphics law). Background features a procedural 1.2% film micro-grain shader written in Tela to prevent band-clipping on consumer TV panels.",
+      "motion": "Zero structural ease; focus jumps instantly (0ms step) between items to reinforce immediate remote responsiveness. Pop-up bar glides linearly from y=1080px to y=920px over exactly 120ms upon remote activation, then halts cleanly without bounce.",
+      "productionMethod": "100% generative Tela vector pipeline. Procedural linear gradient shaders generate the dark anchor plane, while vector text nodes and hairline SVG paths are compiled into index-palette subpicture graphics for direct Blu-ray authoring.",
+      "humanTrace": "The deliberate optical calibration of the 2px hairline width and 4px selection dot against physical 65-inch OLED pixel densities at a 3-meter viewing distance—a decision born of human editorial restraint.",
+      "risk": "Risks being judged as bare or austere by viewers accustomed to rich graphic overlays; worth it because it treats the film's photography as sacred and refuses to obstruct the cinema with UI ornament.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist insists on adding visual layers, ornate frames, and ambient atmosphere until the surface is crowded; I remove elements until nothing remains except the single load-bearing line that gives the text its standing."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "FUTURIST",
+      "objection": "A structural grid that dynamically flips its vector targets and stroke weights based on underlying raster luminance surrenders its permanence to the transient light of the backdrop. When an aperture system reconfigures its visual authority frame-by-frame, it ceases to function as an authoritative measure; the scaffolding must hold firm so the work within it can move.",
+      "concession": "The commitment to anchoring the scene selection matrix within a strict eight-column title-safe grid bounded by sharp coordinate crosshairs establishes an admirable spatial discipline."
+    },
+    {
+      "from": "REBEL",
+      "against": "RADICAL_MINIMAL",
+      "objection": "The Minimalist strips the plane until there is nothing left to fight or feel—a single 2px hairline and a four-pixel dot is not design, it is total retreat disguised as restraint. You scrape away every scar of process until the interface feels like an empty operating room where no one is allowed to leave a thumbprint. Put this through a photocopier four times and your whole layout vanishes into gray dust.",
+      "concession": "Locking line weights to two pixels minimum to prevent 1080p display shimmer respects the physical realities of raster scanning on real television hardware."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "BAROQUE",
+      "objection": "BAROQUE treats interaction as a scripted proscenium reveal—a 600ms sequence of light flares and curtain-pull eases—turning the interface into a pre-rendered spectacle rather than a state-driven responsive system. Simulating atmospheric dust motes without binding their vector forces directly to remote input telemetry is screensaver logic, not dynamic behavior.",
+      "concession": "Locking the pop-up menu strictly to y: 810px–972px is a solid structural constraint that protects the spatial integrity of the main picture frame."
+    },
+    {
+      "from": "WORLD_ECLECTIC",
+      "against": "RADICAL_MINIMAL",
+      "objection": "The Minimalist presents this single hairline datum as an act of neutral universality, but there is no universal geometry—only the quiet enforcement of mid-century European grid rules passed off as baseline reality. By reducing all contextual framing and material trace to a single 4px white square, this direction does not liberate the film; it erases the specific physical room in Berlin where Alfred Stieglitz positioned his camera in 1889.",
+      "concession": "The Minimalist is entirely right to dock the subpicture interface strictly below y=920px so the central visual space remains completely clear during playback."
+    },
+    {
+      "from": "BAROQUE",
+      "against": "RADICAL_MINIMAL",
+      "objection": "A single two-pixel hairline and a four-pixel dot are not restraint; they are a refusal to stage the spectacle. By draining the frame of volume, depth, and spatial rhythm, this layout treats the viewer's selection like an administrative checkmark rather than a curtain rise. It confuses the complete absence of dramatic choice with quiet virtue.",
+      "concession": "Yet I must concede that their sweeping downward dark gradient creates a moody, shadow-steeped proscenium at the screen's base that gives the background light room to breathe."
+    },
+    {
+      "from": "RADICAL_MINIMAL",
+      "against": "BAROQUE",
+      "objection": "The Baroque Dramatist builds an opera house where a simple doorway would do. Dust motes, volumetric light shafts, and 600ms curtain pulls are decorative noise that delay the viewer from reaching the film. The frame is suffocated by atmosphere instead of being cleared by precision.",
+      "concession": "Locking the pop-up menu strictly to the lower 162 pixels correctly preserves the center of the frame for the image itself."
+    }
+  ],
+  "reflections": [],
+  "synthesis": {
+    "lead": "CLASSICAL",
+    "counterpoint": "REBEL",
+    "editor": "RADICAL_MINIMAL",
+    "direction": "A strictly proportioned architectural menu system anchored inside the 80% title-safe rectangle (x: 192 to 1728, y: 108 to 972), built with Cormorant Garamond, Marcellus, and EB Garamond typography over a deep slate (#14161B) canvas. Primary navigation is anchored to a left-side bay (x: 192 to 576), while the Pop-up bar remains locked to y: 864–1026 to guarantee the playing picture center is never obscured. Selected button states trigger an instant vertical 4×32px gold bar (#D4AF37) snapped flush to the text margin, combined with REBEL's zero-latency D-pad state flips. All backgrounds and subpicture overlays are generated purely via Plajah Tela GLSL shaders and vector paths, observing the 255-color palette limit.",
+    "keepFromCounterpoint": "REBEL's zero-latency state transitions and instantaneous D-pad visual feedback snap, ensuring remote interactions feel crisp and immediate across a three-metre viewing distance.",
+    "editorCut": "RADICAL_MINIMAL excised the simulated manuscript corner-notch brackets and structural background grid lines, preventing UI ornament from competing with the film frame.",
+    "openDecision": "Whether the active selection marker should be rendered in antiqued gold (#D4AF37) for classical archival warmth, or high-contrast safety yellow (#FFE600) for maximum legibility on dimmer TV displays.",
+    "ariaSummary": "The team reached swift agreement on respecting the picture: every menu layout anchors strictly inside the 80% title-safe box, keeping the screen's visual center clear during film playback. We adopted the Classical Mind as our lead philosophy, structuring the interface with scriptorium-like spatial proportions, Cormorant Garamond headers, and a fixed left navigation bay. This endows prestige physical releases with a sense of archival permanence rather than the feel of a fleeting digital streaming menu.\n\nThe core tension in the room erupted between the Classical Mind and the Rebellious Hand over UI feedback and motion rhythm. The Classical Mind asserted that 'a system which cannot be read twice the same way destroys spatial legibility,' insisting on unhurried architectural transitions. The Rebellious Hand fired back that 'film menus aren't museum catalogues—they are triggers for an experience,' pushing for high-impact visual snaps. I sided with the Classical Mind's spatial proportions, but adopted the Rebellious Hand's zero-latency button response so D-pad navigation feels immediate from three metres away.\n\nThe Radical Minimalist served as our editor, stripping away decorative scriptorium corner brackets and background grid lines to ensure the UI framing never chokes the underlying footage. Every graphic element—from the downward vignette to the 255-colour vector subpictures—is generated procedurally in Plajah Tela under strict disc authoring constraints.\n\nThe system architecture is locked. The single decision that remains yours: do we set the primary button selection indicator in antiqued gold (#D4AF37) for understated elegance, or safety yellow (#FFE600) for hard-edged living-room clarity?",
+    "quotes": [
+      {
+        "directorId": "CLASSICAL",
+        "line": "A system which cannot be read twice the same way destroys spatial legibility and reduces architectural hierarchy to temporary noise."
+      },
+      {
+        "directorId": "REBEL",
+        "line": "Film menus aren't museum catalogues—they are triggers for an experience, and they should carry the raw pressure of a print shop floor."
+      }
+    ]
+  }
+}

@@ -43,5 +43,7 @@ export async function embedBroadcastFonts(svg: string, keys: FontKey[]): Promise
   if (typeof fetch === 'undefined' || typeof btoa === 'undefined' || !keys.length) return svg;
   const css = (await Promise.all(keys.map(faceCss))).filter(Boolean).join('\n');
   if (!css) return svg;
-  return svg.replace(/<defs>/, `<defs><style>${css.replace(/</g, '&lt;')}</style>`);
+  const style = `<style>${css.replace(/</g, '&lt;')}</style>`;
+  // Flat art (no gradients/shadows) serializes without <defs>; add one so its faces still embed.
+  return /<defs>/.test(svg) ? svg.replace(/<defs>/, `<defs>${style}`) : svg.replace(/(<svg\b[^>]*>)/, `$1<defs>${style}</defs>`);
 }
