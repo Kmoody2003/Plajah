@@ -37,4 +37,6 @@ export interface FwApi {
   /** Blinka / CircuitPython board object for a pin (board.GP2, board.D17). */
   bpin(p: string): string;
   ads(ch: string): { idx: number; ch: number } | null;
+  /** A display that shows every reading (drawn by firmware.ts). */
+  screen(kind: 'oled' | 'tft', id: string, addr: string): void;
 }
