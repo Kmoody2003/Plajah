@@ -5,11 +5,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { softTemplateById, softDefaults, type Pattern } from '../services/soft/patterns';
 import { area, bbox, rect, type Pt } from '../services/soft/geometry';
-import { buildBody, bakeSdf, sampleSdf, surfaceNets, measuresForSize, poseFor, sdBody } from '../services/soft/drape/avatar';
+import { buildBody, bakeSdf, sampleSdf, surfaceNets, measuresForSize, poseFor, sdBody, measuresForAge, limitPose, parseMeasurements, smoothMesh } from '../services/soft/drape/avatar';
 import { meshPiece } from '../services/soft/drape/mesh';
-import { setupDrape, setupOutfit, drapeSync, sitTestSync, refineDrape, simFor } from '../services/soft/drape/drape';
+import { setupDrape, setupOutfit, drapeSync, sitTestSync, refineDrape, simFor, startSitTest, sitAdvice } from '../services/soft/drape/drape';
 import { simulateCantilever, expectedOverhang, rigidityKes, calibrate, stripStiffness, gsmFrom, CANTILEVER_DEG } from '../services/soft/drape/calibrate';
-import { fabricById } from '../services/soft/drape/fabrics';
+import { fabricById, FABRICS } from '../services/soft/drape/fabrics';
 import { buildCloth, constraintValue, K_BEND } from '../services/soft/drape/cloth';
 import { seamGap, meshVolume } from '../services/soft/drape/cloth';
 import { fitReport, fitMaps, clothGirth } from '../services/soft/drape/fit';
@@ -70,11 +70,11 @@ test('hoodie: body, armhole and hood seams close; the fit report sees what the b
 test('plush critter stuffs: volume rises toward the planned fill, seams hold, the sit test runs', () => {
   const s = setupDrape(build('plush-pal', { height: 260 })); const v0 = meshVolume(s.model); const sim = drapeSync(s, 2.0);
   assert.ok(!sim.hasNaN()); const v = meshVolume(s.model); const planned = s.model.pressure!.planned!;
-  assert.ok(v > v0 * 1.3 && v > planned * 0.6 && v < planned * 1.3, `volume ${v / 1e6} L of ${planned / 1e6} L planned`);
+  assert.ok(v > v0 * 1.3 && v > planned * 0.8 && v < planned * 1.1, `volume ${v / 1e6} L of ${planned / 1e6} L planned`);
   assert.ok(seamGap(s.model) < 10, `seam gap ${seamGap(s.model).toFixed(1)}`);
-  const rep = fitReport(s, sim); assert.ok(rep.plush && rep.plush.fillPct > 60 && !rep.plush.sitTested);
+  const rep = fitReport(s, sim); assert.ok(rep.plush && rep.plush.fillPct > 80 && !rep.plush.sitTested); assert.ok(rep.plush.seamLoad! < 1.3, `seam load ${rep.plush.seamLoad}`);
   const sits = sitTestSync(sim, 1.5); assert.equal(typeof sits, 'boolean'); assert.ok(!sim.hasNaN());
-  const after = fitReport(s, sim); assert.equal(after.plush!.sitTested, true); assert.equal(after.plush!.sitsUp, sits);
+  const after = fitReport(s, sim); assert.equal(after.plush!.sitTested, true); assert.equal(after.plush!.dropUpright, sits); assert.equal(typeof after.plush!.sitsUp, 'boolean'); assert.ok(after.plush!.advice!.length >= 1);
   const b = bbox(Array.from({ length: s.model.n }, (_, i) => [s.model.pos[3 * i], s.model.pos[3 * i + 2]] as Pt)); assert.ok(Math.abs(b.x0 + b.x1) < 400, 'no runaway drift');
 });
 
@@ -196,4 +196,29 @@ test('adaptive refinement adds a fine mesh at the folds, stays stable, seams and
   let minEdge = Infinity; for (let c = 0; c < r.model.nc; c++) if (r.model.kind[c] === 0) minEdge = Math.min(minEdge, r.model.rest[c]); assert.ok(minEdge > 1.5, `shortest edge ${minEdge}`);
   const sim2 = simFor(r, { substeps: 10, iterations: 2 }); sim2.t = sim.t; for (let f = 0; f < 30; f++) sim2.frame(); assert.ok(!sim2.hasNaN());
   for (const [k, sm] of r.model.seams.entries()) if (/(Side|Shoulder|Armhole|Pocket)/.test(sm.name)) assert.ok(seamGap(r.model, k) < 12, `${sm.name} ${seamGap(r.model, k).toFixed(1)}`);
+});
+
+test('fabric library: every preset states its source, and its rigidity is exactly D = w·c³ from its bending length', () => {
+  for (const f of FABRICS) { assert.ok(f.source && f.source.length > 60, `${f.id} source`); assert.ok(f.bendingLength! > 5, `${f.id} bending length`); assert.ok(f.finish, `${f.id} finish`);
+    assert.ok(Math.abs(rigidityKes(2 * f.bendingLength!, f.gsm) - f.bend) < 0.001, `${f.id} rigidity`); }
+});
+
+test('avatars: shape variations, ages, joint limits, measurement import, smoother skin that keeps its size', () => {
+  const base = measuresForSize('M'); const z = (b: ReturnType<typeof buildBody>) => { let f = -Infinity; for (let zz = 0; zz < 400; zz += 1) if (sdBody(b, 0, b.y.chest, zz) < 0) f = zz; return f; };
+  const plain = buildBody(base), busty = buildBody({ ...base, shape: { bust: 80 } }); assert.ok(z(busty) - z(plain) > 30, `bust adds front depth ${z(busty) - z(plain)}`);
+  const seat = buildBody({ ...base, shape: { seat: 80 } }); let back0 = 0, back1 = 0; for (let zz = 0; zz > -400; zz--) { if (sdBody(plain, 0, plain.y.hip, zz) < 0) back0 = zz; if (sdBody(seat, 0, seat.y.hip, zz) < 0) back1 = zz; } assert.ok(back0 - back1 > 30);
+  const long = buildBody({ ...base, shape: { torso: 60 } }); assert.ok(long.y.crotch < plain.y.crotch - 50 && Math.abs(long.y.top - plain.y.top) < 1e-6);
+  const sloped = buildBody({ ...base, shape: { shoulderSlope: 30 } }); assert.ok(sloped.arms[0].root[1] < plain.arms[0].root[1] - 10);
+  const ages = [2, 5, 9, 14].map(measuresForAge); for (let i = 1; i < ages.length; i++) assert.ok(ages[i].height > ages[i - 1].height && ages[i].chest > ages[i - 1].chest); assert.ok(ages.every(a => a.band === 'child'));
+  const lim = limitPose({ ...poseFor('a-pose'), elbow: [200, -30], knee: [170, 10] }); assert.deepEqual(lim.elbow, [145, 0]); assert.deepEqual(lim.knee, [140, 10]);
+  const r = parseMeasurements('Chest: 96 cm\nwaist, 31 in\nhip = 1020 mm\nshoulder slope: 24°'); assert.equal(r.chest, 960); assert.ok(Math.abs(r.waist! - 787.4) < 0.1); assert.equal(r.hip, 1020); assert.equal(r.shape?.shoulderSlope, 24);
+  assert.equal(parseMeasurements('{"height": 168, "inseam": "76 cm"}').height, 1680);
+  const raw = surfaceNets(sdfM), smooth = smoothMesh(raw, sdfM, 3); let dev = 0; for (let i = 0; i < smooth.positions.length; i += 30) dev += Math.abs(sampleSdf(sdfM, smooth.positions[i], smooth.positions[i + 1], smooth.positions[i + 2])); assert.ok(dev / (smooth.positions.length / 30) < 1.5, 'stays on the body surface');
+});
+
+test('sit advice: a toy whose balance point overhangs its base gets pellet grams and a deeper base', () => {
+  const s = setupDrape(build('plush-pal', { height: 240 })); const sim = drapeSync(s, 1.5); startSitTest(sim);
+  // Push the stuffed shape's balance point forward by moving the head region 60 mm to the front.
+  const m = s.model; const X = (sim as unknown as { stuffedPos: Float32Array }).stuffedPos; for (let i = 0; i < m.n; i++) if (X[3 * i + 1] > 120) X[3 * i + 2] += 120;
+  const a = sitAdvice(s, sim); assert.equal(a.direction, 'front'); assert.ok(a.pelletGrams > 0 && a.widenBaseMm > 0); assert.ok(a.text.join(' ').includes('pellets'));
 });

@@ -184,7 +184,7 @@ function plushPalRig(pattern: Pattern, fab: FabricFor): Rig {
     seams.push({ name: 'Base back', a: [{ piece: 'back', from: [-BR[0], BR[1]], to: [-BL[0], BL[1]] }], b: [{ piece: 'base', from: [A, 0], to: [-A, 0], via: [0, -D] }] });
   }
   const litres = pattern.fill?.litres ?? 1;
-  return { placed, seams, kind: 'plush', notes: pattern.pieces.some(p => p.id === 'ear-inner') ? ['Inner-ear appliqués are flat on the front; shown in 2D only.'] : [], pressure: { targetVolume: litres * 1e6 * 1.3, p0: 2500, planned: litres * 1e6 }, needsBody: false };
+  return { placed, seams, kind: 'plush', notes: pattern.pieces.some(p => p.id === 'ear-inner') ? ['Inner-ear appliqués are flat on the front; shown in 2D only.'] : [], pressure: { targetVolume: litres * 1e6 * 1.02, p0: 2500, planned: litres * 1e6 }, needsBody: false };
 }
 
 /** Plush ball: N gores laid on a sphere, each sewn to the next. */
@@ -197,7 +197,7 @@ function plushBallRig(pattern: Pattern, fab: FabricFor): Rig {
       map: q => { const lat = q[1] / R; const cl = Math.max(0.04, Math.cos(lat)); const lon = lon0 + q[0] / (R * cl); return [c[0] + Rr * cl * Math.sin(lon), c[1] + Rr * Math.sin(lat), c[2] + Rr * cl * Math.cos(lon)]; } });
   }
   for (let i = 0; i < N; i++) seams.push({ name: `Panel ${i + 1}–${((i + 1) % N) + 1}`, a: [{ piece: `gore-${i}`, from: [0, b.y0], to: [0, b.y1], via: [wmax, 0] }], b: [{ piece: `gore-${(i + 1) % N}`, from: [0, b.y0], to: [0, b.y1], via: [-wmax, 0] }] });
-  return { placed, seams, kind: 'plush', notes: [], pressure: { targetVolume: (pattern.fill?.litres ?? 1) * 1e6 * 1.3, p0: 2500, planned: (pattern.fill?.litres ?? 1) * 1e6 }, needsBody: false };
+  return { placed, seams, kind: 'plush', notes: [], pressure: { targetVolume: (pattern.fill?.litres ?? 1) * 1e6 * 1.02, p0: 2500, planned: (pattern.fill?.litres ?? 1) * 1e6 }, needsBody: false };
 }
 
 /** Anything else (imported pieces, home goods): hang each piece flat round the body, unsewn. */

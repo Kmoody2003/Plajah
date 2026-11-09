@@ -6,7 +6,7 @@
 import { type Pattern, type SoftTemplate, type ParamValue, softDefaults } from '../patterns';
 import { type Body, type SdfGrid, sampleSdf, torsoAt, ellPerim } from './avatar';
 import { type ClothModel, ClothSim, K_STITCH, constraintValue, meshVolume } from './cloth';
-import { setupDrape, drapeSync, type DrapeSetup } from './drape';
+import { setupDrape, drapeSync, sitAdvice, type DrapeSetup } from './drape';
 import { maxStretch } from './fabrics';
 
 export interface FitMaps { strain: Float32Array; pressure: Float32Array; gap: Float32Array; triStrain: Float32Array }
@@ -82,7 +82,7 @@ export interface FitReport {
   poms: Pom[]; score: number; verdict: string[];
   tightPct: number; loosePct: number; maxPressure: number; meanStrain: number; maxStrain: number;
   sleeveEnd?: number; hemY?: number; neckOpening?: number; neckPressure?: number; seamGap: number;
-  plush?: { volume: number; target: number; fillPct: number; seamStrain: number; pressurePa: number; sitsUp: boolean; sitTested: boolean; /** Seam strain ÷ the fabric's own stretch. */ seamLoad?: number };
+  plush?: { volume: number; target: number; fillPct: number; seamStrain: number; pressurePa: number; sitsUp: boolean; sitTested: boolean; dropUpright?: boolean; advice?: string[]; /** Seam strain ÷ the fabric's own stretch. */ seamLoad?: number };
 }
 
 const EASE_BAND: Record<string, [number, number]> = { fitted: [30, 90], regular: [60, 170], oversized: [140, 330] };
@@ -100,8 +100,11 @@ export function fitReport(s: DrapeSetup, sim: ClothSim, maps = fitMaps(s.model, 
     // Seam strain: 75th percentile over seam vertices (corner creases are solver artefacts, not weak seams).
     const ss = (() => { const a: number[] = []; for (let i = 0; i < m.n; i++) if (m.seamVert[i]) a.push(maps.strain[i]); a.sort((x, y) => x - y); return a.length ? a[Math.floor(a.length * 0.75)] : 0; })();
     let lo = Infinity, hi = -Infinity; for (let i = 0; i < m.n; i++) { lo = Math.min(lo, m.pos[3 * i + 1]); hi = Math.max(hi, m.pos[3 * i + 1]); }
-    const tested = sim.stuffedHeight != null; const sits = tested ? (hi - lo) / sim.stuffedHeight! > 0.8 : true;
-    rep.plush = { volume: vol, target, fillPct: vol / target * 100, seamStrain: ss, pressurePa: Math.max(0, sim.lastPressure), sitsUp: sits, sitTested: tested };
+    // Sits up = static balance: the stuffed toy's centre of mass (fabric + fill) over its base. The
+    // drop simulation is reported too, but it rocks over too readily (no fill compliance at the base).
+    const tested = sim.stuffedHeight != null; const dropUpright = tested ? (hi - lo) / sim.stuffedHeight! > 0.8 : true;
+    const advice = tested ? sitAdvice(s, sim) : null; const sits = advice ? advice.direction === 'none' : true;
+    rep.plush = { volume: vol, target, fillPct: vol / target * 100, seamStrain: ss, pressurePa: Math.max(0, sim.lastPressure), sitsUp: sits, sitTested: tested, dropUpright, advice: advice?.text };
     // Seam strain is judged against what the fabric itself gives (minky stretches, felt does not).
     const give = Math.max(0.05, Math.max(...m.pieces.map(p => maxStretch(p.fabric)))); const over = ss / give;
     rep.plush.seamLoad = over;

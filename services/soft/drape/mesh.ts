@@ -19,7 +19,7 @@ function segDist(p: Pt, a: Pt, b: Pt) {
   const dx = b[0] - a[0], dy = b[1] - a[1]; const L2 = dx * dx + dy * dy || 1e-12; const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2));
   return Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t);
 }
-export const polyDist = (p: Pt, poly: Pt[]) => { let d = Infinity; for (let i = 0; i < poly.length; i++) d = Math.min(d, segDist(p, poly[i], poly[(i + 1) % poly.length])); return d; };
+export const polyDist = (p: Pt, poly: Pt[], closed = true) => { let d = Infinity; for (let i = 0; i < poly.length - (closed ? 0 : 1); i++) d = Math.min(d, segDist(p, poly[i], poly[(i + 1) % poly.length])); return d; };
 
 /** Mesh spacing as a function of position on the flat piece (mm); adaptive meshes refine where it is small. */
 export type Sizing = (p: Pt) => number;

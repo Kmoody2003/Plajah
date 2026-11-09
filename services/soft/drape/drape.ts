@@ -7,6 +7,7 @@ import type { Pattern } from '../patterns';
 import { type Body, type BodyMeasures, type Pose, type SdfGrid, buildBody, bakeSdf, measuresForSize, poseFor } from './avatar';
 import { buildCloth, ClothSim, DEFAULT_SIM, vertexNormals, type ClothModel, type SimOptions, type PlacedPiece } from './cloth';
 import { strainMap } from './fit';
+import { polyDist } from './mesh';
 import type { Pt } from '../geometry';
 import { outfitRig, type FabricFor, type Rig } from './garment';
 
@@ -27,6 +28,10 @@ export function setupOutfit(garments: Pattern[], o: DrapeOptions = {}): DrapeSet
   const useBody = rig.needsBody ? body : null; const sdf = useBody ? (o.sdf ?? bakeSdf(useBody)) : null;
   const plush = rig.kind === 'plush'; const size = Math.max(...rig.placed.map(p => Math.max(...p.seam.map(q => q[1])) - Math.min(...p.seam.map(q => q[1]))));
   const h = o.spacing ?? (plush ? Math.max(6, Math.min(16, size / 28)) : 20);
+  // Gathers fold at a few millimetres: mesh finely along elastic edges so the cloth can buckle.
+  if (rig.gathers?.length) rig.placed = rig.placed.map(P => { const gs = rig.gathers!.filter(g => g.piece === P.id); if (!gs.length) return P;
+    const paths = gs.map(g => ringPath(P.seam, g.from, g.to)); const hMin = Math.max(5, h * 0.3);
+    return { ...P, sizing: (q: Pt) => Math.min(h, ...paths.map(pp => hMin + 0.5 * polyDist(q, pp, false))) }; });
   const model = buildCloth(rig.placed, rig.seams, h, { pressure: rig.pressure, gathers: rig.gathers, attach: rig.attach });
   if (plush && pattern.fill) addFillMass(model, pattern.fill.grams, pattern.features.beads ? pattern.fill.grams * 0.4 : 0);
   return { pattern, body: useBody, sdf, rig, model, garments };
@@ -34,7 +39,7 @@ export function setupOutfit(garments: Pattern[], o: DrapeOptions = {}): DrapeSet
 
 export function simFor(s: DrapeSetup, over: Partial<SimOptions> = {}) {
   const plush = s.rig.kind === 'plush';
-  return new ClothSim(s.model, s.sdf, { ...DEFAULT_SIM, ...(plush ? { damping: 2.5, selfCollision: true, sewSpeed: 250, gravity: 0, substeps: 18 } : {}), ...over });
+  return new ClothSim(s.model, s.sdf, { ...DEFAULT_SIM, ...(plush ? { damping: 2.5, selfCollision: true, sewSpeed: 250, gravity: 0, substeps: 18, iterations: 3 } : {}), ...over });
 }
 
 /** Run to rest on the CPU: sew, settle, then record contact for the pressure map. */
@@ -58,13 +63,21 @@ export function addFillMass(m: ClothModel, fillGrams: number, pelletGrams = 0) {
  * Sit test for plush: the stuffed toy (sewn and stuffed with no gravity, as if held) is set on the
  * floor under gravity. It sits if it keeps 80% of its stuffed height.
  */
-export function startSitTest(sim: ClothSim) {
+/** A card or plastic base insert: the base piece made rigid (stretch and bend). */
+export function addBaseInsert(m: ClothModel) {
+  const bi = m.pieces.findIndex(p => p.pieceId === 'base'); if (bi < 0) return false;
+  for (let c = 0; c < m.nc; c++) if (m.kind[c] !== 2 && m.vPiece[m.a0[c]] === bi && m.vPiece[m.b0[c]] === bi) { m.compT[c] = 1e-10; m.compC[c] = 1e-10; }
+  return true;
+}
+export function startSitTest(sim: ClothSim, o: { insert?: boolean } = {}) {
+  if (o.insert) addBaseInsert(sim.m);
   const X = sim.m.pos; let lo = Infinity, hi = -Infinity; for (let i = 0; i < sim.m.n; i++) { lo = Math.min(lo, X[3 * i + 1]); hi = Math.max(hi, X[3 * i + 1]); }
   // Rest it on the floor first.
   const dy = lo - (sim.m.offset[0] ?? 2) - sim.o.floor; for (let i = 0; i < sim.m.n; i++) { X[3 * i + 1] -= dy; sim.m.prev[3 * i + 1] -= dy; }
-  sim.stuffedHeight = hi - lo; sim.o.gravity = 9810; sim.o.gravityAfterStuffing = sim.t - sim.pressureStart;
+  sim.stuffedHeight = hi - lo; (sim as ClothSim & { stuffedPos?: Float32Array }).stuffedPos = X.slice(); if (!sim.fill) sim.addFillLinks(5000); sim.o.gravity = 9810; sim.o.gravityAfterStuffing = sim.t - sim.pressureStart;
 }
-export function sitTestSync(sim: ClothSim, seconds = 2) { startSitTest(sim); for (let f = 0; f < seconds * 60; f++) sim.frame(1 / 60); return sitsUp(sim); }
+export function sitTestSync(sim: ClothSim, seconds = 2, o: { insert?: boolean } = {}) { startSitTest(sim, o); for (let f = 0; f < seconds * 60; f++) sim.frame(1 / 60); return sitsUp(sim); }
+/** Height kept after the drop (> 0.8 of stuffed height). See fitReport: the reported answer is the balance check. */
 export function sitsUp(sim: ClothSim) { const X = sim.m.pos; let lo = Infinity, hi = -Infinity; for (let i = 0; i < sim.m.n; i++) { lo = Math.min(lo, X[3 * i + 1]); hi = Math.max(hi, X[3 * i + 1]); } return !sim.stuffedHeight || (hi - lo) / sim.stuffedHeight > 0.8; }
 
 /**
@@ -104,4 +117,39 @@ export function refineDrape(s: DrapeSetup, o: { hMin?: number; foldRad?: number 
   const model = buildCloth(placed, s.rig.seams, H, { pressure: m.pressure, gathers: s.rig.gathers, attach: s.rig.attach });
   if (s.rig.kind === 'plush' && s.pattern.fill) addFillMass(model, s.pattern.fill.grams, s.pattern.features.beads ? s.pattern.fill.grams * 0.4 : 0);
   return { ...s, rig: { ...s.rig, placed }, model };
+}
+
+/** The shorter run of a closed ring between the vertices nearest `a` and `b`. */
+function ringPath(ring: Pt[], a: Pt, b: Pt): Pt[] {
+  const near = (q: Pt) => { let bi = 0, bd = Infinity; ring.forEach((p, i) => { const d = Math.hypot(p[0] - q[0], p[1] - q[1]); if (d < bd) { bd = d; bi = i; } }); return bi; };
+  const ia = near(a), ib = near(b), n = ring.length; const f: Pt[] = [], r: Pt[] = [];
+  for (let i = ia; ; i = (i + 1) % n) { f.push(ring[i]); if (i === ib) break; } for (let i = ia; ; i = (i - 1 + n) % n) { r.push(ring[i]); if (i === ib) break; }
+  const len = (p: Pt[]) => p.reduce((s, q, k) => (k ? s + Math.hypot(q[0] - p[k - 1][0], q[1] - p[k - 1][1]) : 0), 0); return len(f) <= len(r) ? f : r;
+}
+
+export interface SitAdvice { comOutsideMm: number; direction: 'front' | 'back' | 'left' | 'right' | 'none'; pelletGrams: number; widenBaseMm: number; text: string[] }
+/**
+ * Why a stuffed toy tips, from its stuffed shape (before it was sat down): where the centre of
+ * mass (fabric + fill) falls against the base footprint, and what fixes it: pellets low in the
+ * base (grams) or a deeper base (mm), plus a smaller head when the overhang is large.
+ */
+export function sitAdvice(s: DrapeSetup, sim: ClothSim): SitAdvice {
+  const m = s.model; const X = (sim as ClothSim & { stuffedPos?: Float32Array }).stuffedPos ?? m.pos; let M = 0, cx = 0, cz = 0, lo = Infinity;
+  for (let i = 0; i < m.n; i++) { M += m.mass[i]; cx += m.mass[i] * X[3 * i]; cz += m.mass[i] * X[3 * i + 2]; lo = Math.min(lo, X[3 * i + 1]); } cx /= M; cz /= M;
+  // Footprint: points within 6 mm of the lowest point (the base as it rests).
+  // Footprint: the base piece's outline (it flattens onto the floor), else the lowest points.
+  const base = m.pieces.find(p => p.pieceId === 'base'); const pts: Array<[number, number]> = [];
+  if (base) for (const i of base.boundary) pts.push([X[3 * i], X[3 * i + 2]]); else for (let i = 0; i < m.n; i++) if (X[3 * i + 1] < lo + 6) pts.push([X[3 * i], X[3 * i + 2]]);
+  const xs = pts.map(p => p[0]), zs = pts.map(p => p[1]); const fx0 = Math.min(...xs), fx1 = Math.max(...xs), fz0 = Math.min(...zs), fz1 = Math.max(...zs); const bx = (fx0 + fx1) / 2, bz = (fz0 + fz1) / 2;
+  const out = { front: cz - fz1, back: fz0 - cz, right: fx0 - cx, left: cx - fx1 } as Record<'front' | 'back' | 'left' | 'right', number>;
+  const [dir, d] = (Object.entries(out) as Array<['front' | 'back' | 'left' | 'right', number]>).reduce((a, b) => (b[1] > a[1] ? b : a));
+  const margin = 8; const need = d + margin; const text: string[] = [];
+  if (need <= 0) return { comOutsideMm: d, direction: 'none', pelletGrams: 0, widenBaseMm: 0, text: ['The balance point sits over the base; if it still rocks, flatten the base (stiffer base fabric or interfacing).'] };
+  // Pellets at the base centre pull the centre of mass toward it: m_p = M·need / (distance from base centre to the CoM − need).
+  const dist = Math.max(1, Math.hypot(cx - bx, cz - bz)); const pellet = Math.round(M * need / Math.max(5, dist - need));
+  const widen = Math.round(need * 2 + 10);
+  text.push(`Its balance point is ${Math.round(need)} mm ${dir === 'front' ? 'in front of' : dir === 'back' ? 'behind' : 'beyond'} the base edge, so it tips ${dir === 'front' ? 'forward' : dir === 'back' ? 'backward' : 'sideways'}.`);
+  text.push(`Fix: about ${pellet} g of plastic pellets in a sewn pouch low in the base${s.pattern.features.beads ? ' (more than the pouch holds now)' : ''}, or a base about ${widen} mm deeper${dir === 'left' || dir === 'right' ? ' and wider' : ''}.`);
+  if (need > 25) text.push('The head carries the weight: a smaller head ratio, or ears and arms set lower, moves the balance point down and back over the base.');
+  return { comOutsideMm: need, direction: dir, pelletGrams: pellet, widenBaseMm: widen, text };
 }

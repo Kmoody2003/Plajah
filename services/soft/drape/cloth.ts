@@ -211,11 +211,14 @@ export class ClothSim {
     for (let c = 0; c < m.nc; c++) if (m.kind[c] === K_STITCH && m.rest[c] > 0) m.rest[c] = Math.max(m.compC[c] > 1e-8 ? 1.5 : 0, m.rest[c] - sew);
     const h2 = h * h;
     if (m.pressure) this.solveVolume(h2);
+    if (this.fill) this.solveFill(h2);
     const it = Math.max(1, this.o.iterations ?? 1); if (it > 1) { if (!this.lambda || this.lambda.length !== m.nc) this.lambda = new Float32Array(m.nc); this.lambda.fill(0); }
     for (let k = 0; k < it; k++) for (let c = 0; c < m.nc; c++) solveConstraint(m, c, h2, it > 1 ? this.lambda : undefined);
     this.collide();
     if (this.o.selfCollision && (this.steps & 1) === 0) this.selfCollide();
     const ih = 1 / h; for (let k = 0; k < 3 * n; k++) V[k] = (X[k] - P[k]) * ih;
+    // Stuffing in the air (no gravity): the toy is being held, so remove any net drift and spin.
+    if (m.pressure && this.o.gravity === 0) this.removeRigidMotion(h);
     this.t += h; this.steps++; if (this.recordContact) this.contactSteps++;
   }
 
@@ -268,6 +271,45 @@ export class ClothSim {
           X[3 * j] += ux * corr * W[j]; X[3 * j + 1] += uy * corr * W[j]; X[3 * j + 2] += uz * corr * W[j];
         } } }
   }
+  /** Fibre fill as an elastic body: random internal links across the stuffed toy (see addFillLinks). */
+  fill?: { a: Int32Array; b: Int32Array; rest: Float32Array; comp: Float32Array };
+  /**
+   * Fibre fill resists shape change (a stuffed toy does not flop), which a volume alone cannot.
+   * Links between random far-apart shell vertices, rest at the stuffed shape, form an isotropic
+   * spring network whose effective Young's modulus ≈ N·k·L²/(9V); k is set for `modulusPa`
+   * (firm fibre fill ≈ 3-8 kPa).
+   */
+  addFillLinks(modulusPa = 5000, perVertex = 3, seed = 7) {
+    const m = this.m, X = m.pos; const V = Math.max(1, meshVolume(m)); const n = m.n; let r = seed >>> 0; const rnd = () => { r = (r * 1664525 + 1013904223) >>> 0; return r / 4294967296; };
+    let lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity]; for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], X[3 * i + k]); hi[k] = Math.max(hi[k], X[3 * i + k]); }
+    const size = Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]); const A: number[] = [], B: number[] = [], R: number[] = [];
+    for (let i = 0; i < n; i += 2) for (let t = 0, tries = 0; t < perVertex && tries < 20; tries++) { const j = Math.floor(rnd() * n); const d = Math.hypot(X[3 * i] - X[3 * j], X[3 * i + 1] - X[3 * j + 1], X[3 * i + 2] - X[3 * j + 2]); if (d < size * 0.3) continue; A.push(i); B.push(j); R.push(d); t++; }
+    const N = A.length; let L2 = 0; for (const d of R) L2 += d * d; L2 /= Math.max(1, N); const k = 9 * modulusPa * V / Math.max(1, N * L2);
+    this.fill = { a: Int32Array.from(A), b: Int32Array.from(B), rest: Float32Array.from(R), comp: new Float32Array(N).fill(1 / k) };
+  }
+  private solveFill(h2: number) {
+    const f = this.fill!, X = this.m.pos, W = this.m.invMass;
+    for (let k = 0; k < f.a.length; k++) { const i = f.a[k], j = f.b[k]; const dx = X[3 * i] - X[3 * j], dy = X[3 * i + 1] - X[3 * j + 1], dz = X[3 * i + 2] - X[3 * j + 2]; const L = Math.hypot(dx, dy, dz); if (L < 1e-9) continue;
+      const w = W[i] + W[j]; if (!w) continue; const lam = -(L - f.rest[k]) / (w + f.comp[k] / h2); const s = lam / L;
+      X[3 * i] += dx * s * W[i]; X[3 * i + 1] += dy * s * W[i]; X[3 * i + 2] += dz * s * W[i]; X[3 * j] -= dx * s * W[j]; X[3 * j + 1] -= dy * s * W[j]; X[3 * j + 2] -= dz * s * W[j]; }
+  }
+  private removeRigidMotion(h: number) {
+    const m = this.m, X = m.pos, V = m.vel, P = m.prev; let M = 0; const c = [0, 0, 0], v = [0, 0, 0];
+    for (let i = 0; i < m.n; i++) { const w = m.mass[i]; M += w; for (let a = 0; a < 3; a++) { c[a] += w * X[3 * i + a]; v[a] += w * V[3 * i + a]; } }
+    for (let a = 0; a < 3; a++) { c[a] /= M; v[a] /= M; }
+    // Angular momentum L and inertia tensor I about the centre; ω = I⁻¹L.
+    const L = [0, 0, 0]; const I = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    for (let i = 0; i < m.n; i++) { const w = m.mass[i]; const rx = X[3 * i] - c[0], ry = X[3 * i + 1] - c[1], rz = X[3 * i + 2] - c[2]; const vx = V[3 * i] - v[0], vy = V[3 * i + 1] - v[1], vz = V[3 * i + 2] - v[2];
+      L[0] += w * (ry * vz - rz * vy); L[1] += w * (rz * vx - rx * vz); L[2] += w * (rx * vy - ry * vx); const r2 = rx * rx + ry * ry + rz * rz;
+      I[0] += w * (r2 - rx * rx); I[4] += w * (r2 - ry * ry); I[8] += w * (r2 - rz * rz); I[1] -= w * rx * ry; I[2] -= w * rx * rz; I[5] -= w * ry * rz; }
+    I[3] = I[1]; I[6] = I[2]; I[7] = I[5];
+    const det = I[0] * (I[4] * I[8] - I[5] * I[7]) - I[1] * (I[3] * I[8] - I[5] * I[6]) + I[2] * (I[3] * I[7] - I[4] * I[6]); if (Math.abs(det) < 1e-12) return;
+    const inv = [(I[4] * I[8] - I[5] * I[7]) / det, (I[2] * I[7] - I[1] * I[8]) / det, (I[1] * I[5] - I[2] * I[4]) / det, (I[5] * I[6] - I[3] * I[8]) / det, (I[0] * I[8] - I[2] * I[6]) / det, (I[2] * I[3] - I[0] * I[5]) / det, (I[3] * I[7] - I[4] * I[6]) / det, (I[1] * I[6] - I[0] * I[7]) / det, (I[0] * I[4] - I[1] * I[3]) / det];
+    const w0 = inv[0] * L[0] + inv[1] * L[1] + inv[2] * L[2], w1 = inv[3] * L[0] + inv[4] * L[1] + inv[5] * L[2], w2 = inv[6] * L[0] + inv[7] * L[1] + inv[8] * L[2];
+    for (let i = 0; i < m.n; i++) { const rx = X[3 * i] - c[0], ry = X[3 * i + 1] - c[1], rz = X[3 * i + 2] - c[2];
+      const dvx = v[0] + (w1 * rz - w2 * ry), dvy = v[1] + (w2 * rx - w0 * rz), dvz = v[2] + (w0 * ry - w1 * rx);
+      V[3 * i] -= dvx; V[3 * i + 1] -= dvy; V[3 * i + 2] -= dvz; X[3 * i] -= dvx * h; X[3 * i + 1] -= dvy * h; X[3 * i + 2] -= dvz * h; P[3 * i] = X[3 * i] - V[3 * i] * h; P[3 * i + 1] = X[3 * i + 1] - V[3 * i + 1] * h; P[3 * i + 2] = X[3 * i + 2] - V[3 * i + 2] * h; }
+  }
   /** A little pressure while sewing keeps panels from passing through each other; full once sewn. */
   pressureRamp() { return Math.max(0, Math.min(1, (this.t - this.pressureStart) / 0.5)); }
   /** Current stuffing pressure (Pa) the gas law gives at this volume. */
@@ -292,7 +334,7 @@ export class ClothSim {
     let sx = 0, sy = 0, sz = 0; for (let i = 0; i < m.n; i++) { sx += g[3 * i]; sy += g[3 * i + 1]; sz += g[3 * i + 2]; } sx /= m.n; sy /= m.n; sz /= m.n;
     let wsum = 0, gmax = 0; for (let i = 0; i < m.n; i++) { g[3 * i] -= sx; g[3 * i + 1] -= sy; g[3 * i + 2] -= sz; const l2 = g[3 * i] ** 2 + g[3 * i + 1] ** 2 + g[3 * i + 2] ** 2; wsum += W[i] * l2; gmax = Math.max(gmax, W[i] * Math.sqrt(l2)); }
     const alpha = (0.15 * pr.targetVolume / pr.p0) / Math.max(0.05, ramp) / h2;
-    let lam = -C / (wsum + alpha); if (gmax * lam > 0.25) lam = 0.25 / gmax; this.lastPressure = lam / h2;
+    let lam = -C / (wsum + alpha); const cap = ramp < 1 ? 0.25 : 2; if (gmax * lam > cap) lam = cap / gmax; this.lastPressure = lam / h2;
     for (let i = 0; i < m.n; i++) { const s = W[i] * lam; X[3 * i] += g[3 * i] * s; X[3 * i + 1] += g[3 * i + 1] * s; X[3 * i + 2] += g[3 * i + 2] * s; }
   }
   /** Stuffing pressure (Pa) from the mean fabric tension over the stretch edges and the toy's size. */

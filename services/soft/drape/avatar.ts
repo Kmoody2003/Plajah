@@ -17,6 +17,20 @@ export interface BodyMeasures {
   neck: number; head: number;
   /** Shoulder point to wrist. */
   arm: number; inseam: number;
+  /** Shape beyond the girths: the same chest can sit on very different bodies. */
+  shape?: BodyShape;
+}
+export interface BodyShape {
+  /** Longer (+) or shorter (−) torso than the chart, mm; the legs take up the difference so height stays. */
+  torso?: number;
+  /** Extra forward depth at the bust, mm. */
+  bust?: number;
+  /** Forward depth at the waist and below the bust (a rounder belly), mm. */
+  belly?: number;
+  /** Backward depth at the seat, mm. */
+  seat?: number;
+  /** Shoulder slope from the neck, degrees (about 20 typical; square ≈ 12, sloping ≈ 28). */
+  shoulderSlope?: number;
 }
 
 /** Body heights (cm) for our size chart; adult sizes are not height-graded in the chart itself. */
@@ -38,12 +52,20 @@ export function measuresForSize(size: string): BodyMeasures {
   };
 }
 
-export type PoseName = 'a-pose' | 't-pose' | 'sitting' | 'walk';
+export type PoseName = 'a-pose' | 't-pose' | 'sitting' | 'walk' | 'custom';
 type Side = [number, number];
 export interface Pose { name: PoseName; frame?: number; shoulderAbd: Side; shoulderFlex: Side; elbow: Side; hipFlex: Side; hipAbd: Side; knee: Side }
 export const WALK_FRAMES = 8;
 
 /** Joint angles in degrees, [left (+x), right (−x)]. */
+/** Joint ranges (degrees) a body can reach; poses are clamped to them. */
+export const JOINT_LIMITS: Record<Exclude<keyof Pose, 'name' | 'frame'>, [number, number]> = {
+  shoulderAbd: [-10, 175], shoulderFlex: [-50, 170], elbow: [0, 145], hipFlex: [-25, 120], hipAbd: [-15, 45], knee: [0, 140],
+};
+export function limitPose(p: Pose): Pose {
+  const out = { ...p } as Pose; for (const k of Object.keys(JOINT_LIMITS) as Array<keyof typeof JOINT_LIMITS>) { const [lo, hi] = JOINT_LIMITS[k]; out[k] = [Math.max(lo, Math.min(hi, p[k][0])), Math.max(lo, Math.min(hi, p[k][1]))]; }
+  return out;
+}
 export function poseFor(name: PoseName, frame = 0): Pose {
   if (name === 't-pose') return { name, shoulderAbd: [88, 88], shoulderFlex: [0, 0], elbow: [0, 0], hipFlex: [0, 0], hipAbd: [3, 3], knee: [0, 0] };
   if (name === 'sitting') return { name, shoulderAbd: [25, 25], shoulderFlex: [25, 25], elbow: [35, 35], hipFlex: [88, 88], hipAbd: [6, 6], knee: [88, 88] };
@@ -92,22 +114,24 @@ function bend(d: V3, toward: V3, deg: number): V3 {
   p = norm(p); const r = deg * Math.PI / 180; return norm(add(mul(d, Math.cos(r)), mul(p, Math.sin(r))));
 }
 
-export function buildBody(m: BodyMeasures, pose: Pose = poseFor('a-pose')): Body {
-  const H = m.height; const t = clamp01((H - 900) / 800); const hf = lerp(0.2, 0.13, t);
-  const top = H, chin = H * (1 - hf), neckBase = chin - H * 0.045, shoulderY = neckBase - H * 0.022, crotch = m.inseam;
+export function buildBody(m: BodyMeasures, pose0: Pose = poseFor('a-pose')): Body {
+  const pose = limitPose(pose0); const sh = m.shape ?? {}; const H = m.height; const t = clamp01((H - 900) / 800); const hf = lerp(0.2, 0.13, t);
+  const top = H, chin = H * (1 - hf), neckBase = chin - H * 0.045, shoulderY = neckBase - H * 0.022, crotch = m.inseam - (sh.torso ?? 0);
   const T = shoulderY - crotch; const at = (f: number) => crotch + T * f;
   const y = { crotch, hip: at(0.18), waist: at(0.43), chest: at(0.72), armpit: at(0.8), shoulder: shoulderY, neckBase, chin, top, knee: crotch * 0.52, ankle: crotch * 0.07 };
   const sw = m.shoulder / 2;
+  const fwd = (r: TorsoRing, d = 0): TorsoRing => ({ ...r, b: r.b + Math.abs(d) / 2, cz: r.cz + d / 2 });
+  const bust = sh.bust ?? 0, belly = sh.belly ?? 0, seat = sh.seat ?? 0;
   const rings: TorsoRing[] = [
-    ring(at(-0.02), m.hip * 0.8, 0.7), ring(y.hip, m.hip, 0.72, -6), ring(y.waist, m.waist, 0.74), ring(at(0.58), lerp(m.waist, m.chest, 0.65), 0.72, 4),
-    ring(y.chest, m.chest, 0.68, 6), ring(y.armpit, m.chest * 0.95, 0.62, 2),
+    fwd(ring(at(-0.02), m.hip * 0.8, 0.7), -seat * 0.6), fwd(ring(y.hip, m.hip, 0.72, -6), -seat), fwd(ring(y.waist, m.waist, 0.74), belly), fwd(ring(at(0.58), lerp(m.waist, m.chest, 0.65), 0.72, 4), belly * 0.5 + bust * 0.35),
+    fwd(ring(y.chest, m.chest, 0.68, 6), bust), fwd(ring(y.armpit, m.chest * 0.95, 0.62, 2), bust * 0.4),
     { y: at(0.92), a: sw * 0.84, b: sw * 0.84 * 0.42, cz: -6 }, { y: at(1.0), a: sw * 0.62, b: sw * 0.62 * 0.5, cz: -10 },
   ];
   const prims: Prim[] = [{ t: 'torso', k: 1, part: 'torso' }];
   const rU = m.chest * 0.3 / (2 * Math.PI), rE = m.chest * 0.235 / (2 * Math.PI), rW = m.chest * 0.165 / (2 * Math.PI);
   const handL = H * 0.105, upperL = m.arm * 0.54, foreL = m.arm * 0.46;
   const arms = [1, -1].map((s, i) => {
-    const root: V3 = [s * (sw - rU * 0.85), shoulderY - rU * 0.95, -8];
+    const drop = Math.tan(((sh.shoulderSlope ?? 20) - 20) * Math.PI / 180) * sw * 0.6; const root: V3 = [s * (sw - rU * 0.85), shoulderY - rU * 0.95 - drop, -8];
     const d = limbDir(s, pose.shoulderAbd[i], pose.shoulderFlex[i]); const elbow = add(root, mul(d, upperL));
     const d2 = bend(d, [0, 0.4, 1], pose.elbow[i]); const wrist = add(elbow, mul(d2, foreL)); const tip = add(wrist, mul(d2, handL));
     prims.push({ t: 'cone', a: root, b: elbow, ra: rU * 1.05, rb: rE, k: 22, part: 'arm' }, { t: 'cone', a: elbow, b: wrist, ra: rE * 1.05, rb: rW, k: 10, part: 'arm' },
@@ -245,4 +269,51 @@ export function surfaceNets(G: SdfGrid): TriMesh {
     if (v0 !== (D[i + j * nx + (k + 1) * nx * ny] < 0)) quad(C(i - 1, j - 1, k), C(i, j - 1, k), C(i, j, k), C(i - 1, j, k), !v0);
   }
   return { positions: new Float32Array(pos), normals: new Float32Array(nor), indices: new Uint32Array(tri) };
+}
+
+/**
+ * A child's body by age (2-14), from approximate growth-chart medians for height, with girths
+ * interpolated along our size chart by height. Approximate: measure the child for a real fit.
+ */
+const AGE_HEIGHT_CM: Array<[number, number]> = [[2, 87], [3, 96], [4, 103], [5, 110], [6, 116], [7, 122], [8, 128], [9, 133], [10, 138], [11, 144], [12, 150], [13, 156], [14, 162]];
+export function measuresForAge(age: number): BodyMeasures {
+  const a = Math.max(2, Math.min(14, age)); let i = 0; while (i < AGE_HEIGHT_CM.length - 2 && AGE_HEIGHT_CM[i + 1][0] < a) i++;
+  const [a0, h0] = AGE_HEIGHT_CM[i], [a1, h1] = AGE_HEIGHT_CM[i + 1]; const H = (h0 + (h1 - h0) * (a - a0) / (a1 - a0)) * 10;
+  const rows = CHILD_SIZES.map(sz => ({ sz, m: measuresForSize(sz) })); let j = 0; while (j < rows.length - 2 && rows[j + 1].m.height < H) j++;
+  const A = rows[j].m, B = rows[j + 1].m; const t = Math.max(0, Math.min(1.2, (H - A.height) / (B.height - A.height)));
+  const mix = (k: 'chest' | 'waist' | 'hip' | 'shoulder' | 'neck' | 'head' | 'arm') => A[k] + (B[k] - A[k]) * t;
+  return { band: 'child', height: H, chest: mix('chest'), waist: mix('waist'), hip: mix('hip'), shoulder: mix('shoulder'), neck: mix('neck'), head: mix('head'), arm: mix('arm'), inseam: H * lerp(0.4, 0.455, clamp01((H - 900) / 800)) };
+}
+
+/** Body measurements from text a person pastes or exports: "chest: 96 cm", CSV "hip,102" or JSON; inches when marked. */
+export function parseMeasurements(text: string): Partial<BodyMeasures> & { shape?: BodyShape } {
+  const keys: Record<string, keyof BodyMeasures | keyof BodyShape> = { height: 'height', stature: 'height', chest: 'chest', bust: 'chest', waist: 'waist', hip: 'hip', hips: 'hip', seat: 'hip', shoulder: 'shoulder', 'shoulder width': 'shoulder', neck: 'neck', head: 'head', arm: 'arm', sleeve: 'arm', 'arm length': 'arm', inseam: 'inseam', 'inside leg': 'inseam',
+    'torso adjust': 'torso', 'bust depth': 'bust', belly: 'belly', 'seat depth': 'seat', 'shoulder slope': 'shoulderSlope' };
+  const out: Partial<BodyMeasures> & { shape?: BodyShape } = {}; let entries: Array<[string, string]> = [];
+  try { const j = JSON.parse(text); if (j && typeof j === 'object') entries = Object.entries(j).map(([k, v]) => [k, String(v)]); } catch { entries = text.split(/[\r\n;]+/).map(l => l.split(/[:,=\t]/)).filter(p => p.length >= 2).map(p => [p[0], p.slice(1).join(' ')]); }
+  for (const [k0, v0] of entries) {
+    const k = k0.trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s*\((cm|mm|in|inch|inches)\)\s*/, ''); const key = keys[k]; if (!key) continue;
+    const m = v0.trim().match(/^(-?[\d.]+)\s*(cm|mm|in|inch|inches|"|″|°|deg)?/i); if (!m) continue; const x = Number(m[1]); const u = (m[2] ?? (/(in|inch)/i.test(k0) ? 'in' : /mm/i.test(k0) ? 'mm' : '')).toLowerCase();
+    if (key === 'shoulderSlope') { (out.shape ??= {}).shoulderSlope = x; continue; }
+    const mm = u === 'mm' ? x : /^(in|inch|inches|"|″)$/.test(u) ? x * 25.4 : x * 10;
+    if (key === 'torso' || key === 'bust' || key === 'belly' || key === 'seat') { const sk = key as 'torso'; (out.shape ??= {})[sk] = key === 'bust' && !/depth/.test(k) ? undefined : mm; continue; }
+    (out as Record<string, number>)[key] = mm;
+  }
+  return out;
+}
+
+/**
+ * Smoother skin for display: Laplacian smoothing of the surface-nets vertices, each pass projected
+ * back onto the body's distance field so the shape (and what the cloth hits) does not shrink.
+ */
+export function smoothMesh(mesh: TriMesh, G: SdfGrid, passes = 3): TriMesh {
+  const P = Float32Array.from(mesh.positions), I = mesh.indices, n = P.length / 3; const adj: number[][] = Array.from({ length: n }, () => []);
+  for (let t = 0; t < I.length; t += 3) for (let k = 0; k < 3; k++) { const a = I[t + k], b = I[t + (k + 1) % 3]; adj[a].push(b); adj[b].push(a); }
+  const g = [0, 0, 0]; const Q = new Float32Array(P.length);
+  for (let it = 0; it < passes; it++) {
+    for (let i = 0; i < n; i++) { const nb = adj[i]; if (!nb.length) { Q[3 * i] = P[3 * i]; Q[3 * i + 1] = P[3 * i + 1]; Q[3 * i + 2] = P[3 * i + 2]; continue; } let x = 0, y = 0, z = 0; for (const j of nb) { x += P[3 * j]; y += P[3 * j + 1]; z += P[3 * j + 2]; } Q[3 * i] = (P[3 * i] + x / nb.length) / 2; Q[3 * i + 1] = (P[3 * i + 1] + y / nb.length) / 2; Q[3 * i + 2] = (P[3 * i + 2] + z / nb.length) / 2; }
+    for (let i = 0; i < n; i++) { const d = sampleSdf(G, Q[3 * i], Q[3 * i + 1], Q[3 * i + 2], g); const l = Math.hypot(g[0], g[1], g[2]) || 1; P[3 * i] = Q[3 * i] - g[0] / l * d; P[3 * i + 1] = Q[3 * i + 1] - g[1] / l * d; P[3 * i + 2] = Q[3 * i + 2] - g[2] / l * d; }
+  }
+  const N = new Float32Array(P.length); for (let i = 0; i < n; i++) { sampleSdf(G, P[3 * i], P[3 * i + 1], P[3 * i + 2], g); const l = Math.hypot(g[0], g[1], g[2]) || 1; N[3 * i] = g[0] / l; N[3 * i + 1] = g[1] / l; N[3 * i + 2] = g[2] / l; }
+  return { positions: P, normals: N, indices: I };
 }
