@@ -28,6 +28,9 @@ public sealed partial class MainWindow : Window
     private readonly NdiReceiverService _ndiRecv = new();
     private CrossoverNativeService? _crossoverSvc;
     private CrossoverNativeService Crossover => _crossoverSvc ??= new CrossoverNativeService((type, payload) => DispatcherQueue.TryEnqueue(() => PostNativeMessage(type, payload)));
+    /// <summary>Plajah Build machine bridge: serial / TCP G-code streaming and mDNS discovery (FAB_MACHINE_*).</summary>
+    private FabMachineBridge? _fabBridge;
+    private FabMachineBridge Fab => _fabBridge ??= new FabMachineBridge((type, payload) => DispatcherQueue.TryEnqueue(() => PostNativeMessage(type, payload)));
     /// <summary>Stage Program out as NDI / OMT / SRT (frames arrive from the page through a shared buffer).</summary>
     private ProgramOutputHub? _programOutHub;
     private ProgramOutputHub ProgramOut => _programOutHub ??= new ProgramOutputHub(() => _studioBridge.NdiDllPath);
@@ -146,6 +149,8 @@ public sealed partial class MainWindow : Window
     {
         if (System.Threading.Interlocked.Exchange(ref _shuttingDown, 1) == 1) return;
         App.IsShuttingDown = true;
+        // Machines first: stop any running G-code job and release the ports before the process goes.
+        try { _fabBridge?.CloseAll(); } catch { }
 
         var watchdog = new System.Threading.Thread(() =>
         {
@@ -855,6 +860,7 @@ public sealed partial class MainWindow : Window
             if (type == "PROGRAM_OUT_FRAME") { _programOutHub?.OnFrame(root); return; }
             if (type == "PROGRAM_OUT_AUDIO") { _programOutHub?.OnAudio(root); return; }
             if (type == "LD_UDP_SEND") { LightingUdpSender.Send(root); return; }
+            if (type is not null && type.StartsWith("FAB_MACHINE_", StringComparison.Ordinal)) { await Fab.HandleAsync(type, root); return; }
 
             if (type == "NATIVE_AUDIO_OPEN")
             {
