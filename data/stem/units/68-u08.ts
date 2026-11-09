@@ -1,0 +1,241 @@
+// 6–8 · Unit 8 · Soft Circuits: Engineering a Light-Up Plush (engineering). Original Plajah Academia writing.
+import type { StemUnit } from '../types';
+import { M, num, say } from '../kit';
+
+const INTL = { uk: 'KS3 Design and technology: textiles and electronics', cambridge: 'Lower Secondary Stage 8 Science: materials and their properties', ib: 'MYP Design year 2: product design', singapore: 'Lower Secondary Design & Technology' };
+const SOFT = 'Use a 3 V CR2032 coin cell in a holder with an on/off switch, sewn inside a pocket that closes with a screw cover or a sewn flap: coin cells cause severe internal burns if swallowed, so they are never loose, never in toys for young children, and an adult keeps spares. Keep conductive-thread traces apart so + and − never touch. Needles with an adult in the room; an adult does machine sewing.';
+const CELL = 'A 3 volt coin cell in a switched holder, conductive thread traces with about 15 ohms of resistance, a 47 ohm resistor and a red LED, sewn on fabric.';
+
+export const G68_U08: StemUnit = {
+  id: 'stem-68-u08',
+  band: '6-8',
+  n: 8,
+  title: 'Soft Circuits: Engineering a Light-Up Plush',
+  kind: 'engineering',
+  strands: ['engineering', 'science', 'technology', 'math'],
+  status: 'complete',
+  weeks: 3,
+  bigIdea: 'Materials have properties we can design with: conductive thread carries current, fabric bends and stretches, and stuffing insulates. A wearable or plush circuit has to be safe, soft and still work after a hug.',
+  essentialQuestion: 'How do engineers choose materials when a circuit has to bend, wash and be cuddled?',
+  standards: { ngss: ['MS-ETS1-1', 'MS-ETS1-2', 'MS-PS1-3'], ccss: [M('7.G.B.4'), M('7.RP.A.2'), M('6.EE.B.7')], intl: INTL },
+  projectIds: [],
+  museion: 'engineering',
+  lessons: [
+    {
+      id: 'stem-68-u08-l1',
+      title: 'Materials Matter: Fibres, Fabrics and Conductive Thread',
+      minutes: 50,
+      strands: ['science', 'engineering', 'math'],
+      objectives: [
+        'I can compare natural, synthetic and conductive fibres by their properties.',
+        'I can measure the resistance of conductive thread and find ohms per metre.',
+        'I can predict the resistance of a trace from its length.',
+      ],
+      vocab: [
+        ['fibre', 'A thin strand that is spun into yarn and woven or knitted into fabric.'],
+        ['synthetic', 'Made by people from chemicals (polyester, nylon), not grown.'],
+        ['conductive thread', 'Thread with metal (often silver or stainless steel) that carries current.'],
+        ['resistance per metre', 'How many ohms each metre of a wire or thread adds.'],
+      ],
+      hook: 'Copper wire has almost no resistance, but it snaps when bent again and again. Conductive thread bends forever, but it has real resistance. In a plush, which matters more, and how much thread can we afford?',
+      build: {
+        title: 'Measure thread resistance and model it in the Electronics Lab',
+        steps: [
+          'Compare cotton, polyester and conductive thread: stretch, strength, and whether a meter shows continuity.',
+          'Measure the resistance of 10 cm, 20 cm, 30 cm and 50 cm of conductive thread with a multimeter.',
+          'Graph resistance against length and find ohms per metre from the slope.',
+          'In the Electronics Lab, model thread traces as resistors in the LED circuit.',
+          'Predict the total thread resistance for a 40 cm trace and check.',
+        ],
+        launch: { room: 'elec', prompt: CELL, lesson: 'stem-68-u08-l1' },
+        materials: ['Cotton, polyester and stainless-steel conductive thread', 'Digital multimeter', 'Ruler'],
+      },
+      worked: [
+        {
+          prompt: '20 cm of thread measures 6 Ω and 50 cm measures 15 Ω. What is the resistance per metre, and what will 40 cm be?',
+          steps: ['Slope: (15 − 6) ÷ (0.5 − 0.2) = 9 ÷ 0.3 = 30 Ω per metre.', '40 cm = 0.4 m: 0.4 × 30 = 12 Ω.'],
+          answer: '30 Ω/m; a 40 cm trace is about 12 Ω.',
+        },
+      ],
+      practice: [
+        num('(0.2 m, 6 Ω) and (0.5 m, 15 Ω). Slope in Ω/m?', '30 Ω/m.', 30, 'slope', [0.2, 6, 0.5, 15], 2, 'Ω/m'),
+        num('Thread is 30 Ω/m. Resistance of 0.25 m?', '7.5 Ω.', 7.5, 'product', [30, 0.25], 1, 'Ω'),
+        num('Two traces of 7.5 Ω and 4.5 Ω in series. Total?', '12 Ω.', 12, 'series', [7.5, 4.5], 1, 'Ω'),
+        say('Why is copper wire a poor choice inside a plush that will be hugged?', 'It fatigues and snaps when bent repeatedly, and it is stiff and can poke through.', 2),
+        say('Is resistance proportional to thread length? Use your graph.', 'Yes: the graph is a straight line through the origin, so doubling length doubles resistance.', 3),
+      ],
+      exitTicket: { q: 'Your thread is 40 Ω/m. What is the resistance of a 35 cm trace?', answer: '0.35 × 40 = 14 Ω.' },
+      differentiation: {
+        support: ['Data table with length already in metres.', 'Slope triangle drawn on the grid.'],
+        extension: ['Compare silver and stainless-steel thread: which gives longer traces for the same resistance?', 'Measure resistance after 20 bends and 1 wash test.'],
+        ell: 'Frames: "___ cm of thread is ___ Ω." "The resistance is proportional because ___."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'low', note: 'Multimeters on resistance mode only; no batteries connected to thread today. Needles stay in the pin cushion.' },
+      standards: { ngss: ['MS-PS1-3', 'MS-ETS1-2'], ccss: [M('7.RP.A.2'), M('8.F.B.4')], intl: INTL },
+      mathFocus: 'proportional relationships; unit rate as slope',
+      museion: 'chemistry',
+    },
+    {
+      id: 'stem-68-u08-l2',
+      title: 'A Circuit You Can Sew: Coin Cell, LED and Thread Resistance',
+      minutes: 55,
+      strands: ['engineering', 'science', 'math'],
+      objectives: [
+        'I can design a sewn LED circuit with the battery, switch, LED and resistor in one loop.',
+        'I can include thread resistance in a series calculation.',
+        'I can use Ohm\'s law to predict the LED current.',
+      ],
+      vocab: [
+        ['trace', 'A path of conductive thread that acts as a wire.'],
+        ['forward voltage', 'The voltage an LED uses up when it lights (about 2 V for red).'],
+        ['series circuit', 'One loop where the same current passes through every part.'],
+      ],
+      hook: 'A red LED on a 3 V coin cell sometimes glows bright and sometimes barely glows, with the same parts. The difference is hiding in the thread. Let\'s find it with Ohm\'s law.',
+      build: {
+        title: 'Simulate the sewn circuit, then plan the traces',
+        steps: [
+          'Open the Electronics Lab soft-circuit starter: coin cell, switch, 47 Ω resistor, red LED and thread traces.',
+          'Set the thread traces to 15 Ω total and read the LED current.',
+          'Predict the current if the traces were 40 Ω (a longer route) and check.',
+          'On paper, draw the plush\'s back panel and route + and − traces at least 5 mm apart.',
+          'Mark where the switch and battery pocket go so the cell is sealed away.',
+        ],
+        launch: { room: 'elec', prompt: CELL, lesson: 'stem-68-u08-l2' },
+        materials: ['Pattern printout', 'Coloured pencils for + and − traces'],
+      },
+      worked: [
+        {
+          prompt: 'A 3 V cell, red LED (2.0 V), 47 Ω resistor and 15 Ω of thread in series. What current flows?',
+          steps: ['Voltage left for resistance: 3 − 2.0 = 1.0 V.', 'Total resistance: 47 + 15 = 62 Ω.', 'I = 1.0 ÷ 62 ≈ 0.016 A = 16 mA.'],
+          answer: 'About 16 mA: a comfortable brightness.',
+        },
+      ],
+      practice: [
+        num('47 Ω resistor plus 15 Ω thread in series. Total?', '62 Ω.', 62, 'series', [47, 15], 1, 'Ω'),
+        num('1.0 V across 62 Ω. Current in A?', '≈ 0.0161 A.', 0.0161, 'ohmI', [1.0, 62], 2, 'A', 0.0003),
+        num('Longer traces make 87 Ω total. Current with 1.0 V across it?', '≈ 0.0115 A.', 0.0115, 'ohmI', [1.0, 87], 2, 'A', 0.0003),
+        num('What series resistance gives 20 mA for a red LED (2.0 V) on 3 V?', '(3 − 2) ÷ 0.02 = 50 Ω.', 50, 'ledR', [3, 2.0, 0.02], 3, 'Ω'),
+        say('Why must + and − traces never cross or touch?', 'They would make a short circuit: current bypasses the LED and the cell drains and warms up.', 2),
+      ],
+      exitTicket: { q: 'If the thread resistance goes up, what happens to the LED brightness? Explain with Ohm\'s law.', answer: 'It dims: more total resistance with the same voltage means less current (I = V ÷ R).' },
+      differentiation: {
+        support: ['Circuit diagram with values to fill in.', 'Ohm\'s law triangle and a calculator.'],
+        extension: ['Add a second LED in parallel with its own resistor and find the total current.', 'Estimate battery life with a 225 mAh coin cell.'],
+        ell: 'Frames: "Total resistance is ___ + ___ = ___ Ω." "The current is ___ mA."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'sim-only', note: 'Simulation and paper planning only today.' },
+      standards: { ngss: ['MS-ETS1-2'], ccss: [M('7.RP.A.2'), M('6.EE.B.7'), M('7.EE.B.4')], intl: INTL },
+      mathFocus: 'solving V = IR in series',
+      museion: 'physics',
+    },
+    {
+      id: 'stem-68-u08-l3',
+      title: 'Pattern Geometry: The Plush Pattern and Seam Allowance',
+      minutes: 50,
+      strands: ['math', 'engineering', 'technology'],
+      objectives: [
+        'I can use circle formulas to size a round pattern piece.',
+        'I can add seam allowance and find the cut size of a piece.',
+        'I can place the circuit on the pattern so it survives stuffing.',
+      ],
+      vocab: [
+        ['circumference', 'The distance around a circle: π × diameter.'],
+        ['seam allowance', 'Extra fabric outside the stitching line.'],
+        ['grainline', 'The arrow on a pattern piece showing how to line it up with the fabric weave.'],
+      ],
+      hook: 'The plush body is round. Its side band has to be exactly as long as the circle\'s edge, or the seams pucker. How long is the edge of a 12 cm circle? There is a formula for that.',
+      build: {
+        title: 'Size the plush pattern in Sewing & Plush',
+        steps: [
+          'Open Sewing & Plush with the plush critter and set a body diameter of 12 cm.',
+          'Calculate the circumference with C = π × d and compare with the pattern\'s side length.',
+          'Add the seam allowance to find the cut diameter.',
+          'Calculate the area of the front circle to estimate felt needed.',
+          'Mark the LED position, the trace routes and the sealed battery pocket on the pattern.',
+        ],
+        launch: { room: 'sew', template: 'plush-pal', prompt: 'A round light-up plush: mark an LED on the face, conductive-thread traces on the inside of the front panel, and a sealed battery pocket on the base.', lesson: 'stem-68-u08-l3' },
+      },
+      worked: [
+        {
+          prompt: 'A round face piece has a finished diameter of 12 cm and a 1 cm seam allowance. What is the cut diameter and the stitching-line circumference?',
+          steps: ['Cut diameter: 12 + 2 × 1 = 14 cm.', 'Circumference on the stitching line: π × 12 ≈ 3.1416 × 12 ≈ 37.7 cm.'],
+          answer: 'Cut a 14 cm circle; the seam is about 37.7 cm long.',
+        },
+      ],
+      practice: [
+        num('Circumference of a 10 cm circle (π ≈ 3.1416)?', '≈ 31.4 cm.', 31.416, 'product', [3.1416, 10], 1, 'cm'),
+        num('Area of a circle with radius 6 cm (π × 6 × 6)?', '≈ 113.1 cm².', 113.1, 'product', [3.1416, 6, 6], 2, 'cm²'),
+        num('Finished diameter 9 cm, 0.75 cm allowance on each side. Cut diameter?', '10.5 cm.', 10.5, 'sum', [9, 0.75, 0.75], 1, 'cm'),
+        num('A side band must match a 37.7 cm circumference plus 2 cm of overlap. Band length?', '39.7 cm.', 39.7, 'sum', [37.7, 2], 2, 'cm'),
+        say('Why put the traces on the inside of the front panel instead of the outside?', 'Protected from wear and touch, and stuffing cannot snag them; nothing conductive shows.', 3),
+      ],
+      exitTicket: { q: 'Diameter 8 cm: what is the circumference?', answer: 'π × 8 ≈ 25.1 cm.' },
+      differentiation: {
+        support: ['Circle formula card with a labelled diagram.', 'Calculator with a π key.'],
+        extension: ['Design a gored plush ball and find the width of each of 8 gores at the equator.', 'Find how much felt is wasted cutting circles from a 30 × 20 cm sheet.'],
+        ell: 'Frames: "C = π × ___ = ___ cm." "The cut size is ___."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'low', note: 'Pattern and screen work; no cutting today.' },
+      standards: { ngss: ['MS-ETS1-2'], ccss: [M('7.G.B.4'), M('7.EE.B.3')], intl: INTL },
+      mathFocus: 'circumference and area of circles',
+      museion: 'mathematics',
+    },
+    {
+      id: 'stem-68-u08-l4',
+      title: 'Sew, Test, Troubleshoot and Label',
+      minutes: 60,
+      strands: ['engineering', 'technology', 'science'],
+      objectives: [
+        'I can sew a working soft circuit with an adult nearby.',
+        'I can troubleshoot a circuit with a multimeter, one segment at a time.',
+        'I can write a safety label and design notes for my plush.',
+      ],
+      vocab: [
+        ['continuity', 'An unbroken path for current, tested with a meter\'s beep mode.'],
+        ['troubleshoot', 'Find the cause of a problem by testing one part at a time.'],
+        ['safety label', 'A tag that tells the user how to use and care for the product safely.'],
+      ],
+      hook: 'Half the class\'s plushes light up first time. The other half do not. Engineers do not guess: they test from the battery outward until they find the break. Today you become the circuit doctor.',
+      build: {
+        title: 'Sew the circuit, test it, label it',
+        steps: [
+          'With an adult in the room, sew the traces with small, tight stitches, wrapping each component leg three times.',
+          'Before adding the coin cell, check continuity along each trace and that + and − do not connect.',
+          'An adult fits the coin cell into the sealed holder; switch on and test.',
+          'If it fails, test each segment with the meter and log what you find and fix.',
+          'Stuff the plush, hug-test it ten times, re-check the LED, and sew on a safety label.',
+        ],
+        launch: { room: 'sew', template: 'plush-pal', prompt: 'A light-up plush with an LED on the face, conductive-thread traces inside and a sealed, switched coin-cell pocket in the base.', lesson: 'stem-68-u08-l4' },
+        materials: ['Felt', 'Conductive thread and needle', 'Sewable LED and resistor', 'Coin-cell holder with switch', 'Multimeter', 'Stuffing'],
+      },
+      worked: [
+        {
+          prompt: 'The LED does not light. The cell reads 3.1 V. Across the switch (on) the meter reads 0 Ω; from the switch to the LED, no continuity. Where is the fault?',
+          steps: ['The cell is fine (3.1 V).', 'The switch conducts (0 Ω).', 'No continuity between switch and LED: the trace there is broken or a stitch is loose.'],
+          answer: 'A broken or loose trace between the switch and the LED: re-stitch that segment.',
+        },
+      ],
+      practice: [
+        num('A trace has 4 stitched segments of 3.5 Ω, 4 Ω, 2.5 Ω and 5 Ω. Total resistance?', '15 Ω.', 15, 'series', [3.5, 4, 2.5, 5], 1, 'Ω'),
+        num('A 225 mAh coin cell powers a 15 mA LED. Hours of light?', '15 hours.', 15, 'batteryHours', [225, 15], 2, 'h'),
+        num('If the plush glows 20 minutes a night, how many nights from 15 hours?', '900 ÷ 20 = 45 nights.', 45, 'quotient', [900, 20], 2, 'nights'),
+        say('The LED flickers when the plush is squeezed. Likely cause?', 'A loose connection: a component leg not wrapped tightly, or a frayed thread end touching another trace.', 2),
+        say('Write two lines for a safety label.', 'e.g. "Contains a coin cell in a sealed pocket: not for children under 3." "Remove the battery before washing."', 3),
+      ],
+      exitTicket: { q: 'Describe your troubleshooting in order: where did you test first, and why?', answer: 'Start at the battery voltage, then the switch, then each trace toward the LED: rule out one part at a time.' },
+      differentiation: {
+        support: ['Pre-marked stitching dots on the felt.', 'Troubleshooting flowchart.'],
+        extension: ['Add a sewable pressure switch so a hug lights the LED.', 'Design a washable version with a removable electronics pouch.'],
+        ell: 'Frames: "I tested ___ and the meter read ___." "The fault was ___."',
+        supports: ['readAloud', 'chunk', 'calm'],
+      },
+      safety: { level: 'supervised', note: SOFT },
+      standards: { ngss: ['MS-ETS1-1', 'MS-ETS1-2'], ccss: [M('6.EE.B.7'), M('7.RP.A.2')], intl: INTL },
+      mathFocus: 'series sums and battery-life division',
+      museion: 'engineering',
+    },
+  ],
+};
