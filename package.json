@@ -107,6 +107,7 @@
     "test:bio": "npx tsx --test tests/bio.test.ts",
     "test:elec": "npx tsx --test tests/elec.test.ts",
     "test:fab": "npx tsx --test tests/fab.test.ts",
+    "test:soft": "npx tsx --test tests/soft.test.ts",
     "typecheck:elec": "tsc -p tsconfig.elec.json",
     "typecheck:bio": "tsc -p tsconfig.bio.json",
     "build:cad-dwg": "dotnet build windows-native/tools/CadDwg -c Release -nologo -v q",

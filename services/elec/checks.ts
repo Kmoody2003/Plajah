@@ -5,10 +5,11 @@
 
 import { compByKind, parseSi } from './components';
 import { type Circuit, netlist } from './circuit';
-import type { SimResult } from './sim';
+import { type SimResult, boardDraw } from './sim';
+import { BOARD_INFO, PI_MODELS } from './boards';
 
 export type Level = 'error' | 'warn' | 'info' | 'pass';
-export interface Finding { id: string; level: Level; area: 'Wiring' | 'Stress' | 'Thermal' | 'Battery' | 'Regulatory'; title: string; detail: string; refs?: string[]; cite?: string; market?: 'US' | 'EU' }
+export interface Finding { id: string; level: Level; area: 'Wiring' | 'Stress' | 'Thermal' | 'Battery' | 'Regulatory' | 'Security'; title: string; detail: string; refs?: string[]; cite?: string; market?: 'US' | 'EU' | 'UK' }
 export interface CheckOptions { market?: 'US' | 'EU' | 'both'; ambient?: number; toy?: boolean }
 
 const mean = (a: number[]) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);
@@ -32,7 +33,7 @@ export function checkCircuit(c: Circuit, sim?: SimResult | null, o: CheckOptions
     const def = compByKind(p.kind)!;
     for (const pin of def.pins) {
       const n = nl.pinNet[p.id]?.[pin.name]; if (n === undefined) continue;
-      if (n !== 0 && nl.members[n].length === 1) {
+      if (n !== 0 && nl.members[n].length === 1 && !BOARD_INFO[p.kind]) { // unused board pins are normal
         const optional = p.kind === 'ne555' && pin.name === 'CTRL';
         add({ id: `open-${p.ref}-${pin.name}`, level: optional ? 'info' : p.kind === 'ne555' && pin.name === 'RESET' ? 'warn' : 'error', area: 'Wiring', refs: [p.ref],
           title: `${p.ref} pin ${pin.name} is not connected`, detail: optional ? 'The 555 control pin can float, but a 10 nF capacitor to ground makes the timing steadier.' : p.kind === 'ne555' && pin.name === 'RESET' ? 'Tie RESET to the supply, or the 555 may reset at random.' : 'An unconnected pin usually means a missing wire.' });
@@ -131,6 +132,42 @@ export function checkCircuit(c: Circuit, sim?: SimResult | null, o: CheckOptions
           else if (Iavg > lim * 0.8) add({ id: `usb-${p.ref}`, level: 'warn', area: 'Stress', refs: [p.ref], title: `${p.ref} uses ${Math.round(Iavg / lim * 100)}% of the port`, detail: 'Little headroom for inrush or a weak port.' });
           else pass(p.ref, `Draws ${fmt(Iavg, 'A')} of ${fmt(lim, 'A')}.`);
           break; }
+        case 'pico': case 'esp32': case 'nano': case 'rpi': {
+          const info = BOARD_INFO[p.kind]; const name = p.kind === 'rpi' ? String(p.params.model ?? 'Raspberry Pi') : compByKind(p.kind)!.name;
+          const vsup = mean(tr.extra.vsup ?? [0]);
+          const minV = p.kind === 'pico' ? 1.8 : p.kind === 'nano' ? 4.5 : 4.75;
+          if (vsup < minV) add({ id: `bpwr-${p.ref}`, level: 'error', area: 'Stress', refs: [p.ref], title: `${p.ref} under-powered: ${fmt(vsup, 'V')} on ${info.power}`, detail: `${name} needs at least ${minV} V on ${info.power}${p.kind === 'rpi' ? ' (below about 4.63 V it flags under-voltage and throttles)' : ''}.` });
+          else if (p.kind !== 'pico' && vsup > 5.5) add({ id: `bpwr-${p.ref}`, level: 'error', area: 'Stress', refs: [p.ref], title: `${p.ref} over-voltage: ${fmt(vsup, 'V')} on ${info.power}`, detail: `${info.power} expects a regulated 5 V.` });
+          let worst = 0, worstPin = '', total = 0;
+          for (const g of info.gpio) { const a = peak(tr.extra[`gpio:${g}`] ?? []); total += a; if (a > worst) { worst = a; worstPin = g; } }
+          if (worst > info.pinMax * 1.05) add({ id: `gpio-${p.ref}`, level: worst > info.pinMax * 2 ? 'error' : 'warn', area: 'Stress', refs: [p.ref], title: `${p.ref} ${worstPin} sources ${fmt(worst, 'A')}`, detail: `${name} pins are good for about ${fmt(info.pinMax, 'A')}. Use a larger series resistor, or switch the load with a transistor or MOSFET.` });
+          else if (total > 0) pass(p.ref, `GPIO loads within limits (worst ${worstPin} ${fmt(worst, 'A')}).`);
+          const i33 = peak(tr.extra.i3v3 ?? []);
+          if (i33 > info.rail3v3Max) add({ id: `r33-${p.ref}`, level: 'error', area: 'Stress', refs: [p.ref], title: `${p.ref} 3V3 pin overloaded (${fmt(i33, 'A')})`, detail: `The board's 3.3 V output is good for about ${fmt(info.rail3v3Max, 'A')}; power big loads from the 5 V supply directly.` });
+          if (p.kind === 'esp32') add({ id: `burst-${p.ref}`, level: 'info', area: 'Stress', refs: [p.ref], title: 'Wi-Fi bursts', detail: 'ESP32 radio transmit pulls about 250 mA peaks. Keep the supply able to deliver 500 mA and put 10-100 µF near the module.' });
+          if (p.kind === 'rpi') {
+            const m = PI_MODELS[String(p.params.model ?? 'Pi 5')]; const supply = c.parts.find(s => (s.kind === 'usb5v' || s.kind === 'dcsupply' || s.kind === 'acdc') && Object.values(nl.pinNet[s.id] ?? {}).includes(nl.pinNet[p.id]?.['5V'] ?? -1));
+            const lim = supply ? P(supply, supply.kind === 'acdc' ? 'I' : 'Imax') : NaN;
+            if (m && Number.isFinite(lim) && lim < m.recommend) add({ id: `pisup-${p.ref}`, level: lim < m.draw * 2 ? 'error' : 'warn', area: 'Stress', refs: [p.ref], title: `${p.ref} supply ${fmt(lim, 'A')} is under the recommended ${m.recommend} A`, detail: m.note });
+            else if (m) pass(p.ref, `Supply meets the recommended ${m.recommend} A. ${m.note}`);
+          }
+          void boardDraw;
+          break;
+        }
+        case 'amp': {
+          const vo = tr.extra.vout ?? []; const rms = Math.sqrt(mean(vo.map(x => x * x))); const vcc = mean(tr.extra.vcc ?? [0]);
+          const spk = c.parts.find(s => s.kind === 'speaker'); const R = spk ? P(spk, 'R') : 8; const Pout = rms * rms / R;
+          if (vcc > 5.5) add({ id: `amp-${p.ref}`, level: 'error', area: 'Stress', refs: [p.ref], title: `${p.ref} supply ${fmt(vcc, 'V')} is above 5.5 V`, detail: 'PAM8302-class amplifiers run from 2.5 to 5.5 V.' });
+          else if (tran) pass(p.ref, `About ${fmt(Pout, 'W')} into ${R} Ω at this input level (rated ${fmt(P(p, 'P'), 'W')}).`);
+          break;
+        }
+        case 'acdc': {
+          const rated = P(p, 'I');
+          if (Iavg > rated) add({ id: `psu-${p.ref}`, level: 'error', area: 'Stress', refs: [p.ref], title: `${p.ref} overloaded: ${fmt(Iavg, 'A')} from a ${fmt(rated, 'A')} module`, detail: 'Pick a larger module or reduce the load.' });
+          else if (Iavg > rated * 0.8) add({ id: `psu-${p.ref}`, level: 'warn', area: 'Stress', refs: [p.ref], title: `${p.ref} at ${Math.round(Iavg / rated * 100)}% of rating`, detail: 'Sealed modules run hot near full load; 80% is a comfortable ceiling.' });
+          else pass(p.ref, `${fmt(Iavg, 'A')} of ${fmt(rated, 'A')}.`);
+          break;
+        }
         case 'dcsupply': { const lim = P(p, 'Imax'); if (Iavg > lim) add({ id: `dc-${p.ref}`, level: 'error', area: 'Stress', refs: [p.ref], title: `${p.ref} overloaded`, detail: `Draws ${fmt(Iavg, 'A')}, supply limit ${fmt(lim, 'A')}.` }); break; }
         case 'battery': case 'coincell': {
           const mAh = P(p, 'mAh'); const mA = Iavg * 1000;
@@ -173,6 +210,24 @@ export function checkCircuit(c: Circuit, sim?: SimResult | null, o: CheckOptions
     reg({ id: 'weee', level: 'info', market: 'EU', cite: 'Directive 2012/19/EU, Art. 14 and Annex IX', title: 'WEEE: crossed-out bin marking', detail: 'Electrical products sold in the EU carry the crossed-out wheelie-bin symbol and the producer joins a take-back scheme.' });
     if (batteries.length) reg({ id: 'eu-battery', level: 'info', market: 'EU', refs: batteries.map(p => p.ref), cite: 'Regulation (EU) 2023/1542, Art. 11', title: 'EU Battery Regulation: user-replaceable batteries', detail: 'Portable batteries built into appliances must be removable and replaceable by the end user with commonly available tools (applies from 18 February 2027). A battery holder or clip already meets this.' });
   }
+  // ---- Radios and connected devices ----
+  const radios = parts.filter(p => (p.kind === 'esp32' || p.kind === 'rpi') || (p.kind === 'pico' && /W$/.test(String(p.params.variant ?? ''))));
+  if (radios.length) {
+    const refs = radios.map(p => p.ref);
+    if (us) {
+      reg({ id: 'fcc-radio', level: 'warn', market: 'US', refs, cite: '47 CFR 15.212, 15.247, 2.925', title: 'FCC: intentional radiator (Wi-Fi / Bluetooth)', detail: 'Keep the radio as the certified module it ships as, with its antenna unchanged, and follow the module maker\'s integration guide so its modular grant carries over. Label the outside of your product "Contains FCC ID: ..." with the module\'s ID. Your finished product is still a digital device under Part 15 Subpart B and needs its own emissions check (Supplier\'s Declaration of Conformity).' });
+      reg({ id: 'ca-iot', level: 'warn', market: 'US', refs, cite: 'Cal. Civ. Code §1798.91.04 (SB-327)', title: 'California connected-device security', detail: 'A connected device needs reasonable security: either a password unique to each unit, or one the user must set before first use. Never ship a shared default password.' });
+      reg({ id: 'cyber-mark', level: 'info', market: 'US', refs, cite: 'FCC IoT labeling program (U.S. Cyber Trust Mark, 2024)', title: 'Optional: U.S. Cyber Trust Mark', detail: 'A voluntary label for consumer smart devices that meet baseline security criteria (unique credentials, updates, data protection).' });
+    }
+    if (eu) {
+      reg({ id: 'red', level: 'warn', market: 'EU', refs, cite: 'Directive 2014/53/EU, Art. 3(1)(a), 3(1)(b), 3(2)', title: 'EU Radio Equipment Directive replaces LVD/EMC', detail: 'With a radio inside, the whole product is radio equipment: safety, EMC and efficient use of spectrum are assessed under RED, with a Declaration of Conformity and CE marking. A pre-certified module\'s test reports cover much of the radio part.' });
+      reg({ id: 'red-cyber', level: 'warn', market: 'EU', refs, cite: 'Delegated Regulation (EU) 2022/30, Art. 3(3)(d), (e), (f); EN 18031-1/-2/-3', title: 'RED cybersecurity (since 1 Aug 2025)', detail: 'Internet-connected radio products must protect the network, personal data and against fraud: no universal default passwords, secure updates, protected stored credentials.' });
+      reg({ id: 'cra', level: 'info', market: 'EU', refs, cite: 'Regulation (EU) 2024/2847 (Cyber Resilience Act), Art. 14; Annex I', title: 'Cyber Resilience Act timeline', detail: 'Manufacturers of products with digital elements must report actively exploited vulnerabilities from 11 Sep 2026; the full security requirements and CE marking under the CRA apply from 11 Dec 2027. Plan a vulnerability contact and a support period now.' });
+      reg({ id: 'psti', level: 'info', market: 'UK', refs, cite: 'Product Security and Telecommunications Infrastructure Act 2022; SI 2023/1007, Sch. 1', title: 'UK: connectable product security', detail: 'Selling in the UK: no universal default passwords, a published way to report vulnerabilities, and a stated minimum period of security updates.' });
+    }
+  }
+  if (parts.some(p => p.kind === 'acdc')) reg({ id: 'acdc-module', level: 'info', refs: parts.filter(p => p.kind === 'acdc').map(p => p.ref), cite: 'UL/IEC 62368-1', title: 'Certified AC-DC module', detail: 'Choose a module certified to IEC/UL 62368-1 and follow its datasheet: input fuse, creepage and clearance on your board (keep at least 6 mm between mains and low-voltage copper as a starting point) and an enclosure that keeps fingers off mains. The finished product still needs its own approval.' });
+
   const order: Level[] = ['error', 'warn', 'info', 'pass'];
   return out.sort((a, b) => order.indexOf(a.level) - order.indexOf(b.level));
 }

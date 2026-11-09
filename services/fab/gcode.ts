@@ -38,6 +38,7 @@ export function post(job: Job, o: PostOptions): string {
         else L.push(`${lathe ? 'G97 ' : ''}S${Math.round(m.s)} M3`, ...(o.coolant && iso ? ['M8'] : []));
         break;
       case 'off': L.push(laser ? 'M5' : d === 'plasma' ? 'M5 $0' : 'M5', ...(o.coolant && iso && !laser && d !== 'plasma' ? ['M9'] : [])); break;
+      case 'fan': L.push(m.s > 0 ? (d === 'reprap' ? `M106 S${num(m.s, 2)}` : `M106 S${Math.round(m.s * 255)}`) : 'M107'); break;
       case 'dwell': L.push(`G4 P${num(m.s, 2)}`); break; // seconds in GRBL, Marlin and LinuxCNC
       case 'rapid': case 'feed': {
         const parts = [m.t === 'rapid' ? 'G0' : 'G1'];
@@ -52,6 +53,7 @@ export function post(job: Job, o: PostOptions): string {
     }
   }
   // Footer.
+  if (fdm) L.push('M107');
   if (fdm) { if (d === 'klipper') L.push('PRINT_END'); else L.push('M104 S0', 'M140 S0', 'G91', 'G1 Z5 F600', 'G90', 'G28 X', 'M84'); }
   else L.push(lathe ? 'G0 X100 Z50' : iso ? 'G0 Z25' : 'G0 X0 Y0', iso ? 'M30' : 'M2');
   if (d === 'iso' || d === 'lathe-iso') L.push('%');

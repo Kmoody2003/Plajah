@@ -112,6 +112,7 @@ import { createSponsorCopiesRouter, activateCopyPool } from './routes/sponsorCop
 import { activeRecipients, allocateSplits, checkSplitConfig, createCreatorPayouts, splitsOwedByEarning } from './services/splitPayouts';
 import { createCreativeStorageRouter } from './routes/creativeStorage';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
+import { makerBuildRouter } from './routes/makerBuild';
 import { kithSightingsRouter } from './routes/kithSightings';
 import { createAriaSpeakRouter, decideAriaVoiceAccess } from './routes/ariaSpeak';
 import { createRtcIceRouter } from './routes/rtcIce';
@@ -15352,6 +15353,9 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use('/api/academia/conflict-check', authLimiter);
   app.use('/api/academia/district-salt', authLimiter);
   app.use('/api/academia', express.json({ limit: '64kb' }), academiaIntegrityRouter);
+
+  // Plajah Build: recalls, maker terms, part prices, maker exchange (routes/makerBuild.ts).
+  app.use('/api/build', express.json({ limit: '64kb' }), makerBuildRouter);
 
   // Kith Sightings — the mascots turn up rarely; the user logs it for points.
   // Rate-limited because spawn-check is the farm surface: the deterministic

@@ -4,7 +4,14 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, MousePointer2, Spline, RotateCw, Trash2, Play, Undo2, FilePlus, Download, ShieldCheck, ListChecks, SlidersHorizontal, Activity, Sparkles, Search, Pause } from 'lucide-react';
+import { X, MousePointer2, Spline, RotateCw, Trash2, Play, Undo2, FilePlus, Download, ShieldCheck, ListChecks, SlidersHorizontal, Activity, Sparkles, Search, Pause, ShieldAlert, Package, Store } from 'lucide-react';
+import type { Build } from '../../services/elec/recipes';
+import { designHazards, advisoriesFor, recallQueries, needsAck } from '../../services/safety/hazards';
+import SafetyPanel, { BuildTermsGate, termsAccepted } from '../safety/SafetyPanel';
+import DescribePanel from './DescribePanel';
+import BuildPanel from './BuildPanel';
+import SourcingPanel from '../supply/SourcingPanel';
+import ExchangeRoom from '../supply/ExchangeRoom';
 import { COMPONENTS, type CompDef, type Pt, compByKind, compDefaults, parseSi } from '../../services/elec/components';
 import { type Circuit, type CPart, bom, netlist, nextRef, pinPos } from '../../services/elec/circuit';
 import { simulate, type SimResult, type SimOptions } from '../../services/elec/sim';
@@ -20,6 +27,10 @@ export interface ElecRoomProps {
   onClose?: () => void;
   onAddToTela?: (args: ElecAddArgs) => Promise<void>;
   onSendTable?: (title: string, rows: string[][]) => Promise<void>;
+  /** Signed-in user's Firebase ID token (records terms acceptance, posts to the exchange). */
+  getToken?: () => Promise<string | null>;
+  /** Where /api lives ('' = same origin). */
+  apiBase?: string;
 }
 
 const C = { bg: '#0c0d12', panel: '#12141b', line: 'rgba(255,255,255,.08)', text: '#e8eaf0', dim: 'rgba(255,255,255,.5)', wire: '#7dd3fc', accent: '#fbbf24' };
@@ -32,7 +43,7 @@ const download = (name: string, data: BlobPart, type: string) => { const u = URL
 const fmtV = (v: number) => `${Math.abs(v) < 0.01 ? '0' : v.toFixed(Math.abs(v) >= 10 ? 1 : 2)} V`;
 const fmtT = (t: number) => t >= 1 ? `${t.toFixed(2)} s` : t >= 1e-3 ? `${(t * 1e3).toFixed(2)} ms` : `${(t * 1e6).toFixed(0)} µs`;
 
-export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, onSendTable }: ElecRoomProps) {
+export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, onSendTable, getToken, apiBase = '' }: ElecRoomProps) {
   const start = DESIGNS.find(d => d.id === '555-led-blinker')!;
   const [circuit, setCircuit] = useState<Circuit>(() => initial ? clone(initial) : clone(start.circuit));
   const [simOpts, setSimOpts] = useState<SimOptions>(initial ? { mode: 'dc' } : start.sim);
@@ -45,8 +56,12 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
   const [sim, setSim] = useState<SimResult | null>(null);
   const [tIdx, setTIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [left, setLeft] = useState<'parts' | 'starters'>(initial ? 'parts' : 'starters');
-  const [right, setRight] = useState<'props' | 'checks' | 'bom' | 'scope'>('checks');
+  const [left, setLeft] = useState<'describe' | 'parts' | 'starters'>(initial || loadInitial ? 'parts' : 'describe');
+  const [right, setRight] = useState<'props' | 'checks' | 'safety' | 'build' | 'bom' | 'scope'>('checks');
+  const [build, setBuild] = useState<Build | null>(null);
+  const [acks, setAcks] = useState<string[]>([]);
+  const [terms, setTerms] = useState(termsAccepted);
+  const [exchange, setExchange] = useState(false);
   const [market, setMarket] = useState<'both' | 'US' | 'EU'>('both');
   const [toy, setToy] = useState(false);
   const [probes, setProbes] = useState<number[]>([]);
@@ -62,6 +77,13 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
   const findings = useMemo<Finding[]>(() => checkCircuit(circuit, sim, { market, toy }), [circuit, sim, market, toy]);
   const counts = summarize(findings);
   const bomRows = useMemo(() => bom(circuit), [circuit]);
+  // Safety at every stage: hazards follow the parts on the sheet and the product being built.
+  const hazards = useMemo(() => designHazards({ circuit, recipe: build?.recipe, toy }), [circuit, build?.recipe, toy]);
+  const advisories = useMemo(() => advisoriesFor(circuit), [circuit]);
+  const queries = useMemo(() => recallQueries(circuit, build?.recipe), [circuit, build?.recipe]);
+  const openCritical = needsAck(hazards).filter(h => !acks.includes(h.id));
+  /** Exports and making wait until every critical hazard is acknowledged. */
+  const guard = (fn: () => void) => { if (openCritical.length) { setRight('safety'); setError(`Acknowledge ${openCritical.length === 1 ? 'the critical hazard' : `${openCritical.length} critical hazards`} in Safety first: ${openCritical.map(h => h.title).join('; ')}.`); return; } fn(); };
 
   /** Edits invalidate the simulation; the old one would describe a different circuit. */
   const commit = useCallback((next: Circuit, keepSim = false) => { setHistory(h => [...h.slice(-80), live.current.circuit]); setCircuit(next); if (!keepSim) { setSim(null); setPlaying(false); } }, []);
@@ -74,11 +96,16 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
   }, []);
   useEffect(() => { fitTo(circuit); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const onBuild = (b: Build) => {
+    commit(clone(b.circuit)); setSimOpts(b.sim); setBuild(b); setMarket(b.market); setSel(null); setTool({ kind: 'select' }); setNote(b.summary);
+    run(b.circuit, b.sim); setRight('safety'); setTimeout(() => fitTo(b.circuit), 0);
+  };
   const loadDesign = (d: Design) => { commit(clone(d.circuit)); setSimOpts(d.sim); setSel(null); setTool({ kind: 'select' }); setNote(d.about); setTimeout(() => fitTo(d.circuit), 0); setRight('checks'); };
   const newSheet = () => { commit({ name: 'Untitled circuit', parts: [], wires: [] }); setSimOpts({ mode: 'dc' }); setSel(null); setLeft('parts'); setNote(''); setView({ z: 1.4, x: (svgRef.current?.clientWidth ?? 800) / 2, y: (svgRef.current?.clientHeight ?? 600) / 2 }); };
 
   // ---- Simulation ----
-  const run = () => {
+  const run = (circuit_: Circuit = circuit, simOpts_: SimOptions = simOpts) => {
+    const circuit = circuit_, simOpts = simOpts_;
     setError('');
     try {
       const r = simulate(circuit, simOpts); setSim(r); setTIdx(r.time.length - 1);
@@ -213,12 +240,14 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
           <option value="dc" style={{ background: C.panel }}>Steady state (DC)</option><option value="tran" style={{ background: C.panel }}>Over time</option>
         </select>
         {simOpts.mode === 'tran' && <label className="flex items-center gap-1 text-[11px]" style={{ color: C.dim }}>for<input defaultValue={fmtT(simOpts.tEnd ?? 0.01).replace(' ', '')} key={simOpts.tEnd} onBlur={e => { const v = parseSi(e.target.value.replace(/s$/, '').replace('µ', 'u')); if (v > 0) setSimOpts(o => ({ ...o, tEnd: v })); }} className="w-16 h-7 rounded bg-white/5 border border-white/10 px-1.5 text-[11px] text-white" aria-label="Duration"/></label>}
-        <button className="elec-btn elec-primary" onClick={run} data-testid="elec-run"><Play size={14}/>Simulate</button>
+        <button className="elec-btn elec-primary" onClick={() => run()} data-testid="elec-run"><Play size={14}/>Simulate</button>
         <div className="ml-auto flex items-center gap-2">
-          <button className="elec-btn" onClick={() => download(`${circuit.name}.svg`, circuitSvg(circuit, { title: circuit.name }).svg, 'image/svg+xml')} title="Schematic as SVG"><Download size={14}/><span className="elec-label">SVG</span></button>
-          <button className="elec-btn" onClick={() => download(`${circuit.name}.cir`, spiceNetlist(circuit), 'text/plain')} title="SPICE netlist for ngspice, LTspice, KiCad" data-testid="elec-spice"><Download size={14}/><span className="elec-label">SPICE</span></button>
-          <button className="elec-btn" onClick={() => download(`${circuit.name}.plajah-circuit.json`, JSON.stringify(circuit, null, 1), 'application/json')} title="Circuit file"><Download size={14}/><span className="elec-label">JSON</span></button>
-          {onAddToTela && <button className="elec-btn elec-primary" onClick={() => void addToTela()} disabled={!!busy} data-testid="elec-add"><FilePlus size={14}/>Add to document</button>}
+          <button className="elec-btn" onClick={() => setRight('safety')} title="Safety review" data-testid="elec-safety-chip" style={openCritical.length ? { borderColor: '#f43f5e', color: '#fda4af' } : undefined}><ShieldAlert size={14}/><span className="elec-label">{openCritical.length ? `${openCritical.length} to review` : 'Safety'}</span></button>
+          <button className="elec-btn" onClick={() => setExchange(true)} title="Find suppliers, manufacturers and local makers" data-testid="elec-exchange"><Store size={14}/><span className="elec-label">Exchange</span></button>
+          <button className="elec-btn" onClick={() => guard(() => download(`${circuit.name}.svg`, circuitSvg(circuit, { title: circuit.name }).svg, 'image/svg+xml'))} title="Schematic as SVG"><Download size={14}/><span className="elec-label">SVG</span></button>
+          <button className="elec-btn" onClick={() => guard(() => download(`${circuit.name}.cir`, spiceNetlist(circuit), 'text/plain'))} title="SPICE netlist for ngspice, LTspice, KiCad" data-testid="elec-spice"><Download size={14}/><span className="elec-label">SPICE</span></button>
+          <button className="elec-btn" onClick={() => guard(() => download(`${circuit.name}.plajah-circuit.json`, JSON.stringify(circuit, null, 1), 'application/json'))} title="Circuit file"><Download size={14}/><span className="elec-label">JSON</span></button>
+          {onAddToTela && <button className="elec-btn elec-primary" onClick={() => guard(() => void addToTela())} disabled={!!busy} data-testid="elec-add"><FilePlus size={14}/>Add to document</button>}
           {onClose && <button className="elec-btn" onClick={onClose} aria-label="Close" data-testid="elec-close"><X size={15}/></button>}
         </div>
       </div>
@@ -226,9 +255,9 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
       <div className="flex flex-1 min-h-0">
         {/* Left: parts and starters */}
         <aside className="w-60 shrink-0 border-r flex flex-col min-h-0" style={{ borderColor: C.line, background: C.panel }}>
-          <div className="flex gap-1 p-2">{(['starters', 'parts'] as const).map(t => <button key={t} onClick={() => setLeft(t)} className={`elec-tab${left === t ? ' elec-tab-on' : ''}`} data-testid={`elec-left-${t}`}>{t === 'parts' ? 'Parts' : 'Starter circuits'}</button>)}</div>
+          <div className="flex gap-1 p-2">{(['describe', 'starters', 'parts'] as const).map(t => <button key={t} onClick={() => setLeft(t)} className={`elec-tab${left === t ? ' elec-tab-on' : ''}`} data-testid={`elec-left-${t}`}>{t === 'parts' ? 'Parts' : t === 'describe' ? 'Describe' : 'Starters'}</button>)}</div>
           <div className="flex-1 overflow-y-auto px-2 pb-3 text-[12px]">
-            {left === 'starters' ? <>
+            {left === 'describe' ? <DescribePanel onBuild={onBuild}/> : left === 'starters' ? <>
               {DESIGNS.map(d => <button key={d.id} onClick={() => loadDesign(d)} className="w-full text-left p-2 rounded-lg mb-1.5" style={{ background: 'rgba(255,255,255,.03)', border: `1px solid ${C.line}` }} data-testid={`elec-design-${d.id}`}>
                 <div className="font-bold text-[12px]">{d.title}</div><div className="text-[10.5px] mt-0.5 leading-snug" style={{ color: C.dim }}>{d.about}</div>
                 <div className="flex flex-wrap gap-1 mt-1">{d.tags.map(t => <span key={t} className="text-[9px] px-1.5 rounded-full" style={{ background: 'rgba(251,191,36,.1)', color: C.accent }}>{t}</span>)}</div>
@@ -289,7 +318,7 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
         {/* Right: properties, checks, BOM, scope */}
         <aside className="w-80 shrink-0 border-l flex flex-col min-h-0" style={{ borderColor: C.line, background: C.panel }}>
           <div className="flex gap-1 p-2">
-            {([['props', 'Part', SlidersHorizontal], ['checks', 'Checks', ShieldCheck], ['bom', 'Parts list', ListChecks], ['scope', 'Scope', Activity]] as const).map(([k, label, Icon]) => <button key={k} onClick={() => setRight(k)} className={`elec-tab${right === k ? ' elec-tab-on' : ''}`} data-testid={`elec-tab-${k}`}><Icon size={12}/>{label}{k === 'checks' && (counts.errors || counts.warnings) ? <span className="ml-1 px-1 rounded text-[9px]" style={{ background: counts.errors ? '#7f1d1d' : '#78350f' }}>{counts.errors || counts.warnings}</span> : null}</button>)}
+            {([['props', 'Part', SlidersHorizontal], ['checks', 'Checks', ShieldCheck], ['safety', 'Safety', ShieldAlert], ...(build ? [['build', 'Build', Package] as const] : []), ['bom', 'Parts', ListChecks], ['scope', 'Scope', Activity]] as const).map(([k, label, Icon]) => <button key={k} onClick={() => setRight(k)} className={`elec-tab${right === k ? ' elec-tab-on' : ''}`} data-testid={`elec-tab-${k}`}><Icon size={12}/>{label}{k === 'checks' && (counts.errors || counts.warnings) ? <span className="ml-1 px-1 rounded text-[9px]" style={{ background: counts.errors ? '#7f1d1d' : '#78350f' }}>{counts.errors || counts.warnings}</span> : null}</button>)}
           </div>
           <div className="flex-1 overflow-y-auto px-3 pb-4 text-[12px]">
             {right === 'props' && (selPart ? <PartProps part={selPart} sim={sim} at={at} onParam={(k, v) => setParam(selPart.id, k, v)}/> : selWire ? <div>
@@ -305,7 +334,7 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
                 <label className="flex items-center gap-1 text-[11px]" style={{ color: C.dim }}><input type="checkbox" checked={toy} onChange={e => setToy(e.target.checked)}/>Children's toy</label>
               </div>
               <div className="flex gap-3 mb-2 text-[11px]"><span style={{ color: LEVEL_COLOR.error }}>{counts.errors} problems</span><span style={{ color: LEVEL_COLOR.warn }}>{counts.warnings} warnings</span><span style={{ color: LEVEL_COLOR.pass }}>{counts.passes} passed</span></div>
-              {!sim && <button className="elec-btn elec-primary w-full justify-center mb-2" onClick={run}><Play size={13}/>Simulate to check ratings</button>}
+              {!sim && <button className="elec-btn elec-primary w-full justify-center mb-2" onClick={() => run()}><Play size={13}/>Simulate to check ratings</button>}
               {findings.map(f => <div key={f.id} className="p-2 rounded-lg mb-1.5" style={{ background: 'rgba(255,255,255,.03)', borderLeft: `3px solid ${LEVEL_COLOR[f.level]}` }} data-testid={`elec-finding-${f.id}`}>
                 <div className="flex items-start gap-1.5"><span className="text-[9px] font-extrabold uppercase mt-0.5" style={{ color: LEVEL_COLOR[f.level] }}>{f.area}</span>{f.market && <span className="text-[9px] px-1 rounded bg-white/10">{f.market}</span>}</div>
                 <div className="font-semibold text-[12px] mt-0.5">{f.title}</div>
@@ -322,13 +351,19 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
                 <button className="elec-btn" onClick={() => download(`${circuit.name} parts.csv`, bomRows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n'), 'text/csv')}><Download size={13}/>CSV</button>
                 {onSendTable && <button className="elec-btn" onClick={() => void onSendTable(`${circuit.name} — parts list`, bomRows).then(() => setNote('Parts list added to your document as a table.'))} data-testid="elec-bom-send"><FilePlus size={13}/>To document</button>}
               </div>
+              <div className="text-[10px] font-extrabold uppercase tracking-[.12em] mt-4 mb-1" style={{ color: C.dim }}>Where to buy</div>
+              <SourcingPanel circuit={circuit} apiBase={apiBase}/>
             </div>}
 
+            {right === 'safety' && <SafetyPanel hazards={hazards} advisories={advisories} queries={queries} acked={acks} onAck={(id, v) => { setAcks(a => v ? [...new Set([...a, id])] : a.filter(x => x !== id)); if (v) setError(e => e.startsWith('Acknowledge') ? '' : e); }} apiBase={apiBase} title={`Safety review${build ? `: ${build.title}` : ''}`}/>}
+            {right === 'build' && build && <BuildPanel build={build} guard={guard}/>}
             {right === 'scope' && (sim ? <Scope sim={sim} probes={probes} at={at} onRemove={n => setProbes(p => p.filter(x => x !== n))} members={nl.members}/> : <div style={{ color: C.dim }}>Simulate over time to see voltages trace. Click any wire to probe it.</div>)}
           </div>
         </aside>
       </div>
       <style>{`.elec-btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:8px;font-size:12px;font-weight:600;color:rgba(255,255,255,.8);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);flex-shrink:0}.elec-btn:hover{background:rgba(255,255,255,.1);color:#fff}.elec-btn:disabled{opacity:.4}.elec-primary{background:linear-gradient(135deg,#f59e0b,#ef4444);border-color:transparent;color:#fff}.elec-on{background:rgba(251,191,36,.14);border-color:rgba(251,191,36,.45);color:#fbbf24}.elec-tab{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 8px;border-radius:7px;font-size:11px;font-weight:700;color:rgba(255,255,255,.55)}.elec-tab-on{background:rgba(255,255,255,.08);color:#fff}.elec-bar{scrollbar-width:none}@media (max-width:899px){.elec-label,.elec-title{display:none}}`}</style>
+      {exchange && <ExchangeRoom onClose={() => setExchange(false)} getToken={getToken} apiBase={apiBase} initialCategory="components" prefill={build ? { title: `Build: ${build.title}`, details: build.summary, processes: ['electronics'], hazards: hazards.filter(h => h.severity === 'critical' || h.severity === 'high').map(h => h.title) } : undefined}/>}
+      {!terms && <BuildTermsGate onAccepted={() => setTerms(true)} getToken={getToken} apiBase={apiBase} onClose={onClose}/>}
     </div>,
     document.body,
   );

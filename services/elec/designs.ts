@@ -9,7 +9,7 @@ import type { SimOptions } from './sim';
 export interface Design { id: string; title: string; about: string; circuit: Circuit; sim: SimOptions; licence: 'CC0-1.0'; tags: string[]; pairs: Array<[string, string]> }
 
 type PinRef = [string, string];
-class Builder {
+export class Builder {
   parts: CPart[] = []; wires: CWire[] = []; pairs: Array<[string, string]> = []; private g = 0;
   part(kind: string, ref: string, x: number, y: number, rot = 0, params: Record<string, number | string> = {}) {
     const def = compByKind(kind)!; this.parts.push({ id: ref, kind, ref, x, y, rot, params: { ...compDefaults(def), ...params } }); return this;

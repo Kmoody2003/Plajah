@@ -8,6 +8,7 @@
 
 import { compByKind, ledColor, parseSi } from './components';
 import { type Circuit, type CPart, netlist, type Netlist } from './circuit';
+import { BOARD_INFO, PI_MODELS } from './boards';
 
 const VT = 0.025852; // thermal voltage at 27 °C
 const GMIN = 1e-12;
@@ -64,7 +65,18 @@ function luSolve(A: Float64Array, b: Float64Array, n: number): Float64Array | nu
   return x;
 }
 
-interface PartState { kind: string; part: CPart; nodes: Record<string, number>; internal: number[]; vPrev?: number; iPrev?: number; q?: number; vd?: number[]; lastQ?: number; edges?: number[] }
+interface PartState { kind: string; part: CPart; nodes: Record<string, number>; internal: number[]; vPrev?: number; iPrev?: number; q?: number; vd?: number[]; lastQ?: number; edges?: number[]; lag?: number; on?: number }
+
+/** Board current: the parameter, or the Raspberry Pi model's typical draw when 'auto'. */
+export function boardDraw(p: CPart): number {
+  const raw = String(p.params.draw ?? 'auto');
+  if (raw !== 'auto' && raw !== '') return parseSi(raw);
+  if (p.kind === 'rpi') return PI_MODELS[String(p.params.model ?? 'Pi 5')]?.draw ?? 0.8;
+  return BOARD_INFO[p.kind]?.draw ?? 0.05;
+}
+/** 0..1: how far a board's regulator is up, ramping over 0.4 V below its minimum supply. */
+const boardOn = (kind: string, vsup: number) => { const vmin = kind === 'pico' ? 1.8 : kind === 'nano' ? 4 : 4.3; return Math.max(0, Math.min(1, (vsup - vmin + 0.4) / 0.4)); };
+const highPins = (p: CPart) => new Set(String(p.params.high ?? '').split(/[\s,;]+/).map(s => s.trim().toUpperCase()).filter(Boolean));
 
 export function simulate(c: Circuit, o: SimOptions): SimResult {
   const nl = netlist(c); const warnings: string[] = [];
@@ -75,6 +87,9 @@ export function simulate(c: Circuit, o: SimOptions): SimResult {
     const def = compByKind(p.kind); if (!def || p.kind === 'ground') continue;
     const nodes = nl.pinNet[p.id] ?? {}; const st: PartState = { kind: p.kind, part: p, nodes, internal: [] };
     if (p.kind === 'speaker') st.internal.push(nodeCount++);
+    if (p.kind === 'pickup') { st.internal.push(nodeCount++); st.iPrev = 0; }
+    if (p.kind === 'jack') st.vPrev = 0;
+    if (BOARD_INFO[p.kind] || p.kind === 'amp' || p.kind === 'acdc') st.lag = 0;
     if (p.kind === 'ne555') { st.internal.push(nodeCount++); st.q = 1; st.lastQ = 1; st.edges = []; }
     if (p.kind === 'led' || p.kind === 'diode') st.vd = [0];
     if (p.kind === 'npn') st.vd = [0, 0];
@@ -162,6 +177,52 @@ export function simulate(c: Circuit, o: SimOptions): SimResult {
           stampG(ctx, dis, gnd, st.q ? 1e-9 : 1 / 10);
           break;
         }
+        case 'signal': { const vs = tran ? P(p, 'Vpk') * Math.sin(2 * Math.PI * P(p, 'f') * t) : 0; const g = 1 / Math.max(1, P(p, 'Rout')); stampG(ctx, node(st, '+'), node(st, '-'), g); stampI(ctx, node(st, '-'), node(st, '+'), vs * g); break; }
+        case 'pickup': {
+          // EMF behind the coil resistance, then the coil inductance.
+          const hum = p.params.type !== 'single'; const R = hum ? 8000 : 6000, Lh = hum ? 4 : 2.5; const mid = st.internal[0];
+          const vs = tran ? P(p, 'Vpk') * Math.sin(2 * Math.PI * P(p, 'f') * t) : 0; stampG(ctx, node(st, '-'), mid, 1 / R); stampI(ctx, node(st, '-'), mid, vs / R);
+          if (!tran) stampG(ctx, mid, node(st, '+'), 1e3); else { const g = dt / Lh; stampG(ctx, mid, node(st, '+'), g); stampI(ctx, mid, node(st, '+'), st.iPrev ?? 0); }
+          break;
+        }
+        case 'jack': { stampG(ctx, node(st, 'T'), node(st, 'S'), 1 / Math.max(1, P(p, 'Rin'))); if (tran) { const g = P(p, 'Cc') / dt; stampG(ctx, node(st, 'T'), node(st, 'S'), g); stampI(ctx, node(st, 'S'), node(st, 'T'), g * (st.vPrev ?? 0)); } break; }
+        case 'usbload': { const nV = node(st, 'VBUS'), nG = node(st, 'GND'); stampG(ctx, nV, nG, P(p, 'I') / 5); break; }
+        case 'ledstrip': { const Vs = P(p, 'V'); stampG(ctx, node(st, '+'), node(st, '-'), P(p, 'W') / (Vs * Vs)); break; }
+        case 'acdc': {
+          const plus = node(st, '+'), minus = node(st, '-'); const G = 1 / 0.05; stampG(ctx, plus, minus, G); stampI(ctx, minus, plus, P(p, 'V') * G);
+          stampG(ctx, node(st, 'L'), node(st, 'N'), 1e-5); break;
+        }
+        case 'amp': {
+          const VCC = node(st, 'VCC'), GN = node(st, 'GND'), IN = node(st, 'IN'), OP = node(st, 'OUT+'), OM = node(st, 'OUT-');
+          stampG(ctx, IN, GN, 1e-4); stampI(ctx, VCC, GN, 0.004 + (st.lag ?? 0));
+          const k = P(p, 'gain') / 2; const G = 1 / 0.3; const vcc = V(VCC) - V(GN);
+          for (const [out, sgn] of [[OP, 1], [OM, -1]] as Array<[number, number]>) {
+            const target = V(GN) + vcc / 2 + sgn * k * (V(IN) - V(GN)); const lo = V(GN) + 0.05, hi = V(GN) + Math.max(0.1, vcc - 0.05);
+            const nodes = [out, IN, VCC, GN];
+            if (target > lo && target < hi) {
+              // Current into the device at OUT = G (V_out - target); returned through GND.
+              const row = [G, -G * sgn * k, -G / 2, -G / 2 + G * sgn * k];
+              const I0 = G * (V(out) - target);
+              stampDevice(ctx, nodes, [I0, 0, 0, -I0], [row, [0, 0, 0, 0], [0, 0, 0, 0], row.map(x => -x)]);
+            } else {
+              const clampV = target <= lo ? 0.05 : Math.max(0.1, vcc - 0.05); const I0 = G * (V(out) - V(GN) - clampV);
+              stampDevice(ctx, nodes, [I0, 0, 0, -I0], [[G, 0, 0, -G], [0, 0, 0, 0], [0, 0, 0, 0], [-G, 0, 0, G]]);
+            }
+          }
+          break;
+        }
+        case 'pico': case 'esp32': case 'nano': case 'rpi': {
+          const info = BOARD_INFO[st.kind]; const GN = node(st, 'GND'); let PW = node(st, info.power);
+          if (st.kind === 'pico') { stampG(ctx, node(st, 'VBUS'), node(st, 'VSYS'), 2); if (!PW) PW = node(st, 'VBUS'); }
+          const vsup = V(PW) - V(GN); const on = boardOn(st.kind, vsup); st.on = on; // ramps on, so Newton sees a continuous source
+          // Board draw (soft-started so an unpowered board is not a current source) plus regulator load, lagged.
+          stampI(ctx, PW, GN, boardDraw(p) * Math.tanh(Math.max(0, vsup)) + (st.lag ?? 0));
+          const r33 = node(st, '3V3');
+          if (r33) { stampG(ctx, r33, GN, 10); stampI(ctx, GN, r33, 3.3 * 10 * on); }
+          const hi = highPins(p); const vlogic = info.logic;
+          for (const g of info.gpio) { const nd = node(st, g); if (!nd) continue; if (hi.has(g.toUpperCase())) { stampG(ctx, nd, GN, 1 / 40); stampI(ctx, GN, nd, vlogic / 40 * on); } else stampG(ctx, nd, GN, 1e-6); }
+          break;
+        }
         case 'reg7805': {
           const IN = node(st, 'IN'), GN = node(st, 'GND'), OUT = node(st, 'OUT'); const G = 1 / 0.05;
           const headroom = V(IN) - V(GN);
@@ -182,6 +243,26 @@ export function simulate(c: Circuit, o: SimOptions): SimResult {
     }
   };
 
+  // Lagged supply currents: power a module delivers is drawn from its supply pin (fixed-point updated).
+  const updateLags = () => {
+    for (const st of states) {
+      if (st.lag === undefined) continue; const p = st.part;
+      if (st.kind === 'amp') {
+        const GN = node(st, 'GND'), IN = node(st, 'IN'), VCC = node(st, 'VCC'); const vcc = V(VCC) - V(GN); const k = P(p, 'gain') / 2; let pout = 0;
+        for (const [out, sgn] of [[node(st, 'OUT+'), 1], [node(st, 'OUT-'), -1]] as Array<[number, number]>) { const tgt = Math.min(Math.max(vcc / 2 + sgn * k * (V(IN) - V(GN)), 0.05), Math.max(0.1, vcc - 0.05)); const iOut = -(V(out) - V(GN) - tgt) / 0.3; pout += Math.max(0, iOut * (V(out) - V(GN))); }
+        st.lag = 0.5 * (st.lag ?? 0) + 0.5 * (vcc > 0.5 ? pout / (0.85 * Math.max(vcc, 2.5)) : 0);
+      } else if (BOARD_INFO[st.kind]) {
+        const info = BOARD_INFO[st.kind]; const GN = node(st, 'GND'); let PW = node(st, info.power); if (st.kind === 'pico' && !PW) PW = node(st, 'VBUS');
+        const vsup = V(PW) - V(GN); if (vsup < 1) { st.lag = 0; continue; }
+        const on = st.on ?? 0; // the source strength this solve actually used
+        // Current the board's own sources deliver (the source is scaled by `on`, so is this).
+        const r33 = node(st, '3V3'); let pw = r33 ? Math.max(0, (3.3 * on - (V(r33) - V(GN))) * 10) * 3.3 : 0;
+        const hi = highPins(p); for (const g of info.gpio) { const nd = node(st, g); if (nd && hi.has(g.toUpperCase())) pw += Math.max(0, (info.logic * on - (V(nd) - V(GN))) / 40) * info.logic; }
+        // Divide by at least the minimum operating voltage: dividing by a collapsing supply diverges.
+        st.lag = 0.5 * (st.lag ?? 0) + 0.5 * pw / (0.85 * Math.max(vsup, st.kind === 'pico' ? 3 : 4.5));
+      }
+    }
+  };
   const ctx: Ctx = { A: new Float64Array(n * n), b: new Float64Array(n), n, v };
   const solveAt = (t: number): boolean => {
     for (let it = 0; it < 150; it++) {
@@ -189,6 +270,7 @@ export function simulate(c: Circuit, o: SimOptions): SimResult {
       let delta = 0; for (let i = 0; i < n; i++) { const d = Math.abs(x[i] - v[i]); if (d > delta) delta = d; }
       // Damp very large jumps; junction limiting handles the exponentials.
       const k = delta > 50 ? 50 / delta : 1; for (let i = 0; i < n; i++) v[i] += (x[i] - v[i]) * k;
+      updateLags();
       if (delta < 1e-7 + 1e-6 * Math.max(...Array.from(v, Math.abs), 1) && it > 0 && !limited) return true;
     }
     return false;
@@ -218,6 +300,20 @@ export function simulate(c: Circuit, o: SimOptions): SimResult {
         case 'nmos': { const D = node(st, 'D'), S = node(st, 'S'), G = node(st, 'G'); const vth = Number(p.params.vth ?? 2); const vgs = V(G) - V(S), vds = V(D) - V(S), vov = vgs - vth; const K = 0.5; i = vov <= 0 ? 0 : vds < vov ? K * (vov * vds - vds * vds / 2) : K / 2 * vov * vov; pw = i * vds; ex('vds', vds); break; }
         case 'ne555': { ex('q', st.q ?? 0); i = (V(node(st, 'VCC')) - V(node(st, 'GND'))) / 3000; pw = i * (V(node(st, 'VCC')) - V(node(st, 'GND'))); break; }
         case 'reg7805': { const IN = node(st, 'IN'), GN = node(st, 'GND'), OUT = node(st, 'OUT'); const headroom = V(IN) - V(GN); const tgt = headroom >= 7 ? V(GN) + 5 : V(IN) - 2; i = Math.max(0, (tgt - V(OUT)) / 0.05); pw = i * (V(IN) - V(OUT)) + 0.005 * headroom; ex('vin', headroom); ex('vout', V(OUT) - V(GN)); break; }
+        case 'signal': i = 0; break;
+        case 'pickup': i = st.iPrev ?? 0; break;
+        case 'jack': { const vt = V(node(st, 'T')) - V(node(st, 'S')); i = vt / Math.max(1, P(p, 'Rin')); ex('v', vt); break; }
+        case 'usbload': { const vv = V(node(st, 'VBUS')) - V(node(st, 'GND')); i = vv * P(p, 'I') / 5; pw = vv * i; ex('v', vv); break; }
+        case 'ledstrip': { const Vs = P(p, 'V'); i = vab * P(p, 'W') / (Vs * Vs); pw = i * vab; break; }
+        case 'acdc': { const plus = node(st, '+'), minus = node(st, '-'); const vo = V(plus) - V(minus); i = (P(p, 'V') - vo) / 0.05; pw = vo * i; ex('v', vo); ex('pin', pw / Math.max(0.3, P(p, 'eff'))); break; }
+        case 'amp': { const OP = node(st, 'OUT+'), OM = node(st, 'OUT-'), GN = node(st, 'GND'); const vd = V(OP) - V(OM); ex('vout', vd); ex('vcc', V(node(st, 'VCC')) - V(GN)); i = 0.004 + (st.lag ?? 0); pw = i * (V(node(st, 'VCC')) - V(GN)); break; }
+        case 'pico': case 'esp32': case 'nano': case 'rpi': {
+          const info = BOARD_INFO[st.kind]; const GN = node(st, 'GND'); let PW = node(st, info.power); if (st.kind === 'pico' && !PW) PW = node(st, 'VBUS');
+          const vsup = V(PW) - V(GN); i = boardDraw(p) * Math.tanh(Math.max(0, vsup)) + (st.lag ?? 0); pw = i * vsup; ex('vsup', vsup);
+          const on = boardOn(st.kind, vsup); const r33 = node(st, '3V3'); ex('i3v3', r33 ? Math.max(0, (3.3 * on - (V(r33) - V(GN))) * 10) : 0);
+          for (const g of info.gpio) { const nd = node(st, g); if (!nd) continue; const hi = highPins(p).has(g.toUpperCase()); ex(`gpio:${g}`, hi ? (info.logic * on - (V(nd) - V(GN))) / 40 : (V(nd) - V(GN)) * 1e-6); }
+          break;
+        }
       }
       tr.i.push(i); tr.p.push(pw);
     }
@@ -230,6 +326,8 @@ export function simulate(c: Circuit, o: SimOptions): SimResult {
       if (st.kind === 'capacitor' || st.kind === 'electrolytic') st.vPrev = V(a) - V(bN);
       if (st.kind === 'inductor') st.iPrev = (st.iPrev ?? 0) + dt / P(p, 'L') * (V(a) - V(bN));
       if (st.kind === 'speaker') { const mid = st.internal[0]; st.iPrev = (st.iPrev ?? 0) + dt / 1e-4 * (V(mid) - V(node(st, '-'))); }
+      if (st.kind === 'pickup') { const mid = st.internal[0]; st.iPrev = (st.iPrev ?? 0) + dt / (p.params.type !== 'single' ? 4 : 2.5) * (V(mid) - V(node(st, '+'))); }
+      if (st.kind === 'jack') st.vPrev = V(node(st, 'T')) - V(node(st, 'S'));
       if (st.kind === 'ne555') {
         const gnd = V(node(st, 'GND')); const upper = V(node(st, 'CTRL')) - gnd, lower = V(st.internal[0]) - gnd;
         const trig = V(node(st, 'TRIG')) - gnd, thr = V(node(st, 'THR')) - gnd; const reset = node(st, 'RESET') ? V(node(st, 'RESET')) - gnd : 99;

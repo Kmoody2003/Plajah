@@ -255,6 +255,7 @@ export default function TelaHome({
   onOpenArgilla,
   onOpenCad,
   onOpenElec,
+  onOpenSew,
   onOpenBio,
   onBack,
   viewerUid = null,
@@ -280,6 +281,7 @@ export default function TelaHome({
   onOpenArgilla?: () => void;
   onOpenCad?: () => void;
   onOpenElec?: () => void;
+  onOpenSew?: () => void;
   onOpenBio?: () => void;
   onBack?: () => void;
 }) {
@@ -761,6 +763,17 @@ export default function TelaHome({
             >
               <span className="hidden sm:inline">Electronics</span>
               <span className="sm:hidden">Elec</span>
+            </button>
+          )}
+          {onOpenSew && (
+            <button
+              onClick={onOpenSew}
+              className="h-9 px-3.5 flex items-center gap-2 rounded-[10px] text-[.72rem] font-bold text-white/85 bg-white/[.05] border border-pink-300/30 hover:bg-pink-300/10 hover:text-white transition-all font-sans"
+              title="Plush, pillows, throws, bedding and clothing: patterns, tech packs and makers to sew them"
+              data-testid="tela-home-sew"
+            >
+              <span className="hidden sm:inline">Sewing</span>
+              <span className="sm:hidden">Sew</span>
             </button>
           )}
           {onOpenCad && (

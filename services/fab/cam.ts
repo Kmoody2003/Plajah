@@ -10,11 +10,13 @@
 import { type Loop, type P2, area, offset, regions, perimeter, pointInLoop, ccw } from './geom2d';
 import { type Layer, type MeshIn, sliceAt, sliceMesh, meshBounds } from './slice';
 import type { ProcessId } from './machines';
+import { supportGrids, hatch, type Grid } from './raster';
 
 export type Move =
   | { t: 'rapid' | 'feed'; x?: number; y?: number; z?: number; e?: number; f?: number }
   | { t: 'on'; s: number } | { t: 'off' } | { t: 'dwell'; s: number }
-  | { t: 'layer'; n: number; z: number } | { t: 'comment'; text: string } | { t: 'tool'; n: number; dia: number };
+  | { t: 'layer'; n: number; z: number } | { t: 'comment'; text: string } | { t: 'tool'; n: number; dia: number }
+  | { t: 'fan'; s: number };
 
 export interface Job { process: ProcessId; kind: 'cut' | 'pocket' | 'fdm' | 'lathe'; moves: Move[]; warnings: string[]; stats: { cutLength: number; rapidLength: number; seconds: number; layers?: number; filamentMm?: number; filamentG?: number; pierces?: number }; bounds: { min: P2; max: P2 }; meta: Record<string, number | string> }
 
@@ -116,8 +118,16 @@ export function pocketJob(loops: Loop[], o: { process: ProcessId; tool: number; 
 }
 
 // ---------------------------------------------------------------- FDM
-export interface FdmOptions { layer: number; nozzle: number; walls: number; infill: number; solidLayers: number; speed: number; travel: number; filament: number; density: number; nozzleTemp: number; bedTemp: number; firstLayerSpeed?: number; process?: ProcessId; scale?: number }
-export const FDM_DEFAULTS: FdmOptions = { layer: 0.2, nozzle: 0.4, walls: 2, infill: 0.2, solidLayers: 3, speed: 50, travel: 150, filament: 1.75, density: 1.24, nozzleTemp: 210, bedTemp: 60 };
+export interface FdmOptions { layer: number; nozzle: number; walls: number; infill: number; solidLayers: number; speed: number; travel: number; filament: number; density: number; nozzleTemp: number; bedTemp: number; firstLayerSpeed?: number; process?: ProcessId; scale?: number;
+  /** Support: none, from the bed only, or also resting on the part. */
+  supports?: 'none' | 'buildplate' | 'everywhere'; overhang?: number; supportDensity?: number;
+  /** Bed adhesion: a skirt to prime the nozzle, or a brim glued to the first layer. */
+  adhesion?: 'none' | 'skirt' | 'brim'; brimWidth?: number;
+  /** Retraction on travel moves longer than 2 mm (mm of filament, mm/s), and Z hop (mm). */
+  retract?: number; retractSpeed?: number; zHop?: number;
+  /** Part-cooling fan 0..1; off for the first layer. */
+  fan?: number }
+export const FDM_DEFAULTS: FdmOptions = { layer: 0.2, nozzle: 0.4, walls: 2, infill: 0.2, solidLayers: 3, speed: 50, travel: 150, filament: 1.75, density: 1.24, nozzleTemp: 210, bedTemp: 60, supports: 'none', overhang: 50, supportDensity: 0.15, adhesion: 'skirt', brimWidth: 5, retract: 0.8, retractSpeed: 35, zHop: 0.2, fan: 1 };
 
 /** Infill lines: scanlines at `angle` clipped to the region by even-odd crossings. */
 function scanFill(polys: Loop[], spacing: number, angle: number): P2[][] {
@@ -134,23 +144,49 @@ function scanFill(polys: Loop[], spacing: number, angle: number): P2[][] {
   return lines;
 }
 
-export function fdmJob(meshes: MeshIn[], opt: Partial<FdmOptions> = {}): Job & { layers: Layer[] } {
+export function fdmJob(meshes: MeshIn[], opt: Partial<FdmOptions> = {}): Job & { layers: Layer[]; supportGrids?: Grid[] } {
   const o = { ...FDM_DEFAULTS, ...opt }; const warnings: string[] = []; const moves: Move[] = [];
   const b = meshBounds(meshes); const w = o.nozzle * 1.125; const eArea = (o.layer * w) / (Math.PI * (o.filament / 2) ** 2);
   // Place on the bed: centred at the origin, lowest point at z = 0.
   const dx = -(b.min[0] + b.max[0]) / 2, dy = -(b.min[1] + b.max[1]) / 2, dz = -b.min[2];
   const placed = meshes.map(m => { const P = Float32Array.from(m.positions); for (let i = 0; i < P.length; i += 3) { P[i] += dx; P[i + 1] += dy; P[i + 2] += dz; } return { positions: P, indices: m.indices }; });
   const layers = sliceMesh(placed, o.layer);
-  let e = 0; let pos: P2 = [0, 0];
+  let e = 0; let pos: P2 = [0, 0]; let z = 0;
+  const travelTo = (p: P2) => {
+    const d = dist(pos, p); if (d <= 0.01) return;
+    const r = o.retract ?? 0; const hop = o.zHop ?? 0; const long = d > 2;
+    if (long && r > 0) moves.push({ t: 'feed', e: e - r, f: (o.retractSpeed ?? 35) * 60 });
+    if (long && hop > 0) moves.push({ t: 'rapid', z: z + hop, f: o.travel * 60 });
+    moves.push({ t: 'rapid', x: p[0], y: p[1], f: o.travel * 60 });
+    if (long && hop > 0) moves.push({ t: 'rapid', z, f: o.travel * 60 });
+    if (long && r > 0) moves.push({ t: 'feed', e, f: (o.retractSpeed ?? 35) * 60 });
+  };
   const extrude = (pts: P2[], f: number, closed: boolean) => {
-    if (pts.length < 2) return; if (dist(pos, pts[0]) > 0.01) moves.push({ t: 'rapid', x: pts[0][0], y: pts[0][1], f: o.travel * 60 });
+    if (pts.length < 2) return; travelTo(pts[0]);
     const seq = closed ? [...pts.slice(1), pts[0]] : pts.slice(1); let prev = pts[0];
     for (const q of seq) { e += dist(prev, q) * eArea; moves.push({ t: 'feed', x: q[0], y: q[1], e, f: f * 60 }); prev = q; }
     pos = prev;
   };
+  // Supports, computed top-down over the whole stack.
+  const sup = o.supports && o.supports !== 'none' && layers.length > 2
+    ? supportGrids(layers, { min: [b.min[0] + dx, b.min[1] + dy], max: [b.max[0] + dx, b.max[1] + dy] }, { overhang: o.overhang ?? 50, layer: o.layer, mode: o.supports, xyGap: Math.max(0.6, w * 1.5) })
+    : null;
+  let supportMm = 0;
   layers.forEach((L, li) => {
+    z = L.z;
     moves.push({ t: 'layer', n: li, z: L.z }, { t: 'rapid', z: L.z, f: o.travel * 60 });
+    if (li === 1 && (o.fan ?? 0) > 0) moves.push({ t: 'fan', s: o.fan ?? 1 });
     const speed = li === 0 ? (o.firstLayerSpeed ?? o.speed / 2) : o.speed;
+    if (li === 0 && o.adhesion && o.adhesion !== 'none') {
+      const outers = regions(L.loops).map(r => r.outer);
+      if (o.adhesion === 'skirt') for (const l of outers) offset(l, 4).forEach(sk => extrude(sk, speed, true));
+      else { const n = Math.max(1, Math.round((o.brimWidth ?? 5) / w)); for (let k = n; k >= 1; k--) for (const l of outers) offset(l, k * w - w / 2).forEach(br => extrude(br, speed, true)); }
+    }
+    if (sup && sup.area[li] > 0) {
+      const before = e;
+      for (const seg of hatch(sup.grids[li], w / Math.max(0.05, o.supportDensity ?? 0.15))) extrude(seg, speed * 1.2, false);
+      supportMm += e - before;
+    }
     const solid = li < o.solidLayers || li >= layers.length - o.solidLayers;
     for (const reg of regions(L.loops)) {
       let inner: Loop[] = [];
@@ -169,7 +205,8 @@ export function fdmJob(meshes: MeshIn[], opt: Partial<FdmOptions> = {}): Job & {
   const fil = e; const grams = fil * Math.PI * (o.filament / 2) ** 2 / 1000 * o.density;
   const job = finishStats({ process: o.process ?? 'fdm', kind: 'fdm', moves, warnings: [...new Set(warnings)].slice(0, 8), meta: { ...o } as unknown as Record<string, number> }, o.travel * 60);
   job.stats.layers = layers.length; job.stats.filamentMm = fil; job.stats.filamentG = grams;
-  return { ...job, layers };
+  if (sup) job.meta.supportFilamentMm = Math.round(supportMm);
+  return { ...job, layers, supportGrids: sup?.grids };
 }
 
 // ---------------------------------------------------------------- lathe

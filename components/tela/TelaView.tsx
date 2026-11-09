@@ -17,7 +17,7 @@ import { createPortal } from 'react-dom';
 import {
   BarChart3, Blend, BookHeart, BookOpen, Brush, CheckCircle2, ChevronDown, ChevronLeft, Circle, CircleHelp, Clipboard, Copy, CopyPlus, Database, Eye, EyeOff, Feather, FileDown, FilePlus2, FileText, FileUp, FlipHorizontal, Folder, FormInput,
   Grid3X3, Hand, Hexagon, Image as ImageIcon, ImagePlus, Lasso, Layers, LayoutPanelTop, Link as LinkIcon, Link2, Loader2, Maximize2, Minimize2,
-  Minus, Monitor, ShieldAlert, ShieldCheck, MousePointer2, MousePointerClick, Music2, Paintbrush, Eraser, Palette, Pencil, PenLine, PenTool, Pipette, Plus, SquarePlus, Redo2, Cpu, Images, Library as LibraryIcon, Scan, Shapes, Sliders, Sparkles, Spline, Square, Star, TextQuote, Trash2, Type, Undo2, Wand2, X, ZoomIn, History as HistoryIcon, Printer, Box as BoxIcon, MoreHorizontal, GraduationCap, LayoutTemplate, Ruler, Dna, CircuitBoard } from 'lucide-react';
+  Minus, Monitor, ShieldAlert, ShieldCheck, MousePointer2, MousePointerClick, Music2, Paintbrush, Eraser, Palette, Pencil, PenLine, PenTool, Pipette, Plus, SquarePlus, Redo2, Cpu, Images, Library as LibraryIcon, Scan, Shapes, Sliders, Sparkles, Spline, Square, Star, TextQuote, Trash2, Type, Undo2, Wand2, X, ZoomIn, History as HistoryIcon, Printer, Box as BoxIcon, MoreHorizontal, GraduationCap, LayoutTemplate, Ruler, Dna, CircuitBoard, Scissors } from 'lucide-react';
 import { NON_PRINTING_LABEL, isNonPrinting, type SpotColor } from '../../services/print/types';
 import { defaultSpecFor } from '../../services/print/products';
 import { vehiclePlacements, type WrapJob } from '../../services/print/wrap';
@@ -154,6 +154,7 @@ const ArgillaStudio = React.lazy(() => import('../argilla/ArgillaStudio'));
 const CadRoom = React.lazy(() => import('../cad/CadRoom'));
 const BioRoom = React.lazy(() => import('../bio/BioRoom'));
 const ElecRoom = React.lazy(() => import('../elec/ElecRoom'));
+const PatternRoom = React.lazy(() => import('../soft/PatternRoom'));
 const PrepressPanel = React.lazy(() => import('./print/PrepressPanel'));
 const LocalCreativeStudio = React.lazy(() => import('../Fabula/LocalCreativeStudio').then(m => ({ default: m.LocalCreativeStudio })));
 const TelaWritingStudio = React.lazy(() => import('./TelaWritingStudio').then(m => ({ default: m.TelaWritingStudio })));
@@ -532,6 +533,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   }, []);
   // Electronics Lab: empty (a starter circuit) or a schematic device being reopened.
   const [elecOpen, setElecOpen] = useState<{ elec?: TelaElecRef } | null>(null);
+  const [sewOpen, setSewOpen] = useState(false);
   useEffect(() => {
     const reopen = (event: Event) => setElecOpen({ elec: (event as CustomEvent<{ elec?: TelaElecRef }>).detail?.elec });
     window.addEventListener('tela:open-elec', reopen);
@@ -3144,6 +3146,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     };
     return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0c0d12] text-white/60">Loading Electronics Lab…</div>}>
       <ElecRoom
+        getToken={async () => (auth.currentUser ? auth.currentUser.getIdToken() : null)}
         loadInitial={ref ? async () => { const r = await fetch(ref.circuitSrc, { credentials: 'include' }); if (!r.ok) throw new Error(`Could not load the circuit (${r.status})`); return r.json(); } : undefined}
         onClose={() => setElecOpen(null)}
         onSendTable={showHome ? undefined : async (title, rows) => { addFrame('BOARD', 'FREE', toGrid(rows), title); }}
@@ -3164,6 +3167,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   if (cadOpen) {
     return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0d0c12] text-white/60">Loading CAD &amp; BIM…</div>}>
       <CadRoom
+        getToken={async () => (auth.currentUser ? auth.currentUser.getIdToken() : null)}
         initialFile={cadOpen.file ?? null}
         loadInitial={cadOpen.cad ? () => fetchCadSource(cadOpen.cad!) : undefined}
         onClose={() => setCadOpen(null)}
@@ -3204,9 +3208,27 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     </React.Suspense>;
   }
 
+  if (sewOpen) {
+    return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0d0c11] text-white/60">Loading Sewing &amp; Plush…</div>}>
+      <PatternRoom
+        getToken={async () => (auth.currentUser ? auth.currentUser.getIdToken() : null)}
+        onClose={() => setSewOpen(false)}
+        onAddToTela={showHome || merchStudioOpen ? undefined : async ({ title, svg, width, height, cutList }) => {
+          const base = title.replace(/[^A-Za-z0-9 _-]+/g, '').trim() || 'pattern';
+          const sheet = await uploadTelaAsset(new File([svg], `${base} layout.svg`, { type: 'image/svg+xml' }));
+          const scale = Math.min(1, 900 / Math.max(1, width)); const size = { w: Math.round(width * scale), h: Math.round(height * scale) };
+          const device: TelaMediaDevice = { id: uid('dev'), type: 'MEDIA', kind: 'IMAGE', name: `${base} layout.svg`, src: sheet.src, mimeType: 'image/svg+xml', size: svg.length, width: size.w, height: size.h, storagePath: sheet.storagePath, sessionOnly: sheet.sessionOnly };
+          addFrame('BOARD', 'FREE', device, `${title} — fabric layout`, { size });
+          const cells: Record<string, string> = {}; cutList.forEach((r, ri) => r.forEach((v, ci) => { if (v !== '') cells[cellKey(ci, ri)] = v; }));
+          addFrame('BOARD', 'FREE', { id: uid('dev'), type: 'GRID', rows: Math.max(8, cutList.length + 2), cols: Math.max(4, ...cutList.map(r => r.length)) + 1, cells } as TelaGridDevice, `${title} — cut list`);
+        }}
+      />
+    </React.Suspense>;
+  }
+
   if (merchStudioOpen) {
     return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0b0a0f] text-white/60">Loading Merch Designer…</div>}>
-      <MerchDesignerStudio onClose={() => setMerchStudioOpen(false)}/>
+      <MerchDesignerStudio onClose={() => setMerchStudioOpen(false)} onOpenSew={() => setSewOpen(true)}/>
     </React.Suspense>;
   }
 
@@ -3216,7 +3238,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
       {designImport && <React.Suspense fallback={null}><DesignImportDialog state={designImport} onClose={() => setDesignImport(null)} onOpenSmart={(id, name) => void openImportedSmartObject(id, name)}/></React.Suspense>}
       {libraryPanel && <React.Suspense fallback={null}><TelaLibraryPanel initialTab={libraryPanel.tab} note={libraryPanel.note} onClose={() => setLibraryPanel(null)} onPlaceShape={placeLibraryShape} onUseColor={useLibraryColor} onUsePattern={p => void useLibraryPattern(p)} onUseBrush={useLibraryBrush}/></React.Suspense>}
       {accessEndedNote && <div role="alert" className="fixed top-4 left-1/2 -translate-x-1/2 z-[9000] max-w-[min(560px,calc(100vw-32px))] flex items-start gap-3 rounded-xl border border-amber-300/30 bg-[#1b1710] px-4 py-3 text-xs text-amber-100"><span className="flex-1">{accessEndedNote}</span><button className="font-bold text-white/70 hover:text-white" onClick={() => setAccessEndedNote('')}>Dismiss</button></div>}
-      <TelaHome recent={canvasList || []} viewerUid={auth.currentUser?.uid || null} memberOrgIds={memberOrgIds} orgNames={orgNames} onOpen={id => void openCanvas(id)} onCreate={kind => void createHomeDocument(kind)} onChooseStyle={entry => void createStyleDocument(entry)} onChoosePublication={template => void createPublicationDocument(template)} onChooseTemplate={template => void createTemplateDocument(template)} onImport={() => fileRef.current?.click()} onOpenMerch={() => setMerchStudioOpen(true)} onOpenStoryIntel={() => setStoryIntel({})} onOpenArgilla={() => setArgillaOpen({})} onOpenCad={() => setCadOpen({})} onOpenBio={() => setBioOpen({})} onOpenElec={() => setElecOpen({})} onBack={onBack}/>
+      <TelaHome recent={canvasList || []} viewerUid={auth.currentUser?.uid || null} memberOrgIds={memberOrgIds} orgNames={orgNames} onOpen={id => void openCanvas(id)} onCreate={kind => void createHomeDocument(kind)} onChooseStyle={entry => void createStyleDocument(entry)} onChoosePublication={template => void createPublicationDocument(template)} onChooseTemplate={template => void createTemplateDocument(template)} onImport={() => fileRef.current?.click()} onOpenMerch={() => setMerchStudioOpen(true)} onOpenStoryIntel={() => setStoryIntel({})} onOpenArgilla={() => setArgillaOpen({})} onOpenCad={() => setCadOpen({})} onOpenBio={() => setBioOpen({})} onOpenElec={() => setElecOpen({})} onOpenSew={() => setSewOpen(true)} onBack={onBack}/>
     </>;
   }
 
@@ -3622,6 +3644,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               <button className={menuBarItem} onClick={() => { setMerchStudioOpen(true); setAppMenuOpen(null); }}><BoxIcon size={14} color="#ff5a8a"/>Merch Designer<span className="ml-auto text-[9px] text-[#34d399]">3D + GPU</span></button>
               <button className={menuBarItem} onClick={() => { setArgillaOpen({}); setAppMenuOpen(null); }}><BoxIcon size={14} color="#a78bfa"/>Sculpt in 3D<span className="ml-auto text-[9px] text-[#34d399]">GPU</span></button>
               <button className={menuBarItem} data-testid="open-tela-bio" onClick={() => { setBioOpen({}); setAppMenuOpen(null); }}><Dna size={14} color="#5eead4"/>Biology Lab<span className="ml-auto text-[9px] text-white/25">PDB · AlphaFold · SBML</span></button>
+              <button className={menuBarItem} data-testid="open-tela-sew" onClick={() => { setSewOpen(true); setAppMenuOpen(null); }}><Scissors size={14} color="#f472b6"/>Sewing &amp; Plush<span className="ml-auto text-[9px] text-white/25">patterns · tech packs · makers</span></button>
               <button className={menuBarItem} data-testid="open-tela-elec" onClick={() => { setElecOpen({}); setAppMenuOpen(null); }}><CircuitBoard size={14} color="#fbbf24"/>Electronics Lab<span className="ml-auto text-[9px] text-white/25">schematic · simulate · checks</span></button>
               <button className={menuBarItem} data-testid="open-tela-cad" onClick={() => { setCadOpen({}); setAppMenuOpen(null); }}><Ruler size={14} color="#38bdf8"/>CAD &amp; BIM file<span className="ml-auto text-[9px] text-white/25">.dxf .ifc .step .3mf</span></button>
               <button className={menuBarItem} onClick={() => { setLocalStudioOpen(true); setAppMenuOpen(null); }}><Wand2 size={14} color="#f59e0b"/>Local Creative Studio<span className="ml-auto text-[9px] text-[#34d399]">Local GPU</span></button>

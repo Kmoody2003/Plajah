@@ -37,6 +37,8 @@ const RES_SYM: Stroke[] = [L([-2, 0], [-1, 0]), { kind: 'poly', pts: [[-1, -0.35
 const LED_COLORS: Record<string, { vf: number; hex: string }> = { red: { vf: 2.0, hex: '#ff4d4d' }, yellow: { vf: 2.1, hex: '#ffd43b' }, green: { vf: 2.2, hex: '#51cf66' }, blue: { vf: 3.0, hex: '#4dabf7' }, white: { vf: 3.0, hex: '#f8f9fa' } };
 export const ledColor = (c: string) => LED_COLORS[c] ?? LED_COLORS.red;
 
+import { BOARD_COMPONENTS } from './boards';
+
 export const COMPONENTS: CompDef[] = [
   { kind: 'resistor', name: 'Resistor', prefix: 'R', category: 'Passive', about: 'Fixed resistor. Rating is its power limit.',
     pins: [{ name: '1', at: [-2, 0] }, { name: '2', at: [2, 0] }], params: [{ key: 'R', label: 'Resistance', unit: 'Ω', default: '1k' }, { key: 'P', label: 'Power rating', unit: 'W', default: '0.25' }],
@@ -98,6 +100,7 @@ export const COMPONENTS: CompDef[] = [
   { kind: 'reg7805', name: '5 V linear regulator', prefix: 'U', category: 'Integrated circuit', about: '7805-class: 5 V out, about 2 V dropout, 1 A, TO-220 (about 65 °C/W without heatsink).',
     pins: [{ name: 'IN', at: [-3, 0] }, { name: 'GND', at: [0, 2] }, { name: 'OUT', at: [3, 0] }], params: [{ key: 'theta', label: 'Thermal resistance', unit: '°C/W', default: 65 }],
     symbol: [{ kind: 'poly', pts: [[-2, -1], [2, -1], [2, 1], [-2, 1]], closed: true }, L([-3, 0], [-2, 0]), L([2, 0], [3, 0]), L([0, 1], [0, 2]), T([0, 0.3], '7805', 0.7)], label: () => '7805' },
+  ...BOARD_COMPONENTS,
 ];
 
 export const compByKind = (k: string) => COMPONENTS.find(c => c.kind === k);

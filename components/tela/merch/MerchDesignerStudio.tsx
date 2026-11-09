@@ -11,7 +11,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, Box, Camera, Check, ChevronDown, Download, Image as ImageIcon, Layers, Loader2, Move3d,
-  Palette, Plus, RefreshCw, Shirt, ShoppingBag, Sparkles, Star, Sun, Trash2, Type, Upload, Wand2, X,
+  Palette, Plus, RefreshCw, Scissors, Shirt, ShoppingBag, Sparkles, Star, Sun, Trash2, Type, Upload, Wand2, X,
 } from 'lucide-react';
 import { MERCH_PRODUCT_TEMPLATES, getProductTemplate, type MerchPrintArea } from '../../../services/merchStudio/products';
 import { MERCH_SCENES, getMerchScene, merchShotPrompt } from '../../../services/merchStudio/scenes';
@@ -116,11 +116,13 @@ function ShotThumb({ shot, project, active, onClick }: { shot: MerchShot; projec
 // ── Studio ───────────────────────────────────────────────────────────────────
 
 export interface MerchDesignerStudioProps {
+  /** Opens Sewing & Plush: plush, pillows, throws and clothing patterns with makers to sew them. */
+  onOpenSew?: () => void;
   onClose: () => void;
   initialProjectId?: string;
 }
 
-export default function MerchDesignerStudio({ onClose, initialProjectId }: MerchDesignerStudioProps) {
+export default function MerchDesignerStudio({ onClose, initialProjectId, onOpenSew }: MerchDesignerStudioProps) {
   const [project, setProject] = useState<MerchProject | null>(null);
   const [tab, setTab] = useState<Tab>('product');
   const [activeArea, setActiveArea] = useState('front');
@@ -515,6 +517,7 @@ export default function MerchDesignerStudio({ onClose, initialProjectId }: Merch
               <span className={`w-1.5 h-1.5 rounded-full ${engine.online ? 'bg-emerald-400' : 'bg-white/30'}`} />{engine.online ? 'GPU ready' : 'GPU offline'}
             </button>
           )}
+          {onOpenSew && <button onClick={onOpenSew} className={btn} title="Plush, pillows, throws and clothing: patterns, tech packs, makers" data-testid="merch-open-sew"><Scissors size={14} /> Sew it</button>}
           <button onClick={() => setPublishOpen(true)} disabled={!project.shots.length} className={btnPrimary} style={{ background: 'linear-gradient(135deg,#ff5a8a,#ff9a3c)' }}>
             <ShoppingBag size={15} /> List in shop
           </button>

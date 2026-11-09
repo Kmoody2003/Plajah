@@ -39,6 +39,8 @@ export interface CadRoomProps {
   /** Reopen a file (e.g. the original kept on a Tela device). */
   initialFile?: { name: string; bytes: Uint8Array } | null;
   loadInitial?: () => Promise<{ name: string; bytes: Uint8Array }>;
+  /** Signed-in user's ID token, for the Maker Exchange and maker terms. */
+  getToken?: () => Promise<string | null>;
 }
 
 type ViewDir = 'iso' | 'top' | 'front' | 'right';
@@ -58,7 +60,7 @@ const fmtVol = (mm3: number, imperial: boolean, large: boolean) => imperial
   ? large ? `${(mm3 / 28316846.6).toLocaleString(undefined, { maximumFractionDigits: 2 })} ft³` : `${(mm3 / 16387.064).toLocaleString(undefined, { maximumFractionDigits: 2 })} in³`
   : large ? `${(mm3 / 1e9).toLocaleString(undefined, { maximumFractionDigits: 3 })} m³` : `${(mm3 / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })} cm³`;
 
-export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFile, loadInitial }: CadRoomProps) {
+export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFile, loadInitial, getToken }: CadRoomProps) {
   const [model, setModel] = useState<CadModel | null>(null);
   const [source, setSource] = useState<{ name: string; bytes: Uint8Array } | null>(null);
   const [busy, setBusy] = useState<string>('');
@@ -237,7 +239,7 @@ export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFil
                 <button onClick={() => toggle(hiddenLayers, l.name, setHiddenLayers)} style={{ color: C.dim }} aria-label={`Toggle ${l.name}`}>{hidden ? <EyeOff size={13}/> : <Eye size={13}/>}</button>
               </div>;
             }) : <div className="p-3" style={{ color: C.dim }}>No layers in this file.</div>)}
-            {tab === 'make' && <MakePanel model={model}/>}
+            {tab === 'make' && <MakePanel model={model} getToken={getToken}/>}
             {tab === 'parts' && part && <MechPartsPanel current={part.def} params={part.params} onPick={d => showPart(d, mechDefaults(d), true)} onParams={pr => showPart(part.def, pr, false)}/>}
             {tab === 'schedules' && model.is2D && <SchedulesPanel tables={tables} findings={findings} drawingName={model.name} onSendTable={onSendTable ? t => void sendTable(t) : undefined} onPickFinding={f => { if (f.entityIndex !== undefined) setDraftSel([f.entityIndex]); }}/>}
             {tab === 'library' && model.is2D && <LibraryPanel model={model} currentLayer={currentLayer} onPlace={pl => setPlacing(pl)} onLoadBlocks={f => void loadBlocks(f)} placingLabel={placing?.label}/>}

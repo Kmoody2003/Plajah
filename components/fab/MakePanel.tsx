@@ -3,7 +3,11 @@
 // the file or send it straight to the machine.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Factory, Play, Download, Send, Square } from 'lucide-react';
+import { Factory, Play, Download, Send, Square, Store } from 'lucide-react';
+import { processHazards, needsAck } from '../../services/safety/hazards';
+import SafetyPanel, { BuildTermsGate, termsAccepted } from '../safety/SafetyPanel';
+import ExchangeRoom from '../supply/ExchangeRoom';
+import { PROCESS_CATEGORY } from '../../services/supply/directory';
 import type { CadModel } from '../../services/cad/model';
 import { MM_PER_UNIT } from '../../services/cad/model';
 import { PROCESSES, machinesFor, type Process, type Machine, type Family } from '../../services/fab/machines';
@@ -15,6 +19,8 @@ import { dfm2d, dfm3d, type DfmFinding } from '../../services/fab/dfm';
 import { write3mf } from '../../services/fab/threeMf';
 import { sendToMachine, streamGcode, openWebSerial } from '../../services/fab/connect';
 import { writeStl } from '../../services/mech/geometry';
+import { FILAMENTS, filamentById, RESINS } from '../../services/fab/materials';
+import { RESIN_PRINTERS, resinJob, writeSl1, type ResinJob } from '../../services/fab/resin';
 
 const DIM = 'rgba(255,255,255,.5)';
 const LV: Record<string, string> = { error: '#f87171', warn: '#fbbf24', info: '#93c5fd', pass: '#4ade80' };
@@ -24,7 +30,7 @@ const store = { get: (k: string) => { try { return JSON.parse(localStorage.getIt
 
 interface Output { name: string; data: BlobPart; type: string; gcode?: string }
 
-export default function MakePanel({ model }: { model: CadModel }) {
+export default function MakePanel({ model, getToken }: { model: CadModel; getToken?: () => Promise<string | null> }) {
   const is2D = model.is2D || !model.meshes.length; const k = MM_PER_UNIT[model.units] || 1;
   const meshes = useMemo<MeshIn[]>(() => model.meshes.map(m => ({ positions: k === 1 ? m.positions : Float32Array.from(m.positions, v => v * k), indices: m.indices })), [model, k]);
   const paths = useMemo(() => { const p = entitiesToPaths(model.entities.filter(e => e.layer !== 'Defpoints')); const s = (pt: P2): P2 => [pt[0] * k, pt[1] * k]; return { loops: p.loops.map(l => l.map(s)), open: p.open.map(l => l.map(s)) }; }, [model, k]);
@@ -35,7 +41,10 @@ export default function MakePanel({ model }: { model: CadModel }) {
   const machine = (machines.find(m => m.id === machineId) ?? machines[0]) as Machine | undefined;
   useEffect(() => { setMachineId(machinesFor(proc.id)[0]?.id ?? ''); setJob(null); setOut(null); }, [proc.id]);
   // Settings.
-  const [s, setS] = useState({ layer: 0.2, infill: 20, walls: 2, nozzleTemp: 210, bedTemp: 60, kerf: proc.rules.kerf ?? 0.15, feed: 1200, power: 80, thickness: 3, material: '', tool: 6.35, stepDown: 3, stock: 25, doc: 1, metalLayer: 0.04 });
+  const [s, setS] = useState({ layer: 0.2, infill: 20, walls: 2, nozzleTemp: 210, bedTemp: 60, kerf: proc.rules.kerf ?? 0.15, feed: 1200, power: 80, thickness: 3, material: '', tool: 6.35, stepDown: 3, stock: 25, doc: 1, metalLayer: 0.04,
+    filament: 'pla', supports: 'none' as 'none' | 'buildplate' | 'everywhere', adhesion: 'skirt' as 'none' | 'skirt' | 'brim',
+    resinPrinter: 'sl1s', resin: 'standard', resinLayer: 0.05, resinSupports: true });
+  const [rjob, setRjob] = useState<ResinJob | null>(null);
   useEffect(() => { setS(x => ({ ...x, kerf: proc.id === 'router' ? x.tool : proc.rules.kerf ?? 0, feed: proc.id === 'plasma' ? 2500 : proc.id === 'router' ? 1500 : proc.id.startsWith('laser') ? 1200 : 800 })); }, [proc.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [job, setJob] = useState<(Job & { layers?: Layer[] }) | null>(null); const [cliLayers, setCliLayers] = useState<Layer[] | null>(null);
   const [out, setOut] = useState<Output | null>(null); const [msg, setMsg] = useState(''); const [busy, setBusy] = useState(false);
@@ -45,18 +54,29 @@ export default function MakePanel({ model }: { model: CadModel }) {
 
   const findings = useMemo<DfmFinding[]>(() => is2D ? dfm2d(paths.loops, proc, { thickness: s.thickness, material: s.material, tool: proc.id === 'router' || proc.id === 'mill3' ? s.tool : undefined }) : dfm3d(meshes, proc, machine), [is2D, paths, meshes, proc, machine, s.thickness, s.material, s.tool]);
   const blocked = findings.some(f => f.level === 'error');
+  // Machine safety: critical hazards must be acknowledged before preparing, downloading or sending.
+  const hazards = useMemo(() => processHazards(proc.id, s.material || s.filament), [proc.id, s.material, s.filament]);
+  const [acks, setAcks] = useState<string[]>([]); const [terms, setTerms] = useState(termsAccepted); const [exchange, setExchange] = useState(false);
+  const openCritical = needsAck(hazards).filter(h => !acks.includes(h.id));
   const base = model.name.replace(/\.[^.]+$/, '') || 'part';
 
   const prepare = () => {
-    setBusy(true); setMsg(''); setOut(null); setJob(null); setCliLayers(null);
+    setBusy(true); setMsg(''); setOut(null); setJob(null); setCliLayers(null); setRjob(null);
     setTimeout(() => {
       try {
         const scale = proc.rules.shrink ? 1 / (1 - proc.rules.shrink) : 1;
         if (proc.id === 'fdm' || proc.id === 'bound-metal') {
           const scaled = scale === 1 ? meshes : meshes.map(m => ({ positions: Float32Array.from(m.positions, v => v * scale), indices: m.indices }));
-          const j = fdmJob(scaled, { ...FDM_DEFAULTS, layer: s.layer, infill: s.infill / 100, walls: s.walls, nozzleTemp: s.nozzleTemp, bedTemp: s.bedTemp, nozzle: machine?.nozzle ?? 0.4, process: proc.id });
+          const fil = filamentById(proc.id === 'bound-metal' ? 'bound-316l' : s.filament) ?? FILAMENTS[0];
+          const j = fdmJob(scaled, { ...FDM_DEFAULTS, layer: s.layer, infill: s.infill / 100, walls: s.walls, nozzleTemp: s.nozzleTemp, bedTemp: s.bedTemp, nozzle: machine?.nozzle ?? 0.4, process: proc.id,
+            supports: s.supports, adhesion: s.adhesion, fan: fil.fan, retract: fil.retract, retractSpeed: fil.retractSpeed, density: fil.density, speed: fil.speed });
           const g = post(j, { dialect: machine?.dialect ?? 'marlin', name: base, nozzleTemp: s.nozzleTemp, bedTemp: s.bedTemp }); setJob(j); setLayer(0);
           setOut({ name: `${base}.gcode`, data: g, type: 'text/plain', gcode: g });
+        } else if (proc.id === 'resin') {
+          const ro = { printer: s.resinPrinter, resin: s.resin, layer: s.resinLayer, supports: s.resinSupports };
+          const rj = resinJob(meshes, ro); setRjob(rj); setLayer(0);
+          setOut({ name: `${base}.sl1`, data: writeSl1(rj, base, ro) as BlobPart, type: 'application/zip' });
+          if (rj.printer.id !== 'sl1s') setMsg(`Open ${base}.sl1 in UVtools (free) and convert it to your printer's format.`);
         } else if (proc.id === 'lpbf' || proc.id === 'ebm') {
           const layers = sliceMesh(meshes, s.metalLayer, 20000); setCliLayers(layers); setLayer(0);
           setOut({ name: `${base}.cli`, data: writeCli(layers, base), type: 'text/plain' });
@@ -92,7 +112,8 @@ export default function MakePanel({ model }: { model: CadModel }) {
   };
 
   const num = (key: keyof typeof s, label: string, unit = '', step = 1) => <label className="flex items-center justify-between py-0.5 gap-2"><span style={{ color: DIM }}>{label}{unit ? ` (${unit})` : ''}</span><input type="number" step={step} value={s[key] as number} onChange={e => setS(x => ({ ...x, [key]: +e.target.value }))} className="w-20 h-6 rounded bg-white/5 border border-white/10 px-1.5 text-[11px] text-white text-right" aria-label={label}/></label>;
-  const kind = proc.id === 'fdm' || proc.id === 'bound-metal' ? 'fdm' : proc.id === 'lpbf' || proc.id === 'ebm' ? 'metal' : proc.id === 'lathe' ? 'lathe' : proc.input === '2d' ? 'cut' : 'export';
+  const pick = (key: keyof typeof s, label: string, opts: string[][], on?: (v: string) => void) => <label className="flex items-center justify-between py-0.5 gap-2"><span style={{ color: DIM }}>{label}</span><select value={String(s[key])} onChange={e => on ? on(e.target.value) : setS(x => ({ ...x, [key]: e.target.value }))} className="w-32 h-6 rounded bg-white/5 border border-white/10 text-[11px] text-white" aria-label={label} data-testid={`fab-${String(key)}`}>{opts.map(([v, t]) => <option key={v} value={v} style={{ background: '#15131d' }}>{t}</option>)}</select></label>;
+  const kind = proc.id === 'resin' ? 'resin' : proc.id === 'fdm' || proc.id === 'bound-metal' ? 'fdm' : proc.id === 'lpbf' || proc.id === 'ebm' ? 'metal' : proc.id === 'lathe' ? 'lathe' : proc.input === '2d' ? 'cut' : 'export';
 
   return <div className="text-[12px]" data-testid="fab-make">
     <div className="flex items-center gap-1.5 font-bold mb-2"><Factory size={14} color="#fbbf24"/>Make it</div>
@@ -103,6 +124,19 @@ export default function MakePanel({ model }: { model: CadModel }) {
     {machines.length > 0 && <select value={machine?.id} onChange={e => setMachineId(e.target.value)} className="w-full h-7 rounded bg-white/5 border border-white/10 text-[11.5px] text-white mb-2" aria-label="Machine" data-testid="fab-machine">{machines.map(m => <option key={m.id} value={m.id} style={{ background: '#15131d' }}>{m.name}</option>)}</select>}
 
     <div className="p-2 rounded-lg mb-2" style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)' }}>
+      {kind === 'fdm' && proc.id === 'fdm' && <>
+        {pick('filament', 'Filament', FILAMENTS.map(f => [f.id, f.name]), v => { const f = filamentById(v); if (f) setS(x => ({ ...x, filament: v, nozzleTemp: f.nozzle, bedTemp: f.bed })); })}
+        <div className="text-[10px] mb-1" style={{ color: DIM }}>{filamentById(s.filament)?.notes}</div>
+        {pick('supports', 'Supports', [['none', 'None'], ['buildplate', 'From the bed'], ['everywhere', 'Everywhere']])}
+        {pick('adhesion', 'Bed adhesion', [['none', 'None'], ['skirt', 'Skirt'], ['brim', 'Brim']])}
+      </>}
+      {kind === 'resin' && <>
+        {pick('resinPrinter', 'Printer', RESIN_PRINTERS.map(p => [p.id, p.name]))}
+        {pick('resin', 'Resin', RESINS.map(r => [r.id, r.name]))}
+        {num('resinLayer', 'Layer height', 'mm', 0.01)}
+        <label className="flex items-center justify-between py-0.5 gap-2"><span style={{ color: DIM }}>Raft and pillar supports</span><input type="checkbox" checked={s.resinSupports} onChange={e => setS(x => ({ ...x, resinSupports: e.target.checked }))} aria-label="Resin supports"/></label>
+        <div className="text-[10px] mt-1" style={{ color: DIM }}>{RESINS.find(r => r.id === s.resin)?.notes} Wear nitrile gloves; uncured resin is a skin sensitiser.</div>
+      </>}
       {kind === 'fdm' && <>{num('layer', 'Layer height', 'mm', 0.05)}{num('infill', 'Infill', '%', 5)}{num('walls', 'Walls')}{num('nozzleTemp', 'Nozzle', '°C', 5)}{num('bedTemp', 'Bed', '°C', 5)}</>}
       {kind === 'metal' && <>{num('metalLayer', 'Layer thickness', 'mm', 0.01)}<div className="text-[10px] mt-1" style={{ color: DIM }}>Slices to CLI contours; your build processor adds hatching and supports for its laser parameters.</div></>}
       {kind === 'lathe' && <>{num('stock', 'Bar stock Ø', 'mm', 1)}{num('doc', 'Depth of cut', 'mm', 0.1)}{num('feed', 'Feed base', 'mm/min', 50)}</>}
@@ -116,9 +150,19 @@ export default function MakePanel({ model }: { model: CadModel }) {
 
     <div className="mb-2" data-testid="fab-dfm">{findings.map((f, i) => <div key={i} className="flex gap-1.5 py-0.5"><span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: LV[f.level] }}/><div><div className={f.detail ? 'font-semibold' : ''} style={{ color: f.detail ? undefined : 'rgba(255,255,255,.65)' }}>{f.title}</div>{f.detail && <div className="text-[10.5px]" style={{ color: DIM }}>{f.detail}</div>}</div></div>)}</div>
 
-    <button className="cad-btn cad-primary w-full justify-center" onClick={prepare} disabled={busy || blocked || (is2D ? !paths.loops.length && !paths.open.length : !meshes.length)} data-testid="fab-prepare"><Play size={13}/>{busy ? 'Preparing…' : blocked ? 'Fix the problems above' : 'Prepare'}</button>
+    {hazards.length > 0 && <div className="mb-2 p-2 rounded-lg" style={{ background: 'rgba(244,63,94,.04)', border: `1px solid ${openCritical.length ? 'rgba(244,63,94,.45)' : 'rgba(255,255,255,.07)'}` }} data-testid="fab-safety">
+      <SafetyPanel hazards={hazards} acked={acks} onAck={(id, v) => setAcks(a => v ? [...new Set([...a, id])] : a.filter(x => x !== id))} title="Machine safety"/>
+    </div>}
+    <button className="cad-btn cad-primary w-full justify-center" onClick={prepare} disabled={busy || blocked || openCritical.length > 0 || (is2D ? !paths.loops.length && !paths.open.length : !meshes.length)} data-testid="fab-prepare"><Play size={13}/>{busy ? 'Preparing…' : blocked ? 'Fix the problems above' : openCritical.length ? 'Acknowledge the safety items above' : 'Prepare'}</button>
+    <button className="cad-btn w-full justify-center mt-1.5" onClick={() => setExchange(true)} data-testid="fab-exchange"><Store size={13}/>Get it made by a shop or service</button>
+    {exchange && <ExchangeRoom onClose={() => setExchange(false)} getToken={getToken} initialCategory={(PROCESS_CATEGORY[proc.id] ?? ['3d-print'])[0]} prefill={{ title: `Make: ${base}`, processes: [proc.id].filter(id => ['fdm', 'resin', 'sls', 'lpbf', 'mill3', 'router', 'lathe', 'laser-co2', 'laser-fiber', 'plasma', 'waterjet', 'press-brake'].includes(id)), details: `${proc.name}. ${is2D ? 'Drawing' : 'Model'}: ${model.name}.`, hazards: hazards.filter(h => h.severity === 'critical').map(h => h.title) }}/>}
+    {!terms && <BuildTermsGate onAccepted={() => setTerms(true)} getToken={getToken}/>}
 
     {(job || cliLayers) && <Preview job={job} layers={cliLayers ?? job?.layers ?? null} layer={layer} setLayer={setLayer}/>}
+    {rjob && <ResinPreview job={rjob} layer={layer} setLayer={setLayer}/>}
+    {rjob && <div className="text-[11px] mt-1.5" data-testid="fab-stats">About {(rjob.seconds / 3600).toFixed(1)} h · {rjob.layers.length} layers ({rjob.supportLayers} raft/lift) · {rjob.ml.toFixed(1)} ml resin</div>}
+    {rjob?.warnings.map((w, i) => <div key={i} className="text-[10.5px] mt-1" style={{ color: LV.warn }}>{w}</div>)}
+    {job?.meta.supportFilamentMm ? <div className="text-[10.5px] mt-1" style={{ color: DIM }}>Supports use {(Number(job.meta.supportFilamentMm) / 1000).toFixed(2)} m of filament.</div> : null}
     {job && <div className="text-[11px] mt-1.5" data-testid="fab-stats">About {job.stats.seconds >= 3600 ? `${(job.stats.seconds / 3600).toFixed(1)} h` : `${Math.max(1, Math.round(job.stats.seconds / 60))} min`}{job.stats.layers ? ` · ${job.stats.layers} layers` : ''}{job.stats.filamentG ? ` · ${job.stats.filamentG.toFixed(1)} g filament` : ''}{job.stats.pierces ? ` · ${job.stats.pierces} pierces` : ''} · {(job.stats.cutLength / 1000).toFixed(2)} m of path</div>}
     {cliLayers && <div className="text-[11px] mt-1.5">{cliLayers.length} layers at {s.metalLayer} mm</div>}
     {job?.warnings.map((w, i) => <div key={i} className="text-[10.5px] mt-1" style={{ color: LV.warn }}>{w}</div>)}
@@ -165,5 +209,22 @@ function Preview({ job, layers, layer, setLayer }: { job: Job | null; layers: La
   return <div className="mt-2">
     <canvas ref={ref} width={290} height={200} className="rounded-lg w-full" style={{ border: '1px solid rgba(255,255,255,.08)' }} data-testid="fab-preview"/>
     {layers && layers.length > 1 && <label className="flex items-center gap-2 text-[11px]" style={{ color: DIM }}>Layer<input type="range" min={0} max={layers.length - 1} value={layer} onChange={e => setLayer(+e.target.value)} className="flex-1" aria-label="Layer"/><span className="tabular-nums w-14 text-right">{layer + 1}/{layers.length}</span></label>}
+  </div>;
+}
+
+function ResinPreview({ job, layer, setLayer }: { job: ResinJob; layer: number; setLayer: (n: number) => void }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  // Crop to the area anything is ever exposed in.
+  const box = useMemo(() => { let x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1; const step = Math.max(1, Math.floor(job.layers.length / 40)); for (let i = 0; i < job.layers.length; i += step) { const m = job.layers[i].mask; for (let y = 0; y < m.h; y += 2) for (let x = 0; x < m.w; x += 2) if (m.bits[y * m.w + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } } return x1 < 0 ? null : { x0: Math.max(0, x0 - 20), y0: Math.max(0, y0 - 20), x1: x1 + 20, y1: y1 + 20 }; }, [job]);
+  useEffect(() => {
+    const cv = ref.current; if (!cv) return; const g = cv.getContext('2d')!; const W = cv.width, H = cv.height; g.fillStyle = '#07080b'; g.fillRect(0, 0, W, H);
+    const L = job.layers[layer]; if (!L || !box) return; const m = L.mask; const bw = box.x1 - box.x0, bh = box.y1 - box.y0; const sc = Math.min(W / bw, H / bh);
+    const img = g.createImageData(W, H);
+    for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) { const x = Math.floor(box.x0 + px / sc), y = Math.floor(box.y1 - py / sc); if (x < 0 || y < 0 || x >= m.w || y >= m.h || !m.bits[y * m.w + x]) continue; const o = (py * W + px) * 4; img.data[o] = layer < job.supportLayers ? 125 : 251; img.data[o + 1] = layer < job.supportLayers ? 211 : 191; img.data[o + 2] = layer < job.supportLayers ? 252 : 36; img.data[o + 3] = 255; }
+    g.putImageData(img, 0, 0);
+  }, [job, layer, box]);
+  return <div className="mt-2">
+    <canvas ref={ref} width={290} height={200} className="rounded-lg w-full" style={{ border: '1px solid rgba(255,255,255,.08)' }} data-testid="fab-resin-preview"/>
+    <label className="flex items-center gap-2 text-[11px]" style={{ color: DIM }}>Layer<input type="range" min={0} max={job.layers.length - 1} value={layer} onChange={e => setLayer(+e.target.value)} className="flex-1" aria-label="Layer"/><span className="tabular-nums w-16 text-right">{layer + 1}/{job.layers.length}</span></label>
   </div>;
 }

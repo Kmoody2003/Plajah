@@ -99,3 +99,98 @@ test('exports: SVG sheet, SPICE netlist, parts list', () => {
   const sp = spiceNetlist(d.circuit); assert.match(sp, /^\* 555 tone/); assert.match(sp, /\nQQ1 /); assert.match(sp, /\nXU1 .* NE555/); assert.match(sp, /\.end\n$/);
   const rows = bom(d.circuit); assert.deepEqual(rows[0], ['Qty', 'References', 'Part', 'Value']); assert.ok(rows.some(r => r[1] === 'R1, R3' && r[3] === '1kΩ'));
 });
+
+// ---------------------------------------------------------------- boards, prompt-to-design, safety, sourcing
+import { RECIPES, recipeById, recipeDefaults, interpret, fromLlm, e12Above } from '../services/elec/recipes';
+import { fretPosition } from '../services/elec/guitar';
+import { designHazards, processHazards, needsAck, recallQueries, trimCpsc, advisoriesFor } from '../services/safety/hazards';
+import { sourceLines, digikeyOffers, mouserOffers, offerWarnings } from '../services/supply/sourcing';
+import { SUPPLIERS, suppliersFor } from '../services/supply/directory';
+import { BUILD_TERMS, BUILD_TERMS_VERSION } from '../services/safety/terms';
+
+const vd = (b: ReturnType<typeof recipeDefaults> extends never ? never : any) => verifyDesign({ id: 'x', title: '', about: '', circuit: b.circuit, sim: b.sim, licence: 'CC0-1.0', tags: [], pairs: b.pairs });
+
+test('every recipe draws exactly its intended wiring, simulates, and passes the checks', () => {
+  for (const r of RECIPES) {
+    const b = r.build(recipeDefaults(r));
+    const errs = vd(b); assert.deepEqual(errs, [], `${r.id}: ${errs.slice(0, 3).join('; ')}`);
+    const sim = simulate(b.circuit, b.sim); assert.ok(sim.converged, `${r.id} did not converge`);
+    const errors = checkCircuit(b.circuit, sim, { market: b.market }).filter(f => f.level === 'error');
+    assert.deepEqual(errors.map(e => e.id), [], r.id);
+  }
+});
+
+test('recipes scale with their parameters', () => {
+  for (const n of [1, 5, 12]) { const b = recipeById('lamp')!.build({ leds: n, color: 'blue', power: 'battery' }); assert.equal(b.circuit.parts.filter(p => p.kind === 'led').length, n); assert.equal(vd(b).length, 0); }
+  const m = recipeById('midi')!.build({ knobs: 2, buttons: 7 }); assert.match(m.firmware!.code, /board\.GP26, board\.GP27,\)/); assert.match(m.firmware!.code, /board\.GP17,\)/);
+  const c = recipeById('charger')!.build({ ports: 3, amps: '2.4', mains: '230' }); assert.equal(c.market, 'EU'); assert.equal(vd(c).length, 0);
+  assert.equal(e12Above(173), 180); assert.equal(e12Above(120), 120); assert.equal(e12Above(3300.5), 3900);
+});
+
+test('a lamp LED sees about the current the recipe designed for', () => {
+  const b = recipeById('lamp')!.build({ leds: 3, color: 'white', power: 'usb', brightness: 'normal' }); const s = simulate(b.circuit, b.sim);
+  const d = b.circuit.parts.find(p => p.ref === 'D1')!; const i = s.parts[d.id].i[0]; assert.ok(i > 0.01 && i < 0.02, `${i}`);
+});
+
+test('the speaker amp drives the driver; the Pi sees its supply; GPIO LEDs light', () => {
+  const sp = recipeById('speaker')!.build(recipeDefaults(recipeById('speaker')!)); const s = simulate(sp.circuit, sp.sim);
+  const ls = sp.circuit.parts.find(p => p.kind === 'speaker')!; const P = s.parts[ls.id].p.reduce((a, x) => a + x, 0) / s.parts[ls.id].p.length; assert.ok(P > 0.05 && P < 3, `speaker ${P} W`);
+  const pi = recipeById('pi')!.build({ model: 'Pi 5' }); const ps = simulate(pi.circuit, pi.sim); const u = pi.circuit.parts.find(p => p.kind === 'rpi')!; assert.ok(ps.parts[u.id].extra.vsup[0] > 4.9);
+  const led = pi.circuit.parts.find(p => p.ref === 'D1')!; assert.ok(ps.parts[led.id].i[0] > 0.002, 'status LED on GPIO17');
+});
+
+test('board checks catch an overloaded pin and an undersized Pi supply', () => {
+  const pi = recipeById('pi')!.build({ model: 'Pi 5' }); const c = { ...pi.circuit, parts: pi.circuit.parts.map(p => p.kind === 'usb5v' ? { ...p, params: { ...p.params, Imax: '1' } } : p.ref === 'R1' ? { ...p, params: { ...p.params, R: '10' } } : p) };
+  const f = checkCircuit(c, simulate(c, { mode: 'dc' }));
+  assert.ok(f.some(x => x.id === 'gpio-U1'), 'pin overload'); assert.ok(f.some(x => x.id === 'pisup-U1' && x.level === 'error'));
+  assert.ok(f.some(x => x.id === 'fcc-radio') && f.some(x => x.id === 'red-cyber') && f.some(x => x.id === 'ca-iot'));
+});
+
+test('the guitar plan follows the equal-temperament rule and the scale length', () => {
+  assert.ok(Math.abs(fretPosition(648, 12) - 324) < 1e-9); assert.ok(Math.abs(fretPosition(648, 1) - 36.37) < 0.01);
+  const g = recipeById('guitar')!.build({ scale: 648, pickups: 2, type: 'humbucker', frets: 22 });
+  const plan = g.body!; assert.ok(plan.bridgeY > 85 && plan.bridgeY < 130, `${plan.bridgeY}`);
+  assert.equal(plan.model.entities.filter(e => e.layer === 'FRET_SLOTS').length, 22); assert.equal(plan.model.entities.filter(e => e.layer === 'PICKUP').length, 2);
+  const bass = recipeById('guitar')!.build({ bass: true, scale: 864, pickups: 1, type: 'single', frets: 20 }); assert.ok(bass.body!.bridgeY >= 90);
+});
+
+test('enclosures hold every part with clearance and give laser panels', () => {
+  const b = recipeById('midi')!.build({ knobs: 3, buttons: 7 }); const e = b.enclosure!;
+  for (const it of e.items) { assert.ok(it.x - it.w / 2 >= -0.01 && it.x + it.w / 2 <= e.W + 0.01, `${it.name} x`); assert.ok(it.y - it.d / 2 >= -0.01 && it.y + it.d / 2 <= e.D + 0.01, `${it.name} y`); assert.ok(it.h <= e.H, `${it.name} h`); }
+  const loops = e.panels.entities.filter(x => x.type === 'polyline').length; assert.ok(loops >= 6 + 3 + 7, `${loops} panel loops`); // 6 panels + knob + button holes
+  assert.equal(e.model.meshes.length, 2); assert.ok(e.model.meshes[0].indices.length > 100);
+});
+
+test('the prompt reader hears counts, colours, scale lengths and markets', () => {
+  const a = interpret('a USB desk lamp with 6 warm white LEDs'); assert.equal(a.recipe?.id, 'lamp'); assert.equal(a.values.leds, 6);
+  const g = interpret('my own electric guitar with two humbuckers, 24.75" scale'); assert.equal(g.recipe?.id, 'guitar'); assert.equal(g.values.scale, 629); assert.equal(g.values.pickups, 2);
+  assert.equal(interpret('wifi led strip light for home assistant').recipe?.id, 'smart-lamp');
+  assert.equal(interpret('usb charger for the uk, 2 ports').values.mains, '230');
+  assert.equal(interpret('a teapot').recipe, null);
+  // A model reply is validated: unknown keys and out-of-range values are dropped or clamped.
+  const m = fromLlm('Sure! {"recipe":"midi","values":{"knobs":40,"buttons":"x","evil":1},"market":"EU"}', 'controller'); assert.equal(m.recipe?.id, 'midi'); assert.equal(m.values.knobs, 3); assert.equal(m.values.evil, undefined); assert.equal(m.market, 'EU');
+});
+
+test('safety: hazards follow the design and critical ones need acknowledgement', () => {
+  const ch = recipeById('charger')!.build(recipeDefaults(recipeById('charger')!)); const h = designHazards({ circuit: ch.circuit, recipe: 'charger' });
+  assert.equal(h[0].severity, 'critical'); assert.ok(needsAck(h).some(x => x.id === 'mains-shock'));
+  const coin = designHazards({ circuit: designById('coin-cell-keychain-light')!.circuit }); assert.ok(coin.some(x => x.id === 'coin-ingestion' && x.ack));
+  assert.ok(designHazards({ circuit: ch.circuit, toy: true }).some(x => x.id === 'small-parts'));
+  assert.ok(processHazards('laser-co2', 'PVC').some(x => x.id === 'laser-fumes' && x.severity === 'critical'));
+  assert.ok(needsAck(processHazards('lathe')).length >= 1 && needsAck(processHazards('lpbf')).length >= 1);
+  { const q = recallQueries(ch.circuit, 'charger'); assert.ok(q.includes('power adapter') && q.includes('USB charger') && q.length <= 6); }
+  assert.ok(advisoriesFor(ch.circuit).some(a => a.id === 'adv-uncert-acdc'));
+  const hit = trimCpsc({ RecallID: 1, RecallNumber: '26670', RecallDate: '2026-08-06T00:00:00', Title: 'T', URL: 'https://x', Hazards: [{ Name: 'Ingestion' }], Remedies: [{ Name: 'Refund' }], Products: [{ NumberOfUnits: 'About 4,930' }] });
+  assert.deepEqual([hit.date, hit.hazard, hit.units], ['2026-08-06', 'Ingestion', 'About 4,930']);
+  assert.ok(BUILD_TERMS.some(t => /infringe/.test(t.body)) && BUILD_TERMS.some(t => /assumption of risk/i.test(t.heading)) && /^\d{4}-\d{2}-\d{2}$/.test(BUILD_TERMS_VERSION));
+});
+
+test('sourcing groups parts and reads distributor replies', () => {
+  const lines = sourceLines(recipeById('charger')!.build({ ports: 2, amps: '2.4', mains: '120' }).circuit);
+  assert.ok(lines.find(l => l.part.startsWith('AC-DC'))!.authorised); assert.equal(lines.find(l => l.refs.includes('P1'))!.qty, 2);
+  const dk = digikeyOffers({ Products: [{ ManufacturerProductNumber: 'NE555P', Manufacturer: { Name: 'TI' }, Description: { ProductDescription: 'Timer' }, QuantityAvailable: 1000, UnitPrice: 0.52, ProductUrl: 'u', ProductStatus: { Status: 'Obsolete' } }] });
+  assert.equal(dk[0].mpn, 'NE555P'); assert.match(offerWarnings(dk[0])[0], /Obsolete/);
+  const mo = mouserOffers({ SearchResults: { Parts: [{ ManufacturerPartNumber: 'L7805CV', Manufacturer: 'ST', AvailabilityInStock: '12,345', PriceBreaks: [{ Price: '$0.61', Currency: 'USD' }], ProductDetailUrl: 'u' }] } });
+  assert.deepEqual([mo[0].stock, mo[0].price], [12345, 0.61]);
+  assert.ok(suppliersFor(['plush']).length >= 2 && suppliersFor(['textile']).length >= 4 && SUPPLIERS.every(s => /^https:\/\//.test(s.url)));
+});
