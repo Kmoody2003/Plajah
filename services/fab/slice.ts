@@ -55,3 +55,64 @@ export function sliceMesh(meshes: MeshIn[], h: number, maxLayers = 5000): Layer[
   const b = meshBounds(meshes); const n = Math.min(maxLayers, Math.max(1, Math.round((b.max[2] - b.min[2]) / h)));
   return Array.from({ length: n }, (_, i) => { const z = b.min[2] + (i + 0.5) * h; return { z: b.min[2] + (i + 1) * h, loops: sliceAt(meshes, z) }; });
 }
+
+/** Slice at explicit layer tops (ascending, from z = min); each layer is cut at its mid-height. */
+export function sliceAtHeights(meshes: MeshIn[], tops: number[]): Layer[] {
+  let prev = meshBounds(meshes).min[2];
+  return tops.map(t => { const L = { z: t, loops: sliceAt(meshes, (prev + t) / 2) }; prev = t; return L; });
+}
+
+export interface LayerPlan {
+  layer: number; firstLayer?: number;
+  /** Adaptive layers: thinner where the surface is shallow, thicker on vertical walls. */
+  adaptive?: boolean | { min?: number; max?: number; tolerance?: number };
+  nozzle?: number;
+}
+
+/**
+ * Layer tops for a mesh. Uniform: the first layer, then `layer` each. Adaptive: each layer is as thick
+ * as the shallowest face it spans allows, keeping the stair-step (cusp) height h·|nz| within the
+ * tolerance, clamped to [min, max]; flat horizontal faces are snapped to so tops come out exact.
+ */
+export function layerHeights(meshes: MeshIn[], p: LayerPlan, maxLayers = 5000): number[] {
+  const b = meshBounds(meshes); const z0 = b.min[2], top = b.max[2]; const H = top - z0; if (!(H > 0)) return [z0 + p.layer];
+  const first = Math.min(H, p.firstLayer ?? p.layer);
+  if (!p.adaptive) {
+    if (first === p.layer) { const n = Math.min(maxLayers, Math.max(1, Math.round(H / p.layer))); return Array.from({ length: n }, (_, i) => z0 + (i + 1) * p.layer); }
+    const n = Math.min(maxLayers - 1, Math.max(0, Math.round((H - first) / p.layer))); return [z0 + first, ...Array.from({ length: n }, (_, i) => z0 + first + (i + 1) * p.layer)];
+  }
+  const a = typeof p.adaptive === 'object' ? p.adaptive : {}; const nozzle = p.nozzle ?? 0.4;
+  const hMin = Math.max(0.04, a.min ?? Math.max(0.05, nozzle * 0.2)), hMax = Math.max(hMin, a.max ?? Math.min(nozzle * 0.75, p.layer * 1.5)); const tol = a.tolerance ?? p.layer * 0.5;
+  // Faces bucketed by 1 mm bands of height.
+  const bin = 1; const nb = Math.ceil(H / bin) + 1; const bins: number[][] = Array.from({ length: nb }, () => []);
+  const fz0: number[] = [], fz1: number[] = [], fnz: number[] = []; const flats: number[] = [];
+  for (const m of meshes) {
+    const P = m.positions, I = m.indices;
+    for (let t = 0; t < I.length; t += 3) {
+      const i0 = I[t] * 3, i1 = I[t + 1] * 3, i2 = I[t + 2] * 3;
+      const ax = P[i1] - P[i0], ay = P[i1 + 1] - P[i0 + 1], az = P[i1 + 2] - P[i0 + 2], bx = P[i2] - P[i0], by = P[i2 + 1] - P[i0 + 1], bz = P[i2 + 2] - P[i0 + 2];
+      const nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx; const L = Math.hypot(nx, ny, nz); if (L < 1e-12) continue;
+      const anz = Math.abs(nz / L); const lo = Math.min(P[i0 + 2], P[i1 + 2], P[i2 + 2]), hi = Math.max(P[i0 + 2], P[i1 + 2], P[i2 + 2]);
+      if (anz > 0.995) { flats.push(lo); continue; }
+      if (anz < 0.02) continue; // vertical walls never limit the layer
+      const id = fz0.length; fz0.push(lo); fz1.push(hi); fnz.push(anz);
+      for (let k = Math.floor((lo - z0) / bin); k <= Math.floor((hi - z0) / bin); k++) bins[Math.max(0, Math.min(nb - 1, k))].push(id);
+    }
+  }
+  flats.sort((x, y) => x - y);
+  const tops = [z0 + first]; let z = z0 + first;
+  while (z < top - 1e-6 && tops.length < maxLayers) {
+    let h = hMax;
+    const k0 = Math.floor((z - z0) / bin), k1 = Math.floor((z + hMax - z0) / bin); const seen = new Set<number>();
+    for (let k = Math.max(0, k0); k <= Math.min(nb - 1, k1); k++) for (const id of bins[k]) {
+      if (seen.has(id)) continue; seen.add(id);
+      if (fz0[id] < z + h && fz1[id] > z) h = Math.min(h, tol / fnz[id]);
+    }
+    h = Math.max(hMin, Math.min(hMax, h));
+    // Land a top exactly on a flat face inside this layer, if that keeps the layer thick enough.
+    for (const f of flats) { if (f <= z + hMin * 0.999) continue; if (f >= z + h) break; h = f - z; break; }
+    if (top - (z + h) < hMin * 0.5) h = top - z; // finish exactly at the top
+    z += h; tops.push(+z.toFixed(5));
+  }
+  return tops;
+}

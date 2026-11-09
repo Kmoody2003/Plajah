@@ -125,3 +125,96 @@ export function supportGrids(layers: Array<{ z: number; loops: Loop[] }>, bounds
   }
   return { grids, area: grids.map(g => count(g) * cell * cell), cell };
 }
+
+// ---------------------------------------------------------------- tree supports
+
+export interface TreeNode { x: number; y: number; r: number }
+interface Branch { x: number; y: number; r: number; alive: boolean; landed: boolean; nodes: Array<[number, number, number, number]>; feeds: Branch[] }
+
+/**
+ * Tree supports: contact points sampled on each overhang, carried down as branches that lean toward
+ * their neighbours and merge (thickening as they join), steer around the part, and end on the bed
+ * (or on the part in 'everywhere' mode). In 'buildplate' mode a branch that cannot avoid the part is
+ * removed together with every branch that merged into it. Returns per-layer circles plus their raster.
+ */
+export function treeSupports(layers: Array<{ z: number; loops: Loop[] }>, bounds: { min: P2; max: P2 }, o: SupportOptions & { tip?: number; spacing?: number; angle?: number; maxRadius?: number }): { nodes: TreeNode[][]; grids: Grid[]; area: number[]; cell: number } {
+  const cell = o.cell ?? 0.5; const pad = 6;
+  const base = makeGrid(bounds.min[0] - pad, bounds.min[1] - pad, bounds.max[0] + pad, bounds.max[1] + pad, cell);
+  const model = layers.map(L => rasterize(base, L.loops));
+  const gapCells = Math.max(1, Math.round((o.xyGap ?? 0.7) / cell));
+  const keepOut = model.map(m => dilate(m, gapCells));
+  const step = Math.max(0, Math.round(o.layer * Math.tan((90 - o.overhang) * Math.PI / 180) / cell)) || 0;
+  const zGap = o.zGapLayers ?? 1; const tip = o.tip ?? 0.8; const spacing = o.spacing ?? 2.5; const lean = o.layer * Math.tan((o.angle ?? 40) * Math.PI / 180); const maxR = o.maxRadius ?? 4;
+  const grow = o.layer * Math.tan(4 * Math.PI / 180);
+  const blocked = (g: Grid, x: number, y: number, r: number) => {
+    const c0 = Math.floor((x - r - g.x0) / g.cell), c1 = Math.floor((x + r - g.x0) / g.cell), r0 = Math.floor((y - r - g.y0) / g.cell), r1 = Math.floor((y + r - g.y0) / g.cell);
+    for (let rr = Math.max(0, r0); rr <= Math.min(g.h - 1, r1); rr++) for (let cc = Math.max(0, c0); cc <= Math.min(g.w - 1, c1); cc++) {
+      const cx = g.x0 + (cc + 0.5) * g.cell, cy = g.y0 + (rr + 0.5) * g.cell; if ((cx - x) ** 2 + (cy - y) ** 2 <= r * r && g.bits[rr * g.w + cc]) return true;
+    }
+    return false;
+  };
+  const branches: Branch[] = []; let live: Branch[] = [];
+  const lattice = Math.max(1, Math.round(spacing / cell));
+  for (let i = layers.length - 2; i >= 0; i--) {
+    // New contact points under overhangs of layer i+1, starting zGap layers lower.
+    const over = minus(model[i + 1], dilate(model[i], step)); const start = i - zGap + 1;
+    if (start >= 0 && count(over) > 0) {
+      let added = 0; let firstCell = -1;
+      for (let r = 0; r < over.h; r++) for (let c = 0; c < over.w; c++) {
+        if (!over.bits[r * over.w + c]) continue; if (firstCell < 0) firstCell = r * over.w + c;
+        if (r % lattice || c % lattice) continue;
+        const b: Branch = { x: base.x0 + (c + 0.5) * cell, y: base.y0 + (r + 0.5) * cell, r: tip, alive: true, landed: false, nodes: [], feeds: [] };
+        b.nodes.push([start, b.x, b.y, b.r]); branches.push(b); live.push(b); added++;
+      }
+      if (!added && firstCell >= 0) { const b: Branch = { x: base.x0 + (firstCell % over.w + 0.5) * cell, y: base.y0 + (Math.floor(firstCell / over.w) + 0.5) * cell, r: tip, alive: true, landed: false, nodes: [[start, 0, 0, tip]], feeds: [] }; b.nodes[0][1] = b.x; b.nodes[0][2] = b.y; branches.push(b); live.push(b); }
+    }
+    // Carry every live branch from layer i+1 down to layer i (new ones already sit at their start layer).
+    const L = i;
+    for (const b of live) {
+      if (b.nodes[b.nodes.length - 1][0] <= L) continue; // just created at or below this layer
+      // Lean toward the nearest other branch to merge, and grow slightly.
+      let tx = b.x, ty = b.y, bd = Infinity;
+      for (const q of live) { if (q === b) continue; const d = Math.hypot(q.x - b.x, q.y - b.y); if (d < bd && d < 12) { bd = d; tx = q.x; ty = q.y; } }
+      let nx = b.x, ny = b.y; if (bd < Infinity) { const d = Math.max(1e-9, bd); const m = Math.min(lean, d / 2); nx += (tx - b.x) / d * m; ny += (ty - b.y) / d * m; }
+      const nr = Math.min(maxR, b.r + grow);
+      if (blocked(keepOut[L], nx, ny, nr)) {
+        // Steer: try eight directions at growing distances; otherwise this branch ends here.
+        let moved = false;
+        for (const dist of [lean, lean * 2, lean * 3]) {
+          for (let k = 0; k < 8 && !moved; k++) { const ax = b.x + Math.cos(k * Math.PI / 4) * dist, ay = b.y + Math.sin(k * Math.PI / 4) * dist; if (!blocked(keepOut[L], ax, ay, nr)) { nx = ax; ny = ay; moved = true; } }
+          if (moved) break;
+        }
+        if (!moved) { b.alive = false; b.landed = true; continue; }
+      }
+      b.x = nx; b.y = ny; b.r = nr; b.nodes.push([L, nx, ny, nr]);
+    }
+    live = live.filter(b => b.alive);
+    // Merge branches that touch: the survivor takes the area-weighted position and combined section.
+    for (let a = 0; a < live.length; a++) for (let c = a + 1; c < live.length; c++) {
+      const p = live[a], q = live[c]; if (!p.alive || !q.alive) continue;
+      if (Math.hypot(p.x - q.x, p.y - q.y) < (p.r + q.r) * 0.5) {
+        const wp = p.r * p.r, wq = q.r * q.r; p.x = (p.x * wp + q.x * wq) / (wp + wq); p.y = (p.y * wp + q.y * wq) / (wp + wq); p.r = Math.min(maxR, Math.sqrt(wp + wq));
+        const last = p.nodes[p.nodes.length - 1]; if (last[0] === L) { last[1] = p.x; last[2] = p.y; last[3] = p.r; }
+        q.alive = false; p.feeds.push(q);
+      }
+    }
+    live = live.filter(b => b.alive);
+  }
+  // Build-plate-only: drop every branch resting on the part, and everything feeding it.
+  if (o.mode === 'buildplate') {
+    const kill = (b: Branch) => { b.nodes = []; for (const f of b.feeds) kill(f); };
+    for (const b of branches) if (b.landed) kill(b);
+  }
+  const nodes: TreeNode[][] = layers.map(() => []);
+  for (const b of branches) for (const [l, x, y, r] of b.nodes) if (l >= 0 && l < layers.length) nodes[l].push({ x, y, r });
+  const grids = nodes.map((list, l) => {
+    const g = blank(base);
+    for (const n of list) {
+      const c0 = Math.max(0, Math.floor((n.x - n.r - g.x0) / cell)), c1 = Math.min(g.w - 1, Math.floor((n.x + n.r - g.x0) / cell));
+      const r0 = Math.max(0, Math.floor((n.y - n.r - g.y0) / cell)), r1 = Math.min(g.h - 1, Math.floor((n.y + n.r - g.y0) / cell));
+      for (let rr = r0; rr <= r1; rr++) for (let cc = c0; cc <= c1; cc++) { const cx = g.x0 + (cc + 0.5) * cell, cy = g.y0 + (rr + 0.5) * cell; if ((cx - n.x) ** 2 + (cy - n.y) ** 2 <= n.r * n.r) g.bits[rr * g.w + cc] = 1; }
+    }
+    return minus(g, keepOut[l]);
+  });
+  return { nodes, grids, area: grids.map(g => count(g) * cell * cell), cell };
+}

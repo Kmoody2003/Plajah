@@ -21,6 +21,25 @@ export const FILAMENTS: Filament[] = [
 ];
 export const filamentById = (id: string) => FILAMENTS.find(f => f.id === id);
 
+/**
+ * Upper ends of the usual print-temperature ranges for generic grades, from public datasheets
+ * (°C). Above these a filament degrades and fumes; a spool's own label can allow more.
+ * Order matters: the first match wins (PETG before PET, PLA before PA).
+ */
+export const MATERIAL_LIMITS: Array<{ match: RegExp; name: string; nozzle: number; bed: number }> = [
+  { match: /tpu|tpe|flex/i, name: 'TPU', nozzle: 250, bed: 70 },
+  { match: /pla/i, name: 'PLA', nozzle: 240, bed: 70 },
+  { match: /petg|pet|pctg/i, name: 'PETG', nozzle: 265, bed: 90 },
+  { match: /asa/i, name: 'ASA', nozzle: 275, bed: 115 },
+  { match: /abs|hips/i, name: 'ABS', nozzle: 270, bed: 115 },
+  { match: /\bpa\b|pa\d|pa-|nylon/i, name: 'Nylon', nozzle: 300, bed: 110 },
+  { match: /\bpc\b|polycarb/i, name: 'PC', nozzle: 310, bed: 125 },
+  { match: /\bpp\b|polyprop/i, name: 'PP', nozzle: 260, bed: 110 },
+  { match: /pva|bvoh/i, name: 'PVA', nozzle: 225, bed: 65 },
+];
+export const DEFAULT_LIMIT = { name: 'unknown filament', nozzle: 300, bed: 120 };
+export const materialLimit = (type = '') => MATERIAL_LIMITS.find(m => m.match.test(type)) ?? DEFAULT_LIMIT;
+
 export interface Resin { id: string; name: string; exposure: number; bottomExposure: number; bottomLayers: number; density: number; notes: string }
 export const RESINS: Resin[] = [
   { id: 'standard', name: 'Standard resin', exposure: 2.5, bottomExposure: 25, bottomLayers: 5, density: 1.1, notes: 'Exposure is printer-specific; run an exposure test (e.g. a calibration matrix) once per bottle.' },

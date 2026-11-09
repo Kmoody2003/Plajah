@@ -4,7 +4,9 @@
 import type { Job, Move } from './cam';
 import type { Dialect } from './machines';
 
-export interface PostOptions { dialect: Dialect; name?: string; nozzleTemp?: number; bedTemp?: number; coolant?: boolean; programNumber?: number; laserMax?: number; units?: 'mm' }
+export interface PostOptions { dialect: Dialect; name?: string; nozzleTemp?: number; bedTemp?: number; coolant?: boolean; programNumber?: number; laserMax?: number; units?: 'mm';
+  /** FDM: the printer profile's own start / end G-code, already rendered (profiles.renderGcode). Replaces our heat-up and shutdown. */
+  startGcode?: string; endGcode?: string }
 
 const num = (v: number, d = 3) => { const s = v.toFixed(d).replace(/\.?0+$/, ''); return s === '-0' ? '0' : s; };
 
@@ -18,7 +20,8 @@ export function post(job: Job, o: PostOptions): string {
   L.push(c(`${name} — Plajah Build, ${job.process}`), c(`Estimated ${Math.round(job.stats.seconds / 60)} min, cut ${Math.round(job.stats.cutLength)} mm`));
   if (fdm) {
     const nt = o.nozzleTemp ?? 210, bt = o.bedTemp ?? 60;
-    if (d === 'klipper') L.push(`PRINT_START EXTRUDER=${nt} BED=${bt}`, c('If your config has no PRINT_START macro, use the Marlin start below'));
+    if (o.startGcode !== undefined) L.push(c('Start G-code from your printer profile'), ...o.startGcode.split(/\r?\n/), c('End of profile start G-code'));
+    else if (d === 'klipper') L.push(`PRINT_START EXTRUDER=${nt} BED=${bt}`, c('If your config has no PRINT_START macro, use the Marlin start below'));
     else L.push(`M140 S${bt}`, `M104 S${nt}`, 'G28', `M190 S${bt}`, `M109 S${nt}`, 'G92 E0');
     L.push('G21', 'G90', 'M82', 'G92 E0');
   } else if (lathe) L.push('G18 G21 G90 G40', 'G7 (diameter mode)', 'G54');
@@ -39,6 +42,7 @@ export function post(job: Job, o: PostOptions): string {
         break;
       case 'off': L.push(laser ? 'M5' : d === 'plasma' ? 'M5 $0' : 'M5', ...(o.coolant && iso && !laser && d !== 'plasma' ? ['M9'] : [])); break;
       case 'fan': L.push(m.s > 0 ? (d === 'reprap' ? `M106 S${num(m.s, 2)}` : `M106 S${Math.round(m.s * 255)}`) : 'M107'); break;
+      case 'temp': L.push(`${m.bed ? 'M140' : 'M104'} S${Math.round(m.s)}`); break;
       case 'dwell': L.push(`G4 P${num(m.s, 2)}`); break; // seconds in GRBL, Marlin and LinuxCNC
       case 'rapid': case 'feed': {
         const parts = [m.t === 'rapid' ? 'G0' : 'G1'];
@@ -54,7 +58,8 @@ export function post(job: Job, o: PostOptions): string {
   }
   // Footer.
   if (fdm) L.push('M107');
-  if (fdm) { if (d === 'klipper') L.push('PRINT_END'); else L.push('M104 S0', 'M140 S0', 'G91', 'G1 Z5 F600', 'G90', 'G28 X', 'M84'); }
+  if (fdm && o.endGcode !== undefined) L.push(c('End G-code from your printer profile'), ...o.endGcode.split(/\r?\n/));
+  else if (fdm) { if (d === 'klipper') L.push('PRINT_END'); else L.push('M104 S0', 'M140 S0', 'G91', 'G1 Z5 F600', 'G90', 'G28 X', 'M84'); }
   else L.push(lathe ? 'G0 X100 Z50' : iso ? 'G0 Z25' : 'G0 X0 Y0', iso ? 'M30' : 'M2');
   if (d === 'iso' || d === 'lathe-iso') L.push('%');
   return L.filter(x => x !== '').join('\n') + '\n';

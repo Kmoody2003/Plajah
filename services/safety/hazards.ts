@@ -5,6 +5,7 @@
 
 import type { Circuit } from '../elec/circuit';
 import { parseSi } from '../elec/components';
+import { materialLimit } from '../fab/materials';
 
 export type Stage = 'idea' | 'schematic' | 'enclosure' | 'build' | 'make' | 'source' | 'sell';
 export type Severity = 'critical' | 'high' | 'medium' | 'low';
@@ -77,6 +78,57 @@ export function processHazards(processId: string, material = ''): Hazard[] {
   if (processId === 'ded') add({ id: 'ded', severity: 'high', title: 'Welding arc and fumes', why: 'WAAM/DED is welding: arc radiation, fumes, burns and fire.', mitigate: ['Welding PPE, fume extraction, fire watch.'] });
   if (processId === 'wire-edm') add({ id: 'edm', severity: 'medium', title: 'Dielectric fluid and electricity', why: 'EDM uses high voltage in deionised water or oil; oil dielectric is flammable.', mitigate: ['Keep fluid level above the work; interlocks on; fire suppression for oil machines.'] });
   if (processId === 'sewing' || processId === 'textile') add({ id: 'sewing', severity: 'low', title: 'Needles and cutters', why: 'Industrial machines and rotary cutters cause puncture and cut injuries.', mitigate: ['Finger guards, retract rotary blades, keep fingers clear of the needle.'] });
+  return sortHazards(out);
+}
+
+// ---------------------------------------------------------------- imported slicer profiles
+
+export interface ProfileCheck {
+  material?: string; nozzleTemp: number; bedTemp: number; firstLayerNozzleTemp?: number; firstLayerBedTemp?: number;
+  /** Fastest print and travel speeds the job will ask for, mm/s, and the machine's own maxima. */ speed: number; travel: number; maxX?: number; maxY?: number;
+  /** Custom G-code from the profile, for review. */ gcode?: Array<{ label: string; text: string }>;
+  source?: string;
+}
+
+/** Commands that change the machine itself rather than this print. */
+const RISKY_GCODE: Array<{ re: RegExp; what: string; severity: Severity }> = [
+  { re: /^M302\b/, what: 'M302 allows cold extrusion (grinds filament, can strip the extruder)', severity: 'critical' },
+  { re: /^M211\s+S0\b/, what: 'M211 S0 turns off software endstops (the head can crash into the frame)', severity: 'critical' },
+  { re: /^M50[0-2]\b/, what: 'M500/M501/M502 save, reload or factory-reset firmware settings', severity: 'critical' },
+  { re: /^M997\b/, what: 'M997 starts a firmware update', severity: 'critical' },
+  { re: /^M92\b/, what: 'M92 changes steps per mm (wrong values over- or under-extrude and mis-size parts)', severity: 'high' },
+  { re: /^M90[67]\b/, what: 'M906/M907 change motor currents (drivers and motors can overheat)', severity: 'high' },
+  { re: /^M303\b/, what: 'M303 runs heater auto-tuning (heats the hotend on its own)', severity: 'high' },
+  { re: /^M20[1345]\b/, what: 'M201-M205 change the machine speed, acceleration or jerk limits', severity: 'medium' },
+  { re: /^M112\b/, what: 'M112 emergency stop in the middle of the file', severity: 'medium' },
+];
+
+/**
+ * Hazards from an imported slicer profile: temperatures above what the material tolerates, speeds
+ * beyond the machine's own limits, and custom G-code that reconfigures the printer. Profiles are
+ * other people's settings: we never run them blind, so the risky parts must be acknowledged.
+ */
+export function profileHazards(c: ProfileCheck): Hazard[] {
+  const out: Hazard[] = []; const lim = materialLimit(c.material); const src = c.source ? ` (from ${c.source})` : '';
+  const add = (h: Omit<Hazard, 'stage'>) => out.push({ stage: 'make', ...h });
+  const nozzle = Math.max(c.nozzleTemp, c.firstLayerNozzleTemp ?? 0), bed = Math.max(c.bedTemp, c.firstLayerBedTemp ?? 0);
+  if (nozzle > lim.nozzle) add({ id: 'profile-nozzle-temp', severity: 'critical', ack: true, title: `Nozzle ${nozzle} °C is above ${lim.name}'s ${lim.nozzle} °C`, why: `Overheated filament decomposes, gives off fumes and can char inside the hotend${src}.`, mitigate: [`Check the spool label; bring the nozzle back into its range (${lim.nozzle} °C or less).`, 'If the material really needs it, ventilate and stay with the printer.'], cite: `Generic ${lim.name} datasheet ranges (services/fab/materials.ts MATERIAL_LIMITS)` });
+  if (nozzle > 240) add({ id: 'profile-ptfe', severity: 'high', title: 'PTFE-lined hotends should stay at or below 240 °C', why: 'PTFE (Teflon) tubing in the hot zone breaks down as it overheats, and its fumes are toxic, especially to pet birds.', mitigate: ['Use an all-metal hotend for anything hotter.', 'Ventilate the room.'], cite: 'Hotend makers\' ratings for PTFE-lined hotends; PTFE pyrolysis (polymer fume fever)' });
+  if (bed > lim.bed) add({ id: 'profile-bed-temp', severity: 'critical', ack: true, title: `Bed ${bed} °C is above ${lim.name}'s ${lim.bed} °C`, why: `Very hot beds warp build sheets, soften adhesives and burn skin${src}.`, mitigate: [`Lower the bed to ${lim.bed} °C or below.`, 'Do not touch the bed while it is hot.'], cite: `Generic ${lim.name} datasheet ranges; IEC 62368-1 Table 38 (touch temperatures)` });
+  const maxXY = Math.min(c.maxX ?? Infinity, c.maxY ?? Infinity);
+  if (Number.isFinite(maxXY) && Math.max(c.speed, c.travel) > maxXY) add({ id: 'profile-speed', severity: 'high', ack: true, title: `Speed ${Math.round(Math.max(c.speed, c.travel))} mm/s is above the machine's ${Math.round(maxXY)} mm/s`, why: 'The firmware clamps it (so the time estimate is wrong) or, with limits raised, the motors skip steps and the print shifts or the head crashes.', mitigate: ['Lower print and travel speeds to the machine maximum.', 'Do not raise firmware limits beyond what the printer maker lists.'], cite: 'Printer profile machine_max_feedrate_x / machine_max_speed_x' });
+  for (const g of c.gcode ?? []) {
+    const found = new Map<string, Severity>();
+    for (const raw of g.text.split(/\r?\n/)) {
+      const line = raw.replace(/;.*$/, '').trim().toUpperCase(); if (!line) continue;
+      for (const r of RISKY_GCODE) if (r.re.test(line)) found.set(r.what, r.severity);
+      const t = /^M(104|109|140|190)\b.*\bS(\d+)/.exec(line);
+      if (t) { const v = +t[2]; const isBed = t[1] === '140' || t[1] === '190'; const max = isBed ? lim.bed : lim.nozzle; if (v > max) found.set(`${line} sets ${v} °C, above ${lim.name}'s ${max} °C`, 'critical'); }
+    }
+    if (!found.size) continue;
+    const sev = [...found.values()]; const worst: Severity = sev.includes('critical') ? 'critical' : sev.includes('high') ? 'high' : 'medium';
+    add({ id: `profile-gcode-${g.label.toLowerCase().replace(/\W+/g, '-')}`, severity: worst, ack: worst !== 'medium', title: `${g.label} G-code changes the machine`, why: `The profile's ${g.label.toLowerCase()} G-code contains: ${[...found.keys()].join('; ')}.`, mitigate: ['Read the G-code shown under the profile; delete those lines unless you know why they are there.', 'We never run profile G-code ourselves; it only goes into the file you send.'], cite: 'Marlin and RepRapFirmware G-code references for each command' });
+  }
   return sortHazards(out);
 }
 
