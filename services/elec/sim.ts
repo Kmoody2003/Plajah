@@ -213,7 +213,7 @@ export function simulate(c: Circuit, o: SimOptions): SimResult {
           }
           break;
         }
-        case 'pico': case 'esp32': case 'nano': case 'rpi': {
+        case 'pico': case 'esp32': case 'esp32s3': case 'nano': case 'rpi': {
           const info = BOARD_INFO[st.kind]; const GN = node(st, 'GND'); let PW = node(st, info.power);
           if (st.kind === 'pico') { stampG(ctx, node(st, 'VBUS'), node(st, 'VSYS'), 2); if (!PW) PW = node(st, 'VBUS'); }
           const vsup = V(PW) - V(GN); const on = boardOn(st.kind, vsup); st.on = on; // ramps on, so Newton sees a continuous source
@@ -345,7 +345,7 @@ export function simulate(c: Circuit, o: SimOptions): SimResult {
         case 'ledstrip': { const Vs = P(p, 'V'); i = vab * P(p, 'W') / (Vs * Vs); pw = i * vab; break; }
         case 'acdc': { const plus = node(st, '+'), minus = node(st, '-'); const vo = V(plus) - V(minus); i = (P(p, 'V') - vo) / 0.05; pw = vo * i; ex('v', vo); ex('pin', pw / Math.max(0.3, P(p, 'eff'))); break; }
         case 'amp': { const OP = node(st, 'OUT+'), OM = node(st, 'OUT-'), GN = node(st, 'GND'); const vd = V(OP) - V(OM); ex('vout', vd); ex('vcc', V(node(st, 'VCC')) - V(GN)); i = 0.004 + (st.lag ?? 0); pw = i * (V(node(st, 'VCC')) - V(GN)); break; }
-        case 'pico': case 'esp32': case 'nano': case 'rpi': {
+        case 'pico': case 'esp32': case 'esp32s3': case 'nano': case 'rpi': {
           const info = BOARD_INFO[st.kind]; const GN = node(st, 'GND'); let PW = node(st, info.power); if (st.kind === 'pico' && !PW) PW = node(st, 'VBUS');
           const vsup = V(PW) - V(GN); i = boardDraw(p) * Math.tanh(Math.max(0, vsup)) + (st.lag ?? 0); pw = i * vsup; ex('vsup', vsup);
           const on = boardOn(st.kind, vsup); const r33 = node(st, '3V3'); ex('i3v3', r33 ? Math.max(0, (3.3 * on - (V(r33) - V(GN))) * 10) : 0);

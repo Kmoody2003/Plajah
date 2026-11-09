@@ -28,7 +28,7 @@ const q1 = (p: CPart): { query: string; note?: string; authorised?: boolean } =>
     case 'dcsupply': return { query: `${v('V')}V ${v('Imax')}A power adapter UL listed`, note: 'Buy a listed adapter from an authorised seller.', authorised: true };
     case 'acdc': return { query: `IRM-${Math.ceil(Number(v('V')) * Number(v('I')) / 5) * 5}-${v('V')}`, note: 'Certified module only; check the certificate number on the certifier\'s database.', authorised: true };
     case 'pico': return { query: `Raspberry Pi ${String(p.params.variant ?? 'Pico')}`, authorised: true };
-    case 'esp32': return { query: 'ESP32-DevKitC-32E', authorised: true }; case 'nano': return { query: 'Arduino Nano A000005', authorised: true };
+    case 'esp32': return { query: 'ESP32-DevKitC-32E', authorised: true }; case 'esp32s3': return { query: 'ESP32-S3-DevKitC-1-N8', authorised: true }; case 'nano': return { query: 'Arduino Nano A000005', authorised: true };
     case 'rpi': return { query: `Raspberry Pi ${String(p.params.model ?? 'Pi 5').replace('Pi ', '')}`, note: 'Buy from an approved reseller.', authorised: true };
     case 'amp': return { query: 'PAM8302 class D amplifier breakout' }; case 'sensor': return { query: 'BME280 breakout I2C' };
     case 'pickup': return { query: `${p.params.type === 'single' ? 'single coil' : 'humbucker'} guitar pickup` }; case 'jack': return { query: '1/4 inch mono guitar output jack' };

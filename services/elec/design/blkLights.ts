@@ -15,7 +15,7 @@ export const led: BlockDef = {
   pins: i => [{ role: 'led', cap: 'gpio', high: true, label: `LED ${n(i)}` }],
   loads: i => [{ rail: 'logic', typ: 0.008, peak: 0.009, what: `LED ${n(i)}` }],
   draw(i, d) {
-    const color = String(i.opt.color ?? 'green'); const I = Math.min(0.008, (i.mcu?.kind === 'pico' ? 0.012 : 0.02) * 0.7);
+    const color = String(i.opt.color ?? 'green'); const I = Math.min(0.008, (i.mcu?.part === 'pico' ? 0.012 : 0.02) * 0.7);
     const r = d.part('resistor', 0, 0, 0, { R: fmtR(e12Up(Math.max(10, (i.logicV - ledColor(color).vf) / I))) }); const dd = d.part('led', 6, 0, 0, { color });
     d.net('@led', [r, '1']); d.net('a', [r, '2'], [dd, 'A']); d.net('GND', [dd, 'K']);
   },

@@ -17,7 +17,7 @@ const ind = (code: string, n: number) => code.split('\n').map(l => (l ? ' '.repe
 const uniq = (a: string[]) => [...new Set(a.filter(Boolean))];
 
 export function firmware(p: Plan, name: string): Firmware | undefined {
-  const mcu = p.mcu; if (!mcu) return undefined; const fw = mcu.framework;
+  const mcu = p.mcu; if (!mcu) return undefined; const fw = p.framework ?? mcu.framework;
   const esp = new Map<string, string[]>(); const imps: string[] = [], libs: string[] = [], globs: string[] = [], setups: string[] = [], loops: string[] = [];
   const reads: Array<{ label: string; expr: string; unit: string }> = []; const screens: Array<{ kind: 'oled' | 'tft'; id: string; addr: string }> = [];
   const api: FwApi = {
@@ -33,7 +33,7 @@ export function firmware(p: Plan, name: string): Firmware | undefined {
   const libList = uniq(libs);
 
   if (fw === 'esphome') {
-    const out: string[] = [head('#'), '# esphome run device.yaml   (first flash over USB, then over Wi-Fi)', '', `esphome:\n  name: plajah-${slug}`, '', 'esp32:\n  board: esp32dev', '',
+    const out: string[] = [head('#'), '# esphome run device.yaml   (first flash over USB, then over Wi-Fi)', '', `esphome:\n  name: plajah-${slug}`, '', mcu.kind === 'esp32s3' ? 'esp32:\n  board: esp32-s3-devkitc-1\n  variant: esp32s3' : 'esp32:\n  board: esp32dev', '',
       'wifi:\n  ssid: !secret wifi_ssid\n  password: !secret wifi_password\n  ap:\n    password: !secret fallback_password', '', 'captive_portal:', '', 'api:\n  encryption:\n    key: !secret api_key', '', 'ota:\n  - platform: esphome\n    password: !secret ota_password', '', 'logger:', ''];
     if (p.i2c) out.push(`i2c:\n  sda: ${api.pin(p.i2c[0])}\n  scl: ${api.pin(p.i2c[1])}\n  scan: true`, '');
     if (p.spi) out.push(`spi:\n  clk_pin: ${api.pin(p.spi[0])}\n  mosi_pin: ${api.pin(p.spi[1])}`, '');
@@ -67,6 +67,11 @@ export function firmware(p: Plan, name: string): Firmware | undefined {
   const pre: string[] = [];
   if (p.insts[0]?.usbMidi) { top.push('import usb_midi'); pre.push('midi = usb_midi.ports[1]  # USB MIDI out: shows up as "CircuitPython MIDI"'); }
   if (p.insts[0]?.usbHid) { top.push('import usb_hid', 'from adafruit_hid.keyboard import Keyboard', 'from adafruit_hid.keycode import Keycode', 'from adafruit_hid.consumer_control import ConsumerControl', 'from adafruit_hid.consumer_control_code import ConsumerControlCode'); libList.push('adafruit_hid'); pre.push('kbd = Keyboard(usb_hid.devices)\ncc = ConsumerControl(usb_hid.devices)'); }
+  const cpWifi = !py && mcu.wifi && !!p.wifi;
+  if (cpWifi) {
+    top.push('import os, json, wifi, socketpool', 'import adafruit_minimqtt.adafruit_minimqtt as MQTT'); libList.push('adafruit_minimqtt');
+    pre.push(`wifi.radio.connect(os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD"))\nmqtt = MQTT.MQTT(broker=os.getenv("MQTT_BROKER"), username=os.getenv("MQTT_USER"), password=os.getenv("MQTT_PASSWORD"), socket_pool=socketpool.SocketPool(wifi.radio))\nmqtt.connect()\nSTATE_TOPIC = "plajah/${slug}/state"  # add an MQTT sensor in Home Assistant on this topic`);
+  }
   if (p.i2c) pre.push(py ? 'i2c = busio.I2C(board.SCL, board.SDA)' : `i2c = busio.I2C(${api.bpin(p.i2c[1])}, ${api.bpin(p.i2c[0])})  # SCL, SDA`);
   if (p.spi) pre.push(`spi = busio.SPI(clock=${api.bpin(p.spi[0])}, MOSI=${api.bpin(p.spi[1])})`);
   if (p.ads) { top.push('import adafruit_ads1x15.ads1115 as ADS'); libList.push('adafruit_ads1x15'); pre.push(...Array.from({ length: p.ads }, (_, k) => `ads${k} = ADS.ADS1115(i2c, address=0x${(0x48 + k).toString(16)})`)); }
@@ -79,8 +84,8 @@ export function firmware(p: Plan, name: string): Firmware | undefined {
   const readDict = reads.length ? `readings = {${reads.map(r => `"${r.label}": ${r.expr}`).join(', ')}}` : 'readings = {}';
   const show = [...(oled ? ['oled.fill(0)', 'for row, (k, v) in enumerate(readings.items()):', '    oled.text(f"{k}: {v}", 0, row * 10, 1)', 'oled.show()'] : []), ...(tft ? ['tft_text.text = "\\n".join(f"{k}: {v}" for k, v in readings.items()) or tft_text.text'] : [])];
   const code = [`# ${head('').trim()}`, py ? `# Raspberry Pi OS: enable I2C in raspi-config, then: pip install ${uniq(libList).map(l => `adafruit-circuitpython-${l.replace(/^adafruit_/, '').replace(/_/g, '-')}`).join(' ') || 'gpiozero'} --break-system-packages` : `# Copy to the CIRCUITPY drive as code.py. Libraries (circup install): ${uniq(libList).join(' ') || 'none'}`,
-    ...top, '', ...pre, ...globs, ...setups, '', 'last_report = 0', 'while True:', ind(loops.join('\n'), 4), '    if time.monotonic() - last_report > 1:', '        last_report = time.monotonic()', ind([readDict, 'print(readings)', ...show].join('\n'), 8), `    time.sleep(${py ? '0.05' : '0.005'})`, ''].join('\n');
+    ...top, '', ...pre, ...globs, ...setups, '', 'last_report = 0', 'while True:', ind(loops.join('\n'), 4), '    if time.monotonic() - last_report > 1:', '        last_report = time.monotonic()', ind([readDict, 'print(readings)', ...(cpWifi ? ['mqtt.publish(STATE_TOPIC, json.dumps(readings))'] : []), ...show].join('\n'), 8), `    time.sleep(${py ? '0.05' : '0.005'})`, ''].join('\n');
   return py
     ? { file: 'device.py', lang: 'python', code, about: 'Python service for Raspberry Pi OS (gpiozero + Blinka). Run it with python3; start it at boot with a systemd unit.', extra: [{ file: 'requirements.txt', code: ['gpiozero', 'adafruit-blinka', ...uniq(libList).map(l => `adafruit-circuitpython-${l.replace(/^adafruit_/, '').replace(/_/g, '-')}`)].join('\n') + '\n' }] }
-    : { file: 'code.py', lang: 'python', code, about: `Install CircuitPython on the Pico (hold BOOTSEL, plug in, drop the .uf2), copy the libraries (${uniq(libList).join(', ') || 'none needed'}) into lib/, then save this as code.py.${oled ? ' The OLED text needs font5x8.bin in the root of CIRCUITPY (from the adafruit_framebuf examples).' : ''}` };
+    : { file: 'code.py', lang: 'python', code, ...(cpWifi ? { extra: [{ file: 'settings.toml', code: 'CIRCUITPY_WIFI_SSID = ""\nCIRCUITPY_WIFI_PASSWORD = ""\nMQTT_BROKER = ""   # your Home Assistant / Mosquitto host\nMQTT_USER = ""\nMQTT_PASSWORD = ""  # a unique password per device\n' }] } : {}), about: `Install CircuitPython on the Pico (hold BOOTSEL, plug in, drop the .uf2), copy the libraries (${uniq(libList).join(', ') || 'none needed'}) into lib/, then save this as code.py.${oled ? ' The OLED text needs font5x8.bin in the root of CIRCUITPY (from the adafruit_framebuf examples).' : ''}` };
 }

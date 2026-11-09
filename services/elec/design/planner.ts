@@ -8,7 +8,7 @@
 // Released by Plajah as public domain (CC0).
 import { blockById } from './blocks';
 import { busOf } from './block';
-import { MCUS, railMax, type McuDef, type McuKind } from './mcus';
+import { MCUS, railMax, frameworkFor, type Framework, type McuDef, type McuKind } from './mcus';
 import { PI_MODELS } from '../boards';
 import type { Inst, Load, PinNeed, PowerChoice, Spec } from './types';
 
@@ -28,6 +28,7 @@ export interface PowerPlan {
 export interface Plan {
   errors: string[]; notes: string[]; mcu: McuDef | null; insts: Inst[]; pins: PinRow[];
   i2c?: [string, string]; spi?: [string, string]; ads: number; power: PowerPlan; logicV: number; tried: string[];
+  framework?: Framework; wifi?: boolean;
 }
 
 const STD_A = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10];
@@ -53,9 +54,11 @@ function instances(spec: Spec, errors: string[]): Inst[] {
 
 function candidates(spec: Spec): McuKind[] {
   if (spec.mcu !== 'auto' && spec.mcu !== 'none') return [spec.mcu];
-  if (spec.conn.includes('usb-midi') || spec.conn.includes('usb-hid')) return ['pico'];
-  if (spec.conn.some(c => c === 'wifi' || c === 'homeassistant' || c === 'bluetooth')) return ['esp32', 'rpi'];
-  return ['pico', 'esp32', 'nano'];
+  const usb = spec.conn.includes('usb-midi') || spec.conn.includes('usb-hid'); const radio = spec.conn.some(c => c === 'wifi' || c === 'homeassistant' || c === 'bluetooth');
+  if (usb && radio) return ['esp32s3', 'picow'];
+  if (usb) return ['pico', 'esp32s3'];
+  if (radio) return ['esp32', 'esp32s3', 'picow', 'rpi'];
+  return ['pico', 'esp32', 'nano', 'esp32s3'];
 }
 
 /** Allocate pins; returns the reason on failure. */
@@ -178,5 +181,5 @@ export function plan(spec: Spec): Plan {
   }
   for (const i of insts) i.mcu = mcu;
   const power = powerPlan(spec, mcu, insts, alloc.ads, errors, notes);
-  return { errors, notes, mcu, insts, pins: alloc.pins, i2c: alloc.i2c, spi: alloc.spi, ads: alloc.ads, power, logicV: mcu?.logic ?? 3.3, tried };
+  return { errors, notes, mcu, insts, pins: alloc.pins, i2c: alloc.i2c, spi: alloc.spi, ads: alloc.ads, power, logicV: mcu?.logic ?? 3.3, tried, framework: mcu ? frameworkFor(mcu, spec.conn) : undefined, wifi: spec.conn.includes('wifi') || spec.conn.includes('homeassistant') };
 }

@@ -134,7 +134,7 @@ export function checkCircuit(c: Circuit, sim?: SimResult | null, o: CheckOptions
           else if (Iavg > lim * 0.8) add({ id: `usb-${p.ref}`, level: 'warn', area: 'Stress', refs: [p.ref], title: `${p.ref} uses ${Math.round(Iavg / lim * 100)}% of the port`, detail: 'Little headroom for inrush or a weak port.' });
           else pass(p.ref, `Draws ${fmt(Iavg, 'A')} of ${fmt(lim, 'A')}.`);
           break; }
-        case 'pico': case 'esp32': case 'nano': case 'rpi': {
+        case 'pico': case 'esp32': case 'esp32s3': case 'nano': case 'rpi': {
           const info = BOARD_INFO[p.kind]; const name = p.kind === 'rpi' ? String(p.params.model ?? 'Raspberry Pi') : compByKind(p.kind)!.name;
           const vsup = mean(tr.extra.vsup ?? [0]);
           const minV = p.kind === 'pico' ? 1.8 : p.kind === 'nano' ? 4.5 : 4.75;
@@ -146,7 +146,7 @@ export function checkCircuit(c: Circuit, sim?: SimResult | null, o: CheckOptions
           else if (total > 0) pass(p.ref, `GPIO loads within limits (worst ${worstPin} ${fmt(worst, 'A')}).`);
           const i33 = peak(tr.extra.i3v3 ?? []);
           if (i33 > info.rail3v3Max) add({ id: `r33-${p.ref}`, level: 'error', area: 'Stress', refs: [p.ref], title: `${p.ref} 3V3 pin overloaded (${fmt(i33, 'A')})`, detail: `The board's 3.3 V output is good for about ${fmt(info.rail3v3Max, 'A')}; power big loads from the 5 V supply directly.` });
-          if (p.kind === 'esp32') add({ id: `burst-${p.ref}`, level: 'info', area: 'Stress', refs: [p.ref], title: 'Wi-Fi bursts', detail: 'ESP32 radio transmit pulls about 250 mA peaks. Keep the supply able to deliver 500 mA and put 10-100 µF near the module.' });
+          if (p.kind === 'esp32' || p.kind === 'esp32s3') add({ id: `burst-${p.ref}`, level: 'info', area: 'Stress', refs: [p.ref], title: 'Wi-Fi bursts', detail: 'ESP32 radio transmit pulls about 250 mA peaks. Keep the supply able to deliver 500 mA and put 10-100 µF near the module.' });
           if (p.kind === 'rpi') {
             const m = PI_MODELS[String(p.params.model ?? 'Pi 5')]; const supply = c.parts.find(s => (s.kind === 'usb5v' || s.kind === 'dcsupply' || s.kind === 'acdc') && Object.values(nl.pinNet[s.id] ?? {}).includes(nl.pinNet[p.id]?.['5V'] ?? -1));
             const lim = supply ? P(supply, supply.kind === 'acdc' ? 'I' : 'Imax') : NaN;
@@ -213,7 +213,7 @@ export function checkCircuit(c: Circuit, sim?: SimResult | null, o: CheckOptions
     if (batteries.length) reg({ id: 'eu-battery', level: 'info', market: 'EU', refs: batteries.map(p => p.ref), cite: 'Regulation (EU) 2023/1542, Art. 11', title: 'EU Battery Regulation: user-replaceable batteries', detail: 'Portable batteries built into appliances must be removable and replaceable by the end user with commonly available tools (applies from 18 February 2027). A battery holder or clip already meets this.' });
   }
   // ---- Radios and connected devices ----
-  const radios = parts.filter(p => (p.kind === 'esp32' || p.kind === 'rpi') || (p.kind === 'pico' && /W$/.test(String(p.params.variant ?? ''))));
+  const radios = parts.filter(p => (p.kind === 'esp32' || p.kind === 'esp32s3' || p.kind === 'rpi') || (p.kind === 'pico' && /W$/.test(String(p.params.variant ?? ''))));
   if (radios.length) {
     const refs = radios.map(p => p.ref);
     if (us) {

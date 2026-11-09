@@ -69,8 +69,8 @@ export function assemble(p: Plan, name: string, market: 'US' | 'EU' | 'both', sp
   // ---- board
   if (mcu) {
     const high = p.insts.flatMap(i => blockById(i.block)!.pins(i).filter(n => n.high).map(n => i.pins[n.role])).filter(x => x && !x.startsWith('ADS'));
-    const params: Params = { high: high.join(',') }; if (mcu.kind === 'rpi') params.model = p.power.rows[0]?.what.replace('Raspberry ', '') || 'Pi 5';
-    groups.push({ id: 'mcu', side: 'mcu', parts: [makePart(mcu.kind, mcuRef!, 0, 0, 0, params)] });
+    const params: Params = { high: high.join(',') }; if (mcu.variant) params.variant = mcu.variant; if (mcu.kind === 'rpi') params.model = p.power.rows[0]?.what.replace('Raspberry ', '') || 'Pi 5';
+    groups.push({ id: 'mcu', side: 'mcu', parts: [makePart(mcu.part, mcuRef!, 0, 0, 0, params)] });
     const on5 = pw.rows[0]?.rail === '5 V'; add(on5 ? 'V5' : rail('SYS'), [mcuRef!, on5 ? mcu.pin5v : mcu.pinBattery!]); gnd.push([mcuRef!, 'GND']);
     for (let k = 0; k < p.ads; k++) group(`ads${k}`, 'right', null, d => { const u = d.part('ads1115', 0, 0, 0, { addr: `0x${(0x48 + k).toString(16)}` }); adsRefs.push(u); d.net('LOGIC', [u, 'VDD']); d.net('GND', [u, 'GND']); add(`IO:${p.i2c![0]}`, [mcuRef!, p.i2c![0]]); add(`IO:${p.i2c![0]}`, [u, 'SDA']); add(`IO:${p.i2c![1]}`, [mcuRef!, p.i2c![1]]); add(`IO:${p.i2c![1]}`, [u, 'SCL']); });
   }
