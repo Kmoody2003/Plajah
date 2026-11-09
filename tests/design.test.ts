@@ -72,7 +72,10 @@ test('pin allocation: analog first, I²C bus reserved, ADS1115 added when analog
   assert.equal(e.mcu?.kind, 'esp32'); assert.deepEqual(e.insts.filter(i => i.block === 'soil').map(i => i.pins.adc), ['IO32', 'IO33']);
   assert.ok(e.insts.filter(i => i.block === 'button').every(i => !['IO2', 'IO5'].includes(i.pins.in)));
   // Too many pins fails honestly; USB MIDI forces a board with native USB.
-  assert.match(plan(S([{ block: 'button', count: 16 }], { mcu: 'nano' })).errors.join(' '), /runs out/);
+  // Out of pins: separate buttons move to an MCP23017; native-only needs that cannot fit still fail honestly.
+  const many = plan(S([{ block: 'button', count: 14 }, { block: 'led', count: 4 }], { mcu: 'nano' })); assert.deepEqual(many.errors, []); assert.equal(many.exp, 1);
+  assert.ok(many.insts.some(i => i.pins.in?.startsWith('EXP:0:')));
+  assert.match(plan(S([{ block: 'pot', count: 2 }, { block: 'servo', count: 6 }, { block: 'motor', count: 4 }], { mcu: 'nano' })).errors.join(' '), /runs out/);
   assert.equal(plan(S([{ block: 'button', count: 2 }], { conn: ['usb-midi'] })).mcu?.kind, 'pico');
   assert.match(plan(S([{ block: 'tft', count: 1 }], { mcu: 'nano' })).errors.join(' '), /3\.3 V part/);
   assert.match(plan(S([{ block: 'oled', count: 3 }])).errors.join(' '), /at most 2|only 2 can share/);
@@ -129,7 +132,7 @@ test('reader and on-device model fill the same checked spec', () => {
   const r = readSpec('a 4-channel relay board for europe'); assert.equal(r.spec.needs[0].count, 4); assert.equal(r.spec.market, 'EU');
   assert.ok(r.assumed.some(a => /Wi-Fi/.test(a)) && r.heard.includes('4 relays'));
   const m = specFromLlm('ok {"spec":{"name":"Box","needs":[{"block":"relay","count":40},{"block":"laser","count":1},{"block":"neopixel","count":30,"opt":{"cap":"9"}}],"mcu":"esp32","power":"nuclear","conn":["wifi","telepathy"]}}', 'a relay box');
-  assert.deepEqual(m.spec.needs.map(n => [n.block, n.count]), [['relay', 8], ['neopixel', 30]]); assert.equal(m.spec.needs[1].opt?.cap, undefined);
+  assert.deepEqual(m.spec.needs.map(n => [n.block, n.count]), [['relay', 16], ['neopixel', 30]]); assert.equal(m.spec.needs[1].opt?.cap, undefined);
   assert.equal(m.spec.power, 'auto'); assert.deepEqual(m.spec.conn, ['wifi']); assert.equal(m.spec.mcu, 'esp32');
   assert.equal(specFromLlm('not json', 'a plant monitor with soil moisture').spec.needs[0].block, 'soil');
 });
