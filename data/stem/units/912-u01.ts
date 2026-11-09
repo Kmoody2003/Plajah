@@ -1,0 +1,277 @@
+// 9–12 · Unit 1 · Design Under Constraints (engineering). Original Plajah Academia writing.
+import type { StemProject, StemUnit } from '../types';
+import { G912_BENCH, M, crit, num, say } from '../kit';
+
+const INTL = { uk: 'GCSE/A level Design and Technology — design methods and evaluation', ib: 'MYP Design year 5 / DP Design Technology — design process', cambridge: 'IGCSE Design & Technology' };
+const LAMP = 'A dimmable 12 volt LED-strip desk lamp on an ESP32 running ESPHome, powered by a certified 12 volt plug-in adapter, with a MOSFET dimmer and a 3.3 volt regulator.';
+
+export const G912_U01: StemUnit = {
+  id: 'stem-912-u01',
+  band: '9-12',
+  n: 1,
+  title: 'Design Under Constraints',
+  kind: 'engineering',
+  strands: ['engineering', 'math', 'science'],
+  status: 'complete',
+  weeks: 4,
+  bigIdea: 'Every real design trades one good thing for another; engineers make those tradeoffs explicit, weigh them, and test the winner.',
+  essentialQuestion: 'How do you choose the best design when the criteria pull in opposite directions?',
+  standards: { ngss: ['HS-ETS1-1', 'HS-ETS1-2', 'HS-ETS1-3', 'HS-ETS1-4'], ccss: [M('HSN.Q.A.1'), M('HSA.CED.A.3'), M('HSS.CP.B.8')], intl: INTL },
+  projectIds: ['stem-912-proj-design-review'],
+  museion: 'engineering',
+  lessons: [
+    {
+      id: 'stem-912-u01-l1',
+      title: 'Defining the Problem and Breaking It into Subsystems',
+      minutes: 55,
+      strands: ['engineering', 'science'],
+      objectives: [
+        'I can write a problem statement with quantified criteria, constraints and the people affected.',
+        'I can decompose a product into subsystems with defined interfaces.',
+        'I can check that a subsystem budget (power, cost, size) adds up within the constraint.',
+      ],
+      vocab: [
+        ['stakeholder', 'Anyone affected by the design: users, makers, maintainers, neighbours.'],
+        ['subsystem', 'A part of a design with one job and a defined input/output interface.'],
+        ['interface', 'What passes between subsystems: power, signals, forces, data.'],
+        ['budget', 'An allocation of a limited resource (watts, dollars, grams) across subsystems.'],
+      ],
+      hook: 'A school library wants smart lamps that dim at closing time, cost under $25 each and survive five years of teenagers. Before anyone draws a lamp, a good engineer asks: who touches it, what can go wrong, and what are the real numbers?',
+      build: {
+        title: 'Decompose the smart lamp',
+        steps: [
+          'List stakeholders (students, librarian, facilities, IT) and one need each.',
+          'Write quantified criteria (e.g. ≥ 400 lm at the desk) and constraints (cost, power, mounting, network policy).',
+          'Open the smart-lamp recipe and identify its subsystems: power, control, dimming, light, enclosure.',
+          'Draw a block diagram with arrows labelled by what crosses each interface (12 V, 3.3 V, PWM, Wi-Fi).',
+          'Build a cost and power budget table and check both totals against the constraints.',
+        ],
+        launch: { room: 'elec', template: 'smart-lamp', starter: { note: 'Identify each subsystem and its interface.' }, lesson: 'stem-912-u01-l1' },
+      },
+      worked: [
+        {
+          prompt: 'Subsystem costs: adapter $6.50, ESP32 board $4.20, MOSFET dimmer $1.10, LED strip $5.80, enclosure $3.40. Does the lamp meet a $25 constraint, and what margin remains?',
+          steps: ['Sum: 6.50 + 4.20 + 1.10 + 5.80 + 3.40 = 21.00.', 'Margin: 25.00 − 21.00 = $4.00.', 'As a percent of the budget: 4 ÷ 25 = 16%.'],
+          answer: '$21.00: within budget with a $4.00 (16%) margin.',
+        },
+      ],
+      practice: [
+        num('Costs $6.50, $4.20, $1.10, $5.80, $3.40. Total?', '$21.00.', 21, 'sum', [6.5, 4.2, 1.1, 5.8, 3.4], 1, '$'),
+        num('A $4 margin on a $25 budget is what percent?', '16%.', 16, 'pct', [4, 25], 1, '%'),
+        num('Power budget: LED strip 9.6 W, ESP32 0.5 W, regulator loss 0.4 W. Total input power?', '10.5 W.', 10.5, 'sum', [9.6, 0.5, 0.4], 2, 'W'),
+        num('That 10.5 W comes from a 12 V adapter. Current (I = P ÷ V)?', '0.875 A.', 0.875, 'quotient', [10.5, 12], 2, 'A'),
+        say('"The lamp should be bright enough." Rewrite as a quantified criterion.', 'e.g. "Provides at least 400 lux on the desk surface 40 cm below the lamp."', 3),
+      ],
+      exitTicket: { q: 'Name two subsystems of the lamp and what crosses the interface between them.', answer: 'e.g. ESP32 control → MOSFET dimmer: a 3.3 V PWM signal; adapter → regulator: 12 V DC.' },
+      differentiation: {
+        support: ['Block-diagram template with five empty boxes.', 'Stakeholder prompt cards.'],
+        extension: ['Add a failure-mode column to the subsystem table (what fails, effect, mitigation).', 'Find the adapter rating needed with a 25% headroom rule.'],
+        ell: 'Frames: "The ___ subsystem sends ___ to the ___ subsystem." Cognates: sistema, interfaz, presupuesto.',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'sim-only', note: 'Analysis and simulation only. The lamp uses a certified plug-in adapter; students never wire mains.' },
+      standards: { ngss: ['HS-ETS1-1', 'HS-ETS1-2'], ccss: [M('HSN.Q.A.1'), M('HSA.CED.A.3')], intl: INTL },
+      mathFocus: 'budgets as sums and constraint inequalities',
+      museion: 'engineering',
+    },
+    {
+      id: 'stem-912-u01-l2',
+      title: 'Weighted Decision Matrices and Sensitivity to the Weights',
+      minutes: 55,
+      strands: ['engineering', 'math'],
+      objectives: [
+        'I can build a weighted decision matrix and compute weighted scores.',
+        'I can test whether the winner changes when the weights change (sensitivity).',
+        'I can explain why a robust choice is better than a narrow win.',
+      ],
+      vocab: [
+        ['weighted score', 'Σ (weight × score) across all criteria.'],
+        ['normalise', 'Scale weights so they sum to 1 (or 100%).'],
+        ['sensitivity analysis', 'Checking how much a result changes when an input changes.'],
+        ['robust', 'Still the best choice across a reasonable range of assumptions.'],
+      ],
+      hook: 'Three lamp concepts. Concept A wins by 0.1 points. If the librarian cares a little more about cost than you assumed, does B win instead? A decision that flips that easily is not really a decision yet.',
+      build: {
+        title: 'Score three lamp concepts and stress-test the weights',
+        steps: [
+          'Define three concepts from the smart-lamp recipe (e.g. strip lamp, single high-power LED, battery lamp).',
+          'Agree weights for cost, brightness, reliability and safety that sum to 1.',
+          'Score each concept 1–5 per criterion with a reason, then compute weighted totals in a spreadsheet.',
+          'Raise and lower each weight by 0.1 (renormalising) and record whether the winner changes.',
+          'Write a one-paragraph recommendation that states how robust it is.',
+        ],
+        launch: { room: 'elec', template: 'smart-lamp', starter: { note: 'Use the recipe\'s numbers to justify scores.' }, lesson: 'stem-912-u01-l2' },
+      },
+      worked: [
+        {
+          prompt: 'Weights: cost 0.3, brightness 0.3, reliability 0.2, safety 0.2. Concept A scores 4, 3, 4, 5. Concept B scores 3, 5, 3, 5. Weighted totals?',
+          steps: ['A: 0.3·4 + 0.3·3 + 0.2·4 + 0.2·5 = 1.2 + 0.9 + 0.8 + 1.0 = 3.9.', 'B: 0.3·3 + 0.3·5 + 0.2·3 + 0.2·5 = 0.9 + 1.5 + 0.6 + 1.0 = 4.0.', 'B wins by 0.1: a narrow margin worth stress-testing.'],
+          answer: 'A = 3.9, B = 4.0.',
+        },
+      ],
+      practice: [
+        num('Terms 1.2, 0.9, 0.8, 1.0. Weighted total?', '3.9.', 3.9, 'sum', [1.2, 0.9, 0.8, 1.0], 1),
+        num('Weight 0.35 × score 4?', '1.4.', 1.4, 'product', [0.35, 4], 1),
+        num('Raw weights 3, 3, 2, 2. Normalised weight of the first (3 ÷ 10) as a percent?', '30%.', 30, 'pct', [3, 10], 1, '%'),
+        num('With cost raised to 0.4 and brightness lowered to 0.2: A = 0.4·4 + 0.2·3 + 0.8 + 1.0. Compute A.', '1.6 + 0.6 + 0.8 + 1.0 = 4.0.', 4.0, 'sum', [1.6, 0.6, 0.8, 1.0], 2),
+        say('B wins at the base weights but A wins after a 0.1 shift. What should the team report?', 'That the choice is sensitive to the cost/brightness weighting; ask the client to confirm priorities or gather data before committing.', 3),
+      ],
+      exitTicket: { q: 'Is your winner robust? State the smallest weight change that flips it.', answer: 'A specific weight shift from their spreadsheet, or "no single ±0.1 shift flips it".' },
+      differentiation: {
+        support: ['Spreadsheet with SUMPRODUCT already written.', 'Two concepts instead of three.'],
+        extension: ['Find the break-even cost weight algebraically (solve A(w) = B(w)).', 'Replace 1–5 scores with normalised measured values.'],
+        ell: 'Frames: "Concept ___ scores ___ because ___." "If the weight of ___ increases, ___."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'sim-only', note: 'Spreadsheet and simulation only.' },
+      standards: { ngss: ['HS-ETS1-3'], ccss: [M('HSA.CED.A.3'), M('HSN.Q.A.1'), M('HSA.REI.B.3')], intl: INTL },
+      mathFocus: 'weighted sums and solving for a break-even parameter',
+      museion: 'engineering',
+    },
+    {
+      id: 'stem-912-u01-l3',
+      title: 'Cost, Safety, Reliability and Environmental Impact',
+      minutes: 55,
+      strands: ['engineering', 'math', 'science'],
+      objectives: [
+        'I can compute lifetime energy cost and compare it with purchase price.',
+        'I can estimate system reliability from component reliabilities.',
+        'I can weigh safety and environmental impact as non-negotiable versus tradeable criteria.',
+      ],
+      vocab: [
+        ['total cost of ownership', 'Purchase price plus running, maintenance and disposal costs.'],
+        ['reliability', 'The probability a part works for a stated time.'],
+        ['series reliability', 'If every part must work, multiply their reliabilities.'],
+        ['life-cycle assessment', 'Tracing a product\'s environmental impact from materials to disposal.'],
+      ],
+      hook: 'Lamp A costs $18 and uses 10 W. Lamp B costs $26 and uses 6 W. Over five years in a library open 2500 hours a year, which is actually cheaper, and which fails first?',
+      build: {
+        title: 'A lifetime model in the Electronics Lab and a spreadsheet',
+        steps: [
+          'Open the smart-lamp recipe and read the input power at full and half brightness.',
+          'Compute yearly energy in kWh and cost at $0.15 per kWh for 2500 h/year.',
+          'Add purchase price for a five-year total cost of ownership for two designs.',
+          'Estimate reliability: adapter 0.98, board 0.99, dimmer 0.995, strip 0.97 over five years; multiply.',
+          'List safety items that are pass/fail (not weighted) and environmental factors that are scored.',
+        ],
+        launch: { room: 'elec', template: 'smart-lamp', starter: { note: 'Read input power at two brightness levels.' }, lesson: 'stem-912-u01-l3' },
+      },
+      worked: [
+        {
+          prompt: 'A 10 W lamp runs 2500 h/year for 5 years at $0.15/kWh. Energy and running cost?',
+          steps: ['Energy per year: 10 W × 2500 h = 25 000 Wh = 25 kWh.', 'Five years: 125 kWh.', 'Cost: 125 × 0.15 = $18.75.'],
+          answer: '125 kWh, $18.75 to run over five years.',
+        },
+      ],
+      practice: [
+        num('6 W for 2500 h. Energy in kWh (6 × 2500 ÷ 1000)?', '15 kWh.', 15, 'product', [6, 2500, 0.001], 1, 'kWh'),
+        num('75 kWh at $0.15/kWh?', '$11.25.', 11.25, 'product', [75, 0.15], 1, '$'),
+        num('Series reliability 0.98 × 0.99 × 0.995 × 0.97?', '≈ 0.936.', 0.9364, 'product', [0.98, 0.99, 0.995, 0.97], 2, '', 0.0005),
+        num('A part with 0.95 reliability is used 4 times in series (0.95⁴)?', '≈ 0.815.', 0.8145, 'pow', [0.95, 4], 3, '', 0.0005),
+        say('Why should "no exposed mains" be a pass/fail requirement rather than a weighted score?', 'Safety is non-negotiable: a design that fails it is rejected however well it scores elsewhere.', 2),
+      ],
+      exitTicket: { q: 'Which lamp has the lower five-year cost, and by how much?', answer: 'A comparison with purchase + running cost computed for both.' },
+      differentiation: {
+        support: ['Energy formula card: kWh = W × h ÷ 1000.', 'Pre-built spreadsheet rows.'],
+        extension: ['Add a redundant parallel adapter and compute 1 − (1 − R)² for that stage.', 'Estimate embodied CO₂ for the enclosure from material mass.'],
+        ell: 'Frames: "Over five years, lamp ___ costs ___." "The system reliability is ___."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'sim-only', note: 'Analysis only. Mains-powered adapters are bought certified; students do not open them.' },
+      standards: { ngss: ['HS-ETS1-3', 'HS-ETS1-1'], ccss: [M('HSN.Q.A.1'), M('HSS.CP.B.8'), M('HSA.SSE.B.3')], intl: INTL },
+      mathFocus: 'unit conversion (W·h to kWh) and multiplication rule for independent events',
+      museion: 'engineering',
+    },
+    {
+      id: 'stem-912-u01-l4',
+      title: 'Simulate Before Building, Then a Design Review',
+      minutes: 60,
+      strands: ['engineering', 'science', 'math'],
+      objectives: [
+        'I can decide when a simulation is good enough by comparing it with a measurement.',
+        'I can compute percent error and judge it against a tolerance.',
+        'I can present a tradeoff to a client in a structured design review.',
+      ],
+      vocab: [
+        ['model fidelity', 'How closely a model matches reality for the question being asked.'],
+        ['percent error', '|simulated − measured| ÷ measured × 100.'],
+        ['design review', 'A meeting where a design is presented, questioned and approved or sent back.'],
+      ],
+      hook: 'The simulator says the lamp draws 0.82 A; the bench meter says 0.88 A. Is the model wrong, or good enough? It depends what decision you are making with it.',
+      build: {
+        title: 'Validate the model, then run the review',
+        steps: [
+          'Simulate the smart-lamp current at 25%, 50% and 100% brightness.',
+          'Compare with provided bench measurements and compute percent error at each level.',
+          'Decide whether the model is good enough for sizing the adapter (needs ±10%).',
+          'Prepare a five-slide review: problem, options, matrix, risks, recommendation.',
+          'Present to a "client" panel; record questions and the decision.',
+        ],
+        launch: { room: 'elec', template: 'smart-lamp', starter: { note: 'Record simulated current at three brightness levels.' }, lesson: 'stem-912-u01-l4' },
+        materials: ['Optional bench check: USB-C or 12 V current-limited supply and a meter, with teacher supervision'],
+      },
+      worked: [
+        {
+          prompt: 'Simulated 0.82 A, measured 0.88 A. Percent error? Good enough for a ±10% adapter-sizing decision?',
+          steps: ['Difference: 0.88 − 0.82 = 0.06 A.', 'Percent: 0.06 ÷ 0.88 × 100 ≈ 6.8%.', '6.8% < 10%: good enough for this decision.'],
+          answer: 'About 6.8% error: acceptable for sizing the adapter.',
+        },
+      ],
+      practice: [
+        num('Sim 0.41 A, measured 0.44 A. Percent error (0.03 ÷ 0.44)?', '≈ 6.8%.', 6.82, 'pct', [0.03, 0.44], 1, '%'),
+        num('Sim 0.20 A, measured 0.25 A. Percent error?', '20%.', 20, 'pct', [0.05, 0.25], 1, '%'),
+        num('Measured current 0.88 A on 12 V. Power?', '10.56 W.', 10.56, 'power', [12, 0.88], 2, 'W'),
+        num('Adapter sized at 125% of 10.56 W?', '13.2 W.', 13.2, 'product', [1.25, 10.56], 2, 'W'),
+        say('The model is 20% off at low brightness but 3% off at full. Is it good enough to size the adapter? Why?', 'Yes: adapter sizing depends on the maximum load, where the model is accurate; the low-end error matters only for dimming behaviour.', 3),
+      ],
+      exitTicket: { q: 'What decision did your review panel make, and what evidence moved them?', answer: 'Approve/revise with a cited number from the matrix, budget or validation.' },
+      differentiation: {
+        support: ['Slide template with headings.', 'Percent-error calculator.'],
+        extension: ['Explain a likely cause of the model error (LED temperature, MOSFET resistance) and how to add it.', 'Run a pre-mortem: list three ways the product fails in year 3.'],
+        ell: 'Frames: "We recommend ___ because ___. The main risk is ___."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'low', note: G912_BENCH },
+      standards: { ngss: ['HS-ETS1-4', 'HS-ETS1-3'], ccss: [M('HSN.Q.A.3'), M('HSN.Q.A.1')], intl: INTL },
+      mathFocus: 'percent error and appropriate accuracy',
+      museion: 'engineering',
+    },
+  ],
+};
+
+export const G912_U01_PROJECTS: StemProject[] = [
+  {
+    id: 'stem-912-proj-design-review',
+    band: '9-12',
+    unitId: 'stem-912-u01',
+    title: 'Client Design Review: The Library Smart Lamp',
+    subject: 'science',
+    drivingQuestion: 'Which smart-lamp design gives the library the best value over five years, and how confident are we?',
+    brief: 'Act as a design team for the school library. Define the problem with stakeholders, decompose the smart lamp into subsystems, compare at least three concepts in a weighted matrix with a sensitivity check, model five-year cost and reliability, validate the simulation against a measurement, and defend a recommendation in a client review.',
+    deliverables: ['Problem statement with quantified criteria and constraints', 'Subsystem block diagram with cost and power budgets', 'Weighted decision matrix with sensitivity table', 'Five-year cost and reliability model', 'Design-review deck and the panel\'s recorded decision'],
+    steps: [
+      'Interview stakeholders and write the problem statement.',
+      'Decompose the lamp and build budgets from the recipe.',
+      'Score three concepts and stress-test the weights.',
+      'Model lifetime cost and reliability.',
+      'Validate one simulated value against a measurement.',
+      'Present the review and respond to questions.',
+    ],
+    launch: { room: 'elec', template: 'smart-lamp', starter: { note: 'Base every number in the review on this recipe or a measurement.' }, lesson: 'stem-912-proj-design-review' },
+    rubric: {
+      criteria: [
+        crit('Problem definition', 'Vague goals', 'Some quantified criteria', 'Quantified criteria, constraints and stakeholders', 'Also identifies conflicts between stakeholders and resolves them'),
+        crit('Quantitative analysis', 'Little math', 'Matrix or budget with errors', 'Correct matrix, budgets, TCO and reliability', 'Break-even weight solved algebraically; uncertainty stated'),
+        crit('Validation', 'None', 'Simulation only', 'Percent error computed and judged against a tolerance', 'Explains the source of model error and its effect on the decision'),
+        crit('Review communication', 'No recommendation', 'Recommendation without evidence', 'Evidence-based recommendation with risks', 'Handles panel questions with data; records and acts on feedback'),
+      ],
+    },
+    standards: { ngss: ['HS-ETS1-1', 'HS-ETS1-2', 'HS-ETS1-3', 'HS-ETS1-4'], ccss: [M('HSN.Q.A.1'), M('HSA.CED.A.3'), M('HSS.CP.B.8')], intl: INTL },
+    minutes: 300,
+    differentiation: {
+      support: 'Provide the concepts and a matrix template; focus on scoring with reasons and one sensitivity check.',
+      extension: 'Add a Monte Carlo sensitivity run in a spreadsheet, varying all weights at once.',
+    },
+    safety: { level: 'low', note: G912_BENCH },
+  },
+];

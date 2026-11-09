@@ -1,0 +1,243 @@
+// 9–12 · Unit 6 · CAD & Fabrication (engineering). Original Plajah Academia writing.
+import type { StemUnit } from '../types';
+import { G912_BENCH, M, num, say } from '../kit';
+
+const INTL = { uk: 'A level Design and Technology — CAD/CAM, tolerances and manufacturing', ib: 'DP Design Technology — manufacturing processes', cambridge: 'A level Design & Technology' };
+const SHOP = 'Students design, slice and generate toolpaths; only a trained adult or technician runs the laser cutter and CNC router, with interlocks closed, extraction on and eye protection. 3D printers are loaded and emptied by an adult. Never leave a laser running unattended.';
+const ENCLOSURE = 'A two-part enclosure for an ESP32 sensor node board 52 by 28 millimetres with a USB-C opening, vent slots and screw bosses, designed parametrically so wall thickness and clearance are variables.';
+
+export const G912_U06: StemUnit = {
+  id: 'stem-912-u06',
+  band: '9-12',
+  n: 6,
+  title: 'CAD & Fabrication',
+  kind: 'engineering',
+  strands: ['engineering', 'technology', 'math'],
+  status: 'complete',
+  weeks: 5,
+  bigIdea: 'A part that fits is designed with its manufacturing process in mind: tolerances, material, time and cost are design parameters, not afterthoughts.',
+  essentialQuestion: 'How precise does a part need to be, and what does that precision cost?',
+  standards: { ngss: ['HS-ETS1-2', 'HS-ETS1-3'], ccss: [M('HSG.MG.A.3'), M('HSG.GMD.A.3'), M('HSN.Q.A.3')], intl: INTL },
+  projectIds: [],
+  museion: 'engineering',
+  lessons: [
+    {
+      id: 'stem-912-u06-l1',
+      title: 'Parametric CAD: Sketches, Constraints and Design Intent',
+      minutes: 60,
+      strands: ['engineering', 'technology', 'math'],
+      objectives: [
+        'I can build a fully constrained sketch driven by named parameters.',
+        'I can write dimensions as expressions so the part updates correctly when a parameter changes.',
+        'I can capture design intent: what must stay fixed when something else changes.',
+      ],
+      vocab: [
+        ['parameter', 'A named value (e.g. wall = 2 mm) that drives dimensions.'],
+        ['constraint', 'A geometric rule in a sketch: parallel, equal, tangent, coincident.'],
+        ['fully constrained', 'A sketch with no remaining freedom: every point is defined.'],
+        ['design intent', 'The relationships a designer wants preserved through changes.'],
+      ],
+      hook: 'The sensor board changes size in the next revision. One team edits 23 dimensions by hand and misses two. Another changes one number and the whole enclosure updates. Same software; different habits.',
+      build: {
+        title: 'A parametric sensor enclosure in CAD & Make',
+        steps: [
+          'Define parameters: board_l = 52, board_w = 28, clearance = 0.5, wall = 2.',
+          'Sketch the inner cavity as board + 2 × clearance and fully constrain it.',
+          'Set the outer size as inner + 2 × wall using expressions, not typed numbers.',
+          'Add the USB-C opening centred on the board edge with a constraint, not a measurement.',
+          'Change board_l to 60 and confirm every dependent feature updates correctly.',
+        ],
+        launch: { room: 'cad', prompt: ENCLOSURE, lesson: 'stem-912-u06-l1' },
+      },
+      worked: [
+        {
+          prompt: 'board_l = 52, clearance = 0.5, wall = 2. What are the inner and outer lengths? If board_l becomes 60?',
+          steps: ['Inner = 52 + 2(0.5) = 53 mm; outer = 53 + 2(2) = 57 mm.', 'With 60: inner = 61 mm, outer = 65 mm.', 'Outer = board_l + 2·clearance + 2·wall = board_l + 5.'],
+          answer: '53/57 mm, then 61/65 mm: outer is always board_l + 5 mm.',
+        },
+      ],
+      practice: [
+        num('Inner width: board_w 28 + 2 × 0.5?', '29 mm.', 29, 'sum', [28, 0.5, 0.5], 1, 'mm'),
+        num('Outer width: 29 + 2 × 2?', '33 mm.', 33, 'sum', [29, 2, 2], 1, 'mm'),
+        num('Outer volume of a 57 × 33 × 20 mm box in cm³ (÷ 1000)?', '37.62 cm³.', 37.62, 'product', [57, 33, 20, 0.001], 2, 'cm³'),
+        num('Wall volume: outer 57 × 33 × 20 minus inner 53 × 29 × 16, in mm³ (37 620 − 24 592)?', '13 028 mm³.', 13028, 'difference', [37620, 24592], 3, 'mm³'),
+        say('Why constrain the USB opening to "centred on the board edge" rather than "18 mm from the corner"?', 'The centred constraint keeps the design intent when the board size changes; a fixed distance would put the hole in the wrong place.', 2),
+      ],
+      exitTicket: { q: 'Write the expression for outer length in terms of board_l, clearance and wall.', answer: 'outer_l = board_l + 2·clearance + 2·wall.' },
+      differentiation: {
+        support: ['Parameter table pre-filled; students write the expressions.', 'Constraint icon cheat-sheet.'],
+        extension: ['Add a lid lip whose clearance is its own parameter, and test three values.', 'Drive vent-slot count from the enclosure length with a floor() expression.'],
+        ell: 'Frames: "___ depends on ___." "If ___ changes, ___ stays ___."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'sim-only', note: 'CAD only.' },
+      standards: { ngss: ['HS-ETS1-2'], ccss: [M('HSA.CED.A.4'), M('HSG.MG.A.3'), M('HSG.GMD.A.3')], intl: INTL },
+      mathFocus: 'literal equations and volume of composite solids',
+      museion: 'engineering',
+    },
+    {
+      id: 'stem-912-u06-l2',
+      title: 'Tolerances and Fits: Press, Slip and Clearance',
+      minutes: 55,
+      strands: ['engineering', 'math'],
+      objectives: [
+        'I can specify a dimension with a tolerance and read its limits.',
+        'I can determine whether a fit is clearance, transition or interference from the limits.',
+        'I can do a worst-case tolerance stack-up for an assembly.',
+      ],
+      vocab: [
+        ['nominal', 'The target size, e.g. 3.0 mm.'],
+        ['limits', 'The smallest and largest acceptable sizes.'],
+        ['interference fit', 'The shaft is always larger than the hole: a press fit.'],
+        ['tolerance stack-up', 'How individual tolerances add up across parts in an assembly.'],
+      ],
+      hook: 'A screw boss specified at 2.5 mm ± 0.2 for an M3 self-tapping screw. On one print the screw spins freely; on another it cracks the boss. Both prints were "in tolerance". So the tolerance, not the printer, was wrong.',
+      build: {
+        title: 'Specify the enclosure fits',
+        steps: [
+          'In CAD & Make, list every mating feature: lid lip, screw bosses, USB opening, board slots.',
+          'Choose a fit type for each and assign nominal and ± tolerance from the class printer\'s test strip.',
+          'Compute minimum and maximum clearance for the lid lip.',
+          'Stack up the board, two slots and two walls to check the board always fits.',
+          'Annotate the drawing with the toleranced dimensions.',
+        ],
+        launch: { room: 'cad', prompt: `${ENCLOSURE} Annotate the lid lip, screw bosses and board slots with toleranced dimensions.`, lesson: 'stem-912-u06-l2' },
+      },
+      worked: [
+        {
+          prompt: 'Hole 20.4 ± 0.1 mm, peg 20.0 ± 0.1 mm. Minimum and maximum clearance? Fit type?',
+          steps: ['Max clearance = largest hole − smallest peg = 20.5 − 19.9 = 0.6 mm.', 'Min clearance = smallest hole − largest peg = 20.3 − 20.1 = 0.2 mm.', 'Both positive: a clearance (slip) fit.'],
+          answer: '0.2 to 0.6 mm: always a clearance fit.',
+        },
+      ],
+      practice: [
+        num('Max clearance: largest hole 20.5 − smallest peg 19.9?', '0.6 mm.', 0.6, 'difference', [20.5, 19.9], 1, 'mm'),
+        num('Min clearance: smallest hole 20.3 − largest peg 20.1?', '0.2 mm.', 0.2, 'difference', [20.3, 20.1], 1, 'mm'),
+        num('Stack-up: walls 2 ± 0.1 twice, board 28 ± 0.2, two clearances 0.5 ± 0.1. Nominal total?', '33 mm.', 33, 'sum', [2, 2, 28, 0.5, 0.5], 2, 'mm'),
+        num('Worst-case tolerance of that stack (0.1 + 0.1 + 0.2 + 0.1 + 0.1)?', '± 0.6 mm.', 0.6, 'sum', [0.1, 0.1, 0.2, 0.1, 0.1], 2, 'mm'),
+        num('Root-sum-square tolerance √(0.1² × 4 + 0.2²) = √0.08?', '≈ ± 0.28 mm.', 0.2828, 'sqrt', [0.08], 3, 'mm', 0.001),
+        say('Hole 3.0 ± 0.1 and pin 3.05 ± 0.1. Which fit type?', 'Transition: depending on actual sizes it may be clearance (−) or interference.', 3),
+      ],
+      exitTicket: { q: 'Give the limits for 2.5 ± 0.15 mm.', answer: '2.35 mm to 2.65 mm.' },
+      differentiation: {
+        support: ['Limits calculator table.', 'Fit-type decision flowchart.'],
+        extension: ['Explain why root-sum-square is used for many parts and when worst case is required.', 'Look up ISO H7/g6 and convert to mm for a 20 mm shaft.'],
+        ell: 'Frames: "The limits are ___ to ___." "This is a ___ fit because ___."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'sim-only', note: 'CAD and calculations only.' },
+      standards: { ngss: ['HS-ETS1-2'], ccss: [M('HSN.Q.A.3'), M('HSA.REI.B.3')], intl: INTL },
+      mathFocus: 'inequalities, limits and error accumulation',
+      museion: 'engineering',
+    },
+    {
+      id: 'stem-912-u06-l3',
+      title: '3D-Print Time and Cost: Layer Height, Infill and Volume',
+      minutes: 55,
+      strands: ['math', 'technology', 'engineering'],
+      objectives: [
+        'I can estimate material volume from shells and infill.',
+        'I can estimate print time from layer count and per-layer time.',
+        'I can model cost per part and choose settings that meet a deadline.',
+      ],
+      vocab: [
+        ['layer height', 'The thickness of each printed layer; thinner is smoother and slower.'],
+        ['infill density', 'Percent of the interior filled with material.'],
+        ['volumetric flow rate', 'How many mm³ of plastic the printer can lay down per second.'],
+      ],
+      hook: '30 students each need a sensor enclosure by Friday. One printer. At 0.12 mm layers the slicer says 3 h 40 min each; at 0.28 mm, 1 h 30 min. Which settings, and why?',
+      build: {
+        title: 'Estimate, then compare with the slicer',
+        steps: [
+          'From your CAD model, find shell volume (walls) and interior volume.',
+          'Estimate filament volume = shells + infill% × interior.',
+          'Estimate layers = height ÷ layer height; and time from a flow rate of 8 mm³/s.',
+          'Compute mass at 1.24 g/cm³ and cost at $22 per kg.',
+          'Compare with the slicer estimate and explain the difference.',
+        ],
+        launch: { room: 'cad', prompt: `${ENCLOSURE} Export for slicing at 0.2 millimetre layers and 15 percent infill.`, lesson: 'stem-912-u06-l3' },
+      },
+      worked: [
+        {
+          prompt: 'Shell volume 13 000 mm³, interior 24 600 mm³ at 15% infill. Filament volume, mass and cost?',
+          steps: ['Infill: 0.15 × 24 600 = 3690 mm³.', 'Total: 13 000 + 3690 = 16 690 mm³ = 16.69 cm³.', 'Mass: 16.69 × 1.24 ≈ 20.7 g. Cost: 20.7 × 0.022 ≈ $0.46.'],
+          answer: '≈ 16.7 cm³, 20.7 g, $0.46.',
+        },
+      ],
+      practice: [
+        num('Infill volume: 15% of 24 600 mm³?', '3690 mm³.', 3690, 'product', [0.15, 24600], 1, 'mm³'),
+        num('Layers for a 20 mm tall part at 0.2 mm?', '100 layers.', 100, 'quotient', [20, 0.2], 1, 'layers'),
+        num('Mass of 16.69 cm³ at 1.24 g/cm³?', '≈ 20.7 g.', 20.7, 'product', [16.69, 1.24], 2, 'g'),
+        num('Time at 8 mm³/s for 16 690 mm³, in minutes (÷ 8 ÷ 60)?', '≈ 34.8 min (pure extrusion; real prints add travel).', 34.77, 'quotient', [16690, 480], 2, 'min'),
+        num('30 parts at 1.5 h each. Total printer hours?', '45 h.', 45, 'product', [30, 1.5], 1, 'h'),
+        say('Halving layer height roughly doubles print time. Why, and when is it worth it?', 'Twice as many layers to trace; worth it for curved tops or fine text where step-lines matter, not for hidden internal parts.', 3),
+      ],
+      exitTicket: { q: 'Choose settings that print 30 enclosures by Friday and justify with numbers.', answer: 'Settings with per-part time × 30 within the available printer hours.' },
+      differentiation: {
+        support: ['Spreadsheet with formulas for each step.', 'Unit conversion card (mm³ ↔ cm³).'],
+        extension: ['Model time as a function of layer height and fit it to three slicer estimates.', 'Compare cost and time for printing versus laser-cut acrylic.'],
+        ell: 'Frames: "At ___ mm layers it takes ___ hours, costing ___."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'supervised', note: SHOP },
+      standards: { ngss: ['HS-ETS1-3'], ccss: [M('HSG.GMD.A.3'), M('HSG.MG.A.2'), M('HSN.Q.A.1')], intl: INTL },
+      mathFocus: 'volume, density and rate modelling',
+      museion: 'engineering',
+    },
+    {
+      id: 'stem-912-u06-l4',
+      title: 'Laser, CNC and Design for Assembly',
+      minutes: 60,
+      strands: ['engineering', 'technology', 'math'],
+      objectives: [
+        'I can compensate a laser-cut part for kerf so tabs and slots fit.',
+        'I can estimate CNC toolpath time from path length and feed rate, and explain why routing is a technician step.',
+        'I can reduce part and fastener count using design-for-assembly rules.',
+      ],
+      vocab: [
+        ['kerf', 'The width of material removed by the laser or cutter.'],
+        ['toolpath', 'The route the cutter follows.'],
+        ['feed rate', 'How fast the cutter moves through material, e.g. mm/min.'],
+        ['design for assembly (DFA)', 'Designing parts to be fewer, symmetric and self-locating so assembly is fast and error-free.'],
+      ],
+      hook: 'A laser-cut box designed with 3.0 mm slots for 3.0 mm acrylic rattles loose: the laser burned away 0.2 mm. A guitar body routed with the wrong offset ends up a millimetre small all round. Machines remove material; designs must account for it.',
+      build: {
+        title: 'Kerf, toolpath and DFA on two projects',
+        steps: [
+          'In CAD & Make, lay out a finger-jointed acrylic box and apply a kerf offset of half the kerf to each edge.',
+          'Open the guitar recipe and read the body outline length for the CNC router.',
+          'Estimate routing time from the path length, number of depth passes and feed rate.',
+          'Count parts and fasteners in your enclosure; redesign to remove at least two (snap fits, captive nuts, symmetric lid).',
+          'Write the technician hand-off sheet: material, tool, feed, passes. The technician runs the machine.',
+        ],
+        launch: { room: 'elec', template: 'guitar', starter: { values: { scale: 648 }, note: 'Read the body outline for the CNC router; a technician runs the machine.' }, lesson: 'stem-912-u06-l4' },
+      },
+      worked: [
+        {
+          prompt: 'Kerf is 0.2 mm. A tab should be 20.0 mm wide after cutting. What width do you draw? A body outline is 1400 mm, routed in 6 passes at 1500 mm/min: time?',
+          steps: ['The laser removes 0.1 mm on each side of the line: draw 20.0 + 0.2 = 20.2 mm.', 'Path: 1400 × 6 = 8400 mm.', 'Time: 8400 ÷ 1500 = 5.6 min (plus lead-ins and tool changes).'],
+          answer: 'Draw 20.2 mm; about 5.6 minutes of cutting.',
+        },
+      ],
+      practice: [
+        num('Tab drawn width for 15.0 mm with 0.2 mm kerf?', '15.2 mm.', 15.2, 'sum', [15, 0.2], 1, 'mm'),
+        num('Slot drawn width for 3.0 mm acrylic with 0.2 mm kerf (slot shrinks the other way)?', '2.8 mm.', 2.8, 'difference', [3.0, 0.2], 2, 'mm'),
+        num('Toolpath 1400 mm × 6 passes. Total path?', '8400 mm.', 8400, 'product', [1400, 6], 1, 'mm'),
+        num('8400 mm at 1500 mm/min. Minutes?', '5.6 min.', 5.6, 'quotient', [8400, 1500], 1, 'min'),
+        num('Fasteners cut from 8 to 3. Percent reduction?', '62.5%.', 62.5, 'pct', [5, 8], 2, '%'),
+        say('Why is routing a guitar body a technician step, even for a skilled student?', 'High-speed spinning cutters can grab work or throw chips; setup, clamping and emergency stops need trained operators and the machine\'s safety rules.', 3),
+      ],
+      exitTicket: { q: 'Name one DFA change you made and how many parts or fasteners it removed.', answer: 'A specific change (snap fit, captive nut, combined part) with a count.' },
+      differentiation: {
+        support: ['Kerf diagram showing which way each edge moves.', 'DFA checklist.'],
+        extension: ['Measure the class laser\'s kerf from a test comb and update the offset.', 'Estimate CNC time including plunge and lead-in moves.'],
+        ell: 'Frames: "Because of kerf, I drew ___ instead of ___." "We removed ___ parts by ___."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'supervised', note: `${SHOP} ${G912_BENCH}` },
+      standards: { ngss: ['HS-ETS1-2', 'HS-ETS1-3'], ccss: [M('HSN.Q.A.3'), M('HSG.MG.A.3'), M('HSN.Q.A.1')], intl: INTL },
+      mathFocus: 'offsets, rates and percent change',
+      museion: 'engineering',
+    },
+  ],
+};

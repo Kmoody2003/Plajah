@@ -1,18 +1,26 @@
 // STEM track, grades 9–12 · Engineers. Original Plajah Academia writing; standards cited by code only.
 //
 // Scope & sequence (one school year, 36 weeks):
-//   u01 Design under constraints           engineering   outline   HS-ETS1-1..4, tradeoff matrices
+//   u01 Design under constraints           engineering   COMPLETE  HS-ETS1-1..4, tradeoff matrices
 //   u02 Functions on the Bench             electronics-math  COMPLETE  linear → exponential → log → trig → stats → vectors
-//   u03 Embedded Systems & IoT             technology    outline   CSTA 3A-AP-13..17; smart-lamp / sensor / pi recipes
-//   u04 Data Science with Sensors          technology    outline   3A-DA-11/12, HSS.ID; the IoT station project
+//   u03 Embedded Systems & IoT             technology    COMPLETE  CSTA 3A-AP-13..17; smart-lamp / sensor / pi recipes
+//   u04 Data Science with Sensors          technology    COMPLETE  3A-DA-11/12, HSS.ID; the IoT station project
 //   u05 Living Systems as Models           science       COMPLETE  Biology Lab: sir, lotka_volterra, michaelis_menten, repressilator
-//   u06 CAD & Fabrication                  engineering   outline   tolerances, fits, print time and cost
-//   u07 Energy & Power Systems             engineering   outline   HS-PS3-3, battery sizing, efficiency
-//   u08 Soft & Wearable Engineering        engineering   outline   Sewing & Plush with conductive thread
+//   u06 CAD & Fabrication                  engineering   COMPLETE  tolerances, fits, print time and cost
+//   u07 Energy & Power Systems             engineering   COMPLETE  HS-PS3-3, battery sizing, efficiency
+//   u08 Soft & Wearable Engineering        engineering   COMPLETE  Sewing & Plush with conductive thread
 //
+// u01, u03, u04, u06, u07 and u08 live in data/stem/units/912-u0*.ts.
 // Every numeric practice item carries a `check`, recomputed by tests/stem.test.ts with independent formulas.
 
 import type { Differentiation, SafetyNote, StemLesson, StemProject, StemUnit } from './types';
+
+import { G912_U01, G912_U01_PROJECTS } from './units/912-u01';
+import { G912_U03 } from './units/912-u03';
+import { G912_U04 } from './units/912-u04';
+import { G912_U06 } from './units/912-u06';
+import { G912_U07, G912_U07_PROJECTS } from './units/912-u07';
+import { G912_U08 } from './units/912-u08';
 
 const C = (s: string) => `CCSS.MATH.CONTENT.${s}`;
 
@@ -729,23 +737,7 @@ const L_REP: StemLesson = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const G912_UNITS: StemUnit[] = [
-  {
-    id: 'stem-912-u01', band: '9-12', n: 1, title: 'Design Under Constraints', kind: 'engineering',
-    strands: ['engineering', 'math', 'science'], status: 'outline', weeks: 4,
-    bigIdea: 'Every real design trades one good thing for another; engineers make those tradeoffs explicit, weigh them, and test the winner.',
-    essentialQuestion: 'How do you choose the best design when the criteria pull in opposite directions?',
-    standards: { ngss: ['HS-ETS1-1', 'HS-ETS1-2', 'HS-ETS1-3', 'HS-ETS1-4'], ccss: [C('HSN.Q.A.1'), C('HSA.CED.A.3')] },
-    lessons: [],
-    outline: [
-      'Defining the problem: criteria, constraints and the people affected',
-      'Breaking a big problem into solvable subsystems',
-      'Weighted decision matrices and sensitivity to the weights',
-      'Cost, safety, reliability, aesthetics, and environmental impact as competing criteria',
-      'Simulating before building: when a model is good enough',
-      'Design review: presenting a tradeoff to a client',
-    ],
-    projectIds: [], museion: 'engineering',
-  },
+  G912_U01,
   {
     id: 'stem-912-u02', band: '9-12', n: 2, title: 'Functions on the Bench', kind: 'electronics-math',
     strands: ['math', 'science', 'technology', 'engineering'], status: 'complete', weeks: 6,
@@ -760,40 +752,8 @@ export const G912_UNITS: StemUnit[] = [
     lessons: [L_LINEAR, L_EXP, L_LOG, L_TRIG, L_STATS, L_VEC],
     projectIds: ['stem-912-proj-fretboard'], museion: 'mathematics',
   },
-  {
-    id: 'stem-912-u03', band: '9-12', n: 3, title: 'Embedded Systems & IoT', kind: 'technology',
-    strands: ['technology', 'engineering'], status: 'outline', weeks: 5,
-    bigIdea: 'A microcontroller is a tiny computer that reads the world, decides and acts; networked, it becomes part of a system that must be reliable and secure.',
-    essentialQuestion: 'How do you write firmware that keeps working, and keeps others out, when nobody is watching?',
-    standards: { csta: ['3A-AP-13', '3A-AP-14', '3A-AP-15', '3A-AP-16', '3A-AP-17', '3B-AP-14', '3A-NI-05'], ngss: ['HS-ETS1-2'] },
-    lessons: [],
-    outline: [
-      'Inputs, outputs and the main loop: blinking with intent on a Raspberry Pi Pico',
-      'Debouncing, state machines and non-blocking timing',
-      'Pulse-width modulation: dimming the smart LED lamp',
-      'Talking to sensors over I²C (the Raspberry Pi hub)',
-      'ESPHome and Home Assistant: devices as services',
-      'Secrets, passwords and over-the-air updates: IoT security basics',
-      'Testing and logging firmware like an engineer',
-    ],
-    projectIds: [], museion: 'cs',
-  },
-  {
-    id: 'stem-912-u04', band: '9-12', n: 4, title: 'Data Science with Sensors', kind: 'technology',
-    strands: ['technology', 'math', 'science'], status: 'outline', weeks: 4,
-    bigIdea: 'A sensor network turns a room into a data set; good questions, clean data and honest graphs turn that data set into decisions.',
-    essentialQuestion: 'When does a pattern in sensor data mean something real?',
-    standards: { csta: ['3A-DA-11', '3A-DA-12', '3B-DA-05', '3B-DA-06'], ccss: [C('HSS.ID.A.1'), C('HSS.ID.B.6'), C('HSS.ID.C.7'), C('HSS.ID.C.9')], ngss: ['HS-ESS3-5'] },
-    lessons: [],
-    outline: [
-      'Deploying a sensor node: sampling rate, placement and metadata',
-      'Cleaning a log: gaps, spikes and timestamps',
-      'Scatter plots, lines of best fit and residuals (temperature vs humidity)',
-      'Correlation is not causation: confounders in a classroom',
-      'Interactive dashboards that tell the truth',
-    ],
-    projectIds: ['stem-912-proj-iot-station'], museion: 'data',
-  },
+  G912_U03,
+  G912_U04,
   {
     id: 'stem-912-u05', band: '9-12', n: 5, title: 'Living Systems as Models', kind: 'science',
     strands: ['science', 'math', 'technology'], status: 'complete', weeks: 4,
@@ -808,54 +768,9 @@ export const G912_UNITS: StemUnit[] = [
     lessons: [L_SIR, L_LV, L_MM, L_REP],
     projectIds: ['stem-912-proj-outbreak'], museion: 'biology',
   },
-  {
-    id: 'stem-912-u06', band: '9-12', n: 6, title: 'CAD & Fabrication', kind: 'engineering',
-    strands: ['engineering', 'technology', 'math'], status: 'outline', weeks: 5,
-    bigIdea: 'A part that fits is designed with its manufacturing process in mind: tolerances, material, time and cost are design parameters, not afterthoughts.',
-    essentialQuestion: 'How precise does a part need to be, and what does that precision cost?',
-    standards: { ngss: ['HS-ETS1-2', 'HS-ETS1-3'], ccss: [C('HSG.MG.A.3'), C('HSG.GMD.A.3'), C('HSN.Q.A.3')] },
-    lessons: [],
-    outline: [
-      'Parametric CAD: sketches, constraints and design intent',
-      'Tolerances and fits: press, slip and clearance for a sensor enclosure',
-      '3D-print time and cost: layer height, infill and the volume formula',
-      'Laser and CNC: kerf, toolpaths, and why routing a guitar body is an adult/technician step',
-      'Design for assembly: fewer parts, fewer screws',
-    ],
-    projectIds: [], museion: 'engineering',
-  },
-  {
-    id: 'stem-912-u07', band: '9-12', n: 7, title: 'Energy & Power Systems', kind: 'engineering',
-    strands: ['science', 'engineering', 'math'], status: 'outline', weeks: 4,
-    bigIdea: 'Every device converts energy from one form to another and loses some on the way; sizing a battery or a solar panel is an energy budget.',
-    essentialQuestion: 'How big a battery does a device really need, and where does the rest of the energy go?',
-    standards: { ngss: ['HS-PS3-3', 'HS-PS3-1', 'HS-PS2-5', 'HS-ETS1-3'], ccss: [C('HSN.Q.A.1'), C('HSA.CED.A.1')] },
-    lessons: [],
-    outline: [
-      'Energy, power and efficiency: following the joules through a speaker',
-      'Battery sizing: mAh, duty cycle and sleep modes for a sensor node',
-      'Lithium cells safely: protected packs, proper chargers, never puncture, short or charge unattended',
-      'Generators and motors: electromagnetic induction on a hand-crank',
-      'Solar harvesting for an outdoor sensor: panel area and worst-case days',
-    ],
-    projectIds: [], museion: 'physics',
-  },
-  {
-    id: 'stem-912-u08', band: '9-12', n: 8, title: 'Soft & Wearable Engineering', kind: 'engineering',
-    strands: ['engineering', 'technology', 'science'], status: 'outline', weeks: 4,
-    bigIdea: 'Fabric can be a circuit board: conductive thread has resistance, seams are wiring routes, and a wearable must survive bending, washing and skin.',
-    essentialQuestion: 'How do you design electronics that move, flex and live on a body?',
-    standards: { ngss: ['HS-ETS1-2', 'HS-ETS1-3', 'HS-PS3-3'], ccss: [C('HSG.MG.A.3'), C('HSA.CED.A.4')], csta: ['3A-AP-16'] },
-    lessons: [],
-    outline: [
-      'Conductive thread as a resistor: measuring Ω per metre',
-      'Routing traces on a tote bag pattern without short circuits',
-      'Sewable microcontrollers, LEDs and coin-cell holders',
-      'Garment wearables: placement, strain relief and washability',
-      'User testing: comfort, safety and accessibility',
-    ],
-    projectIds: [], museion: 'engineering',
-  },
+  G912_U06,
+  G912_U07,
+  G912_U08,
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1002,4 +917,6 @@ export const G912_PROJECTS: StemProject[] = [
     },
     safety: { level: 'sim-only', note: 'Simulation only. Handle real disease topics with sensitivity; students may have personal experience of illness and loss.' },
   },
+  ...G912_U01_PROJECTS,
+  ...G912_U07_PROJECTS,
 ];
