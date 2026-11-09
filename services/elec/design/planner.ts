@@ -125,10 +125,10 @@ function powerPlan(spec: Spec, mcu: McuDef | null, insts: Inst[], ads: number, e
   const plan: PowerPlan = { source, summary: '', powerSwitch: battery || !mcu, sysV, sysIs, rows, totals, capacity: {}, notes: [], ldo3 };
   const v5Need = needs5 ? i5 : 0;
   if (source === 'usb') {
-    if (v5Need + iSys > 2.6) { errors.push(`The design wants about ${(v5Need + iSys).toFixed(1)} A at 5 V: more than USB-C gives (3 A). Use a 5 V adapter.`); }
-    const I = v5Need + iSys; plan.usbA = I <= 0.42 ? 0.5 : I <= 1.25 ? 1.5 : 3;
+    if (!pi && v5Need + iSys > 2.6) { errors.push(`The design wants about ${(v5Need + iSys).toFixed(1)} A at 5 V: more than USB-C gives (3 A). Use a 5 V adapter.`); }
+    const I = v5Need + iSys; plan.usbA = pi ? pi.recommend : I <= 0.42 ? 0.5 : I <= 1.25 ? 1.5 : 3;
     plan.summary = plan.usbA === 0.5 ? 'USB 5 V (any port, 500 mA)' : `USB-C 5 V from a charger offering ${plan.usbA} A`;
-    if (plan.usbA > 0.5) plan.notes.push(`Needs a USB-C power adapter that offers 5 V ${plan.usbA} A (a computer port gives only 0.5 A); the USB-C socket needs 5.1 kΩ from each CC pin to ground (most breakout sockets have them).`);
+    if (pi) plan.notes.push(pi.note); else if (plan.usbA > 0.5) plan.notes.push(`Needs a USB-C power adapter that offers 5 V ${plan.usbA} A (a computer port gives only 0.5 A); the USB-C socket needs 5.1 kΩ from each CC pin to ground (most breakout sockets have them).`);
     plan.capacity['5 V'] = plan.usbA;
   } else if (source === 'adapter5') {
     plan.adapterV = 5; plan.adapterA = sizeUp((v5Need + iSys) * 1.3, [1, 2, 3, 4, 5, 6, 8, 10]); plan.fuseA = sizeUp(Math.max(0.5, (v5Need + iSys) * 1.6)); plan.summary = `5 V ${plan.adapterA} A adapter (barrel jack), ${plan.fuseA} A fuse`; plan.capacity['5 V'] = plan.adapterA;

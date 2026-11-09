@@ -21,6 +21,8 @@ export interface Build {
   values: Values; enclosure?: Enclosure; body?: GuitarPlan; firmware?: Firmware;
   /** Mechanical and wiring extras the schematic does not show: [qty, item, note]. */
   extras: string[][]; steps: string[]; notes: string[]; market: 'US' | 'EU' | 'both'; toy?: boolean;
+  /** Open-ended designs (services/elec/design): pin map, power budget, review list, BOM with sourcing. */
+  design?: import('./design/outputs').DesignReport;
 }
 export interface Recipe { id: string; title: string; about: string; examples: string[]; match: RegExp; params: RecipeParam[]; build(v: Values): Build }
 
