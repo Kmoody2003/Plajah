@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true, "types": ["vite/client", "node", "@webgpu/types"] },
+  "include": ["services/soft/drape/*.ts", "components/soft/drape/*.tsx", "components/soft/PatternRoom.tsx", "tests/drape.test.ts"]
+}

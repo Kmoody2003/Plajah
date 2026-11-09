@@ -17,6 +17,8 @@ import SafetyPanel, { BuildTermsGate, termsAccepted } from '../safety/SafetyPane
 import ExchangeRoom from '../supply/ExchangeRoom';
 import { suppliersFor, type Category } from '../../services/supply/directory';
 
+const FitRoom = React.lazy(() => import('./drape/FitRoom'));
+
 export interface PatternAddArgs { title: string; svg: string; width: number; height: number; cutList: string[][] }
 export interface PatternRoomProps { onClose?: () => void; getToken?: () => Promise<string | null>; apiBase?: string; initialTemplate?: string; onAddToTela?: (a: PatternAddArgs) => Promise<void> }
 
@@ -67,7 +69,7 @@ export default function PatternRoom({ onClose, getToken, apiBase = '', initialTe
   const [audienceBy, setAudienceBy] = useState<Record<string, Audience>>({});
   const audience = audienceBy[tid] ?? tpl.audience;
   const [selling, setSelling] = useState(false);
-  const [view, setView] = useState<'pieces' | 'layout'>('pieces');
+  const [view, setView] = useState<'pieces' | 'layout' | '3d'>('pieces');
   const [right, setRight] = useState<'safety' | 'make' | 'materials' | 'steps'>('safety');
   const [cutter, setCutter] = useState('scissors'); const [laserFabric, setLaserFabric] = useState('Cotton');
   const [widths, setWidths] = useState<Partial<Record<FabricRole, number>>>({});
@@ -141,7 +143,7 @@ export default function PatternRoom({ onClose, getToken, apiBase = '', initialTe
       </div>
       <div className="flex-1 min-w-0 min-h-0 flex flex-col">
         <div className="flex items-center gap-1 px-3 h-10 border-b shrink-0" style={{ borderColor: C.line }}>
-          {(['pieces', 'layout'] as const).map(x => <button key={x} className={`sew-tab${view === x ? ' sew-tab-on' : ''}`} onClick={() => setView(x)} data-testid={`sew-view-${x}`}>{x === 'pieces' ? 'Pattern pieces' : 'Fabric layout'}</button>)}
+          {(['pieces', 'layout', '3d'] as const).map(x => <button key={x} className={`sew-tab${view === x ? ' sew-tab-on' : ''}`} onClick={() => setView(x)} data-testid={`sew-view-${x}`}>{x === 'pieces' ? 'Pattern pieces' : x === 'layout' ? 'Fabric layout' : '3D fit'}</button>)}
           {pattern?.fill && <span className="ml-auto text-[11px]" style={{ color: C.dim }}>Fill ≈ {pattern.fill.grams} g</span>}
         </div>
         <div className="flex-1 min-h-0 overflow-auto p-3">
@@ -149,6 +151,7 @@ export default function PatternRoom({ onClose, getToken, apiBase = '', initialTe
           {pattern && view === 'pieces' && sheet && (sheet.items.length ? <div className="h-full min-h-[320px]"><SheetSvg items={sheet.items} width={sheet.width} height={sheet.height} size={pattern.size} unit={unit}/></div>
             : <div className="text-[12px]" style={{ color: C.dim }}>Every piece is a rectangle: no printing needed. Cut from the sizes below, or see the fabric layout.</div>)}
           {pattern && view === 'pieces' && sheet && sheet.skipped.length > 0 && <table className="mt-3 text-[11.5px] w-full max-w-[640px]" data-testid="sew-cutchart"><tbody>{cutChart(pattern, unit).map((r, i) => <tr key={i} className={i ? '' : 'font-bold'}>{r.map((c, j) => <td key={j} className="py-1 pr-3 border-b" style={{ borderColor: C.line }}>{c}</td>)}</tr>)}</tbody></table>}
+          {pattern && view === '3d' && <React.Suspense fallback={<div className="text-[12px]" style={{ color: C.dim }}>Loading the 3D fit room…</div>}><FitRoom pattern={pattern} template={tpl} params={v} audience={audience} unit={unit}/></React.Suspense>}
           {pattern && view === 'layout' && markers.map(mk => { const yd = yardage(mk); return <div key={mk.role} className="mb-4">
             <div className="flex items-center gap-2 text-[12px] mb-1"><b>{FABRIC_LABEL[mk.role]}</b><span style={{ color: C.dim }}>{yd.text} · {Math.round(mk.efficiency * 100)}% used</span>
               <label className="ml-auto text-[11px]" style={{ color: C.dim }}>Width ({unit}) <input className="sew-in ml-1" style={{ display: "inline-block", width: 80 }} type="number" value={Math.round(mk.width / (unit === 'in' ? 25.4 : 10))} onChange={e => { const x = parseFloat(e.target.value); if (x > 10) setWidths(w => ({ ...w, [mk.role]: x * (unit === 'in' ? 25.4 : 10) })); }}/></label></div>
