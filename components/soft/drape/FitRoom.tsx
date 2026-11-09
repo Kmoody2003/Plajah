@@ -7,7 +7,7 @@ import { Play, Pause, RotateCcw, Shirt, Ruler, Layers, Camera, Video, ShieldAler
 import type { Audience, ParamValue, Pattern, SoftTemplate } from '../../../services/soft/patterns';
 import { CHILD_SIZES, SIZE_CHART, SOFT_TEMPLATES, softDefaults } from '../../../services/soft/patterns';
 import { type BodyMeasures, type PoseName, measuresForSize, poseFor, buildBody, bakeSdf, surfaceNets, WALK_FRAMES } from '../../../services/soft/drape/avatar';
-import { setupOutfit, simFor, startSitTest, type DrapeSetup } from '../../../services/soft/drape/drape';
+import { setupOutfit, simFor, startSitTest, refineDrape, type DrapeSetup } from '../../../services/soft/drape/drape';
 import type { ClothSim } from '../../../services/soft/drape/cloth';
 import { fitMaps, fitReport, tryEverySize, type FitMaps, type FitReport, type SizeRow } from '../../../services/soft/drape/fit';
 import { clothColors, MAP_SCALE, rampCss, type MapMode } from '../../../services/soft/drape/colors';
@@ -56,14 +56,14 @@ export default function FitRoom({ pattern, template, params, audience, unit }: F
   const measures = useMemo<BodyMeasures>(() => ({ ...measuresForSize(bodySize), ...custom }), [bodySize, JSON.stringify(custom)]); // eslint-disable-line react-hooks/exhaustive-deps
   const fab = (role: string): Fabric => (fabricId === 'custom' ? customFabric(customFab) : fabricId ? (role === 'rib' && !isPlush ? fabricById('rib')! : fabricById(fabricId)!) : defaultFabric(role, pattern.kind));
   const setupRef = useRef<DrapeSetup | null>(null); const simRef = useRef<ClothSim | null>(null); const gpuRef = useRef<GpuCloth | null>(null);
-  const frames = isPlush ? 200 : 170;
+  const [frames, setFrames] = useState(isPlush ? 200 : 170); const [refined, setRefined] = useState(false);
 
   // Build avatar + cloth whenever the inputs change.
   useEffect(() => {
     let dead = false; setReport(null); setMaps(null); setProgress(0); setMsg('');
     const body = buildBody(measures, poseFor(pose, walkFrame));
     let s: DrapeSetup; try { s = setupOutfit(garments, { body, fabricFor: k => (k === mainIdx ? (r: string) => fab(r) : undefined) }); } catch (e) { setMsg(`Could not arrange this pattern in 3D: ${String((e as Error).message ?? e)}`); return; }
-    setupRef.current = s; simRef.current = simFor(s); gpuRef.current?.destroy(); gpuRef.current = null;
+    setupRef.current = s; simRef.current = simFor(s); setRefined(false); setFrames(isPlush ? 200 : 170); gpuRef.current?.destroy(); gpuRef.current = null;
     vp.current?.setAvatar(s.body && s.sdf ? surfaceNets(s.sdf) : null); vp.current?.setCloth(s.model); vp.current?.updateCloth(clothColors(s.model, 'fabric')); vp.current?.frame(s.body ? 'body' : 'plush');
     (window as unknown as Record<string, unknown>).drapeState = { setup: s, sim: simRef.current };
     // Desktop GPU first: the WebGPU solver for garments (plush stuffing stays on the CPU solver).
@@ -160,6 +160,9 @@ export default function FitRoom({ pattern, template, params, audience, unit }: F
               {report.sleeveEnd != null && <div>Sleeve vs wrist <b>{fmt(report.sleeveEnd, unit)}</b></div>}<div>Widest seam gap <b>{Math.round(report.seamGap)} mm</b></div>
               {report.plush && <><div>Volume <b>{(report.plush.volume / 1e6).toFixed(2)} L</b> of {(report.plush.target / 1e6).toFixed(2)}</div><div>Stuffing <b>{(report.plush.pressurePa / 1000).toFixed(1)} kPa</b></div><div>Sits up <b>{report.plush.sitTested ? (report.plush.sitsUp ? 'yes' : 'no, tips over') : 'not tested'}</b></div></>}
             </div>
+            {!report.plush && !refined && <button className="sew-btn w-full justify-center mt-2" onClick={() => { const cur = setupRef.current; if (!cur) return; const n = refineDrape(cur, { hMin: 5 }); setupRef.current = n; const sm = simFor(n); sm.t = 2; simRef.current = sm; gpuRef.current?.destroy(); gpuRef.current = null;
+              vp.current?.setCloth(n.model); vp.current?.updateCloth(clothColors(n.model, 'fabric')); setRefined(true); setFrames(70); setReport(null); setMaps(null);
+              const go = () => { setRunning(true); setRev(r => r + 1); }; if ('gpu' in navigator) createGpuCloth(n.model, n.sdf, sm.o).then(g => { if (g) { gpuRef.current = g; setEngine('gpu'); } go(); }).catch(go); else go(); }} data-testid="drape-refine">Refine folds (5 mm mesh at wrinkles)</button>}
             {report.plush && !report.plush.sitTested && <button className="sew-btn w-full justify-center mt-2" onClick={() => { const sm = simRef.current; if (!sm) return; startSitTest(sm); setReport(null); setRunning(true); setRev(r => r + 1); }} data-testid="drape-sit">Sit it down (stability test)</button>}
             <div className="mt-2 text-[10.5px]" style={{ color: C.dim }}>Draped with our own position-based cloth solver; fabric numbers are typical ranges, not a lab-measured bolt.</div>
             {setupRef.current?.rig.notes.map((n, i) => <div key={i} className="mt-1 text-[10.5px]" style={{ color: '#fcd34d' }}>{n}</div>)}

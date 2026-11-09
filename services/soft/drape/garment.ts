@@ -7,11 +7,11 @@
 import { type Pt, bbox, rect } from '../geometry';
 import { type Pattern, type Piece, unfold } from '../patterns';
 import { type Body, type V3, ellPerim, torsoAt } from './avatar';
-import type { PlacedPiece, SeamSpec, GatherSpec } from './cloth';
+import type { PlacedPiece, SeamSpec, GatherSpec, AttachSpec } from './cloth';
 import { type Fabric, defaultFabric, fabricById } from './fabrics';
 
 export type FabricFor = (role: string, piece: Piece) => Fabric;
-export interface Rig { placed: PlacedPiece[]; seams: SeamSpec[]; gathers?: GatherSpec[]; kind: 'garment' | 'plush' | 'loose'; notes: string[]; pressure?: { targetVolume: number; p0: number; planned: number }; needsBody: boolean }
+export interface Rig { placed: PlacedPiece[]; seams: SeamSpec[]; gathers?: GatherSpec[]; attach?: AttachSpec[]; kind: 'garment' | 'plush' | 'loose'; notes: string[]; pressure?: { targetVolume: number; p0: number; planned: number }; needsBody: boolean }
 
 const grainAngle = (p: Piece) => Math.atan2(p.grain[1][1] - p.grain[0][1], p.grain[1][0] - p.grain[0][0]);
 const nearestIdx = (ring: Pt[], q: Pt) => { let bi = 0, bd = Infinity; ring.forEach((p, i) => { const d = Math.hypot(p[0] - q[0], p[1] - q[1]); if (d < bd) { bd = d; bi = i; } }); return bi; };
@@ -109,8 +109,20 @@ function topRig(pattern: Pattern, body: Body, fab: FabricFor, off = 0): Rig {
     seams.push({ name: 'Neckband', a: [{ piece: 'neckband', from: [0, 0], to: [w, 0] }], b: [{ piece: 'back', from: bm.cn, to: B1.np }, { piece: 'front', from: L1.np, to: L2.np, via: fm.cn }, { piece: 'back', from: B2.np, to: bm.cn }] });
     seams.push({ name: 'Neckband join', a: [{ piece: 'neckband', from: [0, 0], to: [0, hh] }], b: [{ piece: 'neckband', from: [w, 0], to: [w, hh] }] });
   }
-  if (by('pocket')) notes.push('The kangaroo pocket is drawn in 2D only; it is not simulated on the body yet.');
-  return { placed, seams, kind: 'garment', notes, needsBody: true };
+  const pk = by('pocket'); const attach: AttachSpec[] = [];
+  if (pk) {
+    // Kangaroo pocket: centred on the front, its lower edge 45 mm above the hem, sewn along the top
+    // and bottom edges; the outer ends stay open as the hand openings.
+    const P = unfold(pk); const pb = bbox(P.seam); const hw = (pb.x1 - pb.x0) / 2, ph = pb.h; const cx = (pb.x0 + pb.x1) / 2; const y0 = 45;
+    const at = (q: Pt): Pt => [q[0] - cx, q[1] - pb.y0 + y0]; const fmap = placed[0].map;
+    placed.push({ id: 'pocket', name: 'Kangaroo pocket', pieceId: 'pocket', role: 'pocket', seam: P.seam, fabric: fab(P.fabric, P), grainAngle: grainAngle(P),
+      map: q => { const w = fmap(at(q)); const r = Math.hypot(w[0], w[2]) || 1; return [w[0] + w[0] / r * 8, w[1], w[2] + w[2] / r * 8]; } });
+    const open = hw * 0.3;
+    attach.push({ name: 'Pocket bottom', piece: 'pocket', from: [pb.x0, pb.y0], to: [pb.x1, pb.y0], target: 'front', at },
+      { name: 'Pocket top', piece: 'pocket', from: [pb.x0 + open, pb.y1], to: [pb.x1 - open, pb.y1], target: 'front', at });
+    if (2 * hw > 2 * fm.W) notes.push(`The kangaroo pocket (${Math.round(2 * hw / 10)} cm) is wider than the front (${Math.round(2 * fm.W / 10)} cm): it wraps past the side seams. Check the pocket draft.`);
+  }
+  return { placed, seams, attach, kind: 'garment', notes, needsBody: true };
 }
 
 /** Gathered elastic-waist skirt: front and back panels round the hips, side seams, elastic waist. */
@@ -220,6 +232,7 @@ export function outfitRig(patterns: Pattern[], body: Body, fab?: (garment: numbe
     out.placed.push(...r.placed.map(pp => ({ ...pp, id: pre(k, pp.id), layer: k, garment: k })));
     out.seams.push(...r.seams.map(sm => ({ ...sm, name: `${patterns[k].name}: ${sm.name}`, a: sm.a.map(x => ({ ...x, piece: pre(k, x.piece) })), b: sm.b.map(x => ({ ...x, piece: pre(k, x.piece) })) })));
     out.gathers!.push(...(r.gathers ?? []).map(g => ({ ...g, name: `${patterns[k].name}: ${g.name}`, piece: pre(k, g.piece) })));
+    (out.attach ??= []).push(...(r.attach ?? []).map(a => ({ ...a, name: `${patterns[k].name}: ${a.name}`, piece: pre(k, a.piece), target: pre(k, a.target) })));
     out.notes.push(...r.notes.map(n => `${patterns[k].name}: ${n}`));
   });
   return out;

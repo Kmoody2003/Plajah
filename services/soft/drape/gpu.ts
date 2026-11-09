@@ -15,7 +15,7 @@ const WGSL = /* wgsl */`
 struct Params { h:f32, h2:f32, gy:f32, damp:f32, sew:f32, floorY:f32, n:u32, record:u32,
   sdfO:vec3<f32>, cell:f32, dims:vec3<u32>, hasSdf:u32, far:f32, selfR:f32, hashMask:u32, selfOn:u32,
   cs:f32, lr:f32, layered:u32, pad:u32 };
-struct Con { a0:i32, a1:i32, b0:i32, b1:i32, wa:f32, wb:f32, rest:f32, compT:f32, compC:f32, kind:u32, p0:u32, p1:u32 };
+struct Con { a0:i32, a1:i32, b0:i32, b1:i32, wa:f32, wb:f32, rest:f32, compT:f32, compC:f32, kind:u32, lam:f32, p1:u32 };
 struct Color { offset:u32, count:u32, p0:u32, p1:u32 };
 @group(0) @binding(0) var<uniform> P: Params;
 @group(0) @binding(1) var<storage, read_write> pos: array<vec4<f32>>;
@@ -39,14 +39,14 @@ fn wsum(c: Con) -> f32 {
 }
 @compute @workgroup_size(${WG}) fn solve(@builtin(global_invocation_id) id: vec3<u32>) {
   if (id.x >= COL.count) { return; } let k = COL.offset + id.x; var c = cons[k];
-  if (c.kind == 2u && c.rest > 0.0) { c.rest = max(0.0, c.rest - P.sew); cons[k].rest = c.rest; }
+  if (c.kind == 2u && c.rest > 0.0 && c.lam == 0.0) { c.rest = max(select(0.0, 1.5, c.compC > 1e-8), c.rest - P.sew); cons[k].rest = c.rest; }
   let ca0 = 1.0 - c.wa; let cb0 = 1.0 - c.wb;
   var A = pos[c.a0].xyz * ca0; if (c.a1 >= 0) { A = A + pos[c.a1].xyz * c.wa; }
   var B = pos[c.b0].xyz * cb0; if (c.b1 >= 0) { B = B + pos[c.b1].xyz * c.wb; }
   let d = A - B; let L = length(d); if (L < 1e-9) { return; }
   let C = L - c.rest; var comp = c.compC; if (C > 0.0) { comp = c.compT; }
   let w = wsum(c); if (w == 0.0) { return; }
-  let lam = -C / (w + comp / P.h2); let g = d / L * lam;
+  let at = comp / P.h2; let lam = (-C - at * c.lam) / (w + at); cons[k].lam = c.lam + lam; let g = d / L * lam;
   pos[c.a0] = vec4<f32>(pos[c.a0].xyz + g * (pos[c.a0].w * ca0), pos[c.a0].w);
   if (c.a1 >= 0) { pos[c.a1] = vec4<f32>(pos[c.a1].xyz + g * (pos[c.a1].w * c.wa), pos[c.a1].w); }
   pos[c.b0] = vec4<f32>(pos[c.b0].xyz - g * (pos[c.b0].w * cb0), pos[c.b0].w);
@@ -110,6 +110,7 @@ fn hashCell(c: vec3<i32>) -> u32 { return ((bitcast<u32>(c.x) * 73856093u) ^ (bi
     } } } }
   delta[i] = vec4<f32>(acc, delta[i].w);
 }
+@compute @workgroup_size(${WG}) fn lreset(@builtin(global_invocation_id) id: vec3<u32>) { if (id.x < COL.count) { cons[id.x].lam = 0.0; } }
 @compute @workgroup_size(${WG}) fn happly(@builtin(global_invocation_id) id: vec3<u32>) { let i = id.x; if (i >= P.n) { return; } pos[i] = vec4<f32>(pos[i].xyz + delta[i].xyz, pos[i].w); }
 @compute @workgroup_size(${WG}) fn velocity(@builtin(global_invocation_id) id: vec3<u32>) { let i = id.x; if (i >= P.n) { return; } vel[i] = vec4<f32>((pos[i].xyz - prv[i].xyz) / P.h, 0.0); }
 `;
@@ -142,9 +143,10 @@ export async function createGpuCloth(m: ClothModel, sdf: SdfGrid | null, o: SimO
   const bgl1 = device.createBindGroupLayout({ entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }] });
   const layout = device.createPipelineLayout({ bindGroupLayouts: [bgl0, bgl1] });
   const pipe = (entryPoint: string) => device.createComputePipeline({ layout, compute: { module, entryPoint } });
-  const P = { predict: pipe('predict'), solve: pipe('solve'), collide: pipe('collide'), hclear: pipe('hclear'), hinsert: pipe('hinsert'), hsolve: pipe('hsolve'), happly: pipe('happly'), velocity: pipe('velocity') };
+  const P = { predict: pipe('predict'), solve: pipe('solve'), collide: pipe('collide'), hclear: pipe('hclear'), hinsert: pipe('hinsert'), hsolve: pipe('hsolve'), happly: pipe('happly'), velocity: pipe('velocity'), lreset: pipe('lreset') };
   const bg0 = device.createBindGroup({ layout: bgl0, entries: [paramsB, pos, prv, vel, propsB, consB, sdfB, deltaB, gridB].map((buffer, binding) => ({ binding, resource: { buffer } })) });
   const colorBGs = m.colors.slice(0, -1).map((off, k) => { const cnt = m.colors[k + 1] - off; const b = mk(new Uint32Array([off, cnt, 0, 0]), GPUBufferUsage.UNIFORM); return { bg: device.createBindGroup({ layout: bgl1, entries: [{ binding: 0, resource: { buffer: b } }] }), cnt, b }; });
+  const allBG = device.createBindGroup({ layout: bgl1, entries: [{ binding: 0, resource: { buffer: mk(new Uint32Array([0, m.nc, 0, 0]), GPUBufferUsage.UNIFORM) } }] }); const iters = Math.max(1, o.iterations ?? 3);
   const dummy = colorBGs[0]?.bg ?? device.createBindGroup({ layout: bgl1, entries: [{ binding: 0, resource: { buffer: mk(new Uint32Array(4), GPUBufferUsage.UNIFORM) } }] });
   const stage = device.createBuffer({ size: 16 * n, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
   const groups = Math.ceil(n / WG); let t = 0; let steps = 0; let lost = false; device.lost.then(() => { lost = true; });
@@ -160,7 +162,8 @@ export async function createGpuCloth(m: ClothModel, sdf: SdfGrid | null, o: SimO
       const run = (p: GPUComputePipeline, g: number) => { pass.setPipeline(p); pass.dispatchWorkgroups(g); };
       for (let s = 0; s < ns; s++) {
         run(P.predict, groups);
-        for (const c of colorBGs) { pass.setBindGroup(1, c.bg); pass.setPipeline(P.solve); pass.dispatchWorkgroups(Math.ceil(c.cnt / WG)); } pass.setBindGroup(1, dummy);
+        pass.setBindGroup(1, allBG); pass.setPipeline(P.lreset); pass.dispatchWorkgroups(Math.ceil(m.nc / WG));
+        for (let it = 0; it < iters; it++) for (const c of colorBGs) { pass.setBindGroup(1, c.bg); pass.setPipeline(P.solve); pass.dispatchWorkgroups(Math.ceil(c.cnt / WG)); } pass.setBindGroup(1, dummy);
         run(P.collide, groups);
         if (o.selfCollision && ((steps + s) & 1) === 0) { run(P.hclear, Math.ceil(hashSize / WG)); run(P.hinsert, groups); run(P.hsolve, groups); run(P.happly, groups); }
         run(P.velocity, groups);

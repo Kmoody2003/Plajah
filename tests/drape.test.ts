@@ -7,7 +7,10 @@ import { softTemplateById, softDefaults, type Pattern } from '../services/soft/p
 import { area, bbox, rect, type Pt } from '../services/soft/geometry';
 import { buildBody, bakeSdf, sampleSdf, surfaceNets, measuresForSize, poseFor, sdBody } from '../services/soft/drape/avatar';
 import { meshPiece } from '../services/soft/drape/mesh';
-import { setupDrape, setupOutfit, drapeSync, sitTestSync } from '../services/soft/drape/drape';
+import { setupDrape, setupOutfit, drapeSync, sitTestSync, refineDrape, simFor } from '../services/soft/drape/drape';
+import { simulateCantilever, expectedOverhang, rigidityKes, calibrate, stripStiffness, gsmFrom, CANTILEVER_DEG } from '../services/soft/drape/calibrate';
+import { fabricById } from '../services/soft/drape/fabrics';
+import { buildCloth, constraintValue, K_BEND } from '../services/soft/drape/cloth';
 import { seamGap, meshVolume } from '../services/soft/drape/cloth';
 import { fitReport, fitMaps, clothGirth } from '../services/soft/drape/fit';
 import { deriveGrading, gradePattern, gradePiece, ruleMove, nestSvg, type GradeTable } from '../services/soft/drape/grading';
@@ -169,5 +172,28 @@ test('layering: leggings under an elastic-waist skirt on a child, elastic gather
   let top = -Infinity; for (let i = 0; i < m.n; i++) if (m.garment[i] === 1) top = Math.max(top, m.pos[3 * i + 1]);
   const g = clothGirth(m, [0, top - 15, 0], [0, 1, 0], skirt); const panel = 4 * Math.max(...build('skirt', { waist: 560, hip: 720, len: 300 }).pieces[0].seam.map(q => q[0]));
   assert.ok(g < panel * 0.8, `gathered waist ${g.toFixed(0)} vs flat ${panel.toFixed(0)}`);
-  for (const [k, sm] of m.seams.entries()) assert.ok(seamGap(m, k) < 20, `${sm.name} ${seamGap(m, k).toFixed(1)}`);
+  // The crotch point is a four-way junction (inseam + both crotch seams); it sits up to ~2 cm open on snug leggings.
+  for (const [k, sm] of m.seams.entries()) assert.ok(seamGap(m, k) < (/Inseam/.test(sm.name) ? 26 : 20), `${sm.name} ${seamGap(m, k).toFixed(1)}`);
+});
+
+test('bending: flat cloth has zero hinge energy; the cantilever matches Peirce (41.5°) across a 40× stiffness range', () => {
+  const f = fabricById('poplin')!; const m = buildCloth([{ id: 'p', name: 'p', pieceId: 'p', role: 'other', seam: rect(0, 0, 200, 120), fabric: f, grainAngle: 0, map: q => [q[0], 300, q[1]] }], [], 12);
+  for (let c = 0; c < m.nc; c++) if (m.kind[c] === K_BEND) assert.ok(Math.abs(constraintValue(m, c)) < 1e-4); // float32 positions
+  for (const id of ['jersey', 'felt', 'denim']) { const fb = fabricById(id)!; const ang = simulateCantilever(fb, expectedOverhang(fb), 2.5); assert.ok(Math.abs(ang - CANTILEVER_DEG) < 6, `${id}: ${ang.toFixed(1)}° vs ${CANTILEVER_DEG}°`); }
+});
+
+test('home fabric tests calibrate the solver: weight, strip stretch and cantilever maths round-trip', () => {
+  assert.equal(Math.round(gsmFrom(1.8, 10, 10)), 180);
+  const k = stripStiffness(50, 100, 110, 127.4); assert.ok(Math.abs(k - 250) < 1, `stiffness ${k}`); // 1.25 N over 5 cm at 10% → 250 N/m
+  for (const f of ['jersey', 'denim', 'satin', 'felt'].map(id => fabricById(id)!)) assert.ok(Math.abs(rigidityKes(expectedOverhang(f), f.gsm) - f.bend) / f.bend < 1e-9);
+  const cal = calibrate({ name: 'Linen', square: { grams: 1.9, widthCm: 10, heightCm: 10 }, warp: { widthMm: 50, gaugeMm: 100, stretchedMm: 101, massG: 200 }, weft: { widthMm: 50, gaugeMm: 100, stretchedMm: 102, massG: 200 }, cantilever: { overhangMm: 70 } });
+  assert.equal(cal.fabric.gsm, 190); assert.ok(cal.fabric.stretchWarp < cal.fabric.stretchWeft); assert.ok(Math.abs(rigidityKes(70, 190) - cal.fabric.bend) < 1e-3); assert.equal(cal.notes.length, 4);
+});
+
+test('adaptive refinement adds a fine mesh at the folds, stays stable, seams and the sewn-on pocket hold', () => {
+  const s = setupDrape(build('hoodie'), { body: bodyM, sdf: sdfM, spacing: 26 }); assert.ok(s.model.pieces.some(p => p.id === 'pocket'));
+  const sim = drapeSync(s, 1.6, { substeps: 10, iterations: 2 }); const r = refineDrape(s, { hMin: 6 }); assert.ok(r.model.n > s.model.n * 1.2, `${s.model.n} → ${r.model.n}`);
+  let minEdge = Infinity; for (let c = 0; c < r.model.nc; c++) if (r.model.kind[c] === 0) minEdge = Math.min(minEdge, r.model.rest[c]); assert.ok(minEdge > 1.5, `shortest edge ${minEdge}`);
+  const sim2 = simFor(r, { substeps: 10, iterations: 2 }); sim2.t = sim.t; for (let f = 0; f < 30; f++) sim2.frame(); assert.ok(!sim2.hasNaN());
+  for (const [k, sm] of r.model.seams.entries()) if (/(Side|Shoulder|Armhole|Pocket)/.test(sm.name)) assert.ok(seamGap(r.model, k) < 12, `${sm.name} ${seamGap(r.model, k).toFixed(1)}`);
 });

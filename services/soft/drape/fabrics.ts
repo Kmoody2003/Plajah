@@ -61,8 +61,11 @@ export function edgeStiffness(f: Fabric, cosA: number, sinA: number): number {
   return yarn * (1 - cs) + kShear * cs;
 }
 
-/** Bending constraint stiffness (g/s²) from KES bending rigidity; scaled so denim stands and jersey drapes. */
-export const bendStiffness = (f: Fabric) => 2e4 * f.bend;
+/**
+ * Bending rigidity D in solver units (g·mm²/s², per unit width) from the KES-style value in
+ * gf·cm²/cm: 1 gf·cm²/cm = 9.81e-5 N·m = 9.81e4 g·mm²/s².
+ */
+export const bendRigidity = (f: Fabric) => f.bend * 9.81e4;
 
 /** Largest comfortable stretch the fabric gives, fraction (for "will it go over the head"). */
 export const maxStretch = (f: Fabric) => Math.max(f.stretchWarp, f.stretchWeft) / 100;
