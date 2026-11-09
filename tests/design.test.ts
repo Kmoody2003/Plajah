@@ -77,7 +77,7 @@ test('pin allocation: analog first, I²C bus reserved, ADS1115 added when analog
   assert.ok(many.insts.some(i => i.pins.in?.startsWith('EXP:0:')));
   assert.match(plan(S([{ block: 'pot', count: 2 }, { block: 'servo', count: 6 }, { block: 'motor', count: 4 }], { mcu: 'nano' })).errors.join(' '), /runs out/);
   assert.equal(plan(S([{ block: 'button', count: 2 }], { conn: ['usb-midi'] })).mcu?.kind, 'pico');
-  assert.match(plan(S([{ block: 'tft', count: 1 }], { mcu: 'nano' })).errors.join(' '), /3\.3 V part/);
+  assert.deepEqual(plan(S([{ block: 'tft', count: 1 }], { mcu: 'nano' })).errors, [], 'TFT on a Nano gets an LDO and a level shifter');
   assert.match(plan(S([{ block: 'oled', count: 3 }])).errors.join(' '), /at most 2|only 2 can share/);
 });
 

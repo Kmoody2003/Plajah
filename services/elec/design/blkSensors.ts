@@ -22,10 +22,17 @@ export const oled: BlockDef = {
 export const tft: BlockDef = {
   id: 'tft', label: 'Colour TFT display', plural: 'TFT displays', about: '1.3" 240 × 240 IPS on SPI (ST7789), 3.3 V.', max: 1, bus: 'spi',
   words: /\b(tft|lcd|colou?r (screen|display)|ips|st7789)\b/i, needsMcu: () => true,
-  notOn: { nano: 'the ST7789 is a 3.3 V part and the Nano drives 5 V logic (use the OLED, or an ESP32/Pico)', rpi: 'this Pi symbol does not expose the SPI pins (use the OLED, or HDMI)' },
   pins: () => [{ role: 'cs', cap: 'gpio', label: 'TFT CS' }, { role: 'dc', cap: 'gpio', label: 'TFT DC' }, { role: 'rst', cap: 'gpio', label: 'TFT reset' }],
   loads: () => [{ rail: 'logic', typ: 0.07, peak: 0.08, what: 'TFT + backlight' }],
-  draw(i, d) { const u = d.part('tft', 0, 0); d.net('LOGIC', [u, 'VCC'], [u, 'BL']); d.net('GND', [u, 'GND']); d.net('@sck', [u, 'SCK']); d.net('@mosi', [u, 'MOSI']); d.net('@cs', [u, 'CS']); d.net('@dc', [u, 'DC']); d.net('@rst', [u, 'RST']); },
+  draw(i, d) {
+    const u = d.part('tft', i.logicV < 4 ? 0 : -24, 0); d.net('GND', [u, 'GND']);
+    if (i.logicV < 4) { d.net('LOGIC', [u, 'VCC'], [u, 'BL']); d.net('@sck', [u, 'SCK']); d.net('@mosi', [u, 'MOSI']); d.net('@cs', [u, 'CS']); d.net('@dc', [u, 'DC']); d.net('@rst', [u, 'RST']); return; }
+    // 5 V board: the display gets its own 3.3 V LDO, and a 74HC4050 shifts the five signals down to 3.3 V.
+    const ldo = d.part('ldo', -24, -16, 0, { V: 3.3, I: '0.6' }); const sh = d.part('hc4050', 0, 0, 2);
+    d.net('V5', [ldo, 'VIN']); d.net('GND', [ldo, 'GND']); d.net('v33', [ldo, 'VOUT'], [u, 'VCC'], [u, 'BL'], [sh, 'VCC']); d.net('GND', [sh, 'GND']);
+    (['sck', 'mosi', 'cs', 'dc', 'rst'] as const).forEach((r, k) => { d.net(`@${r}`, [sh, `${k + 1}A`]); d.net(`y${k}`, [sh, `${k + 1}Y`], [u, r.toUpperCase()]); });
+  },
+  notes: i => (i.logicV > 4 ? ['The ST7789 is a 3.3 V part: on the 5 V Nano it runs from its own LDO, and a 74HC4050 (inputs 5 V tolerant, powered at 3.3 V) shifts SCK, MOSI, CS, DC and RST down. The Nano has 2 KB of RAM, so keep the screen to text.'] : []),
   fw: (i, f) => f.screen('tft', sid(i), ''),
 };
 
