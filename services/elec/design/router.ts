@@ -51,7 +51,7 @@ export class Router {
     const b = partBox(p); const def = compByKind(p.kind)!;
     for (const pin of def.pins) { const [x, y] = this.pinPt(p.ref, pin.name); if (!this.pinNet.has(K(x, y))) this.pinNet.set(K(x, y), `__nc:${p.ref}.${pin.name}`); }
     for (let x = Math.ceil(b.x0); x <= Math.floor(b.x1); x++) for (let y = Math.ceil(b.y0); y <= Math.floor(b.y1); y++) if (!this.pinNet.has(K(x, y))) this.blocked.add(K(x, y));
-    if (p.kind === 'ground') for (let x = p.x - 1; x <= p.x + 1; x++) this.blocked.add(K(x, p.y + 1));
+    if (p.kind === 'ground') for (let x = p.x - 1; x <= p.x + 1; x++) this.blocked.add(K(x, p.y));
     this.bounds = this.parts.length === 1 ? { x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1 } : { x0: Math.min(this.bounds.x0, b.x0), y0: Math.min(this.bounds.y0, b.y0), x1: Math.max(this.bounds.x1, b.x1), y1: Math.max(this.bounds.y1, b.y1) };
   }
   /** Claim pins for nets before routing, so no other net can touch them. */
@@ -105,7 +105,7 @@ export class Router {
       if (t.has(K(...target))) { this.pairs.push([`${pins[i][0]}.${pins[i][1]}`, `${pins[done[0]][0]}.${pins[done[0]][1]}`]); done.push(i); continue; }
       let path: Array<[number, number]> | null = null;
       for (const margin of [8, 16, 30]) { path = this.search(net, target, margin); if (path) break; }
-      if (!path) throw new Error(`Could not route ${net} to ${pins[i].join('.')}`);
+      if (!path) { const [tx, ty] = target; const nb = [0, 1, 2, 3].map(d => { const k = K(tx + DX[d], ty + DY[d]); return `${k}:${this.blocked.has(k) ? 'B' : ''}${this.pinNet.get(k) ?? ''}${(this.use.get(k) ?? []).map(e => e.net + e.axis).join('/')}`; }); throw new Error(`Could not route ${net} to ${pins[i].join('.')} at ${K(tx, ty)} [${nb.join(' ')}]`); }
       this.commit(net, path);
       this.pairs.push([`${pins[i][0]}.${pins[i][1]}`, `${pins[done[0]][0]}.${pins[done[0]][1]}`]); done.push(i);
     }
