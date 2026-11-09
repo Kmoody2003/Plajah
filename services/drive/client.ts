@@ -52,6 +52,56 @@ function put(url: string, body: Blob, headers: Record<string, string>, onProgres
   });
 }
 
+export type SignedBegin =
+  | { mode: 'single'; url: string; headers: Record<string, string> }
+  | { mode: 'multipart'; partSize: number; parts: number };
+
+/** Send a file to the links a server handed out (Drive or Content HQ). Single PUT, or parts 4 at a
+ *  time with retries and re-signing. On any failure or cancel, asks the server to abort, then rethrows. */
+export async function runSignedUpload<T>(begin: SignedBegin, file: Blob, api: {
+  signParts: (nums: number[]) => Promise<Array<{ partNumber: number; url: string }>>;
+  complete: (parts?: Array<{ partNumber: number; etag: string }>) => Promise<T>;
+  abort: () => Promise<unknown>;
+}, onProgress: (sent: number) => void, signal: AbortSignal): Promise<T> {
+  try {
+    if (begin.mode === 'single') {
+      await put(begin.url, file, begin.headers, onProgress, signal);
+      return await api.complete();
+    }
+    const sent = new Array<number>(begin.parts).fill(0);
+    const report = () => onProgress(sent.reduce((a, b) => a + b, 0));
+    const etags: Array<{ partNumber: number; etag: string }> = [];
+    const queue = Array.from({ length: begin.parts }, (_, i) => i + 1);
+    const urls = new Map<number, string>();
+    const sign = async (nums: number[]) => { for (const p of await api.signParts(nums)) urls.set(p.partNumber, p.url); };
+    const worker = async () => {
+      for (let n = queue.shift(); n !== undefined; n = queue.shift()) {
+        if (signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
+        const blob = file.slice((n - 1) * begin.partSize, Math.min(file.size, n * begin.partSize));
+        for (let attempt = 1; ; attempt++) {
+          if (!urls.has(n)) await sign(queue.slice(0, 99).concat(n));
+          try {
+            const etag = await put(urls.get(n)!, blob, {}, b => { sent[n - 1] = b; report(); }, signal);
+            if (!etag) throw new DriveApiError('Storage didn’t confirm a part (ETag hidden by CORS).', 0, 'no_etag');
+            etags.push({ partNumber: n, etag });
+            break;
+          } catch (e: any) {
+            if (e?.name === 'AbortError' || e?.code === 'no_etag' || attempt >= RETRIES) throw e;
+            sent[n - 1] = 0; urls.delete(n); // links can expire; re-sign on retry
+            await new Promise(r => setTimeout(r, 800 * attempt));
+          }
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(PARALLEL, begin.parts) }, worker));
+    etags.sort((a, b) => a.partNumber - b.partNumber);
+    return await api.complete(etags);
+  } catch (e) {
+    void api.abort().catch(() => {});
+    throw e;
+  }
+}
+
 export function createDriveApi(opts: { apiBase?: string; getToken: () => Promise<string | null> }): DriveApi {
   const base = `${opts.apiBase ?? ''}/api/drive`;
   async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -85,51 +135,14 @@ export function createDriveApi(opts: { apiBase?: string; getToken: () => Promise
       const begin = await call<any>('POST', '/uploads', {
         scope, name: file.name, size: file.size, mime: file.type || 'application/octet-stream', ...(parentId ? { parentId } : {}),
       });
-      const abort = () => { void call('DELETE', `/uploads/${begin.uploadId}`).catch(() => {}); };
-      try {
-        if (begin.mode === 'single') {
-          await put(begin.url, file, begin.headers, onProgress, signal);
-        } else {
-          const sent = new Array<number>(begin.parts).fill(0);
-          const report = () => onProgress(sent.reduce((a, b) => a + b, 0));
-          const etags: Array<{ partNumber: number; etag: string }> = [];
-          const queue = Array.from({ length: begin.parts }, (_, i) => i + 1);
-          const urls = new Map<number, string>();
-          const sign = async (nums: number[]) => {
-            const r = await call<{ parts: Array<{ partNumber: number; url: string }> }>('POST', `/uploads/${begin.uploadId}/parts`, { partNumbers: nums });
-            for (const p of r.parts) urls.set(p.partNumber, p.url);
-          };
-          const worker = async () => {
-            for (let n = queue.shift(); n !== undefined; n = queue.shift()) {
-              if (signal.aborted) throw new DOMException('Upload cancelled', 'AbortError');
-              const blob = file.slice((n - 1) * begin.partSize, Math.min(file.size, n * begin.partSize));
-              for (let attempt = 1; ; attempt++) {
-                if (!urls.has(n)) await sign(queue.slice(0, 99).concat(n));
-                try {
-                  const etag = await put(urls.get(n)!, blob, {}, b => { sent[n - 1] = b; report(); }, signal);
-                  if (!etag) throw new DriveApiError('Storage didn’t confirm a part (ETag hidden by CORS).', 0, 'no_etag');
-                  etags.push({ partNumber: n, etag });
-                  break;
-                } catch (e: any) {
-                  if (e?.name === 'AbortError' || e?.code === 'no_etag' || attempt >= RETRIES) throw e;
-                  sent[n - 1] = 0; urls.delete(n); // links can expire; re-sign on retry
-                  await new Promise(r => setTimeout(r, 800 * attempt));
-                }
-              }
-            }
-          };
-          await Promise.all(Array.from({ length: Math.min(PARALLEL, begin.parts) }, worker));
-          etags.sort((a, b) => a.partNumber - b.partNumber);
-          (begin as any).doneParts = etags;
-        }
-        const done = await call<{ file: any }>('POST', `/uploads/${begin.uploadId}/complete`, begin.mode === 'multipart' ? { parts: (begin as any).doneParts } : {});
-        const f = done.file;
-        return { id: f.id, kind: 'file', name: f.name, parentId: f.parentId ?? null, departmentId: f.departmentId ?? null, size: f.size, mime: f.mime,
-          createdAt: f.createdAt, updatedAt: f.updatedAt, trashedAt: null, purgeAt: null, uploadedBy: f.uploadedBy, scan: f.scan } as DriveItem;
-      } catch (e) {
-        abort();
-        throw e;
-      }
+      const done = await runSignedUpload(begin, file, {
+        signParts: async nums => (await call<{ parts: Array<{ partNumber: number; url: string }> }>('POST', `/uploads/${begin.uploadId}/parts`, { partNumbers: nums })).parts,
+        complete: parts => call<{ file: any }>('POST', `/uploads/${begin.uploadId}/complete`, parts ? { parts } : {}),
+        abort: () => call('DELETE', `/uploads/${begin.uploadId}`),
+      }, onProgress, signal);
+      const f = done.file;
+      return { id: f.id, kind: 'file', name: f.name, parentId: f.parentId ?? null, departmentId: f.departmentId ?? null, size: f.size, mime: f.mime,
+        createdAt: f.createdAt, updatedAt: f.updatedAt, trashedAt: null, purgeAt: null, uploadedBy: f.uploadedBy, scan: f.scan } as DriveItem;
     },
   };
 }

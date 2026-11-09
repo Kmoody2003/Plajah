@@ -166,5 +166,7 @@ export function reviewerCandidates(asset: Row, owner: Row | null, members: Row[]
 export function hqObjectPathInScope(asset: Row | null | undefined, path: unknown): boolean {
   if (!asset || typeof path !== 'string' || !asset.scopeKind || !asset.scopeId) return false;
   if (path.includes('..') || path.includes('//')) return false;
+  // `b2:` = held on B2 (services/hq/b2Store.ts); same owner-space rule, different bucket.
+  if (path.startsWith('b2:')) return path.startsWith(`b2:hq/${asset.scopeKind}/${asset.scopeId}/`);
   return path.startsWith(`protected-hq/${asset.scopeKind}/${asset.scopeId}/`);
 }

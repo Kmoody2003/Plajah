@@ -728,6 +728,44 @@ export async function listHqAssets(scope: OwnerScope, includeTrash = false): Pro
   return (await listHqAssetsDetailed(scope, includeTrash)).assets;
 }
 
+// ── Large-file storage on B2 (routes/hqB2.ts) ─────────────────────────────
+// Off until the server sets HQ_B2_ENABLED=1; the first "off" answer is remembered for the session.
+let hqB2Off = false;
+const isB2StoragePath = (p: unknown) => typeof p === 'string' && p.startsWith('b2:');
+
+async function uploadHqToB2(
+  target: { kind: 'org' | 'user' | 'business'; id: string },
+  file: File, folder: string | undefined, mimeType: string, onProgress?: (pct: number) => void,
+): Promise<OrgAsset | null> {
+  if (hqB2Off) return null;
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) return null;
+  const call = async <T,>(method: string, path: string, body?: unknown): Promise<T> => {
+    const r = await fetch(`/api/hq/b2${path}`, {
+      method, headers: { Authorization: `Bearer ${token}`, ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+    const j = await r.json().catch(() => ({} as any));
+    if (!r.ok) { const e: any = new Error(j.error || `HTTP ${r.status}`); e.code = j.code; e.status = r.status; throw e; }
+    return j as T;
+  };
+  let begin: any;
+  try {
+    begin = await call('POST', '/uploads', { scopeKind: target.kind, scopeId: target.id, name: file.name, size: file.size, mime: mimeType, folder });
+  } catch (e: any) {
+    if (e?.code === 'b2_off' || e?.code === 'not_configured' || e?.status === 404) { hqB2Off = true; return null; }
+    if (e?.code === 'over_cap') throw new Error('STORAGE_CAP_EXCEEDED');
+    throw e;
+  }
+  const { runSignedUpload } = await import('./drive/client');
+  const done = await runSignedUpload<{ asset: OrgAsset }>(begin, file, {
+    signParts: async nums => (await call<{ parts: Array<{ partNumber: number; url: string }> }>('POST', `/uploads/${begin.uploadId}/parts`, { partNumbers: nums })).parts,
+    complete: parts => call('POST', `/uploads/${begin.uploadId}/complete`, parts ? { parts } : {}),
+    abort: () => call('DELETE', `/uploads/${begin.uploadId}`),
+  }, sent => onProgress?.(file.size ? (sent / file.size) * 100 : 100), new AbortController().signal);
+  return done.asset;
+}
+
 /** Upload a file into a scope's DAM and write its Firestore record. */
 export async function addHqAsset(
   scope: OwnerScope,
@@ -739,6 +777,13 @@ export async function addHqAsset(
   const target = resolveHqReadScope(scope, uid);
   if (!target) throw new Error('You can only add files to your own Content HQ or your organization\'s.');
   await assertUnderHqCap(target, file.size);
+  // Large-file storage (B2, resumable). Null = switched off on this server → Firebase Storage below.
+  const viaB2 = await uploadHqToB2(target, file, folder, contentTypeFor(file), onProgress);
+  if (viaB2) {
+    const scan = await requestHqScan(viaB2.id).catch(() => null);
+    if (scan?.scanStatus) { viaB2.scanStatus = scan.scanStatus; if (scan.scanReason) viaB2.scanReason = scan.scanReason; }
+    return viaB2;
+  }
   const id = doc(collection(opsDb, COLLECTION)).id;
   const safe = file.name.replace(/[^\w.\-]+/g, '_');
   const storagePath = `protected-hq/${target.kind}/${target.id}/${id}/${safe}`;
@@ -842,6 +887,12 @@ export function findDuplicateImportCopies(assets: OrgAsset[], courseUrls: Readon
 
 /** Delete an asset's Firestore record + its Storage object (best-effort). */
 export async function deleteHqAsset(asset: OrgAsset): Promise<void> {
+  if (isB2StoragePath(asset.storagePath)) {
+    // B2 objects have no client delete; the server checks write access and erases objects + record.
+    const res = await fetch(`/api/hq/b2/assets/${encodeURIComponent(asset.id)}`, { method: 'DELETE', headers: await hqFileHeaders() });
+    if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || 'Could not delete this file.');
+    return;
+  }
   await fetch(`/api/hq/file/${encodeURIComponent(asset.id)}/text`, { method: 'DELETE', headers: await hqFileHeaders() }).catch(() => {});
   await deleteDoc(doc(opsDb, COLLECTION, asset.id));
   try { await deleteObject(ref(storage, asset.storagePath)); } catch { /* object may already be gone */ }

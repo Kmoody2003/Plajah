@@ -5592,7 +5592,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       { id: 'sports', label: 'Sports & News', ids: ['PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES'] },
                       { id: 'education', label: 'Education', ids: ['BOOKS', 'CLASSROOMS', 'PLAJAH_LABS'] },
                       { id: 'community', label: 'Community', ids: ['CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'SACRED_LIBRARY', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB'] },
-                      { id: 'creator', label: 'Creator Tools', ids: ['CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'FABULA', 'PLAJAH_BUILD', ...(userProfile?.role === 'admin' || user?.email === 'kmoody2003@gmail.com' ? ['PLAJAH_DRIVE'] : []), 'TV_STUDIO', 'AMBO_PRO', 'MEDIA_ROUTER', 'POSTMAN'] },
+                      { id: 'creator', label: 'Creator Tools', ids: ['CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'FABULA', 'PLAJAH_BUILD', 'TV_STUDIO', 'AMBO_PRO', 'MEDIA_ROUTER', 'POSTMAN'] },
                       { id: 'platform', label: 'Platform', ids: ['PLAJAH_HOME', 'HELP_CENTER', 'BROWSER'] },
                     ];
                     return groups.map(group => {
@@ -5662,7 +5662,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       PLAJAH_STUDIO: { label: 'Marketing', icon: Megaphone },
                       CREATOR: { label: 'Creator Hub', icon: Clapperboard },
                     };
-                    const allNavIds = ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS', 'PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES', 'BOOKS', 'CLASSROOMS', 'PLAJAH_LABS', 'PLAJAH_HOME', 'CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB', 'LIVE_HUB', 'FABULA', 'PLAJAH_BUILD', ...(userProfile?.role === 'admin' || user?.email === 'kmoody2003@gmail.com' ? ['PLAJAH_DRIVE'] : []), 'TV_STUDIO', 'MEDIA_ROUTER', 'POSTMAN', 'HELP_CENTER', 'BROWSER', 'CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : [])];
+                    const allNavIds = ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS', 'PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES', 'BOOKS', 'CLASSROOMS', 'PLAJAH_LABS', 'PLAJAH_HOME', 'CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB', 'LIVE_HUB', 'FABULA', 'PLAJAH_BUILD', 'TV_STUDIO', 'MEDIA_ROUTER', 'POSTMAN', 'HELP_CENTER', 'BROWSER', 'CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : [])];
                     const handleNavClick = (id: string) => {
                       if (id === 'PAY_IT_FORWARD') { setIsPIFModalOpen(true); return; }
                       if (id === 'USER_PROFILE') { if (user) { handleVisitUser(user.uid); } else { loginWithGoogle(); } return; }

@@ -67,7 +67,7 @@ import { templateShareRouter } from './routes/templateShare';
 import { curriculumFetchRouter } from './routes/curriculumFetch';
 import { worksheetGradingRouter, splitLegacyWorksheetKeys } from './routes/worksheetGrading';
 import { academiaClassRouter } from './routes/academiaClass';
-import { objectStoreRouter } from './routes/objectStore';
+import { objectStoreRouter, objectStoreConfigFromEnv } from './routes/objectStore';
 import { createBusinessStaffRouter } from './routes/businessStaff';
 import { registerPermsFor as bizRegisterPermsFor, normalizePerms as normalizeBizPerms, type BizPerm } from './services/businessStaffCore';
 import { staffActorInfo as bizStaffActorInfo, mergeSeats as mergeBizSeats } from './services/businessStaffServerCore';
@@ -114,6 +114,8 @@ import { createCreativeStorageRouter } from './routes/creativeStorage';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { makerBuildRouter } from './routes/makerBuild';
 import { driveRouter } from './routes/drive';
+import { createHqB2Router, liveHqB2Deps } from './routes/hqB2';
+import { isB2Path, b2ObjectRequest, deleteHqB2Objects } from './services/hq/b2Store';
 import { kithSightingsRouter } from './routes/kithSightings';
 import { createAriaSpeakRouter, decideAriaVoiceAccess } from './routes/ariaSpeak';
 import { createRtcIceRouter } from './routes/rtcIce';
@@ -4398,13 +4400,25 @@ async function startServer() {
     return ent.storageLimitGb * 1024 ** 3;
   }
 
-  async function streamHqObject(req: any, res: any, objectPath: string, filename: string, mimeType: string) {
+  /** Where an HQ object's bytes live: B2 (`b2:` paths, services/hq/b2Store) or our Firebase bucket. */
+  async function hqObjectFetch(objectPath: string, range?: string, meta = false): Promise<Response | null> {
+    if (isB2Path(objectPath)) {
+      const cfg = objectStoreConfigFromEnv();
+      if (!cfg) return null;
+      const r = b2ObjectRequest(cfg, objectPath, range);
+      return fetch(r.url, { headers: r.headers }).catch(() => null);
+    }
     const token = await getGoogleAccessToken();
-    if (!token) return res.status(503).json({ error: 'Protected storage unavailable' });
+    if (!token) return null;
     const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
-    if (req.headers.range) headers.Range = String(req.headers.range);
-    const url = `https://storage.googleapis.com/storage/v1/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}?alt=media`;
-    const upstream = await fetch(url, { headers });
+    if (range) headers.Range = range;
+    const url = `https://storage.googleapis.com/storage/v1/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}${meta ? '' : '?alt=media'}`;
+    return fetch(url, { headers }).catch(() => null);
+  }
+
+  async function streamHqObject(req: any, res: any, objectPath: string, filename: string, mimeType: string) {
+    const upstream = await hqObjectFetch(objectPath, req.headers.range ? String(req.headers.range) : undefined);
+    if (!upstream) return res.status(503).json({ error: 'Protected storage unavailable' });
     if (!upstream.ok || !upstream.body) return res.status(upstream.status).json({ error: 'Asset unavailable' });
     res.status(upstream.status);
     for (const h of ['content-length', 'content-range', 'accept-ranges', 'etag']) {
@@ -4495,6 +4509,13 @@ async function startServer() {
 
   // Fetch an object's stored metadata (content-type/size) + head bytes for scanning.
   async function fetchHqObjectHead(objectPath: string): Promise<{ ok: boolean; contentType?: string; size?: number; head: Buffer }> {
+    if (isB2Path(objectPath)) {
+      // One ranged GET gives the head bytes, the stored type and (from Content-Range) the full size.
+      const r = await hqObjectFetch(objectPath, `bytes=0-${HQ_SCAN_HEAD_BYTES - 1}`);
+      if (!r || !(r.ok || r.status === 206)) return { ok: false, head: Buffer.alloc(0) };
+      const total = Number(String(r.headers.get('content-range') || '').split('/')[1] || r.headers.get('content-length') || 0);
+      return { ok: true, contentType: r.headers.get('content-type') || undefined, size: total || undefined, head: Buffer.from(await r.arrayBuffer()) };
+    }
     const token = await getGoogleAccessToken();
     if (!token) return { ok: false, head: Buffer.alloc(0) };
     const base = `https://storage.googleapis.com/storage/v1/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}`;
@@ -4534,9 +4555,7 @@ async function startServer() {
 
   /** The whole object, straight from our bucket to our own scanner. */
   async function scanHqObjectWithClam(objectPath: string, clam: NonNullable<ReturnType<typeof clamConfigFromEnv>>) {
-    const token = await getGoogleAccessToken();
-    if (!token) return { status: 'unavailable' as const, detail: 'no storage token' };
-    const upstream = await fetch(`https://storage.googleapis.com/storage/v1/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}?alt=media`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
+    const upstream = await hqObjectFetch(objectPath);
     if (!upstream?.ok || !upstream.body) return { status: 'unavailable' as const, detail: 'could not read the object' };
     return clamInstream(Readable.fromWeb(upstream.body as any), clam);
   }
@@ -4780,6 +4799,9 @@ async function startServer() {
 
   // Server-authoritative storage-cap check the client MUST pass before an HQ upload. Computes the
   // scope's used bytes + the entitlement's tier cap and rejects over-cap uploads (413).
+  // Content HQ on B2: resumable uploads + erase. Off until HQ_B2_ENABLED=1 (routes/hqB2.ts).
+  app.use('/api/hq/b2', apiLimiter, express.json({ limit: '64kb' }), createHqB2Router(liveHqB2Deps({ canWriteScope: canWriteHqScope, capBytes: resolveHqCapBytes })));
+
   app.post('/api/hq/quota-check', apiLimiter, authMiddleware, express.json(), async (req: any, res: any) => {
     const uid: string = req.uid;
     const scopeKind = String(req.body?.scopeKind || '');
@@ -5007,6 +5029,11 @@ async function startServer() {
   // Permanently delete one Storage object under the project bucket (idempotent — a
   // 404 counts as success). Server-side only; guests/clients never reach protected-hq.
   async function deleteHqStorageObject(objectPath: string): Promise<boolean> {
+    if (isB2Path(objectPath)) {
+      const cfg = objectStoreConfigFromEnv();
+      if (!cfg) return false;
+      return deleteHqB2Objects([objectPath], { s3: () => cfg }).then(() => true, () => false);
+    }
     const token = await getGoogleAccessToken();
     if (!token) return false;
     const url = `https://storage.googleapis.com/storage/v1/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}`;
