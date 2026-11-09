@@ -2,14 +2,14 @@
 // we assumed, let you change any of it, then design the whole thing. On the Plajah desktop app an
 // on-device model can read the prompt first; it only fills in the same checked parameters.
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Wand2, Cpu } from 'lucide-react';
 import { RECIPES, interpret, recipeById, recipeDefaults, llmPrompt, fromLlm, type Build, type Interpretation, type Values } from '../../services/elec/recipes';
 
 const DIM = 'rgba(255,255,255,.55)';
 
-export default function DescribePanel({ onBuild }: { onBuild: (b: Build) => void }) {
-  const [prompt, setPrompt] = useState('');
+export default function DescribePanel({ onBuild, initialPrompt }: { onBuild: (b: Build) => void; initialPrompt?: string }) {
+  const [prompt, setPrompt] = useState(initialPrompt ?? '');
   const [it, setIt] = useState<Interpretation | null>(null);
   const [values, setValues] = useState<Values>({});
   const [busy, setBusy] = useState(''); const [err, setErr] = useState('');
@@ -25,6 +25,8 @@ export default function DescribePanel({ onBuild }: { onBuild: (b: Build) => void
     setIt(r); setValues(r.values);
     if (!r.recipe) setErr('No recipe matches that yet. Try one of the examples, or pick a product below.');
   };
+  // A prompt typed elsewhere (the Plajah Build hub) is read as soon as the panel opens.
+  useEffect(() => { if (initialPrompt?.trim()) void read(initialPrompt); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const build = () => { const r = it?.recipe; if (!r) return; try { onBuild(r.build(values)); } catch (e: any) { setErr(String(e?.message ?? e)); } };
   const pick = (id: string) => { const r = recipeById(id)!; const v = recipeDefaults(r); setIt({ recipe: r, values: v, heard: [], assumed: r.params.map(p => `${p.label}: ${v[p.key]}`), market: 'both' }); setValues(v); setErr(''); };
 

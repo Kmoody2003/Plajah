@@ -31,6 +31,8 @@ export interface ElecRoomProps {
   getToken?: () => Promise<string | null>;
   /** Where /api lives ('' = same origin). */
   apiBase?: string;
+  /** Opens on Describe with this prompt already read (from the Plajah Build hub). */
+  initialPrompt?: string;
 }
 
 const C = { bg: '#0c0d12', panel: '#12141b', line: 'rgba(255,255,255,.08)', text: '#e8eaf0', dim: 'rgba(255,255,255,.5)', wire: '#7dd3fc', accent: '#fbbf24' };
@@ -43,7 +45,7 @@ const download = (name: string, data: BlobPart, type: string) => { const u = URL
 const fmtV = (v: number) => `${Math.abs(v) < 0.01 ? '0' : v.toFixed(Math.abs(v) >= 10 ? 1 : 2)} V`;
 const fmtT = (t: number) => t >= 1 ? `${t.toFixed(2)} s` : t >= 1e-3 ? `${(t * 1e3).toFixed(2)} ms` : `${(t * 1e6).toFixed(0)} µs`;
 
-export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, onSendTable, getToken, apiBase = '' }: ElecRoomProps) {
+export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, onSendTable, getToken, apiBase = '', initialPrompt }: ElecRoomProps) {
   const start = DESIGNS.find(d => d.id === '555-led-blinker')!;
   const [circuit, setCircuit] = useState<Circuit>(() => initial ? clone(initial) : clone(start.circuit));
   const [simOpts, setSimOpts] = useState<SimOptions>(initial ? { mode: 'dc' } : start.sim);
@@ -257,7 +259,7 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
         <aside className="w-60 shrink-0 border-r flex flex-col min-h-0" style={{ borderColor: C.line, background: C.panel }}>
           <div className="flex gap-1 p-2">{(['describe', 'starters', 'parts'] as const).map(t => <button key={t} onClick={() => setLeft(t)} className={`elec-tab${left === t ? ' elec-tab-on' : ''}`} data-testid={`elec-left-${t}`}>{t === 'parts' ? 'Parts' : t === 'describe' ? 'Describe' : 'Starters'}</button>)}</div>
           <div className="flex-1 overflow-y-auto px-2 pb-3 text-[12px]">
-            {left === 'describe' ? <DescribePanel onBuild={onBuild}/> : left === 'starters' ? <>
+            {left === 'describe' ? <DescribePanel onBuild={onBuild} initialPrompt={initialPrompt}/> : left === 'starters' ? <>
               {DESIGNS.map(d => <button key={d.id} onClick={() => loadDesign(d)} className="w-full text-left p-2 rounded-lg mb-1.5" style={{ background: 'rgba(255,255,255,.03)', border: `1px solid ${C.line}` }} data-testid={`elec-design-${d.id}`}>
                 <div className="font-bold text-[12px]">{d.title}</div><div className="text-[10.5px] mt-0.5 leading-snug" style={{ color: C.dim }}>{d.about}</div>
                 <div className="flex flex-wrap gap-1 mt-1">{d.tags.map(t => <span key={t} className="text-[9px] px-1.5 rounded-full" style={{ background: 'rgba(251,191,36,.1)', color: C.accent }}>{t}</span>)}</div>
