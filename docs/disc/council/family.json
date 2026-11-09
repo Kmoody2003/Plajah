@@ -1,0 +1,42 @@
+{
+  "slot": "family",
+  "name": "Family & Animation",
+  "id": "mw8l2r9tyhowdr",
+  "uid": "disc-templates",
+  "createdAt": 1794187774865,
+  "depth": "FULL",
+  "status": "FAILED",
+  "brief": {
+    "ask": "Direct the family / animation template: big friendly buttons a child can navigate, sing-along and bonus games section, parents can still find Setup.",
+    "domain": "animated features and family films",
+    "audience": "kids aged 4–10 holding the remote, and their parents",
+    "feeling": "joyful, bouncy, warm — never babyish or loud",
+    "surface": "Fabula disc menu template \"Family & Animation\"",
+    "constraints": [
+      "Surface: Blu-ray and Ultra HD Blu-ray disc menus on a living-room TV, a 1920×1080 graphics plane (UHD menus are HD graphics the player scales), seen from a couch three metres away, driven only by a remote: arrow keys + OK.",
+      "Menus to direct as ONE family: Main menu, Scene selection (six chapter thumbnails per page, Previous/Next/Back), Setup (audio and subtitle choices), Special Features list, and a Pop-up bar that rises over the film while it plays. Series templates add an Episodes page.",
+      "Every button has three designed states — normal, selected, activated — and the selected state must read instantly from across a room. Say exactly what the selection mark is (shape, colour, size).",
+      "Built in Plajah Tela as vector art: rectangles, ellipses, lines, SVG paths, text, image slots (the film's own frames), linear/radial gradients, shadows, opacity, blend modes. Fonts available: Display/serif: Playfair Display, Fraunces, DM Serif Display, Cormorant Garamond, EB Garamond, Bodoni Moda, Instrument Serif, Gloock, Cinzel, Italiana, Forum, Abril Fatface, Marcellus, Tenor Sans. Condensed/poster: Bebas Neue, Anton, Oswald, League Gothic, Six Caps, Big Shoulders Display, Staatliches, Archivo Black, Syne, Unbounded. Sans: Inter, DM Sans, Manrope, Space Grotesk, Sora, Outfit, Bricolage Grotesque, Josefin Sans, Raleway, Work Sans, Epilogue. Mono/typewriter: JetBrains Mono, IBM Plex Mono, Space Mono, Courier Prime, Special Elite. Genre: Monoton, Limelight, Poiret One, Righteous, Orbitron, Michroma, UnifrakturMaguntia, Pirata One, Almendra Display, Fredoka, Baloo 2, DynaPuff, Sniglet, Caveat Brush, Permanent Marker.",
+      "Disc graphics law: each menu page's buttons share a 255-colour palette, so button art stays flat (no wide gradients inside buttons — gradients belong in the background art); action-safe 90%, title-safe 80%; body text ≥ 28px, nothing thinner than 2px (TV scaling shimmers); on UHD avoid large full-white fields.",
+      "The main-menu background is a loop of the film itself or a still from it, with your art over it; the Pop-up draws over the playing film, so it must not cover the picture's centre.",
+      "Give production-ready specifics: palette as hex, fonts from the list, the layout with pixel positions on the 1920×1080 plane, button sizes, ornament vocabulary, and how the menus feel in motion.",
+      "Buttons at least 120px tall; selection must be obvious to a five-year-old."
+    ],
+    "references": [
+      "Fabula Disc Authoring (menus become Blu-ray interactive graphics)",
+      "Plajah Tela vector stack"
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [],
+  "disputes": [],
+  "reflections": [],
+  "error": "Fewer than two directors answered"
+}

@@ -42,6 +42,12 @@ interface RenderFabulaOpts {
   signal?: AbortSignal;
   cubeLut?: CubeLutData | null;
   stereoMode?: 'mono' | 'sbs-full' | 'sbs-half';
+  /** Disc/mastering: stream the MP4 to `sink` (no in-memory file), at this bitrate, in quality mode. */
+  sink?: (bytes: Uint8Array) => void | Promise<void>;
+  bitrate?: number;
+  quality?: boolean;
+  /** Receives the mixed timeline audio before video rendering (for a lossless WAV master). */
+  onAudio?: (mix: AudioBuffer | null) => void | Promise<void>;
 }
 
 function itemToSnapshot(item: any, label: string): SceneSnapshot {
@@ -456,6 +462,7 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
   onProgress?.(0, 'Mixing audio'); // visible stage — this step used to sit silently on "Preparing"
   const audioBuffer = await mixAudio(clips, mediaPool, duration, trackSettings);
   if (signal?.aborted) return null;
+  await opts.onAudio?.(audioBuffer);
   // A grade can make an offline render slower, but it must never make the FILE
   // lower-FPS. Preserve the fastest active source cadence (up to 60fps). Imported
   // assets cache this value; older projects are measured once here at delivery.
@@ -508,6 +515,7 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
       resolveLayers, duration, audioBuffer, config,
       width: renderW, height: format.h || 1080, fps: renderFps,
       onProgress: wrappedProgress, signal, cubeLut,
+      sink: opts.sink, bitrate: opts.bitrate, quality: opts.quality,
     });
 
     if (blob) {

@@ -9792,6 +9792,15 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                         productionTitle={prod.title}
                         ownerId={prod.ownerId}
                         ping={ping}
+                        renderer={renderFabulaToBlob}
+                        renderSource={(id) => {
+                          // A disc title that points at a cut renders it through the same engine as RENDER MP4.
+                          const lut = (prod?.design?.luts || []).find((l) => l.id === prod?.design?.activeLutId) || null;
+                          const job = (title, clipsIn, trackSettings) => ({ clips: clipsIn, mediaPool: prod.mediaPool || [], format: vfmt, palette: prod?.pixelsConfig?.colorPalette || [], title, trackSettings: trackSettings || {}, cubeLut: lut });
+                          if (container && id === `timeline_${container.id || "open"}`) return clips.length ? job(container.title || container.name, clips, container?.timeline?.trackSettings) : null;
+                          const ed = id.startsWith("edit_") ? (prod.edits || []).find((e) => `edit_${e.id}` === id) : null;
+                          return ed && ed.timeline?.clips?.length ? job(ed.name || ed.title, ed.timeline.clips, ed.timeline.trackSettings) : null;
+                        }}
                         sources={[
                           ...(container && seqEnd > 0 ? [{ id: `timeline_${container.id || "open"}`, name: container.name || container.title || prod.title || "Current timeline", durationSec: seqEnd, kind: "timeline", markers: (markers || []).map((m) => ({ t: m.t, label: m.label || m.name || m.note })) }] : []),
                           ...(prod.edits || []).filter((e) => e !== container).map((e) => ({ id: `edit_${e.id}`, name: e.name || e.title || "Edit", durationSec: (e.timeline?.clips || []).reduce((mx, c) => Math.max(mx, (c.start || 0) + (c.duration || 0)), 0), kind: "edit" })).filter((x) => x.durationSec > 0),

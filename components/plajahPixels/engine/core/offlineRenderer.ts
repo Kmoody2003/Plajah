@@ -12,7 +12,7 @@
 // MILKDROP (butterchurn driven deterministically from the stored waveform — see
 // milkdropDriver), the global color grade, baked-in camera shake, and the music track.
 
-import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
+import { Muxer, ArrayBufferTarget, StreamTarget } from 'mp4-muxer';
 import { Compositor, LayerInput, ShakeParams } from './compositor';
 import { segmentSubject } from '../../../../services/fabula/subjectMatte';
 import { estimateDepth, depthRangeCanvas } from '../../../../services/fabula/depthMatte';
@@ -66,6 +66,11 @@ export interface RenderOptions {
   onProgress?: (p: number, stage: string) => void;
   signal?: AbortSignal;
   cubeLut?: CubeLutData | null;
+  /** Stream the MP4 out as it encodes (fragmented MP4, written strictly in order) instead of
+   *  holding it in memory — for feature-length masters. The returned Blob is then empty. */
+  sink?: (bytes: Uint8Array) => void | Promise<void>;
+  /** Encoder 'quality' latency mode (slower, better) — used for disc masters. */
+  quality?: boolean;
 }
 
 const VIDEO_CODECS = ['avc1.4D0033', 'avc1.4D0028', 'avc1.42E01F']; // Main 5.1 → Main 4.0 → Baseline
@@ -227,13 +232,22 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
   };
 
   // Muxer + encoders.
+  // Streaming sink: writes queue in order; the frame loop waits if the writer falls behind.
+  let pending: Promise<void> = Promise.resolve();
+  let queued = 0, written = 0, sinkErr: any = null;
+  const sink = opts.sink;
+  const enqueue = (data: Uint8Array, position: number) => {
+    if (position !== written) { sinkErr = sinkErr || new Error(`master stream wrote out of order (${position} ≠ ${written})`); return; }
+    const copy = data.slice(); written += copy.length; queued += copy.length;
+    pending = pending.then(() => sink!(copy)).then(() => { queued -= copy.length; }, e => { sinkErr = sinkErr || e; });
+  };
   const muxer = new Muxer({
-    target: new ArrayBufferTarget(),
+    target: sink ? new StreamTarget({ onData: enqueue, chunked: true, chunkSize: 16 * 1024 * 1024 }) : new ArrayBufferTarget(),
     // mp4-muxer uses this as its exact track timescale. Fractional rates cannot
     // be used as an integer MP4 timescale, so retain its precise 57,600 fallback.
     video: { codec: 'avc', width, height, ...(Number.isInteger(fps) ? { frameRate: fps } : {}) },
     ...(audioBuffer ? { audio: { codec: 'aac' as const, numberOfChannels: Math.min(2, audioBuffer.numberOfChannels), sampleRate: audioBuffer.sampleRate } } : {}),
-    fastStart: 'in-memory',
+    fastStart: sink ? 'fragmented' : 'in-memory',
   });
 
   let encErr: any = null;
@@ -244,7 +258,7 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
   });
   // realtime = throughput over the default multi-pass 'quality' analysis; prefer-hardware
   // routes to the GPU encoder. Together these are the difference between minutes and an hour.
-  videoEnc.configure({ codec, width, height, bitrate, framerate: fps, hardwareAcceleration, latencyMode: 'realtime' });
+  videoEnc.configure({ codec, width, height, bitrate, framerate: fps, hardwareAcceleration, latencyMode: opts.quality ? 'quality' : 'realtime' });
 
   const gopFrames = Math.max(1, Math.round(fps * 2)); // keyframe every 2s
   const palette = (config.colorPalette || []).slice(0, 3).map(hexToRgb);
@@ -472,6 +486,8 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
 
       // Let the encoder pipeline run deep before waiting (more parallelism = faster).
       while (videoEnc.encodeQueueSize > 24) { if (aborted()) throw new Error('aborted'); await new Promise(r => setTimeout(r, 1)); }
+      if (sink && queued > 192 * 1024 * 1024) await pending;
+      if (sinkErr) throw sinkErr;
       // Yield to the browser only occasionally (keeps the tab alive without throttling
       // the render to the event-loop tick) — generator/shader renders then run far
       // faster than real time.
@@ -512,6 +528,12 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
     }
 
     muxer.finalize();
+    if (sink) {
+      await pending;
+      if (sinkErr) throw sinkErr;
+      onProgress?.(1, 'Done');
+      return written > 1024 ? new Blob([], { type: 'video/mp4' }) : null;
+    }
     const buf = (muxer.target as ArrayBufferTarget).buffer;
     onProgress?.(1, 'Done');
     if (!buf || buf.byteLength < 1024) return null;

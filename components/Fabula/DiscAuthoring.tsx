@@ -26,6 +26,10 @@ interface Props {
   onChange: (discs: DiscProject[]) => void;
   sources: DiscSource[];
   productionTitle?: string;
+  /** Render job for a Fabula cut (timeline/edit source id), or null if the id isn't a cut. */
+  renderSource?: (sourceId: string) => Record<string, unknown> | null;
+  /** Fabula's renderer (renderFabulaToBlob), passed in so this page doesn't pull the render engine in. */
+  renderer?: (opts: any) => Promise<Blob | null>;
   ownerId?: string;
   ping?: (m: string) => void;
 }
@@ -40,7 +44,7 @@ const parseHms = (v: string) => v.split(':').map(Number).reduce((a, n) => a * 60
 
 type Sel = { kind: 'menu'; id: string } | { kind: 'title'; id: string } | { kind: 'firstplay' } | { kind: 'build' };
 
-export default function DiscAuthoring({ discs, onChange, sources, productionTitle, ownerId, ping }: Props) {
+export default function DiscAuthoring({ discs, onChange, sources, productionTitle, ownerId, ping, renderSource, renderer }: Props) {
   const [activeId, setActiveId] = useState<string | undefined>(discs[0]?.id);
   const disc = discs.find(d => d.id === activeId);
   const [sel, setSel] = useState<Sel | null>(null);
@@ -55,7 +59,7 @@ export default function DiscAuthoring({ discs, onChange, sources, productionTitl
     const main = sources.find(s => s.kind === 'timeline') || sources[0];
     if (main && main.durationSec > 0) {
       const t = newTitle(main.name || name, main.durationSec, 'FEATURE');
-      t.source = { ...t.source, assetId: main.id, path: main.path, url: main.url };
+      t.source = { ...t.source, assetId: main.id, path: main.path, url: main.url, fabula: main.kind !== 'asset' };
       t.chapters = main.markers?.length ? [{ id: uid('ch'), name: 'Opening', timeSec: 0 }, ...main.markers.filter(m => m.t > 1).map((m, i) => ({ id: uid('ch'), name: m.label || `Chapter ${i + 2}`, timeSec: m.t }))] : autoChapters(main.durationSec, main.durationSec > 3600 ? 600 : 300);
       p.titles.push(t);
     } else p.titles.push(newTitle(name, 5400, 'FEATURE'));
@@ -106,7 +110,7 @@ export default function DiscAuthoring({ discs, onChange, sources, productionTitl
           {current.kind === 'menu' && disc.menus.find(m => m.id === current.id) && <MenuStage disc={disc} menu={disc.menus.find(m => m.id === current.id)!} selBtn={selBtn} setSelBtn={setSelBtn} mut={mut} onGoMenu={id => setSel({ kind: 'menu', id })} ping={ping} />}
           {current.kind === 'title' && disc.titles.find(t => t.id === current.id) && <TitleEditor disc={disc} title={disc.titles.find(t => t.id === current.id)!} mut={mut} sources={sources} />}
           {current.kind === 'firstplay' && <FirstPlay disc={disc} mut={mut} />}
-          {current.kind === 'build' && <BuildPanel disc={disc} mut={mut} issues={issues} ping={ping} />}
+          {current.kind === 'build' && <BuildPanel disc={disc} mut={mut} issues={issues} ping={ping} renderSource={renderer ? renderSource : undefined} renderer={renderer} />}
         </div>
         <Inspector disc={disc} sel={current} selBtn={selBtn} mut={mut} ownerId={ownerId} ping={ping} />
       </div>
@@ -175,7 +179,7 @@ function DiscTree({ disc, sel, onSel, mut, sources }: { disc: DiscProject; sel: 
   const row = (on: boolean): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, background: on ? `${C.accent}22` : 'transparent', color: on ? C.accent : C.ink });
   const addTitle = (s: DiscSource | null, kind: TitleKind) => mut(d => {
     const t = newTitle(s?.name || 'New title', s?.durationSec || 600, kind);
-    if (s) { t.source = { ...t.source, assetId: s.id, path: s.path, url: s.url }; if (s.markers?.length) t.chapters = [{ id: uid('ch'), name: 'Chapter 1', timeSec: 0 }, ...s.markers.filter(m => m.t > 1).map((m, i) => ({ id: uid('ch'), name: m.label || `Chapter ${i + 2}`, timeSec: m.t }))]; }
+    if (s) { t.source = { ...t.source, assetId: s.id, path: s.path, url: s.url, fabula: s.kind !== 'asset' }; if (s.markers?.length) t.chapters = [{ id: uid('ch'), name: 'Chapter 1', timeSec: 0 }, ...s.markers.filter(m => m.t > 1).map((m, i) => ({ id: uid('ch'), name: m.label || `Chapter ${i + 2}`, timeSec: m.t }))]; }
     if (kind !== 'FEATURE' && kind !== 'EPISODE') t.audio = [{ id: uid('aud'), lang: 'eng', label: 'Stereo', codec: 'ac3', channels: 2, kbps: 224 }];
     d.titles.push(t);
   });
@@ -318,7 +322,7 @@ function TitleEditor({ disc, title, mut, sources }: { disc: DiscProject; title: 
         <label><div style={lbl}>Kind</div><select style={inp} value={title.kind} onChange={e => ti(t => { t.kind = e.target.value as TitleKind; })}>{['FEATURE', 'EPISODE', 'EXTRA', 'TRAILER', 'INTRO'].map(k => <option key={k}>{k}</option>)}</select></label>
         <label><div style={lbl}>Runtime</div><input style={inp} value={hms(title.source.durationSec)} onChange={e => ti(t => { t.source.durationSec = parseHms(e.target.value); })} /></label>
         <label><div style={lbl}>When it ends</div><select style={inp} value={title.endAction} onChange={e => ti(t => { t.endAction = e.target.value as any; })}><option value="MENU">Back to menu</option><option value="NEXT">Play next title</option><option value="STOP">Stop</option></select></label>
-        <label style={{ gridColumn: '1 / 3' }}><div style={lbl}>Source</div><select style={inp} value={title.source.assetId || ''} onChange={e => ti(t => { const s = sources.find(x => x.id === e.target.value); if (s) t.source = { ...t.source, assetId: s.id, durationSec: s.durationSec, path: s.path, url: s.url }; })}><option value="">— choose a cut or file —</option>{sources.map(s => <option key={s.id} value={s.id}>{s.name} ({hms(s.durationSec)})</option>)}</select></label>
+        <label style={{ gridColumn: '1 / 3' }}><div style={lbl}>Source</div><select style={inp} value={title.source.assetId || ''} onChange={e => ti(t => { const s = sources.find(x => x.id === e.target.value); if (s) t.source = { ...t.source, assetId: s.id, durationSec: s.durationSec, path: s.path, url: s.url, fabula: s.kind !== 'asset' }; })}><option value="">— choose a cut or file —</option>{sources.map(s => <option key={s.id} value={s.id}>{s.name} ({hms(s.durationSec)})</option>)}</select></label>
         {(window as any).__plajahMediaEngine?.invoke && <button style={{ ...btnS(), alignSelf: 'end' }} onClick={async () => { const f = (await (window as any).__plajahMediaEngine.invoke('crossover_pick_files'))?.files?.[0]; if (f) ti(t => { t.source = { ...t.source, path: f.path, assetId: undefined }; }); }}>{title.source.path ? 'Change file…' : 'Use a file…'}</button>}
         {title.source.path && <div style={{ gridColumn: '1 / 5', fontSize: 11, color: C.dim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>File: {title.source.path}</div>}
         <label><div style={lbl}>Video bitrate</div><input style={inp} placeholder="auto" value={title.videoKbps ? title.videoKbps / 1000 : ''} onChange={e => ti(t => { const v = parseFloat(e.target.value); t.videoKbps = v > 0 ? Math.round(v * 1000) : undefined; })} /></label>
@@ -559,7 +563,7 @@ function VideoFormat({ disc, mut }: { disc: DiscProject; mut: (fn: (d: DiscProje
   );
 }
 
-function BuildPanel({ disc, mut, issues, ping }: { disc: DiscProject; mut: (fn: (d: DiscProject) => void) => void; issues: Issue[]; ping?: (m: string) => void }) {
+function BuildPanel({ disc, mut, issues, ping, renderSource, renderer }: { disc: DiscProject; mut: (fn: (d: DiscProject) => void) => void; issues: Issue[]; ping?: (m: string) => void; renderSource?: Props['renderSource']; renderer?: Props['renderer'] }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ files: string[]; jobs: string[]; where?: string } | null>(null);
   const [showNav, setShowNav] = useState(false);
@@ -617,7 +621,7 @@ function BuildPanel({ disc, mut, issues, ping }: { disc: DiscProject; mut: (fn: 
         {!sum.ready && <div style={{ color: C.warn, fontSize: 12, marginTop: 8 }}>You can build a working package now, but fix the {sum.errors} error{sum.errors === 1 ? '' : 's'} below before burning or sending to press.</div>}
         {result && <div style={{ marginTop: 10, fontSize: 12 }} data-testid="disc-build-result"><b style={{ color: C.good }}>Package built</b>{result.where ? ` → ${result.where}` : ''} · {result.files.length} files · {result.jobs.length} encode jobs queued for the desktop engine</div>}
       </div>
-      <MakeDiscPanel disc={disc} ready={sum.ready} ping={ping} />
+      <MakeDiscPanel disc={disc} ready={sum.ready} ping={ping} renderSource={renderSource} renderer={renderer} />
       <div style={{ ...box, padding: 14 }}>
         <b style={{ fontSize: 13 }}>Compliance</b>
         <div style={{ display: 'grid', gap: 6, marginTop: 8 }} data-testid="disc-issues">
@@ -663,11 +667,11 @@ function toHex(c?: string) {
 }
 
 const STEPS: { id: StepId; label: string }[] = [
-  { id: 'encode', label: 'Encode' }, { id: 'menus', label: 'Menu clips' }, { id: 'mux', label: 'Mux + clip info' },
+  { id: 'render', label: 'Render cuts' }, { id: 'encode', label: 'Encode' }, { id: 'menus', label: 'Menu clips' }, { id: 'mux', label: 'Mux + clip info' },
   { id: 'navigation', label: 'Navigation' }, { id: 'image', label: 'ISO image' }, { id: 'burn', label: 'Burn + verify' },
 ];
 
-function MakeDiscPanel({ disc, ready, ping }: { disc: DiscProject; ready: boolean; ping?: (m: string) => void }) {
+function MakeDiscPanel({ disc, ready, ping, renderSource, renderer }: { disc: DiscProject; ready: boolean; ping?: (m: string) => void; renderSource?: Props['renderSource']; renderer?: Props['renderer'] }) {
   const engine = (window as any).__plajahMediaEngine;
   const press = DESTINATIONS.find(d => d.id === disc.destination)!.needsAacs;
   const [until, setUntil] = useState<'folder' | 'iso' | 'burn'>(press ? 'iso' : 'burn');
@@ -687,7 +691,9 @@ function MakeDiscPanel({ disc, ready, ping }: { disc: DiscProject; ready: boolea
     setRecorders(list); if (!rec && list[0]) setRec(list[0].id);
   };
   useEffect(() => { void refresh(); }, []);
-  const noSource = disc.titles.filter(t => !t.source.path && !t.source.url);
+  const renderable = (t: DiscTitle) => !!(t.source.assetId && renderSource?.(t.source.assetId));
+  const fromCut = disc.titles.filter(t => !t.source.path && !t.source.url && renderable(t));
+  const noSource = disc.titles.filter(t => !t.source.path && !t.source.url && !renderable(t));
   const go = async () => {
     setErr(null); setDone(null); setSteps({}); setRunning(true);
     ctl.current = new AbortController();
@@ -695,19 +701,27 @@ function MakeDiscPanel({ disc, ready, ping }: { disc: DiscProject; ready: boolea
       const folder = (await engine.invoke('crossover_pick_folder'))?.path;
       if (!folder) { setRunning(false); return; }
       const { runNativeFfmpeg, localMediaUrl } = await import('../../services/crossover/nativeEngine');
+      const [{ renderTimelineMaster }, { desktopIO }] = await Promise.all([import('../../services/disc/timelineMaster'), import('../../services/disc/discWriter')]);
       const safe = disc.name.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_') || 'Disc';
       const root = `${folder}\\${safe}_${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}`;
       const r = await makeDisc(disc, {
         invoke: (c, a) => engine.invoke(c, a),
         readUrl: p => localMediaUrl(p),
         runFfmpeg: (args, out, dur, on) => runNativeFfmpeg(() => args, out, dur, false, pr => on(pr.progress || 0), ctl.current!.signal).then(() => {}),
-      }, { root, until, recorderId: rec, verify, raster: await prepareRaster(disc), signal: ctl.current.signal, onStep: s => setSteps(prev => ({ ...prev, [s.step]: s })) });
+      }, {
+        renderTitle: async (t, dir, onProgress, signal) => {
+          const job = t.source.assetId ? renderSource?.(t.source.assetId) : null;
+          if (!job || !renderer) return null;
+          const io = desktopIO({ invoke: (c, a) => engine.invoke(c, a), readUrl: p => localMediaUrl(p), runFfmpeg: async () => {} });
+          return renderTimelineMaster({ job, render: renderer, io, dir, name: t.name, video: { w: disc.video.w, h: disc.video.h }, onProgress, signal });
+        },
+        root, until, recorderId: rec, verify, raster: await prepareRaster(disc), signal: ctl.current.signal, onStep: s => setSteps(prev => ({ ...prev, [s.step]: s })) });
       const msg = r.burned ? 'Disc burned and verified.' : r.iso ? `ISO ready: ${r.iso}` : `Disc folder ready: ${r.folder}`;
       setDone(msg); ping?.(msg);
     } catch (e: any) { setErr(e?.name === 'AbortError' ? 'Cancelled.' : String(e?.message || e)); }
     setRunning(false);
   };
-  const active = STEPS.filter(s => until === 'burn' || (until === 'iso' ? s.id !== 'burn' : s.id !== 'burn' && s.id !== 'image'));
+  const active = STEPS.filter(s => (s.id !== 'render' || fromCut.length > 0)).filter(s => until === 'burn' || (until === 'iso' ? s.id !== 'burn' : s.id !== 'burn' && s.id !== 'image'));
   return (
     <div style={{ ...box, padding: 14, display: 'grid', gap: 10 }} data-testid="disc-make">
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Disc3 size={15} color={C.accent} /><b style={{ fontSize: 14 }}>Make the disc</b><span style={{ fontSize: 11, color: C.dim }}>desktop app · ffmpeg + Windows disc imaging</span></div>
@@ -730,7 +744,8 @@ function MakeDiscPanel({ disc, ready, ping }: { disc: DiscProject; ready: boolea
               <label style={{ fontSize: 12 }}><input type="checkbox" checked={verify} onChange={e => setVerify(e.target.checked)} /> Verify after burning</label>
             </div>
           )}
-          {noSource.length > 0 && <div style={{ fontSize: 12, color: C.warn }}>Point these titles at a rendered file first (Title › Use a file…): {noSource.map(t => t.name).join(', ')}</div>}
+          {fromCut.length > 0 && <div style={{ fontSize: 12, color: C.dim }}>Rendered from their Fabula cut first: {fromCut.map(t => t.name).join(', ')} — a high-bitrate master and a lossless mix, then the disc encode.</div>}
+          {noSource.length > 0 && <div style={{ fontSize: 12, color: C.warn }}>Point these titles at a cut or a file (Title › Source / Use a file…): {noSource.map(t => t.name).join(', ')}</div>}
           <div style={{ display: 'flex', gap: 8 }}>
             <button style={{ ...btnS(true, ready ? C.good : C.warn), ...(running || noSource.length > 0 || (until === 'burn' && !rec) ? { opacity: 0.4, cursor: 'not-allowed' } : {}) }} disabled={running || noSource.length > 0 || (until === 'burn' && !rec)} onClick={go} data-testid="disc-make-go"><Hammer size={13} />{running ? 'Working…' : until === 'burn' ? 'Make and burn' : until === 'iso' ? 'Make ISO' : 'Make disc folder'}</button>
             {running && <button style={btnS()} onClick={() => ctl.current?.abort()}>Cancel</button>}

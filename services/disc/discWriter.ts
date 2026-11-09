@@ -6,17 +6,19 @@ import { buildPackage, type Raster } from './build';
 import { muxClip, type ClipIO } from './clipMux';
 import { menuBackgroundArgs, planEncodes, type MenuOverlay } from './encode';
 import { compile, MENU_PL_BASE } from './navigation';
-import type { DiscProject } from './project';
+import type { DiscProject, DiscTitle } from './project';
 import { effectiveRates, mediumById } from './spec';
 
-export type StepId = 'encode' | 'menus' | 'mux' | 'navigation' | 'image' | 'burn';
+export type StepId = 'render' | 'encode' | 'menus' | 'mux' | 'navigation' | 'image' | 'burn';
 export interface StepUpdate { step: StepId; label: string; progress: number; detail?: string }
 export interface Native {
   invoke: <T = any>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
   runFfmpeg: (args: string[], outputPath: string, durationSec: number, onProgress: (p: number) => void) => Promise<void>;
   readUrl: (path: string) => string;
 }
-export interface MakeDiscOpts { io?: ClipIO; root: string; until: 'folder' | 'iso' | 'burn'; recorderId?: string; verify?: boolean; raster: Raster; onStep: (s: StepUpdate) => void; signal?: AbortSignal }
+/** Renders a title that points at a Fabula cut; returns the master file paths (null = not renderable). */
+export type RenderTitle = (t: DiscTitle, outDir: string, onProgress: (p: number, stage: string) => void, signal?: AbortSignal) => Promise<{ video: string; audio?: string } | null>;
+export interface MakeDiscOpts { renderTitle?: RenderTitle; io?: ClipIO; root: string; until: 'folder' | 'iso' | 'burn'; recorderId?: string; verify?: boolean; raster: Raster; onStep: (s: StepUpdate) => void; signal?: AbortSignal }
 
 const pad5 = (n: number) => String(n).padStart(5, '0');
 const win = (p: string) => p.replace(/\//g, '\\');
@@ -46,10 +48,24 @@ export function desktopIO(n: Native): ClipIO {
   };
 }
 
-export async function makeDisc(p: DiscProject, n: Native, o: MakeDiscOpts) {
+export async function makeDisc(input: DiscProject, n: Native, o: MakeDiscOpts) {
   const io = o.io || desktopIO(n);
   const step = o.onStep;
   const root = win(o.root), DISC = `${root}\\DISC`, WORK = `${root}\\WORK`, ES = `${WORK}\\es`;
+  // 0 · Render titles that point at a Fabula cut into masters (video MP4 + lossless WAV mix).
+  const p: DiscProject = structuredClone(input);
+  const toRender = p.titles.filter(t => !t.source.path && !t.source.url);
+  for (let i = 0; i < toRender.length; i++) {
+    if (o.signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
+    const t = toRender[i];
+    if (!o.renderTitle) break;
+    const out = await o.renderTitle(t, `${WORK}\\masters`, (f, stage) => step({ step: 'render', label: `${t.name} · ${stage}`, progress: (i + f) / toRender.length, detail: `${i + 1} of ${toRender.length}` }), o.signal);
+    if (!out) continue;
+    t.source.path = out.video;
+    // The cut's mix feeds every audio track that has no file of its own.
+    if (out.audio) for (const a of t.audio) if (!a.sourcePath) { a.sourcePath = out.audio; a.sourceIndex = undefined; }
+  }
+  if (toRender.length && o.renderTitle) step({ step: 'render', label: 'Masters ready', progress: 1 });
   const m = mediumById(p.mediumId)!;
   const rate = effectiveRates(p.format, m).systemMbps * 1e6;
   const pkg = buildPackage(p, o.raster, { workDir: root, inputFor: t => t.source.path || t.source.url || '' });

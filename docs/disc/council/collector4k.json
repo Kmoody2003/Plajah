@@ -1,0 +1,101 @@
+{
+  "slot": "collector4k",
+  "name": "4K Collector",
+  "id": "mw8kzlgdk7f4xx",
+  "uid": "disc-templates",
+  "createdAt": 1794187627357,
+  "depth": "FULL",
+  "status": "FAILED",
+  "brief": {
+    "ask": "Direct the Ultra HD collector-edition template — the steelbook / limited-edition look for a 4K HDR release.",
+    "domain": "4K Ultra HD Blu-ray collector editions",
+    "audience": "collectors who shelve steelbooks and notice every detail",
+    "feeling": "luxurious, precise, HDR-aware — light used like a material",
+    "surface": "Fabula disc menu template \"4K Collector\"",
+    "constraints": [
+      "Surface: Blu-ray and Ultra HD Blu-ray disc menus on a living-room TV, a 1920×1080 graphics plane (UHD menus are HD graphics the player scales), seen from a couch three metres away, driven only by a remote: arrow keys + OK.",
+      "Menus to direct as ONE family: Main menu, Scene selection (six chapter thumbnails per page, Previous/Next/Back), Setup (audio and subtitle choices), Special Features list, and a Pop-up bar that rises over the film while it plays. Series templates add an Episodes page.",
+      "Every button has three designed states — normal, selected, activated — and the selected state must read instantly from across a room. Say exactly what the selection mark is (shape, colour, size).",
+      "Built in Plajah Tela as vector art: rectangles, ellipses, lines, SVG paths, text, image slots (the film's own frames), linear/radial gradients, shadows, opacity, blend modes. Fonts available: Display/serif: Playfair Display, Fraunces, DM Serif Display, Cormorant Garamond, EB Garamond, Bodoni Moda, Instrument Serif, Gloock, Cinzel, Italiana, Forum, Abril Fatface, Marcellus, Tenor Sans. Condensed/poster: Bebas Neue, Anton, Oswald, League Gothic, Six Caps, Big Shoulders Display, Staatliches, Archivo Black, Syne, Unbounded. Sans: Inter, DM Sans, Manrope, Space Grotesk, Sora, Outfit, Bricolage Grotesque, Josefin Sans, Raleway, Work Sans, Epilogue. Mono/typewriter: JetBrains Mono, IBM Plex Mono, Space Mono, Courier Prime, Special Elite. Genre: Monoton, Limelight, Poiret One, Righteous, Orbitron, Michroma, UnifrakturMaguntia, Pirata One, Almendra Display, Fredoka, Baloo 2, DynaPuff, Sniglet, Caveat Brush, Permanent Marker.",
+      "Disc graphics law: each menu page's buttons share a 255-colour palette, so button art stays flat (no wide gradients inside buttons — gradients belong in the background art); action-safe 90%, title-safe 80%; body text ≥ 28px, nothing thinner than 2px (TV scaling shimmers); on UHD avoid large full-white fields.",
+      "The main-menu background is a loop of the film itself or a still from it, with your art over it; the Pop-up draws over the playing film, so it must not cover the picture's centre.",
+      "Give production-ready specifics: palette as hex, fonts from the list, the layout with pixel positions on the 1920×1080 plane, button sizes, ornament vocabulary, and how the menus feel in motion.",
+      "This one is UHD-first: think about how highlights and darks behave on an HDR TV."
+    ],
+    "references": [
+      "Fabula Disc Authoring (menus become Blu-ray interactive graphics)",
+      "Plajah Tela vector stack"
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "The Architectural Cantus Firmus Grid",
+      "idea": "A mathematically proportioned architectural framework grounded in medieval scriptorium layouts and precision HDR light control, where every UI element is locked to a non-negotiable structural grid.",
+      "geometry": "A rigid 24×14 structural bay system on the 1920×1080 canvas. Action-safe boundary at 90% (192px X, 108px Y) defines the outer architectural architrave; title-safe at 80% (384px X, 216px Y) anchors primary button text. Main menu items align to vertical axis X=384px in a strict 64px vertical cadence. Scene selection displays a 3×2 array of 384×216px image viewports snapped to grid intersections (X=384, 832, 1280; Y=270, 540) with 64px gutters. The Pop-up bar sits as a 148px high stylobate at the screen base (Y=932 to 1080), never invading the optical centre of the film frame.",
+      "typography": "Display: Cormorant Garamond, uppercase, 36px, tracking 0.2em, semi-bold weight for all primary menu headings and button labels. System metadata: Space Mono, uppercase, 28px, tracking 0.1em, regular weight for chapter timecodes and audio specs. Text hierarchy is maintained solely through grid position, letter-spacing, and baseline alignment—never arbitrary scaling.",
+      "imageLogic": "Film footage and still frames are held inside vector apertures bordered by 2px architectural rules. Frame contrast takes direct inspiration from Alfred Stieglitz’s 'Sun Rays—Paula, Berlin' (1889), using localized HDR luminance (capped at 800 nits for specular accents) to let light pierce shadow areas without elevating black levels across the overall composition. Thumbnail previews retain original 2.39:1 aspect ratio inside framed bay slots.",
+      "texture": "Generative matte rag paper tooth (0.08 opacity) combined with a procedural 4K fine-halide film grain shader. Buttons use flat, non-gradient fills to respect 255-colour disc limits, framed by crisp 2px line rules with micro-bevel vector shadow offsets.",
+      "motion": "Motion is strictly cadence-driven. Main menu entrance opens with vertical architectural axis lines drawing outward over 400ms (cubic-bezier 0.16, 1, 0.3, 1). The selection mark does not slide or interpolate across elements; it strikes instantly in 1 frame (16.6ms) upon remote arrow input, establishing clear counterpoint without motion blur.",
+      "productionMethod": "Built purely in Plajah Tela vector engine using mathematical SVG path generators, shader-driven HDR tone mapping, and pre-baked flat-palette indexing for full Blu-ray interactive graphics compliance.",
+      "humanTrace": "Micro-variations in vector line-end joinings (1.8px to 2.2px thickness drift) and subtle ink-bleed corner overlaps modeled on the manuscript layout of 'Saint Gregory as Author' (Scriptorium of Weingarten Abbey, 1188/1200).",
+      "risk": "The absolute symmetry and unyielding grid may be criticized as rigid or uninviting by modern motion designers; it is worth it because it provides archival dignity, high-contrast TV legibility from three metres away, and structural permanence.",
+      "arguesWith": {
+        "directorId": "FUTURIST",
+        "why": "The Futurist seeks liquid layouts and dynamic frames that reconfigure based on state; I maintain that a system which changes its structure cannot be read twice the same way, and that authority requires a fixed, pedimental commitment."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "The Golden Proscenium HDR Stage",
+      "idea": "Transform the living room into a high-contrast theatrical stage where deep obsidian blacks act as stage curtains and spot-lit volumetric shafts pull the maximum dynamic range out of modern HDR panels.",
+      "geometry": "1920×1080 plane structured as a theatrical proscenium. Left menu column anchored at x:192, y:216 to y:864 (width 480px), using the 80% title-safe margin as a dramatic vertical pillar. The right 1248px aperture acts as a deep stage box for chapter cards and video backdrops. The Pop-Up menu sits at y:840 to y:1020 (height 180px, width 1536px centered at x:192), acting as a low-profile orchestra pit footlight rail that leaves the center picture untouched.",
+      "typography": "Primary headers in Cinzel (64px, all-caps, tracking 0.12em) bathed in gold (#F4D068). Menu choices in Marcellus (32px, tracking 0.08em, solid #F4E8C1). Chapter index numbers and technical audio specs in JetBrains Mono (28px, tracking 0.05em, solid #C9B285). Button states maintain a rigid 3px minimum weight to eliminate TV scaling shimmer.",
+      "imageLogic": "Footage and chapter frames are framed within sculptured oval apertures inspired by the polished brass contours of 'Head (Uhunmwun Elao)' (Edo, Kingdom of Benin, Art Institute of Chicago). Video backgrounds are graded with extreme chiaroscuro cut through by high-contrast volumetric beam patterns derived from Alfred Stieglitz’s 'Sun Rays—Paula, Berlin' (Art Institute of Chicago), creating dramatic light shafts across dark scenes.",
+      "texture": "Generative obsidian velvet shadows with specularity tuned for HDR light peaks, complemented by Plajah Tela vector brass rims and procedural film grain.",
+      "motion": "On menu load, a 600ms theatrical reveal: background light flares from pure pitch darkness behind the proscenium, while menu items slide laterally on an easing curve (cubic-bezier 0.16, 1, 0.3, 1) with layered spatial depth. Remote navigation triggers an immediate follow-spot flash across the targeted option.",
+      "productionMethod": "Procedural GLSL lighting shaders generating HDR light shafts and dust motes, combined with Plajah Tela SVG vector proscenium frames and 255-color indexed button layers optimized for Blu-ray hardware graphics planes.",
+      "humanTrace": "The timing of lighting cues mimics hand-operated theater follow-spots, with subtle variations in beam brightness and aperture shadow edges that evoke physical stagecraft.",
+      "risk": "Bold chiaroscuro and gold proscenium framing risk overpowering minimalist film content, but the risk is necessary to deliver the visceral, high-dynamic-range theatrical luxury that 4K collector steelbook buyers expect.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Minimalist seeks quiet transparency that hides the interface; I insist on an unashamed proscenium frame and follow-spot drama that commands the screen and celebrates HDR luminance."
+      }
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "Architectural Axis of Light",
+      "idea": "Strip away all disc interface chrome until only a single structural light axis and pure weightless typography remain, letting the HDR panel's deep black levels carry the emotional weight.",
+      "geometry": "Single vertical datum axis at x=280px anchoring navigation items in a rigid 120px vertical step; pop-up menu occupies a razor-thin horizontal band at y=960px, leaving 85% of the display completely clear.",
+      "typography": "Tenor Sans (34px, uppercase, +0.18em tracking) for primary menu commands; Space Mono (28px, regular) for chapter numbers and dynamic audio metadata.",
+      "imageLogic": "Background film footage is attenuated through a heavy dark-vignette gradient that recedes midtones into deep black (#050505), allowing specular film highlights to puncture the void like structural beams.",
+      "texture": "Pure obsidian matte (#050505) with a subtle GLSL micro-silver darkroom grain, drawn directly from the shadow control of Alfred Stieglitz's 'Sun Rays—Paula, Berlin' (1889, Art Institute of Chicago).",
+      "motion": "Zero decorative easing or movement; instant 1-frame focus activation where the 2px selection notch appears without blur, lag, or motion-blur artifacts.",
+      "productionMethod": "GLSL shaders generating live procedural vignetting and film grain, combined with 2px vector paths rendered onto the 1920×1080 interactive graphics plane.",
+      "humanTrace": "The precise optical dodging of background values, translating Stieglitz's darkroom slatted-light study into automated shadow falloff.",
+      "risk": "Risks being perceived as sparse or empty by viewers expecting heavy collector ornamentation, but succeeds by making every HDR nit of white light an intentional structural event.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist stacks frame upon frame of gold foil and atmospheric smoke; I prove that on an HDR display, luxury is created by removing everything that distracts from a single line of light."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "BAROQUE",
+      "against": "RADICAL_MINIMAL",
+      "objection": "The Radical Minimalist treats deep black not as a velvet curtain waiting to part, but as an alibi to leave eighty-five percent of the stage completely unlit and undecided. Snapping a focus mark into place in a single flat frame without spatial swell, volume, or movement turns a moment of dramatic entry into a dry ledger entry. Shadow must exist to give weight and mystery to the light, not to hide from making a theatrical decision.",
+      "concession": "Yet, I concede that attenuating background midtones so that specular highlights puncture the darkness creates an undeniably magnificent, high-contrast spotlight on the panel."
+    }
+  ],
+  "reflections": [],
+  "error": "{\"error\":{\"code\":429,\"message\":\"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\\nPlease retry in 6h32m13.372799606s.\",\"status\":\"RESOURCE_EXHAUSTED\",\"details\":[{\"@type\":\"type.googleapis.com/google.rpc.Help\",\"links\":[{\"description\":\"Learn more about Gemini API quotas\",\"url\":\"https://aistudio.google.com/docs/rate-limits\"}]},{\"@type\":\"type.googleapis.com/google.rpc.QuotaFailure\",\"violations\":[{\"description\":\"Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\",\"quotaMetric\":\"generativelanguage.googleapis.com/generate_content_free_tier_requests\",\"quotaId\":\"GenerateRequestsPerDayPerProjectPerModel-FreeTier\",\"quotaDimensions\":{\"location\":\"global\",\"model\":\"gemini-3.6-flash\"},\"quotaValue\":\"20\"}]},{\"@type\":\"type.googleapis.com/google.rpc.RetryInfo\",\"retryDelay\":\"23533s\"}]}}"
+}

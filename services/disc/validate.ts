@@ -40,6 +40,11 @@ export function validate(p: DiscProject): Issue[] {
   // Tracks
   for (const t of p.titles) {
     if (t.source.durationSec <= 0) add('error', 'disc', `"${t.name}" has no source or zero length.`, 'Attach a timeline or file.', t.id);
+    if (t.source.fabula && !t.source.path) {
+      add('info', 'disc', `"${t.name}" renders from its Fabula cut when the disc is made (desktop app): high-bitrate master + lossless stereo mix.`, undefined, t.id);
+      if (p.format === 'UHD' && p.video.dynamic !== 'SDR709' && p.video.dynamic !== 'SDR2020') add('warn', 'format', `"${t.name}" renders from the timeline in SDR — set the disc to SDR, or point the title at an HDR-graded master file.`, undefined, t.id);
+      if (t.audio.some(a => a.channels > 2 && !a.sourcePath)) add('warn', 'audio', `"${t.name}": the timeline mix is stereo, so 5.1/7.1 tracks would be upmixed — set them to 2.0 or attach a surround mix file.`, undefined, t.id);
+    }
     if (!t.audio.length) add('warn', 'audio', `"${t.name}" has no audio.`, undefined, t.id);
     if (t.audio.length > LIMITS.audio) add('error', 'audio', `"${t.name}" has more than ${LIMITS.audio} audio tracks.`, undefined, t.id);
     if (t.subtitles.length > LIMITS.pgs) add('error', 'subtitles', `"${t.name}" has more than ${LIMITS.pgs} subtitle tracks.`, undefined, t.id);

@@ -20,7 +20,8 @@ export interface SubtitleTrack {
 export type TitleKind = 'FEATURE' | 'EPISODE' | 'EXTRA' | 'TRAILER' | 'INTRO';
 export interface DiscTitle {
   id: string; name: string; kind: TitleKind;
-  source: { assetId?: string; url?: string; path?: string; durationSec: number; w?: number; h?: number; fps?: number };
+  /** `fabula` = the source is a Fabula cut (timeline/edit), rendered to a master when the disc is made. */
+  source: { assetId?: string; url?: string; path?: string; durationSec: number; w?: number; h?: number; fps?: number; fabula?: boolean };
   chapters: Chapter[]; audio: AudioTrack[]; subtitles: SubtitleTrack[];
   /** Pinned video bitrate (kbps); otherwise the budget planner chooses. */
   videoKbps?: number;

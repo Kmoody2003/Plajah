@@ -198,3 +198,52 @@ test('menu clip bakes Tela art + moving light layer + flicker + grain through ff
   assert.equal(j.streams[0].codec_name, 'h264'); assert.equal(j.streams[0].width, 1280);
   assert.ok(parseFloat(j.format.duration) >= 11.5, `a still menu with motion becomes a ≥12 s loop: ${j.format.duration}`);
 });
+
+test('timeline master: 24-bit WAV mix (ffprobe-valid), bitrate fallback, sink streaming', { timeout: 120000 }, async () => {
+  const { wavHeader, pcm24, writeWav, renderTimelineMaster, masterBitrates } = await import('../services/disc/timelineMaster');
+  assert.equal(wavHeader(2, 48000, 100).length, 44);
+  const sine = (n: number) => Float32Array.from({ length: n }, (_, i) => Math.sin(i / 10) * 0.5);
+  const buf = { numberOfChannels: 2, sampleRate: 48000, length: 48000 * 3, getChannelData: () => sine(48000 * 3) };
+  assert.equal(pcm24(buf, 0, 10).length, 10 * 2 * 3);
+  const work = mkdtempSync(join(tmpdir(), 'plajah-master-'));
+  const files = new Map<string, Buffer[]>();
+  const io: ClipIO = {
+    async *read() {}, async writeFile() {},
+    async create(path) { const parts: Buffer[] = []; files.set(path, parts); return async b => { parts.push(Buffer.from(b)); }; },
+  };
+  await writeWav(buf, join(work, 'mix.wav'), io);
+  writeFileSync(join(work, 'mix.wav'), Buffer.concat(files.get(join(work, 'mix.wav'))!));
+  if (haveFf) {
+    const pr = spawnSync(ffprobe, ['-v', 'error', '-show_entries', 'stream=codec_name,sample_rate,channels,bits_per_sample:format=duration', '-of', 'json', join(work, 'mix.wav')]);
+    const j = JSON.parse(pr.stdout.toString());
+    assert.equal(j.streams[0].codec_name, 'pcm_s24le'); assert.equal(j.streams[0].sample_rate, '48000'); assert.equal(j.streams[0].channels, 2);
+    assert.ok(Math.abs(parseFloat(j.format.duration) - 3) < 0.01);
+  }
+  // Renderer refuses the top bitrate, accepts the next; streams through the sink; mix written once.
+  const tried: number[] = [];
+  const out = await renderTimelineMaster({
+    job: { clips: [1], format: { fps: 24 } }, io, dir: work, name: 'Night Train', video: { w: 1920, h: 1080 },
+    render: async (o: any) => { tried.push(o.bitrate); await o.onAudio(buf); if (tried.length === 1) return null; assert.equal(o.quality, true); assert.equal(o.format.w, 1920); await o.sink(new Uint8Array(4096)); return new Blob([]); },
+  });
+  assert.deepEqual(tried, masterBitrates(1920, 1080).slice(0, 2));
+  assert.match(out.video, /Night_Train_master_35M\.mp4$/); assert.match(out.audio!, /Night_Train_mix\.wav$/);
+  assert.equal(Buffer.concat(files.get(out.video)!).length, 4096);
+});
+
+test('makeDisc renders cut-sourced titles first and feeds master + mix to the encodes', { timeout: 60000 }, async () => {
+  let p = newProject('Cut', 'BD');
+  const t = newTitle('Cut', 200, 'FEATURE'); t.source = { ...t.source, assetId: 'timeline_x', fabula: true };
+  t.audio = [{ id: 'a', lang: 'eng', label: 'Stereo', codec: 'lpcm', channels: 2, kbps: 2304 }];
+  p.titles = [t]; p = applyTemplate(p, 'feature');
+  const calls: string[][] = []; const steps: string[] = [];
+  const px = { w: 4, h: 4, data: new Uint8ClampedArray(64).fill(200) };
+  const err = await makeDisc(p, { invoke: async () => ({}) as any, readUrl: x => x, runFfmpeg: async (args) => { calls.push(args); throw new Error('stop after first encode'); } }, {
+    root: 'C:/out', until: 'folder', raster: { buttons: () => ({ normal: px, selected: px, activated: px }) }, onStep: s => steps.push(s.step),
+    io: { async *read() {}, async create() { return async () => {}; }, async writeFile() {} },
+    renderTitle: async (title, dir) => ({ video: `${dir}/${title.name}_master.mp4`, audio: `${dir}/${title.name}_mix.wav` }),
+  }).catch(e => e);
+  assert.match(String(err), /stop after first encode/);
+  assert.ok(steps.includes('render'));
+  assert.ok(calls[0].join(' ').includes('masters/Cut_master.mp4'), calls[0].join(' '));
+  assert.equal(p.titles[0].source.path, undefined, 'the authored project is not mutated');
+});
