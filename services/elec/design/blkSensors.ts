@@ -42,7 +42,7 @@ export const temp: BlockDef = {
 };
 export const imu: BlockDef = {
   id: 'imu', label: 'Motion sensor (IMU)', plural: 'motion sensors', about: 'MPU-6050 accelerometer + gyro on I²C: tilt, shake, steps.', max: 2, bus: 'i2c', addrs: ['0x68', '0x69'],
-  words: /\b(imu|accelerometer|gyro(scope)?|tilt|orientation|shake|step counter|pedometer|mpu-?6050)\b/i, needsMcu: () => true,
+  words: /\b(imu|accelerometer|gyro(scope)?|tilt (sensor|alarm|switch|detect\w*)|orientation|shake|step counter|pedometer|mpu-?6050)\b/i, needsMcu: () => true,
   pins: () => [], loads: () => [{ rail: 'logic', typ: 0.004, peak: 0.005, what: 'MPU-6050' }], draw: i2cDraw('imu'),
   fw(i, f) {
     const v = sid(i); const a = i.addr ?? '0x68';
@@ -68,7 +68,7 @@ export const light: BlockDef = {
 export const distance: BlockDef = {
   id: 'distance', label: 'Distance sensor', plural: 'distance sensors', about: 'Laser time-of-flight (VL53L0X, I²C) by default; ultrasonic HC-SR04 on request, with a divider on its 5 V echo for 3.3 V boards.', max: 1,
   words: /\b(distance|range ?finder|proximity|ultrasonic|sonar|hc-?sr04|time[- ]of[- ]flight|tof|parking (sensor|assist)|level sensor)\b/i,
-  opts: [{ key: 'kind', label: 'Sensor', choices: ['tof', 'ultrasonic'], default: 'tof' }], needsMcu: () => true,
+  opts: [{ key: 'kind', label: 'Sensor', choices: ['tof', 'ultrasonic'], default: 'tof' }], needsMcu: () => true, bus: o => (o.kind === 'ultrasonic' ? undefined : 'i2c'),
   pins: i => (i.opt.kind === 'ultrasonic' ? [{ role: 'trig', cap: 'gpio', label: 'Sonar trigger' }, { role: 'echo', cap: 'in', label: 'Sonar echo' }] : []),
   loads: i => (i.opt.kind === 'ultrasonic' ? [{ rail: 'v5', typ: 0.015, peak: 0.015, what: 'HC-SR04' }] : [{ rail: 'logic', typ: 0.02, peak: 0.03, what: 'VL53L0X' }]),
   draw(i, d) {

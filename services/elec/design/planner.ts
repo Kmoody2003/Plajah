@@ -7,6 +7,7 @@
 //      with charger + boost, AA pack, mains module) and the protections (fuse, power switch).
 // Released by Plajah as public domain (CC0).
 import { blockById } from './blocks';
+import { busOf } from './block';
 import { MCUS, railMax, type McuDef, type McuKind } from './mcus';
 import { PI_MODELS } from '../boards';
 import type { Inst, Load, PinNeed, PowerChoice, Spec } from './types';
@@ -69,9 +70,9 @@ function allocate(mcu: McuDef, insts: Inst[], spec: Spec): { pins: PinRow[]; i2c
   for (const i of insts) i.mcu = mcu;
   const needs: Array<{ i: Inst; n: PinNeed }> = insts.flatMap(i => blockById(i.block)!.pins(i).map(n => ({ i, n })));
   const adcNeeds = needs.filter(x => x.n.cap === 'adc').length;
-  const wantI2c = insts.some(i => blockById(i.block)!.bus === 'i2c') || adcNeeds > mcu.adc.length;
+  const wantI2c = insts.some(i => busOf(blockById(i.block)!, i.opt) === 'i2c') || adcNeeds > mcu.adc.length;
   if (wantI2c) { const o = mcu.i2c.find(([a, b]) => free.includes(a) && free.includes(b)); if (!o) return `${mcu.label} has no free I²C pins`; i2c = o; take(o[0]); take(o[1]); rows.push({ pin: o[0], role: 'sda', label: 'I²C SDA (shared bus)', inst: 'bus' }, { pin: o[1], role: 'scl', label: 'I²C SCL (shared bus)', inst: 'bus' }); }
-  if (insts.some(i => blockById(i.block)!.bus === 'spi')) { const o = mcu.spi.find(([a, b]) => free.includes(a) && free.includes(b)); if (!o) return `${mcu.label} has no free SPI pins`; spi = o; take(o[0]); take(o[1]); rows.push({ pin: o[0], role: 'sck', label: 'SPI clock', inst: 'bus' }, { pin: o[1], role: 'mosi', label: 'SPI data (MOSI)', inst: 'bus' }); }
+  if (insts.some(i => busOf(blockById(i.block)!, i.opt) === 'spi')) { const o = mcu.spi.find(([a, b]) => free.includes(a) && free.includes(b)); if (!o) return `${mcu.label} has no free SPI pins`; spi = o; take(o[0]); take(o[1]); rows.push({ pin: o[0], role: 'sck', label: 'SPI clock', inst: 'bus' }, { pin: o[1], role: 'mosi', label: 'SPI data (MOSI)', inst: 'bus' }); }
   for (const i of insts) { if (i2c) { i.pins.sda = i2c[0]; i.pins.scl = i2c[1]; } if (spi) { i.pins.sck = spi[0]; i.pins.mosi = spi[1]; } }
   const order = { adc: 0, pwm: 1, gpio: 2, in: 2 } as const;
   // Pi neopixels need the hardware PWM pin; claim it before anything else.

@@ -28,9 +28,11 @@ export function designFromSpec(spec: Spec): DesignResult {
   const p = plan(spec); if (p.errors.length) return { build: null, plan: p, errors: p.errors };
   const title = spec.name.trim() || 'Custom design';
   let a: ReturnType<typeof assemble>;
-  try { a = assemble(p, title, spec.market); } catch (e) { return { build: null, plan: p, errors: [`Could not lay out the schematic: ${(e as Error).message}`] }; }
-  const c = a.circuit; const simOpts = { mode: 'dc' as const };
-  const verify = verifyDesign({ id: 'design', title, about: '', circuit: c, sim: simOpts, licence: 'CC0-1.0', tags: [], pairs: a.pairs });
+  let lastErr = '';
+  for (const spread of [1, 1.6, 2.4]) { try { a = assemble(plan(spec), title, spec.market, spread); lastErr = ''; break; } catch (e) { lastErr = (e as Error).message; } }
+  if (lastErr) return { build: null, plan: p, errors: [`Could not lay out the schematic: ${lastErr}`] };
+  const c = a!.circuit; const simOpts = { mode: 'dc' as const };
+  const verify = verifyDesign({ id: 'design', title, about: '', circuit: c, sim: simOpts, licence: 'CC0-1.0', tags: [], pairs: a!.pairs });
   const sim = simulate(c, simOpts); const findings = checkCircuit(c, sim, { market: spec.market });
   const hazards = designHazards({ circuit: c, recipe: 'design' });
   const rev = review(p, c, verify, sim, findings, hazards);
@@ -38,7 +40,7 @@ export function designFromSpec(spec: Spec): DesignResult {
   const conn = spec.conn.map(x => ({ wifi: 'Wi-Fi', bluetooth: 'Bluetooth', homeassistant: 'Home Assistant', 'usb-midi': 'USB MIDI', 'usb-hid': 'USB keyboard/HID' })[x]);
   const summary = `${p.mcu ? `${p.mcu.label} with ` : ''}${list(describeNeeds(spec))}${conn.length ? ` (${conn.join(', ')})` : ''}; ${p.power.summary}.`;
   const build: Build = {
-    recipe: 'design', title, summary, circuit: c, sim: simOpts, pairs: a.pairs, values: { spec: JSON.stringify(spec) }, market: spec.market,
+    recipe: 'design', title, summary, circuit: c, sim: simOpts, pairs: a!.pairs, values: { spec: JSON.stringify(spec) }, market: spec.market,
     enclosure: designEnclosure(items(c), { name: title.toLowerCase().replace(/[^a-z0-9]+/g, '-'), wall: spec.power === 'mains' ? 3 : 2.4 }), firmware: fw,
     extras: extrasFor(p), steps: stepsFor(p), notes: [...p.power.notes, ...p.notes],
     design: { spec, board: p.mcu?.label ?? 'No controller', framework: p.mcu?.framework, pins: p.pins, power: p.power, review: rev, bom: bomLines(c), counts: { errors: rev.filter(r => r.level === 'error').length, warnings: rev.filter(r => r.level === 'warn').length } },

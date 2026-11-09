@@ -12,7 +12,7 @@ import type { DrawApi, Inst, Params } from './types';
 interface Group { id: string; parts: CPart[]; side: 'power' | 'mcu' | 'left' | 'right' }
 export interface Assembled { circuit: Circuit; pairs: Array<[string, string]>; mcuRef?: string; refsByInst: Record<string, string[]> }
 
-export function assemble(p: Plan, name: string, market: 'US' | 'EU' | 'both'): Assembled {
+export function assemble(p: Plan, name: string, market: 'US' | 'EU' | 'both', spread = 1): Assembled {
   const counters: Record<string, number> = {}; const groups: Group[] = []; const nets = new Map<string, Array<[string, string]>>(); const gnd: Array<[string, string]> = [];
   const refsByInst: Record<string, string[]> = {};
   const mcu = p.mcu; const pw = p.power; const mcuRef = mcu ? 'U1' : undefined; if (mcu) counters.U = 1;
@@ -88,12 +88,12 @@ export function assemble(p: Plan, name: string, market: 'US' | 'EU' | 'both'): A
   const shift = (g: Group, dx: number, dy: number) => { dx = Math.round(dx); dy = Math.round(dy); for (const q of g.parts) { q.x += dx; q.y += dy; } };
   const netCount = nets.size;
   const left = groups.filter(g => g.side === 'left'), right = groups.filter(g => g.side === 'right'), power = groups.find(g => g.side === 'power')!;
-  const ch = (k: number) => 12 + Math.ceil(k / 2);
+  const ch = (k: number) => Math.round((12 + Math.ceil(k / 2)) * spread); const gapY = Math.round(5 * spread);
   const center = mcuPart ? box(groups.find(g => g.side === 'mcu')!) : { x0: 0, y0: -4, x1: 0, y1: 4 };
   let y = center.y0; const rx = center.x1 + ch(right.length * 2 + netCount / 3);
-  for (const g of right) { const b = box(g); shift(g, rx - b.x0, y - b.y0); y += b.y1 - b.y0 + 5; }
+  for (const g of right) { const b = box(g); shift(g, rx - b.x0, y - b.y0); y += b.y1 - b.y0 + gapY; }
   y = center.y0; const lx = center.x0 - ch(left.length * 2 + netCount / 4); let minX = mcuPart ? center.x0 : 0;
-  for (const g of left) { const b = box(g); shift(g, lx - b.x1, y - b.y0); y += b.y1 - b.y0 + 5; minX = Math.min(minX, lx - (b.x1 - b.x0)); }
+  for (const g of left) { const b = box(g); shift(g, lx - b.x1, y - b.y0); y += b.y1 - b.y0 + gapY; minX = Math.min(minX, lx - (b.x1 - b.x0)); }
   if (power.parts.length) { const b = box(power); const px = (mcuPart ? minX : rx) - 14; shift(power, px - b.x1, center.y0 - 8 - b.y0); }
 
   // ---- route

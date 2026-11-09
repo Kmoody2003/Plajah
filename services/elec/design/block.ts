@@ -13,7 +13,7 @@ export interface BlockDef {
   needsMcu: (o: Opt) => boolean;
   /** Boards that cannot run it, with the reason. */
   notOn?: Partial<Record<McuKind, string>>;
-  bus?: 'i2c' | 'spi'; addrs?: string[];
+  bus?: 'i2c' | 'spi' | ((o: Opt) => 'i2c' | 'spi' | undefined); addrs?: string[];
   /** How many drawn instances `count` becomes (a lamp of 6 LEDs is one instance). */
   instances?: (count: number, o: Opt) => number[];
   pins: (i: Inst) => PinNeed[];
@@ -31,3 +31,4 @@ export const cap1 = (s: string) => s[0].toUpperCase() + s.slice(1);
 /** ESPHome/C identifiers. */
 export const sid = (i: Inst, what = '') => `${i.id}${what ? `_${what}` : ''}`;
 export const n = (i: Inst) => i.k + 1;
+export const busOf = (b: BlockDef, o: Opt) => (typeof b.bus === 'function' ? b.bus(o) : b.bus);

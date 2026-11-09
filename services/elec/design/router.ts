@@ -55,7 +55,15 @@ export class Router {
     this.bounds = this.parts.length === 1 ? { x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1 } : { x0: Math.min(this.bounds.x0, b.x0), y0: Math.min(this.bounds.y0, b.y0), x1: Math.max(this.bounds.x1, b.x1), y1: Math.max(this.bounds.y1, b.y1) };
   }
   /** Claim pins for nets before routing, so no other net can touch them. */
-  assign(nets: NetDef[]) { for (const n of nets) for (const [r, pin] of n.pins) { const [x, y] = this.pinPt(r, pin); this.pinNet.set(K(x, y), n.name); } }
+  assign(nets: NetDef[]) {
+    for (const n of nets) for (const [r, pin] of n.pins) { const [x, y] = this.pinPt(r, pin); this.pinNet.set(K(x, y), n.name); }
+    // Reserve the first two grid points in front of each pin for its own net, so no other wire seals the pin off.
+    for (const n of nets) for (const [r, pin] of n.pins) {
+      const p = this.parts.find(q => q.ref === r)!; const d = outward(p, pin); const [x, y] = this.pinPt(r, pin);
+      for (let s = 1; s <= 2; s++) { const k = K(x + DX[d] * s, y + DY[d] * s); if (this.blocked.has(k) || this.pinNet.has(k)) break; this.pinNet.set(k, n.name); this.reserved.add(k); }
+    }
+  }
+  private reserved = new Set<string>();
 
   private free(x: number, y: number) { return !this.blocked.has(K(x, y)) && !this.pinNet.has(K(x, y)) && !this.use.has(K(x, y)); }
   /** A ground symbol next to the pin, joined by a short straight wire. */
