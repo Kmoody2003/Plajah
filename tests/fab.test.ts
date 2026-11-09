@@ -444,3 +444,45 @@ test('adaptive clearing: light steady engagement, never gouges walls or islands,
   assert.ok(adaptiveJob([sq(20)], { tool: 6, depth: 6, feed: 1500, stockToLeave: 0.5 }).path.pts.every(p => Number.isNaN(p.x) || dLoop([p.x, p.y], sq(20)) > 3.5 - 1e-3), 'stock to leave on the walls');
   assert.match(adaptiveJob([sq(2)], { tool: 6, depth: 3, feed: 1000 }).warnings.join(' '), /narrower than/);
 });
+
+// ---------------------------------------------------------------- machining gaps: router holding
+import { tabSpans } from '../services/fab/cam';
+import { machiningHazards } from '../services/fab/camSafety';
+
+/** XY length cut at each Z, walking the moves. */
+function lengthByZ(moves: any[]) {
+  const out = new Map<number, number>(); let x = 0, y = 0, z = 0;
+  for (const m of moves) { if (m.t !== 'rapid' && m.t !== 'feed') continue; const nx = m.x ?? x, ny = m.y ?? y, nz = m.z ?? z; if (m.t === 'feed' && nz === z) { const k = +z.toFixed(4); out.set(k, (out.get(k) ?? 0) + Math.hypot(nx - x, ny - y)); } x = nx; y = ny; z = nz; }
+  return out;
+}
+
+test('tabs: evenly spaced, the right width and height, only on outlines and only below the tab top', () => {
+  const sp = tabSpans(sq(50), 4, 12); const tabLen = sp.reduce((s, m, i) => s + (m.tab ? Math.hypot(m.p[0] - sp[i - 1].p[0], m.p[1] - sp[i - 1].p[1]) : 0), 0);
+  assert.ok(Math.abs(tabLen - 48) < 1e-9);
+  const j = cutJob([sq(50), sq(10, 20, 20)], [], { process: 'router', kerf: 6, feed: 1500, thickness: 12, stepDown: 4, tabs: { count: 4, width: 6, height: 2 } });
+  const byZ = lengthByZ(j.moves);
+  // Tool centre runs 3 mm outside the 100 mm square: perimeter 400 + 2π·3; tabs lift for 4 × (6 + 6) mm.
+  const outline = 400 + 2 * Math.PI * 3, hole = 4 * 14 * 1; // the hole's path is 6 mm in from its 20 mm square
+  assert.ok(Math.abs((byZ.get(-10) ?? 0) - 48) < 0.5, `tab length ${byZ.get(-10)}`);
+  assert.ok(Math.abs((byZ.get(-12) ?? 0) - (outline - 48 + 4 * 14)) < 0.5, `full depth ${byZ.get(-12)} vs ${outline - 48 + hole}`);
+  assert.ok(Math.abs((byZ.get(-8) ?? 0) - (outline + 56)) < 0.5, 'no tabs above the tab top');
+  assert.equal(j.meta.tabs, 4);
+});
+
+test('onion skin: every pass stops short, then one last full-depth pass per part, tabs kept', () => {
+  const j = cutJob([sq(50)], [], { process: 'router', kerf: 6, feed: 1500, thickness: 12, stepDown: 4, onionSkin: 0.5 });
+  const zs = [...lengthByZ(j.moves).keys()].sort((a, b) => b - a); assert.deepEqual(zs, [-4, -8, -11.5, -12]);
+  const both = cutJob([sq(50)], [], { process: 'router', kerf: 6, feed: 1500, thickness: 12, stepDown: 4, onionSkin: 0.5, tabs: { count: 3, width: 5, height: 3 } });
+  const bz = lengthByZ(both.moves); assert.ok(Math.abs((bz.get(-9) ?? 0) - 2 * 3 * 11) < 0.5, 'tabs on the last rough level and in the onion-skin pass'); assert.ok(bz.has(-11.5) && bz.has(-12));
+  assert.match(post(both, { dialect: 'grbl' }), /Onion skin/);
+});
+
+test('machining hazards: unheld through-cuts, one tab, holder crash; each cites its rule', () => {
+  const ids = (h: ReturnType<typeof machiningHazards>) => h.map(x => x.id);
+  assert.ok(ids(machiningHazards({ op: 'profile', throughCut: true })).includes('parts-fling'));
+  assert.ok(!ids(machiningHazards({ op: 'profile', throughCut: true, tabs: { count: 3, width: 6, height: 2 } })).includes('parts-fling'));
+  assert.ok(ids(machiningHazards({ op: 'profile', throughCut: true, tabs: { count: 1, width: 6, height: 2 } })).includes('one-tab'));
+  assert.ok(ids(machiningHazards({ op: 'profile', throughCut: true, onionSkin: 0.4, smallestPart: 100 })).includes('small-parts'));
+  const crash = machiningHazards({ op: 'surface', depth: 50, reach: 30, toolDia: 6 }); assert.ok(crash.find(h => h.id === 'holder-crash')?.block);
+  assert.ok(machiningHazards({ op: 'surface', depth: 50, reach: 60, toolDia: 6, finishFromStock: true }).every(h => h.cite));
+});
