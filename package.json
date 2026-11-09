@@ -106,6 +106,7 @@
     "typecheck:cad": "tsc -p tsconfig.cad.json",
     "test:bio": "npx tsx --test tests/bio.test.ts",
     "test:elec": "npx tsx --test tests/elec.test.ts",
+    "test:pcb": "npx tsx --test tests/pcb.test.ts",
     "test:fab": "npx tsx --test tests/fab.test.ts",
     "test:soft": "npx tsx --test tests/soft.test.ts",
     "typecheck:elec": "tsc -p tsconfig.elec.json",

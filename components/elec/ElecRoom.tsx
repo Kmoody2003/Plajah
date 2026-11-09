@@ -4,12 +4,17 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, MousePointer2, Spline, RotateCw, Trash2, Play, Undo2, FilePlus, Download, ShieldCheck, ListChecks, SlidersHorizontal, Activity, Sparkles, Search, Pause, ShieldAlert, Package, Store } from 'lucide-react';
+import { X, MousePointer2, Spline, RotateCw, Trash2, Play, Undo2, FilePlus, Download, ShieldCheck, ListChecks, SlidersHorizontal, Activity, Sparkles, Search, Pause, ShieldAlert, Package, Store, CircuitBoard } from 'lucide-react';
 import type { Build } from '../../services/elec/recipes';
-import { designHazards, advisoriesFor, recallQueries, needsAck } from '../../services/safety/hazards';
+import { designHazards, pcbHazards, advisoriesFor, recallQueries, needsAck, openHazards } from '../../services/safety/hazards';
 import SafetyPanel, { BuildTermsGate, termsAccepted } from '../safety/SafetyPanel';
 import DescribePanel from './DescribePanel';
 import BuildPanel from './BuildPanel';
+import BoardSide, { BoardView } from './BoardPanel';
+import { layoutBoard, drcCounts, type Layout, type FpStyle } from '../../services/elec/pcb';
+import { gerberZip, packageZip, bomCsv, placementCsv, boardSlug } from '../../services/elec/pcb/gerber';
+import { toKicadPcb } from '../../services/elec/pcb/kicad';
+import { ALL_LAYERS, type BoardLayers } from '../../services/elec/pcb/svg';
 import SourcingPanel from '../supply/SourcingPanel';
 import ExchangeRoom from '../supply/ExchangeRoom';
 import { COMPONENTS, type CompDef, type Pt, compByKind, compDefaults, parseSi } from '../../services/elec/components';
@@ -59,11 +64,16 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
   const [tIdx, setTIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [left, setLeft] = useState<'describe' | 'parts' | 'starters'>(initial || loadInitial ? 'parts' : 'describe');
-  const [right, setRight] = useState<'props' | 'checks' | 'safety' | 'build' | 'bom' | 'scope'>('checks');
+  const [right, setRight] = useState<'props' | 'checks' | 'safety' | 'build' | 'board' | 'bom' | 'scope'>('checks');
   const [build, setBuild] = useState<Build | null>(null);
   const [acks, setAcks] = useState<string[]>([]);
   const [terms, setTerms] = useState(termsAccepted);
-  const [exchange, setExchange] = useState(false);
+  const [exchange, setExchange] = useState<null | 'components' | 'pcb'>(null);
+  const [board, setBoard] = useState<{ layout: Layout; circuit: Circuit; style: FpStyle } | null>(null);
+  const [boardStyle, setBoardStyle] = useState<FpStyle>('tht');
+  const [boardLayers, setBoardLayers] = useState<BoardLayers>(ALL_LAYERS);
+  const [boardFocus, setBoardFocus] = useState<[number, number] | null>(null);
+  const [routing, setRouting] = useState(false);
   const [market, setMarket] = useState<'both' | 'US' | 'EU'>('both');
   const [toy, setToy] = useState(false);
   const [probes, setProbes] = useState<number[]>([]);
@@ -80,12 +90,27 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
   const counts = summarize(findings);
   const bomRows = useMemo(() => bom(circuit), [circuit]);
   // Safety at every stage: hazards follow the parts on the sheet and the product being built.
-  const hazards = useMemo(() => designHazards({ circuit, recipe: build?.recipe, toy }), [circuit, build?.recipe, toy]);
+  const hazards = useMemo(() => [...designHazards({ circuit, recipe: build?.recipe, toy }), ...pcbHazards(circuit)], [circuit, build?.recipe, toy]);
   const advisories = useMemo(() => advisoriesFor(circuit), [circuit]);
   const queries = useMemo(() => recallQueries(circuit, build?.recipe), [circuit, build?.recipe]);
   const openCritical = needsAck(hazards).filter(h => !acks.includes(h.id));
   /** Exports and making wait until every critical hazard is acknowledged. */
   const guard = (fn: () => void) => { if (openCritical.length) { setRight('safety'); setError(`Acknowledge ${openCritical.length === 1 ? 'the critical hazard' : `${openCritical.length} critical hazards`} in Safety first: ${openCritical.map(h => h.title).join('; ')}.`); return; } fn(); };
+
+  // ---- Board (PCB) ----
+  const boardStale = !!board && (board.circuit !== circuit || board.style !== boardStyle);
+  const boardOpen = openHazards(hazards, acks);
+  /** Board downloads wait for every critical hazard (and anything blocked outright) to be cleared. */
+  const boardGuard = (fn: () => void) => { if (boardOpen.length) { setRight('safety'); setError(`Before the board files: ${boardOpen.map(h => h.title).join('; ')}.`); return; } fn(); };
+  const routeBoard = () => {
+    setRouting(true); setError(''); setBoardFocus(null); const c = circuit, style = boardStyle;
+    setTimeout(() => { try { const layout = layoutBoard(c, { style }); setBoard({ layout, circuit: c, style }); const k = drcCounts(layout.drc); setNote(`Board ${layout.board.W} × ${layout.board.H} mm: ${k.errors ? `${k.errors} DRC errors` : 'routed, DRC clean'}${k.warnings ? `, ${k.warnings} warnings` : ''}.`); } catch (e: any) { setError(String(e?.message ?? e)); } finally { setRouting(false); } }, 30);
+  };
+  const boardReadme = (l: Layout) => [`${circuit.name}: two-layer PCB from Plajah Build`, '', `Board: ${l.board.W} x ${l.board.H} mm, 1.6 mm FR-4, 1 oz copper, 2 layers, HASL or ENIG, any colour.`,
+    'gerbers/: upload this folder (zipped) to JLCPCB, PCBWay, OSH Park or Aisler. Files use the KiCad names they all recognise.', 'assembly/: BOM and pick-and-place (CPL) for assembly; add supplier part numbers to the BOM.', `${boardSlug(l.board)}.kicad_pcb: open in KiCad 7 or later to keep editing.`, '',
+    'Design rules checked: ' + l.drc.filter(d => d.level === 'pass').map(d => d.text).join('; ') + '.', ...(l.drc.filter(d => d.level === 'warning').map(d => `Warning: ${d.text}`)), '',
+    'Before you order:', ...l.board.notes.map(n => `- ${n}`), '', 'Safety:', ...hazards.filter(h => h.severity === 'critical' || h.severity === 'high').map(h => `- ${h.title}${h.cite ? ` (${h.cite})` : ''}`), '',
+    "Footprints are Plajah's own drawings (CC0). Not a certification: a test lab confirms compliance."].join('\n');
 
   /** Edits invalidate the simulation; the old one would describe a different circuit. */
   const commit = useCallback((next: Circuit, keepSim = false) => { setHistory(h => [...h.slice(-80), live.current.circuit]); setCircuit(next); if (!keepSim) { setSim(null); setPlaying(false); } }, []);
@@ -245,7 +270,7 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
         <button className="elec-btn elec-primary" onClick={() => run()} data-testid="elec-run"><Play size={14}/>Simulate</button>
         <div className="ml-auto flex items-center gap-2">
           <button className="elec-btn" onClick={() => setRight('safety')} title="Safety review" data-testid="elec-safety-chip" style={openCritical.length ? { borderColor: '#f43f5e', color: '#fda4af' } : undefined}><ShieldAlert size={14}/><span className="elec-label">{openCritical.length ? `${openCritical.length} to review` : 'Safety'}</span></button>
-          <button className="elec-btn" onClick={() => setExchange(true)} title="Find suppliers, manufacturers and local makers" data-testid="elec-exchange"><Store size={14}/><span className="elec-label">Exchange</span></button>
+          <button className="elec-btn" onClick={() => setExchange('components')} title="Find suppliers, manufacturers and local makers" data-testid="elec-exchange"><Store size={14}/><span className="elec-label">Exchange</span></button>
           <button className="elec-btn" onClick={() => guard(() => download(`${circuit.name}.svg`, circuitSvg(circuit, { title: circuit.name }).svg, 'image/svg+xml'))} title="Schematic as SVG"><Download size={14}/><span className="elec-label">SVG</span></button>
           <button className="elec-btn" onClick={() => guard(() => download(`${circuit.name}.cir`, spiceNetlist(circuit), 'text/plain'))} title="SPICE netlist for ngspice, LTspice, KiCad" data-testid="elec-spice"><Download size={14}/><span className="elec-label">SPICE</span></button>
           <button className="elec-btn" onClick={() => guard(() => download(`${circuit.name}.plajah-circuit.json`, JSON.stringify(circuit, null, 1), 'application/json'))} title="Circuit file"><Download size={14}/><span className="elec-label">JSON</span></button>
@@ -315,12 +340,13 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
           </div>}
           {(note || error || busy) && <div className="absolute left-3 top-3 max-w-md text-[11.5px] px-3 py-2 rounded-lg" style={{ background: 'rgba(18,20,27,.92)', border: `1px solid ${error ? '#f87171' : C.line}`, color: error ? '#fca5a5' : C.text }} onClick={() => { setNote(''); setError(''); }}>{busy || error || note}</div>}
           {!circuit.parts.length && <div className="absolute inset-0 grid place-items-center pointer-events-none text-[13px]" style={{ color: C.dim }}>Pick a part on the left, or open a starter circuit.</div>}
+          {right === 'board' && <BoardView layout={board?.layout ?? null} layers={boardLayers} focus={boardFocus}/>}
         </div>
 
         {/* Right: properties, checks, BOM, scope */}
         <aside className="w-80 shrink-0 border-l flex flex-col min-h-0" style={{ borderColor: C.line, background: C.panel }}>
           <div className="flex gap-1 p-2">
-            {([['props', 'Part', SlidersHorizontal], ['checks', 'Checks', ShieldCheck], ['safety', 'Safety', ShieldAlert], ...(build ? [['build', 'Build', Package] as const] : []), ['bom', 'Parts', ListChecks], ['scope', 'Scope', Activity]] as const).map(([k, label, Icon]) => <button key={k} onClick={() => setRight(k)} className={`elec-tab${right === k ? ' elec-tab-on' : ''}`} data-testid={`elec-tab-${k}`}><Icon size={12}/>{label}{k === 'checks' && (counts.errors || counts.warnings) ? <span className="ml-1 px-1 rounded text-[9px]" style={{ background: counts.errors ? '#7f1d1d' : '#78350f' }}>{counts.errors || counts.warnings}</span> : null}</button>)}
+            {([['props', 'Part', SlidersHorizontal], ['checks', 'Checks', ShieldCheck], ['safety', 'Safety', ShieldAlert], ...(build ? [['build', 'Build', Package] as const] : []), ['board', 'Board', CircuitBoard], ['bom', 'Parts', ListChecks], ['scope', 'Scope', Activity]] as const).map(([k, label, Icon]) => <button key={k} onClick={() => setRight(k)} className={`elec-tab${right === k ? ' elec-tab-on' : ''}`} data-testid={`elec-tab-${k}`}><Icon size={12}/>{label}{k === 'checks' && (counts.errors || counts.warnings) ? <span className="ml-1 px-1 rounded text-[9px]" style={{ background: counts.errors ? '#7f1d1d' : '#78350f' }}>{counts.errors || counts.warnings}</span> : null}</button>)}
           </div>
           <div className="flex-1 overflow-y-auto px-3 pb-4 text-[12px]">
             {right === 'props' && (selPart ? <PartProps part={selPart} sim={sim} at={at} onParam={(k, v) => setParam(selPart.id, k, v)}/> : selWire ? <div>
@@ -359,12 +385,22 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
 
             {right === 'safety' && <SafetyPanel hazards={hazards} advisories={advisories} queries={queries} acked={acks} onAck={(id, v) => { setAcks(a => v ? [...new Set([...a, id])] : a.filter(x => x !== id)); if (v) setError(e => e.startsWith('Acknowledge') ? '' : e); }} apiBase={apiBase} title={`Safety review${build ? `: ${build.title}` : ''}`}/>}
             {right === 'build' && build && <BuildPanel build={build} guard={guard}/>}
+            {right === 'board' && <BoardSide layout={board?.layout ?? null} stale={boardStale} busy={routing} style={boardStyle} onStyle={setBoardStyle} onRoute={routeBoard}
+              layers={boardLayers} onLayers={setBoardLayers} onFocus={setBoardFocus} openHazards={boardOpen.length}
+              onGerbers={() => board && boardGuard(() => download(`${boardSlug(board.layout.board)}-gerbers.zip`, gerberZip(board.layout.board) as BlobPart, 'application/zip'))}
+              onPackage={() => board && boardGuard(() => download(`${boardSlug(board.layout.board)}-pcb.zip`, packageZip(board.layout.board, boardReadme(board.layout)) as BlobPart, 'application/zip'))}
+              onBom={() => board && boardGuard(() => download(`${boardSlug(board.layout.board)}-bom.csv`, bomCsv(board.layout.board), 'text/csv'))}
+              onCpl={() => board && boardGuard(() => download(`${boardSlug(board.layout.board)}-cpl.csv`, placementCsv(board.layout.board), 'text/csv'))}
+              onKicad={() => board && boardGuard(() => download(`${boardSlug(board.layout.board)}.kicad_pcb`, toKicadPcb(board.layout.board), 'text/plain'))}
+              onGetMade={() => boardGuard(() => setExchange('pcb'))}/>}
             {right === 'scope' && (sim ? <Scope sim={sim} probes={probes} at={at} onRemove={n => setProbes(p => p.filter(x => x !== n))} members={nl.members}/> : <div style={{ color: C.dim }}>Simulate over time to see voltages trace. Click any wire to probe it.</div>)}
           </div>
         </aside>
       </div>
       <style>{`.elec-btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:8px;font-size:12px;font-weight:600;color:rgba(255,255,255,.8);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);flex-shrink:0}.elec-btn:hover{background:rgba(255,255,255,.1);color:#fff}.elec-btn:disabled{opacity:.4}.elec-primary{background:linear-gradient(135deg,#f59e0b,#ef4444);border-color:transparent;color:#fff}.elec-on{background:rgba(251,191,36,.14);border-color:rgba(251,191,36,.45);color:#fbbf24}.elec-tab{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 8px;border-radius:7px;font-size:11px;font-weight:700;color:rgba(255,255,255,.55)}.elec-tab-on{background:rgba(255,255,255,.08);color:#fff}.elec-bar{scrollbar-width:none}@media (max-width:899px){.elec-label,.elec-title{display:none}}`}</style>
-      {exchange && <ExchangeRoom onClose={() => setExchange(false)} getToken={getToken} apiBase={apiBase} initialCategory="components" prefill={build ? { title: `Build: ${build.title}`, details: build.summary, processes: ['electronics'], hazards: hazards.filter(h => h.severity === 'critical' || h.severity === 'high').map(h => h.title) } : undefined}/>}
+      {exchange && <ExchangeRoom onClose={() => setExchange(null)} getToken={getToken} apiBase={apiBase} initialCategory={exchange}
+        prefill={exchange === 'pcb' && board ? { title: `PCB: ${circuit.name}`, details: `Two-layer board, ${board.layout.board.W} × ${board.layout.board.H} mm, 1.6 mm FR-4, 1 oz copper, ${board.layout.board.parts.length} parts (${board.style === 'smd' ? 'surface mount' : 'through-hole'}). Gerbers, drill, BOM and pick-and-place from Plajah Build; DRC clean (0.2 mm spacing, 0.3 mm vias).`, processes: ['pcb-assembly', 'electronics'], hazards: hazards.filter(h => h.severity === 'critical' || h.severity === 'high').map(h => h.title) }
+          : build ? { title: `Build: ${build.title}`, details: build.summary, processes: ['electronics'], hazards: hazards.filter(h => h.severity === 'critical' || h.severity === 'high').map(h => h.title) } : undefined}/>}
       {!terms && <BuildTermsGate onAccepted={() => setTerms(true)} getToken={getToken} apiBase={apiBase} onClose={onClose}/>}
     </div>,
     document.body,
