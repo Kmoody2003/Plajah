@@ -1,0 +1,247 @@
+// 3–5 · Unit 8 · Data Stories: Ecosystems & Weather Sensors (science). Original Plajah Academia writing.
+import type { StemUnit } from '../types';
+import { M, num, say } from '../kit';
+
+const INTL = { uk: 'Y4 Science — Living things and their habitats', cambridge: 'Stage 5 — Biology: ecosystems; Earth and space: weather', ib: 'PYP Sharing the planet', singapore: 'Primary Science P5 — Interactions within the environment' };
+const BIO_SIM = 'Biology Lab simulation only; outdoor observation stays with an adult, looking not touching.';
+const SENSOR_SIM = 'Simulated Electronics Lab sensor. A physical sensor runs only from a USB port on a computer, kept dry and out of reach of water.';
+
+export const G35_U08: StemUnit = {
+  id: 'stem-35-u08',
+  band: '3-5',
+  n: 8,
+  title: 'Data Stories: Ecosystems & Weather Sensors',
+  kind: 'science',
+  strands: ['science', 'math', 'technology'],
+  status: 'complete',
+  weeks: 4,
+  bigIdea: 'Living things and weather both change in patterns we can see in data: predators and prey rise and fall together, and temperature follows the day and the season.',
+  essentialQuestion: 'What can graphs tell us about the living and non-living world around us?',
+  standards: {
+    ngss: ['5-LS2-1', '3-LS4-3', '3-ESS2-1', '3-ESS2-2'],
+    ccss: [M('3.MD.B.3'), M('5.MD.B.2'), M('5.G.A.2')],
+    csta: ['1B-DA-06', '1B-DA-07'],
+    intl: INTL,
+  },
+  projectIds: [],
+  museion: 'biology',
+  lessons: [
+    {
+      id: 'stem-35-u08-l1',
+      title: 'Food Webs: Who Eats Whom?',
+      minutes: 45,
+      strands: ['science', 'math'],
+      objectives: [
+        'I can draw a food web with producers, consumers and decomposers.',
+        'I can trace how matter moves from plants to animals and back to the soil.',
+        'I can predict what happens to a web if one population changes.',
+      ],
+      vocab: [
+        ['producer', 'A living thing, like a plant, that makes its own food from sunlight.'],
+        ['consumer', 'An animal that eats plants or other animals.'],
+        ['decomposer', 'A living thing, like a fungus or worm, that breaks down dead matter into soil.'],
+        ['food web', 'All the connected food chains in an ecosystem.'],
+      ],
+      hook: 'In the schoolyard: grass, clover, beetles, worms, robins, a neighbourhood cat, mushrooms. Draw an arrow from each living thing to whatever eats it. Soon it is a tangled web. What happens if the beetles disappear?',
+      build: {
+        title: 'Schoolyard food web, then the meadow model',
+        steps: [
+          'List living things seen on a schoolyard walk with an adult.',
+          'Draw arrows from food to eater ("energy goes to").',
+          'Circle producers green, consumers red, decomposers brown.',
+          'Open the Biology Lab predator–prey model and match its two animals to your web.',
+          'Predict what happens to the predators if the prey crashes.',
+        ],
+        launch: { room: 'bio', template: 'lotka_volterra', starter: { note: 'The prey are rabbits; the predators are foxes.' }, lesson: 'stem-35-u08-l1' },
+        materials: ['Clipboard and pencil for the walk', 'Large paper and coloured pencils'],
+      },
+      worked: [
+        {
+          prompt: 'A web has 4 producers, 6 consumers and 2 decomposers. How many living things are in it, and what fraction are producers?',
+          steps: ['Total: 4 + 6 + 2 = 12.', 'Producers: 4 out of 12 = 4/12 = 1/3.'],
+          answer: '12 living things; one third are producers.',
+        },
+      ],
+      practice: [
+        num('A web has 5 producers, 8 consumers and 3 decomposers. How many in all?', '16.', 16, 'sum', [5, 8, 3], 1, 'living things'),
+        num('There are 120 beetles and a robin eats 15 a day. How many days until the robin has eaten them all?', '120 ÷ 15 = 8 days.', 8, 'quotient', [120, 15], 2, 'days'),
+        say('Where do the arrows in a food web point?', 'From the food to the eater: the direction energy and matter move.', 1),
+        say('What would happen to the soil if there were no decomposers?', 'Dead matter would pile up and nutrients would not return to the soil for plants.', 2),
+        say('The beetles disappear. Name one effect on the web.', 'Robins have less food and may decline or eat more worms; plants beetles ate may grow more.', 3),
+      ],
+      exitTicket: { q: 'Name a producer, a consumer and a decomposer from our schoolyard.', answer: 'e.g. grass, robin, mushroom.' },
+      differentiation: {
+        support: ['Use picture cards to arrange on a mat before drawing.', 'Start with one food chain of three links.'],
+        extension: ['Add the sun and explain why every arrow traces back to it.', 'Find a food web for a pond and compare.'],
+        ell: 'Frames: "The ___ eats the ___." "___ is a producer because ___."',
+        supports: ['readAloud', 'chunk', 'fewerChoices'],
+      },
+      safety: { level: 'low', note: BIO_SIM },
+      standards: { ngss: ['5-LS2-1'], ccss: [M('3.NF.A.1'), M('4.NBT.B.6')], intl: INTL },
+      mathFocus: 'part of a whole',
+      museion: 'biology',
+    },
+    {
+      id: 'stem-35-u08-l2',
+      title: 'Foxes and Rabbits: Reading the Rise and Fall',
+      minutes: 45,
+      strands: ['science', 'math', 'technology'],
+      objectives: [
+        'I can read a line graph of two populations over time.',
+        'I can describe the pattern: prey rise, then predators rise, then prey fall.',
+        'I can plot points on a coordinate grid.',
+      ],
+      vocab: [
+        ['population', 'All the members of one kind of living thing in a place.'],
+        ['line graph', 'A graph that joins points to show how something changes over time.'],
+        ['coordinate', 'A pair of numbers (x, y) that names a point on a grid.'],
+      ],
+      hook: 'Fur traders long ago kept records of how many rabbits and foxes were caught each year. The numbers went up and down like waves, but the fox waves came a little after the rabbit waves. Why?',
+      build: {
+        title: 'Run the predator–prey model and plot it',
+        steps: [
+          'Open the Biology Lab predator–prey model and press play.',
+          'Pause every 10 time steps and record rabbits and foxes in a table.',
+          'Plot both as points (time, number) on a grid and join each set with a line.',
+          'Mark the highest point of each line. Which peak comes first?',
+          'Change the starting foxes and run again. Does the pattern stay?',
+        ],
+        launch: { room: 'bio', template: 'lotka_volterra', starter: { note: 'Record the populations every 10 steps.' }, lesson: 'stem-35-u08-l2' },
+        materials: ['Grid paper', 'Two coloured pencils'],
+      },
+      worked: [
+        {
+          prompt: 'Rabbits go from 40 at step 10 to 90 at step 30. How much did they increase, and by how many per step?',
+          steps: ['Increase: 90 − 40 = 50 rabbits.', 'Steps: 30 − 10 = 20.', 'Per step: 50 ÷ 20 = 2.5 rabbits.'],
+          answer: '50 more rabbits, about 2.5 per step.',
+        },
+      ],
+      practice: [
+        num('Foxes rose from 12 to 30. By how many?', '18 foxes.', 18, 'difference', [30, 12], 1, 'foxes'),
+        num('Rabbits peak at 95 and fall to 35. How many fewer?', '60 fewer.', 60, 'difference', [95, 35], 1, 'rabbits'),
+        num('Rabbits counted at five times: 40, 60, 90, 70, 40. What is the range?', '90 − 40 = 50.', 50, 'range', [40, 60, 90, 70, 40], 2, 'rabbits'),
+        say('The point (20, 75) is on the rabbit line. What does it mean?', 'At time step 20 there were 75 rabbits.', 2),
+        say('Why does the fox peak come after the rabbit peak?', 'Foxes need lots of rabbits to eat before their numbers grow; then they eat so many that rabbits fall.', 3),
+      ],
+      exitTicket: { q: 'Describe the pattern in one sentence.', answer: 'Rabbits rise, then foxes rise, then rabbits fall, then foxes fall, and it repeats.' },
+      differentiation: {
+        support: ['Provide a grid with axes already labelled and scaled by 10.', 'Plot only the rabbit line.'],
+        extension: ['Predict the next rabbit peak time from the spacing between peaks.', 'Explain what happens if a disease removes half the foxes.'],
+        ell: 'Frames: "At step ___, there were ___ rabbits." "First ___, then ___."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'sim-only', note: BIO_SIM },
+      standards: { ngss: ['5-LS2-1', '3-LS4-3'], ccss: [M('5.G.A.2'), M('3.MD.B.3')], csta: ['1B-DA-07'], intl: INTL },
+      mathFocus: 'plotting and reading coordinate graphs',
+      museion: 'biology',
+    },
+    {
+      id: 'stem-35-u08-l3',
+      title: 'A Weather Station in the Simulated Electronics Lab',
+      minutes: 45,
+      strands: ['technology', 'science', 'math'],
+      objectives: [
+        'I can set a sensor to record temperature every hour.',
+        'I can read a table of readings and find the highest, lowest and range.',
+        'I can explain why temperature changes through the day.',
+      ],
+      vocab: [
+        ['sensor', 'A device that measures something in the world and turns it into a number.'],
+        ['reading', 'One measurement from a sensor.'],
+        ['interval', 'The time between readings.'],
+      ],
+      hook: 'A weather station never sleeps: it measures the air every few minutes, all night, all weekend. What can a computer notice in a full day of numbers that a person checking once could miss?',
+      build: {
+        title: 'Log a simulated day of temperatures',
+        steps: [
+          'Open the Electronics Lab sensor starter and set the update interval to 60 minutes.',
+          'Run the simulated day and copy the 24 readings into a table.',
+          'Circle the highest and lowest readings and the hours they happened.',
+          'Find the range.',
+          'Make a line graph of temperature against hour.',
+        ],
+        launch: { room: 'elec', template: 'sensor', starter: { values: { interval: 3600 }, note: 'One reading every hour for a day.' }, lesson: 'stem-35-u08-l3' },
+        materials: ['Grid paper'],
+      },
+      worked: [
+        {
+          prompt: 'The lowest reading was 9 °C at 5 am and the highest was 23 °C at 3 pm. What was the range, and how many hours apart?',
+          steps: ['Range: 23 − 9 = 14 °C.', 'Hours: 5 am to 3 pm is 10 hours.'],
+          answer: 'Range 14 °C, 10 hours apart.',
+        },
+      ],
+      practice: [
+        num('Highest 27 °C, lowest 15 °C. Range?', '12 °C.', 12, 'difference', [27, 15], 1, '°C'),
+        num('Readings 12, 15, 19, 22, 20, 16 °C. Range?', '22 − 12 = 10 °C.', 10, 'range', [12, 15, 19, 22, 20, 16], 2, '°C'),
+        num('A reading every 15 minutes. How many readings in 6 hours?', '6 × 4 = 24 readings.', 24, 'product', [6, 4], 2, 'readings'),
+        num('A reading every 60 minutes for one week. How many readings?', '24 × 7 = 168.', 168, 'product', [24, 7], 3, 'readings'),
+        say('Why is it usually coldest just before sunrise?', 'The ground has been losing heat all night with no sunlight to warm it.', 2),
+      ],
+      exitTicket: { q: 'At what hour was your simulated day warmest?', answer: 'Mid-afternoon (about 2–4 pm), from their table.' },
+      differentiation: {
+        support: ['Use a table with every 3 hours only.', 'Highlight highest and lowest with colours.'],
+        extension: ['Compare a sunny-day and a cloudy-day log.', 'Find how much the temperature rose per hour in the morning.'],
+        ell: 'Frames: "The highest was ___ at ___." "The range is ___."',
+        supports: ['readAloud', 'chunk', 'untimed'],
+      },
+      safety: { level: 'sim-only', note: SENSOR_SIM },
+      standards: { ngss: ['3-ESS2-1'], ccss: [M('3.MD.B.3'), M('5.G.A.2'), M('4.MD.A.2')], csta: ['1B-DA-06'], intl: INTL },
+      mathFocus: 'range and reading data tables',
+      museion: 'earth',
+    },
+    {
+      id: 'stem-35-u08-l4',
+      title: 'Mean, Highest and Lowest: Our Data Story',
+      minutes: 50,
+      strands: ['math', 'science', 'technology'],
+      objectives: [
+        'I can find the mean (fair share) of a set of readings.',
+        'I can use mean, highest, lowest and range to describe a week of weather.',
+        'I can tell a data story with a graph and three numbers.',
+      ],
+      vocab: [
+        ['mean', 'The fair share: add all the values and divide by how many there are.'],
+        ['climate', 'The usual weather of a place over many years.'],
+        ['claim', 'A statement you back up with evidence.'],
+      ],
+      hook: 'Monday felt freezing; Thursday felt hot. Was it a cold week or a warm week? One number, the mean, can sum up the whole week, and with the range it tells a fair story.',
+      build: {
+        title: 'Summarise a week of sensor data',
+        steps: [
+          'Open the sensor log for a simulated week and copy the daily highs.',
+          'Find the highest, lowest and range.',
+          'Find the mean: add the seven highs and divide by 7 (or level cubes into equal towers).',
+          'Make a bar graph of daily highs with a line at the mean.',
+          'Write a data story: one claim, three numbers and the graph.',
+        ],
+        launch: { room: 'elec', template: 'sensor', starter: { values: { interval: 3600 }, note: 'Export a week of readings.' }, lesson: 'stem-35-u08-l4' },
+        materials: ['Linking cubes to model fair share', 'Grid paper'],
+      },
+      worked: [
+        {
+          prompt: 'Five daily highs: 18, 21, 24, 19 and 23 °C. What is the mean?',
+          steps: ['Add: 18 + 21 + 24 + 19 + 23 = 105.', 'Divide by 5: 105 ÷ 5 = 21.'],
+          answer: 'The mean high is 21 °C.',
+        },
+      ],
+      practice: [
+        num('Highs 20, 22, 24 °C. Mean?', '66 ÷ 3 = 22 °C.', 22, 'mean', [20, 22, 24], 1, '°C'),
+        num('Highs 15, 18, 21, 16, 20 °C. Mean?', '90 ÷ 5 = 18 °C.', 18, 'mean', [15, 18, 21, 16, 20], 2, '°C'),
+        num('Rainfall 4, 0, 7, 2, 0, 5, 3 mm over a week. Mean per day?', '21 ÷ 7 = 3 mm.', 3, 'mean', [4, 0, 7, 2, 0, 5, 3], 2, 'mm'),
+        num('Rainfall 4, 0, 7, 2, 0, 5, 3 mm. Range?', '7 mm.', 7, 'range', [4, 0, 7, 2, 0, 5, 3], 1, 'mm'),
+        say('Two weeks both have a mean of 20 °C. One has a range of 3 °C and one of 15 °C. How were they different?', 'The first was steady; the second had very hot and very cold days.', 3),
+      ],
+      exitTicket: { q: 'Write one claim about our week with a number as evidence.', answer: 'e.g. "It was a mild week: the mean high was 21 °C."' },
+      differentiation: {
+        support: ['Level cube towers to find the fair share.', 'Use a calculator for the sum.'],
+        extension: ['Compare the class week to the climate average for your town.', 'Find a value that would change the mean by 1 °C.'],
+        ell: 'Frames: "The mean was ___. The range was ___. This shows ___."',
+        supports: ['readAloud', 'chunk', 'extraTime'],
+      },
+      safety: { level: 'sim-only', note: SENSOR_SIM },
+      standards: { ngss: ['3-ESS2-1', '3-ESS2-2'], ccss: [M('5.MD.B.2'), M('3.MD.B.3'), M('5.NBT.B.6')], csta: ['1B-DA-06', '1B-DA-07'], intl: INTL },
+      mathFocus: 'mean as fair share',
+      museion: 'data',
+    },
+  ],
+};
