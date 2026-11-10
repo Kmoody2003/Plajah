@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, Cpu, Users, Globe, RotateCcw, Flag, Copy, Check, Smartphone, Loader2, Trophy } from 'lucide-react';
 import * as T from '../../services/gamerNet/games/ticTacToe';
 import { gamer, isSignedIn, failed, type MatchView } from '../../services/gamerNet/client';
+import { PostGameButton } from './social/PostGameButton';
 
 type Screen = 'menu' | 'cpu' | 'local' | 'lobby' | 'online';
 interface Props { onExit: () => void; onOpenLeaderboard?: () => void }
@@ -255,6 +256,7 @@ export default function CyberTicTacToe({ onExit, onOpenLeaderboard }: Props) {
         <button className="ctt-option" onClick={() => startOffline('local')}><Users size={22} /><span><b>Two players, one device</b><small>Pass-and-play or face-to-face</small></span></button>
         <label className="ctt-toggle"><input type="checkbox" checked={faceToFace} onChange={e => setFaceToFace(e.target.checked)} /><Smartphone size={16} /> Face-to-face (lay the phone flat between you)</label>
         <button className="ctt-option" onClick={() => { setNetError(''); setScreen('lobby'); }}><Globe size={22} /><span><b>Play online</b><small>Quick match or invite a friend</small></span></button>
+        <PostGameButton what={{ kind: 'play', game: GAME }} className="ctt-link ctt-post" />
         {onOpenLeaderboard && <button className="ctt-link" onClick={onOpenLeaderboard}><Trophy size={14} /> Leaderboard &amp; gamer score</button>}
       </div>
     );
@@ -323,6 +325,7 @@ export default function CyberTicTacToe({ onExit, onOpenLeaderboard }: Props) {
             </button>
           )}
           {done && <button className="ctt-btn ghost" onClick={() => { setMatchId(null); setMv(null); setScreen('lobby'); }}>New opponent</button>}
+          {done && m && m.endReason !== 'abandoned' && <PostGameButton key={m.id} what={{ kind: 'result', match: m, seat: you }} className="ctt-btn ghost" label="Post result" doneLabel="Posted" />}
         </div>
         {netError && <p className="ctt-err" role="alert">{netError}</p>}
       </div>
@@ -394,6 +397,7 @@ const CSS = `
 .ctt-toggle{display:flex;align-items:center;gap:8px;font-size:13px;opacity:.8;padding:4px 6px;min-height:40px}
 .ctt-toggle input{width:20px;height:20px;accent-color:#ff2bd6}
 .ctt-link{display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;font-weight:700;color:#ffd166;padding:10px;min-height:44px}
+.ctt-link.ctt-post{color:#00f0ff}.ctt-link:disabled{opacity:.6}
 .ctt-note{font-size:13px;line-height:1.5;opacity:.75;background:rgba(255,209,102,.08);border:1px solid rgba(255,209,102,.25);padding:12px;border-radius:14px;margin:0}
 .ctt-err{color:#ff7b9c;font-size:13px;text-align:center;margin:6px 0 0}
 .ctt-search{display:flex;flex-direction:column;align-items:center;gap:8px;padding:28px 12px;border-radius:18px;border:1px dashed rgba(0,240,255,.35);text-align:center}

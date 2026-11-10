@@ -8,6 +8,7 @@ import ChipRail from './ui/ChipRail';
 const KithParty = React.lazy(() => import('./kithParty/KithParty'));
 const CyberTicTacToe = React.lazy(() => import('./games/CyberTicTacToe'));
 const GamerHub = React.lazy(() => import('./games/GamerHub'));
+import { PostGameButton } from './games/social/PostGameButton';
 
 // Uploaded copies of tic tac toe open the first-party Cyber Tic Tac Toe (mobile, same-device + online play).
 const isTicTacToe = (g: { title?: string }) => /tic[\s-]*tac[\s-]*toe/i.test(g.title || '');
@@ -262,6 +263,12 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
                  <span className="inline-flex items-center justify-center gap-2 min-h-[48px] px-6 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-widest"><Play size={16} fill="currentColor" /> Play</span>
                </div>
              </button>
+             <div className="flex justify-end mt-2">
+               <PostGameButton
+                 what={{ kind: 'play', game: 'ttt' }}
+                 className="inline-flex items-center gap-2 min-h-[40px] px-4 rounded-full border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 text-[10px] font-black uppercase tracking-widest hover:bg-cyan-400/20 disabled:opacity-60"
+               />
+             </div>
            </div>
            {loading ? (
              <div className="flex flex-col items-center justify-center p-20">
