@@ -339,6 +339,7 @@ export class BeatsEngine {
       }
       this.tempo = next;
       this.syncInstrumentTempo(true);
+      this.resyncAudioClips();
     }
     const lanesBefore = this.automation.snapshot();
     this.automation.refresh(this.doc);
@@ -426,6 +427,9 @@ export class BeatsEngine {
   }
 
   /** Build/refresh each pad's step-FX slot chains and their routing. */
+  /** Where each step-FX slot's output is wired, so a sync only rewires what moved. */
+  private stepFxRoutes = new Map<string, { dest: AudioNode; sendBus?: number; send?: GainNode }>();
+
   private syncStepFx(): void {
     if (!this.ctx || !this.graph) return;
     const want = new Set<string>();
@@ -444,13 +448,24 @@ export class BeatsEngine {
         host.setChain(slot.chain ?? []);
         // Rewire the chain output → dry dest (+ optional send) EACH sync, so a pad that became an
         // instrument — or an instrument track that was created after the host — re-targets correctly.
-        try { host.output.disconnect(); } catch { /* */ }
-        host.output.connect(dryDest);
-        if (slot.sendBus !== undefined && this.graph!.sendBuses[slot.sendBus]) {
-          const send = this.ctx!.createGain();
-          send.gain.value = Math.max(0, Math.min(1.5, slot.sendLevel ?? 0.5));
-          host.output.connect(send);
-          send.connect(this.graph!.sendBuses[slot.sendBus].input);
+        // Only when the target actually changed — reconnecting on every edit clicked mid-play.
+        const level = Math.max(0, Math.min(1.5, slot.sendLevel ?? 0.5));
+        const route = this.stepFxRoutes.get(key);
+        const sendBus = slot.sendBus !== undefined && this.graph!.sendBuses[slot.sendBus] ? slot.sendBus : undefined;
+        if (!route || route.dest !== dryDest || route.sendBus !== sendBus) {
+          try { host.output.disconnect(); } catch { /* */ }
+          try { route?.send?.disconnect(); } catch { /* */ }
+          host.output.connect(dryDest);
+          let send: GainNode | undefined;
+          if (sendBus !== undefined) {
+            send = this.ctx!.createGain();
+            send.gain.value = level;
+            host.output.connect(send);
+            send.connect(this.graph!.sendBuses[sendBus].input);
+          }
+          this.stepFxRoutes.set(key, { dest: dryDest, sendBus, send });
+        } else if (route.send) {
+          route.send.gain.value = level;
         }
       });
       // An instrument pad can't be per-step routed (it's one continuous voice engine), so its whole
@@ -459,7 +474,7 @@ export class BeatsEngine {
     });
     // Drop slots that no longer exist.
     for (const [key, host] of [...this.stepFxHosts]) {
-      if (!want.has(key)) { host.dispose(); this.stepFxHosts.delete(key); }
+      if (!want.has(key)) { host.dispose(); this.stepFxHosts.delete(key); try { this.stepFxRoutes.get(key)?.send?.disconnect(); } catch { /* */ } this.stepFxRoutes.delete(key); }
     }
   }
 
@@ -1493,7 +1508,7 @@ export class BeatsEngine {
     this.sendInserts.forEach((h) => h?.dispose()); this.sendInserts = [null, null];
     this.padInserts.forEach((h) => h.dispose()); this.padInserts.clear();
     this.trackInserts.forEach((h) => h.dispose()); this.trackInserts.clear();
-    this.stepFxHosts.forEach((h) => h.dispose()); this.stepFxHosts.clear();
+    this.stepFxHosts.forEach((h) => h.dispose()); this.stepFxHosts.clear(); this.stepFxRoutes.clear();
     this.graph?.dispose();
     this.voices?.clearBuffers();
     try { this.clockSink?.disconnect(); } catch { /* */ }
@@ -1615,6 +1630,25 @@ export class BeatsEngine {
       return loop.startBeats + ((p - loop.startBeats) % (loop.endBeats - loop.startBeats));
     }
     return p;
+  }
+
+  /** After a live tempo edit: fade the sounding audio clips out and restart them on the new map a
+   *  hair ahead (20 ms), so recordings stay locked to the grid and the playhead. */
+  private resyncAudioClips(): void {
+    if (!this.running || !this.ctx || !this.scheduler || this.mode !== 'song') return;
+    const at = this.ctx.currentTime + 0.02;
+    for (const c of this.liveClipSources) {
+      try {
+        c.gain.gain.cancelScheduledValues(at);
+        c.gain.gain.setValueAtTime(c.gain.gain.value, at);
+        c.gain.gain.linearRampToValueAtTime(0.0001, at + 0.004);
+        c.src.stop(at + 0.01);
+      } catch { /* already stopped */ }
+    }
+    this.liveClipSources = [];
+    // During a count-in the song hasn't reached the anchor yet — restart from the anchor itself.
+    const from = at <= this.anchorTime ? this.anchorBeats : this.tempo.secToBeat(this.tempo.beatToSec(this.anchorBeats) + (at - this.anchorTime));
+    this.scheduler.resyncAudio(from);
   }
 
   private startAudioClip(track: ArrangeTrack, clip: TimelineClip, when: number, offsetIntoClipSec: number): void {

@@ -4,11 +4,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGrooveDoc, type ArrangeTrack, type GrooveDoc, type TimelineClip, type TrackAutomationLane } from '../services/melos/beats/grooveDoc';
 import { contentPosAt, contentWindows, noteOccurrences } from '../services/melos/beats/clipContent';
-import { consolidateClip, copyClips, glueWithNext, pasteClips, setClipLoop, slipClip, splitClipAt, trimClipStart } from '../services/melos/beats/clipEdit';
+import { retimeAudioClips, audioLengthBeats, consolidateClip, copyClips, glueWithNext, pasteClips, setClipLoop, slipClip, splitClipAt, trimClipStart } from '../services/melos/beats/clipEdit';
 import { quantizeNotes, transposeNotes, fitNotesToScale, copyNotes, pasteNotes, notesInRect } from '../services/melos/beats/noteEdit';
 import { clipLaneToSong, effectiveLanes, laneRamps, laneValueAt, sustainedEnd, writeLane } from '../services/melos/beats/automation';
 import { exportClipMidi, exportProjectMidi } from '../services/melos/beats/midiExport';
 import { parseMidiFile } from '../services/melos/composition/midiFileImport';
+import { TempoMap } from '../services/melos/beats/tempoMap';
 
 const near = (a: number, b: number, eps = 1e-6) => assert.ok(Math.abs(a - b) < eps, `${a} ≉ ${b}`);
 const n = (id: string, start: number, len = 0.5, key = 60, vel = 100) => ({ id, startBeats: start, lengthBeats: len, key, vel });
@@ -162,4 +163,28 @@ test('MIDI export round-trips through the importer (slip + loop baked in)', () =
   assert.equal(String.fromCharCode(...proj.slice(0, 4)), 'MThd');
   const parsedProj = parseMidiFile(proj.buffer.slice(proj.byteOffset, proj.byteOffset + proj.byteLength) as ArrayBuffer);
   assert.ok(parsedProj.notes.length >= 8);
+});
+
+test('tempo edit: audio clips keep their real seconds (clip box, playhead and sound stay locked)', () => {
+  const doc = newGrooveDoc('u');
+  doc.bpm = 120; doc.tempoMap = [];
+  const dur = 180; // a 3-minute song imported at the default 120
+  const len = audioLengthBeats(doc, 0, dur);
+  near(len, 360);
+  const clip: TimelineClip = { id: 'a', startBeats: 0, lengthBeats: len, audio: { sampleKey: 'k', name: 's', offsetSec: 0, gainDb: 0, durationSec: dur } };
+  const late: TimelineClip = { id: 'b', startBeats: 8, lengthBeats: 4, audio: { sampleKey: 'k2', name: 's2', offsetSec: 0, gainDb: 0, durationSec: 2 } };
+  doc.arrangement.push({ id: 't', kind: 'audio', name: 'Song', color: '#fff', mute: false, solo: false, gainDb: 0, pan: 0, clips: [clip, late] });
+  const before = TempoMap.fromDoc(doc);
+  doc.bpm = 60; // user matches the song's real tempo
+  assert.equal(retimeAudioClips(doc, before), 2);
+  near(clip.lengthBeats, 180); // 180 s at 60 BPM — the playhead reaches the clip end as the audio ends
+  near(late.lengthBeats, 2);
+  near(late.startBeats, 8);    // starts stay on their beat
+  near(TempoMap.fromDoc(doc).secBetween(0, clip.lengthBeats), dur);
+  // with a tempo ramp the seconds are still preserved
+  const b2 = TempoMap.fromDoc(doc);
+  doc.tempoMap = [{ beat: 40, bpm: 140, ramp: true }, { beat: 120, bpm: 90 }];
+  retimeAudioClips(doc, b2);
+  near(TempoMap.fromDoc(doc).secBetween(0, clip.lengthBeats), dur, 1e-6);
+  assert.equal(retimeAudioClips(doc, TempoMap.fromDoc(doc)), 0);
 });

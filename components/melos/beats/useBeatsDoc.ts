@@ -22,6 +22,8 @@ import {
 import { hydrateSample, requestPersistentStorage } from '../../../services/melos/beats/sampleStore';
 import { GUEST_PROD, LOCAL_PROD, delLocal, getLocal, listLocal, markSynced, pickNewer, putLocal, type LocalEntry } from '../../../services/melos/beats/localDocCache';
 import { reconcileInPlace } from '../../../services/melos/beats/reconcileInPlace';
+import { TempoMap } from '../../../services/melos/beats/tempoMap';
+import { retimeAudioClips } from '../../../services/melos/beats/clipEdit';
 import { cloudProjectId, scheduleCreativeSync } from '../../../services/creativeCloud/cloudStore';
 import { ContribTracker } from '../../../services/chora/contrib/client';
 
@@ -224,7 +226,11 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
       historyRef.current.future = [];
       g.snapped = g.active;
     }
+    const tempoBefore = TempoMap.fromDoc(d);
     fn(d);
+    // Any tempo edit (BPM field, tap, tempo lane, import prompt): audio clips keep their real
+    // length so the playhead, clip boxes and the sound stay locked together.
+    retimeAudioClips(d, tempoBefore);
     d.updatedAt = Date.now();
     BeatsEngine.get().applyDocPatch({}); // re-apply node params (gains, routing, mutes)
     contrib?.touched();

@@ -371,6 +371,36 @@ export class StepScheduler {
     }
   }
 
+  /**
+   * The tempo changed under a running song: audio clip sources were started against the old map,
+   * so they're stopped by the engine and restarted here at `fromBeats` (on the new map) — sounding
+   * clips resume mid-buffer at the right offset, and clips whose start the scheduler already passed
+   * in its lookahead are re-queued at their new time. Pattern/instrument steps need nothing: they
+   * read the re-anchored map step by step.
+   */
+  resyncAudio(fromBeats: number) {
+    if (!this.running || this.mode !== 'song') return;
+    const d = this.deps;
+    const doc = d.doc();
+    const scheduledTo = this.nextStep * STEP_BEATS;
+    this.startedAudioClips.clear();
+    const anySolo = doc.arrangement.some((t) => t.solo);
+    for (const track of doc.arrangement) {
+      if (track.kind !== 'audio' || track.mute || (anySolo && !track.solo)) continue;
+      for (const clip of track.clips) {
+        if (!clip.audio) continue;
+        const end = clip.startBeats + clip.lengthBeats;
+        if (fromBeats > clip.startBeats + 1e-9 && fromBeats < end) {
+          this.startedAudioClips.add(clip.id);
+          d.startAudioClip(track, clip, d.toTime(fromBeats), d.secBetween(clip.startBeats, fromBeats));
+        } else if (clip.startBeats >= fromBeats - 1e-9 && clip.startBeats < scheduledTo - 1e-9) {
+          this.startedAudioClips.add(clip.id);
+          d.startAudioClip(track, clip, d.toTime(clip.startBeats), 0);
+        }
+      }
+    }
+  }
+
   /** Transport started mid-song: audio clips already sounding start immediately, mid-buffer. */
   private startMidClips(fromBeats: number) {
     const d = this.deps;

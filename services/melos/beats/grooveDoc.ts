@@ -424,6 +424,8 @@ export interface TimelineClip {
             loop?: { startSec: number; lengthSec: number };
             /** Downsampled channel peak envelope used by every timeline renderer. */
             peaks?: number[]; detectedBpm?: number;
+            /** The recording's tempo as the user confirmed it (beats the detector's guess). */
+            sourceBpm?: number;
             /** Optional generative model provenance for ACE-Step 2.5 / YuE2 / HeartMuLa stems */
             generativeEngine?: string;
             stemPrompt?: string;
@@ -558,7 +560,11 @@ export interface MixerState {
   // master.eq is a serialized SpectraState (EQ + dynamics on the mix bus); master.mastering is a
   // serialized MasteringState (the Pressing — era engine + width + drive, fx/mastering.ts). Both
   // loosely typed so grooveDoc stays engine-agnostic, like instrument.patch / instrument.kera.
-  master: { gainDb: number; limiterOn: boolean; eq?: Record<string, unknown>; mastering?: Record<string, unknown> };
+  master: { gainDb: number; limiterOn: boolean; eq?: Record<string, unknown>; mastering?: Record<string, unknown>;
+    /** The loudness Auto-level aims for (LUFS integrated) — set by the master preset. */
+    targetLufs?: number;
+    /** Which master preset (Mixer master column) this chain started from. */
+    preset?: string };
 }
 
 /** The default two send buses — created lazily so old docs upgrade cleanly. */

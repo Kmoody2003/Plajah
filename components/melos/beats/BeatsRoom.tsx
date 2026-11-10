@@ -3,7 +3,7 @@
 // one groove document; the engine is a singleton the views never own.
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Plus, Sparkles, AlignStartVertical, FolderOpen, FilePlus2, Trash2, Download, Disc3 as Disc3Icon, Radio, Cable } from 'lucide-react';
+import { Plus, Sparkles, AlignStartVertical, FolderOpen, FilePlus2, Trash2, Download, Disc3 as Disc3Icon, Radio, Cable, ChevronDown, ChevronRight } from 'lucide-react';
 import { auth } from '../../../services/firebase';
 import { BeatsEngine } from '../../../services/melos/beats/engine/BeatsEngine';
 import { MeterMap } from '../../../services/melos/beats/tempoMap';
@@ -132,11 +132,13 @@ interface BeatsRoomProps {
   takeTargetName?: string;
   /** Client-side discovery only. Generation remains protected by server-side admin checks. */
   musicLabAdmin?: boolean;
+  /** Under the Melos shell the album project is its own tab (Mastering Desk) — jump there. */
+  onOpenProject?: () => void;
 }
 
 const AVAILABLE_VIEWS: BeatsViewId[] = ['machine', 'glass', 'timeline', 'mixer'];
 
-const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, embedded, melosSamples, onRenderTake, takeTargetName, musicLabAdmin = false }) => {
+const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, embedded, melosSamples, onRenderTake, takeTargetName, musicLabAdmin = false, onOpenProject }) => {
   const {
     doc, rev, saveState, grooves, mutate, undo: localUndo, redo: localRedo, canUndo: localCanUndo, canRedo: localCanRedo,
     replace, applyRemote, getDoc, openShared, setGuestOf, saveNow, openGroove, newGroove, removeGroove,
@@ -172,6 +174,12 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const selectedPadRef = React.useRef(0);
   useEffect(() => { selectedPadRef.current = selectedPad; }, [selectedPad]);
   const [playMode, setPlayMode] = useState<'pattern' | 'song'>('pattern');
+  // Timeline: the pattern tools fold away (pattern mode is MEKA/Glass's). Remembered per device.
+  const [patternToolsOpen, setPatternToolsOpen] = useState(() => { try { return localStorage.getItem('chora:timeline:patternTools') === '1'; } catch { return false; } });
+  useEffect(() => { try { localStorage.setItem('chora:timeline:patternTools', patternToolsOpen ? '1' : '0'); } catch { /* private mode */ } }, [patternToolsOpen]);
+  // The tempo-track lane: its switch lives in the transport beside BPM; the Timeline draws it.
+  const [showTempoLane, setShowTempoLane] = useState(() => { try { return localStorage.getItem('melos:timeline:tempo') === '1'; } catch { return false; } });
+  const toggleTempoLane = useCallback(() => setShowTempoLane((v) => { const n = !v; try { localStorage.setItem('melos:timeline:tempo', n ? '1' : '0'); } catch { /* private mode */ } return n; }), []);
   // Touch / Latch / Write: mixer moves during song playback become automation (useAutomationRecorder).
   useAutomationRecorder(doc, snap.running, playMode, mutate);
   // Song/arrangement play position — the timeline playhead. Defaults to the very start so Play in the
@@ -473,6 +481,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   }, [doc, replace, flash]);
 
   const pattern = doc.patterns.find((p) => p.id === activePatternId) || doc.patterns[0];
+  const patternTools = view !== 'timeline' || patternToolsOpen;
 
   const handlePlay = useCallback(() => {
     const engine = BeatsEngine.get();
@@ -1304,25 +1313,31 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         preRollBars={preRollBars}
         onCyclePreRoll={() => setPreRollBars((v) => (v + 1) % 3)}
         menuSlot={shellMenuBar ? undefined : <MenuBar menus={menus} />}
+        showTempo={showTempoLane}
+        onToggleTempo={() => { if (view !== 'timeline') setView('timeline'); toggleTempoLane(); }}
+        onOpenProject={onOpenProject ?? (() => setView('project'))}
+        recordSlot={(
+          <button onClick={() => setShowInputs((v) => !v)} title="Hardware inputs — record a console or interface, many tracks at once"
+            className={`h-7 px-2 rounded-lg text-[11px] flex items-center gap-1 shrink-0 whitespace-nowrap transition-colors ${showInputs ? 'text-[#FF4D4D] bg-[#FF4D4D]/10' : 'text-white/50 hover:text-white'}`}>
+            <Cable size={12} /> Inputs
+          </button>
+        )}
+        shareSlot={(
+          <>
+            {co.isShared && view !== 'project' && <VersionChip co={co} flash={flash} />}
+            {co.isShared && (
+              <button onClick={() => setShowJam((v) => !v)} title="Live jam — play, record and bring your rig"
+                className={`h-7 px-2 rounded-lg text-[11px] flex items-center gap-1 shrink-0 whitespace-nowrap ${showJam || jam.joined ? 'text-[#FF4D8D] bg-[#FF4D8D]/10' : 'text-white/60 hover:text-white'}`}>
+                <Radio size={12} /> {jam.joined ? `Jam · ${jam.peers.length + 1}` : 'Jam'}
+                {Object.keys(jam.ghosts).length > 0 && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
+              </button>
+            )}
+            {grooveDock(transportRowRef, view === 'project' ? 'none' : 'inline')}
+          </>
+        )}
         hideClose={embedded}
         onClose={onClose}
       />
-      </div>
-      {/* The album project has its own collaborators/dock (ProjectView); this one is the groove's. */}
-      <div className="flex items-center px-2 h-14 border-b border-white/10 bg-white/[0.04] shrink-0">
-        {co.isShared && view !== 'project' && <VersionChip co={co} flash={flash} />}
-        {co.isShared && (
-          <button onClick={() => setShowJam((v) => !v)} title="Live jam — play, record and bring your rig"
-            className={`mx-1.5 h-7 px-2.5 rounded-full border text-[11px] flex items-center gap-1.5 shrink-0 ${showJam || jam.joined ? 'border-[#FF4D8D]/50 text-[#FF4D8D] bg-[#FF4D8D]/10' : 'border-white/15 text-white/70 hover:bg-white/10'}`}>
-            <Radio size={12} /> {jam.joined ? `Jam · ${jam.peers.length + 1}` : 'Jam'}
-            {Object.keys(jam.ghosts).length > 0 && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
-          </button>
-        )}
-        <button onClick={() => setShowInputs((v) => !v)} title="Hardware inputs — record a console or interface, many tracks at once"
-          className={`mx-1.5 h-7 px-2.5 rounded-full border text-[11px] flex items-center gap-1.5 shrink-0 ${showInputs ? 'border-[#FF4D4D]/50 text-[#FF4D4D] bg-[#FF4D4D]/10' : 'border-white/15 text-white/70 hover:bg-white/10'}`}>
-          <Cable size={12} /> Inputs
-        </button>
-        {grooveDock(transportRowRef, view === 'project' ? 'none' : 'inline')}
       </div>
       </div>
 
@@ -1455,7 +1470,15 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           )}
         </div>
         <div className="w-px h-4 bg-white/10 mx-1 shrink-0" />
-        <span className="text-[9px] uppercase tracking-[0.18em] text-white/25 font-semibold mr-1 shrink-0 whitespace-nowrap" title="Patterns of the Group you're working in (select a pad in another Group to switch)">Patterns · {groupLetter(currentGroup)}</span>
+        {/* Pattern mode belongs to MEKA and Glass. On the Timeline it folds away behind one chip. */}
+        {view === 'timeline' && (
+          <button onClick={() => setPatternToolsOpen((v) => !v)} aria-expanded={patternToolsOpen}
+            title={patternToolsOpen ? 'Hide the pattern tools' : 'Show the pattern tools (patterns, genres, fills)'}
+            className={`h-6 px-2 rounded-lg text-[9px] uppercase tracking-[0.16em] font-semibold flex items-center gap-1 shrink-0 whitespace-nowrap border ${patternToolsOpen ? 'border-white/20 text-white/70' : 'border-white/10 text-white/35 hover:text-white'}`}
+          >{patternToolsOpen ? <ChevronDown size={10} /> : <ChevronRight size={10} />} Patterns</button>
+        )}
+        {patternTools && <>
+        <span className="text-[9px] uppercase tracking-[0.18em] text-white/25 font-semibold mr-1 shrink-0 whitespace-nowrap" title="Patterns of the Group you're working in (select a pad in another Group to switch)">{view === 'timeline' ? '' : 'Patterns · '}{groupLetter(currentGroup)}</span>
         {patternMenu.node}
         <div className="flex items-center gap-1 min-w-[120px] flex-1 overflow-x-auto py-0.5" style={{ scrollbarWidth: 'none' }}>
           {doc.patterns.map((p, pIdx) => patternGroup(p) !== currentGroup ? null : (
@@ -1479,7 +1502,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
             <Plus size={11} />
           </button>
         </div>
+        </>}
         <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+          {patternTools && <>
           <div className="relative shrink-0">
             <button onClick={() => setShowGenres(v => !v)} title="Load a ready-made genre drum pattern"
               className="h-6 px-2.5 rounded-lg text-[10px] border border-[#00DAF3]/35 text-[#00DAF3] hover:bg-[#00DAF3]/10 flex items-center gap-1 shrink-0 whitespace-nowrap">
@@ -1542,6 +1567,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
               </>
             )}
           </div>
+          </>}
           <button onClick={() => setUlOpen((v) => !v)} title="Universal Library — grooves, basslines and your assets — docks on the right"
             className={`h-6 px-2.5 rounded-lg text-[10px] border flex items-center gap-1 shrink-0 whitespace-nowrap ${ulOpen ? 'border-[#8B5CFF]/70 text-white bg-[#8B5CFF]/15' : 'border-[#8B5CFF]/40 text-[#D0BCFF] hover:bg-[#8B5CFF]/12'}`}>▦ Library</button>
           <button onClick={() => setShowBreakdownImport(true)} title="Score from Chora — turn a song's Breakdown into instrument tracks"
@@ -1636,8 +1662,10 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
               </>
             )}
           </div>
-          {musicEngines && <button data-testid="music-lab-generate" onClick={() => setShowGeneration(value => !value)} title="Generate audio, MIDI notes or a sample (private music lab)"
+          {/* On the Timeline the generator side panel opens from the Create bar's Details. */}
+          {musicEngines && view !== 'timeline' && <button data-testid="music-lab-generate" onClick={() => setShowGeneration(value => !value)} title="Generate audio, MIDI notes or a sample (private music lab)"
             className={`h-6 px-2.5 rounded-lg text-[10px] border text-[#D0BCFF] flex items-center gap-1 shrink-0 whitespace-nowrap ${showGeneration ? 'border-[#D0BCFF] bg-[#8B5CFF]/20' : 'border-[#D0BCFF]/40 hover:bg-[#8B5CFF]/10'}`}><Sparkles size={10} /> AI Generate</button>}
+          {patternTools && <>
           <button
             onClick={() => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) autoFill(d, p, 4); }); }}
             title="Auto fill — write a snare-roll fill into the last bar of this pattern"
@@ -1648,6 +1676,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
             title="Quantize — snap all micro-timing in this pattern back to the grid"
             className="h-6 px-2.5 rounded-lg text-[10px] border border-white/15 text-white/50 hover:text-white hover:bg-white/10 flex items-center gap-1 shrink-0 whitespace-nowrap"
           ><AlignStartVertical size={10} /> Quantize</button>
+          </>}
           <span className="text-[9px] text-white/20 ml-1 hidden 2xl:inline shrink-0 whitespace-nowrap">{busy === 'transcribe' ? 'Listening…' : 'drop a loop here to transcribe'}</span>
         </div>
       </div>
@@ -1656,6 +1685,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       {view === 'timeline' && pattern && (
         <TimelineView
           doc={doc}
+          showTempo={showTempoLane}
+          onOpenGenerator={musicEngines ? () => setShowGeneration((v) => !v) : undefined}
           activePattern={pattern}
           beats={snap.beats}
           running={snap.running}

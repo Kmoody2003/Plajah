@@ -6,9 +6,9 @@
 // right-edge grip = trim (beat snap) · click = select · Delete = remove · drop audio = clip.
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Music2, AudioWaveform, Piano, Circle, MousePointer2, Pencil, Scissors, Combine, Eraser, Scan, LocateFixed, FolderPlus, Sparkles, Layers, Loader2, Users } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Music2, AudioWaveform, Piano, Circle, MousePointer2, Pencil, Scissors, Combine, Eraser, Scan, LocateFixed, FolderPlus, Sparkles, Layers, Loader2, Users, PanelRight, LayoutGrid, Rows3, Magnet, ZoomIn, ZoomOut } from 'lucide-react';
 import { unzipSync } from 'fflate';
-import type { GrooveDoc, Pattern, TimelineClip, InstrumentType } from '../../../../services/melos/beats/grooveDoc';
+import type { GrooveDoc, Pattern, TimelineClip, InstrumentType, ArrangeTrack } from '../../../../services/melos/beats/grooveDoc';
 import { grooveUid } from '../../../../services/melos/beats/grooveDoc';
 import { sendInstrumentTrackToPad, addInstrument } from '../../../../services/melos/beats/instrumentFactory';
 import { runHolisticEnsemblePipeline } from '../../../../services/melos/generation/holisticEnsemblePipeline';
@@ -22,6 +22,7 @@ import { useContextMenu, type MenuNode } from '../../../ui/ContextMenu';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { ingestSample, backupToLocker } from '../../../../services/melos/beats/sampleStore';
 import { MixerPanel } from '../shared/MixerPanel';
+import { useStudioPrefs, setStudioPref } from '../shared/studioPrefs';
 import { PianoRoll } from './PianoRoll';
 import { TimelineEditPanel } from './TimelineEditPanel';
 import { InstrumentPanel } from '../instrument/InstrumentPanel';
@@ -260,6 +261,10 @@ interface TimelineViewProps {
   onOpenInstrument?: (id: string) => void;
   /** Room-owned: open the instrument picker (choose ONDA/KERA/…). */
   onAddInstrument?: (dest: 'meka' | 'track') => void;
+  /** Tempo-track lane — switched from the transport, beside BPM. */
+  showTempo?: boolean;
+  /** Open the full generator side panel (engines, lyrics, kinds). */
+  onOpenGenerator?: () => void;
 }
 
 export const TimelineView: React.FC<TimelineViewProps> = (p) => {
@@ -288,7 +293,10 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const colorInputRef = useRef<HTMLInputElement>(null);
   const colorTargetRef = useRef<{ trackId: string; clipId: string } | null>(null);
   const [showMixer, setShowMixer] = useState(true);
-  const [showPads, setShowPads] = useState(true);
+  // MEKA fold is shared with the Mixer (fold it there, it folds here).
+  const studioPrefs = useStudioPrefs();
+  const showPads = studioPrefs.meka === 'open';
+  const setShowPads = (fn: (v: boolean) => boolean) => setStudioPref('meka', fn(showPads) ? 'open' : 'folded');
   const [followPlayhead, setFollowPlayhead] = useState(() => localStorage.getItem('melos:timeline:follow') !== '0');
   const [ingest, setIngest] = useState<{ done: number; total: number; name: string } | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -358,7 +366,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const { tempo, meter } = songTime(p.doc);
   const [grid, setGridState] = useState<GridSettings>(loadGrid);
   const setGrid = (g: GridSettings) => { setGridState(g); try { localStorage.setItem(GRID_KEY, JSON.stringify(g)); } catch { /* */ } };
-  const [showTempo, setShowTempo] = useState(() => localStorage.getItem('melos:timeline:tempo') === '1' || !!p.doc.tempoMap?.length);
+  const showTempo = !!p.showTempo;
   /** Snap a beat to the grid; Shift or Alt held during the gesture bypasses it. */
   const snapAt = (beat: number, e?: { shiftKey?: boolean; altKey?: boolean }, how?: 'nearest' | 'floor' | 'ceil') =>
     snapBeat(beat, grid, meter, pxPerBeat, { bypass: !!(e?.shiftKey || e?.altKey), how });
@@ -549,6 +557,14 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     });
   };
   // "Add instrument" destination chooser (anchored, in-view via the shared menu primitive).
+  const addTrackMenu = useContextMenu<null>(() => [
+    { kind: 'header', label: 'Add track' },
+    { id: 'audio', label: 'Audio track', onSelect: () => addTrack('audio') },
+    { id: 'inst-track', label: 'Instrument track (MIDI)…', onSelect: () => p.onAddInstrument?.('track') },
+    { id: 'inst-meka', label: 'Instrument as MEKA pad…', onSelect: () => p.onAddInstrument?.('meka') },
+    { id: 'pattern', label: 'Pattern track', onSelect: () => addTrack('pattern') },
+    { id: 'folder', label: 'Folder', onSelect: () => p.onMutate((d) => d.arrangement.push({ id: grooveUid(), kind: 'pattern', isFolder: true, collapsed: false, name: 'Track Folder', color: '#8B8194', mute: false, solo: false, gainDb: 0, pan: 0, clips: [] })) },
+  ]);
   const instrumentAddMenu = useContextMenu<null>(() => [
     { kind: 'header', label: 'Add instrument as…' },
     { id: 'meka', label: 'MEKA pad', onSelect: () => p.onAddInstrument?.('meka') },
@@ -764,9 +780,14 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
       if (lockerUrl) p.onMutate((d) => { for (const t of d.arrangement) for (const c of t.clips) if (c.audio?.sampleKey === m.key) c.audio.lockerUrl = lockerUrl; });
     });
     const tempos = made.map((m) => m.bpm).filter((x): x is number => x !== null);
-    if (made.length > 1 && tempos.length === made.length && Math.max(...tempos) - Math.min(...tempos) <= 1) {
+    if (tempos.length === made.length && Math.max(...tempos) - Math.min(...tempos) <= 1) {
       const tempo = Math.round(tempos.reduce((a, b) => a + b, 0) / tempos.length);
-      if (window.confirm(`All ${made.length} stems appear to be ${tempo} BPM. Set the production master tempo to ${tempo} BPM?`)) p.onMutate((d) => { d.bpm = tempo; });
+      // Clips are real-time, so accepting re-derives their lengths in beats (useBeatsDoc) — the
+      // grid and playhead line up with the recording; nothing is stretched.
+      const what = made.length > 1 ? `All ${made.length} stems appear` : `"${made[0].name}" appears`;
+      if (Math.abs(tempo - (p.doc.bpm || 120)) >= 1 && window.confirm(`${what} to be ${tempo} BPM. Set the song tempo to ${tempo} BPM so the grid lines up?
+
+(Fix it later from the clip's Tempo row if the guess is half/double time.)`)) p.onMutate((d) => { d.bpm = tempo; });
     }
     window.setTimeout(() => setIngest(null), 500);
   }, [p.onMutate, p.doc.bpm]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -831,6 +852,14 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const [partInstrument, setPartInstrument] = useState<InstrumentType>('onda');
   const [regionGenerating, setRegionGenerating] = useState(false);
   const [regionStatus, setRegionStatus] = useState('');
+  const [createOpen, setCreateOpen] = useState(() => { try { return localStorage.getItem('chora:timeline:createOpen') !== '0'; } catch { return true; } });
+  useEffect(() => { try { localStorage.setItem('chora:timeline:createOpen', createOpen ? '1' : '0'); } catch { /* private mode */ } }, [createOpen]);
+  // Assistants (hum, chords, describe) write into the selected instrument track, else the first.
+  const assistTrack = (() => {
+    const ok = (t?: ArrangeTrack) => !!t && t.kind === 'instrument' && !t.foreign;
+    const sel = p.doc.arrangement.find((t) => t.id === selectedTrack);
+    return ok(sel) ? sel!.id : p.doc.arrangement.find((t) => ok(t))?.id ?? null;
+  })();
   const wholeGeneration = regionGenMode === 'holistic' || regionGenMode === 'full_song';
   const generationBeats = wholeGeneration ? Math.max(meter.barToBeat(32), loop.endBeats - loop.startBeats)
     : loop.endBeats - loop.startBeats;
@@ -1053,6 +1082,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
       {gridMenu.node}
       {rulerMenu.node}
       {instrumentAddMenu.node}
+      {addTrackMenu.node}
       {progBrowserTrack && (
         <ProgressionBrowser
           target={p.doc.arrangement.find((t) => t.id === progBrowserTrack)?.name}
@@ -1204,89 +1234,104 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
         </div>
       )}
       <div className={`${glassPanel} flex-1 min-h-0 overflow-hidden flex flex-col`}>
-        {/* Inline Timeline Region Generator Bar (Defaults to Stems in Timeline DAW workflow) */}
-        <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-white/10 bg-[#120C1C]/95 text-[11px]">
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#00DAF3]/10 border border-[#00DAF3]/35 text-[#00DAF3] font-mono text-[10px] shrink-0" title="Drag the cyan region handles on the bar ruler below or click a bar preset">
-            <Layers size={12} />
-            {wholeGeneration ? <span>Project: {Math.round(barsBetween(p.doc, 0, generationBeats))} bars · {tempo.secBetween(0, generationBeats).toFixed(1)}s</span> : <span>
-              Region: Bar {meter.at(loop.startBeats).bar + 1}–{Math.round(meter.beatToBar(loop.endBeats))} ({Math.max(1, Math.round(barsBetween(p.doc, loop.startBeats, loop.endBeats)))} bars · {tempo.secBetween(loop.startBeats, loop.endBeats).toFixed(1)}s)
-            </span>}
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            {[4, 8, 16, 32, 64].map((bCount) => {
-              const activeBars = Math.round(barsBetween(p.doc, loop.startBeats, loop.endBeats));
-              return (
-                <button
-                  key={bCount}
-                  onClick={() => setRegionBarsSpan(bCount)}
-                  className={`px-1.5 py-0.5 rounded text-[9.5px] font-mono border transition-colors ${
-                    activeBars === bCount
-                      ? 'bg-[#00DAF3]/20 border-[#00DAF3] text-[#00DAF3] font-bold'
-                      : 'bg-white/[0.04] border-white/10 text-white/50 hover:text-white'
-                  }`}
-                  title={`Set selected region length to ${bCount} bars`}
-                >
-                  {bCount}b
-                </button>
-              );
-            })}
-          </div>
-          <button
-            onClick={() => setBandOpen((o) => !o)}
-            aria-pressed={bandOpen}
-            title="Session Band — thirteen session players who play your song live, take direction, and teach"
-            className={`h-7 px-2.5 rounded-lg border text-[10.5px] font-bold flex items-center gap-1.5 shrink-0 ${bandOpen ? 'bg-[#8B5CFF] border-[#8B5CFF] text-white' : 'border-white/15 bg-black/30 text-white/70 hover:text-white'}`}
-          >
-            <Users size={12} /> Session Band
-          </button>
-          <div className="flex flex-wrap rounded-lg border border-white/15 bg-black/30 p-0.5 max-w-full" role="group" aria-label="Timeline generation mode">
-            {([
-              ['council', 'Council · Notation'],
-              ['stems', 'Timeline Part · Audio'],
-              ['idea', 'Timeline Part · MIDI'],
-              ['holistic', 'Full DAW Project'],
-              ['full_song', 'Music Track'],
-            ] as const).map(([modeId, label]) => (
-              <button
-                key={modeId}
-                disabled={regionGenerating}
-                aria-pressed={regionGenMode === modeId}
-                onClick={() => setRegionGenMode(modeId)}
-                className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-colors ${
-                  regionGenMode === modeId
-                    ? 'bg-[#8B5CFF] text-white shadow-sm'
-                    : 'text-white/55 hover:text-white'
-                }`}
-              >
-                {label}
+        {/* ── CREATE: the prompt-first generator, above the timeline. Prompt → mode → region →
+            assistants. Collapses to the prompt row; the Details button opens the full generator
+            side panel (engines, lyrics, kinds). ── */}
+        <div className="flex flex-col gap-1.5 px-3 py-2 border-b border-white/10 bg-[#120C1C]/95 text-[11px]">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#8B5CFF] shrink-0"><Sparkles size={12} /> Create</span>
+            <input
+              type="text"
+              value={regionPrompt}
+              maxLength={4000}
+              onChange={(e) => setRegionPrompt(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') void generateInTimelineRegion(); }}
+              placeholder={regionGenMode === 'council' ? 'How should this passage feel? The council reads every track and the lyrics…' : 'Describe your part, full DAW arrangement, or music track…'}
+              aria-label="Generation prompt"
+              className="flex-1 min-w-[180px] h-8 rounded-lg border border-white/15 bg-[#171020] px-3 text-[12px] text-white placeholder:text-white/35 outline-none focus:border-[#00DAF3]/70"
+            />
+            <button
+              onClick={() => void generateInTimelineRegion()}
+              disabled={regionGenerating}
+              className="h-8 px-3.5 rounded-lg bg-gradient-to-r from-[#8B5CFF] to-[#00DAF3] text-white text-[11px] font-bold tracking-wide flex items-center gap-1.5 disabled:opacity-50 shrink-0 shadow-[0_0_12px_rgba(139,92,255,0.35)]"
+            >
+              {regionGenerating ? <><Loader2 size={12} className="animate-spin" /> Generating…</> : regionGenMode === 'council' ? <><Sparkles size={12} /> Compose with the council</> : <><Sparkles size={12} /> Generate {regionGenMode === 'holistic' ? 'DAW Project' : regionGenMode === 'full_song' ? 'Music Track' : regionGenMode === 'idea' ? 'MIDI Part' : 'Audio Part'}</>}
+            </button>
+            {regionGenerating && <button onClick={() => regionOperation.current?.abort()}
+              className="h-8 px-2.5 rounded-lg border border-white/20 text-[11px] text-white shrink-0">Cancel</button>}
+            {p.onOpenGenerator && (
+              <button onClick={p.onOpenGenerator} title="Open the full generator panel — engines, lyrics, samples, MIDI" className="h-8 px-2.5 rounded-lg border border-[#D0BCFF]/40 text-[#D0BCFF] hover:bg-[#8B5CFF]/10 text-[11px] flex items-center gap-1 shrink-0 whitespace-nowrap">
+                <PanelRight size={12} /> Details
               </button>
-            ))}
+            )}
+            <button onClick={() => setCreateOpen((v) => !v)} aria-expanded={createOpen} title={createOpen ? 'Fold the Create bar to the prompt' : 'Show modes, region and assistants'}
+              className="w-7 h-8 grid place-items-center rounded-lg text-white/40 hover:text-white shrink-0">{createOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}</button>
           </div>
-          {regionGenMode === 'idea' && <select aria-label="MIDI part instrument" value={partInstrument}
-            onChange={e => setPartInstrument(e.target.value as InstrumentType)} disabled={regionGenerating}
-            className="h-7 rounded-lg bg-[#171020] text-xs text-white border border-white/15 px-2">
-            {(['onda', 'aura', 'soma', 'bajo', 'vela', 'cantus', 'ison', 'pneuma'] as const).map(id =>
-              <option key={id} value={id}>{id.toUpperCase()}</option>)}
-          </select>}
-          <input
-            type="text"
-            value={regionPrompt}
-            maxLength={4000}
-            onChange={(e) => setRegionPrompt(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') void generateInTimelineRegion(); }}
-            placeholder={regionGenMode === 'council' ? 'How should this passage feel? The council reads every track and the lyrics…' : 'Describe your part, full DAW arrangement, or music track…'}
-            className="flex-1 min-w-[200px] h-7 rounded-lg border border-white/15 bg-[#171020] px-2.5 text-[11px] text-white placeholder:text-white/35 outline-none focus:border-[#00DAF3]/70"
-          />
-          <button
-            onClick={() => void generateInTimelineRegion()}
-            disabled={regionGenerating}
-            className="h-7 px-3 rounded-lg bg-gradient-to-r from-[#8B5CFF] to-[#00DAF3] text-white text-[10.5px] font-bold tracking-wide flex items-center gap-1.5 disabled:opacity-50 shrink-0 shadow-[0_0_12px_rgba(139,92,255,0.35)]"
-          >
-            {regionGenerating ? <><Loader2 size={12} className="animate-spin" /> Generating…</> : regionGenMode === 'council' ? <><Sparkles size={12} /> Compose with the council</> : <><Sparkles size={12} /> Generate {regionGenMode === 'holistic' ? 'DAW Project' : regionGenMode === 'full_song' ? 'Music Track' : regionGenMode === 'idea' ? 'MIDI Part' : 'Audio Part'}</>}
-          </button>
-          {regionGenerating && <button onClick={() => regionOperation.current?.abort()}
-            className="h-7 px-2 rounded-lg border border-white/20 text-xs text-white">Cancel</button>}
-          {regionStatus && <span className="text-[10px] text-emerald-300 font-medium truncate max-w-[320px]">{regionStatus}</span>}
+          {createOpen && (
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap rounded-lg border border-white/15 bg-black/30 p-0.5" role="group" aria-label="Timeline generation mode">
+                {([
+                  ['council', 'Council · Notation'],
+                  ['stems', 'Part · Audio'],
+                  ['idea', 'Part · MIDI'],
+                  ['holistic', 'Full DAW Project'],
+                  ['full_song', 'Music Track'],
+                ] as const).map(([modeId, label]) => (
+                  <button
+                    key={modeId}
+                    disabled={regionGenerating}
+                    aria-pressed={regionGenMode === modeId}
+                    onClick={() => setRegionGenMode(modeId)}
+                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-colors ${regionGenMode === modeId ? 'bg-[#8B5CFF] text-white shadow-sm' : 'text-white/55 hover:text-white'}`}
+                  >{label}</button>
+                ))}
+              </div>
+              {regionGenMode === 'idea' && <select aria-label="MIDI part instrument" value={partInstrument}
+                onChange={e => setPartInstrument(e.target.value as InstrumentType)} disabled={regionGenerating}
+                className="h-7 rounded-lg bg-[#171020] text-[10.5px] text-white border border-white/15 px-2">
+                {(['onda', 'aura', 'soma', 'bajo', 'vela', 'cantus', 'ison', 'pneuma'] as const).map(id =>
+                  <option key={id} value={id}>{id.toUpperCase()}</option>)}
+              </select>}
+              <div className="flex items-center gap-1 rounded-lg border border-[#00DAF3]/30 bg-[#00DAF3]/[0.06] p-0.5 shrink-0" title="The cyan region on the ruler — drag its handles there, or pick a length here">
+                <span className="flex items-center gap-1 px-1.5 text-[#00DAF3] font-mono text-[10px]">
+                  <Layers size={11} />
+                  {wholeGeneration ? <>Whole song · {Math.round(barsBetween(p.doc, 0, generationBeats))} bars · {tempo.secBetween(0, generationBeats).toFixed(1)}s</> : <>
+                    Bar {meter.at(loop.startBeats).bar + 1}–{Math.round(meter.beatToBar(loop.endBeats))} · {Math.max(1, Math.round(barsBetween(p.doc, loop.startBeats, loop.endBeats)))} bars · {tempo.secBetween(loop.startBeats, loop.endBeats).toFixed(1)}s
+                  </>}
+                </span>
+                {!wholeGeneration && [4, 8, 16, 32, 64].map((bCount) => {
+                  const activeBars = Math.round(barsBetween(p.doc, loop.startBeats, loop.endBeats));
+                  return (
+                    <button key={bCount} onClick={() => setRegionBarsSpan(bCount)} title={`Set the region to ${bCount} bars`}
+                      className={`px-1.5 h-6 rounded-md text-[9.5px] font-mono transition-colors ${activeBars === bCount ? 'bg-[#00DAF3]/20 text-[#00DAF3] font-bold' : 'text-white/45 hover:text-white'}`}
+                    >{bCount}b</button>
+                  );
+                })}
+              </div>
+              {regionStatus && <span className="text-[10px] text-emerald-300 font-medium truncate max-w-[320px]">{regionStatus}</span>}
+              <span className="flex-1" />
+              {/* Assistants — the generative tools that used to hide in track right-click menus. They
+                  work on the selected instrument track (else the first one). */}
+              <span className="text-[9px] uppercase tracking-[0.16em] text-white/30 font-semibold shrink-0">Assist</span>
+              <div className="flex items-center gap-0.5 rounded-lg border border-white/12 bg-black/30 p-0.5 shrink-0">
+                {([
+                  ['hum', 'Hum a melody', () => assistTrack && setHumTrack(assistTrack)],
+                  ['chords', 'Chords', () => assistTrack && setProgBrowserTrack(assistTrack)],
+                  ['describe', 'Describe a part', () => assistTrack && setPromptTrack(assistTrack)],
+                ] as const).map(([id, label, run]) => (
+                  <button key={id} onClick={run} disabled={!assistTrack}
+                    title={assistTrack ? `${label} → ${p.doc.arrangement.find((t) => t.id === assistTrack)?.name ?? 'instrument track'}` : 'Add an instrument track first'}
+                    className="h-6 px-2 rounded-md text-[10px] text-white/65 hover:text-white hover:bg-white/10 disabled:opacity-35 whitespace-nowrap">{label}</button>
+                ))}
+                <button
+                  onClick={() => setBandOpen((o) => !o)}
+                  aria-pressed={bandOpen}
+                  title="Session Band — thirteen session players who play your song live, take direction, and teach"
+                  className={`h-6 px-2 rounded-md text-[10px] font-bold flex items-center gap-1 whitespace-nowrap ${bandOpen ? 'bg-[#8B5CFF] text-white' : 'text-[#B89CFF] hover:bg-white/10'}`}
+                ><Users size={11} /> Session Band</button>
+              </div>
+            </div>
+          )}
           {councilOpen && (
             <CouncilComposerPanel
               doc={p.doc}
@@ -1309,6 +1354,56 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
             />
           )}
         </div>
+        {/* ── TIMELINE STRIP — in working order: panels · edit tools + snap · lanes · view ── */}
+        <div className="flex items-center gap-3 px-3 h-9 border-b border-white/10 flex-none text-[10px] text-white/45 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex items-center gap-0.5 rounded-lg border border-white/10 bg-white/[0.04] p-0.5 shrink-0" title="Panels">
+            <button onClick={toggleLauncher} aria-pressed={showLauncher} title="Clip launcher — launch patterns and clips live, beside the arranger"
+              className="h-6 px-2 rounded-md flex items-center gap-1 transition-colors" style={showLauncher ? { color: PLAYHEAD, background: 'rgba(0,218,243,0.12)' } : undefined}
+            ><LayoutGrid size={11} /> Launcher</button>
+            <span className="h-6 px-2 rounded-md flex items-center gap-1 text-[#D0BCFF] bg-[#D0BCFF]/15" title="The arrangement timeline"><Rows3 size={11} /> Arranger</span>
+          </div>
+
+          {/* The tool set — Bitwig's grammar: 1 pointer · 2 pencil · 3 knife · 4 glue · 5 eraser — and
+              the snap grid beside it, since snap changes what every tool does. */}
+          <div className="flex items-center gap-0.5 rounded-lg border border-white/10 bg-white/[0.04] p-0.5 shrink-0">
+            {([
+              ['select', MousePointer2, 'Pointer — select, move, trim (1)'],
+              ['pencil', Pencil, 'Pencil — click a lane to paint a clip (2)'],
+              ['knife', Scissors, 'Knife — click a clip to split it (3)'],
+              ['glue', Combine, 'Glue — click a clip to join it with the next (4)'],
+              ['eraser', Eraser, 'Eraser — click a clip to delete it (5)'],
+            ] as const).map(([id, Icon, tip]) => (
+              <button key={id} onClick={() => setTool(id)} title={tip} aria-label={tip} aria-pressed={tool === id}
+                className="w-6 h-6 grid place-items-center rounded-md transition-colors"
+                style={tool === id ? { background: `${SELECT}30`, color: '#fff' } : { color: 'rgba(255,255,255,0.4)' }}
+              ><Icon size={12} /></button>
+            ))}
+            <span className="w-px h-4 bg-white/10 mx-0.5" />
+            <button onClick={(e) => gridMenu.openFrom(e.currentTarget, undefined)} className="h-6 px-2 rounded-md flex items-center gap-1 hover:text-white"
+              title="Snap grid — adaptive follows the zoom · hold Shift (or Alt) while dragging to place freely"
+            ><Magnet size={11} /> <b className="text-white/70 font-semibold">{gridLabel(grid, pxPerBeat, meter.at(0).lenBeats)}</b></button>
+          </div>
+
+          <div className="flex items-center gap-0.5 rounded-lg border border-white/10 bg-white/[0.04] p-0.5 shrink-0" title="Which lanes the timeline shows">
+            <button onClick={() => setShowPads((v) => !v)} aria-pressed={showPads} title="MEKA pad lanes — fold them into one row"
+              className="h-6 px-2 rounded-md transition-colors" style={showPads ? { color: '#D0BCFF', background: 'rgba(208,188,255,0.12)' } : undefined}
+            >MEKA lanes</button>
+          </div>
+
+          {clipSelection.selectedIds.length > 1 && (
+            <span className="font-semibold shrink-0" style={{ color: PLAYHEAD }}>{clipSelection.selectedIds.length} clips selected</span>
+          )}
+          <span className="flex-1" />
+
+          <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] p-0.5 shrink-0">
+            <button onClick={() => setPxPerBeat((z) => Math.max(1, z / 1.25))} className="w-6 h-6 grid place-items-center rounded-md hover:text-white" aria-label="Zoom out"><ZoomOut size={12} /></button>
+            <input type="range" min={1} max={48} step="0.5" value={pxPerBeat} onChange={(e) => setPxPerBeat(Number(e.target.value))} className="w-20 accent-[#D0BCFF]" aria-label="Zoom" />
+            <button onClick={() => setPxPerBeat((z) => Math.min(48, z * 1.25))} className="w-6 h-6 grid place-items-center rounded-md hover:text-white" aria-label="Zoom in"><ZoomIn size={12} /></button>
+            <button onClick={fitToView} className="h-6 px-2 rounded-md flex items-center gap-1 hover:text-white" title="Fit the complete production in view"><Scan size={12} /> Fit</button>
+            <button onClick={() => setFollowPlayhead((v) => { const next = !v; try { localStorage.setItem('melos:timeline:follow', next ? '1' : '0'); } catch { /* private mode */ } return next; })} aria-pressed={followPlayhead}
+              className="h-6 px-2 rounded-md flex items-center gap-1 hover:text-white" style={{ color: followPlayhead ? PLAYHEAD : undefined }} title="Automatically keep the playhead in view"><LocateFixed size={12} /> Follow</button>
+          </div>
+        </div>
         <div className="flex-1 min-h-0 flex">
         {showLauncher && (
           <ClipLauncher
@@ -1323,7 +1418,8 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
           <div style={{ width: headerW + contentW, minWidth: '100%' }}>
             {/* ruler */}
             <div className="sticky top-0 z-20 flex bg-[#100A18]/95 backdrop-blur border-b border-white/10" style={{ height: 26 }}>
-              <div className="sticky left-0 z-10 flex items-center px-3 text-[9px] uppercase tracking-[0.18em] text-white/30 font-semibold bg-[#100A18] relative" style={{ width: headerW, minWidth: headerW }}>Tracks
+              <div className="sticky left-0 z-10 flex items-center px-3 text-[9px] uppercase tracking-[0.18em] text-white/30 font-semibold bg-[#100A18] relative gap-2" style={{ width: headerW, minWidth: headerW }}>Tracks
+                <button onClick={(e) => addTrackMenu.openFrom(e.currentTarget, null)} title="Add a track — audio, instrument, pattern or folder" aria-label="Add track" className="h-5 px-1.5 rounded-md border border-[#D0BCFF]/40 text-[#D0BCFF] hover:bg-[#D0BCFF]/10 flex items-center gap-0.5 normal-case tracking-normal text-[10px]"><Plus size={10} /> Track</button>
                 <span
                   className="absolute right-0 inset-y-0 w-2 cursor-col-resize hover:bg-[#00DAF3]/25 touch-none"
                   title="Drag to resize track headers"
@@ -1893,60 +1989,23 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
         </div>
         </div>
 
+        {/* ── BOTTOM DOCK — the selection's detail (clip editor) and the docked mixer. ── */}
+        <div className="flex items-center gap-1 px-3 h-8 border-t border-white/10 flex-none text-[10px]">
+          {([
+            ['editor', 'Clip editor', showEditor, () => setShowEditor((v) => !v)],
+            ['mixer', 'Mixer', showMixer, () => setShowMixer((v) => !v)],
+          ] as const).map(([id, label, on, toggle]) => (
+            <button key={id} onClick={toggle} aria-pressed={on}
+              className="h-6 px-2.5 rounded-md flex items-center gap-1 transition-colors"
+              style={on ? { color: '#D0BCFF', background: 'rgba(208,188,255,0.15)' } : { color: 'rgba(255,255,255,0.45)' }}
+            >{on ? <ChevronDown size={11} /> : <ChevronUp size={11} />} {label}</button>
+          ))}
+          <span className="flex-1" />
+          <span className="text-white/25">{selRef ? 'editing the selected clip' : 'select a clip to edit it here'}</span>
+        </div>
+
         {/* Bitwig-style docked detail editor — devices / notes / audio for the selected clip. */}
         {showEditor && <TimelineEditPanel doc={p.doc} selected={selRef} onMutate={p.onMutate} height={editorH} onResize={setEditorH} />}
-
-        <div className="flex items-center gap-3 px-3 h-8 border-t border-white/10 flex-none text-[10px] text-white/35">
-          {/* The tool set — Bitwig's grammar: 1 pointer · 2 pencil · 3 knife · 4 glue · 5 eraser */}
-          <div className="flex gap-0.5 rounded-lg border border-white/10 bg-white/[0.04] p-0.5">
-            {([
-              ['select', MousePointer2, 'Pointer — select, move, trim (1)'],
-              ['pencil', Pencil, 'Pencil — click a lane to paint a clip (2)'],
-              ['knife', Scissors, 'Knife — click a clip to split it (3)'],
-              ['glue', Combine, 'Glue — click a clip to join it with the next (4)'],
-              ['eraser', Eraser, 'Eraser — click a clip to delete it (5)'],
-            ] as const).map(([id, Icon, tip]) => (
-              <button
-                key={id}
-                onClick={() => setTool(id)}
-                title={tip}
-                aria-label={tip}
-                className="w-6 h-6 grid place-items-center rounded-md transition-colors"
-                style={tool === id ? { background: `${SELECT}30`, color: '#fff' } : { color: 'rgba(255,255,255,0.4)' }}
-              ><Icon size={12} /></button>
-            ))}
-          </div>
-          {clipSelection.selectedIds.length > 1 && (
-            <span className="font-semibold" style={{ color: PLAYHEAD }}>{clipSelection.selectedIds.length} clips selected</span>
-          )}
-          <button
-            onClick={(e) => gridMenu.openFrom(e.currentTarget, undefined)}
-            className="flex items-center gap-1 hover:text-white"
-            title="Snap grid — adaptive follows the zoom · hold Shift (or Alt) while dragging to place freely"
-          >Grid: <b className="text-white/60">{gridLabel(grid, pxPerBeat, meter.at(0).lenBeats)}</b></button>
-          <button
-            onClick={() => setShowTempo((v) => { const next = !v; try { localStorage.setItem('melos:timeline:tempo', next ? '1' : '0'); } catch { /* */ } return next; })}
-            aria-pressed={showTempo}
-            className="flex items-center gap-1 hover:text-white"
-            style={{ color: showTempo ? '#FFD166' : 'rgba(255,255,255,0.45)' }}
-            title="Show the tempo track"
-          >Tempo</button>
-          <label className="flex items-center gap-1.5">Zoom
-            <input type="range" min={1} max={48} step="0.5" value={pxPerBeat} onChange={(e) => setPxPerBeat(Number(e.target.value))} className="w-28 accent-[#D0BCFF]" />
-          </label>
-          <button onClick={fitToView} className="flex items-center gap-1 hover:text-white" title="Fit the complete production in view"><Scan size={12} /> Fit</button>
-          <button onClick={() => setFollowPlayhead((v) => { const next = !v; try { localStorage.setItem('melos:timeline:follow', next ? '1' : '0'); } catch {} return next; })} aria-pressed={followPlayhead} className="flex items-center gap-1 hover:text-white" style={{ color: followPlayhead ? PLAYHEAD : 'rgba(255,255,255,0.45)' }} title="Automatically keep the playhead in view"><LocateFixed size={12} /> Follow</button>
-          <span className="flex-1" />
-          <button onClick={toggleLauncher} className="flex items-center gap-1 hover:text-white" style={{ color: showLauncher ? PLAYHEAD : 'rgba(255,255,255,0.45)' }}>
-            {showLauncher ? <ChevronDown size={11} /> : <ChevronUp size={11} />} Launcher
-          </button>
-          <button onClick={() => setShowEditor((v) => !v)} className="flex items-center gap-1 text-white/45 hover:text-white">
-            {showEditor ? <ChevronDown size={11} /> : <ChevronUp size={11} />} Editor
-          </button>
-          <button onClick={() => setShowMixer((v) => !v)} className="flex items-center gap-1 text-white/45 hover:text-white">
-            {showMixer ? <ChevronDown size={11} /> : <ChevronUp size={11} />} Mixer
-          </button>
-        </div>
       </div>
 
       {ingest && <div className="absolute left-1/2 top-20 -translate-x-1/2 z-50 w-[min(440px,86vw)] rounded-xl border border-white/15 bg-[#100A18]/95 backdrop-blur-xl p-3 shadow-2xl" role="status" aria-live="polite"><div className="flex justify-between text-[10px] text-white/70"><span className="truncate pr-4">Loading {ingest.name}</span><b>{ingest.done}/{ingest.total}</b></div><div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#00DAF3] transition-[width]" style={{ width: `${(ingest.done / Math.max(1, ingest.total)) * 100}%` }} /></div></div>}

@@ -7,31 +7,15 @@
 // pattern). No audio here — this is the surface; devices.ts is the sound.
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Power, Trash2, Plus, X } from 'lucide-react';
-import { DEVICES, deviceByType, newInstance, type FxInstance, type FxCategory, type FxDescriptor, type FxNode } from '../../../../services/melos/beats/fx/devices';
+import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Power, Trash2, Plus } from 'lucide-react';
+import { deviceByType, newInstance, type FxInstance, type FxNode } from '../../../../services/melos/beats/fx/devices';
+import { DeviceBrowser } from './DeviceBrowser';
 import { FxScope } from './FxScope';
 import { AmpRigEditor } from './AmpRigEditor';
 import { StutterGrid } from './StutterGrid';
 import { IrPicker } from './IrPicker';
 import { Knob } from '../shared/Knob';
 import { presetsForFx } from '../../../../services/melos/beats/fx/presets';
-
-const CAT_LABEL: Record<FxCategory, string> = {
-  eq: 'EQ', dynamics: 'Dynamics', saturation: 'Saturation', stereo: 'Stereo', space: 'Space', mod: 'Modulation', dj: 'DJ / Performance', repair: 'Repair', utility: 'Utility', amp: 'Amps & Rigs', airwindows: 'Airwindows',
-};
-const CAT_ORDER: FxCategory[] = ['amp', 'eq', 'dynamics', 'saturation', 'stereo', 'space', 'mod', 'dj', 'repair', 'utility', 'airwindows'];
-
-/** 500-odd Airwindows effects: their own categories as folds, Recommended first. */
-const awFolds = (devs: FxDescriptor[]): [string, FxDescriptor[]][] => {
-  const folds = new Map<string, FxDescriptor[]>();
-  const rec = devs.filter((d) => d.recommended);
-  if (rec.length) folds.set('Recommended', rec);
-  for (const d of [...devs].sort((a, b) => (a.subgroup ?? 'Other').localeCompare(b.subgroup ?? 'Other'))) {
-    const g = d.subgroup ?? 'Other';
-    folds.set(g, [...(folds.get(g) ?? []), d]);
-  }
-  return [...folds];
-};
 
 interface FxRackProps {
   instances: FxInstance[];
@@ -49,19 +33,21 @@ interface FxRackProps {
 }
 
 export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#D0BCFF', reductionOf, nodeOf, title, emptyHint, horizontal }) => {
-  const [adding, setAdding] = useState(false);
+  // null = browser closed; a number = the chain slot the device will be inserted at.
+  const [addAt, setAddAt] = useState<number | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
-  const [awFold, setAwFold] = useState<string | null>(null);
-  const q = query.trim().toLowerCase();
+  // Horizontal chains can fold a device to its header (Bitwig's collapsed device).
+  const [folded, setFolded] = useState<Set<string>>(new Set());
 
   const add = (type: string) => {
     const inst = newInstance(type);
     if (!inst) return;
-    onChange([...instances, inst]);
+    const at = addAt === null ? instances.length : Math.max(0, Math.min(instances.length, addAt));
+    const next = [...instances];
+    next.splice(at, 0, inst);
+    onChange(next);
     setOpenId(inst.id);
-    setAdding(false);
-    setQuery('');
+    setFolded((f) => { const n = new Set(f); n.delete(inst.id); return n; });
   };
   const patch = (id: string, fn: (i: FxInstance) => FxInstance) => onChange(instances.map((i) => (i.id === id ? fn(i) : i)));
   /** Merge several params at once — what a rig preset or a multi-control editor writes. */
@@ -79,65 +65,30 @@ export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        {title && <span className="text-[10px] font-extrabold tracking-[0.18em] uppercase text-white/35">{title}</span>}
-        <div className="relative ml-auto">
+      {(title || !horizontal) && (
+        <div className="flex items-center justify-between mb-2">
+          {title && <span className="text-[10px] font-extrabold tracking-[0.18em] uppercase text-white/35">{title}</span>}
           <button
-            onClick={() => setAdding((v) => !v)}
-            className="h-6 px-2.5 rounded-lg text-[10px] font-semibold border border-white/15 text-white/60 hover:text-white hover:bg-white/10 flex items-center gap-1"
-          ><Plus size={11} /> Add FX</button>
-          {adding && (
-            <div className="absolute right-0 top-7 z-30 w-64 max-h-[360px] overflow-auto rounded-[12px] border border-white/15 bg-[#12101a] shadow-2xl p-1.5">
-              <div className="flex items-center justify-between px-1.5 py-1">
-                <span className="text-[9px] font-extrabold uppercase tracking-[0.18em] text-white/30">Device Library</span>
-                <button onClick={() => setAdding(false)} className="text-white/30 hover:text-white"><X size={12} /></button>
-              </div>
-              <input
-                autoFocus
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search effects"
-                aria-label="Search effects"
-                className="w-full h-7 mb-1.5 px-2 rounded-lg bg-white/[0.06] border border-white/10 text-[11px] text-white placeholder:text-white/30 outline-none focus:border-white/30"
-              />
-              {CAT_ORDER.map((cat) => {
-                const devs = DEVICES.filter((d) => d.category === cat && (!q || d.label.toLowerCase().includes(q) || d.blurb.toLowerCase().includes(q) || !!d.subgroup?.toLowerCase().includes(q)));
-                if (!devs.length) return null;
-                return (
-                  <div key={cat} className="mb-1">
-                    <div className="px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-[0.16em]" style={{ color: devs[0].color }}>{CAT_LABEL[cat]}</div>
-                    {cat === 'airwindows' && !q && awFolds(devs).map(([name, members]) => (
-                      <button
-                        key={name}
-                        onClick={() => setAwFold(awFold === name ? null : name)}
-                        aria-expanded={awFold === name}
-                        className="w-full text-left px-2 py-1 rounded-lg hover:bg-white/[0.07] flex items-center justify-between text-[10.5px] font-semibold text-white/75"
-                      >
-                        {name}<span className="text-[9px] text-white/35">{members.length}</span>
-                      </button>
-                    ))}
-                    {(cat === 'airwindows' && !q ? awFolds(devs).find(([name]) => name === awFold)?.[1] ?? [] : devs).map((d) => (
-                      <button
-                        key={d.type}
-                        onClick={() => add(d.type)}
-                        className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/[0.07] flex flex-col"
-                      >
-                        <span className="text-[11px] font-bold text-white">{d.label}</span>
-                        <span className="text-[9px] text-white/40 truncate">{d.blurb}</span>
-                      </button>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+            onClick={() => setAddAt(instances.length)}
+            className="ml-auto h-6 px-2.5 rounded-lg text-[10px] font-semibold border border-white/15 text-white/60 hover:text-white hover:bg-white/10 flex items-center gap-1"
+          ><Plus size={11} /> Add device</button>
         </div>
-      </div>
+      )}
+      <DeviceBrowser
+        open={addAt !== null}
+        onClose={() => setAddAt(null)}
+        onPick={add}
+        context={addAt !== null ? `Insert at slot ${addAt + 1} of ${instances.length + 1}` : undefined}
+      />
 
       {instances.length === 0 && (
-        <div className="py-3 text-center text-[10.5px] text-white/25 border border-dashed border-white/10 rounded-[10px]">
+        <button
+          onClick={() => setAddAt(0)}
+          className="w-full py-5 text-center text-[11px] text-white/35 hover:text-white/80 border border-dashed border-white/15 hover:border-white/35 rounded-[10px] flex flex-col items-center gap-1 transition-colors"
+        >
+          <Plus size={16} />
           {emptyHint ?? 'No inserts — add EQ, dynamics, saturation, repair…'}
-        </div>
+        </button>
       )}
 
       <div className={horizontal ? 'flex flex-row gap-0 items-start overflow-x-auto pb-1' : 'flex flex-col gap-1.5'}>
@@ -147,23 +98,33 @@ export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#
           const presets = presetsForFx(inst.type);
           // A horizontal device row is the whole signal chain, not an accordion: every device
           // stays visible while another is edited (Bitwig-style left-to-right workflow).
-          const open = !!horizontal || openId === inst.id;
+          const open = horizontal ? !folded.has(inst.id) : openId === inst.id;
           const gr = reductionOf ? reductionOf(inst.id) : 0; // de-ess reports GR too, not just dynamics
           // In a horizontal chain, a wide card for the amp rack, standard otherwise; the signal
           // flows left-to-right with an arrow between devices.
           const cardW = horizontal ? (open ? (inst.type === 'amprig' ? 440 : 300) : 168) : undefined;
           return (
             <React.Fragment key={inst.id}>
-            {horizontal && i > 0 && <span className="self-center px-1 text-white/25 flex-none" style={{ color: `${accent}88` }}>▶</span>}
+            {horizontal && i > 0 && (
+              <button
+                onClick={() => setAddAt(i)}
+                className="group self-stretch w-5 flex-none flex items-center justify-center"
+                title="Insert a device here"
+                aria-label={`Insert a device before ${d.label}`}
+              >
+                <span className="group-hover:hidden text-[10px]" style={{ color: `${accent}88` }}>▶</span>
+                <span className="hidden group-hover:grid w-5 h-5 place-items-center rounded-full bg-white/15 text-white"><Plus size={11} /></span>
+              </button>
+            )}
             <div className={`rounded-[10px] border ${horizontal ? 'flex-none' : ''}`} style={{ borderColor: open ? `${d.color}66` : 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', width: cardW }}>
               <div className="flex items-center gap-2 px-2 py-1.5">
                 <span className="w-1.5 h-1.5 rounded-full flex-none" style={{ background: inst.on ? d.color : 'rgba(255,255,255,0.2)' }} />
-                <button onClick={() => { if (!horizontal) setOpenId(open ? null : inst.id); }} className="flex-1 min-w-0 text-left">
+                <button onClick={() => { if (horizontal) setFolded((f) => { const n = new Set(f); if (n.has(inst.id)) n.delete(inst.id); else n.add(inst.id); return n; }); else setOpenId(open ? null : inst.id); }} className="flex-1 min-w-0 text-left" title={horizontal ? (open ? 'Fold device' : 'Unfold device') : undefined}>
                   <div className="text-[11.5px] font-bold text-white truncate" style={{ opacity: inst.on ? 1 : 0.4 }}>{d.label}</div>
                 </button>
                 {gr < -0.1 && <span className="font-mono text-[8.5px] text-[#FF8C00]">GR {gr.toFixed(1)}</span>}
-                <button onClick={() => move(inst.id, -1)} disabled={i === 0} className="text-white/25 hover:text-white disabled:opacity-15" aria-label="Move up"><ChevronUp size={11} /></button>
-                <button onClick={() => move(inst.id, 1)} disabled={i === instances.length - 1} className="text-white/25 hover:text-white disabled:opacity-15" aria-label="Move down"><ChevronDown size={11} /></button>
+                <button onClick={() => move(inst.id, -1)} disabled={i === 0} className="text-white/25 hover:text-white disabled:opacity-15" aria-label={horizontal ? 'Move left' : 'Move up'}>{horizontal ? <ChevronLeft size={11} /> : <ChevronUp size={11} />}</button>
+                <button onClick={() => move(inst.id, 1)} disabled={i === instances.length - 1} className="text-white/25 hover:text-white disabled:opacity-15" aria-label={horizontal ? 'Move right' : 'Move down'}>{horizontal ? <ChevronRight size={11} /> : <ChevronDown size={11} />}</button>
                 <button
                   onClick={() => patch(inst.id, (x) => ({ ...x, on: !x.on }))}
                   className="w-5 h-5 grid place-items-center rounded-md"
@@ -255,6 +216,13 @@ export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#
             </React.Fragment>
           );
         })}
+        {horizontal && instances.length > 0 && (
+          <button
+            onClick={() => setAddAt(instances.length)}
+            className="ml-2 flex-none self-stretch min-h-[120px] w-[120px] rounded-[10px] border border-dashed border-white/15 hover:border-white/40 text-white/35 hover:text-white flex flex-col items-center justify-center gap-1.5 text-[10.5px] font-semibold transition-colors"
+            title="Add a device at the end of the chain"
+          ><Plus size={18} /> Add device</button>
+        )}
       </div>
     </div>
   );

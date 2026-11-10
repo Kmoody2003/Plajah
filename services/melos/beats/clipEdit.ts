@@ -4,7 +4,7 @@
 // window and never deletes notes. Audio offsets go through the tempo map + clip stretch.
 
 import { grooveUid, type GrooveDoc, type NoteEvent, type TimelineClip } from './grooveDoc';
-import { songTime } from './tempoMap';
+import { songTime, TempoMap } from './tempoMap';
 import { noteOccurrences } from './clipContent';
 
 /** Playback rate of an audio clip (its simple stretch), never 0. */
@@ -161,6 +161,35 @@ export function audioSourceSecToBeat(doc: GrooveDoc, clip: TimelineClip, sourceS
 export function audioLengthBeats(doc: GrooveDoc, startBeats: number, durationSec: number, rate = 1): number {
   const { tempo } = songTime(doc);
   return tempo.secToBeat(tempo.beatToSec(startBeats) + durationSec / rate) - startBeats;
+}
+
+/**
+ * A tempo edit just happened (`before` = the map the doc had a moment ago). Audio is real time:
+ * an un-warped recording plays at its own speed whatever the song tempo, so every audio clip keeps
+ * the SECONDS it spanned and its length in beats is re-derived through the new map — the clip box,
+ * the playhead and the sound stay together (Bitwig "raw" / Studio One "timebase: seconds" clips).
+ * Clip starts stay on their beat (bar-aligned edits keep their grid). Returns how many clips moved.
+ */
+export function retimeAudioClips(doc: GrooveDoc, before: TempoMap): number {
+  const after = TempoMap.fromDoc(doc);
+  if (after.signature === before.signature) return 0;
+  let moved = 0;
+  for (const t of doc.arrangement) {
+    for (const c of t.clips) {
+      if (!c.audio) continue;
+      const span = before.secBetween(c.startBeats, c.startBeats + c.lengthBeats);
+      if (!(span > 0)) continue;
+      const len = after.secToBeat(after.beatToSec(c.startBeats) + span) - c.startBeats;
+      if (Number.isFinite(len) && Math.abs(len - c.lengthBeats) > 1e-9) { c.lengthBeats = Math.max(1 / 64, len); moved++; }
+    }
+  }
+  return moved;
+}
+
+/** Source tempo of an audio clip: what the user typed, else what import detected. */
+export function audioClipBpm(c: TimelineClip): number | undefined {
+  const b = c.audio?.sourceBpm ?? c.audio?.detectedBpm;
+  return b && b > 20 && b < 400 ? b : undefined;
 }
 
 // ── clipboard ───────────────────────────────────────────────────────────────

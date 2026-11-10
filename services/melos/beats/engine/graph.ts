@@ -60,6 +60,9 @@ export interface TrackStrip extends ChannelFx {
   gain: GainNode;
   pan: StereoPannerNode;
   analyser: AnalyserNode;
+  /** Where the strip lands: the master bus, or — for a MEKA pad's own instrument track — that pad's
+   *  channel, so the pad's fader, inserts, sends, Group bus and meter all carry the instrument. */
+  out?: AudioNode;
 }
 
 /** A send/return bus (FX 1, FX 2): channels send into it, it carries its own insert FX. */
@@ -287,7 +290,9 @@ export function buildGraph(ctx: BaseAudioContext, padCount = 16, output: AudioNo
       strip.filter.frequency.value = clamp(pad.filter.cutoff, 20, 20000);
       strip.filter.Q.value = clamp(pad.filter.q, 0.0001, 20);
     }
-    strip.gain.gain.value = dbToGain(pad.gainDb);
+    // Mute silences the CHANNEL — a one-shot pad also skips its hits, but an instrument pad's voice
+    // now runs through this strip too, so muting must close the fader, not just stop new hits.
+    strip.gain.gain.value = pad.mute ? 0 : dbToGain(pad.gainDb);
     strip.pan.pan.value = clamp(pad.pan, -1, 1);
     if (strip.group !== pad.group) { strip.group = pad.group; repatchPadOut(strip); }
     // Per-pad sends (from the doc).
@@ -301,7 +306,7 @@ export function buildGraph(ctx: BaseAudioContext, padCount = 16, output: AudioNo
     let node: AudioNode = strip.pan;
     if (strip.insIn && strip.insOut) { node.connect(strip.insIn); node = strip.insOut; }
     node.connect(strip.tap);
-    strip.tap.connect(strip.analyser); strip.tap.connect(input);
+    strip.tap.connect(strip.analyser); strip.tap.connect(strip.out ?? input);
     for (const sg of strip.sends) strip.tap.connect(sg);
   };
   const makeTrackStrip = (): TrackStrip => {
@@ -356,6 +361,11 @@ export function buildGraph(ctx: BaseAudioContext, padCount = 16, output: AudioNo
         if (t.kind !== 'audio' && t.kind !== 'instrument') continue;
         let strip = tracks.get(t.id);
         if (!strip) { strip = makeTrackStrip(); tracks.set(t.id, strip); }
+        // A pad-owned instrument plays THROUGH its pad channel (the strip the Mixer shows for it):
+        // without this its sound skipped the pad's fader, inserts, sends and meter entirely.
+        const ownerPad = t.padOwned ? doc.kit.findIndex((pd) => pd.source === 'instrument' && pd.instrumentTrackId === t.id) : -1;
+        const out = ownerPad >= 0 ? pads[ownerPad]?.input : undefined;
+        if (strip.out !== out) { strip.out = out; repatchTrackOut(strip); }
         const audible = trackAudible(doc, t);
         if (!audible) strip.gain.gain.value = 0;
         else if (!automated?.(t.id, 'volume')) strip.gain.gain.value = dbToGain(t.gainDb);

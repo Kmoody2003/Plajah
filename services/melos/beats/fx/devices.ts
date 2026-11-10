@@ -3285,9 +3285,12 @@ export class FxChainHost {
   readonly input: GainNode;
   readonly output: GainNode;
   private ctx: BaseAudioContext;
-  private live = new Map<string, { node: FxNode; type: string }>();
+  // `params` = the last params pushed (serialized), so an unchanged device isn't re-set.
+  private live = new Map<string, { node: FxNode; type: string; params?: string }>();
   private bypass: GainNode;
   private bpm = 120;
+  /** The wired order of active devices — a rewire only happens when THIS changes. */
+  private wiring = '';
 
   constructor(ctx: BaseAudioContext) {
     this.ctx = ctx;
@@ -3309,7 +3312,7 @@ export class FxChainHost {
     const wanted = new Set(instances.filter((i) => i.on).map((i) => i.id));
     for (const [id, entry] of [...this.live]) {
       const inst = instances.find((i) => i.id === id);
-      if (!inst || !inst.on || inst.type !== entry.type) { entry.node.dispose(); this.live.delete(id); }
+      if (!inst || !inst.on || inst.type !== entry.type) { entry.node.dispose(); this.live.delete(id); this.wiring = '#rewire'; }
     }
     // Ensure a live node per active instance and push its params.
     for (const inst of instances) {
@@ -3319,11 +3322,21 @@ export class FxChainHost {
         const d = deviceByType(inst.type);
         if (!d) continue;
         entry = { node: d.create(this.ctx), type: inst.type };
+        this.wiring = '#rewire'; // a new node must be wired in, even at the same slot
         entry.node.setTempo?.(this.bpm);
         this.live.set(inst.id, entry);
       }
-      entry.node.setParams(inst.params);
+      // Every doc edit (a fader move anywhere) reaches here: push params only to the device that
+      // actually changed — re-setting all of them made heavy devices (reverb IRs, convolvers)
+      // rebuild on every knob tick, so edits lagged and stuttered instead of following live.
+      const sig = JSON.stringify(inst.params);
+      if (entry.params !== sig) { entry.node.setParams(inst.params); entry.params = sig; }
     }
+    // Rewire only when the active devices or their order changed. Rewiring on every edit
+    // disconnected the live chain mid-playback (clicks, and the scopes blinking out).
+    const wiring = instances.filter((i) => i.on && this.live.has(i.id)).map((i) => i.id).join('|');
+    if (wiring === this.wiring) return;
+    this.wiring = wiring;
     // Rewire input → active devices in order → output.
     try { this.input.disconnect(); this.bypass.disconnect(); } catch { /* */ }
     for (const { node } of this.live.values()) { try { node.output.disconnect(); } catch { /* */ } }
@@ -3365,6 +3378,7 @@ export class FxChainHost {
   dispose(): void {
     for (const { node } of this.live.values()) node.dispose();
     this.live.clear();
+    this.wiring = '';
     try { this.input.disconnect(); this.bypass.disconnect(); this.output.disconnect(); } catch { /* */ }
   }
 }

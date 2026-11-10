@@ -20,6 +20,8 @@ import type { FxInstance, FxNode } from '../../../../services/melos/beats/fx/dev
 import { ChannelStrip } from '../shared/ChannelStrip';
 import { FxRack } from '../project/FxRack';
 import { GROUP_COLORS, PLAYHEAD, SELECT, slabPanel } from '../theme';
+import { MasterSection } from './MasterSection';
+import { useStudioPrefs, setStudioPref } from '../shared/studioPrefs';
 
 const GROUP_LABELS = ['Bus A', 'Bus B', 'Bus C', 'Bus D'];
 const SEND_COLORS = ['#06D6A0', '#00DAF3'];
@@ -55,6 +57,9 @@ export const MixerView: React.FC<MixerViewProps> = ({ doc, meters, limiterReduct
   const eng = BeatsEngine.get();
   const visibleTracks = doc.arrangement.filter((t) => !t.padOwned && (!t.folderId || !doc.arrangement.find((f) => f.id === t.folderId)?.collapsed));
 
+  const prefs = useStudioPrefs();
+  /** A Timeline folder's meter: the loudest of its child tracks. */
+  const folderMeter = (folderId: string) => doc.arrangement.reduce((m, t) => (t.folderId === folderId && t.kind === 'audio' ? Math.max(m, eng.trackMeter(t.id)) : m), 0);
   const selKey = `${sel.kind}:${sel.id}`;
   const isSel = (kind: Sel['kind'], id: number | string) => sel.kind === kind && sel.id === id;
 
@@ -113,26 +118,84 @@ export const MixerView: React.FC<MixerViewProps> = ({ doc, meters, limiterReduct
   const onResizeDown = (e: React.PointerEvent) => { resize.current = { y: e.clientY, h: panelH }; (e.target as HTMLElement).setPointerCapture(e.pointerId); };
   const onResizeMove = (e: React.PointerEvent) => { const r = resize.current; if (r) setPanelH(Math.max(120, Math.min(560, r.h + (r.y - e.clientY)))); };
 
+  // MEKA as one folder strip: the fader moves every pad together (relative, like a Timeline folder),
+  // M/S switch them all, the meter shows the loudest pad.
+  const livePads = doc.kit.map((pad, i) => ({ pad, i })).filter(({ pad }) => !pad.empty);
+  const mekaMean = livePads.length ? livePads.reduce((a, { pad }) => a + pad.gainDb, 0) / livePads.length : 0;
+  const mekaAllMuted = livePads.length > 0 && livePads.every(({ pad }) => pad.mute);
+  const mekaAnySolo = livePads.some(({ pad }) => pad.solo);
+  const mekaMeter = livePads.reduce((m, { i }) => Math.max(m, eng.padMeter(i)), 0);
+  const sectionRule = <div className="w-px bg-white/[0.16] flex-none" />;
+  const showBtn = (on: boolean) => on ? { color: '#D0BCFF', background: 'rgba(208,188,255,0.15)' } : { color: 'rgba(255,255,255,0.4)' };
+
   return (
     <div className="flex-1 min-h-0 flex flex-col">
-      <div className="flex-1 min-h-0 overflow-auto p-4">
-        <div className={`${slabPanel} p-3 mb-3`}><MeterBridge tap={() => eng.masterMeterTap()} /></div>
-        <div className="mb-3"><MusicCouncilPanel tap={() => eng.masterMeterTap()} onApply={(a: ApplyAction) => onMutate((d) => {
-          if (a.kind === 'eq') {
-            const cur = d.mixer.master.eq as unknown as SpectraState | undefined;
-            const eq: SpectraState = cur && Array.isArray(cur.bands) ? cur : defaultSpectra();
-            eq.on = true;
-            eq.bands = [...eq.bands, { id: bandId(), freq: a.freq, gain: a.gainDb, q: a.q ?? 1, type: 'bell', on: true }];
-            d.mixer.master.eq = eq as unknown as Record<string, unknown>;
-          } else if (a.kind === 'loudness') {
-            d.mixer.master.gainDb = (d.mixer.master.gainDb || 0) + a.trimDb;
-          }
-        })} /></div>
-        <div className={`${slabPanel} p-4 inline-flex gap-2 items-stretch min-w-full`}>
+      {/* ── SHOW bar: which channel sections the console shows (Bitwig mixer's section toggles) ── */}
+      <div className="flex items-center gap-3 px-4 h-10 border-b border-white/10 flex-none text-[10px] overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+        <span className="text-[8.5px] uppercase tracking-[0.18em] text-white/30 font-semibold shrink-0">Show</span>
+        <div className="flex items-center gap-0.5 rounded-lg border border-white/10 bg-white/[0.04] p-0.5 shrink-0" title="MEKA pads: every pad, one folder strip, or hidden">
+          <span className="px-2 text-white/50 font-semibold">MEKA</span>
+          {([['open', 'All pads'], ['folded', 'Folded'], ['hidden', 'Hidden']] as const).map(([m, label]) => (
+            <button key={m} onClick={() => setStudioPref('meka', m)} className="h-6 px-2 rounded-md transition-colors" style={showBtn(prefs.meka === m)}>{label}</button>
+          ))}
+        </div>
+        <div className="flex items-center gap-0.5 rounded-lg border border-white/10 bg-white/[0.04] p-0.5 shrink-0">
+          <button onClick={() => setStudioPref('mixerTracks', !prefs.mixerTracks)} className="h-6 px-2 rounded-md" style={showBtn(prefs.mixerTracks)}>Tracks</button>
+          <button onClick={() => setStudioPref('mixerBuses', !prefs.mixerBuses)} className="h-6 px-2 rounded-md" style={showBtn(prefs.mixerBuses)}>Buses</button>
+          <button onClick={() => setStudioPref('mixerReturns', !prefs.mixerReturns)} className="h-6 px-2 rounded-md" style={showBtn(prefs.mixerReturns)}>Returns</button>
+        </div>
+        <span className="flex-1" />
+        <span className="text-white/25 shrink-0 hidden lg:inline">click a strip to open its devices below · double-click to open its sound</span>
+      </div>
 
-          {/* pads — each a channel with sends + inserts (empty placeholder pads have no channel) */}
-          <div className="flex gap-1.5">
-            {doc.kit.map((pad, i) => pad.empty ? null : (
+      {/* Full Meter Bridge and the Council open above the console only when asked for. */}
+      {(prefs.mixerBridgeOpen || prefs.mixerCouncil) && (
+        <div className="flex-none max-h-[46vh] overflow-auto px-4 pt-3 border-b border-white/10">
+          {prefs.mixerBridgeOpen && <div className={`${slabPanel} p-3 mb-3`}><MeterBridge tap={() => eng.masterMeterTap()} /></div>}
+          {prefs.mixerCouncil && <div className="mb-3"><MusicCouncilPanel tap={() => eng.masterMeterTap()} onApply={(a: ApplyAction) => onMutate((d) => {
+            if (a.kind === 'eq') {
+              const cur = d.mixer.master.eq as unknown as SpectraState | undefined;
+              const eq: SpectraState = cur && Array.isArray(cur.bands) ? cur : defaultSpectra();
+              eq.on = true;
+              eq.bands = [...eq.bands, { id: bandId(), freq: a.freq, gain: a.gainDb, q: a.q ?? 1, type: 'bell', on: true }];
+              d.mixer.master.eq = eq as unknown as Record<string, unknown>;
+            } else if (a.kind === 'loudness') {
+              d.mixer.master.gainDb = (d.mixer.master.gainDb || 0) + a.trimDb;
+            }
+          })} /></div>}
+        </div>
+      )}
+
+      <div className="flex-1 min-h-0 flex gap-3 p-3">
+      <div className="flex-1 min-w-0 overflow-auto">
+        <div className={`${slabPanel} p-3 inline-flex gap-2 items-stretch min-w-full min-h-full`}>
+
+          {/* MEKA — every pad a channel, or one folder strip */}
+          {prefs.meka === 'folded' && livePads.length > 0 && (
+            <>
+              <div className="rounded-[10px] cursor-pointer" onDoubleClick={() => setStudioPref('meka', 'open')} title="MEKA folder — double-click to unfold every pad">
+                <ChannelStrip
+                  label="MEKA" color="#D0BCFF" routeTag={`${livePads.length} pads`}
+                  gainDb={Math.round(mekaMean * 10) / 10} mute={mekaAllMuted} solo={mekaAnySolo}
+                  meter={mekaMeter} meterColor="#D0BCFF"
+                  onGain={(db) => onMutate((d) => { const delta = db - mekaMean; for (const pad of d.kit) if (!pad.empty) pad.gainDb = Math.max(-60, Math.min(12, pad.gainDb + delta)); })}
+                  onMute={() => onMutate((d) => { for (const pad of d.kit) if (!pad.empty) pad.mute = !mekaAllMuted; })}
+                  onSolo={() => onMutate((d) => { for (const pad of d.kit) if (!pad.empty) pad.solo = !mekaAnySolo; })}
+                >
+                  <button onClick={(e) => { e.stopPropagation(); setStudioPref('meka', 'open'); }} className="text-[8px] font-bold px-1 rounded mx-auto text-[#D0BCFF] border border-[#D0BCFF]/40">UNFOLD</button>
+                </ChannelStrip>
+              </div>
+              {sectionRule}
+            </>
+          )}
+          {prefs.meka === 'open' && livePads.length > 0 && (
+            <>
+              <div className="flex gap-1.5">
+                {/* The folder's spine — click to fold MEKA to one strip (same as the Timeline). */}
+                <button onClick={() => setStudioPref('meka', 'folded')} title="Fold MEKA to one strip"
+                  className="w-5 flex-none rounded-[8px] border border-[#D0BCFF]/30 bg-[#D0BCFF]/[0.06] text-[#D0BCFF] text-[8px] font-bold tracking-[0.2em] flex items-center justify-center hover:bg-[#D0BCFF]/15"
+                  style={{ writingMode: 'vertical-rl' }}>MEKA ◂</button>
+                {livePads.map(({ pad, i }) => (
               <div
                 key={pad.id}
                 onPointerDown={() => { onSelectPad(i); setSel({ kind: 'pad', id: i }); }}
@@ -172,12 +235,60 @@ export const MixerView: React.FC<MixerViewProps> = ({ doc, meters, limiterReduct
                   )}
                 </ChannelStrip>
               </div>
+                ))}
+              </div>
+              {sectionRule}
+            </>
+          )}
+
+          {/* arrangement tracks — each a channel with sends + inserts. padOwned instrument
+              tracks are already the PAD strip; showing them twice gave every pad instrument two
+              mixer channels. Timeline folders keep their fold here. */}
+          {prefs.mixerTracks && visibleTracks.length > 0 && (
+            <>
+          <div className="flex gap-1.5">
+            {visibleTracks.map((t) => (
+              <div
+                key={t.id}
+                onPointerDown={() => !t.foreign && setSel({ kind: 'track', id: t.id })}
+                onDoubleClick={() => {
+                  if (t.foreign) return;
+                  // Instrument track → its window; audio track → the Timeline (its clips/waveform).
+                  if (t.kind === 'instrument') onOpenInstrument?.(t.id);
+                  else onFocusTrack?.(t.id);
+                }}
+                className="rounded-[10px] cursor-pointer"
+                title={t.foreign ? undefined : 'Double-click to open this track'}
+                style={isSel('track', t.id) ? { outline: `1px solid ${SELECT}`, outlineOffset: 1 } : undefined}
+              >
+                <ChannelStrip
+                  label={t.name} color={t.isFolder ? t.color : t.kind === 'audio' ? PLAYHEAD : '#B84DFF'} routeTag={t.isFolder ? (t.collapsed ? 'FOLDED' : 'GROUP') : undefined} gainDb={t.gainDb} pan={t.pan} mute={t.mute} solo={t.solo}
+                  meter={t.kind === 'audio' ? eng.trackMeter(t.id) : t.isFolder ? folderMeter(t.id) : 0} dimmed={!!t.foreign}
+                  sends={t.foreign ? undefined : sendsFor(t.sends ?? [], (s, v) => onMutate((d) => { const x = findTrack(d, t.id); if (x) { const arr = [...(x.sends ?? [])]; arr[s] = v; x.sends = arr; } }))}
+                  onGain={t.foreign ? undefined : (db) => onMutate((d) => { const x = findTrack(d, t.id); if (!x) return; if (x.isFolder) { const delta = db - x.gainDb; for (const child of d.arrangement) if (child.folderId === x.id) child.gainDb = Math.max(-60, Math.min(12, child.gainDb + delta)); } x.gainDb = db; })}
+                  onPan={t.foreign ? undefined : (v) => onMutate((d) => { const x = findTrack(d, t.id); if (x) x.pan = v; })}
+                  onMute={t.foreign ? undefined : () => onMutate((d) => { const x = findTrack(d, t.id); if (!x) return; const next = !x.mute; x.mute = next; if (x.isFolder) for (const child of d.arrangement) if (child.folderId === x.id) child.mute = next; })}
+                  onSolo={t.foreign ? undefined : () => onMutate((d) => { const x = findTrack(d, t.id); if (!x) return; const next = !x.solo; x.solo = next; if (x.isFolder) for (const child of d.arrangement) if (child.folderId === x.id) child.solo = next; })}
+                >
+                  {t.isFolder && (
+                    <button onClick={(e) => { e.stopPropagation(); onMutate((d) => { const x = findTrack(d, t.id); if (x) x.collapsed = !x.collapsed; }); }}
+                      className="text-[7px] font-bold px-1 rounded mx-auto border" style={{ color: t.color, borderColor: `${t.color}66` }}
+                    >{t.collapsed ? 'UNFOLD' : 'FOLD'}</button>
+                  )}
+                  {!t.foreign && (t.inserts?.filter((f) => f.on).length ?? 0) > 0 && (
+                    <span className="text-[7px] px-1 rounded mx-auto text-[#00DAF3] border border-[#00DAF3]/40">{t.inserts!.filter((f) => f.on).length} FX</span>
+                  )}
+                </ChannelStrip>
+              </div>
             ))}
           </div>
-
-          <div className="w-px bg-white/[0.16] flex-none" />
+          {sectionRule}
+            </>
+          )}
 
           {/* group buses */}
+          {prefs.mixerBuses && (
+            <>
           <div className="flex gap-1.5">
             {doc.mixer.groups.map((g, i) => (
               <div key={GROUP_LABELS[i]} onPointerDown={() => setSel({ kind: 'group', id: i })} className="rounded-[10px]" style={isSel('group', i) ? { outline: `1px solid ${SELECT}`, outlineOffset: 1 } : undefined}>
@@ -196,10 +307,12 @@ export const MixerView: React.FC<MixerViewProps> = ({ doc, meters, limiterReduct
               </div>
             ))}
           </div>
-
-          <div className="w-px bg-white/[0.16] flex-none" />
+          {sectionRule}
+            </>
+          )}
 
           {/* FX return buses */}
+          {prefs.mixerReturns && (
           <div className="flex gap-1.5">
             {sendBuses.map((b, i) => (
               <div key={i} onPointerDown={() => setSel({ kind: 'send', id: i })} className="rounded-[10px]" style={isSel('send', i) ? { outline: `1px solid ${SELECT}`, outlineOffset: 1 } : undefined}>
@@ -215,59 +328,18 @@ export const MixerView: React.FC<MixerViewProps> = ({ doc, meters, limiterReduct
               </div>
             ))}
           </div>
-
-          {visibleTracks.length > 0 && <div className="w-px bg-white/[0.16] flex-none" />}
-
-          {/* arrangement tracks — each a channel with sends + inserts. padOwned instrument
-              tracks are already the PAD strip on the left; showing them twice gave every pad
-              instrument two mixer channels. */}
-          <div className="flex gap-1.5">
-            {visibleTracks.map((t) => (
-              <div
-                key={t.id}
-                onPointerDown={() => !t.foreign && setSel({ kind: 'track', id: t.id })}
-                onDoubleClick={() => {
-                  if (t.foreign) return;
-                  // Instrument track → its window; audio track → the Timeline (its clips/waveform).
-                  if (t.kind === 'instrument') onOpenInstrument?.(t.id);
-                  else onFocusTrack?.(t.id);
-                }}
-                className="rounded-[10px] cursor-pointer"
-                title={t.foreign ? undefined : 'Double-click to open this track'}
-                style={isSel('track', t.id) ? { outline: `1px solid ${SELECT}`, outlineOffset: 1 } : undefined}
-              >
-                <ChannelStrip
-                  label={t.name} color={t.isFolder ? t.color : t.kind === 'audio' ? PLAYHEAD : '#B84DFF'} routeTag={t.isFolder ? 'GROUP' : undefined} gainDb={t.gainDb} pan={t.pan} mute={t.mute} solo={t.solo}
-                  meter={t.kind === 'audio' ? eng.trackMeter(t.id) : 0} dimmed={!!t.foreign}
-                  sends={t.foreign ? undefined : sendsFor(t.sends ?? [], (s, v) => onMutate((d) => { const x = findTrack(d, t.id); if (x) { const arr = [...(x.sends ?? [])]; arr[s] = v; x.sends = arr; } }))}
-                  onGain={t.foreign ? undefined : (db) => onMutate((d) => { const x = findTrack(d, t.id); if (!x) return; if (x.isFolder) { const delta = db - x.gainDb; for (const child of d.arrangement) if (child.folderId === x.id) child.gainDb = Math.max(-60, Math.min(12, child.gainDb + delta)); } x.gainDb = db; })}
-                  onPan={t.foreign ? undefined : (v) => onMutate((d) => { const x = findTrack(d, t.id); if (x) x.pan = v; })}
-                  onMute={t.foreign ? undefined : () => onMutate((d) => { const x = findTrack(d, t.id); if (!x) return; const next = !x.mute; x.mute = next; if (x.isFolder) for (const child of d.arrangement) if (child.folderId === x.id) child.mute = next; })}
-                  onSolo={t.foreign ? undefined : () => onMutate((d) => { const x = findTrack(d, t.id); if (!x) return; const next = !x.solo; x.solo = next; if (x.isFolder) for (const child of d.arrangement) if (child.folderId === x.id) child.solo = next; })}
-                >
-                  {!t.foreign && (t.inserts?.filter((f) => f.on).length ?? 0) > 0 && (
-                    <span className="text-[7px] px-1 rounded mx-auto text-[#00DAF3] border border-[#00DAF3]/40">{t.inserts!.filter((f) => f.on).length} FX</span>
-                  )}
-                </ChannelStrip>
-              </div>
-            ))}
-          </div>
-
-          <div className="w-px bg-white/[0.16] flex-none" />
-
-          <ChannelStrip label="MASTER" wide gainDb={doc.mixer.master.gainDb} meter={meters.master}
-            onGain={(db) => onMutate((d) => { d.mixer.master.gainDb = db; })}>
-            <div className="flex flex-col items-center gap-1">
-              <button
-                onClick={() => onMutate((d) => { d.mixer.master.limiterOn = !d.mixer.master.limiterOn; })}
-                className="text-[8.5px] font-semibold rounded-[4px] px-1.5 py-0.5 border"
-                style={doc.mixer.master.limiterOn ? { color: '#06D6A0', borderColor: 'rgba(6,214,160,0.4)' } : { color: 'rgba(255,255,255,0.3)', borderColor: 'rgba(255,255,255,0.15)' }}
-              >LIMITER</button>
-              <span className="font-mono text-[8.5px] text-white/40">GR {limiterReduction.toFixed(1)} dB</span>
-              <span className="text-[7.5px] text-white/25 text-center">full chain in Project</span>
-            </div>
-          </ChannelStrip>
+          )}
         </div>
+      </div>
+
+      {/* Master — pinned right, never scrolled away. */}
+      <MasterSection
+        doc={doc}
+        meter={meters.master}
+        limiterReduction={limiterReduction}
+        onMutate={onMutate}
+        onToggleBridge={() => setStudioPref('mixerBridgeOpen', !prefs.mixerBridgeOpen)}
+      />
       </div>
 
       {/* ── Resizable channel editor — inserts + sends for the selected channel ── */}

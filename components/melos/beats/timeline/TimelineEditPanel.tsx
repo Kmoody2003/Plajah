@@ -13,7 +13,7 @@ import type { FxInstance } from '../../../../services/melos/beats/fx/devices';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { ingestSample } from '../../../../services/melos/beats/sampleStore';
 import * as edit from '../../../../services/melos/beats/audio/audioEdit';
-import { audioLengthBeats, audioSourceSecToBeat, splitClipAt } from '../../../../services/melos/beats/clipEdit';
+import { audioClipBpm, audioLengthBeats, audioSourceSecToBeat, splitClipAt } from '../../../../services/melos/beats/clipEdit';
 import { timeStretchBuffer, type StretchAlgo } from '../../../../services/melos/beats/audio/timeStretch';
 import { FxRack } from '../project/FxRack';
 import { PLAYHEAD } from '../theme';
@@ -68,7 +68,7 @@ export const TimelineEditPanel: React.FC<Props> = ({ doc, selected, onMutate, he
       </div>
       <div className="flex-1 min-h-0 overflow-auto px-3 pb-3">
         {!clip && <div className="h-full grid place-items-center text-[12px] text-white/25">Select a clip on the timeline to edit it here.</div>}
-        {clip && tab === 'device' && track && <DeviceTab track={track} onMutate={onMutate} />}
+        {clip && tab === 'device' && track && <DeviceTab doc={doc} track={track} onMutate={onMutate} />}
         {clip && tab === 'note' && <NoteTab clip={clip} trackId={selected!.trackId} onMutate={onMutate} />}
         {clip && tab === 'audio' && <AudioTab doc={doc} clip={clip} trackId={selected!.trackId} onMutate={onMutate} />}
       </div>
@@ -76,19 +76,59 @@ export const TimelineEditPanel: React.FC<Props> = ({ doc, selected, onMutate, he
   );
 };
 
-// ── Device tab: the track's insert chain (horizontal, Bitwig row) ──
-const DeviceTab: React.FC<{ track: ArrangeTrack; onMutate: Props['onMutate'] }> = ({ track, onMutate }) => (
-  <FxRack
-    horizontal
-    instances={track.inserts ?? []}
-    onChange={(next: FxInstance[]) => onMutate((d) => { const t = d.arrangement.find((x) => x.id === track.id); if (t) t.inserts = next; })}
-    accent={PLAYHEAD}
-    reductionOf={(id) => BeatsEngine.get().trackInsertReduction(track.id, id)}
-    nodeOf={(id) => BeatsEngine.get().trackInsertNode(track.id, id)}
-    title={`${track.name} · Devices`}
-    emptyHint="Add the track's insert devices — EQ, comp, amp rack…"
-  />
-);
+// ── Device tab: the insert chain of the channel this clip actually SOUNDS through (Bitwig row) ──
+// An audio / independent instrument track has its own channel. A MEKA pad's instrument track and a
+// pattern track play through MEKA pad channels — editing `track.inserts` there changed nothing you
+// could hear, so those resolve to the pad channel (pattern tracks pick which pad).
+const DeviceTab: React.FC<{ doc: GrooveDoc; track: ArrangeTrack; onMutate: Props['onMutate'] }> = ({ doc, track, onMutate }) => {
+  const livePads = doc.kit.map((pad, i) => ({ pad, i })).filter(({ pad }) => !pad.empty);
+  const ownerPad = track.padOwned ? doc.kit.findIndex((pd) => pd.instrumentTrackId === track.id) : -1;
+  const [pickedPad, setPickedPad] = useState<number>(() => livePads[0]?.i ?? 0);
+  const padIdx = ownerPad >= 0 ? ownerPad : track.kind === 'pattern' ? pickedPad : -1;
+  const eng = BeatsEngine.get();
+
+  if (padIdx >= 0) {
+    const pad = doc.kit[padIdx];
+    return (
+      <div className="flex flex-col gap-2">
+        {track.kind === 'pattern' && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[9.5px] text-white/40">Pattern clips play through MEKA pad channels —</span>
+            {livePads.map(({ pad: pd, i }) => (
+              <button key={pd.id} onClick={() => setPickedPad(i)}
+                className="h-6 px-2 rounded-md text-[10px] border"
+                style={i === padIdx ? { color: '#fff', borderColor: `${pd.color}aa`, background: `${pd.color}22` } : { color: 'rgba(255,255,255,0.5)', borderColor: 'rgba(255,255,255,0.12)' }}
+              >{pd.name}{(pd.inserts?.filter((f) => f.on).length ?? 0) > 0 ? ` · ${pd.inserts!.filter((f) => f.on).length}` : ''}</button>
+            ))}
+          </div>
+        )}
+        <FxRack
+          key={`pad${padIdx}`}
+          horizontal
+          instances={pad?.inserts ?? []}
+          onChange={(next: FxInstance[]) => onMutate((d) => { const pd = d.kit[padIdx]; if (pd) pd.inserts = next; })}
+          accent={pad?.color || PLAYHEAD}
+          reductionOf={(id) => eng.padInsertReduction(padIdx, id)}
+          nodeOf={(id) => eng.padInsertNode(padIdx, id)}
+          title={`MEKA · ${pad?.name ?? 'Pad'} · Devices`}
+          emptyHint="Add this pad channel's devices — EQ, comp, amp rack…"
+        />
+      </div>
+    );
+  }
+  return (
+    <FxRack
+      horizontal
+      instances={track.inserts ?? []}
+      onChange={(next: FxInstance[]) => onMutate((d) => { const t = d.arrangement.find((x) => x.id === track.id); if (t) t.inserts = next; })}
+      accent={PLAYHEAD}
+      reductionOf={(id) => eng.trackInsertReduction(track.id, id)}
+      nodeOf={(id) => eng.trackInsertNode(track.id, id)}
+      title={`${track.name} · Devices`}
+      emptyHint="Add the track's insert devices — EQ, comp, amp rack…"
+    />
+  );
+};
 
 // ── Note tab: piano-roll for an instrument clip ──
 const NoteTab: React.FC<{ clip: TimelineClip; trackId: string; onMutate: Props['onMutate'] }> = ({ clip, trackId, onMutate }) => {
@@ -142,6 +182,8 @@ const AudioTab: React.FC<{ doc: GrooveDoc; clip: TimelineClip; trackId: string; 
   const [sel, setSel] = useState<{ a: number; b: number } | null>(null); // fraction 0..1
   const [busy, setBusy] = useState<string | null>(null);
   const [algo, setAlgo] = useState<StretchAlgo>('phase');
+  const clipBpm = audioClipBpm(clip);
+  const songBpm = doc.bpm || 120;
   const [ratio, setRatio] = useState(1);
   const [semis, setSemis] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -188,7 +230,7 @@ const AudioTab: React.FC<{ doc: GrooveDoc; clip: TimelineClip; trackId: string; 
   };
 
   /** Run an op, write the result back as a new sample, update the clip. */
-  const apply = useCallback(async (label: string, op: (b: AudioBuffer) => AudioBuffer | Promise<AudioBuffer>) => {
+  const apply = useCallback(async (label: string, op: (b: AudioBuffer) => AudioBuffer | Promise<AudioBuffer>, after?: (c: TimelineClip, d: GrooveDoc) => void) => {
     if (!buf) return;
     setBusy(label);
     try {
@@ -204,6 +246,7 @@ const AudioTab: React.FC<{ doc: GrooveDoc; clip: TimelineClip; trackId: string; 
           c.audio.sampleKey = ingested.ref.key; c.audio.durationSec = next.duration;
           const rate = c.audio.stretch && c.audio.stretch > 0 ? c.audio.stretch : 1;
           c.lengthBeats = audioLengthBeats(d, c.startBeats, Math.max(0, next.duration - (c.audio.offsetSec || 0)), rate);
+          after?.(c, d);
         }
       });
       setBuf(next); setSel(null);
@@ -241,6 +284,34 @@ const AudioTab: React.FC<{ doc: GrooveDoc; clip: TimelineClip; trackId: string; 
       >
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
         {!buf && <div className="absolute inset-0 grid place-items-center text-[11px] text-white/30">decoding…</div>}
+      </div>
+
+      {/* clip tempo ↔ song tempo — the two ways to line a recording up with the grid */}
+      <div className="flex items-center gap-2.5 flex-wrap rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2">
+        <span className="text-[9px] uppercase tracking-[0.16em] font-extrabold text-[#06D6A0]">Tempo</span>
+        <label className="flex items-center gap-1.5 text-[10px] text-white/60">Clip
+          <input
+            type="number" min={30} max={300} step={0.01}
+            value={clipBpm ?? ''} placeholder="?"
+            onChange={(e) => { const v = Number(e.target.value); onMutate((d) => { const c = d.arrangement.find((x) => x.id === trackId)?.clips.find((x) => x.id === clip.id); if (c?.audio) c.audio.sourceBpm = v > 20 ? v : undefined; }); }}
+            className="w-16 h-7 rounded-lg bg-black/40 border border-white/10 text-[10.5px] text-white px-1.5 outline-none font-mono"
+            title={clip.audio?.detectedBpm && !clip.audio.sourceBpm ? `Detected on import — correct it if it's off (half/double time is common)` : "The recording's own tempo"}
+          /> BPM
+        </label>
+        <span className="text-[10px] text-white/40">Song <span className="font-mono text-white/75">{songBpm}</span> BPM</span>
+        <button
+          disabled={!clipBpm || Math.abs(clipBpm - songBpm) < 0.01}
+          onClick={() => clipBpm && onMutate((d) => { d.bpm = Math.max(20, Math.min(300, Math.round(clipBpm * 100) / 100)); })}
+          className="h-7 px-2.5 rounded-lg text-[10.5px] font-bold border border-[#06D6A0]/45 text-[#06D6A0] hover:bg-[#06D6A0]/10 disabled:opacity-40"
+          title="Change the song tempo to this recording's — the grid, bars and playhead line up with it; the audio is untouched"
+        >Song ← clip</button>
+        <button
+          disabled={!!busy || !clipBpm || Math.abs(clipBpm - songBpm) < 0.01}
+          onClick={() => clipBpm && void apply('warp', (b) => timeStretchBuffer(decodeCtx(), b, { ratio: clipBpm / songBpm, semis: 0, algo, preserveTransients: true }), (c, d) => { if (c.audio) { c.audio.sourceBpm = songBpm; c.audio.offsetSec = (c.audio.offsetSec || 0) * (clipBpm / songBpm); c.lengthBeats = audioLengthBeats(d, c.startBeats, Math.max(0, c.audio.durationSec - c.audio.offsetSec)); } })}
+          className="h-7 px-2.5 rounded-lg text-[10.5px] font-bold border border-[#FF8C00]/45 text-[#FF8C00] hover:bg-[#FF8C00]/10 disabled:opacity-40 flex items-center gap-1"
+          title="Time-stretch this recording to the song tempo (pitch stays) — writes a new sample onto the clip"
+        ><Wand2 size={11} /> Warp clip → song</button>
+        <span className="text-[9px] text-white/25">un-warped audio always keeps its real length when the tempo changes</span>
       </div>
 
       {/* time-stretch */}
