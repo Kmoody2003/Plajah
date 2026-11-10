@@ -5,8 +5,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRoomHost } from '../workspace/roomHost';
-import { useToolRail, useToolRunner, AriaToolHint, type ToolRail } from '../workspace/useToolRail';
-import { BIO, registerBioTools, fewMolecules, moleculeFacts, type BioToolDoc, type BioToolId } from '../../services/bio/workspaceTools';
+import { useToolRail, useToolRunner, useRoomState, AriaToolHint, type ToolRail } from '../workspace/useToolRail';
+import { BIO, registerBioTools, fewMolecules, moleculeFacts, moleculeRoomState, pathwayRoomState, type BioToolDoc, type BioToolId } from '../../services/bio/workspaceTools';
 import { registry } from '../../services/workspace/tools';
 import type { Level } from '../../services/workspace/guidePath';
 import * as THREE from 'three';
@@ -150,6 +150,7 @@ function MoleculeTab({ goPathway, narrow, level, add, loadStructure, onError }: 
     else return false;
     return true;
   });
+  useRoomState(BIO, useMemo(() => moleculeRoomState({ structure, style, color, hiddenChains: [...hidden], water: showWater }), [structure, style, color, hidden, showWater]));
   const styleShown = (x: MolStyle) => x === 'cartoon' || style === x || rail.shows('atoms');
   const colorShown = (x: MolColor) => x === 'secondary' || x === 'confidence' || color === x || rail.shows(x === 'chain' ? 'chains' : 'atoms');
 
@@ -338,6 +339,7 @@ function PathwayTab({ goMolecule, narrow, level, add, onError, loadModel }: { go
     return true;
   });
   const plotted = shown.filter(id => result.r?.series[id]);
+  useRoomState(BIO, useMemo(() => pathwayRoomState({ model, changedParams: params, changedInitial: initial, mode, tEnd, result: result.r ?? null, error: result.err, shown: plotted }), [model, params, initial, mode, tEnd, result, plotted.join()])); // eslint-disable-line react-hooks/exhaustive-deps
 
   const left = <>
     <Section title="Models">

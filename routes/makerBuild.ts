@@ -26,8 +26,10 @@ import { BUILD_TERMS_VERSION } from '../services/safety/terms';
 import { digikeyBody, digikeyOffers, mouserBody, mouserOffers, type Offer } from '../services/supply/sourcing';
 import { SHOP_CAPABILITIES } from '../services/supply/directory';
 import { emptyProfile, mergeProfiles, sanitizeProfile } from '../services/workspace/skillProfile';
-import { askWorkspace } from '../services/workspace/ariaKnowledge';
-import { createGeminiLane, geminiConfigured, laneModel, type LaneFn } from '../services/ai/geminiLane';
+import { askWorkspace, cleanState } from '../services/workspace/ariaKnowledge';
+import { workspaceById } from '../services/workspace/workspaces';
+import { lookPrompt } from '../services/workspace/askAria';
+import { createGeminiLane, geminiConfigured, geminiGenerate, laneModel, type LaneFn } from '../services/ai/geminiLane';
 
 export const makerBuildRouter = Router();
 
@@ -100,9 +102,33 @@ makerBuildRouter.post('/workspace/ask', async (req: Request, res: Response) => {
   if (!model) { res.status(503).json({ error: 'Aria is answering from the workspace notes right now' }); return; }
   if (!ariaAllowed(uid)) { res.status(429).json({ error: 'Lots of questions! Aria will answer from the workspace notes for a while.' }); return; }
   const out = await askWorkspace({ workspace, level: req.body?.level === 'pro' ? 'pro' : 'simple', question, rail: req.body?.rail,
+    state: req.body?.state, screen: req.body?.screen, history: req.body?.history,
     model: (system, user) => model(system, user, 500, { json: true, temperature: 0.2 }) });
   if (!out) { res.status(404).json({ error: 'Unknown workspace' }); return; }
   res.json(out);
+});
+
+// Ask Aria's eyes when the desktop app's on-device model isn't there: Gemini describes one screenshot of
+// the room. Signed in, opt-in in the panel, 30 looks an hour; the picture is not stored or logged.
+const lookHits = new Map<string, { start: number; n: number }>();
+const LOOKS_PER_HOUR = 30;
+makerBuildRouter.post('/workspace/look', async (req: Request, res: Response) => {
+  const uid = await uidOf(req); if (!uid) { res.status(401).json({ error: 'Sign in so Aria can look at your screen' }); return; }
+  const w = workspaceById(s(req.body?.workspace, 40)); if (!w) { res.status(404).json({ error: 'Unknown workspace' }); return; }
+  const image = typeof req.body?.image === 'string' ? req.body.image : '';
+  if (!/^\/9j\/[A-Za-z0-9+/=]+$/.test(image) || image.length > 1_500_000) { res.status(400).json({ error: 'Send one JPEG screenshot under about 1 MB' }); return; }
+  if (!geminiConfigured()) { res.status(503).json({ error: 'Aria cannot look at screens right now; she still knows your work from the room.' }); return; }
+  const now = Date.now(); const h = lookHits.get(uid);
+  if (!h || now - h.start > 3_600_000) { lookHits.set(uid, { start: now, n: 1 }); if (lookHits.size > 5000) lookHits.delete(lookHits.keys().next().value!); }
+  else if (h.n >= LOOKS_PER_HOUR) { res.status(429).json({ error: 'Aria has looked a lot this hour; she still knows your work from the room.' }); return; }
+  else h.n += 1;
+  try {
+    const { text } = await geminiGenerate({
+      model: laneModel('WORKSPACE_ARIA_VISION_MODEL'), maxTokens: 320, temperature: 0.2, timeoutMs: 30_000,
+      contents: [{ role: 'user', parts: [{ text: lookPrompt(w.name, cleanState(req.body?.state)) }, { inlineData: { mimeType: 'image/jpeg', data: image } }] }],
+    });
+    res.json({ seen: s(text, 1200) });
+  } catch { res.status(502).json({ error: 'Aria could not look at your screen just now.' }); }
 });
 
 // ---------------------------------------------------------------- terms

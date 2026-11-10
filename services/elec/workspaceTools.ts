@@ -51,3 +51,38 @@ export function registerElecTools(): void {
   if (done) return; done = true;
   registry.register(...ELEC_TOOLS);
 }
+
+// ---------------------------------------------------------------- what Aria knows about the circuit
+import type { RoomState } from '../workspace/askAria';
+import { bom } from './circuit';
+import type { Finding } from './checks';
+import type { Hazard } from '../safety/hazards';
+
+const si = (v: number, unit: string) => { const a = Math.abs(v); return a >= 1 ? `${+v.toPrecision(3)} ${unit}` : a >= 1e-3 ? `${+(v * 1e3).toPrecision(3)} m${unit}` : a >= 1e-6 ? `${+(v * 1e6).toPrecision(3)} µ${unit}` : `0 ${unit}`; };
+const last = (a: number[] | undefined) => a?.length ? a[a.length - 1] : 0;
+
+/** The sheet in words: the parts list, what's picked, what the simulation measured, and open checks and hazards. */
+export function elecRoomState(o: { circuit: Circuit; selectedRef?: string | null; sim: SimResult | null; findings: Finding[]; openHazards: Hazard[]; panel?: string }): RoomState {
+  const c = o.circuit;
+  const rows = bom(c).slice(1);
+  if (!c.parts.length) return { building: `${c.name || 'A new circuit'}: the sheet is empty so far.` };
+  const parts = rows.map(([qty, refs, name, value]) => `${qty === '1' ? '' : `${qty} × `}${name}${value ? ` ${value}` : ''} (${refs})`);
+  const building = `${c.name || 'A circuit'}${c.about ? ` (${c.about.slice(0, 120)})` : ''}: ${parts.slice(0, 8).join(', ')}${parts.length > 8 ? ', and more' : ''}. ${c.wires.length} wire${c.wires.length === 1 ? '' : 's'}.`;
+  const lines: string[] = [];
+  if (o.selectedRef) lines.push(`Picked: ${o.selectedRef}.`);
+  if (o.panel) lines.push(`The ${o.panel} panel is open.`);
+  if (!o.sim) lines.push('It has not been simulated yet.');
+  else {
+    lines.push(o.sim.converged ? `Simulated (${o.sim.mode === 'tran' ? 'over time' : 'steady'}).` : 'The last simulation did not settle on an answer.');
+    const reads = c.parts.filter(p => o.sim!.parts[p.id] && p.kind !== 'ground' && p.kind !== 'wire').slice(0, 6)
+      .map(p => { const t = o.sim!.parts[p.id]; return `${p.ref} ${si(last(t.i), 'A')}, ${si(last(t.p), 'W')}`; });
+    if (reads.length) lines.push(`Readings: ${reads.join('; ')}.`);
+    for (const [id, hz] of Object.entries(o.sim.freq ?? {})) { const p = c.parts.find(x => x.id === id); if (p) lines.push(`${p.ref} switches at ${si(hz, 'Hz')}.`); }
+    for (const w of o.sim.warnings.slice(0, 2)) lines.push(`Simulator: ${w}`);
+  }
+  const issues = [
+    ...o.openHazards.slice(0, 3).map(h => `Safety (${h.severity}): ${h.title}. ${h.why}`),
+    ...o.findings.filter(f => f.level === 'error' || f.level === 'warn').slice(0, 5).map(f => `${f.level === 'error' ? 'Check failed' : 'Warning'}: ${f.title}. ${f.detail}${f.refs?.length ? ` (${f.refs.join(', ')})` : ''}`),
+  ];
+  return { building, lines, issues };
+}

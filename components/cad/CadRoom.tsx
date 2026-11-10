@@ -38,8 +38,8 @@ import { MECH_PARTS, mechModel, mechDefaults, type MechPart } from '../../servic
 import { writeStl } from '../../services/mech/geometry';
 import { userBlocks, scaleEntities } from '../../services/cad/library';
 import { engineById } from '../../services/cad/licences';
-import { useToolRail, useToolRunner, AriaToolHint } from '../workspace/useToolRail';
-import { ARCH, registerCadTools, type CadToolDoc } from '../../services/cad/workspaceTools';
+import { useToolRail, useToolRunner, useRoomState, AriaToolHint } from '../workspace/useToolRail';
+import { ARCH, registerCadTools, cadRoomState, type CadToolDoc } from '../../services/cad/workspaceTools';
 import { HOME_PATH } from '../../services/cad/guide/journey';
 import { updateProfile } from '../../services/workspace/profileStore';
 import { finishPath, setLevel as setProfileLevel } from '../../services/workspace/skillProfile';
@@ -214,6 +214,9 @@ export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFil
   const suggestion = toolRail.suggestion;
   const onToolUsed = useCallback((t: DraftTool) => toolRail.used(t), [toolRail.used]); // eslint-disable-line react-hooks/exhaustive-deps
   // Ask Aria's "Show me" picks a drafting tool, the same way Aria's hint card does.
+  // Ask Aria knows the drawing: walls, rooms and sizes, doors and windows, the guide step, failed checks.
+  useRoomState(ARCH, useMemo(() => cadRoomState({ model, rooms, findings: guideFindings, guide: { program: guideProgram, seen3d, ack: guideAck }, level: guideLevel, view: in3d ? '3D' : model?.is2D ? '2D drawing' : '3D model' }),
+    [model, rooms, guideFindings, guideProgram, seen3d, guideAck, guideLevel, in3d]));
   useToolRunner(ARCH, id => { if (!model?.is2D || in3d) return false; setPlacing(null); setToolRequest(r => ({ tool: id as DraftTool, n: (r?.n ?? 0) + 1 })); return true; });
   const setMeta = (k: string, v: string) => { if (model) commit({ ...model, meta: { ...model.meta, [k]: v } }); };
   const placeItem = (id: string) => { const it = itemById(id); if (!it || !model) return; const params = defaultParams(it); setPlacing({ block: makeBlock(it, params, model.units), layer: it.layer, label: it.name, item: { id: it.id, params } }); };

@@ -7,7 +7,8 @@ import { registry, type ToolDef } from '../../services/workspace/tools';
 import { getProfile, subscribe, updateProfile, connectAccount } from '../../services/workspace/profileStore';
 import { recordUse, usesOf } from '../../services/workspace/skillProfile';
 import type { Level } from '../../services/workspace/guidePath';
-import { publishRail, onReveal, setRunner, type Runner } from '../../services/workspace/railBus';
+import { publishRail, publishState, onReveal, setRunner, type Runner } from '../../services/workspace/railBus';
+import type { RoomState } from '../../services/workspace/askAria';
 
 export interface ToolRail {
   /** Every tool the rail should draw right now. */
@@ -62,6 +63,13 @@ export function useToolRail<D>(workspace: string, doc: D | null, selection: numb
 export function useToolRunner(workspace: string, run: Runner): void {
   const ref = useRef(run); ref.current = run;
   useEffect(() => setRunner(workspace, id => ref.current(id)), [workspace]);
+}
+
+/** Tells Ask Aria what the person is making right now. Build `state` with useMemo; the room's own words. */
+export function useRoomState(workspace: string, state: RoomState | null): void {
+  const key = state ? JSON.stringify(state) : '';
+  useEffect(() => { publishState(workspace, state); }, [workspace, key]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => publishState(workspace, null), [workspace]);
 }
 
 /** Aria's "new tool" card: why the tool is here, what it does, Try it / Not now. */

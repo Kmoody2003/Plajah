@@ -61,3 +61,37 @@ export function registerBioTools(): void {
   if (done) return; done = true;
   registry.register(...BIO_TOOLS);
 }
+
+// ---------------------------------------------------------------- what Aria knows about the molecule or model
+import type { RoomState } from '../workspace/askAria';
+import type { SimResult } from './sbml';
+
+const g3 = (x: number) => (Math.abs(x) >= 1000 || (x !== 0 && Math.abs(x) < 0.01) ? x.toExponential(2) : `${+x.toPrecision(3)}`);
+
+/** The Molecule tab in words: which structure, its chains and ligands, and how it's drawn. */
+export function moleculeRoomState(o: { structure: Structure | null; style: string; color: string; hiddenChains: string[]; water: boolean }): RoomState {
+  const st = o.structure;
+  if (!st) return { building: 'The Molecule tab is open with no structure loaded yet.', lines: ['Load one by PDB code or UniProt accession, or open a file.'] };
+  const chains = st.chains.slice(0, 6).map(c => `chain ${c.id} (${c.kind}, ${c.residues} residues${c.ligands.length ? `, with ${c.ligands.slice(0, 3).join(', ')}` : ''})`);
+  const building = `Looking at ${st.title || st.id} (${st.id}${st.predicted ? ', an AlphaFold prediction' : `, ${st.method}${st.resolution ? ` at ${st.resolution} Å` : ''}`}): ${st.atoms.length} atoms, ${st.chains.length} chain${st.chains.length === 1 ? '' : 's'}.`;
+  const lines = [`Chains: ${chains.join('; ')}${st.chains.length > 6 ? '; …' : ''}.`, `Drawn as ${o.style}, coloured by ${o.color}${o.water ? ', with water shown' : ''}.`];
+  if (o.hiddenChains.length) lines.push(`Hidden chains: ${o.hiddenChains.join(', ')}.`);
+  return { building, lines, issues: st.warnings.slice(0, 3) };
+}
+
+/** The Pathway tab in words: which model, what you changed, how it was run and where it ended up. */
+export function pathwayRoomState(o: { model: BioModel; changedParams: Record<string, number>; changedInitial: Record<string, number>; mode: string; tEnd: number; result: SimResult | null; error?: string; shown: string[] }): RoomState {
+  const m = o.model;
+  const name = (id: string) => m.species.find(s => s.id === id)?.name || m.params.find(p => p.id === id)?.name || id;
+  const building = `The ${m.name || m.id} model: ${m.species.length} species and ${m.reactions.length} reactions, run ${o.mode === 'stochastic' ? 'stochastically (one molecule at a time)' : 'smoothly (ODE)'} to time ${g3(o.tEnd)}.`;
+  const lines: string[] = [];
+  const ps = Object.entries(o.changedParams).slice(0, 6), is = Object.entries(o.changedInitial).slice(0, 6);
+  lines.push(ps.length ? `Rates changed: ${ps.map(([k, v]) => `${name(k)} = ${g3(v)}`).join(', ')}.` : 'No rates changed from the model.');
+  if (is.length) lines.push(`Starting amounts changed: ${is.map(([k, v]) => `${name(k)} = ${g3(v)}`).join(', ')}.`);
+  if (o.result) {
+    const end = o.shown.filter(id => o.result!.series[id]).slice(0, 6).map(id => { const s = o.result!.series[id]; const mx = s.reduce((a, b) => Math.max(a, b), -Infinity); return `${name(id)} ends at ${g3(s[s.length - 1])} (peak ${g3(mx)})`; });
+    if (end.length) lines.push(`On the chart: ${end.join('; ')}.`);
+  }
+  const issues = [...(o.error ? [`The run failed: ${o.error}`] : []), ...m.warnings.slice(0, 3)];
+  return { building, lines, issues };
+}

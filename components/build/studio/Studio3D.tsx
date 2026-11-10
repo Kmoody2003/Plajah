@@ -12,8 +12,8 @@ import { toMesh, type V3 } from '../../../services/build/studio/csg';
 import { writeStl } from '../../../services/mech/geometry';
 import { write3mf } from '../../../services/fab/threeMf';
 import { emptyModel, type CadModel } from '../../../services/cad/model';
-import { useToolRail, useToolRunner, AriaToolHint, FreshDot } from '../../workspace/useToolRail';
-import { STUDIO, registerStudioTools, type StudioToolDoc, type StudioToolId } from '../../../services/build/workspaceTools';
+import { useToolRail, useToolRunner, useRoomState, AriaToolHint, FreshDot } from '../../workspace/useToolRail';
+import { STUDIO, registerStudioTools, studioRoomState, type StudioToolDoc, type StudioToolId } from '../../../services/build/workspaceTools';
 import type { Level } from '../../../services/workspace/guidePath';
 
 registerStudioTools();
@@ -222,6 +222,8 @@ export default function Studio3D(p: Studio3DProps) {
 
   const printer = PRINTERS.find(x => x.id === p.printer) ?? PRINTERS[1];
   const report = useMemo(() => { try { return printReport(scene, printer, p.audience); } catch { return null; } }, [scene, printer, p.audience]);
+  // Ask Aria knows what's on the plate, what's picked and what the print check found.
+  useRoomState(STUDIO, useMemo(() => studioRoomState({ title: p.title, shapes: scene.shapes, picked: selected, report, audience: p.audience }), [p.title, scene.shapes, selected, report, p.audience]));
   const errors = report?.findings.filter(f => f.level === 'error') ?? [];
   const smallParts = errors.find(e => e.id === 'small-parts');
   const blocked = p.exportBlocked ?? (smallParts ? 'Made for a child under 3 but small enough to choke on: make it bigger, or change who it is for.' : null);

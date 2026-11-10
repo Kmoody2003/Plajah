@@ -3,10 +3,11 @@
 // Rooms publish through useToolRail automatically; a room that can run tools from outside registers a
 // runner with useToolRunner. Pure module state (one browser tab), no React.
 
-import type { RailSnapshot } from './askAria';
+import type { RailSnapshot, RoomState } from './askAria';
 
 type Listener = () => void;
 const snaps = new Map<string, RailSnapshot>();
+const states = new Map<string, RoomState>();
 /** A runner returns false when it can't run that tool, or a sentence saying what to do first. */
 export type Runner = (id: string) => boolean | string | void;
 const runners = new Map<string, Runner>();
@@ -21,6 +22,15 @@ export function publishRail(workspace: string, snap: RailSnapshot): void {
 }
 export function railOf(workspace: string): RailSnapshot | null { return snaps.get(workspace) ?? null; }
 export function subscribeRail(l: Listener): () => void { listeners.add(l); return () => { listeners.delete(l); }; }
+
+/** What the person is making, in the room's own words (see RoomState). null clears it. */
+export function publishState(workspace: string, st: RoomState | null): void {
+  const old = states.get(workspace);
+  if (!st) { if (old) { states.delete(workspace); emit(); } return; }
+  if (old && JSON.stringify(old) === JSON.stringify(st)) return;
+  states.set(workspace, st); emit();
+}
+export function stateOf(workspace: string): RoomState | null { return states.get(workspace) ?? null; }
 
 /** A room's "run this tool" hook. Returns an unregister function. */
 export function setRunner(workspace: string, run: Runner): () => void {

@@ -5,8 +5,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRoomHost } from '../workspace/roomHost';
-import { useToolRail, useToolRunner, AriaToolHint, FreshDot } from '../workspace/useToolRail';
-import { ELEC, registerElecTools, type ElecToolDoc, type ElecToolId } from '../../services/elec/workspaceTools';
+import { useToolRail, useToolRunner, useRoomState, AriaToolHint, FreshDot } from '../workspace/useToolRail';
+import { ELEC, registerElecTools, elecRoomState, type ElecToolDoc, type ElecToolId } from '../../services/elec/workspaceTools';
 import type { Level } from '../../services/workspace/guidePath';
 import { X, MousePointer2, Spline, RotateCw, Trash2, Play, Undo2, FilePlus, Download, ShieldCheck, ListChecks, SlidersHorizontal, Activity, Sparkles, Search, Pause, ShieldAlert, Package, Store, CircuitBoard } from 'lucide-react';
 import type { Build } from '../../services/elec/recipes';
@@ -108,6 +108,9 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
   const advisories = useMemo(() => advisoriesFor(circuit), [circuit]);
   const queries = useMemo(() => recallQueries(circuit, build?.recipe), [circuit, build?.recipe]);
   const openCritical = needsAck(hazards).filter(h => !acks.includes(h.id));
+  // Ask Aria knows the circuit, what's picked, what the simulation measured and what's still open.
+  const selRef = sel?.type === 'part' ? circuit.parts.find(p => p.id === sel.id)?.ref ?? null : sel?.type === 'wire' ? 'a wire' : null;
+  useRoomState(ELEC, useMemo(() => elecRoomState({ circuit, selectedRef: selRef, sim, findings, openHazards: openCritical, panel: right }), [circuit, selRef, sim, findings, openCritical, right]));
   /** Exports and making wait until every critical hazard is acknowledged. */
   const guard = (fn: () => void) => { if (openCritical.length) { setRight('safety'); setError(`Acknowledge ${openCritical.length === 1 ? 'the critical hazard' : `${openCritical.length} critical hazards`} in Safety first: ${openCritical.map(h => h.title).join('; ')}.`); return; } fn(); };
 

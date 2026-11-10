@@ -49,3 +49,25 @@ export function registerStudioTools(): void {
   if (done) return; done = true;
   registry.register(...STUDIO_TOOLS);
 }
+
+// ---------------------------------------------------------------- what Aria knows about the plate
+import type { RoomState } from '../workspace/askAria';
+import type { Shape, PrintReport, Audience } from './studio/shapes';
+
+const mm = (v: number) => `${Math.round(v * 10) / 10}`;
+const dims = (v: number[]) => `${v.map(mm).join(' × ')} mm`;
+const FOR: Record<Audience, string> = { under3: 'a child under 3', kids: 'kids', teens: 'teens', adults: 'adults' };
+const named = (s: Shape) => s.kind === 'group' ? `a group of ${s.children?.length ?? 0} (${(s.children ?? []).map(c => c.name).slice(0, 4).join(', ')})` : `${s.name}${s.hole ? ' (a hole)' : ''}`;
+
+/** The plate in words: what's on it, what's picked, how big it prints, and the print check's warnings. */
+export function studioRoomState(o: { title: string; shapes: Shape[]; picked: Shape[]; report: PrintReport | null; audience: Audience }): RoomState {
+  const { shapes, picked, report } = o;
+  if (!shapes.length) return { building: `${o.title || 'A new design'}: the plate is empty so far.`, lines: [`It is for ${FOR[o.audience]}.`] };
+  const list = shapes.slice(0, 8).map(named);
+  const building = `${o.title || 'A design'} with ${shapes.length} shape${shapes.length > 1 ? 's' : ''} on the plate: ${list.join(', ')}${shapes.length > 8 ? ', and more' : ''}.`;
+  const lines: string[] = [`It is for ${FOR[o.audience]}.`];
+  lines.push(picked.length ? `Picked: ${picked.slice(0, 4).map(s => `${named(s)}, ${dims(s.size)}`).join('; ')}.` : 'Nothing is picked right now.');
+  if (report && report.volume > 0) lines.push(`It prints ${dims(report.size)}, about ${Math.max(1, Math.round(report.grams))} g of PLA, about ${report.minutes < 90 ? `${report.minutes} minutes` : `${Math.round(report.minutes / 6) / 10} hours`}.`);
+  const issues = (report?.findings ?? []).filter(f => f.level !== 'info').map(f => f.text);
+  return { building, lines, issues };
+}

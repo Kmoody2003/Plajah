@@ -68,3 +68,34 @@ export function registerCadTools(): void {
   // Finishing "Design a home" keeps the tools a home needs on the rail for good.
   registry.unlockOnPath(ARCH, HOME_PATH.id, HOME_PATH.unlocks ?? []);
 }
+
+// ---------------------------------------------------------------- what Aria knows about the drawing
+import type { RoomState } from '../workspace/askAria';
+import type { Finding } from './codeCheck';
+import { MM_PER_UNIT } from './model';
+import { STEPS, evaluate, currentStep, type GuideFlags } from './guide/journey';
+import { pathProgress } from '../workspace/guidePath';
+
+/** The drawing in words: walls, rooms and their sizes, doors and windows, the guide step, and failed checks. */
+export function cadRoomState(o: { model: CadModel | null; rooms: Room[]; findings: Finding[]; guide?: GuideFlags; level?: 'simple' | 'pro'; view: string }): RoomState | null {
+  const m = o.model;
+  if (!m) return null;
+  if (!m.is2D) return { building: `${m.name}: a 3D model (${m.format.toUpperCase()}) with ${m.elements.length || m.meshes.length} parts.`, lines: [`The ${o.view} view is open.`], issues: m.warnings.slice(0, 3) };
+  const count = (t: string) => m.entities.filter(e => e.type === t).length;
+  const walls = count('wall'), inserts = count('insert');
+  const k = MM_PER_UNIT[m.units] ** 2 / 1e6;
+  const rooms = o.rooms.slice(0, 8).map(r => `${r.name || `room ${r.number ?? r.id}`} ${(r.area * k).toFixed(1)} m²`);
+  const total = o.rooms.reduce((s, r) => s + r.area * k, 0);
+  const building = walls
+    ? `${m.name}: a floor plan with ${walls} wall${walls === 1 ? '' : 's'}, ${o.rooms.length} closed room${o.rooms.length === 1 ? '' : 's'}${o.rooms.length ? ` (${rooms.join(', ')}${o.rooms.length > 8 ? ', …' : ''}; ${total.toFixed(1)} m² in all)` : ''} and ${inserts} door${inserts === 1 ? '' : 's'} or window${inserts === 1 ? '' : 's'}.`
+    : `${m.name}: a drawing with ${m.entities.length} lines and shapes, no walls yet.`;
+  const lines: string[] = [`The ${o.view} view is open.`];
+  if (walls) {
+    const states = evaluate(m, o.rooms, o.findings, o.guide ?? {}, o.level ?? 'simple');
+    const at = STEPS.find(s => s.id === currentStep(states));
+    const pr = pathProgress(STEPS, states);
+    if (at) lines.push(`Design a home guide: ${pr.done} of ${pr.total} steps done; now on "${at.title[o.level ?? 'simple']}".`);
+  }
+  const issues = o.findings.filter(f => f.status !== 'pass').slice(0, 6).map(f => `${f.status === 'fail' ? 'Check failed' : 'Warning'}: ${f.title}. ${f.detail} (${f.citation})`);
+  return { building, lines, issues };
+}

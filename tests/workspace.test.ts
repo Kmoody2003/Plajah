@@ -269,3 +269,16 @@ test('rail bus: a runner can run, refuse, or say what to do first', async () => 
   assert.deepEqual(runTool('t', 'nope'), { ran: false });
   off(); assert.ok(!canRun('t'));
 });
+
+test('ask aria knows your work: the room report leads "is it right?", its issues first, and reaches the model prompt', async () => {
+  const { workspaceFacts, cleanState } = await import('../services/workspace/ariaKnowledge');
+  const { localAnswer, withContext, retrieve, buildPrompt } = await import('../services/workspace/askAria');
+  const state = cleanState({ building: 'Robot keychain with 3 shapes on the plate: Box, Cylinder (a hole), Ball.', lines: ['It is for kids.'], issues: ['1 hole is not grouped, so it cuts nothing.'], junk: 'x' })!;
+  assert.deepEqual(Object.keys(state).sort(), ['building', 'issues', 'lines']);
+  const facts = workspaceFacts('studio', 'simple', null, state, 'A red box with a blue cylinder beside it.')!;
+  const a = localAnswer('simple', "what's wrong with my design?", facts);
+  assert.ok(!a.unknown && /Robot keychain/.test(a.answer) && /not grouped/.test(a.answer) && /blue cylinder/.test(a.answer), a.answer);
+  const p = buildPrompt('Build Studio', 'simple', 'how do I cut a hole?', withContext(retrieve('how do I cut a hole?', facts), facts), [{ q: 'what is this?', a: 'A keychain.' }]);
+  assert.match(p.user, /WORK: Robot keychain/); assert.match(p.user, /ISSUE: 1 hole/); assert.match(p.user, /SCREEN: A red box/); assert.match(p.user, /EARLIER IN THIS CHAT/);
+  assert.equal(cleanState({ building: '' }), null);
+});

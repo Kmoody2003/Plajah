@@ -19,8 +19,8 @@ import { softHazards, softLabels, softRecallQueries, AUDIENCE_LABEL } from '../.
 import SafetyPanel, { BuildTermsGate, termsAccepted } from '../safety/SafetyPanel';
 import ExchangeRoom from '../supply/ExchangeRoom';
 import { suppliersFor, type Category } from '../../services/supply/directory';
-import { useToolRail, useToolRunner, AriaToolHint, FreshDot } from '../workspace/useToolRail';
-import { SEW, registerSewTools, type SewToolDoc, type SewToolId } from '../../services/soft/workspaceTools';
+import { useToolRail, useToolRunner, useRoomState, AriaToolHint, FreshDot } from '../workspace/useToolRail';
+import { SEW, registerSewTools, sewRoomState, type SewToolDoc, type SewToolId } from '../../services/soft/workspaceTools';
 import type { Level } from '../../services/workspace/guidePath';
 
 registerSewTools();
@@ -134,6 +134,9 @@ export default function PatternRoom({ onClose, getToken, apiBase = '', initialTe
   }, [pattern, audience, selling, cutter, laserFabric]);
   const queries = useMemo(() => (pattern ? softRecallQueries(pattern, audience) : []), [pattern, audience]);
   const open = openHazards(hazards, acks);
+  // Ask Aria knows the pattern, the measurements you changed, the fabric and the open hazards.
+  useRoomState(SEW, useMemo(() => sewRoomState({ tpl, values: v, edited: Object.keys(vals[tid] ?? {}), pattern, markers, audience: AUDIENCE_LABEL[audience], unit, view, graded: gradeUi.on && grade ? grade.sizes : null, openHazards: open }),
+    [tpl, JSON.stringify(v), vals, tid, pattern, markers, audience, unit, view, gradeUi.on, grade, open])); // eslint-disable-line react-hooks/exhaustive-deps
   const guard = (fn: () => void | Promise<void>) => {
     if (open.length) { setRight('safety'); setMsg(open.some(h => h.block) ? `Change the design first: ${open.filter(h => h.block).map(h => h.title).join('; ')}.` : `Acknowledge in Safety first: ${open.map(h => h.title).join('; ')}.`); return; }
     setMsg(''); void Promise.resolve(fn()).catch(e => setMsg(String(e?.message ?? e)));

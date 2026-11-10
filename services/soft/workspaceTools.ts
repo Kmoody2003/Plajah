@@ -42,3 +42,36 @@ export function registerSewTools(): void {
   if (done) return; done = true;
   registry.register(...SEW_TOOLS);
 }
+
+// ---------------------------------------------------------------- what Aria knows about the pattern
+import type { RoomState } from '../workspace/askAria';
+import type { Pattern, SoftTemplate, ParamValue } from './patterns';
+import type { Marker } from './layout';
+import { yardage, FABRIC_LABEL } from './layout';
+import type { Hazard } from '../safety/hazards';
+
+const fmt = (mm: number, unit: 'cm' | 'in') => unit === 'in' ? `${(mm / 25.4).toFixed(1)}″` : `${(mm / 10).toFixed(1)} cm`;
+
+/** The pattern in words: template, size and measurements you changed, pieces, fabric, and open hazards. */
+export function sewRoomState(o: { tpl: SoftTemplate; values: Record<string, ParamValue>; edited: string[]; pattern: Pattern | null; markers: Marker[]; audience: string; unit: 'cm' | 'in'; view: string; graded?: string[] | null; openHazards: Hazard[] }): RoomState {
+  const { tpl, pattern } = o;
+  const changed = tpl.params.filter(p => o.edited.includes(p.key) && !p.hidden).slice(0, 8).map(p => {
+    const v = o.values[p.key];
+    return `${p.label} ${p.type === 'length' && typeof v === 'number' ? fmt(v, o.unit) : p.options?.find(x => x.value === v)?.label ?? String(v)}`;
+  });
+  if (!pattern) return { building: `A ${tpl.name} pattern, but these measurements don't make a valid pattern yet.`, lines: changed.length ? [`Changed: ${changed.join(', ')}.`] : [], issues: ['The measurements are out of range: try values nearer the defaults.'] };
+  const building = `A ${pattern.name}${pattern.size ? `, size ${pattern.size}` : ''}, for ${o.audience}: ${pattern.pieces.length} pattern piece${pattern.pieces.length === 1 ? '' : 's'} (${pattern.pieces.slice(0, 6).map(p => p.name).join(', ')}${pattern.pieces.length > 6 ? ', …' : ''}).`;
+  const lines: string[] = [];
+  lines.push(changed.length ? `Measurements changed from the defaults: ${changed.join(', ')}.` : 'All measurements are still the defaults.');
+  if (o.markers.length) lines.push(`Fabric: ${o.markers.map(m => `${FABRIC_LABEL[m.role]} ${yardage(m).text}`).join('; ')}.`);
+  if (o.markers.some(m => m.tooWide.length)) lines.push(`Too wide for the fabric: ${o.markers.flatMap(m => m.tooWide).join(', ')}.`);
+  if (pattern.fill) lines.push(`Stuffing: about ${Math.round(pattern.fill.grams)} g.`);
+  if (o.graded?.length) lines.push(`Sizes nested on one pattern: ${o.graded.join(', ')}.`);
+  lines.push(`The ${o.view === '3d' ? '3D fit' : o.view === 'layout' ? 'fabric layout' : 'pattern pieces'} view is open.`);
+  const issues = [
+    ...o.openHazards.slice(0, 4).map(h => `Safety (${h.severity}): ${h.title}. ${h.why}`),
+    ...pattern.notes.slice(0, 2),
+    ...(o.markers.some(m => m.tooWide.length) ? ['Some pieces are wider than the fabric: use wider fabric or piece them.'] : []),
+  ];
+  return { building, lines, issues };
+}
