@@ -15,9 +15,10 @@ import { useGlobalPlayerState } from '../../contexts/GlobalPlayerContext';
 import { TYPE } from '../../src/lib/designSystem';
 import type { FediversePost } from '../../services/fediverse/types';
 import { tokenize } from '../../services/fediverse/blueskyVersion';
-import { openBluesky } from '../../services/fediverse/blueskyNav';
+import { openBluesky as openBlueskyInApp, type BskyNav } from '../../services/fediverse/blueskyNav';
 import { ReplySheet, BskyVideo, stripHtml } from '../FediversePostCard';
-import { favoriteAudiusTrack, unfavoriteAudiusTrack, repostAudiusTrack, unrepostAudiusTrack } from '../../services/audiusService';
+import { favoriteAudiusTrack, unfavoriteAudiusTrack, repostAudiusTrack, unrepostAudiusTrack, audiusTrackToNativeAlbum } from '../../services/audiusService';
+import type { FediverseMedia } from '../../services/fediverse/types';
 import { getAudiusSession, startAudiusAuth } from '../../services/audiusAuth';
 import { invalidateAudiusLibrary } from '../../services/audiusLibrary';
 import AudiusComments from './AudiusComments';
@@ -29,6 +30,30 @@ const NET: Record<string, { label: string; color: string; logo: string }> = {
   threads:  { label: 'Threads',  color: '#cccccc', logo: '@' },
   audius:   { label: 'Audius',   color: '#a855f7', logo: '🎧' },
 };
+
+/** An Audius post's audio → the same native one-track Album Chora builds for a shared song, so the feed plays it
+ *  WITH an album: the mini player's art, the title and "Open in Chora" all land on Chora's player, not audius.co. */
+export function audiusPostAlbum(post: FediversePost, m: FediverseMedia) {
+  const artistId = (post.authorDid || '').replace(/^audius:/, '') || undefined;
+  return audiusTrackToNativeAlbum({
+    id: post.id.startsWith('audius_') ? post.id : `audius_${post.id}`,
+    title: m.altText || 'Audius Track',
+    artist: post.authorDisplayName || post.authorHandle.replace(/^@/, ''),
+    artistId,
+    url: m.url,
+    thumbnailUrl: m.previewUrl || post.authorAvatarUrl || '',
+    source: 'AUDIUS',
+    sourcePageUrl: post.url,
+  } as any);
+}
+
+/** Chora's Audius artist page for an Audius post author (App resolves the id → artist and routes AUDIUS_ARTIST). */
+export function openAudiusArtistInChora(post: FediversePost) {
+  const id = (post.authorDid || '').replace(/^audius:/, '');
+  if (!id) return false;
+  window.dispatchEvent(new CustomEvent('audius-artist', { detail: { id, handle: post.authorHandle.replace(/^@/, ''), name: post.authorDisplayName } }));
+  return true;
+}
 
 export interface ExternalPostCardProps {
   post: FediversePost;
@@ -57,20 +82,35 @@ const ExternalPostCard: React.FC<ExternalPostCardProps> = ({ post, onOpenProfile
   const likeCount = Math.max(0, post.likeCount + (localLiked === null ? 0 : localLiked === post.isLiked ? 0 : localLiked ? 1 : -1));
   const repostCount = Math.max(0, post.repostCount + (localReposted === null ? 0 : localReposted === post.isReposted ? 0 : localReposted ? 1 : -1));
 
+  // Public Bluesky posts (the default Discover feed for people without a connected account) have no account to act
+  // as: the in-app Bluesky screens need one, so threads/profiles open on bsky.app and actions ask to connect.
+  const isPublicBsky = post.protocol === 'bluesky' && post.accountId === 'public';
+  const connectBluesky = () => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'SETTINGS', params: { tab: 'NETWORKS' } } }));
+  const openBluesky = (nav: BskyNav) => {
+    if (!isPublicBsky) return openBlueskyInApp(nav);
+    const url = nav.kind === 'profile' ? `https://bsky.app/profile/${encodeURIComponent(nav.actor)}`
+      : nav.kind === 'search' ? `https://bsky.app/search?q=${encodeURIComponent(nav.q ?? '')}`
+      : nav.uri === post.uri ? post.url
+      : (() => { const m = /^at:\/\/([^/]+)\/[^/]+\/([^/]+)$/.exec(nav.uri); return m ? `https://bsky.app/profile/${m[1]}/post/${m[2]}` : post.url; })();
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
   const text = stripHtml(post.content || post.contentText || '');
   const openProfile = () => {
     if (onOpenProfile) return onOpenProfile(post);
     // Bluesky people open Plajah's own profile screen; other networks open the author's page there.
     if (post.protocol === 'bluesky') openBluesky({ kind: 'profile', actor: post.authorDid || post.authorHandle });
+    // Audius artists open Chora's Audius artist page — the integrated one, never audius.co.
+    else if ((post.protocol as string) === 'audius' && openAudiusArtistInChora(post)) return;
     else window.open(post.url, '_blank', 'noopener,noreferrer');
   };
 
   const act = async (kind: 'like' | 'repost') => {
+    if (isPublicBsky) { connectBluesky(); return; }
     if (acting) return;
     setActing(kind);
     try {
       if ((post.protocol as string) === 'audius') {
-        const trackId = post.id.replace(/^audius_post_/, '');
+        const trackId = post.id.replace(/^audius_(post_)?/, '');
         let session = getAudiusSession();
         if (!session || session.scope !== 'write') {
           session = await startAudiusAuth({ scope: 'write' });
@@ -99,6 +139,7 @@ const ExternalPostCard: React.FC<ExternalPostCardProps> = ({ post, onOpenProfile
   };
 
   const toggleBookmark = async () => {
+    if (isPublicBsky) { connectBluesky(); return; }
     if (acting || post.protocol !== 'bluesky' || !post.uri || !post.cid) return;
     setActing('bookmark');
     const next = !isBookmarked;
@@ -176,8 +217,9 @@ const ExternalPostCard: React.FC<ExternalPostCardProps> = ({ post, onOpenProfile
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-black text-white truncate">{m.altText || 'Audius Track'}</p>
-                          <p className="text-[11px] font-bold text-purple-300/80 truncate">{post.authorDisplayName || post.authorHandle}</p>
+                          <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'PLAYER', params: { album: audiusPostAlbum(post, m) } } }))}
+                            className="block max-w-full text-left text-sm font-black text-white truncate hover:underline" title="Open in Chora">{m.altText || 'Audius Track'}</button>
+                          <button type="button" onClick={openProfile} className="block max-w-full text-left text-[11px] font-bold text-purple-300/80 truncate hover:underline" title="Artist page in Chora">{post.authorDisplayName || post.authorHandle}</button>
                           <p className="text-[9px] font-black uppercase tracking-widest text-white/35 mt-0.5">Stream natively in Chora</p>
                         </div>
                         <button
@@ -186,13 +228,10 @@ const ExternalPostCard: React.FC<ExternalPostCardProps> = ({ post, onOpenProfile
                             if (isCurrentAudio) {
                               togglePlay();
                             } else {
-                              playTrack({
-                                id: post.id,
-                                title: m.altText || 'Audius Track',
-                                artist: post.authorDisplayName || post.authorHandle,
-                                url: m.url,
-                                albumCover: m.previewUrl || post.authorAvatarUrl || '',
-                              } as any, null, 'RADIO');
+                              // Play WITH the native album so the mini player's art / stage opens Chora, not audius.co.
+                              const album = audiusPostAlbum(post, m);
+                              const track = album.tracks?.[0];
+                              if (track) playTrack(track as any, album, 'RADIO');
                             }
                           }}
                           className="w-11 h-11 rounded-full bg-purple-500 hover:bg-purple-400 text-black flex items-center justify-center shrink-0 shadow-lg transition-transform hover:scale-105"
@@ -241,7 +280,7 @@ const ExternalPostCard: React.FC<ExternalPostCardProps> = ({ post, onOpenProfile
 
             {/* Action bar — same buttons, spacing and icons as a native post */}
             <div className="flex items-center gap-1 mt-3 -ml-1.5">
-              <motion.button whileTap={{ scale: 0.85 }} onClick={() => setReplying(r => !r)}
+              <motion.button whileTap={{ scale: 0.85 }} onClick={() => (isPublicBsky ? connectBluesky() : setReplying(r => !r))}
                 title={isAudius ? 'Comments on Audius' : 'Reply'}
                 className={`tap flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all ${replying ? 'text-sky-400 bg-sky-400/10' : 'text-white/40 hover:text-sky-400 hover:bg-sky-400/10'}`}>
                 <MessageSquare size={16} strokeWidth={1.5} />{replyCount > 0 && <span className="text-[12px]">{replyCount}</span>}

@@ -63,6 +63,7 @@ export const NAV_SECTIONS: NavSection[] = [
   ]},
   { key: 'Entertainment', icon: Clapperboard, items: [
     { id: 'MUSIC', label: 'Chora', icon: Music2 },
+    { id: 'TECHNO_EXHIBIT', label: 'Machine Soul', icon: Landmark },
     { id: 'VIDEOS', label: 'Reello', icon: VideoIcon },
     { id: 'MOVIES_TV', label: 'Cinema', icon: Film },
     { id: 'RADIO', label: 'Radio', icon: Radio },

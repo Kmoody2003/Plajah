@@ -55,7 +55,8 @@ interface FediverseContextValue {
   connectMastodonToken: (instanceUrl: string, token: string) => Promise<FediverseAccount>;
   connectBlueskyAccount: (handle: string, appPassword: string, pdsUrl?: string) => Promise<FediverseAccount>;
   /** "Sign in with Bluesky" (AT Protocol OAuth) — opens Bluesky's own consent screen in a popup. */
-  connectBlueskyOAuth: (handle?: string) => Promise<void>;
+  /** `create: true` opens Bluesky's sign-up screen instead of sign-in (new account, connected on return). */
+  connectBlueskyOAuth: (handle?: string, opts?: { create?: boolean }) => Promise<void>;
   connectThreadsAccount: (token: string) => Promise<FediverseAccount>;
   disconnectAccount: (accountId: string) => Promise<void>;
 
@@ -268,7 +269,7 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return account;
   }, [uid]);
 
-  const connectBlueskyOAuth = useCallback(async (handle?: string) => {
+  const connectBlueskyOAuth = useCallback(async (handle?: string, opts?: { create?: boolean }) => {
     if (!uid) throw new Error('Not authenticated');
     // Open the popup inside the click, point it at Bluesky once the server has built the authorization URL.
     const popup = window.open('about:blank', `plajah-bsky-oauth-${Date.now()}`, 'width=520,height=720');
@@ -277,7 +278,7 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const token = await getToken();
       if (!token) throw new Error('No Firebase token');
-      ({ url } = await serverJson<{ url: string }>(`/api/fediverse/bluesky/oauth/start?handle=${encodeURIComponent((handle ?? '').trim())}`, token));
+      ({ url } = await serverJson<{ url: string }>(`/api/fediverse/bluesky/oauth/start?handle=${encodeURIComponent((handle ?? '').trim())}${opts?.create ? '&create=1' : ''}`, token));
     } catch (e) { popup.close(); throw e; }
     popup.location.href = url;
     // bsky.social's cross-origin-opener-policy can sever window.opener, so also listen on a BroadcastChannel, and

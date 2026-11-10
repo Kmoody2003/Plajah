@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// publicDomainRights — one place that answers "is this music free, and where?"
+// publicDomainRights — one place that answers "is this music (or film) free, and where?"
 //
 // Every shelf, search and label that claims public domain status asks this
 // module rather than carrying its own date ceiling. Before it existed the Chora
@@ -239,6 +239,146 @@ export function assessRecording(
     }
     return { jurisdiction: code, status: 'UNKNOWN', reason: `No recording rule recorded for ${code}.` };
   });
+}
+
+// ── Films ───────────────────────────────────────────────────────────────────
+//
+// A film is a published work, so the US clock is the same 95 years from release
+// as a composition. A US film can also have fallen out early:
+//   • NO_NOTICE      released before 1 Mar 1989 without a valid copyright notice
+//                    (before 1978 that was fatal; Night of the Living Dead),
+//   • NOT_RENEWED    released 1928–1963 and the 28-year renewal never filed,
+//   • US_GOVERNMENT  made by federal employees, never protected at all.
+// A FOREIGN film that lapsed in the US for the same reasons got its copyright
+// back on 1 Jan 1996 (URAA) if it was still protected at home then — so foreign
+// films only count as lapsed when `notRestored` says they were free at home too.
+//
+// Being free as a film is not the same as being free to sell on a disc. The
+// novel it adapts, the music on its soundtrack and the characters on its cover
+// are separate rights, and each is listed as a hazard on the clearance.
+//
+// Europe and the UK count 70 years from the death of the LAST of the principal
+// director, screenwriter, dialogue writer and composer of the score.
+
+export type FilmLapse = 'NO_NOTICE' | 'NOT_RENEWED' | 'US_GOVERNMENT';
+
+export interface FilmHazard {
+  kind: 'UNDERLYING_WORK' | 'MUSIC' | 'TRADEMARK' | 'RESTORATION' | 'OWNERSHIP';
+  /** What it is: "Henry Mancini's score", "Richard Matheson, I Am Legend (1954)". */
+  what: string;
+  /** Year the underlying work or music was first published; once that is free the hazard drops away. */
+  publishedYear?: number;
+}
+
+export interface FilmFacts {
+  /** Year of first public release. */
+  releaseYear?: number;
+  /** Country of origin — 'US' or anything else. Unknown means we cannot use lapse rules. */
+  country?: string;
+  /** How a US film lost its copyright early, when it did. */
+  lapse?: FilmLapse;
+  /** Foreign film that was already free at home on 1 Jan 1996, so URAA never restored it. */
+  notRestored?: boolean;
+  /** Our own records disagree or are missing: report UNKNOWN in the US until someone checks. */
+  needsCheck?: string;
+  /** Death year of the last of director, screenwriter, dialogue writer, composer (EU/UK rule). */
+  lastCreatorDeathYear?: number;
+  hazards?: FilmHazard[];
+}
+
+export const DEFAULT_FILM_JURISDICTIONS = ['US', 'EU', 'UK'];
+
+const LAPSE_REASON: Record<FilmLapse, string> = {
+  NO_NOTICE: 'released without a valid copyright notice',
+  NOT_RENEWED: 'its copyright was never renewed',
+  US_GOVERNMENT: 'it is a work of the US government and was never protected',
+};
+
+function usFilmVerdict(f: FilmFacts, now: Date): PDVerdict {
+  const y = f.releaseYear;
+  if (y === undefined) {
+    return { jurisdiction: 'US', status: 'UNKNOWN', reason: 'No release year, so its status cannot be established.' };
+  }
+  const freeFrom = usWorkFreeFrom(y);
+  if (freeFrom <= currentYear(now)) {
+    return { jurisdiction: 'US', status: 'PUBLIC_DOMAIN', freeFrom, reason: `United States: released ${y}, so free since ${freeFrom} (95 years from release).` };
+  }
+  if (f.needsCheck) {
+    return { jurisdiction: 'US', status: 'UNKNOWN', freeFrom, reason: `United States: ${f.needsCheck} At the latest it is free from ${freeFrom}.` };
+  }
+  if (f.lapse === 'US_GOVERNMENT') {
+    return { jurisdiction: 'US', status: 'PUBLIC_DOMAIN', reason: `United States: ${LAPSE_REASON.US_GOVERNMENT}.` };
+  }
+  if (f.lapse) {
+    if (f.country === 'US') {
+      return { jurisdiction: 'US', status: 'PUBLIC_DOMAIN', reason: `United States: released ${y} and ${LAPSE_REASON[f.lapse]}.` };
+    }
+    if (f.country && f.notRestored) {
+      return { jurisdiction: 'US', status: 'PUBLIC_DOMAIN', reason: `United States: released ${y}, ${LAPSE_REASON[f.lapse]}, and it was already free at home in 1996, so it was never restored.` };
+    }
+    if (!f.country) {
+      return { jurisdiction: 'US', status: 'UNKNOWN', freeFrom, reason: `United States: ${LAPSE_REASON[f.lapse]}, but the country of origin is unknown and a foreign film may have been restored in 1996.` };
+    }
+    return { jurisdiction: 'US', status: 'PROTECTED', freeFrom, reason: `United States: ${LAPSE_REASON[f.lapse]}, but as a ${f.country} film its copyright was restored in 1996, so free from ${freeFrom}.` };
+  }
+  return { jurisdiction: 'US', status: 'PROTECTED', freeFrom, reason: `United States: released ${y}, so free from ${freeFrom} (95 years from release).` };
+}
+
+/** Where is this film (the picture itself) free today? */
+export function assessFilm(
+  facts: FilmFacts,
+  jurisdictions: string[] = DEFAULT_FILM_JURISDICTIONS,
+  now: Date = new Date(),
+): PDVerdict[] {
+  return jurisdictions.map(code => {
+    if (code === 'US') return usFilmVerdict(facts, now);
+    const term = LIFE_TERMS[code];
+    if (!term) return { jurisdiction: code, status: 'UNKNOWN', reason: `No film rule recorded for ${code}.` };
+    if (facts.lapse === 'US_GOVERNMENT') {
+      return { jurisdiction: code, status: 'UNKNOWN', reason: `${term.name}: US government works are free at home, but other countries may still protect them.` };
+    }
+    if (facts.lastCreatorDeathYear === undefined) {
+      return { jurisdiction: code, status: 'UNKNOWN', reason: `${term.name} counts from the death of the last of the director, writers and composer, which is not recorded.` };
+    }
+    const v = lifeVerdict(code, term, facts.lastCreatorDeathYear, now);
+    return { ...v, reason: v.reason.replace('Composer died', 'Last of director, writers and composer died') };
+  });
+}
+
+export type FilmClearanceLevel = 'CLEAR' | 'CAUTION' | 'WAIT' | 'CHECK';
+
+export interface FilmClearance {
+  level: FilmClearanceLevel;
+  /** The film's own US verdict. */
+  film: PDVerdict;
+  /** Hazards that still apply today (free underlying works are dropped). */
+  hazards: FilmHazard[];
+  /** One line for a shelf badge or an export row. */
+  summary: string;
+}
+
+/**
+ * Can this film go out on a disc or a paid channel in the US today?
+ *   CLEAR   the film is free and nothing inside it is known to be held,
+ *   CAUTION the film is free but music, a source work or a trademark is not,
+ *   WAIT    the film itself is protected until `film.freeFrom`,
+ *   CHECK   our records cannot settle it.
+ */
+export function filmReleaseClearance(facts: FilmFacts, now: Date = new Date()): FilmClearance {
+  const film = usFilmVerdict(facts, now);
+  const year = currentYear(now);
+  const hazards = (facts.hazards ?? []).filter(h =>
+    h.publishedYear === undefined || h.kind === 'TRADEMARK' || usWorkFreeFrom(h.publishedYear) > year);
+  if (film.status === 'UNKNOWN') {
+    return { level: 'CHECK', film, hazards, summary: `Check: ${film.reason}` };
+  }
+  if (film.status === 'PROTECTED') {
+    return { level: 'WAIT', film, hazards, summary: `Wait until 1 Jan ${film.freeFrom}.` };
+  }
+  if (hazards.length) {
+    return { level: 'CAUTION', film, hazards, summary: `Film is free; clear or avoid: ${hazards.map(h => h.what).join('; ')}.` };
+  }
+  return { level: 'CLEAR', film, hazards, summary: 'Free to release in the US.' };
 }
 
 /** Short "Free in US · EU · UK" style summary of a verdict list. */

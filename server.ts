@@ -113,6 +113,11 @@ import { activeRecipients, allocateSplits, checkSplitConfig, createCreatorPayout
 import { createCreativeStorageRouter } from './routes/creativeStorage';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { makerBuildRouter } from './routes/makerBuild';
+import { createGamerRouter } from './routes/gamerNet';
+import { liveGamerStore } from './services/gamerNet/liveStore';
+import { verifyIdToken as verifyGamerToken, fsGetUser as gamerUserDoc } from './services/firebaseAdminRest';
+import { createGamerSocialRouter } from './routes/gamerSocial';
+import { fsQuery as gamerFsQuery } from './services/firebaseAdminRest';
 import { driveRouter } from './routes/drive';
 import { createHqB2Router, liveHqB2Deps } from './routes/hqB2';
 import { isB2Path, b2ObjectRequest, deleteHqB2Objects } from './services/hq/b2Store';
@@ -15384,6 +15389,23 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 
   // Plajah Build: recalls, maker terms, part prices, maker exchange (routes/makerBuild.ts).
   app.use('/api/build', express.json({ limit: '64kb' }), makerBuildRouter);
+  // Games in the Social timeline: who's on the timeline now, feed matchmaking, challenges, live links (routes/gamerSocial.ts).
+  app.use('/api/gamer/social', rateLimit({ windowMs: 60 * 1000, max: 180, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '8kb' }), createGamerSocialRouter({
+    store: liveGamerStore(restCas),
+    verify: verifyGamerToken,
+    userCard: async uid => { const u = await gamerUserDoc(uid); return u ? { name: String(u.displayName || u.username || 'Player'), photo: String(u.photoURL || u.avatarUrl || ''), isChild: u.isChild === true || u.accountType === 'CHILD' } : null; },
+    notify: async n => { await firestoreCreate('notifications', { ...n, type: 'SYSTEM', isRead: false, timestamp: Date.now() }); },
+    blockedFor: async uid => {
+      const [mine, theirs] = await Promise.all([gamerFsQuery('blocks', [{ field: 'blockerId', value: uid }], 200), gamerFsQuery('blocks', [{ field: 'blockedId', value: uid }], 200)]);
+      return new Set([...mine.map((x: any) => String(x.data?.blockedId)), ...theirs.map((x: any) => String(x.data?.blockerId))]);
+    },
+  }));
+  // Plajah Gamer Network: profiles, gamer ledger, matchmaking, refereed matches, leaderboards (routes/gamerNet.ts, docs/GAMER_NETWORK.md).
+  app.use('/api/gamer', rateLimit({ windowMs: 60 * 1000, max: 240, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '8kb' }), createGamerRouter({
+    store: liveGamerStore(restCas),
+    verify: verifyGamerToken,
+    userCard: async uid => { const u = await gamerUserDoc(uid); return u ? { name: String(u.displayName || u.username || 'Player'), photo: String(u.photoURL || u.avatarUrl || ''), isChild: u.isChild === true || u.accountType === 'CHILD' } : null; },
+  }));
   // Plajah Drive (B2 + Bunny). Answers 503 drive_off until DRIVE_ENABLED=1.
   app.use('/api/drive', rateLimit({ windowMs: 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '64kb' }), driveRouter);
 

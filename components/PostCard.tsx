@@ -32,6 +32,7 @@ import { ModerationGate } from './safety/ModerationGate';
 import { RenderTextWithMentions } from '../src/lib/richText';
 import { useGateAccess, SanctuaryGateLock } from './sanctuary/SanctuaryGate';
 const CommunityNoteBadge = lazy(() => import('./notes/CommunityNotes'));
+const GameEmbedCard = lazy(() => import('./games/social/GameEmbedCard'));
 import { TYPE } from '../src/lib/designSystem';
 import { isActiveToday, formatTodayCountdown, todayProgress } from '../services/todayPosts';
 import UserSafetyMenu from './safety/UserSafetyMenu';
@@ -988,6 +989,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
                 <PostLinkBanner key={i} url={url} />
               ))}
             </div>
+          )}
+
+          {/* Plajah game — playable right here in the timeline */}
+          {post.gameEmbed && (
+            <Suspense fallback={null}>
+              <GameEmbedCard embed={post.gameEmbed} postId={post.id} authorId={post.authorId} authorName={post.authorName} />
+            </Suspense>
           )}
 
           {/* Embedded Album Player */}

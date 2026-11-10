@@ -7,7 +7,7 @@ import { createPortal } from 'react-dom';
 import * as THREE from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Grid, Line, Html } from '@react-three/drei';
-import { X, FilePlus, FolderOpen, Armchair, ClipboardList, Building2, Cog, Factory, Eye, EyeOff, Layers, ListTree, Download, FilePlus2, Ruler, AlertTriangle, CheckCircle2, Box, Square, Crosshair, Scissors, Info } from 'lucide-react';
+import { X, FilePlus, FolderOpen, Armchair, GraduationCap, Home, ClipboardList, Building2, Cog, Factory, Eye, EyeOff, Layers, ListTree, Download, FilePlus2, Ruler, AlertTriangle, CheckCircle2, Box, Square, Crosshair, Scissors, Info } from 'lucide-react';
 import type { CadModel, CadElement } from '../../services/cad/model';
 import { MM_PER_UNIT } from '../../services/cad/model';
 import { importCadFile, CAD_ACCEPT, CAD_FORMATS, detectCadFormat } from '../../services/cad/importer';
@@ -24,6 +24,14 @@ import { runChecks, type Finding } from '../../services/cad/codeCheck';
 import { bimTo3D } from '../../services/cad/bim3d';
 import { writeIfc } from '../../services/cad/ifcWrite';
 import MechPartsPanel from './MechPartsPanel';
+import GuidePanel from './guide/GuidePanel';
+import { runHomeChecks } from '../../services/cad/guide/homeChecks';
+import { PROGRAMS } from '../../services/cad/guide/programs';
+import { addLot, addShell } from '../../services/cad/guide/starters';
+import type { Level } from '../../services/cad/guide/journey';
+import { detectRooms } from '../../services/cad/rooms';
+import { itemById, defaultParams, makeBlock } from '../../services/cad/library';
+import type { DraftTool } from '../../services/cad/draft';
 import MakePanel from '../fab/MakePanel';
 import { MECH_PARTS, mechModel, mechDefaults, type MechPart } from '../../services/mech/parts';
 import { writeStl } from '../../services/mech/geometry';
@@ -68,7 +76,12 @@ export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFil
   const [hiddenLayers, setHiddenLayers] = useState<Set<string>>(new Set());
   const [hiddenEls, setHiddenEls] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<string | null>(null);
-  const [tab, setTab] = useState<'layers' | 'tree' | 'library' | 'schedules' | 'parts' | 'make'>('tree');
+  const [tab, setTab] = useState<'guide' | 'layers' | 'tree' | 'library' | 'schedules' | 'parts' | 'make'>('tree');
+  // Build guide (Aria): explanation level, and what the person has done this session.
+  const [guideLevel, setGuideLevelState] = useState<Level>(() => { try { return localStorage.getItem('plajah.cad.guideLevel') === 'pro' ? 'pro' : 'simple'; } catch { return 'simple'; } });
+  const setGuideLevel = (l: Level) => { setGuideLevelState(l); try { localStorage.setItem('plajah.cad.guideLevel', l); } catch { /* storage blocked */ } };
+  const [seen3d, setSeen3d] = useState(false); const [guideAck, setGuideAck] = useState(false);
+  const [toolRequest, setToolRequest] = useState<{ tool: DraftTool; n: number } | null>(null);
   const [view, setView] = useState<ViewDir>('iso');
   const [viewNonce, setViewNonce] = useState(0);
   const [imperial, setImperial] = useState(false);
@@ -126,6 +139,8 @@ export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFil
     undoStack.current = []; redoStack.current = []; setEdited(true); setDraftSel([]); setCurrentLayer('A-WALL');
     setError(''); setSent(''); setHiddenLayers(new Set()); setModel(m); setSource(null); setTab('layers'); setView('top'); setViewNonce(n => n + 1);
   };
+  /** A new drawing with Aria's build guide open on its first step. */
+  const startGuided = () => { startNew(); setTab('guide'); setSeen3d(false); setGuideAck(false); if (narrow) setDrawer('tree'); };
   const commit = (next: CadModel) => { if (model) undoStack.current.push(model); if (undoStack.current.length > 200) undoStack.current.shift(); redoStack.current = []; setModel(next); setEdited(true); };
   const undo = () => { const prev = undoStack.current.pop(); if (!prev || !model) return; redoStack.current.push(model); setModel(prev); setDraftSel([]); };
   const redo = () => { const next = redoStack.current.pop(); if (!next || !model) return; undoStack.current.push(model); setModel(next); setDraftSel([]); };
@@ -164,7 +179,16 @@ export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFil
   // Schedules and checks follow the model: recomputed on every edit, never typed.
   const hasBim = !!model?.is2D && model.entities.some(e => e.type === 'wall' || e.type === 'insert' || e.type === 'room');
   const tables: Table[] = useMemo(() => model?.is2D && hasBim ? allSchedules(model) : [], [model, hasBim]);
-  const findings: Finding[] = useMemo(() => model?.is2D && hasBim ? runChecks(model) : [], [model, hasBim]);
+  const rooms = useMemo(() => model?.is2D && hasWalls ? detectRooms(model.entities) : [], [model, hasWalls]);
+  const adaFindings: Finding[] = useMemo(() => model?.is2D && hasBim ? runChecks(model) : [], [model, hasBim]);
+  const homeFindings: Finding[] = useMemo(() => model?.is2D && rooms.length ? runHomeChecks(model, rooms) : [], [model, rooms]);
+  const findings: Finding[] = useMemo(() => [...adaFindings, ...homeFindings], [adaFindings, homeFindings]);
+  const guideProgram = model?.meta.guideProgram ? PROGRAMS.find(x => x.id === model.meta.guideProgram) ?? null : null;
+  const guideAccessible = model?.meta.guideAccessible === '1';
+  // The guide judges a home by the home checks; wheelchair checks join when the home is meant to be accessible.
+  const guideFindings: Finding[] = useMemo(() => guideAccessible ? findings : homeFindings, [guideAccessible, findings, homeFindings]);
+  const setMeta = (k: string, v: string) => { if (model) commit({ ...model, meta: { ...model.meta, [k]: v } }); };
+  const placeItem = (id: string) => { const it = itemById(id); if (!it || !model) return; const params = defaultParams(it); setPlacing({ block: makeBlock(it, params, model.units), layer: it.layer, label: it.name, item: { id: it.id, params } }); };
   const sendTable = async (t: Table) => { if (!onSendTable) return; setBusy(`Adding the ${t.title.toLowerCase()}…`); try { await onSendTable(t.title, [t.columns, ...t.rows]); setSent(`${t.title} added to the document.`); } catch (e: any) { setError(e?.message || String(e)); } finally { setBusy(''); } };
 
   const toggle = (set: Set<string>, key: string, apply: (s: Set<string>) => void) => { const n = new Set(set); n.has(key) ? n.delete(key) : n.add(key); apply(n); };
@@ -201,7 +225,7 @@ export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFil
             {(model.is2D && !in3d ? [] as ViewDir[] : ['iso', 'top', 'front', 'right'] as ViewDir[]).map(v => <button key={v} onClick={() => { setView(v); setViewNonce(n => n + 1); }} className="px-2.5 h-8 text-[11px] font-semibold capitalize" style={{ background: view === v ? 'rgba(125,211,252,.16)' : 'transparent', color: view === v ? C.accent : C.dim }}>{v === 'iso' ? '3D' : model.is2D ? 'Fit' : v}</button>)}
           </div>
           <button className="cad-btn" onClick={() => setImperial(x => !x)} title="Switch metric / imperial">{imperial ? 'Imperial' : 'Metric'}</button>
-          {hasWalls && <button className={`cad-btn${view3d ? ' cad-on' : ''}`} onClick={() => { setView3d(x => !x); setSelected(null); setSection(null); setMeasuring(false); setView('iso'); setViewNonce(n => n + 1); }} title="See the walls, doors, windows and floors in 3D" data-testid="cad-3d"><Building2 size={14}/><span className="cad-label">{view3d ? 'Plan' : '3D'}</span></button>}
+          {hasWalls && <button className={`cad-btn${view3d ? ' cad-on' : ''}`} onClick={() => { setView3d(x => !x); if (!view3d) setSeen3d(true); setSelected(null); setSection(null); setMeasuring(false); setView('iso'); setViewNonce(n => n + 1); }} title="See the walls, doors, windows and floors in 3D" data-testid="cad-3d"><Building2 size={14}/><span className="cad-label">{view3d ? 'Plan' : '3D'}</span></button>}
           {hasWalls && <button className="cad-btn" onClick={() => download(model.name.replace(/\.[^.]+$/, '') + '.ifc', writeIfc(model), 'application/x-step')} title="Export IFC4 for Revit, ArchiCAD, BIMcollab and other BIM tools" data-testid="cad-ifc"><Download size={14}/><span className="cad-label">IFC</span></button>}
           {!model.is2D && model.meshes.length > 0 && <button className="cad-btn" onClick={downloadStl} title="Export STL (millimetres) for 3D printing or CAM" data-testid="cad-stl"><Download size={14}/><span className="cad-label">STL</span></button>}
           {(!model.is2D || in3d) && <button className={`cad-btn${measuring ? ' cad-on' : ''}`} onClick={() => setMeasuring(x => !x)} title="Click two points to measure" data-testid="cad-measure"><Crosshair size={14}/><span className="cad-label">Measure</span></button>}
@@ -225,9 +249,9 @@ export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFil
 
       <div className="flex-1 min-h-0 flex relative">
         {/* Left: layers / tree */}
-        {model && (!narrow || drawer === 'tree') && <aside className={narrow ? 'absolute left-0 top-0 bottom-0 z-20 flex flex-col min-h-0 shadow-2xl' : `${tab === 'library' || tab === 'schedules' || tab === 'parts' || tab === 'make' ? 'w-80' : 'w-64'} shrink-0 flex flex-col min-h-0`} style={{ width: narrow ? 'min(300px, 86vw)' : undefined, borderRight: `1px solid ${C.line}`, background: C.panel }}>
+        {model && (!narrow || drawer === 'tree') && <aside className={narrow ? 'absolute left-0 top-0 bottom-0 z-20 flex flex-col min-h-0 shadow-2xl' : `${tab === 'guide' || tab === 'library' || tab === 'schedules' || tab === 'parts' || tab === 'make' ? 'w-80' : 'w-64'} shrink-0 flex flex-col min-h-0`} style={{ width: narrow ? 'min(300px, 86vw)' : undefined, borderRight: `1px solid ${C.line}`, background: C.panel }}>
           <div className="flex" style={{ borderBottom: `1px solid ${C.line}` }}>
-            {(model.is2D ? (in3d ? ['tree', 'layers', 'library', 'schedules', 'make'] as const : ['layers', 'library', 'schedules', 'make'] as const) : part ? ['parts', 'tree', 'make'] as const : model.layers.length ? ['tree', 'layers', 'make'] as const : ['tree', 'make'] as const).map(t => <button key={t} onClick={() => setTab(t)} className="flex-1 h-9 text-[11px] font-bold flex items-center justify-center gap-1.5" style={{ color: tab === t ? C.accent : C.dim, borderBottom: tab === t ? `2px solid ${C.accent}` : '2px solid transparent' }}>{t === 'tree' ? <><ListTree size={13}/>Model</> : t === 'library' ? <><Armchair size={13}/>Library</> : t === 'parts' ? <><Cog size={13}/>Parts</> : t === 'make' ? <><Factory size={13}/>Make</> : t === 'schedules' ? <><ClipboardList size={13}/>Schedules{findings.some(f => f.status === 'fail') ? <span className="ml-0.5 px-1 rounded text-[9px]" style={{ background: '#f8717133', color: '#f87171' }}>{findings.filter(f => f.status === 'fail').length}</span> : null}</> : <><Layers size={13}/>{model.is2D ? 'Layers' : `Layers (${model.layers.length})`}</>}</button>)}
+            {(model.is2D ? (in3d ? ['guide', 'tree', 'layers', 'library', 'schedules', 'make'] as const : ['guide', 'layers', 'library', 'schedules', 'make'] as const) : part ? ['parts', 'tree', 'make'] as const : model.layers.length ? ['tree', 'layers', 'make'] as const : ['tree', 'make'] as const).map(t => <button key={t} onClick={() => setTab(t)} className="flex-1 h-9 text-[11px] font-bold flex items-center justify-center gap-1.5" style={{ color: tab === t ? C.accent : C.dim, borderBottom: tab === t ? `2px solid ${C.accent}` : '2px solid transparent' }}>{t === 'guide' ? <><GraduationCap size={13}/>Aria</> : t === 'tree' ? <><ListTree size={13}/>Model</> : t === 'library' ? <><Armchair size={13}/>Library</> : t === 'parts' ? <><Cog size={13}/>Parts</> : t === 'make' ? <><Factory size={13}/>Make</> : t === 'schedules' ? <><ClipboardList size={13}/>Schedules{findings.some(f => f.status === 'fail') ? <span className="ml-0.5 px-1 rounded text-[9px]" style={{ background: '#f8717133', color: '#f87171' }}>{findings.filter(f => f.status === 'fail').length}</span> : null}</> : <><Layers size={13}/>{model.is2D ? 'Layers' : `Layers (${model.layers.length})`}</>}</button>)}
           </div>
           <div className="flex-1 overflow-auto p-1.5 text-[12px]">
             {tab === 'layers' && model.is2D && <form className="flex gap-1 px-1 pb-1.5" onSubmit={e => { e.preventDefault(); addLayer(); }}><input value={newLayer} onChange={e => setNewLayer(e.target.value)} placeholder="New layer name" aria-label="New layer name" className="flex-1 min-w-0 h-7 rounded-md bg-white/5 border border-white/10 px-2 text-[11px] text-white"/><button className="cad-btn" style={{ height: 28 }} type="submit" disabled={!newLayer.trim()}>Add</button></form>}
@@ -239,6 +263,13 @@ export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFil
                 <button onClick={() => toggle(hiddenLayers, l.name, setHiddenLayers)} style={{ color: C.dim }} aria-label={`Toggle ${l.name}`}>{hidden ? <EyeOff size={13}/> : <Eye size={13}/>}</button>
               </div>;
             }) : <div className="p-3" style={{ color: C.dim }}>No layers in this file.</div>)}
+            {tab === 'guide' && model.is2D && <GuidePanel model={model} rooms={rooms} findings={guideFindings} level={guideLevel} onLevel={setGuideLevel}
+              program={guideProgram} onProgram={pr => setMeta('guideProgram', pr.id)} accessible={guideAccessible} onAccessible={on => setMeta('guideAccessible', on ? '1' : '')}
+              seen3d={seen3d} ack={guideAck} onAck={() => setGuideAck(true)} imperial={imperial}
+              onLot={spec => { commit(addLot(model, spec)); setViewNonce(n => n + 1); }} onShell={(w, d) => { commit(addShell(model, w, d)); setViewNonce(n => n + 1); }}
+              onTool={t => { setPlacing(null); setToolRequest(r => ({ tool: t, n: (r?.n ?? 0) + 1 })); }} onPlace={placeItem}
+              onView3d={() => { setView3d(true); setSeen3d(true); setSelected(null); setSection(null); setView('iso'); setViewNonce(n => n + 1); }}
+              onPickFinding={f => { if (view3d) setView3d(false); if (f.entityIndex !== undefined) setDraftSel([f.entityIndex]); }} placingLabel={placing?.label}/>}
             {tab === 'make' && <MakePanel model={model} getToken={getToken}/>}
             {tab === 'parts' && part && <MechPartsPanel current={part.def} params={part.params} onPick={d => showPart(d, mechDefaults(d), true)} onParams={pr => showPart(part.def, pr, false)}/>}
             {tab === 'schedules' && model.is2D && <SchedulesPanel tables={tables} findings={findings} drawingName={model.name} onSendTable={onSendTable ? t => void sendTable(t) : undefined} onPickFinding={f => { if (f.entityIndex !== undefined) setDraftSel([f.entityIndex]); }}/>}
@@ -256,9 +287,9 @@ export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFil
                 fmt={d => fmtLen(d * MM_PER_UNIT[model.units], imperial, large)} fmtArea={a => fmtArea(a * u2, imperial, large)}
                 onChange={next => commit(next)} onUndo={undo} onRedo={redo} selection={draftSel} setSelection={setDraftSel}
                 layers={model.layers.map(l => l.name)} onSetLayer={layer => { if (draftSel.length) commit(setLayer(model, draftSel, layer)); else setCurrentLayer(layer); }}
-                placing={placing} onStopPlacing={() => setPlacing(null)} findings={showChecks ? findings : []} showChecks={showChecks} onToggleChecks={() => setShowChecks(x => !x)} failCount={findings.filter(f => f.status === 'fail').length}/>
+                placing={placing} onStopPlacing={() => setPlacing(null)} toolRequest={toolRequest} findings={showChecks ? findings : []} showChecks={showChecks} onToggleChecks={() => setShowChecks(x => !x)} failCount={findings.filter(f => f.status === 'fail').length}/>
             : <ModelView model={model} hiddenLayers={hiddenLayers} hiddenEls={hiddenEls} selected={selected} onSelect={setSelected} view={view} nonce={viewNonce} measuring={measuring} section={section} fmt={d => fmtLen(d * MM_PER_UNIT[model.units], imperial, large)}/>)
-            : <EmptyState onOpen={() => fileRef.current?.click()} onNew={startNew} onParts={() => showPart(MECH_PARTS[0], mechDefaults(MECH_PARTS[0]), true)} dragging={dragging}/>}
+            : <EmptyState onOpen={() => fileRef.current?.click()} onNew={startNew} onGuided={startGuided} onParts={() => showPart(MECH_PARTS[0], mechDefaults(MECH_PARTS[0]), true)} dragging={dragging}/>}
           {busy && <div className="absolute inset-0 grid place-items-center" style={{ background: 'rgba(13,12,18,.6)' }}><div className="px-4 py-2.5 rounded-xl text-[13px] font-semibold" style={{ background: C.panel, border: `1px solid ${C.line}` }} data-testid="cad-busy">{busy}</div></div>}
           {error && <div role="alert" className="absolute top-3 left-1/2 -translate-x-1/2 max-w-[560px] px-4 py-2.5 rounded-xl text-[12px] flex gap-2 items-start" style={{ background: '#2a1416', border: '1px solid rgba(248,113,113,.4)', color: '#fecaca' }}><AlertTriangle size={14} className="shrink-0 mt-0.5"/><span className="flex-1">{error}</span><button onClick={() => setError('')}><X size={13}/></button></div>}
           {sent && <div className="absolute top-3 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl text-[12px] flex gap-2 items-center" style={{ background: '#0f2a1d', border: '1px solid rgba(52,211,153,.4)', color: '#a7f3d0' }}><CheckCircle2 size={14}/>{sent}</div>}
@@ -326,14 +357,15 @@ function Row({ k, v, good }: { k: string; v: string; good?: boolean }) {
   return <div className="flex justify-between gap-3 py-0.5"><span style={{ color: C.dim }} className="shrink-0">{k}</span><span className="text-right break-words min-w-0" style={{ color: good === undefined ? C.text : good ? '#6ee7b7' : '#fca5a5' }}>{v}</span></div>;
 }
 
-function EmptyState({ onOpen, onNew, onParts, dragging }: { onOpen: () => void; onNew: () => void; onParts: () => void; dragging: boolean }) {
+function EmptyState({ onOpen, onNew, onGuided, onParts, dragging }: { onOpen: () => void; onNew: () => void; onGuided: () => void; onParts: () => void; dragging: boolean }) {
   const groups = Object.values(CAD_FORMATS).reduce<Record<string, typeof CAD_FORMATS[keyof typeof CAD_FORMATS][]>>((a, f) => { (a[f.family] ??= []).push(f); return a; }, {});
   return <div className="absolute inset-0 grid place-items-center p-6">
     <div className="max-w-[640px] w-full rounded-2xl p-8 text-center" style={{ border: `2px dashed ${dragging ? C.accent : 'rgba(255,255,255,.14)'}`, background: dragging ? 'rgba(125,211,252,.06)' : 'transparent' }}>
       <div className="w-14 h-14 mx-auto rounded-2xl grid place-items-center mb-4" style={{ background: 'linear-gradient(135deg,#0ea5e9,#6366f1)' }}><Box size={26} color="#fff"/></div>
       <div className="text-[18px] font-bold mb-1">Drop a drawing or model here</div>
       <div className="text-[13px] mb-5" style={{ color: C.dim }}>Everything is read on your device. The original file is kept with your document.</div>
-      <div className="flex gap-2 justify-center"><button className="cad-btn cad-primary" onClick={onOpen}><FolderOpen size={14}/>Choose a file</button><button className="cad-btn" onClick={onNew} data-testid="cad-new-empty"><FilePlus size={14}/>Start a new drawing</button><button className="cad-btn" onClick={onParts} data-testid="cad-parts-empty"><Cog size={14}/>Mechanical parts</button></div>
+      <button className="mx-auto mb-3 flex items-center gap-3 text-left rounded-xl px-4 py-3" style={{ background: 'linear-gradient(135deg,rgba(14,165,233,.16),rgba(168,85,247,.16))', border: '1px solid rgba(125,211,252,.35)' }} onClick={onGuided} data-testid="cad-guided"><Home size={22} style={{ color: '#7dd3fc' }}/><span><span className="block text-[14px] font-bold text-white">Design a home with Aria</span><span className="block text-[12px]" style={{ color: 'rgba(255,255,255,.6)' }}>Step by step, in plain words. No experience needed.</span></span></button>
+      <div className="flex gap-2 justify-center flex-wrap"><button className="cad-btn cad-primary" onClick={onOpen}><FolderOpen size={14}/>Choose a file</button><button className="cad-btn" onClick={onNew} data-testid="cad-new-empty"><FilePlus size={14}/>Start a new drawing</button><button className="cad-btn" onClick={onParts} data-testid="cad-parts-empty"><Cog size={14}/>Mechanical parts</button></div>
       <div className="grid grid-cols-2 gap-3 mt-7 text-left">
         {Object.entries(groups).map(([fam, list]) => <div key={fam} className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,.03)', border: `1px solid ${C.line}` }}>
           <div className="text-[10px] font-extrabold uppercase tracking-[.12em] mb-1.5" style={{ color: C.accent }}>{fam}</div>

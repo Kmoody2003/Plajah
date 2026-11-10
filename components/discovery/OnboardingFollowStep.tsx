@@ -12,6 +12,7 @@ import { clearDiscoveryCache } from '../../services/discoveryService';
 import { useSuggestions } from './useDiscovery';
 import { PersonAvatar } from './PersonActions';
 import FindYourPeople from './FindYourPeople';
+import NetworkInvites from './NetworkInvites';
 
 const INTERESTS = [
   'Music', 'Film', 'Books', 'Gaming', 'Sports', 'Art', 'Science', 'Tech', 'Faith', 'Cooking',
@@ -107,6 +108,8 @@ const OnboardingFollowStep: React.FC<OnboardingFollowStepProps> = ({ viewer, onD
         </div>
       ) : (
         <>
+          {/* Bluesky + Audius are on by default; connecting (or creating an account) makes them personal. Skippable. */}
+          <NetworkInvites className="mb-4" />
           {/* Coming from Bluesky / Mastodon? Bring your people with you (needs a linked account; skippable). */}
           <FindYourPeople compact className="mb-4" />
           <div className="flex flex-col gap-2">

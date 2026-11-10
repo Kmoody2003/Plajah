@@ -29,6 +29,11 @@ let personalStatus = 200;
     if (url.includes('user_id=') && personalStatus !== 200) return json({ error: 'nope' }, personalStatus);
     return json(fixture);
   }
+  if (url.includes('/v1/tracks/trending')) {
+    // Same artist three times: the public feed keeps at most two per artist.
+    const t = fixture.data[0].item;
+    return json({ data: [t, { ...t, id: `${t.id}b` }, { ...t, id: `${t.id}c` }, ...fixture.data.slice(1).map((x: any) => x.item)] });
+  }
   if (url.includes('/v1/comments')) return json({ comment_id: 'C9', transaction_hash: '0x' }, 201);
   throw new Error(`unexpected ${url}`);
 };
@@ -86,4 +91,28 @@ test('posting a comment sends the camelCase body Audius documents', async () => 
   assert.deepEqual(JSON.parse(call.init.body), { entityType: 'Track', entityId: 12345, body: 'great track', trackTimestampS: 61 });
   assert.match(call.url, /user_id=ME1/);
   assert.equal(call.init.headers.Authorization, 'Bearer tok');
+});
+
+test('Public feed (no Audius account) is trending, capped at two tracks per artist', async () => {
+  const { fetchAudiusPublicFeed } = await import('../services/audiusService');
+  calls.length = 0;
+  const posts = await fetchAudiusPublicFeed('for-you', { limit: 20 });
+  const first = fixture.data[0].item;
+  assert.equal(posts.filter((p: any) => p.authorDid === `audius:${first.user.id}`).length <= 2, true);
+  assert.ok(posts.length >= 2);
+  assert.equal(posts[0].protocol, 'audius');
+  assert.equal(posts[0].isLiked, false);
+  assert.match(calls.find(c => c.url.includes('/tracks/trending'))!.url, /time=week/);
+  const under = await fetchAudiusPublicFeed('latest', { limit: 5 });
+  assert.ok(under.length > 0);
+  assert.ok(calls.some(c => c.url.includes('/tracks/trending/underground')));
+});
+
+test('A post track becomes a native Chora album that links to the Audius artist, not audius.co', async () => {
+  const { audiusTrackToNativeAlbum } = await import('../services/audiusService');
+  const album: any = audiusTrackToNativeAlbum({ id: 'audius_T1', title: 'Song', artist: 'Ann', artistId: 'U7', url: 'u', thumbnailUrl: 'c', source: 'AUDIUS', sourcePageUrl: 'https://audius.co/ann/song' } as any);
+  assert.equal(album.id, 'audius:album:single_T1');
+  assert.equal(album.ownerId, 'audius:U7');
+  assert.equal(album.tracks[0].id, 'audius_T1');
+  assert.equal(album.tracks[0].artistId, 'audius:U7');
 });

@@ -228,6 +228,7 @@ const TelaEmbedDemo = retryLazy(() => import('./components/tela/TelaEmbedDemo'))
 const DossierHall = retryLazy(() => import('./components/dossier/DossierHall'));
 import { requestDossier } from './data/dossier/registry';
 const LoreaExhibitHall = retryLazy(() => import('./components/lorea/exhibits/LoreaExhibitHall'));
+const TechnoExhibit = retryLazy(() => import('./components/exhibits/technoHistory/TechnoExhibit'));
 import { requestLoreaExhibit } from './services/loreaExhibits/loreaExhibitStore';
 // Photo pool v2 (components/eventPool): geofenced check-in, public/private curation, photos + videos + live.
 const EventPhotoPoolView = retryLazy(() => import('./components/eventPool/EventPoolView'));
@@ -1128,6 +1129,14 @@ const App: React.FC = () => {
     const h = (e: Event) => { const d = (e as CustomEvent)?.detail || {}; requestLoreaExhibit(d.id, d.roomId); setLoreaExhibitNonce(n => n + 1); setView('LOREA_EXHIBITS'); };
     window.addEventListener('plajah:openLoreaExhibit', h as EventListener);
     return () => window.removeEventListener('plajah:openLoreaExhibit', h as EventListener);
+  }, [setView]);
+
+  // Open Machine Soul (Detroit techno exhibition) from anywhere; detail.room e.g. 'tx-atkins'.
+  const [technoRoom, setTechnoRoom] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    const h = (e: Event) => { setTechnoRoom((e as CustomEvent)?.detail?.room); setView('TECHNO_EXHIBIT'); };
+    window.addEventListener('plajah:openTechnoExhibit', h as EventListener);
+    return () => window.removeEventListener('plajah:openTechnoExhibit', h as EventListener);
   }, [setView]);
 
   // Open the Tela reference-embed demo (P2b) from anywhere.
@@ -2312,9 +2321,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     window.addEventListener('OPEN_BRAND_ACTIVATION', handleOpenBrandActivation);
 
     // Audius artist navigation (related-artists, artist links) → the artist landing page.
-    const handleAudiusArtist = (e: Event) => {
+    // Social posts only know the author's Audius id, so a detail without follower/track counts is resolved first.
+    const handleAudiusArtist = async (e: Event) => {
       const a = (e as CustomEvent).detail;
-      if (a?.id) { setAudiusArtist(a); setSelectedAlbum(null); setView('AUDIUS_ARTIST' as AppView); }
+      if (!a?.id) return;
+      const full = typeof a.followerCount === 'number' ? a : await fetchAudiusArtistById(String(a.id)).catch(() => null);
+      if (!full) return;
+      setAudiusArtist(full); setSelectedAlbum(null); setView('AUDIUS_ARTIST' as AppView);
     };
     window.addEventListener('audius-artist', handleAudiusArtist);
 
@@ -4187,6 +4200,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const link = notif.link as string | undefined;
     const targetId = notif.targetId as string | undefined;
     if (!link) return;
+
+    // Plajah games (routes/gamerSocial.ts): `game-challenge:<id>` / `game-match:<id>` open the game overlay in place.
+    if (link.startsWith('game-challenge:') || link.startsWith('game-match:')) {
+      const { openGameLink } = await import('./services/gamerNet/socialClient');
+      openGameLink(link);
+      return;
+    }
 
     // A gifted book (routes/sponsorCopies.ts): `claim-copy:<code>` opens the claim screen.
     if (link.startsWith('claim-copy:')) {
@@ -8213,6 +8233,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'LOREA_EXHIBITS' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Unrolling the paper…</div>}>
                 <LoreaExhibitHall key={loreaExhibitNonce} onBack={() => goBack('BOOKS')} />
+              </Suspense>
+            )}
+            {view === 'TECHNO_EXHIBIT' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/55 text-sm">Unlocking the vault…</div>}>
+                <div className="flex-1 min-h-0"><TechnoExhibit key={technoRoom || 'lobby'} initialRoom={technoRoom} onBack={() => goBack('MUSIC')} /></div>
               </Suspense>
             )}
             {view === 'DOSSIER' && (

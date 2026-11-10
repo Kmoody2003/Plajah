@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true, "types": ["vite/client", "node"] },
+  "include": ["services/gamerNet/**/*.ts", "routes/gamerNet.ts", "components/games/*.tsx", "components/GamesView.tsx", "components/GamePlayerView.tsx", "tests/gamerNet.test.ts"]
+}

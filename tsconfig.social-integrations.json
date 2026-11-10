@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "include": [
+    "components/feed/ExternalPostCard.tsx", "components/FediversePostCard.tsx", "components/FeedView.tsx",
+    "components/discovery/NetworkInvites.tsx", "components/discovery/OnboardingFollowStep.tsx",
+    "contexts/FediverseContext.tsx", "services/audiusService.ts",
+    "routes/blueskyClient.ts", "routes/blueskyOAuth.ts"
+  ]
+}

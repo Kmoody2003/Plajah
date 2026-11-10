@@ -95,7 +95,7 @@ import { withAltText, linkPreviewMedia } from '../services/postingLogic';
 import { isModerationHiddenFor } from '../services/safety/safetyPolicy';
 import { publishComposerPost } from '../services/postingService';
 import { crosspostNative } from '../services/fediverse/crosspostClient';
-import { fetchAudiusFeed, type AudiusFeedMode } from '../services/audiusService';
+import { fetchAudiusFeed, fetchAudiusPublicFeed, type AudiusFeedMode } from '../services/audiusService';
 import { getAudiusSession } from '../services/audiusAuth';
 import type { FediversePost } from '../services/fediverse/types';
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
@@ -1681,21 +1681,39 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const audiusMode: AudiusFeedMode = plajahFilter === 'FOLLOWING' ? 'latest' : 'for-you';
   const [audiusFeeds, setAudiusFeeds] = useState<Partial<Record<AudiusFeedMode, FediversePost[]>>>({});
   useEffect(() => {
-    const session = getAudiusSession();
-    if (!session?.userId || activeTab !== 'GLOBAL' || sourcesOff.includes('audius') || audiusFeeds[audiusMode]) return;
+    if (activeTab !== 'GLOBAL' || sourcesOff.includes('audius') || audiusFeeds[audiusMode]) return;
     let alive = true;
-    fetchAudiusFeed(audiusMode, { limit: 30 })
+    // On by default for everyone: a connected Audius account gets its personal feed, everyone else the public one.
+    const session = getAudiusSession();
+    const load = session?.userId
+      ? fetchAudiusFeed(audiusMode, { limit: 30 }).then(p => (p.length ? p : fetchAudiusPublicFeed(audiusMode, { limit: 20 })))
+      : fetchAudiusPublicFeed(audiusMode, { limit: 20 });
+    load
       .then(posts => { if (alive) setAudiusFeeds(cur => ({ ...cur, [audiusMode]: posts as unknown as FediversePost[] })); })
       .catch(() => {});
     return () => { alive = false; };
   }, [activeTab, audiusMode, currentUser?.uid, sourcesOff, audiusFeeds]);
   const audiusSocialPosts = audiusFeeds[audiusMode] ?? [];
 
+  // Bluesky is on by default too: without a connected account, Social shows Bluesky's public Discover feed.
+  const hasBlueskyAccount = fediverseAccounts.some(a => a.protocol === 'bluesky');
+  const [publicBluesky, setPublicBluesky] = useState<FediversePost[] | null>(null);
+  useEffect(() => {
+    if (hasBlueskyAccount || activeTab !== 'GLOBAL' || sourcesOff.includes('bluesky') || publicBluesky) return;
+    let alive = true;
+    fetch('/api/fediverse/bluesky/c/public/feed?feed=discover')
+      .then(r => (r.ok ? r.json() : { posts: [] }))
+      .then(d => { if (alive) setPublicBluesky(Array.isArray(d?.posts) ? d.posts.slice(0, 25) : []); })
+      .catch(() => { if (alive) setPublicBluesky([]); });
+    return () => { alive = false; };
+  }, [hasBlueskyAccount, activeTab, sourcesOff, publicBluesky]);
+  const publicBlueskyPosts = hasBlueskyAccount ? [] : (publicBluesky ?? []);
+
   const combinedExternalFeed = React.useMemo(
-    () => [...fediverseFeed, ...audiusSocialPosts],
-    [fediverseFeed, audiusSocialPosts],
+    () => [...fediverseFeed, ...publicBlueskyPosts, ...audiusSocialPosts],
+    [fediverseFeed, publicBlueskyPosts, audiusSocialPosts],
   );
-  const hasExternalAccounts = fediverseAccounts.length > 0 || Boolean(getAudiusSession()?.userId) || audiusSocialPosts.length > 0;
+  const hasExternalAccounts = fediverseAccounts.length > 0 || Boolean(getAudiusSession()?.userId) || audiusSocialPosts.length > 0 || publicBlueskyPosts.length > 0;
   const externalForFeed = React.useMemo(
     () => (activeTab === 'GLOBAL' && !hashtagView && plajahFilter !== 'LIKED' && hasExternalAccounts)
       ? selectExternalForFeed(combinedExternalFeed.filter(p => !sourcesOff.includes(p.protocol as string)), displayedPosts) : [],
@@ -2422,9 +2440,9 @@ const toggleFavoriteTeam = async (team: string) => {
 
   const socialSources: SocialSource[] = [
     { id: 'plajah', label: 'Plajah', detail: 'Everyone here', color: '#D40055', on: true },
-    ...(fediverseAccounts.some(a => a.protocol === 'bluesky') ? [{ id: 'bluesky', label: 'Bluesky', detail: 'Your home timeline', color: '#1185FE', on: !sourcesOff.includes('bluesky') }] : []),
+    { id: 'bluesky', label: 'Bluesky', detail: hasBlueskyAccount ? 'Your home timeline' : 'Public Discover feed', color: '#1185FE', on: !sourcesOff.includes('bluesky') },
     ...(fediverseAccounts.some(a => (a.protocol as string) === 'mastodon') ? [{ id: 'mastodon', label: 'Mastodon', detail: 'Your home timeline', color: '#6364FF', on: !sourcesOff.includes('mastodon') }] : []),
-    ...(getAudiusSession()?.userId ? [{ id: 'audius', label: 'Audius', detail: 'For You picks, and Latest in Following', color: '#A855F7', on: !sourcesOff.includes('audius') }] : []),
+    { id: 'audius', label: 'Audius', detail: getAudiusSession()?.userId ? 'For You picks, and Latest in Following' : 'Trending, and new artists in Following', color: '#A855F7', on: !sourcesOff.includes('audius') },
   ];
   const socialScopeLabel = activeTab === 'LIVETALK' ? 'Live talks' : activeTab === 'ONAIR' ? 'On Air' : activeTab === 'NOW' ? 'Friends right now'
     : activeTab === 'PULSE' ? 'Debates' : activeTab === 'MINE' ? 'My posts' : activeTab === 'GLOBAL' && plajahFilter === 'LIKED' && !hashtagView ? 'Liked' : null;
@@ -2499,6 +2517,7 @@ const toggleFavoriteTeam = async (team: string) => {
           room: () => requireUser('start a room', () => window.dispatchEvent(new CustomEvent('plajah:start-room'))),
           talk: () => requireUser('start a live talk', () => { setJoinTalkId(null); setShowStartTalk(true); }),
           goLive: () => requireUser('go live', () => setShowGoLive(true)),
+          game: () => requireUser('post a game', () => { void import('../services/gamerNet/socialClient').then(m => m.postPlayableGame('ttt')); }),
           myPosts: () => setActiveTab('MINE'),
           liked: () => { setHashtagView(null); setActiveTab('GLOBAL'); setPlajahFilter(plajahFilter === 'LIKED' ? 'ALL' : 'LIKED'); },
           saved: () => setShowSavedPosts(true),

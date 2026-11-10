@@ -2404,6 +2404,8 @@ export interface Post {
   sanctuaryGate?: SanctuaryGate;
   /** Auto-created when the author goes live; cleared to a replay when it ends. */
   liveStreamId?: string;
+  /** A Plajah game playable right in the timeline (services/gamerNet/social.ts → GameEmbedCard). */
+  gameEmbed?: import('./services/gamerNet/social').GameEmbed;
   isLiveNow?: boolean;
   /** Live Room — when set, this post is a time-boxed live room (see services/roomService). */
   roomId?: string;
@@ -4287,6 +4289,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'DOSSIER'
   // Lorea Exhibition Hall — craft of writing (story, character, plot, prose, poetry, rhythm, grammar, journalism)
   | 'LOREA_EXHIBITS'
+  // Machine Soul: Detroit techno history exhibition, Berlin connection, Juan Atkins tribute, 90s spot previz
+  | 'TECHNO_EXHIBIT'
   // Chora Mixes — the dedicated long-form DJ-set player (waveform + Pixels auto-show)
   | 'MIX_PLAYER'
   | 'CELL_ATLAS'

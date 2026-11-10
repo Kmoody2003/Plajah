@@ -156,14 +156,17 @@ export function BskyVideo({ src, poster }: { src: string; poster?: string }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     const v = ref.current; if (!v || !src) return;
-    if (v.canPlayType('application/vnd.apple.mpegurl')) { v.src = src; return; }
+    // hls.js FIRST wherever MSE exists. Chromium (Chrome, Edge, the WebView2 desktop shell) answers "maybe" to
+    // canPlayType('application/vnd.apple.mpegurl') and then can't demux a single Bluesky segment — the poster and
+    // controls show but the video never plays. Native src is only the fallback (Safari / iOS, no MSE).
     let hls: { destroy: () => void } | null = null; let dead = false;
+    const native = () => { if (v.canPlayType('application/vnd.apple.mpegurl')) v.src = src; else setFailed(true); };
     import('hls.js').then(({ default: Hls }) => {
       if (dead) return;
-      if (!Hls.isSupported()) { setFailed(true); return; }
-      const h = new Hls(); hls = h; h.loadSource(src); h.attachMedia(v);
+      if (!Hls.isSupported()) { native(); return; }
+      const h = new Hls({ capLevelToPlayerSize: true }); hls = h; h.loadSource(src); h.attachMedia(v);
       h.on(Hls.Events.ERROR, (_e: unknown, d: { fatal?: boolean }) => { if (d?.fatal) setFailed(true); });
-    }).catch(() => setFailed(true));
+    }).catch(() => { if (!dead) native(); });
     return () => { dead = true; hls?.destroy(); };
   }, [src]);
   if (failed) return <div className="w-full h-full flex items-center justify-center bg-black/60">{poster && <img src={poster} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />}<Play size={28} className="relative text-white/80" /></div>;

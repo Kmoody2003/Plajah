@@ -13,11 +13,45 @@ import {
   bskyBookmarkPost, bskyUnbookmarkPost, bskyGetBookmarks, bskySetLiveStatus, bskySetPostInteractionGates,
   bskyGetTrendingTopics, bskyTypeaheadActors, bskyGetActorStarterPacks, bskySearchStarterPacks, bskyGetStarterPack,
   bskyGetPostQuotes, bskyGetPostLikes, bskyGetPostRepostedBy, bskyStartConversation, bskyReactToMessage, bskyAcceptConversation,
-  type AuthorFeedFilter,
+  mapPostView, type AuthorFeedFilter,
 } from '../services/fediverse/bluesky';
 import type { FediverseCredentials, BlueskyReplyGate } from '../services/fediverse/types';
 
 export const blueskyClientRouter = Router();
+
+// ─── Public Bluesky (no account) ──────────────────────────────────────────────
+// Bluesky is ON by default in Social: people without a connected account still see the public Discover feed,
+// read from Bluesky's public AppView (no credentials). Cached so every viewer doesn't hit Bluesky per page load.
+// Adult / graphic self-labels and moderation labels are dropped — this feed shows to every Plajah user.
+const PUBLIC_FEEDS: Record<string, string> = {
+  discover: 'at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot',
+};
+const HIDE_LABELS = new Set(['porn', 'sexual', 'nudity', 'graphic-media', 'gore', 'nsfl', '!hide', '!warn', 'spam']);
+const hasHiddenLabel = (p: any) => [...(p?.labels ?? []), ...(p?.author?.labels ?? [])].some((l: any) => HIDE_LABELS.has(String(l?.val ?? '')));
+const publicCache = new Map<string, { at: number; posts: unknown[] }>();
+const PUBLIC_TTL = 3 * 60_000;
+
+blueskyClientRouter.get('/public/feed', async (req: Request, res: Response) => {
+  const key = str(req.query.feed, 40) ?? 'discover';
+  const feedUri = PUBLIC_FEEDS[key];
+  if (!feedUri) return bad(res, 'Unknown feed');
+  const hit = publicCache.get(key);
+  if (hit && Date.now() - hit.at < PUBLIC_TTL) { res.set('Cache-Control', 'public, max-age=60'); return res.json({ posts: hit.posts }); }
+  try {
+    const r = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.feed.getFeed?feed=${encodeURIComponent(feedUri)}&limit=50`, { signal: AbortSignal.timeout(10_000) });
+    if (!r.ok) throw new Error(`Bluesky ${r.status}`);
+    const data: any = await r.json();
+    const posts = (Array.isArray(data?.feed) ? data.feed : [])
+      .filter((it: any) => it?.post && !hasHiddenLabel(it.post) && !it.post.record?.reply)
+      .map((it: any) => ({ ...mapPostView(it.post, 'public', it.reason), isLiked: false, isReposted: false, isBookmarked: false }));
+    publicCache.set(key, { at: Date.now(), posts });
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json({ posts });
+  } catch (e: any) {
+    if (hit) return res.json({ posts: hit.posts, stale: true });
+    res.status(502).json({ error: e?.message ?? 'Bluesky is unreachable', posts: [] });
+  }
+});
 
 const ACTOR = /^(@?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+|did:[a-z]+:[\w.:%-]{1,200})$/i;
 const AT_URI = /^at:\/\/[\w.:%-]+\/[\w.]+\/[\w.~-]+$/;

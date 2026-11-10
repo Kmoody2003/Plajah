@@ -1,7 +1,7 @@
 // Plajah Social header: wordmark, search and Create on top; For You / Following / News and Sources below.
 // Sticky inside the page scroller. Everything that used to be its own tab or chip lives in the two menus here.
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Bookmark, ChevronDown, Clock, Columns2, Heart, MessageSquare, Mic, Plus, Radio, Search, SlidersHorizontal, Sparkles, User, Users, X } from 'lucide-react';
+import { ArrowLeft, Bookmark, ChevronDown, Clock, Columns2, Gamepad2, Heart, MessageSquare, Mic, Plus, Radio, Search, SlidersHorizontal, Sparkles, User, Users, X } from 'lucide-react';
 
 export type SocialLens = 'ALL' | 'FOLLOWING' | 'NEWS';
 export interface SocialSource { id: string; label: string; detail: string; color: string; on: boolean }
@@ -32,6 +32,8 @@ interface Props {
   streak?: React.ReactNode;
   on: {
     post: () => void; today: () => void; story: () => void; room: () => void; talk: () => void; goLive: () => void;
+    /** Post a Plajah game people can play right in the timeline. */
+    game?: () => void;
     myPosts: () => void; liked: () => void; saved: () => void; people: () => void; controls: () => void; dual: () => void; sync: () => void;
   };
 }
@@ -89,6 +91,7 @@ const SocialHeader: React.FC<Props> = ({
           <MenuItem icon={<Users size={17} />} label="Start a room" detail="15 to 45 minutes, anyone can join" onClick={pick(on.room)} />
           <MenuItem icon={<Mic size={17} />} label="Start a live talk" detail="A hosted conversation" onClick={pick(on.talk)} />
           <MenuItem icon={<Radio size={17} />} label="Go live" detail="Video to your followers" onClick={pick(on.goLive)} />
+          {on.game && <MenuItem icon={<Gamepad2 size={17} />} label="Post a game" detail="Playable right in the timeline" onClick={pick(on.game)} />}
         </div>
       )}
 

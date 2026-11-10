@@ -37,6 +37,8 @@ export interface DraftViewProps {
   onStopPlacing?: () => void;
   /** Live code-check results to mark on the plan. */
   findings?: Finding[]; showChecks?: boolean; onToggleChecks?: () => void; failCount?: number;
+  /** Switch tools from outside (the build guide's buttons); `n` changes on each request. */
+  toolRequest?: { tool: DraftTool; n: number } | null;
 }
 
 const TOOLS: Array<{ id: DraftTool; icon: React.ComponentType<{ size?: number }>; label: string; key: string }> = [
@@ -120,6 +122,7 @@ export default function DraftView(p: DraftViewProps) {
   const scale = useMemo(() => drawingScale(model), [model]);
 
   const setTool = useCallback((t: DraftTool) => { setToolState(t); setPts([]); setMeasured(null); setOffsetTarget(null); if (t !== 'offset') setOffsetDist(null); setWallStart(null); setFilletFirst(null); }, []);
+  useEffect(() => { if (p.toolRequest) setTool(p.toolRequest.tool); }, [p.toolRequest?.n]); // eslint-disable-line react-hooks/exhaustive-deps
   // A library pick switches to INSERT; leaving INSERT clears the pick.
   useEffect(() => { if (p.placing) { setToolState('insert'); setPts([]); setInsRot(0); setInsFlip(false); } else setToolState(t => t === 'insert' ? 'select' : t); }, [p.placing]);
 

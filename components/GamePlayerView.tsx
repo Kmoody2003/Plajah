@@ -26,16 +26,17 @@ const GamePlayerView: React.FC<GamePlayerViewProps> = ({ game, onBack }) => {
       className="h-full flex flex-col bg-theme text-white overflow-hidden"
     >
       {/* Header */}
-      <div className="p-8 flex items-center justify-between border-b border-white/5 bg-theme-card/50 backdrop-blur-md">
-        <div className="flex items-center gap-6">
-          <button 
+      <div className="p-3 sm:p-8 flex items-center justify-between gap-3 border-b border-white/5 bg-theme-card/50 backdrop-blur-md" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
+        <div className="flex items-center gap-3 sm:gap-6 min-w-0">
+          <button
             onClick={onBack}
-            className="p-4 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all group"
+            aria-label="Back"
+            className="p-3 sm:p-4 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all group shrink-0"
           >
             <ChevronLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
           </button>
-          <div>
-            <h3 className="text-2xl font-black uppercase tracking-tightest">{game.title}</h3>
+          <div className="min-w-0">
+            <h3 className="text-base sm:text-2xl font-black uppercase tracking-tightest truncate">{game.title}</h3>
             <p className="text-[10px] font-bold text-small-orange uppercase tracking-widest">
               Arcade Experience
             </p>
@@ -46,15 +47,15 @@ const GamePlayerView: React.FC<GamePlayerViewProps> = ({ game, onBack }) => {
           <button className="hidden md:flex px-6 py-3 bg-white/5 border border-white/10 rounded-full font-black text-[10px] uppercase tracking-widest items-center gap-2 hover:bg-white/10 transition-all">
             <Users size={14} /> Invite
           </button>
-          <button className="p-4 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all">
+          <button className="p-3 sm:p-4 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all" aria-label="Share">
             <Share2 size={20} />
           </button>
         </div>
       </div>
 
       {/* Game Area */}
-      <div className="flex-1 p-4 lg:p-8 flex items-center justify-center overflow-hidden bg-black/20">
-        <div className="w-full h-full max-w-7xl bg-black rounded-[2rem] lg:rounded-[3rem] overflow-hidden border border-white/10 shadow-2xl relative group">
+      <div className="flex-1 min-h-0 p-0 sm:p-4 lg:p-8 flex items-center justify-center overflow-hidden bg-black/20">
+        <div className="w-full h-full max-w-7xl bg-black sm:rounded-[2rem] lg:rounded-[3rem] overflow-hidden sm:border border-white/10 shadow-2xl relative group">
           <iframe 
             onLoad={() => { void recordHabit({ id: game.id, kind: 'GAME', title: game.title, thumbnailUrl: game.thumbnailUrl }); }}
             src={game.url}
@@ -63,7 +64,7 @@ const GamePlayerView: React.FC<GamePlayerViewProps> = ({ game, onBack }) => {
             allow="autoplay; fullscreen; gamepad"
           />
           
-          <div className="absolute bottom-8 right-8 opacity-0 group-hover:opacity-100 transition-all">
+          <div className="absolute bottom-3 right-3 sm:bottom-8 sm:right-8 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-all">
             <button 
               onClick={() => {
                 const iframe = document.querySelector('iframe');
@@ -84,7 +85,7 @@ const GamePlayerView: React.FC<GamePlayerViewProps> = ({ game, onBack }) => {
       </div>
 
       {/* Footer Stats */}
-      <div className="p-6 border-t border-white/5 flex items-center justify-center gap-8 lg:gap-12 bg-theme-card/30">
+      <div className="hidden sm:flex p-6 border-t border-white/5 items-center justify-center gap-8 lg:gap-12 bg-theme-card/30">
         <div className="flex items-center gap-3">
           <Sparkles size={18} className="text-small-orange" />
           <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Verified Studio Build</span>

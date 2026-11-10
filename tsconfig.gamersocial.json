@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true, "types": ["vite/client", "node"] },
+  "include": ["services/gamerNet/social.ts", "services/gamerNet/socialClient.ts", "routes/gamerSocial.ts", "components/games/social/*.tsx", "components/games/social/*.ts", "tests/gamerSocial.test.ts", "labs/games-social/*.tsx"]
+}

@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Gamepad2, Play, Users, Trophy, TrendingUp, ChevronLeft, Search, Globe, Library, ExternalLink } from 'lucide-react';
+import { Gamepad2, Play, Users, Trophy, TrendingUp, ChevronLeft, Search, Globe, Library, ExternalLink, Cpu, Smartphone } from 'lucide-react';
 import PageHeader from './PageHeader';
 import { motion, AnimatePresence } from 'motion/react';
 import { Game, UserProfile } from '../types';
 import { fetchGames, updateGamePlayCount, fetchUserProfile, auth } from '../services/backendService';
 import ChipRail from './ui/ChipRail';
 const KithParty = React.lazy(() => import('./kithParty/KithParty'));
+const CyberTicTacToe = React.lazy(() => import('./games/CyberTicTacToe'));
+const GamerHub = React.lazy(() => import('./games/GamerHub'));
+
+// Uploaded copies of tic tac toe open the first-party Cyber Tic Tac Toe (mobile, same-device + online play).
+const isTicTacToe = (g: { title?: string }) => /tic[\s-]*tac[\s-]*toe/i.test(g.title || '');
 
 interface FreeToGame {
   id: number;
@@ -29,11 +34,12 @@ interface GamesViewProps {
 
 const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse }) => {
   const [showKithParty, setShowKithParty] = useState(false);
+  const [showTtt, setShowTtt] = useState(false);
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [gameOwners, setGameOwners] = useState<Record<string, UserProfile>>({});
   
-  const [activeTab, setActiveTab] = useState<'HOME_BASE' | 'GLOBAL'>('HOME_BASE');
+  const [activeTab, setActiveTab] = useState<'HOME_BASE' | 'LEADERBOARDS' | 'GLOBAL'>('HOME_BASE');
   const [globalGames, setGlobalGames] = useState<FreeToGame[]>([]);
   const [loadingGlobal, setLoadingGlobal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -111,6 +117,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
   }, [activeTab]);
 
   const handleLaunchGame = async (game: Game) => {
+    if (isTicTacToe(game)) { setShowTtt(true); return; }
     onSelectGame(game);
   };
 
@@ -121,12 +128,17 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
     (g.title.toLowerCase().includes(searchQuery.toLowerCase()) || g.short_description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  if (showTtt) return (
+    <React.Suspense fallback={<div className="p-8">Loading Cyber Tic Tac Toe…</div>}>
+      <CyberTicTacToe onExit={() => setShowTtt(false)} onOpenLeaderboard={() => { setShowTtt(false); setActiveTab('LEADERBOARDS'); }} />
+    </React.Suspense>
+  );
   if (showKithParty) return <React.Suspense fallback={<div className="p-8">Loading Kith Party…</div>}><KithParty onBack={() => setShowKithParty(false)} /></React.Suspense>;
 
   return (
-    <div className="h-full bg-transparent text-white overflow-hidden flex flex-col">
-      {/* Games Header */}
-      <div className="p-8 border-b border-white/5 flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <div className="h-full bg-transparent text-white overflow-y-auto overflow-x-hidden lg:overflow-hidden flex flex-col">
+      {/* Games Header — on phones the whole page scrolls; on desktop only the content pane does */}
+      <div className="p-4 sm:p-8 border-b border-white/5 flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6">
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-4">
             {onBack && (
@@ -140,14 +152,14 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
           </div>
           <div>
             <PageHeader>Plajah Arcade</PageHeader>
-            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-4">Web-Based Games Hosted by Artists</p>
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-2 sm:mt-4">Plajah Originals · Artist-hosted games · One gamer score</p>
           </div>
         </div>
 
         {onLaunchFse && (
           <button
             onClick={onLaunchFse}
-            className="group relative flex items-center gap-4 px-6 py-4 rounded-2xl bg-gradient-to-r from-orange-600/30 via-purple-600/30 to-pink-600/20 border-2 border-orange-500/50 hover:border-orange-400 hover:shadow-[0_0_35px_rgba(255,107,0,0.45)] transition-all duration-300 text-left cursor-pointer active:scale-95"
+            className="group relative hidden sm:flex items-center gap-4 px-6 py-4 rounded-2xl bg-gradient-to-r from-orange-600/30 via-purple-600/30 to-pink-600/20 border-2 border-orange-500/50 hover:border-orange-400 hover:shadow-[0_0_35px_rgba(255,107,0,0.45)] transition-all duration-300 text-left cursor-pointer active:scale-95"
             title="Launch The Plajah FSE (10-Foot Console Experience)"
           >
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-black font-black text-xl shadow-lg group-hover:scale-110 transition-transform">
@@ -173,7 +185,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
       </div>
 
       {isAdmin && (
-        <div className="mx-8 mt-6 p-6 rounded-[2rem] border border-orange-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-left shadow-2xl relative overflow-hidden" style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(255,140,0,0.25), transparent 70%), linear-gradient(135deg, rgba(107,0,153,0.45), rgba(212,0,85,0.30) 50%, rgba(255,140,0,0.22))' }}>
+        <div className="mx-4 sm:mx-8 mt-4 sm:mt-6 p-5 sm:p-6 rounded-[2rem] border border-orange-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-left shadow-2xl relative overflow-hidden" style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(255,140,0,0.25), transparent 70%), linear-gradient(135deg, rgba(107,0,153,0.45), rgba(212,0,85,0.30) 50%, rgba(255,140,0,0.22))' }}>
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-2">
               <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-orange-500 to-pink-600 text-white text-[8px] font-black uppercase tracking-widest shadow">Admin Only</span>
@@ -203,10 +215,11 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
       )}
 
       {/* Platform Chip Rail treatment (components/ui/ChipRail) */}
-      <div className="px-8 pt-6 pb-4 border-b border-white/5">
+      <div className="px-4 sm:px-8 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-white/5">
         <ChipRail
           items={[
             { id: 'HOME_BASE', label: 'Home Base', icon: <Library size={13} /> },
+            { id: 'LEADERBOARDS', label: 'Leaderboards', icon: <Trophy size={13} /> },
             { id: 'GLOBAL', label: 'Global Games Community', icon: <Globe size={13} /> },
           ]}
           activeId={activeTab}
@@ -214,9 +227,43 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto p-8 relative">
-        {activeTab === 'HOME_BASE' ? (
-           loading ? (
+      <div className="lg:flex-1 lg:overflow-y-auto p-4 sm:p-8 relative" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+        {activeTab === 'LEADERBOARDS' ? (
+          <div className="max-w-7xl mx-auto">
+            <React.Suspense fallback={<div className="p-8 text-white/50 text-sm">Loading leaderboards…</div>}><GamerHub /></React.Suspense>
+          </div>
+        ) : activeTab === 'HOME_BASE' ? (
+           <>
+           {/* Plajah Originals — first-party games on the gamer network */}
+           <div className="max-w-7xl mx-auto mb-8 sm:mb-12">
+             <div className="flex items-center gap-3 mb-4 sm:mb-6">
+               <Gamepad2 size={20} className="text-small-orange" />
+               <h3 className="text-lg sm:text-xl font-black uppercase tracking-tightest">Plajah Originals</h3>
+             </div>
+             <button
+               onClick={() => setShowTtt(true)}
+               className="w-full text-left relative rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden border border-cyan-400/30 p-5 sm:p-8 active:scale-[0.99] transition-transform"
+               style={{ background: 'radial-gradient(40rem 20rem at 85% -10%, rgba(255,43,214,0.22), transparent 60%), radial-gradient(30rem 18rem at 0% 120%, rgba(0,240,255,0.20), transparent 60%), #070a16' }}
+             >
+               <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+                 <div className="grid grid-cols-3 gap-1.5 w-24 h-24 sm:w-28 sm:h-28 shrink-0 p-1.5 rounded-2xl bg-cyan-400/10 border border-cyan-400/30" aria-hidden>
+                   {'XO-OX---X'.split('').map((c, i) => (
+                     <span key={i} className={`rounded-lg bg-black/60 flex items-center justify-center text-xl font-black ${c === 'X' ? 'text-cyan-300' : 'text-fuchsia-400'}`} style={{ textShadow: '0 0 10px currentColor' }}>{c === '-' ? '' : c}</span>
+                   ))}
+                 </div>
+                 <div className="flex-1 min-w-0">
+                   <h4 className="text-2xl sm:text-4xl font-black tracking-tight"><span className="text-cyan-300">CYBER</span> <span className="text-fuchsia-400">TIC TAC TOE</span></h4>
+                   <div className="flex flex-wrap gap-2 mt-3">
+                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest"><Cpu size={12} /> vs CPU</span>
+                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest"><Smartphone size={12} /> 2 players · 1 device</span>
+                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest"><Globe size={12} /> Online · ranked</span>
+                   </div>
+                 </div>
+                 <span className="inline-flex items-center justify-center gap-2 min-h-[48px] px-6 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-widest"><Play size={16} fill="currentColor" /> Play</span>
+               </div>
+             </button>
+           </div>
+           {loading ? (
              <div className="flex flex-col items-center justify-center p-20">
                <div className="w-16 h-16 border-4 border-small-orange border-t-transparent rounded-full animate-spin mb-4" />
                <p className="text-xs font-black uppercase tracking-widest opacity-40">Loading Game Library...</p>
@@ -226,13 +273,13 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
                {/* Plajah Originals — admin-only first-party prototype (Pew Pew) */}
                {isAdmin && (
                <div>
-                 <div className="flex items-center gap-3 mb-8">
+                 <div className="flex items-center gap-3 mb-4 sm:mb-8">
                    <Gamepad2 size={20} className="text-small-orange" />
                    <h3 className="text-xl font-black uppercase tracking-tightest">Plajah Originals</h3>
                    <span className="px-2.5 py-1 rounded-md bg-white/10 border border-white/15 text-[8px] font-black uppercase tracking-widest text-white/70">Prototype · Admin</span>
                  </div>
                  <div
-                   className="relative rounded-[3rem] overflow-hidden border border-white/10 p-8 md:p-10"
+                   className="relative rounded-[2rem] sm:rounded-[3rem] overflow-hidden border border-white/10 p-5 sm:p-8 md:p-10"
                    style={{ background: 'radial-gradient(60rem 30rem at 80% -20%, rgba(255,140,0,0.18), transparent 60%), linear-gradient(135deg, rgba(107,0,153,0.35), rgba(212,0,85,0.25) 55%, rgba(255,140,0,0.15))' }}
                  >
                    <div className="flex flex-col md:flex-row md:items-center gap-8">
@@ -256,18 +303,18 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
                {/* Trending Section */}
                {games.length > 0 && (
                <div>
-                 <div className="flex items-center gap-3 mb-8">
+                 <div className="flex items-center gap-3 mb-4 sm:mb-8">
                    <TrendingUp size={20} className="text-small-orange" />
                    <h3 className="text-xl font-black uppercase tracking-tightest">Most Popular</h3>
                  </div>
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8">
                    {games.slice(0, 3).map((game) => (
                      <motion.button 
                        key={game.id}
                        whileHover={{ scale: 1.02 }}
                        whileTap={{ scale: 0.98 }}
                        onClick={() => handleLaunchGame(game)}
-                       className="group relative h-80 rounded-[3rem] overflow-hidden border border-white/10 bg-white/[0.02] transition-all media-lift"
+                       className="group relative h-56 sm:h-80 rounded-[2rem] sm:rounded-[3rem] overflow-hidden border border-white/10 bg-white/[0.02] transition-all media-lift"
                      >
                        <img 
                          src={game.thumbnailUrl || 'https://picsum.photos/seed/game/800/800'} 
@@ -298,11 +345,11 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
                {/* All Games Section */}
                {games.length > 0 && (
                <div>
-                 <div className="flex items-center gap-3 mb-8">
+                 <div className="flex items-center gap-3 mb-4 sm:mb-8">
                    <Gamepad2 size={20} className="text-small-orange" />
                    <h3 className="text-xl font-black uppercase tracking-tightest">All Platform Games</h3>
                  </div>
-                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
                    {games.map((game) => (
                      <motion.button 
                        key={game.id}
@@ -331,14 +378,15 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
                </div>
                )}
                {games.length === 0 && (
-                 <div className="p-12 bg-white/5 border border-white/10 rounded-[3rem] text-center max-w-2xl mx-auto">
+                 <div className="p-6 sm:p-12 bg-white/5 border border-white/10 rounded-[2rem] sm:rounded-[3rem] text-center max-w-2xl mx-auto">
                     <Gamepad2 size={48} className="text-white/20 mx-auto mb-6" />
                     <h3 className="text-2xl font-black uppercase tracking-widest mb-4">No Platform Games Yet</h3>
                     <p className="text-white/60 text-sm">Artists haven't uploaded any games to their Home Base. Switch to the Global Games Community tab to discover free community games.</p>
                  </div>
                )}
              </div>
-           )
+           )}
+           </>
         ) : (
            <div className="max-w-7xl mx-auto flex flex-col h-full">
               <div className="flex flex-col md:flex-row gap-6 mb-8 items-center justify-between">
@@ -371,7 +419,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
                   <p className="text-xs font-black uppercase tracking-widest opacity-40">Connecting to FreeToGame & OSGL...</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 pb-20">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-8 pb-20">
                   {filteredGlobalGames.map((game) => (
                     <div key={game.id} className="bg-white/5 border border-white/10 rounded-[2.5rem] overflow-hidden flex flex-col group hover:border-[#00DAF3]/30 transition-all media-lift">
                       <div className="h-48 relative overflow-hidden">

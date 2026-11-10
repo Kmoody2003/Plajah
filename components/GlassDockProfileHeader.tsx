@@ -18,6 +18,7 @@
  * and the classic branch in UserProfileView is left byte-for-byte intact.
  */
 import React from 'react';
+import { ChallengeButton } from './games/social/ChallengeButton';
 import { motion } from 'motion/react';
 import {
   Camera,
@@ -443,6 +444,14 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
                         <MessageSquare size={12} />
                         Message
                       </button>
+                    )}
+                    {!isOwnProfile && (
+                      <ChallengeButton
+                        uid={profile.uid}
+                        name={profile.displayName || 'Player'}
+                        source="profile"
+                        className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-[18px] font-black text-[10px] uppercase tracking-widest text-fuchsia-200 transition-all hover:bg-fuchsia-500/20"
+                      />
                     )}
                   </>
                 )}

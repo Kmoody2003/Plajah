@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true, "incremental": false },
+  "include": ["data/technoExhibit/**/*.ts", "components/exhibits/technoHistory/**/*.tsx", "components/exhibits/technoHistory/**/*.ts", "labs/technoExhibit/**/*.tsx"]
+}

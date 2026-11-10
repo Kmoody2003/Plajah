@@ -1108,6 +1108,35 @@ export async function fetchAudiusFeed(
   }
 }
 
+/** The PUBLIC Audius feed — no Audius account needed. Everyone on Plajah sees Audius in Social by default:
+ *  For You = trending this week (max 2 per artist), Latest = underground trending (newer, smaller artists).
+ *  Viewer-specific fields (liked/reposted) stay false; liking still asks the user to connect Audius. */
+export async function fetchAudiusPublicFeed(mode: AudiusFeedMode, opts: { limit?: number } = {}): Promise<any[]> {
+  try {
+    const host = await getAudiusHost();
+    const limit = String(Math.min(50, (opts.limit ?? 30) * 2));
+    const data = mode === 'for-you'
+      ? await audiusFetch('/v1/tracks/trending', { time: 'week', limit })
+      : await audiusFetch('/v1/tracks/trending/underground', { limit });
+    const items: any[] = Array.isArray(data?.data) ? data.data : [];
+    const perArtist = new Map<string, number>();
+    const out: any[] = [];
+    for (const t of items) {
+      if (!t || t.is_delete || t.access?.stream === false) continue;
+      const a = String(t.user?.id ?? '');
+      const n = perArtist.get(a) ?? 0;
+      if (n >= 2) continue;
+      perArtist.set(a, n + 1);
+      out.push(audiusTrackToPost(t, host, '', undefined, mode));
+      if (out.length >= (opts.limit ?? 30)) break;
+    }
+    return out;
+  } catch (err) {
+    console.warn('[Audius] fetchAudiusPublicFeed:', err);
+    return [];
+  }
+}
+
 /** Latest from the people you follow (kept for older callers). */
 export async function fetchAudiusSocialFeed(limit = 20): Promise<any[]> {
   return fetchAudiusFeed('latest', { limit });

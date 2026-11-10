@@ -117,6 +117,12 @@ export interface MobileLiveStreamerProps {
   liveOverlay?: (streamId: string) => React.ReactNode;
   /** Offered in stream settings: leave the camera for TV Studio and the pro modes. */
   onOpenStudio?: () => void;
+  /** Streamer: pre-filled stream title (e.g. a game match "A vs B"). */
+  initialTitle?: string;
+  /** Streamer: drawn onto every program frame viewers receive (e.g. a live game board). Engages the composer. */
+  programOverlay?: (ctx: CanvasRenderingContext2D, W: number, H: number, dt: number) => void;
+  /** Streamer: called once with the stream id when the broadcast starts. */
+  onLive?: (streamId: string) => void;
   onClose: () => void;
 }
 
@@ -531,7 +537,7 @@ const PeerTile: React.FC<{ stream: MediaStream; name?: string; onRemove?: () => 
 };
 
 const MobileLiveStreamer: React.FC<MobileLiveStreamerProps> = ({
-  mode, streamId: initStreamId, title: initTitle, ownerName, clubId, isPrivate, liveOverlay, onOpenStudio, onClose,
+  mode, streamId: initStreamId, title: initTitle, ownerName, clubId, isPrivate, liveOverlay, onOpenStudio, initialTitle, programOverlay, onLive, onClose,
 }) => {
   // Portal to <body>: rendered in place, an ancestor with a CSS transform makes
   // position:fixed anchor to that ancestor (the overlay appears at the page TOP
@@ -540,7 +546,7 @@ const MobileLiveStreamer: React.FC<MobileLiveStreamerProps> = ({
     <LiveErrorBoundary onClose={onClose}>
       {mode === 'viewer' && initStreamId
         ? <MobileViewer streamId={initStreamId} title={initTitle} ownerName={ownerName} onClose={onClose} />
-        : <MobileStreamer clubId={clubId} isPrivate={isPrivate} liveOverlay={liveOverlay} onOpenStudio={onOpenStudio} onClose={onClose} />}
+        : <MobileStreamer clubId={clubId} isPrivate={isPrivate} liveOverlay={liveOverlay} onOpenStudio={onOpenStudio} initialTitle={initialTitle} programOverlay={programOverlay} onLive={onLive} onClose={onClose} />}
     </LiveErrorBoundary>,
     document.body,
   );
@@ -571,9 +577,9 @@ export const LiveViewer: React.FC<{
 //  STREAMER SIDE
 // ─────────────────────────────────────────────────────────────────────────────
 
-function MobileStreamer({ onClose, clubId, isPrivate, liveOverlay, onOpenStudio }: { onClose: () => void; clubId?: string; isPrivate?: boolean; liveOverlay?: (streamId: string) => React.ReactNode; onOpenStudio?: () => void }) {
+function MobileStreamer({ onClose, clubId, isPrivate, liveOverlay, onOpenStudio, initialTitle, programOverlay, onLive }: { onClose: () => void; clubId?: string; isPrivate?: boolean; liveOverlay?: (streamId: string) => React.ReactNode; onOpenStudio?: () => void; initialTitle?: string; programOverlay?: (ctx: CanvasRenderingContext2D, W: number, H: number, dt: number) => void; onLive?: (streamId: string) => void }) {
   const [step, setStep] = useState<'setup' | 'live' | 'ended'>('setup');
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(initialTitle ?? '');
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [mirror, setMirror] = useState(true); // mirror the preview for front cameras only
@@ -1204,6 +1210,9 @@ function MobileStreamer({ onClose, clubId, isPrivate, liveOverlay, onOpenStudio 
     setStartTime(Date.now());
     setIsLive(true);
     setStep('live');
+    onLive?.(id);
+    // A program overlay (e.g. a game board) is burned into what viewers get, so it rides on the composer.
+    if (programOverlay) ensureComposer().then(c => c.setOverlayDrawer(programOverlay)).catch(() => {});
 
     // Durable on-device recording: commit every chunk as it records so a failed
     // upload or a closed tab never loses the stream. Best-effort — if the local
