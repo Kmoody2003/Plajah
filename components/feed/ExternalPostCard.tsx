@@ -247,12 +247,13 @@ const ExternalPostCard: React.FC<ExternalPostCardProps> = ({ post, onOpenProfile
                 <MessageSquare size={16} strokeWidth={1.5} />{replyCount > 0 && <span className="text-[12px]">{replyCount}</span>}
               </motion.button>
 
-              <motion.button whileTap={{ scale: 0.85 }} onClick={() => act('like')} disabled={acting === 'like' || post.protocol === 'threads'}
+              <motion.button whileTap={{ scale: 0.85 }} onClick={() => act('like')} disabled={acting === 'like' || post.protocol === 'threads'} title={post.protocol === 'threads' ? 'Like it on Threads — Meta’s API doesn’t allow likes from other apps' : undefined}
                 className={`tap flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all disabled:opacity-50 ${isLiked ? 'text-red-400 bg-red-400/10' : 'text-white/40 hover:text-red-400 hover:bg-red-400/10'}`}>
                 <Heart size={16} strokeWidth={1.5} fill={isLiked ? 'currentColor' : 'none'} />{likeCount > 0 && <span className="text-[12px]">{likeCount}</span>}
               </motion.button>
 
-              {post.protocol !== 'threads' && (
+              {/* Threads: repost works through the API; undoing one only on Threads itself. */}
+              {(post.protocol !== 'threads' || !isReposted) && (
                 <motion.button whileTap={{ scale: 0.85 }} onClick={() => act('repost')} disabled={acting === 'repost'}
                   className={`tap flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all disabled:opacity-50 ${isReposted ? 'text-emerald-400 bg-emerald-400/10' : 'text-white/40 hover:text-emerald-400 hover:bg-emerald-400/10'}`}>
                   <Repeat2 size={17} strokeWidth={1.5} />{repostCount > 0 && <span className="text-[12px]">{repostCount}</span>}

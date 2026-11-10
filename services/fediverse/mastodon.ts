@@ -56,7 +56,7 @@ function mapMedia(m: Record<string, unknown>): FediverseMedia {
   };
 }
 
-function mapStatus(status: Record<string, unknown>, accountId: string): FediversePost {
+export function mapStatus(status: Record<string, unknown>, accountId: string): FediversePost {
   const account = status.account as Record<string, unknown>;
   const media = (status.media_attachments as Record<string, unknown>[] | undefined) ?? [];
   const html = String(status.content ?? '');
@@ -86,7 +86,7 @@ function mapStatus(status: Record<string, unknown>, accountId: string): Fedivers
   };
 }
 
-function mapAccount(a: Record<string, unknown>): FediverseProfile {
+export function mapAccount(a: Record<string, unknown>): FediverseProfile {
   return {
     id: String(a.id),
     protocol: 'mastodon',

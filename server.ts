@@ -79,6 +79,8 @@ import './routes/socialEngage'; // adds inbox + approval routes to socialConnect
 import { blueskyOAuthRouter } from './routes/blueskyOAuth';
 import { fediverseNativeRouter } from './routes/fediverseNative';
 import { blueskyClientRouter } from './routes/blueskyClient';
+import { threadsOAuthRouter } from './routes/threadsOAuth';
+import { threadsClientRouter } from './routes/threadsClient';
 import { bookSubmissionsRouter } from './routes/bookSubmissions';
 import { campaignsRouter } from './routes/campaigns';
 import { createPodRouter, fulfillPodOrderFromStripe } from './routes/pod';
@@ -14449,6 +14451,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use('/api/fediverse/crosspost-native', express.json({ limit: '64kb' }), fediverseNativeRouter);
   // In-app Bluesky client screens: profiles, threads, search, follow graph, custom feeds, mute/block, quote.
   app.use('/api/fediverse/bluesky/c', express.json({ limit: '32kb' }), blueskyClientRouter);
+  app.use('/api/fediverse/threads/oauth', threadsOAuthRouter);
+  app.use('/api/fediverse/threads/c', express.json({ limit: '16kb' }), threadsClientRouter);
   // Independent-author ebook submissions (status transitions are server-only; see firestore.rules bookSubmissions).
   // Paid-book vault: seal content off the public album, serve it back to the author and buyers only.
   // No body parser at the mount: /api/books/submit below needs its own 14mb limit.

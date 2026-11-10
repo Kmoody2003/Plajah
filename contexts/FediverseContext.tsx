@@ -57,6 +57,8 @@ interface FediverseContextValue {
   /** "Sign in with Bluesky" (AT Protocol OAuth) — opens Bluesky's own consent screen in a popup. */
   connectBlueskyOAuth: (handle?: string) => Promise<void>;
   connectThreadsAccount: (token: string) => Promise<FediverseAccount>;
+  /** "Continue with Threads" (Meta OAuth) — Threads' own consent screen in a popup; comes back connected. */
+  connectThreadsOAuth: () => Promise<void>;
   disconnectAccount: (accountId: string) => Promise<void>;
 
   refreshFeed: () => Promise<void>;
@@ -311,6 +313,46 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     await loadAccounts();
   }, [uid, loadAccounts]);
 
+  const connectThreadsOAuth = useCallback(async () => {
+    if (!uid) throw new Error('Not authenticated');
+    // Open the popup inside the click (popup blockers), then point it at threads.net once the server built the URL.
+    const popup = window.open('about:blank', `plajah-threads-oauth-${Date.now()}`, 'width=520,height=760');
+    if (!popup) throw new Error('Allow pop-ups for Plajah to continue with Threads.');
+    let url: string;
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('No Firebase token');
+      ({ url } = await serverJson<{ url: string }>('/api/fediverse/threads/oauth/start', token));
+    } catch (e) { popup.close(); throw e; }
+    popup.location.href = url;
+    // Meta's cross-origin-opener-policy can sever window.opener and makes popup.closed unreliable, so listen on a
+    // BroadcastChannel too and poll the server for the newly linked account.
+    const startedAt = Date.now() - 5000;
+    await new Promise<void>((resolve, reject) => {
+      let bc: BroadcastChannel | null = null;
+      try { bc = new BroadcastChannel('plajah-threads-oauth'); } catch { /* unsupported */ }
+      const done = (fn: () => void) => { window.removeEventListener('message', onMsg); if (bc) bc.close(); clearInterval(poll); fn(); };
+      const handle_ = (d: any) => { if (d?.type === 'plajah-threads-oauth') done(() => (d.ok ? resolve() : reject(new Error(d.error || 'Threads sign-in failed.')))); };
+      const onMsg = (ev: MessageEvent) => { if (ev.origin === window.location.origin) handle_(ev.data); };
+      window.addEventListener('message', onMsg);
+      if (bc) bc.onmessage = ev => handle_(ev.data);
+      let checking = false;
+      const deadline = Date.now() + 5 * 60_000;
+      const poll = setInterval(async () => {
+        if (Date.now() > deadline) return done(() => reject(new Error('Threads sign-in timed out. Try again.')));
+        if (checking) return;
+        checking = true;
+        try {
+          const t = await getToken();
+          const { accounts: list } = await serverJson<{ accounts: FediverseAccount[] }>('/api/fediverse/accounts', t!);
+          if ((list || []).some(a => a.protocol === 'threads' && Number(a.connectedAt || 0) >= startedAt)) done(resolve);
+        } catch { /* transient — keep waiting */ }
+        finally { checking = false; }
+      }, 2500);
+    });
+    await loadAccounts();
+  }, [uid, loadAccounts]);
+
   const connectThreadsAccount = useCallback(async (tkn: string) => {
     if (!uid) throw new Error('Not authenticated');
     const token = await getToken();
@@ -493,7 +535,7 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     accounts, feed, notifications, feedErrors,
     isLoadingAccounts, accountsError, reloadAccounts: loadAccounts, isLoadingFeed, isCrossPosting,
     connectMastodonOAuth, connectMastodonToken,
-    connectBlueskyAccount, connectBlueskyOAuth, connectThreadsAccount, disconnectAccount,
+    connectBlueskyAccount, connectBlueskyOAuth, connectThreadsAccount, connectThreadsOAuth, disconnectAccount,
     refreshFeed, refreshNotifications,
     crossPost, broadcast, toggleLike, toggleRepost,
     accountsByProtocol, hasProtocol,

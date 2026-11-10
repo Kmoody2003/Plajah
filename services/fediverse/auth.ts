@@ -426,6 +426,16 @@ export class DecentralizedAuthService {
 
   /** Refresh a Bluesky session if it is (nearly) expired and persist the rotated tokens. Never throws. */
   private async refreshAndPersist(uid: string, account: FediverseAccount, authToken: string): Promise<void> {
+    if (account.protocol === 'threads') {
+      // Threads tokens last 60 days; refresh past the halfway mark so a linked account never quietly lapses.
+      try {
+        const { threadsRefreshIfNeeded } = await import('./threads.js');
+        if (await threadsRefreshIfNeeded(account.credentials)) await this.persist(uid, account, authToken);
+      } catch (e) {
+        console.warn('[Fediverse] Threads token refresh failed for', account.handle, '-', (e as Error).message);
+      }
+      return;
+    }
     if (account.protocol !== 'bluesky') return;
     try {
       if (!(await bskyRefreshIfNeeded(account.credentials))) return;
