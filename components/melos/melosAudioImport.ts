@@ -2,7 +2,7 @@
  * Melos Audio Import & Analysis Helper
  *
  * Handles drag-and-drop and file-picker audio ingestion across Pad, Tracklist,
- * Arrange, and Board rooms:
+ * Album Arranger, and Board rooms:
  * - Creates an instant playable object URL so audio works immediately (online, offline, or demo)
  * - Decodes via Web Audio + caches in content-addressed OPFS (so Chora Mastering Desk & Chora Studio have it ready)
  * - Extracts real durationSec and SongFeel metrics (energy, brightness, density, estimated BPM)
@@ -57,7 +57,7 @@ export function cleanMediaTitle(fileName: string): string {
 
 /**
  * Compute lightweight SongFeel metrics (energy, brightness, density, approximate BPM)
- * directly from a decoded AudioBuffer so Arrange's EnergyCurve and Pad's Feel card light up.
+ * directly from a decoded AudioBuffer so the Album Arranger's EnergyCurve and Pad's Feel card light up.
  */
 export function analyzeBufferFeel(buffer: AudioBuffer): SongFeel {
   const ch = buffer.getChannelData(0);

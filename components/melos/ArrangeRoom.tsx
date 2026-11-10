@@ -1,5 +1,5 @@
 /**
- * Melos › Arrange — album running orders, side by side. Paper tier.
+ * Melos › Album Arranger — album running orders & setlists, side by side. Paper tier.
  *
  * Upgraded with:
  * - Side-by-side album audio arrangements with energy curve visualization
@@ -8,12 +8,15 @@
  * - Touch-friendly Up/Down reorder & remove controls (works on mobile & desktop)
  * - 1-click "Send to Chora Mastering Desk →" CTA to load the arrangement for mastering & distribution
  * - Dedicated Mobile Sequence Switcher Layout (`vp.isPhone`)
+ * - Publish any arrangement to Chora as the artist's own private playlist; the
+ *   order syncs both ways (useChoraPlaylistSync + services/melosChoraPlaylist)
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Plus, Star, Trash2, GripVertical, Copy, Upload, Play, Pause,
   ArrowUp, ArrowDown, Disc3, X, Volume2, Timer, BookOpen, ChevronRight,
+  ListMusic, Link2Off, RefreshCw, Lock,
 } from 'lucide-react';
 import { useMelos, Label } from './MelosWorkspace';
 import {
@@ -22,6 +25,10 @@ import {
   type ArrangementSlotCue, type MusicSubCategoryKey,
 } from '../../services/melosService';
 import { useViewport } from '../../hooks/useViewport';
+import { auth } from '../../services/firebase';
+import {
+  publishArrangementToChora, unlinkArrangementFromChora, songPlayableUrl,
+} from '../../services/melosChoraPlaylist';
 
 /** The shape of the record — energy per song across the running order. */
 const EnergyCurve: React.FC<{
@@ -57,7 +64,11 @@ const ArrangeRoom: React.FC = () => {
     importAudioFilesAsSongs, openInMasteringDesk, selectSong, goRoom,
     activeArrangementId, setActiveArrangementId, setRequestedPadMode,
     openLiveCueTimerRequest, setOpenLiveCueTimerRequest,
+    production, choraPlaylists,
   } = useMelos();
+  const canPublish = !!production && production.id === prodId && !!auth.currentUser;
+  const [publishingArrId, setPublishingArrId] = useState<string | null>(null);
+  const [publishMsg, setPublishMsg] = useState<Record<string, { tone: 'ok' | 'err'; text: string }>>({});
   const vp = useViewport();
 
   const [drag, setDrag] = useState<{ arrId: string; index: number } | null>(null);
@@ -131,7 +142,29 @@ const ArrangeRoom: React.FC = () => {
     });
   };
 
-  const getSongAudioUrl = (s: MelosSong) => s.trackRef?.url || s.takes?.find(t => !!t.url)?.url || null;
+  const getSongAudioUrl = (s: MelosSong) => songPlayableUrl(s);
+
+  const publishToChora = async (a: MelosArrangement) => {
+    if (!production) return;
+    setPublishingArrId(a.id);
+    try {
+      const link = await publishArrangementToChora(production, a, songs);
+      editArrangement(a.id, { choraPlaylist: link });
+      const placed = Object.keys(link.trackMap).filter(sid => a.songIds.includes(sid)).length;
+      setPublishMsg(m => ({ ...m, [a.id]: { tone: 'ok', text: `${placed} track${placed === 1 ? '' : 's'} on your Chora playlist` } }));
+    } catch (err) {
+      setPublishMsg(m => ({ ...m, [a.id]: { tone: 'err', text: (err as Error)?.message || 'Publish failed — try again.' } }));
+    } finally {
+      setPublishingArrId(null);
+    }
+  };
+
+  const unlinkFromChora = async (a: MelosArrangement) => {
+    if (!confirm(`Stop syncing "${a.name}" with Chora? The playlist stays in your Chora library; it just won't follow this arrangement any more.`)) return;
+    editArrangement(a.id, { choraPlaylist: null });
+    await unlinkArrangementFromChora(prodId, a).catch(() => {});
+    setPublishMsg(m => { const n = { ...m }; delete n[a.id]; return n; });
+  };
 
   const togglePlaySongInArr = (arrId: string, s: MelosSong) => {
     const url = getSongAudioUrl(s);
@@ -501,6 +534,85 @@ const ArrangeRoom: React.FC = () => {
           style={{ border: '1px dashed var(--mel-edge)', borderRadius: 10, padding: '8px 10px', transform: 'none' }}
         />
 
+        {/* Chora playlist — hear the running order on the go; order syncs both ways */}
+        {(() => {
+          const link = a.choraPlaylist || null;
+          const mine = !!link && link.ownerUid === auth.currentUser?.uid;
+          const live = link ? choraPlaylists[link.playlistId] : undefined;
+          const noAudio = a.songIds.filter(sid => {
+            const s = byId.get(sid);
+            return !!s && !(link?.trackMap[sid]) && !songPlayableUrl(s);
+          });
+          const pending = link ? a.songIds.filter(sid => {
+            const s = byId.get(sid);
+            return !!s && !link.trackMap[sid] && !!songPlayableUrl(s);
+          }) : [];
+          const msg = publishMsg[a.id];
+          const busy = publishingArrId === a.id;
+          return (
+            <div className="rounded-xl p-2.5 flex flex-col gap-1.5" style={{ border: '1px solid var(--mel-edge)', background: 'var(--mel-hover)' }}>
+              {!link ? (
+                <button
+                  onClick={() => void publishToChora(a)}
+                  disabled={!canPublish || busy || a.songIds.length === 0}
+                  className="w-full py-2 px-3 rounded-lg text-[10px] font-extrabold uppercase tracking-[0.14em] flex items-center justify-center gap-2 disabled:opacity-40"
+                  style={{ background: 'var(--mel-accent)', color: '#12101A', border: 0 }}
+                  title={canPublish ? 'Publish this running order to Chora as your own private playlist' : 'Open one of your own productions to publish'}
+                >
+                  <ListMusic size={12} />
+                  {busy ? 'Publishing…' : 'Publish to Chora as playlist'}
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 text-[10.5px]">
+                  <ListMusic size={12} style={{ color: 'var(--mel-accent)' }} className="shrink-0" />
+                  <span className="flex-1 min-w-0 truncate font-semibold" style={{ color: 'var(--mel-ink)' }}>
+                    {mine
+                      ? (live && !live.exists ? 'Chora playlist was deleted' : 'Linked to your Chora playlist')
+                      : 'Published to the owner\u2019s Chora library'}
+                  </span>
+                  <span className="flex items-center gap-0.5 text-[9px] uppercase tracking-wider shrink-0" style={{ color: 'var(--mel-faint)' }} title="Only you can see this playlist until you share it">
+                    <Lock size={9} />Private
+                  </span>
+                  {mine && (
+                    <>
+                      <button
+                        onClick={() => void publishToChora(a)}
+                        disabled={busy}
+                        className="p-1 rounded disabled:opacity-40"
+                        style={{ background: 'none', border: 0, color: 'var(--mel-faint)' }}
+                        title={live && !live.exists ? 'Publish again' : 'Refresh audio on the playlist (new takes / renders)'}
+                      ><RefreshCw size={11} className={busy ? 'animate-spin' : ''} /></button>
+                      <button
+                        onClick={() => void unlinkFromChora(a)}
+                        className="p-1 rounded"
+                        style={{ background: 'none', border: 0, color: 'var(--mel-faint)' }}
+                        title="Unlink — keep the playlist, stop syncing order"
+                      ><Link2Off size={11} /></button>
+                    </>
+                  )}
+                </div>
+              )}
+              {link && mine && (
+                <p className="m-0 text-[9.5px]" style={{ color: 'var(--mel-faint)' }}>
+                  Reorder here or in Chora — the other follows.
+                  {pending.length > 0 && ` Adding ${pending.length} new track${pending.length === 1 ? '' : 's'}…`}
+                </p>
+              )}
+              {noAudio.length > 0 && (
+                <p className="m-0 text-[9.5px]" style={{ color: '#FCD34D' }}
+                  title={noAudio.map(sid => byId.get(sid)?.title || 'Untitled').join(', ')}>
+                  {noAudio.length} song{noAudio.length === 1 ? '' : 's'} skipped on the playlist — no rendered audio yet
+                  {' '}({noAudio.slice(0, 3).map(sid => byId.get(sid)?.title || 'Untitled').join(', ')}{noAudio.length > 3 ? '…' : ''}).
+                  {link ? ' They\u2019ll join once they have a take or render.' : ''}
+                </p>
+              )}
+              {msg && (
+                <p className="m-0 text-[9.5px]" style={{ color: msg.tone === 'ok' ? '#6EE7B7' : '#FCA5A5' }}>{msg.text}</p>
+              )}
+            </div>
+          );
+        })()}
+
         {/* Send to Chora Mastering Desk CTA */}
         <button
           onClick={() => openInMasteringDesk(a.id)}
@@ -543,10 +655,11 @@ const ArrangeRoom: React.FC = () => {
       {/* Top Header */}
       <div className="flex items-end justify-between gap-4 flex-wrap mb-4">
         <div>
-          <Label className="mb-1">Arrange · Album Sequences, Setlists &amp; Live Cue Timer</Label>
+          <Label className="mb-1">Album Arranger · Album Sequences, Setlists &amp; Live Cue Timer</Label>
           <p className="text-[12.5px] m-0" style={{ color: 'var(--mel-dim)' }}>
             {arrangements.length} arrangement{arrangements.length === 1 ? '' : 's'} side by side.
-            Sequence album tracks or live worship/concert setlists, run the live cue timer, or jump any song straight into Chora Stand Mode.
+            Sequence album tracks or live worship/concert setlists, publish any running order to Chora as a playlist to hear how it flows,
+            run the live cue timer, or jump any song straight into Chora Stand Mode.
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">

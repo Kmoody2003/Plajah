@@ -214,7 +214,7 @@ Melos is a workspace of rooms, not a form. Each is a tab in the shell.
 | --- | --- | --- |
 | **Pad** | paper | Write. Lyric blocks, drag to rearrange, margin notes, voice/photo capture inline. The default room. |
 | **Tracklist** | paper | Every song with its two-axis state, love rating, confidence. Pull in audio files. Filter by commitment. |
-| **Arrange** | paper | Album running-order experiments side by side, with runtime and energy curve per sequence. |
+| **Album Arranger** | paper | Album running-order experiments and setlists side by side, with runtime and energy curve per sequence. Any arrangement publishes to Chora as the artist's private playlist; order syncs both ways. |
 | **Board** | paper | Spatial inspiration board. Pin images, links, tracks, colours, audio. |
 | **Sessions** | paper | Studio sessions, scheduling, cost estimates against budget. |
 | **Samples** | bridge | The sample board + clearance workflow + public-domain library. Also **is the Beats browser**. |
@@ -239,7 +239,7 @@ and rejected as too bright; two skins ship.
 Melos has **two surface tiers**, and skins stop at the boundary:
 
 - **Paper tier** — where you *think*. Low contrast, generous, textured, calm.
-  Takes the skin token set in full. Rooms: Pad, Tracklist, Arrange, Board,
+  Takes the skin token set in full. Rooms: Pad, Tracklist, Album Arranger, Board,
   Sessions, Notebook.
 - **Instrument tier** — where you *play*. Matte `#0A0A0D` slab in **every** skin,
   because a 16-step grid needs density, high contrast and meter legibility — the
@@ -328,7 +328,7 @@ re-keying.
 | Melos already uses | So the DAW must use |
 | --- | --- |
 | **Pad** = the lyric writing pad; **Pad Skins** skin that surface | "pads" only *inside* the Beats room, never as a room name |
-| **Arrange** = album running order | **Sequence** for the FL-style pattern playlist |
+| **Album Arranger** = album running order | **Sequence** for the FL-style pattern playlist |
 
 Conflating these is the single easiest way to make this feature incoherent.
 

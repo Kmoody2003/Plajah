@@ -55,6 +55,8 @@ import { useEngineBridge } from './beats/useEngineBridge';
 import PadRoom from './PadRoom';
 import TracklistRoom from './TracklistRoom';
 import ArrangeRoom from './ArrangeRoom';
+import { useChoraPlaylistSync } from './useChoraPlaylistSync';
+import type { LinkedPlaylistState } from '../../services/melosChoraPlaylist';
 import BoardRoom from './BoardRoom';
 // Beats & Mastering Desk load on demand.
 const BeatsRoom = React.lazy(() => import('./beats/BeatsRoom'));
@@ -112,7 +114,7 @@ const ROOMS: RoomMeta[] = [
   // 1. Concept & Creation (Paper Tier)
   { id: 'pad',       label: 'Pad',                  shortLabel: 'Pad',       icon: <PenLine size={13} />,     tier: 'paper',      stage: 'concept' },
   { id: 'tracklist', label: 'Tracklist',            shortLabel: 'Tracks',    icon: <ListMusic size={13} />,   tier: 'paper',      stage: 'concept' },
-  { id: 'arrange',   label: 'Arrange',              shortLabel: 'Arrange',   icon: <Layers size={13} />,      tier: 'paper',      stage: 'concept' },
+  { id: 'arrange',   label: 'Album Arranger',       shortLabel: 'Arranger',  icon: <Layers size={13} />,      tier: 'paper',      stage: 'concept' },
   { id: 'board',     label: 'Board',                shortLabel: 'Board',     icon: <LayoutGrid size={13} />,  tier: 'paper',      stage: 'concept' },
   // 2. Studio, Mastering & Live Mix (Instrument Tier)
   { id: 'beats',     label: 'Chora Studio',         shortLabel: 'Studio',    icon: <Drum size={13} />,        tier: 'instrument', stage: 'studio' },
@@ -184,9 +186,11 @@ interface MelosCtx {
   /** Whether the Hymnal / Gospel Catalog drawer was requested via deep link. */
   openHymnalRequest: boolean;
   setOpenHymnalRequest: (v: boolean) => void;
-  /** Whether the Live Run-of-Show Cue Timer in Arrange was requested via deep link. */
+  /** Whether the Live Run-of-Show Cue Timer in the Album Arranger was requested via deep link. */
   openLiveCueTimerRequest: boolean;
   setOpenLiveCueTimerRequest: (v: boolean) => void;
+  /** Live state of each arrangement's Chora playlist (keyed by playlistId), when published. */
+  choraPlaylists: Record<string, LinkedPlaylistState>;
 }
 
 const Ctx = createContext<MelosCtx | null>(null);
@@ -224,7 +228,7 @@ export const Hearts: React.FC<{ value: number; onChange?: (v: number) => void; s
 // ─── Beats host (Chora Studio DAW) ──────────────────────────────────────────
 
 const BeatsHost: React.FC<{ musicLabAdmin?: boolean }> = ({ musicLabAdmin }) => {
-  const { prodId, samples, selectedSong, editSong } = useMelos();
+  const { prodId, samples, selectedSong, editSong, goRoom } = useMelos();
   const melosSamples = useMemo(() => toMelosSampleRefs(samples), [samples]);
 
   const onRenderTake = useCallback(async (take: { blob: Blob; name: string; durationSec: number }) => {
@@ -271,6 +275,7 @@ const BeatsHost: React.FC<{ musicLabAdmin?: boolean }> = ({ musicLabAdmin }) => 
           onRenderTake={selectedSong ? (t) => { void onRenderTake(t); } : undefined}
           takeTargetName={selectedSong?.title}
           musicLabAdmin={musicLabAdmin}
+          onOpenProject={() => goRoom('master')}
         />
       </Suspense>
     </div>
@@ -827,6 +832,11 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
     setRoom('master');
   }, []);
 
+  // Album Arranger ⇄ Chora playlist order sync (runs whichever room is open).
+  const choraPlaylists = useChoraPlaylistSync({
+    enabled: canWrite(prodId), production, songs, arrangements, editArrangement,
+  });
+
   const ctx: MelosCtx = {
     prodId, production, songs, arrangements, pins, samples, sessions, people,
     selectedSongId, selectSong: setSelectedSongId, selectedSong,
@@ -848,6 +858,7 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
     setOpenHymnalRequest,
     openLiveCueTimerRequest,
     setOpenLiveCueTimerRequest,
+    choraPlaylists,
   };
 
   const startBlank = async () => {

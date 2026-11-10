@@ -2276,6 +2276,9 @@ export interface Playlist {
   externalTracks?: ExternalPlaylistTrack[]; // Audius / archive / vault tracks mixed in
   isDraft?: boolean;
   timestamp: number;
+  updatedAt?: number;
+  /** Set when this playlist mirrors a Melos Album Arranger running order — reordering here reorders the arrangement. */
+  melosLink?: { prodId: string; arrangementId: string } | null;
 }
 
 export interface CommunityPlaylist extends Omit<Playlist, 'timestamp'> {

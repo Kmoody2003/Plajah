@@ -6943,7 +6943,14 @@ export const updatePlaylist = async (playlistId: string, updates: Partial<Playli
   const path = `personal_playlists/${playlistId}`;
   try {
     const ref = doc(db, 'personal_playlists', playlistId);
-    await updateDoc(ref, updates);
+    await updateDoc(ref, updates.trackIds ? { ...updates, updatedAt: Date.now() } : updates);
+    // A playlist published from the Melos Album Arranger carries its new order
+    // back into the arrangement (no-op for ordinary playlists).
+    if (updates.trackIds) {
+      void import('./melosChoraPlaylist')
+        .then(m => m.syncPlaylistIntoArrangement(playlistId))
+        .catch(err => console.warn('[Chora] Album Arranger order sync failed', err));
+    }
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
   }

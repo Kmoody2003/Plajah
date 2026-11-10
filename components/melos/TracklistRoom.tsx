@@ -428,7 +428,7 @@ const TracklistRoom: React.FC = () => {
                       className="flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1"
                       style={{ background: 'var(--mel-hover)', color: 'var(--mel-accent)', border: 0 }}
                     >
-                      <Layers size={11} />+ Arrange
+                      <Layers size={11} />+ Arranger
                     </button>
                   )}
                   <button
@@ -628,7 +628,7 @@ const TracklistRoom: React.FC = () => {
                             style={{ background: 'var(--mel-hover)', color: 'var(--mel-dim)', border: '1px solid var(--mel-edge)' }}
                             title="Add song to an album arrangement"
                           >
-                            <option value="">+ Arrange</option>
+                            <option value="">+ Album Arranger</option>
                             {arrangements.map(a => (
                               <option key={a.id} value={a.id} style={{ background: '#141418' }}>
                                 {a.name}

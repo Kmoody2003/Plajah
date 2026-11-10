@@ -77,7 +77,7 @@ export const commitmentMeta = (k: Commitment): CommitmentMeta =>
 export const IS_ON_RECORD: Commitment[] = ['VERIFIED', 'WORKING_ON_IT'];
 
 // ═══ Pad Skins ═══════════════════════════════════════════════════════════════
-// Skins govern the PAPER tier only (Pad / Tracklist / Arrange / Board / Sessions
+// Skins govern the PAPER tier only (Pad / Tracklist / Album Arranger / Board / Sessions
 // / Notebook). The INSTRUMENT tier (Beats / Sequence / Mixer / Score / Feel)
 // holds a matte slab in every skin and inherits only `accent`. Letting skin
 // tokens reach the instrument tier is a bug, not a shortcut.
@@ -313,7 +313,7 @@ export interface MelosSong {
 }
 
 // ═══ Arrangement — album running order & live setlists ═══════════════════════
-// NOTE ON THE WORD: "Arrange" in Melos is the ALBUM RUNNING ORDER / LIVE SETLIST.
+// NOTE ON THE WORD: the "Album Arranger" room (id 'arrange') is the ALBUM RUNNING ORDER / LIVE SETLIST.
 // Per-song structure is the LyricBlock order. The Beats room's FL-style pattern
 // playlist is called "Sequence" precisely so it doesn't collide with this.
 
@@ -339,8 +339,25 @@ export interface MelosArrangement {
   serviceDate?: string;
   liturgicalTheme?: string;
   slotCues?: Record<string, ArrangementSlotCue>;
+  /** Set when this running order is published to Chora as the artist's own
+   *  (private) playlist. Order syncs both ways — see services/melosChoraPlaylist.
+   *  null = unlinked. */
+  choraPlaylist?: ChoraPlaylistLink | null;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface ChoraPlaylistLink {
+  /** personal_playlists/{playlistId} in the main database. */
+  playlistId: string;
+  /** Who published it — the only account that can read the playlist. */
+  ownerUid: string;
+  /** songId → personal_tracks id for every song that had rendered audio. */
+  trackMap: Record<string, string>;
+  /** Playlist trackIds as both sides last agreed — the three-way merge base. */
+  base: string[];
+  publishedAt: number;
+  syncedAt: number;
 }
 
 // ═══ Inspiration board ═══════════════════════════════════════════════════════
