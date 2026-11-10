@@ -26,6 +26,12 @@ An interactive history exhibition: how Detroit techno began, the godfathers who 
 - `data/technoExhibit/spots.ts`: the three spot scripts (shot list = previz input)
 - `components/exhibits/technoHistory/`: `TechnoExhibit` (shell + nav), `gritKit` (concrete/brick/xerox/halftone/wheat-paste/tape CSS, Reveal), `ListeningBooth` (YouTube dock), `TimelineRoom`, `PioneersRoom`, `BerlinRoom`, `AtkinsTribute`, `SpotPreviz`, `machineFunk` (Web Audio drum machine + bass)
 
+## Sharing to the feed
+
+- "Share this room" in the nav posts whichever room you are in; "Share the tribute" posts the Juan Atkins room. Both go through `shareTechnoExhibit(roomId)` in `TechnoShare.tsx`, which calls `backendService.createPost` with a hook line, hashtags (#MachineSoul #DetroitTechno, plus #JuanAtkins for the tribute) and `assetEmbed: { type: 'TECHNO_EXHIBIT', roomId }`.
+- `PostCard` shows that embed as `TechnoExhibitEmbed`, a hazard-tape poster card. Tapping "Step inside" fires `plajah:openTechnoExhibit` and opens the exhibit at the shared room.
+- When you're signed out, the button says "Sign in to share". The lab fakes the post (`?view=embed` shows the cards).
+
 ## Music and rights
 
 - **In the exhibit:** recordings play only as YouTube embeds (`youtube-nocookie.com`, loaded on tap). We don't host or clip any audio. All 29 video ids were checked against YouTube oEmbed on 2026-11-09; most are official label or "Topic" uploads. Fan uploads: Techno Music, Nude Photo, Universal Techno. A track without an id opens a YouTube search instead of guessing.
@@ -36,7 +42,6 @@ An interactive history exhibition: how Detroit techno began, the godfathers who 
 
 - Real portraits: commission illustrations or license photos (the previz uses silhouettes; the exhibit uses typographic posters).
 - Final spot production: record VO, make the beds in Chora, and render through the promo-spots pipeline (renderFrame-style capture: `window.__txPreviz.seek(t)` steps the previz deterministically).
-- Share buttons appear when `onShare` is passed. The App mount doesn't pass it yet; it should open share-to-feed.
 
 ## The 90-second spots
 
