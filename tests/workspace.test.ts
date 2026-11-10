@@ -152,3 +152,27 @@ test('sewing rail: pick a pattern and print; layout/3D after measuring; nesting 
   assert.ok(ids(fresh, { profile: prof }).includes('cutter'), 'machine cutting is earned by making');
   assert.equal(registry.get(SEW, 'safety')?.level, 'starter');
 });
+
+test('biology rail: atom views for small molecules, chain colours for complexes, stochastic only for real counts', async () => {
+  const { registerBioTools, BIO, BIO_TOOLS, fewMolecules, moleculeFacts } = await import('../services/bio/workspaceTools');
+  const { STARTERS } = await import('../services/bio/models');
+  registerBioTools(); registerBioTools();
+  assert.equal(registry.forWorkspace(BIO).length, BIO_TOOLS.length);
+  type D = import('../services/bio/workspaceTools').BioToolDoc;
+  const ids = (doc: D, over: Partial<ToolContext<D>> = {}) => registry.visible<D>({ workspace: BIO, doc, selection: [], level: 'simple', profile: emptyProfile(), ...over }).map(x => x.tool.id);
+  const chain = (id: string, residues: number, ligands: string[] = []) => ({ id, sequence: '', residues, ligands, waters: 0, kind: 'protein' as const });
+  const crambin = moleculeFacts({ chains: [chain('A', 46)] });
+  const hemoglobin = moleculeFacts({ chains: [chain('A', 141, ['HEM']), chain('B', 146, ['HEM']), chain('C', 141, ['HEM']), chain('D', 146, ['HEM'])] });
+  const big = moleculeFacts({ chains: [chain('A', 900)] });
+  assert.ok(ids({ tab: 'molecule', ...crambin }).includes('atoms'), 'a small protein: atoms are worth seeing');
+  assert.ok(!ids({ tab: 'molecule', ...big }).includes('atoms'), 'a big single chain stays a cartoon');
+  const hb = ids({ tab: 'molecule', ...hemoglobin });
+  assert.ok(hb.includes('chains') && hb.includes('atoms'), 'haemoglobin: four chains and bound haem');
+  for (const s of STARTERS) assert.equal(fewMolecules(s.model), false, `${s.id} is in concentrations, not counts`);
+  const counted = { species: [{ id: 'm', name: 'mRNA', compartment: 'c', initial: 5, initialIsAmount: true, boundary: false, constant: false, onlySubstance: true }] };
+  assert.equal(fewMolecules(counted), true);
+  assert.ok(ids({ tab: 'pathway', fewMolecules: true }).includes('stochastic'));
+  assert.equal(registry.suggest<D>({ workspace: BIO, doc: { tab: 'pathway', tuned: true }, selection: [], level: 'simple', profile: emptyProfile() })?.id, 'amounts');
+  let prof = emptyProfile(); for (let i = 0; i < EARN_AFTER; i++) prof = recordUse(prof, BIO, 'params');
+  assert.ok(ids({ tab: 'pathway' }, { profile: prof }).includes('sbml'), 'SBML export is earned by tuning');
+});

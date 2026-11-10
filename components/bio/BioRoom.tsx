@@ -5,6 +5,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRoomHost } from '../workspace/roomHost';
+import { useToolRail, AriaToolHint, type ToolRail } from '../workspace/useToolRail';
+import { BIO, registerBioTools, fewMolecules, moleculeFacts, type BioToolDoc, type BioToolId } from '../../services/bio/workspaceTools';
+import type { Level } from '../../services/workspace/guidePath';
 import * as THREE from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
@@ -16,6 +19,10 @@ import { parseSbml, simulate, simulateStochastic, writeSbml, describeReaction, t
 import { STARTERS } from '../../services/bio/models';
 import type { TelaMediaDevice, TelaChartDevice } from '../../types';
 import { structureToTelaDevice, simulationToTelaChart, type Upload } from '../../services/bio/telaBio';
+
+registerBioTools();
+const NO_SEL: number[] = [];
+const MOLECULE_GROUP = ['Molecule'], PATHWAY_GROUP = ['Pathway'];
 
 const C = { bg: '#0b0d10', panel: '#12151a', line: 'rgba(255,255,255,.08)', text: 'rgba(255,255,255,.88)', dim: 'rgba(255,255,255,.5)', accent: '#5eead4', warm: '#fbbf24' };
 const SERIES = ['#5eead4', '#f472b6', '#fbbf24', '#60a5fa', '#a78bfa', '#fb923c', '#4ade80', '#f87171'];
@@ -31,6 +38,8 @@ export interface BioRoomProps {
   loadStructure?: () => Promise<SourceFile>;
   /** Reopen the simulation a Tela chart came from. */
   loadModel?: () => Promise<{ xml: string; tEnd: number; name: string }>;
+  /** Simple/Pro from the workspace shell: Pro shows every tool, Simple lets them join as needed. */
+  level?: Level;
 }
 
 /** Well-known curated BioModels entries: they load by ID even when search is down. Durations are starting points. */
@@ -52,7 +61,7 @@ function useNarrow(px: number) {
   return narrow;
 }
 
-export default function BioRoom({ onClose, onAddToTela, upload, makeId, initialTab = 'molecule', loadStructure, loadModel }: BioRoomProps) {
+export default function BioRoom({ onClose, onAddToTela, upload, makeId, initialTab = 'molecule', loadStructure, loadModel, level = 'simple' }: BioRoomProps) {
   const roomHost = useRoomHost();
   const [tab, setTab] = useState<'molecule' | 'pathway'>(loadStructure ? 'molecule' : loadModel ? 'pathway' : initialTab);
   const [note, setNote] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
@@ -74,8 +83,8 @@ export default function BioRoom({ onClose, onAddToTela, upload, makeId, initialT
         {onClose && <button className="bio-btn" onClick={onClose} aria-label="Close"><X size={15}/></button>}
       </header>
       <div className="flex-1 min-h-0 relative">
-        {tab === 'molecule' ? <MoleculeTab narrow={narrow} add={add && upload && makeId ? (s, src, o) => add(() => structureToTelaDevice(s, src, o, upload, makeId)) : undefined} loadStructure={loadStructure} onError={t => setNote({ kind: 'err', text: t })}/>
-          : <PathwayTab narrow={narrow} loadModel={loadModel} add={add && upload && makeId ? (m, r, shown, st) => add(() => simulationToTelaChart(m, r, shown, st, upload, makeId)) : undefined} onError={t => setNote({ kind: 'err', text: t })}/>}
+        {tab === 'molecule' ? <MoleculeTab narrow={narrow} level={level} add={add && upload && makeId ? (s, src, o) => add(() => structureToTelaDevice(s, src, o, upload, makeId)) : undefined} loadStructure={loadStructure} onError={t => setNote({ kind: 'err', text: t })}/>
+          : <PathwayTab narrow={narrow} level={level} loadModel={loadModel} add={add && upload && makeId ? (m, r, shown, st) => add(() => simulationToTelaChart(m, r, shown, st, upload, makeId)) : undefined} onError={t => setNote({ kind: 'err', text: t })}/>}
         {note && <div role={note.kind === 'err' ? 'alert' : 'status'} className="absolute top-3 left-1/2 -translate-x-1/2 z-30 max-w-[min(560px,calc(100%-32px))] px-4 py-2.5 rounded-xl text-[12px] flex gap-2 items-start" style={note.kind === 'err' ? { background: '#2a1416', border: '1px solid rgba(248,113,113,.4)', color: '#fecaca' } : { background: '#0f2a1d', border: '1px solid rgba(52,211,153,.4)', color: '#a7f3d0' }}>
           {note.kind === 'err' ? <AlertTriangle size={14} className="shrink-0 mt-0.5"/> : <CheckCircle2 size={14} className="shrink-0 mt-0.5"/>}<span className="flex-1">{note.text}</span><button onClick={() => setNote(null)} aria-label="Dismiss"><X size={13}/></button>
         </div>}
@@ -84,6 +93,12 @@ export default function BioRoom({ onClose, onAddToTela, upload, makeId, initialT
     </div>,
     roomHost,
   );
+}
+
+/** "+N more tools" / "Fewer": reveals every tool in this workspace without switching to Pro. */
+function MoreTools({ rail }: { rail: ToolRail }) {
+  if (!rail.hidden && !rail.showAll) return null;
+  return <button className="mt-2 text-[11px] font-semibold underline-offset-2 hover:underline" style={{ color: C.dim }} onClick={() => rail.setShowAll(!rail.showAll)} data-testid="bio-tools-more">{rail.showAll ? 'Fewer tools' : `+${rail.hidden} more tools`}</button>;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -101,7 +116,7 @@ function Panel({ narrow, side, children, testid }: { narrow: boolean; side: 'lef
 
 // ── Molecule ────────────────────────────────────────────────────────────────
 
-function MoleculeTab({ narrow, add, loadStructure, onError }: { narrow: boolean; add?: (s: Structure, src: SourceFile, o: { style: MolStyle; color: MolColor }) => Promise<void>; loadStructure?: () => Promise<SourceFile>; onError: (t: string) => void }) {
+function MoleculeTab({ narrow, level, add, loadStructure, onError }: { narrow: boolean; level: Level; add?: (s: Structure, src: SourceFile, o: { style: MolStyle; color: MolColor }) => Promise<void>; loadStructure?: () => Promise<SourceFile>; onError: (t: string) => void }) {
   const [src, setSrc] = useState<SourceFile | null>(null);
   const [busy, setBusy] = useState('');
   const [pdbId, setPdbId] = useState(''); const [uniprot, setUniprot] = useState('');
@@ -119,6 +134,13 @@ function MoleculeTab({ narrow, add, loadStructure, onError }: { narrow: boolean;
   useEffect(() => { if (loadStructure) void run('Loading the saved structure…', loadStructure); else void run('Loading crambin…', () => fetchPdbEntry('1CRN')); }, [loadStructure]); // eslint-disable-line react-hooks/exhaustive-deps
   const residues = structure?.chains.reduce((n, c) => n + c.residues, 0) ?? 0;
   const protSeq = structure?.chains.filter(c => c.kind === 'protein').map(c => c.sequence).join('') ?? '';
+  // Atom views and chain colours join when this molecule calls for them (services/bio/workspaceTools.ts).
+  const railDoc = useMemo<BioToolDoc | null>(() => structure ? { tab: 'molecule', ...moleculeFacts(structure) } : null, [structure]);
+  const rail = useToolRail<BioToolDoc>(BIO, railDoc, NO_SEL, level, undefined, MOLECULE_GROUP);
+  const pickStyle = (x: MolStyle) => { setStyle(x); if (x !== 'cartoon') rail.used('atoms'); };
+  const pickColor = (x: MolColor) => { setColor(x); if (x === 'element') rail.used('atoms'); if (x === 'chain') rail.used('chains'); };
+  const styleShown = (x: MolStyle) => x === 'cartoon' || style === x || rail.shows('atoms');
+  const colorShown = (x: MolColor) => x === 'secondary' || x === 'confidence' || color === x || rail.shows(x === 'chain' ? 'chains' : 'atoms');
 
   const controls = <>
     <Section title="Load">
@@ -137,12 +159,13 @@ function MoleculeTab({ narrow, add, loadStructure, onError }: { narrow: boolean;
       </div>
     </Section>
     <Section title="Style">
-      <div className="flex gap-1 flex-wrap">{(['cartoon', 'ball-stick', 'spacefill'] as MolStyle[]).map(s => <button key={s} className={`bio-btn${style === s ? ' bio-on' : ''}`} onClick={() => setStyle(s)} data-testid={`bio-style-${s}`}>{s === 'ball-stick' ? 'Ball & stick' : s === 'spacefill' ? 'Space-filling' : 'Cartoon'}</button>)}</div>
+      <div className="flex gap-1 flex-wrap">{(['cartoon', 'ball-stick', 'spacefill'] as MolStyle[]).filter(styleShown).map(s => <button key={s} className={`bio-btn${style === s ? ' bio-on' : ''}`} onClick={() => pickStyle(s)} data-testid={`bio-style-${s}`}>{s === 'ball-stick' ? 'Ball & stick' : s === 'spacefill' ? 'Space-filling' : 'Cartoon'}</button>)}</div>
     </Section>
     <Section title="Colour by">
-      <div className="flex gap-1 flex-wrap">{(['secondary', 'element', 'chain', 'confidence'] as MolColor[]).filter(c => c !== 'confidence' || structure?.predicted).map(c => <button key={c} className={`bio-btn${color === c ? ' bio-on' : ''}`} onClick={() => setColor(c)}>{c === 'secondary' ? 'Structure' : c === 'confidence' ? 'Confidence' : c[0].toUpperCase() + c.slice(1)}</button>)}</div>
+      <div className="flex gap-1 flex-wrap">{(['secondary', 'element', 'chain', 'confidence'] as MolColor[]).filter(c => (c !== 'confidence' || structure?.predicted) && colorShown(c)).map(c => <button key={c} className={`bio-btn${color === c ? ' bio-on' : ''}`} onClick={() => pickColor(c)} data-testid={`bio-color-${c}`}>{c === 'secondary' ? 'Structure' : c === 'confidence' ? 'Confidence' : c[0].toUpperCase() + c.slice(1)}</button>)}</div>
       {color === 'confidence' && <div className="flex gap-2 mt-2 text-[10px]" style={{ color: C.dim }}>{[['#0053d6', '>90'], ['#65cbf3', '70–90'], ['#ffdb13', '50–70'], ['#ff7d45', '<50']].map(([c, l]) => <span key={l} className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: c }}/>{l}</span>)}</div>}
-      <label className="flex items-center gap-2 mt-2 text-[12px]" style={{ color: C.dim }}><input type="checkbox" checked={showWater} onChange={e => setShowWater(e.target.checked)}/>Show water</label>
+      {(rail.shows('water') || showWater) && <label className="flex items-center gap-2 mt-2 text-[12px]" style={{ color: C.dim }}><input type="checkbox" checked={showWater} onChange={e => { if (e.target.checked) rail.used('water'); setShowWater(e.target.checked); }} data-testid="bio-water"/>Show water</label>}
+      <MoreTools rail={rail}/>
     </Section>
   </>;
 
@@ -176,6 +199,10 @@ function MoleculeTab({ narrow, add, loadStructure, onError }: { narrow: boolean;
     {!narrow && <Panel narrow={false} side="left">{controls}</Panel>}
     <main className="flex-1 min-h-0 min-w-0 relative">
       {structure && <MolCanvas structure={structure} style={style} color={color} hidden={hidden} showWater={showWater}/>}
+      {rail.suggestion && !busy && <AriaToolHint tool={rail.suggestion} level={level} testid="bio-aria-hint" style={{ bottom: 14 }} onDismiss={rail.dismiss} onTry={() => {
+        const id = rail.suggestion!.id as BioToolId;
+        if (id === 'atoms') pickStyle('ball-stick'); else if (id === 'chains') pickColor('chain');
+      }}/>}
       {busy && <div className="absolute inset-0 grid place-items-center" style={{ background: 'rgba(11,13,16,.55)' }}><div className="px-4 py-2.5 rounded-xl text-[13px] font-semibold" style={{ background: C.panel, border: `1px solid ${C.line}` }}>{busy}</div></div>}
     </main>
     <Panel narrow={narrow} side="right" testid="bio-structure-info">{narrow && controls}{info}</Panel>
@@ -210,7 +237,7 @@ function Fit({ radius, id }: { radius: number; id: string }) {
 
 type SimSettings = { params: Record<string, number>; initial: Record<string, number>; tEnd: number; mode?: 'ode' | 'stochastic'; unit?: number };
 
-function PathwayTab({ narrow, add, onError, loadModel }: { narrow: boolean; add?: (m: BioModel, r: SimResult, shown: string[], settings: SimSettings) => Promise<void>; onError: (t: string) => void; loadModel?: () => Promise<{ xml: string; tEnd: number; name: string }> }) {
+function PathwayTab({ narrow, level, add, onError, loadModel }: { narrow: boolean; level: Level; add?: (m: BioModel, r: SimResult, shown: string[], settings: SimSettings) => Promise<void>; onError: (t: string) => void; loadModel?: () => Promise<{ xml: string; tEnd: number; name: string }> }) {
   const [model, setModel] = useState<BioModel>(STARTERS[1].model);
   const [starterId, setStarterId] = useState<string | null>(STARTERS[1].id);
   const starter = STARTERS.find(s => s.id === starterId);
@@ -282,6 +309,13 @@ function PathwayTab({ narrow, add, onError, loadModel }: { narrow: boolean; add?
     return () => window.clearTimeout(timer);
   }, [model, tEnd, params, initial, starter, mode, unit, seed]);
   const names = useMemo(() => new Map(model.species.map(s => [s.id, s.name])), [model]);
+  // Stochastic runs join when copy numbers are small; starting amounts once a rate has been tuned.
+  const tuned = Object.keys(params).length > 0;
+  const railDoc = useMemo<BioToolDoc>(() => ({ tab: 'pathway', fewMolecules: fewMolecules(model), tuned }), [model, tuned]);
+  const rail = useToolRail<BioToolDoc>(BIO, railDoc, NO_SEL, level, undefined, PATHWAY_GROUP);
+  const tunedModel = useRef(''); // count one use of the rate sliders per model, not one per slider tick
+  const tune = (id: string, x: number) => { if (tunedModel.current !== model.id) { tunedModel.current = model.id; rail.used('params'); } setParams(o => ({ ...o, [id]: x })); };
+  const pickMode = (mo: 'ode' | 'stochastic') => { setMode(mo); rail.used(mo); };
   const plotted = shown.filter(id => result.r?.series[id]);
 
   const left = <>
@@ -316,9 +350,9 @@ function PathwayTab({ narrow, add, onError, loadModel }: { narrow: boolean; add?
   const right = <>
     <Section title="Run">
       <label className="flex items-center justify-between gap-2 text-[12px] mb-1"><span style={{ color: C.dim }}>Simulate until</span><input className="bio-in w-24 text-right" type="number" min={0.01} step="any" value={tEnd} onChange={e => setTEnd(Math.max(0.01, +e.target.value || 1))} aria-label="End time"/></label>
-      <div className="flex items-center rounded-lg overflow-hidden my-2" style={{ border: `1px solid ${C.line}` }}>
-        {(['ode', 'stochastic'] as const).map(mo => <button key={mo} onClick={() => setMode(mo)} data-testid={`bio-mode-${mo}`} className="flex-1 h-8 text-[11px] font-semibold" style={{ background: mode === mo ? 'rgba(94,234,212,.14)' : 'transparent', color: mode === mo ? C.accent : C.dim }}>{mo === 'ode' ? 'Smooth (ODE)' : 'Stochastic'}</button>)}
-      </div>
+      {(rail.shows('stochastic') || mode === 'stochastic') && <div className="flex items-center rounded-lg overflow-hidden my-2" style={{ border: `1px solid ${C.line}` }}>
+        {(['ode', 'stochastic'] as const).map(mo => <button key={mo} onClick={() => pickMode(mo)} data-testid={`bio-mode-${mo}`} className="flex-1 h-8 text-[11px] font-semibold" style={{ background: mode === mo ? 'rgba(94,234,212,.14)' : 'transparent', color: mode === mo ? C.accent : C.dim }}>{mo === 'ode' ? 'Smooth (ODE)' : 'Stochastic'}</button>)}
+      </div>}
       {mode === 'stochastic' && <div className="mb-2">
         <label className="flex items-center justify-between gap-2 text-[12px] mb-1"><span style={{ color: C.dim }}>Molecules per unit</span><input className="bio-in w-24 text-right" type="number" min={1} step="any" value={unit} onChange={e => setUnit(Math.max(1e-6, +e.target.value || 1))} aria-label="Molecules per unit"/></label>
         <button className="bio-btn w-full justify-center" onClick={() => setSeed(s => s + 1)} data-testid="bio-run-again"><RotateCcw size={13}/>Run again (new random draw)</button>
@@ -329,15 +363,16 @@ function PathwayTab({ narrow, add, onError, loadModel }: { narrow: boolean; add?
       {result.err && <div className="text-[12px]" style={{ color: '#fca5a5' }}>{result.err}</div>}
     </Section>
     <Section title="Parameters">
-      {model.params.map(p => { const v = params[p.id] ?? p.value; return <Slider key={p.id} label={p.name !== p.id ? `${p.id} · ${p.name}` : p.id} base={p.value} value={v} onChange={x => setParams(o => ({ ...o, [p.id]: x }))} testid={`bio-param-${p.id}`}/>; })}
+      {model.params.map(p => { const v = params[p.id] ?? p.value; return <Slider key={p.id} label={p.name !== p.id ? `${p.id} · ${p.name}` : p.id} base={p.value} value={v} onChange={x => tune(p.id, x)} testid={`bio-param-${p.id}`}/>; })}
       {!model.params.length && <div className="text-[12px]" style={{ color: C.dim }}>No global parameters.</div>}
     </Section>
-    <Section title="Starting amounts">
-      {model.species.map(s => { const v = initial[s.id] ?? s.initial; return <Slider key={s.id} label={s.name !== s.id ? `${s.id} · ${s.name}` : s.id} base={s.initial || 1} value={v} allowZero onChange={x => setInitial(o => ({ ...o, [s.id]: x }))}/>; })}
-    </Section>
+    {(rail.shows('amounts') || Object.keys(initial).length > 0) && <Section title="Starting amounts">
+      {model.species.map(s => { const v = initial[s.id] ?? s.initial; return <Slider key={s.id} label={s.name !== s.id ? `${s.id} · ${s.name}` : s.id} base={s.initial || 1} value={v} allowZero onChange={x => { if (!Object.keys(initial).length) rail.used('amounts'); setInitial(o => ({ ...o, [s.id]: x })); }}/>; })}
+    </Section>}
+    <MoreTools rail={rail}/>
     <div className="flex gap-1.5 flex-wrap">
       <button className="bio-btn" onClick={() => { setParams({}); setInitial({}); }}><RotateCcw size={13}/>Reset</button>
-      <button className="bio-btn" onClick={() => { const url = URL.createObjectURL(new Blob([writeSbml(model, { params, initial })], { type: 'application/xml' })); const a = document.createElement('a'); a.href = url; a.download = `${model.id}.xml`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000); }}><Download size={13}/>SBML</button>
+      {rail.shows('sbml') && <button className="bio-btn" data-testid="bio-sbml" onClick={() => { rail.used('sbml'); const url = URL.createObjectURL(new Blob([writeSbml(model, { params, initial })], { type: 'application/xml' })); const a = document.createElement('a'); a.href = url; a.download = `${model.id}.xml`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000); }}><Download size={13}/>SBML</button>}
       {add && result.r && <button className="bio-btn bio-primary" data-testid="bio-add-chart" disabled={!plotted.length} onClick={() => void add(model, result.r!, plotted, { params, initial, tEnd, mode, unit })}><FilePlus2 size={13}/>Add chart to document</button>}
     </div>
     {model.warnings.length > 0 && <div className="mt-3">{model.warnings.map((w, i) => <div key={i} className="text-[11px]" style={{ color: '#fcd34d' }}>{w}</div>)}</div>}
@@ -351,6 +386,10 @@ function PathwayTab({ narrow, add, onError, loadModel }: { narrow: boolean; add?
         {model.species.map((s, i) => { const on = shown.includes(s.id); const c = SERIES[shown.indexOf(s.id) % SERIES.length]; return <button key={s.id} onClick={() => setShown(v => on ? v.filter(x => x !== s.id) : [...v, s.id])} className="px-2 py-0.5 rounded-full text-[11px] flex items-center gap-1.5" style={{ border: `1px solid ${on ? c : C.line}`, color: on ? C.text : C.dim, background: on ? 'rgba(255,255,255,.04)' : 'transparent' }} data-testid={`bio-species-${s.id}`}><span className="w-2 h-2 rounded-full" style={{ background: on ? c : 'transparent', border: on ? 'none' : `1px solid ${C.dim}` }}/>{s.name}{i < 0 ? '' : ''}</button>; })}
       </div>
       <div className="flex-1 min-h-[260px] relative rounded-xl" style={{ background: 'rgba(255,255,255,.02)', border: `1px solid ${C.line}` }}>
+        {rail.suggestion && <AriaToolHint tool={rail.suggestion} level={level} testid="bio-aria-hint" style={{ bottom: 14, zIndex: 20 }} onDismiss={rail.dismiss} onTry={() => {
+          const id = rail.suggestion!.id as BioToolId;
+          if (id === 'stochastic') pickMode('stochastic'); else if (id === 'amounts') { rail.used('amounts'); setInitial(o => ({ ...o })); }
+        }}/>}
         {result.r && <LineChart time={result.r.time} series={plotted.map((id, i) => ({ id, name: names.get(id) ?? id, color: SERIES[i % SERIES.length], values: result.r!.series[id] }))}/>}
       </div>
     </main>

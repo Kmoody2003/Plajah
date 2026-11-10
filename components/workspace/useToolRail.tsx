@@ -25,22 +25,24 @@ export interface ToolRail {
   dismiss: () => void;
 }
 
-/** `doc` is null while there's nothing to work on; then the rail shows everything (no hiding). */
-export function useToolRail<D>(workspace: string, doc: D | null, selection: number[], level: Level, getToken?: () => Promise<string | null>): ToolRail {
+/** `doc` is null while there's nothing to work on; then the rail shows everything (no hiding).
+ *  `groups` limits the rail to some tool groups (a room with several panels, e.g. Biology's tabs). */
+export function useToolRail<D>(workspace: string, doc: D | null, selection: number[], level: Level, getToken?: () => Promise<string | null>, groups?: string[]): ToolRail {
   const profile = useSyncExternalStore(subscribe, getProfile, getProfile);
   useEffect(() => { connectAccount(getToken); }, [getToken]);
   const [showAll, setShowAll] = useState(false);
   const [off, setOff] = useState('');
   const ctx = useMemo(() => doc === null ? null : { workspace, doc, selection, level, profile }, [workspace, doc, selection, level, profile]);
   const { visible, fresh, hidden } = useMemo(() => {
-    const all = registry.forWorkspace(workspace);
+    const inGroup = (t: ToolDef) => !groups || groups.includes(t.group);
+    const all = registry.forWorkspace(workspace).filter(inGroup);
     if (!ctx) return { visible: new Set(all.map(t => t.id)), fresh: new Map<string, string>(), hidden: 0 };
-    const shown = registry.visible(ctx);
+    const shown = registry.visible(ctx).filter(x => inGroup(x.tool));
     const fresh = new Map<string, string>();
     for (const x of shown) if (x.reason === 'needed' && usesOf(profile, workspace, x.tool.id) === 0 && x.tool.because) fresh.set(x.tool.id, x.tool.because[level]);
     return { visible: new Set(shown.map(x => x.tool.id)), fresh, hidden: all.length - shown.length };
-  }, [ctx, workspace, profile, level]);
-  const next = useMemo(() => ctx ? registry.suggest(ctx) : null, [ctx]);
+  }, [ctx, workspace, profile, level, groups?.join()]); // eslint-disable-line react-hooks/exhaustive-deps
+  const next = useMemo(() => { const t = ctx ? registry.suggest(ctx) : null; return t && (!groups || groups.includes(t.group)) ? t : null; }, [ctx, groups?.join()]); // eslint-disable-line react-hooks/exhaustive-deps
   const used = useCallback((id: string) => updateProfile(p => recordUse(p, workspace, id)), [workspace]);
   return {
     visible, fresh, hidden, showAll, setShowAll,

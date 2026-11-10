@@ -140,7 +140,7 @@ function Room({ w, level, onLevel, launch, extra, getToken, onClose, onOpen }: {
     case 'electronics': return <ElecRoom initialPrompt={launch?.prompt} {...extra?.electronics} getToken={getToken} onClose={onClose} level={level}/>;
     case 'sewing': return <PatternRoom initialTemplate={launch?.template} {...extra?.sewing} getToken={getToken} onClose={onClose} level={level}/>;
     case 'studio': return <BuildStudio getToken={getToken} onClose={onClose} starter={launch?.starter} lesson={launch?.lesson}/>;
-    case 'biology': return <BioRoom {...extra?.biology} onClose={onClose}/>;
+    case 'biology': return <BioRoom {...extra?.biology} onClose={onClose} level={level}/>;
     default: return <Coming w={w} level={level} onOpen={onOpen}/>;
   }
 }
