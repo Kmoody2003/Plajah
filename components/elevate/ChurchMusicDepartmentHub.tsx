@@ -279,7 +279,7 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
               onClick={() => openChoraEnv({ room: 'arrange', openLiveCueTimer: true })}
               className="px-3.5 py-2 rounded-xl bg-indigo-400 text-black text-xs font-black inline-flex items-center gap-1.5 shadow-lg hover:brightness-105 transition"
             >
-              <Timer size={14} /> Open Chora Arrange &amp; Cue Timer →
+              <Timer size={14} /> Open Chora Album Arranger &amp; Cue Timer →
             </button>
           </div>
         </div>
@@ -542,7 +542,7 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
               onClick={() => openChoraEnv({ room: 'arrange', openLiveCueTimer: true })}
               className="w-full px-3 py-2 rounded-xl bg-emerald-400 text-black text-xs font-black inline-flex items-center justify-center gap-1.5"
             >
-              <Timer size={12} /> Open Chora Arrange &amp; Live Timer →
+              <Timer size={12} /> Open Chora Album Arranger &amp; Live Timer →
             </button>
           </div>
 
@@ -607,7 +607,7 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
               onClick={() => openChoraEnv({ room: 'arrange', openLiveCueTimer: true })}
               className="px-3 py-1.5 rounded-xl bg-emerald-400/20 text-emerald-200 border border-emerald-400/40 text-[11px] font-black inline-flex items-center gap-1"
             >
-              Open Arrange <ExternalLink size={11} />
+              Open Album Arranger <ExternalLink size={11} />
             </button>
           </div>
 

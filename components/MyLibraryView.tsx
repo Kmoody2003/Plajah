@@ -1190,7 +1190,10 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
 
             <AdaptiveGrid phone={2} tablet={3} desktop={4} gap="2rem">
               {playlists.map(playlist => {
-                const playlistTracks = personalTracks.filter(t => playlist.trackIds?.includes(t.id));
+                // Playlist order is the stored trackIds order (Album Arranger playlists sync it both ways).
+                const playlistTracks = (playlist.trackIds || [])
+                  .map(id => personalTracks.find(t => t.id === id))
+                  .filter((t): t is Track => !!t);
                 return (
                   <div key={playlist.id} className="group relative cursor-pointer">
                     <div className="relative aspect-square rounded-[2.5rem] overflow-hidden mb-4 bg-white/5 shadow-2xl">

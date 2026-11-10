@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Upload, Disc, Trash2, Check, Loader2 } from 'lucide-react';
+import { X, Upload, Disc, Trash2, Check, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
 import { Album, Playlist, Track } from '../types';
 import { uploadFile, auth } from '../services/backendService';
 
@@ -75,6 +75,16 @@ export const LockerEditModal: React.FC<LockerEditModalProps> = ({
     setTracks(prev => {
       const next = [...prev];
       next[index] = { ...next[index], artist: newArtist };
+      return next;
+    });
+  };
+
+  const handleMoveTrack = (index: number, to: number) => {
+    setTracks(prev => {
+      if (to < 0 || to >= prev.length) return prev;
+      const next = [...prev];
+      const [row] = next.splice(index, 1);
+      next.splice(to, 0, row);
       return next;
     });
   };
@@ -253,7 +263,7 @@ export const LockerEditModal: React.FC<LockerEditModalProps> = ({
                   Track List ({tracks.length})
                 </h4>
                 <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest">
-                  Edit track titles & artists
+                  Edit, reorder & retitle tracks
                 </span>
               </div>
 
@@ -280,6 +290,26 @@ export const LockerEditModal: React.FC<LockerEditModalProps> = ({
                       placeholder="Artist"
                       className="w-1/3 bg-transparent border-b border-transparent focus:border-white/20 outline-none text-[11px] font-medium text-white/60 px-1 py-1"
                     />
+                    <button
+                      type="button"
+                      onClick={() => handleMoveTrack(idx, idx - 1)}
+                      disabled={idx === 0}
+                      className="p-1 text-white/30 hover:text-white disabled:opacity-20 transition-colors"
+                      title="Move up"
+                      aria-label="Move track up"
+                    >
+                      <ArrowUp size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveTrack(idx, idx + 1)}
+                      disabled={idx === tracks.length - 1}
+                      className="p-1 text-white/30 hover:text-white disabled:opacity-20 transition-colors"
+                      title="Move down"
+                      aria-label="Move track down"
+                    >
+                      <ArrowDown size={12} />
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleRemoveTrack(t.id)}

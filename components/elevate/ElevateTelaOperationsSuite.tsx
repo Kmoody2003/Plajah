@@ -1500,7 +1500,7 @@ export const ElevateTelaOperationsSuite: React.FC<ElevateTelaOperationsSuiteProp
                   }
                   className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-[10px] font-black uppercase text-emerald-200 transition"
                 >
-                  Chora Arrange &amp; Live Setlist Timer
+                  Chora Album Arranger &amp; Live Setlist Timer
                 </button>
                 {MUSIC_SUB_DEPARTMENTS.map(sub => (
                   <button
