@@ -12,6 +12,12 @@ import { toMesh, type V3 } from '../../../services/build/studio/csg';
 import { writeStl } from '../../../services/mech/geometry';
 import { write3mf } from '../../../services/fab/threeMf';
 import { emptyModel, type CadModel } from '../../../services/cad/model';
+import { useToolRail, AriaToolHint, FreshDot } from '../../workspace/useToolRail';
+import { STUDIO, registerStudioTools, type StudioToolDoc, type StudioToolId } from '../../../services/build/workspaceTools';
+import type { Level } from '../../../services/workspace/guidePath';
+
+registerStudioTools();
+const NO_SEL: number[] = [];
 
 type Kind = Exclude<ShapeKind, 'group'>;
 const KINDS: Kind[] = ['box', 'cylinder', 'sphere', 'cone', 'wedge', 'pyramid', 'torus', 'text', 'star', 'heart'];
@@ -68,6 +74,8 @@ export interface Studio3DProps {
   scene: Scene; commit: (s: Scene) => void; undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean;
   title: string; audience: Audience; setAudience: (a: Audience) => void; printer: string; setPrinter: (id: string) => void;
   exportBlocked: string | null; onExported: () => void; onSendToMake: (m: CadModel) => void; registerThumb: (fn: () => string | undefined) => void; showSafety: () => void;
+  /** Simple/Pro from the workspace shell. */
+  level?: Level;
 }
 
 export default function Studio3D(p: Studio3DProps) {
@@ -83,6 +91,11 @@ export default function Studio3D(p: Studio3DProps) {
   const grid = scene.grid || 1;
   const selected = scene.shapes.filter(s => sel.includes(s.id));
   const one = selected.length === 1 ? selected[0] : null;
+  // Tools join the toolbar as the plate calls for them (services/build/workspaceTools.ts).
+  const level = p.level ?? 'simple';
+  const floating = selected.some(s => shapeBounds(s).min[2] > 0.05);
+  const railDoc = useMemo<StudioToolDoc>(() => ({ shapes: scene.shapes.length, holes: scene.shapes.filter(s => s.hole).length, groups: scene.shapes.filter(s => s.kind === 'group').length, picked: sel.length, floating }), [scene.shapes, sel.length, floating]);
+  const rail = useToolRail<StudioToolDoc>(STUDIO, railDoc, NO_SEL, level);
   const setShapes = useCallback((shapes: Shape[]) => commit({ ...scene, shapes }), [commit, scene]);
   const replace = (s: Shape) => setShapes(scene.shapes.map(x => (x.id === s.id ? s : x)));
 
@@ -234,7 +247,12 @@ export default function Studio3D(p: Studio3DProps) {
   const setRot = (i: number, v: number) => { if (!one) return; if (one.kind === 'group') { replace(rotateGroup(one, i as 0 | 1 | 2, v)); return; } const rot = one.rot.slice() as V3; rot[i] = v; replace({ ...one, rot }); };
   const setColor = (c: string) => setShapes(scene.shapes.map(s => (sel.includes(s.id) ? { ...s, color: c, hole: false, children: s.children?.map(k => (k.hole ? k : { ...k, color: c })) } : s)));
 
-  const tool = (icon: React.ReactNode, label: string, on: () => void, o: { disabled?: boolean; active?: boolean; testid?: string } = {}) => <button className={`bs-tool${o.active ? ' on' : ''}`} onClick={on} disabled={o.disabled} title={label} aria-label={label} data-testid={o.testid}>{icon}<span>{label}</span></button>;
+  const tool = (icon: React.ReactNode, label: string, on: () => void, o: { disabled?: boolean; active?: boolean; testid?: string; id?: StudioToolId } = {}) => {
+    if (o.id && !o.active && !rail.shows(o.id)) return null;
+    const fresh = o.id ? rail.fresh.get(o.id) : undefined;
+    return <button className={`bs-tool${o.active ? ' on' : ''}`} style={fresh ? { position: 'relative' } : undefined} onClick={() => { if (o.id) rail.used(o.id); on(); }} disabled={o.disabled} title={label} aria-label={label} data-testid={o.testid ?? (o.id ? `tool-${o.id}` : undefined)}>{icon}<span>{label}</span>{fresh && <FreshDot reason={fresh} testid={`studio-fresh-${o.id}`}/>}</button>;
+  };
+  const tryTool = (id: StudioToolId) => { rail.used(id); ({ group: doGroup, align: () => setAlignOpen(true), ungroup: doUngroup, drop: doDrop, top: () => view('top') } as Partial<Record<StudioToolId, () => void>>)[id]?.(); };
 
   return <div className="bs3">
     <aside className="bs3-palette" aria-label="Shapes">
@@ -246,32 +264,34 @@ export default function Studio3D(p: Studio3DProps) {
 
     <div className="bs3-main">
       <div className="bs3-toolbar" role="toolbar" aria-label="3D tools">
-        {tool(<Undo2 size={16}/>, 'Undo', p.undo, { disabled: !p.canUndo, testid: 'tool-undo' })}
-        {tool(<Redo2 size={16}/>, 'Redo', p.redo, { disabled: !p.canRedo })}
+        {tool(<Undo2 size={16}/>, 'Undo', p.undo, { disabled: !p.canUndo, testid: 'tool-undo', id: 'undo' })}
+        {tool(<Redo2 size={16}/>, 'Redo', p.redo, { disabled: !p.canRedo, id: 'redo' })}
         <i className="bs-sep"/>
-        {tool(<Move3d size={16}/>, 'Move', () => setMode('translate'), { active: mode === 'translate' })}
-        {tool(<RotateCw size={16}/>, 'Turn', () => setMode('rotate'), { active: mode === 'rotate' })}
-        {tool(<Scaling size={16}/>, 'Stretch', () => setMode('scale'), { active: mode === 'scale' })}
+        {tool(<Move3d size={16}/>, 'Move', () => setMode('translate'), { active: mode === 'translate', id: 'move' })}
+        {tool(<RotateCw size={16}/>, 'Turn', () => setMode('rotate'), { active: mode === 'rotate', id: 'turn' })}
+        {tool(<Scaling size={16}/>, 'Stretch', () => setMode('scale'), { active: mode === 'scale', id: 'stretch' })}
         <i className="bs-sep"/>
-        {tool(<Copy size={16}/>, 'Duplicate', dup, { disabled: !sel.length })}
-        {tool(<Trash2 size={16}/>, 'Delete', del, { disabled: !sel.length })}
-        {tool(<Group size={16}/>, 'Group', doGroup, { disabled: selected.length < 2, testid: 'tool-group' })}
-        {tool(<Ungroup size={16}/>, 'Ungroup', doUngroup, { disabled: !selected.some(s => s.kind === 'group') })}
-        <div className="bs-pop">{tool(<AlignHorizontalJustifyCenter size={16}/>, 'Align', () => setAlignOpen(o => !o), { disabled: selected.length < 2 })}
+        {tool(<Copy size={16}/>, 'Duplicate', dup, { disabled: !sel.length, id: 'duplicate' })}
+        {tool(<Trash2 size={16}/>, 'Delete', del, { disabled: !sel.length, id: 'delete' })}
+        {tool(<Group size={16}/>, 'Group', doGroup, { disabled: selected.length < 2, testid: 'tool-group', id: 'group' })}
+        {tool(<Ungroup size={16}/>, 'Ungroup', doUngroup, { disabled: !selected.some(s => s.kind === 'group'), id: 'ungroup' })}
+        {(rail.shows('align') || alignOpen) && <div className="bs-pop">{tool(<AlignHorizontalJustifyCenter size={16}/>, 'Align', () => setAlignOpen(o => !o), { disabled: selected.length < 2, id: 'align' })}
           {alignOpen && selected.length >= 2 && <div className="bs-menu" onMouseLeave={() => setAlignOpen(false)}>{(['X', 'Y', 'Z'] as const).map((a, i) => <div key={a} className="bs-menu-row"><b>{a === 'Z' ? 'Height' : a === 'X' ? 'Left–right' : 'Front–back'}</b>{(['min', 'mid', 'max'] as AlignMode[]).map(m => <button key={m} onClick={() => doAlign(i as 0 | 1 | 2, m)}>{m === 'mid' ? 'centre' : i === 2 ? (m === 'min' ? 'bottom' : 'top') : i === 0 ? (m === 'min' ? 'left' : 'right') : (m === 'min' ? 'front' : 'back')}</button>)}</div>)}</div>}
-        </div>
-        {tool(<FlipHorizontal2 size={16}/>, 'Mirror', () => doMirror(0), { disabled: !sel.length })}
-        {tool(<ArrowDownToLine size={16}/>, 'Drop', doDrop, { disabled: !sel.length })}
+        </div>}
+        {tool(<FlipHorizontal2 size={16}/>, 'Mirror', () => doMirror(0), { disabled: !sel.length, id: 'mirror' })}
+        {tool(<ArrowDownToLine size={16}/>, 'Drop', doDrop, { disabled: !sel.length, id: 'drop' })}
         <i className="bs-sep"/>
-        <label className="bs-snap" title="Snap grid"><Magnet size={14}/><select value={grid} onChange={e => commit({ ...scene, grid: parseFloat(e.target.value) })} aria-label="Snap grid">{[0.1, 0.5, 1, 2, 5, 10].map(g => <option key={g} value={g}>{g} mm</option>)}</select></label>
-        {tool(<Home size={16}/>, 'Home view', () => view('home'))}
-        {tool(<Eye size={16}/>, 'Top view', () => view('top'))}
+        {(rail.shows('snap') || grid !== 1) && <label className="bs-snap" title="Snap grid" onChange={() => rail.used('snap')}><Magnet size={14}/><select value={grid} onChange={e => commit({ ...scene, grid: parseFloat(e.target.value) })} aria-label="Snap grid">{[0.1, 0.5, 1, 2, 5, 10].map(g => <option key={g} value={g}>{g} mm</option>)}</select></label>}
+        {tool(<Home size={16}/>, 'Home view', () => view('home'), { id: 'home' })}
+        {tool(<Eye size={16}/>, 'Top view', () => view('top'), { id: 'top' })}
+        {(rail.hidden > 0 || rail.showAll) && <button className="bs-tool" onClick={() => rail.setShowAll(!rail.showAll)} title={rail.showAll ? 'Show only the tools this build needs' : 'Show every tool'} data-testid="studio-tools-more"><span>{rail.showAll ? 'Fewer' : `+${rail.hidden}`}</span></button>}
       </div>
       <div className="bs3-view" ref={mount} onPointerDown={e => { down.current = [e.clientX, e.clientY]; }} onPointerUp={pick}
         onDragOver={e => { if (e.dataTransfer.types.includes('text/plajah-shape')) e.preventDefault(); }}
         onDrop={e => { const k = e.dataTransfer.getData('text/plajah-shape') as Kind; if (!KINDS.includes(k)) return; e.preventDefault(); add(k, planeAt(e.clientX, e.clientY)); }}>
         {one && <div className="bs3-dims" data-testid="studio3d-dims">{one.name}: {r1(one.size[0])} × {r1(one.size[1])} × {r1(one.size[2])} mm{one.hole ? ' · hole' : ''}</div>}
         {!scene.shapes.length && <div className="bs3-empty">Drag a shape here to start</div>}
+        {rail.suggestion && <AriaToolHint tool={rail.suggestion} level={level} testid="studio-aria-hint" style={{ bottom: 14 }} onDismiss={rail.dismiss} onTry={() => tryTool(rail.suggestion!.id as StudioToolId)}/>}
       </div>
     </div>
 
@@ -291,8 +311,8 @@ export default function Studio3D(p: Studio3DProps) {
         {one.kind === 'text' && <><div className="bs-h">Letters</div><input className="bs-text" value={one.text ?? ''} maxLength={24} onChange={e => replace({ ...one, text: e.target.value })} data-testid="shape-text" aria-label="Letters"/></>}
         {(one.kind === 'cylinder' || one.kind === 'cone' || one.kind === 'sphere' || one.kind === 'torus') && <label className="bs-range"><span>Smoothness</span><input type="range" min={6} max={96} step={2} value={one.sides ?? 32} onChange={e => replace({ ...one, sides: +e.target.value })}/><b>{one.sides ?? 32}</b></label>}
         {one.kind === 'cone' && <label className="bs-range"><span>Top</span><input type="range" min={0} max={1} step={0.05} value={one.top ?? 0} onChange={e => replace({ ...one, top: +e.target.value })}/><b>{Math.round((one.top ?? 0) * 100)}%</b></label>}
-        <div className="bs-h">Mirror</div>
-        <div className="bs-seg">{(['X', 'Y', 'Z'] as const).map((a, i) => <button key={a} onClick={() => doMirror(i as 0 | 1 | 2)}>{a}</button>)}</div>
+        {rail.shows('mirror') && <><div className="bs-h">Mirror</div>
+        <div className="bs-seg">{(['X', 'Y', 'Z'] as const).map((a, i) => <button key={a} onClick={() => { rail.used('mirror'); doMirror(i as 0 | 1 | 2); }}>{a}</button>)}</div></>}
         {!one.hole && <><div className="bs-h">Colour</div><div className="bs-swatches">{SWATCHES.map(c => <button key={c} style={{ background: c }} className={one.color === c ? 'on' : ''} onClick={() => setColor(c)} aria-label={`Colour ${c}`}/>)}<input type="color" value={one.color} onChange={e => setColor(e.target.value)} aria-label="Pick a colour"/></div></>}
         {one.kind === 'group' && <p className="bs-tip">This group is {(one.children ?? []).filter(k => k.hole).length ? 'cut by its holes' : 'joined into one solid'}. Ungroup to change its parts.</p>}
       </div> : selected.length > 1 ? <div className="bs-card"><b>{selected.length} shapes selected</b><p className="bs-tip">Group them to join solids and cut holes, or Align to line them up.</p><button className="bs-btn" onClick={doGroup} data-testid="side-group"><Group size={15}/>Group</button></div>

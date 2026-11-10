@@ -176,3 +176,23 @@ test('biology rail: atom views for small molecules, chain colours for complexes,
   let prof = emptyProfile(); for (let i = 0; i < EARN_AFTER; i++) prof = recordUse(prof, BIO, 'params');
   assert.ok(ids({ tab: 'pathway' }, { profile: prof }).includes('sbml'), 'SBML export is earned by tuning');
 });
+
+test('studio rail: shape basics first; Group for holes, Align for two picked, Drop for floating shapes', async () => {
+  const { registerStudioTools, STUDIO, STUDIO_TOOLS } = await import('../services/build/workspaceTools');
+  registerStudioTools(); registerStudioTools();
+  assert.equal(registry.forWorkspace(STUDIO).length, STUDIO_TOOLS.length);
+  type D = import('../services/build/workspaceTools').StudioToolDoc;
+  const base: D = { shapes: 0, holes: 0, groups: 0, picked: 0, floating: false };
+  const ctx = (d: Partial<D>, over: Partial<ToolContext<D>> = {}): ToolContext<D> => ({ workspace: STUDIO, doc: { ...base, ...d }, selection: [], level: 'simple', profile: emptyProfile(), ...over });
+  const ids = (d: Partial<D>, over: Partial<ToolContext<D>> = {}) => registry.visible(ctx(d, over)).map(x => x.tool.id);
+  assert.deepEqual(ids({}), ['undo', 'redo', 'move', 'turn', 'stretch', 'duplicate', 'delete', 'home']);
+  assert.equal(registry.suggest(ctx({ shapes: 2, holes: 1 }))?.id, 'group', 'a hole beside a solid: Aria suggests Group');
+  assert.ok(!ids({ shapes: 1, holes: 1 }).includes('group'), 'a lone hole has nothing to cut');
+  assert.ok(ids({ shapes: 2, picked: 2 }).includes('align'));
+  assert.ok(ids({ shapes: 1, groups: 1 }).includes('ungroup'));
+  assert.equal(registry.suggest(ctx({ shapes: 1, picked: 1, floating: true }))?.id, 'drop');
+  assert.ok(ids({ shapes: 3 }).includes('top'));
+  let prof = emptyProfile(); for (let i = 0; i < EARN_AFTER; i++) prof = recordUse(prof, STUDIO, 'duplicate');
+  assert.ok(ids({}, { profile: prof }).includes('mirror'), 'Mirror is earned by duplicating');
+  assert.equal(ids({}, { level: 'pro' }).length, STUDIO_TOOLS.length);
+});

@@ -26,6 +26,8 @@ export interface BuildStudioProps {
   onSubmit?: (work: { kind: 'studio'; title: string; json: unknown; thumbnail?: string }) => Promise<void>;
   /** Signed-in token for Make (machine sending, terms) when the host has one. */
   getToken?: () => Promise<string | null>;
+  /** Simple/Pro from the workspace shell: Pro shows every 3D tool. */
+  level?: 'simple' | 'pro';
 }
 
 // ---------------------------------------------------------------- local + cloud saving
@@ -44,7 +46,7 @@ function initial(starter?: string, lesson?: string): StudioProject {
   const last = ls.get<string>('last'); const saved = last ? loadLocal(last) : null; return saved ?? blankProject('3d');
 }
 
-export default function BuildStudio({ onClose, starter, lesson, onSubmit, getToken }: BuildStudioProps) {
+export default function BuildStudio({ onClose, starter, lesson, onSubmit, getToken, level }: BuildStudioProps) {
   const [proj, setProj] = useState<StudioProject>(() => initial(starter, lesson));
   const [past, setPast] = useState<StudioProject[]>([]); const [future, setFuture] = useState<StudioProject[]>([]);
   const lastPush = useRef(0);
@@ -135,7 +137,7 @@ export default function BuildStudio({ onClose, starter, lesson, onSubmit, getTok
 
       <main className="bst-work">
         {proj.mode === '3d'
-          ? <Studio3D scene={proj.scene} commit={(s: Scene) => change(p => ({ ...p, scene: s }))} undo={undo} redo={redo} canUndo={past.length > 0} canRedo={future.length > 0}
+          ? <Studio3D level={level} scene={proj.scene} commit={(s: Scene) => change(p => ({ ...p, scene: s }))} undo={undo} redo={redo} canUndo={past.length > 0} canRedo={future.length > 0}
               title={proj.title} audience={proj.audience} setAudience={(a: Audience) => meta({ audience: a })} printer={proj.printer} setPrinter={id => meta({ printer: id })}
               exportBlocked={exportBlocked} onExported={() => setCtx(c => ({ ...c, exported: true }))} onSendToMake={m => { setMake(m); setCtx(c => ({ ...c, sentToMake: true })); }}
               registerThumb={fn => { thumb.current['3d'] = fn; }} showSafety={() => setSafetyOpen(true)}/>

@@ -94,9 +94,9 @@ export default function WorkspaceShell({ initial = 'architecture', launch, getTo
 
     <div className="flex-1 min-h-0 relative">
       {tabs.map(id => { const w = workspaceById(id)!; return <Pane key={id} id={id} on={id === active}>
-        <Suspense fallback={<div className="absolute inset-0 grid place-items-center text-sm" style={{ color: C.dim }}>Loading {w.name}…</div>}>
+        <RoomBoundary name={w.name}><Suspense fallback={<div className="absolute inset-0 grid place-items-center text-sm" style={{ color: C.dim }}>Loading {w.name}…</div>}>
           <Room w={w} level={profile.workspaces[id]?.level ?? 'simple'} onLevel={l => changeLevel(id, l)} launch={id === first ? launch : undefined} extra={roomProps} getToken={getToken} onClose={() => close(id)} onOpen={open}/>
-        </Suspense>
+        </Suspense></RoomBoundary>
       </Pane>; })}
       {picker && <Picker open={tabs} onPick={open} onClose={() => setPicker(false)} level={level}/>}
     </div>
@@ -122,6 +122,26 @@ export default function WorkspaceShell({ initial = 'architecture', launch, getTo
   </div>;
 }
 
+/** A room that crashes (no WebGL, a bad file) shows a message in its own tab; the other tabs keep working. */
+class RoomBoundary extends React.Component<{ name: string; children: React.ReactNode }, { error: Error | null; key: number }> {
+  state = { error: null as Error | null, key: 0 };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error) { console.error(`[workspace] ${this.props.name} stopped:`, error); }
+  render() {
+    const { error, key } = this.state;
+    if (!error) return <React.Fragment key={key}>{this.props.children}</React.Fragment>;
+    const gl = /webgl/i.test(error.message);
+    return <div className="absolute inset-0 grid place-items-center p-6" data-testid="ws-room-error" role="alert">
+      <div className="max-w-[440px] text-center">
+        <div className="text-[15px] font-bold">{this.props.name} stopped</div>
+        <p className="mt-2 text-[13px]" style={{ color: C.dim }}>{gl ? 'This room needs 3D graphics (WebGL), and the browser has turned them off for now. Restarting the browser usually brings them back.' : error.message}</p>
+        <p className="mt-1 text-[12px]" style={{ color: C.dim }}>Your other tabs are fine.</p>
+        <button className="ws-btn mt-4" style={{ width: 'auto', padding: '0 14px' }} onClick={() => this.setState({ error: null, key: key + 1 })} data-testid="ws-room-retry">Try again</button>
+      </div>
+    </div>;
+  }
+}
+
 /** One tab's area. Rooms portal into it (RoomHostContext), and its transform makes it the box their `fixed inset-0` fills. */
 function Pane({ id, on, children }: { id: string; on: boolean; children: React.ReactNode }) {
   const [host, setHost] = useState<HTMLDivElement | null>(null);
@@ -139,7 +159,7 @@ function Room({ w, level, onLevel, launch, extra, getToken, onClose, onOpen }: {
     case 'mechanical': return <CadRoom startWith={opened(extra?.mechanical) ? undefined : 'parts'} {...extra?.mechanical} getToken={getToken} onClose={onClose} level={level} onLevel={onLevel}/>;
     case 'electronics': return <ElecRoom initialPrompt={launch?.prompt} {...extra?.electronics} getToken={getToken} onClose={onClose} level={level}/>;
     case 'sewing': return <PatternRoom initialTemplate={launch?.template} {...extra?.sewing} getToken={getToken} onClose={onClose} level={level}/>;
-    case 'studio': return <BuildStudio getToken={getToken} onClose={onClose} starter={launch?.starter} lesson={launch?.lesson}/>;
+    case 'studio': return <BuildStudio getToken={getToken} onClose={onClose} starter={launch?.starter} lesson={launch?.lesson} level={level}/>;
     case 'biology': return <BioRoom {...extra?.biology} onClose={onClose} level={level}/>;
     default: return <Coming w={w} level={level} onOpen={onOpen}/>;
   }
