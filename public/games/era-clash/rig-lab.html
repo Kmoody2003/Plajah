@@ -1,0 +1,103 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Era Clash rig lab</title>
+<style>body{margin:0;background:#2a2620;color:#eee;font:12px system-ui}canvas{display:block}#bar{padding:6px}</style></head>
+<body>
+<div id="bar">view: <b id="v"></b> · ?view=labels|skeleton|anim · &move=punch · &t=0.1 (freeze) · &who=samurai</div>
+<canvas id="c"></canvas>
+<script src="rig2d.js"></script>
+<script>
+/* Dev-only page for tuning rig2d.js; not linked from the game. */
+var Q = new URLSearchParams(location.search);
+var view = Q.get('view') || 'anim', moveQ = Q.get('move') || 'cycle', tQ = Q.get('t'), who = Q.get('who');
+document.getElementById('v').textContent = view + ' / ' + moveQ + (tQ ? ' @' + tQ : '');
+var IDS = who ? [who] : ['samurai', 'viking', 'knight', 'jaguar', 'monk', 'gladiator'];
+var MOVES = {
+  punch: { startup: 0.04, active: 0.08, recovery: 0.11 }, kick: { startup: 0.07, active: 0.10, recovery: 0.16 },
+  spPunch1: { startup: 0.04, active: 0.13, recovery: 0.15 }, spPunch2: { startup: 0.12, active: 0.09, recovery: 0.25 },
+  spKick1: { startup: 0.08, active: 0.10, recovery: 0.21 }, spKick2: { startup: 0.13, active: 0.09, recovery: 0.26 },
+  uppercut: { startup: 0.08, active: 0.11, recovery: 0.25 }, sweep: { startup: 0.09, active: 0.10, recovery: 0.21 },
+  throw: { startup: 0.08, active: 0.08, recovery: 0.28 }, weapon: { startup: 0.10, active: 0.10, recovery: 0.24 },
+  super: { startup: 0.09, active: 0.15, recovery: 0.34 },
+  hook: { startup: 0.07, active: 0.09, recovery: 0.17 }, highKick: { startup: 0.10, active: 0.09, recovery: 0.20 },
+  lowKick: { startup: 0.06, active: 0.08, recovery: 0.15 }, flyKick: { startup: 0.05, active: 0.20, recovery: 0.10 }
+};
+var CYCLE = ['punch', 'hook', 'spPunch2', 'uppercut', 'throw', 'kick', 'highKick', 'lowKick', 'spKick1', 'spKick2', 'sweep', 'flyKick',
+  'hit:high', 'hit:body', 'hit:low', 'hit:spin', 'fall', 'thrown', 'down', 'getup', 'block', 'win'];
+/* lab-only names → fighter fields */
+function labFighter(id, name, lt, ph) {
+  var f = { char: { id: id }, x: 0, state: name, stateT: lt, onGround: true, walkPh: ph, move: name, stunDur: 0.3 };
+  if (MOVES[name]) { f.state = 'attack'; if (name === 'flyKick') f.onGround = false; }
+  if (name.indexOf('hit:') === 0) { f.state = 'hit'; f.react = name.slice(4); f.stateT = 0.04; }
+  if (name === 'fall') { f.state = 'hit'; f.knock = true; f.onGround = false; f.vy = 300; f.react = 'high'; }
+  if (name === 'thrown') { f.state = 'hit'; f.knock = true; f.onGround = false; f.react = 'thrown'; f.stateT = 0.3; }
+  if (name === 'getup') f.stateT = 0.19;
+  if (name === 'jump') { f.state = 'idle'; f.onGround = false; }
+  return f;
+}
+var imgs = {}; IDS.forEach(function (id) { var im = new Image(); im.src = 'assets/sprite-' + id + '.png'; imgs[id] = im; });
+var cv = document.getElementById('c'), ctx = cv.getContext('2d');
+var CELLW = who ? 780 : 420, CELLH = who ? 760 : 470, SH = who ? 560 : 300;
+cv.width = CELLW * Math.min(3, IDS.length); cv.height = CELLH * Math.ceil(IDS.length / 3);
+var COLORS = ['', '#888', '#fd4', '#f44', '#f9a', '#44f', '#9af', '#4c4', '#af8', '#0cc', '#8ff'];
+var labCache = {};
+function labelCanvas(rig) {
+  if (labCache[rig.id]) return labCache[rig.id];
+  var c = document.createElement('canvas'); c.width = rig.LW; c.height = rig.LH;
+  var x = c.getContext('2d'), d = x.createImageData(rig.LW, rig.LH);
+  for (var i = 0; i < rig.lab.length; i++) { var l = rig.lab[i]; if (!l) continue; var h = COLORS[l] || '#f0f';
+    d.data[i * 4] = parseInt(h[1], 16) * 17; d.data[i * 4 + 1] = parseInt(h[2], 16) * 17; d.data[i * 4 + 2] = parseInt(h[3], 16) * 17; d.data[i * 4 + 3] = 150; }
+  x.putImageData(d, 0, 0); return (labCache[rig.id] = c);
+}
+var t0 = performance.now();
+if (view === 'strip') {
+  /* contact sheet: one warrior, every pose at its strike frame (or &t= for all) */
+  IDS = [who || 'samurai'];
+  var SW = 260, SHH = 300, COLS = 5; cv.width = SW * COLS; cv.height = SHH * Math.ceil(CYCLE.length / COLS);
+  frame = function () {
+    var id = IDS[0], img = imgs[id]; ctx.fillStyle = '#2a2620'; ctx.fillRect(0, 0, cv.width, cv.height);
+    CYCLE.forEach(function (name, n) {
+      var ox = (n % COLS) * SW + SW * 0.42, oy = Math.floor(n / COLS) * SHH + SHH - 22, h = 200, w = h * img.naturalWidth / img.naturalHeight;
+      var mv = MOVES[name], lt = tQ != null ? parseFloat(tQ) : mv ? mv.startup + mv.active * 0.7 : 0.08;
+      var f = labFighter(id, name, lt, 1.2);
+      ctx.save(); ctx.translate(ox, oy); ctx.fillStyle = '#c9b48a'; ctx.fillRect(-SW * 0.4, 0, SW * 0.95, 1);
+      EraRig.draw(ctx, f, img, mv, 0.3, w, h, {}); ctx.fillStyle = '#fff'; ctx.fillText(name, -SW * 0.38, 14); ctx.restore();
+    });
+  };
+}
+function frame() {
+  var now = (performance.now() - t0) / 1000;
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  IDS.forEach(function (id, n) {
+    var img = imgs[id]; if (!img.complete) return;
+    var ox = (n % 3) * CELLW + CELLW * 0.5, oy = Math.floor(n / 3) * CELLH + CELLH - 30;
+    var h = SH, w = h * img.naturalWidth / img.naturalHeight, k = h / 720;
+    ctx.fillStyle = '#c9b48a'; ctx.fillRect(ox - CELLW / 2 + 4, oy, CELLW - 8, 2);
+    ctx.fillStyle = '#fff'; ctx.fillText(id, ox - CELLW / 2 + 8, oy - h - 40);
+    var rig = EraRig.build(id, img); if (!rig) { ctx.fillText('rig failed', ox, oy - 100); return; }
+    ctx.save(); ctx.translate(ox, oy);
+    if (view === 'labels' || view === 'skeleton') {
+      ctx.drawImage(img, -w / 2, -h, w, h);
+      if (view === 'labels') ctx.drawImage(labelCanvas(rig), -w / 2, -h, w, h);
+      var r = EraRig.RIGS[id];
+      var bones = [['pelvis','neck'],['neck','top'],['shF','elF'],['elF','haF'],['shR','elR'],['elR','haR'],['hipF','knF'],['knF','anF'],['anF','toeF'],['hipB','knB'],['knB','anB'],['anB','toeB'],['hipB','hipF']];
+      ctx.lineWidth = 2;
+      bones.forEach(function (b) { var a = r[b[0]], c = r[b[1]]; ctx.strokeStyle = b[0].indexOf('F') >= 0 || b[1].indexOf('F') >= 0 ? '#0ff' : '#ff0';
+        ctx.beginPath(); ctx.moveTo(-w / 2 + a[0] * k, -h + a[1] * k); ctx.lineTo(-w / 2 + c[0] * k, -h + c[1] * k); ctx.stroke(); });
+      Object.keys(r).forEach(function (j) { if (j === 'cut') return; var p = r[j]; ctx.fillStyle = '#f0f'; ctx.fillRect(-w / 2 + p[0] * k - 3, -h + p[1] * k - 3, 6, 6); });
+    } else {
+      var name = moveQ === 'cycle' ? CYCLE[Math.floor(now / 1.2) % CYCLE.length] : moveQ;
+      var lt = tQ != null ? parseFloat(tQ) : (now % 1.2) * (MOVES[name] ? 0.9 : 1);
+      var f = { char: { id: id }, x: 0, state: name, stateT: lt, onGround: name !== 'jump', walkPh: now * 9, move: name };
+      if (MOVES[name]) f.state = 'attack';
+      if (name === 'jump') f.state = 'idle';
+      var res = EraRig.draw(ctx, f, img, MOVES[name], now, w, h, {});
+      if (res) { ctx.fillStyle = '#0f0'; ctx.fillRect(res.hand[0] - 3, res.hand[1] - 3, 6, 6); }
+      ctx.fillStyle = '#fff'; ctx.fillText(name, -20, 18);
+    }
+    ctx.restore();
+  });
+  if (tQ == null) requestAnimationFrame(frame);
+}
+var ready = 0; IDS.forEach(function (id) { imgs[id].onload = function () { if (++ready === IDS.length) frame(); }; });
+</script>
+</body></html>

@@ -6,12 +6,15 @@ import { Game, UserProfile } from '../types';
 import { fetchGames, updateGamePlayCount, fetchUserProfile, auth } from '../services/backendService';
 import ChipRail from './ui/ChipRail';
 const KithParty = React.lazy(() => import('./kithParty/KithParty'));
+const EraClashFrame = React.lazy(() => import('./games/EraClashFrame'));
 const CyberTicTacToe = React.lazy(() => import('./games/CyberTicTacToe'));
 const GamerHub = React.lazy(() => import('./games/GamerHub'));
 import { PostGameButton } from './games/social/PostGameButton';
 
 // Uploaded copies of tic tac toe open the first-party Cyber Tic Tac Toe (mobile, same-device + online play).
 const isTicTacToe = (g: { title?: string }) => /tic[\s-]*tac[\s-]*toe/i.test(g.title || '');
+// Uploaded copies of Era Clash (e.g. the Muse build) open the first-party copy at /games/era-clash.
+const isEraClash = (g: { title?: string }) => /era[\s-]*clash/i.test(g.title || '');
 
 interface FreeToGame {
   id: number;
@@ -35,6 +38,7 @@ interface GamesViewProps {
 
 const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse }) => {
   const [showKithParty, setShowKithParty] = useState(false);
+  const [showEraClash, setShowEraClash] = useState(false);
   const [showTtt, setShowTtt] = useState(false);
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,6 +123,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
 
   const handleLaunchGame = async (game: Game) => {
     if (isTicTacToe(game)) { setShowTtt(true); return; }
+    if (isEraClash(game)) { setShowEraClash(true); return; }
     onSelectGame(game);
   };
 
@@ -134,6 +139,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
       <CyberTicTacToe onExit={() => setShowTtt(false)} onOpenLeaderboard={() => { setShowTtt(false); setActiveTab('LEADERBOARDS'); }} />
     </React.Suspense>
   );
+  if (showEraClash) return <React.Suspense fallback={<div className="p-8">Loading Era Clash…</div>}><EraClashFrame onExit={() => setShowEraClash(false)} /></React.Suspense>;
   if (showKithParty) return <React.Suspense fallback={<div className="p-8">Loading Kith Party…</div>}><KithParty onBack={() => setShowKithParty(false)} /></React.Suspense>;
 
   return (
@@ -269,6 +275,29 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
                  className="inline-flex items-center gap-2 min-h-[40px] px-4 rounded-full border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 text-[10px] font-black uppercase tracking-widest hover:bg-cyan-400/20 disabled:opacity-60"
                />
              </div>
+             <button
+               onClick={() => setShowEraClash(true)}
+               className="mt-4 w-full text-left relative rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden border border-amber-400/30 p-5 sm:p-8 active:scale-[0.99] transition-transform"
+               style={{ background: 'linear-gradient(90deg, rgba(20,12,6,0.92) 35%, rgba(20,12,6,0.55)), url(/games/era-clash/assets/stage-japan.webp) center/cover, #140c06' }}
+             >
+               <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+                 <div className="flex -space-x-4 shrink-0" aria-hidden>
+                   {['samurai', 'viking', 'knight'].map((w) => (
+                     <img key={w} src={`/games/era-clash/assets/portrait-${w}.webp`} alt="" loading="lazy" className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-amber-400/70 bg-black" />
+                   ))}
+                 </div>
+                 <div className="flex-1 min-w-0">
+                   <h4 className="text-2xl sm:text-4xl font-black tracking-tight text-amber-200" style={{ fontFamily: 'Georgia, serif' }}>ERA CLASH</h4>
+                   <p className="text-white/70 text-sm mt-1">Six warriors from six ages. Story mode, vs CPU, or duel a friend.</p>
+                   <div className="flex flex-wrap gap-2 mt-3">
+                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest"><Cpu size={12} /> vs CPU</span>
+                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest"><Smartphone size={12} /> 2 players · 1 device</span>
+                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest"><Globe size={12} /> Online duel</span>
+                   </div>
+                 </div>
+                 <span className="inline-flex items-center justify-center gap-2 min-h-[48px] px-6 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-widest"><Play size={16} fill="currentColor" /> Play</span>
+               </div>
+             </button>
            </div>
            {loading ? (
              <div className="flex flex-col items-center justify-center p-20">

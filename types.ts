@@ -5299,6 +5299,8 @@ export type AchievementTriggerType =
   | 'MATH_FIRST_SESSION' | 'MATH_STREAK_10' | 'MATH_TIME_ATTACK_100' | 'WORKSHEET_TURNED_IN' | 'WORKSHEET_PERFECT'
   // Games — Ravencrest (Cinema's Plajah Horror Classics collection)
   | 'RAVENCREST_TROLL_SLAYER' | 'RAVENCREST_DRACULA_SLAIN' | 'RAVENCREST_CURSE_BREAKER'
+  // Games — Era Clash (Plajah Arcade 2D fighter, public/games/era-clash)
+  | 'ERACLASH_FIRST_WIN' | 'ERACLASH_PERFECT_VICTORY' | 'ERACLASH_TALE_COMPLETE'
   // Kith sightings — minted server-side by routes/kithSightings.ts. The
   // achievement ids are these trigger strings, so a claim can mint without a
   // lookup. Kith itself is embargoed: show the mark, never the name.
