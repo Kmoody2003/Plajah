@@ -7,6 +7,7 @@ import '../../index.css';
 import GameEmbedCard from '../../components/games/social/GameEmbedCard';
 import { ChallengeButton } from '../../components/games/social/ChallengeButton';
 import { postPlayableGame, openGameLink } from '../../services/gamerNet/socialClient';
+import CyberTicTacToe from '../../components/games/CyberTicTacToe';
 
 interface LabPost { id: string; authorId: string; authorName: string; text: string; timestamp: number; gameEmbed?: unknown }
 interface LabNotice { title: string; message: string; link: string }
@@ -55,4 +56,9 @@ function Lab() {
     </div>
   );
 }
-createRoot(document.getElementById('root')!).render(<Lab />);
+// ?view=game shows the full-screen game (its "Post to Social" button lands posts in this lab's timeline).
+function Root() {
+  const [game, setGame] = useState(new URLSearchParams(location.search).get('view') === 'game');
+  return game ? <CyberTicTacToe onExit={() => setGame(false)} /> : <Lab />;
+}
+createRoot(document.getElementById('root')!).render(<Root />);

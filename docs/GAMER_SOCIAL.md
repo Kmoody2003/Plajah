@@ -8,7 +8,7 @@ Plajah games you can play right in the Social timeline, built 2026-11-09 on top 
 | | How it works |
 |---|---|
 | **Play in the timeline** | A post with a `gameEmbed` renders `GameEmbedCard` inside `PostCard`. Tap the board to play the CPU right there. |
-| **Post a game** | Social header → Create → **Post a game** (`postPlayableGame`). |
+| **Post a game** | Social header → Create → **Post a game**, the **Post to Social** button under the Cyber Tic Tac Toe tile in Games, or the same button on the game's own menu (`PostGameButton` → `postPlayableGame`). A finished online match in the full-screen game also has **Post result**. |
 | **Match with people on the timeline** | While a game card is on screen it sends a heartbeat to the timeline lobby. The card shows "N on the timeline now" with faces. **Find a match** pairs two seekers (rated, same skill window as the global queue). After 12 s it offers **Widen to everyone**, which uses the global `/api/gamer/queue`. |
 | **Challenge** | Tap a face in the lobby strip, **Challenge {author}** on a card, **Challenge** on a profile header, or the swords icon in a 1:1 chat. The person challenged gets a notification (`game-challenge:<id>`), and tapping it opens the game overlay with Accept / Decline. The person who accepts opens as X with a 90 s first-move clock. The challenger's card or overlay polls the challenge and jumps into the match. The challenger also gets an "accepted" notification (`game-match:<id>`). |
 | **Go live** | **Go live** on an active match opens the phone streamer (`MobileLiveStreamer`) with the title "Game: A vs B". The board is drawn onto every program frame through the live composer's overlay drawer, so Mux viewers see it over the camera. A floating board lets the streamer keep playing. The stream id is linked to the match (`/social/live`), so spectators get **Watch live** on the match card. |
@@ -42,4 +42,3 @@ Storage (plajah-prod, server-only through the service account): `gamerLobby/{gam
 
 * Live was checked only up to the streamer opening with the match title. The browser pane blocks the camera, so a real broadcast with the burned-in board hasn't been run.
 * Bluesky was checked against the lab's stand-in crosspost endpoint. It hasn't posted to a real account.
-* Posting a game from inside the full-screen Cyber Tic Tac Toe or the Games hub would need a button in those files. `postPlayableGame()` is ready for it.
