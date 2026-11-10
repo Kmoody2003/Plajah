@@ -10,11 +10,18 @@ const base = () => `${(import.meta as any).env?.VITE_APP_URL ?? window.location.
 
 export interface GamerProfile {
   uid: string; name: string; photo: string; score: number; scoreCard: ScoreCard;
-  games: Record<string, GameStats>; achievements: string[]; platforms: string[]; localPlays: number;
+  games: Record<string, GameStats>; achievements: string[]; platforms: string[]; externalHours: number; localPlays: number;
   ledger: { length: number; head: string }; since?: number;
 }
 export interface MatchView { match: MatchDoc; you: number; serverNow: number }
 export interface LeaderRow { rank: number; uid: string; name: string; photo: string; score: number; rating?: number; wins?: number; losses?: number; draws?: number }
+
+export interface LinkView {
+  platform: string; accountId: string; name: string; avatar: string; profileUrl: string;
+  linkedAt: number; lastSyncAt: number; pending: boolean; error: string; games: number; hours: number; achievements: number;
+}
+export interface PlatformInfo { id: string; name: string; state: 'live' | 'planned' | 'partner-only'; proof: string; imports: string; available: boolean }
+export interface SyncResult { imported: number; checked: number; hours: number; achievements: number; more: boolean; link: LinkView }
 
 export interface Fail { ok: false; error: string; httpStatus: number }
 export type Res<T> = ({ ok: true } & T) | Fail;
@@ -54,4 +61,9 @@ export const gamer = {
   move: (id: string, move: unknown, v: number) => call<MatchView>('POST', `/match/${encodeURIComponent(id)}/move`, { move, v }),
   resign: (id: string) => call<MatchView>('POST', `/match/${encodeURIComponent(id)}/resign`),
   rematch: (id: string) => call<MatchView>('POST', `/match/${encodeURIComponent(id)}/rematch`),
+  links: () => call<{ links: LinkView[]; platforms: PlatformInfo[] }>('GET', '/links'),
+  /** Returns Steam's sign-in URL; the caller navigates there and Steam redirects back to returnPath. */
+  startSteamLink: (returnPath: string) => call<{ url: string }>('POST', '/links/steam/start', { returnPath }),
+  syncSteam: () => call<SyncResult>('POST', '/links/steam/sync'),
+  unlinkSteam: () => call<{ ok: boolean }>('DELETE', '/links/steam'),
 };

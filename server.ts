@@ -15404,6 +15404,9 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use('/api/gamer', rateLimit({ windowMs: 60 * 1000, max: 240, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '8kb' }), createGamerRouter({
     store: liveGamerStore(restCas),
     verify: verifyGamerToken,
+    // Platform linking (Steam OpenID + Web API). Unset key = the Link button stays off; nothing is mocked.
+    steam: { apiKey: process.env.STEAM_WEB_API_KEY || '' },
+    publicOrigin: (process.env.VITE_APP_URL || 'https://plajah.com').replace(/\/+$/, ''),
     userCard: async uid => { const u = await gamerUserDoc(uid); return u ? { name: String(u.displayName || u.username || 'Player'), photo: String(u.photoURL || u.avatarUrl || ''), isChild: u.isChild === true || u.accountType === 'CHILD' } : null; },
   }));
   // Plajah Drive (B2 + Bunny). Answers 503 drive_off until DRIVE_ENABLED=1.

@@ -18,6 +18,11 @@
 //   POST   /match/:id/move  {move, v}
 //   POST   /match/:id/resign
 //   POST   /match/:id/rematch
+//   GET    /links                         my linked platforms + what can be linked
+//   POST   /links/steam/start {returnPath} → { url } Steam sign-in (OpenID); state is one-time, 10 min
+//   GET    /links/steam/return            Steam redirects here: verify, link, first import, redirect back
+//   POST   /links/steam/sync              import the change since the last sync → { imported, more }
+//   DELETE /links/steam                   unlink (ledger history and the per-game baseline stay)
 //
 // Every write goes through the service account (rules never apply), so each handler checks the caller.
 // Match docs change only through services/gamerNet/match.ts inside a compare-and-swap; results reach the
@@ -33,6 +38,8 @@ import { applyEvent, emptyFold, emptyStats, newlyEarned, recalculate, scoreOf, t
 import { nextRating, START_RATING } from '../services/gamerNet/rating';
 import { pickOpponent, type Ticket } from '../services/gamerNet/matchmaking';
 import * as M from '../services/gamerNet/match';
+import * as Steam from '../services/gamerNet/links/steam';
+import { LINKABLE } from '../services/gamerNet/links/platforms';
 
 export interface UserCard { name: string; photo?: string; isChild?: boolean }
 export interface GamerDeps {
@@ -40,9 +47,18 @@ export interface GamerDeps {
   verify(idToken: string): Promise<string | null>;
   userCard(uid: string): Promise<UserCard | null>;
   now?: () => number;
+  /** Platform linking. Without apiKey the Steam link answers 503 (never mock data on real accounts). */
+  steam?: { apiKey?: string; fetch?: Steam.Fetch; loginBase?: string };
+  /** Origin Steam redirects back to (e.g. https://plajah.com). Defaults to the request's own origin. */
+  publicOrigin?: string;
 }
 
 const PROFILES = 'gamerProfiles', LEDGER = 'gamerLedger', MATCHES = 'gamerMatches', QUEUE = 'gamerQueue';
+const LINKS = 'gamerLinks', LINK_CLAIMS = 'gamerLinkClaims', LINK_STATES = 'gamerLinkStates';
+/** Per sync request: games imported and achievement lookups (each lookup is one Steam API call). */
+export const STEAM_GAMES_PER_PASS = 40;
+export const STEAM_SYNC_COOLDOWN_MS = 10 * 60_000;
+const STEAM_LEASE_MS = 2 * 60_000;
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const s = (v: unknown, max: number) => String(v ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, max);
 
@@ -122,7 +138,7 @@ export function createGamerRouter(deps: GamerDeps): Router {
     const fold: GamerFold = p.fold ?? emptyFold();
     return {
       uid: p.uid, name: p.name, photo: p.photo || '', score: p.score ?? 0, scoreCard: p.scoreCard ?? scoreOf(fold),
-      games: fold.games, achievements: fold.achievementIds, platforms: fold.platforms, localPlays: fold.localPlays,
+      games: fold.games, achievements: fold.achievementIds, platforms: fold.platforms, externalHours: Math.round((fold.externalHours ?? 0) * 10) / 10, localPlays: fold.localPlays,
       ledger: { length: p.ledgerSeq ?? 0, head: p.ledgerHead ?? GENESIS }, since: p.createdAt,
     };
   };
@@ -377,6 +393,162 @@ export function createGamerRouter(deps: GamerDeps): Router {
     // Only drop a ticket that is still waiting; a matched one already has a game behind it.
     const out = await casUpdate(store.cas(QUEUE), tid(game, uid), cur => (cur?.status === 'waiting' ? { patch: { status: 'left' }, result: 'left' } : { abort: true, result: (cur?.matchId as string) || '' }));
     res.json(out.ok ? { status: 'left' } : out.result ? { status: 'matched', matchId: out.result } : { status: 'idle' });
+  });
+
+  // ───────────────────────────────────────────── linked platforms
+  // gamerLinks/{uid}__steam        { steamId, name, avatar, games: { appid: {m,a,c} }, syncSeq, pendingSync, … }
+  // gamerLinkClaims/steam__{id}    { uid } — one Steam account feeds one Plajah ledger (kept on unlink)
+  // gamerLinkStates/{nonce}        { uid, returnPath, exp } — one-time OpenID state
+  const steamFetch: Steam.Fetch = deps.steam?.fetch ?? ((url, init) => fetch(url, init) as unknown as ReturnType<Steam.Fetch>);
+  const steamKey = deps.steam?.apiKey ?? '';
+  const linkId = (uid: string, platform: string) => `${uid}__${platform}`;
+  const originOf = (req: Request) => (deps.publicOrigin || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+  const safePath = (p: unknown) => { const v = s(p, 300); return v.startsWith('/') && !v.startsWith('//') && !v.includes('\\') ? v : '/'; };
+  const steamReturnTo = (req: Request, nonce: string) => `${originOf(req)}/api/gamer/links/steam/return?state=${nonce}`;
+
+  const linkView = (l: Record<string, any>) => {
+    const games = Object.values<any>(l.games ?? {});
+    return {
+      platform: String(l.platform), accountId: String(l.steamId ?? ''), name: String(l.name || ''), avatar: String(l.avatar || ''), profileUrl: String(l.profileUrl || ''),
+      linkedAt: Number(l.linkedAt) || 0, lastSyncAt: Number(l.lastSyncAt) || 0, pending: !!l.pendingSync, error: String(l.error || ''),
+      games: games.filter(g => Number(g.m) > 0).length,
+      hours: Steam.hoursOf(games.reduce((a, g) => a + (Number(g.m) || 0), 0)),
+      achievements: games.reduce((a, g) => a + (Number(g.a) || 0), 0),
+    };
+  };
+
+  r.get('/links', async (req, res) => {
+    const uid = await needUid(req, res); if (!uid) return;
+    const steam = await store.get(LINKS, linkId(uid, 'steam'));
+    res.json({
+      links: steam?.status === 'linked' ? [linkView(steam)] : [],
+      platforms: LINKABLE.map(p => ({ ...p, available: p.id === 'steam' && !!steamKey })),
+    });
+  });
+
+  r.post('/links/steam/start', async (req, res) => {
+    const uid = await needUid(req, res); if (!uid) return;
+    if (!steamKey) { res.status(503).json({ error: 'Steam linking is not switched on yet' }); return; }
+    const nonce = randomUUID();
+    const returnPath = safePath(req.body?.returnPath);
+    if ((await store.createOnce(LINK_STATES, nonce, { uid, platform: 'steam', returnPath, exp: now() + 10 * 60_000 })) !== 'created') { res.status(503).json({ error: 'Could not start the Steam sign-in' }); return; }
+    res.json({ url: Steam.steamLoginUrl(steamReturnTo(req, nonce), originOf(req), deps.steam?.loginBase) });
+  });
+
+  r.get('/links/steam/return', async (req, res) => {
+    const nonce = s(req.query.state, 64);
+    const st = nonce ? await store.get(LINK_STATES, nonce) : null;
+    if (st) await store.del(LINK_STATES, nonce); // one-time, whatever happens next
+    const back = (status: 'ok' | 'error', reason = '') => {
+      const path = safePath(st?.returnPath);
+      res.redirect(302, `${path}${path.includes('?') ? '&' : '?'}gamerLink=steam&status=${status}${reason ? `&reason=${encodeURIComponent(reason)}` : ''}`);
+    };
+    if (!st || st.platform !== 'steam' || Number(st.exp) < now()) { back('error', 'expired'); return; }
+    const params: Record<string, string> = {};
+    for (const [k, v] of Object.entries(req.query)) if (typeof v === 'string') params[k] = v;
+    const check = await Steam.verifySteamAssertion(params, steamReturnTo(req, nonce), steamFetch);
+    if (check.ok === false) { back('error', check.reason); return; }
+    const uid = String(st.uid);
+    // One Steam account → one Plajah ledger, for good: unlinking keeps the claim, so a library can't be
+    // walked from account to account collecting its playtime again.
+    const claimId = `steam__${check.steamId}`;
+    if ((await store.createOnce(LINK_CLAIMS, claimId, { uid, at: now() })) === 'error') { back('error', 'busy'); return; }
+    if ((await store.get(LINK_CLAIMS, claimId))?.uid !== uid) { back('error', 'claimed'); return; }
+    await ensureProfile(uid);
+    const out = await casUpdate(store.cas(LINKS), linkId(uid, 'steam'), cur => {
+      if (cur?.status === 'linked' && cur.steamId !== check.steamId) return { abort: true, result: 'other' as const };
+      const same = cur?.steamId === check.steamId; // relinking the same account keeps its baseline
+      return {
+        patch: {
+          uid, platform: 'steam', steamId: check.steamId, status: 'linked', linkedAt: same && cur?.linkedAt ? cur.linkedAt : now(),
+          games: same ? (cur?.games ?? {}) : {}, syncSeq: same ? (Number(cur?.syncSeq) || 0) : 0, pendingSync: same ? (Number(cur?.pendingSync) || 0) : 0,
+          lastSyncAt: same ? (Number(cur?.lastSyncAt) || 0) : 0, leaseUntil: 0, error: '',
+        },
+        result: 'ok' as const,
+      };
+    });
+    if (!out.ok) { back('error', out.result === 'other' ? 'unlink-first' : 'busy'); return; }
+    await syncSteam(uid, true).catch(() => null);
+    back('ok');
+  });
+
+  type SyncOut =
+    | { ok: true; imported: number; checked: number; hours: number; achievements: number; more: boolean; link: ReturnType<typeof linkView> }
+    | { ok: false; status: number; error: string };
+
+  /** One bounded pass over the library: at most STEAM_GAMES_PER_PASS games (and Steam calls) per request. */
+  async function syncSteam(uid: string, force = false): Promise<SyncOut> {
+    if (!steamKey) return { ok: false, status: 503, error: 'Steam linking is not switched on yet' };
+    const links = store.cas(LINKS), id = linkId(uid, 'steam');
+    const t = now();
+    // Lease: one pass at a time. A sync still pending (big library, or an interrupted pass) resumes with the
+    // same sync number, so its ledger keys repeat and appendEvent drops anything already written.
+    const lease = await casUpdate(links, id, cur => {
+      if (!cur || cur.status !== 'linked') return { abort: true, result: 'none' as const };
+      if (Number(cur.leaseUntil) > t) return { abort: true, result: 'busy' as const };
+      if (!force && !cur.pendingSync && Number(cur.lastSyncAt) + STEAM_SYNC_COOLDOWN_MS > t) return { abort: true, result: 'cooldown' as const };
+      return { patch: { leaseUntil: t + STEAM_LEASE_MS, pendingSync: Number(cur.pendingSync) || (Number(cur.syncSeq) || 0) + 1 }, result: 'ok' as const };
+    });
+    if (!lease.ok) {
+      const why = lease.result;
+      return why === 'none' ? { ok: false, status: 404, error: 'Steam is not linked' }
+        : why === 'cooldown' ? { ok: false, status: 429, error: 'Synced a few minutes ago — try again later' }
+        : why === 'busy' ? { ok: false, status: 409, error: 'A Steam sync is already running' }
+        : { ok: false, status: 503, error: 'Link store busy — try again' };
+    }
+    const link = (await store.get(LINKS, id)) ?? {};
+    const steamId = String(link.steamId), sync = Number(link.pendingSync);
+    const release = (patch: Record<string, unknown>) => casUpdate(links, id, cur => (cur ? { patch: { leaseUntil: 0, ...patch }, result: true } : { abort: true, result: false }));
+    try {
+      const summary = await Steam.steamSummary(steamFetch, steamKey, steamId);
+      if (!summary.isPublic) throw new Steam.SteamApiError('Steam profile is private', 'private');
+      const library = await Steam.steamOwnedGames(steamFetch, steamKey, steamId);
+      const base: Steam.Baselines = { ...(link.games ?? {}) };
+      const todo = Steam.candidates(library, base);
+      const batch = todo.slice(0, STEAM_GAMES_PER_PASS);
+      let imported = 0, minutes = 0, ach = 0, stalled = false;
+      for (const g of batch) {
+        const fetched = g.minutes > 0 ? await Steam.steamAchievements(steamFetch, steamKey, steamId, g.appid) : null;
+        const plan = Steam.planImport(g, base[g.appid], fetched);
+        if (plan.minutes > 0 || plan.achievements > 0) {
+          const key = Steam.importKey(steamId, g.appid, sync, plan.next);
+          const out = await appendEvent(uid, {
+            event: 'EXTERNAL_IMPORT', uid, at: t, key, source: 'linked',
+            platform: 'steam', externalGameId: String(g.appid), hours: Steam.hoursOf(plan.minutes), achievementsUnlocked: plan.achievements, note: g.name,
+          });
+          if (out) { imported++; minutes += plan.minutes; ach += plan.achievements; }
+          // null = already on the ledger (a resumed pass) or a store failure; only the first may advance the baseline.
+          else if (!((await store.get(PROFILES, uid))?.recentKeys ?? []).includes(key)) { stalled = true; break; }
+        }
+        base[g.appid] = plan.next;
+      }
+      const more = stalled || todo.length > batch.length;
+      await release({
+        games: base, name: summary.name, avatar: summary.avatar, profileUrl: summary.profileUrl, error: '',
+        ...(more ? {} : { syncSeq: sync, pendingSync: 0, lastSyncAt: t }),
+      });
+      const fresh = (await store.get(LINKS, id)) ?? link;
+      return { ok: true, imported, checked: batch.length, hours: Steam.hoursOf(minutes), achievements: ach, more, link: linkView(fresh) };
+    } catch (e) {
+      const isPrivate = e instanceof Steam.SteamApiError && e.code === 'private';
+      const error = isPrivate ? 'Your Steam profile or game details are private — set both to Public in Steam, then sync again' : 'Steam is not answering right now — try again later';
+      await release({ error });
+      return { ok: false, status: isPrivate ? 422 : 502, error };
+    }
+  }
+
+  r.post('/links/steam/sync', async (req, res) => {
+    const uid = await needUid(req, res); if (!uid) return;
+    const out = await syncSteam(uid);
+    if (out.ok === false) { res.status(out.status).json({ error: out.error }); return; }
+    const { ok: _ok, ...rest } = out;
+    res.json(rest);
+  });
+
+  r.delete('/links/steam', async (req, res) => {
+    const uid = await needUid(req, res); if (!uid) return;
+    const out = await casUpdate(store.cas(LINKS), linkId(uid, 'steam'), cur => (cur?.status === 'linked' ? { patch: { status: 'unlinked', unlinkedAt: now(), leaseUntil: 0 }, result: true } : { abort: true, result: false }));
+    res.json({ ok: out.ok });
   });
 
   return r;

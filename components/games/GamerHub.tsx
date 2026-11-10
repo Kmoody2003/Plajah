@@ -1,11 +1,12 @@
 // Gamer hub — the player's universal gamer card (score, breakdown, ledger) and the network leaderboards.
 // Reads /api/gamer; works signed out (leaderboards only).
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Trophy, ShieldCheck, Loader2, History, Medal } from 'lucide-react';
 import { gamer, isSignedIn, failed, type GamerProfile, type LeaderRow } from '../../services/gamerNet/client';
 import type { GamerEntry } from '../../services/gamerNet/ledger';
 import { ACHIEVEMENTS } from '../../services/gamerNet/score';
+import LinkedPlatforms from './LinkedPlatforms';
 
 const BOARDS = [{ id: 'all', label: 'Gamer Score' }, { id: 'ttt', label: 'Cyber Tic Tac Toe' }];
 const achTitle = (id: string) => ACHIEVEMENTS.find(a => a.id === id)?.title ?? id;
@@ -15,7 +16,7 @@ function describe(e: GamerEntry): string {
     case 'MATCH_RESULT': return `${e.result === 'win' ? 'Won' : e.result === 'loss' ? 'Lost' : 'Drew'} ${e.rated ? 'a rated' : 'a friendly'} match${e.reason === 'timeout' ? ' (clock)' : e.reason === 'resign' ? ' (resign)' : ''}${e.rated && e.ratingAfter !== undefined && e.ratingBefore !== undefined ? ` · ${e.ratingAfter - e.ratingBefore >= 0 ? '+' : ''}${e.ratingAfter - e.ratingBefore}` : ''}`;
     case 'ACHIEVEMENT': return `Unlocked “${e.note ?? achTitle(e.achievementId ?? '')}” · +${e.points ?? 0}`;
     case 'LOCAL_PLAY': return `Played ${e.note ?? 'locally'}${e.result ? ` · ${e.result}` : ''}`;
-    case 'EXTERNAL_IMPORT': return `Imported from ${e.platform ?? 'another platform'}`;
+    case 'EXTERNAL_IMPORT': return `${e.platform === 'steam' ? 'Steam' : e.platform ?? 'Imported'}${e.note ? ` · ${e.note}` : ''} · +${e.hours ?? 0} h${e.achievementsUnlocked ? ` · ${e.achievementsUnlocked} achievements` : ''}`;
     default: return e.event;
   }
 }
@@ -34,6 +35,8 @@ export default function GamerHub() {
     return () => { alive = false; };
   }, [board]);
 
+  const [rev, setRev] = useState(0);
+  const refresh = useCallback(() => setRev(n => n + 1), []);
   useEffect(() => {
     if (!signedIn) return;
     let alive = true;
@@ -43,7 +46,7 @@ export default function GamerHub() {
       const h = await gamer.history(r.profile.uid, 8); if (alive && !failed(h)) setHist(h.entries);
     });
     return () => { alive = false; };
-  }, [signedIn]);
+  }, [signedIn, rev]);
 
   const runVerify = async () => {
     if (!me) return; setVerify('Checking…');
@@ -53,6 +56,7 @@ export default function GamerHub() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,360px)_1fr]">
+      <div className="flex flex-col gap-4 min-w-0">
       <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
         <div className="flex items-center gap-2 mb-3"><Medal size={18} className="text-small-orange" /><h4 className="text-sm font-black uppercase tracking-widest">Your gamer card</h4></div>
         {!signedIn ? (
@@ -67,6 +71,9 @@ export default function GamerHub() {
                 <div>Play {me.scoreCard.play}</div><div>Skill {me.scoreCard.skill}</div><div>Achievements {me.scoreCard.achievements}</div><div>Linked {me.scoreCard.external}</div>
               </div>
             </div>
+            {me.externalHours > 0 && (
+              <div className="mt-3 text-[11px] text-white/60">Linked play · <span className="font-black text-white tabular-nums">{me.externalHours.toLocaleString()} h</span> from {me.platforms.map(p => (p === 'steam' ? 'Steam' : p)).join(', ')}</div>
+            )}
             {me.achievements.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-3">{me.achievements.map(a => <span key={a} className="px-2 py-1 rounded-full bg-small-orange/15 border border-small-orange/30 text-[10px] font-bold">{achTitle(a)}</span>)}</div>
             )}
@@ -81,6 +88,8 @@ export default function GamerHub() {
             {verify && <p className="mt-2 text-[11px] text-white/60">{verify}</p>}
           </>
         )}
+      </div>
+      {signedIn && <LinkedPlatforms onChanged={refresh} />}
       </div>
 
       <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:p-5 min-w-0">

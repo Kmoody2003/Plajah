@@ -28,11 +28,15 @@ export default defineConfig({
         });
         const { createGamerRouter } = await server.ssrLoadModule('/routes/gamerNet.ts');
         const { memoryGamerStore } = await server.ssrLoadModule('/services/gamerNet/store.ts');
+        const { labSteamFetch, labSteamLogin } = await server.ssrLoadModule('/labs/games/steamStub.ts');
         const app = express();
+        // Stand-in Steam sign-in page (the real one is steamcommunity.com/openid/login).
+        app.get('/__steam-stub/login', (req, res) => { res.redirect(302, labSteamLogin(new URLSearchParams(req.url.split('?')[1] || ''), req.get('referer') || '')); });
         app.use('/api/gamer', express.json(), createGamerRouter({
           store: memoryGamerStore(),
           verify: async (t) => (t.startsWith('tok-') ? t.slice(4) : null),
           userCard: async (uid) => ({ name: uid[0].toUpperCase() + uid.slice(1) }),
+          steam: { apiKey: 'lab-stub', fetch: labSteamFetch, loginBase: '/__steam-stub/login' },
         }));
         server.middlewares.use(app);
       },

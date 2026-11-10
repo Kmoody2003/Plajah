@@ -5,7 +5,10 @@
 //   play         5 per finished match, +10 a win, +4 a draw — counted for at most 5 matches per opponent
 //                per UTC day, so two friends can't farm each other
 //   achievements catalog points (first-party) or imported points, × source trust
-//   external     playtime and achievements from other platforms, × source trust (self-reported = 0)
+//   external     playtime and achievements from other platforms, × source trust (self-reported = 0).
+//                Playtime scores 4·√(total hours) per game, so an import tagged with externalGameId adds
+//                only the step from the game's previous total: syncing daily or once a year lands on the
+//                same number (√ is concave — summing √ of each delta would reward frequent syncs).
 //   skill        (rating − 1200) × 0.5 for each game above the starting rating, best 5 games
 //
 // LOCAL_PLAY (same device, vs CPU) is history only: nobody refereed it, so it never moves the score.
@@ -30,14 +33,16 @@ export interface GamerFold {
   localPlays: number;
   externalHours: number;
   platforms: string[];
+  /** `<source>:<platform>:<externalGameId>` → cumulative imported hours (the √ base for the next import). */
+  extGames?: Record<string, number>;
 }
 
-export const emptyFold = (): GamerFold => ({ events: 0, play: 0, achievements: 0, external: 0, games: {}, pairDay: {}, pairDayKey: '', achievementIds: [], localPlays: 0, externalHours: 0, platforms: [] });
+export const emptyFold = (): GamerFold => ({ events: 0, play: 0, achievements: 0, external: 0, games: {}, pairDay: {}, pairDayKey: '', achievementIds: [], localPlays: 0, externalHours: 0, platforms: [], extGames: {} });
 export const emptyStats = (): GameStats => ({ rating: START_RATING, rated: 0, wins: 0, losses: 0, draws: 0, streak: 0, best: 0 });
 const utcDay = (at: number) => new Date(at).toISOString().slice(0, 10);
 
 export function applyEvent(prev: GamerFold, e: GamerEntry): GamerFold {
-  const f: GamerFold = { ...prev, games: { ...prev.games }, pairDay: { ...prev.pairDay }, achievementIds: [...prev.achievementIds], platforms: [...prev.platforms], events: prev.events + 1 };
+  const f: GamerFold = { ...prev, games: { ...prev.games }, pairDay: { ...prev.pairDay }, achievementIds: [...prev.achievementIds], platforms: [...prev.platforms], extGames: { ...(prev.extGames ?? {}) }, events: prev.events + 1 };
   const trust = SOURCE_TRUST[e.source] ?? 0;
   switch (e.event) {
     case 'MATCH_RESULT': {
@@ -67,7 +72,14 @@ export function applyEvent(prev: GamerFold, e: GamerEntry): GamerFold {
       const hours = Math.max(0, Math.min(10_000, e.hours ?? 0));
       const ach = Math.max(0, Math.min(10_000, e.achievementsUnlocked ?? 0));
       f.externalHours += hours;
-      f.external += trust * (Math.sqrt(hours) * 4 + ach * 2);
+      if (e.externalGameId && e.platform) {
+        const gk = `${e.source}:${e.platform}:${e.externalGameId}`;
+        const before = f.extGames![gk] ?? 0, after = Math.min(10_000, before + hours);
+        f.extGames![gk] = after;
+        f.external += trust * ((Math.sqrt(after) - Math.sqrt(before)) * 4 + ach * 2);
+      } else {
+        f.external += trust * (Math.sqrt(hours) * 4 + ach * 2);
+      }
       if (e.platform && !f.platforms.includes(e.platform)) f.platforms.push(e.platform);
       break;
     }
