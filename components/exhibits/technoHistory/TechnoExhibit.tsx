@@ -10,6 +10,7 @@ import PioneersRoom, { PioneerSheet } from './PioneersRoom';
 import BerlinRoom from './BerlinRoom';
 import AtkinsTribute from './AtkinsTribute';
 import SpotPreviz from './SpotPreviz';
+import { ShareButton, shareTechnoExhibit } from './TechnoShare';
 
 const ROOMS = [
   { id: 'tx-entrance', label: 'Entrance' },
@@ -23,8 +24,8 @@ const ROOMS = [
 
 export interface TechnoExhibitProps {
   onBack?: () => void;
-  /** Opens the app's share-to-feed flow for the exhibit or the tribute. */
-  onShare?: (what: 'exhibit' | 'tribute') => void;
+  /** Posts a room to the feed. Defaults to shareTechnoExhibit (Plajah createPost); the lab passes a fake. */
+  onShare?: (roomId: string) => Promise<void>;
   /** Room to open on, e.g. 'tx-atkins'. */
   initialRoom?: string;
 }
@@ -73,7 +74,7 @@ function Archive() {
   );
 }
 
-export default function TechnoExhibit({ onBack, onShare, initialRoom }: TechnoExhibitProps) {
+export default function TechnoExhibit({ onBack, onShare = shareTechnoExhibit, initialRoom }: TechnoExhibitProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [room, setRoom] = useState('tx-entrance');
   const [pioneer, setPioneer] = useState<string | null>(null);
@@ -112,14 +113,14 @@ export default function TechnoExhibit({ onBack, onShare, initialRoom }: TechnoEx
             <button key={r.id} type="button" onClick={() => go(r.id)} aria-current={room === r.id ? 'location' : undefined}
               style={{ flex: 'none', cursor: 'pointer', border: 0, padding: '6px 9px', font: "600 11px/1 'IBM Plex Mono',monospace", letterSpacing: '.12em', textTransform: 'uppercase', background: room === r.id ? 'var(--tx-hazard)' : 'transparent', color: room === r.id ? '#111' : 'rgba(233,228,214,.75)' }}>{r.label}</button>
           ))}
-          {onShare && <button type="button" className="tx-chip" style={{ flex: 'none', marginLeft: 'auto' }} onClick={() => onShare('exhibit')}>Share</button>}
+          <ShareButton run={() => onShare(room)} label="Share this room" style={{ flex: 'none', marginLeft: 'auto' }} />
         </nav>
 
         <Entrance go={go} />
         <TimelineRoom onPioneer={setPioneer} />
         <PioneersRoom onOpen={setPioneer} />
         <BerlinRoom />
-        <AtkinsTribute onShare={onShare ? () => onShare('tribute') : undefined} />
+        <AtkinsTribute onShare={() => onShare('tx-atkins')} />
         <SpotPreviz />
         <Archive />
         <BoothDock />

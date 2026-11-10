@@ -5,5 +5,5 @@ import TechnoExhibit from '../../components/exhibits/technoHistory/TechnoExhibit
 
 const room = new URLSearchParams(location.search).get('room') || undefined;
 createRoot(document.getElementById('root')!).render(
-  <TechnoExhibit initialRoom={room} onBack={() => history.back()} onShare={(w) => alert(`Share ${w} → Plajah feed (wired in the app)`)} />,
+  <TechnoExhibit initialRoom={room} onBack={() => history.back()} onShare={async (r) => { await new Promise((ok) => setTimeout(ok, 400)); console.log('[lab] would post', r); }} />,
 );

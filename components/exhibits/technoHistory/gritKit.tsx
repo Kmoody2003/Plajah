@@ -72,7 +72,8 @@ export function useReveal<T extends HTMLElement>(): React.RefObject<T> {
 
 export function Reveal({ children, className = '', rot = 0, style, as: Tag = 'div', ...rest }: { children: React.ReactNode; className?: string; rot?: number; style?: React.CSSProperties; as?: keyof React.JSX.IntrinsicElements } & React.HTMLAttributes<HTMLElement>) {
   const ref = useReveal<HTMLElement>();
-  const T = Tag as unknown as React.ElementType;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const T: any = Tag;
   return <T ref={ref} className={`tx-reveal ${className}`} style={{ ...style, ['--tx-rot' as string]: `${rot}deg` }} {...rest}>{children}</T>;
 }
 

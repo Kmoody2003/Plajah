@@ -53,6 +53,7 @@ import { AudienceIcon } from './audience/AudienceIcon';
 import { describeAudience } from '../services/audienceCore';
 import { recordPostStat } from '../services/postAnalyticsService';
 import { LoreaExhibitEmbed } from './lorea/exhibits/LoreaNugget';
+import { TechnoExhibitEmbed } from './exhibits/technoHistory/TechnoShare';
 import {
   PlatformGroupSharePicker,
   publishToShareDestinations,
@@ -1010,6 +1011,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
           {(post as any).assetEmbed && !post.albumEmbed && (post as any).assetEmbed.type !== 'VIDEO' && (() => {
             const ae = (post as any).assetEmbed as { type: string; id: string; trackId?: string; title?: string; imageUrl?: string; image?: string; url?: string; subtitle?: string; sourceId?: string; channelNumber?: string; shelf?: string };
             if (ae.type === 'LOREA_EXHIBIT') return <div className="mt-3"><LoreaExhibitEmbed embed={ae as any} /></div>;
+            if (ae.type === 'TECHNO_EXHIBIT') return <div className="mt-3"><TechnoExhibitEmbed embed={ae as any} /></div>;
             const linkFor: Record<string, string> = {
               VIDEO: 'video',
               ARTICLE: 'article',

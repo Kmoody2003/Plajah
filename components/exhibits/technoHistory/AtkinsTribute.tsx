@@ -2,7 +2,8 @@
 // portrait, his story in seven chapters, a wall of typographic sleeves, and "Machine Funk": a playable
 // step sequencer (all sounds synthesized here) so visitors can make machine funk in his honour.
 import React, { useEffect, useRef, useState } from 'react';
-import { Play, Square, RotateCcw, Share2 } from 'lucide-react';
+import { Play, Square, RotateCcw } from 'lucide-react';
+import { ShareButton } from './TechnoShare';
 import { ATKINS_ALIASES, ATKINS_CHAPTERS, ATKINS_DEDICATION, ATKINS_SLEEVES } from '../../../data/technoExhibit/atkins';
 import { TX_DOCS, trackById } from '../../../data/technoExhibit/history';
 import { Reveal, Tape, tilt } from './gritKit';
@@ -75,7 +76,7 @@ function Sequencer() {
   );
 }
 
-export default function AtkinsTribute({ onShare }: { onShare?: () => void }) {
+export default function AtkinsTribute({ onShare }: { onShare?: () => Promise<void> }) {
   const { play } = useBooth();
   const interview = TX_DOCS.find((d) => d.id === 'doc-atkins-interview');
   return (
@@ -99,7 +100,7 @@ export default function AtkinsTribute({ onShare }: { onShare?: () => void }) {
             <p className="tx-type" style={{ fontSize: 16, lineHeight: 1.65, color: 'var(--tx-paper)', maxWidth: 560 }}>{ATKINS_DEDICATION}</p>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               {interview && <button type="button" className="tx-btn" onClick={() => play(interview)}><Play size={14} /> Hear him tell it</button>}
-              {onShare && <button type="button" className="tx-btn ghost" onClick={onShare}><Share2 size={14} /> Share the tribute</button>}
+              {onShare && <ShareButton run={onShare} label="Share the tribute" className="tx-btn ghost" />}
             </div>
           </div>
         </div>
