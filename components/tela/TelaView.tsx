@@ -151,10 +151,9 @@ const TemplateLibrary = React.lazy(() => import('../templates/TemplateLibrary'))
 const MerchDesignerStudio = React.lazy(() => import('./merch/MerchDesignerStudio'));
 const StoryIntelWorkspace = React.lazy(() => import('./storyIntel/StoryIntelWorkspace'));
 const ArgillaStudio = React.lazy(() => import('../argilla/ArgillaStudio'));
-const CadRoom = React.lazy(() => import('../cad/CadRoom'));
-const BioRoom = React.lazy(() => import('../bio/BioRoom'));
-const ElecRoom = React.lazy(() => import('../elec/ElecRoom'));
-const PatternRoom = React.lazy(() => import('../soft/PatternRoom'));
+// CAD, Electronics, Sewing and Biology open inside the unified workspace shell (tabs, Simple/Pro,
+// tools that grow with the person); each room keeps its send-to-document hooks via roomProps.
+const WorkspaceShell = React.lazy(() => import('../workspace/WorkspaceShell'));
 const PrepressPanel = React.lazy(() => import('./print/PrepressPanel'));
 const LocalCreativeStudio = React.lazy(() => import('../Fabula/LocalCreativeStudio').then(m => ({ default: m.LocalCreativeStudio })));
 const TelaWritingStudio = React.lazy(() => import('./TelaWritingStudio').then(m => ({ default: m.TelaWritingStudio })));
@@ -3114,73 +3113,75 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     );
   }
 
-  if (bioOpen) {
-    const ref = bioOpen.structure;
-    return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0b0d10] text-white/60">Loading Biology Lab…</div>}>
-      <BioRoom
-        initialTab={bioOpen.tab}
-        loadStructure={ref ? async () => {
-          const r = await fetch(ref.sourceSrc, { credentials: 'include' }); if (!r.ok) throw new Error(`Could not load ${ref.sourceName} (${r.status})`);
-          return { name: ref.sourceName, text: await r.text(), credit: ref.credit, licence: ref.licence, url: '' };
-        } : undefined}
-        loadModel={bioOpen.simulation ? async () => {
-          const sim = bioOpen.simulation!; const r = await fetch(sim.sbmlSrc, { credentials: 'include' }); if (!r.ok) throw new Error(`Could not load the model (${r.status})`);
-          return { xml: await r.text(), tEnd: sim.tEnd, name: sim.modelName };
-        } : undefined}
-        onClose={() => setBioOpen(null)}
-        upload={f => uploadTelaAsset(f)}
-        makeId={() => uid('dev')}
-        onAddToTela={showHome ? undefined : async device => {
-          addFrame('BOARD', 'FREE', device, device.type === 'CHART' ? device.title : (device.bio?.id ?? device.name), { size: { w: device.width, h: device.height } });
-        }}
-      />
-    </React.Suspense>;
-  }
-
-  if (elecOpen) {
-    const ref = elecOpen.elec;
+  const workspaceOpen = bioOpen ? 'biology' : elecOpen ? 'electronics' : cadOpen ? 'architecture' : sewOpen ? 'sewing' : null;
+  if (workspaceOpen) {
     const toGrid = (rows: string[][]): TelaGridDevice => {
       const cells: Record<string, string> = {};
       rows.forEach((r, ri) => r.forEach((v, ci) => { if (v !== '') cells[cellKey(ci, ri)] = v; }));
       return { id: uid('dev'), type: 'GRID', rows: Math.max(8, rows.length + 2), cols: Math.max(4, ...rows.map(r => r.length)) + 1, cells };
     };
-    return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0c0d12] text-white/60">Loading Electronics Lab…</div>}>
-      <ElecRoom
-        getToken={async () => (auth.currentUser ? auth.currentUser.getIdToken() : null)}
-        loadInitial={ref ? async () => { const r = await fetch(ref.circuitSrc, { credentials: 'include' }); if (!r.ok) throw new Error(`Could not load the circuit (${r.status})`); return r.json(); } : undefined}
-        onClose={() => setElecOpen(null)}
-        onSendTable={showHome ? undefined : async (title, rows) => { addFrame('BOARD', 'FREE', toGrid(rows), title); }}
-        onAddToTela={showHome ? undefined : async ({ circuit, svg, width, height, bom, summary }) => {
-          const base = (circuit.name || 'circuit').replace(/[^A-Za-z0-9 _-]+/g, '').trim() || 'circuit';
-          const sheet = await uploadTelaAsset(new File([svg], `${base}.svg`, { type: 'image/svg+xml' }));
-          const json = await uploadTelaAsset(new File([JSON.stringify(circuit)], `${base}.plajah-circuit.json`, { type: 'application/json' }));
-          const scale = Math.min(1, 900 / width); const size = { w: Math.round(width * scale), h: Math.round(height * scale) };
-          const device: TelaMediaDevice = { id: uid('dev'), type: 'MEDIA', kind: 'IMAGE', name: `${base}.svg`, src: sheet.src, mimeType: 'image/svg+xml', size: svg.length, width: size.w, height: size.h, storagePath: sheet.storagePath, sessionOnly: sheet.sessionOnly,
-            elec: { name: circuit.name, circuitSrc: json.src, circuitStoragePath: json.storagePath, stats: { parts: circuit.parts.filter(p => p.kind !== 'ground').length, nets: summary.nets, errors: summary.errors, warnings: summary.warnings } } };
-          addFrame('BOARD', 'FREE', device, circuit.name, { size });
-          addFrame('BOARD', 'FREE', toGrid(bom), `${circuit.name} — parts list`);
-        }}
-      />
-    </React.Suspense>;
-  }
-
-  if (cadOpen) {
-    return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0d0c12] text-white/60">Loading CAD &amp; BIM…</div>}>
-      <CadRoom
-        getToken={async () => (auth.currentUser ? auth.currentUser.getIdToken() : null)}
-        initialFile={cadOpen.file ?? null}
-        loadInitial={cadOpen.cad ? () => fetchCadSource(cadOpen.cad!) : undefined}
-        onClose={() => setCadOpen(null)}
-        onSendTable={showHome ? undefined : async (title, rows) => {
-          // A schedule becomes a native Tela grid: editable, chartable, exportable like any sheet.
-          const cells: Record<string, string> = {};
-          rows.forEach((r, ri) => r.forEach((v, ci) => { if (v !== '') cells[cellKey(ci, ri)] = v; }));
-          const grid: TelaGridDevice = { id: uid('dev'), type: 'GRID', rows: Math.max(8, rows.length + 2), cols: Math.max(4, ...rows.map(r => r.length)) + 1, cells };
-          addFrame('BOARD', 'FREE', grid, title);
-        }}
-        onSendToTela={showHome ? undefined : async (model, source) => {
-          const device = await cadToTelaDevice(model, source, f => uploadTelaAsset(f), () => uid('dev'));
-          addFrame('BOARD', 'FREE', device, source.name.replace(/\.[^.]+$/, ''), { size: { w: device.width, h: device.height } });
+    const getToken = async () => (auth.currentUser ? auth.currentUser.getIdToken() : null);
+    const closeRooms = () => { setBioOpen(null); setElecOpen(null); setCadOpen(null); setSewOpen(false); };
+    const toDoc = !showHome;
+    // A schedule becomes a native Tela grid: editable, chartable, exportable like any sheet.
+    const sendTable = toDoc ? async (title: string, rows: string[][]) => { addFrame('BOARD', 'FREE', toGrid(rows), title); } : undefined;
+    const cadHooks = {
+      onSendTable: sendTable,
+      onSendToTela: toDoc ? async (model: Parameters<typeof cadToTelaDevice>[0], source: Parameters<typeof cadToTelaDevice>[1]) => {
+        const device = await cadToTelaDevice(model, source, f => uploadTelaAsset(f), () => uid('dev'));
+        addFrame('BOARD', 'FREE', device, source.name.replace(/\.[^.]+$/, ''), { size: { w: device.width, h: device.height } });
+      } : undefined,
+    };
+    const bioRef = bioOpen?.structure, bioSim = bioOpen?.simulation, elecRef = elecOpen?.elec;
+    return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0d0c12] text-white/60">Opening the workspace…</div>}>
+      <WorkspaceShell
+        initial={workspaceOpen}
+        getToken={getToken}
+        onClose={closeRooms}
+        backLabel={showHome ? 'Tela' : (doc.title || 'Untitled canvas')}
+        roomProps={{
+          architecture: { ...cadHooks, initialFile: cadOpen?.file ?? null, loadInitial: cadOpen?.cad ? () => fetchCadSource(cadOpen.cad!) : undefined },
+          mechanical: cadHooks,
+          electronics: {
+            loadInitial: elecRef ? async () => { const r = await fetch(elecRef.circuitSrc, { credentials: 'include' }); if (!r.ok) throw new Error(`Could not load the circuit (${r.status})`); return r.json(); } : undefined,
+            onSendTable: sendTable,
+            onAddToTela: toDoc ? async ({ circuit, svg, width, height, bom, summary }) => {
+              const base = (circuit.name || 'circuit').replace(/[^A-Za-z0-9 _-]+/g, '').trim() || 'circuit';
+              const sheet = await uploadTelaAsset(new File([svg], `${base}.svg`, { type: 'image/svg+xml' }));
+              const json = await uploadTelaAsset(new File([JSON.stringify(circuit)], `${base}.plajah-circuit.json`, { type: 'application/json' }));
+              const scale = Math.min(1, 900 / width); const size = { w: Math.round(width * scale), h: Math.round(height * scale) };
+              const device: TelaMediaDevice = { id: uid('dev'), type: 'MEDIA', kind: 'IMAGE', name: `${base}.svg`, src: sheet.src, mimeType: 'image/svg+xml', size: svg.length, width: size.w, height: size.h, storagePath: sheet.storagePath, sessionOnly: sheet.sessionOnly,
+                elec: { name: circuit.name, circuitSrc: json.src, circuitStoragePath: json.storagePath, stats: { parts: circuit.parts.filter(p => p.kind !== 'ground').length, nets: summary.nets, errors: summary.errors, warnings: summary.warnings } } };
+              addFrame('BOARD', 'FREE', device, circuit.name, { size });
+              addFrame('BOARD', 'FREE', toGrid(bom), `${circuit.name} — parts list`);
+            } : undefined,
+          },
+          sewing: {
+            onAddToTela: toDoc && !merchStudioOpen ? async ({ title, svg, width, height, cutList }) => {
+              const base = title.replace(/[^A-Za-z0-9 _-]+/g, '').trim() || 'pattern';
+              const sheet = await uploadTelaAsset(new File([svg], `${base} layout.svg`, { type: 'image/svg+xml' }));
+              const scale = Math.min(1, 900 / Math.max(1, width)); const size = { w: Math.round(width * scale), h: Math.round(height * scale) };
+              const device: TelaMediaDevice = { id: uid('dev'), type: 'MEDIA', kind: 'IMAGE', name: `${base} layout.svg`, src: sheet.src, mimeType: 'image/svg+xml', size: svg.length, width: size.w, height: size.h, storagePath: sheet.storagePath, sessionOnly: sheet.sessionOnly };
+              addFrame('BOARD', 'FREE', device, `${title} — fabric layout`, { size });
+              addFrame('BOARD', 'FREE', toGrid(cutList), `${title} — cut list`);
+            } : undefined,
+          },
+          biology: {
+            initialTab: bioOpen?.tab,
+            loadStructure: bioRef ? async () => {
+              const r = await fetch(bioRef.sourceSrc, { credentials: 'include' }); if (!r.ok) throw new Error(`Could not load ${bioRef.sourceName} (${r.status})`);
+              return { name: bioRef.sourceName, text: await r.text(), credit: bioRef.credit, licence: bioRef.licence, url: '' };
+            } : undefined,
+            loadModel: bioSim ? async () => {
+              const r = await fetch(bioSim.sbmlSrc, { credentials: 'include' }); if (!r.ok) throw new Error(`Could not load the model (${r.status})`);
+              return { xml: await r.text(), tEnd: bioSim.tEnd, name: bioSim.modelName };
+            } : undefined,
+            upload: f => uploadTelaAsset(f),
+            makeId: () => uid('dev'),
+            onAddToTela: toDoc ? async device => {
+              addFrame('BOARD', 'FREE', device, device.type === 'CHART' ? device.title : (device.bio?.id ?? device.name), { size: { w: device.width, h: device.height } });
+            } : undefined,
+          },
         }}
       />
     </React.Suspense>;
@@ -3205,24 +3206,6 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   if (storyIntel) {
     return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0d0c12] text-white/60">Loading Story Intelligence…</div>}>
       <StoryIntelWorkspace onClose={() => setStoryIntel(null)} initialVideoId={storyIntel.videoId} initialSource={storyIntel.source} initialView={storyIntel.view}/>
-    </React.Suspense>;
-  }
-
-  if (sewOpen) {
-    return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0d0c11] text-white/60">Loading Sewing &amp; Plush…</div>}>
-      <PatternRoom
-        getToken={async () => (auth.currentUser ? auth.currentUser.getIdToken() : null)}
-        onClose={() => setSewOpen(false)}
-        onAddToTela={showHome || merchStudioOpen ? undefined : async ({ title, svg, width, height, cutList }) => {
-          const base = title.replace(/[^A-Za-z0-9 _-]+/g, '').trim() || 'pattern';
-          const sheet = await uploadTelaAsset(new File([svg], `${base} layout.svg`, { type: 'image/svg+xml' }));
-          const scale = Math.min(1, 900 / Math.max(1, width)); const size = { w: Math.round(width * scale), h: Math.round(height * scale) };
-          const device: TelaMediaDevice = { id: uid('dev'), type: 'MEDIA', kind: 'IMAGE', name: `${base} layout.svg`, src: sheet.src, mimeType: 'image/svg+xml', size: svg.length, width: size.w, height: size.h, storagePath: sheet.storagePath, sessionOnly: sheet.sessionOnly };
-          addFrame('BOARD', 'FREE', device, `${title} — fabric layout`, { size });
-          const cells: Record<string, string> = {}; cutList.forEach((r, ri) => r.forEach((v, ci) => { if (v !== '') cells[cellKey(ci, ri)] = v; }));
-          addFrame('BOARD', 'FREE', { id: uid('dev'), type: 'GRID', rows: Math.max(8, cutList.length + 2), cols: Math.max(4, ...cutList.map(r => r.length)) + 1, cells } as TelaGridDevice, `${title} — cut list`);
-        }}
-      />
     </React.Suspense>;
   }
 

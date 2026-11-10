@@ -2,6 +2,7 @@
 // maker exchange (local shops and quote requests).
 //
 //   GET  /safety/recalls?q=charger      CPSC recalls (public API, no key), cached 6 h
+//   GET  /workspace/profile              the caller's workspace skill profile (PUT merges and saves)
 //   GET  /terms                          { version, accepted } for the signed-in user
 //   POST /terms        { version }       record acceptance (versioned)
 //   GET  /supply/search?q=NE555P         DigiKey + Mouser offers when the operator set keys
@@ -23,6 +24,7 @@ import { trimCpsc, type RecallHit } from '../services/safety/hazards';
 import { BUILD_TERMS_VERSION } from '../services/safety/terms';
 import { digikeyBody, digikeyOffers, mouserBody, mouserOffers, type Offer } from '../services/supply/sourcing';
 import { SHOP_CAPABILITIES } from '../services/supply/directory';
+import { emptyProfile, mergeProfiles, sanitizeProfile } from '../services/workspace/skillProfile';
 
 export const makerBuildRouter = Router();
 
@@ -48,6 +50,28 @@ makerBuildRouter.get('/safety/recalls', async (req: Request, res: Response) => {
     recallCache.set(key, { at: Date.now(), hits }); if (recallCache.size > 500) recallCache.delete(recallCache.keys().next().value!);
     res.json({ source: 'CPSC', q, hits });
   } catch (e: any) { res.status(502).json({ error: `Recall lookup failed: ${String(e?.message ?? e)}` }); }
+});
+
+// ---------------------------------------------------------------- workspace skill profile
+// Which tools someone has used and which guide paths they've finished (services/workspace/skillProfile.ts),
+// so the same tools show on every device. Stored as one sanitised JSON string; merged with the server
+// copy so two devices never lose each other's progress.
+makerBuildRouter.get('/workspace/profile', async (req: Request, res: Response) => {
+  const uid = await uidOf(req); if (!uid) { res.status(401).json({ error: 'Sign in to sync your workspace' }); return; }
+  const d = await fsGet(`workspaceProfiles/${uid}`);
+  let profile = emptyProfile(); try { if (typeof d?.json === 'string') profile = sanitizeProfile(JSON.parse(d.json)); } catch { /* corrupt copy: start empty */ }
+  res.json({ profile });
+});
+makerBuildRouter.put('/workspace/profile', async (req: Request, res: Response) => {
+  const uid = await uidOf(req); if (!uid) { res.status(401).json({ error: 'Sign in to sync your workspace' }); return; }
+  const incoming = sanitizeProfile(req.body?.profile);
+  const d = await fsGet(`workspaceProfiles/${uid}`);
+  let stored = emptyProfile(); try { if (typeof d?.json === 'string') stored = sanitizeProfile(JSON.parse(d.json)); } catch { /* replace */ }
+  const profile = mergeProfiles(stored, incoming);
+  const json = JSON.stringify(profile); if (json.length > 60_000) { res.status(413).json({ error: 'Profile too large' }); return; }
+  const ok = await fsSet(`workspaceProfiles/${uid}`, { json, updatedAt: profile.updatedAt });
+  if (!ok) { res.status(502).json({ error: 'Could not save your workspace profile' }); return; }
+  res.json({ profile });
 });
 
 // ---------------------------------------------------------------- terms

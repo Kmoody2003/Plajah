@@ -19,13 +19,19 @@ import { softHazards, softLabels, softRecallQueries, AUDIENCE_LABEL } from '../.
 import SafetyPanel, { BuildTermsGate, termsAccepted } from '../safety/SafetyPanel';
 import ExchangeRoom from '../supply/ExchangeRoom';
 import { suppliersFor, type Category } from '../../services/supply/directory';
+import { useToolRail, AriaToolHint, FreshDot } from '../workspace/useToolRail';
+import { SEW, registerSewTools, type SewToolDoc, type SewToolId } from '../../services/soft/workspaceTools';
+import type { Level } from '../../services/workspace/guidePath';
+
+registerSewTools();
 
 const FitRoom = React.lazy(() => import('./drape/FitRoom'));
 
 export interface PatternAddArgs { title: string; svg: string; width: number; height: number; cutList: string[][] }
-export interface PatternRoomProps { onClose?: () => void; getToken?: () => Promise<string | null>; apiBase?: string; initialTemplate?: string; onAddToTela?: (a: PatternAddArgs) => Promise<void> }
+export interface PatternRoomProps { onClose?: () => void; getToken?: () => Promise<string | null>; apiBase?: string; initialTemplate?: string; onAddToTela?: (a: PatternAddArgs) => Promise<void>; /** Simple/Pro from the workspace shell. */ level?: Level }
 
 const C = { bg: '#0d0c11', panel: '#14121a', line: 'rgba(255,255,255,.08)', text: '#ece9f1', dim: 'rgba(255,255,255,.5)', accent: '#f472b6' };
+const NO_SEL: number[] = [];
 const KINDS: Array<[string, string]> = [['plush', 'Plush'], ['home', 'Home textiles'], ['bag', 'Bags'], ['apparel', 'Clothing']];
 const CUTTERS = [{ id: 'scissors', label: 'Scissors / rotary cutter' }, { id: 'drag-knife', label: 'Drag-knife cutter (Cricut Maker, Silhouette, plotter)' }, { id: 'laser-co2', label: 'CO₂ laser' }];
 const LASER_FABRICS = ['Cotton', 'Felt (wool)', 'Polyester', 'Fleece', 'Minky', 'Nylon', 'Faux leather (PVC)', 'Faux leather (PU)', 'Leather'];
@@ -71,7 +77,7 @@ function MarkerSvg({ mk, unit }: { mk: Marker; unit: 'cm' | 'in' }) {
   </svg>;
 }
 
-export default function PatternRoom({ onClose, getToken, apiBase = '', initialTemplate, onAddToTela }: PatternRoomProps) {
+export default function PatternRoom({ onClose, getToken, apiBase = '', initialTemplate, onAddToTela, level = 'simple' }: PatternRoomProps) {
   const [tid, setTid] = useState(initialTemplate && softTemplateById(initialTemplate) ? initialTemplate : 'plush-pal');
   const tpl = softTemplateById(tid)!;
   const [vals, setVals] = useState<Record<string, Record<string, ParamValue>>>({});
@@ -92,6 +98,13 @@ export default function PatternRoom({ onClose, getToken, apiBase = '', initialTe
 
   const pattern: Pattern | null = useMemo(() => { try { return tpl.build(v); } catch (e) { console.error(e); return null; } }, [tid, JSON.stringify(v)]); // eslint-disable-line react-hooks/exhaustive-deps
   const allSizes = useMemo(() => sizesOf(tpl), [tpl]);
+  // Tools join as the work calls for them (services/soft/workspaceTools.ts); Safety is always shown.
+  const edited = Object.keys(vals[tid] ?? {}).length > 0;
+  const railDoc = useMemo<SewToolDoc>(() => ({ kind: tpl.kind, edited, selling, sizes: allSizes.length }), [tpl.kind, edited, selling, allSizes.length]);
+  const rail = useToolRail<SewToolDoc>(SEW, railDoc, NO_SEL, level, getToken);
+  const VIEW_TOOL = { pieces: 'pieces', layout: 'layout', '3d': 'fit3d' } as const;
+  const openView = (x: typeof view) => { setView(x); rail.used(VIEW_TOOL[x]); };
+  const openRight = (x: typeof right) => { setRight(x); rail.used(x); };
   const gradeUi = gradeBy[tid] ?? { on: false, from: '', to: '' };
   const rangeSizes = useMemo(() => {
     if (!gradeUi.on || allSizes.length < 2) return [];
@@ -118,9 +131,9 @@ export default function PatternRoom({ onClose, getToken, apiBase = '', initialTe
   const cats: Category[] = tpl.kind === 'plush' ? ['plush', 'textile'] : tpl.kind === 'apparel' ? ['apparel', 'print-on-demand'] : ['textile', 'print-on-demand'];
   const processes = tpl.kind === 'plush' ? ['plush', 'pattern'] : tpl.kind === 'apparel' ? ['cut-sew', 'sewing', 'pattern'] : ['sewing', 'upholstery'];
 
-  const runPdf = async (paper: Paper) => { if (!pattern) return; setBusy(paper); try { const r = await printPdf(pattern, paper, unit, grade); download(`${name}${grade ? ` graded ${sizeRangeLabel(grade.sizes)}` : ''} ${paper}.pdf`, r.bytes, 'application/pdf'); setMsg(`${r.pages} page ${grade ? `graded (${sizeRangeLabel(grade.sizes)}) ` : ''}PDF ready. Print at 100% and check the test square.`); } finally { setBusy(''); } };
-  const runPack = async () => { if (!pattern) return; setBusy('pack'); try { const b = await techPackPdf(pattern, { ...pack, audience: AUDIENCE_LABEL[audience], hazards, labels: softLabels(pattern, audience, selling), unit, grade }); download(`${name} tech pack.pdf`, b, 'application/pdf'); } finally { setBusy(''); } };
-  const runDxf = () => { if (!pattern) return; download(`${name} cut.dxf`, writeDxf(patternModel(pattern, { cutOnly: cutter !== 'scissors', widths })), 'application/dxf'); };
+  const runPdf = async (paper: Paper) => { if (!pattern) return; rail.used('make'); setBusy(paper); try { const r = await printPdf(pattern, paper, unit, grade); download(`${name}${grade ? ` graded ${sizeRangeLabel(grade.sizes)}` : ''} ${paper}.pdf`, r.bytes, 'application/pdf'); setMsg(`${r.pages} page ${grade ? `graded (${sizeRangeLabel(grade.sizes)}) ` : ''}PDF ready. Print at 100% and check the test square.`); } finally { setBusy(''); } };
+  const runPack = async () => { if (!pattern) return; rail.used('techpack'); setBusy('pack'); try { const b = await techPackPdf(pattern, { ...pack, audience: AUDIENCE_LABEL[audience], hazards, labels: softLabels(pattern, audience, selling), unit, grade }); download(`${name} tech pack.pdf`, b, 'application/pdf'); } finally { setBusy(''); } };
+  const runDxf = () => { if (!pattern) return; rail.used('make'); download(`${name} cut.dxf`, writeDxf(patternModel(pattern, { cutOnly: cutter !== 'scissors', widths })), 'application/dxf'); };
   const runGradedDxf = () => { if (!grade) return; download(`${name} graded ${sizeRangeLabel(grade.sizes)}.dxf`, writeDxf(gradedModel(grade)), 'application/dxf'); setMsg(`Graded DXF: one layer per size (SIZE-${grade.sizes[0]} ... SIZE-${grade.sizes[grade.sizes.length - 1]}).`); };
   const runSvg = (mk: Marker) => download(`${name} ${mk.role}.svg`, markerSvg(mk, cutter !== 'scissors'), 'image/svg+xml');
   const addToDoc = async () => {
@@ -162,17 +175,19 @@ export default function PatternRoom({ onClose, getToken, apiBase = '', initialTe
           <div className="text-[10px] font-extrabold uppercase tracking-[.12em] mt-2 mb-1" style={{ color: C.dim }}>Measurements</div>
           {tid === 'plush-drawing' && <DrawingTracer key={tid} onOutline={o => setParam('outline', o)}/>}
           {tpl.params.filter(p => !p.hidden).map(paramInput)}
-          {allSizes.length > 1 && <div className="mt-3 pt-2 border-t" style={{ borderColor: C.line }} data-testid="sew-grade">
-            <label className="flex items-center gap-2 text-[12px] py-1"><input type="checkbox" checked={gradeUi.on} onChange={e => setGrade({ on: e.target.checked })} data-testid="sew-grade-on"/><Layers size={12}/>Nest sizes (graded pattern)</label>
+          {allSizes.length > 1 && (rail.shows('grade') || gradeUi.on) && <div className="mt-3 pt-2 border-t relative" style={{ borderColor: C.line }} data-testid="sew-grade">
+            {rail.fresh.has('grade') && <FreshDot reason={rail.fresh.get('grade')!} testid="sew-fresh-grade"/>}
+            <label className="flex items-center gap-2 text-[12px] py-1"><input type="checkbox" checked={gradeUi.on} onChange={e => { if (e.target.checked) rail.used('grade'); setGrade({ on: e.target.checked }); }} data-testid="sew-grade-on"/><Layers size={12}/>Nest sizes (graded pattern)</label>
             {gradeUi.on && <div className="grid grid-cols-2 gap-1.5">
               {(['from', 'to'] as const).map(k => <label key={k} className="block text-[11px]" style={{ color: C.dim }}>{k === 'from' ? 'From' : 'To'}<select className="sew-in" value={(k === 'from' ? rangeSizes[0] : rangeSizes[rangeSizes.length - 1]) ?? ''} onChange={e => setGrade({ [k]: e.target.value, ...(k === 'from' ? { to: rangeSizes[rangeSizes.length - 1] } : { from: rangeSizes[0] }) })} data-testid={`sew-grade-${k}`}>{allSizes.map(s => <option key={s} value={s}>{s}</option>)}</select></label>)}
               <div className="col-span-2 text-[10px]" style={{ color: C.dim }}>{grade ? `${grade.sizes.length} sizes nested on the preview, print PDF, DXF and tech pack.` : 'Pick at least two sizes.'}</div></div>}
           </div>}
         </div>
       </div>
-      <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col relative">
         <div className="flex items-center gap-1 px-3 h-10 border-b shrink-0" style={{ borderColor: C.line }}>
-          {(['pieces', 'layout', '3d'] as const).map(x => <button key={x} className={`sew-tab${view === x ? ' sew-tab-on' : ''}`} onClick={() => setView(x)} data-testid={`sew-view-${x}`}>{x === 'pieces' ? 'Pattern pieces' : x === 'layout' ? 'Fabric layout' : '3D fit'}</button>)}
+          {(['pieces', 'layout', '3d'] as const).filter(x => rail.shows(VIEW_TOOL[x]) || view === x).map(x => <button key={x} className={`sew-tab relative${view === x ? ' sew-tab-on' : ''}`} onClick={() => openView(x)} data-testid={`sew-view-${x}`}>{x === 'pieces' ? 'Pattern pieces' : x === 'layout' ? 'Fabric layout' : '3D fit'}{rail.fresh.has(VIEW_TOOL[x]) && <FreshDot reason={rail.fresh.get(VIEW_TOOL[x])!} testid={`sew-fresh-${VIEW_TOOL[x]}`}/>}</button>)}
+          {(rail.hidden > 0 || rail.showAll) && <button className="sew-tab" onClick={() => rail.setShowAll(!rail.showAll)} title={rail.showAll ? 'Show only the tools this pattern needs' : 'Show every tool'} data-testid="sew-tools-more">{rail.showAll ? 'Fewer' : `+${rail.hidden}`}</button>}
           {pattern?.fill && <span className="ml-auto text-[11px]" style={{ color: C.dim }}>Fill ≈ {pattern.fill.grams} g</span>}
         </div>
         <div className="flex-1 min-h-0 overflow-auto p-3">
@@ -188,10 +203,16 @@ export default function PatternRoom({ onClose, getToken, apiBase = '', initialTe
             {mk.tooWide.length > 0 && <div className="text-[11px] mb-1" style={{ color: '#fbbf24' }}>Wider than this fabric: {mk.tooWide.join(', ')}. Use wider fabric or piece it.</div>}
             <MarkerSvg mk={mk} unit={unit}/></div>; })}
         </div>
+        {rail.suggestion && view !== '3d' && <AriaToolHint tool={rail.suggestion} level={level} testid="sew-aria-hint" style={{ bottom: 14 }} onDismiss={rail.dismiss} onTry={() => {
+          const id = rail.suggestion!.id as SewToolId;
+          if (id === 'layout') openView('layout'); else if (id === 'fit3d') openView('3d');
+          else if (id === 'grade') { rail.used('grade'); setGrade({ on: true }); }
+          else if (id === 'techpack') { rail.used('techpack'); setRight('make'); }
+        }}/>}
       </div>
       <div className="lg:w-[340px] shrink-0 border-t lg:border-t-0 lg:border-l flex flex-col min-h-0" style={{ borderColor: C.line, background: C.panel }}>
         <div className="flex gap-1 p-2 border-b overflow-x-auto sew-bar" style={{ borderColor: C.line }}>
-          {([['safety', 'Safety', ShieldAlert], ['make', 'Make', Printer], ['materials', 'Materials', Package], ['steps', 'Steps', ListChecks]] as const).map(([id, label, Icon]) => <button key={id} className={`sew-tab${right === id ? ' sew-tab-on' : ''}`} onClick={() => setRight(id)} data-testid={`sew-r-${id}`}><Icon size={12}/>{label}</button>)}
+          {([['safety', 'Safety', ShieldAlert], ['make', 'Make', Printer], ['materials', 'Materials', Package], ['steps', 'Steps', ListChecks]] as const).map(([id, label, Icon]) => <button key={id} className={`sew-tab${right === id ? ' sew-tab-on' : ''}`} onClick={() => openRight(id)} data-testid={`sew-r-${id}`}><Icon size={12}/>{label}</button>)}
         </div>
         <div className="flex-1 overflow-y-auto p-3">
           {right === 'safety' && <SafetyPanel hazards={hazards} queries={queries} acked={acks} onAck={(id, on) => { setAcks(a => (on ? [...a, id] : a.filter(x => x !== id))); setMsg(''); }} apiBase={apiBase} title="Product safety"/>}
@@ -201,15 +222,15 @@ export default function PatternRoom({ onClose, getToken, apiBase = '', initialTe
                 <button className="sew-btn justify-center" onClick={() => guard(() => runPdf('a0'))} disabled={!!busy}>Copy shop A0</button><button className="sew-btn justify-center" onClick={() => guard(() => runPdf('roll36'))} disabled={!!busy}>36″ roll</button></div>
               <div className="text-[10.5px] mt-1" style={{ color: C.dim }}>Print at 100% (actual size) and measure the test square.</div></div>
             <div><div className="sew-h"><Scissors size={12}/>Cut it</div>
-              <select className="sew-in" value={cutter} onChange={e => setCutter(e.target.value)} data-testid="sew-cutter">{CUTTERS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
+              {(rail.shows('cutter') || cutter !== 'scissors') && <select className="sew-in" value={cutter} onChange={e => { rail.used('cutter'); setCutter(e.target.value); }} data-testid="sew-cutter">{CUTTERS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>}
               {cutter === 'laser-co2' && <select className="sew-in mt-1" value={laserFabric} onChange={e => setLaserFabric(e.target.value)} data-testid="sew-laser-fabric">{LASER_FABRICS.map(f => <option key={f}>{f}</option>)}</select>}
               <div className="grid grid-cols-2 gap-1.5 mt-1.5"><button className="sew-btn justify-center" onClick={() => guard(runDxf)} data-testid="sew-dxf"><Download size={12}/>DXF</button>
                 {markers.map(mk => <button key={mk.role} className="sew-btn justify-center" onClick={() => guard(() => runSvg(mk))}><Download size={12}/>SVG {mk.role}</button>)}
                 {grade && <button className="sew-btn justify-center col-span-2" onClick={() => guard(runGradedDxf)} data-testid="sew-dxf-graded"><Layers size={12}/>Graded DXF {sizeRangeLabel(grade.sizes)} (layer per size)</button>}</div>
               <div className="text-[10.5px] mt-1" style={{ color: C.dim }}>{cutter === 'scissors' ? 'Files include seam lines, grain and labels.' : 'Cut-line files: one layer, notches as 4 mm slits. Fabric on a mat (drag knife) or flat on the honeycomb (laser).'}</div></div>
-            <div><div className="sew-h"><FileText size={12}/>Tech pack (for a seamstress or factory)</div>
+            {rail.shows('techpack') && <div className="relative"><div className="sew-h"><FileText size={12}/>Tech pack (for a seamstress or factory)</div>{rail.fresh.has('techpack') && <FreshDot reason={rail.fresh.get('techpack')!} testid="sew-fresh-techpack"/>}
               {(['style', 'designer', 'season', 'colourways'] as const).map(k => <input key={k} className="sew-in mb-1" placeholder={k[0].toUpperCase() + k.slice(1)} value={pack[k]} onChange={e => setPack(p => ({ ...p, [k]: e.target.value }))}/>)}
-              <button className="sew-btn sew-primary w-full justify-center" onClick={() => guard(runPack)} disabled={!!busy} data-testid="sew-techpack"><FileText size={12}/>{busy === 'pack' ? 'Building…' : 'Download tech pack PDF'}</button></div>
+              <button className="sew-btn sew-primary w-full justify-center" onClick={() => guard(runPack)} disabled={!!busy} data-testid="sew-techpack"><FileText size={12}/>{busy === 'pack' ? 'Building…' : 'Download tech pack PDF'}</button></div>}
             <PodExport pattern={pattern} name={name} guard={guard}/>
             <div><div className="sew-h"><Store size={12}/>Get it made</div>
               <button className="sew-btn w-full justify-center mb-1.5" onClick={() => setExchange(true)}>Request quotes from makers</button>

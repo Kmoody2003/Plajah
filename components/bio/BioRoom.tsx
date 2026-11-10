@@ -4,6 +4,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useRoomHost } from '../workspace/roomHost';
 import * as THREE from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
@@ -52,6 +53,7 @@ function useNarrow(px: number) {
 }
 
 export default function BioRoom({ onClose, onAddToTela, upload, makeId, initialTab = 'molecule', loadStructure, loadModel }: BioRoomProps) {
+  const roomHost = useRoomHost();
   const [tab, setTab] = useState<'molecule' | 'pathway'>(loadStructure ? 'molecule' : loadModel ? 'pathway' : initialTab);
   const [note, setNote] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const narrow = useNarrow(900);
@@ -80,7 +82,7 @@ export default function BioRoom({ onClose, onAddToTela, upload, makeId, initialT
       </div>
       <style>{`.bio-btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:8px;font-size:12px;font-weight:600;color:rgba(255,255,255,.82);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);flex-shrink:0;white-space:nowrap}.bio-btn:hover{background:rgba(255,255,255,.1);color:#fff}.bio-btn:disabled{opacity:.45}.bio-on{background:rgba(94,234,212,.14);border-color:rgba(94,234,212,.45);color:#5eead4}.bio-primary{background:linear-gradient(135deg,#14b8a6,#8b5cf6);border-color:transparent;color:#fff}.bio-in{height:32px;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);padding:0 10px;font-size:12px;color:#fff;min-width:0}.bio-bar{scrollbar-width:none}.bio-bar::-webkit-scrollbar{display:none}`}</style>
     </div>,
-    document.body,
+    roomHost,
   );
 }
 

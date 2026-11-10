@@ -11,12 +11,10 @@ import { auth } from '../../services/backendService';
 import { parseLaunch, routeIdea, PENDING_BUILD_KEY, type BuildLaunch, type Room } from '../../services/build/launch';
 export { routeIdea, parseLaunch, PENDING_BUILD_KEY, type BuildLaunch };
 
-const ElecRoom = React.lazy(() => import('../elec/ElecRoom'));
-const CadRoom = React.lazy(() => import('../cad/CadRoom'));
-const PatternRoom = React.lazy(() => import('../soft/PatternRoom'));
-const BioRoom = React.lazy(() => import('../bio/BioRoom'));
 const ExchangeRoom = React.lazy(() => import('../supply/ExchangeRoom'));
-const BuildStudio = React.lazy(() => import('./studio/BuildStudio'));
+// Every design/make room opens inside the unified workspace shell, as a tab you can switch away from and back to.
+const WorkspaceShell = React.lazy(() => import('../workspace/WorkspaceShell'));
+const ROOM_WORKSPACE: Partial<Record<Room, string>> = { cad: 'architecture', elec: 'electronics', sew: 'sewing', bio: 'biology', studio: 'studio' };
 
 const getToken = async () => (auth.currentUser ? auth.currentUser.getIdToken() : null);
 
@@ -111,11 +109,8 @@ export default function PlajahBuildHub({ onBack }: { onBack?: () => void }) {
 
   // Rooms are full-screen; a portal on <body> lifts them above the app's header and navigation.
   const layer = (label: string, node: React.ReactNode) => createPortal(<div className="fixed inset-0 z-[9990]"><Suspense fallback={<Loading label={label}/>}>{node}</Suspense></div>, document.body);
-  if (room?.id === 'elec') return layer('Electronics Lab', <ElecRoom getToken={getToken} onClose={close} initialPrompt={room.prompt}/>);
-  if (room?.id === 'cad') return layer('CAD & BIM', <CadRoom getToken={getToken} onClose={close}/>);
-  if (room?.id === 'sew') return layer('Sewing & Plush', <PatternRoom getToken={getToken} onClose={close} initialTemplate={room.template}/>);
-  if (room?.id === 'bio') return layer('Biology Lab', <BioRoom onClose={close}/>);
-  if (room?.id === 'studio') return layer('Build Studio', <BuildStudio getToken={getToken} onClose={close} starter={room.starter} lesson={room.lesson}/>);
+  const ws = room ? ROOM_WORKSPACE[room.id] : undefined;
+  if (room && ws) return layer('your workspace', <WorkspaceShell initial={ws} launch={{ prompt: room.prompt, template: room.template, starter: room.starter, lesson: room.lesson }} getToken={getToken} onClose={close}/>);
 
   return <div className="pbh" data-testid="plajah-build-hub">
     <section className="pbh-hero">

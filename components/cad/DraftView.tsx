@@ -39,6 +39,11 @@ export interface DraftViewProps {
   findings?: Finding[]; showChecks?: boolean; onToggleChecks?: () => void; failCount?: number;
   /** Switch tools from outside (the build guide's buttons); `n` changes on each request. */
   toolRequest?: { tool: DraftTool; n: number } | null;
+  /** The workspace tool rail (services/cad/workspaceTools.ts): which tools show, which just arrived and why.
+   *  Absent = every tool. Hidden tools still work from the command line. */
+  rail?: { visible: Set<DraftTool>; fresh: Map<DraftTool, string> } | null;
+  /** A tool was picked (button, alias or guide), for the skill profile. */
+  onToolUsed?: (tool: DraftTool) => void;
 }
 
 const TOOLS: Array<{ id: DraftTool; icon: React.ComponentType<{ size?: number }>; label: string; key: string }> = [
@@ -121,7 +126,9 @@ export default function DraftView(p: DraftViewProps) {
   const [offsetDist, setOffsetDist] = useState<number | null>(null); const [offsetTarget, setOffsetTarget] = useState<number | null>(null);
   const scale = useMemo(() => drawingScale(model), [model]);
 
-  const setTool = useCallback((t: DraftTool) => { setToolState(t); setPts([]); setMeasured(null); setOffsetTarget(null); if (t !== 'offset') setOffsetDist(null); setWallStart(null); setFilletFirst(null); }, []);
+  const onUsed = useRef(p.onToolUsed); onUsed.current = p.onToolUsed;
+  const [showAll, setShowAll] = useState(false);
+  const setTool = useCallback((t: DraftTool) => { if (t !== 'insert') onUsed.current?.(t); setToolState(t); setPts([]); setMeasured(null); setOffsetTarget(null); if (t !== 'offset') setOffsetDist(null); setWallStart(null); setFilletFirst(null); }, []);
   useEffect(() => { if (p.toolRequest) setTool(p.toolRequest.tool); }, [p.toolRequest?.n]); // eslint-disable-line react-hooks/exhaustive-deps
   // A library pick switches to INSERT; leaving INSERT clears the pick.
   useEffect(() => { if (p.placing) { setToolState('insert'); setPts([]); setInsRot(0); setInsFlip(false); } else setToolState(t => t === 'insert' ? 'select' : t); }, [p.placing]);
@@ -405,7 +412,8 @@ export default function DraftView(p: DraftViewProps) {
   return <div className="absolute inset-0 flex flex-col">
     {/* tool strip */}
     <div className="flex items-center gap-1 px-2 h-10 shrink-0 overflow-x-auto cad-bar" style={{ borderBottom: '1px solid rgba(255,255,255,.08)', background: '#121019' }} data-testid="cad-draft-tools">
-      {TOOLS.map(t => { const I = t.icon; return <button key={t.id} title={`${t.label} (${t.key})`} aria-label={t.label} onClick={() => setTool(t.id)} data-testid={`cad-tool-${t.id}`} className={`cad-btn${tool === t.id ? ' cad-on' : ''}`} style={{ height: 30, padding: '0 8px' }}><I size={14}/></button>; })}
+      {TOOLS.filter(t => !p.rail || showAll || p.rail.visible.has(t.id) || tool === t.id).map(t => { const I = t.icon; const why = p.rail?.fresh.get(t.id); return <button key={t.id} title={why ? `New: ${t.label} (${t.key}), because ${why}` : `${t.label} (${t.key})`} aria-label={t.label} onClick={() => setTool(t.id)} data-testid={`cad-tool-${t.id}`} className={`cad-btn${tool === t.id ? ' cad-on' : ''}`} style={{ height: 30, padding: '0 8px', position: 'relative' }}><I size={14}/>{why && <span className="cad-fresh" data-testid={`cad-fresh-${t.id}`} aria-hidden="true"/>}</button>; })}
+      {p.rail && (() => { const hidden = TOOLS.filter(t => !p.rail!.visible.has(t.id)).length; return hidden > 0 && <button className="cad-btn shrink-0" style={{ height: 30, padding: '0 8px', fontSize: 11 }} onClick={() => setShowAll(v => !v)} title={showAll ? 'Show only the tools this drawing needs' : 'Show every drafting tool'} data-testid="cad-tools-more">{showAll ? 'Fewer' : `+${hidden}`}</button>; })()}
       <div className="w-px h-5 mx-1" style={{ background: 'rgba(255,255,255,.1)' }}/>
       <button className="cad-btn" style={{ height: 30, padding: '0 8px' }} title="Erase (Delete)" aria-label="Erase" onClick={erase} disabled={!selection.length}><Trash2 size={14}/></button>
       <button className="cad-btn" style={{ height: 30, padding: '0 8px' }} title="Undo (Ctrl+Z)" aria-label="Undo" onClick={p.onUndo}><Undo2 size={14}/></button>

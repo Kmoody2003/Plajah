@@ -2,8 +2,9 @@
 // them in 2D or 3D; layers, model tree, properties, size and print checks; send to a
 // Tela document. Plan: docs/CAD_BIM_ENGINEERING_SUITE_PLAN.md.
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
+import { useRoomHost } from '../workspace/roomHost';
 import * as THREE from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Grid, Line, Html } from '@react-three/drei';
@@ -37,6 +38,13 @@ import { MECH_PARTS, mechModel, mechDefaults, type MechPart } from '../../servic
 import { writeStl } from '../../services/mech/geometry';
 import { userBlocks, scaleEntities } from '../../services/cad/library';
 import { engineById } from '../../services/cad/licences';
+import { registry } from '../../services/workspace/tools';
+import { ARCH, registerCadTools, type CadToolDoc } from '../../services/cad/workspaceTools';
+import { HOME_PATH } from '../../services/cad/guide/journey';
+import { getProfile, subscribe as subscribeProfile, updateProfile, connectAccount } from '../../services/workspace/profileStore';
+import { recordUse, finishPath, setLevel as setProfileLevel, usesOf } from '../../services/workspace/skillProfile';
+
+registerCadTools();
 
 export interface CadRoomProps {
   onClose?: () => void;
@@ -49,6 +57,11 @@ export interface CadRoomProps {
   loadInitial?: () => Promise<{ name: string; bytes: Uint8Array }>;
   /** Signed-in user's ID token, for the Maker Exchange and maker terms. */
   getToken?: () => Promise<string | null>;
+  /** Simple/Pro from the workspace shell; without it the room keeps its own setting. */
+  level?: Level;
+  onLevel?: (l: Level) => void;
+  /** Open straight into the parts library (Mechanical) or the home guide (Architecture). */
+  startWith?: 'parts' | 'guided';
 }
 
 type ViewDir = 'iso' | 'top' | 'front' | 'right';
@@ -68,7 +81,8 @@ const fmtVol = (mm3: number, imperial: boolean, large: boolean) => imperial
   ? large ? `${(mm3 / 28316846.6).toLocaleString(undefined, { maximumFractionDigits: 2 })} ft³` : `${(mm3 / 16387.064).toLocaleString(undefined, { maximumFractionDigits: 2 })} in³`
   : large ? `${(mm3 / 1e9).toLocaleString(undefined, { maximumFractionDigits: 3 })} m³` : `${(mm3 / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })} cm³`;
 
-export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFile, loadInitial, getToken }: CadRoomProps) {
+export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFile, loadInitial, getToken, level: shellLevel, onLevel: onShellLevel, startWith }: CadRoomProps) {
+  const roomHost = useRoomHost();
   const [model, setModel] = useState<CadModel | null>(null);
   const [source, setSource] = useState<{ name: string; bytes: Uint8Array } | null>(null);
   const [busy, setBusy] = useState<string>('');
@@ -79,7 +93,12 @@ export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFil
   const [tab, setTab] = useState<'guide' | 'layers' | 'tree' | 'library' | 'schedules' | 'parts' | 'make'>('tree');
   // Build guide (Aria): explanation level, and what the person has done this session.
   const [guideLevel, setGuideLevelState] = useState<Level>(() => { try { return localStorage.getItem('plajah.cad.guideLevel') === 'pro' ? 'pro' : 'simple'; } catch { return 'simple'; } });
-  const setGuideLevel = (l: Level) => { setGuideLevelState(l); try { localStorage.setItem('plajah.cad.guideLevel', l); } catch { /* storage blocked */ } };
+  const setOwnLevel = (l: Level) => { setGuideLevelState(l); try { localStorage.setItem('plajah.cad.guideLevel', l); } catch { /* storage blocked */ } };
+  const level: Level = shellLevel ?? guideLevel;
+  const setGuideLevel = (l: Level) => { if (onShellLevel) onShellLevel(l); else setOwnLevel(l); updateProfile(p => setProfileLevel(p, ARCH, l)); };
+  // Skill profile: which tools this person has used, so the rail grows with them (services/workspace).
+  const profile = useSyncExternalStore(subscribeProfile, getProfile, getProfile);
+  useEffect(() => { connectAccount(getToken); }, [getToken]);
   const [seen3d, setSeen3d] = useState(false); const [guideAck, setGuideAck] = useState(false);
   const [toolRequest, setToolRequest] = useState<{ tool: DraftTool; n: number } | null>(null);
   const [view, setView] = useState<ViewDir>('iso');
@@ -140,6 +159,9 @@ export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFil
     setError(''); setSent(''); setHiddenLayers(new Set()); setModel(m); setSource(null); setTab('layers'); setView('top'); setViewNonce(n => n + 1);
   };
   /** A new drawing with Aria's build guide open on its first step. */
+  // Opened from a workspace tab: Mechanical starts in the parts library, Architecture can start in the guide.
+  const started = useRef(false);
+  useEffect(() => { if (started.current || !startWith || initialFile || loadInitial) return; started.current = true; if (startWith === 'parts') showPart(MECH_PARTS[0], mechDefaults(MECH_PARTS[0]), true); else startGuided(); }); // eslint-disable-line react-hooks/exhaustive-deps
   const startGuided = () => { startNew(); setTab('guide'); setSeen3d(false); setGuideAck(false); if (narrow) setDrawer('tree'); };
   const commit = (next: CadModel) => { if (model) undoStack.current.push(model); if (undoStack.current.length > 200) undoStack.current.shift(); redoStack.current = []; setModel(next); setEdited(true); };
   const undo = () => { const prev = undoStack.current.pop(); if (!prev || !model) return; redoStack.current.push(model); setModel(prev); setDraftSel([]); };
@@ -187,6 +209,18 @@ export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFil
   const guideAccessible = model?.meta.guideAccessible === '1';
   // The guide judges a home by the home checks; wheelchair checks join when the home is meant to be accessible.
   const guideFindings: Finding[] = useMemo(() => guideAccessible ? findings : homeFindings, [guideAccessible, findings, homeFindings]);
+  // The drafting rail: starter tools, plus the ones this drawing calls for or this person has used.
+  const railCtx = useMemo(() => model?.is2D ? { workspace: ARCH, doc: { model, rooms } as CadToolDoc, selection: draftSel, level, profile } : null, [model, rooms, draftSel, level, profile]);
+  const rail = useMemo(() => {
+    if (!railCtx) return null;
+    const shown = registry.visible(railCtx);
+    const fresh = new Map<DraftTool, string>();
+    for (const x of shown) if (x.reason === 'needed' && usesOf(profile, ARCH, x.tool.id) === 0 && x.tool.because) fresh.set(x.tool.id as DraftTool, x.tool.because[level]);
+    return { visible: new Set(shown.map(x => x.tool.id as DraftTool)), fresh };
+  }, [railCtx, profile, level]);
+  const suggestion = useMemo(() => railCtx ? registry.suggest(railCtx) : null, [railCtx]);
+  const [hintOff, setHintOff] = useState<string>('');
+  const onToolUsed = useCallback((t: DraftTool) => updateProfile(p => recordUse(p, ARCH, t)), []);
   const setMeta = (k: string, v: string) => { if (model) commit({ ...model, meta: { ...model.meta, [k]: v } }); };
   const placeItem = (id: string) => { const it = itemById(id); if (!it || !model) return; const params = defaultParams(it); setPlacing({ block: makeBlock(it, params, model.units), layer: it.layer, label: it.name, item: { id: it.id, params } }); };
   const sendTable = async (t: Table) => { if (!onSendTable) return; setBusy(`Adding the ${t.title.toLowerCase()}…`); try { await onSendTable(t.title, [t.columns, ...t.rows]); setSent(`${t.title} added to the document.`); } catch (e: any) { setError(e?.message || String(e)); } finally { setBusy(''); } };
@@ -263,7 +297,7 @@ export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFil
                 <button onClick={() => toggle(hiddenLayers, l.name, setHiddenLayers)} style={{ color: C.dim }} aria-label={`Toggle ${l.name}`}>{hidden ? <EyeOff size={13}/> : <Eye size={13}/>}</button>
               </div>;
             }) : <div className="p-3" style={{ color: C.dim }}>No layers in this file.</div>)}
-            {tab === 'guide' && model.is2D && <GuidePanel model={model} rooms={rooms} findings={guideFindings} level={guideLevel} onLevel={setGuideLevel}
+            {tab === 'guide' && model.is2D && <GuidePanel model={model} rooms={rooms} findings={guideFindings} level={level} onLevel={setGuideLevel} onFinished={() => updateProfile(p => finishPath(p, ARCH, HOME_PATH.id))}
               program={guideProgram} onProgram={pr => setMeta('guideProgram', pr.id)} accessible={guideAccessible} onAccessible={on => setMeta('guideAccessible', on ? '1' : '')}
               seen3d={seen3d} ack={guideAck} onAck={() => setGuideAck(true)} imperial={imperial}
               onLot={spec => { commit(addLot(model, spec)); setViewNonce(n => n + 1); }} onShell={(w, d) => { commit(addShell(model, w, d)); setViewNonce(n => n + 1); }}
@@ -287,11 +321,19 @@ export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFil
                 fmt={d => fmtLen(d * MM_PER_UNIT[model.units], imperial, large)} fmtArea={a => fmtArea(a * u2, imperial, large)}
                 onChange={next => commit(next)} onUndo={undo} onRedo={redo} selection={draftSel} setSelection={setDraftSel}
                 layers={model.layers.map(l => l.name)} onSetLayer={layer => { if (draftSel.length) commit(setLayer(model, draftSel, layer)); else setCurrentLayer(layer); }}
-                placing={placing} onStopPlacing={() => setPlacing(null)} toolRequest={toolRequest} findings={showChecks ? findings : []} showChecks={showChecks} onToggleChecks={() => setShowChecks(x => !x)} failCount={findings.filter(f => f.status === 'fail').length}/>
+                placing={placing} onStopPlacing={() => setPlacing(null)} toolRequest={toolRequest} rail={rail} onToolUsed={onToolUsed} findings={showChecks ? findings : []} showChecks={showChecks} onToggleChecks={() => setShowChecks(x => !x)} failCount={findings.filter(f => f.status === 'fail').length}/>
             : <ModelView model={model} hiddenLayers={hiddenLayers} hiddenEls={hiddenEls} selected={selected} onSelect={setSelected} view={view} nonce={viewNonce} measuring={measuring} section={section} fmt={d => fmtLen(d * MM_PER_UNIT[model.units], imperial, large)}/>)
             : <EmptyState onOpen={() => fileRef.current?.click()} onNew={startNew} onGuided={startGuided} onParts={() => showPart(MECH_PARTS[0], mechDefaults(MECH_PARTS[0]), true)} dragging={dragging}/>}
           {busy && <div className="absolute inset-0 grid place-items-center" style={{ background: 'rgba(13,12,18,.6)' }}><div className="px-4 py-2.5 rounded-xl text-[13px] font-semibold" style={{ background: C.panel, border: `1px solid ${C.line}` }} data-testid="cad-busy">{busy}</div></div>}
           {error && <div role="alert" className="absolute top-3 left-1/2 -translate-x-1/2 max-w-[560px] px-4 py-2.5 rounded-xl text-[12px] flex gap-2 items-start" style={{ background: '#2a1416', border: '1px solid rgba(248,113,113,.4)', color: '#fecaca' }}><AlertTriangle size={14} className="shrink-0 mt-0.5"/><span className="flex-1">{error}</span><button onClick={() => setError('')}><X size={13}/></button></div>}
+          {suggestion && model.is2D && !in3d && hintOff !== suggestion.id && <div className="absolute right-3 bottom-14 z-10 max-w-[320px] p-3 rounded-xl text-[12px] flex gap-2.5 items-start shadow-2xl" style={{ background: '#17142a', border: '1px solid rgba(167,139,250,.45)' }} data-testid="cad-aria-hint" role="status">
+            <span className="w-7 h-7 rounded-full grid place-items-center shrink-0 text-[12px] font-black" style={{ background: 'linear-gradient(135deg,#a855f7,#ec4899)', color: '#fff' }} aria-hidden="true">A</span>
+            <div className="flex-1 min-w-0">
+              <div style={{ color: C.text }}><b>{level === 'simple' ? 'New tool' : 'Tool available'}: {suggestion.label}</b>{suggestion.because ? <> {level === 'simple' ? 'is here because' : '·'} {suggestion.because[level]}.</> : null}</div>
+              <div className="mt-0.5" style={{ color: C.dim }}>{suggestion.teach[level]}</div>
+              <div className="mt-2 flex gap-1.5"><button className="cad-btn" style={{ height: 26 }} onClick={() => { setPlacing(null); setToolRequest(r => ({ tool: suggestion.id as DraftTool, n: (r?.n ?? 0) + 1 })); }} data-testid="cad-aria-try">Try it{suggestion.alias ? ` (${suggestion.alias})` : ''}</button><button className="cad-btn" style={{ height: 26 }} onClick={() => setHintOff(suggestion.id)}>Not now</button></div>
+            </div>
+          </div>}
           {sent && <div className="absolute top-3 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl text-[12px] flex gap-2 items-center" style={{ background: '#0f2a1d', border: '1px solid rgba(52,211,153,.4)', color: '#a7f3d0' }}><CheckCircle2 size={14}/>{sent}</div>}
         </main>
 
@@ -337,9 +379,9 @@ export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFil
           </Section>}
         </aside>}
       </div>
-      <style>{`.cad-btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:8px;font-size:12px;font-weight:600;color:rgba(255,255,255,.8);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}.cad-btn:hover{background:rgba(255,255,255,.1);color:#fff}.cad-btn:disabled{opacity:.5}.cad-primary{background:linear-gradient(135deg,#0ea5e9,#6366f1);border-color:transparent;color:#fff}.cad-on{background:rgba(125,211,252,.16);border-color:rgba(125,211,252,.45);color:#7dd3fc}.cad-btn{flex-shrink:0}.cad-bar{scrollbar-width:none}.cad-bar::-webkit-scrollbar{display:none}@media (max-width:899px){.cad-label,.cad-title{display:none}}`}</style>
+      <style>{`.cad-btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:8px;font-size:12px;font-weight:600;color:rgba(255,255,255,.8);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}.cad-btn:hover{background:rgba(255,255,255,.1);color:#fff}.cad-btn:disabled{opacity:.5}.cad-primary{background:linear-gradient(135deg,#0ea5e9,#6366f1);border-color:transparent;color:#fff}.cad-on{background:rgba(125,211,252,.16);border-color:rgba(125,211,252,.45);color:#7dd3fc}.cad-btn{flex-shrink:0}.cad-bar{scrollbar-width:none}.cad-fresh{position:absolute;top:3px;right:3px;width:7px;height:7px;border-radius:50%;background:#c084fc;box-shadow:0 0 8px #c084fc;animation:cad-fresh 1.6s ease-in-out infinite}@keyframes cad-fresh{50%{opacity:.35}}@media (prefers-reduced-motion:reduce){.cad-fresh{animation:none}}.cad-bar::-webkit-scrollbar{display:none}@media (max-width:899px){.cad-label,.cad-title{display:none}}`}</style>
     </div>,
-    document.body,
+    roomHost,
   );
 }
 

@@ -104,6 +104,7 @@
     "test:argilla": "npx tsx --test tests/argilla.test.ts",
     "test:cad": "npx tsx --test tests/cad.test.ts",
     "test:guide": "npx tsx --test tests/guide.test.ts",
+    "test:workspace": "npx tsx --test tests/workspace.test.ts",
     "test:gamer": "npx tsx --test tests/gamerNet.test.ts",
     "typecheck:gamer": "tsc -p tsconfig.gamer.json",
     "test:gamer-social": "npx tsx --test tests/gamerSocial.test.ts",

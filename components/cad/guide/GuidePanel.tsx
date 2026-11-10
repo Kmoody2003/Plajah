@@ -9,6 +9,7 @@ import type { Room } from '../../../services/cad/rooms';
 import type { Finding } from '../../../services/cad/codeCheck';
 import { RULES as ADA_RULES, DISCLAIMER as ADA_DISCLAIMER } from '../../../services/cad/codeCheck';
 import { STEPS, evaluate, currentStep, type Level, type GuideAction, type StepId } from '../../../services/cad/guide/journey';
+import { pathProgress } from '../../../services/workspace/guidePath';
 import { PROGRAMS, ROOM_KINDS, programRooms, type Program } from '../../../services/cad/guide/programs';
 import { HOME_RULES, HOME_DISCLAIMER } from '../../../services/cad/guide/homeChecks';
 import { buildableArea, type LotSpec } from '../../../services/cad/guide/starters';
@@ -16,6 +17,8 @@ import { buildableArea, type LotSpec } from '../../../services/cad/guide/starter
 const C = { line: 'rgba(255,255,255,.08)', text: 'rgba(255,255,255,.86)', dim: 'rgba(255,255,255,.55)', accent: '#7dd3fc', ok: '#6ee7b7', bad: '#fca5a5', warn: '#fcd34d', card: 'rgba(255,255,255,.04)' };
 
 export interface GuidePanelProps {
+  /** Every step is done: the skill profile records the finished path. */
+  onFinished?: () => void;
   model: CadModel; rooms: Room[];
   /** Findings the guide judges by: home checks, plus accessibility checks when the home is to be accessible. */
   findings: Finding[];
@@ -33,6 +36,9 @@ export interface GuidePanelProps {
 export default function GuidePanel(p: GuidePanelProps) {
   const { level } = p; const simple = level === 'simple';
   const states = useMemo(() => evaluate(p.model, p.rooms, p.findings, { program: p.program, seen3d: p.seen3d, ack: p.ack }, level), [p.model, p.rooms, p.findings, p.program, p.seen3d, p.ack, level]);
+  const finished = pathProgress(STEPS, states).finished;
+  const onFinished = useRef(p.onFinished); onFinished.current = p.onFinished;
+  useEffect(() => { if (finished) onFinished.current?.(); }, [finished]);
   const current = currentStep(states);
   const [viewing, setViewing] = useState<StepId>(current);
   const [cheer, setCheer] = useState('');

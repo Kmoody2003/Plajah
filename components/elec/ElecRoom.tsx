@@ -4,6 +4,10 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useRoomHost } from '../workspace/roomHost';
+import { useToolRail, AriaToolHint, FreshDot } from '../workspace/useToolRail';
+import { ELEC, registerElecTools, type ElecToolDoc, type ElecToolId } from '../../services/elec/workspaceTools';
+import type { Level } from '../../services/workspace/guidePath';
 import { X, MousePointer2, Spline, RotateCw, Trash2, Play, Undo2, FilePlus, Download, ShieldCheck, ListChecks, SlidersHorizontal, Activity, Sparkles, Search, Pause, ShieldAlert, Package, Store, CircuitBoard } from 'lucide-react';
 import type { Build } from '../../services/elec/recipes';
 import { designHazards, pcbHazards, advisoriesFor, recallQueries, needsAck, openHazards } from '../../services/safety/hazards';
@@ -25,6 +29,8 @@ import { DESIGNS, type Design } from '../../services/elec/designs';
 import { GRID, partSvg, junctions, circuitSvg, ledGlow, bounds } from '../../services/elec/render';
 import { spiceNetlist } from '../../services/elec/exportSpice';
 
+registerElecTools();
+
 export interface ElecAddArgs { circuit: Circuit; svg: string; width: number; height: number; bom: string[][]; summary: { errors: number; warnings: number; passes: number; nets: number } }
 export interface ElecRoomProps {
   initial?: Circuit | null;
@@ -38,6 +44,8 @@ export interface ElecRoomProps {
   apiBase?: string;
   /** Opens on Describe with this prompt already read (from the Plajah Build hub). */
   initialPrompt?: string;
+  /** Simple/Pro from the workspace shell: Pro shows every tool, Simple lets them join as needed. */
+  level?: Level;
 }
 
 const C = { bg: '#0c0d12', panel: '#12141b', line: 'rgba(255,255,255,.08)', text: '#e8eaf0', dim: 'rgba(255,255,255,.5)', wire: '#7dd3fc', accent: '#fbbf24' };
@@ -50,7 +58,8 @@ const download = (name: string, data: BlobPart, type: string) => { const u = URL
 const fmtV = (v: number) => `${Math.abs(v) < 0.01 ? '0' : v.toFixed(Math.abs(v) >= 10 ? 1 : 2)} V`;
 const fmtT = (t: number) => t >= 1 ? `${t.toFixed(2)} s` : t >= 1e-3 ? `${(t * 1e3).toFixed(2)} ms` : `${(t * 1e6).toFixed(0)} µs`;
 
-export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, onSendTable, getToken, apiBase = '', initialPrompt }: ElecRoomProps) {
+export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, onSendTable, getToken, apiBase = '', initialPrompt, level = 'simple' }: ElecRoomProps) {
+  const roomHost = useRoomHost();
   const start = DESIGNS.find(d => d.id === '555-led-blinker')!;
   const [circuit, setCircuit] = useState<Circuit>(() => initial ? clone(initial) : clone(start.circuit));
   const [simOpts, setSimOpts] = useState<SimOptions>(initial ? { mode: 'dc' } : start.sim);
@@ -88,6 +97,11 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
   const nl = useMemo(() => netlist(circuit), [circuit]);
   const findings = useMemo<Finding[]>(() => checkCircuit(circuit, sim, { market, toy }), [circuit, sim, market, toy]);
   const counts = summarize(findings);
+  // Tools join the toolbar and side tabs as the circuit calls for them (services/elec/workspaceTools.ts).
+  const railDoc = useMemo<ElecToolDoc>(() => ({ circuit, sim, mode: simOpts.mode, errors: counts.errors }), [circuit, sim, simOpts.mode, counts.errors]);
+  const railSel = useMemo(() => sel ? [0] : [], [sel]);
+  const rail = useToolRail<ElecToolDoc>(ELEC, railDoc, railSel, level, getToken);
+  const openRight = (k: typeof right) => { setRight(k); rail.used(k); };
   const bomRows = useMemo(() => bom(circuit), [circuit]);
   // Safety at every stage: hazards follow the parts on the sheet and the product being built.
   const hazards = useMemo(() => [...designHazards({ circuit, recipe: build?.recipe, toy }), ...pcbHazards(circuit)], [circuit, build?.recipe, toy]);
@@ -114,7 +128,7 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
 
   /** Edits invalidate the simulation; the old one would describe a different circuit. */
   const commit = useCallback((next: Circuit, keepSim = false) => { setHistory(h => [...h.slice(-80), live.current.circuit]); setCircuit(next); if (!keepSim) { setSim(null); setPlaying(false); } }, []);
-  const undo = () => setHistory(h => { if (!h.length) return h; setCircuit(h[h.length - 1]); setSim(null); return h.slice(0, -1); });
+  const undo = () => { if (history.length) rail.used('undo'); setHistory(h => { if (!h.length) return h; setCircuit(h[h.length - 1]); setSim(null); return h.slice(0, -1); }); };
 
   const fitTo = useCallback((c: Circuit) => {
     const el = svgRef.current; if (!el) return; const r = el.getBoundingClientRect(); const b = bounds(c);
@@ -133,14 +147,14 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
   // ---- Simulation ----
   const run = (circuit_: Circuit = circuit, simOpts_: SimOptions = simOpts) => {
     const circuit = circuit_, simOpts = simOpts_;
-    setError('');
+    setError(''); rail.used('simulate'); if (simOpts.mode === 'tran') rail.used('overtime');
     try {
       const r = simulate(circuit, simOpts); setSim(r); setTIdx(r.time.length - 1);
       const tracePins: Array<[string, string]> = [];
       for (const p of circuit.parts) { if (p.kind === 'capacitor' || p.kind === 'electrolytic') tracePins.push([p.id, p.kind === 'electrolytic' ? '+' : '1']); if (p.kind === 'ne555') tracePins.push([p.id, 'OUT']); if (p.kind === 'speaker') tracePins.push([p.id, '-']); }
       const nets = [...new Set(tracePins.map(([id, pin]) => r.netlist.pinNet[id]?.[pin]).filter((x): x is number => !!x))].slice(0, 3);
       setProbes(nets.length ? nets : Array.from({ length: Math.min(2, r.netlist.netCount - 1) }, (_, i) => i + 1));
-      if (r.mode === 'tran') { setRight('scope'); setTIdx(0); setPlaying(true); }
+      if (r.mode === 'tran') { setRight('scope'); rail.used('scope'); setTIdx(0); setPlaying(true); }
     } catch (e: any) { setError(String(e?.message ?? e)); }
   };
   useEffect(() => {
@@ -217,8 +231,8 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
     setView(v => { const z = Math.max(0.25, Math.min(4, v.z * Math.exp(-e.deltaY * 0.0015))); return { z, x: mx - (mx - v.x) * z / v.z, y: my - (my - v.y) * z / v.z }; });
   };
 
-  const rotateSel = () => { if (tool.kind === 'place') { setTool({ ...tool, rot: (tool.rot + 1) % 4 }); return; } if (sel?.type === 'part') commit({ ...circuit, parts: circuit.parts.map(p => p.id === sel.id ? { ...p, rot: (p.rot + 1) % 4 } : p) }); };
-  const deleteSel = () => { if (!sel) return; commit(sel.type === 'part' ? { ...circuit, parts: circuit.parts.filter(p => p.id !== sel.id) } : { ...circuit, wires: circuit.wires.filter(w => w.id !== sel.id) }); setSel(null); };
+  const rotateSel = () => { rail.used('rotate'); if (tool.kind === 'place') { setTool({ ...tool, rot: (tool.rot + 1) % 4 }); return; } if (sel?.type === 'part') commit({ ...circuit, parts: circuit.parts.map(p => p.id === sel.id ? { ...p, rot: (p.rot + 1) % 4 } : p) }); };
+  const deleteSel = () => { if (!sel) return; rail.used('delete'); commit(sel.type === 'part' ? { ...circuit, parts: circuit.parts.filter(p => p.id !== sel.id) } : { ...circuit, wires: circuit.wires.filter(w => w.id !== sel.id) }); setSel(null); };
   const setParam = (id: string, key: string, value: string | number) => commit({ ...circuit, parts: circuit.parts.map(p => p.id === id ? (key === '__ref' ? { ...p, ref: String(value) } : { ...p, params: { ...p.params, [key]: value } }) : p) });
 
   useEffect(() => {
@@ -228,8 +242,8 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
       if (e.key === 'Escape') { if (draft) finishWire(draft); else { setTool({ kind: 'select' }); setSel(null); } }
       else if (e.key === 'r' || e.key === 'R') rotateSel();
       else if (e.key === 'Delete' || e.key === 'Backspace') deleteSel();
-      else if (e.key === 'w' || e.key === 'W') { setTool({ kind: 'wire' }); setSel(null); }
-      else if (e.key === 'v' || e.key === 'V') setTool({ kind: 'select' });
+      else if (e.key === 'w' || e.key === 'W') { setTool({ kind: 'wire' }); setSel(null); rail.used('wire'); }
+      else if (e.key === 'v' || e.key === 'V') { setTool({ kind: 'select' }); rail.used('select'); }
       else if (e.key === ' ' && sim) { e.preventDefault(); run(); }
     };
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
@@ -257,22 +271,22 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
         <input value={circuit.name} onChange={e => setCircuit(c => ({ ...c, name: e.target.value }))} aria-label="Circuit name" className="h-8 w-48 rounded-md bg-white/5 border border-white/10 px-2 text-[12px] text-white" data-testid="elec-name"/>
         <button className="elec-btn" onClick={newSheet} data-testid="elec-new"><FilePlus size={14}/><span className="elec-label">New</span></button>
         <span className="w-px h-6 bg-white/10 mx-1"/>
-        <button className={`elec-btn${tool.kind === 'select' ? ' elec-on' : ''}`} onClick={() => setTool({ kind: 'select' })} title="Select and move (V)"><MousePointer2 size={14}/></button>
-        <button className={`elec-btn${tool.kind === 'wire' ? ' elec-on' : ''}`} onClick={() => { setTool({ kind: 'wire' }); setSel(null); }} title="Draw wires (W): click to bend, end on a pin or click twice" data-testid="elec-wire"><Spline size={14}/><span className="elec-label">Wire</span></button>
+        <button className={`elec-btn${tool.kind === 'select' ? ' elec-on' : ''}`} onClick={() => { setTool({ kind: 'select' }); rail.used('select'); }} title="Select and move (V)"><MousePointer2 size={14}/></button>
+        <button className={`elec-btn${tool.kind === 'wire' ? ' elec-on' : ''}`} onClick={() => { setTool({ kind: 'wire' }); setSel(null); rail.used('wire'); }} title="Draw wires (W): click to bend, end on a pin or click twice" data-testid="elec-wire"><Spline size={14}/><span className="elec-label">Wire</span></button>
         <button className="elec-btn" onClick={rotateSel} disabled={!selPart && tool.kind !== 'place'} title="Rotate (R)"><RotateCw size={14}/></button>
         <button className="elec-btn" onClick={deleteSel} disabled={!sel} title="Delete (Del)"><Trash2 size={14}/></button>
         <button className="elec-btn" onClick={undo} disabled={!history.length} title="Undo (Ctrl+Z)"><Undo2 size={14}/></button>
         <span className="w-px h-6 bg-white/10 mx-1"/>
-        <select value={simOpts.mode} onChange={e => setSimOpts(o => ({ ...o, mode: e.target.value as 'dc' | 'tran', tEnd: o.tEnd ?? 0.01, steps: o.steps ?? 2000 }))} className="h-8 rounded-md bg-white/5 border border-white/10 text-[12px] text-white px-1" aria-label="Simulation type" data-testid="elec-mode">
+        {(rail.shows('overtime') || simOpts.mode === 'tran') && <span className="relative inline-flex shrink-0"><select value={simOpts.mode} onChange={e => { const mode = e.target.value as 'dc' | 'tran'; if (mode === 'tran') rail.used('overtime'); setSimOpts(o => ({ ...o, mode, tEnd: o.tEnd ?? 0.01, steps: o.steps ?? 2000 })); }} className="h-8 rounded-md bg-white/5 border border-white/10 text-[12px] text-white px-1" aria-label="Simulation type" data-testid="elec-mode">
           <option value="dc" style={{ background: C.panel }}>Steady state (DC)</option><option value="tran" style={{ background: C.panel }}>Over time</option>
-        </select>
+        </select>{rail.fresh.has('overtime') && <FreshDot reason={rail.fresh.get('overtime')!} testid="elec-fresh-overtime"/>}</span>}
         {simOpts.mode === 'tran' && <label className="flex items-center gap-1 text-[11px]" style={{ color: C.dim }}>for<input defaultValue={fmtT(simOpts.tEnd ?? 0.01).replace(' ', '')} key={simOpts.tEnd} onBlur={e => { const v = parseSi(e.target.value.replace(/s$/, '').replace('µ', 'u')); if (v > 0) setSimOpts(o => ({ ...o, tEnd: v })); }} className="w-16 h-7 rounded bg-white/5 border border-white/10 px-1.5 text-[11px] text-white" aria-label="Duration"/></label>}
         <button className="elec-btn elec-primary" onClick={() => run()} data-testid="elec-run"><Play size={14}/>Simulate</button>
         <div className="ml-auto flex items-center gap-2">
-          <button className="elec-btn" onClick={() => setRight('safety')} title="Safety review" data-testid="elec-safety-chip" style={openCritical.length ? { borderColor: '#f43f5e', color: '#fda4af' } : undefined}><ShieldAlert size={14}/><span className="elec-label">{openCritical.length ? `${openCritical.length} to review` : 'Safety'}</span></button>
+          <button className="elec-btn" onClick={() => openRight('safety')} title="Safety review" data-testid="elec-safety-chip" style={openCritical.length ? { borderColor: '#f43f5e', color: '#fda4af' } : undefined}><ShieldAlert size={14}/><span className="elec-label">{openCritical.length ? `${openCritical.length} to review` : 'Safety'}</span></button>
           <button className="elec-btn" onClick={() => setExchange('components')} title="Find suppliers, manufacturers and local makers" data-testid="elec-exchange"><Store size={14}/><span className="elec-label">Exchange</span></button>
           <button className="elec-btn" onClick={() => guard(() => download(`${circuit.name}.svg`, circuitSvg(circuit, { title: circuit.name }).svg, 'image/svg+xml'))} title="Schematic as SVG"><Download size={14}/><span className="elec-label">SVG</span></button>
-          <button className="elec-btn" onClick={() => guard(() => download(`${circuit.name}.cir`, spiceNetlist(circuit), 'text/plain'))} title="SPICE netlist for ngspice, LTspice, KiCad" data-testid="elec-spice"><Download size={14}/><span className="elec-label">SPICE</span></button>
+          {rail.shows('spice') && <button className="elec-btn" onClick={() => guard(() => { rail.used('spice'); download(`${circuit.name}.cir`, spiceNetlist(circuit), 'text/plain'); })} title="SPICE netlist for ngspice, LTspice, KiCad" data-testid="elec-spice"><Download size={14}/><span className="elec-label">SPICE</span></button>}
           <button className="elec-btn" onClick={() => guard(() => download(`${circuit.name}.plajah-circuit.json`, JSON.stringify(circuit, null, 1), 'application/json'))} title="Circuit file"><Download size={14}/><span className="elec-label">JSON</span></button>
           {onAddToTela && <button className="elec-btn elec-primary" onClick={() => guard(() => void addToTela())} disabled={!!busy} data-testid="elec-add"><FilePlus size={14}/>Add to document</button>}
           {onClose && <button className="elec-btn" onClick={onClose} aria-label="Close" data-testid="elec-close"><X size={15}/></button>}
@@ -340,13 +354,19 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
           </div>}
           {(note || error || busy) && <div className="absolute left-3 top-3 max-w-md text-[11.5px] px-3 py-2 rounded-lg" style={{ background: 'rgba(18,20,27,.92)', border: `1px solid ${error ? '#f87171' : C.line}`, color: error ? '#fca5a5' : C.text }} onClick={() => { setNote(''); setError(''); }}>{busy || error || note}</div>}
           {!circuit.parts.length && <div className="absolute inset-0 grid place-items-center pointer-events-none text-[13px]" style={{ color: C.dim }}>Pick a part on the left, or open a starter circuit.</div>}
+          {rail.suggestion && right !== 'board' && <AriaToolHint tool={rail.suggestion} level={level} testid="elec-aria-hint" style={{ bottom: sim?.mode === 'tran' ? 64 : 14 }} onDismiss={rail.dismiss} onTry={() => {
+            const id = rail.suggestion!.id as ElecToolId;
+            if (id === 'overtime') { const o: SimOptions = { ...simOpts, mode: 'tran', tEnd: simOpts.tEnd ?? 0.01, steps: simOpts.steps ?? 2000 }; setSimOpts(o); run(circuit, o); }
+            else if (id === 'props' || id === 'bom' || id === 'scope' || id === 'board') openRight(id);
+          }}/>}
           {right === 'board' && <BoardView layout={board?.layout ?? null} layers={boardLayers} focus={boardFocus}/>}
         </div>
 
         {/* Right: properties, checks, BOM, scope */}
         <aside className="w-80 shrink-0 border-l flex flex-col min-h-0" style={{ borderColor: C.line, background: C.panel }}>
           <div className="flex gap-1 p-2">
-            {([['props', 'Part', SlidersHorizontal], ['checks', 'Checks', ShieldCheck], ['safety', 'Safety', ShieldAlert], ...(build ? [['build', 'Build', Package] as const] : []), ['board', 'Board', CircuitBoard], ['bom', 'Parts', ListChecks], ['scope', 'Scope', Activity]] as const).map(([k, label, Icon]) => <button key={k} onClick={() => setRight(k)} className={`elec-tab${right === k ? ' elec-tab-on' : ''}`} data-testid={`elec-tab-${k}`}><Icon size={12}/>{label}{k === 'checks' && (counts.errors || counts.warnings) ? <span className="ml-1 px-1 rounded text-[9px]" style={{ background: counts.errors ? '#7f1d1d' : '#78350f' }}>{counts.errors || counts.warnings}</span> : null}</button>)}
+            {([['props', 'Part', SlidersHorizontal], ['checks', 'Checks', ShieldCheck], ['safety', 'Safety', ShieldAlert], ...(build ? [['build', 'Build', Package] as const] : []), ['board', 'Board', CircuitBoard], ['bom', 'Parts', ListChecks], ['scope', 'Scope', Activity]] as const).filter(([k]) => rail.shows(k) || right === k).map(([k, label, Icon]) => <button key={k} onClick={() => openRight(k)} className={`elec-tab relative${right === k ? ' elec-tab-on' : ''}`} data-testid={`elec-tab-${k}`}><Icon size={12}/>{label}{k === 'checks' && (counts.errors || counts.warnings) ? <span className="ml-1 px-1 rounded text-[9px]" style={{ background: counts.errors ? '#7f1d1d' : '#78350f' }}>{counts.errors || counts.warnings}</span> : null}{rail.fresh.has(k) && <FreshDot reason={rail.fresh.get(k)!} testid={`elec-fresh-${k}`}/>}</button>)}
+            {(rail.hidden > 0 || rail.showAll) && <button onClick={() => rail.setShowAll(!rail.showAll)} className="elec-tab ml-auto" title={rail.showAll ? 'Show only the tools this circuit needs' : 'Show every tool'} data-testid="elec-tools-more">{rail.showAll ? 'Fewer' : `+${rail.hidden}`}</button>}
           </div>
           <div className="flex-1 overflow-y-auto px-3 pb-4 text-[12px]">
             {right === 'props' && (selPart ? <PartProps part={selPart} sim={sim} at={at} onParam={(k, v) => setParam(selPart.id, k, v)}/> : selWire ? <div>
@@ -403,7 +423,7 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
           : build ? { title: `Build: ${build.title}`, details: build.summary, processes: ['electronics'], hazards: hazards.filter(h => h.severity === 'critical' || h.severity === 'high').map(h => h.title) } : undefined}/>}
       {!terms && <BuildTermsGate onAccepted={() => setTerms(true)} getToken={getToken} apiBase={apiBase} onClose={onClose}/>}
     </div>,
-    document.body,
+    roomHost,
   );
 }
 

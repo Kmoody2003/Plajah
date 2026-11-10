@@ -1,10 +1,15 @@
 // The CAD & BIM room with no app around it.
 //   npx vite --config cad-lab.vite.config.mjs  ->  http://127.0.0.1:3229/
 //   ?file=/tests/fixtures/cad/example.ifc opens a file on load.
+//   ?shell=1 opens the unified workspace shell (workspace tabs, tool rail from the registry).
+//   ?shell=1&tela=1 opens it the way a Tela document does: back to the document, send-to-document hooks
+//   (window.lastDevice / lastTable / closedShell), and ?file= opens in the Architecture tab.
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import '../../index.css';
 import CadRoom from '../../components/cad/CadRoom';
+import WorkspaceShell from '../../components/workspace/WorkspaceShell';
+import * as profileStore from '../../services/workspace/profileStore';
 import { importCadFile } from '../../services/cad/importer';
 import { browserEngines } from '../../services/cad/engines';
 import { cadToTelaDevice } from '../../services/cad/telaCad';
@@ -27,4 +32,12 @@ const sendToTela = async (model: any, source: { name: string; bytes: Uint8Array 
 
 (window as any).cad = { importCadFile, browserEngines, dxf, mesh };
 const sendTable = async (title: string, rows: string[][]) => { (window as any).lastTable = { title, rows }; console.log('[cad-lab] table', title, rows); };
-createRoot(document.getElementById('root')!).render(<CadRoom loadInitial={loadInitial} onSendToTela={sendToTela} onSendTable={sendTable}/>);
+(window as any).profileStore = profileStore;
+const shell = new URLSearchParams(location.search).get('shell');
+const asTela = new URLSearchParams(location.search).get('tela') === '1';
+const telaHooks = { onSendToTela: sendToTela, onSendTable: sendTable };
+createRoot(document.getElementById('root')!).render(shell
+  ? (asTela
+    ? <WorkspaceShell initial={shell === '1' ? 'architecture' : shell} backLabel="Cottage plans" onClose={() => { (window as any).closedShell = true; console.log('[cad-lab] back to document'); }} roomProps={{ architecture: { ...telaHooks, loadInitial }, mechanical: telaHooks, electronics: { onSendTable: sendTable } }}/>
+    : <WorkspaceShell initial={shell === '1' ? 'architecture' : shell}/>)
+  : <CadRoom loadInitial={loadInitial} onSendToTela={sendToTela} onSendTable={sendTable}/>);

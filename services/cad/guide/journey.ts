@@ -14,19 +14,15 @@ import { ROOM_KINDS, kindsOf, programRooms, type Program, type RoomKind } from '
 import { feelArea, sizeVerdict } from './sizeSense';
 import { buildableArea, insideSetbacks } from './starters';
 
-export type Level = 'simple' | 'pro';
-type Two = { simple: string; pro: string };
+import { currentStepOf, type Level, type Two, type Word, type PathStep, type Line, type StepState as PathStepState, type GuidePath } from '../../workspace/guidePath';
+export type { Level, Word, Line };
 export type GuideAction =
   | { kind: 'program' } | { kind: 'lot' } | { kind: 'shell' }
   | { kind: 'tool'; tool: 'wall' | 'roomtag' | 'dimension' | 'select' | 'measure'; label: Two }
   | { kind: 'place'; item: string; label: Two }
   | { kind: 'checks' } | { kind: 'view3d' } | { kind: 'ack'; label: Two };
 
-export interface Word { term: string; simple: string }
-export interface Step {
-  id: StepId; title: Two; what: Two; why: Two; how: { simple: string[]; pro: string[] };
-  words: Word[]; actions: GuideAction[]; optional?: boolean;
-}
+export type Step = PathStep<StepId, GuideAction>;
 export type StepId = 'idea' | 'land' | 'shell' | 'rooms' | 'openings' | 'fixtures' | 'check' | 'see3d' | 'sheets' | 'realworld';
 
 export const STEPS: Step[] = [
@@ -93,8 +89,16 @@ export const STEPS: Step[] = [
 ];
 
 export interface GuideFlags { program?: Program | null; seen3d?: boolean; ack?: boolean }
-export interface Line { ok: boolean | null; text: string }
-export interface StepState { id: StepId; done: boolean; lines: Line[] }
+export type StepState = PathStepState<StepId>;
+
+/** "Design a home" as a guide path: the first path in the Architecture workspace. */
+export const HOME_PATH: GuidePath<StepId, GuideAction> = {
+  id: 'design-a-home', workspace: 'architecture',
+  title: { simple: 'Design a home', pro: 'Residential schematic design' },
+  blurb: { simple: 'From your idea to drawings a builder could price, one step at a time.', pro: 'Program, site, shell, spaces, openings, fixtures, IRC pre-checks, 3D and sheets.' },
+  steps: STEPS,
+  unlocks: ['roomtag', 'dimension', 'move', 'copy', 'rotate', 'offset', 'fillet', 'hatch'],
+};
 
 const kindsIn = (rooms: Room[]) => rooms.map(r => { const kinds = r.name ? kindsOf(r.name) : []; return { r, kinds, kind: kinds[0] ?? null }; });
 const libIds = (m: CadModel) => m.entities.map(e => (e.type === 'insert' ? { e, id: parseLibraryBlock(e.block)?.item.id } : null)).filter((x): x is { e: Extract<CadEntity2D, { type: 'insert' }>; id: string | undefined } => !!x);
@@ -193,8 +197,4 @@ const NICE: Record<string, string> = { wc: 'a toilet', basin: 'a sink', 'bathtub
 const nice = (id: string) => NICE[id] ?? id;
 
 /** First step that still needs doing (optional steps are skipped once anything later is done). */
-export function currentStep(states: StepState[]): StepId {
-  const later = (i: number) => states.slice(i + 1).some(s => s.done);
-  const s = states.find((x, i) => !x.done && !(STEPS[i].optional && later(i)));
-  return (s ?? states[states.length - 1]).id;
-}
+export function currentStep(states: StepState[]): StepId { return currentStepOf(STEPS, states); }
