@@ -10,8 +10,9 @@ import type { Game, WebApp } from '../../../../types';
 export const ERA_CLASH_URL =
   'https://muse.ai/s/2d-fighting-game-xuxq6iexlfbxtx0xm/q3Ba-IuaSYCX0IdCrcH6UnjGND_EmU-gPmHW-lLzWHQ';
 
-/** Thumbnail for library cards. TODO: real Era Clash still, not picsum. */
-export const ERA_CLASH_THUMBNAIL_URL = '';
+/** Thumbnail for library cards — the Era Clash title screen, uploaded to Plajah Storage. */
+export const ERA_CLASH_THUMBNAIL_URL =
+  'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/games%2Fera-clash%2Fthumbnail.png?alt=media&token=13d4b1bd-7443-4578-a7b7-e27d81821a88';
 
 export const ERA_CLASH_GAME: Game = {
   id: 'era-clash',
