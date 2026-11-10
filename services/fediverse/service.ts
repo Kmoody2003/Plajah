@@ -170,6 +170,11 @@ export async function getUnifiedTimeline(
             const r = await ADAPTERS['bluesky'].getPublicTimeline(acc.credentials);
             return r.posts;
           }
+          // Threads has no home timeline in its API — show the account's own posts instead of an error.
+          if (acc.protocol === 'threads') {
+            const { threadsGetOwnPosts } = await import('./threads.js');
+            return (await threadsGetOwnPosts(acc.credentials, acc.id)).posts;
+          }
           throw err;
         })
     )

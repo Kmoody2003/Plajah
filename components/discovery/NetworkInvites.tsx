@@ -17,10 +17,11 @@ const ROW = 'flex items-center gap-3 rounded-2xl border border-white/10 bg-white
 const BTN = 'rounded-full px-3.5 py-2 text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-40';
 
 export default function NetworkInvites({ className = '' }: { className?: string }) {
-  const { accounts, connectBlueskyOAuth } = useFediverse();
+  const { accounts, connectBlueskyOAuth, connectThreadsOAuth } = useFediverse();
   const bsky = accounts.find(a => a.protocol === 'bluesky');
+  const threads = accounts.find(a => a.protocol === 'threads');
   const [audius, setAudius] = useState(() => getAudiusSession());
-  const [busy, setBusy] = useState<'bsky-new' | 'bsky' | 'audius' | null>(null);
+  const [busy, setBusy] = useState<'bsky-new' | 'bsky' | 'audius' | 'threads' | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -29,10 +30,11 @@ export default function NetworkInvites({ className = '' }: { className?: string 
     return () => window.removeEventListener(AUDIUS_SESSION_EVENT, on);
   }, []);
 
-  const run = async (k: 'bsky-new' | 'bsky' | 'audius') => {
+  const run = async (k: 'bsky-new' | 'bsky' | 'audius' | 'threads') => {
     setBusy(k); setErr(null);
     try {
       if (k === 'audius') setAudius(await startAudiusAuth({ scope: 'write' }));
+      else if (k === 'threads') await connectThreadsOAuth();
       else await connectBlueskyOAuth(undefined, { create: k === 'bsky-new' });
     } catch (e: any) {
       setErr(e?.message || 'That didn’t connect. You can try again from Settings › Social networks.');
@@ -69,6 +71,18 @@ export default function NetworkInvites({ className = '' }: { className?: string 
           {audius ? <Check size={18} className="text-[#a855f7] shrink-0" /> : (
             <button type="button" disabled={!!busy} onClick={() => run('audius')} className={`${BTN} text-white shrink-0`} style={{ background: '#a855f7' }}>
               {busy === 'audius' ? <Loader2 size={12} className="animate-spin" /> : 'Connect or join'}
+            </button>
+          )}
+        </div>
+        <div className={ROW}>
+          <span className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-black shrink-0 bg-white/10 text-white">@</span>
+          <span className="min-w-0 mr-auto">
+            <span className="block text-[14px] font-black text-white">Threads</span>
+            <span className="block text-[12px] text-white/55">{threads ? `Connected as ${threads.handle || 'your account'}` : 'Share your posts to Threads, and see yours in Social.'}</span>
+          </span>
+          {threads ? <Check size={18} className="text-white shrink-0" /> : (
+            <button type="button" disabled={!!busy} onClick={() => run('threads')} className={`${BTN} text-black bg-white hover:bg-white/90 shrink-0`}>
+              {busy === 'threads' ? <Loader2 size={12} className="animate-spin" /> : 'Continue'}
             </button>
           )}
         </div>
