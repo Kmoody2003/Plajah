@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Game, UserProfile } from '../types';
 import { fetchGames, updateGamePlayCount, fetchUserProfile, auth } from '../services/backendService';
 import ChipRail from './ui/ChipRail';
+import { ERA_CLASH_GAME } from '../packages/first-party-games/games/era-clash/registry';
 const KithParty = React.lazy(() => import('./kithParty/KithParty'));
 
 interface FreeToGame {
@@ -223,21 +224,21 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
              </div>
            ) : (
              <div className="max-w-7xl mx-auto space-y-12">
-               {/* Plajah Originals — admin-only first-party prototype (Pew Pew) */}
-               {isAdmin && (
+               {/* Plajah Originals — first-party games built by Plajah */}
                <div>
                  <div className="flex items-center gap-3 mb-8">
                    <Gamepad2 size={20} className="text-small-orange" />
                    <h3 className="text-xl font-black uppercase tracking-tightest">Plajah Originals</h3>
-                   <span className="px-2.5 py-1 rounded-md bg-white/10 border border-white/15 text-[8px] font-black uppercase tracking-widest text-white/70">Prototype · Admin</span>
                  </div>
+                 {isAdmin && (
                  <div
                    className="relative rounded-[3rem] overflow-hidden border border-white/10 p-8 md:p-10"
                    style={{ background: 'radial-gradient(60rem 30rem at 80% -20%, rgba(255,140,0,0.18), transparent 60%), linear-gradient(135deg, rgba(107,0,153,0.35), rgba(212,0,85,0.25) 55%, rgba(255,140,0,0.15))' }}
                  >
                    <div className="flex flex-col md:flex-row md:items-center gap-8">
                      <div className="flex-1">
-                       <h4 className="font-black tracking-tightest text-4xl md:text-5xl" style={{ background: 'linear-gradient(135deg,#FF8C00,#D40055)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>PEW PEW</h4>
+                       <span className="px-2.5 py-1 rounded-md bg-white/10 border border-white/15 text-[8px] font-black uppercase tracking-widest text-white/70">Prototype · Admin</span>
+                       <h4 className="font-black tracking-tightest text-4xl md:text-5xl mt-3" style={{ background: 'linear-gradient(135deg,#FF8C00,#D40055)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>PEW PEW</h4>
                        <p className="text-white/70 text-sm mt-3 max-w-md leading-relaxed">The live-action shooter — early feel test. Point your phone (or headset) at targets, hold to lock, release to fire. Needs camera + motion, so open it on a phone.</p>
                      </div>
                      <div className="flex flex-col gap-3 w-full md:w-auto">
@@ -250,8 +251,35 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
                      </div>
                    </div>
                  </div>
+                 )}
+                 {/* Era Clash — public first-party original */}
+                 <div
+                   className="relative rounded-[3rem] overflow-hidden border border-white/10 p-8 md:p-10 mt-6"
+                   style={{ background: 'radial-gradient(60rem 30rem at 80% -20%, rgba(255,140,0,0.18), transparent 60%), linear-gradient(135deg, rgba(107,0,153,0.35), rgba(212,0,85,0.25) 55%, rgba(255,140,0,0.15))' }}
+                 >
+                   <div className="flex flex-col md:flex-row md:items-center gap-8">
+                     <div className="flex-1">
+                       <div className="flex items-center gap-2 mb-3">
+                         <span className="px-2.5 py-1 rounded-md bg-gradient-to-r from-orange-500 to-pink-600 text-white text-[8px] font-black uppercase tracking-widest shadow">Plajah Original</span>
+                         <span className="px-2.5 py-1 rounded-md bg-green-500/20 border border-green-500/30 text-[8px] font-black uppercase tracking-widest text-green-400">Live</span>
+                       </div>
+                       <h4 className="font-black tracking-tightest text-4xl md:text-5xl" style={{ background: 'linear-gradient(135deg,#FF8C00,#D40055)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>ERA CLASH</h4>
+                       <p className="text-white/70 text-sm mt-3 max-w-md leading-relaxed">{ERA_CLASH_GAME.description}</p>
+                     </div>
+                     <div className="flex flex-col gap-3 w-full md:w-auto">
+                       {ERA_CLASH_GAME.thumbnailUrl ? (
+                         <img src={ERA_CLASH_GAME.thumbnailUrl} alt="Era Clash" className="w-full md:w-64 rounded-2xl object-cover" />
+                       ) : null}
+                       <button
+                         onClick={() => handleLaunchGame(ERA_CLASH_GAME)}
+                         className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-widest hover:scale-105 transition-all"
+                       >
+                         <Play size={16} fill="currentColor" /> Play
+                       </button>
+                     </div>
+                   </div>
+                 </div>
                </div>
-               )}
 
                {/* Trending Section */}
                {games.length > 0 && (

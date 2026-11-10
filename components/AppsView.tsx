@@ -32,9 +32,11 @@ import {
   BookOpen,
   MonitorPlay,
   LayoutPanelTop,
-  Disc
+  Disc,
+  Gamepad2,
 } from 'lucide-react';
 import { fetchGlobalApps, fetchUserApps, saveWebApp, fetchAppReviews, submitAppReview, updateAppStats } from '../services/backendService';
+import { ERA_CLASH_WEB_APP } from '../packages/first-party-games/games/era-clash/registry';
 import Logo from './Logo';
 import { Browser } from '@capacitor/browser';
 import { Capacitor } from '@capacitor/core';
@@ -449,6 +451,42 @@ const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, 
               </div>
             </motion.div>
           ) : (
+            <>
+            {activeTab === 'DISCOVER' && ('era clash fighting'.includes(searchQuery.toLowerCase()) || searchQuery === '') && (
+            <section className="px-8 lg:px-16 pt-8">
+              <div className="flex items-center gap-3 mb-6">
+                <Gamepad2 size={20} className="text-small-orange" />
+                <h3 className="text-xl font-black uppercase tracking-tightest">Plajah Originals</h3>
+              </div>
+              <div
+                onClick={() => setSelectedApp(ERA_CLASH_WEB_APP)}
+                className="group cursor-pointer space-y-6 max-w-sm"
+              >
+                <div className="relative aspect-square rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl transition-all group-hover:scale-105 group-hover:-translate-y-2" style={{ background: 'radial-gradient(60rem 30rem at 80% -20%, rgba(255,140,0,0.18), transparent 60%), linear-gradient(135deg, rgba(107,0,153,0.35), rgba(212,0,85,0.25) 55%, rgba(255,140,0,0.15))' }}>
+                  {ERA_CLASH_WEB_APP.thumbnailUrl ? (
+                    <img src={ERA_CLASH_WEB_APP.thumbnailUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={ERA_CLASH_WEB_APP.title} />
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center p-8">
+                      <Gamepad2 size={56} className="text-white drop-shadow-[0_0_24px_rgba(255,140,0,0.6)]" />
+                      <p className="text-2xl font-black uppercase tracking-tighter italic text-white">Era Clash</p>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center p-8 text-center backdrop-blur-sm">
+                    <Play fill="white" size={48} className="mb-4 text-white scale-75 group-hover:scale-100 transition-all" />
+                    <p className="text-[10px] font-black uppercase tracking-widest">Enter Bridge</p>
+                  </div>
+                  <div className="absolute top-6 left-6 flex items-center gap-2">
+                    <span className="px-3 py-1 bg-black/40 backdrop-blur-md border border-white/10 rounded-full text-[8px] font-black uppercase tracking-widest text-white/80">Plajah Original</span>
+                    <span className="px-3 py-1 bg-green-500/20 backdrop-blur-md border border-green-500/30 rounded-full text-[8px] font-black uppercase tracking-widest text-green-400">Live</span>
+                  </div>
+                </div>
+                <div className="px-4">
+                  <h3 className="text-2xl font-display font-black tracking-tight uppercase truncate">Era Clash</h3>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mt-1">Plajah</p>
+                </div>
+              </div>
+            </section>
+            )}
             <motion.div 
               key="catalog"
               initial={{ opacity: 0 }}
@@ -836,6 +874,7 @@ const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, 
                 </div>
               )}
             </motion.div>
+            </>
           )}
         </AnimatePresence>
       </div>
