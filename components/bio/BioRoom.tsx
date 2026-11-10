@@ -5,8 +5,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRoomHost } from '../workspace/roomHost';
-import { useToolRail, AriaToolHint, type ToolRail } from '../workspace/useToolRail';
+import { useToolRail, useToolRunner, AriaToolHint, type ToolRail } from '../workspace/useToolRail';
 import { BIO, registerBioTools, fewMolecules, moleculeFacts, type BioToolDoc, type BioToolId } from '../../services/bio/workspaceTools';
+import { registry } from '../../services/workspace/tools';
 import type { Level } from '../../services/workspace/guidePath';
 import * as THREE from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
@@ -83,8 +84,8 @@ export default function BioRoom({ onClose, onAddToTela, upload, makeId, initialT
         {onClose && <button className="bio-btn" onClick={onClose} aria-label="Close"><X size={15}/></button>}
       </header>
       <div className="flex-1 min-h-0 relative">
-        {tab === 'molecule' ? <MoleculeTab narrow={narrow} level={level} add={add && upload && makeId ? (s, src, o) => add(() => structureToTelaDevice(s, src, o, upload, makeId)) : undefined} loadStructure={loadStructure} onError={t => setNote({ kind: 'err', text: t })}/>
-          : <PathwayTab narrow={narrow} level={level} loadModel={loadModel} add={add && upload && makeId ? (m, r, shown, st) => add(() => simulationToTelaChart(m, r, shown, st, upload, makeId)) : undefined} onError={t => setNote({ kind: 'err', text: t })}/>}
+        {tab === 'molecule' ? <MoleculeTab goPathway={() => setTab('pathway')} narrow={narrow} level={level} add={add && upload && makeId ? (s, src, o) => add(() => structureToTelaDevice(s, src, o, upload, makeId)) : undefined} loadStructure={loadStructure} onError={t => setNote({ kind: 'err', text: t })}/>
+          : <PathwayTab goMolecule={() => setTab('molecule')} narrow={narrow} level={level} loadModel={loadModel} add={add && upload && makeId ? (m, r, shown, st) => add(() => simulationToTelaChart(m, r, shown, st, upload, makeId)) : undefined} onError={t => setNote({ kind: 'err', text: t })}/>}
         {note && <div role={note.kind === 'err' ? 'alert' : 'status'} className="absolute top-3 left-1/2 -translate-x-1/2 z-30 max-w-[min(560px,calc(100%-32px))] px-4 py-2.5 rounded-xl text-[12px] flex gap-2 items-start" style={note.kind === 'err' ? { background: '#2a1416', border: '1px solid rgba(248,113,113,.4)', color: '#fecaca' } : { background: '#0f2a1d', border: '1px solid rgba(52,211,153,.4)', color: '#a7f3d0' }}>
           {note.kind === 'err' ? <AlertTriangle size={14} className="shrink-0 mt-0.5"/> : <CheckCircle2 size={14} className="shrink-0 mt-0.5"/>}<span className="flex-1">{note.text}</span><button onClick={() => setNote(null)} aria-label="Dismiss"><X size={13}/></button>
         </div>}
@@ -116,7 +117,7 @@ function Panel({ narrow, side, children, testid }: { narrow: boolean; side: 'lef
 
 // ── Molecule ────────────────────────────────────────────────────────────────
 
-function MoleculeTab({ narrow, level, add, loadStructure, onError }: { narrow: boolean; level: Level; add?: (s: Structure, src: SourceFile, o: { style: MolStyle; color: MolColor }) => Promise<void>; loadStructure?: () => Promise<SourceFile>; onError: (t: string) => void }) {
+function MoleculeTab({ goPathway, narrow, level, add, loadStructure, onError }: { goPathway?: () => void; narrow: boolean; level: Level; add?: (s: Structure, src: SourceFile, o: { style: MolStyle; color: MolColor }) => Promise<void>; loadStructure?: () => Promise<SourceFile>; onError: (t: string) => void }) {
   const [src, setSrc] = useState<SourceFile | null>(null);
   const [busy, setBusy] = useState('');
   const [pdbId, setPdbId] = useState(''); const [uniprot, setUniprot] = useState('');
@@ -139,6 +140,16 @@ function MoleculeTab({ narrow, level, add, loadStructure, onError }: { narrow: b
   const rail = useToolRail<BioToolDoc>(BIO, railDoc, NO_SEL, level, undefined, MOLECULE_GROUP);
   const pickStyle = (x: MolStyle) => { setStyle(x); if (x !== 'cartoon') rail.used('atoms'); };
   const pickColor = (x: MolColor) => { setColor(x); if (x === 'element') rail.used('atoms'); if (x === 'chain') rail.used('chains'); };
+  // Ask Aria's "Show me" while the Molecule tab is open (the Pathway tab registers its own).
+  useToolRunner(BIO, raw => {
+    const id = raw as BioToolId; const simple = level === 'simple';
+    if (!MOLECULE_GROUP.includes(registry.get(BIO, id)?.group ?? '')) { goPathway?.(); return simple ? `Opened the Pathway tab, where ${registry.get(BIO, id)?.label ?? 'that tool'} lives. Press Show me again to use it.` : 'Switched to Pathway.'; }
+    if (!structure) return simple ? 'First load a protein: type a PDB code like 1CRN under Load and press the search button. Then press Show me again.' : 'Load a structure first.';
+    if (id === 'cartoon') pickStyle('cartoon'); else if (id === 'atoms') pickStyle('ball-stick'); else if (id === 'chains') pickColor('chain');
+    else if (id === 'water') { rail.used('water'); rail.setShowAll(true); setShowWater(true); }
+    else return false;
+    return true;
+  });
   const styleShown = (x: MolStyle) => x === 'cartoon' || style === x || rail.shows('atoms');
   const colorShown = (x: MolColor) => x === 'secondary' || x === 'confidence' || color === x || rail.shows(x === 'chain' ? 'chains' : 'atoms');
 
@@ -237,7 +248,7 @@ function Fit({ radius, id }: { radius: number; id: string }) {
 
 type SimSettings = { params: Record<string, number>; initial: Record<string, number>; tEnd: number; mode?: 'ode' | 'stochastic'; unit?: number };
 
-function PathwayTab({ narrow, level, add, onError, loadModel }: { narrow: boolean; level: Level; add?: (m: BioModel, r: SimResult, shown: string[], settings: SimSettings) => Promise<void>; onError: (t: string) => void; loadModel?: () => Promise<{ xml: string; tEnd: number; name: string }> }) {
+function PathwayTab({ goMolecule, narrow, level, add, onError, loadModel }: { goMolecule?: () => void; narrow: boolean; level: Level; add?: (m: BioModel, r: SimResult, shown: string[], settings: SimSettings) => Promise<void>; onError: (t: string) => void; loadModel?: () => Promise<{ xml: string; tEnd: number; name: string }> }) {
   const [model, setModel] = useState<BioModel>(STARTERS[1].model);
   const [starterId, setStarterId] = useState<string | null>(STARTERS[1].id);
   const starter = STARTERS.find(s => s.id === starterId);
@@ -316,6 +327,16 @@ function PathwayTab({ narrow, level, add, onError, loadModel }: { narrow: boolea
   const tunedModel = useRef(''); // count one use of the rate sliders per model, not one per slider tick
   const tune = (id: string, x: number) => { if (tunedModel.current !== model.id) { tunedModel.current = model.id; rail.used('params'); } setParams(o => ({ ...o, [id]: x })); };
   const pickMode = (mo: 'ode' | 'stochastic') => { setMode(mo); rail.used(mo); };
+  useToolRunner(BIO, raw => {
+    const id = raw as BioToolId; const simple = level === 'simple';
+    if (!PATHWAY_GROUP.includes(registry.get(BIO, id)?.group ?? '')) { goMolecule?.(); return simple ? `Opened the Molecule tab, where ${registry.get(BIO, id)?.label ?? 'that tool'} lives. Press Show me again to use it.` : 'Switched to Molecule.'; }
+    if (id === 'ode' || id === 'stochastic') pickMode(id);
+    else if (id === 'params') return simple ? 'Rates are the sliders under Parameters. Drag one to make that reaction faster or slower.' : 'Rate sliders under Parameters.';
+    else if (id === 'amounts') { rail.used('amounts'); rail.setShowAll(true); return simple ? 'Starting amounts are the sliders under Parameters. Drag one to change how much there is at the start.' : 'Initial amounts under Parameters.'; }
+    else if (id === 'sbml') { rail.setShowAll(true); return simple ? 'SBML is the download button next to Reset. Press it to save the model.' : 'SBML export next to Reset.'; }
+    else return false;
+    return true;
+  });
   const plotted = shown.filter(id => result.r?.series[id]);
 
   const left = <>

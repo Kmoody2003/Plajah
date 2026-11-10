@@ -196,3 +196,76 @@ test('studio rail: shape basics first; Group for holes, Align for two picked, Dr
   assert.ok(ids({}, { profile: prof }).includes('mirror'), 'Mirror is earned by duplicating');
   assert.equal(ids({}, { level: 'pro' }).length, STUDIO_TOOLS.length);
 });
+
+test('ask aria: answers from the workspace\'s tools, knows what is on the toolbar, and keeps safety in', async () => {
+  const { workspaceFacts, askWorkspace, cleanRail } = await import('../services/workspace/ariaKnowledge');
+  const { localAnswer, retrieve, checkAnswer, suggestedQuestions } = await import('../services/workspace/askAria');
+  const rail = { visible: ['undo', 'redo', 'move', 'turn', 'stretch', 'duplicate', 'delete', 'home', 'group'], fresh: { group: 'x' }, suggestion: 'group' };
+  const facts = workspaceFacts('studio', 'simple', cleanRail('studio', 'simple', rail))!;
+  // "How do I cut a hole?" → Group, and it's on the toolbar now.
+  const a = localAnswer('simple', 'how do I cut a hole in my box?', facts);
+  assert.ok(a.tools.includes('group'), a.answer);
+  assert.match(a.answer, /toolbar/);
+  // "What next?" → what just appeared, with the registry's reason (the browser's text is ignored).
+  const next = localAnswer('simple', 'what should I do next?', facts);
+  assert.ok(next.tools.includes('group')); assert.ok(!next.answer.includes(' x.'), 'reason comes from the registry');
+  // A hidden pro tool says how to get it.
+  assert.match(localAnswer('simple', 'how do I mirror it', facts).answer, /\+/);
+  // Safety questions bring the safety note.
+  const hot = localAnswer('simple', 'is it safe to touch the printer?', facts);
+  assert.match(hot.answer, /hot/);
+  // Mechanical uses the drafting tools; electronics knows mains is dangerous.
+  assert.ok(workspaceFacts('mechanical', 'pro', null)!.some(f => f.tool === 'wall'));
+  assert.match(localAnswer('simple', 'can I plug my circuit into the wall?', workspaceFacts('electronics', 'simple', null)!).answer, /electrician/);
+  // Architecture knows its guide path.
+  assert.ok(retrieve('how do I add doors and windows', workspaceFacts('architecture', 'simple', null)!).some(f => f.kind === 'step'));
+  assert.equal(localAnswer('simple', 'what is the capital of France', facts).unknown, true);
+  assert.equal(workspaceFacts('nope', 'simple'), null);
+  assert.ok(suggestedQuestions('simple', facts).some(q => q.includes('Group')));
+
+  // The model must cite facts, can't invent numbers, and safety it matched is never dropped.
+  const hits = retrieve('is the printer hot, how do I group?', facts, 6);
+  const g = hits.find(f => f.tool === 'group')!; const safe = hits.find(f => f.kind === 'safety')!;
+  assert.ok(g && safe);
+  assert.equal(checkAnswer(JSON.stringify({ answer: 'Press Group.', cites: [], known: true }), hits), null, 'no citation');
+  assert.equal(checkAnswer(JSON.stringify({ answer: 'Group needs 7 shapes.', cites: [g.id], known: true }), hits), null, 'made-up number');
+  assert.equal(checkAnswer('not json', hits), null);
+  const ok = checkAnswer(JSON.stringify({ answer: 'Press Group (Ctrl+G).', cites: [g.id], known: true }), hits)!;
+  assert.ok(ok.answer.includes(safe.text), 'safety note kept'); assert.deepEqual(ok.tools, ['group']);
+
+  // askWorkspace: model answer when it checks out, the notes when it doesn't, null for unknown workspaces.
+  const viaModel = await askWorkspace({ workspace: 'studio', level: 'simple', question: 'how do I join two shapes', rail, model: async (_s, u) => JSON.stringify({ answer: 'Pick both, then press Group.', cites: [u.match(/\[(f\d+)\] Group/)![1]], known: true }) });
+  assert.equal(viaModel!.by, 'model'); assert.deepEqual(viaModel!.tools, ['group']);
+  const bad = await askWorkspace({ workspace: 'studio', level: 'simple', question: 'how do I join two shapes', rail, model: async () => '{"answer":"Use the Weld tool","cites":[],"known":true}' });
+  assert.equal(bad!.by, 'rules');
+  const thrown = await askWorkspace({ workspace: 'studio', level: 'pro', question: 'group', model: async () => { throw new Error('503'); } });
+  assert.equal(thrown!.by, 'rules');
+  assert.equal(await askWorkspace({ workspace: 'nope', level: 'simple', question: 'hi' }), null);
+  // The browser's rail can't add tools that don't exist.
+  assert.deepEqual(cleanRail('studio', 'simple', { visible: ['group', 'weld', 7], fresh: { weld: 'x' } })!.visible, ['group']);
+});
+
+test('ask aria: word forms meet, stray words do not match, doing-words beat nouns, and a quiet "next" still helps', async () => {
+  const { workspaceFacts } = await import('../services/workspace/ariaKnowledge');
+  const { localAnswer } = await import('../services/workspace/askAria');
+  const elec = workspaceFacts('electronics', 'simple')!;
+  assert.ok(localAnswer('simple', 'how do I run a simulation?', elec).tools.includes('simulate'), 'simulation ~ Simulate');
+  assert.equal(localAnswer('simple', 'how do I turn a part?', elec).tools[0], 'rotate', '"turn" names Rotate, "part" only mentions Part');
+  const bio = workspaceFacts('biology', 'simple')!;
+  assert.ok(localAnswer('simple', 'how do I sew it together?', bio).unknown, 'one shared word ("together") is not a match');
+  assert.ok(localAnswer('simple', 'how do I sew it together?', workspaceFacts('sewing', 'simple')!).tools.includes('steps'));
+  const quiet = workspaceFacts('studio', 'simple', { visible: ['undo', 'move', 'turn'], fresh: {}, suggestion: null })!;
+  const next = localAnswer('simple', 'what should I do next?', quiet);
+  assert.ok(!next.unknown && /Nothing new/.test(next.answer) && next.tools.includes('move'), next.answer);
+});
+
+test('rail bus: a runner can run, refuse, or say what to do first', async () => {
+  const { setRunner, runTool, canRun } = await import('../services/workspace/railBus');
+  assert.deepEqual(runTool('nowhere', 'x'), { ran: false });
+  const off = setRunner('t', id => id === 'go' ? true : id === 'pick' ? 'Pick two shapes first.' : false);
+  assert.ok(canRun('t'));
+  assert.deepEqual(runTool('t', 'go'), { ran: true });
+  assert.deepEqual(runTool('t', 'pick'), { ran: false, note: 'Pick two shapes first.' });
+  assert.deepEqual(runTool('t', 'nope'), { ran: false });
+  off(); assert.ok(!canRun('t'));
+});

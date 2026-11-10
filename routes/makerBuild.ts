@@ -3,6 +3,7 @@
 //
 //   GET  /safety/recalls?q=charger      CPSC recalls (public API, no key), cached 6 h
 //   GET  /workspace/profile              the caller's workspace skill profile (PUT merges and saves)
+//   POST /workspace/ask                  Ask Aria {workspace, level, question, rail} → a grounded answer
 //   GET  /terms                          { version, accepted } for the signed-in user
 //   POST /terms        { version }       record acceptance (versioned)
 //   GET  /supply/search?q=NE555P         DigiKey + Mouser offers when the operator set keys
@@ -25,6 +26,8 @@ import { BUILD_TERMS_VERSION } from '../services/safety/terms';
 import { digikeyBody, digikeyOffers, mouserBody, mouserOffers, type Offer } from '../services/supply/sourcing';
 import { SHOP_CAPABILITIES } from '../services/supply/directory';
 import { emptyProfile, mergeProfiles, sanitizeProfile } from '../services/workspace/skillProfile';
+import { askWorkspace } from '../services/workspace/ariaKnowledge';
+import { createGeminiLane, geminiConfigured, laneModel, type LaneFn } from '../services/ai/geminiLane';
 
 export const makerBuildRouter = Router();
 
@@ -72,6 +75,34 @@ makerBuildRouter.put('/workspace/profile', async (req: Request, res: Response) =
   const ok = await fsSet(`workspaceProfiles/${uid}`, { json, updatedAt: profile.updatedAt });
   if (!ok) { res.status(502).json({ error: 'Could not save your workspace profile' }); return; }
   res.json({ profile });
+});
+
+// ---------------------------------------------------------------- Ask Aria
+// Answers questions about the workspace you're in, grounded in its tools, guide steps and safety notes
+// (services/workspace/askAria.ts). Signed in only; the panel answers from the same facts locally when
+// signed out, offline, or when no model is configured.
+let ariaModel: LaneFn | null | undefined;
+const ariaLane = () => ariaModel !== undefined ? ariaModel
+  : (ariaModel = geminiConfigured() ? createGeminiLane({ model: laneModel('WORKSPACE_ARIA_MODEL'), temperature: 0.2, timeoutMs: 12_000 }) : null);
+const ariaHits = new Map<string, { start: number; n: number }>();
+const ARIA_PER_HOUR = 120;
+function ariaAllowed(uid: string, now = Date.now()): boolean {
+  const h = ariaHits.get(uid);
+  if (!h || now - h.start > 3_600_000) { ariaHits.set(uid, { start: now, n: 1 }); if (ariaHits.size > 5000) ariaHits.delete(ariaHits.keys().next().value as string); return true; }
+  if (h.n >= ARIA_PER_HOUR) return false;
+  h.n += 1; return true;
+}
+makerBuildRouter.post('/workspace/ask', async (req: Request, res: Response) => {
+  const uid = await uidOf(req); if (!uid) { res.status(401).json({ error: 'Sign in to ask Aria' }); return; }
+  const question = s(req.body?.question, 500); if (question.length < 2) { res.status(400).json({ error: 'Ask a question' }); return; }
+  const workspace = s(req.body?.workspace, 40);
+  const model = ariaLane();
+  if (!model) { res.status(503).json({ error: 'Aria is answering from the workspace notes right now' }); return; }
+  if (!ariaAllowed(uid)) { res.status(429).json({ error: 'Lots of questions! Aria will answer from the workspace notes for a while.' }); return; }
+  const out = await askWorkspace({ workspace, level: req.body?.level === 'pro' ? 'pro' : 'simple', question, rail: req.body?.rail,
+    model: (system, user) => model(system, user, 500, { json: true, temperature: 0.2 }) });
+  if (!out) { res.status(404).json({ error: 'Unknown workspace' }); return; }
+  res.json(out);
 });
 
 // ---------------------------------------------------------------- terms

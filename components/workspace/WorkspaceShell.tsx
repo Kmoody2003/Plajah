@@ -14,6 +14,7 @@ import { getProfile, subscribe, updateProfile, connectAccount } from '../../serv
 import { setLevel } from '../../services/workspace/skillProfile';
 import type { Level } from '../../services/workspace/guidePath';
 import { RoomHostContext } from './roomHost';
+import AskAria, { type AriaTurn } from './AskAria';
 import type { CadRoomProps } from '../cad/CadRoom';
 import type { ElecRoomProps } from '../elec/ElecRoom';
 import type { PatternRoomProps } from '../soft/PatternRoom';
@@ -57,6 +58,9 @@ export default function WorkspaceShell({ initial = 'architecture', launch, getTo
   const [tabs, setTabs] = useState<string[]>([first]);
   const [active, setActive] = useState(first);
   const [picker, setPicker] = useState(false);
+  // Ask Aria: one conversation per workspace tab, kept while you switch.
+  const [aria, setAria] = useState(false);
+  const [ariaTurns, setAriaTurns] = useState<Record<string, AriaTurn[]>>({});
   const profile = useSyncExternalStore(subscribe, getProfile, getProfile);
   useEffect(() => { connectAccount(getToken); }, [getToken]);
   const level: Level = profile.workspaces[active]?.level ?? 'simple';
@@ -87,6 +91,7 @@ export default function WorkspaceShell({ initial = 'architecture', launch, getTo
         </div>; })}
         <button className="ws-btn" onClick={() => setPicker(v => !v)} aria-label="Open a workspace" aria-expanded={picker} data-testid="ws-add"><Plus size={15}/></button>
       </nav>
+      <button className={`ws-aria${aria ? ' ws-aria-on' : ''}`} onClick={() => setAria(v => !v)} aria-expanded={aria} aria-label="Ask Aria" title="Ask Aria about this workspace" data-testid="ws-ask-aria"><span className="aa-dot" aria-hidden="true">A</span><span className="ws-aria-l">Ask Aria</span></button>
       <div className="ws-level" role="group" aria-label="Explanation level">
         {(['simple', 'pro'] as const).map(l => <button key={l} className={level === l ? 'ws-lon' : ''} onClick={() => changeLevel(active, l)} data-testid={`ws-level-${l}`}>{l === 'simple' ? 'Simple' : 'Pro'}</button>)}
       </div>
@@ -98,6 +103,8 @@ export default function WorkspaceShell({ initial = 'architecture', launch, getTo
           <Room w={w} level={profile.workspaces[id]?.level ?? 'simple'} onLevel={l => changeLevel(id, l)} launch={id === first ? launch : undefined} extra={roomProps} getToken={getToken} onClose={() => close(id)} onOpen={open}/>
         </Suspense></RoomBoundary>
       </Pane>; })}
+      {aria && !picker && <AskAria key={active} workspace={active} workspaceName={workspaceById(active)?.name ?? active} level={level} getToken={getToken}
+        turns={ariaTurns[active] ?? []} setTurns={f => setAriaTurns(m => ({ ...m, [active]: f(m[active] ?? []) }))} onClose={() => setAria(false)}/>}
       {picker && <Picker open={tabs} onPick={open} onClose={() => setPicker(false)} level={level}/>}
     </div>
 
@@ -114,10 +121,13 @@ export default function WorkspaceShell({ initial = 'architecture', launch, getTo
 .ws-x{display:grid;place-items:center;width:20px;height:20px;border-radius:6px;color:rgba(255,255,255,.45)}
 .ws-x:hover{background:rgba(255,255,255,.1);color:#fff}
 .ws-soon{font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:2px 5px;border-radius:999px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.6)}
+.ws-aria{flex:none;display:flex;align-items:center;gap:6px;height:30px;padding:0 10px 0 4px;border-radius:999px;font-size:12px;font-weight:700;color:#e9d5ff;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3)}
+.ws-aria:hover,.ws-aria-on{background:rgba(167,139,250,.22);color:#fff}
+.aa-dot{width:22px;height:22px;border-radius:999px;display:grid;place-items:center;font-size:11px;font-weight:900;color:#fff;background:linear-gradient(135deg,#a855f7,#ec4899)}
 .ws-level{flex:none;display:flex;padding:2px;border-radius:9px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
 .ws-level button{height:26px;padding:0 10px;border-radius:7px;font-size:11.5px;font-weight:700;color:rgba(255,255,255,.6)}
 .ws-level .ws-lon{background:rgba(167,139,250,.2);color:#e9d5ff}
-@media (max-width:639px){.ws-brand{display:none}.ws-tab{max-width:140px}.ws-back{max-width:44px}.ws-back span{display:none}}
+@media (max-width:639px){.ws-aria-l{display:none}.ws-aria{padding:0 4px}.ws-brand{display:none}.ws-tab{max-width:140px}.ws-back{max-width:44px}.ws-back span{display:none}}
 `}</style>
   </div>;
 }

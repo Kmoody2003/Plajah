@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRoomHost } from '../workspace/roomHost';
-import { useToolRail, AriaToolHint, FreshDot } from '../workspace/useToolRail';
+import { useToolRail, useToolRunner, AriaToolHint, FreshDot } from '../workspace/useToolRail';
 import { ELEC, registerElecTools, type ElecToolDoc, type ElecToolId } from '../../services/elec/workspaceTools';
 import type { Level } from '../../services/workspace/guidePath';
 import { X, MousePointer2, Spline, RotateCw, Trash2, Play, Undo2, FilePlus, Download, ShieldCheck, ListChecks, SlidersHorizontal, Activity, Sparkles, Search, Pause, ShieldAlert, Package, Store, CircuitBoard } from 'lucide-react';
@@ -232,6 +232,21 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
   };
 
   const rotateSel = () => { rail.used('rotate'); if (tool.kind === 'place') { setTool({ ...tool, rot: (tool.rot + 1) % 4 }); return; } if (sel?.type === 'part') commit({ ...circuit, parts: circuit.parts.map(p => p.id === sel.id ? { ...p, rot: (p.rot + 1) % 4 } : p) }); };
+  // Ask Aria's "Show me": the same moves as the buttons.
+  useToolRunner(ELEC, raw => {
+    const id = raw as ElecToolId; const simple = level === 'simple';
+    if (id === 'select') { setTool({ kind: 'select' }); rail.used('select'); }
+    else if (id === 'wire') { setTool({ kind: 'wire' }); setSel(null); rail.used('wire'); }
+    else if (id === 'rotate') { if (!selPart && tool.kind !== 'place') return simple ? 'First click a part on the drawing. Then press Show me again.' : 'Select a part first.'; rotateSel(); }
+    else if (id === 'delete') { if (!sel) return simple ? 'First click the part or wire you want gone. Then press Show me again.' : 'Select a part or wire first.'; deleteSel(); }
+    else if (id === 'undo') { if (!history.length) return simple ? 'There is nothing to undo yet.' : 'History is empty.'; undo(); }
+    else if (id === 'simulate') { if (!circuit.parts.length) return simple ? 'First add some parts, or open a starter circuit. Then press Show me again.' : 'Empty circuit.'; run(); }
+    else if (id === 'overtime') { if (!circuit.parts.length) return simple ? 'First add some parts, or open a starter circuit.' : 'Empty circuit.'; const o: SimOptions = { ...simOpts, mode: 'tran', tEnd: simOpts.tEnd ?? 0.01, steps: simOpts.steps ?? 2000 }; setSimOpts(o); run(circuit, o); }
+    else if (id === 'checks' || id === 'safety' || id === 'props' || id === 'bom' || id === 'scope' || id === 'board') openRight(id);
+    else if (id === 'spice') { rail.setShowAll(true); return simple ? 'SPICE is the download button at the top right. Press it to save the netlist.' : 'SPICE export is in the top bar.'; }
+    else return false;
+    return true;
+  });
   const deleteSel = () => { if (!sel) return; rail.used('delete'); commit(sel.type === 'part' ? { ...circuit, parts: circuit.parts.filter(p => p.id !== sel.id) } : { ...circuit, wires: circuit.wires.filter(w => w.id !== sel.id) }); setSel(null); };
   const setParam = (id: string, key: string, value: string | number) => commit({ ...circuit, parts: circuit.parts.map(p => p.id === id ? (key === '__ref' ? { ...p, ref: String(value) } : { ...p, params: { ...p.params, [key]: value } }) : p) });
 

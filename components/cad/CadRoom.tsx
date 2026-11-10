@@ -38,7 +38,7 @@ import { MECH_PARTS, mechModel, mechDefaults, type MechPart } from '../../servic
 import { writeStl } from '../../services/mech/geometry';
 import { userBlocks, scaleEntities } from '../../services/cad/library';
 import { engineById } from '../../services/cad/licences';
-import { useToolRail, AriaToolHint } from '../workspace/useToolRail';
+import { useToolRail, useToolRunner, AriaToolHint } from '../workspace/useToolRail';
 import { ARCH, registerCadTools, type CadToolDoc } from '../../services/cad/workspaceTools';
 import { HOME_PATH } from '../../services/cad/guide/journey';
 import { updateProfile } from '../../services/workspace/profileStore';
@@ -213,6 +213,8 @@ export default function CadRoom({ onClose, onSendToTela, onSendTable, initialFil
   const rail = useMemo(() => railDoc ? { visible: toolRail.visible as Set<DraftTool>, fresh: toolRail.fresh as Map<DraftTool, string> } : null, [railDoc, toolRail.visible, toolRail.fresh]);
   const suggestion = toolRail.suggestion;
   const onToolUsed = useCallback((t: DraftTool) => toolRail.used(t), [toolRail.used]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Ask Aria's "Show me" picks a drafting tool, the same way Aria's hint card does.
+  useToolRunner(ARCH, id => { if (!model?.is2D || in3d) return false; setPlacing(null); setToolRequest(r => ({ tool: id as DraftTool, n: (r?.n ?? 0) + 1 })); return true; });
   const setMeta = (k: string, v: string) => { if (model) commit({ ...model, meta: { ...model.meta, [k]: v } }); };
   const placeItem = (id: string) => { const it = itemById(id); if (!it || !model) return; const params = defaultParams(it); setPlacing({ block: makeBlock(it, params, model.units), layer: it.layer, label: it.name, item: { id: it.id, params } }); };
   const sendTable = async (t: Table) => { if (!onSendTable) return; setBusy(`Adding the ${t.title.toLowerCase()}…`); try { await onSendTable(t.title, [t.columns, ...t.rows]); setSent(`${t.title} added to the document.`); } catch (e: any) { setError(e?.message || String(e)); } finally { setBusy(''); } };

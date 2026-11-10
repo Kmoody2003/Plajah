@@ -2,11 +2,12 @@
 // rail shows, which are new (with Aria's reason), the next tool Aria suggests, and recording use.
 // Rooms keep their own buttons; they ask this hook which ones to draw.
 
-import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { registry, type ToolDef } from '../../services/workspace/tools';
 import { getProfile, subscribe, updateProfile, connectAccount } from '../../services/workspace/profileStore';
 import { recordUse, usesOf } from '../../services/workspace/skillProfile';
 import type { Level } from '../../services/workspace/guidePath';
+import { publishRail, onReveal, setRunner, type Runner } from '../../services/workspace/railBus';
 
 export interface ToolRail {
   /** Every tool the rail should draw right now. */
@@ -44,12 +45,23 @@ export function useToolRail<D>(workspace: string, doc: D | null, selection: numb
   }, [ctx, workspace, profile, level, groups?.join()]); // eslint-disable-line react-hooks/exhaustive-deps
   const next = useMemo(() => { const t = ctx ? registry.suggest(ctx) : null; return t && (!groups || groups.includes(t.group)) ? t : null; }, [ctx, groups?.join()]); // eslint-disable-line react-hooks/exhaustive-deps
   const used = useCallback((id: string) => updateProfile(p => recordUse(p, workspace, id)), [workspace]);
+  const suggestion = next && next.id !== off ? next : null;
+  // Ask Aria reads the rail through railBus, and can ask for every tool ("+N").
+  useEffect(() => { if (ctx) publishRail(workspace, { visible: [...visible], fresh: Object.fromEntries(fresh), suggestion: suggestion?.id ?? null }); }, [ctx, workspace, visible, fresh, suggestion]);
+  useEffect(() => onReveal(workspace, () => setShowAll(true)), [workspace]);
   return {
     visible, fresh, hidden, showAll, setShowAll,
-    suggestion: next && next.id !== off ? next : null,
+    suggestion,
     shows: id => showAll || visible.has(id) || !registry.get(workspace, id),
     used, dismiss: () => setOff(next?.id ?? ''),
   };
+}
+
+/** Lets Ask Aria's "Show me" run a tool in this room. `run` returns false when it can't, or a sentence
+ *  saying what to do first ("pick two shapes"). */
+export function useToolRunner(workspace: string, run: Runner): void {
+  const ref = useRef(run); ref.current = run;
+  useEffect(() => setRunner(workspace, id => ref.current(id)), [workspace]);
 }
 
 /** Aria's "new tool" card: why the tool is here, what it does, Try it / Not now. */

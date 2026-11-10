@@ -19,7 +19,7 @@ import { softHazards, softLabels, softRecallQueries, AUDIENCE_LABEL } from '../.
 import SafetyPanel, { BuildTermsGate, termsAccepted } from '../safety/SafetyPanel';
 import ExchangeRoom from '../supply/ExchangeRoom';
 import { suppliersFor, type Category } from '../../services/supply/directory';
-import { useToolRail, AriaToolHint, FreshDot } from '../workspace/useToolRail';
+import { useToolRail, useToolRunner, AriaToolHint, FreshDot } from '../workspace/useToolRail';
 import { SEW, registerSewTools, type SewToolDoc, type SewToolId } from '../../services/soft/workspaceTools';
 import type { Level } from '../../services/workspace/guidePath';
 
@@ -105,6 +105,18 @@ export default function PatternRoom({ onClose, getToken, apiBase = '', initialTe
   const VIEW_TOOL = { pieces: 'pieces', layout: 'layout', '3d': 'fit3d' } as const;
   const openView = (x: typeof view) => { setView(x); rail.used(VIEW_TOOL[x]); };
   const openRight = (x: typeof right) => { setRight(x); rail.used(x); };
+  // Ask Aria's "Show me": the same moves as the buttons.
+  useToolRunner(SEW, raw => {
+    const id = raw as SewToolId;
+    if (!pattern && id !== 'safety') return level === 'simple' ? 'First set measurements that make a pattern (the ones near the defaults work). Then press Show me again.' : 'No valid pattern from these measurements yet.';
+    if (id === 'pieces') openView('pieces'); else if (id === 'layout') openView('layout'); else if (id === 'fit3d') openView('3d');
+    else if (id === 'safety' || id === 'make' || id === 'materials' || id === 'steps') openRight(id);
+    else if (id === 'grade') { rail.used('grade'); setGrade({ on: true }); openView('pieces'); }
+    else if (id === 'techpack') { rail.used('techpack'); setRight('make'); }
+    else if (id === 'cutter') { rail.setShowAll(true); setRight('make'); return level === 'simple' ? 'Machine cutting is the cutter list in Make. Pick your machine there.' : 'Cutter select is in Make.'; }
+    else return false;
+    return true;
+  });
   const gradeUi = gradeBy[tid] ?? { on: false, from: '', to: '' };
   const rangeSizes = useMemo(() => {
     if (!gradeUi.on || allSizes.length < 2) return [];

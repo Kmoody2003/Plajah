@@ -12,7 +12,7 @@ import { toMesh, type V3 } from '../../../services/build/studio/csg';
 import { writeStl } from '../../../services/mech/geometry';
 import { write3mf } from '../../../services/fab/threeMf';
 import { emptyModel, type CadModel } from '../../../services/cad/model';
-import { useToolRail, AriaToolHint, FreshDot } from '../../workspace/useToolRail';
+import { useToolRail, useToolRunner, AriaToolHint, FreshDot } from '../../workspace/useToolRail';
 import { STUDIO, registerStudioTools, type StudioToolDoc, type StudioToolId } from '../../../services/build/workspaceTools';
 import type { Level } from '../../../services/workspace/guidePath';
 
@@ -253,6 +253,17 @@ export default function Studio3D(p: Studio3DProps) {
     return <button className={`bs-tool${o.active ? ' on' : ''}`} style={fresh ? { position: 'relative' } : undefined} onClick={() => { if (o.id) rail.used(o.id); on(); }} disabled={o.disabled} title={label} aria-label={label} data-testid={o.testid ?? (o.id ? `tool-${o.id}` : undefined)}>{icon}<span>{label}</span>{fresh && <FreshDot reason={fresh} testid={`studio-fresh-${o.id}`}/>}</button>;
   };
   const tryTool = (id: StudioToolId) => { rail.used(id); ({ group: doGroup, align: () => setAlignOpen(true), ungroup: doUngroup, drop: doDrop, top: () => view('top') } as Partial<Record<StudioToolId, () => void>>)[id]?.(); };
+  // Ask Aria's "Show me": the same buttons, pressed from the chat.
+  useToolRunner(STUDIO, id => {
+    const run: Partial<Record<StudioToolId, () => void>> = { group: doGroup, align: () => setAlignOpen(true), ungroup: doUngroup, drop: doDrop, top: () => view('top'), home: () => view('home'),
+      move: () => setMode('translate'), turn: () => setMode('rotate'), stretch: () => setMode('scale'), undo: p.undo, redo: p.redo, duplicate: dup, delete: del, mirror: () => doMirror(0) };
+    const f = run[id as StudioToolId]; if (!f) return false;
+    const simple = level === 'simple';
+    if ((id === 'group' || id === 'align') && selected.length < 2) return simple ? `First pick the shapes: click one, then Shift+click the other${id === 'group' ? ' (the solid and the hole)' : ''}. Then press Show me again.` : `Select two or more shapes first (Shift+click).`;
+    if (['duplicate', 'delete', 'mirror', 'drop'].includes(id) && !selected.length) return simple ? 'First click the shape you want, then press Show me again.' : 'Select a shape first.';
+    if (id === 'ungroup' && !selected.some(s => s.kind === 'group')) return simple ? 'First click the group you want to take apart.' : 'Select a group first.';
+    rail.used(id); f(); return true;
+  });
 
   return <div className="bs3">
     <aside className="bs3-palette" aria-label="Shapes">

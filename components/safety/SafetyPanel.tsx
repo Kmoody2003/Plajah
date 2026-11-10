@@ -66,7 +66,7 @@ export function BuildTermsGate({ onAccepted, getToken, apiBase = '', onClose }: 
       saveLocalAcceptance(); onAccepted();
     } catch (e: any) { setErr(String(e?.message ?? e)); } finally { setBusy(false); }
   };
-  return <div className="fixed inset-0 z-[300] grid place-items-center p-4" style={{ background: 'rgba(5,6,10,.82)' }} data-testid="build-terms">
+  return <div className="fixed inset-0 z-[300] grid place-items-center p-4" style={{ background: 'rgba(5,6,10,.82)' }} role="dialog" aria-modal="true" aria-label="Safety terms" data-testid="build-terms">
     <div className="w-full max-w-xl max-h-[86vh] flex flex-col rounded-2xl" style={{ background: '#12141b', border: '1px solid rgba(255,255,255,.1)', color: '#e8eaf0' }}>
       <div className="p-4 border-b" style={{ borderColor: 'rgba(255,255,255,.08)' }}><div className="flex items-center gap-2 font-extrabold text-[15px]"><ShieldAlert size={18} color="#fbbf24"/>Safety comes first</div>
         <div className="text-[12px] mt-1" style={{ color: DIM }}>Plajah Build warns you about hazards at every step, but you are the maker. Please read and accept these terms (version {BUILD_TERMS_VERSION}).</div></div>
