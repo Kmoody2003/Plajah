@@ -183,6 +183,20 @@
       "rough": "textures/grey_roof_tiles/rough.jpg",
       "ao": "textures/grey_roof_tiles/ao.jpg",
       "disp": "textures/grey_roof_tiles/disp.jpg"
+    },
+    "aerial_grass_rock": {
+      "diff": "textures/aerial_grass_rock/diff.jpg",
+      "nor_gl": "textures/aerial_grass_rock/nor_gl.jpg",
+      "rough": "textures/aerial_grass_rock/rough.jpg",
+      "ao": "textures/aerial_grass_rock/ao.jpg",
+      "disp": "textures/aerial_grass_rock/disp.jpg"
+    },
+    "aerial_rocks_02": {
+      "diff": "textures/aerial_rocks_02/diff.jpg",
+      "nor_gl": "textures/aerial_rocks_02/nor_gl.jpg",
+      "rough": "textures/aerial_rocks_02/rough.jpg",
+      "ao": "textures/aerial_rocks_02/ao.jpg",
+      "disp": "textures/aerial_rocks_02/disp.jpg"
     }
   },
   "models": {

@@ -6,7 +6,7 @@ import * as THREE from 'three/webgpu';
 import { color, positionWorld, normalize, mix, smoothstep, vertexColor, texture, uv, vec2, vec3, time, sin, float, instancedBufferAttribute, uniform } from 'three/tsl';
 import { collide } from './core/collision';
 import { uvMaterial } from './core/materials';
-import { foliagedTree, leafCardMaterial } from './core/foliage';
+import { Forest, type TreeSpot } from './core/forest';
 import { rng } from './core/kit';
 import { buildTerrain, buildSea, type Splat } from './ground';
 import { buildGrassField, type GrassField } from './grassField';
@@ -24,6 +24,8 @@ export interface Chapter1World {
   fires: Fire[];
   bell: THREE.Object3D;
   petals: THREE.InstancedMesh;
+  /** Ravencrest's ez-tree forest: bake its impostors once the renderer is up, cull it each frame. */
+  forest: Forest;
   /** The village's loose props and the villagers' huddles (village.ts). */
   village: Village;
   heightAt(x: number, z: number): number;
@@ -85,17 +87,6 @@ function canvasTex(w: number, h: number, draw: (g: CanvasRenderingContext2D) => 
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 4;
   return t;
-}
-/** Cherry blossom clusters for the leaf cards (alpha-tested). */
-function blossomTex() {
-  return canvasTex(256, 256, (g) => {
-    const r = rng(11);
-    for (let i = 0; i < 220; i++) {
-      const x = 20 + r() * 216, y = 20 + r() * 216, s = 4 + r() * 9;
-      g.fillStyle = ['#f6c1cf', '#f9d9e2', '#e89ab0', '#fbe6ec', '#d98aa2'][(r() * 5) | 0];
-      g.beginPath(); g.arc(x, y, s, 0, Math.PI * 2); g.fill();
-    }
-  });
 }
 
 export async function buildChapter1(): Promise<Chapter1World> {
@@ -373,30 +364,27 @@ export async function buildChapter1(): Promise<Chapter1World> {
   spire.position.y = 5 * 3.4 + 3.5; pagoda.add(spire);
   at(collide(pagoda), 26, 152);
 
-  // ── Cherry trees: on the hill, round the hilltop and along the road ─────────────────────────────
-  const blossom = leafCardMaterial(blossomTex(), 0.18);
-  const tree = (x: number, z: number, h: number, seed: number) => {
-    const t = foliagedTree(seed, h, { cards: 46, spread: 1.25 });
-    t.foliage.material = blossom;
-    // the builder tints its cards green per instance: blossom pinks instead
-    const pinks = [0xffffff, 0xfff0f4, 0xffe2ea, 0xf8d8e2].map((c) => new THREE.Color(c));
-    for (let i = 0; i < t.foliage.count; i++) t.foliage.setColorAt(i, pinks[i % pinks.length]);
-    if (t.foliage.instanceColor) t.foliage.instanceColor.needsUpdate = true;
-    (t.trunk.material as THREE.MeshStandardMaterial).color?.set?.(0x3a2a24);
-    at(t.group, x, z);
-  };
-  const spots: [number, number, number][] = [[-12, 132, 8], [-18, 138, 9], [14, 134, 7], [-9, 148, 8.5], [10, 146, 7], [-24, 104, 7],
-    [-20, 78, 6], [-22, 14, 6], [22, -18, 5.5], [-26, -34, 6]];
+  // ── Trees: Ravencrest's ez-tree forest (core/forest.ts) with the shots' species. Flowering cherries on the
+  //    hill, round the hilltop, along the road and in the samurai yards; umbrella pines in the yards and full 3D
+  //    on the valley walls; baked impostors over the far hills and round the castle. ────────────────────
+  const forest = new Forest();
   const noTrees = new URLSearchParams(location.search).has('notrees');
-  if (!noTrees) spots.forEach(([x, z, h], i) => tree(x, z, h, 40 + i));
-  // the samurai yards: a blossom tree or a garden pine in each
-  if (!noTrees) otsu.yardTrees.forEach((t, i) => {
-    if (t.blossom) { tree(t.x, t.z, t.h, 80 + i); return; }
-    const p = foliagedTree(120 + i, t.h, { cards: 40, spread: 1.6 });
-    for (let k = 0; k < p.foliage.count; k++) p.foliage.setColorAt(k, new THREE.Color().setHSL(0.27, 0.35, 0.28 + (k % 5) * 0.03));
-    if (p.foliage.instanceColor) p.foliage.instanceColor.needsUpdate = true;
-    at(p.group, t.x, t.z);
-  });
+  if (!noTrees) {
+    const V = (x: number, z: number, lift = 0) => new THREE.Vector3(x, heightAt(x, z) + lift, z);
+    const cherries: [number, number, number][] = [[-12, 132, 8], [-18, 138, 9], [14, 134, 7], [-9, 148, 8.5], [10, 146, 7], [-24, 104, 7],
+      [-20, 78, 6], [-22, 14, 6], [22, -18, 5.5], [-26, -34, 6]];
+    const near: TreeSpot[] = cherries.map(([x, z, h]) => ({ p: V(x, z), h: h * 1.1, species: 'cherry' as const }));
+    for (const t of otsu.yardTrees) near.push({ p: V(t.x, t.z), h: t.blossom ? t.h * 1.1 : t.h * 1.15, species: t.blossom ? 'cherry' : 'umbrella' });
+    // the valley walls: about two in five full 3D (the nearest rank), the rest impostors like the far hills
+    const wallFar: TreeSpot[] = [];
+    landmarks.treeNear.forEach((t, i) => {
+      const spot = { p: new THREE.Vector3(t.x, t.y + 0.3, t.z), h: t.h, species: 'umbrella' as const };
+      if (Math.abs(t.x) < 56 && i % 5 < 3) near.push(spot); else wallFar.push(spot);
+    });
+    forest.plant(near, { umbrella: 1 }, 1570);
+    forest.plantFar([...wallFar, ...landmarks.treeFar.map((t) => ({ p: new THREE.Vector3(t.x, t.y + 0.3, t.z), h: t.h, species: 'umbrella' as const }))], ['umbrella']);
+  }
+  group.add(forest.group);
 
   // ── Drifting petals, carried round the camera ──────────────────────────────────────────────────
   const petalMat = new THREE.MeshBasicNodeMaterial({ color: 0xf6c1cf, side: THREE.DoubleSide });
@@ -439,7 +427,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
   const spawn = { position: new THREE.Vector3(roadX(-66), heightAt(roadX(-66), -66), -66), yaw: 0 };
 
   return {
-    group, grass, spawn, sections, fires, bell, petals, heightAt, village,
+    group, grass, spawn, sections, fires, bell, petals, heightAt, village, forest,
     setRaid(k) {
       raidK = THREE.MathUtils.clamp(k, 0, 1);
       for (const f of fires) if (f.raid) f.group.visible = raidK > 0.03;

@@ -3,7 +3,7 @@
 // dark kawara roofs, corner turrets), and layered forested hills between, so the valley never ends in open sea.
 // The haze (look.ts) turns all of it into the soft, warm silhouettes of the shots.
 import * as THREE from 'three/webgpu';
-import { positionLocal, positionWorld, mix, smoothstep, vec3, float, sin, atan, color, texture, vec2, normalMap } from 'three/tsl';
+import { positionLocal, positionWorld, normalWorld, mix, smoothstep, vec3, float, sin, atan, color, texture, vec2, normalMap, attribute, abs } from 'three/tsl';
 import { pbr } from './core/materials';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -19,71 +19,116 @@ function vnoise(x: number, z: number) {
 }
 const fbm = (x: number, z: number) => vnoise(x, z) * 0.5 + vnoise(x * 2.1, z * 2.1) * 0.27 + vnoise(x * 4.3, z * 4.3) * 0.14 + vnoise(x * 8.7, z * 8.7) * 0.09;
 
-export interface Landmarks { group: THREE.Group; castle: THREE.Group; castleAt: THREE.Vector3; mountainAt: THREE.Vector3 }
+export interface TreeAt { x: number; y: number; z: number; h: number }
+export interface Landmarks { group: THREE.Group; castle: THREE.Group; castleAt: THREE.Vector3; mountainAt: THREE.Vector3;
+  /** Umbrella-pine spots for the forest: full 3D on the valley walls, impostors beyond. */
+  treeNear: TreeAt[]; treeFar: TreeAt[] }
 
 export function buildLandmarks(o: { inner: { xHalf: number; zMin: number; zMax: number }; heightAt: (x: number, z: number) => number }): Landmarks {
   const group = new THREE.Group(); group.name = 'landmarks';
   const { inner } = o;
 
-  // ── The volcano: a concave cone (Fuji's profile), gullied flanks, a ragged snow cap ────────────────
+  // ── The volcano: Fuji's concave profile on a dense radial mesh, cut by erosion gullies that deepen toward the
+  //    summit; aerial rock on the flanks, forest at the foot, snow lying in the gullies below the snow line ──
   const mountainAt = new THREE.Vector3(-420, 0, 4300);
   const H = 980, R = 3400;
-  // concave flanks (y = H(1 − r/R)^2.2), steep near the summit, cut off at the crater rim
-  const prof: THREE.Vector2[] = [];
-  for (let i = 0; i <= 48; i++) { const r = R * (1 - (i / 48) * 0.955); prof.push(new THREE.Vector2(r, H * Math.pow(1 - r / R, 2.2))); }
-  const mg = new THREE.LatheGeometry(prof, 160);
-  const mp = mg.attributes.position as THREE.BufferAttribute;
-  for (let i = 0; i < mp.count; i++) {
-    const x = mp.getX(i), y = mp.getY(i), z = mp.getZ(i), a = Math.atan2(z, x), r = Math.hypot(x, z);
-    const gully = 1 + 0.035 * Math.sin(a * 46) * (y / H) + 0.05 * (fbm(a * 3, y / 200) - 0.5);
-    mp.setXYZ(i, x * gully, y + (r > R * 0.9 ? -40 * fbm(a * 5, 1) : 0), z * gully);
+  {
+    const RINGS = 110, SEGS = 320;
+    const pos = new Float32Array((RINGS + 1) * (SEGS + 1) * 3), gul = new Float32Array((RINGS + 1) * (SEGS + 1));
+    const ridged = (v: number) => 1 - Math.abs(2 * v - 1);
+    for (let j = 0; j <= RINGS; j++) {
+      // rings packed toward the summit, where the gullies are (and where the eye goes)
+      const t = j / RINGS, r = R * (1 - Math.pow(t, 0.8) * 0.955);
+      const y0 = H * Math.pow(1 - r / R, 2.2), up = y0 / H;
+      for (let i = 0; i <= SEGS; i++) {
+        const a = (i / SEGS) * Math.PI * 2;
+        // gullies: ridged noise round the cone, finer and deeper toward the top, wandering with height
+        const wob = fbm(Math.cos(a) * 3 + up * 2, Math.sin(a) * 3) * 1.4;
+        const g1 = ridged(vnoise(a * 18 + wob, up * 3)), g2 = ridged(vnoise(a * 47 + wob * 2, up * 7 + 3));
+        const cut = Math.pow(Math.max(0, 1 - (g1 * 0.65 + g2 * 0.35)), 1.6);          // 1 in a gully floor
+        const depth = (18 + 70 * up) * Math.min(1, up * 3.2);                          // none at the foot
+        const rr = r * (1 + 0.012 * (fbm(a * 4, up * 4) - 0.5)) - cut * depth * 0.6;
+        const yy = y0 - cut * depth * 0.5 + (j === RINGS ? -35 * fbm(a * 5, 1) : 0) + 6 * (fbm(a * 30, up * 20) - 0.5) * up;
+        const k = j * (SEGS + 1) + i;
+        pos.set([Math.cos(a) * rr, yy, Math.sin(a) * rr], k * 3); gul[k] = cut;
+      }
+    }
+    const idx: number[] = [];
+    for (let j = 0; j < RINGS; j++) for (let i = 0; i < SEGS; i++) { const k = j * (SEGS + 1) + i, k2 = k + SEGS + 1; idx.push(k, k2, k + 1, k + 1, k2, k2 + 1); }
+    const mg = new THREE.BufferGeometry();
+    mg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); mg.setAttribute('gully', new THREE.BufferAttribute(gul, 1));
+    mg.setIndex(idx); mg.computeVertexNormals();
+    const RK = pbr('aerial_rocks_02'), GR = pbr('aerial_grass_rock');
+    const mm = new THREE.MeshStandardNodeMaterial({ roughness: 0.92, side: THREE.DoubleSide });
+    const ly: N = positionLocal.y, gully: N = attribute('gully', 'float');
+    const ang: N = atan(positionLocal.z, positionLocal.x);
+    // rock projected round the cone (angle × height), so the strata run with the slope
+    const uvR: N = vec2(ang.mul(R / 140), ly.div(90));
+    const rock: N = texture(RK.diff, uvR).rgb.mul(vec3(0.62, 0.6, 0.6));
+    const foot: N = texture(GR.diff, positionLocal.xz.div(260)).rgb.mul(vec3(0.7, 0.85, 0.66));
+    // the snow line, ragged; snow reaches lower down the gullies and leaves the ridges bare near its edge
+    const line: N = float(H * 0.58).add(sin(ang.mul(23)).mul(28)).add(sin(ang.mul(7).add(1.3)).mul(34)).sub(gully.mul(120));
+    const snow: N = smoothstep(line.sub(18), line.add(30), ly);
+    const snowCol: N = mix(vec3(0.86, 0.88, 0.92), vec3(0.97, 0.96, 0.94), smoothstep(H * 0.6, H, ly));
+    const lower: N = mix(foot, rock, smoothstep(H * 0.12, H * 0.3, ly));
+    mm.colorNode = mix(lower.mul(gully.mul(-0.25).add(1)), snowCol, snow);
+    mm.normalNode = normalMap(texture(RK.nor, uvR));
+    const mountain = new THREE.Mesh(mg, mm);
+    mountain.position.copy(mountainAt);
+    group.add(mountain);
   }
-  mg.computeVertexNormals();
-  const mm = new THREE.MeshStandardNodeMaterial({ roughness: 0.95, side: THREE.DoubleSide });
-  const ang: N = atan(positionLocal.z, positionLocal.x);
-  const snowLine: N = float(H * 0.6).add(sin(ang.mul(46)).mul(55)).add(sin(ang.mul(9).add(1.3)).mul(30));
-  const snow: N = smoothstep(snowLine.sub(25), snowLine.add(25), positionLocal.y);
-  mm.colorNode = mix(mix(color(0x2c3238), color(0x4a4640), smoothstep(0, H * 0.4, positionLocal.y)), color(0xf2f0ea), snow);
-  const mountain = new THREE.Mesh(mg, mm);
-  mountain.position.copy(mountainAt);
-  group.add(mountain);
 
-  // ── Far land: forested hills ringing the play area and climbing toward the mountain ────────────────
-  const fx = 9000, fz = 9000, seg = 180;
-  const fg = new THREE.PlaneGeometry(fx, fz, seg, seg); fg.rotateX(-Math.PI / 2);
-  const fp = fg.attributes.position as THREE.BufferAttribute;
+  // ── Far land: forested hills ringing the play area and climbing toward the mountain. One mesh whose grid is
+  //    packed near the valley (metres between vertices) and loose at the horizon (tens of metres), shaped by
+  //    eroded (ridged) noise, painted with aerial grass-over-rock and bare rock on the steeps. ─────────────
+  const fx = 9000, seg = 300, FC = new THREE.Vector2(0, 300), half = fx / 2, WP = 2.0;
+  const warp = (u: number) => Math.sign(u) * Math.pow(Math.abs(u), WP) * half;         // grid → world (u in −1…1)
+  const unwarp = (w: number) => Math.sign(w) * Math.pow(Math.min(1, Math.abs(w) / half), 1 / WP);
   const castleAt = new THREE.Vector3(62, 0, 400);   // on the sightline up the street, left of the mountain (the street shot)
-  const colors = new Float32Array(fp.count * 3);
-  for (let i = 0; i < fp.count; i++) {
-    const x = fp.getX(i), z = fp.getZ(i) + 1800;
-    // outside the playable terrain only; seaward (z < −60) stays sea
+  const ridgedFbm = (x: number, z: number) => { let v = 0, a = 0.5, f = 1; for (let k = 0; k < 5; k++) { const n = 1 - Math.abs(2 * vnoise(x * f, z * f) - 1); v += n * n * a; a *= 0.5; f *= 2.03; } return v; };
+  const farHeight = (x: number, z: number) => {
     const ox = Math.max(0, Math.abs(x) - inner.xHalf + 2), oz = Math.max(0, z - inner.zMax + 2);
     const out = Math.hypot(ox, oz);
-    let y = -30;
-    if (z > -70 && out > 0) {
-      const ridge = Math.min(1, out / 160);
-      // a low corridor along the sightline up the valley (to the castle and the mountain), big hills either side
-      const axis = Math.abs(x + 0.0977 * z), side = THREE.MathUtils.smoothstep(axis, 160 + z * 0.06, 700 + z * 0.12);
-      y = (6 + 26 * fbm(x / 220, z / 220) + side * (190 * fbm(x / 900, z / 900) + 70 * fbm(x / 160, z / 160))) * ridge + o.heightAt(THREE.MathUtils.clamp(x, -inner.xHalf, inner.xHalf), THREE.MathUtils.clamp(z, inner.zMin, inner.zMax)) * (1 - ridge);
-      y *= THREE.MathUtils.smoothstep(z, -70, 40);
-      // the castle hill: a plateau with the keep on it
-      const dc = Math.hypot(x - castleAt.x, z - castleAt.z);
-      y = Math.max(y * (dc < 220 ? THREE.MathUtils.smoothstep(dc, 60, 220) : 1), dc < 140 ? 46 * (1 - THREE.MathUtils.smoothstep(dc, 70, 140)) : 0);
-    }
-    fp.setXYZ(i, x, y, z);
-    const g = 0.6 + 0.4 * fbm(x / 120, z / 120);
-    colors.set([0.11 * g, 0.16 * g, 0.09 * g], i * 3);
+    if (!(z > -70 && out > 0)) return -30;
+    const ridge = Math.min(1, out / 160);
+    const axis = Math.abs(x + 0.0977 * z), side = THREE.MathUtils.smoothstep(axis, 160 + z * 0.06, 700 + z * 0.12);
+    // big forms, eroded ridges on the slopes, small relief everywhere
+    const big = 190 * fbm(x / 900, z / 900) + 120 * ridgedFbm(x / 700, z / 700) * side;
+    let y = (6 + 26 * fbm(x / 220, z / 220) + side * big + 9 * (fbm(x / 48, z / 48) - 0.5) + 3 * (vnoise(x / 13, z / 13) - 0.5)) * ridge
+      + o.heightAt(THREE.MathUtils.clamp(x, -inner.xHalf, inner.xHalf), THREE.MathUtils.clamp(z, inner.zMin, inner.zMax)) * (1 - ridge);
+    y *= THREE.MathUtils.smoothstep(z, -70, 40);
+    const dc = Math.hypot(x - castleAt.x, z - castleAt.z);
+    return Math.max(y * (dc < 220 ? THREE.MathUtils.smoothstep(dc, 60, 220) : 1), dc < 140 ? 46 * (1 - THREE.MathUtils.smoothstep(dc, 70, 140)) : 0);
+  };
+  const fg = new THREE.PlaneGeometry(2, 2, seg, seg); fg.rotateX(-Math.PI / 2);
+  const fp = fg.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < fp.count; i++) {
+    const x = warp(fp.getX(i)) + FC.x, z = warp(fp.getZ(i)) + FC.y;
+    fp.setXYZ(i, x, farHeight(x, z), z);
   }
-  fg.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   fg.computeVertexNormals();
-  const fm = new THREE.MeshStandardNodeMaterial({ vertexColors: true, roughness: 1 });
-  const farLand = new THREE.Mesh(fg, fm); farLand.receiveShadow = false;
-  group.add(farLand);
+  {
+    const GR = pbr('aerial_grass_rock'), RK = pbr('aerial_rocks_02'), FG = pbr('forrest_ground_01');
+    const fm = new THREE.MeshStandardNodeMaterial({ roughness: 1 });
+    const pw: N = positionWorld, n: N = normalWorld;
+    const uvA: N = pw.xz.div(90), uvB: N = pw.xz.div(23);
+    // grass-over-rock at two scales (kills the tiling), forest floor in the hollows, rock on the steeps
+    const grass: N = texture(GR.diff, uvA).rgb.mul(texture(GR.diff, uvB).rgb.mul(0.6).add(0.55)).mul(vec3(0.5, 0.62, 0.42));   // under forest: dark
+    const forest: N = texture(FG.diff, pw.xz.div(14)).rgb.mul(vec3(0.5, 0.62, 0.42));
+    const uvS: N = mix(vec2(pw.z, pw.y), vec2(pw.x, pw.y), smoothstep(0.4, 0.7, abs(n.z))).div(40);
+    const rock: N = texture(RK.diff, uvS).rgb.mul(0.8);
+    const macro: N = texture(GR.diff, pw.xz.div(1100)).rgb.dot(vec3(0.33, 0.33, 0.33)).mul(0.9).add(0.55);
+    const steep: N = smoothstep(0.82, 0.6, n.y);
+    const hollow: N = smoothstep(30, 0, pw.y).mul(0.6);
+    fm.colorNode = mix(mix(grass, forest, hollow), rock, steep).mul(macro);
+    fm.normalNode = normalMap(mix(texture(GR.nor, uvA).rgb, texture(RK.nor, uvS).rgb, steep));
+    const farLand = new THREE.Mesh(fg, fm); farLand.receiveShadow = false;
+    group.add(farLand);
+  }
   castleAt.y = 46;
-  // the far land's height where it is actually drawn (bilinear on the mesh grid), for placing things on it
-  const cell = fx / seg;
+  // the far land's height where it is actually drawn (bilinear on the warped grid), for placing things on it
   const farAt = (x: number, z: number) => {
-    const gx = (x + fx / 2) / cell, gz = (z - 1800 + fz / 2) / cell;
+    const gx = (unwarp(x - FC.x) + 1) / 2 * seg, gz = (unwarp(z - FC.y) + 1) / 2 * seg;
     const i0 = Math.max(0, Math.min(seg - 1, Math.floor(gx))), j0 = Math.max(0, Math.min(seg - 1, Math.floor(gz)));
     const tx = gx - i0, tz = gz - j0, at = (i: number, j: number) => fp.getY(j * (seg + 1) + i);
     return (at(i0, j0) * (1 - tx) + at(i0 + 1, j0) * tx) * (1 - tz) + (at(i0, j0 + 1) * (1 - tx) + at(i0 + 1, j0 + 1) * tx) * tz;
@@ -126,31 +171,15 @@ export function buildLandmarks(o: { inner: { xHalf: number; zMin: number; zMax: 
     group.add(bodies, roofs);
   }
 
-  // ── Pines (the shots' umbrella pines): a trunk and layered flat canopies, instanced over the hills ─────
+  // ── Pines (the shots' umbrella pines): spots for the ez-tree forest (core/forest.ts, planted by chapter1):
+  //    full 3D trees on the valley walls, baked impostors on the far hills and round the castle ──────────
+  const treeNear: { x: number; y: number; z: number; h: number }[] = [], treeFar: { x: number; y: number; z: number; h: number }[] = [];
   {
-    const parts: THREE.BufferGeometry[] = [];
-    const paint = (g: THREE.BufferGeometry, c: number) => { const col = new THREE.Color(c), n2 = g.attributes.position.count, a = new Float32Array(n2 * 3); for (let i = 0; i < n2; i++) a.set([col.r, col.g, col.b], i * 3); g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g.toNonIndexed(); };
-    parts.push(paint(new THREE.CylinderGeometry(0.035, 0.07, 1, 5).translate(0, 0.5, 0), 0x3a2a20));
-    for (const [ox, oy, oz, r] of [[0, 0.95, 0, 0.42], [0.22, 0.72, 0.05, 0.32], [-0.2, 0.6, -0.08, 0.3], [0.05, 0.48, 0.2, 0.26]]) {
-      const g = new THREE.SphereGeometry(r, 6, 3); g.scale(1, 0.38, 1); g.translate(ox, oy, oz);
-      parts.push(paint(g, 0x1e2c1a));
-    }
-    const pineG = mergeGeometries(parts)!;
-    // the far hills' pines (thousands, seen through haze): two low canopies, a fifth of the triangles
-    const farParts = [paint(new THREE.CylinderGeometry(0.04, 0.07, 1, 3, 1, true).translate(0, 0.5, 0), 0x3a2a20)];
-    for (const [ox, oy, oz, r] of [[0, 0.9, 0, 0.44], [0.08, 0.6, 0.06, 0.34]]) { const g = new THREE.SphereGeometry(r, 5, 2); g.scale(1, 0.4, 1); g.translate(ox, oy, oz); farParts.push(paint(g, 0x1e2c1a)); }
-    const farG = mergeGeometries(farParts)!;
-    const MAXP = 2600;
-    const pineMat = new THREE.MeshStandardNodeMaterial({ vertexColors: true, roughness: 1 });
-    const pines = new THREE.InstancedMesh(pineG, pineMat, 700);
-    const farPines = new THREE.InstancedMesh(farG, pineMat, MAXP);
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
-    let n = 0, nNear = 0, nFar = 0, far = false;
+    const MAXP = 9000;
+    let n = 0, far = false;
     const plant = (x: number, z: number, s: number) => {
       if (n >= MAXP) return;
-      q.setFromAxisAngle(up, hash2(x, z) * 6.28);
-      m4.compose(new THREE.Vector3(x, groundY(x, z) - 0.3, z), q, new THREE.Vector3(s, s * (0.9 + hash2(z, x) * 0.3), s));
-      if (far || nNear >= 700) farPines.setMatrixAt(nFar++, m4); else pines.setMatrixAt(nNear++, m4);
+      (far ? treeFar : treeNear).push({ x, y: groundY(x, z) - 0.3, z, h: s * 1.05 });
       n++;
     };
     // the valley walls inside the play area (bare slopes in the first pass)
@@ -161,20 +190,18 @@ export function buildLandmarks(o: { inner: { xHalf: number; zMin: number; zMax: 
     }
     // the hills outside, thick where they rise, thin on the valley floor
     far = true;
-    for (let i = 0; i < 9000 && n < MAXP; i++) {
+    for (let i = 0; i < 40000 && n < MAXP; i++) {
       const x = (hash2(i, 1.7) - 0.5) * 2400, z = -40 + hash2(2.3, i) * 1500;
       if (inside(x, z) || Math.hypot(x - castleAt.x, z - castleAt.z) < 80) continue;
       const y = groundY(x, z); if (y < 4) continue;
       const axis = Math.abs(x + 0.0977 * z);
       if (axis < 200 && hash2(i, 9) < 0.85) continue;          // the town's valley floor
+      if (fbm(x / 260, z / 260) < 0.36) continue;              // clearings: the forest grows in stands, not evenly
       plant(x, z, 9 + hash2(i, 3) * 9);
     }
     // round the castle hill
-    far = false;
+    // the castle ring stays impostors (400 m out)
     for (let i = 0; i < 160; i++) { const a = i * 2.4, r = 90 + hash2(i, 5) * 60; plant(castleAt.x + Math.cos(a) * r, castleAt.z + Math.sin(a) * r, 8 + hash2(i, 8) * 5); }
-    pines.count = nNear; pines.computeBoundingSphere(); farPines.count = nFar; farPines.computeBoundingSphere();
-    group.add(farPines);
-    group.add(pines);
   }
 
   // ── The castle keep: ishigaki base, five white tiers under flared kawara roofs, two turrets ──────────
@@ -224,7 +251,7 @@ export function buildLandmarks(o: { inner: { xHalf: number; zMin: number; zMax: 
   castle.position.copy(castleAt);
   castle.rotation.y = Math.PI + 0.25;   // the keep's face toward the town
   group.add(mergeByMaterial(castle));   // ~90 pieces → one draw per material
-  return { group, castle, castleAt, mountainAt };
+  return { group, castle, castleAt, mountainAt, treeNear, treeFar };
 }
 
 /** Bake a built group into one mesh per material (its own transform kept): a few draw calls instead of one a piece. */

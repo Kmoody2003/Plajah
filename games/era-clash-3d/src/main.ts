@@ -16,6 +16,7 @@ import { buildChapter1, roadX } from './chapter1';
 import { FALLING_PETAL, type Foe } from './tale';
 import { cutMove, HARU_MOVES, type CutMove } from './moves';
 import { goldenHour } from './look';
+import { Forest } from './core/forest';
 import { Binds, openBindEditor, type Action } from './binds';
 import { Props, type Body } from './props';
 import { Villagers } from './villagers';
@@ -105,6 +106,11 @@ scene.add(villagers.group);
 const SAFETY = new THREE.Vector3(roadX(62), world.heightAt(roadX(62), 62), 62);
 // Edges: 4× MSAA on the scene pass (FXAA on the HDR scene colour corrupted the frame); ?msaa=0|2|4 overrides
 const MSAA = params.has('msaa') ? Number(params.get('msaa')) : quality === 'low' ? 0 : 4;
+// the forest's far impostors are baked from the real tree variants once the renderer is up (core/forest.ts);
+// trees outside the view are skipped per instance (a tree just behind the camera may lose its shadow into view: the
+// forest's leaves are drawn three times — depth prepass, lit, shadow — so drawing them all costs millions of triangles)
+Forest.cull = !params.has('nocull');
+world.forest.bake(renderer).catch((e) => console.warn('[eraclash3d] forest impostors failed', e));
 const post = buildPost(renderer, scene, camera, { ssr: false, ssrScale: 0.5, bloom: quality === 'low' || params.has('nobloom') ? false : 'lean', taa: false, smaa: false, upscale: true, msaa: MSAA });
 
 // ── Haru and the warband ───────────────────────────────────────────────────────────────────────────
@@ -854,6 +860,7 @@ renderer.setAnimationLoop(() => {
   if (mode !== 'story') { hud(); labels(); }
   $('flash').style.opacity = String(Math.max(0, flashT -= raw) * 3);
   camHold?.();
+  world.forest.cull(camera);   // after any camera change this frame: the trees drawn match the view rendered
   post.pipeline.render();
   if (params.has('fps')) $('fps').textContent = `${(1000 / frameEma).toFixed(0)} fps · ${internalH}p · ${quality}`;
 });
@@ -863,6 +870,23 @@ renderer.setAnimationLoop(() => {
 let camHold: (() => void) | null = null;
 (window as unknown as Record<string, unknown>).eraclash3d = {
   hold(f: (() => void) | null) { camHold = f; },
+  /** Dev: one of each Era Clash tree variant in a row on the beach, for tuning (returns the lineup's centre). */
+  treeLab(species = ['umbrella', 'cherry'], size = 9) {
+    scene.getObjectByName('treeLab')?.removeFromParent();
+    const lab = new THREE.Group(); lab.name = 'treeLab'; scene.add(lab);
+    const F = world.forest as unknown as { variants: { species: string; bark: THREE.BufferGeometry; leaves: THREE.BufferGeometry | null }[]; group: THREE.Group };
+    const vs = F.variants.filter((v) => species.includes(v.species));
+    vs.forEach((v, i) => {
+      for (const geo of [v.bark, v.leaves]) {
+        if (!geo) continue;
+        const src = F.group.children.find((m) => (m as THREE.Mesh).geometry === geo && ((m as THREE.Mesh).material as THREE.Material).colorWrite !== false) as THREE.Mesh | undefined;
+        if (!src) continue;
+        const m = new THREE.Mesh(geo, src.material); m.scale.setScalar(size);
+        const x = -((vs.length - 1) * size) / 2 + i * size + 2, z = -68; m.position.set(x, world.heightAt(x, z), z); lab.add(m);
+      }
+    });
+    return new THREE.Vector3(2, world.heightAt(2, -68), -68);
+  },
   renderer, perf: () => ({ fpsText: document.getElementById('fps')?.textContent, frameEma, internalH, quality, msaa: MSAA }),
   pause(p: boolean) { setPaused(p); },
   get state() { return { mode, section, hero: { ...hero }, enemies: enemies.map((m) => ({ k: m.kind, hp: Math.round(m.hp), alive: m.alive, st: m.state })), allies: allies.map((a) => ({ hp: Math.round(a.hp), st: a.state })), pos: player.object.position.toArray().map((n) => +n.toFixed(1)) }; },

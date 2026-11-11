@@ -10,7 +10,9 @@ const OUT = path.resolve('public/games/ravencrest/assets/polyhaven');
 const UA = { 'User-Agent': 'plajah-eraclash3d-fetch' };
 const IDS = ['forrest_ground_01', 'brown_mud_02', 'rocks_ground_05', 'coast_sand_01', 'coast_sand_rocks_02',
   // the town (reference pack): flagstone street, castle-base stonework (ishigaki), kawara roof tiles
-  'cobblestone_large_01', 'japanese_stone_wall', 'grey_roof_tiles'];
+  'cobblestone_large_01', 'japanese_stone_wall', 'grey_roof_tiles',
+  // terrain seen from afar: the forested hills (grass over rock) and the volcano's flanks
+  'aerial_grass_rock', 'aerial_rocks_02'];
 const TEX_MAPS = { Diffuse: 'diff', nor_gl: 'nor_gl', Rough: 'rough', AO: 'ao', Displacement: 'disp' };
 
 const getJson = async (u) => { const r = await fetch(u, { headers: UA }); if (!r.ok) throw new Error(`${r.status} ${u}`); return r.json(); };
