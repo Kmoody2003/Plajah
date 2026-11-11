@@ -919,6 +919,7 @@ renderer.setAnimationLoop(() => {
 // ── Quests (quests.ts): the main road to the castle and the deeds for the city; the castle gate is shut until the
 //    magistrate's seal is shown at it ──────────────────────────────────────────────────────────────────────
 let gateOpen = false, gateT = 0;
+let kannuki: THREE.Mesh | null = null;
 const gateLeaves: THREE.Mesh[] = [];
 {
   const g = world.otsu.spots.otemon, w = 6.4;
@@ -929,6 +930,9 @@ const gateLeaves: THREE.Mesh[] = [];
     leaf.position.set(g.x + sx * (w / 2), g.y, g.z + 0.1); leaf.userData.side = sx;
     scene.add(leaf); gateLeaves.push(leaf);
   }
+  // the kannuki: a heavy bar across both leaves in its iron brackets, until the seal is shown
+  kannuki = new THREE.Mesh(new THREE.BoxGeometry(w + 0.8, 0.32, 0.3), new THREE.MeshStandardNodeMaterial({ color: 0x2a1c12, roughness: 0.7 }));
+  kannuki.position.set(g.x, g.y + 2.2, g.z - 0.15); kannuki.castShadow = true; scene.add(kannuki);
 }
 const qSpots = (() => {
   const o = world.otsu.spots, pz = { x: roadX(OTSU.plaza.z), z: OTSU.plaza.z };
@@ -964,6 +968,11 @@ function questTick(dt: number) {
   // the shut gate: nobody passes until it opens (then the leaves swing in over a second and a half)
   const g = world.otsu.spots.otemon, p = player.object.position;
   if (!gateOpen && p.z > g.z - 1.4 && p.z < g.z + 2.5 && Math.abs(p.x - g.x) < 4.2) p.z = g.z - 1.4;
+  // at the barred gate, say why it's barred and who holds the way in
+  quests.note = !gateOpen && p.distanceTo(g) < 10
+    ? { text: quests.get('main')?.vars.seal === 1 ? "The castle gate — show the magistrate's seal" : "The castle gate is barred — Magistrate Kuroda's seal opens it", at: world.otsu.spots.magistrate.yard }
+    : null;
+  if (kannuki) kannuki.visible = !gateOpen;
   if (gateOpen && gateT < 1) { gateT = Math.min(1, gateT + dt / 1.5); const k = gateT * gateT * (3 - 2 * gateT); for (const l of gateLeaves) l.rotation.y = l.userData.side * k * Math.PI * 0.46; }
 }
 /** Dev: a camera the loop re-applies every frame (WebGPU captures read the last presented frame). */

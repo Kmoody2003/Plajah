@@ -49,6 +49,8 @@ export class Quests {
   /** Deeds for the city (the magistrate's price for the seal). */
   get deeds() { return ['captives', 'boats', 'strongbox'].filter((id) => this.get(id)?.state === 'done').length; }
   get(id: string) { return this.list.find((q) => q.def.id === id); }
+  /** A message shown when no quest action is in reach (e.g. the barred castle gate), and where to point meanwhile. */
+  note: { text: string; at: THREE.Vector3 | null } | null = null;
 
   constructor(private c: QuestCtx, spots: {
     beach: THREE.Vector3; gate: THREE.Vector3; plaza: THREE.Vector3;
@@ -206,6 +208,7 @@ export class Quests {
       if (h.distanceTo(p) < (st.use!.r ?? 2.4)) hint = `[G] ${st.use!.label}`;
     }
     this.pool.forEach((m, i) => { m.ring.visible = m.beam.visible = i < n; });
+    if (!hint && this.note) hint = this.note.text;
     this.el.hint.textContent = hint; this.el.hint.style.opacity = hint ? '1' : '0';
     if (!cur) { this.el.obj.innerHTML = ''; this.el.way.style.opacity = '0'; return; }
     const { q, st } = cur;
