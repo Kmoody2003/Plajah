@@ -57,10 +57,14 @@ export async function preloadKtxSurfaces(ktx: KTX2Loader): Promise<number> {
 // Only the maps shaders actually sample are loaded (diffuse, packed AO/rough/disp, normal).
 export interface PbrSet { diff: THREE.Texture; nor: THREE.Texture; ard: THREE.Texture }
 
+/** Surfaces seen at arm's length all game (Era Clash's town fronts): their colour and relief load at 2k even on the
+ *  1k tier (the packed AO/rough/disp stays 1k), so close-ups hold up next to the street's scan. */
+export const HIRES = new Set<string>();
 export function pbr(id: string): PbrSet {
+  const hi = HIRES.has(id) ? '' : sfx();
   return {
-    diff: tex(`${PH}/${id}/diff${sfx()}.jpg`, true),
-    nor: tex(`${PH}/${id}/nor_gl${sfx()}.jpg`, false),
+    diff: tex(`${PH}/${id}/diff${hi}.jpg`, true),
+    nor: tex(`${PH}/${id}/nor_gl${hi}.jpg`, false),
     ard: tex(`${PH}/${id}/ard${sfx()}.jpg`, false), // AO/rough/disp packed by scripts/ravencrest/pack_textures.py
   };
 }

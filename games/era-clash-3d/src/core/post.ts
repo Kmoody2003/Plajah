@@ -114,9 +114,11 @@ export function buildPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, ca
     raysNode = godrays(depthTex, camera, sun);
     raysNode.resolutionScale = 0.25;
     raysNode.raymarchSteps.value = 28;
-    raysNode.density.value = 0.55;
-    raysNode.maxDensity.value = 0.55;
-    raysNode.distanceAttenuation.value = 1.5;
+    // gentle: shafts through the eaves and smoke, not a wall of light (at quarter resolution a strong setting
+    // printed hard vertical columns where the march left the sun's shadow frustum)
+    raysNode.density.value = 0.32;
+    raysNode.maxDensity.value = 0.28;
+    raysNode.distanceAttenuation.value = 2.6;
     const tint = uniform(new THREE.Color()).onFrameUpdate(() => new THREE.Color().copy(sun.color).multiplyScalar(sun.intensity * 0.09));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const shaft = (raysNode as any).getTextureNode().r;

@@ -187,6 +187,21 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
     return new THREE.MeshStandardNodeMaterial({ map: tex, roughness: 0.8 });
   });
+  // ── Machiya detail kit (the reference street shots) ──────────────────────────────────────────────
+  // nokigawara: the round tile ends lining an eave (a short half-pipe facing out)
+  const tileEnd = new THREE.CylinderGeometry(0.085, 0.085, 0.14, 4, 1, true, 0, Math.PI).rotateX(Math.PI / 2).rotateZ(Math.PI);   // 8 triangles: thousands of them line the town
+  // sudare: a split-bamboo blind (canvas stripes, see-through slits)
+  const sudareMat = (() => {
+    const c = document.createElement('canvas'); c.width = 64; c.height = 128;
+    const g = c.getContext('2d')!;
+    for (let y = 0; y < 128; y += 4) { g.fillStyle = `rgba(${150 + (y * 7) % 30},${118 + (y * 5) % 24},72,0.92)`; g.fillRect(0, y, 64, 3); }
+    g.fillStyle = 'rgba(60,40,24,0.95)'; for (const x of [12, 52]) g.fillRect(x, 0, 2, 128);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    return new THREE.MeshStandardNodeMaterial({ map: t, alphaTest: 0.5, transparent: false, side: THREE.DoubleSide, roughness: 0.9 });
+  })();
+  const bucketRed = new THREE.MeshStandardNodeMaterial({ color: 0x8a2a1c, roughness: 0.75 });
+  const feltRed = new THREE.MeshStandardNodeMaterial({ color: 0x9a2418, roughness: 1 });
+  const bucket = new THREE.CylinderGeometry(0.17, 0.14, 0.26, 10);
   const interior = new THREE.MeshStandardNodeMaterial({ color: 0x24170e, emissive: 0x6a3a14, emissiveIntensity: 0.55, roughness: 1 });
   const canvasMat = (w: number, h: number, draw: (g: CanvasRenderingContext2D) => void, rough = 0.9) => {
     const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')!);
@@ -261,6 +276,7 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
     put(boxGeo(w + 0.5, 0.1, 1.45), TL, F, { y: 3.12, z: fz + 0.62, rx: 0.3 }, false);
     put(boxGeo(w + 0.5, 0.16, 0.07), D, F, { y: 2.86, z: fz + 1.32 }, false);
     for (let rx = -w / 2; rx <= w / 2; rx += 0.42) put(boxGeo(0.08, 0.08, 1.25), D, F, { x: rx, y: 2.94, z: fz + 0.6, rx: 0.3 }, false);
+    if (!burnt) for (let tx = -w / 2 - 0.2; tx <= w / 2 + 0.2; tx += 0.27) put(tileEnd, ridge, F, { x: tx, y: 2.9, z: fz + 1.36 }, false);
     let top = 3.0;
     if (two) {
       const uz = -0.3, ud = d - 0.8, uf = uz + ud / 2;
@@ -279,6 +295,14 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
         put(plane(ww, 0.62), interior, F, { y: 3.95, z: uf + 0.012 }, false);
         for (let sx = -ww / 2 + 0.06; sx <= ww / 2; sx += 0.16) put(boxGeo(0.07, 0.66, 0.07), mats.plaster, F, { x: sx, y: 3.95, z: uf + 0.05 }, false);
       }
+      // udatsu: a plastered firewall wing at each end of the upper storey, under its own little tiled roof
+      if (R() < 0.35) for (const ex of [-1, 1]) {
+        put(boxGeo(0.28, 1.6, 1.3), P, F, { x: ex * (w / 2 - 0.1), y: 3.0 + 0.8, z: uf - 0.4 });
+        put(boxGeo(0.3, 0.12, 1.36), D, F, { x: ex * (w / 2 - 0.1), y: 3.0 + 1.62, z: uf - 0.4 }, false);
+        put(gableGeo(1.3, 0.3, 0.22, 0.12).rotateY(Math.PI / 2), TL, F, { x: ex * (w / 2 - 0.1), y: 3.0 + 1.66, z: uf - 0.4 }, false);
+      }
+      // a sudare blind let down over the upper window
+      if (R() < 0.4) put(plane(Math.min(2.0, w * 0.4), 0.95), sudareMat, F, { y: 3.85, z: uf + 0.12 }, false);
       top = 4.75;
     }
     const roofH = two ? 1.5 : 1.9, roofed = !burnt || R() < 0.5;
@@ -288,6 +312,8 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
       // deep eaves: fascia board and rafter ends along the street side
       put(boxGeo(w + OVER * 2 + 0.1, 0.17, 0.08), D, F, { y: top - 0.04, z: rz + rd / 2 + OVER }, false);
       for (let rx = -w / 2 - OVER + 0.2; rx <= w / 2 + OVER - 0.2; rx += 0.45) put(boxGeo(0.09, 0.09, OVER + 0.2), D, F, { x: rx, y: top - 0.1, z: rz + rd / 2 + OVER / 2 }, false);
+      // nokigawara: round tile ends all along the street eave
+      if (!burnt) for (let tx = -w / 2 - OVER + 0.12; tx <= w / 2 + OVER - 0.1; tx += 0.27) put(tileEnd, ridge, F, { x: tx, y: top - 0.02, z: rz + rd / 2 + OVER + 0.04 }, false);
       // kawara ridge: a heavy cap along the ridge and an onigawara block at each end
       put(boxGeo(w + OVER * 2 + 0.05, 0.34, 0.46), ridge, F, { y: top + roofH + 0.08, z: rz });
       for (const ex of [-1, 1]) put(boxGeo(0.34, 0.66, 0.52), ridge, F, { x: ex * (w / 2 + OVER), y: top + roofH + 0.24, z: rz }, false);
@@ -312,6 +338,25 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
         put(boxGeo(0.42, 1.24, 0.05), D, F, { x: sx, y: 0.5 + 1.55, z: fz + 0.24 }, false);
         put(plane(0.36, 1.12), sm, F, { x: sx, y: 0.5 + 1.55, z: fz + 0.27 }, false);
       }
+    }
+    // inuyarai: curved bamboo guards leaning out from the foot of the front wall
+    if (!burnt && !shop && R() < 0.55) {
+      const span = Math.min(w - 0.8, 3.2), cx0 = door > 0 ? -w / 4 : w / 4;
+      for (let k = 0; k <= Math.round(span / 0.09); k++) put(boxGeo(0.035, 0.85, 0.035), D, F, { x: cx0 - span / 2 + k * 0.09, y: 0.5 + 0.38, z: fz + 0.28, rx: 0.45 }, false);
+      put(boxGeo(span, 0.05, 0.05), D, F, { x: cx0, y: 0.5 + 0.06, z: fz + 0.5 }, false);
+    }
+    // tensui-oke: a pyramid of fire buckets on a stand by the door (3 · 2 · 1)
+    if (!burnt && R() < 0.18) {
+      const bx = door - (shop ? bayW : 1.1) / 2 - 0.55;
+      put(boxGeo(0.62, 0.42, 0.24), D, F, { x: bx, y: 0.21, z: fz + 0.32 }, false);
+      [[-0.2, 0], [0, 0], [0.2, 0], [-0.1, 1], [0.1, 1], [0, 2]].forEach(([ox, row]) => put(bucket, bucketRed, F, { x: bx + ox, y: 0.42 + 0.13 + row * 0.24, z: fz + 0.32 }, false));
+    }
+    // shōgi: a bench spread with red felt outside a tea shop
+    if (!burnt && shop && R() < 0.3) {
+      const bx = door + (R() < 0.5 ? -1 : 1) * (bayW / 2 + 1.0);
+      put(boxGeo(1.5, 0.07, 0.55), W, F, { x: bx, y: 0.46, z: fz + 1.05 }, false);
+      for (const lx of [-0.65, 0.65]) for (const lz of [-0.2, 0.2]) put(boxGeo(0.06, 0.44, 0.06), D, F, { x: bx + lx, y: 0.22, z: fz + 1.05 + lz }, false);
+      put(boxGeo(1.42, 0.02, 0.5), feltRed, F, { x: bx, y: 0.505, z: fz + 1.05 }, false);
     }
     // firewood against the side wall
     if (R() < 0.4) for (let k = 0; k < 9; k++) {

@@ -5,7 +5,7 @@
 import * as THREE from 'three/webgpu';
 import { color, positionWorld, normalize, mix, smoothstep, vertexColor, texture, uv, vec2, vec3, time, sin, float, instancedBufferAttribute, uniform, attribute, normalMap } from 'three/tsl';
 import { collide } from './core/collision';
-import { uvMaterial, pbr } from './core/materials';
+import { uvMaterial, pbr, HIRES } from './core/materials';
 import { Forest, type TreeSpot } from './core/forest';
 import { rng } from './core/kit';
 import { buildTerrain, buildSea, type Splat } from './ground';
@@ -139,6 +139,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
   // The town's surfaces (CC0 scans): sugi (Japanese cedar) boarding on the shopfronts, charred-black planks for
   // posts, beams and the kura's base boarding, white lime plaster above. Each is weathered by a large-scale
   // world-space pass (its own texture sampled huge, plus rain-streak darkening that fades up the wall).
+  for (const id of ['japanese_cedar_planks', 'painted_plaster_wall', 'grey_roof_tiles', 'black_painted_planks']) HIRES.add(id);
   const weather = (m: THREE.MeshStandardNodeMaterial, id: string, amount = 0.5, desat = 0, stain = 0.3) => {
     const big = texture(pbr(id).diff, positionWorld.xz.mul(1 / 31).add(vec2(positionWorld.y.mul(0.013), 0))).rgb.dot(vec3(0.33, 0.33, 0.33));
     const streak = texture(pbr(id).diff, vec2(positionWorld.x.add(positionWorld.z).mul(0.21), positionWorld.y.mul(0.02))).rgb.dot(vec3(0.33, 0.33, 0.33));

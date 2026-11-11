@@ -10,6 +10,25 @@ import * as THREE from 'three/webgpu';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { loadGLB } from './core/character';
 import { rng } from './core/kit';
+import { MeshoptSimplifier } from 'meshoptimizer';
+
+/** A quarter-detail copy of a figure's geometry for the crowd: only the index buffer is rebuilt (meshoptimizer), so
+ *  every vertex, UV and skin weight is kept and it still deforms on the same skeleton. */
+const lodCache = new Map<THREE.BufferGeometry, THREE.BufferGeometry>();
+function crowdLod(g: THREE.BufferGeometry, keep = 0.25) {
+  if (lodCache.has(g)) return lodCache.get(g)!;
+  let out = g;
+  try {
+    const pa = g.attributes.position as THREE.BufferAttribute, n = pa.count;
+    const pos = new Float32Array(n * 3); for (let i = 0; i < n; i++) { pos[i * 3] = pa.getX(i); pos[i * 3 + 1] = pa.getY(i); pos[i * 3 + 2] = pa.getZ(i); }
+    const idx = g.index ? new Uint32Array(g.index.array) : Uint32Array.from({ length: n }, (_, i) => i);
+    const target = Math.floor((idx.length * keep) / 3) * 3;
+    const [lod] = MeshoptSimplifier.simplify(idx, pos, 3, target, 0.02, ['LockBorder']);
+    if (lod.length >= 3 && lod.length < idx.length) { out = g.clone(); out.setIndex(new THREE.BufferAttribute(lod, 1)); }
+  } catch (e) { console.warn('[eraclash3d] crowd LOD', e); }
+  lodCache.set(g, out);
+  return out;
+}
 
 const MODELS = ['fisherman', 'carpenter', 'peasant'].map((id) => `/games/era-clash/3d/assets/characters/${id}.glb`);
 const HEIGHT = [1.62, 1.68, 1.56];
@@ -71,6 +90,7 @@ export class Townsfolk {
   /** Swap in the painted, rigged figures (each folk keeps its place and role). */
   async dress() {
     const files = await Promise.all(MODELS.map((u) => loadGLB(u).catch(() => null)));
+    await MeshoptSimplifier.ready.catch(() => {});
     const tinted = new Map<string, THREE.Material>();
     this.list.forEach((f, i) => {
       const k = (i * 7) % files.length, file = files[k];
@@ -82,6 +102,7 @@ export class Townsfolk {
       node.traverse((o) => {
         const m = o as THREE.Mesh; if (!m.isMesh) return;
         m.castShadow = false; m.frustumCulled = false;
+        if (MeshoptSimplifier.supported) m.geometry = crowdLod(m.geometry);
         const src = m.material as THREE.MeshStandardMaterial, key = src.uuid + tint;
         if (!tinted.has(key)) { const c = src.clone(); c.roughnessMap = null; c.roughness = 0.92; c.color.setHex(0xccc2ba).multiply(new THREE.Color(tint)); tinted.set(key, c); }
         m.material = tinted.get(key)!;
