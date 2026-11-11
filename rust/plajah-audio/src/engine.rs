@@ -4,6 +4,7 @@ use crate::aura::AuraRack;
 use crate::diffuser::{Diffuser, VeilSpec};
 use crate::bajo::BajoRack;
 use crate::lyra::LyraRack;
+use crate::tonos::TonosRack;
 use crate::lfo::Lfo;
 use crate::modmatrix::{ModMatrix, ModSource, ModValues, Route};
 use crate::osc::Rng;
@@ -76,6 +77,8 @@ pub struct Engine {
 
     /// LYRA's amp stages: electric guitar amp + cab, tine piano preamp + stereo tremolo.
     lyra: LyraRack,
+    /// TONOS sympathetic strings (sitar tarafs, sarangi, nyckelharpa…).
+    tonos: TonosRack,
 
     events: Vec<ScheduledEvent>,
     events_dirty: bool,
@@ -117,6 +120,7 @@ impl Engine {
             bajo: BajoRack::new(sr_real),
             aura: AuraRack::new(sr_real),
             lyra: LyraRack::new(sr_real),
+            tonos: TonosRack::new(sr_real),
             voices,
             lfos: [Lfo::default(); NUM_LFO],
             tables,
@@ -284,7 +288,9 @@ impl Engine {
                     v.note = note;
                     v.velocity = vel.clamp(0.0, 1.0);
                     v.voice_id = voice_id;
-                    v.lyra_slur(note, vel, &self.params);
+                    if !v.lyra_slur(note, vel, &self.params) {
+                        v.tonos_slur(note, vel, &self.params);
+                    }
                     return;
                 }
                 let sr = self.sr;
@@ -307,6 +313,21 @@ impl Engine {
                     v.velocity = vel.clamp(0.0, 1.0);
                     v.voice_id = voice_id;
                     v.lyra_slur(note, vel, &self.params);
+                    return;
+                }
+            }
+        }
+
+        // TONOS legato: a note into exactly one held string slides the stopping finger (a chord stays a chord).
+        if self.params.get(TONOS_BASE + TN_ENABLE) > 0.5 && self.params.get(TONOS_BASE + TN_LEGATO) > 0.5 {
+            let min_age = (self.sr * 0.06) as u32;
+            let mut held = self.voices.iter_mut().filter_map(|v| v.tonos_held().map(|t| (t, v)));
+            if let (Some((t, v)), None) = (held.next(), held.next()) {
+                if t > min_age {
+                    v.note = note;
+                    v.velocity = vel.clamp(0.0, 1.0);
+                    v.voice_id = voice_id;
+                    v.tonos_slur(note, vel, &self.params);
                     return;
                 }
             }
@@ -524,7 +545,7 @@ impl Engine {
         // Split the borrow: voices render into scratch while reading shared state immutably.
         // `veil`, `bajo` and `aura` come out in the same destructure because all three need
         // `scratch` and a second `let Engine { .. } = self` would be a double mutable borrow.
-        let Engine { voices, scratch, params, matrix, tables, samples, sr, layout, position, veil, bajo, aura, lyra, .. } = self;
+        let Engine { voices, scratch, params, matrix, tables, samples, sr, layout, position, veil, bajo, aura, lyra, tonos, .. } = self;
         let mut active_cnt = 0u32;
         for v in voices.iter_mut() {
             if v.active {
@@ -535,6 +556,9 @@ impl Engine {
 
         if LyraRack::active(params) {
             lyra.process(scratch, frames, nch, params);
+        }
+        if TonosRack::active(params) {
+            tonos.process(scratch, frames, nch, params);
         }
 
         // AURA's vintage rack (VCA/LPG Gate → Phaser → BBD String Ensemble → 15 IPS Tape & Mains Floor).

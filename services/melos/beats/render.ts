@@ -175,6 +175,10 @@ export async function renderGroove(
           const { deserializeLyraPatch, applyLyraPatch } = await import('../instruments/lyra/patch');
           const p = deserializeLyraPatch(track.instrument.patch);
           if (p) applyLyraPatch(inst, p);
+        } else if (tType === 'tonos') {
+          const { deserializeTonosPatch, applyTonosPatch } = await import('../instruments/tonos/patch');
+          const p = deserializeTonosPatch(track.instrument.patch);
+          if (p) applyTonosPatch(inst, p);
         } else if (tType === 'bajo') {
           const { deserializeBajoPatch, applyBajoPatch } = await import('../instruments/bajo/patch');
           const p = deserializeBajoPatch(track.instrument.patch);

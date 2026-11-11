@@ -437,7 +437,7 @@ export interface TimelineClip {
 /** The meditation suite (vela/cantus/ison/pneuma) shares one engine and one editor; they are
  *  separate types because they are separate instruments — different purpose, different preset
  *  bank, different thing you reach for. See instruments/vela/suite.ts. */
-export type InstrumentType = 'onda' | 'kera' | 'vela' | 'cantus' | 'ison' | 'pneuma' | 'bajo' | 'aura' | 'soma' | 'lyra';
+export type InstrumentType = 'onda' | 'kera' | 'vela' | 'cantus' | 'ison' | 'pneuma' | 'bajo' | 'aura' | 'soma' | 'lyra' | 'tonos';
 
 export interface TrackInstrument {
   type: InstrumentType;

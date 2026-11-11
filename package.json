@@ -16,6 +16,7 @@
     "test:tela-security": "npx tsx --test tests/telaDocPolicy.test.ts && node scripts/testCoeditRules.mjs",
     "test:band": "npx tsx --test tests/sessionBand.test.ts",
     "test:lyra": "npx tsx --test tests/lyraInstrument.test.ts && cargo test --release --manifest-path rust/plajah-audio/Cargo.toml lyra",
+    "test:tonos": "npx tsx --test tests/tonosInstrument.test.ts && cargo test --release --manifest-path rust/plajah-audio/Cargo.toml tonos",
     "typecheck:kith": "tsc -p tsconfig.kith-party.json --noEmit",
     "dev": "tsx server.ts",
     "start": "node server.ts",

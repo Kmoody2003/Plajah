@@ -20,7 +20,7 @@ function secToNorm(sec: number): number {
 
 /** 11 adds AURA (param block 1700+): 1960s & 1970s analogue synthesis circuitry. Bumping this
  *  is what stops a stale committed .wasm from loading against a host that expects the new parameters. */
-export const DSP_ABI_VERSION = 16; // 16: SOMA deep skin (GPU modes, note_on_deep); 15: LYRA brass, strings, plucked, guitar rig; 14: LYRA physical models (block 1900+); 13: scheduled KERA notes
+export const DSP_ABI_VERSION = 17; // 17: TONOS world strings (block 2000+, sympathetic rack); 16: SOMA deep skin (GPU modes, note_on_deep); 15: LYRA brass, strings, plucked, guitar rig; 14: LYRA physical models (block 1900+); 13: scheduled KERA notes
 
 /** Output layouts — must mirror `spatial::Layout` in the Rust crate. */
 export enum SpatialLayout {

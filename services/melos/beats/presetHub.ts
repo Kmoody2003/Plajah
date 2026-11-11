@@ -21,6 +21,9 @@ import { SOMA_PRESETS, SOMA_CATEGORY_LABELS } from '../instruments/soma/presets'
 import { LYRA_PRESETS } from '../instruments/lyra/presets';
 import { LYRA_MODEL_LABELS } from '../instruments/lyra/params';
 import { newLyraPatch, deserializeLyraPatch, applyLyraPreset, serializeLyraPatch } from '../instruments/lyra/patch';
+import { TONOS_PRESETS } from '../instruments/tonos/presets';
+import { TONOS_INSTRUMENTS, TONOS_REGIONS } from '../instruments/tonos/catalog';
+import { newTonosPatch, deserializeTonosPatch, applyTonosPreset, serializeTonosPatch } from '../instruments/tonos/patch';
 import {
   newSomaPatch, deserializeSomaPatch, applySomaPreset, serializeSomaPatch,
 } from '../instruments/soma/patch';
@@ -109,6 +112,9 @@ export function listPresets(type: InstrumentType): PresetEntry[] {
   else if (type === 'lyra') {
     factory = LYRA_PRESETS.map((p) => ({ id: `f_${p.id}`, name: p.name, category: LYRA_MODEL_LABELS[p.model], description: p.description }));
   }
+  else if (type === 'tonos') {
+    factory = TONOS_PRESETS.map((p) => ({ id: `f_${p.id}`, name: p.name, category: TONOS_REGIONS.find((r) => r.id === TONOS_INSTRUMENTS[p.instrument].region)?.label ?? 'World strings', description: p.description }));
+  }
   else if (type === 'aura') {
     factory = AURA_PRESETS.map((p) => ({
       id: `f_${p.id}`,
@@ -186,6 +192,14 @@ export function applyPresetToDoc(d: GrooveDoc, trackId: string, presetId: string
     const current = deserializeLyraPatch(t.instrument.patch);
     const next = current ? applyLyraPreset(current, preset) : newLyraPatch(preset);
     t.instrument.patch = serializeLyraPatch(next) as Record<string, unknown>;
+    t.instrument.presetName = preset.name;
+    t.name = preset.name;
+  } else if (type === 'tonos') {
+    const preset = TONOS_PRESETS.find((p) => p.id === fid);
+    if (!preset) return false;
+    const current = deserializeTonosPatch(t.instrument.patch);
+    const next = current ? applyTonosPreset(current, preset) : newTonosPatch(preset);
+    t.instrument.patch = serializeTonosPatch(next) as Record<string, unknown>;
     t.instrument.presetName = preset.name;
     t.name = preset.name;
   } else if (isSuite(type)) {

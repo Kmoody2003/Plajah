@@ -23,6 +23,7 @@ mod osc;
 mod params;
 mod shaper;
 mod soma;
+mod tonos;
 mod string;
 mod sample;
 mod spatial;
@@ -59,7 +60,9 @@ use spatial::{IamfRole, Layout, Position};
 /// a tine electric piano; MAX_PARAM_ID grows to 2000.
 /// v15 adds the rest of LYRA: brass (block 1900 model 9), plucked strings (10), the violin family
 /// and the electric guitar rig (LY_PICKUP..LY_ECHO_TIME, 1924–1935).
-pub const ABI_VERSION: u32 = 16; // 16: SOMA deep skin (note_on_deep, soma_excitation)
+/// v17 adds TONOS (param block 2000+): world string instruments as physical strings, and the
+/// TonosRack of sympathetic strings; MAX_PARAM_ID grows to 2100.
+pub const ABI_VERSION: u32 = 17; // 17: TONOS world strings (block 2000+); 16: SOMA deep skin
 
 #[unsafe(no_mangle)]
 pub extern "C" fn pa_abi_version() -> u32 {

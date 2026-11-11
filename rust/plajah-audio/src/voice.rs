@@ -18,6 +18,7 @@ use crate::sample::{SampleBank, SampleVoice};
 use crate::shaper::{ShapeMode, Shaper};
 use crate::soma::SomaVoice;
 use crate::lyra::LyraVoice;
+use crate::tonos::TonosVoice;
 use crate::spatial::{pan_gains, Layout, Position, MAX_CHANNELS};
 use crate::tables::WaveTable;
 
@@ -117,6 +118,10 @@ pub struct Voice {
     lyra: LyraVoice,
     lyra_rng: Rng,
     lyra_active: bool,
+    /// TONOS world-string voice.
+    tonos: TonosVoice,
+    tonos_rng: Rng,
+    tonos_active: bool,
 }
 
 impl Voice {
@@ -146,6 +151,9 @@ impl Voice {
             lyra: LyraVoice::new(48000.0),
             lyra_rng: Rng((seed ^ 0x4C59_5241) | 1),
             lyra_active: false,
+            tonos: TonosVoice::new(48000.0),
+            tonos_rng: Rng((seed ^ 0x544F_4E53) | 1),
+            tonos_active: false,
             active: false,
             note: 60.0,
             velocity: 0.8,
@@ -193,6 +201,7 @@ impl Voice {
         self.string = StringVoice::new(sr, seed ^ 0x5F35_63AD);
         self.soma.set_sample_rate(sr);
         self.lyra.set_sample_rate(sr);
+        self.tonos.set_sample_rate(sr);
     }
 
     pub fn set_sample(&mut self, slot: i32, start_frame: f64, detune_cents: f32) {
@@ -289,6 +298,11 @@ impl Voice {
             self.lyra.set_sample_rate(sr_hint);
             self.lyra.trigger(midi_to_hz(note), self.velocity, p, &mut self.lyra_rng);
         }
+        self.tonos_active = !self.soma_active && !self.lyra_active && p.get(TONOS_BASE + TN_ENABLE) > 0.5;
+        if self.tonos_active {
+            self.tonos.set_sample_rate(sr_hint);
+            self.tonos.trigger(midi_to_hz(note), self.velocity, p, &mut self.tonos_rng);
+        }
 
         if self.modal_active {
             self.modal.reset();
@@ -326,6 +340,7 @@ impl Voice {
         self.string.reset();
         self.soma.reset();
         self.lyra.reset();
+        self.tonos.reset();
     }
 
     #[inline]
@@ -335,6 +350,9 @@ impl Voice {
         }
         if self.lyra_active {
             return self.lyra.is_quiet();
+        }
+        if self.tonos_active {
+            return self.tonos.is_quiet();
         }
 
         if self.modal_active {
@@ -436,6 +454,63 @@ impl Voice {
     /// A held, sounding bowed/blown LYRA voice and how long it has sounded (samples).
     pub fn lyra_held(&self) -> Option<u32> {
         (self.active && !self.released && self.lyra_active && self.lyra.is_sustained()).then(|| self.lyra.samples())
+    }
+
+    /// Legato into a TONOS voice: the stopping finger slides (bowed: one bow). False when not TONOS.
+    pub fn tonos_slur(&mut self, note: f32, vel: f32, p: &Params) -> bool {
+        if !self.tonos_active {
+            return false;
+        }
+        self.tonos.slur(midi_to_hz(note), vel.clamp(0.0, 1.0), p, &mut self.tonos_rng);
+        true
+    }
+
+    /// A held, sounding TONOS voice and how long it has sounded (samples).
+    pub fn tonos_held(&self) -> Option<u32> {
+        (self.active && !self.released && self.tonos_active).then(|| self.tonos.samples())
+    }
+
+    /// The TONOS render path: the string's own physics is the envelope.
+    fn render_tonos(
+        &mut self,
+        out: &mut [[f32; crate::engine::MAX_BLOCK]; MAX_CHANNELS],
+        frames: usize,
+        p: &Params,
+        globals: &ModValues,
+        layout: Layout,
+        base_pos: Position,
+    ) {
+        let nch = layout.channels();
+        let mut gains = [0.0f32; MAX_CHANNELS];
+        pan_gains(base_pos, layout, 0.0, &mut gains);
+        if self.released {
+            self.tonos.release();
+        }
+        let bend_range = (p.get(P_BEND_RANGE) * 24.0).max(2.0);
+        let total_bend = (globals.pitch_bend + self.expr.pitch_bend).clamp(-1.0, 1.0);
+        let bend = (2.0f32).powf((total_bend * bend_range) / 12.0);
+        let mod_wheel = (globals.mod_wheel + self.expr.pressure + self.expr.timbre * 0.5).clamp(0.0, 1.0);
+        let level = p.get(P_MASTER_GAIN).max(0.0);
+        for f in 0..frames {
+            if self.start_delay > 0 {
+                self.start_delay -= 1;
+                continue;
+            }
+            let (yl, yr) = self.tonos.render_sample(bend, mod_wheel, &mut self.tonos_rng);
+            if nch >= 2 {
+                out[0][f] += yl * level * gains[0] * 1.4142;
+                out[1][f] += yr * level * gains[1] * 1.4142;
+                for c in 2..nch {
+                    out[c][f] += 0.5 * (yl + yr) * level * gains[c];
+                }
+            } else if nch == 1 {
+                out[0][f] += 0.5 * (yl + yr) * level;
+            }
+        }
+        self.age += frames as u64;
+        if self.is_finished() {
+            self.active = false;
+        }
     }
 
     /// The LYRA render path: like SOMA, the model's own physics is the envelope.
@@ -564,6 +639,10 @@ impl Voice {
         }
         if self.lyra_active {
             self.render_lyra(out, frames, p, globals, layout, base_pos);
+            return;
+        }
+        if self.tonos_active {
+            self.render_tonos(out, frames, p, globals, layout, base_pos);
             return;
         }
         if !self.active {

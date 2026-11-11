@@ -434,7 +434,42 @@ pub const LY_CHORUS: u32 = 33;      // chorus (0 = off)
 pub const LY_ECHO: u32 = 34;        // tape echo amount (0 = off)
 pub const LY_ECHO_TIME: u32 = 35;   // 80 ms … 900 ms
 
-pub const MAX_PARAM_ID: usize = 2000;
+// ── TONOS (instrument 08): world strings as physical strings ───
+// Block 2000 upward (tonos.rs). Defaults to TN_ENABLE = 0 (bypass). INSTRUMENT, MATERIAL,
+// SYMP_KEY, SYMP_SCALE and HARMONIC are indices; everything else is 0..1 (0.5 = as the
+// instrument is built, where that applies).
+pub const TONOS_BASE: u32 = 2000;
+pub const TN_ENABLE: u32 = 0;
+pub const TN_INSTRUMENT: u32 = 1;   // index into tonos::INSTRUMENTS (52 world string instruments)
+pub const TN_POSITION: u32 = 2;     // pluck / strike / bow point (0.5 = the instrument's own)
+pub const TN_FORCE: u32 = 3;        // pluck force · hammer mass · bow force (inside Schelleng's window)
+pub const TN_HARDNESS: u32 = 4;     // flesh→nail→plectrum contact width · hammer stiffness · rosin grip
+pub const TN_BOW_SPEED: u32 = 5;    // bow / wheel speed
+pub const TN_TENSION: u32 = 6;      // string tension and gauge together (pitch held): 0.5 = as built
+pub const TN_MATERIAL: u32 = 7;     // index: 0 the instrument's own, 1..9 tonos::MATERIAL_NAMES
+pub const TN_DAMPING: u32 = 8;      // internal friction (0.5 = the material's)
+pub const TN_JAWARI: u32 = 9;       // curved-bridge contact: 0 thread lifts the string clear … 1 lying on the bridge
+pub const TN_SYMP: u32 = 10;        // sympathetic strings level (TonosRack)
+pub const TN_SYMP_KEY: u32 = 11;    // index 0..11: sympathetic tuning root (C..B)
+pub const TN_SYMP_SCALE: u32 = 12;  // index into tonos::SYMP_SCALE_NAMES
+pub const TN_BODY: u32 = 13;        // bridge admittance (0.5 = as built): more = more body, shorter notes
+pub const TN_BODY_SIZE: u32 = 14;   // body size (resonances down as it grows)
+pub const TN_SKIN_TENSION: u32 = 15; // skin bodies: head tension
+pub const TN_RATTLE: u32 = 16;      // sesse / sersal / chien looseness (0 = off)
+pub const TN_NONLIN: u32 = 17;      // tension modulation, 0..2× physical (0.5 = physical)
+pub const TN_COURSE_DETUNE: u32 = 18; // spread of a course's strings (0.5 = as built)
+pub const TN_SLIDE: u32 = 19;       // legato glide time
+pub const TN_VIB_DEPTH: u32 = 20;
+pub const TN_VIB_RATE: u32 = 21;
+pub const TN_TREMOLO: u32 = 22;     // tremolo picking rate (pipa lunzhi, bouzouki) · hurdy-gurdy coup rate (0 = off)
+pub const TN_WIDTH: u32 = 23;
+pub const TN_HARMONIC: u32 = 24;    // index: 0 auto (đàn bầu picks), n = touch the node of harmonic n+1
+pub const TN_MUTE: u32 = 25;        // palm / finger damping near the bridge
+pub const TN_RELEASE_DAMP: u32 = 26; // how firmly the player stops the string on release
+pub const TN_VEL_SENS: u32 = 27;
+pub const TN_LEGATO: u32 = 28;      // >0.5: a note into a held one slides (bowed: always one bow)
+
+pub const MAX_PARAM_ID: usize = 2100;
 
 /// Flat store. A plain array keeps `set_param` and the mod matrix's destination lookup O(1)
 /// with no hashing on the audio thread.
@@ -738,6 +773,27 @@ impl Params {
         self.set(LYRA_BASE + LY_CHORUS, 0.0);
         self.set(LYRA_BASE + LY_ECHO, 0.0);
         self.set(LYRA_BASE + LY_ECHO_TIME, 0.4);
+
+        // TONOS: off unless enabled; the physical controls sit at "as built".
+        for id in TN_POSITION..=TN_LEGATO {
+            self.set(TONOS_BASE + id, 0.5);
+        }
+        self.set(TONOS_BASE + TN_ENABLE, 0.0);
+        self.set(TONOS_BASE + TN_INSTRUMENT, 0.0);
+        self.set(TONOS_BASE + TN_MATERIAL, 0.0);
+        self.set(TONOS_BASE + TN_JAWARI, 0.8);
+        self.set(TONOS_BASE + TN_SYMP, 0.0);
+        self.set(TONOS_BASE + TN_SYMP_KEY, 0.0);
+        self.set(TONOS_BASE + TN_SYMP_SCALE, 0.0);
+        self.set(TONOS_BASE + TN_RATTLE, 0.4);
+        self.set(TONOS_BASE + TN_SLIDE, 0.2);
+        self.set(TONOS_BASE + TN_VIB_DEPTH, 0.2);
+        self.set(TONOS_BASE + TN_TREMOLO, 0.0);
+        self.set(TONOS_BASE + TN_HARMONIC, 0.0);
+        self.set(TONOS_BASE + TN_MUTE, 0.0);
+        self.set(TONOS_BASE + TN_RELEASE_DAMP, 0.3);
+        self.set(TONOS_BASE + TN_VEL_SENS, 0.85);
+        self.set(TONOS_BASE + TN_LEGATO, 1.0);
     }
 }
 

@@ -15,8 +15,8 @@ test('param ids mirror rust/plajah-audio/src/params.rs', () => {
   for (const m of rs.matchAll(/pub const LY_([A-Z_]+): u32 = (\d+);/g)) rust[m[1]] = base + Number(m[2]);
   assert.deepEqual(Object.keys(rust).sort(), Object.keys(LY).sort());
   for (const [k, v] of Object.entries(LY)) assert.equal(v, rust[k], k);
-  assert.match(fs.readFileSync('services/melos/beats/engine/InstrumentHost.ts', 'utf8'), /DSP_ABI_VERSION = 15/);
-  assert.match(fs.readFileSync('rust/plajah-audio/src/lib.rs', 'utf8'), /ABI_VERSION: u32 = 15/);
+  assert.match(fs.readFileSync("services/melos/beats/engine/InstrumentHost.ts", "utf8"), /DSP_ABI_VERSION = 17/);
+  assert.match(fs.readFileSync("rust/plajah-audio/src/lib.rs", "utf8"), /ABI_VERSION: u32 = 17/);
 });
 
 test('presets: every model has some, ids unique, values in range, variant valid', () => {

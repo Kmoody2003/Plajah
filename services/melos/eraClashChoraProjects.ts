@@ -251,7 +251,7 @@ export const isEraClashProjectId = (id: unknown): id is string =>
 
 const COLORS: Record<InstrumentType, string> = {
   onda: '#B84DFF', kera: '#00DAF3', bajo: '#FF4B1C', aura: '#E59A38', soma: '#E86A33', lyra: '#D9B36C',
-  vela: '#7FD1C7', cantus: '#C9A0FF', ison: '#9AA7FF', pneuma: '#8FE3B0',
+  vela: '#7FD1C7', cantus: '#C9A0FF', ison: '#9AA7FF', pneuma: '#8FE3B0', tonos: '#C98B4A',
 };
 
 function somaName(id: string): string { return SOMA_PRESETS.find((p) => p.id === id)?.name ?? id; }

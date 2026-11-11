@@ -757,6 +757,11 @@ export class BeatsEngine {
           await import('../../instruments/lyra/patch');
         const patch = deserializeLyraPatch(track.instrument.patch);
         if (patch) applyLyraPatch(inst, patch);
+      } else if (track.instrument?.type === 'tonos' && track.instrument?.patch) {
+        const { deserializeTonosPatch, applyTonosPatch } =
+          await import('../../instruments/tonos/patch');
+        const patch = deserializeTonosPatch(track.instrument.patch);
+        if (patch) applyTonosPatch(inst, patch);
       } else if (track.instrument?.patch) {
         const [{ deserializePatch, applyPatch }] = await Promise.all([
           import('../../instruments/onda/patch'),
@@ -1001,6 +1006,12 @@ export class BeatsEngine {
       const { deserializeLyraPatch, applyLyraPatch } = await import('../../instruments/lyra/patch');
       const patch = deserializeLyraPatch(track.instrument.patch);
       if (patch) applyLyraPatch(inst, patch);
+      return;
+    }
+    if (track.instrument.type === 'tonos') {
+      const { deserializeTonosPatch, applyTonosPatch } = await import('../../instruments/tonos/patch');
+      const patch = deserializeTonosPatch(track.instrument.patch);
+      if (patch) applyTonosPatch(inst, patch);
       return;
     }
     if (track.instrument.type === 'kera') {

@@ -15,6 +15,7 @@ import { AURA_MACRO_LABELS, AURA_MACRO_ORDER } from '../instruments/aura/patch';
 import { BAJO_MACRO_LABELS, BAJO_MACRO_ORDER } from '../instruments/bajo/patch';
 import { SOMA_MACRO_LABELS, SOMA_MACRO_ORDER } from '../instruments/soma/patch';
 import { LYRA_MACRO_LABELS, LYRA_MACRO_ORDER } from '../instruments/lyra/patch';
+import { TONOS_MACRO_LABELS, TONOS_MACRO_ORDER } from '../instruments/tonos/patch';
 import { SUITE, SUITE_ORDER, type SuiteInstrument } from '../instruments/vela/suite';
 import {
   ENGINE_LABEL, MODELS, PARAMS, drumSynthFromLegacy, dsParam, newDrumSynth, setPadDrumSynth, type DrumEngine, type DrumParamDef, type DrumSynthPatch,
@@ -88,6 +89,7 @@ export function instrumentMacros(t: ArrangeTrack | undefined): { label: string; 
   if (ins.type === 'aura') return fromRecord(AURA_MACRO_ORDER, AURA_MACRO_LABELS);
   if (ins.type === 'soma') return fromRecord(SOMA_MACRO_ORDER, SOMA_MACRO_LABELS);
   if (ins.type === 'lyra') return fromRecord(LYRA_MACRO_ORDER, LYRA_MACRO_LABELS);
+  if (ins.type === 'tonos') return fromRecord(TONOS_MACRO_ORDER, TONOS_MACRO_LABELS);
   if (ins.type === 'bajo') return fromRecord(BAJO_MACRO_ORDER, BAJO_MACRO_LABELS);
   if (isSuite(ins.type)) return fromRecord(suiteOrder(ins.type), SUITE[ins.type].macroLabels);
   return []; // KERA plays programs; it has no macro bank
@@ -110,7 +112,7 @@ export function writeInstrumentMacro(d: GrooveDoc, trackId: string, index: numbe
     m.value = v;
     return 'live';
   }
-  const order: readonly string[] | null = ins.type === 'aura' ? AURA_MACRO_ORDER : ins.type === 'soma' ? SOMA_MACRO_ORDER : ins.type === 'lyra' ? LYRA_MACRO_ORDER
+  const order: readonly string[] | null = ins.type === 'aura' ? AURA_MACRO_ORDER : ins.type === 'soma' ? SOMA_MACRO_ORDER : ins.type === 'lyra' ? LYRA_MACRO_ORDER : ins.type === 'tonos' ? TONOS_MACRO_ORDER
     : ins.type === 'bajo' ? BAJO_MACRO_ORDER : isSuite(ins.type) ? suiteOrder(ins.type) : null;
   const key = order?.[index];
   if (!key) return null;
