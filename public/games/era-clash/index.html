@@ -665,6 +665,12 @@
             <span style="width:86px"></span>
           </div>
           <p class="onl-top" style="margin-bottom:10px">Each tale follows one warrior through a true age of their homeland — read the chapter, then fight it on the field beside your companions. Win the battle to reach the next checkpoint and unlock the next chapter. A full tale runs about 30–40 minutes.</p>
+          <!-- The Falling Petal in full 3D (games/era-clash-3d): served at / by its dev server (port 4340), at
+               /games/era-clash/3d/play/ once built -->
+          <button class="mode-btn" id="camp3d" style="width:100%;margin:0 0 12px;border-color:#e8b058;background:linear-gradient(90deg,rgba(150,70,30,0.35),rgba(20,16,12,0.6))">
+            <span class="mb-t">⛩ The Falling Petal — 3D · Chapter I: Smoke Over the Valley</span>
+            <span class="mb-d">Play Haru's tale as a full 3D brawler: land on the beach at Otsu-no-ura, break through the town gate, free the captives and fight up to the castle as the town burns.</span>
+          </button>
           <div class="camp-grid" id="campGrid"></div>
           <div class="diff-row">READING
             <div class="seg" id="campModeSeg">
@@ -4477,6 +4483,10 @@
     function campProg(id){ return CAMP.progress[id] || { next: 0, done: false }; }
 
     /* ---------- campaign flow ---------- */
+    document.getElementById("camp3d").addEventListener("click", function(){
+      var dev = location.port === "4340";
+      location.href = dev ? "/" : "/games/era-clash/3d/play/";
+    });
     function openCampaign(){
       game.mode = "campaign"; game.attract = true; brawl = null;
       buildCampGrid();
