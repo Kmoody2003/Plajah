@@ -8,11 +8,12 @@ import { Heart, MessageSquare, Share2, MoreHorizontal, ExternalLink, Play, Volum
 import PostDebateModal from './PostDebateModal';
 import Portal from './Portal';
 import MiniMusicPlayer from './MiniMusicPlayer';
+import { MusicPostBackdrop, MusicPostActions, usePostMusicPlaying } from './feed/MusicPostStage';
 import ThreeDImage from './ThreeDImage';
 import ShareButton from './ShareButton';
 import ElevateBriefingDoc from './ElevateBriefingDoc';
 import { formatDistanceToNow } from 'date-fns';
-import { auth, updatePost, deletePost, togglePostLike, processDonation, fetchUserClubs, createClubPost } from '../services/backendService';
+import { auth, updatePost, deletePost, togglePostLike, processDonation, fetchUserClubs, createClubPost, fetchAlbumsByIds } from '../services/backendService';
 import { searchUsersSafe as searchUsers } from '../services/searchUsersSafe';
 import { db } from '../services/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -374,6 +375,24 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
   const todayLive = post.isToday ? isActiveToday(post, todayNow) : false;
   const todayExpired = !!post.isToday && !todayLive;
 
+  // Music on the post (a shared Chora album/track): the release itself, so the post can play it,
+  // favorite / save / playlist it and follow its artist. A shared link (assetEmbed) only carries ids,
+  // so its album is read once when the card mounts.
+  const musicEmbed = (post as any).assetEmbed as { type?: string; id?: string; trackId?: string } | undefined;
+  const musicEmbedId = !post.albumEmbed && (musicEmbed?.type === 'ALBUM' || musicEmbed?.type === 'TRACK') ? musicEmbed.id : undefined;
+  const [linkedAlbum, setLinkedAlbum] = useState<Album | null>(null);
+  useEffect(() => {
+    if (!musicEmbedId) return;
+    let alive = true;
+    fetchAlbumsByIds([musicEmbedId]).then(a => { if (alive && a[0]) setLinkedAlbum(a[0]); }).catch(() => {});
+    return () => { alive = false; };
+  }, [musicEmbedId]);
+  const musicAlbum: Album | null = post.albumEmbed || linkedAlbum;
+  const musicTrack = musicAlbum?.tracks?.length
+    ? (musicEmbed?.trackId && musicAlbum.tracks.find(t => t.id === musicEmbed.trackId)) || musicAlbum.tracks[0]
+    : null;
+  const musicPlaying = usePostMusicPlaying(musicAlbum);
+
   // Sanctuary gate — only engages when a post carries one (existing posts do not).
   const gateAccess = useGateAccess(post.sanctuaryGate, post.id);
   const gated = !!post.sanctuaryGate && !gateAccess.allowed && !isAuthor;
@@ -699,6 +718,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
   // Album artwork background when sharing an album or track onto the social feed
   const albumArtworkBg =
     post.albumEmbed?.coverImage ||
+    linkedAlbum?.coverImage ||
     (((post as any).assetEmbed?.type === 'ALBUM' || (post as any).assetEmbed?.type === 'TRACK')
       ? ((post as any).assetEmbed?.imageUrl || (post as any).assetEmbed?.image)
       : undefined) ||
@@ -708,20 +728,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
     <>
     {/* Edge-to-edge on phones (fills the device width, tighter), rounded card on desktop. */}
     <div ref={impressionRef} className={`${presentation === 'signal' ? 'pj-signal-post' : ''} relative overflow-hidden group/card rounded-none sm:rounded-2xl border-y sm:border border-white/[0.06] transition-all duration-200 sm:hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(0,0,0,0.35),_0_-4px_10px_rgba(0,0,0,0.18)] hover:border-white/[0.1] hover:z-10 will-change-transform`}>
-      {albumArtworkBg && (
-        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-          <img
-            src={albumArtworkBg}
-            alt=""
-            aria-hidden="true"
-            loading="lazy"
-            decoding="async"
-            referrerPolicy="no-referrer"
-            className="w-full h-full object-cover scale-105 opacity-45 blur-[2px] transition-transform duration-700 group-hover/card:scale-110"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/75 to-black/90 backdrop-blur-[4px]" />
-        </div>
-      )}
+      {albumArtworkBg && <MusicPostBackdrop cover={albumArtworkBg} active={musicPlaying} ownerId={musicAlbum?.ownerId} />}
       <div className="relative z-10 flex gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-none sm:rounded-2xl hover:bg-white/[0.025] transition-colors">
         {/* Avatar col */}
         <div className="relative flex-shrink-0 group/profile">
@@ -1004,6 +1011,15 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
             <div className="mt-3">
               <MiniMusicPlayer album={post.albumEmbed} autoPlay={post.autoPlayEmbed} />
             </div>
+          )}
+
+          {/* Favorite · Library · Playlist · Follow — right on the post, for any shared Chora release. */}
+          {musicTrack && (
+            <MusicPostActions
+              track={musicTrack}
+              album={musicAlbum}
+              artist={musicAlbum?.ownerId ? { kind: 'plajah', uid: musicAlbum.ownerId, name: musicAlbum.artist } : null}
+            />
           )}
 
           {/* Embedded platform asset (world / article / taleo curation / etc.) — music renders as the

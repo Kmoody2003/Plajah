@@ -1750,6 +1750,10 @@ export interface UserProfile {
   games?: Game[];
   apps?: WebApp[];
   library?: string[]; // Track IDs of other people's music
+  /** Saved tracks that don't live in a public Chora album (Audius), keyed by track id — services/postMusicActions. */
+  libraryExternal?: Record<string, import('./services/postMusicActions').LibraryTrackSnapshot>;
+  /** Chora tracks the user favorited (the heart on a music post / player). */
+  favoriteTrackIds?: string[];
   personalTracks?: Track[]; // Uploaded personal music
   personalPlaylists?: Playlist[]; // User created playlists
   activeEngagementScore?: number; // For radio ranking

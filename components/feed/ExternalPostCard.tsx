@@ -22,6 +22,7 @@ import type { FediverseMedia } from '../../services/fediverse/types';
 import { getAudiusSession, startAudiusAuth } from '../../services/audiusAuth';
 import { invalidateAudiusLibrary } from '../../services/audiusLibrary';
 import AudiusComments from './AudiusComments';
+import { MusicPostBackdrop, MusicPostActions, usePostMusicPlaying } from './MusicPostStage';
 import { bskyBookmarkPost, bskyUnbookmarkPost } from '../../services/fediverse/blueskyClient';
 
 const NET: Record<string, { label: string; color: string; logo: string }> = {
@@ -75,6 +76,14 @@ const ExternalPostCard: React.FC<ExternalPostCardProps> = ({ post, onOpenProfile
   const isAudius = (post.protocol as string) === 'audius';
   const [addedComments, setAddedComments] = useState(0);
   const replyCount = post.replyCount + addedComments;
+
+  // Audius song on the post → the same native one-track album the play button uses, so the backdrop,
+  // visualizer and Favorite / Library / Playlist / Follow all act on the track Chora actually plays.
+  const audioMedia = isAudius ? post.media.find(m => m.type === 'audio') : undefined;
+  const musicAlbum = React.useMemo(() => (audioMedia ? audiusPostAlbum(post, audioMedia) : null), [post, audioMedia]);
+  const musicTrack = (musicAlbum?.tracks?.[0] as any) ?? null;
+  const musicPlaying = usePostMusicPlaying(musicAlbum, audioMedia ? [post.id] : []) || Boolean(audioMedia && isPlaying && currentTrack?.url === audioMedia.url);
+  const audiusArtistId = (post.authorDid || '').replace(/^audius:/, '');
 
   const isLiked = localLiked ?? post.isLiked;
   const isReposted = localReposted ?? post.isReposted;
@@ -160,11 +169,12 @@ const ExternalPostCard: React.FC<ExternalPostCardProps> = ({ post, onOpenProfile
 
   return (
     <>
-      <div className="pj-signal-post relative group/card rounded-none sm:rounded-2xl border-y sm:border border-white/[0.06] transition-all duration-200 sm:hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(0,0,0,0.35),_0_-4px_10px_rgba(0,0,0,0.18)] hover:border-white/[0.1] hover:z-10 will-change-transform">
+      <div className="pj-signal-post relative overflow-hidden group/card rounded-none sm:rounded-2xl border-y sm:border border-white/[0.06] transition-all duration-200 sm:hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(0,0,0,0.35),_0_-4px_10px_rgba(0,0,0,0.18)] hover:border-white/[0.1] hover:z-10 will-change-transform">
+        {audioMedia && <MusicPostBackdrop cover={audioMedia.previewUrl} active={musicPlaying} />}
         {post.repostedBy && (
-          <p className="flex items-center gap-1.5 px-4 pt-2.5 -mb-1 text-[11px] font-bold text-white/35"><Repeat2 size={12} /> {post.repostedBy} reposted</p>
+          <p className="relative z-10 flex items-center gap-1.5 px-4 pt-2.5 -mb-1 text-[11px] font-bold text-white/35"><Repeat2 size={12} /> {post.repostedBy} reposted</p>
         )}
-        <div className="flex gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-none sm:rounded-2xl hover:bg-white/[0.025] transition-colors">
+        <div className="relative z-10 flex gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-none sm:rounded-2xl hover:bg-white/[0.025] transition-colors">
           {/* Avatar col */}
           <div className="relative flex-shrink-0">
             <button onClick={openProfile} className="w-10 h-10 rounded-full overflow-hidden border border-white/10 hover:opacity-90 transition-opacity block bg-white/5">
@@ -254,6 +264,17 @@ const ExternalPostCard: React.FC<ExternalPostCardProps> = ({ post, onOpenProfile
               </div>
             )}
 
+            {/* Favorite (the Audius favorite) · Library · Playlist · Follow — right on the post. */}
+            {musicTrack && (
+              <MusicPostActions
+                track={musicTrack}
+                album={musicAlbum as any}
+                artist={audiusArtistId ? { kind: 'audius', id: audiusArtistId, name: post.authorDisplayName || post.authorHandle } : null}
+                favorite={{ on: isLiked, busy: acting === 'like', onToggle: () => void act('like') }}
+                accent="#a855f7"
+              />
+            )}
+
             {post.card?.uri && (
               <a href={post.card.uri} target="_blank" rel="noopener noreferrer" className="mt-2.5 flex rounded-xl overflow-hidden border border-white/10 hover:bg-white/[0.04] transition-colors">
                 {post.card.thumb && <img src={post.card.thumb} alt="" className="w-24 h-24 object-cover shrink-0" loading="lazy" />}
@@ -286,10 +307,10 @@ const ExternalPostCard: React.FC<ExternalPostCardProps> = ({ post, onOpenProfile
                 <MessageSquare size={16} strokeWidth={1.5} />{replyCount > 0 && <span className="text-[12px]">{replyCount}</span>}
               </motion.button>
 
-              <motion.button whileTap={{ scale: 0.85 }} onClick={() => act('like')} disabled={acting === 'like' || post.protocol === 'threads'} title={post.protocol === 'threads' ? 'Like it on Threads — Meta’s API doesn’t allow likes from other apps' : undefined}
+              {!musicTrack && <motion.button whileTap={{ scale: 0.85 }} onClick={() => act('like')} disabled={acting === 'like' || post.protocol === 'threads'} title={post.protocol === 'threads' ? 'Like it on Threads — Meta’s API doesn’t allow likes from other apps' : undefined}
                 className={`tap flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all disabled:opacity-50 ${isLiked ? 'text-red-400 bg-red-400/10' : 'text-white/40 hover:text-red-400 hover:bg-red-400/10'}`}>
                 <Heart size={16} strokeWidth={1.5} fill={isLiked ? 'currentColor' : 'none'} />{likeCount > 0 && <span className="text-[12px]">{likeCount}</span>}
-              </motion.button>
+              </motion.button>}
 
               {/* Threads: repost works through the API; undoing one only on Threads itself. */}
               {(post.protocol !== 'threads' || !isReposted) && (

@@ -7250,7 +7250,10 @@ export const deletePersonalBook = async (bookId: string) => {
   }
 };
 
-export const fetchUserLibraryTracks = async (trackIds: string[]) => {
+export const fetchUserLibraryTracks = async (
+  trackIds: string[],
+  external?: Record<string, { id: string; title: string; artist: string; url: string; artistId?: string; albumId?: string; albumCover?: string; duration?: number }>,
+) => {
   if (!trackIds || !trackIds.length) return [];
   const albums = await fetchAllPublicAlbums();
   const allTracks: (Track & { albumId?: string; albumArtist?: string; albumCover?: string })[] = [];
@@ -7267,6 +7270,16 @@ export const fetchUserLibraryTracks = async (trackIds: string[]) => {
       }
     });
   });
+  // Saved tracks with no public Chora album (Audius, saved from a post) come from their snapshot.
+  if (external) {
+    const found = new Set(allTracks.map(t => t.id));
+    trackIds.forEach(id => {
+      const x = external[id];
+      if (x && !found.has(id)) {
+        allTracks.push({ id: x.id, title: x.title, artist: x.artist, url: x.url, duration: x.duration, artistId: x.artistId, albumId: x.albumId, albumArtist: x.artist, albumCover: x.albumCover });
+      }
+    });
+  }
   return allTracks;
 };
 

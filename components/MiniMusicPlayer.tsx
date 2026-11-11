@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Music, Disc, Waves, Cast } from 'lucide-react';
 import { Album, Track } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -10,100 +11,84 @@ interface MiniMusicPlayerProps {
   autoPlay?: boolean;
 }
 
+/** Albums a post auto-paused on scroll-away (so coming back resumes instead of restarting). */
+const autoPausedAlbums = new Set<string>();
+/** Albums a post started on its own (autoplay), not the listener. */
+const autoStartedAlbums = new Set<string>();
+
 const MiniMusicPlayer: React.FC<MiniMusicPlayerProps> = ({ album, autoPlay = false }) => {
-  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Plays through the GLOBAL player (not a private <audio>), so the post's song is the one the mini
+  // player, lock screen and queue know about, and its analyser drives the post's Show Mode visualizer.
+  const gp = useGlobalPlayerState();
+  const { currentTime, duration } = useGlobalPlayerProgress();
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [pickedIndex, setPickedIndex] = useState(0);
 
+  const playingIndex = gp.currentTrack ? album.tracks.findIndex(t => t.id === gp.currentTrack!.id) : -1;
+  const isOurs = playingIndex >= 0 && (!gp.currentAlbum || gp.currentAlbum.id === album.id || album.tracks.length === 1);
+  const currentTrackIndex = isOurs ? playingIndex : pickedIndex;
   const currentTrack = album.tracks[currentTrackIndex];
+  const isPlaying = isOurs && gp.isPlaying;
+  const progress = isOurs && duration > 0 ? (currentTime / duration) * 100 : 0;
 
+  const playIndex = (idx: number) => {
+    const t = album.tracks[idx];
+    if (!t) return;
+    setPickedIndex(idx);
+    gp.playTrack(t, album, 'LIBRARY');
+  };
+
+  // Autoplay (author opted in): only when it scrolls into view AND nothing else is playing — a post
+  // never cuts off music the listener already chose. A song the post started on its own pauses again
+  // when the post scrolls away; one the listener pressed play on keeps going.
+  const autoStarted = {
+    get current() { return autoStartedAlbums.has(album.id); },
+    set current(v: boolean) { if (v) autoStartedAlbums.add(album.id); else autoStartedAlbums.delete(album.id); },
+  };
+  // Kept outside the component: the feed unmounts far-off cards, and the flag must survive that.
+  const autoPaused = {
+    get current() { return autoPausedAlbums.has(album.id); },
+    set current(v: boolean) { if (v) autoPausedAlbums.add(album.id); else autoPausedAlbums.delete(album.id); },
+  };
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          if (autoPlay && audioRef.current) {
-            audioRef.current.play().catch(e => {
-              if (e.name === 'AbortError' || e.message?.includes('interrupted')) return;
-              console.log("Autoplay blocked", e);
-            });
-            setIsPlaying(true);
-          }
-        } else {
-          if (audioRef.current) {
-            audioRef.current.pause();
-            setIsPlaying(false);
-          }
-        }
-      },
-      { threshold: 0.5 } // Play when 50% visible
-    );
+    if (!autoPlay || !containerRef.current) return;
+    const el = containerRef.current;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !gp.isPlaying) {
+        // back in view after we paused it → pick up where it left off; first time → start it
+        if (autoPaused.current && isOurs) { autoPaused.current = false; autoStarted.current = true; gp.resume(); }
+        else if (!isOurs) { autoStarted.current = true; playIndex(0); }
+      } else if (!entry.isIntersecting && autoStarted.current && isOurs && gp.isPlaying) {
+        autoStarted.current = false; autoPaused.current = true; gp.pause();
+      }
+    }, { threshold: 0.5 });
+    observer.observe(el);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPlay, gp.isPlaying, isOurs]);
 
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
+  // The feed can unmount a card that flew off-screen before the observer saw it leave: an autoplayed
+  // song stops with it, the same as scrolling away.
+  const latest = useRef({ gp, isOurs });
+  latest.current = { gp, isOurs };
+  useEffect(() => () => {
+    const { gp: g, isOurs: ours } = latest.current;
+    if (autoStartedAlbums.has(album.id) && ours && g.isPlaying) {
+      autoStartedAlbums.delete(album.id); autoPausedAlbums.add(album.id); g.pause();
     }
+  }, [album.id]);
 
-    return () => {
-      if (containerRef.current) {
-        observer.unobserve(containerRef.current);
-      }
-    };
-  }, [autoPlay]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const updateProgress = () => {
-      setProgress((audio.currentTime / audio.duration) * 100);
-    };
-
-    const handleEnded = () => {
-      if (currentTrackIndex < album.tracks.length - 1) {
-        setCurrentTrackIndex(prev => prev + 1);
-      } else {
-        setIsPlaying(false);
-        setProgress(0);
-      }
-    };
-
-    audio.addEventListener('timeupdate', updateProgress);
-    audio.addEventListener('ended', handleEnded);
-
-    return () => {
-      audio.removeEventListener('timeupdate', updateProgress);
-      audio.removeEventListener('ended', handleEnded);
-    };
-  }, [currentTrackIndex, album.tracks.length]);
-
+  // Anything the listener presses makes the song theirs (no auto-pause on scroll-away).
+  const userPlay = (idx: number) => { autoStarted.current = false; autoPaused.current = false; playIndex(idx); };
   const togglePlay = () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.play().catch(e => {
-          if (e.name === 'AbortError' || e.message?.includes('interrupted')) return;
-          console.error("Playback failed:", e);
-        });
-      }
-      setIsPlaying(!isPlaying);
-    }
+    autoStarted.current = false;
+    autoPaused.current = false;
+    if (isOurs) gp.togglePlay();
+    else playIndex(currentTrackIndex);
   };
 
-  const nextTrack = () => {
-    if (currentTrackIndex < album.tracks.length - 1) {
-      setCurrentTrackIndex(prev => prev + 1);
-      setIsPlaying(true);
-    }
-  };
-
-  const prevTrack = () => {
-    if (currentTrackIndex > 0) {
-      setCurrentTrackIndex(prev => prev - 1);
-      setIsPlaying(true);
-    }
-  };
+  const nextTrack = () => { if (currentTrackIndex < album.tracks.length - 1) userPlay(currentTrackIndex + 1); };
+  const prevTrack = () => { if (currentTrackIndex > 0) userPlay(currentTrackIndex - 1); };
 
   return (
     <div ref={containerRef} className="bg-black/40 backdrop-blur-md border border-white/10 rounded-3xl p-4 overflow-hidden group">
@@ -178,7 +163,7 @@ const MiniMusicPlayer: React.FC<MiniMusicPlayerProps> = ({ album, autoPlay = fal
         {album.tracks.map((track, idx) => (
           <button 
             key={track.id}
-            onClick={() => { setCurrentTrackIndex(idx); setIsPlaying(true); }}
+            onClick={() => userPlay(idx)}
             className={`w-full flex items-center gap-3 p-2 rounded-xl transition-all ${idx === currentTrackIndex ? 'bg-white/10 text-small-orange' : 'hover:bg-white/5 text-white/40'}`}
           >
             <div className="w-6 h-6 rounded-lg bg-black/20 flex items-center justify-center text-[10px] font-black">
@@ -197,15 +182,6 @@ const MiniMusicPlayer: React.FC<MiniMusicPlayerProps> = ({ album, autoPlay = fal
         ))}
       </div>
 
-      {currentTrack && (
-        <audio 
-          ref={audioRef}
-          src={currentTrack.url}
-          autoPlay={isPlaying}
-          controlsList="nodownload noplaybackrate"
-          onContextMenu={(e) => e.preventDefault()}
-        />
-      )}
     </div>
   );
 };

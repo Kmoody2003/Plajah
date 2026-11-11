@@ -175,7 +175,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
     const loadAll = async () => {
       setLoading(true);
       const [lib, personal, albums, pls] = await Promise.all([
-        profile.library && profile.library.length > 0 ? fetchUserLibraryTracks(profile.library) : Promise.resolve([]),
+        profile.library && profile.library.length > 0 ? fetchUserLibraryTracks(profile.library, profile.libraryExternal) : Promise.resolve([]),
         fetchPersonalTracks(),
         fetchPersonalAlbums(),
         fetchPersonalPlaylists()
@@ -188,7 +188,7 @@ const MyLibraryView: React.FC<MyLibraryViewProps> = ({ profile, onUpdate, initia
       setLoading(false);
     };
     loadAll();
-  }, [profile.library]);
+  }, [profile.library, profile.libraryExternal]);
 
   const processFileArrayInner = async (filesData: {file: File, path: string}[], rootFolderName?: string) => {
     try {
