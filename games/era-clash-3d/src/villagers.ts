@@ -83,7 +83,7 @@ export class Villagers {
       node.scale.setScalar(HEIGHT[k] / Math.max(0.3, box.max.y - box.min.y));
       node.traverse((o) => {
         const m = o as THREE.Mesh; if (!m.isMesh) return;
-        m.castShadow = true; m.frustumCulled = false;
+        m.castShadow = false; m.frustumCulled = false;   // 30k-triangle figures: no second pass for a kneeling shadow
         const mat = (m.material as THREE.MeshStandardMaterial).clone(); mat.roughnessMap = null; mat.roughness = 0.92; mat.color.setHex(0xccc2ba); m.material = mat;   // hemp and indigo, not gloss
       });
       const mixer = new THREE.AnimationMixer(node);

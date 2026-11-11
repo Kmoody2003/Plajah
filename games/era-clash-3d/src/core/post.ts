@@ -14,7 +14,9 @@ import { gaussianBlur } from 'three/addons/tsl/display/GaussianBlurNode.js';
 
 // bloom 'full' = three's 5-mip UnrealBloom (12 passes); 'lean' = threshold + one quarter-res
 // separable Gaussian (3 passes) — the iGPU tier, where each pass costs real CPU.
-export interface PostQuality { ssr: boolean; ssrScale: number; bloom: 'full' | 'lean' | false; taa: boolean; smaa: boolean; upscale: boolean }
+export interface PostQuality { ssr: boolean; ssrScale: number; bloom: 'full' | 'lean' | false; taa: boolean; smaa: boolean; upscale: boolean;
+  /** Hardware MSAA on the scene pass (resolved before post): clean geometric edges at the internal resolution. */
+  msaa?: number }
 
 type V4 = THREE.Node<'vec4'>;
 
@@ -37,7 +39,7 @@ export function setLut(tex: THREE.Data3DTexture | null, amount: number) {
 
 export function buildPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera, q: PostQuality) {
   const pipeline = new THREE.RenderPipeline(renderer);
-  const scenePass = pass(scene, camera, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+  const scenePass = pass(scene, camera, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, ...(q.msaa ? { samples: q.msaa } : {}) });
   // Extra G-buffer targets only when an effect reads them: on an iGPU every additional
   // render target is pure bandwidth.
   if (q.ssr || q.taa) {

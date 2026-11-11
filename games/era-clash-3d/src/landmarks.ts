@@ -132,19 +132,26 @@ export function buildLandmarks(o: { inner: { xHalf: number; zMin: number; zMax: 
     const paint = (g: THREE.BufferGeometry, c: number) => { const col = new THREE.Color(c), n2 = g.attributes.position.count, a = new Float32Array(n2 * 3); for (let i = 0; i < n2; i++) a.set([col.r, col.g, col.b], i * 3); g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g.toNonIndexed(); };
     parts.push(paint(new THREE.CylinderGeometry(0.035, 0.07, 1, 5).translate(0, 0.5, 0), 0x3a2a20));
     for (const [ox, oy, oz, r] of [[0, 0.95, 0, 0.42], [0.22, 0.72, 0.05, 0.32], [-0.2, 0.6, -0.08, 0.3], [0.05, 0.48, 0.2, 0.26]]) {
-      const g = new THREE.SphereGeometry(r, 7, 4); g.scale(1, 0.38, 1); g.translate(ox, oy, oz);
+      const g = new THREE.SphereGeometry(r, 6, 3); g.scale(1, 0.38, 1); g.translate(ox, oy, oz);
       parts.push(paint(g, 0x1e2c1a));
     }
     const pineG = mergeGeometries(parts)!;
+    // the far hills' pines (thousands, seen through haze): two low canopies, a fifth of the triangles
+    const farParts = [paint(new THREE.CylinderGeometry(0.04, 0.07, 1, 3, 1, true).translate(0, 0.5, 0), 0x3a2a20)];
+    for (const [ox, oy, oz, r] of [[0, 0.9, 0, 0.44], [0.08, 0.6, 0.06, 0.34]]) { const g = new THREE.SphereGeometry(r, 5, 2); g.scale(1, 0.4, 1); g.translate(ox, oy, oz); farParts.push(paint(g, 0x1e2c1a)); }
+    const farG = mergeGeometries(farParts)!;
     const MAXP = 2600;
-    const pines = new THREE.InstancedMesh(pineG, new THREE.MeshStandardNodeMaterial({ vertexColors: true, roughness: 1 }), MAXP);
+    const pineMat = new THREE.MeshStandardNodeMaterial({ vertexColors: true, roughness: 1 });
+    const pines = new THREE.InstancedMesh(pineG, pineMat, 700);
+    const farPines = new THREE.InstancedMesh(farG, pineMat, MAXP);
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
-    let n = 0;
+    let n = 0, nNear = 0, nFar = 0, far = false;
     const plant = (x: number, z: number, s: number) => {
       if (n >= MAXP) return;
       q.setFromAxisAngle(up, hash2(x, z) * 6.28);
       m4.compose(new THREE.Vector3(x, groundY(x, z) - 0.3, z), q, new THREE.Vector3(s, s * (0.9 + hash2(z, x) * 0.3), s));
-      pines.setMatrixAt(n++, m4);
+      if (far || nNear >= 700) farPines.setMatrixAt(nFar++, m4); else pines.setMatrixAt(nNear++, m4);
+      n++;
     };
     // the valley walls inside the play area (bare slopes in the first pass)
     for (let z = -50; z < 175; z += 3.2) for (const sd of [-1, 1]) for (let k = 0; k < 3; k++) {
@@ -153,6 +160,7 @@ export function buildLandmarks(o: { inner: { xHalf: number; zMin: number; zMax: 
       plant(x, z + (hash2(k, z) - 0.5) * 2.5, 7 + hash2(x * 2, z) * 6);
     }
     // the hills outside, thick where they rise, thin on the valley floor
+    far = true;
     for (let i = 0; i < 9000 && n < MAXP; i++) {
       const x = (hash2(i, 1.7) - 0.5) * 2400, z = -40 + hash2(2.3, i) * 1500;
       if (inside(x, z) || Math.hypot(x - castleAt.x, z - castleAt.z) < 80) continue;
@@ -162,8 +170,10 @@ export function buildLandmarks(o: { inner: { xHalf: number; zMin: number; zMax: 
       plant(x, z, 9 + hash2(i, 3) * 9);
     }
     // round the castle hill
+    far = false;
     for (let i = 0; i < 160; i++) { const a = i * 2.4, r = 90 + hash2(i, 5) * 60; plant(castleAt.x + Math.cos(a) * r, castleAt.z + Math.sin(a) * r, 8 + hash2(i, 8) * 5); }
-    pines.count = n; pines.computeBoundingSphere();
+    pines.count = nNear; pines.computeBoundingSphere(); farPines.count = nFar; farPines.computeBoundingSphere();
+    group.add(farPines);
     group.add(pines);
   }
 
@@ -213,6 +223,28 @@ export function buildLandmarks(o: { inner: { xHalf: number; zMin: number; zMax: 
   castle.traverse((m) => { (m as THREE.Mesh).castShadow = false; });
   castle.position.copy(castleAt);
   castle.rotation.y = Math.PI + 0.25;   // the keep's face toward the town
-  group.add(castle);
+  group.add(mergeByMaterial(castle));   // ~90 pieces → one draw per material
   return { group, castle, castleAt, mountainAt };
+}
+
+/** Bake a built group into one mesh per material (its own transform kept): a few draw calls instead of one a piece. */
+function mergeByMaterial(root: THREE.Object3D) {
+  root.updateMatrixWorld(true);
+  const inv = root.matrixWorld.clone().invert(), m4 = new THREE.Matrix4();
+  const by = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || (m as unknown as THREE.InstancedMesh).isInstancedMesh || Array.isArray(m.material)) return;
+    const g = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone()).applyMatrix4(m4.multiplyMatrices(inv, m.matrixWorld));
+    for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv') g.deleteAttribute(k);
+    if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
+    (by.get(m.material) ?? by.set(m.material, []).get(m.material)!).push(g);
+  });
+  const out = new THREE.Group(); out.name = root.name;
+  out.position.copy(root.position); out.quaternion.copy(root.quaternion); out.scale.copy(root.scale);
+  for (const [mat, list] of by) {
+    const g = mergeGeometries(list, false); if (!g) continue;
+    const mesh = new THREE.Mesh(g, mat); mesh.castShadow = false; mesh.receiveShadow = true; out.add(mesh);
+  }
+  return out;
 }

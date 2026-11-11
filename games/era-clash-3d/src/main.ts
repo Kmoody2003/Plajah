@@ -97,12 +97,15 @@ collision.rebuild();
 // the village's loose props (pots to throw, tables to kick) and the villagers the raiders hold
 const props = new Props(collision);
 for (const pr of world.village.props) props.add(pr.mesh as THREE.Mesh, pr.kind);
+props.batch();
 scene.add(props.group);
 const villagers = new Villagers(world.village.huddles);
 void villagers.dress();
 scene.add(villagers.group);
 const SAFETY = new THREE.Vector3(roadX(62), world.heightAt(roadX(62), 62), 62);
-const post = buildPost(renderer, scene, camera, { ssr: false, ssrScale: 0.5, bloom: quality === 'low' || params.has('nobloom') ? false : 'lean', taa: false, smaa: false, upscale: true });
+// Edges: 4× MSAA on the scene pass (FXAA on the HDR scene colour corrupted the frame); ?msaa=0|2|4 overrides
+const MSAA = params.has('msaa') ? Number(params.get('msaa')) : quality === 'low' ? 0 : 4;
+const post = buildPost(renderer, scene, camera, { ssr: false, ssrScale: 0.5, bloom: quality === 'low' || params.has('nobloom') ? false : 'lean', taa: false, smaa: false, upscale: true, msaa: MSAA });
 
 // ── Haru and the warband ───────────────────────────────────────────────────────────────────────────
 const player = new PlayerController(renderer.domElement);
@@ -860,6 +863,7 @@ renderer.setAnimationLoop(() => {
 let camHold: (() => void) | null = null;
 (window as unknown as Record<string, unknown>).eraclash3d = {
   hold(f: (() => void) | null) { camHold = f; },
+  renderer, perf: () => ({ fpsText: document.getElementById('fps')?.textContent, frameEma, internalH, quality, msaa: MSAA }),
   pause(p: boolean) { setPaused(p); },
   get state() { return { mode, section, hero: { ...hero }, enemies: enemies.map((m) => ({ k: m.kind, hp: Math.round(m.hp), alive: m.alive, st: m.state })), allies: allies.map((a) => ({ hp: Math.round(a.hp), st: a.state })), pos: player.object.position.toArray().map((n) => +n.toFixed(1)) }; },
   begin() { ($('stGo') as HTMLButtonElement).disabled = false; $('stGo').click(); },

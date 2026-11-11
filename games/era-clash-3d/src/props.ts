@@ -36,7 +36,42 @@ export class Props {
   onBreak: ((b: Body, how: 'shatter' | 'splinter') => void) | null = null;
   onThud: ((pos: THREE.Vector3, speed: number, kind: PropKind) => void) | null = null;
 
+  /** Instanced draws: one per geometry × material (a few draw calls for every prop in the chapter). */
+  private batches: { mesh: THREE.InstancedMesh; bodies: Body[] }[] = [];
+  private _m = new THREE.Matrix4();
+  private static ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
+
   constructor(private world: CollisionWorld) { this.group.name = 'props'; }
+
+  /** Call once every prop is added: hide the proxies and draw them instanced instead. */
+  batch() {
+    const groups = new Map<string, Body[]>();
+    for (const b of this.bodies) {
+      const mats = Array.isArray(b.mesh.material) ? b.mesh.material : [b.mesh.material];
+      const key = b.mesh.geometry.uuid + '|' + mats.map((m) => m.uuid).join(',');
+      (groups.get(key) ?? groups.set(key, []).get(key)!).push(b);
+    }
+    for (const list of groups.values()) {
+      const src = list[0].mesh;
+      const mesh = new THREE.InstancedMesh(src.geometry, src.material, list.length);
+      mesh.castShadow = mesh.receiveShadow = true; mesh.frustumCulled = false;
+      this.group.add(mesh);
+      this.batches.push({ mesh, bodies: list });
+      for (const b of list) b.mesh.visible = false;
+    }
+    this.sync();
+  }
+  /** Copy each proxy's world transform into its batch (a held prop rides in Haru's hands). */
+  sync() {
+    for (const { mesh, bodies } of this.batches) {
+      bodies.forEach((b, i) => {
+        if (b.gone) { mesh.setMatrixAt(i, Props.ZERO); return; }
+        b.mesh.updateWorldMatrix(true, false);
+        mesh.setMatrixAt(i, b.mesh.matrixWorld);
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+  }
 
   add(mesh: THREE.Mesh, kind: PropKind) {
     this.group.add(mesh);
@@ -104,6 +139,7 @@ export class Props {
     this.acc = Math.min(this.acc + dt, 0.05);
     const step = 1 / 60;
     while (this.acc >= step) { this.simulate(step, player, bodiesNear, targets); this.acc -= step; }
+    this.sync();
     for (let i = this.shards.length - 1; i >= 0; i--) {
       const s = this.shards[i]; s.t -= dt;
       const p = s.m.position, g = groundAt(p.x, p.z) + 0.03;

@@ -3,7 +3,7 @@
 // (stage-japan.webp): the wooden platform, the five-storey pagoda and the cherry trees, with the painting itself
 // hung as the far backdrop. +Z runs up the valley; sea level is y = 0.
 import * as THREE from 'three/webgpu';
-import { color, positionWorld, normalize, mix, smoothstep, vertexColor, texture, uv, vec2, vec3, time, sin, float } from 'three/tsl';
+import { color, positionWorld, normalize, mix, smoothstep, vertexColor, texture, uv, vec2, vec3, time, sin, float, instancedBufferAttribute, uniform } from 'three/tsl';
 import { collide } from './core/collision';
 import { uvMaterial } from './core/materials';
 import { foliagedTree, leafCardMaterial } from './core/foliage';
@@ -49,6 +49,35 @@ export function heightAt(x: number, z: number): number {
 export const roadX = (z: number) => Math.sin(z * 0.028) * 7;
 
 function puffTex(inner: string, outer: string) { return canvasTex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 2, 64, 64, 62); gr.addColorStop(0, inner); gr.addColorStop(1, outer); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); }); }
+/** Camera-facing quads drawn as one instanced batch (each Sprite was its own draw call on the iGPU). The
+ *  scene keeps plain Object3D placeholders that the effects animate; `sync` copies them in each frame, with a
+ *  per-instance fade from `userData.fade`. */
+function billboards(tex: THREE.Texture, max: number, o: { additive?: boolean; shade?: any } = {}) {   // eslint-disable-line @typescript-eslint/no-explicit-any
+  const fade = new THREE.InstancedBufferAttribute(new Float32Array(max), 1);
+  const mat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: o.additive ? THREE.AdditiveBlending : THREE.NormalBlending });
+  const tx = texture(tex);
+  mat.colorNode = o.shade ? tx.rgb.mul(o.shade) : tx.rgb;
+  mat.opacityNode = tx.a.mul(instancedBufferAttribute(fade));
+  mat.fog = !o.additive;
+  const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), mat, max);
+  mesh.frustumCulled = false; mesh.count = 0; mesh.renderOrder = o.additive ? 3 : 2;
+  const p = new THREE.Vector3(), s = new THREE.Vector3(), m4 = new THREE.Matrix4();
+  return {
+    mesh,
+    sync(items: THREE.Object3D[], camQ: THREE.Quaternion) {
+      let i = 0;
+      for (const it of items) {
+        if (i >= max) break;
+        const par = it.parent;
+        const shown = it.visible && (!par || par.visible);
+        p.copy(it.position); if (par && par.type !== 'Scene' && par.name !== 'chapter1') p.add(par.position);
+        m4.compose(p, camQ, s.set(it.scale.x, it.scale.y, 1));
+        mesh.setMatrixAt(i, m4); fade.setX(i, shown ? (it.userData.fade ?? 1) : 0); i++;
+      }
+      mesh.count = i; mesh.instanceMatrix.needsUpdate = true; fade.needsUpdate = true;
+    },
+  };
+}
 function canvasTex(w: number, h: number, draw: (g: CanvasRenderingContext2D) => void, srgb = true) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   draw(c.getContext('2d')!);
@@ -217,10 +246,14 @@ export async function buildChapter1(): Promise<Chapter1World> {
 
   // ── Cooking smoke: soft white plumes rising from the town's roofs and leaning with the wind ─────────
   const steamTex = puffTex('rgba(236,226,212,0.38)', 'rgba(236,226,212,0)');
-  // (each sprite is a draw call on the iGPU: at most 14 plumes of 5)
-  const plumes = village.smoke.slice(0, 14).map((p, i) => {
-    const sprites: THREE.Sprite[] = [];
-    for (let k = 0; k < 5; k++) { const sp = new THREE.Sprite(new THREE.SpriteNodeMaterial({ map: steamTex, transparent: true, depthWrite: false })); sp.position.copy(p); group.add(sp); sprites.push(sp); }
+  // (one instanced batch for all of them: up to 20 plumes of 5)
+  const steamShade = uniform(1.0);
+  const steamBoard = billboards(steamTex, 100, { shade: steamShade });
+  group.add(steamBoard.mesh);
+  const steamItems: THREE.Object3D[] = [];
+  const plumes = village.smoke.slice(0, 20).map((p, i) => {
+    const sprites: THREE.Object3D[] = [];
+    for (let k = 0; k < 5; k++) { const sp = new THREE.Object3D(); sp.position.copy(p); sprites.push(sp); steamItems.push(sp); }
     return { p, sprites, seed: i * 1.7 };
   });
   // the raiders' plunder on the beach: crates and barrels hauled off the boats
@@ -248,17 +281,19 @@ export async function buildChapter1(): Promise<Chapter1World> {
       g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
     }
   });
-  const flameMat = new THREE.SpriteNodeMaterial({ map: flameTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
-  const smokeMat = new THREE.SpriteNodeMaterial({ map: puff('rgba(40,32,34,0.55)', 'rgba(40,32,34,0)'), transparent: true, depthWrite: false });
+  const flameBoard = billboards(flameTex, 160, { additive: true });
+  const smokeBoard = billboards(puff('rgba(40,32,34,0.55)', 'rgba(40,32,34,0)'), 180);
+  group.add(smokeBoard.mesh, flameBoard.mesh);
+  const flameItems: THREE.Object3D[] = [], smokeItems: THREE.Object3D[] = [];
   const fire = (x: number, z: number, size: number, raid = false, lift = 0) => {
     const g = new THREE.Group();
     const flames: THREE.Mesh[] = [], smoke: THREE.Mesh[] = [];
     for (let i = 0; i < 7; i++) {
-      const f = new THREE.Sprite(flameMat) as unknown as THREE.Mesh;
+      const f = new THREE.Object3D() as THREE.Mesh; flameItems.push(f);
       f.scale.set(1.8 * size, 3.4 * size, 1);
       f.position.set((R() - 0.5) * 2.4 * size, 1.6 * size, (R() - 0.5) * 2 * size); flames.push(f); g.add(f);
     }
-    for (let i = 0; i < 8; i++) { const s = new THREE.Sprite(smokeMat) as unknown as THREE.Mesh; smoke.push(s); g.add(s); }
+    for (let i = 0; i < 8; i++) { const s = new THREE.Object3D() as THREE.Mesh; smoke.push(s); g.add(s); smokeItems.push(s); }
     // Fire lights are pooled (update below): every real point light costs on every pixel on the iGPU.
     const light = new THREE.PointLight(0xff8a3a, 0, 22 * size, 1.6);
     light.position.y = 2.5 * size; light.visible = false; g.add(light);
@@ -418,9 +453,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
         sp.position.set(pl.p.x + ph * ph * 7 + Math.sin(t * 0.4 + k + pl.seed) * 0.4, pl.p.y + ph * 14, pl.p.z + ph * 2.5);
         sp.scale.setScalar(0.8 + ph * 6);
         // at dusk the pale cooking smoke goes grey and thin (white puffs would glow against the slate sky)
-        const sm = sp.material as THREE.SpriteNodeMaterial;
-        sm.opacity = Math.min(1, ph * 6) * (1 - ph) * (1 - raidK * 0.55);
-        sm.color.setScalar(1 - raidK * 0.72);
+        sp.userData.fade = Math.min(1, ph * 6) * (1 - ph) * (1 - raidK * 0.55);
       });
       for (const f of fires) {
         if (!f.group.visible) continue;
@@ -428,8 +461,11 @@ export async function buildChapter1(): Promise<Chapter1World> {
         // raid fires send their smoke up in tall columns (the battle shots)
         const rise = f.raid ? 16 + 26 * raidK : 16, puff = f.raid ? 1 + raidK * 0.9 : 1;
         f.flames.forEach((m, i) => { const k = 0.8 + 0.3 * Math.sin(t * (9 + i) + f.seed + i * 1.7); m.scale.set(1.8 * s * (0.9 + 0.2 * Math.sin(t * 7 + i)), 3.4 * s * k, 1); });
-        f.smoke.forEach((m, i) => { const ph = ((t * 0.12 + i / f.smoke.length) % 1); m.position.set(Math.sin(i * 2.1 + t * 0.3) * 1.2 + ph * 2 * puff, 3 + ph * rise, ph * 3 * puff); m.scale.setScalar((2.5 + ph * 7) * puff * Math.max(0.3, grow)); });
+        f.smoke.forEach((m, i) => { const ph = ((t * 0.12 + i / f.smoke.length) % 1); m.userData.fade = Math.min(1, ph * 8) * (1 - ph * ph); m.position.set(Math.sin(i * 2.1 + t * 0.3) * 1.2 + ph * 2 * puff, 3 + ph * rise, ph * 3 * puff); m.scale.setScalar((2.5 + ph * 7) * puff * Math.max(0.3, grow)); });
       }
+      steamShade.value = 1 - raidK * 0.72;
+      const cq = (camera as THREE.Camera).quaternion;
+      steamBoard.sync(steamItems, cq); smokeBoard.sync(smokeItems, cq); flameBoard.sync(flameItems, cq);
       // the fires nearest the camera carry the real lights (two; three once the town is burning)
       const cpos = camera.position, nLights = raidK > 0.5 ? 3 : 2;
       const order = fires.filter((f) => f.group.visible).sort((a, b) => a.group.position.distanceToSquared(cpos) - b.group.position.distanceToSquared(cpos));
