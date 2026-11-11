@@ -1,0 +1,47 @@
+# Motion capture
+
+Data from mocap.cs.cmu.edu (funded by NSF EIA-0196217). FBX conversion: RancidMilk via cgspeed BVH, distributed as the gbionics/cmu-fbx dataset.
+
+- 02_07: swordplay
+- 02_08: swordplay
+- 02_09: swordplay
+- 135_01: Bassai kata
+- 135_02: Empi kata
+- 135_03: Empi kata
+- 135_04: front kick
+- 135_05: gedan-barai (low block)
+- 135_06: Heian Shodan kata
+- 135_07: mawashi-geri (roundhouse)
+- 135_09: oi-zuki (lunge punch)
+- 135_10: shuto-uke (knife-hand block)
+- 135_11: yoko-geri (side kick)
+- 13_17: boxing
+- 13_18: boxing
+- 14_01: boxing
+- 14_02: boxing
+- 14_03: boxing
+- 141_14: punch and kick
+- 113_13: punch and kick
+- 111_19: punch kick
+- 02_05: punch/strike
+- 111_17: pick up
+- 111_33: throwing
+- 113_24: throw
+- 143_20: catch and throw
+- 10_01: kick ball
+- 01_02: climb
+- 01_03: climb, hang, swing
+- 01_12: climb, pull up
+- 13_10: jump up to grab
+- 141_04: jump distances
+- 143_06: jumping heights
+- 141_07: walk up and over
+- 13_35: climb 3 steps
+- 111_21: roll over
+- 111_06: get up from floor
+- 02_01: walk
+- 02_03: run/jog
+- 143_23: punching
+- 144_20: fighting
+- 144_21: fighting
+- 104_41: walk

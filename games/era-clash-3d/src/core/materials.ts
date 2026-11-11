@@ -1,0 +1,329 @@
+import * as THREE from 'three/webgpu';
+import type { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
+import {
+  texture, triplanarTexture, vec2, vec3, vec4, float, mrt, uv, positionWorld, normalWorld, normalMap, mix,
+  mx_fractal_noise_float, smoothstep, time, color, transformNormalToView, luminance, Fn,
+  positionView, normalView, faceDirection, dFdx, dFdy, uniform, rtt, If,
+} from 'three/tsl';
+
+const PH = '/games/ravencrest/assets/polyhaven/textures';
+// Texture tier: '1k' for browsers / integrated GPUs (¼ the memory + bandwidth), '2k' for the
+// desktop app on a discrete GPU. Set once by main.ts before any material is built.
+let TIER: '1k' | '2k' = '1k';
+export function setTextureTier(t: '1k' | '2k') { TIER = t; }
+const sfx = () => (TIER === '1k' ? '_1k' : '');
+const loader = new THREE.TextureLoader();
+const cache = new Map<string, THREE.Texture>();
+
+function tex(path: string, srgb: boolean): THREE.Texture {
+  const key = `${path}|${srgb}`;
+  let t = cache.get(key);
+  if (!t) {
+    // A 2k map missing from this deployment (the web build ships the 1k tier) falls back to its 1k file.
+    const t0: THREE.Texture = loader.load(path, undefined, undefined, () => {
+      if (/_1k\.jpg$/.test(path)) return;
+      loader.load(path.replace(/\.jpg$/, '_1k.jpg'), (lo) => { t0.image = lo.image; t0.needsUpdate = true; });
+    });
+    t = t0;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+    t.anisotropy = 8;
+    cache.set(key, t);
+  }
+  return t;
+}
+
+/** GPU-compressed copies of the 1k surface sets (scripts/ravencrest/ktxPolyhaven.py): loaded before the
+ *  world builds, they take the JPEGs' place in the cache; a set without one keeps its JPEG. */
+export async function preloadKtxSurfaces(ktx: KTX2Loader): Promise<number> {
+  if (TIER !== '1k') return 0;
+  const ix = await fetch('/games/ravencrest/assets/polyhaven/index.json').then((r) => r.json()).catch(() => null) as { textures?: Record<string, unknown> } | null;
+  const jobs: Promise<number>[] = [];
+  for (const id of Object.keys(ix?.textures ?? {})) {
+    for (const [map, srgb] of [['diff', true], ['nor_gl', false], ['ard', false]] as const) {
+      const jpg = `${PH}/${id}/${map}_1k.jpg`;
+      jobs.push(ktx.loadAsync(jpg.replace(/\.jpg$/, '.ktx2')).then((t) => {
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+        t.anisotropy = 8;
+        cache.set(`${jpg}|${srgb}`, t as unknown as THREE.Texture);
+        return 1;
+      }, () => 0));
+    }
+  }
+  return (await Promise.all(jobs)).reduce((a, b) => a + b, 0);
+}
+
+// Only the maps shaders actually sample are loaded (diffuse, packed AO/rough/disp, normal).
+export interface PbrSet { diff: THREE.Texture; nor: THREE.Texture; ard: THREE.Texture }
+
+export function pbr(id: string): PbrSet {
+  return {
+    diff: tex(`${PH}/${id}/diff${sfx()}.jpg`, true),
+    nor: tex(`${PH}/${id}/nor_gl${sfx()}.jpg`, false),
+    ard: tex(`${PH}/${id}/ard${sfx()}.jpg`, false), // AO/rough/disp packed by scripts/ravencrest/pack_textures.py
+  };
+}
+
+/**
+ * SSR reads `metalrough` from the MRT (x = reflectivity, y = roughness). Only attach it when
+ * the level's scene pass actually has that target — with SSR off there's no 'metalrough'
+ * MRT, and a material writing to it fails to build (renders flat/untextured).
+ */
+let reflectMRT = true;
+let webglMode = false;
+const reflectMats: { mat: THREE.NodeMaterial; node: THREE.Node }[] = [];
+export function setReflectEnabled(on: boolean) { reflectMRT = on; }
+export function setWebGLMode(on: boolean) { webglMode = on; }
+/** Strip or restore SSR MRT outputs when entering/leaving a direct-rendered WebXR session. */
+export function setXRReflectDisable(inXR: boolean) {
+  for (const r of reflectMats) {
+    r.mat.mrtNode = inXR ? null : (r.node as never);
+    r.mat.needsUpdate = true;
+  }
+}
+export function setReflect(mat: THREE.NodeMaterial, reflectivity: THREE.Node | number, rough: THREE.Node | number) {
+  if (!reflectMRT) return;
+  const node = mrt({ metalrough: vec2(reflectivity as never, rough as never) });
+  mat.mrtNode = node;
+  reflectMats.push({ mat, node });
+}
+
+export interface StoneOpts { metresPerTile?: number; tint?: THREE.ColorRepresentation; roughnessScale?: number; wetBase?: number; bump?: number; desat?: number }
+
+/**
+ * Bump from an already-evaluated height using screen-space derivatives (Mikkelsen).
+ * three's bumpMap() re-samples its texture tree 3×, which for triplanar means 9 fetches.
+ */
+// TSL's typings don't cover derivative/sign ops on these node unions; the shader is
+// type-checked at build time by three, so keep the cast local to this function.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type N = any;
+const bumpFromHeight: N = Fn(([h, scale]: N) => {
+  const dHdxy: N = (vec2 as N)(dFdx(h), dFdy(h)).mul(scale);
+  const vSigmaX: N = dFdx(positionView).normalize();
+  const vSigmaY: N = dFdy(positionView).normalize();
+  const R1: N = vSigmaY.cross(normalView);
+  const R2: N = (normalView as N).cross(vSigmaX);
+  const fDet: N = vSigmaX.dot(R1).mul(faceDirection);
+  const vGrad: N = fDet.sign().mul(dHdxy.x.mul(R1).add(dHdxy.y.mul(R2)));
+  return fDet.abs().mul(normalView).sub(vGrad).normalize();
+});
+
+/**
+ * World-space triplanar PBR for procedural architecture and terrain.
+ * 6 texture fetches per pixel: diffuse ×3 + packed AO/rough/disp ×3.
+ */
+const matCache = new Map<string, THREE.MeshStandardNodeMaterial>();
+export function triplanarMaterial(id: string, o: StoneOpts = {}): THREE.MeshStandardNodeMaterial {
+  // Identical requests share one instance so static batching can merge across modules.
+  const key = id + JSON.stringify(o, Object.keys(o).sort());
+  const hit = matCache.get(key);
+  if (hit) return hit;
+  const m = buildTriplanar(id, o);
+  matCache.set(key, m);
+  return m;
+}
+
+function buildTriplanar(id: string, o: StoneOpts): THREE.MeshStandardNodeMaterial {
+  const s = pbr(id);
+  const scale = float(1 / (o.metresPerTile ?? 3));
+  const tri = (t: THREE.Texture) => triplanarTexture(texture(t), null, null, scale, positionWorld, normalWorld);
+  const m = new THREE.MeshStandardNodeMaterial();
+  const raw = tri(s.diff).rgb;
+  const ard = tri(s.ard);
+  // Optional desaturation: several CC0 scans are warmer/yellower than the art's grey stone.
+  const albedo = mix(raw, vec3(luminance(raw)), float(o.desat ?? 0)).mul(color(new THREE.Color(o.tint ?? 0xffffff)));
+  const rough = ard.g.mul(o.roughnessScale ?? 1);
+  m.aoNode = ard.r;
+  // No authored UVs/tangents on procedural geometry: relief from the displacement channel.
+  m.normalNode = bumpFromHeight(ard.b, float(o.bump ?? 1.2));
+  m.metalness = 0;
+  if (o.wetBase !== undefined) {
+    // Damp stone near the waterline: darker, glossier.
+    const wet = smoothstep(float(o.wetBase + 2.5), float(o.wetBase), positionWorld.y);
+    m.colorNode = albedo.mul(mix(float(1), float(0.5), wet));
+    m.roughnessNode = mix(rough, float(0.3), wet);
+  } else {
+    m.colorNode = albedo;
+    m.roughnessNode = rough;
+  }
+  return m;
+}
+
+/** UV-mapped PBR (for meshes with authored UVs, e.g. the road strip). */
+export function uvMaterial(id: string, repeat: [number, number], o: StoneOpts = {}): THREE.MeshStandardNodeMaterial {
+  const s = pbr(id);
+  const m = new THREE.MeshStandardNodeMaterial();
+  const u = uv().mul(vec2(...repeat));
+  m.colorNode = texture(s.diff, u).rgb.mul(color(new THREE.Color(o.tint ?? 0xffffff)));
+  const ard = texture(s.ard, u);
+  m.roughnessNode = ard.g.mul(o.roughnessScale ?? 1);
+  m.aoNode = ard.r;
+  m.normalNode = normalMap(texture(s.nor, u));
+  return m;
+}
+
+/** Rain on the world (0…1): weather.ts sets it; puddles ripple while it falls. */
+export const rainAmount = uniform(0);
+
+/**
+ * Rain-soaked country asphalt: near-black, mirror-sheened, with real wear — patched and cracked
+ * sections (the damaged-road scan blended in by world-space noise), muddy verges with leaf litter,
+ * fallen leaves across the lanes, glossy wheel tracks and broken puddles that ripple in the rain.
+ */
+/**
+ * A flat, uv-mapped surface in world space: `origin` = its uv (0,0) corner, `u`/`v` = the world
+ * vectors to the uv (1,0) and (0,1) corners (world xz must be linear in uv).
+ */
+export interface SurfaceFrame { origin: THREE.Vector3; u: THREE.Vector3; v: THREE.Vector3 }
+
+/**
+ * Static world-space masks (fbm noise etc.) baked once, on first use, into a texture laid over a
+ * surface (`build` gets the world xz of each texel) and read back at the surface's uv(). Turns
+ * per-pixel fbm octaves into one fetch — fbm was the costliest part of the road/ground on the Arc iGPU.
+ */
+export function bakedMasks(frame: SurfaceFrame, pxPerMetre: number, build: (wp: THREE.Node<'vec2'>) => THREE.Node<'vec4'>): THREE.Node<'vec4'> {
+  const { origin: o, u: fu, v: fv } = frame;
+  const wp = vec2(o.x, o.z).add(vec2(fu.x, fu.z).mul(uv().x)).add(vec2(fv.x, fv.z).mul(uv().y));
+  const size = (len: number) => Math.min(4096, Math.max(16, Math.round(len * pxPerMetre)));
+  const t = rtt(build(wp) as never, size(fu.length()), size(fv.length()), { type: THREE.HalfFloatType });
+  t.autoUpdate = false;
+  const origUpdate = t.updateBefore.bind(t);
+  t.updateBefore = (f) => {
+    const r = f.renderer;
+    if (!r) return origUpdate(f);
+    const prevXR = r.xr.enabled, prevTM = r.toneMapping;
+    r.xr.enabled = false;
+    r.toneMapping = THREE.NoToneMapping;
+    try { return origUpdate(f); }
+    finally { r.xr.enabled = prevXR; r.toneMapping = prevTM; }
+  };
+  // Render targets are stored top-down under WebGPU (flip V back), bottom-up under WebGL.
+  const sampleUv = webglMode ? uv() : vec2(uv().x, float(1).sub(uv().y));
+  return t.sample(sampleUv) as unknown as THREE.Node<'vec4'>;
+}
+
+export function wetAsphalt(repeat: [number, number], markings: THREE.Texture, frame: SurfaceFrame): THREE.MeshStandardNodeMaterial {
+  const s = pbr('asphalt_02');
+  const d = pbr('road_damaged');
+  const m = new THREE.MeshStandardNodeMaterial();
+  const u = uv().mul(vec2(...repeat));
+  const wp = positionWorld.xz;
+  // The low-frequency masks (8 of the road's ~12 noise octaves per pixel) never change: baked once
+  // at ~8 px/m instead of evaluating fbm on every road pixel.
+  const mk = bakedMasks(frame, 8, (bw) => vec4(
+    smoothstep(float(0.18), float(0.42), mx_fractal_noise_float(bw.mul(0.045), 3, 2, 0.5, 1)),
+    mx_fractal_noise_float(bw.mul(vec2(0.02, 0.006)), 2, 2, 0.5, 1).mul(0.5).add(0.5),
+    mx_fractal_noise_float(bw.mul(0.6), 1, 2, 0.5, 1).mul(0.5).add(0.5),
+    smoothstep(float(0.25), float(0.5), mx_fractal_noise_float(bw.mul(vec2(0.3, 0.07)), 3, 2, 0.5, 1)),
+  ));
+  // Patched / broken sections: large world-space blobs of the cracked-road scan.
+  const damage = mk.r;
+  // Macro tone: resurfaced strips and weathered areas so the asphalt never reads as one tile.
+  const macro = mk.g.mul(2).sub(1).mul(0.25).add(1);
+  // Verges: the outer 7% each side — mud, needles and leaf litter, rough and dull.
+  const lane = uv().x.sub(0.5).abs();
+  const verge = smoothstep(float(0.43), float(0.5), lane);
+  // Fallen leaves: sparse rust/ochre specks, thicker toward the verges.
+  // Leaf-sized specks (~10 cm), clustered by a slower noise so they drift in patches.
+  const leafN = mx_fractal_noise_float(wp.mul(9), 1, 2, 0.5, 1).add(mk.b.mul(2).sub(1).mul(0.35));
+  const leaves = smoothstep(float(0.62).sub(verge.mul(0.3)), float(0.7).sub(verge.mul(0.3)), leafN).mul(0.75);
+  const leafCol = mix(vec3(0.16, 0.07, 0.03), vec3(0.24, 0.15, 0.04), mx_fractal_noise_float(wp.mul(7.3), 1, 2, 0.5, 1).mul(0.5).add(0.5));
+  // Puddles (stretched along the road) + glossy wheel tracks in each lane.
+  const patches = mk.a;
+  const tracks = smoothstep(float(0.07), float(0.0), lane.sub(0.12).abs()).add(smoothstep(float(0.07), float(0.0), lane.sub(0.36).abs())).clamp();
+  const puddle = patches.mul(0.9).max(tracks.mul(0.45)).mul(float(1).sub(verge.mul(0.6)));
+  const paint = texture(markings, uv());
+  const asphalt = mix(texture(s.diff, u).rgb.mul(0.2), texture(d.diff, u.mul(0.7)).rgb.mul(0.24), damage).mul(macro);
+  const mud = mix(asphalt, vec3(0.05, 0.04, 0.03), verge.mul(0.85));
+  const littered = mix(mud, leafCol, leaves.mul(0.85));
+  const painted = mix(littered, paint.rgb.mul(0.8), paint.a.mul(float(1).sub(leaves.mul(0.7))));
+  m.colorNode = mix(painted, painted.mul(0.82), puddle);
+  const baseRough = mix(texture(s.ard, u).g.mul(0.7).add(0.12), texture(d.ard, u.mul(0.7)).g.mul(0.75).add(0.1), damage);
+  const r = mix(mix(baseRough, float(0.85), verge.max(leaves).mul(0.8)), float(0.12), puddle);
+  m.roughnessNode = r;
+  // Rain ripples: fine animated noise in the puddles, only evaluated while it rains (uniform branch).
+  const rip = Fn(() => {
+    const r = float(0).toVar();
+    If(rainAmount.greaterThan(0), () => {
+      r.assign(mx_fractal_noise_float(vec3(wp.mul(6), time.mul(3.5)), 2, 2, 0.5, 1).mul(rainAmount).mul(puddle).mul(0.35));
+    });
+    return r;
+  })();
+  const nTex = mix(texture(s.nor, u), texture(d.nor, u.mul(0.7)), damage);
+  m.normalNode = normalMap(nTex, vec2(mix(float(1), float(0.08), puddle).add(rip)));
+  m.metalness = 0;
+  setReflect(m, mix(float(0.0), float(0.35), puddle), r);
+  return m;
+}
+
+/** Live inputs for the moat: wind (xz = direction × strength) and ripple rings. */
+export const moatUniforms = {
+  wind: uniform(new THREE.Vector3(0.8, 0, 0.55)),
+  ripples: [
+    uniform(new THREE.Vector4(0, 0, -100, 0)),
+    uniform(new THREE.Vector4(0, 0, -100, 0)),
+    uniform(new THREE.Vector4(0, 0, -100, 0)),
+  ],
+};
+const moatClock0 = performance.now() / 1000;
+let moatSlot = 0;
+/** Start an expanding ripple ring at a world position (splashes, drips, gusts). */
+export function addMoatRipple(x: number, z: number, amp = 1) {
+  const u = moatUniforms.ripples[moatSlot++ % moatUniforms.ripples.length];
+  (u as unknown as { value: THREE.Vector4 }).value.set(x, z, performance.now() / 1000 - moatClock0, amp);
+}
+
+/** Inky moat water: wind-drifted ripple normals + interactive splash rings. */
+export function moatWater(): THREE.MeshStandardNodeMaterial {
+  const m = new THREE.MeshStandardNodeMaterial();
+  // The ripple field drifts downwind; gusts (wind vector length) roughen it.
+  const drift = moatUniforms.wind.xz.mul(time.mul(0.045));
+  const p = positionWorld.xz.add(drift);
+  const t = time.mul(0.05);
+  // 2 octaves each: the 3rd was sub-pixel ripple detail on the inky water far below the bridge.
+  const n1 = mx_fractal_noise_float(vec3(p.mul(0.12), t), 2, 2, 0.5, 1);
+  const n2 = mx_fractal_noise_float(vec3(p.mul(0.12).add(0.37), t), 2, 2, 0.5, 1);
+  // Splash rings: each is an expanding, decaying wavefront that tilts the normal.
+  let rx: THREE.Node<"float"> = float(0);
+  let rz: THREE.Node<"float"> = float(0);
+  for (const u of moatUniforms.ripples) {
+    const age = time.sub(u.z).max(0);
+    const rel = positionWorld.xz.sub(u.xy);
+    const d = rel.length().max(0.001);
+    const front = age.mul(1.15);
+    const band = smoothstep(float(0.55), float(0.0), d.sub(front).abs());
+    const decay = float(1).div(float(1).add(age.mul(0.75)));
+    const wave = d.mul(26).sub(age.mul(8)).sin().mul(band).mul(decay).mul(u.w).mul(0.14);
+    rx = rx.add(rel.x.div(d).mul(wave));
+    rz = rz.add(rel.y.div(d).mul(wave));
+  }
+  m.colorNode = vec3(0.006, 0.009, 0.013);
+  m.roughnessNode = float(0.03);
+  m.metalness = 0;
+  m.normalNode = transformNormalToView(vec3(n1.mul(0.05).add(rx), 1, n2.mul(0.05).add(rz)).normalize());
+  setReflect(m, 1, 0.03);
+  return m;
+}
+
+/**
+ * Real window glass: transmits and diffuses (roughness blurs what passes),
+ * bends light by IOR, tints by absorption over thickness, and still returns
+ * a moonlight glint to SSR. Frosted enough that interiors glow, not glare.
+ */
+export function glassMaterial(tint = 0x9db8c6): THREE.MeshPhysicalNodeMaterial {
+  const m = new THREE.MeshPhysicalNodeMaterial();
+  m.color = new THREE.Color(tint);
+  m.metalness = 0;
+  m.roughness = 0.34;
+  m.transmission = 1;
+  m.thickness = 0.06;
+  m.ior = 1.5;
+  m.attenuationColor = new THREE.Color(0x86a892);
+  m.attenuationDistance = 1.6;
+  m.specularIntensity = 1.0;
+  setReflect(m, 0.85, 0.3);
+  return m;
+}
+

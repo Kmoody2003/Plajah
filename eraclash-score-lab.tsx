@@ -8,9 +8,12 @@
 //
 // Stems per cue: music (instrument tracks), kit (MEKA Group A house kit), soma (MEKA Group B SOMA drums).
 // The game mix is their sum (plus the kick side-chain on the music), so the balance can be checked per stem.
+// 3D campaign cues (eraClash3dChoraProjects.ts) have no kit: music + soma only. ?cues=taiko bounces the
+// 3D taiko stingers (sting-<id>-soma) for buildEraClashAudio.ts taiko.
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { buildEraClashGrooveDoc, eraClashProjects } from './services/melos/eraClashChoraProjects';
+import { buildEraClash3dGrooveDoc, buildEraClash3dStingerDoc, eraClash3dProjects, isEraClash3dProjectId, ERA_CLASH_3D_STINGERS } from './services/melos/eraClash3dChoraProjects';
 import { renderGroove } from './services/melos/beats/render';
 import type { GrooveDoc } from './services/melos/beats/grooveDoc';
 import { playDrumSynthHit } from './services/melos/beats/engine/drumSynthVoice';
@@ -61,17 +64,22 @@ declare global { interface Window { eraClashLab?: { rows: Row[]; done: boolean; 
 function App() {
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
-  const all = eraClashProjects();
+  const all = [...eraClashProjects(), ...eraClash3dProjects()];
 
   const run = async (cues?: string[], only?: Stem[]) => {
     setBusy(true);
     const list: Row[] = [];
     const push = (r: Row) => { list.push(r); setRows([...list]); window.eraClashLab!.rows = list; };
     window.eraClashLab!.done = false;
-    for (const p of all.filter((x) => !cues?.length || cues.includes(x.cueId))) {
-      const doc = buildEraClashGrooveDoc(p.id, 'eraclash-lab');
+    const jobs: { cueId: string; doc: GrooveDoc; stems: Stem[] }[] = all.filter((x) => !cues?.length || cues.includes(x.cueId)).map((p) => (
+      isEraClash3dProjectId(p.id)
+        ? { cueId: p.cueId, doc: buildEraClash3dGrooveDoc(p.id, 'eraclash-lab'), stems: ['music', 'soma'] as Stem[] }
+        : { cueId: p.cueId, doc: buildEraClashGrooveDoc(p.id, 'eraclash-lab'), stems: STEMS }));
+    if (cues?.includes('taiko')) for (const id of ERA_CLASH_3D_STINGERS) jobs.push({ cueId: `sting-${id}`, doc: buildEraClash3dStingerDoc(id), stems: ['soma'] });
+    for (const { cueId, doc, stems } of jobs) {
+      const p = { cueId };
       await warmDrumHits(doc);
-      for (const stem of STEMS.filter((s) => !only?.length || only.includes(s))) {
+      for (const stem of stems.filter((s) => !only?.length || only.includes(s))) {
         const r: Row = { cue: p.cueId, stem, status: 'rendering' };
         push(r);
         const t0 = performance.now();

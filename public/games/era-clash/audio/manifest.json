@@ -48,6 +48,13 @@
    "bpm": 128,
    "loopStart": 7.65,
    "loopEnd": 67.65
+  },
+  "3d-ch1": {
+   "file": "music-3d-ch1.mp3",
+   "title": "Smoke Over the Valley",
+   "bpm": 108,
+   "loopStart": 9.038875,
+   "loopEnd": 80.15
   }
  },
  "sfx": {
@@ -143,6 +150,12 @@
   ],
   "gust": [
    "sfx-gust.mp3"
+  ],
+  "taikoWin": [
+   "sfx-taiko-win.mp3"
+  ],
+  "taikoWave": [
+   "sfx-taiko-wave.mp3"
   ]
  }
 }

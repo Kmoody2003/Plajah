@@ -10,7 +10,8 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { watchIgnored } from './vite.watch-ignore.mjs';
 
-const BOUNCE = path.join(os.tmpdir(), 'era-clash-audio', 'bounce');
+// Same cache as scripts/games/buildEraClashAudio.ts: on D: when it exists (C: is full).
+const BOUNCE = path.join(process.env.ERACLASH_AUDIO_CACHE || (fs.existsSync('D:/Plajah Runtime') ? 'D:/Plajah Runtime/cache/era-clash-audio' : path.join(os.tmpdir(), 'era-clash-audio')), 'bounce');
 
 const saver = () => ({
   name: 'eraclash-save',

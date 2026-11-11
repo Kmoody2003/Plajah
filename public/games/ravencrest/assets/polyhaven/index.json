@@ -127,6 +127,62 @@
       "rough": "textures/stone_tiles_02/rough.jpg",
       "ao": "textures/stone_tiles_02/ao.jpg",
       "disp": "textures/stone_tiles_02/disp.jpg"
+    },
+    "forrest_ground_01": {
+      "diff": "textures/forrest_ground_01/diff.jpg",
+      "nor_gl": "textures/forrest_ground_01/nor_gl.jpg",
+      "rough": "textures/forrest_ground_01/rough.jpg",
+      "ao": "textures/forrest_ground_01/ao.jpg",
+      "disp": "textures/forrest_ground_01/disp.jpg"
+    },
+    "brown_mud_02": {
+      "diff": "textures/brown_mud_02/diff.jpg",
+      "nor_gl": "textures/brown_mud_02/nor_gl.jpg",
+      "rough": "textures/brown_mud_02/rough.jpg",
+      "ao": "textures/brown_mud_02/ao.jpg",
+      "disp": "textures/brown_mud_02/disp.jpg"
+    },
+    "rocks_ground_05": {
+      "diff": "textures/rocks_ground_05/diff.jpg",
+      "nor_gl": "textures/rocks_ground_05/nor_gl.jpg",
+      "rough": "textures/rocks_ground_05/rough.jpg",
+      "ao": "textures/rocks_ground_05/ao.jpg",
+      "disp": "textures/rocks_ground_05/disp.jpg"
+    },
+    "coast_sand_01": {
+      "diff": "textures/coast_sand_01/diff.jpg",
+      "nor_gl": "textures/coast_sand_01/nor_gl.jpg",
+      "rough": "textures/coast_sand_01/rough.jpg",
+      "ao": "textures/coast_sand_01/ao.jpg",
+      "disp": "textures/coast_sand_01/disp.jpg"
+    },
+    "coast_sand_rocks_02": {
+      "diff": "textures/coast_sand_rocks_02/diff.jpg",
+      "nor_gl": "textures/coast_sand_rocks_02/nor_gl.jpg",
+      "rough": "textures/coast_sand_rocks_02/rough.jpg",
+      "ao": "textures/coast_sand_rocks_02/ao.jpg",
+      "disp": "textures/coast_sand_rocks_02/disp.jpg"
+    },
+    "cobblestone_large_01": {
+      "diff": "textures/cobblestone_large_01/diff.jpg",
+      "nor_gl": "textures/cobblestone_large_01/nor_gl.jpg",
+      "rough": "textures/cobblestone_large_01/rough.jpg",
+      "ao": "textures/cobblestone_large_01/ao.jpg",
+      "disp": "textures/cobblestone_large_01/disp.jpg"
+    },
+    "japanese_stone_wall": {
+      "diff": "textures/japanese_stone_wall/diff.jpg",
+      "nor_gl": "textures/japanese_stone_wall/nor_gl.jpg",
+      "rough": "textures/japanese_stone_wall/rough.jpg",
+      "ao": "textures/japanese_stone_wall/ao.jpg",
+      "disp": "textures/japanese_stone_wall/disp.jpg"
+    },
+    "grey_roof_tiles": {
+      "diff": "textures/grey_roof_tiles/diff.jpg",
+      "nor_gl": "textures/grey_roof_tiles/nor_gl.jpg",
+      "rough": "textures/grey_roof_tiles/rough.jpg",
+      "ao": "textures/grey_roof_tiles/ao.jpg",
+      "disp": "textures/grey_roof_tiles/disp.jpg"
     }
   },
   "models": {

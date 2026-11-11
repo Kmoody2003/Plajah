@@ -8,6 +8,10 @@
  *      mixes the stems (music side-chained to the project's kick), masters, and cuts each cue into an intro
  *      plus a seamless loop (the second pass of the 32-bar body, so the loop point carries its own tails).
  *   node node_modules/tsx/dist/cli.mjs scripts/games/buildEraClashAudio.ts sfx      sound-effect bank
+ *   ... buildEraClashAudio.ts music3d [cueId ...]   3D campaign cues (eraClash3dChoraProjects.ts: no kit, no
+ *      side-chain, taiko-led mix); bounce them first with eraclash-score-lab.html?auto=1&cues=3d-ch1
+ *   ... buildEraClashAudio.ts taiko                  SOMA taiko stingers (lab ?auto=1&cues=taiko), added to
+ *      the sfx section as taikoWin / taikoWave without touching the other effects
  *
  * SFX: every effect is synthesized here sample by sample (layered thumps, skin slaps, cracks, whooshes,
  * armour clanks, booms) with a few variants each so repeated hits never sound identical.
@@ -19,12 +23,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { CUES, INTRO_BARS, BODY_BARS, type CueSpec } from '../../data/gameScores/eraClash';
+import { CUES, INTRO_BARS, BODY_BARS } from '../../data/gameScores/eraClash';
 import { buildEraClashGrooveDoc } from '../../services/melos/eraClashChoraProjects';
+import { CUES_3D, buildEraClash3dGrooveDoc, ERA_CLASH_3D_STINGERS } from '../../services/melos/eraClash3dChoraProjects';
 import type { GrooveDoc } from '../../services/melos/beats/grooveDoc';
 
 const OUT = path.resolve('public/games/era-clash/audio');
-const TMP = path.join(os.tmpdir(), 'era-clash-audio');
+// Render cache on D: (C: is full; Kenne keeps big working files on D:). ERACLASH_AUDIO_CACHE overrides.
+const TMP = process.env.ERACLASH_AUDIO_CACHE || (fs.existsSync('D:/Plajah Runtime') ? 'D:/Plajah Runtime/cache/era-clash-audio' : path.join(os.tmpdir(), 'era-clash-audio'));
 fs.mkdirSync(OUT, { recursive: true });
 fs.mkdirSync(TMP, { recursive: true });
 
@@ -136,24 +142,29 @@ function kickTimes(doc: GrooveDoc, bpm: number): number[] {
   return out.sort((a, b) => a - b);
 }
 
-async function renderCue(c: CueSpec) {
+interface CueRender { id: string; title: string; bpm: number }
+
+/** `opts` (3D campaign cues): their own project, no kit stem (so no side-chain), their own stem levels and loudness. */
+async function renderCue(c: CueRender, opts: { doc?: GrooveDoc; noKit?: boolean; mix?: typeof MIX; rms?: number; airMax?: number } = {}) {
   const sr = BOUNCE_SR;
-  const music = readStem(c.id, 'music'), kit = readStem(c.id, 'kit'), soma = readStem(c.id, 'soma');
+  const music = readStem(c.id, 'music'), soma = readStem(c.id, 'soma');
+  const kit = opts.noKit ? { L: new Float32Array(music.L.length), R: new Float32Array(music.L.length) } : readStem(c.id, 'kit');
   const n = Math.min(music.L.length, kit.L.length, soma.L.length);
-  const doc = buildEraClashGrooveDoc(c.id);
-  const kicks = kickTimes(doc, c.bpm).map((t) => Math.round(t * sr));
+  const doc = opts.doc ?? buildEraClashGrooveDoc(c.id);
+  const MIX_ = opts.mix ?? MIX;
+  const kicks = opts.noKit ? [] : kickTimes(doc, c.bpm).map((t) => Math.round(t * sr));
 
   // side-chain: the instruments dip under every kick and swell back
   const duck = new Float32Array(n).fill(1);
   const rel = 0.15 * sr, att = 0.004 * sr;
   for (const k of kicks) for (let i = 0; i < rel * 1.6 && k + i < n; i++) {
-    const g = 1 - MIX.duck * (i < att ? i / att : Math.exp(-(i - att) / (rel * 0.5)));
+    const g = 1 - MIX_.duck * (i < att ? i / att : Math.exp(-(i - att) / (rel * 0.5)));
     if (g < duck[k + i]) duck[k + i] = g;
   }
   const L = new Float32Array(n), R = new Float32Array(n);
   for (let i = 0; i < n; i++) {
-    L[i] = music.L[i] * MIX.music * duck[i] + kit.L[i] * MIX.kit + soma.L[i] * MIX.soma;
-    R[i] = music.R[i] * MIX.music * duck[i] + kit.R[i] * MIX.kit + soma.R[i] * MIX.soma;
+    L[i] = music.L[i] * MIX_.music * duck[i] + kit.L[i] * MIX_.kit + soma.L[i] * MIX_.soma;
+    R[i] = music.R[i] * MIX_.music * duck[i] + kit.R[i] * MIX_.kit + soma.R[i] * MIX_.soma;
   }
   const hpL = new Biquad(sr, 'hp', 30), hpR = new Biquad(sr, 'hp', 30);
   /* presence and air shelves set by measurement: each cue's instruments print differently (LYRA strings
@@ -162,7 +173,7 @@ async function renderCue(c: CueSpec) {
   for (let i = 0; i < n; i++) mono[i] = (L[i] + R[i]) * 0.5;
   const s3 = shareAbove(mono, sr, TONE.presenceHz), s8 = shareAbove(mono, sr, TONE.airHz);
   const presence = Math.max(-0.4, Math.min(1, Math.sqrt(TONE.presenceTarget / Math.max(1e-6, s3)) - 1));
-  const air = Math.max(-0.6, Math.min(1.2, Math.sqrt(TONE.airTarget / Math.max(1e-6, s8)) - 1 - presence));
+  const air = Math.max(-0.6, Math.min(opts.airMax ?? 1.2, Math.sqrt(TONE.airTarget / Math.max(1e-6, s8)) - 1 - presence));
   console.log(`  tone: >3k ${(s3 * 100).toFixed(1)}% >8k ${(s8 * 100).toFixed(1)}% -> presence ${presence.toFixed(2)} air ${air.toFixed(2)}`);
   const pL = new Biquad(sr, 'hp', TONE.presenceHz), pR = new Biquad(sr, 'hp', TONE.presenceHz);
   const aL = new Biquad(sr, 'hp', TONE.airHz), aR = new Biquad(sr, 'hp', TONE.airHz);
@@ -174,7 +185,7 @@ async function renderCue(c: CueSpec) {
     R[i] = r + pR.run(r) * presence + aR.run(r) * air - mR.run(r) * TONE.mud;
   }
   if (process.env.STEMS) writeWav(path.join(TMP, `${c.id}-mix.wav`), [L, R], sr);
-  master(L, R, 0.17, sr);
+  master(L, R, opts.rms ?? 0.17, sr);
 
   // cut: intro, then the second pass of the body (its first moments carry the first pass's tail) as the loop
   const spb = 60 / c.bpm, bar = 4 * spb;
@@ -263,6 +274,39 @@ function flushEncodes() {
   fs.writeFileSync(jobs, JSON.stringify(pending));
   execFileSync('python', [py, jobs], { stdio: 'inherit' });
   pending.length = 0;
+}
+
+/* ── 3D campaign: stem levels and the taiko stingers ──────────────────────────────────────── */
+
+/** Taiko-led: the drums are the backbone, the instruments sit around them; no kit, no duck. */
+const MIX_3D = { music: 0.7, kit: 0, soma: 1.0, duck: 0 };
+
+/** The SOMA stinger bounces (lab ?cues=taiko): trimmed after the ring-out, faded, peak-normalised like the sfx bank. */
+function taikoStingers(): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  const names: Record<string, string> = { taikoWin: 'sfx-taiko-win.mp3', taikoWave: 'sfx-taiko-wave.mp3' };
+  const maxSec: Record<string, number> = { taikoWin: 4.4, taikoWave: 1.6 };
+  for (const id of ERA_CLASH_3D_STINGERS) {
+    const { L, R } = readStem(`sting-${id}`, 'soma');
+    const sr = BOUNCE_SR, start = Math.round(ANCHOR * sr * 0.5);
+    let end = Math.min(L.length, start + Math.round(maxSec[id] * sr));
+    let pk = 0; for (let i = start; i < end; i++) pk = Math.max(pk, Math.abs(L[i]), Math.abs(R[i]));
+    // trim at -54 dB below the peak, then a 120 ms fade
+    const floor = pk * 0.002; let last = start;
+    for (let i = start; i < end; i++) if (Math.abs(L[i]) > floor || Math.abs(R[i]) > floor) last = i;
+    end = Math.min(end, last + Math.round(0.05 * sr));
+    const n = end - start, fade = Math.min(Math.round(0.12 * sr), n), oL = new Float32Array(n), oR = new Float32Array(n);
+    const g = pk > 0 ? 0.89 / pk : 1;
+    /* taikoWin: the roll's tails pile up, so SOMA's velocity crescendo alone measured only ~5 dB; a gain
+       ramp under the roll (-10 dB → -2.5 dB) leaves the strike (2.0 s after beat 0) clearly on top */
+    const strikeAt = Math.round((ANCHOR * 0.5 + 2.0) * sr) - 24;
+    const ramp = (i: number) => (id !== 'taikoWin' || i >= strikeAt ? 1 : 0.32 + 0.43 * (i / strikeAt) ** 1.5);
+    for (let i = 0; i < n; i++) { const f = (i > n - fade ? (n - i) / fade : 1) * ramp(i); oL[i] = L[start + i] * g * f; oR[i] = R[start + i] * g * f; }
+    encode(oL, oR, sr, names[id], 0.5);
+    out[id] = [names[id]];
+    console.log(`  ${id}: ${(n / sr).toFixed(2)} s, source peak ${pk.toFixed(3)}`);
+  }
+  return out;
 }
 
 /* ── Sound effects ────────────────────────────────────────────────────────────────────────── */
@@ -495,6 +539,21 @@ async function main() {
       console.log(`  ${r.file}: ${r.duration.toFixed(1)}s, loop ${r.loopStart.toFixed(2)}–${r.loopEnd.toFixed(2)}s, ${(fs.statSync(path.join(OUT, r.file)).size / 1024).toFixed(0)} KB`);
       fs.writeFileSync(manPath, JSON.stringify(man, null, 1));
     }
+  } else if (mode === 'music3d') {
+    const only = process.argv.slice(3);
+    for (const c of CUES_3D.filter((x) => !only.length || only.includes(x.id))) {
+      console.log(`${c.id}: ${c.title} (${c.bpm} bpm, 3D campaign)`);
+      const r = await renderCue(c, { doc: buildEraClash3dGrooveDoc(c.id), noKit: true, mix: MIX_3D, rms: 0.185, airMax: 0.1 });
+      flushEncodes();
+      man.music[c.id] = { file: r.file, title: r.title, bpm: r.bpm, loopStart: +r.loopStart.toFixed(6), loopEnd: +r.loopEnd.toFixed(6) };
+      console.log(`  ${r.file}: ${r.duration.toFixed(1)}s, loop ${r.loopStart.toFixed(2)}–${r.loopEnd.toFixed(2)}s, ${(fs.statSync(path.join(OUT, r.file)).size / 1024).toFixed(0)} KB`);
+      fs.writeFileSync(manPath, JSON.stringify(man, null, 1));
+    }
+  } else if (mode === 'taiko') {
+    const files = taikoStingers();
+    flushEncodes();
+    Object.assign(man.sfx, files);
+    console.log(`taiko stingers: ${Object.entries(files).map(([k, v]) => `${k}=${v.join(',')}`).join(' ')}`);
   } else if (mode === 'sfx') {
     man.sfx = sfxBank();
     flushEncodes();

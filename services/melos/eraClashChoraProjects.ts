@@ -56,8 +56,8 @@ import { newVelaPatch, serializeVelaPatch } from './instruments/vela/patch';
 /* ── Instrumentation per cue ──────────────────────────────────────────────────────────────── */
 
 type Role = 'lead' | 'brass' | 'str' | 'choir' | 'stab' | 'pad' | 'ost' | 'vc' | 'bass';
-interface Voice { type: InstrumentType; preset: string; label: string; gainDb: number; pan: number }
-const V = (type: InstrumentType, preset: string, label: string, gainDb: number, pan = 0): Voice => ({ type, preset, label, gainDb, pan });
+export interface Voice { type: InstrumentType; preset: string; label: string; gainDb: number; pan: number }
+export const V = (type: InstrumentType, preset: string, label: string, gainDb: number, pan = 0): Voice => ({ type, preset, label, gainDb, pan });
 
 type Sec = 'intro' | 'A' | 'B' | 'break' | 'drop' | 'turn' | 'tail';
 
@@ -249,13 +249,13 @@ export const isEraClashProjectId = (id: unknown): id is string =>
 
 /* ── Helpers ──────────────────────────────────────────────────────────────────────────────── */
 
-const COLORS: Record<InstrumentType, string> = {
+export const COLORS: Record<InstrumentType, string> = {
   onda: '#B84DFF', kera: '#00DAF3', bajo: '#FF4B1C', aura: '#E59A38', soma: '#E86A33', lyra: '#D9B36C',
   vela: '#7FD1C7', cantus: '#C9A0FF', ison: '#9AA7FF', pneuma: '#8FE3B0', tonos: '#C98B4A',
 };
 
-function somaName(id: string): string { return SOMA_PRESETS.find((p) => p.id === id)?.name ?? id; }
-function presetName(v: Voice): string {
+export function somaName(id: string): string { return SOMA_PRESETS.find((p) => p.id === id)?.name ?? id; }
+export function presetName(v: Voice): string {
   switch (v.type) {
     case 'lyra': return LYRA_PRESETS.find((p) => p.id === v.preset)?.name ?? v.preset;
     case 'aura': return AURA_PRESETS.find((p) => p.id === v.preset)?.name ?? v.preset;
@@ -266,7 +266,7 @@ function presetName(v: Voice): string {
   }
 }
 
-function patchFor(v: Voice): Record<string, unknown> {
+export function patchFor(v: Voice): Record<string, unknown> {
   switch (v.type) {
     case 'lyra': return serializeLyraPatch(lyraPatchFor(v.preset));
     case 'aura': { const p = AURA_PRESETS.find((x) => x.id === v.preset); return serializeAuraPatch(newAuraPatch(p)); }
@@ -278,19 +278,19 @@ function patchFor(v: Voice): Record<string, unknown> {
 }
 
 /** Deterministic noise so the same cue always builds the same project (and the same bounce). */
-function rng(seed: number) {
+export function rng(seed: number) {
   let a = seed >>> 0;
   return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
-const seedOf = (s: string) => [...s].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0, 2166136261);
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+export const seedOf = (s: string) => [...s].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0, 2166136261);
+export const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
-function persona(player: string, id: string): PersonaTraits {
+export function persona(player: string, id: string): PersonaTraits {
   const p = BAND.find((x) => x.id === player)!;
   return (p.personas.find((x) => x.id === id) ?? p.personas[0]).traits;
 }
 
-function fx(kind: NoteFxKind, id: string, params: Record<string, number | string>): NoteFxDevice {
+export function fx(kind: NoteFxKind, id: string, params: Record<string, number | string>): NoteFxDevice {
   const def = NOTE_FX.find((d) => d.kind === kind)!;
   const base: Record<string, number | string> = {};
   for (const s of def.params) base[s.key] = s.default;

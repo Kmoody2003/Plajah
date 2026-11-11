@@ -1,0 +1,82 @@
+{
+ "punch": {
+  "kind": "shot",
+  "files": [
+   "punch_0.mp3",
+   "punch_1.mp3",
+   "punch_2.mp3",
+   "punch_3.mp3",
+   "punch_4.mp3"
+  ]
+ },
+ "slash": {
+  "kind": "shot",
+  "files": [
+   "slash_0.mp3",
+   "slash_1.mp3",
+   "slash_2.mp3",
+   "slash_3.mp3",
+   "slash_4.mp3"
+  ]
+ },
+ "stab": {
+  "kind": "shot",
+  "files": [
+   "stab_0.mp3",
+   "stab_1.mp3"
+  ]
+ },
+ "clash": {
+  "kind": "shot",
+  "files": [
+   "clash_0.mp3",
+   "clash_1.mp3",
+   "clash_2.mp3",
+   "clash_3.mp3"
+  ]
+ },
+ "body_fall": {
+  "kind": "shot",
+  "files": [
+   "body_fall_0.mp3",
+   "body_fall_1.mp3",
+   "body_fall_2.mp3"
+  ]
+ },
+ "swing": {
+  "kind": "shot",
+  "files": [
+   "swing_0.mp3",
+   "swing_1.mp3",
+   "swing_2.mp3",
+   "swing_3.mp3"
+  ]
+ },
+ "hurt_grunt": {
+  "kind": "shot",
+  "files": [
+   "hurt_grunt_0.mp3",
+   "hurt_grunt_1.mp3",
+   "hurt_grunt_2.mp3"
+  ]
+ },
+ "wood_break": {
+  "kind": "shot",
+  "files": [
+   "wood_break_0.mp3",
+   "wood_break_1.mp3",
+   "wood_break_2.mp3",
+   "wood_break_3.mp3",
+   "wood_break_4.mp3"
+  ]
+ },
+ "glass_break": {
+  "kind": "shot",
+  "files": [
+   "glass_break_0.mp3",
+   "glass_break_1.mp3",
+   "glass_break_2.mp3",
+   "glass_break_3.mp3"
+  ]
+ }
+}

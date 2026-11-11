@@ -175,3 +175,7 @@ windows-native/third_party/uv/
 # cad-dwg tool build output
 windows-native/tools/CadDwg/bin/
 windows-native/tools/CadDwg/obj/
+
+# Era Clash 3D: build intermediates and review captures (regenerable)
+games/era-clash-3d/assets-src/
+games/era-clash-3d/review/
