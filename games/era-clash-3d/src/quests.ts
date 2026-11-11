@@ -24,6 +24,8 @@ export interface QuestCtx {
   /** The castle's main gate swings open (the seal is shown). */
   openGate(): void;
   douse(i: number): void;
+  /** The lookout's signal fire goes out. */
+  douseSignal(): void;
 }
 
 interface Step {
@@ -38,7 +40,8 @@ interface Step {
 interface QuestDef { id: string; title: string; main?: boolean; /** becomes available */ opens?: (s: Quests) => boolean; steps: Step[]; reward?: (q: QuestState) => void }
 export interface QuestState { def: QuestDef; i: number; state: 'hidden' | 'active' | 'done'; vars: Record<string, number>; count?: () => number }
 
-const MAGISTRATE = 'Magistrate Kuroda', BROKER = 'Sōbei the broker';
+const MAGISTRATE = 'Magistrate Kuroda', BROKER = 'Sōbei the broker', MOTHER = 'Oyone';   // (proposed names)
+const DEEDS = ['captives', 'boats', 'strongbox', 'children', 'signal'];
 
 export class Quests {
   readonly list: QuestState[] = [];
@@ -49,7 +52,7 @@ export class Quests {
   private el: { obj: HTMLElement; way: HTMLElement; compass: HTMLElement; hint: HTMLElement; log: HTMLElement };
   private t = 0;
   /** Deeds for the city (the magistrate's price for the seal). */
-  get deeds() { return ['captives', 'boats', 'strongbox'].filter((id) => this.get(id)?.state === 'done').length; }
+  get deeds() { return DEEDS.filter((id) => this.get(id)?.state === 'done').length; }
   get(id: string) { return this.list.find((q) => q.def.id === id); }
   /** A message shown when no quest action is in reach (e.g. the barred castle gate), and where to point meanwhile. */
   note: { text: string; at: THREE.Vector3 | null } | null = null;
@@ -59,6 +62,8 @@ export class Quests {
     boats: { boat: THREE.Vector3; pier: THREE.Vector3 }[];
     magistrate: { gate: THREE.Vector3; yard: THREE.Vector3; facing: number };
     broker: THREE.Vector3; strongbox: THREE.Vector3; otemon: THREE.Vector3; forecourt: THREE.Vector3;
+    /** The residential hill (hillside.ts): the mother at the lane's foot, the hiding places, the temple, the lookout. */
+    hill: { mother: THREE.Vector3; hides: THREE.Vector3[]; temple: THREE.Vector3; templeGate: THREE.Vector3; lookoutFoot: THREE.Vector3; brazier: THREE.Vector3 };
   }) {
     c.scene.add(this.markers);
     const $ = (id: string) => document.getElementById(id)!;
@@ -77,7 +82,7 @@ export class Quests {
         enter: (q) => { q.count = c.band(S.magistrate.yard, 4, 'Wakō Besieger', 4); }, done: (q) => (q.count?.() ?? 1) === 0 },
       { text: () => this.deeds >= 2 ? `Speak with ${MAGISTRATE}` : `${MAGISTRATE} trusts deeds, not strangers: help the city (${this.deeds}/2 deeds)`,
         at: () => this.deeds >= 2 ? S.magistrate.yard : this.nextDeed(),
-        use: { at: () => S.magistrate.yard, label: `Speak with ${MAGISTRATE}`, act: (q) => { if (this.deeds >= 2) q.vars.seal = 1; else c.card(MAGISTRATE, 'Free our people, save our boats, find what was stolen — then come back.'); } },
+        use: { at: () => S.magistrate.yard, label: `Speak with ${MAGISTRATE}`, act: (q) => { if (this.deeds >= 2) q.vars.seal = 1; else c.card(MAGISTRATE, 'Free our people, save our boats, find what was stolen, help the hill folk — then come back.'); } },
         done: (q) => q.vars.seal === 1 },
       { text: () => "Carry the magistrate's seal to the castle's main gate", at: () => S.otemon, done: () => near(S.otemon, 6),
         enter: () => c.card("The Magistrate's Seal", 'Show it at the castle gate.') },
@@ -110,9 +115,35 @@ export class Quests {
         use: { at: () => S.broker, label: 'Return the strongbox', act: (q) => { q.vars.back = 1; } }, done: (q) => q.vars.back === 1 },
     ], reward: () => { c.heal(0.2); c.card("The Broker's Strongbox", 'Sōbei will tell the magistrate what you did.'); } });
 
+    // ── The hill: the children hiding from the raiders, and the raiders' signal fire on the lookout ──────
+    const H = S.hill;
+    this.add({ id: 'children', title: 'The Hidden Children', opens: () => c.section() >= 1, steps: [
+      { text: () => `Speak with ${MOTHER} at the foot of the hill lane`, at: () => H.mother,
+        use: { at: () => H.mother, label: `Speak with ${MOTHER}`, act: (q) => { q.vars.asked = 1; c.card(MOTHER, 'My three ran up the hill when the ships came. They know to hide — find them, send them to the temple!'); } },
+        done: (q) => q.vars.asked === 1 },
+      { text: (q) => `Find the children hiding on the hill (${q.vars.found ?? 0}/${H.hides.length})`,
+        at: (q) => this.nearestOf(H.hides.filter((_, i) => !q.vars['h' + i])),
+        enter: (q) => { if (!q.vars.band) { q.vars.band = 1; c.band(H.hides[2].clone().add(new THREE.Vector3(14, 0, 0)), 3, 'Wakō Searcher', 3); } },
+        use: { at: (q) => this.nearestOf(H.hides.filter((_, i) => !q.vars['h' + i])), r: 2.4, label: 'Call the child out',
+          act: (q) => { const h = c.hero(); const i = H.hides.findIndex((p, k) => !q.vars['h' + k] && p.distanceTo(h) < 2.4); if (i < 0) return; q.vars['h' + i] = 1; q.vars.found = (q.vars.found ?? 0) + 1; this.kids[i]?.removeFromParent(); c.sfx('taikoWave'); c.card('Found', (q.vars.found ?? 0) < H.hides.length ? 'Run for the temple — keep low!' : 'That is all three. To the temple.'); } },
+        done: (q) => (q.vars.found ?? 0) >= H.hides.length },
+      { text: () => 'Meet the children at the temple on the hilltop', at: () => H.templeGate, done: () => near(H.templeGate, 6) },
+    ], reward: () => { c.heal(0.25); c.card('The Hidden Children', 'Safe in the temple. Oyone will tell the magistrate.'); for (let i = 0; i < this.kids.length; i++) { const k = this.kids[i]; if (k) { k.position.copy(H.temple).add(new THREE.Vector3((i - 1) * 0.9, 0, -1.5)); k.rotation.y = Math.PI; c.scene.add(k); } } } });
+
+    this.add({ id: 'signal', title: 'Fire from the Roofs', opens: () => c.section() >= 1, steps: [
+      { text: () => 'Smoke on the hilltop lookout: the raiders are signalling their ships. Climb the hill', at: () => H.lookoutFoot, done: () => near(H.lookoutFoot, 12) },
+      { text: (q) => `Defeat the raiders at the lookout (${4 - (q.count?.() ?? 4)}/4)`, at: () => H.lookoutFoot,
+        enter: (q) => { q.count = c.band(H.lookoutFoot.clone().add(new THREE.Vector3(3, 0, -3)), 4, 'Wakō Signalman', 3.5); }, done: (q) => (q.count?.() ?? 1) === 0 },
+      { text: () => 'Climb the lookout and put out the signal fire', at: () => H.brazier,
+        use: { at: () => H.brazier, r: 2.2, label: 'Smother the signal fire', act: (q) => { q.vars.out = 1; c.douseSignal(); c.sfx('splinter'); } }, done: (q) => q.vars.out === 1 },
+    ], reward: () => { c.heal(0.2); c.card('Fire from the Roofs', 'The signal is dark. No more ships will find the harbour.'); } });
+
     // the people the quests talk to
     void this.npc('/games/era-clash/3d/assets/characters/carpenter.glb', S.magistrate.yard, S.magistrate.facing + Math.PI, 1.66);
     void this.npc('/games/era-clash/3d/assets/characters/fisherman.glb', S.broker, 0, 1.6);
+    void this.npc('/games/era-clash/3d/assets/characters/peasant.glb', H.mother, Math.PI * 0.85, 1.52);
+    // the children (stand-ins: the peasant figure at a child's height, crouched in their hiding places)
+    H.hides.forEach((p, i) => { void this.npc('/games/era-clash/3d/assets/characters/peasant.glb', p, i * 2.1, 1.08).then((n) => { this.kids[i] = n; }); });
     this.strongboxProp(S.strongbox);
     this.list[0].state = 'active';
     this.list[0].def.steps[0].enter?.(this.list[0]);
@@ -121,10 +152,11 @@ export class Quests {
   private add(def: QuestDef) { this.list.push({ def, i: 0, state: 'hidden', vars: {} }); }
   private nearestOf(ps: THREE.Vector3[]) { const h = this.c.hero(); let b: THREE.Vector3 | null = null; for (const p of ps) if (!b || p.distanceTo(h) < b.distanceTo(h)) b = p; return b; }
   private nextDeed() {
-    for (const id of ['boats', 'strongbox', 'captives']) { const q = this.get(id); if (q && q.state === 'active') { const st = q.def.steps[q.i]; const p = st.at?.(q) ?? st.use?.at(q); if (p) return p; } }
+    for (const id of ['boats', 'strongbox', 'children', 'signal', 'captives']) { const q = this.get(id); if (q && q.state === 'active') { const st = q.def.steps[q.i]; const p = st.at?.(q) ?? st.use?.at(q); if (p) return p; } }
     return null;
   }
-  private async npc(url: string, at: THREE.Vector3, yaw: number, height: number) {
+  private kids: (THREE.Object3D | null)[] = [];
+  private async npc(url: string, at: THREE.Vector3, yaw: number, height: number): Promise<THREE.Object3D | null> {
     try {
       const f = await loadGLB(url); const node = cloneSkinned(f.scene);
       const box = new THREE.Box3().setFromObject(f.scene); node.scale.setScalar(height / Math.max(0.3, box.max.y - box.min.y));
@@ -132,7 +164,8 @@ export class Quests {
       node.position.copy(at); node.rotation.y = yaw; this.c.scene.add(node);
       const mixer = new THREE.AnimationMixer(node); const idle = f.animations.find((a) => a.name === 'idle'); if (idle) mixer.clipAction(idle).play();
       this.npcMixers.push(mixer);
-    } catch (e) { console.warn('[eraclash3d] quest npc', e); }
+      return node;
+    } catch (e) { console.warn('[eraclash3d] quest npc', e); return null; }
   }
   private npcMixers: THREE.AnimationMixer[] = [];
   private box: THREE.Object3D | null = null;
@@ -246,6 +279,6 @@ export class Quests {
     this.el.log.innerHTML = this.list.filter((q) => q.state !== 'hidden').map((q) => {
       const steps = q.def.steps.slice(0, q.state === 'done' ? q.def.steps.length : q.i + 1).map((s, k) => `<li class="${k < q.i || q.state === 'done' ? 'dn' : ''}">${s.text(q)}</li>`).join('');
       return `<div class="ql ${q.state}"><div class="qlt">${q.def.main ? '◆' : '◇'} ${q.def.title}${q.state === 'done' ? ' — done' : ''}</div><ul>${steps}</ul></div>`;
-    }).join('') + `<div class="qn">Deeds for the city: ${this.deeds}/3</div>`;
+    }).join('') + `<div class="qn">Deeds for the city: ${this.deeds}/${DEEDS.length} (the magistrate asks two)</div>`;
   }
 }

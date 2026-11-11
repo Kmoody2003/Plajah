@@ -68,7 +68,14 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
   /** Rows run from z0 to z1; `rows` are their distances from the road (three rows make the alley maze). */
   z0?: number; z1?: number; rows?: number[]; plaza?: Plaza; huddleZ?: number[];
   /** The merchant quarter's street grid: machiya along both sides of each segment, facing it, gaps at crossings. */
-  streets?: { x0: number; z0: number; x1: number; z1: number }[];
+  streets?: { x0: number; z0: number; x1: number; z1: number;
+    /** One side only (+1 = left of the direction of travel), the houses' distance from the line, and their depth
+     *  (the hillside's terraces take a row of small houses on their uphill side). */
+    side?: 1 | -1; off?: number; depth?: number;
+    /** Parallel terrace lanes: they neither block nor are blocked by the other streets' houses (keepOutRect does it). */
+    noCross?: boolean }[];
+  /** A house's world-space footprint (centre and half extents) must not land here (risers, lanes, the zone edge). */
+  keepOutRect?: (cx: number, cz: number, hx: number, hz: number) => boolean;
   /** Ground no house may stand on (the canal and its banks). */
   keepOut?: (x: number, z: number, r: number) => boolean }): Village {
   const { heightAt, roadX, avoid, mats } = o;
@@ -458,15 +465,17 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
   };
   for (const st of o.streets ?? []) {
     const L = Math.hypot(st.x1 - st.x0, st.z1 - st.z0), ux = (st.x1 - st.x0) / L, uz = (st.z1 - st.z0) / L, nx = -uz, nz = ux;
-    for (const side of [-1, 1]) {
+    const dep = st.depth ?? DEPTH, off = st.off ?? 6.3;
+    for (const side of st.side ? [st.side] : [-1, 1]) {
       let t = 3 + R() * 2, run = 0;
       while (t < L - 3) {
-        const w = 4.6 + R() * 2.2, tc = t + w / 2;
-        const cx = st.x0 + ux * tc + nx * side * 6.3, cz = st.z0 + uz * tc + nz * side * 6.3;
-        const cross = (o.streets ?? []).some((s2) => s2 !== st && segDist(cx, cz, s2) < 7.6);
+        const w = (st.depth ? 4.0 : 4.6) + R() * 2.2, tc = t + w / 2;
+        const cx = st.x0 + ux * tc + nx * side * off, cz = st.z0 + uz * tc + nz * side * off;
+        const cross = !st.noCross && (o.streets ?? []).some((s2) => s2 !== st && !s2.noCross && segDist(cx, cz, s2) < 7.6);
         const yaw = Math.atan2(-nx * side, -nz * side);
-        if (!cross && !blocked(cx, cz, Math.max(w, DEPTH) / 2 + 0.3) && !(o.keepOut?.(cx, cz, Math.max(w, DEPTH) / 2 + 0.5))) {
-          house(cx, cz, yaw, w, DEPTH, burntLeft > 0 && R() < 0.05 && !!burntLeft--); run++;
+        const hx = Math.abs(Math.cos(yaw)) * w / 2 + Math.abs(Math.sin(yaw)) * dep / 2, hz = Math.abs(Math.sin(yaw)) * w / 2 + Math.abs(Math.cos(yaw)) * dep / 2;
+        if (!cross && !blocked(cx, cz, Math.max(w, dep) / 2 + 0.3) && !(o.keepOut?.(cx, cz, Math.max(w, dep) / 2 + 0.5)) && !(o.keepOutRect?.(cx, cz, hx, hz))) {
+          house(cx, cz, yaw, w, dep, burntLeft > 0 && R() < 0.05 && !!burntLeft--); run++;
         } else run = 0;
         const gap = run >= 2 + (R() < 0.5 ? 1 : 0) ? (run = 0, 2.4 + R() * 0.8) : 0.25;
         t += w + gap;

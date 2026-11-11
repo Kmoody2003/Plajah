@@ -14,6 +14,7 @@ import { buildVillage, boxGeo, type Village } from './village';
 import { buildLandmarks } from './landmarks';
 import { buildOtsu, OTSU, type Otsu } from './otsu';
 import { buildCanal } from './canal';
+import { buildHillside, type Hillside } from './hillside';
 
 export interface Fire { group: THREE.Group; flames: THREE.Mesh[]; smoke: THREE.Mesh[]; seed: number; size: number; raid: boolean }
 export interface Section { name: string; zMin: number; zMax: number; spawn: THREE.Vector3[] }
@@ -28,6 +29,10 @@ export interface Chapter1World {
   /** Quest places (otsu.ts) and the fires on the moored boats. */
   otsu: Otsu;
   boatFires: Fire[];
+  /** The residential hill: terraces, temple, lookout (hillside.ts). */
+  hill: Hillside;
+  /** The signal fire on the lookout's balcony (Fire from the Roofs puts it out). */
+  signalFire: Fire;
   /** Ravencrest's ez-tree forest: bake its impostors once the renderer is up, cull it each frame. */
   forest: Forest;
   /** The village's loose props and the villagers' huddles (village.ts). */
@@ -44,13 +49,52 @@ const X_MIN = -185, X_MAX = 75, Z_MIN = -120, Z_MAX = 175;
 /** The canal across the city (z of its centre line, half its width, its water and its bed), x from WEST to EAST. */
 export const CANAL = { z: 42, half: 3.6, water: 0.95, bed: 0.15, west: -158, east: 34 };
 
+/** The residential hillside (city plan phase 3): terraces across x0..x1 up the hill, z0..z1, a riser every `step` m
+ *  of height; `lanes` are the stepped lanes up the slope (the grid streets that cross the canal). */
+export const HILL = { x0: -152, x1: -58, z0: 50, z1: 128, step: 2.6, lanes: [-86, -120], laneHalf: 1.6 };
+const sst = (a: number, b: number, v: number) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+/** How terraced the ground is at (x, z): 1 on the hillside's terraces, 0 off it. */
+export function hillTerraceK(x: number, z: number) {
+  if (x < HILL.x0 || x > HILL.x1 || z < HILL.z0 || z > HILL.z1) return 0;
+  const inX = sst(HILL.x0, HILL.x0 + 4, x) * (1 - sst(HILL.x1 - 4, HILL.x1, x));
+  const inZ = sst(HILL.z0, HILL.z0 + 3, z) * (1 - sst(HILL.z1 - 3, HILL.z1, z));
+  return inX * inZ;
+}
+/** 1 in a stepped lane (it climbs each riser by a flight of stone steps, not a wall), 0 on the terraces. */
+export function hillLaneK(x: number) {
+  let lane = 0; for (const l of HILL.lanes) lane = Math.max(lane, 1 - sst(HILL.laneHalf, HILL.laneHalf + 0.6, Math.abs(x - l)));
+  return lane;
+}
+/** The terrace profile within one step (u = 0…1 up the step): flat, then the riser. A riser is a battered stone
+ *  wall (steep, the last fifth of the step); in a lane it is a flight of steps (straight, the last 60%). */
+export function hillStepShape(u: number, laneK: number) {
+  const wall = sst(0.8, 1, u), stair = Math.min(1, Math.max(0, (u - 0.4) / 0.6));
+  return wall + (stair - wall) * laneK;
+}
+/** z of the middle of each terrace riser (where the hill's height crosses (k + 0.9) × step). */
+export function hillRisers() {
+  const hp = (z: number) => 14.8 * sst(42, 112, z), out: number[] = [];
+  for (let k = 0; (k + 0.9) * HILL.step < 14.8; k++) {
+    let lo = 42, hi = 112; const want = (k + 0.9) * HILL.step;
+    for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (hp(m) < want) lo = m; else hi = m; }
+    if (lo > HILL.z0 + 2 && lo < HILL.z1 - 2) out.push(lo);
+  }
+  return out;
+}
+
+const HILL_RISERS = hillRisers();
 /** Ground height: sea → beach → village terrace → hill → the painting's hilltop, with valley walls. */
 export function heightAt(x: number, z: number): number {
   const ss = (a: number, b: number, v: number) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
   let y = -2.2 + 3.6 * ss(-100, -62, z);                  // the beach climbs out of the sea
   y += 0.8 * ss(-60, 30, z);                               // the village terrace, gently rising
-  y += 14.8 * ss(42, 112, z);                              // the hill
-  y += 0.35 * Math.sin(x * 0.11 + z * 0.07) * ss(-70, -40, z) + 0.25 * Math.sin(x * 0.23 - z * 0.13);
+  // the hill — terraced where the residential quarter climbs it (flat terraces behind dry-stone retaining walls,
+  // smooth where the stepped lanes go up)
+  const hp = 14.8 * ss(42, 112, z), tk = hillTerraceK(x, z);
+  let hq = hp;
+  if (tk > 0) { const t = hp / HILL.step, f = Math.floor(t); hq = hp + ((f + hillStepShape(t - f, f < HILL_RISERS.length ? hillLaneK(x) : 0)) * HILL.step - hp) * tk; }
+  y += hq;
+  y += (0.35 * Math.sin(x * 0.11 + z * 0.07) * ss(-70, -40, z) + 0.25 * Math.sin(x * 0.23 - z * 0.13)) * (1 - tk);
   const wall = x > 0 ? Math.max(0, x - 42) : Math.max(0, -x - 160);
   y += Math.pow(wall, 1.35) * 0.32;                        // the valley side (east), the hills (west)
   // the canal: a stone-banked channel across the city
@@ -140,7 +184,9 @@ export async function buildChapter1(): Promise<Chapter1World> {
     const dr = Math.abs(x - roadX(z)), onRoad = z > -64 ? 1 : 0;
     // inside the Outer Wall the town is packed earth wall to wall (the alleys are dirt, not meadow)
     const town = ss(OTSU.wallZ - 1, OTSU.wallZ + 1, z) * (1 - ss(CANAL.z + CANAL.half + 9, CANAL.z + CANAL.half + 13, z)) * (x < roadX(z) ? ss(-164, -158, x) : 1 - ss(28, 32, dr));
-    const dirt = Math.max((1 - ss(1.6, 2.6, dr)) * onRoad, town);
+    const lastR = HILL_RISERS[HILL_RISERS.length - 1] + 1.4;
+    const hillTown = hillTerraceK(x, z) * (1 - ss(lastR - 0.5, lastR + 0.5, z)) * ss(HILL.x0 + 6, HILL.x0 + 9, x);
+    const dirt = Math.max((1 - ss(1.6, 2.6, dr)) * onRoad, town, hillTown * 0.85);
     const gravel = (ss(1.4, 2.2, dr) * (1 - ss(3.2, 4.4, dr))) * onRoad * 0.9 * (1 - town);
     const grass = Math.max(0, 1 - sand - dirt - gravel);
     return { grass, dirt, gravel, sand };
@@ -217,13 +263,20 @@ export async function buildChapter1(): Promise<Chapter1World> {
     ...[-52, -86, -120, -152].map((x) => ({ x0: x, z0: OTSU.wallZ + 3, x1: x, z1: CANAL.z - CANAL.half - 1.4 })),
     { x0: -158, z0: -12, x1: -38, z1: -12 }, { x0: -158, z0: 12, x1: -38, z1: 12 },
     { x0: -158, z0: CANAL.z - CANAL.half - 4.6, x1: -36, z1: CANAL.z - CANAL.half - 4.6 },
-    { x0: -156, z0: CANAL.z + CANAL.half + 4.6, x1: -52, z1: CANAL.z + CANAL.half + 4.6 },
+    // the north bank: one row of small houses under the hill's first retaining wall
+    { x0: -156, z0: CANAL.z + CANAL.half + 4.6, x1: -52, z1: CANAL.z + CANAL.half + 4.6, side: 1 as const, off: 3.9, depth: 4.6 },
   ];
+  // the residential hill (hillside.ts): terraces, stepped lanes, the temple and the lookout on the crown
+  const stoneMat = uvMaterial('japanese_stone_wall', [0.7, 0.7], { tint: 0xb4aca0 });
+  const flagMat = uvMaterial('stone_tiles_02', [1, 1], { tint: 0xc8c0b4 });
+  const lacquer = weather(uvMaterial('japanese_cedar_planks', [1.1, 1.1], { tint: 0x9a3a2a }), 'japanese_cedar_planks', 0.4);
+  const hill = buildHillside({ spec: HILL, risers: hillRisers(), heightAt, mats: { wood, darkWood, plaster, tile, stone: stoneMat, flags: flagMat, lacquer } });
+  group.add(hill.group);
   const PLAZA = { x: roadX(OTSU.plaza.z), z: OTSU.plaza.z, r: OTSU.plaza.r };
   const village = buildVillage({
     heightAt, roadX, mats: { wood, darkWood, plaster, thatch, tile },
     z0: OTSU.wallZ + 3, z1: OTSU.townZ1, rows: [7.6, 15.8, 24.2], plaza: PLAZA, huddleZ: [OTSU.plaza.z, 8, 31],
-    streets: MERCHANT_STREETS,
+    streets: [...MERCHANT_STREETS, ...hill.streets], keepOutRect: hill.keepOutRect,
     keepOut: (x, z, r) => Math.abs(z - CANAL.z) < CANAL.half + 1.4 + r && x > CANAL.west - 3 && x < CANAL.east + 3,
     avoid: [
       ...KURA.map(([x, z]) => ({ x: roadX(z) + x, z, r: 4.6 })),
@@ -232,7 +285,6 @@ export async function buildChapter1(): Promise<Chapter1World> {
     ],
   });
   group.add(village.group);
-  const stoneMat = uvMaterial('japanese_stone_wall', [0.7, 0.7], { tint: 0xb4aca0 });
   const quayMat = uvMaterial('japanese_stone_wall', [0.4, 0.4], { tint: 0x9a948a });
   const otsu = buildOtsu({ heightAt, roadX, village, mats: { wood, darkWood, plaster, tile, stone: stoneMat, quay: quayMat } });
   group.add(otsu.group);
@@ -388,6 +440,9 @@ export async function buildChapter1(): Promise<Chapter1World> {
     [roadX(70) + 6.4, 70, 0.9, 1.2], [roadX(91) - 6.4, 91, 0.8, 1.0],
   ];
   for (const [x, z, s, lift] of RAID_FIRES) fire(x, z, s, true, lift);
+  const sb = hill.spots.brazier;
+  fire(sb.x, sb.z, 0.45, false, sb.y - heightAt(sb.x, sb.z));
+  const signalFire = fires[fires.length - 1];
   const boatFires = otsu.spots.boats.map((b) => { fire(b.boat.x, b.boat.z, 0.75, false, b.boat.y + 0.4 - heightAt(b.boat.x, b.boat.z)); return fires[fires.length - 1]; });
   // embers: one instanced draw, swirling up round the camera
   const emberMat = new THREE.MeshBasicNodeMaterial({ color: 0xffa040, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
@@ -419,7 +474,6 @@ export async function buildChapter1(): Promise<Chapter1World> {
 
   // ── The five-storey pagoda behind the platform, off to the right as in the painting ────────────
   const pagoda = new THREE.Group();
-  const lacquer = weather(uvMaterial('japanese_cedar_planks', [1.1, 1.1], { tint: 0x9a3a2a }), 'japanese_cedar_planks', 0.4);
   for (let i = 0; i < 5; i++) {
     const w = 7.2 - i * 0.95, y = i * 3.4;
     pagoda.add(box(w, 2.6, w, lacquer, y + 1.3));
@@ -440,6 +494,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
       [-20, 78, 6], [-22, 14, 6], [22, -18, 5.5], [-26, -34, 6]];
     const near: TreeSpot[] = cherries.map(([x, z, h]) => ({ p: V(x, z), h: h * 1.1, species: 'cherry' as const }));
     for (const t of canal.cherries) near.push({ p: V(t.x, t.z), h: t.h * 1.1, species: 'cherry' });
+    for (const t of hill.trees) near.push({ p: V(t.x, t.z), h: t.blossom ? t.h * 1.1 : t.h * 1.15, species: t.blossom ? 'cherry' : 'umbrella' });
     for (const t of otsu.yardTrees) near.push({ p: V(t.x, t.z), h: t.blossom ? t.h * 1.1 : t.h * 1.15, species: t.blossom ? 'cherry' : 'umbrella' });
     // the valley walls: about two in five full 3D (the nearest rank), the rest impostors like the far hills
     const wallFar: TreeSpot[] = [];
@@ -476,7 +531,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
   for (const s of sections) for (const p of s.spawn) p.y = heightAt(p.x, p.z);
 
   // ── Grass blades (grassField.ts): everywhere the meadow is, but never under a building, on a road or a cliff ─
-  const blocked: THREE.Box3[] = [...village.footprints, ...otsu.footprints, ...canal.footprints];
+  const blocked: THREE.Box3[] = [...village.footprints, ...otsu.footprints, ...canal.footprints, ...hill.footprints];
   group.updateMatrixWorld(true);
   for (const o of group.children) {
     if (o === ground || !o.userData.collide) continue;
@@ -508,7 +563,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
   const spawn = { position: new THREE.Vector3(roadX(-66), heightAt(roadX(-66), -66), -66), yaw: 0 };
 
   return {
-    group, grass, spawn, sections, fires, bell, petals, heightAt: groundAt, village, forest, otsu, boatFires,
+    group, grass, spawn, sections, fires, bell, petals, heightAt: groundAt, village, forest, otsu, boatFires, hill, signalFire,
     setRaid(k) {
       raidK = THREE.MathUtils.clamp(k, 0, 1);
       for (const f of fires) if (f.raid) f.group.visible = raidK > 0.03;
