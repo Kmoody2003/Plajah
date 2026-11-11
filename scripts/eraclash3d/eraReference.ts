@@ -23,21 +23,22 @@ const SUBJECTS: Record<string, string[]> = {
 };
 
 const out: Record<string, unknown[]> = {};
+const file = path.resolve('games/era-clash-3d/review/era-references.json');
 for (const [k, qs] of Object.entries(SUBJECTS)) {
   const seen = new Set<string>();
   out[k] = [];
   for (const q of qs) {
     try {
-      const rs = await searchMuseums(q, { limit: 8 } as never);
+      const rs = await searchMuseums(q, { limit: 8, signal: AbortSignal.timeout(15000) });
       for (const r of rs as Record<string, unknown>[]) {
         const key = String(r.url ?? r.id ?? r.title);
         if (seen.has(key)) continue; seen.add(key);
         out[k].push({ q, title: r.title, date: r.date ?? r.dated ?? r.year, culture: r.culture, source: SOURCE_LABEL[r.source as keyof typeof SOURCE_LABEL] ?? r.source, url: r.url, image: r.image ?? r.thumbnail });
       }
       console.log(`${k} · ${q}: ${rs.length}`);
+      fs.writeFileSync(file, JSON.stringify(out, null, 1));
     } catch (e) { console.log(`${k} · ${q}: failed ${(e as Error).message}`); }
   }
 }
-const file = path.resolve('games/era-clash-3d/review/era-references.json');
 fs.writeFileSync(file, JSON.stringify(out, null, 1));
 console.log('wrote', file, Object.values(out).reduce((a, b) => a + b.length, 0), 'objects');
