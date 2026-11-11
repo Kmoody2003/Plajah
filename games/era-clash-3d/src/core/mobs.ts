@@ -286,6 +286,8 @@ export class Mob {
         // Own materials so hit flashes and death fades stay per-mob.
         const mat = (m.material as THREE.MeshStandardMaterial).clone();
         if (k.matte) { mat.roughnessMap = null; mat.roughness = k.matte.rough; mat.color.setHex(k.matte.tint); }
+        // close-ups: the paint stays crisp at the fight camera's glancing angles
+        for (const t of [mat.map, mat.normalMap]) if (t && t.anisotropy < 8) { t.anisotropy = 8; t.needsUpdate = true; }
         if (k.ghostly) { mat.transparent = true; mat.opacity = 0.72; mat.depthWrite = false; mat.emissive = new THREE.Color(0x4a7a8a); mat.emissiveIntensity = 0.6; }
         m.material = mat;
         this.mats.push(mat);
