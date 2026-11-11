@@ -3,6 +3,14 @@ import { auth } from '../../services/firebase';
 import { BASE_ACHIEVEMENTS, unlockAchievementByTrigger } from '../../services/achievementService';
 import { useAchievements } from '../../contexts/AchievementContext';
 import type { AchievementTriggerType } from '../../types';
+import { launchTemplateProjectInChora } from '../../services/melos/eraClashChoraLaunch';
+
+/** The cues' Chora projects (services/melos/eraClashChoraProjects.ts), listed here so the frame stays light. */
+const CHORA_PROJECTS = ['title', 'japan', 'norse', 'italy', 'aztec', 'china', 'rome'].map((c) => `eraclash-${c}`);
+/** Combat Atlas arts the game links to (data/combatAtlasData.ts ids). */
+const ATLAS_ARTS = ['kendo', 'glima', 'armizare', 'shaolin', 'pankration', 'nguni', 'engolo', 'eskrima', 'silat', 'muaythai', 'capoeira'];
+/** CombatAtlasView's COMBAT_ATLAS_OPEN_ART_KEY (inlined so the frame doesn't load the Atlas bundle). */
+const ATLAS_OPEN_ART_KEY = 'plajah.combatAtlas.openArt';
 
 const ERA_CLASH_TRIGGERS: AchievementTriggerType[] = ['ERACLASH_FIRST_WIN', 'ERACLASH_PERFECT_VICTORY', 'ERACLASH_TALE_COMPLETE'];
 
@@ -14,6 +22,11 @@ const ERA_CLASH_TRIGGERS: AchievementTriggerType[] = ['ERACLASH_FIRST_WIN', 'ERA
  * Bridge: outside 2P mode the game posts {type:'plajah.achievement', gameId:'era-clash', trigger}
  * and {type:'plajah.xp', ...}. Achievements from our own iframe (same origin + same window) are saved
  * on the player's Plajah profile and toasted. XP stays in the game's session profile for now.
+ *
+ * {type:'plajah.openChoraProject', id:'eraclash-<cue>'} opens that arena cue's Chora Studio project (a
+ * fresh copy of the showcase template; the game's music is a bounce of it). {type:'plajah.openAtlas',
+ * art:'<CombatArt id>'} opens Museion's Combat Atlas (Labs discipline 'combat') on that art. Both leave
+ * the game for the app view they open.
  */
 export default function EraClashFrame({ onExit }: { onExit: () => void }) {
   const frame = useRef<HTMLIFrameElement>(null);
@@ -23,7 +36,17 @@ export default function EraClashFrame({ onExit }: { onExit: () => void }) {
     const seen = new Set<string>();
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== window.location.origin || e.source !== frame.current?.contentWindow) return;
-      const d = e.data as { type?: string; gameId?: string; trigger?: unknown; eventId?: unknown } | null;
+      const d = e.data as { type?: string; gameId?: string; trigger?: unknown; eventId?: unknown; id?: unknown; art?: unknown } | null;
+      if (d?.type === 'plajah.openChoraProject') {
+        if (typeof d.id === 'string' && CHORA_PROJECTS.includes(d.id)) launchTemplateProjectInChora(d.id);
+        return;
+      }
+      if (d?.type === 'plajah.openAtlas') {
+        if (typeof d.art !== 'string' || !ATLAS_ARTS.includes(d.art)) return;
+        try { sessionStorage.setItem(ATLAS_OPEN_ART_KEY, d.art); } catch { /* storage blocked: the Atlas opens on its overview */ }
+        window.dispatchEvent(new CustomEvent('OPEN_LABS_DISCIPLINE', { detail: { disciplineId: 'combat' } }));
+        return;
+      }
       if (d?.type !== 'plajah.achievement' || d.gameId !== 'era-clash') return;
       if (!ERA_CLASH_TRIGGERS.includes(d.trigger as AchievementTriggerType)) return;
       const key = typeof d.eventId === 'string' ? d.eventId : String(d.trigger);

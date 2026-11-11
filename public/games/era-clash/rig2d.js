@@ -417,7 +417,7 @@
       pose.hF = reach(r.shF, -1.45 + 0.05 * b, 0.97, armF); pose.hR = [restR[0], restR[1] + 0.04 * H];
       pose.fF = plantF; pose.fB = plantB;
     } else if (st === 'attack' && mv) {
-      attackPose(rig, f, f.move, mv, t, pose, plantF, plantB, armF, armR, legF);
+      attackPose(rig, f, (mv && mv.pose) || f.move, mv, t, pose, plantF, plantB, armF, armR, legF);
     } else {
       pose.fF = plantF; pose.fB = plantB;
     }
@@ -561,6 +561,41 @@
         pose.hR = [restR[0] - 0.02 * H, restR[1] + 0.06 * H * out];
         break;
       }
+      case 'bodyBlow': /* dips and drives a short punch into the gut */
+        pose.hF = seq(restF, reach(r.shF, 0.55, 0.45, armF), reach(r.shF, 0.38, 0.99, armF));
+        pose.hip = [sv(0, -0.005, 0.02), sv(0, 0.05, 0.06)]; pose.torso = sv(0, 0.12, 0.22); pose.head = sv(0, 0.05, 0.08);
+        pose.hR = [restR[0] - 0.02 * H * ph.strike * out, restR[1] + 0.02 * H];
+        pose.fB = [plantB[0] - 0.02 * H * ph.wind * out, plantB[1]];
+        break;
+      case 'risingKick': /* knee drives up and the foot snaps straight up past the chin */
+        pose.fF = seq([r.anF[0], r.anF[1] - 0.08 * H], [hipF[0] + 0.3 * legF, hipF[1] - 0.05 * legF], [hipF[0] + 0.42 * legF, hipF[1] - 0.92 * legF]);
+        pose.fB = [r.anB[0] + 0.04 * H, r.anB[1] - 0.1 * H];
+        pose.torso = sv(0, -0.2, -0.55); pose.head = sv(0, 0.1, 0.3);
+        pose.hF = seq(restF, [restF[0] - 20, restF[1] + 30], [restF[0] - 34, restF[1] + 60]);
+        return;
+      case 'airPunch': /* diving punch: winds up high, then spears down and forward */
+        pose.hF = arc(r.shF, armF, restF, -1.7, 0.6, 0.55, 0.99);
+        pose.hR = [restR[0] - 0.03 * H, restR[1] - 0.04 * H];
+        pose.torso = sv(0, -0.15, 0.32); pose.head = sv(0, -0.05, 0.12);
+        pose.fF = [r.anF[0] + 0.02 * H, r.anF[1] - 0.12 * H]; pose.fB = [r.anB[0] + 0.06 * H, r.anB[1] - 0.08 * H];
+        return;
+      case 'fury': { /* both fists hammering in turn, the body rocking into every one */
+        var on2 = ph.strike > 0 && ph.rec < 1 ? 1 - ph.rec : ph.wind * 0.5;
+        var cyc = Math.max(0, t - mv.startup) / (mv.active / mv.hits), side = Math.floor(cyc) % 2, u = cyc - Math.floor(cyc);
+        var pk = Math.sin(Math.min(1, u * 1.6) * Math.PI);
+        var lead = reach(r.shF, -0.15 + 0.3 * (Math.floor(cyc) % 3 === 2 ? 1 : 0), 0.5 + 0.49 * pk, armF);
+        pose.hF = lp(restF, side ? reach(r.shF, 0.4, 0.5, armF) : lead, on2);
+        pose.hR = lp(restR, side ? [restR[0] + 0.14 * H * pk, restR[1] - 0.04 * H] : [restR[0] - 0.02 * H, restR[1]], on2);
+        pose.torso = (0.1 + (side ? -0.12 : 0.14) * pk) * on2; pose.hip[0] = 0.015 * on2; pose.head = 0.05 * on2;
+        break;
+      }
+      case 'cyclone': { /* spinning kick: the leg stays out at full reach as the body turns */
+        var on3 = ph.strike > 0 && ph.rec < 1 ? 1 - ph.rec : ph.wind;
+        pose.fF = lp(plantF, reach(hipF, -0.35 + 0.15 * Math.sin(t * 40), 0.97, legF), on3);
+        pose.torso = -0.38 * on3; pose.head = 0.2 * on3; pose.hip = [-0.01 * on3, -0.01 * on3];
+        pose.hF = lp(restF, reach(r.shF, 2.6, 0.8, armF), on3); pose.hR = lp(restR, reach(r.shR, -2.6, 0.8, armR), on3);
+        break;
+      }
       case 'weapon':
       case 'super': /* overhead swing through */
         pose.hF = arc(r.shF, armF, restF, -2.1, 0.92, 0.5, 0.98);
@@ -625,7 +660,9 @@
     var hand = mApply(M[P.faF], rig.r.haF);
     var e0 = mApply(M[P.faF], rig.r.elF);
     var turn = wrap(ang(e0, hand) - ang(rig.r.elF, rig.r.haF));
-    return { hand: [-dstW * 0.5 + hand[0] * k, -dstH + hand[1] * k], weaponTurn: turn, pose: pose, M: M, rig: rig };
+    var foot = mApply(M[P.shF], rig.r.toeF || rig.r.anF);
+    return { hand: [-dstW * 0.5 + hand[0] * k, -dstH + hand[1] * k], foot: [-dstW * 0.5 + foot[0] * k, -dstH + foot[1] * k],
+      weaponTurn: turn, pose: pose, M: M, rig: rig };
   }
 
   window.EraRig = { draw: draw, RIGS: RIGS, P: P, build: build, poseFor: poseFor, solve: solve, H: H,

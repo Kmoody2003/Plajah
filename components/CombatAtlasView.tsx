@@ -658,15 +658,34 @@ const ArtDetail: React.FC<{ art: CombatArt; onClose: () => void }> = ({ art, onC
 };
 
 // ── Main view ─────────────────────────────────────────────────────────────────
-interface Props { onBack: () => void; currentUser?: any }
+/** sessionStorage key another surface (e.g. the Era Clash game) sets to open the Atlas on one art. */
+export const COMBAT_ATLAS_OPEN_ART_KEY = 'plajah.combatAtlas.openArt';
 
-const CombatAtlasView: React.FC<Props> = ({ onBack, currentUser }) => {
+interface Props {
+  onBack: () => void;
+  currentUser?: any;
+  /** Open with this art's detail showing (a CombatArt id, e.g. 'kendo'). Falls back to the pending
+   *  COMBAT_ATLAS_OPEN_ART_KEY request, which is consumed on open. */
+  initialArt?: string;
+}
+
+function takeInitialArt(prop?: string): CombatArt | null {
+  let id = prop;
+  if (!id) {
+    try { id = sessionStorage.getItem(COMBAT_ATLAS_OPEN_ART_KEY) || undefined; } catch { /* storage blocked */ }
+  }
+  return (id && COMBAT_ARTS.find((a) => a.id === id)) || null;
+}
+
+const CombatAtlasView: React.FC<Props> = ({ onBack, currentUser, initialArt }) => {
   const [tab, setTab] = useState<Tab>('overview');
   const [wing, setWing] = useState<WingId | 'all'>('all');
   const [region, setRegion] = useState<string>('All');
   const [form, setForm] = useState<CombatForm | 'All'>('All');
-  const [active, setActive] = useState<CombatArt | null>(null);
+  const [active, setActive] = useState<CombatArt | null>(() => takeInitialArt(initialArt));
   const [posts, setPosts] = useState<Post[]>([]);
+  // The pending open-on-art request is used once (removed after mount, so StrictMode's double init still sees it).
+  useEffect(() => { try { sessionStorage.removeItem(COMBAT_ATLAS_OPEN_ART_KEY); } catch { /* */ } }, []);
 
   useEffect(() => {
     if (tab !== 'feed') return;

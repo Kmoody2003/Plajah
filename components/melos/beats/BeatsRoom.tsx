@@ -19,6 +19,8 @@ import { GENRE_PRESETS, applyGenrePreset, type GenrePreset } from '../../../serv
 import { applyHandPattern, type HandPatternResult } from '../../../services/melos/beats/patterns/applyHandPattern';
 import { performDoc } from '../../../services/melos/beats/patterns/performNotes';
 import { seedOf } from '../../../services/melos/beats/patterns/handDrumPerformer';
+import { eraClashProjects, eraClashProjectCopy, isEraClashProjectId } from '../../../services/melos/eraClashChoraProjects';
+import { TEMPLATE_PROJECT_PENDING_KEY } from '../../../services/melos/eraClashChoraLaunch';
 import { HandDrumLibrary, type HandDrumChoice } from './machine/HandDrumLibrary';
 import { playerById } from '../../../services/melos/beats/band/roster';
 import { BASSLINES, applyBassline, type BasslinePreset } from '../../../services/melos/beats/bassLines';
@@ -115,6 +117,8 @@ export interface BeatsLaunchPayload {
   classicBookThemeId?: string;
   classicBookTrackIndex?: number;
   classicBookGrooveDoc?: GrooveDoc;
+  /** A read-only showcase project to open as a fresh copy (e.g. 'eraclash-japan', the Era Clash score). */
+  templateProjectId?: string;
 }
 
 interface BeatsRoomProps {
@@ -986,6 +990,28 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     );
   }, [replace, setView, flash, showcaseScoreMode]);
 
+  // Game soundtrack templates (Era Clash): the project IS the game's cue. Always a fresh copy, so the
+  // template itself never changes; the copy is the user's to save, remix and bounce.
+  const loadGameSoundtrack = useCallback((projectId: string) => {
+    if (!isEraClashProjectId(projectId)) return;
+    const nextDoc = eraClashProjectCopy(projectId, auth.currentUser?.uid || 'local');
+    replace(nextDoc);
+    setActivePatternId(nextDoc.patterns[0]?.id || '');
+    setPlayMode('song');
+    setSongStartBeats(0);
+    setView('timeline');
+    setShowLiteraryScores(false);
+    void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
+    flash(`Opened "${nextDoc.name}" — the game's own score: SOMA drums, LYRA/AURA/BAJO parts, a live arp and modulators. Your copy, change anything.`);
+  }, [replace, setView, flash]);
+
+  useEffect(() => {
+    let pending: string | null = null;
+    try { pending = sessionStorage.getItem(TEMPLATE_PROJECT_PENDING_KEY); sessionStorage.removeItem(TEMPLATE_PROJECT_PENDING_KEY); } catch { /* storage blocked */ }
+    const id = payload?.templateProjectId || pending;
+    if (id) loadGameSoundtrack(id);
+  }, [payload?.templateProjectId, loadGameSoundtrack]);
+
   useEffect(() => {
     void seedAdminClassicBookProjects(auth.currentUser?.uid || 'lorea-admin-composer');
     if (payload?.classicBookThemeId) {
@@ -1610,6 +1636,25 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                       >
                         Light Bg
                       </button>
+                    </div>
+                  </div>
+                  <div className="mb-2 rounded-lg border border-orange-400/35 bg-orange-500/[0.06] p-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-bold text-white truncate">Game soundtracks · Era Clash</span>
+                      <span className="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-300 border border-orange-400/30 shrink-0">SOMA + LYRA · live arp</span>
+                    </div>
+                    <div className="text-[9.5px] text-orange-200/80 mt-0.5">The fighting game's arena score — each cue is this project, bounced. Opens as your own copy.</div>
+                    <div className="grid grid-cols-2 gap-1 mt-1.5">
+                      {eraClashProjects().map((p) => (
+                        <button key={p.id} onClick={() => loadGameSoundtrack(p.id)} title={p.blurb}
+                          className="text-left px-2 py-1 rounded bg-black/40 hover:bg-orange-400/20 border border-white/10 hover:border-orange-400/40 transition">
+                          <div className="flex items-center justify-between text-[9px] font-semibold text-white">
+                            <span className="truncate">{p.title.replace(/^Era Clash — /, '')}</span>
+                            <span className="text-orange-300 font-mono ml-1 shrink-0">{Math.floor(p.durationSec / 60)}:{String(p.durationSec % 60).padStart(2, '0')}</span>
+                          </div>
+                          <div className="text-[8px] text-white/45 truncate">{p.era} · {p.key} · {p.bpm} BPM · {p.soma.length} SOMA drums</div>
+                        </button>
+                      ))}
                     </div>
                   </div>
                   {Object.values(CLASSIC_BOOK_SOUNDTRACKS).map(album => {
