@@ -39,9 +39,34 @@ export function loadTake(id: string) {
 }
 
 /** A move the capture room already cut (frame range + the frame the blow lands). */
-export interface CapturedMove { name: string; start: number; end: number; hit?: number; effector?: Effector }
+export interface CapturedMove { name: string; start: number; end: number; hit?: number; effector?: Effector; score?: number; level?: 'high' | 'mid' | 'low' }
 
-/** Haru's slots filled from a camera capture: its hand strikes become punch_0…, its kicks kick_0…, in take order. */
+/** A capture's hips can face anywhere (the performer turned during the kata); turn the whole move about the
+ *  vertical so the hips face +Z (the rest facing, which the retargeter maps onto the warrior) at contact time `t`.
+ *  The BVH root sits directly under the loader's group, so a world yaw on its rotation and position is exact. */
+function faceForwardAt(clip: THREE.AnimationClip, t: number): THREE.AnimationClip {
+  const qt = clip.tracks.find((k) => k.name === 'hip.quaternion') as THREE.QuaternionKeyframeTrack | undefined;
+  const pt = clip.tracks.find((k) => k.name === 'hip.position') as THREE.VectorKeyframeTrack | undefined;
+  if (!qt) return clip;
+  const i = Math.max(0, Math.min(qt.times.length - 1, Math.round(t * (qt.times.length - 1) / Math.max(1e-6, clip.duration))));
+  const q = new THREE.Quaternion().fromArray(qt.values, i * 4);
+  const f = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
+  const fix = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.atan2(f.x, f.z));
+  const v = qt.values.slice();
+  for (let k = 0; k < v.length; k += 4) fix.clone().multiply(new THREE.Quaternion().fromArray(v, k)).toArray(v, k);
+  const tracks = clip.tracks.map((k) => (k === qt ? new THREE.QuaternionKeyframeTrack(k.name, Array.from(k.times), Array.from(v)) : k));
+  if (pt) {
+    const p = pt.values.slice(), c = new THREE.Vector3().fromArray(p, i * 3);
+    for (let k = 0; k < p.length; k += 3) {
+      const x = new THREE.Vector3().fromArray(p, k), y = x.y;
+      x.sub(c).setY(0).applyQuaternion(fix).add(c); x.y = y; x.toArray(p, k);
+    }
+    tracks[tracks.indexOf(pt)] = new THREE.VectorKeyframeTrack(pt.name, Array.from(pt.times), Array.from(p));
+  }
+  return new THREE.AnimationClip(clip.name, clip.duration, tracks);
+}
+
+/** Haru's slots filled from a camera capture: its clearest hand strikes become punch_0…, its kicks kick_0…. */
 export async function captureMoves(model: THREE.Object3D, name: string): Promise<Map<string, CutMove>> {
   const meta = await fetch(`${MOCAP}captures/${name}.json`).then((r) => { if (!r.ok) throw new Error(`no capture ${name}`); return r.json() as Promise<{ fps: number; moves: CapturedMove[] }>; });
   const fbx = await loadTake(`captures/${name}.bvh`);
@@ -49,12 +74,16 @@ export async function captureMoves(model: THREE.Object3D, name: string): Promise
   const fps = meta.fps || 30;
   const out = new Map<string, CutMove>();
   const n = { punch: 0, kick: 0 };
-  for (const m of meta.moves) {
+  // Clearest blows first (a kata's blocks also straighten the arm; they score lower than its punches).
+  // Punch slots take chest-height blows first (high/low hand blows are mostly a kata's blocks).
+  const mid = (m: CapturedMove) => (m.level === 'high' || m.level === 'low' ? 0 : 1);
+  const ranked = [...meta.moves].sort((a, b) => mid(b) - mid(a) || (b.score ?? 0) - (a.score ?? 0));
+  for (const m of ranked) {
     const kind = m.effector?.endsWith('Foot') ? 'kick' : 'punch';
     const slot = `${kind}_${n[kind]}`;
     if (n[kind] >= (kind === 'kick' ? 3 : 4)) continue;
     n[kind]++;
-    const sub = THREE.AnimationUtils.subclip(src, `${slot}_src`, m.start, m.end, fps);
+    const sub = faceForwardAt(THREE.AnimationUtils.subclip(src, `${slot}_src`, m.start, m.end, fps), ((m.hit ?? (m.start + m.end) / 2) - m.start) / fps);
     out.set(slot, { clip: retarget(model, fbx, sub, slot, CMU_TO_CONTRACT), hitAt: ((m.hit ?? (m.start + m.end) / 2) - m.start) / Math.max(1, m.end - m.start) });
   }
   return out;

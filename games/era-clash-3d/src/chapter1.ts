@@ -6,7 +6,7 @@ import * as THREE from 'three/webgpu';
 import { color, positionWorld, normalize, mix, smoothstep, vertexColor, texture, uv, vec2, vec3, time, sin, float, instancedBufferAttribute, uniform, attribute, normalMap } from 'three/tsl';
 import { collide } from './core/collision';
 import { uvMaterial, pbr, HIRES } from './core/materials';
-import { Forest, type TreeSpot } from './core/forest';
+import { Forest, type TreeSpot, type Species } from './core/forest';
 import { rng } from './core/kit';
 import { buildTerrain, buildSea, type Splat } from './ground';
 import { buildGrassField, type GrassField } from './grassField';
@@ -443,12 +443,18 @@ export async function buildChapter1(): Promise<Chapter1World> {
     for (const t of otsu.yardTrees) near.push({ p: V(t.x, t.z), h: t.blossom ? t.h * 1.1 : t.h * 1.15, species: t.blossom ? 'cherry' : 'umbrella' });
     // the valley walls: about two in five full 3D (the nearest rank), the rest impostors like the far hills
     const wallFar: TreeSpot[] = [];
+    const hillSpecies = (t: { x: number; y: number; z: number }) => {
+      const r = Math.abs(Math.sin(t.x * 12.9898 + t.z * 78.233) * 43758.5453) % 1;
+      if (t.y > 34) return r < 0.6 ? 'umbrella' : 'pine';
+      if (t.y > 12) return r < 0.5 ? 'pine' : r < 0.78 ? 'umbrella' : r < 0.9 ? 'oak' : 'ash';
+      return r < 0.35 ? 'pine' : r < 0.55 ? 'umbrella' : r < 0.8 ? 'oak' : r < 0.92 ? 'ash' : 'aspen';
+    };
     landmarks.treeNear.forEach((t, i) => {
-      const spot = { p: new THREE.Vector3(t.x, t.y + 0.3, t.z), h: t.h, species: 'umbrella' as const };
+      const spot = { p: new THREE.Vector3(t.x, t.y + 0.3, t.z), h: t.h * (hillSpecies(t) === 'pine' ? 1.35 : 1), species: hillSpecies(t) as Species };
       if (Math.abs(t.x) < 56 && i % 5 < 3) near.push(spot); else wallFar.push(spot);
     });
     forest.plant(near, { umbrella: 1 }, 1570);
-    forest.plantFar([...wallFar, ...landmarks.treeFar.map((t) => ({ p: new THREE.Vector3(t.x, t.y + 0.3, t.z), h: t.h, species: 'umbrella' as const }))], ['umbrella']);
+    forest.plantFar([...wallFar, ...landmarks.treeFar.map((t) => ({ p: new THREE.Vector3(t.x, t.y + 0.3, t.z), h: t.h * (hillSpecies(t) === 'pine' ? 1.35 : 1), species: hillSpecies(t) as Species }))], ['umbrella']);
   }
   group.add(forest.group);
 
