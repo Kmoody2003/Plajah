@@ -184,7 +184,7 @@ async function main() {
   };
   // the face, painted from the art: Haru's head is turned ~65° to his left in it, so it paints from there
   const crop = cropArt([150, 14, 305, 132], (x, y) => ((x - 228) / 74) ** 2 + ((y - 72) / 60) ** 2 < 1 && !(y > 104 && x < 205), path.join(WORK, 'head_view.png'));
-  const painted = paintFromViews('head', head.mesh, [{ dir: 'yaw:-65', png: crop }], WORK, 1024);
+  const painted = paintFromViews('head', head.mesh, [{ dir: 'yaw:-65', png: crop }], WORK, 1024, 0.45);
   const headPrim = matchPainted(painted, head, arkit);
   log(`head painted: ${headPrim.positions.length / 3} verts on its atlas`);
   const extrasFace = { landmarks: anatomy.face.flat().map((x) => +x.toFixed(5)), shapes: ARKIT_SHAPES };

@@ -54,6 +54,12 @@ export function forgeRig(model: THREE.Object3D, opts: { dqs?: boolean } = {}): F
   model.traverse((o) => { if ((o as THREE.Bone).isBone) bones.set(o.name, o); });
   const held: Record<string, string> = { ...extras.hold };
   for (const [name, on] of Object.entries(extras.optional ?? {})) { const o = model.getObjectByName(name); if (o) o.visible = on; }
+  // cords, rims and stitches are too fine to read in a shadow map: they only receive
+  model.traverse((o) => {
+    const m = o as THREE.Mesh;
+    const name = (m.material as THREE.Material | undefined)?.name ?? '';
+    if (m.isMesh && /^(gold|silk|silkRed)$/.test(name)) m.castShadow = false;
+  });
   let cost = 0;
   const applyGrips = () => {
     for (const pose of Object.values(held)) {

@@ -124,6 +124,8 @@ def main():
     ap.add_argument("--faces", type=int, default=60000)
     ap.add_argument("--res", type=int, default=2048)
     ap.add_argument("--no-recenter", action="store_true", help="keep the mesh where it is (a part of a larger model)")
+    ap.add_argument("--min-facing", type=float, default=0.0,
+                    help="ignore texels a view sees at a grazing angle (cos below this); the fill paints them instead")
     a = ap.parse_args()
 
     mesh = trimesh.load(a.mesh, force="mesh")
@@ -170,7 +172,8 @@ def main():
         jx, jy = np.clip(px.astype(int), 0, w - 1), np.clip(py.astype(int), 0, h - 1)
         visible = (tp @ d) >= zb[jy, jx] - eps
         rgba = bilinear(img, px, py)
-        facing = np.clip(tn @ d, 0, 1) ** 3
+        cosf = np.clip(tn @ d, 0, 1)
+        facing = np.where(cosf >= a.min_facing, cosf, 0) ** 3
         wv = facing * visible * (rgba[:, 3] / 255.0 > 0.5) * VIEW_WEIGHT.get(name, 1.0)
         acc += rgba[:, :3] * wv[:, None]; wsum += wv
 

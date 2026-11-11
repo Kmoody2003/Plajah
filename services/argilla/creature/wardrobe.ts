@@ -320,12 +320,12 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
       const r = s.radius(a) + out + (1 - v) * 0.004;
       return [Math.cos(a) * r, y + tooth, s.cz + Math.sin(a) * r];
     };
-    plate(A('lacquer'), cols * 2, 4, ringAt, 0.004, bone, [3, 0.05]);
+    plate(A('lacquer'), cols * 2, 2, ringAt, 0.004, bone, [3, 0.05]);
     // gold edge on the top row (the munaita's lower rim) and the waist
     if (i === doRows - 1 || i === 0) {
       const pts: Vec3[] = [];
-      for (let k = 0; k <= 96; k++) { const p = ringAt(k / 96, i === 0 ? 0 : 1); pts.push(p); }
-      tube(A('gold'), pts, 0.0035, 6, bone);
+      for (let k = 0; k <= 64; k++) { const p = ringAt(k / 64, i === 0 ? 0 : 1); pts.push(p); }
+      tube(A('gold'), pts, 0.0035, 4, bone);
     }
     // kebiki lacing: one stitch per scale pair down the visible face of the row
     for (let c = 0; c < cols; c++) {
@@ -388,7 +388,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
         const tooth = v > 0.97 ? 0.0035 * Math.abs(Math.sin(u * 14 * Math.PI)) : 0;
         return [Math.cos(a) * rr, yTopJ - lameH + v * lameH + tooth, waistSec.cz + Math.sin(a) * rr];
       };
-      plate(A('lacquer'), 28, 3, f, 0.004, name, [0.16, 0.06]);
+      plate(A('lacquer'), 28, 2, f, 0.004, name, [0.16, 0.06]);
       // lacing: vertical cords from the lame above, and a hishi-nui cross stitch on the last lame
       for (let c = 0; c < 6; c++) {
         const u = (c + 0.5) / 6;
@@ -405,11 +405,11 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
       }
       if (j === lames - 1) {
         const pts: Vec3[] = [];
-        for (let k = 0; k <= 20; k++) pts.push(f(k / 20, 0));
-        tube(A('gold'), pts, 0.0035, 6, name);
+        for (let k = 0; k <= 12; k++) pts.push(f(k / 12, 0));
+        tube(A('gold'), pts, 0.0035, 4, name);
       }
     }
-    w.springs.push({ bones: chain, stiffness: 18, drag: 0.14, gravity: 9.8, radius: 0.02 });
+    w.springs.push({ bones: chain, stiffness: 22, drag: 0.18, gravity: 9.8, radius: 0.02, maxAngle: 22 });
   }
 
   // ---- Sode: shoulder guards on spring chains ------------------------------------------------------------------------
@@ -434,7 +434,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
         const p = add(add(at, mul(hang, (1 - v) * h - tooth)), mul(outN, bow + (1 - v) * 0.005));
         return [p[0], p[1], p[2] + zz * sx];
       };
-      plate(A('lacquer'), 24, 3, f, 0.004, name, [0.24, 0.05]);
+      plate(A('lacquer'), 24, 2, f, 0.004, name, [0.24, 0.05]);
       for (let c = 0; c < 8; c++) {
         const u = (c + 0.5) / 8;
         const top = f(u, 0.95), bot = f(u, 0.12);
@@ -446,10 +446,10 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
           stitchMesh('silkRed', name, c0, sub([0, 0, 1], up), outN, 0.005, 0.02);
         }
       }
-      if (j === n - 1) { const pts: Vec3[] = []; for (let k = 0; k <= 20; k++) pts.push(f(k / 20, 0)); tube(A('gold'), pts, 0.0035, 6, name); }
-      if (j === 0) { const pts: Vec3[] = []; for (let k = 0; k <= 20; k++) pts.push(f(k / 20, 1)); tube(A('gold'), pts, 0.004, 6, name); }
+      if (j === n - 1) { const pts: Vec3[] = []; for (let k = 0; k <= 12; k++) pts.push(f(k / 12, 0)); tube(A('gold'), pts, 0.0035, 4, name); }
+      if (j === 0) { const pts: Vec3[] = []; for (let k = 0; k <= 12; k++) pts.push(f(k / 12, 1)); tube(A('gold'), pts, 0.004, 4, name); }
     }
-    w.springs.push({ bones: chain, stiffness: 16, drag: 0.16, gravity: 9.8, radius: 0.025 });
+    w.springs.push({ bones: chain, stiffness: 18, drag: 0.18, gravity: 9.8, radius: 0.025, maxAngle: 26 });
   }
 
   // ---- Kote: cloth sleeve with iron splints and a hand plate ------------------------------------------------------
@@ -560,12 +560,12 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
       const top = add(centre(0.5), mul(dir, 0.08));
       const b0 = `Hakama${s[0]}${c}_0`, b1 = `Hakama${s[0]}${c}_1`;
       w.bones.push({ name: b0, parent: `${s}Leg`, at: top }, { name: b1, parent: b0, at: add(add(centre(0.36), mul(dir, 0.09)), [0, 0, 0]) });
-      w.springs.push({ bones: [b0, b1], stiffness: 22, drag: 0.18, gravity: 6, radius: 0.03 });
+      w.springs.push({ bones: [b0, b1], stiffness: 24, drag: 0.2, gravity: 6, radius: 0.03, maxAngle: 30 });
       chainNames.push({ name: b0, ang });
     }
     const mb = Cl('hakama');
     const base = mb.count;
-    const nu = 48, nv = 40;
+    const nu = 40, nv = 28;
     const balloon = (y: number) => {
       // wide from mid-thigh to below the knee, gathered at the greaves
       const t = (y - yGather) / (yTopH - yGather);
@@ -626,7 +626,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
       const b0 = `Sleeve${s[0]}${c}_0`;
       w.bones.push({ name: b0, parent: `${s}Arm`, at });
       w.bones.push({ name: `Sleeve${s[0]}${c}_1`, parent: b0, at: add(lerp(sh, el, 0.62), mul(dir, 0.075)) });
-      w.springs.push({ bones: [b0, `Sleeve${s[0]}${c}_1`], stiffness: 18, drag: 0.15, gravity: 7, radius: 0.02 });
+      w.springs.push({ bones: [b0, `Sleeve${s[0]}${c}_1`], stiffness: 18, drag: 0.18, gravity: 7, radius: 0.02, maxAngle: 40 });
       chainNames.push({ name: b0, ang });
     }
     const mb = Cl('kosode');

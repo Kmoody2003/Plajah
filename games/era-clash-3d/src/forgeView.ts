@@ -24,16 +24,17 @@ scene.add(new THREE.HemisphereLight(0xd8c8e8, 0x5a4030, 1.6));
 const sun = new THREE.DirectionalLight(0xffd0a0, 3.2);
 sun.position.set(-3, 5, 6); sun.castShadow = true; sun.shadow.mapSize.setScalar(2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
 Object.assign(sun.shadow.camera, { left: -4, right: 4, top: 4, bottom: -2, far: 30 });
-scene.add(sun);
+scene.add(sun, sun.target);
 const rim = new THREE.DirectionalLight(0x9ab8ff, 1.4); rim.position.set(4, 3, -5); scene.add(rim);
 const ground = new THREE.Mesh(new THREE.CircleGeometry(8, 48), new THREE.MeshStandardNodeMaterial({ color: 0x3d342b, roughness: 0.95 }));
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 
 const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 100);
-const view = { yaw: Number(params.get('yaw') ?? 0.5), pitch: Number(params.get('pitch') ?? 0.12), dist: Number(params.get('dist') ?? 5.4), y: Number(params.get('cy') ?? 1.0), x: Number(params.get('cx') ?? 0) };
+const view = { yaw: Number(params.get('yaw') ?? 0.5), pitch: Number(params.get('pitch') ?? 0.12), dist: Number(params.get('dist') ?? 5.4), y: Number(params.get('cy') ?? 1.0), x: Number(params.get('cx') ?? 0), z: 0 };
 const placeCam = () => {
-  camera.position.set(view.x + Math.sin(view.yaw) * view.dist, view.y + Math.sin(view.pitch) * view.dist, Math.cos(view.yaw) * view.dist);
-  camera.lookAt(view.x, view.y, 0);
+  camera.position.set(view.x + Math.sin(view.yaw) * view.dist, view.y + Math.sin(view.pitch) * view.dist, view.z + Math.cos(view.yaw) * view.dist);
+  camera.lookAt(view.x, view.y, view.z);
+  sun.position.set(-3, 5, view.z + 6); sun.target.position.set(0, 0, view.z); sun.target.updateMatrixWorld();
 };
 addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
 let drag: [number, number] | null = null;
@@ -118,11 +119,12 @@ renderer.setAnimationLoop(() => {
       : 'v3 has no forge rig';
   }
 });
+/** Moving clips travel for real (the clips are in place): both run forward, so springs feel the speed and the stop. */
 function stepTravel(c: Character, dt: number) {
-  const speed = clip === 'run' ? 4.2 : clip === 'walk' ? 1.45 : 0;
+  const speed = clip === 'run' ? 4.3 : clip === 'walk' ? 1.45 : 0;
   if (speed) c.setLocomotion(speed, 1.45, 4.3);
-  travel += 0; // figures run in place (the clips are in-place); springs see the limbs, not the root
-  void dt;
+  c.root.position.z += speed * dt;
+  if (c === cast[cast.length - 1]) { travel = c.root.position.z; view.z = travel; }
 }
 
 (window as unknown as Record<string, unknown>).forge = {
@@ -133,6 +135,18 @@ function stepTravel(c: Character, dt: number) {
   pause(b: boolean) { paused = b; },
   view,
   stats: () => stats.textContent,
+  /** GPU+CPU ms one figure adds to a frame: renders back-to-back with it shown and hidden (the other is hidden). */
+  async cost(which = 1, n = 40, rounds = 4) {
+    const dev = (renderer.backend as unknown as { device: GPUDevice }).device;
+    const c = cast[which], other = cast[1 - which];
+    other.root.visible = false;
+    const run = async () => { for (let i = 0; i < 4; i++) renderer.render(scene, camera); await dev.queue.onSubmittedWorkDone(); const t0 = performance.now(); for (let i = 0; i < n; i++) { c.mixer.update(1 / 60); renderer.render(scene, camera); await dev.queue.onSubmittedWorkDone(); } return (performance.now() - t0) / n; };
+    const shown: number[] = [], hidden: number[] = [];
+    for (let k = 0; k < rounds; k++) { c.root.visible = true; shown.push(await run()); c.root.visible = false; hidden.push(await run()); }
+    c.root.visible = true; other.root.visible = true;
+    const med = (a: number[]) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
+    return { shownMs: +med(shown).toFixed(2), hiddenMs: +med(hidden).toFixed(2), figureMs: +(med(shown) - med(hidden)).toFixed(2) };
+  },
   /** ms per frame for the v3 rig (twists, grips, correctives, springs) over n frames, and springs alone. */
   bench(n = 600) {
     const f = newHaru.forge!; const t0 = performance.now();
@@ -141,6 +155,17 @@ function stepTravel(c: Character, dt: number) {
     const t1 = performance.now();
     for (let i = 0; i < n; i++) f.springs.update(1 / 60);
     return { rigMs: rig, springsMs: (performance.now() - t1) / n, chains: f.springs.chains.length, joints: f.springs.chains.reduce((a, c) => a + c.joints.length, 0) };
+  },
+  /** Play `name` from its start to `t` seconds at 60 Hz right now (springs integrate through it), then hold. */
+  scrub(name: string, t: number, lead = 0) {
+    paused = true; tAt = -1;
+    // from a clean start: clips at time zero, both back at the origin, springs at rest
+    for (const c of cast) { c.cancel(); c.mixer.setTime(0); c.root.position.z = 0; c.forge?.springs.reset(); }
+    view.z = 0;
+    if (lead) { const keep = clip; clip = 'run'; for (let s = 0; s < lead; s += 1 / 60) for (const c of cast) { stepTravel(c, 1 / 60); c.mixer.update(1 / 60); } clip = keep; }
+    play(name);
+    for (let s = 0; s < t; s += 1 / 60) for (const c of cast) { stepTravel(c, 1 / 60); c.mixer.update(1 / 60); }
+    placeCam(); renderer.render(scene, camera);
   },
   async capture(name: string) {
     placeCam();

@@ -19,6 +19,8 @@ export interface SpringChainSpec {
   gravity: number;
   /** Particle radius for collision, metres. */
   radius: number;
+  /** Largest swing from the rest direction, degrees (a laced plate can't fly out flat). Default 65. */
+  maxAngle?: number;
 }
 export interface CapsuleSpec { bone: string; a: [number, number, number]; b: [number, number, number]; r: number }
 
@@ -45,11 +47,20 @@ export class SpringBones {
   readonly capsules: Capsule[] = [];
   /** World-space wind (m/s²), e.g. from the weather. */
   wind = new THREE.Vector3();
+  /**
+   * How much of the character's own travel the particles feel (0..1). Root motion at a sprint is several metres a
+   * second; heavy pieces feel the stride, the stop and the turn, not the whole velocity as if dragged through air.
+   */
+  rootInertia = 0.25;
+  private root: THREE.Object3D;
+  private lastRoot = new THREE.Vector3();
+  private hasRoot = false;
   /** Last update's cost in ms (the budget check). */
   lastMs = 0;
   private acc = 0;
 
   constructor(root: THREE.Object3D, chains: SpringChainSpec[], capsules: CapsuleSpec[]) {
+    this.root = root;
     const byName = new Map<string, THREE.Bone>();
     root.traverse((o) => { if ((o as THREE.Bone).isBone) byName.set(o.name, o as THREE.Bone); });
     root.traverse((o) => { const k = o.name.replace(/_\d+$/, ''); if ((o as THREE.Bone).isBone && !byName.has(k)) byName.set(k, o as THREE.Bone); });
@@ -72,7 +83,7 @@ export class SpringBones {
       // a chain only tests the capsules it can reach (rest pose, with room for a limb swinging up to it)
       cap.wa.copy(cap.a).applyMatrix4(bone.matrixWorld); cap.wb.copy(cap.b).applyMatrix4(bone.matrixWorld);
       for (const chain of this.chains) {
-        const reach = chain.joints.reduce((t, j) => t + j.length, 0) + c.r + 0.45;
+        const reach = chain.joints.reduce((t, j) => t + j.length, 0) + c.r + 0.1;
         const head = chain.joints[0].bone.getWorldPosition(new THREE.Vector3());
         if (closestOnSegment(cap.wa, cap.wb, head, new THREE.Vector3()).distanceTo(head) < reach) chain.capsules.push(cap);
       }
@@ -98,6 +109,15 @@ export class SpringBones {
       c.wa.copy(c.a).applyMatrix4(c.bone.matrixWorld);
       c.wb.copy(c.b).applyMatrix4(c.bone.matrixWorld);
     }
+    // carry the particles along with most of the root's travel (a teleport carries them all the way)
+    _c.setFromMatrixPosition(this.root.matrixWorld);
+    if (this.hasRoot) {
+      _seg.copy(_c).sub(this.lastRoot);
+      const k = _seg.lengthSq() > 4 ? 1 : 1 - this.rootInertia;
+      _seg.multiplyScalar(k);
+      for (const { joints } of this.chains) for (const j of joints) { j.cur.add(_seg); j.prev.add(_seg); }
+    }
+    this.lastRoot.copy(_c); this.hasRoot = true;
     for (const chain of this.chains) {
       const { joints, spec, parent } = chain;
       // the chain's frame, carried down the joints as they are aimed
@@ -120,9 +140,15 @@ export class SpringBones {
           j.cur.sub(head).setLength(len).add(head);
         }
         this.constrain(j, head, len, spec.radius * scale, scale, chain.capsules);
-        // aim: world rotation = q2 · parent · rest
+        // aim: world rotation = q2 · parent · rest, no further than the swing limit
         _from.copy(j.tailLocal).normalize().applyQuaternion(_wq);
         _to.copy(j.cur).sub(head).normalize();
+        const limit = ((spec.maxAngle ?? 65) * Math.PI) / 180;
+        const ang = _from.angleTo(_to);
+        if (ang > limit) {
+          _to.lerp(_from, 1 - limit / ang).normalize();
+          j.cur.copy(_to).multiplyScalar(len).add(head);
+        }
         _q2.setFromUnitVectors(_from, _to);
         _wq.premultiply(_q2);
         j.bone.quaternion.copy(_inv.copy(_pq).invert()).multiply(_wq);

@@ -178,14 +178,14 @@ export function cropArt(box: [number, number, number, number], keep: (x: number,
 export interface PaintedPart { positions: Float32Array; uvs: Float32Array; indices: Uint32Array; base: Uint8Array; normal: Uint8Array; orm: Uint8Array }
 
 /** Run paint_from_views on one part where it stands (no recentring), and read back its atlas and maps. */
-export function paintFromViews(name: string, mesh: { positions: Float32Array; normals: Float32Array; indices: Uint32Array }, views: { dir: string; png: string }[], work: string, res = 1024): PaintedPart {
+export function paintFromViews(name: string, mesh: { positions: Float32Array; normals: Float32Array; indices: Uint32Array }, views: { dir: string; png: string }[], work: string, res = 1024, minFacing = 0): PaintedPart {
   const inPath = path.join(work, `${name}_in.glb`), outPath = path.join(work, `${name}_painted.glb`);
   fs.writeFileSync(inPath, writeGlb({
     nodes: [{ name, mesh: 0 }], roots: [0], skins: [], images: [],
     meshes: [{ name, primitives: [{ positions: mesh.positions, normals: mesh.normals, indices: mesh.indices, material: 0 }] }],
     materials: [{ name: 'clay', color: [0.8, 0.8, 0.8], metallic: 0, roughness: 1 }],
   }));
-  const args = ['engines/tela-3d/paint_from_views.py', '--mesh', inPath, '--out', outPath, '--faces', '400000', '--res', String(res), '--no-recenter', ...views.flatMap((v) => ['--view', `${v.dir}=${v.png}`])];
+  const args = ['engines/tela-3d/paint_from_views.py', '--mesh', inPath, '--out', outPath, '--faces', '400000', '--res', String(res), '--no-recenter', '--min-facing', String(minFacing), ...views.flatMap((v) => ['--view', `${v.dir}=${v.png}`])];
   const log = execFileSync(PY, args, { encoding: 'utf8', env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
   fs.writeFileSync(path.join(work, `${name}_paint.log`), log);
   return readPainted(outPath);
