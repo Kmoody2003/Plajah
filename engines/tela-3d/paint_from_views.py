@@ -31,8 +31,17 @@ UP = np.array([0.0, 1.0, 0.0])
 VIEW_WEIGHT = {"front": 1.0, "back": 0.9, "right": 0.75, "left": 0.75}
 
 
+def view_dir(name):
+    """A named side, or `yaw:<degrees>` for a camera turned about +Y from the front (+X side is positive):
+    art that shows a turned head (a three-quarter or profile portrait) paints from where it was seen."""
+    if name.startswith("yaw:"):
+        a = np.radians(float(name[4:]))
+        return (np.sin(a), 0.0, np.cos(a))
+    return DIRS[name]
+
+
 def view_axes(name):
-    d = np.array(DIRS[name], float)
+    d = np.array(view_dir(name), float)
     right = np.cross(-d, UP)
     return d, right
 
@@ -114,11 +123,13 @@ def main():
     ap.add_argument("--view", action="append", required=True, help="dir=path.png (front/back/left/right)")
     ap.add_argument("--faces", type=int, default=60000)
     ap.add_argument("--res", type=int, default=2048)
+    ap.add_argument("--no-recenter", action="store_true", help="keep the mesh where it is (a part of a larger model)")
     a = ap.parse_args()
 
     mesh = trimesh.load(a.mesh, force="mesh")
     mesh = decimate(trimesh.Trimesh(mesh.vertices, mesh.faces, process=True), a.faces)
-    mesh.apply_translation([-mesh.bounds[:, 0].mean(), -mesh.bounds[0, 1], -mesh.bounds[:, 2].mean()])
+    if not a.no_recenter:
+        mesh.apply_translation([-mesh.bounds[:, 0].mean(), -mesh.bounds[0, 1], -mesh.bounds[:, 2].mean()])
     print(f"[paint] {len(mesh.faces)} faces, height {mesh.extents[1]:.3f} units", flush=True)
 
     atlas = xatlas.Atlas()
@@ -160,7 +171,7 @@ def main():
         visible = (tp @ d) >= zb[jy, jx] - eps
         rgba = bilinear(img, px, py)
         facing = np.clip(tn @ d, 0, 1) ** 3
-        wv = facing * visible * (rgba[:, 3] / 255.0 > 0.5) * VIEW_WEIGHT[name]
+        wv = facing * visible * (rgba[:, 3] / 255.0 > 0.5) * VIEW_WEIGHT.get(name, 1.0)
         acc += rgba[:, :3] * wv[:, None]; wsum += wv
 
     base = np.zeros((R, R, 3), np.float32)

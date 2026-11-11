@@ -156,10 +156,15 @@ async function useCapture(name: string): Promise<string[]> {
 }
 /** Haru's strikes, cut from CMU motion capture by his Atlas art (moves.ts); the authored poses are the fallback. */
 const mocapMoves = new Map<string, CutMove>();
-const heroReady = loadJack('haru').then(async (c) => {
+// ?haru=v3: Haru v3 from the Character Forge (real armour and cloth, springs, correctives; docs/character-forge.md).
+// The current model stays the default and the fallback if v3 can't load.
+const HARU_V3 = params.get('haru') === 'v3';
+const heroReady = (HARU_V3
+  ? loadJack('haru', { url: '/games/era-clash/3d/assets/characters/samurai_v3.glb' }).catch((e) => { console.warn('[eraclash3d] Haru v3', e); return loadJack('haru'); })
+  : loadJack('haru')).then(async (c) => {
   haru = c; player.character = c; player.object.add(c.root);
   // painted cloth and lacquer, not chrome: drop the baked gloss, as for the sheet cast (mobs.ts matte)
-  c.root.traverse((o) => {
+  if (!c.forge) c.root.traverse((o) => {
     const m = o as THREE.Mesh; if (!m.isMesh) return;
     for (const mat of (Array.isArray(m.material) ? m.material : [m.material]) as THREE.MeshStandardMaterial[]) {
       if (!mat.isMeshStandardMaterial) continue;
