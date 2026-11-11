@@ -15,6 +15,8 @@ export interface QuestCtx {
   band(at: THREE.Vector3, n: number, name: string, spread?: number): () => number;
   section(): number;
   waveClear(): boolean;
+  /** No raider stands within r of a place (and the section's wave has all landed). */
+  clearNear(at: THREE.Vector3, r: number): boolean;
   captives(): { saved: number; total: number };
   card(title: string, sub: string): void;
   sfx(name: string): void;
@@ -69,7 +71,7 @@ export class Quests {
       { text: () => 'Drive the raiders off the beach', at: () => S.beach,
         done: (q) => { if (!c.waveClear()) q.vars.seen = 1; return c.section() >= 1 || (q.vars.seen === 1 && c.waveClear()); } },
       { text: () => 'Break through the Outer Wall: take the gatehouse', at: () => S.gate, done: () => c.section() >= 1 },
-      { text: () => 'Clear the Grand Marketplace', at: () => S.plaza, done: () => c.section() >= 1 && c.waveClear() },
+      { text: () => 'Clear the Grand Marketplace', at: () => S.plaza, done: () => c.section() >= 1 && c.clearNear(S.plaza, 24) },
       { text: () => `Find ${MAGISTRATE} in the Samurai District`, at: () => S.magistrate.gate, done: () => near(S.magistrate.gate, 7) },
       { text: (q) => `Break the siege on the magistrate's house (${4 - (q.count?.() ?? 4)}/4)`, at: () => S.magistrate.yard,
         enter: (q) => { q.count = c.band(S.magistrate.yard, 4, 'Wakō Besieger', 4); }, done: (q) => (q.count?.() ?? 1) === 0 },

@@ -19,6 +19,7 @@ import { goldenHour } from './look';
 import { Townsfolk } from './townsfolk';
 import { Quests } from './quests';
 import { OTSU } from './otsu';
+import { CANAL } from './chapter1';
 import { Forest } from './core/forest';
 import { Binds, openBindEditor, type Action } from './binds';
 import { Props, type Body } from './props';
@@ -104,6 +105,7 @@ for (const pr of world.village.props) props.add(pr.mesh as THREE.Mesh, pr.kind);
 props.batch();
 scene.add(props.group);
 const villagers = new Villagers(world.village.huddles);
+villagers.group.visible = false;   // they're taken when the raiders reach the town (startSection 1)
 void villagers.dress();
 scene.add(villagers.group);
 const SAFETY = new THREE.Vector3(roadX(62), world.heightAt(roadX(62), 62), 62);
@@ -298,7 +300,14 @@ function startSection(i: number) {
   spawnT = 0;
   sfx('taikoWave', 1);
   // the village: two captors stand over each group of villagers
-  if (i === 1) world.village.huddles.forEach((h) => { for (const sx of [-1, 1]) spawnFoe({ c: 'viking', n: 'Wakō Captor', hp: 0.55, dm: 0.7 }, h.clone().add(new THREE.Vector3(sx * 1.6, 0, 1.4)), 1.3); });
+  if (i === 1) {
+    world.village.huddles.forEach((h) => { for (const sx of [-1, 1]) spawnFoe({ c: 'viking', n: 'Wakō Captor', hp: 0.55, dm: 0.7 }, h.clone().add(new THREE.Vector3(sx * 1.6, 0, 1.4)), 1.3); });
+    villagers.group.visible = true;   // the captives: the raid has reached the town
+    // looters sacking every district (they hold their ground until you come near)
+    const pz = { x: roadX(OTSU.plaza.z), z: OTSU.plaza.z };
+    const LOOT: [number, number][] = [[pz.x + 6, pz.z + 5], [pz.x - 7, pz.z - 4], [roadX(20) + 11.7, 20], [-70, -12], [-110, 12], [-90, 33.5], [-64, CANAL.z + CANAL.half + 4.6], [roadX(26) - 3, 26]];
+    LOOT.forEach(([x, z], k) => { for (let j = 0; j < 2; j++) spawnFoe({ c: 'viking', n: k % 3 === 0 ? 'Wakō Looter' : 'Wakō Raider', hp: 0.5, dm: 0.7 }, new THREE.Vector3(x + (j ? 1.4 : -1.4), 0, z + (j ? 0.8 : -0.6)), 1.15); });
+  }
   $('hudWave').textContent = `${s.name.toUpperCase()} · WAVE ${i + 1} / 3`;
 }
 function spawnFoe(f: Foe, fixed?: THREE.Vector3, aggro = 4) {
@@ -866,20 +875,22 @@ function tick(rawDt: number) {
     const e = enemies[i] as Mob & { goneT?: number };
     if (!e.alive) { e.goneT = (e.goneT ?? 0) + dt; if (e.goneT > 3) { scene.remove(e.object); enemies.splice(i, 1); labelEls.get(e)?.remove(); labelEls.delete(e); } }
   }
-  // section flow: clear a wave, the way up the valley opens
-  if (mode === 'play' && !enemies.some((m) => m.alive) && !pending.length) {
-    if (section >= 2) win();
-    else {
+  // section flow: going on moves the fight on (raiders left behind follow); the beckoning arrow shows when a wave is
+  // cleared. The forecourt is won when its own wave falls (looters loose elsewhere in the city don't hold it up).
+  if (mode === 'play') {
+    if (section < 2) {
       const next = world.sections[section + 1];
-      $('go').classList.add('on');
+      $('go').classList.toggle('on', !enemies.some((m) => m.alive) && !pending.length);
       if (player.object.position.z > next.zMin - 6) {
         $('go').classList.remove('on'); card(next.name, chapter.place); startSection(section + 1);
         // a breath between fights: the warband binds its wounds
         hero.hp = Math.min(hero.maxHp, hero.hp + hero.maxHp * 0.35);
         allies.forEach((a) => { if (a.alive) a.hp = Math.min(a.maxHp, a.hp + a.maxHp * 0.35); });
       }
-    }
+    } else if (!pending.length && !enemies.some((m) => m.alive && m.object.position.distanceTo(world.otsu.spots.forecourt) < 45)) win();
   }
+  // raiders far off aren't drawn (the city holds many bands at once)
+  for (const m of enemies) m.object.visible = !m.alive || m.object.position.distanceToSquared(camera.position) < 4900;
   // sparks, fires, petals
   for (let i = sparks.length - 1; i >= 0; i--) { const s = sparks[i]; s.t -= dt; s.v.y -= 14 * dt; s.m.position.addScaledVector(s.v, dt); if (s.t <= 0) { scene.remove(s.m); sparks.splice(i, 1); } }
   // the raid at dusk: golden hour on the beach; once the Outer Wall is breached the light goes and the town burns
@@ -956,6 +967,7 @@ const quests: Quests = new Quests({
   },
   section: () => section,
   waveClear: () => !enemies.some((m) => m.alive) && !pending.length,
+  clearNear: (at, r) => !pending.length && !enemies.some((m) => m.alive && m.object.position.distanceTo(at) < r),
   captives: () => ({ saved: villagers.saved, total: villagers.total }),
   card: (t, sub) => card(t, sub),
   sfx: (n) => sfx(n, 0.8),
