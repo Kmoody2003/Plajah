@@ -22,10 +22,18 @@ export interface Otsu {
   yardTrees: { x: number; z: number; h: number; blossom: boolean }[];
   /** Where the houses must keep clear (the wall's line, the gates). */
   avoid: Avoid[];
+  /** Places the quests use (quests.ts): the burning boats, the magistrate's compound, the castle's gates. */
+  spots: {
+    boats: { boat: THREE.Vector3; pier: THREE.Vector3 }[];
+    magistrate: { gate: THREE.Vector3; yard: THREE.Vector3; facing: number };
+    otemon: THREE.Vector3; innerGate: THREE.Vector3; forecourt: THREE.Vector3;
+  };
 }
 
 /** The Outer Wall's line, the market square, the Samurai District gate and the main gate (z). */
-export const OTSU = { wallZ: -36, plaza: { z: -16, r: 12 }, samuraiGateZ: 50, otemonZ: 116, townZ1: 44 };
+export const OTSU = { wallZ: -36, plaza: { z: -16, r: 12 }, samuraiGateZ: 50, otemonZ: 116, townZ1: 44,
+  /** the masugata (the square entry court behind the main gate) and the forecourt under the keep */
+  masugata: { z0: 117.5, z1: 131, half: 9, innerGateDx: 4.5 }, forecourt: { z0: 133, z1: 166, half: 21 } };
 
 export function buildOtsu(o: { heightAt: (x: number, z: number) => number; roadX: (z: number) => number; mats: OtsuMats; village: Village }): Otsu {
   const { heightAt, roadX, mats, village } = o;
@@ -51,6 +59,8 @@ export function buildOtsu(o: { heightAt: (x: number, z: number) => number; roadX
   const blackWall = uvMaterial('black_painted_planks', [1.1, 1.1], { tint: 0x6a6460 });
   const hemp = new THREE.MeshStandardNodeMaterial({ color: 0xc9b48c, roughness: 1, side: THREE.DoubleSide });
   const yardTrees: Otsu['yardTrees'] = [];
+  const boatSpots: Otsu['spots']['boats'] = [];
+  let magistrate: Otsu['spots']['magistrate'] | null = null;
   const avoid: Avoid[] = [];
 
   /** A tiled gable roof with fascia, a ridge cap and onigawara at the ends (ridge along local X). */
@@ -138,7 +148,9 @@ export function buildOtsu(o: { heightAt: (x: number, z: number) => number; roadX
     for (let k = 0; k < n; k++) put(boxGeo(2.8, 0.12, 1.12), mats.wood, frame(px + (R() - 0.5) * 0.04, y, z0 - 0.6 - k * 1.2, (R() - 0.5) * 0.02), { y: 0 });
     for (let k = 0; k <= Math.ceil(len / 3); k++) for (const sx of [-1, 1]) put(new THREE.CylinderGeometry(0.13, 0.15, 4.2, 6), mats.darkWood, frame(px + sx * 1.3, y - 2.0, z0 - k * 3), { y: 0 }, false);
     for (const sx of [-1, 1]) put(boxGeo(0.14, 0.14, len), mats.darkWood, frame(px + sx * 1.42, y + 0.05, (z0 + z1) / 2), { y: 0 }, false);
-    boat(px + 3.1, z1 + 6 + R() * 4, 0.04, len > 20);
+    const zb = z1 + 6 + R() * 4;
+    boat(px + 3.1, zb, 0.04, len > 20);
+    boatSpots.push({ boat: new THREE.Vector3(px + 3.1, 0.6, zb), pier: new THREE.Vector3(px + 0.9, 1.15, zb) });
     boat(px - 3.0, z1 + 9 + R() * 6, -0.05, false);
     foot(px, (z0 + z1) / 2, 3, len);
   }
@@ -225,7 +237,13 @@ export function buildOtsu(o: { heightAt: (x: number, z: number) => number; roadX
   for (const [zc, side] of [[66, -1], [70, 1], [91, -1], [95, 1]] as const) {
     const W = 15 + R() * 3, D = 18 + R() * 3, gap = 6.2;
     const cx = roadX(zc) + side * (gap + W / 2);
-    compound(cx, zc, W, D, (side > 0 ? -1 : 1) as 1 | -1);
+    const roadSide = (side > 0 ? -1 : 1) as 1 | -1;
+    compound(cx, zc, W, D, roadSide);
+    if (!magistrate) {
+      const gx = roadSide > 0 ? cx + W / 2 : cx - W / 2;
+      magistrate = { gate: new THREE.Vector3(gx, heightAt(gx, zc), zc), yard: new THREE.Vector3(cx + roadSide * W * 0.24, 0, zc - D * 0.18), facing: roadSide > 0 ? Math.PI / 2 : -Math.PI / 2 };
+      magistrate.yard.y = heightAt(magistrate.yard.x, magistrate.yard.z);
+    }
   }
 
   // ═══ The castle approach: battered stone walls along the ramp, then the main gate (ōtemon) ═══
@@ -242,6 +260,55 @@ export function buildOtsu(o: { heightAt: (x: number, z: number) => number; roadX
     }
     gatehouse(roadX(OTSU.otemonZ), OTSU.otemonZ, 0, 6.4, { tall: 5.8, stoneWings: true });
   }
+  const gx0 = roadX(OTSU.otemonZ);
+  {
+    // the masugata: a walled square behind the gate, its inner gate in the far wall but off to one side, so the
+    // way in turns (as at every castle of the age); the shots' gate courts (26, 18)
+    const M = OTSU.masugata, xL = gx0 - M.half, xR = gx0 + M.half, ig = gx0 + M.innerGateDx;
+    wallRun(xL, M.z0, xL, M.z1, { h: 2.6, base: 1.4, thick: 1.1 });
+    wallRun(xR, M.z0, xR, M.z1, { h: 2.6, base: 1.4, thick: 1.1 });
+    wallRun(xL, M.z1, xR, M.z1, { h: 2.6, base: 1.4, thick: 1.1, gaps: [{ t: (ig - xL) / (xR - xL), hw: 2.4 }] });
+    // the inner gate: posts, a beam and a roofed upper storey over the opening
+    const y = lowest(ig, M.z1, 3), F = frame(ig, y, M.z1, 0);
+    for (const sx of [-1, 1]) put(boxGeo(0.5, 4.6, 0.5), mats.darkWood, F, { x: sx * 2.45, y: 2.3 });
+    put(boxGeo(5.8, 0.45, 0.6), mats.darkWood, F, { y: 4.4 });
+    put(boxGeo(6.6, 1.3, 2.6), mats.plaster, F, { y: 5.3 });
+    put(boxGeo(6.7, 0.5, 2.7), blackWall, F, { y: 4.85 });
+    roof(F, 6.4, 2.6, 1.3, 5.95, 0.8);
+    foot(gx0, (M.z0 + M.z1) / 2, M.half * 2 + 2, M.z1 - M.z0 + 2);
+  }
+  {
+    // the forecourt under the keep: stone-paved, walled on three sides with a corner turret; the far wall is low
+    // (a parapet) so the castle and the volcano stand over it; a side gate opens to the shrine and its pagoda
+    const C = OTSU.forecourt, xL = gx0 - C.half, xR = gx0 + C.half;
+    wallRun(xL, OTSU.masugata.z1, xL, C.z1, { h: 2.8, base: 1.6, thick: 1.2 });
+    wallRun(xR, OTSU.masugata.z1, xR, C.z1, { h: 2.8, base: 1.6, thick: 1.2, gaps: [{ t: (142 - OTSU.masugata.z1) / (C.z1 - OTSU.masugata.z1), hw: 2.2 }] });
+    wallRun(xL, C.z1, xR, C.z1, { h: 0.9, base: 1.2, thick: 1.0 });
+    // the corner turret (sumi-yagura): a stone base, two plastered storeys, tiled roofs
+    const tx = xL + 3.6, tz = C.z1 - 3.6, ty = lowest(tx, tz, 4), T = frame(tx, ty, tz, 0);
+    put(boxGeo(7.2, 3.6, 7.2), mats.quay, T, { y: 1.8 });
+    put(boxGeo(6.2, 3.0, 6.2), mats.plaster, T, { y: 3.6 + 1.5 });
+    put(boxGeo(6.25, 0.9, 6.25), blackWall, T, { y: 3.6 + 0.45 });
+    roof(T, 6.2, 6.2, 1.2, 6.6, 1.1);
+    put(boxGeo(4.4, 2.2, 4.4), mats.plaster, T, { y: 7.9 + 1.1 });
+    roof(T, 4.4, 4.4, 1.6, 10.0, 0.9);
+    // stone lanterns (tōrō) lining the way from the inner gate to the parapet
+    for (let z = OTSU.masugata.z1 + 4; z < C.z1 - 4; z += 6) for (const sx of [-1, 1]) {
+      const lx = gx0 + OTSU.masugata.innerGateDx + sx * 3.4, L = frame(lx, heightAt(lx, z), z, 0);
+      put(boxGeo(0.7, 0.25, 0.7), mats.stone, L, { y: 0.12 });
+      put(new THREE.CylinderGeometry(0.14, 0.18, 0.9, 8), mats.stone, L, { y: 0.7 });
+      put(boxGeo(0.62, 0.42, 0.62), mats.stone, L, { y: 1.35 });
+      put(new THREE.ConeGeometry(0.62, 0.38, 4).rotateY(Math.PI / 4), mats.stone, L, { y: 1.75 });
+    }
+    // the shrine's side gate (a small roofed gate in the right wall)
+    const sg = frame(xR, lowest(xR, 142, 2), 142, Math.PI / 2);
+    for (const sx of [-1, 1]) put(boxGeo(0.34, 3.4, 0.34), mats.darkWood, sg, { x: sx * 2.0, y: 1.7 });
+    put(boxGeo(4.8, 0.3, 0.42), mats.darkWood, sg, { y: 3.2 });
+    roof(sg, 4.6, 1.5, 0.6, 3.4, 0.45);
+    foot(gx0, (OTSU.masugata.z1 + C.z1) / 2, C.half * 2 + 2, C.z1 - OTSU.masugata.z1 + 2);
+    yardTrees.push({ x: xL + 4, z: OTSU.masugata.z1 + 5, h: 7, blossom: false }, { x: xR - 4, z: OTSU.masugata.z1 + 5, h: 7.5, blossom: false },
+      { x: xR - 5, z: C.z1 - 5, h: 7, blossom: true });
+  }
 
   // ── Merge ──────────────────────────────────────────────────────────────────────────────────────────
   const group = new THREE.Group(); group.name = 'otsu';
@@ -252,5 +319,12 @@ export function buildOtsu(o: { heightAt: (x: number, z: number) => number; roadX
     const mesh = new THREE.Mesh(g, mat); mesh.castShadow = true; mesh.receiveShadow = true;
     group.add(solid ? collide(mesh) : mesh);
   }
-  return { group, footprints, yardTrees, avoid };
+  const spots: Otsu['spots'] = {
+    boats: boatSpots,
+    magistrate: magistrate!,
+    otemon: new THREE.Vector3(gx0, heightAt(gx0, OTSU.otemonZ), OTSU.otemonZ),
+    innerGate: new THREE.Vector3(gx0 + OTSU.masugata.innerGateDx, heightAt(gx0 + OTSU.masugata.innerGateDx, OTSU.masugata.z1), OTSU.masugata.z1),
+    forecourt: new THREE.Vector3(gx0, heightAt(gx0, 150), 150),
+  };
+  return { group, footprints, yardTrees, avoid, spots };
 }

@@ -17,6 +17,7 @@ import { FALLING_PETAL, type Foe } from './tale';
 import { cutMove, HARU_MOVES, type CutMove } from './moves';
 import { goldenHour } from './look';
 import { Townsfolk } from './townsfolk';
+import { Quests } from './quests';
 import { OTSU } from './otsu';
 import { Forest } from './core/forest';
 import { Binds, openBindEditor, type Action } from './binds';
@@ -299,6 +300,7 @@ function spawnFoe(f: Foe, fixed?: THREE.Vector3, aggro = 4) {
   if (f.boss) bossMobs.add(m);
   scene.add(m.object);
   enemies.push(m);
+  return m;
 }
 function updateWaves(dt: number) {
   if (mode !== 'play' || !pending.length) return;
@@ -401,6 +403,7 @@ function strike(kind: Kind) {
 let held: Body | null = null, throwT = -1;
 function grabOrThrow() {
   if (!haru || mode !== 'play' || !hero.alive || throwT >= 0) return;
+  if (!held && quests?.interact()) return;
   if (held) { throwHeld(); return; }
   const fwd = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw));
   const b = props.nearestGrab(player.object.position, fwd);
@@ -622,6 +625,7 @@ let paused = false, editor: ReturnType<typeof openBindEditor> | null = null;
 function setPaused(on: boolean) {
   if (mode !== 'play' && on) return;
   paused = on;
+  if (on) quests?.log();
   $('pause').classList.toggle('on', on);
   if (on) { hero.block = false; buffered = null; document.exitPointerLock?.(); }
   else { editor?.close(); editor = null; try { (renderer.domElement.requestPointerLock?.() as unknown as Promise<void> | undefined)?.catch?.(() => {}); } catch { /* */ } }
@@ -650,6 +654,7 @@ const inUi = (t: EventTarget | null) => !!(t as HTMLElement | null)?.closest?.('
 addEventListener('keydown', (e) => {
   if (e.code === 'Escape') { if (editor?.listening) return; if (mode === 'play') setPaused(!paused); return; }
   if (e.repeat) return;
+  if (e.code === 'KeyT' && mode === 'play' && !binds.actionsFor(e.code).length) { quests?.cycle(); return; }
   const acts = binds.actionsFor(e.code);
   if (acts.length && mode === 'play') e.preventDefault();
   acts.forEach(press);
@@ -788,6 +793,7 @@ function tick(rawDt: number) {
       enemies.filter((m) => m.alive).map((m) => ({ pos: m.object.position, alive: m.alive, ref: m })), world.heightAt);
     _threats.length = 0; for (const m of enemies) if (m.alive) _threats.push(m.object.position);
     townsfolk.update(dt, camera.position, pp0, _threats, section >= 1);
+    questTick(dt);
     villagers.update(dt, simTime, pp0, (at) => enemies.some((m) => m.alive && m.object.position.distanceTo(at) < 6), world.heightAt, SAFETY, roadX);
   }
   // the warband
@@ -896,11 +902,61 @@ renderer.setAnimationLoop(() => {
 });
 
 // ── Dev hooks (Ravencrest pattern): simulate without rendering, capture review frames ──────────────────
+// ── Quests (quests.ts): the main road to the castle and the deeds for the city; the castle gate is shut until the
+//    magistrate's seal is shown at it ──────────────────────────────────────────────────────────────────────
+let gateOpen = false, gateT = 0;
+const gateLeaves: THREE.Mesh[] = [];
+{
+  const g = world.otsu.spots.otemon, w = 6.4;
+  const mat = new THREE.MeshStandardNodeMaterial({ color: 0x3a2a1e, roughness: 0.75 });
+  for (const sx of [-1, 1]) {
+    const geo = new THREE.BoxGeometry(w / 2, 4.6, 0.18).translate(-sx * w / 4, 2.3, 0);   // hinged at the post
+    const leaf = new THREE.Mesh(geo, mat); leaf.castShadow = true;
+    leaf.position.set(g.x + sx * (w / 2), g.y, g.z + 0.1); leaf.userData.side = sx;
+    scene.add(leaf); gateLeaves.push(leaf);
+  }
+}
+const qSpots = (() => {
+  const o = world.otsu.spots, pz = { x: roadX(OTSU.plaza.z), z: OTSU.plaza.z };
+  const at = (x: number, z: number) => new THREE.Vector3(x, world.heightAt(x, z), z);
+  return {
+    beach: at(2, -74), gate: at(roadX(OTSU.wallZ), OTSU.wallZ), plaza: at(pz.x, pz.z),
+    boats: o.boats, magistrate: o.magistrate,
+    broker: at(pz.x + 5.0, pz.z - 2.4), strongbox: at(roadX(34) + 11.7, 34),
+    otemon: o.otemon, forecourt: o.forecourt,
+  };
+})();
+const quests: Quests = new Quests({
+  hero: () => player.object.position, camera, scene, heightAt: world.heightAt,
+  band: (at, n, name, spread = 3) => {
+    const ms: Mob[] = [];
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * Math.PI * 2, p = at.clone().add(new THREE.Vector3(Math.cos(a) * spread, 0, Math.sin(a) * spread));
+      const m = spawnFoe({ c: 'viking', n: name, hp: 0.55, dm: 0.75 }, p, 1.6); if (m) ms.push(m);
+    }
+    return () => ms.filter((m) => m.alive).length;
+  },
+  section: () => section,
+  waveClear: () => !enemies.some((m) => m.alive) && !pending.length,
+  captives: () => ({ saved: villagers.saved, total: villagers.total }),
+  card: (t, sub) => card(t, sub),
+  sfx: (n) => sfx(n, 0.8),
+  heal: (f) => { hero.hp = Math.min(hero.maxHp, hero.hp + hero.maxHp * f); },
+  openGate: () => { if (!gateOpen) { gateOpen = true; gateT = 0; sfx('taikoWin', 1); card('The Castle Gate', 'The seal is shown. The gate opens.'); } },
+  douse: (i) => { const f = world.boatFires[i]; if (f) f.group.visible = false; },
+}, qSpots);
+function questTick(dt: number) {
+  quests.update(dt);
+  // the shut gate: nobody passes until it opens (then the leaves swing in over a second and a half)
+  const g = world.otsu.spots.otemon, p = player.object.position;
+  if (!gateOpen && p.z > g.z - 1.4 && p.z < g.z + 2.5 && Math.abs(p.x - g.x) < 4.2) p.z = g.z - 1.4;
+  if (gateOpen && gateT < 1) { gateT = Math.min(1, gateT + dt / 1.5); const k = gateT * gateT * (3 - 2 * gateT); for (const l of gateLeaves) l.rotation.y = l.userData.side * k * Math.PI * 0.46; }
+}
 /** Dev: a camera the loop re-applies every frame (WebGPU captures read the last presented frame). */
 let camHold: (() => void) | null = null;
 (window as unknown as Record<string, unknown>).eraclash3d = {
   hold(f: (() => void) | null) { camHold = f; },
-  townsfolk,
+  townsfolk, get quests() { return quests; }, get gateOpen() { return gateOpen; },
   /** Dev: one of each Era Clash tree variant in a row on the beach, for tuning (returns the lineup's centre). */
   treeLab(species = ['umbrella', 'cherry'], size = 9) {
     scene.getObjectByName('treeLab')?.removeFromParent();

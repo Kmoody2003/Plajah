@@ -12,7 +12,7 @@ import { buildTerrain, buildSea, type Splat } from './ground';
 import { buildGrassField, type GrassField } from './grassField';
 import { buildVillage, boxGeo, type Village } from './village';
 import { buildLandmarks } from './landmarks';
-import { buildOtsu, OTSU } from './otsu';
+import { buildOtsu, OTSU, type Otsu } from './otsu';
 
 export interface Fire { group: THREE.Group; flames: THREE.Mesh[]; smoke: THREE.Mesh[]; seed: number; size: number; raid: boolean }
 export interface Section { name: string; zMin: number; zMax: number; spawn: THREE.Vector3[] }
@@ -24,6 +24,9 @@ export interface Chapter1World {
   fires: Fire[];
   bell: THREE.Object3D;
   petals: THREE.InstancedMesh;
+  /** Quest places (otsu.ts) and the fires on the moored boats. */
+  otsu: Otsu;
+  boatFires: Fire[];
   /** Ravencrest's ez-tree forest: bake its impostors once the renderer is up, cull it each frame. */
   forest: Forest;
   /** The village's loose props and the villagers' huddles (village.ts). */
@@ -218,7 +221,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
   group.add(landmarks.group);
 
   // ── The street: big irregular flagstones wall to wall through the town, with kerb stones (the shots) ───
-  const STREET_Z0 = OTSU.wallZ - 3, STREET_Z1 = 118, STREET_W = 4.7;
+  const STREET_Z0 = OTSU.wallZ - 3, STREET_Z1 = OTSU.masugata.z1, STREET_W = 4.7;
   {
     const nz = Math.round((STREET_Z1 - STREET_Z0) / 0.5), nx = 10;
     const pos: number[] = [], uvs: number[] = [], idx: number[] = [];
@@ -269,6 +272,19 @@ export async function buildChapter1(): Promise<Chapter1World> {
     for (let i = 0; i < dp.count; i++) { const x = dp.getX(i) + PLAZA.x, z = dp.getZ(i) + PLAZA.z; dp.setXYZ(i, x, heightAt(x, z) + 0.045, z); du.setXY(i, x / 3.2, z / 3.2); }
     disc.computeVertexNormals();
     const sq = new THREE.Mesh(disc, street.material); sq.receiveShadow = true; group.add(sq);
+    // the forecourt under the keep: big dressed stone flags, wall to wall
+    const C = OTSU.forecourt, gx = roadX(OTSU.otemonZ), fw = C.half * 2 - 1.2, fd = C.z1 - C.z0 + 2.2;
+    const fg = new THREE.PlaneGeometry(fw, fd, 36, 40).rotateX(-Math.PI / 2);
+    const fp = fg.attributes.position as THREE.BufferAttribute, fu = fg.attributes.uv as THREE.BufferAttribute;
+    for (let i = 0; i < fp.count; i++) { const x = fp.getX(i) + gx, z = fp.getZ(i) + (C.z0 + C.z1) / 2; fp.setXYZ(i, x, heightAt(x, z) + 0.05, z); fu.setXY(i, x / 2.4, z / 2.4); }
+    fg.computeVertexNormals();
+    const flags = new THREE.Mesh(fg, uvMaterial('stone_tiles_02', [1, 1], { tint: 0xc8c0b4 })); flags.receiveShadow = true; group.add(flags);
+    // the masugata's floor: the same flags
+    const M = OTSU.masugata, mg = new THREE.PlaneGeometry(M.half * 2 - 1, M.z1 - M.z0 + 1, 18, 14).rotateX(-Math.PI / 2);
+    const mp = mg.attributes.position as THREE.BufferAttribute, mu = mg.attributes.uv as THREE.BufferAttribute;
+    for (let i = 0; i < mp.count; i++) { const x = mp.getX(i) + gx, z = mp.getZ(i) + (M.z0 + M.z1) / 2; mp.setXYZ(i, x, heightAt(x, z) + 0.06, z); mu.setXY(i, x / 2.4, z / 2.4); }
+    mg.computeVertexNormals();
+    const mflags = new THREE.Mesh(mg, flags.material); mflags.receiveShadow = true; group.add(mflags);
   }
 
   // ── Cooking smoke: soft white plumes rising from the town's roofs and leaning with the wind ─────────
@@ -346,6 +362,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
     [roadX(70) + 6.4, 70, 0.9, 1.2], [roadX(91) - 6.4, 91, 0.8, 1.0],
   ];
   for (const [x, z, s, lift] of RAID_FIRES) fire(x, z, s, true, lift);
+  const boatFires = otsu.spots.boats.map((b) => { fire(b.boat.x, b.boat.z, 0.75, false, b.boat.y + 0.4 - heightAt(b.boat.x, b.boat.z)); return fires[fires.length - 1]; });
   // embers: one instanced draw, swirling up round the camera
   const emberMat = new THREE.MeshBasicNodeMaterial({ color: 0xffa040, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
   emberMat.colorNode = vec3(2.6, 1.15, 0.35);
@@ -371,23 +388,8 @@ export async function buildChapter1(): Promise<Chapter1World> {
   torii.add(Object.assign(box(7.4, 0.45, 0.6, red, 6.1)), Object.assign(box(8.6, 0.35, 0.7, darkWood, 6.5)), Object.assign(box(6.2, 0.3, 0.4, red, 5.0)));
   at(collide(torii), 22, 140, -0.7);   // on the path to the mountain shrine (the pagoda)
 
-  // ── The hilltop of the painting: the wooden platform with its railings ─────────────────────────
-  const topZ = 128, topY = heightAt(0, topZ);
-  const plat = new THREE.Group();
-  const deckW = 14, deckD = 11;
-  plat.add(box(deckW, 0.3, deckD, wood, 0.22));   // a step up from the grass (the controller climbs 0.4 m)
-  for (const [px, pz] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, -1], [0, 1]]) { const p = box(0.4, 0.6, 0.4, darkWood, 0.0); p.position.set(px * (deckW / 2 - 0.3), 0.0, pz * (deckD / 2 - 0.3)); plat.add(p); }
-  const rail = (len: number, x: number, z: number, along: 'x' | 'z') => {
-    const top = box(along === 'x' ? len : 0.18, 0.16, along === 'x' ? 0.18 : len, darkWood, 1.35); top.position.x = x; top.position.z = z; plat.add(top);
-    const mid = box(along === 'x' ? len : 0.12, 0.1, along === 'x' ? 0.12 : len, darkWood, 0.9); mid.position.x = x; mid.position.z = z; plat.add(mid);
-    for (let i = 0; i <= Math.round(len / 2.2); i++) {
-      const t = -len / 2 + (i * len) / Math.round(len / 2.2);
-      const p = box(0.2, 1.05, 0.2, darkWood, 0.85); p.position.set(along === 'x' ? x + t : x, 0.85, along === 'z' ? z + t : z); plat.add(p);
-    }
-  };
-  rail(deckW, 0, deckD / 2, 'x'); rail(deckD * 0.45, -deckW / 2, deckD * 0.27, 'z'); rail(deckD * 0.45, deckW / 2, deckD * 0.27, 'z');   // open at the front, like the painting
-  plat.position.set(0, topY, topZ);
-  group.add(collide(plat));
+  // (The painting's wooden viewing deck and its railings are gone: the castle approach's masugata and forecourt
+  //  stand on the hilltop now — otsu.ts.)
 
   // ── The five-storey pagoda behind the platform, off to the right as in the painting ────────────
   const pagoda = new THREE.Group();
@@ -408,7 +410,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
   const noTrees = new URLSearchParams(location.search).has('notrees');
   if (!noTrees) {
     const V = (x: number, z: number, lift = 0) => new THREE.Vector3(x, heightAt(x, z) + lift, z);
-    const cherries: [number, number, number][] = [[-12, 132, 8], [-18, 138, 9], [14, 134, 7], [-9, 148, 8.5], [10, 146, 7], [-24, 104, 7],
+    const cherries: [number, number, number][] = [[-30, 150, 8.5], [30, 160, 7.5], [-24, 104, 7],
       [-20, 78, 6], [-22, 14, 6], [22, -18, 5.5], [-26, -34, 6]];
     const near: TreeSpot[] = cherries.map(([x, z, h]) => ({ p: V(x, z), h: h * 1.1, species: 'cherry' as const }));
     for (const t of otsu.yardTrees) near.push({ p: V(t.x, t.z), h: t.blossom ? t.h * 1.1 : t.h * 1.15, species: t.blossom ? 'cherry' : 'umbrella' });
@@ -435,8 +437,8 @@ export async function buildChapter1(): Promise<Chapter1World> {
   const sections: Section[] = [
     { name: "Fisherman's Harbour", zMin: -100, zMax: OTSU.wallZ, spawn: [new THREE.Vector3(2, 0, -76), new THREE.Vector3(10, 0, -78), new THREE.Vector3(-28, 0, -64)] },
     // on the road and in the square: the rows either side are solid
-    { name: 'The Grand Marketplace', zMin: OTSU.wallZ, zMax: OTSU.samuraiGateZ - 2, spawn: [new THREE.Vector3(roadX(-2) + 1, 0, -2), new THREE.Vector3(roadX(30) + 1.2, 0, 30), new THREE.Vector3(roadX(41) - 1.2, 0, 41)] },
-    { name: 'The Castle Approach', zMin: OTSU.samuraiGateZ - 2, zMax: 165, spawn: [new THREE.Vector3(8, 0, 140), new THREE.Vector3(-6, 0, 144)] },
+    { name: 'The Grand Marketplace', zMin: OTSU.wallZ, zMax: OTSU.otemonZ, spawn: [new THREE.Vector3(roadX(-2) + 1, 0, -2), new THREE.Vector3(roadX(30) + 1.2, 0, 30), new THREE.Vector3(roadX(41) - 1.2, 0, 41)] },
+    { name: 'The Castle Forecourt', zMin: OTSU.otemonZ + 6, zMax: 166, spawn: [otsu.spots.forecourt.clone().add(new THREE.Vector3(0, 0, 4)), otsu.spots.forecourt.clone().add(new THREE.Vector3(8, 0, 9)), otsu.spots.forecourt.clone().add(new THREE.Vector3(-8, 0, 8))] },
   ];
   for (const s of sections) for (const p of s.spawn) p.y = heightAt(p.x, p.z);
 
@@ -473,7 +475,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
   const spawn = { position: new THREE.Vector3(roadX(-66), heightAt(roadX(-66), -66), -66), yaw: 0 };
 
   return {
-    group, grass, spawn, sections, fires, bell, petals, heightAt, village, forest,
+    group, grass, spawn, sections, fires, bell, petals, heightAt, village, forest, otsu, boatFires,
     setRaid(k) {
       raidK = THREE.MathUtils.clamp(k, 0, 1);
       for (const f of fires) if (f.raid) f.group.visible = raidK > 0.03;

@@ -1,5 +1,9 @@
-// The Falling Petal, word for word from the 2D game's CAMPAIGNS (public/games/era-clash/index.html).
-// Kenne's placeholder history: keep prologue / 4 chapters / epilogue, 2 paragraphs each, when replacing it.
+// The Falling Petal: the 2D game's CAMPAIGNS tale (public/games/era-clash/index.html), its prologue and Chapter I
+// retold in the Legend of Elohim (Kenne, 2026-11-11: the time seam). The Tehom Lance's seam between realms runs
+// back through the years as well, and where it reaches the coast of Otsu-no-ura the sea opens onto other ages:
+// that is why warriors of different eras clash, and why the wakō who land are Norse raiders out of their time.
+// Proposed names, to check against the Elohim canon: Otsu-no-ura's magistrate Kuroda, the broker Sōbei.
+// Keep prologue / 4 chapters / epilogue, 2 paragraphs each, when replacing it. (The 2D game keeps the old text.)
 export interface Foe { c: string; n: string; hp: number; dm: number; boss?: boolean }
 export interface Chapter { title: string; place: string; stage: string; allies: string[]; story: string[]; foes: Foe[] }
 export interface Tale { warrior: string; title: string; era: string; intro: string[]; finale: string[]; chapters: Chapter[] }
@@ -8,8 +12,8 @@ export const FALLING_PETAL: Tale = {
   "title": "The Falling Petal",
   "era": "Japan · The Sengoku Age, c. 1570",
   "intro": [
-    "In the age the chronicles call Sengoku — the land at war with itself — a hundred lords raised banners, and every banner cast a shadow where farmers tried to live. In the mountain province of Kōyama, Lord Takamine kept one valley at peace, and the valley loved him for it.",
-    "His sword-arm was a quiet duelist named Haru, called the Crimson Blade, whose draw no living eye had ever followed. When smoke rose from the coastal villages in the spring of the war's worst year, Lord Takamine did not send an army. He sent Haru, and the companions Haru chose for the road."
+    "In the age the chronicles call Sengoku — the land at war with itself — Lord Takamine kept one harbour city at peace: Otsu-no-ura, its castle above the bay and the snow mountain behind it. Far away and long after, men would fire a weapon called the Tehom Lance and cut a seam between the realms. The wound ran backward through the years like a crack through ice, and in the spring of the war's worst year it reached the bay of Otsu-no-ura, where the sea began to open onto other ages.",
+    "Out of the seam came the wakō — not the island raiders the fishermen knew, but tall men of a northern sea and another century, in fur and iron, with round shields and bearded axes, who had been told the city was theirs. Lord Takamine sent his sword-arm, Haru, the Crimson Blade, and the two strangers the seam had already thrown at his gate: Chen, a monk of a temple no one in Kōyama had heard of, and Roland, a knight of a kingdom no map of theirs showed."
   ],
   "finale": [
     "The valley kept its harvest that year, and the year after. Lord Takamine raised a cup to the companions at the gate and asked what reward could answer such service. Haru asked only that the road south be mended, so the next travelers would arrive before the raiders did.",
@@ -17,16 +21,16 @@ export const FALLING_PETAL: Tale = {
   ],
   "chapters": [
     {
-      "title": "Smoke Over the Valley",
-      "place": "The coastal villages",
+      "title": "Smoke Over Otsu-no-ura",
+      "place": "The harbour city of Otsu-no-ura",
       "stage": "japan",
       "allies": [
         "monk",
         "knight"
       ],
       "story": [
-        "The wakō came with the tide — sea raiders out of the island channels, bold as gulls and twice as hungry. They fired the storehouses of two villages before the bell at the watchtower finished its first song.",
-        "Haru reached the shore road at a run, Chen the monk at his shoulder and Roland the wandering knight still buckling his sword-belt. The raiders laughed to see three against their landing party. It was the last easy laugh of their spring."
+        "The wakō came with the tide and the shimmer of the seam behind them, beaching their longships below the harbour. They fired the fishing fleet and the dock warehouses before the watch bell finished its first song, then turned for the Outer Wall and the city behind it.",
+        "The castle is the prize: Magistrate Kuroda holds the seal that opens its gate, and somewhere in the burning streets the raiders' chieftain is hunting it. Haru, Chen and Roland must free the people where they find them, take back what was stolen, earn the magistrate's trust, and reach the castle before the seam's captain does."
       ],
       "foes": [
         {

@@ -85,3 +85,9 @@ The castle opens once the player holds the seal and has finished two other quest
 - An objective line on the HUD.
 - A waypoint marker in the world, and a compass strip with quest pins.
 - A quest log in the pause menu.
+
+### Decided (2026-11-11): the Elohim time seam
+
+Kenne chose the time-seam framing. Chapter I's prologue and story are rewritten in `games/era-clash-3d/src/tale.ts` (the 2D game keeps its Sengoku text for now). The new proposed names are Magistrate Kuroda and the broker Sōbei.
+
+Kenne adds that the Legend of Elohim spans three universe timelines. The seam lets Era Clash bridge them, and it can bring in the Void, introduced in the short *The Church Mouse* and in the film *Psalm of the Unbroken*. **Open:** the canon for the Void and the three timelines (none exists in the repo yet). The game text leaves hooks only until Kenne supplies it.
