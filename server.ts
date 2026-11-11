@@ -102,6 +102,7 @@ import { createGrantsRouter } from './routes/grants';
 import { createAdminKeysRouter } from './routes/adminKeys';
 import { createCrewRouter } from './routes/crew';
 import { createOnAirRouter } from './routes/onair';
+import { createLexiconRouter } from './routes/lexicon';
 import { createVoicer as createOnAirVoicer } from './services/onair/voice';
 import { createGeminiLane, geminiConfigured, geminiGenerate, laneModel } from './services/ai/geminiLane';
 import { systemText, toAnthropicResponse, toGeminiContents } from './services/ai/anthropicCompat';
@@ -15305,6 +15306,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     })
     : null;
   app.use('/api/onair', apiLimiter, express.json({ limit: '16kb' }), createOnAirRouter({ voicer: onAirVoicer }));
+  // Lorea Lexicon — dictionary, thesaurus, etymology, slang, multilingual (services/lexicon, docs/LOREA_LEXICON.md).
+  app.use('/api/lexicon', apiLimiter, express.json({ limit: '16kb' }), createLexiconRouter());
   app.use('/api/cora', express.json({ limit: '1mb' }), coraRouter);
 
   // ── Learner identity (child username/password → custom token; provision; claim) ──

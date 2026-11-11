@@ -11,6 +11,7 @@
     "test:kith": "tsx --test tests/kithParty.test.ts",
     "test:crew": "npx tsx --test tests/crew.test.ts tests/crewRoutes.test.ts",
     "test:onair": "npx tsx --test tests/onair.test.ts",
+    "test:lexicon": "npx tsx --test tests/lexicon.test.ts",
     "test:coedit": "npx tsx --test tests/coeditCrdt.test.ts tests/coeditJam.test.ts",
     "test:tela-security": "npx tsx --test tests/telaDocPolicy.test.ts && node scripts/testCoeditRules.mjs",
     "test:band": "npx tsx --test tests/sessionBand.test.ts",

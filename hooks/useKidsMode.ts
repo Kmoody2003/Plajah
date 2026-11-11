@@ -29,6 +29,7 @@ export const KIDS_DEFAULT_SURFACES = [
   'VOCA',                      // read-aloud game
   'STUDENT_HOME',              // Homeroom
   'BOOKS', 'BOOK_READER',      // Lorea reading library + learn-to-read tools
+  'LOREA_LEXICON',             // dictionary, thesaurus, origins (no Slang chapter for kids)
   'CLASSROOMS', 'CLASSROOM_DETAIL',
   'GAMES', 'GAME_PLAYER',
   'MUSIC',                      // filtered to non-explicit

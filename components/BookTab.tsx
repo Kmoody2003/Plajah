@@ -48,6 +48,7 @@ import { buildLoreaWritingSvg, loreaWritingBoard } from '../services/loreaWritin
 import LoreaCraftBand from './lorea/exhibits/LoreaCraftBand';
 import { LoreaNuggetSpot } from './lorea/exhibits/LoreaNugget';
 import { openLoreaExhibit } from '../services/loreaExhibits/loreaExhibitStore';
+import { openLexicon } from '../services/lexicon/client';
 import { chalkBoard } from '../services/creatorArt';
 import { launchClassicBookInChoraDaw } from '../services/melos/classicBookChoraProjects';
 import {
@@ -3381,6 +3382,18 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                 <div>
                   <b>Exhibition Hall</b>
                   <span>The writer’s craft, hands-on: story, poetry, rhythm, grammar and more</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                className="glass door"
+                style={{ '--dc': '#C9A86A' } as React.CSSProperties}
+                onClick={() => openLexicon()}
+              >
+                <i className="dot" />
+                <div>
+                  <b>Lexicon</b>
+                  <span>Dictionary, thesaurus, word origins, slang and every language</span>
                 </div>
               </button>
               <button

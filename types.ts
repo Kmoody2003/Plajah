@@ -4292,6 +4292,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'DOSSIER'
   // Lorea Exhibition Hall — craft of writing (story, character, plot, prose, poetry, rhythm, grammar, journalism)
   | 'LOREA_EXHIBITS'
+  // Lorea Lexicon — dictionary, thesaurus, etymology, slang and multilingual words (services/lexicon)
+  | 'LOREA_LEXICON'
   // Machine Soul: Detroit techno history exhibition, Berlin connection, Juan Atkins tribute, 90s spot previz
   | 'TECHNO_EXHIBIT'
   // Chora Mixes — the dedicated long-form DJ-set player (waveform + Pixels auto-show)

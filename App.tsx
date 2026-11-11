@@ -229,6 +229,7 @@ const DossierHall = retryLazy(() => import('./components/dossier/DossierHall'));
 import { requestDossier } from './data/dossier/registry';
 const LoreaExhibitHall = retryLazy(() => import('./components/lorea/exhibits/LoreaExhibitHall'));
 const TechnoExhibit = retryLazy(() => import('./components/exhibits/technoHistory/TechnoExhibit'));
+const LoreaLexicon = retryLazy(() => import('./components/lorea/lexicon/LoreaLexicon'));
 import { requestLoreaExhibit } from './services/loreaExhibits/loreaExhibitStore';
 // Photo pool v2 (components/eventPool): geofenced check-in, public/private curation, photos + videos + live.
 const EventPhotoPoolView = retryLazy(() => import('./components/eventPool/EventPoolView'));
@@ -1132,6 +1133,14 @@ const App: React.FC = () => {
     const h = (e: Event) => { const d = (e as CustomEvent)?.detail || {}; requestLoreaExhibit(d.id, d.roomId); setLoreaExhibitNonce(n => n + 1); setView('LOREA_EXHIBITS'); };
     window.addEventListener('plajah:openLoreaExhibit', h as EventListener);
     return () => window.removeEventListener('plajah:openLoreaExhibit', h as EventListener);
+  }, [setView]);
+
+  // Open Lorea Lexicon from anywhere: services/lexicon/client.ts openLexicon(word?, {lang?, tab?}).
+  const [lexiconReq, setLexiconReq] = useState<{ word?: string; lang?: string; tab?: any; n: number }>({ n: 0 });
+  useEffect(() => {
+    const h = (e: Event) => { const d = (e as CustomEvent)?.detail || {}; setLexiconReq(r => ({ word: d.word, lang: d.lang, tab: d.tab, n: r.n + 1 })); setView('LOREA_LEXICON'); };
+    window.addEventListener('plajah:openLexicon', h as EventListener);
+    return () => window.removeEventListener('plajah:openLexicon', h as EventListener);
   }, [setView]);
 
   // Open Machine Soul (Detroit techno exhibition) from anywhere; detail.room e.g. 'tx-atkins'.
@@ -8254,6 +8263,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'LOREA_EXHIBITS' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Unrolling the paper…</div>}>
                 <LoreaExhibitHall key={loreaExhibitNonce} onBack={() => goBack('BOOKS')} />
+              </Suspense>
+            )}
+            {view === 'LOREA_LEXICON' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/30 text-sm">Opening the Lexicon…</div>}>
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  <LoreaLexicon key={lexiconReq.n} initialWord={lexiconReq.word} initialLang={lexiconReq.lang} initialTab={lexiconReq.tab}
+                    kidsMode={!!activeChildProfile || !!(userProfile as any)?.isChild || (userProfile as any)?.accountType === 'CHILD'}
+                    onBack={() => goBack('BOOKS')} />
+                </div>
               </Suspense>
             )}
             {view === 'TECHNO_EXHIBIT' && (
