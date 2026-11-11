@@ -16,6 +16,8 @@ import { buildChapter1, roadX } from './chapter1';
 import { FALLING_PETAL, type Foe } from './tale';
 import { cutMove, HARU_MOVES, type CutMove } from './moves';
 import { goldenHour } from './look';
+import { Townsfolk } from './townsfolk';
+import { OTSU } from './otsu';
 import { Forest } from './core/forest';
 import { Binds, openBindEditor, type Action } from './binds';
 import { Props, type Body } from './props';
@@ -104,6 +106,12 @@ const villagers = new Villagers(world.village.huddles);
 void villagers.dress();
 scene.add(villagers.group);
 const SAFETY = new THREE.Vector3(roadX(62), world.heightAt(roadX(62), 62), 62);
+// the townsfolk going about their day until the raiders come (townsfolk.ts)
+const townsfolk = new Townsfolk({ heightAt: world.heightAt, roadX, plaza: { x: roadX(OTSU.plaza.z), z: OTSU.plaza.z, r: OTSU.plaza.r }, safety: SAFETY, wallZ: OTSU.wallZ,
+  quay: { x0: -47, x1: -13, z: -66.5, top: 1.45 } });
+scene.add(townsfolk.group);
+void townsfolk.dress();
+const _threats: THREE.Vector3[] = [];
 // Edges: 4× MSAA on the scene pass (FXAA on the HDR scene colour corrupted the frame); ?msaa=0|2|4 overrides
 const MSAA = params.has('msaa') ? Number(params.get('msaa')) : quality === 'low' ? 0 : 4;
 // the forest's far impostors are baked from the real tree variants once the renderer is up (core/forest.ts);
@@ -768,6 +776,8 @@ function tick(rawDt: number) {
     const near = [...enemies, ...allies].filter((m) => m.alive && m.object.position.distanceTo(pp0) < 16);
     props.update(dt, { pos: pp0, vel: playerVel }, near.map((m) => ({ pos: m.object.position, vel: m.vel })),
       enemies.filter((m) => m.alive).map((m) => ({ pos: m.object.position, alive: m.alive, ref: m })), world.heightAt);
+    _threats.length = 0; for (const m of enemies) if (m.alive) _threats.push(m.object.position);
+    townsfolk.update(dt, camera.position, pp0, _threats, section >= 1);
     villagers.update(dt, simTime, pp0, (at) => enemies.some((m) => m.alive && m.object.position.distanceTo(at) < 6), world.heightAt, SAFETY, roadX);
   }
   // the warband
@@ -880,6 +890,7 @@ renderer.setAnimationLoop(() => {
 let camHold: (() => void) | null = null;
 (window as unknown as Record<string, unknown>).eraclash3d = {
   hold(f: (() => void) | null) { camHold = f; },
+  townsfolk,
   /** Dev: one of each Era Clash tree variant in a row on the beach, for tuning (returns the lineup's centre). */
   treeLab(species = ['umbrella', 'cherry'], size = 9) {
     scene.getObjectByName('treeLab')?.removeFromParent();

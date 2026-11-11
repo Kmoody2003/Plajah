@@ -8,7 +8,7 @@ import * as THREE from 'three/webgpu';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { collide } from './core/collision';
 import { rng } from './core/kit';
-import { pbr } from './core/materials';
+import { pbr, uvMaterial } from './core/materials';
 import { attribute, texture, uv, vec3, mix, normalMap } from 'three/tsl';
 import type { PropKind } from './props';
 
@@ -78,8 +78,25 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
     stone.normalNode = normalMap(texture(S.nor, uv().mul(0.6)));
   }
   const char = new THREE.MeshStandardNodeMaterial({ color: 0x1c1512, roughness: 0.95 });
-  const indigo = new THREE.MeshStandardNodeMaterial({ color: 0x23344f, roughness: 0.95, side: THREE.DoubleSide });
-  const hemp = new THREE.MeshStandardNodeMaterial({ color: 0xc9b48c, roughness: 1, side: THREE.DoubleSide });
+  // cloth: indigo noren with a family crest (mon) resist-dyed white, a slubby weave; undyed hemp with its own weave
+  const clothTex = (base: string, weave: string, crest: boolean) => {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 256;
+    const g = c.getContext('2d')!;
+    g.fillStyle = base; g.fillRect(0, 0, 128, 256);
+    for (let i = 0; i < 1400; i++) { g.fillStyle = weave; g.globalAlpha = 0.08 + ((i * 37) % 10) / 60; g.fillRect((i * 53) % 128, (i * 97) % 256, 1 + (i % 3), 1); }
+    g.globalAlpha = 0.18; g.fillStyle = '#000'; for (let y = 0; y < 256; y += 2) g.fillRect(0, y, 128, 1);
+    g.globalAlpha = 1;
+    if (crest) {
+      g.strokeStyle = '#e8e4da'; g.fillStyle = '#e8e4da'; g.lineWidth = 7;
+      g.beginPath(); g.arc(64, 96, 34, 0, Math.PI * 2); g.stroke();
+      for (let k = 0; k < 3; k++) { const a = (k / 3) * Math.PI * 2 - Math.PI / 2; g.beginPath(); g.ellipse(64 + Math.cos(a) * 14, 96 + Math.sin(a) * 14, 13, 8, a, 0, Math.PI * 2); g.fill(); }
+      g.fillStyle = 'rgba(232,228,218,0.85)'; g.fillRect(0, 238, 128, 4);
+    }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
+  };
+  const indigo = new THREE.MeshStandardNodeMaterial({ map: clothTex('#1f2f4a', '#7a8aa8', true), roughness: 0.95, side: THREE.DoubleSide });
+  const hemp = new THREE.MeshStandardNodeMaterial({ map: clothTex('#c2ad86', '#6a5a3a', false), roughness: 1, side: THREE.DoubleSide });
   // chōchin: paper over bamboo ribs with a brushed character, glowing from the candle inside (the ribs stay dark)
   const lanternTex = (paper: string, ink: string, ch: string) => {
     const c = document.createElement('canvas'); c.width = 256; c.height = 128;
@@ -125,7 +142,8 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
 
   const props: Village['props'] = [];
   const smoke: THREE.Vector3[] = [];
-  const ridge = new THREE.MeshStandardNodeMaterial({ color: 0x30333a, roughness: 0.55 });
+  // ridge caps and onigawara: the kawara scan, darker (the ridge tiles are fired darker and stand proud)
+  const ridge = uvMaterial('grey_roof_tiles', [1.6, 1.6], { tint: 0x5c606a });
   const footprints: THREE.Box3[] = [];
   const blocked = (x: number, z: number, r: number) => avoid.some((a) => Math.hypot(a.x - x, a.z - z) < a.r + r);
   const potMats = [CLAY.terracotta, CLAY.terracotta, CLAY.iron, CLAY.celadon, CLAY.ash];

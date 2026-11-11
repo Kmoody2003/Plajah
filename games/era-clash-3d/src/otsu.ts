@@ -12,6 +12,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { collide } from './core/collision';
 import { rng } from './core/kit';
 import { boxGeo, gableGeo, type Avoid, type Village } from './village';
+import { uvMaterial } from './core/materials';
 
 export interface OtsuMats { wood: THREE.Material; darkWood: THREE.Material; plaster: THREE.Material; tile: THREE.Material; stone: THREE.Material; quay: THREE.Material }
 export interface Otsu {
@@ -46,8 +47,8 @@ export function buildOtsu(o: { heightAt: (x: number, z: number) => number; roadX
   const lowest = (x: number, z: number, r: number) => Math.min(heightAt(x - r, z - r), heightAt(x + r, z + r), heightAt(x - r, z + r), heightAt(x + r, z - r), heightAt(x, z));
   const footprints: THREE.Box3[] = [];
   const foot = (x: number, z: number, sx: number, sz: number) => footprints.push(new THREE.Box3(new THREE.Vector3(x - sx / 2, -50, z - sz / 2), new THREE.Vector3(x + sx / 2, 200, z + sz / 2)));
-  const ridgeMat = new THREE.MeshStandardNodeMaterial({ color: 0x30333a, roughness: 0.55 });
-  const blackWall = new THREE.MeshStandardNodeMaterial({ color: 0x1e1c1c, roughness: 0.8 });
+  const ridgeMat = uvMaterial('grey_roof_tiles', [1.6, 1.6], { tint: 0x5c606a });
+  const blackWall = uvMaterial('black_painted_planks', [1.1, 1.1], { tint: 0x6a6460 });
   const hemp = new THREE.MeshStandardNodeMaterial({ color: 0xc9b48c, roughness: 1, side: THREE.DoubleSide });
   const yardTrees: Otsu['yardTrees'] = [];
   const avoid: Avoid[] = [];

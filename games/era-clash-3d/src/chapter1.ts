@@ -10,7 +10,7 @@ import { Forest, type TreeSpot } from './core/forest';
 import { rng } from './core/kit';
 import { buildTerrain, buildSea, type Splat } from './ground';
 import { buildGrassField, type GrassField } from './grassField';
-import { buildVillage, type Village } from './village';
+import { buildVillage, boxGeo, type Village } from './village';
 import { buildLandmarks } from './landmarks';
 import { buildOtsu, OTSU } from './otsu';
 
@@ -139,7 +139,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
   // The town's surfaces (CC0 scans): sugi (Japanese cedar) boarding on the shopfronts, charred-black planks for
   // posts, beams and the kura's base boarding, white lime plaster above. Each is weathered by a large-scale
   // world-space pass (its own texture sampled huge, plus rain-streak darkening that fades up the wall).
-  const weather = (m: THREE.MeshStandardNodeMaterial, id: string, amount = 0.5, desat = 0) => {
+  const weather = (m: THREE.MeshStandardNodeMaterial, id: string, amount = 0.5, desat = 0, stain = 0.3) => {
     const big = texture(pbr(id).diff, positionWorld.xz.mul(1 / 31).add(vec2(positionWorld.y.mul(0.013), 0))).rgb.dot(vec3(0.33, 0.33, 0.33));
     const streak = texture(pbr(id).diff, vec2(positionWorld.x.add(positionWorld.z).mul(0.21), positionWorld.y.mul(0.02))).rgb.dot(vec3(0.33, 0.33, 0.33));
     const c0 = m.colorNode as ReturnType<typeof vec3>;
@@ -147,19 +147,23 @@ export async function buildChapter1(): Promise<Chapter1World> {
     const c1 = desat > 0 ? mix(c0, vec3(c0.dot(vec3(0.3, 0.59, 0.11))), desat) : c0;
     // splashed dirt up the foot of the walls (village.ts / otsu.ts bake 'grime' per vertex; 0 elsewhere)
     const grime = attribute<'float'>('grime', 'float');
-    m.colorNode = mix(c1.mul(big.mul(amount).add(1 - amount * 0.5)).mul(streak.mul(0.3).add(0.85)), vec3(0.16, 0.13, 0.1), grime.mul(grime).mul(0.55));
+    // rain stains: thin vertical runs (a stretched sample of the scan), stronger the higher up the wall (under the eaves)
+    const runs = texture(pbr(id).diff, vec2(positionWorld.x.add(positionWorld.z).mul(0.9), positionWorld.y.mul(0.05))).rgb.dot(vec3(0.33, 0.33, 0.33));
+    const stainK = smoothstep(0.35, 0.15, runs).mul(stain);
+    const weathered = c1.mul(big.mul(amount).add(1 - amount * 0.5)).mul(streak.mul(0.3).add(0.85)).mul(float(1).sub(stainK.mul(0.45)));
+    m.colorNode = mix(weathered, vec3(0.16, 0.13, 0.1), grime.mul(grime).mul(0.55));
     return m;
   };
   const wood = weather(uvMaterial('japanese_cedar_planks', [1.1, 1.1], { tint: 0x9a8670 }), 'japanese_cedar_planks', 0.5, 0.45);
   const darkWood = weather(uvMaterial('black_painted_planks', [1.2, 1.2], { tint: 0x9a8e84 }), 'black_painted_planks', 0.4, 0.2);
-  const plaster = weather(uvMaterial('painted_plaster_wall', [0.45, 0.45], { tint: 0xf2eadc, roughnessScale: 1.1 }), 'painted_plaster_wall', 0.35);
+  const plaster = weather(uvMaterial('painted_plaster_wall', [0.45, 0.45], { tint: 0xf2eadc, roughnessScale: 1.1 }), 'painted_plaster_wall', 0.45, 0, 1.0);
   const thatch = uvMaterial('roof_slates_02', [3, 3], { tint: 0x8a6a3a });
   // kawara: CC0 grey roof tiles (one texture repeat per 2 m of roof)
   const tile = uvMaterial('grey_roof_tiles', [1, 1], { tint: 0x9aa0aa });
   const red = new THREE.MeshStandardNodeMaterial({ color: 0x9a2a1e, roughness: 0.7 });
 
   const at = (o: THREE.Object3D, x: number, z: number, yaw = 0, lift = 0) => { o.position.set(x, heightAt(x, z) + lift, z); o.rotation.y = yaw; group.add(o); return o; };
-  const box = (w: number, h: number, d: number, m: THREE.Material, y = h / 2) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.y = y; b.castShadow = b.receiveShadow = true; return b; };
+  const box = (w: number, h: number, d: number, m: THREE.Material, y = h / 2) => { const b = new THREE.Mesh(boxGeo(w, h, d), m); b.position.y = y; b.castShadow = b.receiveShadow = true; return b; };
   /** A gabled roof (ridge along X). */
   const gable = (w: number, d: number, h: number, m: THREE.Material, over = 0.5) => {
     const s = new THREE.Shape(); s.moveTo(-d / 2 - over, 0); s.lineTo(0, h); s.lineTo(d / 2 + over, 0); s.lineTo(-d / 2 - over, 0);
@@ -386,7 +390,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
 
   // ── The five-storey pagoda behind the platform, off to the right as in the painting ────────────
   const pagoda = new THREE.Group();
-  const lacquer = new THREE.MeshStandardNodeMaterial({ color: 0x7a2a1e, roughness: 0.8 });
+  const lacquer = weather(uvMaterial('japanese_cedar_planks', [1.1, 1.1], { tint: 0x9a3a2a }), 'japanese_cedar_planks', 0.4);
   for (let i = 0; i < 5; i++) {
     const w = 7.2 - i * 0.95, y = i * 3.4;
     pagoda.add(box(w, 2.6, w, lacquer, y + 1.3));
