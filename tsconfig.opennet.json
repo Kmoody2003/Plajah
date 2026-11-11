@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "noEmit": true
+  },
+  "include": [
+    "routes/podcast20.ts",
+    "routes/nostr.ts",
+    "routes/openPublish.ts",
+    "routes/openNetworks.ts",
+    "services/podcast20/*.ts",
+    "services/podcastRSSService.ts",
+    "services/nostr/*.ts",
+    "services/peertube/publish.ts",
+    "services/funkwhale/*.ts",
+    "services/openNetworks/*.ts",
+    "components/PodcastRssSettings.tsx",
+    "components/networks/*.tsx",
+    "routes/activitypub.ts",
+    "services/activitypub/*.ts"
+  ]
+}

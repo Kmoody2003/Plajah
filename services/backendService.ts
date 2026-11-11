@@ -1672,6 +1672,8 @@ export const createPost = async (post: Partial<Post>, opts?: { postId?: string }
 
     // Notify followers
     notifyFollowers(auth.currentUser.uid, 'CONTENT', 'New Post', `${auth.currentUser.displayName} shared a new post`, 'FEED', docRef.id);
+    // Open networks (fediverse followers, Nostr auto-publish): server re-checks author + rules; never blocks the post.
+    void import('./openNetworks/federateClient').then(m => m.announcePost(docRef.id, 'create')).catch(() => {});
 
     // Posting directly on someone else's feed/wall → notify that person specifically.
     const targetUid = (post as any).targetUserId as string | undefined;
@@ -1752,6 +1754,8 @@ export const deletePost = async (postId: string, col: 'posts' | 'private_posts' 
   try {
     await deleteDoc(doc(db, col, postId));
     if (col !== 'posts') return; // no feed mirror for private / list posts
+    // Tell fediverse servers that held a copy (no-op if it never federated).
+    void import('./openNetworks/federateClient').then(m => m.announcePost(postId, 'delete')).catch(() => {});
     // Cascade delete the corresponding feed mirror (created by createPost)
     const feedQuery = query(collection(db, 'feed'), where('originalPostId', '==', postId));
     const feedSnap = await getDocs(feedQuery);

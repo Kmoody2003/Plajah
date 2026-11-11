@@ -10,6 +10,7 @@ import type { Album, UserProfile } from '../types';
 import ArtistRadioBuilder from './ArtistRadioBuilder';
 import PodcastDistributionHub from './PodcastDistributionHub';
 import AudiusPublishModal from './AudiusPublishModal';
+const FunkwhalePublishModal = React.lazy(() => import('./networks/FunkwhalePublishModal'));
 
 interface Props {
   user: UserProfile;
@@ -60,6 +61,7 @@ export default function MusicDistributionHub({ user, onCreateAlbum }: Props) {
   const [musicAlbums, setMusicAlbums] = useState<Album[]>([]);
   const [loading, setLoading]         = useState(true);
   const [audiusModalAlbum, setAudiusModalAlbum] = useState<Album | null>(null);
+  const [funkwhaleModalAlbum, setFunkwhaleModalAlbum] = useState<Album | null>(null);
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -211,6 +213,12 @@ export default function MusicDistributionHub({ user, onCreateAlbum }: Props) {
                 >
                   {a.audiusPublishStatus === 'published' ? 'Sync / View' : 'Publish to Audius'}
                 </button>
+                <button
+                  onClick={() => setFunkwhaleModalAlbum(a)}
+                  className="px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-sky-600/15 border border-sky-500/30 text-sky-300 hover:bg-sky-600/30 transition-all flex-shrink-0"
+                >
+                  Funkwhale
+                </button>
               </div>
             ))}
           </div>
@@ -225,6 +233,11 @@ export default function MusicDistributionHub({ user, onCreateAlbum }: Props) {
             setMusicAlbums(prev => prev.map(x => x.id === updated.id ? updated : x));
           }}
         />
+      )}
+      {funkwhaleModalAlbum && (
+        <React.Suspense fallback={null}>
+          <FunkwhalePublishModal album={funkwhaleModalAlbum} onClose={() => setFunkwhaleModalAlbum(null)} />
+        </React.Suspense>
       )}
     </motion.div>
   );

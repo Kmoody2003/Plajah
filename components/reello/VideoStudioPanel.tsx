@@ -22,6 +22,7 @@ import { isShortForm, videoSeconds, MAX_SHORT_SEC } from '../../services/reello/
 import { JobCard } from './upload/ReelloIntelDrafts';
 import { openStoryIntelWorkspace } from '../../services/storyIntel/open';
 import { findingsFromJob, stateOf } from '../../services/storyIntel/findings';
+const PeerTubePublishModal = React.lazy(() => import('../networks/PeerTubePublishModal'));
 
 const GENRES = ['General', 'Music', 'Vlog', 'Education', 'How-to', 'Comedy', 'Gaming', 'Faith', 'News', 'Sports', 'Food', 'Fashion', 'Business', 'Film & Animation'];
 // firestore.rules isValidVideo: title < 200, description < 2000.
@@ -288,6 +289,7 @@ const IntelTab: React.FC<{ video: Video; onClose: () => void }> = ({ video, onCl
 
 const VideoStudioPanel: React.FC<{ videoId: string; initialTab?: VideoStudioTab; onClose: () => void }> = ({ videoId, initialTab = 'details', onClose }) => {
   const [tab, setTab] = useState<VideoStudioTab>(initialTab);
+  const [peertubeOpen, setPeertubeOpen] = useState(false);
   const [video, setVideo] = useState<Video | null | undefined>(undefined);
   useEffect(() => { setTab(initialTab); }, [initialTab, videoId]);
   useEffect(() => { let live = true; setVideo(undefined); fetchVideoById(videoId).then(v => { if (live) setVideo(v); }); return () => { live = false; }; }, [videoId]);
@@ -308,6 +310,7 @@ const VideoStudioPanel: React.FC<{ videoId: string; initialTab?: VideoStudioTab;
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/40">Video studio</p>
             <h2 className="text-base font-bold text-white truncate">{video?.title || (video === null ? 'Video not found' : 'Loading…')}</h2>
           </div>
+          {video && mine && !video.isPrivate && <button onClick={() => setPeertubeOpen(true)} className="px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-orange-500/15 border border-orange-400/30 text-orange-200 hover:bg-orange-500/25" title="Also publish to a PeerTube server you choose">PeerTube</button>}
           {video && !video.isPrivate && <a href={`/?v=${encodeURIComponent(video.id)}`} target="_blank" rel="noreferrer" className="text-white/50 hover:text-white" title="Open the watch page"><ExternalLink size={16} /></a>}
           <button onClick={onClose} aria-label="Close" className="text-white/60 hover:text-white"><X size={20} /></button>
         </header>
@@ -328,6 +331,11 @@ const VideoStudioPanel: React.FC<{ videoId: string; initialTab?: VideoStudioTab;
           {video && mine && tab === 'intel' && <IntelTab video={video} onClose={onClose} />}
         </div>
       </div>
+      {peertubeOpen && video && (
+        <React.Suspense fallback={null}>
+          <div onClick={e => e.stopPropagation()}><PeerTubePublishModal video={video} onClose={() => setPeertubeOpen(false)} /></div>
+        </React.Suspense>
+      )}
     </div>
   );
 };

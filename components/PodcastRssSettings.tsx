@@ -19,8 +19,358 @@ import { fetchAndParseRss, validateRssUrl } from '../services/podcastRssImporter
 import { generatePodcastRSS, PODCAST_DIRECTORIES } from '../services/podcastRSSService';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import type { ImportedRssEpisode, PodcastRssSettings as PodcastRssSettingsType, Album, Track } from '../types';
+import { validatePodcast20Settings } from '../services/podcast20/validate';
+import { PODCAST_MEDIUMS, type Podcast20Settings, type ValueRecipient, type LiveItemSettings, type PodcastPerson, type FundingLink, type Chapter } from '../services/podcast20/types';
 
 type InnerTab = 'import' | 'episodes' | 'distribute';
+
+// ── Podcasting 2.0 (server-backed: /api/podcast20/:albumId/settings) ─────────
+
+interface Podcast20View {
+  settings: Podcast20Settings;
+  feedUrl: string;
+  guid: string;
+  feedStatus: string;
+  publicTrackIds: string[];
+  podcastIndexConfigured: boolean;
+}
+
+const FEED_STATUS_COPY: Record<string, string> = {
+  public: 'Public: podcast apps and Podcast Index can read this feed',
+  draft: 'Draft albums have no public feed',
+  private: 'Private albums have no public feed',
+  removed: 'This album is on hold and has no public feed',
+  paywalled: 'Paid albums have no public feed',
+  unreleased: 'The feed goes live on the release date',
+  not_a_feed: 'Turn on "Publish as a podcast feed" to open a feed for this album',
+  not_found: 'Album not found',
+};
+
+const p20Input = 'w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-white placeholder-white/20 outline-none focus:border-orange-500/40 transition-colors';
+const p20Label = 'text-[8px] font-black uppercase tracking-widest text-white/25 block mb-1';
+const p20Btn = 'flex items-center gap-1.5 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest bg-white/6 text-white/40 hover:text-white transition-all';
+
+async function p20Fetch(path: string, init: RequestInit = {}): Promise<any> {
+  const token = await auth.currentUser?.getIdToken();
+  const res = await fetch(path, {
+    ...init,
+    headers: { ...(init.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init.body ? { 'Content-Type': 'application/json' } : {}) },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(data?.error || `Request failed (${res.status})`), { errors: data?.errors as string[] | undefined });
+  return data;
+}
+
+/** "0:00 Intro" / "1:02:03 Q&A" lines ⇄ chapters. */
+function parseChapterLines(text: string): Chapter[] {
+  const out: Chapter[] = [];
+  for (const line of text.split('\n')) {
+    const m = /^\s*(\d+(?::\d{1,2}){0,2}(?:\.\d+)?)\s+(.*)$/.exec(line);
+    if (!m) continue;
+    const parts = m[1].split(':').map(Number);
+    const sec = parts.reduce((acc, n) => acc * 60 + n, 0);
+    out.push({ startTime: sec, ...(m[2].trim() ? { title: m[2].trim() } : {}) });
+  }
+  return out;
+}
+function chapterLines(ch?: Chapter[]): string {
+  return (ch ?? []).map(c => {
+    const s = Math.floor(c.startTime);
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+    const t = h ? `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}` : `${m}:${String(r).padStart(2, '0')}`;
+    return `${t} ${c.title ?? ''}`.trim();
+  }).join('\n');
+}
+const toLocalInput = (ms?: number) => {
+  if (!ms) return '';
+  const d = new Date(ms);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+};
+const fromLocalInput = (s: string) => (s ? new Date(s).getTime() : 0);
+
+function Podcast20Section({ album, onView }: { album: Album; onView: (v: Podcast20View | null) => void }) {
+  const [view, setView] = useState<Podcast20View | null>(null);
+  const [draft, setDraft] = useState<Podcast20Settings>({});
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [loadError, setLoadError] = useState('');
+  const [episodeId, setEpisodeId] = useState('');
+  const [notifyMsg, setNotifyMsg] = useState('');
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true); setLoadError(''); setErrors([]); setView(null); onView(null);
+    p20Fetch(`/api/podcast20/${encodeURIComponent(album.id)}/settings`)
+      .then((v: Podcast20View) => { if (!alive) return; setView(v); setDraft(v.settings ?? {}); onView(v); })
+      .catch((e: Error) => { if (alive) setLoadError(e.message); })
+      .finally(() => { if (alive) setLoading(false); });
+    setEpisodeId(album.tracks?.[0]?.id ?? '');
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [album.id]);
+
+  const patch = (p: Partial<Podcast20Settings>) => setDraft(d => ({ ...d, ...p }));
+  const recipients: ValueRecipient[] = draft.value?.recipients ?? [];
+  const setRecipients = (r: ValueRecipient[]) => patch({ value: r.length ? { type: 'lightning', method: 'keysend', ...(draft.value?.suggested ? { suggested: draft.value.suggested } : {}), recipients: r } : undefined });
+  const splitTotal = recipients.filter(r => !r.fee).reduce((s, r) => s + (Number(r.split) || 0), 0);
+  const funding: FundingLink[] = draft.funding ?? [];
+  const persons: PodcastPerson[] = draft.persons ?? [];
+  const live: LiveItemSettings[] = draft.liveItems ?? [];
+  const ep = (draft.episodes ?? {})[episodeId] ?? {};
+  const setEp = (p: Record<string, unknown>) => {
+    const next = { ...ep, ...p } as Record<string, unknown>;
+    for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
+    const all = { ...(draft.episodes ?? {}) } as Record<string, any>;
+    if (Object.keys(next).length) all[episodeId] = next; else delete all[episodeId];
+    patch({ episodes: all });
+  };
+  const localCheck = validatePodcast20Settings(draft, { trackIds: (album.tracks ?? []).map(t => t.id) });
+
+  const save = async () => {
+    if (!localCheck.ok) { setErrors(localCheck.errors); return; }
+    setSaving(true); setErrors([]);
+    try {
+      const v = await p20Fetch(`/api/podcast20/${encodeURIComponent(album.id)}/settings`, { method: 'PUT', body: JSON.stringify({ settings: draft }) });
+      setView(v); setDraft(v.settings ?? {}); onView(v);
+      setSaved(true); setTimeout(() => setSaved(false), 2500);
+      if (v.podcastIndex) setNotifyMsg(v.podcastIndex.ok ? 'Podcast Index notified' : 'Saved; Podcast Index did not accept the update');
+    } catch (e: any) {
+      setErrors(e.errors?.length ? e.errors : [e.message]);
+    } finally { setSaving(false); }
+  };
+
+  const notify = async (add: boolean) => {
+    setNotifyMsg('');
+    try {
+      const r = await p20Fetch(`/api/podcast20/${encodeURIComponent(album.id)}/notify`, { method: 'POST', body: JSON.stringify({ add }) });
+      setNotifyMsg(r.skipped === 'not_configured' ? 'Podcast Index keys are not set up on this server' : r.ok ? (r.added ? 'Submitted to Podcast Index' : 'Podcast Index notified') : (r.description || 'Podcast Index did not accept the update'));
+    } catch (e: any) { setNotifyMsg(e.message); }
+  };
+
+  return (
+    <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-6 space-y-5">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between gap-3 text-left">
+        <div>
+          <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30">Podcasting 2.0</p>
+          <p className="text-[10px] text-white/20 mt-1">
+            Value-for-value, chapters, transcripts, live items and comments for Fountain, Podverse, Castamatic and Podcast Index.
+          </p>
+        </div>
+        <ChevronDown size={14} className={`text-white/30 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {loading && <div className="flex items-center gap-2 text-white/30 text-xs"><Loader2 size={13} className="animate-spin" /> Loading feed settings…</div>}
+      {loadError && (
+        <div className="flex items-start gap-2 p-3 rounded-xl bg-red-500/8 border border-red-500/20">
+          <AlertCircle size={12} className="text-red-400 shrink-0 mt-0.5" />
+          <p className="text-xs text-red-300">{loadError}</p>
+        </div>
+      )}
+
+      {view && (
+        <div className={`flex items-start gap-2 p-3 rounded-xl border ${view.feedStatus === 'public' ? 'bg-green-500/8 border-green-500/20' : 'bg-yellow-400/[0.06] border-yellow-400/15'}`}>
+          {view.feedStatus === 'public' ? <Check size={12} className="text-green-400 shrink-0 mt-0.5" /> : <Info size={12} className="text-yellow-400 shrink-0 mt-0.5" />}
+          <div className="min-w-0">
+            <p className="text-[10px] text-white/50">{FEED_STATUS_COPY[view.feedStatus] ?? view.feedStatus}</p>
+            <p className="text-[9px] text-white/25 mt-1 font-mono truncate">podcast:guid {view.guid}</p>
+            {view.feedStatus === 'public' && <p className="text-[9px] text-white/25 mt-0.5">{view.publicTrackIds.length} episode{view.publicTrackIds.length === 1 ? '' : 's'} in the public feed (paid, held and unreleased ones stay out)</p>}
+          </div>
+        </div>
+      )}
+
+      {view && open && (
+        <div className="space-y-6">
+          {/* Show basics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <label className="flex items-center gap-2 text-xs text-white/60 md:col-span-2">
+              <input type="checkbox" checked={!!draft.enabled} onChange={e => patch({ enabled: e.target.checked })} className="accent-orange-500" />
+              Publish as a podcast feed (needed for music albums; podcast albums are on already)
+            </label>
+            <div>
+              <span className={p20Label}>Medium</span>
+              <select value={draft.medium ?? ''} onChange={e => patch({ medium: (e.target.value || undefined) as Podcast20Settings['medium'] })} className={p20Input}>
+                <option value="">Not set (podcast)</option>
+                {PODCAST_MEDIUMS.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+            <div>
+              <span className={p20Label}>Lock against imports</span>
+              <div className="flex gap-2">
+                <select value={draft.locked === undefined ? '' : draft.locked ? 'yes' : 'no'} onChange={e => patch({ locked: e.target.value === '' ? undefined : e.target.value === 'yes' })} className={`${p20Input} w-24`}>
+                  <option value="">Off</option><option value="yes">Yes</option><option value="no">No</option>
+                </select>
+                <input value={draft.lockedOwner ?? ''} onChange={e => patch({ lockedOwner: e.target.value || undefined })} placeholder="owner email" className={p20Input} />
+              </div>
+            </div>
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-2">
+              <div>
+                <span className={p20Label}>Location</span>
+                <input value={draft.location?.name ?? ''} onChange={e => patch({ location: { ...(draft.location ?? { name: '' }), name: e.target.value } })} placeholder="Austin, TX" className={p20Input} />
+              </div>
+              <div>
+                <span className={p20Label}>Geo</span>
+                <input value={draft.location?.geo ?? ''} onChange={e => patch({ location: { ...(draft.location ?? { name: '' }), geo: e.target.value || undefined } })} placeholder="geo:30.2672,-97.7431" className={p20Input} />
+              </div>
+              <div>
+                <span className={p20Label}>OSM</span>
+                <input value={draft.location?.osm ?? ''} onChange={e => patch({ location: { ...(draft.location ?? { name: '' }), osm: e.target.value || undefined } })} placeholder="R113314" className={p20Input} />
+              </div>
+            </div>
+          </div>
+
+          {/* Value for value */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className={p20Label}>Value for value (Lightning)</span>
+              <span className={`text-[9px] font-black ${recipients.length && Math.abs(splitTotal - 100) > 0.001 ? 'text-red-400' : 'text-white/30'}`}>
+                {recipients.length ? `Splits: ${+splitTotal.toFixed(3)} / 100` : ''}
+              </span>
+            </div>
+            <p className="text-[9px] text-white/20 leading-relaxed">
+              Listeners' apps stream sats straight to each recipient's own node or Lightning address. Plajah never holds these payments and takes no share.
+            </p>
+            {recipients.map((r, i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                <input value={r.name} onChange={e => setRecipients(recipients.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Name" className={`${p20Input} col-span-3`} />
+                <select value={r.type} onChange={e => setRecipients(recipients.map((x, j) => j === i ? { ...x, type: e.target.value as ValueRecipient['type'] } : x))} className={`${p20Input} col-span-2`}>
+                  <option value="lnaddress">LN address</option><option value="node">Node key</option>
+                </select>
+                <input value={r.address} onChange={e => setRecipients(recipients.map((x, j) => j === i ? { ...x, address: e.target.value.trim() } : x))} placeholder={r.type === 'node' ? '03… (66 hex)' : 'name@wallet.com'} className={`${p20Input} col-span-4 font-mono`} />
+                <input type="number" min={0} max={100} step="any" value={r.split} onChange={e => setRecipients(recipients.map((x, j) => j === i ? { ...x, split: Number(e.target.value) } : x))} className={`${p20Input} col-span-2`} />
+                <button onClick={() => setRecipients(recipients.filter((_, j) => j !== i))} className="col-span-1 text-white/25 hover:text-red-400 text-xs font-black">✕</button>
+                {r.type === 'node' && (
+                  <div className="col-span-12 grid grid-cols-2 gap-2">
+                    <input value={r.customKey ?? ''} onChange={e => setRecipients(recipients.map((x, j) => j === i ? { ...x, customKey: e.target.value || undefined } : x))} placeholder="customKey (optional, e.g. 696969)" className={p20Input} />
+                    <input value={r.customValue ?? ''} onChange={e => setRecipients(recipients.map((x, j) => j === i ? { ...x, customValue: e.target.value || undefined } : x))} placeholder="customValue (optional)" className={p20Input} />
+                  </div>
+                )}
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <button onClick={() => setRecipients([...recipients, { name: '', type: 'lnaddress', address: '', split: recipients.length ? 0 : 100 }])} className={p20Btn}>+ Recipient</button>
+              {recipients.length > 0 && (
+                <input value={draft.value?.suggested ?? ''} onChange={e => patch({ value: { ...(draft.value ?? { type: 'lightning', method: 'keysend', recipients }), suggested: e.target.value || undefined } })} placeholder="Suggested BTC/min (0.00000005000)" className={`${p20Input} max-w-xs`} />
+              )}
+            </div>
+          </div>
+
+          {/* Funding + people */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <span className={p20Label}>Funding links</span>
+              {funding.map((f, i) => (
+                <div key={i} className="flex gap-2">
+                  <input value={f.url} onChange={e => patch({ funding: funding.map((x, j) => j === i ? { ...x, url: e.target.value } : x) })} placeholder="https://…" className={p20Input} />
+                  <input value={f.label ?? ''} onChange={e => patch({ funding: funding.map((x, j) => j === i ? { ...x, label: e.target.value || undefined } : x) })} placeholder="Label" className={`${p20Input} w-28`} />
+                  <button onClick={() => patch({ funding: funding.filter((_, j) => j !== i) })} className="text-white/25 hover:text-red-400 text-xs font-black">✕</button>
+                </div>
+              ))}
+              <button onClick={() => patch({ funding: [...funding, { url: '' }] })} className={p20Btn}>+ Funding link</button>
+            </div>
+            <div className="space-y-2">
+              <span className={p20Label}>People</span>
+              {persons.map((p, i) => (
+                <div key={i} className="flex gap-2">
+                  <input value={p.name} onChange={e => patch({ persons: persons.map((x, j) => j === i ? { ...x, name: e.target.value } : x) })} placeholder="Name" className={p20Input} />
+                  <input value={p.role ?? ''} onChange={e => patch({ persons: persons.map((x, j) => j === i ? { ...x, role: e.target.value || undefined } : x) })} placeholder="host / guest" className={`${p20Input} w-28`} />
+                  <button onClick={() => patch({ persons: persons.filter((_, j) => j !== i) })} className="text-white/25 hover:text-red-400 text-xs font-black">✕</button>
+                </div>
+              ))}
+              <button onClick={() => patch({ persons: [...persons, { name: '', role: 'host' }] })} className={p20Btn}>+ Person</button>
+            </div>
+          </div>
+
+          {/* Per episode */}
+          {(album.tracks ?? []).length > 0 && (
+            <div className="space-y-3">
+              <span className={p20Label}>Episode extras</span>
+              <select value={episodeId} onChange={e => setEpisodeId(e.target.value)} className={`${p20Input} max-w-sm`}>
+                {(album.tracks ?? []).map(t => <option key={t.id} value={t.id}>{t.title}{view.publicTrackIds.includes(t.id) ? '' : ' (not in public feed)'}</option>)}
+              </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <span className={p20Label}>Chapters (one per line: 0:00 Title)</span>
+                  <textarea
+                    key={episodeId}
+                    defaultValue={chapterLines(ep.chapters)}
+                    onBlur={e => { const c = parseChapterLines(e.target.value); setEp({ chapters: c.length ? c : undefined }); }}
+                    rows={5}
+                    placeholder={'0:00 Welcome\n4:30 Scripture reading\n12:05 Sermon'}
+                    className={`${p20Input} font-mono`}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div>
+                    <span className={p20Label}>Comments thread (ActivityPub note URL)</span>
+                    <input value={ep.socialInteract?.uri ?? ''} onChange={e => setEp({ socialInteract: e.target.value ? { ...(ep.socialInteract ?? {}), uri: e.target.value, protocol: 'activitypub' } : undefined })} placeholder="https://plajah.com/ap/…" className={p20Input} />
+                  </div>
+                  <div>
+                    <span className={p20Label}>Season name</span>
+                    <input value={ep.seasonName ?? ''} onChange={e => setEp({ seasonName: e.target.value || undefined })} placeholder="Romans" className={p20Input} />
+                  </div>
+                  <p className="text-[9px] text-white/20 leading-relaxed">Timed lyrics or captions on the track are published as VTT/SRT transcripts automatically.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Live items */}
+          <div className="space-y-2">
+            <span className={p20Label}>Live items (On-air shows, live services)</span>
+            {live.map((l, i) => {
+              const set = (p: Partial<LiveItemSettings>) => patch({ liveItems: live.map((x, j) => j === i ? { ...x, ...p } : x) });
+              return (
+                <div key={l.id || i} className="grid grid-cols-1 md:grid-cols-6 gap-2 p-3 rounded-xl bg-white/[0.02] border border-white/[0.05]">
+                  <input value={l.title} onChange={e => set({ title: e.target.value })} placeholder="Title" className={`${p20Input} md:col-span-2`} />
+                  <select value={l.status} onChange={e => set({ status: e.target.value as LiveItemSettings['status'] })} className={p20Input}>
+                    <option value="pending">Pending</option><option value="live">Live</option><option value="ended">Ended</option>
+                  </select>
+                  <input type="datetime-local" value={toLocalInput(l.start)} onChange={e => set({ start: fromLocalInput(e.target.value) })} className={p20Input} />
+                  <input type="datetime-local" value={toLocalInput(l.end)} onChange={e => set({ end: fromLocalInput(e.target.value) || undefined })} className={p20Input} />
+                  <button onClick={() => patch({ liveItems: live.filter((_, j) => j !== i) })} className="text-white/25 hover:text-red-400 text-xs font-black">✕</button>
+                  <input value={l.streamUrl} onChange={e => set({ streamUrl: e.target.value })} placeholder="https://… stream (.m3u8 or mp3)" className={`${p20Input} md:col-span-3 font-mono`} />
+                  <input value={l.contentLinks?.[0]?.href ?? ''} onChange={e => set({ contentLinks: e.target.value ? [{ href: e.target.value, label: 'Watch live on Plajah' }] : undefined })} placeholder="Watch page URL" className={`${p20Input} md:col-span-3`} />
+                </div>
+              );
+            })}
+            <button onClick={() => patch({ liveItems: [...live, { id: `live-${Date.now()}`, title: '', status: 'pending', start: Date.now() + 3_600_000, streamUrl: '' }] })} className={p20Btn}>+ Live item</button>
+          </div>
+
+          {errors.length > 0 && (
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-red-500/8 border border-red-500/20">
+              <AlertCircle size={12} className="text-red-400 shrink-0 mt-0.5" />
+              <ul className="text-[10px] text-red-300 space-y-0.5">
+                {errors.slice(0, 8).map(e => <li key={e}>{e}</li>)}
+              </ul>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={save}
+              disabled={saving}
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-orange-500 text-black font-black uppercase tracking-wider text-xs hover:bg-orange-400 transition-all disabled:opacity-50"
+            >
+              {saving ? <Loader2 size={13} className="animate-spin" /> : saved ? <Check size={13} /> : <Rss size={13} />}
+              {saving ? 'Saving…' : saved ? 'Saved' : 'Save Podcasting 2.0'}
+            </button>
+            {view.feedStatus === 'public' && (
+              <>
+                <button onClick={() => notify(false)} className={p20Btn}><RefreshCw size={11} /> Ping Podcast Index</button>
+                <button onClick={() => notify(true)} className={p20Btn}><BookOpen size={11} /> Submit to Podcast Index</button>
+              </>
+            )}
+          </div>
+          {notifyMsg && <p className="text-[10px] text-white/35">{notifyMsg}</p>}
+          {!view.podcastIndexConfigured && <p className="text-[9px] text-white/20">Podcast Index updates are off until the server has its API key.</p>}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
@@ -176,6 +526,7 @@ export default function PodcastRssSettings() {
   const [copied, setCopied]                 = useState(false);
   const [xmlCopied, setXmlCopied]           = useState(false);
   const [loadingAlbums, setLoadingAlbums]   = useState(false);
+  const [p20View, setP20View]               = useState<Podcast20View | null>(null);
 
   const { currentTrack, playTrack } = useGlobalPlayerState();
 
@@ -345,9 +696,12 @@ export default function PodcastRssSettings() {
 
   const selectedAlbum = albums.find(a => a.id === selectedAlbumId);
   const rssXml = selectedAlbum
-    ? generatePodcastRSS(selectedAlbum, { siteUrl: window.location.origin })
+    ? generatePodcastRSS(selectedAlbum, {
+        siteUrl: window.location.origin,
+        ...(p20View ? { feedUrl: p20View.feedUrl, podcast20: { settings: { ...p20View.settings, guid: p20View.guid } } } : {}),
+      })
     : '';
-  const feedUrl = selectedAlbum ? `${window.location.origin}/rss/${selectedAlbum.id}` : '';
+  const feedUrl = selectedAlbum ? (p20View?.feedUrl ?? `${window.location.origin}/rss/${selectedAlbum.id}`) : '';
 
   const copyFeedUrl = () => {
     navigator.clipboard.writeText(feedUrl);
@@ -729,13 +1083,16 @@ export default function PodcastRssSettings() {
                           </button>
                         </div>
 
-                        <div className="flex items-start gap-2 p-3 rounded-xl bg-yellow-400/[0.06] border border-yellow-400/15">
-                          <AlertCircle size={11} className="text-yellow-400 shrink-0 mt-0.5" />
-                          <p className="text-[9px] text-white/30 leading-relaxed">
-                            This URL requires a live hosting endpoint. Download the XML and serve it via Firebase Hosting,
-                            or use it with a podcast CDN.
-                          </p>
-                        </div>
+                        {p20View?.feedStatus !== 'public' && (
+                          <div className="flex items-start gap-2 p-3 rounded-xl bg-yellow-400/[0.06] border border-yellow-400/15">
+                            <AlertCircle size={11} className="text-yellow-400 shrink-0 mt-0.5" />
+                            <p className="text-[9px] text-white/30 leading-relaxed">
+                              {p20View
+                                ? (FEED_STATUS_COPY[p20View.feedStatus] ?? 'This feed is not public yet.') + '. You can still download the XML.'
+                                : 'This URL requires a live hosting endpoint. Download the XML and serve it via Firebase Hosting, or use it with a podcast CDN.'}
+                            </p>
+                          </div>
+                        )}
 
                         <div className="flex gap-3">
                           <button
@@ -753,6 +1110,9 @@ export default function PodcastRssSettings() {
                           </button>
                         </div>
                       </div>
+
+                      {/* Podcasting 2.0 */}
+                      <Podcast20Section album={selectedAlbum} onView={setP20View} />
 
                       {/* Episode stats */}
                       <div className="grid grid-cols-3 gap-3">

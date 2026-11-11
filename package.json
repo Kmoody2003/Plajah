@@ -40,6 +40,8 @@
     "test:composer": "tsx --test tests/livingComposer*.test.ts",
     "typecheck:composer": "tsc -p tsconfig.livingcomposer.json --noEmit",
     "test:lyrics": "npx tsx --test tests/lyricSyncWorker.test.ts",
+    "test:opennet": "npx tsx --test tests/activitypub.test.ts tests/podcast20.test.ts tests/nostr.test.ts tests/openPublish.test.ts tests/openNetworks.test.ts",
+    "typecheck:opennet": "tsc -p tsconfig.opennet.json --noEmit",
     "test:audius": "npx tsx --test --experimental-test-module-mocks tests/audiusPublish.test.ts tests/audiusFeed.test.ts",
     "test:musicintel": "npx tsx --test tests/musicIntel.test.ts tests/trackAnalysisBackfill.test.ts",
     "test:reellointel": "npx tsx --test tests/reelloIntel.test.ts",

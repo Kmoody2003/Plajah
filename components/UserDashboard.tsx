@@ -79,6 +79,9 @@ const LazyContentSafetySettings = React.lazy(() => import('./safety/ContentSafet
 const LazyNotificationSettings = React.lazy(() => import('./NotificationSettings'));
 // Opt-in rights layer: the switch, plus every work that already has a record.
 const LazyRegistrySettings = React.lazy(() => import('./registry/RegistrySettings'));
+const LazyFediverseIdentityCard = React.lazy(() => import('./networks/FediverseIdentityCard'));
+const LazyNostrPanel = React.lazy(() => import('./networks/NostrPanel'));
+const LazyOpenNetworksPanel = React.lazy(() => import('./networks/OpenNetworksPanel'));
 
 interface UserDashboardProps {
   user: any;
@@ -2087,6 +2090,15 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30 mb-6">Connect / Manage Accounts</h2>
                 <FediverseSettings />
               </div>
+
+              {/* ── Open networks: your @handle@plajah on the fediverse, Nostr (opt-in), Mobilizon/Lemmy/BookWyrm/Owncast/Matrix ── */}
+              <React.Suspense fallback={null}>
+                <section className="space-y-6">
+                  <LazyFediverseIdentityCard />
+                  <LazyNostrPanel />
+                  <LazyOpenNetworksPanel />
+                </section>
+              </React.Suspense>
             </motion.div>
           )}
 

@@ -110,6 +110,34 @@
         "run": { "serviceId": "plajah-api", "region": "us-west1" }
       },
       {
+        "source": "/podcast/**",
+        "run": { "serviceId": "plajah-api", "region": "us-west1" }
+      },
+      {
+        "source": "/.well-known/webfinger",
+        "run": { "serviceId": "plajah-api", "region": "us-west1" }
+      },
+      {
+        "source": "/.well-known/nodeinfo",
+        "run": { "serviceId": "plajah-api", "region": "us-west1" }
+      },
+      {
+        "source": "/.well-known/host-meta",
+        "run": { "serviceId": "plajah-api", "region": "us-west1" }
+      },
+      {
+        "source": "/.well-known/nostr.json",
+        "run": { "serviceId": "plajah-api", "region": "us-west1" }
+      },
+      {
+        "source": "/nodeinfo/**",
+        "run": { "serviceId": "plajah-api", "region": "us-west1" }
+      },
+      {
+        "source": "/ap/**",
+        "run": { "serviceId": "plajah-api", "region": "us-west1" }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

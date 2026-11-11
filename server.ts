@@ -80,6 +80,12 @@ import { blueskyOAuthRouter } from './routes/blueskyOAuth';
 import { fediverseNativeRouter } from './routes/fediverseNative';
 import { blueskyClientRouter } from './routes/blueskyClient';
 import { threadsOAuthRouter } from './routes/threadsOAuth';
+import { createPodcast20Router } from './routes/podcast20';
+import { createActivityPubRouter, createActivityPubOwnerRouter } from './routes/activitypub';
+import { deliverPostToFollowers, deliverDelete, retryDueDeliveries } from './services/activitypub/delivery';
+import { createNostr } from './routes/nostr';
+import { createOpenPublishRouter } from './routes/openPublish';
+import { createOpenNetworksRouter, defaultOpenNetworksDeps } from './routes/openNetworks';
 import { threadsClientRouter } from './routes/threadsClient';
 import { bookSubmissionsRouter } from './routes/bookSubmissions';
 import { campaignsRouter } from './routes/campaigns';
@@ -11036,6 +11042,14 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     res.send(html);
   });
 
+  // ── Open networks: public, non-/api paths must sit before the SPA fallback below ──
+  // Podcasting 2.0 feeds, chapters, transcripts (/podcast/**) and Nostr NIP-05 (/.well-known/nostr.json).
+  app.use(createPodcast20Router());
+  // ActivityPub: WebFinger, NodeInfo, actors, outbox, inboxes (/.well-known/*, /nodeinfo/*, /ap/*). Parses its own raw body.
+  app.use(createActivityPubRouter());
+  const nostrNet = createNostr();
+  app.get('/.well-known/nostr.json', nostrNet.nip05);
+
   // --- Vite Middleware ---
 
   if (process.env.NODE_ENV !== 'production') {
@@ -15355,6 +15369,36 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use('/api/fediverse/bluesky/c', express.json({ limit: '32kb' }), blueskyClientRouter);
   app.use('/api/fediverse/threads/oauth', threadsOAuthRouter);
   app.use('/api/fediverse/threads/c', express.json({ limit: '16kb' }), threadsClientRouter);
+  // Open networks: Nostr (opt-in, zaps paid creator-direct), PeerTube/Funkwhale publish, Mobilizon/Lemmy/BookWyrm/Owncast/Matrix.
+  app.use('/api/nostr', apiLimiter, nostrNet.router);
+  app.use('/api/activitypub', apiLimiter, express.json({ limit: '16kb' }), createActivityPubOwnerRouter());
+  // After the browser writes/deletes a post: deliver to fediverse followers + Nostr auto-publish. The server decides
+  // everything from the stored post; the caller only says which post. Delete only fires once the post is truly gone.
+  app.post('/api/federate/post/:postId', apiLimiter, express.json({ limit: '1kb' }), async (req: any, res: any) => {
+    const postId = String(req.params.postId || '');
+    if (!/^[A-Za-z0-9_-]{4,128}$/.test(postId)) return res.status(400).json({ error: 'bad postId' });
+    const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    const uid = token ? await verifyGamerToken(token).catch(() => null) : null;
+    if (!uid) return res.status(401).json({ error: 'Sign in first' });
+    try {
+      if (req.body?.event === 'delete') {
+        if (await fsGet(`posts/${postId}`)) return res.status(409).json({ error: 'Post still exists' });
+        void deliverDelete(postId).catch(e => console.warn('[ap] delete fan-out failed:', e?.message || e));
+        return res.status(202).json({ ok: true });
+      }
+      const post = await fsGet(`posts/${postId}`);
+      if (!post) return res.status(404).json({ error: 'Post not found' });
+      if (post.authorId !== uid) return res.status(403).json({ error: 'Not your post' });
+      void deliverPostToFollowers(postId).catch(e => console.warn('[ap] fan-out failed:', e?.message || e));
+      void nostrNet.service.autoPublishPost(uid, postId).catch(() => {});
+      res.status(202).json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e?.message || 'failed' }); }
+  });
+  // Retry ActivityPub deliveries that failed (backoff 1m → 24h), every 2 minutes on this instance.
+  setInterval(() => { void retryDueDeliveries().catch(() => {}); }, 2 * 60_000).unref?.();
+  app.use('/api/open-publish', apiLimiter, express.json({ limit: '64kb' }), createOpenPublishRouter());
+  { const onRouter = defaultOpenNetworksDeps().then(d => createOpenNetworksRouter(d));
+    app.use('/api/open-networks', apiLimiter, (req: any, res: any, next: any) => { onRouter.then(r => r(req, res, next), next); }); }
   // Independent-author ebook submissions (status transitions are server-only; see firestore.rules bookSubmissions).
   // Paid-book vault: seal content off the public album, serve it back to the author and buyers only.
   // No body parser at the mount: /api/books/submit below needs its own 14mb limit.
