@@ -184,7 +184,7 @@ export function buildLandmarks(o: { inner: { xMin: number; xMax: number; zMin: n
   //    full 3D trees on the valley walls, baked impostors on the far hills and round the castle ──────────
   const treeNear: { x: number; y: number; z: number; h: number }[] = [], treeFar: { x: number; y: number; z: number; h: number }[] = [];
   {
-    const MAXP = 9000;
+    const MAXP = 22000;
     let n = 0, far = false;
     const plant = (x: number, z: number, s: number) => {
       if (n >= MAXP) return;
@@ -192,14 +192,15 @@ export function buildLandmarks(o: { inner: { xMin: number; xMax: number; zMin: n
       n++;
     };
     // the valley walls inside the play area (bare slopes in the first pass)
-    for (let z = -50; z < 175; z += 3.2) for (const sd of [-1, 1]) for (let k = 0; k < 3; k++) {
-      const x = sd > 0 ? 46 + hash2(z, k * 7 + sd) * 27 : -(163 + hash2(z, k * 7 + sd) * 20);
-      if (hash2(x, z + k) < 0.35) continue;
+    // the hillsides in view of the city: dense woods (Ravencrest's standard), stands with the odd clearing
+    for (let z = -50; z < 175; z += 2.1) for (const sd of [-1, 1]) for (let k = 0; k < 6; k++) {
+      const x = sd > 0 ? 45 + hash2(z, k * 7 + sd) * 44 : -(162 + hash2(z, k * 7 + sd) * 22);
+      if (hash2(x, z + k) < 0.22 || fbm(x / 40, z / 40) < 0.3) continue;
       plant(x, z + (hash2(k, z) - 0.5) * 2.5, 7 + hash2(x * 2, z) * 6);
     }
     // the hills outside, thick where they rise, thin on the valley floor
     far = true;
-    for (let i = 0; i < 40000 && n < MAXP; i++) {
+    for (let i = 0; i < 110000 && n < MAXP; i++) {
       const x = (hash2(i, 1.7) - 0.5) * 2400, z = -40 + hash2(2.3, i) * 1500;
       if (inside(x, z) || Math.hypot(x - castleAt.x, z - castleAt.z) < 80) continue;
       const y = groundY(x, z); if (y < 4) continue;

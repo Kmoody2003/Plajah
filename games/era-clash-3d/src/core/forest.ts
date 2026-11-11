@@ -19,7 +19,9 @@ export type Species = 'pine' | 'oak' | 'ash' | 'aspen' | 'dead' | 'umbrella' | '
 const SPECIES: Species[] = ['pine', 'oak', 'ash', 'aspen', 'dead', 'umbrella', 'cherry'];
 interface Variant { species: Species; bark: THREE.BufferGeometry; leaves: THREE.BufferGeometry | null; barkType: 'pine' | 'oak' | 'birch'; leafType: string | null; tint: string; tris: number; width: number }
 /** `lean`: a horizontal direction to tip the tree toward (radians in `leanAngle`), e.g. over a road. */
-export interface TreeSpot { p: THREE.Vector3; h: number; species?: Species; lean?: THREE.Vector3; leanAngle?: number }
+export interface TreeSpot { p: THREE.Vector3; h: number; species?: Species; lean?: THREE.Vector3; leanAngle?: number;
+  /** The exact variant (index into the forest's variants): a near tree's impostor is baked from the same tree. */
+  variant?: number }
 
 // Night-graded foliage: deep blue-green conifers; late-October broadleaves in rust, ochre and gold.
 const LEAF_TINT: Record<string, number> = { pine: 0x445e44, oak: 0x6a5634, ash: 0x7a5a2a, aspen: 0x84592a, umbrella: 0x2e4a2c, cherry: 0xe8a8b8 };
@@ -131,7 +133,7 @@ export class Forest {
    */
   static cull = true;
   /** LOD: full 3D trees inside this distance from the camera, their baked impostors beyond it (Era Clash). */
-  static nearDist = 42;
+  static nearDist = 60;
   private cullSets: CullSet[] = [];
   readonly group = new THREE.Group();
   private variants: Variant[] = [];
@@ -226,7 +228,7 @@ export class Forest {
       }
       const m = new THREE.Matrix4().compose(s.p, q, new THREE.Vector3(sc, sc, sc));
       (byVariant.get(v) ?? byVariant.set(v, []).get(v)!).push(m);
-      lod.push({ p: s.p, h: sc / 1.0, species: sp });
+      lod.push({ p: s.p, h: sc / 1.0, species: sp, variant: this.variants.indexOf(v) });
     }
     if (Forest.nearDist < Infinity && lod.length) this.far.push({ spots: lod, species: ['pine'], minD: Forest.nearDist });
     for (const [v, ms] of byVariant) {
@@ -266,8 +268,8 @@ export class Forest {
     for (const v of this.variants) { barkMaterial(v.barkType); if (v.leafType) leafMaterial(v.leafType, v.tint); }
     await Promise.all(texLoads);
     const isWebGL = !!(renderer.backend as unknown as { isWebGLBackend?: boolean }).isWebGLBackend;
-    const W = 256, H = 384;
-    const views = new Map<Species, { a: THREE.Texture; b: THREE.Texture; width: number }>();
+    const W = 384, H = 576;
+    const views = new Map<number, { shots: THREE.Texture[]; width: number }>();
     const prevTarget = renderer.getRenderTarget();
     const prevClear = new THREE.Color(), prevAlpha = renderer.getClearAlpha();
     const prevXR = renderer.xr.enabled;
@@ -276,9 +278,8 @@ export class Forest {
     // The bake has no prepass: leaves must write their own depth or back leaves cover front ones.
     leafMats.forEach((m) => { m.depthWrite = true; });
     try {
-      for (const sp of SPECIES) {
-        const v = this.variants.find((x) => x.species === sp);
-        if (!v) continue;
+      for (const [vi, v] of this.variants.entries()) {
+        if (v.species === 'dead') continue;
         const sc = new THREE.Scene();
         sc.add(new THREE.AmbientLight(0xffffff, 1.6));
         const sun = new THREE.DirectionalLight(0xffffff, 0.6); sun.position.set(1, 2, 2); sc.add(sun);
@@ -287,7 +288,8 @@ export class Forest {
         const half = v.width * 0.55;
         const cam = new THREE.OrthographicCamera(-half, half, 1.02, -0.02, 0.01, 10);
         const shots: THREE.Texture[] = [];
-        for (const [x, z] of [[0, 3], [3, 0]]) {
+        for (const a of [0, Math.PI / 3, (2 * Math.PI) / 3]) {
+          const x = Math.sin(a) * 3, z = Math.cos(a) * 3;
           const rt = new THREE.RenderTarget(W, H, { colorSpace: THREE.SRGBColorSpace });
           cam.position.set(x, 0.5, z); cam.lookAt(0, 0.5, 0);
           renderer.setRenderTarget(rt);
@@ -296,7 +298,7 @@ export class Forest {
           await renderer.renderAsync(sc, cam);
           shots.push(rt.texture);
         }
-        views.set(sp, { a: shots[0], b: shots[1], width: v.width });
+        views.set(vi, { shots, width: v.width });
       }
     } finally {
       renderer.xr.enabled = prevXR;
@@ -307,9 +309,12 @@ export class Forest {
 
     for (const { spots, species, minD } of this.far) {
       const R = rng(spots.length);
-      const bySpecies = new Map<Species, THREE.Matrix4[]>();
+      const bySpecies = new Map<number, THREE.Matrix4[]>();
       for (const s of spots) {
-        const sp = s.species ?? species[Math.floor(R() * species.length)];
+        const sp0 = s.species ?? species[Math.floor(R() * species.length)];
+        const pool = this.variants.map((v, i) => (v.species === sp0 ? i : -1)).filter((i) => i >= 0);
+        if (!pool.length) continue;
+        const sp = s.variant !== undefined && s.variant >= 0 ? s.variant : pool[Math.floor(R() * pool.length)];
         const sc = minD > 0 ? s.h : s.h * (0.85 + R() * 0.3);
         const m = new THREE.Matrix4().compose(s.p, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), R() * 6.28), new THREE.Vector3(sc, sc, sc));
         (bySpecies.get(sp) ?? bySpecies.set(sp, []).get(sp)!).push(m);
@@ -317,10 +322,12 @@ export class Forest {
       for (const [sp, ms] of bySpecies) {
         const vw = views.get(sp);
         if (!vw) continue;
-        // Two crossed quads; attribute 'view' picks which baked shot each samples.
+        const spName = this.variants[sp].species;
+        // Three quads 60° apart (rounder than a cross); attribute 'view' picks which baked shot each samples.
         const w = vw.width * 1.1;
         const qa = new THREE.PlaneGeometry(w, 1.04); qa.translate(0, 0.5, 0);
-        const qb = qa.clone(); qb.rotateY(Math.PI / 2);
+        const qb = qa.clone(); qb.rotateY(-Math.PI / 3);
+        const qc = qa.clone(); qc.rotateY((-2 * Math.PI) / 3);
         const geo = new THREE.BufferGeometry();
         const merge = (gs: THREE.BufferGeometry[]) => {
           const pos: number[] = [], nor: number[] = [], uvs: number[] = [], view: number[] = [], idx: number[] = [];
@@ -336,17 +343,17 @@ export class Forest {
           geo.setAttribute('view', new THREE.Float32BufferAttribute(view, 1));
           geo.setIndex(idx);
         };
-        merge([qa, qb]);
+        merge([qa, qb, qc]);
         const mat = new THREE.MeshLambertNodeMaterial({ side: THREE.DoubleSide, alphaTest: 0.5 });
         // Render targets are stored top-down under WebGPU (flip V), bottom-up under WebGL.
         const fuv = isWebGL ? uv() : vec2(uv().x, float(1).sub(uv().y));
-        const ta = texture(vw.a, fuv), tb = texture(vw.b, fuv);
+        const [ta, tb, tc] = vw.shots.map((t) => texture(t, fuv));
         const sel = attribute<'float'>('view', 'float');
-        const c = mix(ta, tb, sel);
+        const c = mix(mix(ta, tb, sel.min(1)), tc, sel.sub(1).max(0));
         mat.colorNode = c.rgb;   // baked with the day tints already
         mat.opacityNode = c.a;
         // a flat card goes dark when the low sun is behind it: a little of its own colour back (blossom glows more)
-        (mat as unknown as { emissiveNode: unknown }).emissiveNode = c.rgb.mul(sp === 'cherry' ? 0.45 : 0.14);
+        (mat as unknown as { emissiveNode: unknown }).emissiveNode = c.rgb.mul(spName === 'cherry' ? 0.45 : 0.14);
         mat.positionNode = sway(0.008);
         const im = new THREE.InstancedMesh(geo, mat, ms.length);
         ms.forEach((m, i) => im.setMatrixAt(i, m));
