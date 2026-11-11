@@ -7,6 +7,7 @@ import { newGrooveDoc, type GrooveDoc } from './services/melos/beats/grooveDoc';
 import { makeInstrumentTrack } from './services/melos/beats/instrumentFactory';
 import { BeatsEngine } from './services/melos/beats/engine/BeatsEngine';
 import { TonosPanel } from './components/melos/beats/instrument/TonosPanel';
+import { tonosDeepStats } from './services/melos/instruments/tonos/deep/tonosDeep';
 
 function Lab() {
   const [doc, setDoc] = useState<GrooveDoc>(() => {
@@ -14,7 +15,7 @@ function Lab() {
     d.arrangement.push(makeInstrumentTrack('tonos', 0));
     return d;
   });
-  useEffect(() => { BeatsEngine.get().loadDoc(doc); (window as unknown as { tonosLab: unknown }).tonosLab = { doc, engine: BeatsEngine.get() }; }, [doc]);
+  useEffect(() => { BeatsEngine.get().loadDoc(doc); (window as unknown as { tonosLab: unknown }).tonosLab = { doc, engine: BeatsEngine.get(), deepStats: tonosDeepStats }; }, [doc]);
   const mutate = useCallback((fn: (d: GrooveDoc) => void) => {
     setDoc((prev) => { const next = structuredClone(prev); fn(next); return next; });
   }, []);

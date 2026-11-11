@@ -62,7 +62,7 @@ use spatial::{IamfRole, Layout, Position};
 /// and the electric guitar rig (LY_PICKUP..LY_ECHO_TIME, 1924–1935).
 /// v17 adds TONOS (param block 2000+): world string instruments as physical strings, and the
 /// TonosRack of sympathetic strings; MAX_PARAM_ID grows to 2100.
-pub const ABI_VERSION: u32 = 17; // 17: TONOS world strings (block 2000+); 16: SOMA deep skin
+pub const ABI_VERSION: u32 = 18; // 18: TONOS deep body; 17: TONOS world strings (block 2000+); 16: SOMA deep skin
 
 #[unsafe(no_mangle)]
 pub extern "C" fn pa_abi_version() -> u32 {
@@ -393,6 +393,16 @@ pub unsafe extern "C" fn pa_schedule_note_on_deep(p: *mut Engine, note: f32, vel
 pub unsafe extern "C" fn pa_soma_excitation(p: *mut Engine, note: f32, velocity: f32, seed: u32, frames: u32) -> *const f32 {
     let e = eng!(p, core::ptr::null());
     e.soma_excitation(note, velocity, seed, frames.min(1 << 17) as usize).as_ptr()
+}
+
+/// TONOS deep body: a TONOS note's bridge force, its body floors' sound, then the rest of the body
+/// (3·frames floats), valid until the next call.
+/// # Safety
+/// `p` must be a live engine pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pa_tonos_excitation(p: *mut Engine, note: f32, velocity: f32, variant: u32, frames: u32) -> *const f32 {
+    let e = eng!(p, core::ptr::null());
+    e.tonos_excitation(note, velocity, variant, frames.min(1 << 18) as usize).as_ptr()
 }
 
 /// # Safety

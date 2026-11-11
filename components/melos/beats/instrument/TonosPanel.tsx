@@ -10,6 +10,7 @@ import { syncPadWithTrack } from '../../../../services/melos/beats/instrumentFac
 import { TONOS_INSTRUMENTS, TONOS_REGIONS, type TonosRegion } from '../../../../services/melos/instruments/tonos/catalog';
 import { RV, TN, TONOS_INDEX_PARAMS, TONOS_PARAM_META, type TonosParamMeta } from '../../../../services/melos/instruments/tonos/params';
 import { TONOS_PRESETS } from '../../../../services/melos/instruments/tonos/presets';
+import { TonosDeepToggle } from './TonosDeepToggle';
 import {
   TONOS_MACRO_LABELS, TONOS_MACRO_ORDER, applyTonosPatch, applyTonosPreset, deserializeTonosPatch, newTonosPatch, serializeTonosPatch,
   type TonosMacro, type TonosPatch,
@@ -124,7 +125,10 @@ export const TonosPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded
           <p className="text-[9px] font-black uppercase tracking-[0.35em]" style={{ color: ACCENT }}>TONOS · world strings, physically modelled</p>
           <h2 className="text-lg font-black">{patch.name}</h2>
         </div>
-        {!embedded && <button onClick={onClose} aria-label="Close" className="p-1.5 rounded-full hover:bg-white/10"><X size={16} /></button>}
+        <div className="flex items-center gap-2">
+          <TonosDeepToggle bowed={inst.excite === 'bow' || inst.excite === 'wheel'} />
+          {!embedded && <button onClick={onClose} aria-label="Close" className="p-1.5 rounded-full hover:bg-white/10"><X size={16} /></button>}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Region">

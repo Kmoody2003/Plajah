@@ -110,7 +110,9 @@ function magAt(sig, freq, sr) {
 
 test('ABI version matches the host contract', async () => {
   const { x } = await boot();
-  assert.equal(x.pa_abi_version(), 16);
+  // The worklet host declares the ABI it speaks (InstrumentHost.ts DSP_ABI_VERSION); the core must match.
+  const host = readFileSync(new URL('../../../services/melos/beats/engine/InstrumentHost.ts', import.meta.url), 'utf8');
+  assert.equal(x.pa_abi_version(), Number(host.match(/DSP_ABI_VERSION = (\d+)/)[1]));
 });
 
 /** Stage a mono sample into the upload buffer and load it into a slot. Returns the frame count. */

@@ -212,8 +212,32 @@ impl Engine {
     pub fn note_on_deep(&mut self, note: f32, vel: f32, voice_id: u32, frame_offset: u32, slot: i32, gain: f32, top_ratio: f32) {
         self.note_on(note, vel, voice_id, frame_offset);
         if let Some(v) = self.voices.iter_mut().filter(|v| v.active && v.voice_id == voice_id).max_by_key(|v| v.age) {
-            v.set_soma_deep(slot, gain, top_ratio);
+            // SOMA reads `top_ratio` as the cloud's new floor; TONOS reads it as the take (0/1).
+            if !v.set_soma_deep(slot, gain, top_ratio) {
+                v.set_tonos_deep(slot, gain, top_ratio.round().max(0.0) as u32, &self.params, &self.samples);
+            }
         }
+    }
+
+    /// A TONOS note on this engine's parameters, as the GPU deep body needs it: the force the
+    /// strings put on the bridge (`frames` samples — what drives the GPU's body modes), then the
+    /// sound of the body's broad floors for the same note (`frames` more), then the rest of the body
+    /// (`frames` more: the floors add to it coherently, and the deep body is matched to what they
+    /// add). Played from `deep_seed(note, variant)`, as a deep note-on replays it.
+    /// Main-thread use only: it allocates.
+    pub fn tonos_excitation(&mut self, note: f32, vel: f32, variant: u32, frames: usize) -> &[f32] {
+        let mut voice = crate::tonos::TonosVoice::new(self.sr);
+        let mut rng = Rng(crate::tonos::deep_seed(note, variant));
+        voice.trigger(crate::voice::midi_to_hz(note), vel.clamp(0.0, 1.0), &self.params, &mut rng);
+        self.excite.clear();
+        self.excite.resize(frames * 3, 0.0);
+        for i in 0..frames {
+            voice.render_sample(1.0, 0.0, &mut rng);
+            self.excite[i] = voice.last_bridge_force;
+            self.excite[frames + i] = voice.last_floor;
+            self.excite[2 * frames + i] = voice.last_rest;
+        }
+        &self.excite
     }
 
     /// A SOMA strike on this engine's parameters, as the GPU deep skin needs it: the force the
@@ -610,5 +634,37 @@ impl Engine {
         if any_voice || peak > 1.0e-5 { self.idle_frames = 0; } else { self.idle_frames += frames as u64; }
         self.frame_counter += frames as u64;
         let _ = MAX_UNISON;
+    }
+}
+
+#[cfg(test)]
+mod tonos_deep_tests {
+    use super::*;
+
+    /// The recorder and a live engine voice play the same string: `tonos_excitation` and a deep
+    /// note-on replay identical bridge forces, sample for sample.
+    #[test]
+    fn tonos_deep_recorder_matches_the_live_voice() {
+        for (inst, note) in [(16.0f32, 64.0f32), (19.0, 57.0), (40.0, 60.0)] {
+            let mut e = Engine::new(48000.0);
+            e.params.set(TONOS_BASE + TN_ENABLE, 1.0);
+            e.params.set(TONOS_BASE + TN_INSTRUMENT, inst);
+            let n = 4096usize;
+            let rec: Vec<f32> = e.tonos_excitation(note, 0.75, 0, n)[..n].to_vec();
+            // A slot of silence, long enough.
+            e.sample_begin(0, 48000, 2, 48000.0, 60.0, 0, 0, 0);
+            e.sample_end(0);
+            e.note_on_deep(note, 0.75, 1, 0, 0, 1.0, 0.0);
+            let mut live = Vec::with_capacity(n);
+            for _ in 0..n / 64 {
+                e.render(64);
+                // The probe reads the last sample of each block; record those.
+                let v = e.voices.iter().find(|v| v.active).expect("voice");
+                live.push(v.tonos_probe().0);
+            }
+            for (k, f) in live.iter().enumerate() {
+                assert_eq!(*f, rec[k * 64 + 63], "inst {inst}: bridge force differs at block {k}");
+            }
+        }
     }
 }

@@ -349,3 +349,39 @@ Measured in the desktop app (8 voices per track, browser `playbackStats`):
 **Not ready to turn on.** It is better at 16 tracks and barely better at 32, while the same engine on WASAPI directly had no underruns at 16 tracks. So the browser's audio thread is still losing time with almost nothing to compute; the cause is not found. Suspects: ~750 chunk messages a second into 16 worklets, and the idle wasm worklets. The runs were also not on a quiet machine.
 
 Not done: the desktop installer does not bundle the DLL (the csproj copies it only if `rust/target/release` has it), parameter locks apply on arrival rather than at their frame, and the real BeatsEngine path has only been typechecked, not played.
+
+## Milestone 6: TONOS deep body (2026-11-11)
+
+The same render-ahead approach as SOMA's deep skin, applied to TONOS world strings. The string itself stays on the CPU: each sample depends on the one before it, and the browser's audio thread can't reach the GPU. What moves to the GPU is the instrument body.
+
+On the CPU, a TONOS body is a handful of narrow modes plus one or two broad "floor" bandpasses standing in for everything above ~1 kHz. With the deep body, that upper range becomes up to 2,048 real modes per instrument, built from the same body description `tonos.rs` uses (`services/melos/instruments/tonos/deep/`):
+- **Wood soundboards:** plate modes at constant modal density n ≈ π/(2f₁), for the top and the back.
+- **Cavities:** air modes at 4πVf²/c³.
+- **Skins:** Bessel modes from the ninth up, with paired orientations.
+- **Gourds:** shell plus air modes.
+- **Bamboo tubes:** air-column harmonics plus wall modes.
+
+Mode spacings follow the Wigner surmise, which is how a real irregular structure spaces its modes.
+
+How it fits together:
+
+- **Drive.** `pa_tonos_excitation` (ABI 18) plays the note from `deep_seed(note, take)` and records three signals: the bridge force, the floors' sound, and the rest of the body's sound. `pa_note_on_deep` (shared with SOMA; `top` carries the take) re-triggers the voice from the same seed, so the live string is the recorded one sample for sample. Two Rust tests check this: one at the voice level and one through the engine. The voice plays the layer in place of the floors. A bend, the mod wheel, a slur or the release hand back to the floors in 30 ms, and so does the end of the layer (150 ms fade).
+- **Level.** The floors were what the instruments were balanced to, so per third-octave the deep modes carry exactly what the floors added. The calibration predicts complex spectra bin by bin, because the deep modes, the floors and the rest of the body all filter one bridge force and add with their phases:
+  - near each mode, its exact response;
+  - far from it, the 1/Δ tails and mirror terms of all modes at once, as one FFT convolution;
+  - three refinement passes.
+
+  Two more details keep the low end unchanged:
+  - **Drive shaping:** the GPU drive goes through (1 − z⁻²), so each kernel mode has the voice's bandpass shape.
+  - **Low floors kept:** the floors below 700 Hz stay in the layer, split off with a zero-phase crossover.
+
+  Through the real engine, against the same note fed its own floors: 60–500 Hz within 1 dB. Every octave from 500 Hz to 16 kHz is within 3 dB on oud, kora, santoor, sitar and pipa, and most are within 1.5 dB (`tests/tonosDeep.test.ts`, with a CPU copy of the kernel).
+- **GPU.** `gpuModal.ts` now takes excitation for every block, not only the first; SOMA's one-block path is unchanged. In the lab (Intel Xe-LPG) the GPU output matched a CPU reference to 6e-7 relative.
+- **Cost.**
+  - **Calibration:** 0.4–1.6 s per note in the worker, once per patch × note, then reused for the four velocity levels.
+  - **GPU:** a note's four levels took 245 ms; the first deep note was ready 2.5 s after the first press.
+  - **Cache:** 96 MB.
+  - **Bounces:** `render.ts` warms every note first, so a bounce gets the deep body from the first note.
+- **Not for bowed or wheeled instruments.** What the bow does next can't be rendered ahead, so the 14 bowed and wheeled instruments stay on the CPU. The "Deep body" chip in the panel says so. `localStorage['chora.tonosDeep'] = 'off'` turns the deep body off.
+
+Not verified by ear.

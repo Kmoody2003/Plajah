@@ -15,7 +15,8 @@ export interface ModalJob {
   coef: Float32Array;
   groups: number;
   frames: number;
-  /** Drive for both banks, from sample 0 (shorter than `frames` = silence after). */
+  /** Drive for both banks, from sample 0 (shorter than `frames` = silence after). SOMA's strikes fit
+   *  in the first block; TONOS's bridge force runs the whole note (every block gets its slice). */
   excite: Float32Array;
 }
 
@@ -88,13 +89,20 @@ export async function renderModalBatch(jobs: ModalJob[]): Promise<ModalBatchResu
   const frames = Math.max(...jobs.map((j) => j.frames));
   const blocks = Math.ceil(frames / BLOCK);
 
-  // Excitation lives in block 0 only (strikes are a few ms); later blocks read a zero buffer.
-  const excite0 = new Float32Array(banks * BLOCK);
+  // Excitation: [block][bank][BLOCK] for the blocks any job still drives; later blocks read a zero
+  // buffer. A strike (SOMA) needs one block; a held string (TONOS) needs them all.
+  const exBlocks = Math.min(blocks, Math.max(1, ...jobs.map((j) => Math.ceil(j.excite.length / BLOCK))));
+  const excite0 = new Float32Array(exBlocks * banks * BLOCK);
   jobs.forEach((job, j) => {
-    const n = Math.min(BLOCK, job.excite.length);
-    excite0.set(job.excite.subarray(0, n), (2 * j) * BLOCK);
-    excite0.set(job.excite.subarray(0, n), (2 * j + 1) * BLOCK);
+    for (let b = 0; b < exBlocks; b++) {
+      const a = b * BLOCK, n = Math.min(BLOCK, job.excite.length - a);
+      if (n <= 0) break;
+      const src = job.excite.subarray(a, a + n);
+      excite0.set(src, (b * banks + 2 * j) * BLOCK);
+      excite0.set(src, (b * banks + 2 * j + 1) * BLOCK);
+    }
   });
+  const sliceBytes = banks * BLOCK * 4;
 
   const S = GPUBufferUsage.STORAGE, D = GPUBufferUsage.COPY_DST, C = GPUBufferUsage.COPY_SRC;
   const created: GPUBuffer[] = [];
@@ -105,7 +113,7 @@ export async function renderModalBatch(jobs: ModalJob[]): Promise<ModalBatchResu
   const gbBuf = buf(groupBank.byteLength, S | D);
   const bgBuf = buf(bankGroups.byteLength, S | D);
   const exA = buf(excite0.byteLength, S | D);
-  const exZ = buf(excite0.byteLength, S | D);
+  const exZ = buf(sliceBytes, S | D);
   const partial = buf(totalGroups * BLOCK * 4, S);
   const out = buf(banks * BLOCK * 4, S | C);
   const result = buf(blocks * banks * BLOCK * 4, GPUBufferUsage.MAP_READ | D);
@@ -117,11 +125,15 @@ export async function renderModalBatch(jobs: ModalJob[]): Promise<ModalBatchResu
   q.writeBuffer(exA, 0, excite0);
   // state and exZ start zeroed (WebGPU zero-initialises buffers).
 
-  const bindModes = (ex: GPUBuffer) => device.createBindGroup({
+  const bindModes = (ex: GPUBuffer, offset: number) => device.createBindGroup({
     layout: gpu.modes.getBindGroupLayout(0),
-    entries: [params, coefBuf, state, gbBuf, ex, partial].map((buffer, binding) => ({ binding, resource: { buffer } })),
+    entries: [params, coefBuf, state, gbBuf, ex, partial].map((buffer, binding) => ({
+      binding, resource: binding === 4 ? { buffer, offset, size: sliceBytes } : { buffer },
+    })),
   });
-  const bmA = bindModes(exA), bmZ = bindModes(exZ);
+  // Slice offsets are multiples of 16 KB, well past minStorageBufferOffsetAlignment (≤ 256).
+  const bmA = Array.from({ length: exBlocks }, (_, b) => bindModes(exA, b * sliceBytes));
+  const bmZ = bindModes(exZ, 0);
   const br = device.createBindGroup({
     layout: gpu.reduce.getBindGroupLayout(0),
     entries: [[0, params], [5, partial], [6, bgBuf], [7, out]].map(([binding, buffer]) => ({ binding: binding as number, resource: { buffer: buffer as GPUBuffer } })),
@@ -133,7 +145,7 @@ export async function renderModalBatch(jobs: ModalJob[]): Promise<ModalBatchResu
   for (let b = 0; b < blocks; b++) {
     const pass = enc.beginComputePass();
     pass.setPipeline(gpu.modes);
-    pass.setBindGroup(0, b === 0 ? bmA : bmZ);
+    pass.setBindGroup(0, b < exBlocks ? bmA[b] : bmZ);
     pass.dispatchWorkgroups(totalGroups);
     pass.setPipeline(gpu.reduce);
     pass.setBindGroup(0, br);

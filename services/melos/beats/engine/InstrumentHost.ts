@@ -9,6 +9,7 @@ import wasmUrl from './dsp/plajah_audio.wasm?url';
 import workletUrl from './instrumentProcessor.worklet.js?url';
 import { selectZones, type KeraProgram } from '../../instruments/kera/zones';
 import { DEEP_VARIANTS, deepVelBucket, lookupDeep, requestDeep, somaDeepSupported, somaParamsKey, type DeepHit } from '../../instruments/soma/deep/somaDeep';
+import { lookupTonosDeep, requestTonosDeep, tonosDeepCapable, tonosDeepSupported, tonosParamsKey, tonosVelBucket, type TonosDeepHit } from '../../instruments/tonos/deep/tonosDeep';
 import { modCapture } from '../modulators';
 import type { NativeTrack } from './nativeStream';
 
@@ -20,7 +21,7 @@ function secToNorm(sec: number): number {
 
 /** 11 adds AURA (param block 1700+): 1960s & 1970s analogue synthesis circuitry. Bumping this
  *  is what stops a stale committed .wasm from loading against a host that expects the new parameters. */
-export const DSP_ABI_VERSION = 17; // 17: TONOS world strings (block 2000+, sympathetic rack); 16: SOMA deep skin (GPU modes, note_on_deep); 15: LYRA brass, strings, plucked, guitar rig; 14: LYRA physical models (block 1900+); 13: scheduled KERA notes
+export const DSP_ABI_VERSION = 18; // 18: TONOS deep body (GPU body modes via note_on_deep, pa_tonos_excitation); 17: TONOS world strings (block 2000+, sympathetic rack); 16: SOMA deep skin (GPU modes, note_on_deep); 15: LYRA brass, strings, plucked, guitar rig; 14: LYRA physical models (block 1900+); 13: scheduled KERA notes
 
 /** Output layouts — must mirror `spatial::Layout` in the Rust crate. */
 export enum SpatialLayout {
@@ -197,7 +198,7 @@ export class Instrument {
     this.lastNote = note;
     this.lastVelocity = velocity01;
     this.lastNoteOnPerf = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const deep = this.somaDeep(note, velocity01);
+    const deep = this.somaDeep(note, velocity01) ?? this.tonosDeep(note, velocity01);
     if (deep) this.post({ type: 'noteOnDeep', note, velocity: velocity01, voiceId, frameOffset, ...deep });
     else this.post({ type: 'noteOn', note, velocity: velocity01, voiceId, frameOffset });
     this.heldVoices.set(key, voiceId);
@@ -217,7 +218,7 @@ export class Instrument {
     if (!m) return { note: key, velocity01: velocity };
     if (m.params.length) {
       for (const [id, v] of m.params) this.params.set(id, v);
-      this.paramsKeyMemo = null;
+      this.paramsKeyMemo = null; this.tonosKeyMemo = null;
       this.post({ type: 'paramsAt', frame, ids: Int32Array.from(m.params.map((e) => e[0])), values: Float32Array.from(m.params.map((e) => e[1])) });
     }
     return { note: m.note, velocity01: m.velocity };
@@ -229,7 +230,7 @@ export class Instrument {
 
   private params = new Map<number, number>();
   private paramsKeyMemo: string | null = null;
-  private deepSlots = new Map<DeepHit, number>(); // LRU: insertion order = age
+  private deepSlots = new Map<DeepHit | TonosDeepHit, number>(); // LRU: insertion order = age
   private deepTick = 0;
 
   private isSoma(): boolean {
@@ -259,8 +260,46 @@ export class Instrument {
     return { slot: this.deepSlot(hit), gain: v / deepVelBucket(v), top: hit.topRatio };
   }
 
+  // ── TONOS deep body (ABI 18) ────────────────────────────────────────────────
+  // A plucked/struck TONOS note whose GPU-rendered upper body is cached replays its string from the
+  // layer's seed and plays the layer in place of the body floors (tonosDeep.ts).
+
+  private tonosKeyMemo: string | null = null;
+
+  private tonosKey(): string {
+    return (this.tonosKeyMemo ??= tonosParamsKey(this.params));
+  }
+
+  private tonosDeep(note: number, velocity01: number): { slot: number; gain: number; top: number } | null {
+    if (this.keraProgram || !tonosDeepSupported() || !tonosDeepCapable(this.params)) return null;
+    const key = this.tonosKey();
+    const hit = lookupTonosDeep(key, note, velocity01, this.sampleRate);
+    if (!hit) {
+      void requestTonosDeep(this.params, key, note, this.sampleRate, getModule, velocity01);
+      return null;
+    }
+    const v = Math.max(0.02, Math.min(1, velocity01));
+    // `top` carries the take the layer was recorded from (the engine replays the string from it).
+    return { slot: this.deepSlot(hit), gain: v / tonosVelBucket(v), top: hit.variant };
+  }
+
+  /** Render the TONOS deep bodies for these notes now (an offline bounce awaits this). */
+  async warmTonosDeep(notes: Array<{ key: number; velocity: number }>): Promise<void> {
+    if (this.keraProgram || !tonosDeepSupported() || !tonosDeepCapable(this.params)) return;
+    const key = this.tonosKey();
+    const seen = new Set<string>();
+    const jobs: Promise<void>[] = [];
+    for (const n of notes) {
+      const k = `${n.key}|${tonosVelBucket(n.velocity)}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      jobs.push(requestTonosDeep(this.params, key, n.key, this.sampleRate, getModule, n.velocity));
+    }
+    await Promise.all(jobs);
+  }
+
   /** The engine sample slot holding `hit`, uploading it (and evicting the oldest) if needed. */
-  private deepSlot(hit: DeepHit): number {
+  private deepSlot(hit: DeepHit | TonosDeepHit): number {
     const have = this.deepSlots.get(hit);
     if (have !== undefined) {
       this.deepSlots.delete(hit);
@@ -439,7 +478,7 @@ export class Instrument {
   scheduleNoteOn(key: number, velocity: number, frame: number): number {
     const voiceId = this.nextVoiceId++;
     const { note, velocity01 } = this.mapNote(key, velocity, frame, false);
-    const deep = this.somaDeep(note, velocity01);
+    const deep = this.somaDeep(note, velocity01) ?? this.tonosDeep(note, velocity01);
     if (deep) this.post({ type: 'scheduleOnDeep', note, velocity: velocity01, voiceId, frame, ...deep });
     else this.post({ type: 'scheduleOn', note, velocity: velocity01, voiceId, frame });
     return voiceId;
@@ -482,7 +521,7 @@ export class Instrument {
   setParam(id: number, value: number): void {
     this.captureWrite(id, value);
     this.params.set(id, value);
-    this.paramsKeyMemo = null;
+    this.paramsKeyMemo = null; this.tonosKeyMemo = null;
     this.post({ type: 'param', id, value });
   }
 
@@ -493,7 +532,7 @@ export class Instrument {
       if (modCapture.active && this.params.get(id) !== v) this.captureWrite(id, v);
       this.params.set(id, v);
     }
-    this.paramsKeyMemo = null;
+    this.paramsKeyMemo = null; this.tonosKeyMemo = null;
     this.post({
       type: 'params',
       ids: Int32Array.from(entries.map((e) => e[0])),

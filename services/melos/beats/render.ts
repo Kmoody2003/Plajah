@@ -209,6 +209,10 @@ export async function renderGroove(
         for (const pad of doc.kit) if (pad?.source === 'instrument' && pad.instrumentTrackId === track.id) notes.push(Math.max(0, Math.min(127, (pad.instrumentNote ?? 60) + (pad.pitchSemis || 0))));
         await inst.warmSomaDeep(notes);
       }
+      if (track.instrument?.type === 'tonos') {
+        // TONOS deep body: the same for plucked/struck strings — every note's GPU body first.
+        await inst.warmTonosDeep(trackNotesForRender(doc, track).map((n) => ({ key: n.key, velocity: Math.max(0.05, n.vel / 127) })));
+      }
 
       // Same window (slip offset + loop), sustain-pedal rules and note FX as the live scheduler.
       for (const n of trackNotesForRender(doc, track)) {

@@ -564,6 +564,13 @@ const NLOOP: usize = 3;
 const MAX_AP: usize = 4;
 const MAX_JAW: usize = 4;
 const MAX_MODES: usize = 12;
+/// Floors centred at or above this are the ones the GPU deep body replaces.
+pub const DEEP_FLOOR_HZ: f32 = 1000.0;
+/// The seed a deep note is played with, so the live string matches the one the layer was recorded
+/// from sample for sample (vibrato phase, noise). `variant` picks one of two takes.
+pub fn deep_seed(note: f32, variant: u32) -> u32 {
+    (((note * 16.0).round() as i32 as u32).wrapping_mul(0x9E37_79B1) ^ (0x7D0E_5EED + variant * 7919)) | 1
+}
 
 /// One string as a velocity-wave loop. Age a (samples since it left the bridge): a ≤ P/2 is the
 /// wave travelling to the nut at distance a; a > P/2 is the returning wave (sign-flipped) at P − a.
@@ -717,7 +724,24 @@ pub struct TonosVoice {
     mode_g: [f32; MAX_MODES],
     mode_l: [f32; MAX_MODES],
     mode_r: [f32; MAX_MODES],
+    /// Broad high "floor" modes: they stand in for the dense upper body, which the GPU deep body
+    /// renders for real (see `set_deep`). Their bridge admittance stays; only their sound fades.
+    mode_floor: [bool; MAX_MODES],
     nmodes: usize,
+    // GPU deep body (render-ahead, played from a sample slot by the voice)
+    deep: bool,
+    deep_env: f32,
+    deep_left: u32,
+    deep_fade: u32,
+    deep_in: [f32; 2],
+    /// Bridge force and the floors' (mono) sound on the last sample — what the deep body is
+    /// driven with and matched to (`Engine::tonos_excitation`).
+    pub last_bridge_force: f32,
+    pub last_floor: f32,
+    pub last_floor_lr: [f32; 2],
+    /// The rest of the body (every non-floor mode, mono) on the last sample: the floors add to it
+    /// coherently, so what they contribute is |rest + floors|² − |rest|², not |floors|².
+    pub last_rest: f32,
     y0: f32,
     vb: f32,
     pl_prev: f32,
@@ -799,7 +823,17 @@ impl TonosVoice {
             mode_g: [0.0; MAX_MODES],
             mode_l: [0.0; MAX_MODES],
             mode_r: [0.0; MAX_MODES],
+            mode_floor: [false; MAX_MODES],
             nmodes: 0,
+            deep: false,
+            deep_env: 0.0,
+            deep_left: 0,
+            deep_fade: 1,
+            deep_in: [0.0; 2],
+            last_bridge_force: 0.0,
+            last_floor: 0.0,
+            last_floor_lr: [0.0; 2],
+            last_rest: 0.0,
             y0: 1e-3,
             vb: 0.0,
             pl_prev: 0.0,
@@ -882,6 +916,10 @@ impl TonosVoice {
             c.z2 = 0.0;
         }
         self.vb = 0.0;
+        self.deep = false;
+        self.deep_env = 0.0;
+        self.deep_left = 0;
+        self.deep_in = [0.0; 2];
         self.pl_prev = 0.0;
         self.pr_prev = 0.0;
         self.dir_hp = 0.0;
@@ -899,6 +937,26 @@ impl TonosVoice {
         self.rattle = Rattle { seated: true, ..Rattle::default() };
         self.released = true;
         self.t = 0;
+    }
+
+    /// This note plays a GPU deep body of `frames` samples (fed by `feed_deep` each sample).
+    /// Bowed and wheeled strings never do: what the bow does next isn't known in advance.
+    pub fn set_deep(&mut self, frames: u32) -> bool {
+        if self.is_sustained() || frames < 64 {
+            return false;
+        }
+        self.deep = true;
+        self.deep_env = 1.0;
+        self.deep_left = frames;
+        self.deep_fade = ((self.sr * 0.15) as u32).min(frames / 2).max(1);
+        true
+    }
+    #[inline]
+    pub fn feed_deep(&mut self, l: f32, r: f32) {
+        self.deep_in = [l, r];
+    }
+    pub fn deep_active(&self) -> bool {
+        self.deep || self.deep_env > 1e-4
     }
 
     pub fn is_sustained(&self) -> bool {
@@ -968,6 +1026,7 @@ impl TonosVoice {
             let (f, q, g) = modes[i];
             self.modes[i] = Bp::new(f, q, sr);
             self.mode_g[i] = g;
+            self.mode_floor[i] = q < 1.0 && f >= DEEP_FLOOR_HZ;
             // Radiation differs by direction: a deterministic ± spread per mode.
             let s = ((i as f32 * 2.399).sin() * 0.45).clamp(-0.45, 0.45);
             self.mode_l[i] = g * (1.0 - s);
@@ -1232,6 +1291,7 @@ impl TonosVoice {
             return;
         }
         self.spec = s;
+        self.deep = false; // the recorded layer is of the first note, not this one
         let base = self.sr / s.f_loop;
         for li in 0..self.nloop {
             let r = self.loops[li].ratio;
@@ -1313,12 +1373,43 @@ impl TonosVoice {
         let mut vsum = 0.0;
         let mut pl = 0.0;
         let mut pr = 0.0;
+        let mut fl = 0.0;
+        let mut fr = 0.0;
+        let mut floor = 0.0;
+        let mut rest = 0.0;
         for k in 0..self.nmodes {
             let o = self.modes[k].tick(fb);
             vsum += o * self.mode_g[k];
-            pl += o * self.mode_l[k];
-            pr += o * self.mode_r[k];
+            if self.mode_floor[k] {
+                floor += o * self.mode_g[k];
+                fl += o * self.mode_l[k];
+                fr += o * self.mode_r[k];
+            } else {
+                rest += o * self.mode_g[k];
+                pl += o * self.mode_l[k];
+                pr += o * self.mode_r[k];
+            }
         }
+        self.last_bridge_force = fb;
+        self.last_floor = floor;
+        self.last_floor_lr = [fl, fr];
+        self.last_rest = rest;
+        // Deep body: the GPU layer replaces the floors while the note is the one it was recorded
+        // from. A bend, the mod wheel, a slur or the release hand it back to the floors (30 ms).
+        if self.deep {
+            let off = self.released || (bend - 1.0).abs() > 1e-4 || mod_wheel > 0.01;
+            if off {
+                self.deep = false;
+            }
+        }
+        let target = if self.deep { (self.deep_left as f32 / self.deep_fade as f32).min(1.0) } else { 0.0 };
+        self.deep_env += (target - self.deep_env) * (1.0 / (sr * 0.03)).min(1.0);
+        if self.deep_left > 0 {
+            self.deep_left -= 1;
+        }
+        let keep = 1.0 - self.deep_env;
+        pl += fl * keep + self.deep_in[0] * self.deep_env;
+        pr += fr * keep + self.deep_in[1] * self.deep_env;
         let vb = self.y0 * vsum;
 
         // Rattle on the bridge.
@@ -1676,6 +1767,71 @@ mod tests {
     use super::*;
 
     const SR: f32 = 48000.0;
+
+    /// The deep body path: a deep note replays the recorded string exactly, so feeding it back the
+    /// floors it replaces reproduces the plain note bit for bit; feeding silence removes only the
+    /// floors; a bend or the release hands the sound back to the floors.
+    #[test]
+    fn tonos_deep_body_replays_the_recorded_string() {
+        for inst in [19usize, 11, 47, 0, 40, 16] {
+            let p = params(inst);
+            let note = 57.0;
+            let seed = deep_seed(note, 1);
+            let n = (SR * 0.6) as usize;
+            // Plain note from the deep seed, recording the floors and the bridge force.
+            let mut a = TonosVoice::new(SR);
+            let mut ra = Rng(seed);
+            a.trigger(midi_to_hz(note), 0.7, &p, &mut ra);
+            let mut plain = Vec::with_capacity(n);
+            let mut floors = Vec::with_capacity(n);
+            let mut force = Vec::with_capacity(n);
+            for _ in 0..n {
+                plain.push(a.render_sample(1.0, 0.0, &mut ra));
+                floors.push(a.last_floor_lr);
+                force.push(a.last_bridge_force);
+            }
+            // Deep note fed those floors: identical.
+            let mut b = TonosVoice::new(SR);
+            let mut rb = Rng(seed);
+            b.trigger(midi_to_hz(note), 0.7, &p, &mut rb);
+            assert!(b.set_deep(n as u32 + 48000), "{inst} takes a deep body");
+            let mut worst = 0.0f32;
+            for i in 0..n {
+                b.feed_deep(floors[i][0], floors[i][1]);
+                let o = b.render_sample(1.0, 0.0, &mut rb);
+                assert_eq!(b.last_bridge_force, force[i], "{inst} drive diverged at {i}");
+                worst = worst.max((o.0 - plain[i].0).abs()).max((o.1 - plain[i].1).abs());
+            }
+            assert!(worst < 1e-6, "{inst}: deep replay differs by {worst}");
+            // Deep note fed silence: the floors are gone, the rest is the same string.
+            let mut c = TonosVoice::new(SR);
+            let mut rc = Rng(seed);
+            c.trigger(midi_to_hz(note), 0.7, &p, &mut rc);
+            c.set_deep(n as u32 + 48000);
+            let (mut e_plain, mut e_diff) = (0.0f64, 0.0f64);
+            for i in 0..n {
+                let o = c.render_sample(1.0, 0.0, &mut rc);
+                assert_eq!(c.last_bridge_force, force[i]);
+                e_plain += (plain[i].0 as f64).powi(2);
+                e_diff += ((o.0 - plain[i].0) as f64).powi(2);
+            }
+            assert!(e_diff > 0.0 && e_diff < e_plain, "{inst}: floors share {}", e_diff / e_plain);
+            // A bend hands back to the floors.
+            let mut d = TonosVoice::new(SR);
+            let mut rd = Rng(seed);
+            d.trigger(midi_to_hz(note), 0.7, &p, &mut rd);
+            d.set_deep(n as u32);
+            for _ in 0..4800 {
+                d.render_sample(1.01, 0.0, &mut rd);
+            }
+            assert!(!d.deep && d.deep_env < 0.05, "{inst}: bend keeps the deep body");
+        }
+        // Bowed strings never take one.
+        let p = params(3);
+        let mut v = TonosVoice::new(SR);
+        v.trigger(midi_to_hz(62.0), 0.7, &p, &mut Rng(9));
+        assert!(!v.set_deep(48000));
+    }
 
     fn params(inst: usize) -> Params {
         let mut p = Params::new();

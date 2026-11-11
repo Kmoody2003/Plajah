@@ -222,6 +222,25 @@ impl Voice {
         true
     }
 
+    /// TONOS deep body: replay this note's string from the seed its layer was recorded with (so the
+    /// two match sample for sample), and play the GPU-rendered upper body from `slot` at `gain`.
+    /// Returns false when this isn't a plucked/struck TONOS voice.
+    pub fn set_tonos_deep(&mut self, slot: i32, gain: f32, variant: u32, p: &Params, bank: &SampleBank) -> bool {
+        // A slur (t > 0) keeps its string sounding: no replay, no layer.
+        if !self.tonos_active || slot < 0 || self.tonos.samples() != 0 {
+            return false;
+        }
+        let Some(frames) = bank.get(slot as usize).map(|s| s.frames as u32) else { return false };
+        self.tonos_rng = Rng(crate::tonos::deep_seed(self.note, variant));
+        self.tonos.trigger(midi_to_hz(self.note), self.velocity, p, &mut self.tonos_rng);
+        if !self.tonos.set_deep(frames) {
+            return false;
+        }
+        self.sample.start(slot, 0.0);
+        self.soma_deep_gain = gain.max(0.0);
+        true
+    }
+
     pub fn note_on(&mut self, note: f32, vel: f32, id: u32, p: &Params, glide_from: Option<f32>, delay: u32, sr_hint: f32) {
         self.active = true;
         self.released = false;
@@ -466,11 +485,18 @@ impl Voice {
     }
 
     /// A held, sounding TONOS voice and how long it has sounded (samples).
+    /// Bridge force and floors of this voice's TONOS string on its last sample (tests, diagnostics).
+    #[cfg(test)]
+    pub(crate) fn tonos_probe(&self) -> (f32, f32) {
+        (self.tonos.last_bridge_force, self.tonos.last_floor)
+    }
+
     pub fn tonos_held(&self) -> Option<u32> {
         (self.active && !self.released && self.tonos_active).then(|| self.tonos.samples())
     }
 
     /// The TONOS render path: the string's own physics is the envelope.
+    #[allow(clippy::too_many_arguments)]
     fn render_tonos(
         &mut self,
         out: &mut [[f32; crate::engine::MAX_BLOCK]; MAX_CHANNELS],
@@ -479,7 +505,14 @@ impl Voice {
         globals: &ModValues,
         layout: Layout,
         base_pos: Position,
+        bank: &SampleBank,
+        sr: f32,
     ) {
+        let deep_rate = if self.sample.slot >= 0 {
+            bank.get(self.sample.slot as usize).map(|s| s.sample_rate as f64 / sr as f64).unwrap_or(1.0)
+        } else {
+            1.0
+        };
         let nch = layout.channels();
         let mut gains = [0.0f32; MAX_CHANNELS];
         pan_gains(base_pos, layout, 0.0, &mut gains);
@@ -495,6 +528,15 @@ impl Voice {
             if self.start_delay > 0 {
                 self.start_delay -= 1;
                 continue;
+            }
+            if self.soma_deep_gain > 0.0 {
+                if self.tonos.deep_active() {
+                    let (dl, dr) = self.sample.next(bank, deep_rate, false);
+                    self.tonos.feed_deep(dl * self.soma_deep_gain, dr * self.soma_deep_gain);
+                } else {
+                    self.soma_deep_gain = 0.0;
+                    self.tonos.feed_deep(0.0, 0.0);
+                }
             }
             let (yl, yr) = self.tonos.render_sample(bend, mod_wheel, &mut self.tonos_rng);
             if nch >= 2 {
@@ -642,7 +684,7 @@ impl Voice {
             return;
         }
         if self.tonos_active {
-            self.render_tonos(out, frames, p, globals, layout, base_pos);
+            self.render_tonos(out, frames, p, globals, layout, base_pos, bank, sr);
             return;
         }
         if !self.active {

@@ -13,15 +13,18 @@ import { describeString, stringFor } from '../services/melos/instruments/tonos/p
 const rs = fs.readFileSync('rust/plajah-audio/src/tonos.rs', 'utf8');
 const prs = fs.readFileSync('rust/plajah-audio/src/params.rs', 'utf8');
 
-test('param ids mirror rust/plajah-audio/src/params.rs; ABI 17 on both sides', () => {
+test('param ids mirror rust/plajah-audio/src/params.rs; host and crate ABI agree', () => {
   const base = Number(prs.match(/pub const TONOS_BASE: u32 = (\d+);/)![1]);
   const rust: Record<string, number> = {};
   for (const m of prs.matchAll(/pub const TN_([A-Z_]+): u32 = (\d+);/g)) rust[m[1]] = base + Number(m[2]);
   assert.deepEqual(Object.keys(rust).sort(), Object.keys(TN).sort());
   for (const [k, v] of Object.entries(TN)) assert.equal(v, rust[k], k);
   assert.match(prs, /MAX_PARAM_ID: usize = 2100/);
-  assert.match(fs.readFileSync('services/melos/beats/engine/InstrumentHost.ts', 'utf8'), /DSP_ABI_VERSION = 17/);
-  assert.match(fs.readFileSync('rust/plajah-audio/src/lib.rs', 'utf8'), /ABI_VERSION: u32 = 17/);
+  // Host and crate agree on the ABI (17 brought TONOS; later bumps keep it).
+  const hostAbi = Number(fs.readFileSync('services/melos/beats/engine/InstrumentHost.ts', 'utf8').match(/DSP_ABI_VERSION = (\d+)/)![1]);
+  const crateAbi = Number(fs.readFileSync('rust/plajah-audio/src/lib.rs', 'utf8').match(/ABI_VERSION: u32 = (\d+)/)![1]);
+  assert.equal(hostAbi, crateAbi);
+  assert.ok(crateAbi >= 17);
 });
 
 function splitTop(s: string): string[] {
