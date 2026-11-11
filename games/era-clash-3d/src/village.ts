@@ -66,7 +66,11 @@ export const POT_GEO = {
 
 export function buildVillage(o: { heightAt: (x: number, z: number) => number; roadX: (z: number) => number; avoid: Avoid[]; mats: VillageMats; seed?: number;
   /** Rows run from z0 to z1; `rows` are their distances from the road (three rows make the alley maze). */
-  z0?: number; z1?: number; rows?: number[]; plaza?: Plaza; huddleZ?: number[] }): Village {
+  z0?: number; z1?: number; rows?: number[]; plaza?: Plaza; huddleZ?: number[];
+  /** The merchant quarter's street grid: machiya along both sides of each segment, facing it, gaps at crossings. */
+  streets?: { x0: number; z0: number; x1: number; z1: number }[];
+  /** Ground no house may stand on (the canal and its banks). */
+  keepOut?: (x: number, z: number, r: number) => boolean }): Village {
   const { heightAt, roadX, avoid, mats } = o;
   const R = rng(o.seed ?? 4242);
   const stone = new THREE.MeshStandardNodeMaterial({ color: 0x6d675f, roughness: 0.95 });
@@ -120,7 +124,8 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
   const logs = new THREE.MeshStandardNodeMaterial({ color: 0x6a4a32, roughness: 0.95 });
 
   // Buckets: material × solid → geometries in world space, merged at the end.
-  const buckets = new Map<THREE.Material, { solid: THREE.BufferGeometry[]; decor: THREE.BufferGeometry[] }>();
+  const buckets = new Map<string, { mat: THREE.Material; solid: THREE.BufferGeometry[]; decor: THREE.BufferGeometry[] }>();
+  const CHUNK = 120;
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new THREE.Vector3(1, 1, 1);
   /** Place `g` (local to a house frame `frame`) in the bucket for `mat`. */
   const put = (g: THREE.BufferGeometry, mat: THREE.Material, frame: THREE.Matrix4, local: { x?: number; y?: number; z?: number; ry?: number; rx?: number; rz?: number }, solid = true) => {
@@ -129,7 +134,8 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
     const c = (g.index ? g.toNonIndexed() : g.clone()).applyMatrix4(m4);
     for (const k of Object.keys(c.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv') c.deleteAttribute(k);
     c.setAttribute('grime', grimeFor(c));
-    let b = buckets.get(mat); if (!b) { b = { solid: [], decor: [] }; buckets.set(mat, b); }
+    const key = `${mat.uuid}|${Math.floor(frame.elements[12] / CHUNK)},${Math.floor(frame.elements[14] / CHUNK)}`;
+    let b = buckets.get(key); if (!b) { b = { mat, solid: [], decor: [] }; buckets.set(key, b); }
     (solid ? b.solid : b.decor).push(c);
   };
   /** Dirt splashed up the foot of every wall and footing: 1 at the ground, gone by 1.3 m (baked per vertex). */
@@ -443,6 +449,31 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
     footprints.push(new THREE.Box3().setFromCenterAndSize(C.clone().setY(heightAt(PZ.x, PZ.z)), new THREE.Vector3(PZ.r * 2 + 4, 10, PZ.r * 2 + 4)));
   }
 
+  // ── The merchant quarter: machiya along both sides of every street of the grid, facing it; every two or three
+  //    houses a passage opens between them, and the corners stay clear where the streets cross ───────────────
+  const segDist = (x: number, z: number, s: { x0: number; z0: number; x1: number; z1: number }) => {
+    const dx = s.x1 - s.x0, dz = s.z1 - s.z0, L2 = dx * dx + dz * dz;
+    const t = Math.max(0, Math.min(1, ((x - s.x0) * dx + (z - s.z0) * dz) / L2));
+    return Math.hypot(x - (s.x0 + dx * t), z - (s.z0 + dz * t));
+  };
+  for (const st of o.streets ?? []) {
+    const L = Math.hypot(st.x1 - st.x0, st.z1 - st.z0), ux = (st.x1 - st.x0) / L, uz = (st.z1 - st.z0) / L, nx = -uz, nz = ux;
+    for (const side of [-1, 1]) {
+      let t = 3 + R() * 2, run = 0;
+      while (t < L - 3) {
+        const w = 4.6 + R() * 2.2, tc = t + w / 2;
+        const cx = st.x0 + ux * tc + nx * side * 6.3, cz = st.z0 + uz * tc + nz * side * 6.3;
+        const cross = (o.streets ?? []).some((s2) => s2 !== st && segDist(cx, cz, s2) < 7.6);
+        const yaw = Math.atan2(-nx * side, -nz * side);
+        if (!cross && !blocked(cx, cz, Math.max(w, DEPTH) / 2 + 0.3) && !(o.keepOut?.(cx, cz, Math.max(w, DEPTH) / 2 + 0.5))) {
+          house(cx, cz, yaw, w, DEPTH, burntLeft > 0 && R() < 0.05 && !!burntLeft--); run++;
+        } else run = 0;
+        const gap = run >= 2 + (R() < 0.5 ? 1 : 0) ? (run = 0, 2.4 + R() * 0.8) : 0.25;
+        t += w + gap;
+      }
+    }
+  }
+
   // ── Market stalls on the road edge: an awning on two posts, a table of wares (loose: kick it, throw them) ──
   const stalls: [number, number][] = [[-1, -26], [1, -18], [-1, -2], [1, 14], [-1, 28], [1, -32], [1, 30]];
   for (const [side, z] of stalls) {
@@ -462,7 +493,8 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
 
   // ── Merge per material ───────────────────────────────────────────────────────────────────────────
   const group = new THREE.Group(); group.name = 'village';
-  for (const [mat, b] of buckets) for (const solid of [true, false]) {
+  for (const b of buckets.values()) for (const solid of [true, false]) {
+    const mat = b.mat;
     const list = solid ? b.solid : b.decor; if (!list.length) continue;
     const g = mergeGeometries(list, false); if (!g) continue;
     g.computeBoundingSphere();

@@ -74,7 +74,7 @@ export class Townsfolk {
     const f: Folk = { role, group, body: null, mixer: null, acts: {}, cur: null, state: 'about', t: 0, wait: 0, dir: R() < 0.5 ? 1 : -1, speed: 1.05 + R() * 0.35,
       side: R() < 0.5 ? -1 : 1, a: 0, b: 0, ang: R() * Math.PI * 2, fleeAt: -1, tick: i % 3, yaw: 0 };
     const o = this.o;
-    if (role === 'street') { f.a = 0 + R() * 8; f.b = 30 + R() * 14; const z = f.a + R() * (f.b - f.a); this.place(f, o.roadX(z) + f.side * (3.3 + R() * 0.8), z); }
+    if (role === 'street') { f.a = 0 + R() * 8; f.b = 24 + R() * 8; const z = f.a + R() * (f.b - f.a); this.place(f, o.roadX(z) + f.side * (3.3 + R() * 0.8), z); }
     else if (role === 'ring') { const r = o.plaza.r * 0.4; this.place(f, o.plaza.x + Math.sin(f.ang) * r, o.plaza.z + Math.cos(f.ang) * r); }
     else if (role === 'browse') { f.ang = (i / 4) * Math.PI * 2 + 0.6; const r = o.plaza.r * 0.47; this.place(f, o.plaza.x + Math.sin(f.ang) * r, o.plaza.z + Math.cos(f.ang) * r); f.yaw = f.ang; f.state = 'pause'; f.wait = 3 + R() * 6; }
     else { f.a = o.quay.x0 + 2; f.b = o.quay.x1 - 2; this.place(f, f.a + R() * (f.b - f.a), o.quay.z + (R() - 0.5) * 2.4); }

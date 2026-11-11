@@ -13,6 +13,7 @@ import { buildGrassField, type GrassField } from './grassField';
 import { buildVillage, boxGeo, type Village } from './village';
 import { buildLandmarks } from './landmarks';
 import { buildOtsu, OTSU, type Otsu } from './otsu';
+import { buildCanal } from './canal';
 
 export interface Fire { group: THREE.Group; flames: THREE.Mesh[]; smoke: THREE.Mesh[]; seed: number; size: number; raid: boolean }
 export interface Section { name: string; zMin: number; zMax: number; spawn: THREE.Vector3[] }
@@ -37,7 +38,11 @@ export interface Chapter1World {
   setRaid(k: number): void;
 }
 
-const X_HALF = 75, Z_MIN = -120, Z_MAX = 175;
+// The playable ground: the city opens west of the main road (the merchant quarter, the canal; the hillside and the
+// west shore follow — docs/era-clash-3d-city-plan.md), the east side stays the valley wall.
+const X_MIN = -185, X_MAX = 75, Z_MIN = -120, Z_MAX = 175;
+/** The canal across the city (z of its centre line, half its width, its water and its bed), x from WEST to EAST. */
+export const CANAL = { z: 42, half: 3.6, water: 0.95, bed: 0.15, west: -158, east: 34 };
 
 /** Ground height: sea → beach → village terrace → hill → the painting's hilltop, with valley walls. */
 export function heightAt(x: number, z: number): number {
@@ -46,8 +51,13 @@ export function heightAt(x: number, z: number): number {
   y += 0.8 * ss(-60, 30, z);                               // the village terrace, gently rising
   y += 14.8 * ss(42, 112, z);                              // the hill
   y += 0.35 * Math.sin(x * 0.11 + z * 0.07) * ss(-70, -40, z) + 0.25 * Math.sin(x * 0.23 - z * 0.13);
-  const wall = Math.max(0, Math.abs(x) - 42);
-  y += Math.pow(wall, 1.35) * 0.32;                        // valley sides
+  const wall = x > 0 ? Math.max(0, x - 42) : Math.max(0, -x - 160);
+  y += Math.pow(wall, 1.35) * 0.32;                        // the valley side (east), the hills (west)
+  // the canal: a stone-banked channel across the city
+  if (x > CANAL.west - 2 && x < CANAL.east + 2) {
+    const k = ss(CANAL.half + 0.4, CANAL.half - 0.2, Math.abs(z - CANAL.z)) * ss(CANAL.west - 2, CANAL.west + 1, x) * ss(CANAL.east + 2, CANAL.east - 1, x);
+    y = y + (CANAL.bed - y) * k;
+  }
   return y;
 }
 /** Where the road runs (x for a given z). */
@@ -129,13 +139,13 @@ export async function buildChapter1(): Promise<Chapter1World> {
     const sand = 1 - ss(-66, -54, z);
     const dr = Math.abs(x - roadX(z)), onRoad = z > -64 ? 1 : 0;
     // inside the Outer Wall the town is packed earth wall to wall (the alleys are dirt, not meadow)
-    const town = ss(OTSU.wallZ - 1, OTSU.wallZ + 1, z) * (1 - ss(OTSU.townZ1 + 2, OTSU.townZ1 + 6, z)) * (1 - ss(28, 32, dr));
+    const town = ss(OTSU.wallZ - 1, OTSU.wallZ + 1, z) * (1 - ss(CANAL.z + CANAL.half + 9, CANAL.z + CANAL.half + 13, z)) * (x < roadX(z) ? ss(-164, -158, x) : 1 - ss(28, 32, dr));
     const dirt = Math.max((1 - ss(1.6, 2.6, dr)) * onRoad, town);
     const gravel = (ss(1.4, 2.2, dr) * (1 - ss(3.2, 4.4, dr))) * onRoad * 0.9 * (1 - town);
     const grass = Math.max(0, 1 - sand - dirt - gravel);
     return { grass, dirt, gravel, sand };
   };
-  const ground = buildTerrain({ xHalf: X_HALF, zMin: Z_MIN, zMax: Z_MAX, segX: 150, segZ: 300, heightAt, splatAt });
+  const ground = buildTerrain({ xMin: X_MIN, xMax: X_MAX, zMin: Z_MIN, zMax: Z_MAX, segX: 260, segZ: 300, heightAt, splatAt });
   group.add(collide(ground));
   group.add(buildSea());
 
@@ -201,10 +211,20 @@ export async function buildChapter1(): Promise<Chapter1World> {
   // a ring of stalls round a well) and then the Maze of Alleyways (three rows a side, cross-alleys between);
   // the burning storehouses stand in the alleys, the watchtower and the road trees keep their ground.
   const KURA: [number, number][] = [[-11, 4], [12, 17], [-13, 28]];
+  // the merchant quarter (west of the main road): four streets running up toward the canal, two cross-streets, a
+  // promenade along the canal's south bank and a street along its north bank
+  const MERCHANT_STREETS = [
+    ...[-52, -86, -120, -152].map((x) => ({ x0: x, z0: OTSU.wallZ + 3, x1: x, z1: CANAL.z - CANAL.half - 1.4 })),
+    { x0: -158, z0: -12, x1: -38, z1: -12 }, { x0: -158, z0: 12, x1: -38, z1: 12 },
+    { x0: -158, z0: CANAL.z - CANAL.half - 4.6, x1: -36, z1: CANAL.z - CANAL.half - 4.6 },
+    { x0: -156, z0: CANAL.z + CANAL.half + 4.6, x1: -52, z1: CANAL.z + CANAL.half + 4.6 },
+  ];
   const PLAZA = { x: roadX(OTSU.plaza.z), z: OTSU.plaza.z, r: OTSU.plaza.r };
   const village = buildVillage({
     heightAt, roadX, mats: { wood, darkWood, plaster, thatch, tile },
     z0: OTSU.wallZ + 3, z1: OTSU.townZ1, rows: [7.6, 15.8, 24.2], plaza: PLAZA, huddleZ: [OTSU.plaza.z, 8, 31],
+    streets: MERCHANT_STREETS,
+    keepOut: (x, z, r) => Math.abs(z - CANAL.z) < CANAL.half + 1.4 + r && x > CANAL.west - 3 && x < CANAL.east + 3,
     avoid: [
       ...KURA.map(([x, z]) => ({ x: roadX(z) + x, z, r: 4.6 })),
       { x: roadX(36) + 6, z: 36, r: 3.4 },
@@ -216,8 +236,14 @@ export async function buildChapter1(): Promise<Chapter1World> {
   const quayMat = uvMaterial('japanese_stone_wall', [0.4, 0.4], { tint: 0x9a948a });
   const otsu = buildOtsu({ heightAt, roadX, village, mats: { wood, darkWood, plaster, tile, stone: stoneMat, quay: quayMat } });
   group.add(otsu.group);
+  // the canal and its bridges: the main road and the three inner streets of the grid cross it
+  const canal = buildCanal({ spec: CANAL, heightAt, mats: { stone: stoneMat, wood, darkWood },
+    bridges: [{ x: roadX(CANAL.z), width: 7.2 }, ...[-52, -86, -120].map((x) => ({ x, width: 4.2 }))] });
+  group.add(canal.group);
+  /** The ground anything walks on: the terrain, or a bridge deck over the canal. */
+  const groundAt = (x: number, z: number) => Math.max(heightAt(x, z), canal.deckAt(x, z));
   // the landmarks of the reference shots: the volcano, the castle on its hill, forested hills between
-  const landmarks = buildLandmarks({ inner: { xHalf: X_HALF, zMin: Z_MIN, zMax: Z_MAX }, heightAt });
+  const landmarks = buildLandmarks({ inner: { xMin: X_MIN, xMax: X_MAX, zMin: Z_MIN, zMax: Z_MAX }, heightAt });
   group.add(landmarks.group);
 
   // ── The street: big irregular flagstones wall to wall through the town, with kerb stones (the shots) ───
@@ -413,6 +439,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
     const cherries: [number, number, number][] = [[-30, 150, 8.5], [30, 160, 7.5], [-24, 104, 7],
       [-20, 78, 6], [-22, 14, 6], [22, -18, 5.5], [-26, -34, 6]];
     const near: TreeSpot[] = cherries.map(([x, z, h]) => ({ p: V(x, z), h: h * 1.1, species: 'cherry' as const }));
+    for (const t of canal.cherries) near.push({ p: V(t.x, t.z), h: t.h * 1.1, species: 'cherry' });
     for (const t of otsu.yardTrees) near.push({ p: V(t.x, t.z), h: t.blossom ? t.h * 1.1 : t.h * 1.15, species: t.blossom ? 'cherry' : 'umbrella' });
     // the valley walls: about two in five full 3D (the nearest rank), the rest impostors like the far hills
     const wallFar: TreeSpot[] = [];
@@ -443,7 +470,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
   for (const s of sections) for (const p of s.spawn) p.y = heightAt(p.x, p.z);
 
   // ── Grass blades (grassField.ts): everywhere the meadow is, but never under a building, on a road or a cliff ─
-  const blocked: THREE.Box3[] = [...village.footprints, ...otsu.footprints];
+  const blocked: THREE.Box3[] = [...village.footprints, ...otsu.footprints, ...canal.footprints];
   group.updateMatrixWorld(true);
   for (const o of group.children) {
     if (o === ground || !o.userData.collide) continue;
@@ -475,7 +502,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
   const spawn = { position: new THREE.Vector3(roadX(-66), heightAt(roadX(-66), -66), -66), yaw: 0 };
 
   return {
-    group, grass, spawn, sections, fires, bell, petals, heightAt, village, forest, otsu, boatFires,
+    group, grass, spawn, sections, fires, bell, petals, heightAt: groundAt, village, forest, otsu, boatFires,
     setRaid(k) {
       raidK = THREE.MathUtils.clamp(k, 0, 1);
       for (const f of fires) if (f.raid) f.group.visible = raidK > 0.03;

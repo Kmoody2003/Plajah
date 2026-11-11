@@ -15,9 +15,10 @@ type N = any;
 export interface Splat { grass: number; dirt: number; gravel: number; sand: number }
 
 /** The terrain: a heightfield mesh painted by `splatAt`, with collision-ready geometry. */
-export function buildTerrain(opts: { xHalf: number; zMin: number; zMax: number; segX: number; segZ: number; heightAt: (x: number, z: number) => number; splatAt: (x: number, z: number) => Splat }) {
-  const { xHalf, zMin, zMax, segX, segZ, heightAt, splatAt } = opts;
-  const g = new THREE.PlaneGeometry(xHalf * 2, zMax - zMin, segX, segZ);
+export function buildTerrain(opts: { xMin: number; xMax: number; zMin: number; zMax: number; segX: number; segZ: number; heightAt: (x: number, z: number) => number; splatAt: (x: number, z: number) => Splat }) {
+  const { xMin, xMax, zMin, zMax, segX, segZ, heightAt, splatAt } = opts;
+  const g = new THREE.PlaneGeometry(xMax - xMin, zMax - zMin, segX, segZ);
+  g.translate((xMin + xMax) / 2, 0, 0);
   g.rotateX(-Math.PI / 2);
   const pos = g.attributes.position as THREE.BufferAttribute;
   const sp = new Float32Array(pos.count * 4);

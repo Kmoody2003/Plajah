@@ -25,9 +25,39 @@ export interface MoveDef {
 export interface CutMove { clip: THREE.AnimationClip; hitAt: number }
 
 const fbxCache = new Map<string, Promise<THREE.Group>>();
+/** A take from the CMU shelf (`13_17` → 13_17.fbx) or a Plajah camera capture (`captures/foo.bvh`, written by the
+ *  Motion Capture room with the same CMU joint names, so everything below treats both alike). */
 export function loadTake(id: string) {
-  if (!fbxCache.has(id)) fbxCache.set(id, import('three/addons/loaders/FBXLoader.js').then(({ FBXLoader }) => new FBXLoader().loadAsync(`${MOCAP}${id}.fbx`) as unknown as Promise<THREE.Group>));
+  if (!fbxCache.has(id)) fbxCache.set(id, id.endsWith('.bvh')
+    ? import('three/addons/loaders/BVHLoader.js').then(async ({ BVHLoader }) => {
+      const res = await new BVHLoader().loadAsync(`${MOCAP}${id}`);
+      const g = new THREE.Group(); g.add(res.skeleton.bones[0]); g.animations = [res.clip];
+      return g;
+    })
+    : import('three/addons/loaders/FBXLoader.js').then(({ FBXLoader }) => new FBXLoader().loadAsync(`${MOCAP}${id}.fbx`) as unknown as Promise<THREE.Group>));
   return fbxCache.get(id)!;
+}
+
+/** A move the capture room already cut (frame range + the frame the blow lands). */
+export interface CapturedMove { name: string; start: number; end: number; hit?: number; effector?: Effector }
+
+/** Haru's slots filled from a camera capture: its hand strikes become punch_0…, its kicks kick_0…, in take order. */
+export async function captureMoves(model: THREE.Object3D, name: string): Promise<Map<string, CutMove>> {
+  const meta = await fetch(`${MOCAP}captures/${name}.json`).then((r) => { if (!r.ok) throw new Error(`no capture ${name}`); return r.json() as Promise<{ fps: number; moves: CapturedMove[] }>; });
+  const fbx = await loadTake(`captures/${name}.bvh`);
+  const src = fbx.animations[0];
+  const fps = meta.fps || 30;
+  const out = new Map<string, CutMove>();
+  const n = { punch: 0, kick: 0 };
+  for (const m of meta.moves) {
+    const kind = m.effector?.endsWith('Foot') ? 'kick' : 'punch';
+    const slot = `${kind}_${n[kind]}`;
+    if (n[kind] >= (kind === 'kick' ? 3 : 4)) continue;
+    n[kind]++;
+    const sub = THREE.AnimationUtils.subclip(src, `${slot}_src`, m.start, m.end, fps);
+    out.set(slot, { clip: retarget(model, fbx, sub, slot, CMU_TO_CONTRACT), hitAt: ((m.hit ?? (m.start + m.end) / 2) - m.start) / Math.max(1, m.end - m.start) });
+  }
+  return out;
 }
 
 /** Blows in a take, best first: frames where a limb reaches full extension *in front of the body* (punches,

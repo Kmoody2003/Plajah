@@ -31,7 +31,7 @@ export interface Otsu {
 }
 
 /** The Outer Wall's line, the market square, the Samurai District gate and the main gate (z). */
-export const OTSU = { wallZ: -36, plaza: { z: -16, r: 12 }, samuraiGateZ: 50, otemonZ: 116, townZ1: 44,
+export const OTSU = { wallZ: -36, plaza: { z: -16, r: 12 }, samuraiGateZ: 50, otemonZ: 116, townZ1: 36,
   /** the masugata (the square entry court behind the main gate) and the forecourt under the keep */
   masugata: { z0: 117.5, z1: 131, half: 9, innerGateDx: 4.5 }, forecourt: { z0: 133, z1: 166, half: 21 } };
 
@@ -188,10 +188,10 @@ export function buildOtsu(o: { heightAt: (x: number, z: number) => number; roadX
   // ═══ The Outer Wall across the valley, with the gatehouse on the road ═══
   {
     const z = OTSU.wallZ, gx = roadX(z), gw = 6.2;
-    for (const [xa, xb] of [[-60, gx - gw / 2 - 0.6], [gx + gw / 2 + 0.6, 60]] as const) wallRun(xa, z, xb, z, { h: 2.8, base: 1.6, thick: 1.1 });
+    for (const [xa, xb] of [[-172, gx - gw / 2 - 0.6], [gx + gw / 2 + 0.6, 60]] as const) wallRun(xa, z, xb, z, { h: 2.8, base: 1.6, thick: 1.1 });
     gatehouse(gx, z, 0, gw);
-    for (let x = -58; x < 58; x += 3) if (Math.abs(x - gx) > gw / 2 + 1) avoid.push({ x, z, r: 1.4 });
-    foot(0, z, 120, 2.6);
+    for (let x = -170; x < 58; x += 3) if (Math.abs(x - gx) > gw / 2 + 1) avoid.push({ x, z, r: 1.4 });
+    foot(-56, z, 232, 2.6);
   }
 
   // ═══ The Samurai District: its gate, then walled compounds either side of the climb ═══

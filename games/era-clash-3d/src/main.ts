@@ -14,7 +14,7 @@ import { loadJack, prefetchHero, type Character, type CombatMove } from './core/
 import { Mob, preloadMobs, type MobKind } from './core/mobs';
 import { buildChapter1, roadX } from './chapter1';
 import { FALLING_PETAL, type Foe } from './tale';
-import { cutMove, HARU_MOVES, type CutMove } from './moves';
+import { cutMove, captureMoves, HARU_MOVES, type CutMove } from './moves';
 import { goldenHour } from './look';
 import { Townsfolk } from './townsfolk';
 import { Quests } from './quests';
@@ -142,6 +142,16 @@ player.teleport(world.spawn.position, world.spawn.yaw);
 scene.add(player.object);
 $('loadMsg').textContent = 'Haru draws his sword';
 let haru: Character | null = null;
+/** Put a camera capture's strikes on Haru (see captureMoves). Returns the slots it filled. */
+async function useCapture(name: string): Promise<string[]> {
+  if (!haru) return [];
+  try {
+    const got = await captureMoves(haru.model, name);
+    for (const [k, m] of got) { haru.addMove(k, m.clip); mocapMoves.set(k, m); }
+    console.info(`[eraclash3d] capture "${name}": ${[...got.keys()].join(', ') || 'no strikes'}`);
+    return [...got.keys()];
+  } catch (e) { console.warn('[eraclash3d] capture', name, e); return []; }
+}
 /** Haru's strikes, cut from CMU motion capture by his Atlas art (moves.ts); the authored poses are the fallback. */
 const mocapMoves = new Map<string, CutMove>();
 const heroReady = loadJack('haru').then(async (c) => {
@@ -161,6 +171,10 @@ const heroReady = loadJack('haru').then(async (c) => {
     try { const m = await cutMove(c.model, k, d); if (m) { c.addMove(k, m.clip); mocapMoves.set(k, m); } } catch (e) { console.warn('[eraclash3d] move', k, e); }
   }));
   console.info(`[eraclash3d] ${mocapMoves.size}/${Object.keys(HARU_MOVES).length} motion-capture strikes`);
+  // ?capture=<name>: strikes recorded in the Motion Capture room (public/…/mocap/captures/<name>.bvh) replace the
+  // CMU ones slot by slot, so a performance from a webcam plays on Haru.
+  const cap = params.get('capture');
+  if (cap) await useCapture(cap);
 });
 const ALLY_KIND: Record<string, MobKind> = { monk: 'monk', knight: 'knight', gladiator: 'gladiator', samurai: 'samurai', viking: 'viking', raider: 'raider', chieftain: 'chieftain' };
 // Foes: the wakō are the turnaround-sheet raiders (Bjorn the ally keeps the viking model).
@@ -979,6 +993,7 @@ let camHold: (() => void) | null = null;
   get state() { return { mode, section, hero: { ...hero }, enemies: enemies.map((m) => ({ k: m.kind, hp: Math.round(m.hp), alive: m.alive, st: m.state })), allies: allies.map((a) => ({ hp: Math.round(a.hp), st: a.state })), pos: player.object.position.toArray().map((n) => +n.toFixed(1)) }; },
   begin() { ($('stGo') as HTMLButtonElement).disabled = false; $('stGo').click(); },
   simulate(seconds: number, held: string[] = []) { held.forEach((k) => player.keys.add(k)); for (let t = 0; t < seconds; t += 1 / 30) tick(1 / 30); held.forEach((k) => player.keys.delete(k)); return (this as unknown as { state: unknown }).state; },
+  useCapture, mocapMoves,
   strike, superMove, roll, grabOrThrow, props, villagers, setStance, binds, spawnFoe, lockedOn: () => lock, player, camera, scene, world, enemies, allies, strikeLog,
   warp(z: number) { const x = roadX(z); player.teleport(new THREE.Vector3(x, world.heightAt(x, z), z), 0); allies.forEach((a, i) => a.object.position.set(x + (i ? 2 : -2), world.heightAt(x, z), z - 2)); },
   async capture(name: string) {

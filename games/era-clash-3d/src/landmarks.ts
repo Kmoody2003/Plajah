@@ -24,7 +24,7 @@ export interface Landmarks { group: THREE.Group; castle: THREE.Group; castleAt: 
   /** Umbrella-pine spots for the forest: full 3D on the valley walls, impostors beyond. */
   treeNear: TreeAt[]; treeFar: TreeAt[] }
 
-export function buildLandmarks(o: { inner: { xHalf: number; zMin: number; zMax: number }; heightAt: (x: number, z: number) => number }): Landmarks {
+export function buildLandmarks(o: { inner: { xMin: number; xMax: number; zMin: number; zMax: number }; heightAt: (x: number, z: number) => number }): Landmarks {
   const group = new THREE.Group(); group.name = 'landmarks';
   const { inner } = o;
 
@@ -87,7 +87,7 @@ export function buildLandmarks(o: { inner: { xHalf: number; zMin: number; zMax: 
   const castleAt = new THREE.Vector3(62, 0, 400);   // on the sightline up the street, left of the mountain (the street shot)
   const ridgedFbm = (x: number, z: number) => { let v = 0, a = 0.5, f = 1; for (let k = 0; k < 5; k++) { const n = 1 - Math.abs(2 * vnoise(x * f, z * f) - 1); v += n * n * a; a *= 0.5; f *= 2.03; } return v; };
   const farHeight = (x: number, z: number) => {
-    const ox = Math.max(0, Math.abs(x) - inner.xHalf + 2), oz = Math.max(0, z - inner.zMax + 2);
+    const ox = Math.max(0, inner.xMin + 2 - x, x - inner.xMax + 2), oz = Math.max(0, z - inner.zMax + 2);
     const out = Math.hypot(ox, oz);
     if (!(z > -70 && out > 0)) return -30;
     const ridge = Math.min(1, out / 160);
@@ -95,7 +95,7 @@ export function buildLandmarks(o: { inner: { xHalf: number; zMin: number; zMax: 
     // big forms, eroded ridges on the slopes, small relief everywhere
     const big = 190 * fbm(x / 900, z / 900) + 120 * ridgedFbm(x / 700, z / 700) * side;
     let y = (6 + 26 * fbm(x / 220, z / 220) + side * big + 9 * (fbm(x / 48, z / 48) - 0.5) + 3 * (vnoise(x / 13, z / 13) - 0.5)) * ridge
-      + o.heightAt(THREE.MathUtils.clamp(x, -inner.xHalf, inner.xHalf), THREE.MathUtils.clamp(z, inner.zMin, inner.zMax)) * (1 - ridge);
+      + o.heightAt(THREE.MathUtils.clamp(x, inner.xMin, inner.xMax), THREE.MathUtils.clamp(z, inner.zMin, inner.zMax)) * (1 - ridge);
     y *= THREE.MathUtils.smoothstep(z, -70, 40);
     const dc = Math.hypot(x - castleAt.x, z - castleAt.z);
     return Math.max(y * (dc < 220 ? THREE.MathUtils.smoothstep(dc, 60, 220) : 1), dc < 140 ? 46 * (1 - THREE.MathUtils.smoothstep(dc, 70, 140)) : 0);
@@ -133,7 +133,7 @@ export function buildLandmarks(o: { inner: { xHalf: number; zMin: number; zMax: 
     const tx = gx - i0, tz = gz - j0, at = (i: number, j: number) => fp.getY(j * (seg + 1) + i);
     return (at(i0, j0) * (1 - tx) + at(i0 + 1, j0) * tx) * (1 - tz) + (at(i0, j0 + 1) * (1 - tx) + at(i0 + 1, j0 + 1) * tx) * tz;
   };
-  const inside = (x: number, z: number) => Math.abs(x) < inner.xHalf - 1 && z < inner.zMax - 1 && z > inner.zMin;
+  const inside = (x: number, z: number) => x > inner.xMin + 1 && x < inner.xMax - 1 && z < inner.zMax - 1 && z > inner.zMin;
   const groundY = (x: number, z: number) => (inside(x, z) ? o.heightAt(x, z) : farAt(x, z));
   const slope = (x: number, z: number, r = 4) => Math.hypot(groundY(x + r, z) - groundY(x - r, z), groundY(x, z + r) - groundY(x, z - r)) / (2 * r);
 
@@ -193,7 +193,7 @@ export function buildLandmarks(o: { inner: { xHalf: number; zMin: number; zMax: 
     };
     // the valley walls inside the play area (bare slopes in the first pass)
     for (let z = -50; z < 175; z += 3.2) for (const sd of [-1, 1]) for (let k = 0; k < 3; k++) {
-      const x = sd * (46 + hash2(z, k * 7 + sd) * 27);
+      const x = sd > 0 ? 46 + hash2(z, k * 7 + sd) * 27 : -(163 + hash2(z, k * 7 + sd) * 20);
       if (hash2(x, z + k) < 0.35) continue;
       plant(x, z + (hash2(k, z) - 0.5) * 2.5, 7 + hash2(x * 2, z) * 6);
     }
