@@ -10,7 +10,7 @@
 var Q = new URLSearchParams(location.search);
 var view = Q.get('view') || 'anim', moveQ = Q.get('move') || 'cycle', tQ = Q.get('t'), who = Q.get('who');
 document.getElementById('v').textContent = view + ' / ' + moveQ + (tQ ? ' @' + tQ : '');
-var IDS = who ? [who] : ['samurai', 'viking', 'knight', 'jaguar', 'monk', 'gladiator'];
+var IDS = who ? [who] : (Q.get('set') === 'new' ? ['amanirenas', 'hangtuah', 'lautaro', 'naresuan', 'nzinga', 'shaka', 'tecumseh', 'zumbi'] : ['samurai', 'viking', 'knight', 'jaguar', 'monk', 'gladiator']);
 var MOVES = {
   punch: { startup: 0.04, active: 0.08, recovery: 0.11 }, kick: { startup: 0.07, active: 0.10, recovery: 0.16 },
   spPunch1: { startup: 0.04, active: 0.13, recovery: 0.15 }, spPunch2: { startup: 0.12, active: 0.09, recovery: 0.25 },

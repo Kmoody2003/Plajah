@@ -201,7 +201,7 @@ export const ERA_CLASH_CHORA: Record<string, CueChora> = {
       ost: V('lyra', 'lyra-harp', 'Kithara Harp Arp', -9, 0.35), vc: VC, bass: V('bajo', 'deep-round', 'House Bass', -9, 0),
     },
     soma: [
-      { kind: 'stick', preset: 'concert-gran-cassa', label: 'Gran Cassa', gainDb: -5, pan: 0, euclid: { A: [16, 2], drop: [16, 3] }, downbeats: ['intro', 'B', 'turn', 'tail'] },
+      { kind: 'stick', preset: 'concert-gran-cassa', label: 'Gran Cassa', gainDb: -10, pan: 0, euclid: { A: [16, 2], drop: [16, 3] }, downbeats: ['intro', 'B', 'turn', 'tail'] },
       { kind: 'stick', preset: 'orchestral-field-snare', label: 'Concert Snare', gainDb: -12, pan: 0.2, roll: true, euclid: { A: [16, 5, 2], B: [16, 7, 2], drop: [16, 9, 2], turn: [16, 11] } },
       { kind: 'stick', preset: 'concert-tom-mahogany', label: 'War Toms', gainDb: -8, pan: -0.25, roll: true, euclid: { B: [16, 3, 1], drop: [16, 5, 1], turn: [16, 6] } },
       { kind: 'hand', preset: 'bendir-atlas-gut', label: 'Bendir', gainDb: -9, pan: 0.35, rhythm: 'frame-maqsum', persona: 'griot' },

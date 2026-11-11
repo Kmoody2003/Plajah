@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { watchIgnored } from './vite.watch-ignore.mjs';
 
 const BOUNCE = path.join(os.tmpdir(), 'era-clash-audio', 'bounce');
@@ -42,7 +43,7 @@ export default defineConfig({
       resolveId: (id) => (id === 'virtual:pwa-register' ? 'virtual-pwa-stub' : null),
       load: (id) => (id === 'virtual-pwa-stub' ? 'export const registerSW = () => () => {};' : null),
     },
-    react(), saver(),
+    react(), tailwindcss(), saver(),
   ],
   define: { __PJ_VERSION__: JSON.stringify('lab'), 'process.env.API_KEY': '""', 'process.env.GEMINI_API_KEY': '""' },
   resolve: {

@@ -46,6 +46,46 @@
     gladiator: { top: [150, 12], neck: [170, 176], pelvis: [150, 372],
       shF: [240, 212], elF: [270, 272], haF: [276, 214], shR: [60, 216], elR: [60, 292], haR: [150, 240],
       hipF: [216, 452], knF: [266, 532], anF: [256, 642], toeF: [290, 690], hipB: [100, 452], knB: [60, 542], anB: [30, 642], toeB: [15, 700],
+      cut: [] },
+    /* Warriors of history (Muse art pack, 352 x 720). Their paintings don't all share the original stance:
+       Amanirenas draws a bow, Shaka carries the shield on the lead arm and the iklwa in the rear hand,
+       Tecumseh holds the tomahawk overhead in the rear hand. Anything off the limbs rides on the torso. */
+    amanirenas: { top: [168, 58], neck: [162, 170], pelvis: [155, 368],
+      shF: [215, 200], elF: [270, 196], haF: [336, 188], shR: [112, 206], elR: [72, 186], haR: [140, 180],
+      hipF: [190, 412], knF: [226, 522], anF: [274, 650], toeF: [304, 690], hipB: [116, 412], knB: [86, 522], anB: [56, 650], toeB: [30, 690],
+      extra: [['faF', [300, 14], [342, 186], 0.03], ['faF', [342, 192], [268, 386], 0.03]], /* the bow travels with the bow hand */
+      cut: [] },
+    hangtuah: { top: [182, 16], neck: [196, 150], pelvis: [172, 340],
+      shF: [246, 190], elF: [312, 226], haF: [322, 162], shR: [98, 184], elR: [108, 242], haR: [188, 226],
+      hipF: [190, 420], knF: [250, 522], anF: [300, 652], toeF: [340, 668], hipB: [108, 420], knB: [72, 562], anB: [50, 680], toeB: [22, 704],
+      cut: [] },
+    lautaro: { top: [214, 30], neck: [214, 142], pelvis: [176, 382],
+      shF: [262, 186], elF: [324, 230], haF: [318, 142], shR: [96, 196], elR: [62, 252], haR: [130, 258],
+      hipF: [228, 452], knF: [290, 546], anF: [272, 650], toeF: [344, 672], hipB: [120, 452], knB: [80, 542], anB: [42, 670], toeB: [30, 702],
+      cut: [] },
+    naresuan: { top: [218, 40], neck: [214, 150], pelvis: [186, 390],
+      shF: [248, 186], elF: [318, 232], haF: [294, 146], shR: [98, 186], elR: [128, 242], haR: [204, 226],
+      hipF: [228, 432], knF: [278, 532], anF: [300, 642], toeF: [340, 660], hipB: [148, 432], knB: [68, 562], anB: [44, 662], toeB: [16, 698],
+      cut: [] },
+    nzinga: { top: [214, 30], neck: [214, 152], pelvis: [172, 372],
+      shF: [256, 214], elF: [318, 242], haF: [310, 172], shR: [110, 216], elR: [76, 280], haR: [140, 320],
+      extra: [['faR', [70, 330], [330, 300], 0.04]], /* the war axe */
+      hipF: [240, 452], knF: [318, 492], anF: [276, 640], toeF: [344, 662], hipB: [130, 452], knB: [70, 562], anB: [46, 670], toeB: [28, 702],
+      cut: [] },
+    shaka: { top: [178, 40], neck: [178, 200], pelvis: [170, 382],
+      shF: [240, 240], elF: [280, 298], haF: [300, 290], shR: [86, 250], elR: [46, 292], haR: [110, 330],
+      hipF: [218, 432], knF: [288, 502], anF: [300, 650], toeF: [338, 668], hipB: [128, 432], knB: [58, 552], anB: [46, 670], toeB: [20, 700],
+      extra: [['faF', [300, 200], [300, 440], 0.075], ['faR', [110, 330], [330, 270], 0.022]], /* hide shield on the lead arm, iklwa in the rear hand */
+      cut: [] },
+    tecumseh: { top: [196, 86], neck: [206, 192], pelvis: [170, 382],
+      shF: [264, 222], elF: [296, 290], haF: [300, 336], shR: [120, 192], elR: [36, 170], haR: [66, 100],
+      extra: [['faR', [66, 100], [104, 20], 0.04], ['faF', [300, 336], [168, 404], 0.035]], /* tomahawk overhead, war club low */
+      hipF: [240, 452], knF: [300, 542], anF: [286, 640], toeF: [340, 664], hipB: [130, 452], knB: [70, 556], anB: [46, 664], toeB: [16, 696],
+      cut: [] },
+    zumbi: { top: [178, 40], neck: [200, 176], pelvis: [180, 382],
+      shF: [248, 200], elF: [318, 284], haF: [318, 240], shR: [82, 200], elR: [40, 250], haR: [140, 262],
+      extra: [['faR', [150, 256], [330, 116], 0.026]], /* the facão */
+      hipF: [228, 442], knF: [298, 542], anF: [296, 642], toeF: [334, 660], hipB: [128, 442], knB: [58, 562], anB: [50, 666], toeB: [20, 696],
       cut: [] }
   };
 
@@ -85,7 +125,7 @@
       [P.uaR, r.shR, r.elR, 0.042], [P.faR, r.elR, r.haR, 0.038], [P.faR, r.haR, r.haR, 0.045],
       [P.thF, r.hipF, r.knF, 0.055], [P.shF, r.knF, r.anF, 0.045], [P.shF, r.anF, r.toeF, 0.04],
       [P.thB, r.hipB, r.knB, 0.055], [P.shB, r.knB, r.anB, 0.045], [P.shB, r.anB, r.toeB, 0.04]
-    ];
+    ].concat((r.extra || []).map(function (e) { return [P[e[0]], e[1], e[2], e[3]]; }));
   }
 
   /* Joint blends: [parentPart, childPart, joint, towardChild] */

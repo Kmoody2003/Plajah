@@ -453,6 +453,8 @@
       }
       /* ---------- campaign ---------- */
       body.campaign-fight .hud-top { display: none; }
+      .tbtn.depth { display: none; }
+      body.campaign-fight .tbtn.depth { display: inline-flex; }
       .camp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 900px; }
       @media (max-width: 720px) { .camp-grid { grid-template-columns: repeat(2, 1fr); } }
       .camp-card {
@@ -838,6 +840,8 @@
           <div class="tcluster move">
             <button class="tbtn" data-k="left" aria-label="Move left"><span class="tic">◀</span></button>
             <button class="tbtn" data-k="right" aria-label="Move right"><span class="tic">▶</span></button>
+            <button class="tbtn depth" data-k="up" aria-label="Move into the field"><span class="tic">▲</span>UP</button>
+            <button class="tbtn depth" data-k="down" aria-label="Move toward the front"><span class="tic">▼</span>DOWN</button>
             <button class="tbtn jump" data-k="jump" aria-label="Jump"><span class="tic">▲</span>JUMP</button>
             <button class="tbtn small" data-k="dash" aria-label="Dash"><span class="tic">»</span>DASH</button>
           </div>
@@ -890,6 +894,12 @@
     "use strict";
     /* ============================== DATA ============================== */
     var GROUND = 468, WORLD_W = 1500, VIEW_W = 960, VIEW_H = 540;
+    /* 2.5D (campaign): fighters also stand at a depth z (0 = nearest the camera, ZMAX = deepest). Each depth has
+       its own ground line, higher up the screen and smaller the deeper it is. Versus fighters have no z and
+       stand on GROUND as always. */
+    var ZMAX = 120, FIELD_SEC_W = 1100, FIELD_SECTIONS = 3;
+    function groundY(f){ return f && f.z != null ? GROUND + 36 - f.z * 0.8 : GROUND; }
+    function depthScale(f){ return f && f.z != null ? 1.1 - f.z / ZMAX * 0.32 : 1; }
 
     var STAGES = [
       { id:"japan", name:"Kyoto Dusk Platform", img:"assets/stage-japan.webp", theme:"japan",
@@ -903,7 +913,27 @@
       { id:"china", name:"Shaolin Mist Terrace", img:"assets/stage-china.webp", theme:"china",
         mid:"rgba(38,58,66,0.45)", fg:"#3c4040", fg2:"#5a625c", prop:"pagoda" },
       { id:"rome", name:"The Golden Colosseum", img:"assets/stage-rome.webp", theme:"rome",
-        mid:"rgba(70,38,16,0.45)", fg:"#6b4c2a", fg2:"#8f6a3c", prop:"arch" }
+        mid:"rgba(70,38,16,0.45)", fg:"#6b4c2a", fg2:"#8f6a3c", prop:"arch" },
+      /* home arenas of the warriors of history (Muse art pack). `theme` borrows the nearest existing
+         score cue until each arena gets its own. */
+      { id:"zulu", name:"The Royal Kraal", img:"assets/stage-zulu.webp", theme:"aztec",
+        mid:"rgba(29,25,18,0.5)", fg:"#251e16", fg2:"#362c20", prop:"none" },
+      { id:"ndongo", name:"Ndongo Highlands", img:"assets/stage-ndongo.webp", theme:"aztec",
+        mid:"rgba(23,22,20,0.5)", fg:"#271510", fg2:"#381f18", prop:"none" },
+      { id:"kush", name:"Meroë of the Pyramids", img:"assets/stage-kush.webp", theme:"rome",
+        mid:"rgba(46,33,21,0.5)", fg:"#37291c", fg2:"#513c29", prop:"none" },
+      { id:"mactan", name:"The Shallows of Mactan", img:"assets/stage-mactan.webp", theme:"china",
+        mid:"rgba(30,37,37,0.5)", fg:"#373631", fg2:"#504f48", prop:"none" },
+      { id:"melaka", name:"Melaka Harbour", img:"assets/stage-melaka.webp", theme:"china",
+        mid:"rgba(40,28,25,0.5)", fg:"#23201b", fg2:"#332f27", prop:"none" },
+      { id:"ayutthaya", name:"Ayutthaya Temple Court", img:"assets/stage-ayutthaya.webp", theme:"japan",
+        mid:"rgba(33,27,22,0.5)", fg:"#2c2a25", fg2:"#403e35", prop:"none" },
+      { id:"ohio", name:"The Ohio Forest", img:"assets/stage-ohio.webp", theme:"norse",
+        mid:"rgba(31,27,22,0.5)", fg:"#281c12", fg2:"#3a291b", prop:"none" },
+      { id:"araucania", name:"Araucanía", img:"assets/stage-araucania.webp", theme:"norse",
+        mid:"rgba(23,24,26,0.5)", fg:"#1f1e1d", fg2:"#2d2c2a", prop:"none" },
+      { id:"palmares", name:"The Hills of Palmares", img:"assets/stage-palmares.webp", theme:"aztec",
+        mid:"rgba(29,27,19,0.5)", fg:"#2a241b", fg2:"#3e3528", prop:"none" }
     ];
 
     var FIGHTERS = [
@@ -953,63 +983,63 @@
          real art. `pending` = their Muse painting isn't in yet: they fight with the drawn stand-in body and a
          generated portrait. stage:null = no home arena painted yet, so the CPU picks one at random. ---- */
       { id:"shaka", name:"Shaka", culture:"Zulu Kingdom · c. 1787–1828", title:"The Bull's Horns",
-        img:null, pending:true, stage:null, gear:"plume",
+        img:"assets/portrait-shaka.webp", stage:"zulu", gear:"plume",
         pwr:8, spd:7, hp:7, speed:3.3, dmgMul:1.1, maxHp:106,
         skin:"#6b4026", hair:"#140d08", cloth:"#c9a46a", cloth2:"#7a5532", armor:"#efe6d2", accent:"#e0b25a",
         weaponName:"Iklwa Stabbing Spear", weaponType:"spear",
         superName:"Horns of the Buffalo", superType:"charge",
         desc:"The king who remade Zulu warfare: the short stabbing spear, the hide shield, the horns that close around you." },
       { id:"nzinga", name:"Nzinga", culture:"Ndongo & Matamba · c. 1583–1663", title:"The Unbowed Queen",
-        img:null, pending:true, stage:null, gear:"crown",
+        img:"assets/portrait-nzinga.webp", stage:"ndongo", gear:"crown",
         pwr:6, spd:9, hp:6, speed:3.55, dmgMul:1.0, maxHp:98,
         skin:"#5a341f", hair:"#120c08", cloth:"#a8322a", cloth2:"#5e1c18", armor:"#e3b448", accent:"#f0c46a",
         weaponName:"Royal War Axe", weaponType:"axe",
         superName:"Forty Years Unconquered", superType:"dash",
         desc:"She held off the Portuguese for four decades, by treaty and by war. She does not kneel." },
       { id:"amanirenas", name:"Amanirenas", culture:"Kingdom of Kush · fl. 25–21 BCE", title:"Queen Who Struck Rome",
-        img:null, pending:true, stage:null, gear:"cap",
+        img:"assets/portrait-amanirenas.webp", stage:"kush", gear:"cap",
         pwr:7, spd:7, hp:6, speed:3.25, dmgMul:1.04, maxHp:100,
         skin:"#4a2a18", hair:"#0e0a06", cloth:"#e8dcc0", cloth2:"#9a7b4a", armor:"#d4a63a", accent:"#d4a63a",
         weaponName:"Bow of Ta-Seti", weaponType:"bow", projKind:"volley",
         superName:"Volley of the Land of the Bow", superType:"projectile",
         desc:"The one-eyed Kandake marched on Roman Egypt and brought home the head of Augustus' statue." },
       { id:"lapulapu", name:"Lapu-Lapu", culture:"Mactan · 1521", title:"The First Defiance",
-        img:null, pending:true, stage:null, gear:"wrap",
+        img:null, pending:true, stage:"mactan", gear:"wrap",
         pwr:7, spd:8, hp:7, speed:3.4, dmgMul:1.06, maxHp:104,
         skin:"#9a6238", hair:"#120d08", cloth:"#b0302a", cloth2:"#3a2a1c", armor:"#c9973f", accent:"#e85a3c",
         weaponName:"Kampilan", weaponType:"blade",
         superName:"Tide of Mactan", superType:"dash",
         desc:"The datu of Mactan met Magellan's men in the shallows, and the voyage around the world went home without its captain." },
       { id:"hangtuah", name:"Hang Tuah", culture:"Melaka Sultanate · 15th c. (legend)", title:"The Laksamana",
-        img:null, pending:true, stage:null, gear:"wrap",
+        img:"assets/portrait-hangtuah.webp", stage:"melaka", gear:"wrap",
         pwr:6, spd:8, hp:7, speed:3.4, dmgMul:1.0, maxHp:104,
         skin:"#a06a3e", hair:"#120d08", cloth:"#2e5a46", cloth2:"#1c3a2c", armor:"#d9b45a", accent:"#d9b45a",
         weaponName:"Keris Taming Sari", weaponType:"blade",
         superName:"Taming Sari", superType:"dash",
         desc:"The admiral of Malay legend. Loyal past reason, unbeaten with the keris that could not be beaten." },
       { id:"naresuan", name:"Naresuan", culture:"Ayutthaya Kingdom · 1555–1605", title:"The Black Prince",
-        img:null, pending:true, stage:null, gear:"band",
+        img:"assets/portrait-naresuan.webp", stage:"ayutthaya", gear:"band",
         pwr:8, spd:7, hp:7, speed:3.25, dmgMul:1.1, maxHp:106,
         skin:"#b07a4a", hair:"#120d08", cloth:"#20202a", cloth2:"#3a3040", armor:"#d4a63a", accent:"#e8c25a",
         weaponName:"Dap Sword", weaponType:"blade",
         superName:"Elephant Duel Knee", superType:"pounce",
         desc:"He won Ayutthaya's freedom and, legend says, a duel fought from the backs of war elephants." },
       { id:"tecumseh", name:"Tecumseh", culture:"Shawnee Confederacy · 1768–1813", title:"The Shooting Star",
-        img:null, pending:true, stage:null, gear:"plume2",
+        img:"assets/portrait-tecumseh.webp", stage:"ohio", gear:"plume2",
         pwr:7, spd:7, hp:8, speed:3.2, dmgMul:1.06, maxHp:110,
         skin:"#9a5a34", hair:"#120d08", cloth:"#6a4a2a", cloth2:"#3a2a18", armor:"#c0392b", accent:"#e85a3c",
         weaponName:"Thrown Tomahawk", weaponType:"axe",
         superName:"Confederacy of Nations", superType:"shockwave",
         desc:"He travelled thousands of miles to unite the nations into one confederacy, and fell at the Thames still fighting." },
       { id:"lautaro", name:"Lautaro", culture:"Mapuche · c. 1534–1557", title:"The Swift Hawk",
-        img:null, pending:true, stage:null, gear:"band2",
+        img:"assets/portrait-lautaro.webp", stage:"araucania", gear:"band2",
         pwr:7, spd:9, hp:6, speed:3.55, dmgMul:1.04, maxHp:98,
         skin:"#a0683e", hair:"#120d08", cloth:"#2c3e6a", cloth2:"#1a2440", armor:"#c9ced4", accent:"#9fc3ff",
         weaponName:"Macana War Club", weaponType:"club",
         superName:"Ambush at Tucapel", superType:"charge",
         desc:"He groomed the conquistador's horses and learned their war, then turned it on them at Tucapel." },
       { id:"zumbi", name:"Zumbi", culture:"Quilombo dos Palmares · 1655–1695", title:"Free Palmares",
-        img:null, pending:true, stage:null, gear:"none",
+        img:"assets/portrait-zumbi.webp", stage:"palmares", gear:"none",
         pwr:7, spd:9, hp:6, speed:3.5, dmgMul:1.04, maxHp:100,
         skin:"#4e2c1a", hair:"#0e0a06", cloth:"#e8e0cc", cloth2:"#8a6a3a", armor:"#c9973f", accent:"#f0c46a",
         weaponName:"Facão", weaponType:"blade",
@@ -1313,7 +1343,7 @@
     }
 
     /* ============================== INPUT ============================== */
-    function blankInput(){ return { left:false, right:false, jump:false, block:false, punch:false, kick:false, weapon:false, super:false, spPunch1:false, spPunch2:false, spKick1:false, spKick2:false, dash:false, uppercut:false, sweep:false }; }
+    function blankInput(){ return { up:false, down:false, jump2:false, block2:false, left:false, right:false, jump:false, block:false, punch:false, kick:false, weapon:false, super:false, spPunch1:false, spPunch2:false, spKick1:false, spKick2:false, dash:false, uppercut:false, sweep:false }; }
     var kbP1 = blankInput(), kbP2 = blankInput(), touchIn = blankInput();
     /* Player 1 attacks live on the number pad (right hand), left hand on
        A/D/W/S. No number pad? Two fallbacks, both always live: the classic
@@ -1329,6 +1359,9 @@
       ["KeyE","P1","dash"],["KeyR","P1","spPunch1"],["KeyT","P1","spPunch2"],
       ["KeyC","P1","spKick1"],["KeyV","P1","spKick2"],["KeyQ","P1","uppercut"],["KeyX","P1","sweep"],
       ["ArrowLeft","AUTO","left"],["ArrowRight","AUTO","right"],["ArrowUp","AUTO","jump"],["ArrowDown","AUTO","block"],
+      /* campaign (2.5D): up/down walk across the field's depth, Space jumps, Left Shift blocks */
+      ["KeyW","P1","up"],["KeyS","P1","down"],["ArrowUp","AUTO","up"],["ArrowDown","AUTO","down"],
+      ["Space","P1","jump2"],["ShiftLeft","P1","block2"],
       ["Comma","AUTO","punch"],["Period","AUTO","kick"],["Slash","AUTO","weapon"],["ShiftRight","AUTO","super"],
       ["KeyI","AUTO","dash"],["Semicolon","AUTO","spPunch1"],["Quote","AUTO","spPunch2"],
       ["BracketLeft","AUTO","spKick1"],["BracketRight","AUTO","spKick2"],["KeyP","AUTO","uppercut"],["KeyO","AUTO","sweep"]
@@ -1382,6 +1415,11 @@
       if (pressed(15) || sx > DZ) out.right = true;            /* D-pad / stick ▶ */
       if (pressed(12) || sy < -0.55 || pressed(3)) out.jump = true;  /* ▲, stick up, Y */
       if (pressed(13) || sy > 0.55) out.block = true;          /* ▼, stick down */
+      /* campaign: the stick / D-pad walks in depth; Y jumps and B blocks */
+      if (pressed(12) || sy < -0.4) out.up = true;
+      if (pressed(13) || sy > 0.4) out.down = true;
+      if (pressed(3)) out.jump2 = true;
+      if (pressed(1)) out.block2 = true;
       if (pressed(2)) out.punch = true;                        /* X */
       if (pressed(0)) out.kick = true;                         /* A */
       if (pressed(1)) out.block = true;                        /* B (hold) */
@@ -1567,6 +1605,7 @@
     var ATTACK_KEYS = ["punch","kick","spPunch1","spPunch2","spKick1","spKick2","uppercut","sweep","weapon","super","dash"];
 
     function startMatch(p1Char, p2Char, stageId){
+      WORLD_W = 1500;
       game.p1Char = p1Char; game.p2Char = p2Char; game.stageId = stageId;
       var w1, s1, w2, s2, tag1, tag2;
       if (game.mode === "cpu"){
@@ -1742,7 +1781,9 @@
       /* BRUTALITY: five-plus hits ending in a knockdown, or a combo of three-plus that takes the round */
       /* a mash special alone doesn't count: the string needs real, separate strikes in it */
       var strikes = (def.comboMoves || []).filter(function(k){ return MOVES[k] && !MOVES[k].hits; }).length;
-      var isBrutal = !blocked && moveKey !== "super" && !game.cine && !(net.active && net.role === "guest") && game.mode !== "campaign" &&
+      var isBrutal = !blocked && moveKey !== "super" && !game.cine && !(net.active && net.role === "guest") &&
+        /* in the campaign only the hero's own strings cut away, so the warband's fights don't keep freezing the field */
+        !(game.mode === "campaign" && brawl && att !== brawl.player) &&
         ((def.comboN >= 5 && strikes >= 4 && knock) || (def.hp <= 0 && def.comboN >= 3 && strikes >= 3)) && game.time - (att.brutalT || -99) > 4;
       if (isBrutal){
         att.brutalT = game.time;
@@ -1886,17 +1927,19 @@
       }
       /* facing */
       if (f.state !== "ko" && game.phase === "fight") f.facing = foe.x >= f.x ? 1 : -1;
-      /* gravity — a touch snappier so jumps feel arcade-quick */
+      /* gravity — a touch snappier so jumps feel arcade-quick. Each fighter lands on their own ground line (depth). */
+      var G = groundY(f);
+      if (f.onGround && f.vy >= 0) f.y = G;
       if (!f.onGround || f.vy < 0){
         f.vy += 1950 * dt; f.y += f.vy * dt;
-        if (f.y >= GROUND){
+        if (f.y >= G){
           var fallV = f.vy;
-          f.y = GROUND; f.vy = 0; f.onGround = true; if (f.state==="jump") f.state = "idle";
+          f.y = G; f.vy = 0; f.onGround = true; if (f.state==="jump") f.state = "idle";
           /* plain landings kick up a little dust; a diving punch slams down and ends there */
-          if (f.state !== "hit" && f.state !== "ko" && fallV > 300){ spawnParticles(f.x, GROUND - 2, ["#c9b48a", "#e8d8b0"], 4, 90); sfx("land", f.x, { gain: clamp(fallV / 900, 0.4, 1) }); }
+          if (f.state !== "hit" && f.state !== "ko" && fallV > 300){ spawnParticles(f.x, G - 2, ["#c9b48a", "#e8d8b0"], 4, 90); sfx("land", f.x, { gain: clamp(fallV / 900, 0.4, 1) }); }
           if (f.state === "attack" && (f.move === "airPunch" || f.move === "risingKick")){
             f.state = "idle"; f.move = null; game.shake = Math.min(16, game.shake + 2);
-            spawnParticles(f.x + f.facing * 20, GROUND - 2, ["#c9b48a", "#8d7a58", "#e8d8b0"], 8, 150);
+            spawnParticles(f.x + f.facing * 20, G - 2, ["#c9b48a", "#8d7a58", "#e8d8b0"], 8, 150);
           }
           /* a knocked-down fighter hits the floor: thud, dust, then lies there */
           if ((f.state === "hit" && f.knock) || f.state === "ko"){
@@ -1904,7 +1947,7 @@
             f.crashable = false;
             f.knock = false; f.vx *= 0.45;
             game.shake = Math.min(16, game.shake + 3 + Math.min(6, fallV / 160));
-            spawnParticles(f.x, GROUND - 4, ["#c9b48a", "#8d7a58", "#e8d8b0"], 10, 160);
+            spawnParticles(f.x, G - 4, ["#c9b48a", "#8d7a58", "#e8d8b0"], 10, 160);
             sfx("bodyfall", f.x);
             if (fallV > 350) AMB.decals.push({ x: f.x, t: game.time, seed: Math.random() * 3 });
           }
@@ -1938,13 +1981,19 @@
              slower to get going, longer to stop, and a skid when you turn. */
           if (mv === 0 || mv !== f.runDir) f.running = false;
           var wind = game.wx ? game.wx.wind : 0, grip = wxGrip();
-          var target = mv * (f.moveSpeed || f.char.speed) * 150 * (f.running ? 1.5 : 1) * (1 + mv * wind * 0.22);
+          var target = mv * (f.moveSpeed || f.char.speed) * 150 * (f.running ? 1.5 : 1) * (1 + mv * wind * 0.22) * (f.hazSlow || 1);
           var accel = f.onGround ? (mv === 0 ? 3400 : 2600) * (0.25 + 0.75 * grip) : 1500;
           var dv = target - f.vx, step = accel * dt;
           f.vx += Math.abs(dv) <= step ? dv : (dv > 0 ? step : -step);
           if (f.onGround && mv !== 0 && Math.abs(f.vx) > 260 && Math.sign(f.vx) !== mv && Math.random() < 0.5)
             spawnParticles(f.x, GROUND - 2, game.wx && game.wx.wet > 0.3 ? ["#cfe0f0", "#a8bed4"] : ["#c9b48a", "#e8d8b0"], 1, 80);
           if (mv !== 0 && f.onGround){ f.state = "walk"; f.walkPh += dt * (f.running ? 22 : 16); } else if (f.onGround) f.state = Math.abs(f.vx) > 60 ? "walk" : "idle";
+          /* 2.5D: walk across the field's depth */
+          if (f.z != null){
+            var mz = (inp.up ? 1 : 0) - (inp.down ? 1 : 0), tz = mz * (f.moveSpeed || f.char.speed) * 80 * (f.hazSlow || 1);
+            f.vz = (f.vz || 0) + (tz - (f.vz || 0)) * Math.min(1, dt * 12);
+            if (mz !== 0 && f.onGround && f.state === "idle"){ f.state = "walk"; f.walkPh += dt * 14; }
+          }
           if (inp.jump && !prev.jump && f.onGround){ f.vy = -780; f.onGround = false; f.state = "jump"; f.stateT = 0; f.vx *= 1.1; sfx("jump", f.x); spawnParticles(f.x, GROUND - 2, ["#c9b48a", "#e8d8b0"], 3, 70); }
           /* let go of jump early for a short hop (players only; the CPU taps) */
           if (!f.ai && !inp.jump && prev.jump && !f.onGround && f.vy < -320) f.vy *= 0.55;
@@ -1969,9 +2018,11 @@
         var open = nHits > 1 ? (f.hitIdx || 0) <= slot : !f.hasHit;
         if (nHits > 1 && t < mvDef.startup + mvDef.active) f.vx = f.facing * 90;
         if (open && t >= mvDef.startup && t <= mvDef.startup + mvDef.active){
-          var dx = (foe.x - f.x) * f.facing, dy = Math.abs((foe.y - 60) - (f.y - 60));
+          var dx = (foe.x - f.x) * f.facing, dy = Math.abs((foe.y - groundY(foe)) - (f.y - groundY(f)));
           var yOk = (f.move === "sweep" || f.move === "lowKick") ? foe.onGround
             : f.move === "uppercut" || f.move === "highKick" || f.move === "risingKick" || f.move === "airPunch" ? dy < 150 : dy < 115;
+          /* 2.5D: a blow only lands on someone level with you in depth */
+          if (Math.abs((foe.z || 0) - (f.z || 0)) > 26) yOk = false;
           if (dx > -14 && dx < mvDef.range + 34 && yOk && canBeHit(foe) && dodges(foe, f.move)){
             f.hasHit = true; if (nHits > 1) f.hitIdx = slot + 1;
             if (game.time - (foe.dodgeAt || -9) > 0.6){ foe.dodgeAt = game.time; popText(foe, "SLIPPED IT", "#bfe6ff"); sfx("swing", foe.x, { gain: 0.5 }); }
@@ -2021,12 +2072,16 @@
       /* integrate. Wind pushes anyone off the ground; a slick floor lets blows and strikes slide on. */
       if (!f.onGround && game.wx) f.vx += game.wx.wind * 160 * dt;
       f.x += f.vx * dt;
+      if (f.z != null){
+        if (f.state !== "walk" && f.state !== "idle" && f.state !== "jump") f.vz = (f.vz || 0) * Math.pow(0.001, dt);
+        f.z = clamp(f.z + (f.vz || 0) * dt, 0, ZMAX);
+      }
       var fr = game.wx ? 0.002 + (0.2 - 0.002) * game.wx.wet : 0.002;
       if ((f.state === "hit" && f.onGround) || (f.state === "attack" && f.onGround)) f.vx *= Math.pow(fr, dt);
       f.x = clamp(f.x, 46, WORLD_W - 46);
       crashCheck(f, foe);
       /* body push */
-      if (Math.abs(foe.x - f.x) < 52 && Math.abs(foe.y - f.y) < 60 && foe.state !== "ko"){
+      if (Math.abs(foe.x - f.x) < 52 && Math.abs(foe.y - f.y) < 60 && Math.abs((foe.z || 0) - (f.z || 0)) < 22 && foe.state !== "ko"){
         var push = (52 - Math.abs(foe.x - f.x)) / 2 * (f.x < foe.x ? -1 : 1);
         f.x = clamp(f.x + push, 46, WORLD_W - 46);
       }
@@ -2260,12 +2315,12 @@
       /* ground: a perspective plane (wet floors reflect the arena) */
       drawPerspectiveFloor(camX, st);
       drawGroundDecals(camX);
-      if (game.screen === "fight" || game.screen === "result") drawBarriers(camX, st);
+      if ((game.screen === "fight" || game.screen === "result") && game.mode !== "campaign") drawBarriers(camX, st);
     }
     function drawShadow(f){
-      var h = clamp(1 - (GROUND - f.y) / 320, 0.25, 1);
+      var gy = groundY(f), h = clamp(1 - (gy - f.y) / 320, 0.25, 1);
       ctx.fillStyle = "rgba(15,8,2," + (0.34 * h) + ")";
-      ctx.beginPath(); ctx.ellipse(f.x - game.camX, GROUND + 14, 40 * h + 10, 8 * h + 2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(f.x - game.camX, gy + 14, 40 * h + 10, 8 * h + 2, 0, 0, Math.PI * 2); ctx.fill();
     }
     /* --- stylised painterly fighter, drawn from pose --- */
     function limb(x1, y1, x2, y2, w, color){
@@ -2633,10 +2688,10 @@
     function updateCam(dt, a, b){
       var c = camState();
       if (!a || !b){ c.z += (1 - c.z) * Math.min(1, dt * 4); return; }
-      var dist = Math.abs(a.x - b.x), top = Math.min(a.y, b.y);
+      var dist = Math.abs(a.x - b.x), top = Math.min(a.y - groundY(a) + GROUND, b.y - groundY(b) + GROUND);
       var zT = 1 + 0.2 * clamp(1 - (dist - 140) / 460, 0, 1);
       var fxT = (a.x + b.x) / 2 - game.camX + clamp(((a.vx || 0) + (b.vx || 0)) * 0.05, -50, 50);
-      var fyT = GROUND - 95 - Math.max(0, GROUND - top) * 0.55;
+      var fyT = (a.z != null ? groundY(a) : GROUND) - 95 - Math.max(0, GROUND - top) * 0.55;
       c.kick *= Math.pow(0.012, dt); c.tilt *= Math.pow(0.02, dt);
       c.z += (zT + c.kick - c.z) * Math.min(1, dt * (c.kick > 0.02 ? 14 : 3.5));
       var pfx = c.fx;
@@ -2705,12 +2760,12 @@
       drawBolts();
       drawPops();
       drawAmbientFront();
-      if ((game.screen === "fight" || game.screen === "result") && !(game.mode === "campaign" && brawl)){ weatherVisuals(); drawForeground(game.camX); drawWeather(); }
+      if (game.screen === "fight" || game.screen === "result"){ weatherVisuals(); drawForeground(game.camX); drawWeather(); }
       if (game.cine) drawCineOverlayWorld();
       ctx.restore();
       if (!game.cine && AMB.stage === game.stageId && ambStyle().crowd) drawCrowd(game.camX);
       if (game.cine) drawCineOverlayScreen();
-      if (game.mode === "campaign" && brawl) drawBrawlHud();
+      if (game.mode === "campaign" && brawl){ drawBrawlHud(); drawFieldHud(); }
       drawComboCounter();
       drawPowerHud();
       /* impact frame: a white-hot flash across the screen on the heaviest blows */
@@ -2729,14 +2784,14 @@
        then a pull-out as the foe is launched. All of it is display-only: the real hit (damage, launch
        velocity) was already applied, and every fighter field touched here is restored at the end. */
     var CINE_SHOTS = [0.42, 0.66, 1.06, 1.36, 1.72]; /* shot end times */
-    var CINE_KEYS = ["state", "stateT", "move", "react", "knock", "onGround", "vy", "vx", "x", "y", "hurtFlash", "facing"];
+    var CINE_KEYS = ["state", "stateT", "move", "react", "knock", "onGround", "vy", "vx", "x", "y", "z", "hurtFlash", "facing"];
     function startCine(att, def, kind, moves){
       if (game.cine || !att || !def) return;
       function snap(f){ var o = {}; CINE_KEYS.forEach(function(k){ o[k] = f[k]; }); return o; }
       kind = kind || "super";
       var mv = (moves || []).filter(function(k){ return MOVES[k] && !MOVES[k].hits && k !== "super" && k !== "throw"; });
       var m1 = mv.length > 1 ? mv[mv.length - 2] : "hook", m2 = mv.length ? mv[mv.length - 1] : "uppercut";
-      game.cine = { kind: kind, shots: kind === "brutal" ? BRUTAL_SHOTS : kind === "crash" ? CRASH_SHOTS : CINE_SHOTS, t: 0, att: att, def: def, sa: snap(att), sd: snap(def), shot: -1, u: 0,
+      game.cine = { kind: kind, shots: kind === "brutal" ? BRUTAL_SHOTS : kind === "crash" ? CRASH_SHOTS : kind === "boss" ? [0.55, 1.7] : CINE_SHOTS, t: 0, att: att, def: def, sa: snap(att), sd: snap(def), shot: -1, u: 0,
         m1: m1, m2: m2, hits: {}, n: def.comboN || 0 };
       musicMuffle(true);
       game.hitstop = 0;
@@ -2764,8 +2819,8 @@
     }
     function stepBrutal(c, i, u){
       var a = c.att, d = c.def;
-      a.x = c.sa.x; a.y = GROUND; a.onGround = true; a.facing = c.sa.facing;
-      d.x = a.x + a.facing * 70; d.y = GROUND; d.onGround = true; d.facing = -a.facing; d.knock = false; d.vy = 0;
+      a.x = c.sa.x; a.y = groundY(a); a.onGround = true; a.facing = c.sa.facing;
+      d.x = a.x + a.facing * 70; d.z = a.z; d.y = groundY(d); d.onGround = true; d.facing = -a.facing; d.knock = false; d.vy = 0;
       if (i === 0){
         a.state = "attack"; a.move = c.m1; a.stateT = brutalStrike(c, c.m1, u, 0.55);
         d.state = u < 0.55 ? "idle" : "hit"; d.react = "high"; d.stateT = u < 0.55 ? c.t : (u - 0.55) * 0.25; d.hurtFlash = u < 0.55 ? 0 : 1 - (u - 0.55) * 2;
@@ -2777,17 +2832,18 @@
       } else if (i === 2){
         a.state = "attack"; a.move = c.m2; a.stateT = brutalStrike(c, c.m2, 1, 0.45);
         d.state = "hit"; d.react = "spin"; d.knock = true; d.onGround = false; d.stateT = 0.05 + u * 0.12;
-        d.y = GROUND - 60 - 30 * u; d.x = a.x + a.facing * (78 + 26 * u); d.vy = -300;
+        d.y = groundY(d) - 60 - 30 * u; d.x = a.x + a.facing * (78 + 26 * u); d.vy = -300;
       } else {
         var M2 = MOVES[c.m2] || MOVES.hook;
         a.state = "attack"; a.move = c.m2; a.stateT = M2.startup + M2.active + M2.recovery * u * 0.7;
         d.state = "hit"; d.react = "high"; d.knock = true; d.onGround = false; d.stateT = 0.2 + u * 0.3;
-        d.y = GROUND - 90 - 60 * Math.sin(u * Math.PI * 0.6); d.x = a.x + a.facing * (104 + 150 * u); d.vy = -300 + 900 * u;
+        d.y = groundY(d) - 90 - 60 * Math.sin(u * Math.PI * 0.6); d.x = a.x + a.facing * (104 + 150 * u); d.vy = -300 + 900 * u;
       }
     }
     function cineShotFx(i){
       var c = game.cine, a = c.att, d = c.def;
       if (c.kind === "crash"){ if (i === 2){ announce(zoneName(game.zone).toUpperCase(), 1100); crowdRoar(1); } return; }
+      if (c.kind === "boss"){ if (i === 1){ sfx("super", d.x); game.shake = 9; crowdRoar(0.8); spawnParticles(d.x, groundY(d) - 4, ["#c9b48a", "#8d7a58"], 18, 220); } return; }
       if (c.kind === "brutal"){
         if (i === 0) sfx("swingHeavy", a.x);
         if (i === 1) sfx("swingHeavy", a.x);
@@ -2814,6 +2870,7 @@
       var t0 = i ? SH[i - 1] : 0, u = (c.t - t0) / (SH[i] - t0);
       c.u = u;
       if (i !== c.shot){ c.shot = i; cineShotFx(i); }
+      if (c.kind === "boss"){ particlesUpdate(dt); if (game.shake > 0) game.shake *= Math.pow(0.004, dt); return; }
       if (c.kind === "crash"){
         stepCrash(c, i, u);
         particlesUpdate(dt);
@@ -2828,8 +2885,8 @@
       }
       var a = c.att, d = c.def, S = MOVES.super, U = MOVES.uppercut;
       /* stage the pair side by side, whatever the distance was (a projectile super lands from afar) */
-      a.x = c.sa.x; a.y = GROUND; a.onGround = true; a.facing = c.sa.facing;
-      d.x = a.x + a.facing * 74; d.y = GROUND; d.onGround = true; d.facing = -a.facing; d.knock = false; d.vy = 0;
+      a.x = c.sa.x; a.y = groundY(a); a.onGround = true; a.facing = c.sa.facing;
+      d.x = a.x + a.facing * 74; d.z = a.z; d.y = groundY(d); d.onGround = true; d.facing = -a.facing; d.knock = false; d.vy = 0;
       if (i === 0){ a.state = "attack"; a.move = "super"; a.stateT = S.startup * 0.98 * u; d.state = "idle"; d.stateT = c.t; d.hurtFlash = 0; }
       else if (i === 1){ a.state = "attack"; a.move = "super"; a.stateT = S.startup + S.active * (0.3 + 0.5 * u); d.state = "hit"; d.react = "body"; d.stateT = 0.02 + u * 0.12; d.hurtFlash = 1 - u; }
       else if (i === 2){ a.state = "attack"; a.move = "uppercut"; a.stateT = u < 0.6 ? U.startup * (u / 0.6) : U.startup + U.active * 0.8 * ((u - 0.6) / 0.4); d.state = "hit"; d.react = "body"; d.stateT = 0.1; d.hurtFlash = 0; }
@@ -2837,7 +2894,7 @@
       else {
         a.state = "attack"; a.move = "uppercut"; a.stateT = U.startup + U.active + U.recovery * u * 0.6;
         d.state = "hit"; d.react = "high"; d.knock = true; d.onGround = false; d.stateT = u * 0.4;
-        d.y = GROUND - 170 * Math.sin(Math.min(1, u * 1.2) * Math.PI * 0.75); d.x = a.x + a.facing * (74 + u * 110); d.vy = -520 + 1100 * u;
+        d.y = groundY(d) - 170 * Math.sin(Math.min(1, u * 1.2) * Math.PI * 0.75); d.x = a.x + a.facing * (74 + u * 110); d.vy = -520 + 1100 * u;
       }
       particlesUpdate(dt);
       if (game.shake > 0) game.shake *= Math.pow(0.002, dt);
@@ -2854,6 +2911,7 @@
         return;
       }
       CINE_KEYS.forEach(function(k){ c.att[k] = c.sa[k]; c.def[k] = c.sd[k]; });
+      if (c.kind === "boss"){ game.cine = null; musicMuffle(false); var bc = camState(); bc.kick = 0.06; return; }
       game.cine = null; musicMuffle(false);
       game.shake = 14; game.koSlow = Math.max(game.koSlow, 0.3); game.impactFlash = 0.08;
       var cs = camState(); cs.kick = 0.12; cs.tilt = 0;
@@ -2862,6 +2920,11 @@
       var c = game.cine, a = c.att, d = c.def, u = c.u, s = c.shot;
       var ax = a.x - game.camX, dx = d.x - game.camX, mid = (ax + dx) / 2;
       if (c.kind === "crash") return crashCam(c);
+      if (c.kind === "boss"){
+        var bs = depthScale(d);
+        if (s <= 0) return { z: 1.15 + 0.5 * u, fx: mid + (dx - mid) * u, fy: groundY(d) - 110 * bs, tilt: 0, flip: false, sy: 1 };
+        return { z: 1.75 + 0.25 * u, fx: dx, fy: groundY(d) - 120 * bs, tilt: -0.04 * a.facing, flip: false, sy: 1.1 };
+      }
       if (c.kind === "brutal"){
         if (s <= 0) return { z: 3.1 + 0.35 * u, fx: dx - a.facing * 4, fy: d.y - 150, tilt: 0.06 * a.facing, flip: false, sy: 1 };
         if (s === 1) return { z: 2.6 + 0.3 * u, fx: dx, fy: d.y - 100, tilt: -0.09 * a.facing, flip: true, sy: 1.18 };
@@ -2881,6 +2944,7 @@
     }
     function drawCineBackdrop(){
       var c = game.cine, a = c.att, d = c.def, foc = c.kind === "brutal" ? d : c.shot === 0 ? a : d;
+      if (c.kind === "boss"){ ctx.save(); ctx.fillStyle = "rgba(10,4,2," + (0.35 * Math.min(1, c.t * 3)) + ")"; ctx.fillRect(-VIEW_W, -VIEW_H, VIEW_W * 3, VIEW_H * 3); ctx.restore(); return; }
       if (c.kind === "crash"){
         /* motion streaks while falling */
         if (c.shot === 1){ ctx.save(); ctx.strokeStyle = "rgba(255,243,214,0.35)"; ctx.lineWidth = 1.5;
@@ -2911,7 +2975,7 @@
     }
     function drawCineOverlayWorld(){
       var c = game.cine, d = c.def, a = c.att;
-      if (c.kind === "crash") return;
+      if (c.kind === "crash" || c.kind === "boss") return;
       if (c.kind === "brutal"){
         var hb = c.hits[c.shot];
         if ((c.shot === 0 || c.shot === 1) && hb) drawXray(d.x - game.camX, c.shot === 0 ? d.y - 150 : d.y - 95, c.shot === 0 ? "skull" : "ribs", clamp((c.t - c.flashT) / 0.22, 0, 1));
@@ -2970,6 +3034,16 @@
     function drawCineOverlayScreen(){
       var c = game.cine, a = c.att, bar = 58 * clamp(c.t / 0.1, 0, 1);
       ctx.fillStyle = "#000"; ctx.fillRect(0, 0, VIEW_W, bar); ctx.fillRect(0, VIEW_H - bar, VIEW_W, bar);
+      if (c.kind === "boss"){
+        var bq = clamp((c.t - 0.55) / 0.25, 0, 1), bd = c.def;
+        ctx.save(); ctx.globalAlpha = bq; ctx.textAlign = "left";
+        ctx.fillStyle = "rgba(10,5,2,0.7)"; ctx.fillRect(0, VIEW_H - 150, VIEW_W * bq, 66);
+        ctx.font = "900 40px Cinzel, serif"; ctx.lineWidth = 7; ctx.strokeStyle = "#140a02";
+        ctx.strokeText((bd.label || bd.char.name).toUpperCase(), 40, VIEW_H - 106); ctx.fillStyle = "#ff9d8a"; ctx.fillText((bd.label || bd.char.name).toUpperCase(), 40, VIEW_H - 106);
+        ctx.font = "700 15px Cinzel, serif"; ctx.fillStyle = "#f0c46a"; ctx.fillText("CHAPTER BOSS  ·  " + bd.char.culture.toUpperCase(), 42, VIEW_H - 86);
+        ctx.restore();
+        return;
+      }
       if (c.kind === "crash"){
         if (c.flashT != null && c.t - c.flashT < 0.06){ ctx.globalAlpha = 0.5 * (1 - (c.t - c.flashT) / 0.06); ctx.fillStyle = "#fff3d6"; ctx.fillRect(0, 0, VIEW_W, VIEW_H); ctx.globalAlpha = 1; }
         if (c.shot === 0 && c.t > 0.2){
@@ -3062,7 +3136,8 @@
     }
     function spawnRelic(type, x, gift){
       x = clamp(x, 80, WORLD_W - 80);
-      game.relics.push({ type: type, x: x, y: -40, vy: 0, rest: false, t: 0, life: 9, gift: gift || null });
+      game.relics.push({ type: type, x: x, y: -40, vy: 0, rest: false, t: 0, life: 9, gift: gift || null,
+        z: gift && gift.z != null ? gift.z : game.mode === "campaign" ? Math.random() * ZMAX : null });
       sfx("relic", x);
     }
     function grantPower(f, type){
@@ -3075,17 +3150,17 @@
       spawnParticles(f.x, f.y - 70, [R.color, "#fff6dc"], 22, 260);
       events.push({ e: "pw", x: f.x, y: f.y - 80, c: f.char.id, k: type });
     }
-    function relicsUpdate(dt, fighters){
+    function relicsUpdate(dt, fighters, giftees){
       if (!game.relics) game.relics = [];
       game.roundT = (game.roundT || 0) + dt;
       /* the field: a free relic every 11–15 s, one on the floor at a time */
       if (game.roundT >= game.relicNext && !game.relics.some(function(r){ return !r.gift; })){
-        var mid = (fighters[0].x + fighters[1].x) / 2 + (Math.random() - 0.5) * 360;
+        var mid = (fighters[0].x + (fighters[1] || fighters[0]).x) / 2 + (Math.random() - 0.5) * 360;
         spawnRelic(pickRelic(null), mid, null);
         game.relicNext = game.roundT + 11 + Math.random() * 4;
       }
       /* the guarantee */
-      fighters.forEach(function(f, i){
+      (giftees || fighters).forEach(function(f, i){
         if (f.relicGot || f.dead || f.giftSent) return;
         if (game.roundT > 20 + i * 2.5 || f.hp < f.maxHp * 0.5){
           f.giftSent = true; spawnRelic(pickRelic(f), f.x, f);
@@ -3096,16 +3171,16 @@
         var r = game.relics[i]; r.t += dt;
         if (!r.rest){
           /* gift relics track their owner on the way down */
-          if (r.gift) r.x += (r.gift.x - r.x) * Math.min(1, dt * 6);
+          if (r.gift){ r.x += (r.gift.x - r.x) * Math.min(1, dt * 6); if (r.gift.z != null) r.z = r.gift.z; }
           r.vy = Math.min(r.vy + 900 * dt, 520); r.y += r.vy * dt;
-          if (r.y >= GROUND - 46){ r.y = GROUND - 46; r.rest = true; r.t = 0; spawnParticles(r.x, GROUND - 4, [RELIC_TYPES[r.type].color, "#e8d8b0"], 10, 140); }
+          if (r.y >= groundY(r) - 46){ r.y = groundY(r) - 46; r.rest = true; r.t = 0; spawnParticles(r.x, GROUND - 4, [RELIC_TYPES[r.type].color, "#e8d8b0"], 10, 140); }
         } else r.life -= dt;
         var taken = false;
         for (var k = 0; k < fighters.length && !taken; k++){
           var f = fighters[k];
           if (r.gift && r.gift !== f) continue;
           if (f.dead || f.state === "down" || f.state === "ko") continue;
-          if (Math.abs(f.x - r.x) < 50 && f.y > r.y - 20 && f.y - 150 < r.y){ grantPower(f, r.type); taken = true; }
+          if (Math.abs(f.x - r.x) < 50 && f.y > r.y - 20 && f.y - 150 < r.y && Math.abs((f.z || 0) - (r.z || 0)) < 30){ grantPower(f, r.type); taken = true; }
         }
         if (taken || r.life <= 0) game.relics.splice(i, 1);
       }
@@ -3171,7 +3246,7 @@
         drawRelicGlyph(r.type, 9);
         ctx.restore();
         /* ground ring */
-        if (r.rest){ ctx.strokeStyle = "rgba(" + R.rgb + "," + (0.5 - (r.t % 1) * 0.5) + ")"; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(x, GROUND - 2, 20 + (r.t % 1) * 40, 5 + (r.t % 1) * 8, 0, 0, Math.PI * 2); ctx.stroke(); }
+        if (r.rest){ ctx.strokeStyle = "rgba(" + R.rgb + "," + (0.5 - (r.t % 1) * 0.5) + ")"; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(x, groundY(r) - 2, 20 + (r.t % 1) * 40, 5 + (r.t % 1) * 8, 0, 0, Math.PI * 2); ctx.stroke(); }
         if (r.gift){ ctx.font = "800 11px Cinzel, serif"; ctx.textAlign = "center"; ctx.fillStyle = R.color; ctx.fillText(r.gift.char.name.toUpperCase(), x, y - 30); }
       });
       ctx.restore(); ctx.globalAlpha = 1;
@@ -3223,8 +3298,9 @@
     }
     /* screen-space: the relic each fighter holds, under their health bar, with its time running down */
     function drawPowerHud(){
-      if (game.screen !== "fight" || !game.p1 || !game.p2 || game.cine) return;
-      [game.p1, game.p2].forEach(function(f, i){
+      if (game.screen !== "fight" || !game.p1 || game.cine) return;
+      if (!game.p2 && !(game.mode === "campaign" && brawl)) return;
+      (game.mode === "campaign" && brawl ? [brawl.player] : [game.p1, game.p2]).forEach(function(f, i){
         if (!f.pw) return;
         var R = RELIC_TYPES[f.pw], w = 150, x = i === 0 ? 24 : VIEW_W - 24 - w, y = 92;
         var q = f.pw === "storm" ? Math.max(f.pwCharges / 4, 0) : clamp(f.pwT / R.dur, 0, 1);
@@ -3250,7 +3326,16 @@
       italy: { storm: 0.35, kind: "rain",  wind: 0.4, lightning: true },
       aztec: { storm: 0.5,  kind: "rain",  wind: 0.6, lightning: true, heavy: true },
       china: { storm: 0.5,  kind: "rain",  wind: 0.45, lightning: false },
-      rome:  { storm: 0.35, kind: "dust",  wind: 0.9, lightning: false }
+      rome:  { storm: 0.35, kind: "dust",  wind: 0.9, lightning: false },
+      zulu:      { storm: 0.3,  kind: "dust", wind: 0.7, lightning: false },
+      ndongo:    { storm: 0.5,  kind: "rain", wind: 0.5, lightning: true },
+      kush:      { storm: 0.45, kind: "dust", wind: 0.9, lightning: false },
+      mactan:    { storm: 0.55, kind: "rain", wind: 0.7, lightning: true, heavy: true },
+      melaka:    { storm: 0.5,  kind: "rain", wind: 0.6, lightning: true, heavy: true },
+      ayutthaya: { storm: 0.55, kind: "rain", wind: 0.4, lightning: true, heavy: true },
+      ohio:      { storm: 0.5,  kind: "rain", wind: 0.6, lightning: true },
+      araucania: { storm: 0.5,  kind: "snow", wind: 0.7, lightning: false },
+      palmares:  { storm: 0.5,  kind: "rain", wind: 0.4, lightning: true }
     };
     function weatherDef(){ return WEATHER[game.stageId] || WEATHER.japan; }
     function weatherRoll(){
@@ -3279,7 +3364,7 @@
       }
       w.rain += (w.rainTarget - w.rain) * Math.min(1, dt * 0.35);
       /* rain and snow slicken the floor over a few seconds; sand doesn't */
-      if (w.kind !== "dust") w.wet = clamp(w.wet + (w.rain > 0.2 ? dt * 0.12 * w.rain : -dt * 0.02), 0, 1);
+      if (w.kind !== "dust" && w.kind !== "smoke") w.wet = clamp(w.wet + (w.rain > 0.2 ? dt * 0.12 * w.rain : -dt * 0.02), 0, 1);
       if (W.lightning && w.rain > 0.5){
         w.nextBolt -= dt;
         if (w.nextBolt <= 0){ w.nextBolt = 6 + Math.random() * 9; w.flash = 1; sfx("thunder", null, { gain: 0.7 }); events.push({ e: "sky" }); }
@@ -3340,10 +3425,11 @@
         w.drops.forEach(function(d){ ctx.beginPath(); ctx.arc(d.x, d.y, 1.2 + d.z * 1.6, 0, Math.PI * 2); ctx.fill(); });
         ctx.fillStyle = "rgba(225,235,245," + (0.14 * w.rain) + ")"; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
       } else {
-        ctx.strokeStyle = "rgba(214,176,120,0.35)"; ctx.lineWidth = 1.4; ctx.beginPath();
+        var smk = w.kind === "smoke";
+        ctx.strokeStyle = smk ? "rgba(120,110,104,0.35)" : "rgba(214,176,120,0.35)"; ctx.lineWidth = smk ? 3 : 1.4; ctx.beginPath();
         w.drops.forEach(function(d){ ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - w.wind * 30 * d.z, d.y - 2); });
         ctx.stroke();
-        ctx.fillStyle = "rgba(196,150,90," + (0.2 * w.rain) + ")"; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+        ctx.fillStyle = smk ? "rgba(60,48,40," + (0.16 * w.rain) + ")" : "rgba(196,150,90," + (0.2 * w.rain) + ")"; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
       }
       if (w.flash > 0){ ctx.fillStyle = "rgba(225,232,255," + (0.5 * w.flash * w.flash) + ")"; ctx.fillRect(0, 0, VIEW_W, VIEW_H); }
       ctx.restore();
@@ -3359,7 +3445,16 @@
       italy: ["Piazza of the Lion", "Palazzo Courtyard", "The Bell Tower Ledge"],
       aztec: ["Temple of the Setting Sun", "Jungle Causeway", "The Pyramid Summit"],
       china: ["Shaolin Mist Terrace", "The Training Court", "Mountain Pagoda"],
-      rome:  ["The Golden Colosseum", "Hypogeum Tunnels", "The Emperor's Box"]
+      rome:  ["The Golden Colosseum", "Hypogeum Tunnels", "The Emperor's Box"],
+      zulu:      ["The Royal Kraal", "The Cattle Enclosure", "The Ridge of the Horns"],
+      ndongo:    ["Ndongo Highlands", "The Royal Court", "The Baobab Grove"],
+      kush:      ["Meroë of the Pyramids", "The Lion Temple Court", "The Royal Cemetery"],
+      mactan:    ["The Shallows of Mactan", "The Reef Pier", "The Mangrove Shore"],
+      melaka:    ["Melaka Harbour", "The Sultan's Wharf", "The Spice Warehouses"],
+      ayutthaya: ["Ayutthaya Temple Court", "The Lotus Moat", "The Chedi Steps"],
+      ohio:      ["The Ohio Forest", "The River Ford", "The Council Clearing"],
+      araucania: ["Araucanía", "The Monkey-Puzzle Grove", "The Andes Pass"],
+      palmares:  ["The Hills of Palmares", "The Quilombo Gate", "The Palm Ridge"]
     };
     /* how each area frames the painting: horizontal flip, vertical crop shift, zoom, colour grade */
     var ZONE_LOOK = [
@@ -3425,6 +3520,7 @@
        seams converge, and a foreground layer (grass, rails, rubble) passes in front of the fighters' feet. */
     function drawDepthPainting(img, camX){
       var Z = ZONE_LOOK[(game.zone || 0) % 3];
+      camX = camX * (540 / Math.max(540, WORLD_W - VIEW_W)); /* long campaign fields pan the painting no further than an arena */
       if (!img || !img.complete || !img.naturalWidth){ ctx.fillStyle = "#2c2114"; ctx.fillRect(0, 0, VIEW_W, VIEW_H); return; }
       var farW = VIEW_W + (WORLD_W - VIEW_W) * 0.52, h = VIEW_H;
       var ir = img.naturalWidth / img.naturalHeight, rr = farW / h, sw, sh, sx, sy0;
@@ -3483,7 +3579,8 @@
         ctx.restore();
       });
     }
-    var FG_KIND = { japan: "grass", norse: "rock", italy: "rail", aztec: "fern", china: "grass", rome: "rail" };
+    var FG_KIND = { japan: "grass", norse: "rock", italy: "rail", aztec: "fern", china: "grass", rome: "rail",
+      zulu: "grass", ndongo: "grass", kush: "rock", mactan: "rail", melaka: "rail", ayutthaya: "fern", ohio: "grass", araucania: "rock", palmares: "fern" };
     function drawForeground(camX){
       var kind = FG_KIND[game.stageId] || "grass", T = game.time, wind = game.wx ? game.wx.wind : 0, hype = game.hype || 0;
       var off = camX * 1.45;
@@ -3529,7 +3626,16 @@
       italy: { kind: "mote",  colors: ["#ffe7b0", "#fff3d0"], n: 18, crowd: true, birds: true, rays: "255,220,150" },
       aztec: { kind: "ember", colors: ["#ff9a3c", "#ffc46b", "#ff6a2a"], n: 24, crowd: true, fire: true, rays: "255,170,90" },
       china: { kind: "leaf",  colors: ["#d9a441", "#b5762c", "#e2c27a"], n: 16, lanterns: "#ff5a3c", mist: true, birds: true, rays: "220,240,230" },
-      rome:  { kind: "mote",  colors: ["#f0d9a0", "#e0c080"], n: 20, crowd: true, banners: "#8a1c14", rays: "255,210,140" }
+      rome:  { kind: "mote",  colors: ["#f0d9a0", "#e0c080"], n: 20, crowd: true, banners: "#8a1c14", rays: "255,210,140" },
+      zulu:      { kind: "mote",  colors: ["#ffe2a8", "#f0c070"], n: 22, crowd: true, fire: true, rays: "255,190,120" },
+      ndongo:    { kind: "ember", colors: ["#ff9a3c", "#ffc46b"], n: 16, crowd: true, fire: true, birds: true, rays: "255,170,110" },
+      kush:      { kind: "mote",  colors: ["#f0d9a0", "#e8c890"], n: 26, birds: true, rays: "255,200,130" },
+      mactan:    { kind: "mote",  colors: ["#eaf6ff", "#cfe9f5"], n: 18, birds: true, mist: true, rays: "230,245,255" },
+      melaka:    { kind: "mote",  colors: ["#ffe7b0", "#fff3d0"], n: 16, lanterns: "#ffb35c", birds: true, rays: "255,190,140" },
+      ayutthaya: { kind: "petal", colors: ["#f6c1cf", "#fde8ee", "#f2d27a"], n: 20, lanterns: "#ffcf6a", mist: true, rays: "255,200,150" },
+      ohio:      { kind: "leaf",  colors: ["#d9733a", "#e8a640", "#b5452c"], n: 30, mist: true, birds: true, rays: "255,200,140" },
+      araucania: { kind: "leaf",  colors: ["#6f8a4a", "#a9b878"], n: 12, mist: true, rays: "220,230,255" },
+      palmares:  { kind: "leaf",  colors: ["#8bb04a", "#d9a441"], n: 16, birds: true, mist: true, crowd: true, rays: "255,210,150" }
     };
     var AMB = { stage: null, last: 0, parts: [], decals: [], birds: [], birdsAway: 0 };
     function ambStyle(){ return AMB_STYLE[game.stageId] || AMB_STYLE.japan; }
@@ -3929,7 +4035,7 @@
     }
 
     function leaveMatchToMenu(){
-      game.screen = "menu"; game.attract = true; game.p1 = game.p2 = null; game.zone = 0; game.wx = null; weatherSilence();
+      game.screen = "menu"; game.attract = true; game.p1 = game.p2 = null; game.zone = 0; game.wx = null; weatherSilence(); WORLD_W = 1500;
       hud(false); showScreen("menuScreen"); startMusic("menu");
       if (net.active) netTeardown();
     }
@@ -4406,6 +4512,8 @@
       else showStory("intro", -1);
     }
     function showStory(kind, idx){
+      /* Adventure goes straight to the chapter's battle (its title and place open the fight); Scholar reads first */
+      if (kind === "chapter" && CAMP.mode === "adventure"){ CAMP.kind = "chapter"; CAMP.chapter = idx; startBrawl(idx); return; }
       var cp = campaignByWarrior(CAMP.warrior), w = fighterById(cp.warrior);
       CAMP.kind = kind; CAMP.chapter = idx; CAMP.readDone = CAMP.mode === "adventure";
       var title, paras, prog;
@@ -4418,7 +4526,7 @@
       $("storyEra").textContent = cp.era;
       $("storyBody").innerHTML = paras.map(function(p){ return "<p>" + p + "</p>"; }).join("");
       $("storyProgress").textContent = prog;
-      $("storyCheck").textContent = CAMP.mode === "scholar" && kind === "chapter" ? "Scholar's road: read to the end of the chapter to unlock the battle." : "";
+      $("storyCheck").textContent = CAMP.mode === "scholar" && kind === "chapter" ? "Read each chapter to its end — the battle unlocks when the tale is read." : "";
       var go = $("btnStoryGo"), skip = $("btnStorySkip");
       if (kind === "finale"){ go.textContent = "Finish the Tale →"; skip.style.display = "none"; }
       else if (kind === "intro"){ go.textContent = CAMP.mode === "scholar" ? "Read On →" : "Begin Chapter I →"; skip.style.display = CAMP.mode === "adventure" ? "inline-block" : "none"; }
@@ -4475,30 +4583,66 @@
       f.team = team; f.label = spec.n || f.char.name; f.boss = !!spec.boss; f.deadT = 0;
       return f;
     }
+    /* ---- 2.5D campaign fields ----
+       A chapter is a long field in three sections. The warband clears a wave, a "GO →" opens the way, and the next
+       section (a different part of the arena's painting) has the next wave; the boss waits in the last. The chapter's
+       place sets the piece: a ford or causeway runs water across the field, a burning or fire chapter scatters
+       flames, a mountain pass brings snow, a burning chapter fills the air with smoke. */
+    function chapterSetPiece(ch){
+      var t = (ch.title + " " + ch.place).toLowerCase();
+      return { water: /ford|river|causeway|lake|shore|shallow|landing|coast|bridge|tide/.test(t),
+               fire: /fire|burn|smoke|hospice|brand|flame/.test(t),
+               smoke: /burn|hospice|brand|smoke/.test(t) || (/fire/.test(t) && !/pass/.test(t)),
+               snow: /pass|mountain|snow|cliff/.test(t) && !/castle/.test(t) };
+    }
+    function buildHazards(sp){
+      var hz = [], S = FIELD_SEC_W;
+      if (sp.water) hz.push({ kind: "water", x0: S + 160, x1: 2 * S - 180, z0: 0, z1: 58 });
+      if (sp.fire) for (var i = 0; i < 6; i++) hz.push({ kind: "fire", x: 420 + i * 470 + Math.random() * 120, z: 14 + Math.random() * 96, r: 36 });
+      return hz;
+    }
+    function splitWaves(foes){
+      var boss = foes.filter(function(f){ return f.boss; }), rest = foes.filter(function(f){ return !f.boss; }), n = rest.length, w = [[], [], []];
+      rest.forEach(function(f, i){ w[Math.min(2, Math.floor(i * 3 / Math.max(1, n)))].push(f); });
+      boss.forEach(function(f){ w[2].push(f); });
+      return w;
+    }
     function startBrawl(chapterIdx){
       var cp = campaignByWarrior(CAMP.warrior), ch = cp.chapters[chapterIdx];
-      game.zone = 0; game.wx = null; weatherSilence();
       CAMP.chapter = chapterIdx;
       game.mode = "campaign"; game.attract = false;
-      game.stageId = ch.stage; game.phase = "intro"; game.phaseT = 0; if (game.cine) musicMuffle(false); game.cine = null; game.comboShow = null; game.pops = [];
+      WORLD_W = FIELD_SEC_W * FIELD_SECTIONS;
+      game.stageId = ch.stage; game.zone = 0; game.lastCrash = -99;
+      game.phase = "intro"; game.phaseT = 0; if (game.cine) musicMuffle(false); game.cine = null; game.comboShow = null; game.pops = [];
       game.projectiles = []; game.particles = []; game.hitFlashes = []; game.hitstop = 0; game.koSlow = 0; game.slowmo = 1; events.length = 0;
-      var player = makeFighter(cp.warrior, 460, 1, { weapon: canWeapon(), super: canSuper(), levelTag: "Lv " + profile.level });
-      player.team = "ally"; player.label = player.char.name; player.deadT = 0; player.takeMul = 0.65;
+      game.relics = []; game.bolts = []; game.roundT = 0; game.relicNext = 8 + Math.random() * 4; game.hype = 0;
+      /* weather: the arena's own sky, bent by the chapter's set piece */
+      var sp = chapterSetPiece(ch);
+      weatherRoll();
+      if (sp.snow && !sp.smoke){ game.wx.kind = "snow"; game.wx.rain = game.wx.rainTarget = 0.85; game.wx.wet = 0.6; game.wx.stormAt = -1; }
+      else if (sp.smoke){ game.wx.kind = "smoke"; game.wx.rain = game.wx.rainTarget = 0.7; game.wx.wet = 0; game.wx.stormAt = -1; }
+      var player = makeFighter(cp.warrior, 260, 1, { weapon: canWeapon(), super: canSuper(), levelTag: "Lv " + profile.level });
+      player.team = "ally"; player.label = player.char.name; player.deadT = 0; player.takeMul = 0.65; player.z = 56;
       var fighters = [player];
       ch.allies.forEach(function(aid, i){
-        var a = makeBrawler({ c: aid, hp: 1, dm: 0.95 }, 330 + i * 90, "ally", false);
-        a.label = a.char.name; fighters.push(a);
+        var al = makeBrawler({ c: aid, hp: 1, dm: 0.95 }, 150 + i * 60, "ally", false);
+        al.label = al.char.name; al.z = i ? 100 : 18; fighters.push(al);
       });
-      brawl = { fighters: fighters, player: player, queue: ch.foes.slice(), chapter: chapterIdx,
-        state: "intro", t: 0, endT: 0, kills: 0, hudT: 0, announced: false };
+      fighters.forEach(function(f){ f.comboN = 0; f.chainN = 0; f.mashT = []; f.swoosh = []; f.trail = []; f.relicGot = false; f.giftSent = false; f.vz = 0; });
+      var waves = splitWaves(ch.foes);
+      brawl = { fighters: fighters, player: player, waves: waves, wave: 0, queue: waves[0].slice(), chapter: chapterIdx,
+        sec: 0, lo: 0, hi: FIELD_SEC_W, hazards: buildHazards(sp), setPiece: sp,
+        state: "intro", t: 0, endT: 0, kills: 0, hudT: 0, announced: false, fadeT: 0,
+        card: { title: ch.title, place: ch.place, t: 0 } };
       game.p1 = player; game.p2 = null;
-      game.camX = clamp(player.x - VIEW_W / 2, 0, WORLD_W - VIEW_W);
+      game.camX = 0;
       game.screen = "fight";
       showScreen(null); hud(true);
       document.body.classList.add("campaign-fight");
       updateTouchVisibility();
       startMusic(stageById(ch.stage).theme);
       announce("CHAPTER " + ["I","II","III","IV","V"][chapterIdx], 1100);
+      if (!CAMP.toldDepth){ CAMP.toldDepth = true; toast(isTouch() ? "▲ ▼ walk across the field · JUMP jumps · BLK blocks" : "W/S or ↑/↓ walk across the field · Space jumps · Left Shift blocks"); }
     }
     function foesAlive(){ return brawl.fighters.filter(function(f){ return f.team === "foe" && !f.dead; }); }
     function alliesAlive(){ return brawl.fighters.filter(function(f){ return f.team === "ally" && !f.dead; }); }
@@ -4507,7 +4651,7 @@
       for (var i = 0; i < brawl.fighters.length; i++){
         var o = brawl.fighters[i];
         if (o === f || o.dead || (o.team === "foe") === (f.team === "foe")) continue;
-        var d = Math.abs(o.x - f.x);
+        var d = Math.abs(o.x - f.x) + Math.abs((o.z || 0) - (f.z || 0)) * 1.6;
         if (f.team === "foe" && o === brawl.player) d -= 25; /* the story bends toward its hero, gently */
         if (d < bd){ bd = d; best = o; }
       }
@@ -4515,78 +4659,159 @@
     }
     function spawnNextFoe(){
       if (!brawl.queue.length) return;
-      var spec = brawl.queue.shift(), p = brawl.player;
+      var spec = brawl.queue.shift();
       var side = Math.random() < 0.5 ? -1 : 1;
-      var x = clamp(p.x + side * (430 + Math.random() * 170), 60, WORLD_W - 60);
-      if (Math.abs(x - p.x) < 260) x = clamp(p.x - side * 430, 60, WORLD_W - 60);
+      if (spec.boss) side = 1;
+      /* foes come in from just beyond the edge of the view, inside this section */
+      var x = side < 0 ? Math.max(brawl.lo + 60, game.camX - 50) : Math.min(brawl.hi - 60, game.camX + VIEW_W + 50);
+      if (spec.boss) x = Math.min(brawl.hi - 120, game.camX + VIEW_W - 170);
       var f = makeBrawler(spec, x, "foe", false);
+      f.z = Math.random() * ZMAX; f.vz = 0; f.zOff = (Math.random() - 0.5) * 70;
+      f.comboN = 0; f.chainN = 0; f.mashT = []; f.swoosh = []; f.trail = [];
+      f.facing = side < 0 ? 1 : -1;
       brawl.fighters.push(f);
-      spawnParticles(x, GROUND - 60, ["#e8d8b0", "#c9973f"], 10, 120);
-      if (f.boss) announce(f.label.toUpperCase(), 1300);
+      spawnParticles(x, groundY(f) - 60, ["#e8d8b0", "#c9973f"], 10, 120);
+      if (f.boss){ f.y = groundY(f); startCine(brawl.player, f, "boss"); }
     }
     function brawlProjectiles(dt){
       for (var i = game.projectiles.length - 1; i >= 0; i--){
         var p = game.projectiles[i];
         p.x += p.vx * dt; p.life -= dt;
+        if (p.z == null) p.z = p.owner && p.owner.z != null ? p.owner.z : 0;
         var hit = false;
         for (var j = 0; j < brawl.fighters.length; j++){
           var o = brawl.fighters[j];
           if (o === p.owner || o.dead || !canBeHit(o) || (o.team === "foe") === (p.owner.team === "foe")) continue;
-          if (Math.abs(o.x - p.x) < 42 && Math.abs((o.y - 70) - p.y) < 88){ applyHit(p.owner, o, "super"); hit = true; break; }
+          if (Math.abs((o.z || 0) - p.z) > 30) continue;
+          if (Math.abs(o.x - p.x) < 42 && Math.abs((o.y - 70) - p.y) < 88){
+            if (dodges(o, p.move || "super")) continue;
+            applyHit(p.owner, o, p.move || "super"); hit = true; break;
+          }
         }
-        if (hit || p.life <= 0 || p.x < 10 || p.x > WORLD_W - 10) game.projectiles.splice(i, 1);
+        if (hit || p.life <= 0 || p.x < brawl.lo + 10 || p.x > brawl.hi - 10) game.projectiles.splice(i, 1);
       }
+    }
+    /* the chapter's set piece working on everyone standing in it */
+    function brawlHazards(dt){
+      brawl.fighters.forEach(function(f){
+        f.hazSlow = 1;
+        if (f.dead || !f.onGround) return;
+        brawl.hazards.forEach(function(h){
+          if (h.kind === "water" && f.x > h.x0 && f.x < h.x1 && f.z >= h.z0 && f.z <= h.z1){
+            f.hazSlow = 0.55;
+            if ((Math.abs(f.vx) > 80 || Math.abs(f.vz || 0) > 40) && Math.random() < dt * 14)
+              spawnParticles(f.x, groundY(f) - 6, ["#cfe6f5", "#a8cbe4", "#ffffff"], 2, 120);
+          }
+          if (h.kind === "fire" && f.state !== "down" && Math.abs(f.x - h.x) < h.r && Math.abs(f.z - h.z) < h.r * 0.6){
+            f.hp = Math.max(1, f.hp - 9 * dt); f.hurtFlash = Math.max(f.hurtFlash || 0, 0.35);
+            if (game.time - (f.burnT || -9) > 1.2){ f.burnT = game.time; popText(f, "BURNING!", "#ff9a3c"); sfx("hit", f.x, { gain: 0.4 }); }
+          }
+        });
+      });
     }
     function stepBrawl(dt){
       if (!brawl) return;
       brawl.t += dt;
+      if (brawl.card) brawl.card.t += dt;
+      if (brawl.fadeT > 0) brawl.fadeT -= dt;
       var p = brawl.player;
-      /* player input */
+      /* player input. In the campaign up/down walk across the field's depth, so jump and block have their own
+         buttons: Space / pad Y / touch JUMP, and Left Shift / pad B / touch BLK. */
       var pin = p.input;
       for (var k in pin) pin[k] = false;
       for (var k2 in kbP1) if (kbP1[k2]) pin[k2] = true;
       for (var k4 in padIn1) if (padIn1[k4]) pin[k4] = true;
       if (isTouch()){ for (var k3 in touchIn) if (touchIn[k3]) pin[k3] = true; }
+      var tch = isTouch() ? touchIn : {};
+      pin.up = !!(kbP1.up || padIn1.up || tch.up); pin.down = !!(kbP1.down || padIn1.down || tch.down);
+      pin.jump = !!(kbP1.jump2 || padIn1.jump2 || tch.jump);
+      pin.block = !!(kbP1.block2 || padIn1.block2 || tch.block);
       if (brawl.state === "intro"){
         if (brawl.t > 0.8){ brawl.state = "fight"; game.phase = "fight"; if (!brawl.announced){ brawl.announced = true; announce("FIGHT!", 450); sfx("fight"); } }
       }
       if (brawl.state === "fight"){
-        while (foesAlive().length < 2 && brawl.queue.length) spawnNextFoe();
-        if (!brawl.queue.length && !foesAlive().length){ brawl.state = "won"; brawl.endT = 0; sfx("win"); announce("THE FIELD IS YOURS", 1300); }
+        var maxAlive = brawl.wave === 0 ? 2 : 3;
+        while (foesAlive().length < maxAlive && brawl.queue.length && !game.cine) spawnNextFoe();
+        if (!brawl.queue.length && !foesAlive().length){
+          if (brawl.wave >= brawl.waves.length - 1){ brawl.state = "won"; brawl.endT = 0; sfx("win"); announce("THE FIELD IS YOURS", 1300); }
+          else { brawl.state = "advance"; brawl.hi = Math.min(WORLD_W, brawl.lo + FIELD_SEC_W * 2); announce("GO →", 900); sfx("round"); }
+        }
+        if (p.dead){ brawl.state = "lost"; brawl.endT = 0; }
+      } else if (brawl.state === "advance"){
+        if (p.x > brawl.lo + FIELD_SEC_W + 120){
+          brawl.sec++; brawl.lo = brawl.sec * FIELD_SEC_W; brawl.hi = brawl.lo + FIELD_SEC_W; brawl.wave++;
+          brawl.queue = brawl.waves[brawl.wave].slice(); brawl.state = "fight"; brawl.fadeT = 0.4;
+          game.zone = brawl.sec % 3; game.roundT = 0; game.relicNext = 6 + Math.random() * 3;
+          announce(zoneName(game.zone).toUpperCase(), 1000);
+          /* stragglers catch up with the warband */
+          alliesAlive().forEach(function(a){ if (a !== p && a.x < brawl.lo + 40){ a.x = brawl.lo + 60; } a.relicGot = false; a.giftSent = false; });
+        }
         if (p.dead){ brawl.state = "lost"; brawl.endT = 0; }
       } else if (brawl.state === "won" || brawl.state === "lost"){
         brawl.endT += dt;
         if (brawl.endT > 1.0){ finishBrawl(brawl.state === "won"); return; }
       }
-      /* everyone fights */
+      /* everyone fights; the AI also lines up in depth with its target (with a little flanking spread) */
       for (var i = 0; i < brawl.fighters.length; i++){
         var f = brawl.fighters[i];
         if (f.dead){ f.deadT += dt; fighterUpdate(f, brawlTarget(f) || p, dt); continue; }
         var foe = brawlTarget(f);
-        if (!foe) continue;
-        if (f !== p) aiUpdate(f, foe, dt);
+        if (!foe){
+          if (f !== p){
+            /* nobody left to fight: allies follow the hero up the field */
+            var fi = f.input; for (var kk in fi) fi[kk] = false;
+            var tx = p.x - p.facing * (90 + i * 30);
+            if (Math.abs(tx - f.x) > 40){ fi[tx > f.x ? "right" : "left"] = true; }
+            if (Math.abs(p.z - f.z + (i % 2 ? 40 : -40)) > 14) fi[p.z + (i % 2 ? 40 : -40) > f.z ? "up" : "down"] = true;
+            fighterUpdate(f, p, dt);
+          } else {
+            /* the hero still walks, jumps and swings with nobody in reach (a far marker ahead keeps their facing) */
+            fighterUpdate(f, { x: f.x + (f.input.left ? -1 : f.input.right ? 1 : f.facing) * 2000, y: f.y, z: f.z, state: "idle", onGround: true, vx: 0 }, dt);
+          }
+          continue;
+        }
+        if (f !== p){
+          aiUpdate(f, foe, dt);
+          var dzz = foe.z - f.z + (Math.abs(foe.x - f.x) > 150 ? (f.zOff || 0) : 0);
+          f.input.up = dzz > 10; f.input.down = dzz < -10;
+        }
         fighterUpdate(f, foe, dt);
       }
+      /* boss second wind: at half health the boss rises with War Fury for the rest of the fight */
+      foesAlive().forEach(function(f){
+        if (f.boss && !f.phase2 && f.hp < f.maxHp * 0.5){
+          f.phase2 = true; f.pw = "fury"; f.pwT = 999; f.moveSpeed = (f.moveSpeed || f.char.speed) * 1.12;
+          announce((f.label || f.char.name).toUpperCase() + " RISES", 1100); sfx("super", f.x); camKick(0.08, 0); game.shake = Math.min(16, game.shake + 8);
+          game.hitFlashes.push({ x: f.x, y: f.y - 90, t: 0, life: 0.5, size: 90, color: "#ff5a36", ring: true });
+        }
+      });
+      brawlHazards(dt);
       /* gentle separation so the melee reads as bodies, not one stack */
       for (var a = 0; a < brawl.fighters.length; a++){
         for (var b = a + 1; b < brawl.fighters.length; b++){
           var fa = brawl.fighters[a], fb = brawl.fighters[b];
           if (fa.dead || fb.dead) continue;
           var dx = fb.x - fa.x;
-          if (Math.abs(dx) < 40 && Math.abs(fb.y - fa.y) < 50){
+          if (Math.abs(dx) < 40 && Math.abs((fb.z || 0) - (fa.z || 0)) < 20){
             var push = (40 - Math.abs(dx)) / 2 * (dx >= 0 ? 1 : -1);
-            fa.x = clamp(fa.x - push, 46, WORLD_W - 46); fb.x = clamp(fb.x + push, 46, WORLD_W - 46);
+            fa.x -= push; fb.x += push;
           }
         }
       }
+      brawl.fighters.forEach(function(f){ f.x = clamp(f.x, brawl.lo + 40, brawl.hi - 40); });
       brawl.fighters = brawl.fighters.filter(function(f){ return !f.dead || f.deadT < 1.5 || f === p; });
       brawlProjectiles(dt);
       particlesUpdate(dt);
-      var target = clamp(p.x - VIEW_W / 2, 0, WORLD_W - VIEW_W);
+      if (brawl.state === "fight" || brawl.state === "advance"){
+        var near0 = null; foesAlive().forEach(function(o){ if (!near0 || Math.abs(o.x - p.x) < Math.abs(near0.x - p.x)) near0 = o; });
+        relicsUpdate(dt, near0 ? [p, near0].concat(brawl.fighters.filter(function(f){ return f !== p && f !== near0 && !f.dead; })) : [p], alliesAlive());
+        weatherUpdate(dt);
+      }
+      var target = clamp(p.x - VIEW_W / 2, brawl.lo, Math.max(brawl.lo, brawl.hi - VIEW_W));
       game.camX += (target - game.camX) * Math.min(1, dt * 5);
       var near = null;
       foesAlive().forEach(function(o){ if (!near || Math.abs(o.x - p.x) < Math.abs(near.x - p.x)) near = o; });
-      updateCam(dt, p, near && Math.abs(near.x - p.x) < 520 ? near : { x: p.x + p.facing * 300, y: p.y });
+      updateCam(dt, p, near && Math.abs(near.x - p.x) < 520 ? near : { x: p.x + p.facing * 300, y: p.y, z: p.z });
       if (game.shake > 0) game.shake *= Math.pow(0.001, dt);
       if (p.superFx > 0) p.superFx -= dt * 1.4;
       brawl.hudT -= dt;
@@ -4627,33 +4852,94 @@
       document.body.classList.remove("campaign-fight");
       hud(false); openCampaign();
     }
+    function drawHazards(){
+      brawl.hazards.forEach(function(h){
+        if (h.kind === "water"){
+          var x0 = h.x0 - game.camX, x1 = h.x1 - game.camX; if (x1 < -40 || x0 > VIEW_W + 40) return;
+          var yN = groundY({ z: h.z0 }) + 18, yF = groundY({ z: h.z1 }) + 8;
+          ctx.save();
+          var g = ctx.createLinearGradient(0, yF, 0, yN); g.addColorStop(0, "rgba(90,150,190,0.38)"); g.addColorStop(1, "rgba(50,110,160,0.55)");
+          ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x0 + 30, yF); ctx.lineTo(x1 - 30, yF); ctx.lineTo(x1, yN); ctx.lineTo(x0, yN); ctx.closePath(); ctx.fill();
+          ctx.strokeStyle = "rgba(220,240,255,0.35)"; ctx.lineWidth = 1.4;
+          for (var i = 0; i < 9; i++){
+            var wy = yF + (yN - yF) * ((i + 0.5) / 9), off = (game.time * (20 + i * 3) + i * 70) % 140;
+            ctx.beginPath(); for (var wx = x0 + 20 - off; wx < x1 - 20; wx += 140){ ctx.moveTo(wx, wy); ctx.quadraticCurveTo(wx + 18, wy - 3, wx + 36, wy); } ctx.stroke();
+          }
+          ctx.restore();
+        } else if (h.kind === "fire"){
+          var fx = h.x - game.camX, fy = groundY({ z: h.z }) + 6, s = depthScale({ z: h.z }); if (fx < -80 || fx > VIEW_W + 80) return;
+          ctx.save(); ctx.translate(fx, fy); ctx.scale(s, s);
+          var fg = ctx.createRadialGradient(0, -20, 4, 0, -20, 90); fg.addColorStop(0, "rgba(255,150,60,0.45)"); fg.addColorStop(1, "rgba(255,150,60,0)");
+          ctx.fillStyle = fg; ctx.fillRect(-90, -110, 180, 160);
+          ctx.fillStyle = "rgba(30,18,10,0.6)"; ctx.beginPath(); ctx.ellipse(0, 4, h.r, h.r * 0.25, 0, 0, Math.PI * 2); ctx.fill();
+          for (var k = 0; k < 5; k++){
+            var ox = (k - 2) * 12, fh = 26 + 14 * Math.sin(game.time * 9 + k * 1.7 + h.x), fw = 9 - Math.abs(k - 2) * 1.5;
+            ctx.fillStyle = ["#ff6a2a", "#ff9a3c", "#ffe08a", "#ff9a3c", "#ff6a2a"][k];
+            ctx.beginPath(); ctx.moveTo(ox - fw, 2); ctx.quadraticCurveTo(ox + Math.sin(game.time * 6 + k) * 5, -fh * 1.6, ox + fw, 2); ctx.closePath(); ctx.fill();
+          }
+          ctx.restore();
+          if (Math.random() < 0.18) game.particles.length < 260 && game.particles.push({ x: h.x + (Math.random() - 0.5) * 30, y: fy - 30, vx: (Math.random() - 0.5) * 20, vy: -120 - Math.random() * 80, t: 0, life: 0.7, size: 1.6, color: "#ffc46b" });
+        }
+      });
+    }
     function drawBrawl(){
       drawStage(game.camX);
       if (game.cine) drawCineBackdrop();
+      drawHazards();
+      drawRelics();
+      /* 2.5D: deepest first; each fighter scaled about their own feet */
       var fs = brawl.fighters.slice().sort(function(a, b){
         if (a.dead !== b.dead) return a.dead ? -1 : 1;
-        if (a === brawl.player) return 1; if (b === brawl.player) return -1;
-        return a.x - b.x;
+        return (b.z || 0) - (a.z || 0);
       });
       fs.forEach(function(f){
+        var sx = f.x - game.camX, gy = groundY(f), s = depthScale(f);
+        ctx.save(); ctx.translate(sx, gy); ctx.scale(s, s); ctx.translate(-sx, -gy);
         drawShadow(f);
         if (f.dead && f.deadT > 0.9) ctx.globalAlpha = clamp(1 - (f.deadT - 0.9) / 0.6, 0, 1);
+        drawPowerAura(f); drawHasteGhosts(f);
         drawFighter(f);
         ctx.globalAlpha = 1;
         if (!f.dead && f !== brawl.player){
-          var x = f.x - game.camX, y = f.y - SPRITE_H - 16;
+          var x = sx, y = f.y - SPRITE_H - 16;
           ctx.font = "700 11px Cinzel, serif"; ctx.textAlign = "center";
           ctx.fillStyle = "rgba(10,6,2,0.55)";
           var tw = ctx.measureText(f.label).width + 10;
           ctx.fillRect(x - tw / 2, y - 10, tw, 13);
-          ctx.fillStyle = f.team === "ally" ? "#a8e6a1" : "#ff9d8a";
+          ctx.fillStyle = f.team === "ally" ? "#a8e6a1" : f.boss ? "#ffb35c" : "#ff9d8a";
           ctx.fillText(f.label, x, y);
           ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(x - 27, y + 5, 54, 5);
           ctx.fillStyle = f.team === "ally" ? "#7fc96f" : "#e0664f";
           ctx.fillRect(x - 27, y + 5, 54 * clamp(f.hp / f.maxHp, 0, 1), 5);
         }
+        ctx.restore();
       });
       game.projectiles.forEach(drawProjectile);
+    }
+    /* screen-space field HUD: the chapter card, the wave count, the GO arrow and the section fade */
+    function drawFieldHud(){
+      if (!(game.mode === "campaign" && brawl) || game.cine) return;
+      ctx.save();
+      var c = brawl.card;
+      if (c && c.t < 3.2){
+        var q = clamp(Math.min(c.t / 0.3, (3.2 - c.t) / 0.5), 0, 1);
+        ctx.globalAlpha = q; ctx.textAlign = "center";
+        ctx.font = "900 26px Cinzel, serif"; ctx.lineWidth = 6; ctx.strokeStyle = "rgba(10,5,0,0.85)";
+        ctx.strokeText(c.title, VIEW_W / 2, 168); ctx.fillStyle = "#fff3d6"; ctx.fillText(c.title, VIEW_W / 2, 168);
+        ctx.font = "700 14px Cinzel, serif"; ctx.strokeText(c.place.toUpperCase(), VIEW_W / 2, 192); ctx.fillStyle = "#f0c46a"; ctx.fillText(c.place.toUpperCase(), VIEW_W / 2, 192);
+        ctx.globalAlpha = 1;
+      }
+      ctx.textAlign = "right"; ctx.font = "800 12px Cinzel, serif"; ctx.fillStyle = "rgba(240,196,106,0.9)";
+      ctx.fillText("WAVE " + (brawl.wave + 1) + " / " + brawl.waves.length + "  ·  " + zoneName(game.zone).toUpperCase(), VIEW_W - 20, VIEW_H - 16);
+      if (brawl.state === "advance"){
+        var bl = 0.55 + 0.45 * Math.sin(game.time * 8), ax = VIEW_W - 90 + Math.sin(game.time * 6) * 8;
+        ctx.globalAlpha = bl; ctx.fillStyle = "#f0c46a"; ctx.strokeStyle = "rgba(10,5,0,0.85)"; ctx.lineWidth = 5;
+        ctx.font = "900 34px Cinzel, serif"; ctx.textAlign = "right"; ctx.strokeText("GO", ax - 34, 250); ctx.fillText("GO", ax - 34, 250);
+        ctx.beginPath(); ctx.moveTo(ax - 26, 222); ctx.lineTo(ax + 6, 238); ctx.lineTo(ax - 26, 254); ctx.closePath(); ctx.stroke(); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      if (brawl.fadeT > 0){ ctx.fillStyle = "rgba(10,6,2," + clamp(brawl.fadeT / 0.4, 0, 1) + ")"; ctx.fillRect(0, 0, VIEW_W, VIEW_H); }
+      ctx.restore();
     }
     /* campaign HUD: drawn in screen space after the camera transform is undone, so zooms and cut-ins never warp it */
     function drawBrawlHud(){

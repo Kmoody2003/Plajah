@@ -192,7 +192,9 @@ async function renderCue(c: CueSpec) {
   }
   /* bake the loop seam: the last 60 ms before loopEnd fade into the 60 ms before loopStart, so at the jump
      the waveform continues exactly (two passes of physical models are close, not sample-identical) */
-  const lsI = introEnd + margin, leI = lsI + bodyLen, sx = Math.round(0.06 * sr);
+  /* loop points on whole samples of the 32 kHz MP3 too (48 kHz frames in multiples of 3), so the jump lands
+     exactly on the baked copy; the body keeps its exact length to within a third of a millisecond */
+  const lsI = Math.round((introEnd + margin) / 3) * 3, leI = lsI + Math.round(bodyLen / 3) * 3, sx = Math.round(0.06 * sr);
   for (let i = 0; i < sx; i++) {
     const w = 0.5 - 0.5 * Math.cos(Math.PI * i / sx), k = leI - sx + i, j = lsI - sx + i;
     oL[k] = oL[k] * (1 - w) + oL[j] * w; oR[k] = oR[k] * (1 - w) + oR[j] * w;
@@ -489,7 +491,7 @@ async function main() {
       console.log(`${c.id}: ${c.title} (${c.bpm} bpm)`);
       const r = await renderCue(c);
       flushEncodes();
-      man.music[c.id] = { file: r.file, title: r.title, bpm: r.bpm, loopStart: +r.loopStart.toFixed(4), loopEnd: +r.loopEnd.toFixed(4) };
+      man.music[c.id] = { file: r.file, title: r.title, bpm: r.bpm, loopStart: +r.loopStart.toFixed(6), loopEnd: +r.loopEnd.toFixed(6) };
       console.log(`  ${r.file}: ${r.duration.toFixed(1)}s, loop ${r.loopStart.toFixed(2)}–${r.loopEnd.toFixed(2)}s, ${(fs.statSync(path.join(OUT, r.file)).size / 1024).toFixed(0)} KB`);
       fs.writeFileSync(manPath, JSON.stringify(man, null, 1));
     }

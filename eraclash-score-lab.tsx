@@ -3,7 +3,7 @@
 // the stems to the lab server, which writes them for scripts/games/buildEraClashAudio.ts to master.
 //
 //   npx vite --config eraclash-score-lab.vite.config.mjs  ->  http://127.0.0.1:3243/eraclash-score-lab.html
-//   ?cues=title,japan   only these cues        ?auto=1   start bouncing on load
+//   ?cues=title,japan   only these cues        ?auto=1   start bouncing on load     ?stems=soma   only these stems
 //   ?studio=eraclash-japan   open that project in Chora Studio (BeatsRoom, signed out) the way the game does
 //
 // Stems per cue: music (instrument tracks), kit (MEKA Group A house kit), soma (MEKA Group B SOMA drums).
@@ -56,14 +56,14 @@ function interleave(buf: AudioBuffer): ArrayBuffer {
 
 interface Row { cue: string; stem: Stem; status: string; sec?: number; peak?: number; rms?: number; skipped?: number }
 
-declare global { interface Window { eraClashLab?: { rows: Row[]; done: boolean; run: (cues?: string[]) => Promise<void> } } }
+declare global { interface Window { eraClashLab?: { rows: Row[]; done: boolean; run: (cues?: string[], only?: Stem[]) => Promise<void> } } }
 
 function App() {
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
   const all = eraClashProjects();
 
-  const run = async (cues?: string[]) => {
+  const run = async (cues?: string[], only?: Stem[]) => {
     setBusy(true);
     const list: Row[] = [];
     const push = (r: Row) => { list.push(r); setRows([...list]); window.eraClashLab!.rows = list; };
@@ -71,7 +71,7 @@ function App() {
     for (const p of all.filter((x) => !cues?.length || cues.includes(x.cueId))) {
       const doc = buildEraClashGrooveDoc(p.id, 'eraclash-lab');
       await warmDrumHits(doc);
-      for (const stem of STEMS) {
+      for (const stem of STEMS.filter((s) => !only?.length || only.includes(s))) {
         const r: Row = { cue: p.cueId, stem, status: 'rendering' };
         push(r);
         const t0 = performance.now();
@@ -97,7 +97,7 @@ function App() {
   useEffect(() => {
     window.eraClashLab = { rows: [], done: false, run };
     const q = new URLSearchParams(location.search);
-    if (q.get('auto') === '1') void run(q.get('cues')?.split(',').filter(Boolean));
+    if (q.get('auto') === '1') void run(q.get('cues')?.split(',').filter(Boolean), q.get('stems')?.split(',').filter(Boolean) as Stem[] | undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -11,43 +11,43 @@
    "file": "music-japan.mp3",
    "title": "Kyoto Dusk",
    "bpm": 124,
-   "loopStart": 7.8919,
-   "loopEnd": 69.8274
+   "loopStart": 7.891938,
+   "loopEnd": 69.827438
   },
   "norse": {
    "file": "music-norse.mp3",
    "title": "Fjord of the Sagas",
    "bpm": 118,
-   "loopStart": 8.2856,
-   "loopEnd": 73.3703
+   "loopStart": 8.285562,
+   "loopEnd": 73.370312
   },
   "italy": {
    "file": "music-italy.mp3",
    "title": "Piazza of the Lion",
    "bpm": 126,
-   "loopStart": 7.769,
-   "loopEnd": 68.7214
+   "loopStart": 7.769063,
+   "loopEnd": 68.721437
   },
   "aztec": {
    "file": "music-aztec.mp3",
    "title": "Temple of the Setting Sun",
    "bpm": 122,
-   "loopStart": 8.0288,
-   "loopEnd": 70.9797
+   "loopStart": 8.018875,
+   "loopEnd": 70.969688
   },
   "china": {
    "file": "music-china.mp3",
    "title": "Shaolin Mist Terrace",
    "bpm": 120,
-   "loopStart": 8.16,
-   "loopEnd": 72.16
+   "loopStart": 8.15,
+   "loopEnd": 72.15
   },
   "rome": {
    "file": "music-rome.mp3",
    "title": "The Golden Colosseum",
    "bpm": 128,
-   "loopStart": 7.66,
-   "loopEnd": 67.66
+   "loopStart": 7.65,
+   "loopEnd": 67.65
   }
  },
  "sfx": {
