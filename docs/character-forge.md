@@ -1,0 +1,110 @@
+# Character Forge: current-gen characters built in Plajah
+
+Kenne (2026-11-11): build the capability to make and rig high-quality characters inside Plajah's own game design environment (Game Studio, `docs/game-studio-and-mocap.md`), with Plajah's tools, not Blender. The bar is current-gen games:
+- armour and clothing are real objects on the body;
+- bodies have muscle and mass, bend correctly and react.
+
+The Forge is Game Studio's **Characters** room. It replaces the image-to-shell route (`buildSheetCast.py`, `buildWarriors.py`), which can only make one fused surface (`docs/era-clash-3d-characters-v2.md`).
+
+## What it builds on (nothing rebuilt)
+
+| Need | Already in Plajah |
+|---|---|
+| A body built inside out (skeleton → muscle → skin), the rig and muscles the same data as the skin, one shared topology | Plajah 3D (Argilla) creature pipeline: `services/argilla/creature/anatomy.ts` (33 joints, 25 muscles), `pipeline.ts`, `finish.ts`, `exportCreature.ts` (GLB with clips and morphs), `motion.ts` (gait and IK) |
+| A field to sculpt, collide and bake | Argilla's sparse SDF; its sim layer is planned as the collider |
+| Parts and materials ("not just blue, a uniform") | `services/argilla/understand/parts.ts`, `materials.ts`, SAM 2.1 on the Tela 3D runtime |
+| Paint from the art | `engines/tela-3d/paint_from_views.py`, Argilla character sheets (per-view cut-outs) |
+| A face rig | VTuber `services/vtuber/rigBuilder/` (43 ARKit shapes, canonical face) |
+| Motion | `services/mocap` (capture from camera or video), the CMU library, Era Clash's retargeting and move cutting |
+| Period accuracy | The museum service (`services/museum`) and the era audit (`docs/era-clash-3d-era-accuracy.md`) |
+| Shipping | The game core (`playkit`, per the Playables design) |
+
+## The Forge, layer by layer
+
+### 1. Body: a human anatomy plan
+
+The creature plan generalized to humans.
+- **Proportions:** from anthropometric ranges, set by a few sliders (height, build, musculature, age, weight). Each character's sheet sets its numbers.
+- **Skeleton:**
+  - Joint names follow the shared contract skeleton, so every animation (CMU, captures, Haru's strikes) retargets.
+  - Real hands: three joints per finger and a thumb, so weapons are gripped, not glued.
+  - Twist joints in the forearms and upper arms.
+- **Muscle groups:** about 30 human ones on the skeleton, each with an origin, an insertion and a belly: deltoids, pectorals, lats, trapezius, biceps, triceps, forearm flexors and extensors, abdominals, obliques, glutes, quadriceps, hamstrings, calves, neck.
+- **Skin and face:**
+  - Skin over the muscle on the shared body topology, with edge loops at every joint.
+  - The face uses the canonical face mesh, so the VTuber rig builder's 43 expressions apply without fitting.
+
+### 2. Muscle and mass
+
+- **Corrective shapes** baked from the anatomy itself: bend the elbow in the field, the biceps belly shortens and bulges, and the result is stored as a morph. Shoulders keep their volume when raised, and knees and hips fold without pinching. In game, joint angles drive the morphs.
+- **Dual-quaternion skinning** in the engine (a skinning node), so twisting wrists and forearms keep their volume.
+- **Soft tissue:** a light spring on the belly, chest and thighs for impact and landing weight. Hit reactions already exist in combat.
+
+### 3. Wardrobe: clothes and armour as real geometry
+
+Each piece is its own mesh with its own material, made from parametric period patterns and fitted to the body by offsetting from its field. Every piece carries an era tag and its museum references.
+
+- **Cloth:**
+  - **Japanese:** kosode, hakama, haori, obi, tabi and waraji.
+  - **Norse:** tunic, trousers, wool cloak.
+  - **How they move:** cut as panels around the body, then skinned, with spring chains on hems, sleeves and cloak edges. Garments collide with body capsules taken from the anatomy.
+- **Armour (rigid):** plates are bound to a single bone, so they never bend.
+  - **Tosei-gusoku:**
+    - The cuirass (dō) as rows of lamellar plates (kozane) on the torso's shape, with real laced silk cords (odoshi), instanced.
+    - Hanging panels: 5–7 tassets (kusazuri) and the shoulder guards (sode), each a column of plates on spring bones.
+    - The rest: armoured sleeves (kote) of plates over mail, thigh guard (haidate) and greaves (suneate).
+    - The helmet: kabuto bowl, neck guard (shikoro) and turnbacks.
+  - **Norse:** mail byrnie (a mail layer over the cloth shell), riveted leather, spangenhelm helmet, round shield (planks, boss, rim) on a strap, bearded axe.
+- **Weapons and props:** sockets on the hand and hip, so a katana sits in the obi and in the grip.
+
+### 4. Look
+
+- **PBR material library:**
+  - Lacquer with a clear-coat sheen, silk cord, forged iron, oiled leather, woven fabric, fur and mail.
+  - Skin with a subsurface tint.
+  - Detail from the Poly Haven pool plus procedural wear.
+- **Paint from the reference art**, part by part:
+  - Sheet cut-outs projected per part with `paint_from_views` and the SAM parts.
+  - Each character still looks like Muse's art, but on real geometry.
+
+### 5. Rig and export
+
+- **The GLB contains:**
+  - the contract skeleton, finger and twist joints, and the spring chains (tagged per piece);
+  - the corrective morphs and the face's ARKit shapes;
+  - the clips;
+  - level of detail: the full figure near the camera, a lighter one for crowds (meshoptimizer, as the townsfolk use).
+- **One file per character**, usable in Era Clash, Ravencrest and anything built on `playkit`.
+
+### 6. Engine: shared, in `playkit`
+
+- **Spring bones:** verlet chains with stiffness, drag, gravity and collision with the body's capsules.
+- **Morph drivers:** joint angle in, morph weight out.
+- **Skinning:** the dual-quaternion skinning node.
+- **Cost:** budgeted against the Arc iGPU (a spring pass under 0.3 ms for a full cast).
+
+### 7. The Characters room (UI)
+
+1. **Body:** sliders, plus "from the sheet" (fit the proportions to the reference).
+2. **Wardrobe:** pick pieces from period kits, with their era tag and the museum objects they're drawn from.
+3. **Paint:** project the art, adjust per part.
+4. **Rig test:** play any clip from the motion library (CMU, captures) and watch springs and muscles live; strike the character to test hit reactions.
+5. **Export to the game:** the character is live in Era Clash at once.
+
+## First slice: Haru v3
+
+The bar for everything after:
+- the human body plan;
+- the tosei-gusoku kit (cuirass with laced rows, tassets and shoulder guards on springs, helmet, sleeves, thigh guards, greaves);
+- hakama and kosode;
+- the katana and wakizashi;
+- elbow and shoulder corrective morphs;
+- spring bones in the engine.
+
+**Gate:** side by side with the current Haru, mid-strike and mid-sprint. The tassets and shoulder guards swing and settle, the elbows and shoulders hold their volume, and nothing tears.
+
+**Then:**
+1. The raider (Norse kit).
+2. Chen and Roland.
+3. The townsfolk's kosode bodies on the crowd level of detail.
+4. The Forge room in Game Studio.
