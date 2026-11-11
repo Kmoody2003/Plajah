@@ -95,6 +95,8 @@ import { createMusicLawRouter } from './routes/musicLaw';
 import { createGrantsRouter } from './routes/grants';
 import { createAdminKeysRouter } from './routes/adminKeys';
 import { createCrewRouter } from './routes/crew';
+import { createOnAirRouter } from './routes/onair';
+import { createVoicer as createOnAirVoicer } from './services/onair/voice';
 import { createGeminiLane, geminiConfigured, geminiGenerate, laneModel } from './services/ai/geminiLane';
 import { systemText, toAnthropicResponse, toGeminiContents } from './services/ai/anthropicCompat';
 import { teacherPlayer, teacherSystem, teacherTurns } from './services/melos/beats/band/teacherPrompt';
@@ -15278,6 +15280,17 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // verified token facts authMiddleware sets, so it runs in front of /hq only; the router re-checks admin.
   app.use('/api/crew/hq', authMiddleware);
   app.use('/api/crew', apiLimiter, express.json({ limit: '64kb' }), createCrewRouter({ isAdmin: isPlatformAdminReq }));
+  // Plajah FM virtual hosts: who is on air, the roster cards, and each host line written once for every listener.
+  // ONAIR_VOICE=1 voices each line once in the host's picked ElevenLabs voice (services/onair/elevenVoices.json).
+  const onAirVoicer = process.env.ONAIR_VOICE === '1' && process.env.ELEVENLABS_API_KEY
+    ? createOnAirVoicer({
+      apiKey: process.env.ELEVENLABS_API_KEY,
+      bucket: STORAGE_BUCKET,
+      voices: () => { try { return JSON.parse(readFileSync(path.join(process.cwd(), 'services/onair/elevenVoices.json'), 'utf8')); } catch { return {}; } },
+      upload: (p, bytes, contentType, token) => gcsUploadWithDownloadToken(p, Buffer.from(bytes), contentType, token),
+    })
+    : null;
+  app.use('/api/onair', apiLimiter, express.json({ limit: '16kb' }), createOnAirRouter({ voicer: onAirVoicer }));
   app.use('/api/cora', express.json({ limit: '1mb' }), coraRouter);
 
   // ── Learner identity (child username/password → custom token; provision; claim) ──

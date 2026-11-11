@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "services/onair/*.ts", "routes/onair.ts",
+    "components/radio/OnAirHost.tsx", "components/ads/OnAirBillboard.tsx",
+    "components/RadioView.tsx", "components/tv/AdBreakBumper.tsx",
+    "tests/onair.test.ts", "scripts/onair/*.ts"
+  ]
+}

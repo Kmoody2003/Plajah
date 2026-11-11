@@ -570,6 +570,7 @@ const RelloView = retryLazy(() => import('./components/RelloView'));
 
 import { useGlobalPlayer, useGlobalPlayerState, useGlobalPlayerProgress } from './contexts/GlobalPlayerContext';
 import PromoBillboard from './components/ads/PromoBillboard';
+import OnAirBillboard from './components/ads/OnAirBillboard';
 import { panelPromos } from './services/promos/platformPromos';
 
 type AdSlot =
@@ -579,10 +580,12 @@ type AdSlot =
   | { kind: 'custom_ad'; ad: import('./types').UserAd; profile: import('./types').UserProfile }
   | { kind: 'product'; product: import('./data/demoShowcase').DemoProduct }
   | { kind: 'store'; product: import('./types').StoreProduct }
-  | { kind: 'promo'; promo: import('./services/promos/platformPromos').PlajahPromo };
+  | { kind: 'promo'; promo: import('./services/promos/platformPromos').PlajahPromo }
+  | { kind: 'onair'; focus: 'show' | string };
 
 const AD_DURATION: Record<AdSlot['kind'], number> = {
   promo:     30000,
+  onair:     20000,
   plus:      25000,
   profile:   15000,
   album:     45000,
@@ -1862,6 +1865,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [isBottomSectionExpanded, setIsBottomSectionExpanded] = useState(false);
   const [drawerSearchFocused, setDrawerSearchFocused] = useState(false);
   const [adSlots, setAdSlots] = useState<AdSlot[]>([]);
+  // The side pillar's Plajah FM cards open the radio straight on Plajah FM (not the Live Radio browser).
+  const [radioOpenFm, setRadioOpenFm] = useState(false);
+  useEffect(() => { if (view !== 'RADIO') setRadioOpenFm(false); }, [view]);
   const [adSlotIdx, setAdSlotIdx] = useState(0);
   const [showPlajahPlusBillboard, setShowPlajahPlusBillboard] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
@@ -4490,6 +4496,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           if (album) slots.push({ kind: 'album', album, profile });
         }
       }
+      // Plajah FM's staff: the show on air now near the top, and one virtual artist (a different one
+      // each day) further down the rotation.
+      slots.splice(1, 0, { kind: 'onair', focus: 'show' });
+      const artistIds = ['vyra', 'orsolya', 'remi'];
+      slots.splice(Math.min(slots.length, 5), 0, { kind: 'onair', focus: artistIds[seed % artistIds.length] });
       // Plajah's own promo spots lead the rotation and come round again every few slots.
       const promos = panelPromos();
       if (promos.length) {
@@ -4852,6 +4863,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       dotCount={dotTotal}
                       dotIdx={dotActive}
                       onTune={ch => { setLiveChannelFocus({ plajahId: ch.plajahId, ownerId: ch.ownerId }); setView('LIVE_HUB' as AppView); }}
+                    />
+                  );
+                } else if (currentSlot.kind === 'onair') {
+                  slotContent = (
+                    <OnAirBillboard
+                      key={`onair-${currentSlot.focus}-${adSlotIdx}`}
+                      focus={currentSlot.focus}
+                      onListen={() => { setSelectedRadioArtistId(undefined); setRadioOpenFm(true); setView('RADIO' as AppView); }}
+                      dotCount={dotTotal}
+                      dotIdx={dotActive}
                     />
                   );
                 } else if (currentSlot.kind === 'custom_ad') {
@@ -7873,7 +7894,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onChannelFocusConsumed={() => setLiveChannelFocus(null)}
               />
             ))}
-            {view === 'RADIO' && <RadioView onBack={() => setView('DASHBOARD')} artistId={selectedRadioArtistId} />}
+            {view === 'RADIO' && <RadioView onBack={() => setView('DASHBOARD')} artistId={selectedRadioArtistId} openPlajahFm={radioOpenFm} />}
             {/* Taleo on a TV gets the purpose-built declarative-grid screen (like Chora/Reello);
                 pointer/desktop keeps the geometric MoviesTVView. Selection is identical. */}
             {view === 'MOVIES_TV' && getPlatformInfo().isTV && (

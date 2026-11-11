@@ -11,6 +11,9 @@ import DonationModal from './DonationModal';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import LiveRadioBrowser from './radio/LiveRadioBrowser';
 import { getRadioPresets, toggleRadioPreset, subscribeRadioPresets, isRadioPreset, type RadioPreset } from '../services/radioPresetsService';
+import { OnAirHostCard, useOnAirHost, useHostLine } from './radio/OnAirHost';
+import { songFactsFromTrack } from '../services/onair/station';
+import { playHostClip } from '../services/onair/client';
 
 // ── Satellite radio engine ─────────────────────────────────────────────────────
 // The continuous 24/7 positioning lives in services/radioEngine.ts now — the SAME reusable engine
@@ -26,16 +29,20 @@ function fmtTimeAgo(date: Date): string {
 interface RadioViewProps {
   onBack?: () => void;
   artistId?: string;
+  /** Open straight on Plajah FM (from the side pillar's on-air cards) instead of the Live Radio browser. */
+  openPlajahFm?: boolean;
 }
 
-const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
+const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm }) => {
   const {
     currentTrack: globalTrack,
     isPlaying: globalIsPlaying,
     playTrack,
     pause,
     resume,
-    audioSource
+    audioSource,
+    volume,
+    setVolume,
   } = useGlobalPlayerState();
   const { seek } = useGlobalPlayerProgress();
 
@@ -55,9 +62,43 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
   // Live broadcast radio (real-world stations via the Radio Browser directory)
   // lives alongside Plajah's own artist stations rather than replacing them.
   // Default to the new Live Radio browser unless tuning into a specific artist station.
-  const [showLiveRadio, setShowLiveRadio] = useState(!artistId);
+  const [showLiveRadio, setShowLiveRadio] = useState(!artistId && !openPlajahFm);
   const seekScheduledRef = useRef(false);
   const [presets, setPresets] = useState<RadioPreset[]>(() => getRadioPresets());
+  // Plajah FM's virtual host for this hour (station time). Artist stations have no host.
+  const onAir = useOnAirHost();
+  // The host's link into the song on air: back-announce the one before it in the rotation, then this
+  // one. Written by the server from the tracks' stored facts (title, artist, real play count).
+  // Once tuned in, the station's own player moves through the rotation; follow the song actually on air.
+  const onAirTrack = audioSource === 'RADIO' && globalTrack && tracks.some(t => t.id === globalTrack.id) ? globalTrack : currentTrack;
+  const linkBody = useMemo(() => {
+    if (activeStationId || !onAirTrack) return null;
+    const i = tracks.findIndex(t => t.id === onAirTrack.id);
+    const prev = i > 0 ? tracks[i - 1] : tracks.length > 1 ? tracks[tracks.length - 1] : null;
+    return { kind: 'between' as const, prev: songFactsFromTrack(prev), next: songFactsFromTrack(onAirTrack) };
+  }, [activeStationId, onAirTrack, tracks]);
+  const hostLine = useHostLine(onAir.host, linkBody);
+
+  // The host speaks each link once, over the top of the song, with the music ducked under them.
+  const spokenRef = useRef<string | null>(null);
+  const clipRef = useRef<{ stop: () => void } | null>(null);
+  const volumeRef = useRef(volume);
+  volumeRef.current = volume;
+  const hearHost = useCallback(() => {
+    const url = hostLine?.audioUrl;
+    if (!url) return;
+    clipRef.current?.stop();
+    const before = volumeRef.current;
+    clipRef.current = playHostClip(url, { duck: () => setVolume(before * 0.3), restore: () => setVolume(before) });
+  }, [hostLine?.audioUrl, setVolume]);
+  const radioLive = audioSource === 'RADIO' && globalIsPlaying && !activeStationId;
+  useEffect(() => {
+    const url = hostLine?.audioUrl;
+    if (!radioLive || !url || spokenRef.current === url) return;
+    spokenRef.current = url;
+    hearHost();
+  }, [radioLive, hostLine?.audioUrl, hearHost]);
+  useEffect(() => () => clipRef.current?.stop(), []);
 
   useEffect(() => {
     return subscribeRadioPresets(updated => setPresets(updated));
@@ -410,6 +451,8 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
         <div className="flex-1 flex flex-col items-center justify-center p-6 lg:p-12 relative overflow-y-auto">
           <div className={`absolute inset-0 bg-gradient-to-b ${activeStationId ? 'from-[#00DAF3]/5' : 'from-small-orange/5'} to-transparent pointer-events-none`} />
           
+          {!activeStationId && <OnAirHostCard host={onAir.host} next={onAir.next} line={hostLine} onHear={hearHost} />}
+
           <AnimatePresence mode="wait">
             {currentTrack && (
               <motion.div 

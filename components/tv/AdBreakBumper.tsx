@@ -9,6 +9,9 @@ import { planBreak, segmentAt, fmGainAt, edgeDipAt, probeDuration, type BreakSeg
 import ComingUpNextBumper, { type UpNextItem } from './ComingUpNextBumper';
 import DonationModal from '../DonationModal';
 import PollSpot from './PollSpot';
+import { HostCaption, useOnAirHost, useHostLine } from '../radio/OnAirHost';
+import { songFactsFromTrack } from '../../services/onair/station';
+import { playHostClip } from '../../services/onair/client';
 
 /**
  * AdBreakBumper — plays a FAST/TV ad break as ONE sequential timeline (see services/fast/breakPlan):
@@ -74,6 +77,8 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
   const completedRef = useRef(false);
   const mutedRef = useRef(muted);
   mutedRef.current = muted;
+  /** Multiplies the FM bed while the host talks (1 = full, 0.3 = ducked). */
+  const duckRef = useRef(1);
   planRef.current = plan;
 
   const rawDur = Number(durationSec);
@@ -165,7 +170,7 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
         if (i !== idxRef.current) { idxRef.current = i; setIdx(i); }
         if (a) {
           const g = fmGainAt(p, el);
-          a.volume = mutedRef.current || !Number.isFinite(g) ? 0 : Math.max(0, Math.min(1, g));
+          a.volume = mutedRef.current || !Number.isFinite(g) ? 0 : Math.max(0, Math.min(1, g * duckRef.current));
           if (g > 0.001 && a.paused && a.src) a.play().catch(() => {});
           else if (g <= 0 && !a.paused) { try { a.pause(); } catch { /* */ } }
         }
@@ -226,6 +231,26 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
   );
   const imageAd = active?.kind === 'image' ? ads.find(a => a.imageUrl === active.url) : undefined;
   const showFm = !!active && (active.kind === 'fm' || active.kind === 'upnext' || (active.kind === 'image' && !imageAd));
+
+  // Plajah FM's host for this hour says one fill-in line over the first FM stretch (a caption until
+  // voices are cast; written once by the server). Never over spots, idents or the up-next card.
+  const { host } = useOnAirHost();
+  const firstFm = useMemo(() => (plan || []).find(s => s.kind === 'fm' && s.durSec >= 2.5) || null, [plan]);
+  const fillBody = useMemo(
+    () => (firstFm ? { kind: 'fill-in' as const, next: songFactsFromTrack(track), channelName, maxSec: Math.max(2, Math.min(30, firstFm.durSec - 0.8)) } : null),
+    [firstFm, track, channelName],
+  );
+  const fillLine = useHostLine(host, fillBody);
+  const hostNow = !!fillLine && !!active && active.id === firstFm?.id;
+
+  // When the line has the host's voice, it plays once as the FM stretch starts, with the bed ducked.
+  useEffect(() => {
+    const url = fillLine?.audioUrl;
+    if (!hostNow || !url) return;
+    const clip = playHostClip(url, { muted, duck: () => { duckRef.current = 0.3; }, restore: () => { duckRef.current = 1; } });
+    return () => clip.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hostNow, fillLine?.audioUrl]);
 
   return (
     <div className="absolute inset-0 overflow-hidden select-none bg-black">
@@ -320,6 +345,8 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
           <ComingUpNextBumper channelName={channelName} logoUrl={logoUrl} items={upcoming} accent={accent} />
         </div>
       )}
+
+      {host && hostNow && fillLine && <HostCaption host={host} text={fillLine.text} />}
 
       {/* Dip-to-black at every segment edge (and while the break is still being laid out). */}
       <div ref={dipRef} className="absolute inset-0 z-40 bg-black pointer-events-none" style={{ opacity: 1 }} />
