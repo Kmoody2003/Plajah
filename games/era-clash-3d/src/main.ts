@@ -953,6 +953,7 @@ const qSpots = (() => {
     boats: o.boats, magistrate: o.magistrate,
     broker: at(pz.x + 5.0, pz.z - 2.4), strongbox: at(roadX(34) + 11.7, 34),
     otemon: o.otemon, forecourt: o.forecourt,
+    hill: { ...world.hill.spots, mother: at(-82.6, 48.4) },
   };
 })();
 const quests: Quests = new Quests({
@@ -974,6 +975,7 @@ const quests: Quests = new Quests({
   heal: (f) => { hero.hp = Math.min(hero.maxHp, hero.hp + hero.maxHp * f); },
   openGate: () => { if (!gateOpen) { gateOpen = true; gateT = 0; sfx('taikoWin', 1); card('The Castle Gate', 'The seal is shown. The gate opens.'); } },
   douse: (i) => { const f = world.boatFires[i]; if (f) f.group.visible = false; },
+  douseSignal: () => { world.signalFire.group.visible = false; },
 }, qSpots);
 function questTick(dt: number) {
   quests.update(dt);
