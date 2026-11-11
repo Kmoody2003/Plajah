@@ -8,6 +8,8 @@ import * as THREE from 'three/webgpu';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { collide } from './core/collision';
 import { rng } from './core/kit';
+import { pbr } from './core/materials';
+import { attribute, texture, uv, vec3, mix, normalMap } from 'three/tsl';
 import type { PropKind } from './props';
 
 export interface VillageMats { wood: THREE.Material; darkWood: THREE.Material; plaster: THREE.Material; thatch: THREE.Material; tile: THREE.Material }
@@ -68,11 +70,35 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
   const { heightAt, roadX, avoid, mats } = o;
   const R = rng(o.seed ?? 4242);
   const stone = new THREE.MeshStandardNodeMaterial({ color: 0x6d675f, roughness: 0.95 });
+  // footing stone: darker and greened (damp moss) where it meets the ground
+  {
+    const gm = attribute<'float'>('grime', 'float'), S = pbr('japanese_stone_wall');
+    const sc = texture(S.diff, uv().mul(0.6)).rgb.mul(vec3(0.75, 0.72, 0.68));
+    stone.colorNode = mix(sc, sc.mul(vec3(0.55, 0.68, 0.42)), gm.mul(0.8));
+    stone.normalNode = normalMap(texture(S.nor, uv().mul(0.6)));
+  }
   const char = new THREE.MeshStandardNodeMaterial({ color: 0x1c1512, roughness: 0.95 });
   const indigo = new THREE.MeshStandardNodeMaterial({ color: 0x23344f, roughness: 0.95, side: THREE.DoubleSide });
   const hemp = new THREE.MeshStandardNodeMaterial({ color: 0xc9b48c, roughness: 1, side: THREE.DoubleSide });
-  const lanternRed = new THREE.MeshStandardNodeMaterial({ color: 0xb8321e, emissive: 0xff5a2a, emissiveIntensity: 0.9, roughness: 0.6 });
-  const lanternWhite = new THREE.MeshStandardNodeMaterial({ color: 0xe8dcc0, emissive: 0xffc070, emissiveIntensity: 0.8, roughness: 0.6 });
+  // chōchin: paper over bamboo ribs with a brushed character, glowing from the candle inside (the ribs stay dark)
+  const lanternTex = (paper: string, ink: string, ch: string) => {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+    const g = c.getContext('2d')!;
+    const gr = g.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, paper); gr.addColorStop(0.5, '#fff6e0'); gr.addColorStop(1, paper);
+    g.fillStyle = paper; g.fillRect(0, 0, 256, 128); g.globalAlpha = 0.35; g.fillStyle = gr; g.fillRect(0, 0, 256, 128); g.globalAlpha = 1;
+    g.strokeStyle = 'rgba(40,24,14,0.55)'; g.lineWidth = 2;
+    for (let y = 6; y < 128; y += 9) { g.beginPath(); g.moveTo(0, y); g.lineTo(256, y); g.stroke(); }
+    g.fillStyle = ink; g.font = 'bold 70px "Yu Mincho","MS Mincho","Noto Serif JP",serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(ch, 64, 66); g.fillText(ch, 192, 66);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+  };
+  const lanternMat = (paper: string, ink: string, ch: string, glow: number) => {
+    const t = lanternTex(paper, ink, ch);
+    const m = new THREE.MeshStandardNodeMaterial({ map: t, emissiveMap: t, emissive: glow, emissiveIntensity: 0.9, roughness: 0.75 });
+    return m;
+  };
+  const lanternRed = lanternMat('#b8321e', '#1a0c08', '祭', 0xff7a3a);
+  const lanternWhite = lanternMat('#e8dcc0', '#1a120c', '御', 0xffc070);
   const iron = new THREE.MeshStandardNodeMaterial({ color: 0x2a2a2c, metalness: 0.6, roughness: 0.5 });
   const logs = new THREE.MeshStandardNodeMaterial({ color: 0x6a4a32, roughness: 0.95 });
 
@@ -85,8 +111,15 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
     m4.compose(new THREE.Vector3(local.x ?? 0, local.y ?? 0, local.z ?? 0), q, sc).premultiply(frame);
     const c = (g.index ? g.toNonIndexed() : g.clone()).applyMatrix4(m4);
     for (const k of Object.keys(c.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv') c.deleteAttribute(k);
+    c.setAttribute('grime', grimeFor(c));
     let b = buckets.get(mat); if (!b) { b = { solid: [], decor: [] }; buckets.set(mat, b); }
     (solid ? b.solid : b.decor).push(c);
+  };
+  /** Dirt splashed up the foot of every wall and footing: 1 at the ground, gone by 1.3 m (baked per vertex). */
+  const grimeFor = (g: THREE.BufferGeometry) => {
+    const p = g.attributes.position as THREE.BufferAttribute, a = new Float32Array(p.count);
+    for (let i = 0; i < p.count; i++) { const above = p.getY(i) - heightAt(p.getX(i), p.getZ(i)); a[i] = Math.max(0, Math.min(1, 1 - above / 1.3)); }
+    return new THREE.BufferAttribute(a, 1);
   };
   const frameAt = (x: number, z: number, yaw: number, y = heightAt(x, z)) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), sc);
 
@@ -137,7 +170,35 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
     return new THREE.MeshStandardNodeMaterial({ map: tex, roughness: 0.8 });
   });
   const interior = new THREE.MeshStandardNodeMaterial({ color: 0x24170e, emissive: 0x6a3a14, emissiveIntensity: 0.55, roughness: 1 });
-  const goods = [0x8a6a3a, 0x6a2a1e, 0x9a8a5a, 0x3a4a5a, 0xb08850].map((c) => new THREE.MeshStandardNodeMaterial({ color: c, roughness: 0.9 }));
+  const canvasMat = (w: number, h: number, draw: (g: CanvasRenderingContext2D) => void, rough = 0.9) => {
+    const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')!);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+    return new THREE.MeshStandardNodeMaterial({ map: t, roughness: rough });
+  };
+  // indigo cloth (kasuri: white flecks in rows), straw (tawara weave), a tea chest (paper label, brushed mark)
+  const clothMats = ['#22324e', '#5a2a24', '#3e4a32'].map((base) => canvasMat(64, 64, (g) => {
+    g.fillStyle = base; g.fillRect(0, 0, 64, 64);
+    g.fillStyle = 'rgba(230,226,214,0.85)';
+    for (let y = 4; y < 64; y += 10) for (let x = (y / 10) % 2 ? 2 : 7; x < 64; x += 10) g.fillRect(x, y, 4, 2);
+    g.fillStyle = 'rgba(0,0,0,0.25)'; for (let x = 0; x < 64; x += 3) g.fillRect(x, 0, 1, 64);
+  }));
+  const strawMat = canvasMat(64, 64, (g) => {
+    g.fillStyle = '#b89a5a'; g.fillRect(0, 0, 64, 64);
+    for (let i = 0; i < 260; i++) { g.strokeStyle = `rgba(${90 + (i * 37) % 80},${70 + (i * 23) % 60},30,0.5)`; g.beginPath(); const x = (i * 13) % 64, y = (i * 7) % 64; g.moveTo(x, y); g.lineTo(x + 10, y + 2); g.stroke(); }
+    g.fillStyle = 'rgba(60,40,20,0.7)'; g.fillRect(0, 14, 64, 3); g.fillRect(0, 46, 64, 3);
+  });
+  const teaMat = canvasMat(64, 64, (g) => {
+    g.fillStyle = '#6a4a2a'; g.fillRect(0, 0, 64, 64);
+    g.fillStyle = 'rgba(0,0,0,0.25)'; for (let y = 0; y < 64; y += 8) g.fillRect(0, y, 64, 1);
+    g.fillStyle = '#e8dcc0'; g.fillRect(16, 12, 32, 40);
+    g.fillStyle = '#1a120c'; g.font = 'bold 26px "Yu Mincho","MS Mincho",serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('茶', 32, 32);
+  });
+  const goods = [...clothMats, strawMat, teaMat];
+  const bolt = new THREE.CylinderGeometry(0.075, 0.075, 0.28, 10).rotateZ(Math.PI / 2);
+  const bale = new THREE.CylinderGeometry(0.11, 0.11, 0.26, 10).rotateZ(Math.PI / 2);
+  const chest = boxGeo(0.2, 0.2, 0.18);
+  const shelfPot = POT_GEO.pot.clone().scale(0.55, 0.55, 0.55);
+  void goods;
   const plane = (w: number, h: number) => new THREE.PlaneGeometry(w, h);
 
   // ── A machiya (after the asset sheet and the street shot): stone footing; a timber-posted shopfront with
@@ -162,7 +223,15 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
       put(plane(bayW, 2.05), interior, F, { x: door, y: 0.5 + 1.08, z: fz + 0.012 }, false);
       for (const sy of [0.85, 1.45]) {
         put(boxGeo(bayW - 0.2, 0.05, 0.3), D, F, { x: door, y: 0.5 + sy, z: fz + 0.15 }, false);
-        for (let gx = -bayW / 2 + 0.3; gx < bayW / 2 - 0.2; gx += 0.32 + R() * 0.12) put(boxGeo(0.2, 0.14 + R() * 0.16, 0.2), goods[(R() * goods.length) | 0], F, { x: door + gx, y: 0.5 + sy + 0.1, z: fz + 0.15 }, false);
+        // each shelf one trade's stock: cloth bolts, rice bales, tea chests or small pots
+        const kind = (R() * 4) | 0;
+        for (let gx = -bayW / 2 + 0.3; gx < bayW / 2 - 0.2; gx += 0.3 + R() * 0.08) {
+          const at = { x: door + gx, y: 0.5 + sy + 0.03, z: fz + 0.15 };
+          if (kind === 0) { put(bolt, clothMats[(R() * 3) | 0], F, { ...at, y: at.y + 0.075 }, false); if (R() < 0.5) put(bolt, clothMats[(R() * 3) | 0], F, { ...at, y: at.y + 0.22 }, false); }
+          else if (kind === 1) put(bale, strawMat, F, { ...at, y: at.y + 0.11 }, false);
+          else if (kind === 2) put(chest, teaMat, F, { ...at, y: at.y + 0.1 }, false);
+          else put(shelfPot, potMats[(R() * potMats.length) | 0], F, { ...at, y: at.y + 0.02, ry: R() * 6 }, false);
+        }
       }
     } else put(boxGeo(1.1, 2.0, 0.06), D, F, { x: door, y: 0.5 + 1.0, z: fz + 0.02 }, false);
     for (let sx = -w / 2 + 0.3; sx < w / 2 - 0.25; sx += 0.15) {
@@ -214,8 +283,11 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
       for (let k = 0; k < np; k++) put(plane(nw / np - 0.03, 0.78), cloth, F, { x: door - nw / 2 + (k + 0.5) * (nw / np), y: 0.5 + 2.0, z: fz + 0.2 }, false);
       put(boxGeo(nw + 0.2, 0.04, 0.04), D, F, { x: door, y: 0.5 + 2.4, z: fz + 0.2 }, false);
       if (R() < 0.6) {
-        const lg = new THREE.SphereGeometry(0.2, 10, 8); lg.scale(1, 1.35, 1);
-        put(lg, R() < 0.5 ? lanternRed : lanternWhite, F, { x: door + nw / 2 + 0.45, y: 2.45, z: fz + 0.4 }, false);
+        const lg = new THREE.SphereGeometry(0.2, 14, 10); lg.scale(1, 1.35, 1);
+        const lx = door + nw / 2 + 0.45;
+        put(lg, R() < 0.5 ? lanternRed : lanternWhite, F, { x: lx, y: 2.45, z: fz + 0.4, ry: Math.PI / 2 }, false);
+        for (const cy of [2.45 + 0.26, 2.45 - 0.26]) put(new THREE.CylinderGeometry(0.11, 0.11, 0.06, 10), char, F, { x: lx, y: cy, z: fz + 0.4 }, false);
+        put(new THREE.CylinderGeometry(0.008, 0.008, 0.3, 4), char, F, { x: lx, y: 2.86, z: fz + 0.4 }, false);
       }
       if (shop && R() < 0.8) {
         const sm = signMats[(R() * signMats.length) | 0], sx = door + (R() < 0.5 ? -1 : 1) * (nw / 2 + 0.35);

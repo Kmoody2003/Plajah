@@ -3,7 +3,7 @@
 // (stage-japan.webp): the wooden platform, the five-storey pagoda and the cherry trees, with the painting itself
 // hung as the far backdrop. +Z runs up the valley; sea level is y = 0.
 import * as THREE from 'three/webgpu';
-import { color, positionWorld, normalize, mix, smoothstep, vertexColor, texture, uv, vec2, vec3, time, sin, float, instancedBufferAttribute, uniform } from 'three/tsl';
+import { color, positionWorld, normalize, mix, smoothstep, vertexColor, texture, uv, vec2, vec3, time, sin, float, instancedBufferAttribute, uniform, attribute, normalMap } from 'three/tsl';
 import { collide } from './core/collision';
 import { uvMaterial, pbr } from './core/materials';
 import { Forest, type TreeSpot } from './core/forest';
@@ -145,7 +145,9 @@ export async function buildChapter1(): Promise<Chapter1World> {
     const c0 = m.colorNode as ReturnType<typeof vec3>;
     // weathered timber goes silver-grey: pull its colour toward its own brightness
     const c1 = desat > 0 ? mix(c0, vec3(c0.dot(vec3(0.3, 0.59, 0.11))), desat) : c0;
-    m.colorNode = c1.mul(big.mul(amount).add(1 - amount * 0.5)).mul(streak.mul(0.3).add(0.85));
+    // splashed dirt up the foot of the walls (village.ts / otsu.ts bake 'grime' per vertex; 0 elsewhere)
+    const grime = attribute<'float'>('grime', 'float');
+    m.colorNode = mix(c1.mul(big.mul(amount).add(1 - amount * 0.5)).mul(streak.mul(0.3).add(0.85)), vec3(0.16, 0.13, 0.1), grime.mul(grime).mul(0.55));
     return m;
   };
   const wood = weather(uvMaterial('japanese_cedar_planks', [1.1, 1.1], { tint: 0x9a8670 }), 'japanese_cedar_planks', 0.5, 0.45);
@@ -225,7 +227,24 @@ export async function buildChapter1(): Promise<Chapter1World> {
     for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const a = j * (nx + 1) + i, b = a + nx + 1; idx.push(a, b, a + 1, a + 1, b, b + 1); }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)); g.setIndex(idx); g.computeVertexNormals();
-    const street = new THREE.Mesh(g, uvMaterial('cobblestone_large_01', [1, 1], { tint: 0xc8bcae }));
+    // the cobbles, with puddles lying in their low spots (the scan's own displacement), patchy across the town:
+    // dark, mirror-smooth water that catches the sky by day and the fires at dusk; damp rims round each one
+    const stMat = uvMaterial('cobblestone_large_01', [1, 1], { tint: 0xc8bcae });
+    {
+      const CB = pbr('cobblestone_large_01');
+      const disp = texture(CB.ard, uv()).b;
+      const patch = texture(pbr('aerial_grass_rock').diff, positionWorld.xz.mul(1 / 14)).rgb.dot(vec3(0.33, 0.33, 0.33));
+      // pools in scattered hollows (the water stands over the stones), elsewhere only the joints hold water
+      const pool = smoothstep(0.125, 0.165, patch);                                  // (linear values: ~10% of the street)
+      const fill = pool.mul(0.7).add(0.38);                                         // how high the water stands here
+      const water = smoothstep(fill.sub(0.04), fill.sub(0.12), disp);            // under the waterline → puddle
+      const damp = smoothstep(fill.add(0.14), fill.sub(0.04), disp).mul(smoothstep(0.07, 0.13, patch).mul(0.7).add(0.3));
+      const base = stMat.colorNode as ReturnType<typeof vec3>;
+      stMat.colorNode = mix(mix(base, base.mul(0.62), damp), base.mul(0.22), water);
+      stMat.roughnessNode = mix(mix(stMat.roughnessNode as ReturnType<typeof float>, float(0.35), damp), float(0.04), water);
+      stMat.normalNode = normalMap(mix(texture(CB.nor, uv()).rgb, vec3(0.5, 0.5, 1), water));   // still water lies flat
+    }
+    const street = new THREE.Mesh(g, stMat);
     street.receiveShadow = true; group.add(street);
     // kerb stones along both edges
     const kerbMat = uvMaterial('japanese_stone_wall', [0.6, 0.6], { tint: 0xb0aaa0 });

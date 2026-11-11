@@ -143,8 +143,17 @@ export function buildLandmarks(o: { inner: { xHalf: number; zMin: number; zMax: 
     const pr = new THREE.Shape(); pr.moveTo(-0.62, 0); pr.lineTo(0, 0.5); pr.lineTo(0.62, 0); pr.lineTo(-0.62, 0);
     const roofG = new THREE.ExtrudeGeometry(pr, { depth: 1.12, bevelEnabled: false }).translate(0, 0, -0.56).rotateY(Math.PI / 2);
     const MAXN = 900;
-    const bodies = new THREE.InstancedMesh(bodyG, new THREE.MeshStandardNodeMaterial({ roughness: 0.9 }), MAXN);
-    const roofs = new THREE.InstancedMesh(roofG, new THREE.MeshStandardNodeMaterial({ color: 0x3a3e46, roughness: 0.55 }), MAXN);
+    // seen from the hilltop and down the street: plaster walls over a dark timber skirt, tiled kawara roofs
+    const PL = pbr('painted_plaster_wall'), RT = pbr('grey_roof_tiles');
+    const bodyMat = new THREE.MeshStandardNodeMaterial({ roughness: 0.9 });
+    const pw: N = positionWorld;
+    const skirt: N = smoothstep(1.25, 1.1, positionLocal.y.mul(3.2));   // the lower third of each house (unit box)
+    bodyMat.colorNode = mix(texture(PL.diff, vec2(pw.x.add(pw.z), pw.y).div(3)).rgb, vec3(0.16, 0.12, 0.09), skirt);
+    const roofMat = new THREE.MeshStandardNodeMaterial({ roughness: 0.55 });
+    roofMat.colorNode = texture(RT.diff, pw.xz.div(2.2)).rgb.mul(vec3(0.5, 0.53, 0.6));
+    roofMat.normalNode = normalMap(texture(RT.nor, pw.xz.div(2.2)));
+    const bodies = new THREE.InstancedMesh(bodyG, bodyMat, MAXN);
+    const roofs = new THREE.InstancedMesh(roofG, roofMat, MAXN);
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
     const walls = [0xe6dccb, 0xd9cdb6, 0x6a4a32, 0x5a3e2a, 0xeee6d6].map((c) => new THREE.Color(c));
     let n = 0;

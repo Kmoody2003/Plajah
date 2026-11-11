@@ -36,6 +36,9 @@ export function buildOtsu(o: { heightAt: (x: number, z: number) => number; roadX
     m4.compose(new THREE.Vector3(l.x ?? 0, l.y ?? 0, l.z ?? 0), q, one).premultiply(frame);
     const c = (g.index ? g.toNonIndexed() : g.clone()).applyMatrix4(m4);
     for (const k of Object.keys(c.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv') c.deleteAttribute(k);
+    const pp = c.attributes.position as THREE.BufferAttribute, gr = new Float32Array(pp.count);
+    for (let i = 0; i < pp.count; i++) gr[i] = Math.max(0, Math.min(1, 1 - (pp.getY(i) - heightAt(pp.getX(i), pp.getZ(i))) / 1.3));
+    c.setAttribute('grime', new THREE.BufferAttribute(gr, 1));
     let b = buckets.get(mat); if (!b) { b = { solid: [], decor: [] }; buckets.set(mat, b); }
     (solid ? b.solid : b.decor).push(c);
   };
