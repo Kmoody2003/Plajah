@@ -12,7 +12,9 @@ const IDS = ['forrest_ground_01', 'brown_mud_02', 'rocks_ground_05', 'coast_sand
   // the town (reference pack): flagstone street, castle-base stonework (ishigaki), kawara roof tiles
   'cobblestone_large_01', 'japanese_stone_wall', 'grey_roof_tiles',
   // terrain seen from afar: the forested hills (grass over rock) and the volcano's flanks
-  'aerial_grass_rock', 'aerial_rocks_02'];
+  'aerial_grass_rock', 'aerial_rocks_02',
+  // the town's surfaces: white plaster, earthen walls, sugi boarding, charred-black kura boarding; cherry bark
+  'painted_plaster_wall', 'clay_plaster', 'japanese_cedar_planks', 'black_painted_planks', 'sakura_bark'];
 const TEX_MAPS = { Diffuse: 'diff', nor_gl: 'nor_gl', Rough: 'rough', AO: 'ao', Displacement: 'disp' };
 
 const getJson = async (u) => { const r = await fetch(u, { headers: UA }); if (!r.ok) throw new Error(`${r.status} ${u}`); return r.json(); };

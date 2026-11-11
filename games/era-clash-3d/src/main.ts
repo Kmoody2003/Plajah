@@ -110,8 +110,18 @@ const MSAA = params.has('msaa') ? Number(params.get('msaa')) : quality === 'low'
 // trees outside the view are skipped per instance (a tree just behind the camera may lose its shadow into view: the
 // forest's leaves are drawn three times — depth prepass, lit, shadow — so drawing them all costs millions of triangles)
 Forest.cull = !params.has('nocull');
-world.forest.bake(renderer).catch((e) => console.warn('[eraclash3d] forest impostors failed', e));
-const post = buildPost(renderer, scene, camera, { ssr: false, ssrScale: 0.5, bloom: quality === 'low' || params.has('nobloom') ? false : 'lean', taa: false, smaa: false, upscale: true, msaa: MSAA });
+// then warm every shader the chapter will need (raid fires and embers, each tree variant, the impostors) while it
+// loads: WebGPU compiles a pipeline the first time a thing is drawn, and mid-fight that was a visible freeze
+world.forest.bake(renderer).then(async () => {
+  const k = raidShown;
+  world.setRaid(1); world.forest.unpack();
+  try { await renderer.compileAsync(scene, camera); } catch (e) { console.warn('[eraclash3d] shader warm-up', e); }
+  world.setRaid(Math.max(0, k));
+  console.info('[eraclash3d] shaders warmed');
+}).catch((e) => console.warn('[eraclash3d] forest impostors failed', e));
+// Contact shadow (GTAO) and sun shafts on medium and up; ?noao / ?norays turn them off
+const post = buildPost(renderer, scene, camera, { ssr: false, ssrScale: 0.5, bloom: quality === 'low' || params.has('nobloom') ? false : 'lean', taa: false, smaa: false, upscale: true, msaa: MSAA,
+  ao: quality !== 'low' && !params.has('noao'), rays: quality !== 'low' && Q.shadow > 0 && !params.has('norays') ? sun : undefined });
 
 // ── Haru and the warband ───────────────────────────────────────────────────────────────────────────
 const player = new PlayerController(renderer.domElement);

@@ -5,7 +5,7 @@
 import * as THREE from 'three/webgpu';
 import { color, positionWorld, normalize, mix, smoothstep, vertexColor, texture, uv, vec2, vec3, time, sin, float, instancedBufferAttribute, uniform } from 'three/tsl';
 import { collide } from './core/collision';
-import { uvMaterial } from './core/materials';
+import { uvMaterial, pbr } from './core/materials';
 import { Forest, type TreeSpot } from './core/forest';
 import { rng } from './core/kit';
 import { buildTerrain, buildSea, type Splat } from './ground';
@@ -14,7 +14,7 @@ import { buildVillage, type Village } from './village';
 import { buildLandmarks } from './landmarks';
 import { buildOtsu, OTSU } from './otsu';
 
-export interface Fire { group: THREE.Group; light: THREE.PointLight; flames: THREE.Mesh[]; smoke: THREE.Mesh[]; seed: number; size: number; raid: boolean }
+export interface Fire { group: THREE.Group; flames: THREE.Mesh[]; smoke: THREE.Mesh[]; seed: number; size: number; raid: boolean }
 export interface Section { name: string; zMin: number; zMax: number; spawn: THREE.Vector3[] }
 export interface Chapter1World {
   group: THREE.Group;
@@ -136,9 +136,21 @@ export async function buildChapter1(): Promise<Chapter1World> {
   group.add(collide(ground));
   group.add(buildSea());
 
-  const wood = uvMaterial('weathered_planks', [2, 2], { tint: 0xb8a088 });
-  const darkWood = uvMaterial('dark_wooden_planks', [2, 2]);
-  const plaster = new THREE.MeshStandardNodeMaterial({ color: 0xe8dcc4, roughness: 0.95 });
+  // The town's surfaces (CC0 scans): sugi (Japanese cedar) boarding on the shopfronts, charred-black planks for
+  // posts, beams and the kura's base boarding, white lime plaster above. Each is weathered by a large-scale
+  // world-space pass (its own texture sampled huge, plus rain-streak darkening that fades up the wall).
+  const weather = (m: THREE.MeshStandardNodeMaterial, id: string, amount = 0.5, desat = 0) => {
+    const big = texture(pbr(id).diff, positionWorld.xz.mul(1 / 31).add(vec2(positionWorld.y.mul(0.013), 0))).rgb.dot(vec3(0.33, 0.33, 0.33));
+    const streak = texture(pbr(id).diff, vec2(positionWorld.x.add(positionWorld.z).mul(0.21), positionWorld.y.mul(0.02))).rgb.dot(vec3(0.33, 0.33, 0.33));
+    const c0 = m.colorNode as ReturnType<typeof vec3>;
+    // weathered timber goes silver-grey: pull its colour toward its own brightness
+    const c1 = desat > 0 ? mix(c0, vec3(c0.dot(vec3(0.3, 0.59, 0.11))), desat) : c0;
+    m.colorNode = c1.mul(big.mul(amount).add(1 - amount * 0.5)).mul(streak.mul(0.3).add(0.85));
+    return m;
+  };
+  const wood = weather(uvMaterial('japanese_cedar_planks', [1.1, 1.1], { tint: 0x9a8670 }), 'japanese_cedar_planks', 0.5, 0.45);
+  const darkWood = weather(uvMaterial('black_painted_planks', [1.2, 1.2], { tint: 0x9a8e84 }), 'black_painted_planks', 0.4, 0.2);
+  const plaster = weather(uvMaterial('painted_plaster_wall', [0.45, 0.45], { tint: 0xf2eadc, roughnessScale: 1.1 }), 'painted_plaster_wall', 0.35);
   const thatch = uvMaterial('roof_slates_02', [3, 3], { tint: 0x8a6a3a });
   // kawara: CC0 grey roof tiles (one texture repeat per 2 m of roof)
   const tile = uvMaterial('grey_roof_tiles', [1, 1], { tint: 0x9aa0aa });
@@ -259,6 +271,10 @@ export async function buildChapter1(): Promise<Chapter1World> {
 
   // ── The storehouses (kura) the raiders fired: white walls, dark tile, burning ───────────────────
   const fires: Fire[] = [];
+  // Fire light: a fixed pool of three point lights that never switch on or off, only move to the nearest fires and
+  // fade. (Turning a light's visibility on or off changes the scene's light set, and every lit material in the
+  // scene recompiles its shader: a freeze of up to seconds each time the nearest fires changed.)
+  const firePool = [0, 1, 2].map(() => { const l = new THREE.PointLight(0xff8a3a, 0, 22, 1.6); group.add(l); return l; });
   const puff = (inner: string, outer: string) => canvasTex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 2, 64, 64, 62); gr.addColorStop(0, inner); gr.addColorStop(1, outer); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
   // a flame: a tongue of fire that fades to nothing well inside the card (no square edges): a hot core low
   // down, a licking body drawn as stacked soft blobs narrowing upward
@@ -285,12 +301,9 @@ export async function buildChapter1(): Promise<Chapter1World> {
       f.position.set((R() - 0.5) * 2.4 * size, 1.6 * size, (R() - 0.5) * 2 * size); flames.push(f); g.add(f);
     }
     for (let i = 0; i < 8; i++) { const s = new THREE.Object3D() as THREE.Mesh; smoke.push(s); g.add(s); smokeItems.push(s); }
-    // Fire lights are pooled (update below): every real point light costs on every pixel on the iGPU.
-    const light = new THREE.PointLight(0xff8a3a, 0, 22 * size, 1.6);
-    light.position.y = 2.5 * size; light.visible = false; g.add(light);
     at(g, x, z, 0, lift);
     if (raid) g.visible = false;
-    fires.push({ group: g, light, flames, smoke, seed: R() * 10, size, raid });
+    fires.push({ group: g, flames, smoke, seed: R() * 10, size, raid });
   };
   for (const [x, z] of KURA) {
     const k = new THREE.Group();
@@ -411,13 +424,22 @@ export async function buildChapter1(): Promise<Chapter1World> {
     const b0 = new THREE.Box3().setFromObject(o); if (b0.isEmpty() || b0.max.x - b0.min.x > 60) continue;
     blocked.push(b0.expandByScalar(0.5));
   }
+  // footprints bucketed on an 8 m grid: each blade checks a handful of boxes, not all ~400
+  const BG = 8, bgrid = new Map<number, THREE.Box3[]>(), bkey = (i: number, j: number) => i * 100003 + j;
+  for (const b0 of blocked) {
+    for (let i = Math.floor(b0.min.x / BG); i <= Math.floor(b0.max.x / BG); i++) for (let j = Math.floor(b0.min.z / BG); j <= Math.floor(b0.max.z / BG); j++) {
+      const k = bkey(i, j); (bgrid.get(k) ?? bgrid.set(k, []).get(k)!).push(b0);
+    }
+  }
+  const none: THREE.Box3[] = [];
+  const blockedNear = (x: number, z: number) => bgrid.get(bkey(Math.floor(x / BG), Math.floor(z / BG))) ?? none;
   const grassAt = (x: number, z: number) => {
     if (z > STREET_Z0 - 1 && z < STREET_Z1 + 1 && Math.abs(x - roadX(z)) < STREET_W + 1.2) return 0;   // the paved town
     if (Math.hypot(x - PLAZA.x, z - PLAZA.z) < PLAZA.r + 3.5) return 0;   // the market square
     const sp = splatAt(x, z); if (sp.grass < 0.3) return 0;
     const slope = Math.hypot(heightAt(x + 0.5, z) - heightAt(x - 0.5, z), heightAt(x, z + 0.5) - heightAt(x, z - 0.5));
     if (slope > 0.95) return 0;
-    for (const b0 of blocked) if (x > b0.min.x && x < b0.max.x && z > b0.min.z && z < b0.max.z) return 0;
+    for (const b0 of blockedNear(x, z)) if (x > b0.min.x && x < b0.max.x && z > b0.min.z && z < b0.max.z) return 0;
     return sp.grass * (1 - Math.min(1, slope / 0.95) * 0.5);
   };
   const params0 = new URLSearchParams(location.search);
@@ -454,13 +476,15 @@ export async function buildChapter1(): Promise<Chapter1World> {
       steamShade.value = 1 - raidK * 0.72;
       const cq = (camera as THREE.Camera).quaternion;
       steamBoard.sync(steamItems, cq); smokeBoard.sync(smokeItems, cq); flameBoard.sync(flameItems, cq);
-      // the fires nearest the camera carry the real lights (two; three once the town is burning)
+      // the fires nearest the camera carry the pooled lights (two; the third joins once the town is burning)
       const cpos = camera.position, nLights = raidK > 0.5 ? 3 : 2;
       const order = fires.filter((f) => f.group.visible).sort((a, b) => a.group.position.distanceToSquared(cpos) - b.group.position.distanceToSquared(cpos));
-      for (const f of fires) if (!order.includes(f)) f.light.visible = false;
-      order.forEach((f, i) => {
-        const on = i < nLights, g = f.raid ? Math.min(1, raidK * 1.4) : 1;
-        f.light.visible = on; f.light.intensity = on ? (26 + 10 * Math.sin(t * 13 + f.seed) * Math.sin(t * 7.3 + f.seed * 2)) * g * (1 + raidK * 0.6) : 0;
+      firePool.forEach((l, i) => {
+        const f = order[i];
+        if (!f || i >= nLights) { l.intensity = 0; return; }
+        const g = f.raid ? Math.min(1, raidK * 1.4) : 1;
+        l.position.copy(f.group.position); l.position.y += 2.5 * f.size; l.distance = 22 * f.size;
+        l.intensity = (26 + 10 * Math.sin(t * 13 + f.seed) * Math.sin(t * 7.3 + f.seed * 2)) * g * (1 + raidK * 0.6);
       });
       // embers
       if (embers.visible) {

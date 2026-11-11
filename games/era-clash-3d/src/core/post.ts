@@ -3,20 +3,27 @@
 // Intel's XeSS isn't reachable from the browser; FSR1 is the vendor-neutral equivalent
 // that runs well on Arc iGPUs.
 import * as THREE from 'three/webgpu';
-import { pass, rtt, mrt, output, normalView, metalness, roughness, velocity, vec2, vec4, float, max, directionToColor, colorToDirection, sample, renderOutput, texture3D, uniform } from 'three/tsl';
+import { pass, rtt, mrt, output, normalView, metalness, roughness, velocity, vec2, vec3, vec4, float, max, mix, directionToColor, colorToDirection, sample, renderOutput, texture3D, uniform } from 'three/tsl';
 import { lut3D } from 'three/addons/tsl/display/Lut3DNode.js';
 import { ssr } from 'three/addons/tsl/display/SSRNode.js';
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { traa } from 'three/addons/tsl/display/TRAANode.js';
 import { fxaa } from 'three/addons/tsl/display/FXAANode.js';
 import { fsr1 } from 'three/addons/tsl/display/FSR1Node.js';
+import { ao } from 'three/addons/tsl/display/GTAONode.js';
+import { godrays } from 'three/addons/tsl/display/GodraysNode.js';
 import { gaussianBlur } from 'three/addons/tsl/display/GaussianBlurNode.js';
 
 // bloom 'full' = three's 5-mip UnrealBloom (12 passes); 'lean' = threshold + one quarter-res
 // separable Gaussian (3 passes) — the iGPU tier, where each pass costs real CPU.
 export interface PostQuality { ssr: boolean; ssrScale: number; bloom: 'full' | 'lean' | false; taa: boolean; smaa: boolean; upscale: boolean;
   /** Hardware MSAA on the scene pass (resolved before post): clean geometric edges at the internal resolution. */
-  msaa?: number }
+  msaa?: number;
+  /** Ambient occlusion (GTAO at half the internal resolution, normals rebuilt from depth): contact shadow under
+   *  eaves, in alleys, where walls meet the street and round props and feet. */
+  ao?: boolean;
+  /** Sun shafts: ray-marched through the sun's shadow map, tinted with the sun's own colour. */
+  rays?: THREE.DirectionalLight }
 
 type V4 = THREE.Node<'vec4'>;
 
@@ -87,6 +94,34 @@ export function buildPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, ca
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sr = ssrNode as any;
     composed = (colorTex as any).add(vec4(sr.rgb.mul(sr.a).mul(0.7), 0)) as V4;
+  }
+  let aoNode: ReturnType<typeof ao> | null = null;
+  if (q.ao) {
+    aoNode = ao(depthTex, null as never, camera);   // no normal target: GTAO rebuilds normals from depth
+    aoNode.resolutionScale = 0.5;
+    aoNode.samples.value = 8;
+    aoNode.radius.value = 0.9;
+    aoNode.distanceExponent.value = 1.6;
+    aoNode.thickness.value = 1.2;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const occ = (aoNode as any).getTextureNode().r;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    composed = (composed as any).mul(vec4(vec3(mix(float(1), occ, 0.85)), 1)) as V4;
+  }
+  let raysNode: ReturnType<typeof godrays> | null = null;
+  if (q.rays) {
+    const sun = q.rays;
+    raysNode = godrays(depthTex, camera, sun);
+    raysNode.resolutionScale = 0.25;
+    raysNode.raymarchSteps.value = 28;
+    raysNode.density.value = 0.55;
+    raysNode.maxDensity.value = 0.55;
+    raysNode.distanceAttenuation.value = 1.5;
+    const tint = uniform(new THREE.Color()).onFrameUpdate(() => new THREE.Color().copy(sun.color).multiplyScalar(sun.intensity * 0.09));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const shaft = (raysNode as any).getTextureNode().r;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    composed = (composed as any).add(vec4(tint.mul(shaft), 0)) as V4;
   }
   let bloomNode: ReturnType<typeof bloom> | null = null;
   if (q.bloom === 'full') {

@@ -377,6 +377,7 @@ export class Forest {
   }
 
   private packed = false;
+  private frame = 0;
   /** Every instance back in its original slot (culling switched off at runtime). */
   unpack() {
     this.packed = false;
@@ -395,7 +396,10 @@ export class Forest {
     camera.updateMatrixWorld();
     _vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     _frustum.setFromProjectionMatrix(_vp, camera.coordinateSystem, camera.reversedDepth);
+    this.frame++;
     for (const s of this.cullSets) {
+      // the big impostor sets (thousands of far trees) only need a fresh pick every third frame
+      if (s.mats.length > 1500 && this.frame % 3 !== 0 && s.meshes[0].count > 0) continue;
       let n = 0;
       const lo = s.minD * s.minD, hi = s.maxD * s.maxD, cp = camera.position;
       for (let i = 0; i < s.mats.length; i++) {

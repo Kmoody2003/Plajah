@@ -197,6 +197,41 @@
       "rough": "textures/aerial_rocks_02/rough.jpg",
       "ao": "textures/aerial_rocks_02/ao.jpg",
       "disp": "textures/aerial_rocks_02/disp.jpg"
+    },
+    "painted_plaster_wall": {
+      "diff": "textures/painted_plaster_wall/diff.jpg",
+      "nor_gl": "textures/painted_plaster_wall/nor_gl.jpg",
+      "rough": "textures/painted_plaster_wall/rough.jpg",
+      "ao": "textures/painted_plaster_wall/ao.jpg",
+      "disp": "textures/painted_plaster_wall/disp.jpg"
+    },
+    "clay_plaster": {
+      "diff": "textures/clay_plaster/diff.jpg",
+      "nor_gl": "textures/clay_plaster/nor_gl.jpg",
+      "rough": "textures/clay_plaster/rough.jpg",
+      "ao": "textures/clay_plaster/ao.jpg",
+      "disp": "textures/clay_plaster/disp.jpg"
+    },
+    "japanese_cedar_planks": {
+      "diff": "textures/japanese_cedar_planks/diff.jpg",
+      "nor_gl": "textures/japanese_cedar_planks/nor_gl.jpg",
+      "rough": "textures/japanese_cedar_planks/rough.jpg",
+      "ao": "textures/japanese_cedar_planks/ao.jpg",
+      "disp": "textures/japanese_cedar_planks/disp.jpg"
+    },
+    "black_painted_planks": {
+      "diff": "textures/black_painted_planks/diff.jpg",
+      "nor_gl": "textures/black_painted_planks/nor_gl.jpg",
+      "rough": "textures/black_painted_planks/rough.jpg",
+      "ao": "textures/black_painted_planks/ao.jpg",
+      "disp": "textures/black_painted_planks/disp.jpg"
+    },
+    "sakura_bark": {
+      "diff": "textures/sakura_bark/diff.jpg",
+      "nor_gl": "textures/sakura_bark/nor_gl.jpg",
+      "rough": "textures/sakura_bark/rough.jpg",
+      "ao": "textures/sakura_bark/ao.jpg",
+      "disp": "textures/sakura_bark/disp.jpg"
     }
   },
   "models": {

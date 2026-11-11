@@ -88,10 +88,13 @@ export function buildGrassField(heightAt: (x: number, z: number) => number, gras
     group.add(mesh);
     tiles.push({ mesh, cx: 1e9, cz: 1e9 });
   }
-  let ccx = 1e9, ccz = 1e9;
+  let ccx = 1e9, ccz = 1e9, first = true;
+  // tiles waiting to be refilled: one per frame (refilling five at once was a 20 ms hitch at every tile edge)
+  const queue: Tile[] = [];
   return {
     group, get blades() { return tiles.reduce((a, t) => a + t.mesh.count, 0); },
     update(cam) {
+      const qt = queue.shift(); if (qt) fill(qt);
       const cx = Math.floor(cam.x / TILE), cz = Math.floor(cam.z / TILE);
       if (cx === ccx && cz === ccz) return;
       ccx = cx; ccz = cz;
@@ -102,8 +105,14 @@ export function buildGrassField(heightAt: (x: number, z: number) => number, gras
       for (const key of want) {
         if (tiles.some((t) => `${t.cx},${t.cz}` === key)) continue;
         const t = free.pop(); if (!t) break;
-        const [x, z] = key.split(',').map(Number); t.cx = x; t.cz = z; fill(t);
+        const [x, z] = key.split(',').map(Number); t.cx = x; t.cz = z;
+        // until refilled, a recycled tile shows nothing (not its old blades in the wrong place)
+        const qi = queue.indexOf(t); if (qi >= 0) queue.splice(qi, 1);
+        if (first) fill(t); else { t.mesh.count = 0; queue.push(t); }
       }
+      // the tile underfoot first
+      queue.sort((a, b) => Math.hypot(a.cx - cx, a.cz - cz) - Math.hypot(b.cx - cx, b.cz - cz));
+      first = false;
     },
   };
 }
