@@ -2053,5 +2053,11 @@ service cloud.firestore {
                             && nowActiveValid(request.resource.data);
       allow delete: if isAuthenticated() && uid == request.auth.uid;
     }
+    // Live party games (routes/liveGames.ts). Public read so anyone can watch and play from the feed; only the
+    // server writes. liveGameSecrets (the word) has no rule, so no client can ever read it.
+    match /liveGames/{id} { allow read: if true; }
+    match /liveGameStrokes/{id} { allow read: if true; }
+    match /liveGameFeed/{id} { allow read: if true; }
+    match /liveGamePlayers/{id} { allow read: if true; }
   }
 }

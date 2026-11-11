@@ -10,6 +10,8 @@
 //                only the step from the game's previous total: syncing daily or once a year lands on the
 //                same number (√ is concave — summing √ of each delta would reward frequent syncs).
 //   skill        (rating − 1200) × 0.5 for each game above the starting rating, best 5 games
+//   live         live party games (LIVE_GAME): the entry's points (≤ 50 each, set by liveGames/core gamerPointsFor),
+//                × source trust, counted for at most LIVE_DAILY_CAP games per UTC day
 //
 // LOCAL_PLAY (same device, vs CPU) is history only: nobody refereed it, so it never moves the score.
 
@@ -18,6 +20,7 @@ import { START_RATING } from './rating';
 
 export const SOURCE_TRUST: Readonly<Record<GamerSource, number>> = { 'first-party': 1, partner: 0.8, linked: 0.6, self: 0 };
 export const PAIR_DAILY_CAP = 5;
+export const LIVE_DAILY_CAP = 5;
 
 export interface GameStats { rating: number; rated: number; wins: number; losses: number; draws: number; streak: number; best: number }
 export interface GamerFold {
@@ -35,6 +38,11 @@ export interface GamerFold {
   platforms: string[];
   /** `<source>:<platform>:<externalGameId>` → cumulative imported hours (the √ base for the next import). */
   extGames?: Record<string, number>;
+  /** Live party games: points so far, and games counted on the latest UTC day (anti-farming cap). */
+  live?: number;
+  liveDayKey?: string;
+  liveDayCount?: number;
+  livePlays?: number;
 }
 
 export const emptyFold = (): GamerFold => ({ events: 0, play: 0, achievements: 0, external: 0, games: {}, pairDay: {}, pairDayKey: '', achievementIds: [], localPlays: 0, externalHours: 0, platforms: [], extGames: {} });
@@ -68,6 +76,16 @@ export function applyEvent(prev: GamerFold, e: GamerEntry): GamerFold {
       break;
     }
     case 'LOCAL_PLAY': f.localPlays++; break;
+    case 'LIVE_GAME': {
+      f.livePlays = (f.livePlays ?? 0) + 1;
+      const day = utcDay(e.at);
+      if (day !== f.liveDayKey) { f.liveDayKey = day; f.liveDayCount = 0; }
+      if ((f.liveDayCount ?? 0) < LIVE_DAILY_CAP) {
+        f.liveDayCount = (f.liveDayCount ?? 0) + 1;
+        f.live = (f.live ?? 0) + trust * Math.max(0, Math.min(50, e.points ?? 0));
+      }
+      break;
+    }
     case 'EXTERNAL_IMPORT': {
       const hours = Math.max(0, Math.min(10_000, e.hours ?? 0));
       const ach = Math.max(0, Math.min(10_000, e.achievementsUnlocked ?? 0));
@@ -91,11 +109,12 @@ export function skillPoints(f: GamerFold): number {
   return Object.values(f.games).map(g => Math.max(0, g.rating - START_RATING) * 0.5).sort((a, b) => b - a).slice(0, 5).reduce((a, b) => a + b, 0);
 }
 
-export interface ScoreCard { total: number; play: number; achievements: number; external: number; skill: number }
+export interface ScoreCard { total: number; play: number; achievements: number; external: number; skill: number; live?: number }
 export function scoreOf(f: GamerFold): ScoreCard {
   const skill = skillPoints(f);
   const r = (x: number) => Math.round(x);
-  return { total: r(f.play + f.achievements + f.external + skill), play: r(f.play), achievements: r(f.achievements), external: r(f.external), skill: r(skill) };
+  const live = f.live ?? 0;
+  return { total: r(f.play + f.achievements + f.external + skill + live), play: r(f.play), achievements: r(f.achievements), external: r(f.external), skill: r(skill), ...(live ? { live: r(live) } : {}) };
 }
 
 export const recalculate = (entries: ReadonlyArray<GamerEntry>): GamerFold => [...entries].sort((a, b) => a.seq - b.seq).reduce(applyEvent, emptyFold());

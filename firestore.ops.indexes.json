@@ -245,6 +245,20 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "liveGameFeed",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "gid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "at",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

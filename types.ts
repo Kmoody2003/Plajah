@@ -2413,6 +2413,8 @@ export interface Post {
   liveStreamId?: string;
   /** A Plajah game playable right in the timeline (services/gamerNet/social.ts → GameEmbedCard). */
   gameEmbed?: import('./services/gamerNet/social').GameEmbed;
+  /** A live party game room (Sketch Rush) anyone can play from the card — services/liveGames/client.ts. */
+  liveGameEmbed?: import('./services/liveGames/client').LiveGameEmbed;
   isLiveNow?: boolean;
   /** Live Room — when set, this post is a time-boxed live room (see services/roomService). */
   roomId?: string;

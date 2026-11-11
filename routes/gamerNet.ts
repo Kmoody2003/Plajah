@@ -62,7 +62,10 @@ const STEAM_LEASE_MS = 2 * 60_000;
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const s = (v: unknown, max: number) => String(v ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, max);
 
-export function createGamerRouter(deps: GamerDeps): Router {
+export type GamerAppend = (uid: string, body: GamerEventBody) => Promise<{ entry: GamerEntry; fold: GamerFold } | null>;
+
+/** The router, plus its ledger writer so other first-party games (routes/liveGames.ts) append through the same chain. */
+export function createGamerRouter(deps: GamerDeps): Router & { appendEvent: GamerAppend } {
   const { store } = deps;
   const now = deps.now ?? Date.now;
   const r = Router();
@@ -551,5 +554,5 @@ export function createGamerRouter(deps: GamerDeps): Router {
     res.json({ ok: out.ok });
   });
 
-  return r;
+  return Object.assign(r, { appendEvent });
 }

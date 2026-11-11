@@ -9,6 +9,8 @@ const KithParty = React.lazy(() => import('./kithParty/KithParty'));
 const EraClashFrame = React.lazy(() => import('./games/EraClashFrame'));
 const CyberTicTacToe = React.lazy(() => import('./games/CyberTicTacToe'));
 const GamerHub = React.lazy(() => import('./games/GamerHub'));
+const SketchRushStudio = React.lazy(() => import('./liveGames/SketchRushStudio'));
+const LiveNowStrip = React.lazy(() => import('./liveGames/LiveNowStrip'));
 import { PostGameButton } from './games/social/PostGameButton';
 
 // Uploaded copies of tic tac toe open the first-party Cyber Tic Tac Toe (mobile, same-device + online play).
@@ -40,6 +42,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
   const [showKithParty, setShowKithParty] = useState(false);
   const [showEraClash, setShowEraClash] = useState(false);
   const [showTtt, setShowTtt] = useState(false);
+  const [showSketch, setShowSketch] = useState(false);
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [gameOwners, setGameOwners] = useState<Record<string, UserProfile>>({});
@@ -139,6 +142,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
       <CyberTicTacToe onExit={() => setShowTtt(false)} onOpenLeaderboard={() => { setShowTtt(false); setActiveTab('LEADERBOARDS'); }} />
     </React.Suspense>
   );
+  if (showSketch) return <React.Suspense fallback={<div className="p-8">Loading Sketch Rush…</div>}><SketchRushStudio onExit={() => setShowSketch(false)} /></React.Suspense>;
   if (showEraClash) return <React.Suspense fallback={<div className="p-8">Loading Era Clash…</div>}><EraClashFrame onExit={() => setShowEraClash(false)} /></React.Suspense>;
   if (showKithParty) return <React.Suspense fallback={<div className="p-8">Loading Kith Party…</div>}><KithParty onBack={() => setShowKithParty(false)} /></React.Suspense>;
 
@@ -275,6 +279,29 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
                  className="inline-flex items-center gap-2 min-h-[40px] px-4 rounded-full border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 text-[10px] font-black uppercase tracking-widest hover:bg-cyan-400/20 disabled:opacity-60"
                />
              </div>
+             {/* Live party games — host on a stream, the audience plays from the feed */}
+             <button
+               onClick={() => setShowSketch(true)}
+               className="mt-4 w-full text-left relative rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden border border-pink-400/30 p-5 sm:p-8 active:scale-[0.99] transition-transform"
+               style={{ background: 'radial-gradient(36rem 18rem at 90% -10%, rgba(236,72,153,0.28), transparent 60%), radial-gradient(30rem 18rem at 0% 120%, rgba(124,58,237,0.30), transparent 60%), #120a2a' }}
+             >
+               <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+                 <div className="w-24 h-20 sm:w-28 sm:h-24 shrink-0 rounded-2xl bg-white p-2 shadow-inner" aria-hidden>
+                   <svg viewBox="0 0 100 75" className="w-full h-full"><path d="M12 60 Q30 20 50 40 T88 18" fill="none" stroke="#7c3aed" strokeWidth="6" strokeLinecap="round" /><circle cx="70" cy="52" r="9" fill="none" stroke="#ec4899" strokeWidth="5" /></svg>
+                 </div>
+                 <div className="flex-1 min-w-0">
+                   <h4 className="text-2xl sm:text-4xl font-black tracking-tight"><span className="text-pink-300">SKETCH</span> <span className="text-violet-300">RUSH</span></h4>
+                   <p className="text-white/70 text-sm mt-1">Go live and draw. Your audience guesses from the stream or right in their feed for points.</p>
+                   <div className="flex flex-wrap gap-2 mt-3">
+                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest"><Users size={12} /> Live audience</span>
+                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest"><Globe size={12} /> Join from the feed</span>
+                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest"><Trophy size={12} /> Gamer score</span>
+                   </div>
+                 </div>
+                 <span className="inline-flex items-center justify-center gap-2 min-h-[48px] px-6 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-widest"><Play size={16} fill="currentColor" /> Host</span>
+               </div>
+             </button>
+             <React.Suspense fallback={null}><LiveNowStrip /></React.Suspense>
              <button
                onClick={() => setShowEraClash(true)}
                className="mt-4 w-full text-left relative rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden border border-amber-400/30 p-5 sm:p-8 active:scale-[0.99] transition-transform"

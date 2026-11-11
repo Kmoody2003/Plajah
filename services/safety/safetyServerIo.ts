@@ -6,6 +6,7 @@
  * Never import this from client code.
  */
 import { getAccessToken, fsGet, fsPatch, adminConfig } from '../firebaseAdminRest';
+import { OPS_COLLECTIONS, OPS_DATABASE_ID } from '../opsCollections';
 
 export const STORAGE_BUCKET = process.env.STORAGE_BUCKET || 'gen-lang-client-0665118474.firebasestorage.app';
 const FS_DOC_ROOT = `projects/${adminConfig.PROJECT_ID}/databases/${adminConfig.DB_ID}/documents`;
@@ -56,7 +57,9 @@ async function authHeaders(json = true): Promise<Record<string, string>> {
 /** Create a doc only if absent. 'exists' on 409. */
 export async function fsCreateOnce(collection: string, id: string, data: Record<string, unknown>): Promise<'created' | 'exists' | 'error'> {
   try {
-    const res = await fetch(`${FS_BASE}/${collection}?documentId=${encodeURIComponent(id)}`, {
+    // Route by collection: ops collections (services/opsCollections.ts) live in plajah-ops, everything else in prod.
+    const base = `https://firestore.googleapis.com/v1/projects/${adminConfig.PROJECT_ID}/databases/${OPS_COLLECTIONS.has(collection.split('/')[0]) ? OPS_DATABASE_ID : adminConfig.DB_ID}/documents`;
+    const res = await fetch(`${base}/${collection}?documentId=${encodeURIComponent(id)}`, {
       method: 'POST', headers: await authHeaders(), body: JSON.stringify({ fields: toFields(data) }),
     });
     if (res.ok) return 'created';

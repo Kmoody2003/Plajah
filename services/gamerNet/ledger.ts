@@ -13,7 +13,8 @@ export type GamerEvent =
   | 'MATCH_RESULT'     // a first-party online match the server refereed
   | 'ACHIEVEMENT'      // earned in a first-party game (server-verified) or imported
   | 'LOCAL_PLAY'       // same-device / vs-CPU game: history only, never scored
-  | 'EXTERNAL_IMPORT'; // playtime/achievements from another platform (Steam, Xbox, PSN, a partner game …)
+  | 'EXTERNAL_IMPORT'  // playtime/achievements from another platform (Steam, Xbox, PSN, a partner game …)
+  | 'LIVE_GAME';       // a refereed live party game on a stream (Sketch Rush …): in-game points + final rank
 
 /** How much the network trusts where a record came from. Scored by score.ts → SOURCE_TRUST. */
 export type GamerSource = 'first-party' | 'partner' | 'linked' | 'self';
@@ -39,6 +40,9 @@ export interface GamerEventBody {
   externalGameId?: string;
   hours?: number;
   achievementsUnlocked?: number;
+  /** LIVE_GAME: final place and how many people played. */
+  rank?: number;
+  players?: number;
   note?: string;
 }
 

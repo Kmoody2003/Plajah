@@ -34,6 +34,7 @@ import { RenderTextWithMentions } from '../src/lib/richText';
 import { useGateAccess, SanctuaryGateLock } from './sanctuary/SanctuaryGate';
 const CommunityNoteBadge = lazy(() => import('./notes/CommunityNotes'));
 const GameEmbedCard = lazy(() => import('./games/social/GameEmbedCard'));
+const LiveGameCard = lazy(() => import('./liveGames/LiveGameCard'));
 import { TYPE } from '../src/lib/designSystem';
 import { isActiveToday, formatTodayCountdown, todayProgress } from '../services/todayPosts';
 import UserSafetyMenu from './safety/UserSafetyMenu';
@@ -1003,6 +1004,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
           {post.gameEmbed && (
             <Suspense fallback={null}>
               <GameEmbedCard embed={post.gameEmbed} postId={post.id} authorId={post.authorId} authorName={post.authorName} />
+            </Suspense>
+          )}
+
+          {/* Live party game (Sketch Rush) — guess right here in the timeline */}
+          {post.liveGameEmbed && (
+            <Suspense fallback={null}>
+              <LiveGameCard embed={post.liveGameEmbed} />
             </Suspense>
           )}
 

@@ -126,7 +126,8 @@ import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { makerBuildRouter } from './routes/makerBuild';
 import { createGamerRouter } from './routes/gamerNet';
 import { liveGamerStore } from './services/gamerNet/liveStore';
-import { verifyIdToken as verifyGamerToken, fsGetUser as gamerUserDoc } from './services/firebaseAdminRest';
+import { verifyIdToken as verifyGamerToken, verifyIdTokenDetailed, fsGetUser as gamerUserDoc } from './services/firebaseAdminRest';
+import { createLiveGameRouter } from './routes/liveGames';
 import { createGamerSocialRouter } from './routes/gamerSocial';
 import { fsQuery as gamerFsQuery } from './services/firebaseAdminRest';
 import { driveRouter } from './routes/drive';
@@ -15465,13 +15466,22 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     },
   }));
   // Plajah Gamer Network: profiles, gamer ledger, matchmaking, refereed matches, leaderboards (routes/gamerNet.ts, docs/GAMER_NETWORK.md).
-  app.use('/api/gamer', rateLimit({ windowMs: 60 * 1000, max: 240, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '8kb' }), createGamerRouter({
+  const gamerRouter = createGamerRouter({
     store: liveGamerStore(restCas),
     verify: verifyGamerToken,
     // Platform linking (Steam OpenID + Web API). Unset key = the Link button stays off; nothing is mocked.
     steam: { apiKey: process.env.STEAM_WEB_API_KEY || '' },
     publicOrigin: (process.env.VITE_APP_URL || 'https://plajah.com').replace(/\/+$/, ''),
     userCard: async uid => { const u = await gamerUserDoc(uid); return u ? { name: String(u.displayName || u.username || 'Player'), photo: String(u.photoURL || u.avatarUrl || ''), isChild: u.isChild === true || u.accountType === 'CHILD' } : null; },
+  });
+  app.use('/api/gamer', rateLimit({ windowMs: 60 * 1000, max: 240, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '8kb' }), gamerRouter);
+  // Live party games on streams + feed (Sketch Rush): server-refereed rounds, judged guesses, gamer ledger awards
+  // (routes/liveGames.ts, docs/LIVE_PARTY_GAMES.md). Strokes arrive in small batches, so the limit is generous.
+  app.use('/api/live-game', rateLimit({ windowMs: 60 * 1000, max: 600, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '32kb' }), createLiveGameRouter({
+    store: liveGamerStore(restCas),
+    verify: async token => { const d = await verifyIdTokenDetailed(token).catch(() => null); return d ? { uid: d.uid, guest: d.isAnonymous } : null; },
+    userCard: async uid => { const u = await gamerUserDoc(uid); return u ? { name: String(u.displayName || u.username || 'Player'), photo: String(u.photoURL || u.avatarUrl || ''), isChild: u.isChild === true || u.accountType === 'CHILD' } : null; },
+    appendEvent: gamerRouter.appendEvent,
   }));
   // Plajah Drive (B2 + Bunny). Answers 503 drive_off until DRIVE_ENABLED=1.
   app.use('/api/drive', rateLimit({ windowMs: 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '64kb' }), driveRouter);

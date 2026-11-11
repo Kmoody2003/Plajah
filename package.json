@@ -112,6 +112,8 @@
     "test:workspace": "npx tsx --test tests/workspace.test.ts",
     "test:gamer": "npx tsx --test tests/gamerNet.test.ts",
     "typecheck:gamer": "tsc -p tsconfig.gamer.json",
+    "test:livegames": "npx tsx --test tests/liveGames.test.ts",
+    "typecheck:livegames": "tsc -p tsconfig.livegames.json",
     "test:gamer-social": "npx tsx --test tests/gamerSocial.test.ts",
     "typecheck:gamer-social": "tsc -p tsconfig.gamersocial.json",
     "typecheck:cad": "tsc -p tsconfig.cad.json",
