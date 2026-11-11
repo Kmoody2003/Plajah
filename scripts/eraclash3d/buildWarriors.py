@@ -76,6 +76,9 @@ def synth_back_hair(front_png, out_png):
     Image.fromarray(b).save(out_png)
 
 
+HIRES = '--hires' in sys.argv   # the playable heroes: finer shape, twice the painted faces, softer skinning
+
+
 def shape_seed(front_png, out_glb, seed):
     for _ in range(360):
         h = bc.health()
@@ -84,7 +87,7 @@ def shape_seed(front_png, out_glb, seed):
         time.sleep(5)
     data = 'data:image/png;base64,' + base64.b64encode(open(front_png, 'rb').read()).decode()
     body = json.dumps({'task': {'image': data, 'backend': 'hunyuan_mini',
-                                'options': {'octreeResolution': 256, 'steps': 5, 'faceLimit': 80000, 'seed': seed}}}).encode()
+                                'options': {'octreeResolution': 384 if HIRES else 256, 'steps': 5, 'faceLimit': 200000 if HIRES else 80000, 'seed': seed}}}).encode()
     req = urllib.request.Request(bc.RUNTIME + '/tela3d/image-to-mesh', body, {'Content-Type': 'application/json'})
     r = json.load(urllib.request.urlopen(req, timeout=900))
     if not r.get('success'):
@@ -113,11 +116,13 @@ def build(wid):
     square_front(os.path.join(SPRITES, f'sprite-{sprite}.png'), front)
     back = os.path.join(d, 'back.png')
     synth_back_hair(front, back)
-    shp = os.path.join(d, 'shape.glb')
+    shp = os.path.join(d, 'shape_hi.glb' if HIRES else 'shape.glb')
+    if HIRES:
+        faces = int(faces * 2.1)
     if not os.path.exists(shp):
         best = None
         for seed in (7, 21, 42):
-            tmp = os.path.join(d, f'shape_s{seed}.glb')
+            tmp = os.path.join(d, f'shape{"_hi" if HIRES else ""}_s{seed}.glb')
             r = shape_seed(front, tmp, seed)
             share = one_piece_share(tmp)
             print(f'[{wid}] seed {seed}: {r["faces"]} faces, {r["executionTimeMs"]} ms, GPU {r.get("gpuTempC")} C, one piece {share:.0%}', flush=True)
@@ -134,13 +139,13 @@ def build(wid):
                          '--faces', str(faces), '--res', '2048', '--view', f'front={front}', '--view', f'back={back}']), flush=True)
     out = os.path.join(OUT, f'{wid}.glb')
     print('  ' + bc.run([os.path.join(ROOT, 'scripts', 'ravencrest', 'autoRig.py'), '--rig', os.path.join(MUSE, f'{rig}.glb'),
-                         '--mesh', painted, '--out', out]), flush=True)
+                         '--mesh', painted, '--out', out] + (['--falloff', '3', '--smooth', 'auto'] if HIRES else [])), flush=True)
     print('  ' + bc.run([os.path.join(ROOT, 'scripts', 'ravencrest', 'posePreview.py'), out, os.path.join(REVIEW, f'pose_{wid}.jpg'),
                          '--clips', 'idle,walk,attack_1,death']), flush=True)
 
 
 if __name__ == '__main__':
-    for n in sys.argv[1:] or ['samurai', 'monk', 'knight', 'viking']:
+    for n in [x for x in sys.argv[1:] if not x.startswith('--')] or ['samurai', 'monk', 'knight', 'viking']:
         try:
             build(n)
         except Exception as e:

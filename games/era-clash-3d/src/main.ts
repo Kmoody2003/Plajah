@@ -145,6 +145,16 @@ let haru: Character | null = null;
 const mocapMoves = new Map<string, CutMove>();
 const heroReady = loadJack('haru').then(async (c) => {
   haru = c; player.character = c; player.object.add(c.root);
+  // painted cloth and lacquer, not chrome: drop the baked gloss, as for the sheet cast (mobs.ts matte)
+  c.root.traverse((o) => {
+    const m = o as THREE.Mesh; if (!m.isMesh) return;
+    for (const mat of (Array.isArray(m.material) ? m.material : [m.material]) as THREE.MeshStandardMaterial[]) {
+      if (!mat.isMeshStandardMaterial) continue;
+      mat.roughnessMap = null; mat.roughness = 0.8; mat.metalness = 0; mat.color.setHex(0xe2dad2);
+      for (const t of [mat.map, mat.normalMap]) if (t) t.anisotropy = 8;
+      mat.needsUpdate = true;
+    }
+  });
   $('loadMsg').textContent = 'Haru remembers his forms';
   await Promise.all(Object.entries(HARU_MOVES).map(async ([k, d]) => {
     try { const m = await cutMove(c.model, k, d); if (m) { c.addMove(k, m.clip); mocapMoves.set(k, m); } } catch (e) { console.warn('[eraclash3d] move', k, e); }

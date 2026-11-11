@@ -169,7 +169,7 @@ def fit_joints_quad(names, src_pos, V):
 
 
 # ── weights ─────────────────────────────────────────────────────────────────────────────────────────
-def bone_weights(V, F, names, parent_of, P, tips, sides=None):
+def bone_weights(V, F, names, parent_of, P, tips, sides=None, falloff=4.0, iters=6):
     """Inverse-distance envelopes to bone segments, left/right separated, smoothed over the mesh."""
     J = len(names)
     segs = []
@@ -191,7 +191,7 @@ def bone_weights(V, F, names, parent_of, P, tips, sides=None):
     wrong = (side[None, :] != 0) & (side[None, :] != vs[:, None]) & (np.abs(V[:, 0])[:, None] > 0.04)
     D[wrong] = 1e3
     D[:, [names.index('Hips' if 'Hips' in names else 'Pelvis')]] *= 1.15   # let legs and spine claim their own regions
-    W = 1.0 / np.maximum(D, 1e-4) ** 4
+    W = 1.0 / np.maximum(D, 1e-4) ** falloff
     # Smooth over the surface (welded by position) so neighbouring vertices agree.
     key = np.round(V / 1e-5).astype(np.int64)
     _, weld = np.unique(key, axis=0, return_inverse=True)
@@ -204,7 +204,7 @@ def bone_weights(V, F, names, parent_of, P, tips, sides=None):
     deg = np.asarray(A.sum(1)).ravel()
     Wu = np.zeros((n, J)); np.add.at(Wu, weld, W / W.sum(1, keepdims=True))
     Wu /= np.bincount(weld, minlength=n)[:, None]
-    for _ in range(6):
+    for _ in range(iters):
         Wu = 0.5 * Wu + 0.5 * (A @ Wu) / np.maximum(deg, 1)[:, None]
     W = Wu[weld]
     idx = np.argsort(-W, axis=1)[:, :4]
@@ -268,6 +268,10 @@ def main():
     ap.add_argument('--out', required=True)
     ap.add_argument('--yaw', type=float, default=0.0, help='degrees to turn the mesh so it faces +Z')
     ap.add_argument('--debug', help='write fitted joints as JSON here')
+    # Softer joints for dense meshes (Era Clash heroes): a gentler distance falloff, and smoothing that covers the
+    # same surface distance however many vertices the mesh has ('auto' scales the passes with its density).
+    ap.add_argument('--falloff', type=float, default=4.0, help='inverse-distance power for bone envelopes (lower = softer)')
+    ap.add_argument('--smooth', default='6', help="weight-smoothing passes, or 'auto' (6 at 12k vertices, scaled by sqrt density)")
     a = ap.parse_args()
 
     j, b = read_glb(a.rig)
@@ -322,7 +326,8 @@ def main():
                 'LeftHand': (P['LeftHand'] - P['LeftForeArm']) * 0.6, 'RightHand': (P['RightHand'] - P['RightForeArm']) * 0.6,
                 'LeftToeBase': np.array([0, 0, 0.08]), 'RightToeBase': np.array([0, 0, 0.08])}
     sides = [int(np.sign(src_pos[n][0])) if abs(src_pos[n][0]) > 0.03 else 0 for n in names]
-    JI, JW = bone_weights(V, F, names, parent_of, P, tips, sides)
+    iters = int(round(6 * max(1.0, (len(V) / 12000) ** 0.5))) if a.smooth == 'auto' else int(a.smooth)
+    JI, JW = bone_weights(V, F, names, parent_of, P, tips, sides, falloff=a.falloff, iters=iters)
 
     # New rest pose: Muse's rest rotations, translations re-derived from the fitted joint positions.
     new_world = {}
