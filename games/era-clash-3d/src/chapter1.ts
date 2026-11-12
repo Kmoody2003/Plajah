@@ -14,6 +14,7 @@ import { buildVillage, boxGeo, type Village } from './village';
 import { buildLandmarks } from './landmarks';
 import { buildOtsu, OTSU, type Otsu } from './otsu';
 import { buildCanal } from './canal';
+import { buildChannel, makeWater, SEA_Y, type ChannelSpec, type Water, type Channel } from './waterways';
 import { buildHillside, type Hillside } from './hillside';
 
 export interface Fire { group: THREE.Group; flames: THREE.Mesh[]; smoke: THREE.Mesh[]; seed: number; size: number; raid: boolean }
@@ -33,6 +34,10 @@ export interface Chapter1World {
   hill: Hillside;
   /** The signal fire on the lookout's balcony (Fire from the Roofs puts it out). */
   signalFire: Fire;
+  /** Where the water is (swimming, rafts), the channel, and the places the rafts start from. */
+  water: Water; channel: Channel;
+  waterPosts: { x: number; z: number; r: number }[];
+  rafts: { p: THREE.Vector3; yaw: number }[];
   /** Ravencrest's ez-tree forest: bake its impostors once the renderer is up, cull it each frame. */
   forest: Forest;
   /** The village's loose props and the villagers' huddles (village.ts). */
@@ -47,7 +52,10 @@ export interface Chapter1World {
 // west shore follow — docs/era-clash-3d-city-plan.md), the east side stays the valley wall.
 const X_MIN = -185, X_MAX = 75, Z_MIN = -120, Z_MAX = 175;
 /** The canal across the city (z of its centre line, half its width, its water and its bed), x from WEST to EAST. */
-export const CANAL = { z: 42, half: 3.6, water: 0.95, bed: 0.15, west: -158, east: 34 };
+export const CANAL = { z: 42, half: 3.6, water: 0.45, bed: -0.9, west: -158, east: 34 };
+/** The channel from the canal to the harbour (waterways.ts): south between the merchant streets, through the water
+ *  gate in the Outer Wall, out across the beach to the sea. */
+export const CHANNEL: ChannelSpec = { x: -69, half: 3.2, z0: -84, z1: CANAL.z - CANAL.half, bed: -0.9, inner: CANAL.water, sea: SEA_Y, gateZ: -36, out: -60 };
 
 /** The residential hillside (city plan phase 3): terraces across x0..x1 up the hill, z0..z1, a riser every `step` m
  *  of height; `lanes` are the stepped lanes up the slope (the grid streets that cross the canal). */
@@ -101,6 +109,11 @@ export function heightAt(x: number, z: number): number {
   if (x > CANAL.west - 2 && x < CANAL.east + 2) {
     const k = ss(CANAL.half + 0.4, CANAL.half - 0.2, Math.abs(z - CANAL.z)) * ss(CANAL.west - 2, CANAL.west + 1, x) * ss(CANAL.east + 2, CANAL.east - 1, x);
     y = y + (CANAL.bed - y) * k;
+  }
+  // the channel to the harbour (cut down to its bed; never raises the sea floor beyond the beach)
+  if (Math.abs(x - CHANNEL.x) < CHANNEL.half + 1 && z > CHANNEL.z0 - 3 && z < CANAL.z) {
+    const k = ss(CHANNEL.half + 0.4, CHANNEL.half - 0.2, Math.abs(x - CHANNEL.x)) * ss(CHANNEL.z0 - 3, CHANNEL.z0, z);
+    y = Math.min(y, y + (CHANNEL.bed - y) * k);
   }
   return y;
 }
@@ -277,7 +290,8 @@ export async function buildChapter1(): Promise<Chapter1World> {
     heightAt, roadX, mats: { wood, darkWood, plaster, thatch, tile },
     z0: OTSU.wallZ + 3, z1: OTSU.townZ1, rows: [7.6, 15.8, 24.2], plaza: PLAZA, huddleZ: [OTSU.plaza.z, 8, 31],
     streets: [...MERCHANT_STREETS, ...hill.streets], keepOutRect: hill.keepOutRect,
-    keepOut: (x, z, r) => Math.abs(z - CANAL.z) < CANAL.half + 1.4 + r && x > CANAL.west - 3 && x < CANAL.east + 3,
+    keepOut: (x, z, r) => (Math.abs(z - CANAL.z) < CANAL.half + 1.4 + r && x > CANAL.west - 3 && x < CANAL.east + 3)
+      || (Math.abs(x - CHANNEL.x) < CHANNEL.half + 1.4 + r && z > CHANNEL.z0 && z < CHANNEL.z1 + 2),
     avoid: [
       ...KURA.map(([x, z]) => ({ x: roadX(z) + x, z, r: 4.6 })),
       { x: roadX(36) + 6, z: 36, r: 3.4 },
@@ -286,14 +300,20 @@ export async function buildChapter1(): Promise<Chapter1World> {
   });
   group.add(village.group);
   const quayMat = uvMaterial('japanese_stone_wall', [0.4, 0.4], { tint: 0x9a948a });
-  const otsu = buildOtsu({ heightAt, roadX, village, mats: { wood, darkWood, plaster, tile, stone: stoneMat, quay: quayMat } });
+  const otsu = buildOtsu({ heightAt, roadX, village, waterGate: { x: CHANNEL.x, hw: CHANNEL.half + 2.9 }, mats: { wood, darkWood, plaster, tile, stone: stoneMat, quay: quayMat } });
   group.add(otsu.group);
   // the canal and its bridges: the main road and the three inner streets of the grid cross it
   const canal = buildCanal({ spec: CANAL, heightAt, mats: { stone: stoneMat, wood, darkWood },
-    bridges: [{ x: roadX(CANAL.z), width: 7.2 }, ...[-52, -86, -120].map((x) => ({ x, width: 4.2 }))] });
+    bridges: [{ x: roadX(CANAL.z), width: 7.2 }, ...[-52, -86, -120].map((x) => ({ x, width: 4.2 }))],
+    junction: { x: CHANNEL.x, half: CHANNEL.half },
+    landings: [{ x: -140, side: 1 }, { x: -104, side: -1 }, { x: -60, side: -1 }, { x: -28, side: 1 }, { x: 18, side: -1 }] });
   group.add(canal.group);
+  const channel = buildChannel({ spec: CHANNEL, heightAt, mats: { stone: stoneMat, wood, darkWood, plaster, tile },
+    bridges: [-12, 12, CANAL.z - CANAL.half - 4.6], landings: [{ z: -25, side: 1 }, { z: 0, side: -1 }, { z: 24, side: 1 }] });
+  group.add(channel.group);
+  const water = makeWater({ canal: CANAL, channel: CHANNEL, heightAt });
   /** The ground anything walks on: the terrain, or a bridge deck over the canal. */
-  const groundAt = (x: number, z: number) => Math.max(heightAt(x, z), canal.deckAt(x, z));
+  const groundAt = (x: number, z: number) => Math.max(heightAt(x, z), canal.deckAt(x, z), channel.deckAt(x, z));
   // the landmarks of the reference shots: the volcano, the castle on its hill, forested hills between
   const landmarks = buildLandmarks({ inner: { xMin: X_MIN, xMax: X_MAX, zMin: Z_MIN, zMax: Z_MAX }, heightAt });
   group.add(landmarks.group);
@@ -531,7 +551,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
   for (const s of sections) for (const p of s.spawn) p.y = heightAt(p.x, p.z);
 
   // ── Grass blades (grassField.ts): everywhere the meadow is, but never under a building, on a road or a cliff ─
-  const blocked: THREE.Box3[] = [...village.footprints, ...otsu.footprints, ...canal.footprints, ...hill.footprints];
+  const blocked: THREE.Box3[] = [...village.footprints, ...otsu.footprints, ...canal.footprints, ...hill.footprints, ...channel.footprints];
   group.updateMatrixWorld(true);
   for (const o of group.children) {
     if (o === ground || !o.userData.collide) continue;
@@ -563,7 +583,14 @@ export async function buildChapter1(): Promise<Chapter1World> {
   const spawn = { position: new THREE.Vector3(roadX(-66), heightAt(roadX(-66), -66), -66), yaw: 0 };
 
   return {
-    group, grass, spawn, sections, fires, bell, petals, heightAt: groundAt, village, forest, otsu, boatFires, hill, signalFire,
+    group, grass, spawn, sections, fires, bell, petals, heightAt: groundAt, village, forest, otsu, boatFires, hill, signalFire, water, channel,
+    waterPosts: [...canal.posts, ...channel.posts],
+    // rafts: tied up at a canal landing, a channel landing, and drawn up on the beach west of the harbour
+    rafts: [
+      { p: canal.landings[1].p.clone().add(new THREE.Vector3(1.6, 0, 1.4)), yaw: Math.PI / 2 },
+      { p: channel.landings[1].p.clone().add(new THREE.Vector3(1.6, 0, 1.2)), yaw: 0 },
+      { p: new THREE.Vector3(-58, SEA_Y, -88), yaw: Math.PI },
+    ],
     setRaid(k) {
       raidK = THREE.MathUtils.clamp(k, 0, 1);
       for (const f of fires) if (f.raid) f.group.visible = raidK > 0.03;

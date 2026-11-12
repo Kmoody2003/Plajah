@@ -192,6 +192,8 @@ export const preloadMobs = (kinds: MobKind[]) => Promise.all(kinds.map(prototype
 type State = 'idle' | 'wander' | 'chase' | 'attack' | 'hurt' | 'dead' | 'follow';
 
 export class Mob {
+  /** Ground the raiders won't step onto (deep water: waterways.ts). */
+  static blocked: ((x: number, z: number) => boolean) | null = null;
   readonly object = new THREE.Group();
   hp: number;
   maxHp: number;
@@ -519,6 +521,7 @@ export class Mob {
     if (world) {
       const r = world.resolve(next.clone().setY(p.y + 0.05), 0.35, 1.7);
       next.x = r.pos.x; next.z = r.pos.z;
+      if (Mob.blocked?.(next.x, next.z) && !Mob.blocked(p.x, p.z)) { next.x = p.x; next.z = p.z; this.vel.set(0, 0, 0); }
       let g = world.groundAt(next.x, next.z, p.y + 0.8, 3);
       // The search only looks 0.8 m up, so a monster knocked into a ditch used to walk on at that depth
       // under the road (invisible, still attacking). A floor overhead within 6 m pulls it back up.

@@ -20,6 +20,8 @@ import { Townsfolk } from './townsfolk';
 import { Quests } from './quests';
 import { OTSU } from './otsu';
 import { CANAL } from './chapter1';
+import { Rafts } from './raft';
+import { uvMaterial } from './core/materials';
 import { Forest } from './core/forest';
 import { Binds, openBindEditor, type Action } from './binds';
 import { Props, type Body } from './props';
@@ -137,6 +139,21 @@ const post = buildPost(renderer, scene, camera, { ssr: false, ssrScale: 0.5, blo
 // ── Haru and the warband ───────────────────────────────────────────────────────────────────────────
 const player = new PlayerController(renderer.domElement);
 player.world = collision;
+// the waterways: swim where it's deep; the raiders keep out of it; rafts to ride (waterways.ts, raft.ts)
+player.water = (x, z) => { const s = world.water.surfaceAt(x, z); return s !== null && world.water.depthAt(x, z) > 1.2 ? s : null; };
+Mob.blocked = (x, z) => world.water.depthAt(x, z) > 0.6;
+const rafts = new Rafts({ scene, water: world.water, posts: world.waterPosts, world: () => collision,
+  mats: { wood: uvMaterial('japanese_cedar_planks', [0.6, 0.6], { tint: 0x8a7a64 }), darkWood: uvMaterial('black_painted_planks', [1, 1], { tint: 0x6a6460 }) } }, world.rafts);
+/** G on the water: step aboard a raft within reach, or step ashore from one. */
+let landCheckT = 0, landOk = false;
+function raftAction(): boolean {
+  if (rafts.riding >= 0) {
+    const at = rafts.landing(); if (!at) { card('No landing here', 'Steer to a bank, a landing stage or the beach'); return true; }
+    rafts.riding = -1; player.carrier = null; player.teleport(at, player.yaw); player.camYaw = player.yaw + Math.PI; sfx('thud', 0.5); return true;
+  }
+  const i = rafts.near(player.object.position); if (i < 0) return false;
+  rafts.riding = i; player.carrier = (want, dt) => rafts.drive(want, dt); sfx('thud', 0.5); return true;
+}
 // Ravencrest's fight camera, set a step wider: three fighters and a crowd share the frame.
 player.camDist = 4.3;
 player.turnAboutKey = null;   // Q is block here
@@ -305,7 +322,7 @@ function startSection(i: number) {
     villagers.group.visible = true;   // the captives: the raid has reached the town
     // looters sacking every district (they hold their ground until you come near)
     const pz = { x: roadX(OTSU.plaza.z), z: OTSU.plaza.z };
-    const LOOT: [number, number][] = [[pz.x + 6, pz.z + 5], [pz.x - 7, pz.z - 4], [roadX(20) + 11.7, 20], [-70, -12], [-110, 12], [-90, 33.5], [-64, CANAL.z + CANAL.half + 4.6], [roadX(26) - 3, 26]];
+    const LOOT: [number, number][] = [[pz.x + 6, pz.z + 5], [pz.x - 7, pz.z - 4], [roadX(20) + 11.7, 20], [-80, -12], [-110, 12], [-90, 33.5], [-64, CANAL.z + CANAL.half + 4.6], [roadX(26) - 3, 26]];
     LOOT.forEach(([x, z], k) => { for (let j = 0; j < 2; j++) spawnFoe({ c: 'viking', n: k % 3 === 0 ? 'Wakō Looter' : 'Wakō Raider', hp: 0.5, dm: 0.7 }, new THREE.Vector3(x + (j ? 1.4 : -1.4), 0, z + (j ? 0.8 : -0.6)), 1.15); });
   }
   $('hudWave').textContent = `${s.name.toUpperCase()} · WAVE ${i + 1} / 3`;
@@ -427,6 +444,7 @@ let held: Body | null = null, throwT = -1;
 function grabOrThrow() {
   if (!haru || mode !== 'play' || !hero.alive || throwT >= 0) return;
   if (!held && quests?.interact()) return;
+  if (!held && raftAction()) return;
   if (held) { throwHeld(); return; }
   const fwd = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw));
   const b = props.nearestGrab(player.object.position, fwd);
@@ -787,6 +805,7 @@ function tick(rawDt: number) {
     const to = lock.object.position.clone().sub(player.object.position).setY(0);
     if (to.lengthSq() > 0.01) player.faceYaw(Math.atan2(to.x, to.z), Math.min(1, dt * 14));
   }
+  rafts.update(dt);
   player.update(dt, camera);
   // roll: tumble the body one full turn about a pivot at hip height, tucked mid-roll
   if (haru && rollT >= 0) {
@@ -986,6 +1005,13 @@ function questTick(dt: number) {
   quests.note = !gateOpen && p.distanceTo(g) < 10
     ? { text: quests.get('main')?.vars.seal === 1 ? "The castle gate — show the magistrate's seal" : "The castle gate is barred — Magistrate Kuroda's seal opens it", at: world.otsu.spots.magistrate.yard }
     : null;
+  if (!quests.note) {
+    const near = rafts.riding < 0 ? rafts.near(p) : -1;
+    if ((landCheckT -= dt) <= 0) { landCheckT = 0.3; landOk = rafts.riding >= 0 && !!rafts.landing(); }
+    quests.note = rafts.riding >= 0 ? { text: landOk ? '[G] Step ashore' : 'Steer to a bank or a landing to step ashore', at: null }
+      : near >= 0 ? { text: '[G] Board the raft', at: null }
+      : player.swimming ? { text: 'Swim to a landing or a low bank to climb out', at: null } : null;
+  }
   if (kannuki) kannuki.visible = !gateOpen;
   if (gateOpen && gateT < 1) { gateT = Math.min(1, gateT + dt / 1.5); const k = gateT * gateT * (3 - 2 * gateT); for (const l of gateLeaves) l.rotation.y = l.userData.side * k * Math.PI * 0.46; }
 }
