@@ -6,6 +6,7 @@ build first. The detailed designs are in:
 - `docs/TERRA_CIVIC_FORUM_BLUEPRINT.md`: legislation engine, Law Library, meetings, revenue share
 - `docs/TERRA_CIVIC_PROGRAMS_BLUEPRINT.md`: grant and program administration for governments
 - `docs/TERRA_CIVIC_PRICING.md`: government pricing tiers with market research
+- `docs/TERRA_CIVIC_LEDGER_BLUEPRINT.md`: the public Civic Record ledger and open code hosting/codification
 
 ---
 
@@ -38,6 +39,10 @@ and small businesses.
 | D12 | **Programs Desk:** self-serve grant administration any government can plug into. Plajah supplies the infrastructure and the government decides. Open to all eligible applicants without joining Plajah. By default Plajah never holds public money; it exports a payment file |
 | D13 | **Pricing (proposal):** Village $450/mo · Town $1,150 · City/County $2,950 · Metro $6,500 · State from $12,500. Unlimited users, pooled storage, video and AI allowances, opt-in overage at cost plus 20%, increases capped at 3% a year |
 
+| D14 | **Open code hosting:** every participating jurisdiction's code is free to read, with point-in-time history, bulk download and an open API. Ideally the city's contract designates it official. **Codification runs on the platform:** enacted amendments are applied automatically, then the clerk or codifier signs |
+| D15 | **Civic Record ledger = a transparency log** (the Certificate Transparency / Sigstore model): statements signed by officials, a Merkle log, checkpoints cosigned by independent witnesses (libraries, universities, press), and timestamps anchored to Bitcoin via OpenTimestamps. **No token, wallet, gas, NFT or EVM mirror.** Kept separate from `blockchain/contracts/*`. See `TERRA_CIVIC_LEDGER_BLUEPRINT.md` |
+| D16 | **The ledger also logs data governance and AI provenance:** sensitive-data access, records disposal, and which ARIA model produced each published analysis. No personal data goes in the log, only salted commitments that can be crypto-shredded |
+
 ## 3. Legal issues flagged (take to counsel)
 
 - Gift of public funds and appropriation purpose. This is why governments pay Plajah, not a fund (D10).
@@ -61,6 +66,7 @@ and small businesses.
 6. Should Programs ever disburse money itself (fiscal-agent mode)?
 7. Should Meetings be the wedge product, since cities already buy meeting software?
 8. Validate the video cost line with real Mux usage before publishing prices.
+9. Has Michigan adopted UELMA (authenticated official electronic legal material)? Which Michigan institutions should be the first witnesses?
 
 ## 5. Build order (when back at the computer)
 
@@ -70,6 +76,7 @@ and small businesses.
 4. Law Library seed: a citation parser plus a Detroit City Code Chapter 50 import into the provision graph with stable IDs.
 5. Programs eligibility engine (pure, tested like `services/grants/readiness.ts`) and templates.
 6. Private Draft / Publish flow on Tela.
+7. Civic ledger: statement schema, then official passkey signing, then the tile log with OpenTimestamps, then the in-browser verifier and record badges, then witnesses (Ledger blueprint §9).
 
 ## 6. Git status and how to recover the work
 

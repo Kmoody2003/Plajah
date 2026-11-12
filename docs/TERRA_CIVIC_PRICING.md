@@ -39,9 +39,10 @@ gets: Tela documents, spreadsheets, forms, livestreaming, ARIA.
 city, **$40k–$120k/yr** for a mid-size city or county, and more for large cities. That excludes the office suite, video
 hardware, and implementation fees, which often add 20–30% in year one.
 
-We do **not** replace legal codification (the editorial service that turns adopted ordinances into
-code text). We host, read and analyze the code. Cities keep their codifier, or we partner with
-one.
+**Codification:** Terra hosts the code openly and runs codification on the platform. Enacted
+amendments are applied automatically, then the clerk or a codifier partner reviews and signs
+(`TERRA_CIVIC_LEDGER_BLUEPRINT.md` §4). This replaces most vendor supplement fees. The legal
+editorial sign-off stays with a human who has authority.
 
 ---
 
