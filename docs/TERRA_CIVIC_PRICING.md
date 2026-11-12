@@ -94,7 +94,7 @@ first lever is the size of the included AI allowance, not the price.
 
 ---
 
-## 3A. Price list by government type (12 Nov 2026 — replaces the population-only tiers in §3)
+## 3A. Price list by government type — superseded by §3C
 
 Flat monthly prices, billed annually, with unlimited users. Every tier includes the full
 platform: Law Library, Forum (private and public drafting), Meetings, Programs Desk, Tela
@@ -159,7 +159,7 @@ exists.
   −15% (sold through the county, which spreads Terra fast); pilots free for 3 months.
 
 
-## 3B. Value model: what a government replaces (12 Nov 2026)
+## 3B. Value model: what a government replaces (12 Nov 2026; the add-on is folded into §3C)
 
 Tela documents, sheets and forms, LiveTalk video meetings, Tela/Fabula design tools and ARIA can
 replace much of the per-seat software a government buys today. This section counts that value, and
@@ -218,6 +218,56 @@ onto Plajah", not a guaranteed cancellation. The civic-tools column is the savin
 
 Counting only the civic-tools column, the Civic plan on its own (without the Workspace add-on) costs less than the tools it replaces at every city and county tier.
 With the office suite and per-seat tools included, cities and counties save roughly 75–89%.
+
+
+## 3C. Whole-government plans — the price list (12 Nov 2026; replaces §3A tiers and the §3B add-on)
+
+**One plan per government.** A city, county or state buys one subscription that covers **every
+department, every office and every employee**: the legislature or council, the executive, every agency,
+boards and commissions. There are no per-agency prices, no add-ons and no per-seat fees, so
+departments never have a reason to stay off the platform. A government is one customer and gets one
+experience: law, drafting, meetings, programs, documents, video and the public record, shared across
+departments.
+
+| Plan | Population | Monthly | Annual | Included each month (storage · live video hours · AI credits) | Desk staff (est.) | Today's spend replaced | Less | Est. margin |
+|---|---|---|---|---|---|---|---|---|
+| Whole city | Under 25k | **$950** | $11k | 2 TB · 20 h · 15,000 | 60 | $40k–$73k | 71–84% | ~14% |
+| Whole city | 25k–100k | **$2,500** | $30k | 5 TB · 40 h · 50,000 | 250 | $120k–$235k | 75–87% | ~52% |
+| Whole city | 100k–500k | **$6,500** | $78k | 15 TB · 100 h · 120,000 | 900 | $349k–$679k | 78–89% | ~57% |
+| Whole city | Over 500k | **$15,500** | $186k | 40 TB · 250 h · 300,000 | 2,500 | $903k–$1.73M | 79–89% | ~55% |
+| Whole county | Under 100k | **$2,000** | $24k | 5 TB · 40 h · 40,000 | 200 | $104k–$204k | 77–88% | ~45% |
+| Whole county | 100k–500k | **$6,000** | $72k | 15 TB · 100 h · 120,000 | 800 | $317k–$617k | 77–88% | ~57% |
+| Whole county | 500k–1M | **$12,500** | $150k | 35 TB · 200 h · 250,000 | 1,800 | $678k–$1.30M | 78–88% | ~63% |
+| Whole county | Over 1M | **$24,000** | $288k | 80 TB · 300 h · 500,000 | 4,000 | $1.44M–$2.74M | 80–89% | ~59% |
+| Whole state | Under 3M | **$45,000** | $540k | 150 TB · 600 h · 400,000 | 10,000 | $3.21M–$6.21M | 83–91% | ~44% |
+| Whole state | 3–10M | **$95,000** | $1.14M | 400 TB · 1,200 h · 1,000,000 | 25,000 | $8.03M–$15.53M | 86–93% | ~39% |
+| Whole state | Over 10M | **$195,000** | $2.34M | 1 PB · 2,500 h · 2,400,000 | 60,000 | $19.28M–$37.28M | 88–94% | ~31% |
+
+**How it stays affordable and honest**
+
+- **Turning on another department costs us little.** The real costs are storage, video and AI, which grow with use, not
+  with the org chart. Each plan includes a pooled monthly allowance sized to the jurisdiction (table
+  above; 1 AI credit = $0.01 of model cost). If a government goes past it, extra use is opt-in, at cost
+  plus 20%, with a cap the government sets. Agencies never get a separate bill.
+- **One published price list.** Every jurisdiction of the same size pays the same price, with no
+  negotiation games. That's the trust-builder: a reporter or auditor can check it.
+- **Ramp for states.** A whole-state plan's first year is billed at 50% while departments come
+  online, then full price. Cities and counties get 3 months free as a pilot.
+- **Locks:** up to 3-year price lock, increases capped at 3% a year, full data export and exit
+  guarantee at any time.
+- **Margins** (estimated cost to serve ≈ $2 per desk user per month plus fixed civic costs such as meeting video):
+  roughly 40–60% for most tiers, lower for the largest states (~31%) and the smallest cities (~14%). The
+  smallest-city price was raised from $750 to $950 so it covers its fixed video costs.
+
+**What changed from §3A/§3B:** the Civic plan and Workspace add-on are merged into one price, and
+the state plan now covers the whole executive branch, not the legislature plus one agency. That's why
+state prices rose. A whole state replaces office, PDF, video and design software for tens of
+thousands of staff, so the saving grows far more than the price does.
+
+**State desk-staff estimates** (whole state government, office-software users only): 10,000 / 25,000
+/ 60,000 by tier. Michigan's state workforce is on the order of 45,000–50,000 employees; verify per state
+before quoting. State "today" still excludes legislative and agency civic systems, so the saving is
+understated.
 
 ## 4. Making it easy to buy
 
