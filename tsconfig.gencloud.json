@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true, "strict": true, "types": ["vite/client", "node"] },
+  "include": ["services/genCloud/**/*.ts", "routes/genCloud.ts", "components/genCloud/*.tsx", "tests/genCloud.test.ts", "tests/genCloudRoutes.test.ts", "tests/genCloudPacks.test.ts"]
+}

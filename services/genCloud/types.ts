@@ -17,7 +17,7 @@ export type EngineId =
   | 'cinema' | 'cinema-4k'
   | 'voice' | 'voice-studio';
 
-export type ProviderId = 'google' | 'fal' | 'minimax' | 'elevenlabs';
+export type ProviderId = 'google' | 'fal' | 'runware' | 'minimax' | 'elevenlabs';
 
 export type Resolution = '720p' | '1080p' | '4k';
 

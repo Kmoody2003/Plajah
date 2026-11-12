@@ -16,13 +16,16 @@ export const ENGINES: Engine[] = [
     id: 'spark-image', name: 'Spark Image', kind: 'image', lane: 'standard',
     blurb: 'Fast drafts and ideas',
     credits: { default: 4 },
-    routes: [r('google', 'imagen-4.0-fast-generate-001', { default: 0.02 }), r('fal', 'fal-ai/flux/schnell', { default: 0.004 })],
+    // Runware first: cheapest per draft. Imagen Fast and fal back it up.
+    routes: [r('runware', 'runware:100@1', { default: 0.0013 }), r('google', 'imagen-4.0-fast-generate-001', { default: 0.02 }),
+      r('fal', 'fal-ai/flux/schnell', { default: 0.004 })],
   },
   {
     id: 'pro-image', name: 'Pro Image', kind: 'image', lane: 'standard',
     blurb: 'Finished artwork, posters, covers',
     credits: { default: 10 },
-    routes: [r('google', 'imagen-4.0-generate-001', { default: 0.04 }), r('fal', 'fal-ai/flux-pro/v1.1', { default: 0.04 })],
+    routes: [r('google', 'imagen-4.0-generate-001', { default: 0.04 }), r('fal', 'fal-ai/flux-pro/v1.1', { default: 0.04 }),
+      r('runware', 'bfl:2@1', { default: 0.04 })],
   },
   {
     id: 'ultra-image', name: 'Ultra Image', kind: 'image', lane: 'premium',

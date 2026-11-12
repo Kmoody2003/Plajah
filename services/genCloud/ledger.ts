@@ -22,6 +22,8 @@ export interface Bucket {
   granted: number;
   grantedAt: number;
   expiresAt: number;
+  /** Pack credits taken back after a refund (cumulative, so repeated refund events are idempotent). */
+  revoked?: number;
 }
 
 export interface Hold { jobId: string; credits: number; draws: Array<{ bucketId: string; amount: number }>; at: number }
@@ -156,6 +158,25 @@ export function release(l: Ledger, jobId: string): Ledger {
   }
   delete out.holds[jobId];
   return out;
+}
+
+/**
+ * A pack was refunded: take back up to `target` credits in total from that purchase's bucket.
+ * Only unspent credits can come back; `revoked` is cumulative so a repeated event changes nothing.
+ * Returns how many credits were taken this call.
+ */
+export function revokePack(l: Ledger, purchaseId: string, target: number): { ledger: Ledger; taken: number } {
+  const id = `p:${purchaseId}`;
+  const b0 = l.buckets.find(b => b.id === id);
+  if (!b0) return { ledger: l, taken: 0 };
+  const want = Math.max(0, Math.min(target, b0.granted) - (b0.revoked ?? 0));
+  if (!want) return { ledger: l, taken: 0 };
+  const out = clone(l);
+  const b = out.buckets.find(x => x.id === id)!;
+  const taken = Math.min(want, b.remaining);
+  b.remaining -= taken;
+  b.revoked = (b.revoked ?? 0) + want; // the full share counts as revoked even if some was already spent
+  return { ledger: out, taken };
 }
 
 export function lapse(l: Ledger, now: number): Ledger {

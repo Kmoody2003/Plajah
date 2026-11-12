@@ -144,6 +144,8 @@ const TelaLibraryPanel = React.lazy(() => import('./import/TelaLibraryPanel')); 
 const ComposeWithCouncil = React.lazy(() => import('../living/ComposeWithCouncil'));   // Composer Council panel (services/living/composer)
 const TelaBehaviorsPanel = React.lazy(() => import('./TelaBehaviorsPanel'));   // Live authoring: behaviours, sounds, music (services/living)
 import { OPEN_STORY_INTEL_EVENT, takePendingStoryIntel, type StoryIntelRequest } from '../../services/storyIntel/open';
+import { openGenCloud } from '../../services/genCloud/open';
+import { outputToFile } from '../../services/genCloud/client';
 const TelaComicStudio = React.lazy(() => import('./TelaComicStudio').then(m => ({ default: m.TelaComicStudio })));
 const TelaClassworkStudio = React.lazy(() => import('./classwork/TelaClassworkStudio'));
 const SaveTemplateDialog = React.lazy(() => import('../templates/SaveTemplateDialog'));
@@ -3612,6 +3614,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
             {menu === 'INSERT' && <>
               <div className="px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[.12em] text-white/28">Add to this Tela document</div>
               <button className={menuBarItem} onClick={() => { assetFileRef.current?.click(); setAppMenuOpen(null); }}><ImagePlus size={14}/>Media & files<span className="ml-auto text-[9px] text-white/25">multi-select</span></button>
+              <button className={menuBarItem} onClick={() => { setAppMenuOpen(null); openGenCloud({ source: 'tela', kinds: ['image', 'video', 'voice'], useLabel: 'Add to page', onUse: async outs => { const files = await Promise.all(outs.map((o, i) => outputToFile(o, `plajah-cloud-${Date.now()}-${i}`))); if (files.length) await insertAssetFiles(files); } }); }}><Sparkles size={14}/>Generate with Plajah Cloud<span className="ml-auto text-[9px] text-white/25">credits</span></button>
               <button className={menuBarItem} onClick={() => { fileRef.current?.click(); setAppMenuOpen(null); }}><FileUp size={14}/>Import document, sheet, or board</button>
               <button className={menuBarItem} data-testid="import-design-file" onClick={() => { designFileRef.current?.click(); setAppMenuOpen(null); }}><Layers size={14}/>Photoshop or Illustrator file<span className="ml-auto text-[9px] text-white/25">.psd .ai .eps</span></button>
               <button className={menuBarItem} data-testid="open-tela-plugins" onClick={() => { setPluginPanelOpen(true); setAppMenuOpen(null); }}><Wand2 size={14}/>Photoshop plug-ins<span className="ml-auto text-[9px] text-white/25">.8bf · desktop</span></button>

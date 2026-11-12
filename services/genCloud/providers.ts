@@ -60,6 +60,64 @@ export function falAdapter(key: string | undefined, f: Fetch = fetch): ProviderA
   };
 }
 
+// ── Runware (task API) ──────────────────────────────────────────────────────────────────────────
+// POST https://api.runware.ai/v1 with an ARRAY of tasks; answers { data: [...] } or { errors: [...] }.
+// Images answer synchronously (outputType URL). Video is deliveryMethod "async" and polled with a
+// getResponse task on the same taskUUID. Width/height must be multiples of 64.
+
+const RUNWARE = 'https://api.runware.ai/v1';
+const RUNWARE_SIZE: Record<NonNullable<GenRequest['aspect']>, [number, number]> = {
+  '1:1': [1024, 1024], '16:9': [1344, 768], '9:16': [768, 1344], '4:3': [1152, 896], '3:4': [896, 1152],
+};
+const RUNWARE_VIDEO_SIZE: Record<string, Record<string, [number, number]>> = {
+  '720p': { '16:9': [1280, 720], '9:16': [720, 1280], '1:1': [960, 960] },
+  '1080p': { '16:9': [1920, 1080], '9:16': [1080, 1920], '1:1': [1440, 1440] },
+};
+
+export function runwareAdapter(key: string | undefined, f: Fetch = fetch, uuid: () => string = () => crypto.randomUUID()): ProviderAdapter {
+  const call = async (tasks: unknown[], what: string) => {
+    const r = await json(await f(RUNWARE, { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify(tasks) }), what);
+    if (Array.isArray(r.errors) && r.errors.length) throw new Error(`${what}: ${String(r.errors[0]?.message || r.errors[0]?.code || 'error').slice(0, 200)}`);
+    return Array.isArray(r.data) ? r.data : [];
+  };
+  return {
+    id: 'runware',
+    configured: () => !!key,
+    async submit(route: ProviderRoute, req: GenRequest): Promise<ProviderSubmit> {
+      const taskUUID = uuid();
+      if (route.model.startsWith('video:')) {
+        const [w, h] = RUNWARE_VIDEO_SIZE[req.resolution ?? '1080p']?.[req.aspect ?? '16:9'] ?? [1920, 1080];
+        const task: Record<string, unknown> = {
+          taskType: 'videoInference', taskUUID, model: route.model.slice(6), positivePrompt: req.prompt,
+          duration: req.seconds ?? 5, width: w, height: h, deliveryMethod: 'async', outputType: 'URL', numberResults: 1,
+        };
+        if (req.imageUrl) task.frameImages = [{ inputImage: req.imageUrl, frame: 'first' }];
+        await call([task], 'runware video submit');
+        return { providerJobId: taskUUID };
+      }
+      const [w, h] = RUNWARE_SIZE[req.aspect ?? '1:1'];
+      const task: Record<string, unknown> = {
+        taskType: 'imageInference', taskUUID, model: route.model, positivePrompt: req.prompt,
+        width: w, height: h, numberResults: req.count ?? 1, outputType: 'URL', outputFormat: 'PNG',
+      };
+      if (req.imageUrl) { task.seedImage = req.imageUrl; task.strength = 0.7; }
+      const data = await call([task], 'runware image');
+      const outputs: GenOutput[] = data.filter((d: any) => d.imageURL).map((d: any) => ({ url: d.imageURL, mime: 'image/png', width: w, height: h }));
+      if (!outputs.length) throw new Error('runware: no images');
+      return { providerJobId: `sync:${taskUUID}`, outputs };
+    },
+    async poll(_route: ProviderRoute, id: string): Promise<ProviderPoll> {
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return { status: 'failed', error: 'bad task id' };
+      const data = await call([{ taskType: 'getResponse', taskUUID: id }], 'runware poll');
+      const d = data.find((x: any) => x.taskUUID === id) ?? data[0];
+      if (!d || d.status === 'processing' || d.status === 'pending') return { status: 'running' };
+      if (d.status === 'error' || d.status === 'failed') return { status: 'failed', error: 'runware: generation failed' };
+      return d.videoURL ? { status: 'succeeded', outputs: [{ url: d.videoURL, mime: 'video/mp4', seconds: d.duration }] } : { status: 'running' };
+    },
+    async download(url: string) { return bytesOf(await f(url), 'runware download'); },
+  };
+}
+
 // ── Google (Gemini API REST: Imagen :predict, Veo :predictLongRunning) ─────────────────────────
 
 const GOOGLE = 'https://generativelanguage.googleapis.com/v1beta';
@@ -157,6 +215,7 @@ export function elevenlabsAdapter(key: string | undefined, f: Fetch = fetch): Pr
 export function adaptersFromEnv(env: Record<string, string | undefined>, f: Fetch = fetch) {
   return {
     fal: falAdapter(env.FAL_KEY, f),
+    runware: runwareAdapter(env.RUNWARE_API_KEY, f),
     google: googleAdapter(env.GOOGLE_AI_API_KEY || env.GEMINI_API_KEY, f),
     minimax: minimaxAdapter(env.MINIMAX_API_KEY, f),
     elevenlabs: elevenlabsAdapter(env.ELEVENLABS_API_KEY, f),

@@ -19,6 +19,7 @@ import {
   listConnectors, listJobs, submitJob, pollJob, connectAccount, health,
   assetTypeForMime, compileHandoff, refsForConnector, saveProviderKey, revokeProvider,
 } from "../../services/fabula/genAgent";
+import { openGenCloud } from "../../services/genCloud/open";
 
 const WALLET_LABEL = {
   shared: "Draws your plan credits",
@@ -174,6 +175,17 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
             <Sparkles size={15} /> GENERATE
             {context?.title && <span className="gp-ctx">{context.title}</span>}
           </div>
+          <button className="gp-hbtn gp-cloud" title="Generate on Plajah's own engines, paid with your Plajah credits"
+            onClick={() => openGenCloud({
+              source: "fabula", kinds: kind === "image" ? ["image", "video", "voice"] : ["video", "image", "voice"],
+              prompt, aspect: ["1:1", "16:9", "9:16", "4:3", "3:4"].includes(aspect) ? aspect : "16:9", useLabel: "Add to bin",
+              onUse: (outs) => importResults?.(
+                outs.map((o, i) => ({ url: o.url, mime: o.mime, name: `plajah-cloud-${i + 1}`, type: assetTypeForMime(o.mime) })),
+                bin || defaultBin, { spec },
+              ),
+            })}>
+            <Sparkles size={11} /> Plajah Cloud
+          </button>
           <button className="gp-x" onClick={onClose}><X size={16} /></button>
         </div>
 
@@ -341,7 +353,7 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
         <style>{`
           .gp-backdrop{position:fixed;inset:0;z-index:1000;background:rgba(4,4,8,0.62);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px}
           .gp-modal{width:min(680px,94vw);max-height:88vh;overflow:auto;border-radius:16px;border:1px solid rgba(255,255,255,0.1);padding:18px 18px 20px;box-shadow:0 24px 80px rgba(0,0,0,0.6)}
-          .gp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+          .gp-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}.gp-head .gp-title{margin-right:auto}.gp-cloud{white-space:nowrap}
           .gp-title{display:flex;align-items:center;gap:8px;font-weight:900;letter-spacing:.14em;font-size:12px;color:#fff}
           .gp-ctx{font-weight:700;letter-spacing:.04em;color:#f0913f;background:rgba(240,145,63,0.12);border:1px solid rgba(240,145,63,0.3);border-radius:999px;padding:2px 9px;font-size:10.5px}
           .gp-x{background:none;border:none;color:var(--w40,#9a96a8);cursor:pointer;padding:4px;border-radius:6px}

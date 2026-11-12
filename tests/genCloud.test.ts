@@ -132,7 +132,7 @@ test('fal: queue submit → status → result, key only in header', async () => 
     [/\/r\/r1$/, () => ({ images: [{ url: 'https://cdn.fal/x.png', content_type: 'image/png', width: 1024, height: 1024 }] })],
   ], seen);
   const a = falAdapter('KEY', f);
-  const route = getEngine('spark-image')!.routes[1];
+  const route = getEngine('spark-image')!.routes.find(r => r.provider === 'fal')!;
   const sub = await a.submit(route, { engine: 'spark-image', prompt: 'cat' });
   const p = await a.poll(route, sub.providerJobId);
   assert.equal(p.status, 'succeeded');

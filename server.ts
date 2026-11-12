@@ -131,6 +131,12 @@ import { createLiveGameRouter } from './routes/liveGames';
 import { createGamerSocialRouter } from './routes/gamerSocial';
 import { fsQuery as gamerFsQuery } from './services/firebaseAdminRest';
 import { driveRouter } from './routes/drive';
+import { createGenCloudRouter, onPackCheckoutCompleted, onPackChargeRefunded, type PackWebhookDeps } from './routes/genCloud';
+import { adaptersFromEnv as genCloudAdapters } from './services/genCloud/providers';
+import { ledgerStore as genCloudLedgerStore, jobStore as genCloudJobStore, LEDGER_COLLECTION as GENCLOUD_LEDGERS } from './services/genCloud/store';
+import { promptModerator as genCloudModerator } from './services/genCloud/moderation';
+import { openAiModerate as genCloudOpenAiModerate } from './services/safety/mediaSafetyServer';
+import type { PlanId as GenCloudPlanId } from './services/genCloud/tiers';
 import { createHqB2Router, liveHqB2Deps } from './routes/hqB2';
 import { isB2Path, b2ObjectRequest, deleteHqB2Objects } from './services/hq/b2Store';
 import { kithSightingsRouter } from './routes/kithSightings';
@@ -3043,6 +3049,9 @@ async function startServer() {
     }
   });
 
+  // Cloud-generation credit packs: set where /api/gen-cloud is mounted (below); used by the webhook.
+  let genCloudPackDeps: PackWebhookDeps | null = null;
+
   // ── Stripe Webhook — MUST be raw body BEFORE express.json() ──────────────
   app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'] as string;
@@ -3082,6 +3091,15 @@ async function startServer() {
           } catch (e: any) {
             console.error('[Payouts] sale not recorded:', session.id, e?.message || e);
             needsRedelivery = true;
+          }
+
+          // Cloud-generation credit packs: idempotent per session, so this runs before the fulfilment gate
+          // and a failed grant is retried by Stripe (services/genCloud/packs.ts).
+          if (meta.type === 'gencloud_pack') {
+            try {
+              if (!genCloudPackDeps) throw new Error('gen-cloud not mounted');
+              await onPackCheckoutCompleted(session, genCloudPackDeps);
+            } catch (e: any) { console.error('[genCloud] pack not granted:', session.id, e?.message || e); needsRedelivery = true; }
           }
 
           // Tickets, pledges, points and the rest below aren't safe to repeat, so a resent event skips them.
@@ -3687,6 +3705,7 @@ async function startServer() {
           await applyChargeRefund(event.data.object, false).catch((e: any) => console.error('[Elevate] charge.refunded failed:', e?.message));
           await revokeContentPurchase(event.data.object).catch((e: any) => console.error('[Content] refund revoke failed:', e?.message));
           await syncStoreRefund(event.data.object).catch((e: any) => console.error('[Store] refund sync failed:', e?.message));
+          if (genCloudPackDeps) await onPackChargeRefunded(event.data.object, genCloudPackDeps).catch((e: any) => { console.error('[genCloud] refund revoke failed:', e?.message || e); needsRedelivery = true; });
           await creatorPayouts.applyRefund(idOf(event.data.object.payment_intent) || '', Number(event.data.object.amount_refunded) || 0, Number(event.data.object.amount) || 0)
             .catch((e: any) => { console.error('[Payouts] refund failed:', e?.message || e); needsRedelivery = true; });
           break;
@@ -15485,6 +15504,70 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   }));
   // Plajah Drive (B2 + Bunny). Answers 503 drive_off until DRIVE_ENABLED=1.
   app.use('/api/drive', rateLimit({ windowMs: 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '64kb' }), driveRouter);
+  // Plajah cloud generation (routes/genCloud.ts): white-label image/video/voice on Plajah's provider accounts,
+  // paid in credits (monthly Plajah+ allowance granted lazily + bonus grants). 503 gencloud_off until GENCLOUD_ENABLED=1.
+  {
+    const GENCLOUD_TIER: Record<number, GenCloudPlanId> = { 1: 'spark', 2: 'glow', 3: 'nova' };
+    const GENCLOUD_PLANS = new Set<GenCloudPlanId>(['free', 'spark', 'glow', 'nova', 'all_access', 'studio_max', 'studio_team', 'production_house']);
+    const genCloudToken = async (req: any) => {
+      const h = String(req.headers.authorization || '');
+      return h.startsWith('Bearer ') ? verifyIdTokenDetailed(h.slice(7)).catch(() => null) : null;
+    };
+    const genCloudLedger = genCloudLedgerStore(restCas(GENCLOUD_LEDGERS));
+    genCloudPackDeps = {
+      ledger: genCloudLedger,
+      purchases: { get: pi => fsGet(`genCloudPackPurchases/${pi}`), set: (pi, d) => fsSet(`genCloudPackPurchases/${pi}`, d) },
+      now: () => Date.now(),
+    };
+    app.use('/api/gen-cloud', rateLimit({ windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '64kb' }), createGenCloudRouter({
+      enabled: () => process.env.GENCLOUD_ENABLED === '1',
+      callerUid: async req => { const t = await genCloudToken(req); return t && !t.isAnonymous ? t.uid : null; },
+      isAdmin: async (req, uid) => {
+        const t = await genCloudToken(req);
+        return !!t && t.uid === uid && isPlatformAdminReq({ uid, email: t.email, emailVerified: t.emailVerified === true });
+      },
+      account: async uid => {
+        const [user, over, subs] = await Promise.all([
+          fsGet(`users/${uid}`).catch(() => null),
+          fsGet(`genCloudAccounts/${uid}`).catch(() => null),
+          gamerFsQuery('plajahPlusSubscriptions', [{ field: 'subscriberId', value: uid }], 20).catch(() => []),
+        ]);
+        const active = subs.find(r => ['active', 'trialing', 'past_due'].includes(String(r.data.status)));
+        const subPlan = active ? (GENCLOUD_PLANS.has(active.data.planId) ? active.data.planId : GENCLOUD_TIER[Number(active.data.tier)] ?? 'spark') : 'free';
+        const plan: GenCloudPlanId = GENCLOUD_PLANS.has(over?.plan) ? over!.plan : subPlan;
+        const restricted = user?.isChild === true || user?.accountType === 'CHILD' || user?.accountType === 'STUDENT';
+        return { plan, restricted, verifiedAdult: !restricted && over?.verifiedAdult === true, owner: uid };
+      },
+      ledger: genCloudLedger,
+      origin: req => trustedRequestOrigin(req),
+      createCheckout: async ({ pack, metadata, origin }) => {
+        const session = await getStripe().checkout.sessions.create({
+          mode: 'payment',
+          payment_method_types: ['card'],
+          line_items: [{ price_data: { currency: 'usd', product_data: { name: `Plajah credits — ${pack.name}`, description: 'Credits for Plajah cloud generation. Non-refundable once used, not cashable, valid 12 months.' }, unit_amount: pack.priceCents }, quantity: 1 }],
+          success_url: `${origin}/?credits=success`,
+          cancel_url: `${origin}/?credits=cancelled`,
+          metadata,
+          payment_intent_data: { metadata },
+        });
+        if (!session.url) throw new Error('checkout: no url');
+        return session.url;
+      },
+      jobs: genCloudJobStore({ get: fsGet, set: fsSet }),
+      adapters: genCloudAdapters(process.env),
+      routeOverrides: () => process.env.GENCLOUD_ROUTES,
+      moderate: genCloudModerator(genCloudOpenAiModerate),
+      persist: async (bytes, out, { job, index }) => {
+        const ext = out.mime.includes('mp4') ? 'mp4' : out.mime.includes('mpeg') ? 'mp3' : out.mime.includes('jpeg') ? 'jpg' : out.mime.includes('webp') ? 'webp' : 'png';
+        const path = `genCloud/${job.uid}/${job.id}-${index}.${ext}`;
+        const token = nodeCrypto.randomUUID();
+        if (!(await gcsUploadWithDownloadToken(path, Buffer.from(bytes), out.mime, token))) throw new Error('storage upload failed');
+        return `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(path)}?alt=media&token=${token}`;
+      },
+      now: () => Date.now(),
+      newId: () => nodeCrypto.randomBytes(12).toString('base64url'),
+    }));
+  }
 
   // Kith Sightings — the mascots turn up rarely; the user logs it for points.
   // Rate-limited because spawn-check is the farm surface: the deterministic
