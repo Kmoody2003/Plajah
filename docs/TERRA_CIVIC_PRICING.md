@@ -158,6 +158,67 @@ exists.
 - **Discounts:** 2-year term −5%, 3-year term −10% with a price lock; a bundled county + its cities
   −15% (sold through the county, which spreads Terra fast); pilots free for 3 months.
 
+
+## 3B. Value model: what a government replaces (12 Nov 2026)
+
+Tela documents, sheets and forms, LiveTalk video meetings, Tela/Fabula design tools and ARIA can
+replace much of the per-seat software a government buys today. This section counts that value, and
+adds a **Workspace add-on** priced flat by tier (still no per-seat fees) so large offices moving their
+documents onto Plajah don't erode the margin.
+
+### Workspace add-on (flat by tier)
+
+| | Under 25k / 100k | Mid | Large | Largest |
+|---|---|---|---|---|
+| Cities | +$250/mo | +$1,000 | +$3,000 | +$8,000 |
+| Counties | +$800/mo | +$3,000 | +$6,500 | +$14,000 |
+| States | +$3,000/mo | +$6,000 | +$12,000 | — |
+
+It works out to about **$3–4 per desk user per month**. Microsoft 365 G3 for government runs about
+$39, and Google Workspace Business Standard about $14. Our estimated cost to serve a desk user
+(storage, bandwidth, AI on Haiku 5.5) is about $2/month, so the add-on carries a 38–52% margin.
+
+### Assumptions
+
+- **Desk seats per tier** (staff who use office software). These are estimates, set conservatively below total
+  headcount (city governments run roughly 10–13 employees per 1,000 residents, and many are field staff):
+  60 / 250 / 900 / 2,500 for cities; 200 / 800 / 1,800 / 4,000 for counties; 800 / 1,500 / 3,000 for a
+  state legislature plus one agency.
+- **Per-seat list prices, monthly:** Microsoft 365 G3 GCC ~$39 (reseller figure after the July 2026
+  increase); Google Workspace Business Standard ~$14 (used as the low end of "office suite");
+  Adobe Acrobat Pro for teams $23.99 (30% of seats); Zoom Workplace Business ~$18.33 (25% of seats);
+  Adobe Creative Cloud Pro for teams $99.99 (1% of seats, communications staff).
+- **Civic tools** (agenda/meetings, streaming, engagement, grants, code hosting) use the public contract ranges in §1.
+  Granicus streaming alone runs about $27k–60k/yr in the city contracts found (Berkeley, Sanger, Santa Ana).
+- **State "today" is understated:** state legislative drafting and committee systems aren't counted because we
+  have no public figures yet.
+
+### Not counted (Plajah doesn't replace these yet)
+
+Email and calendar (Exchange/Gmail), phone systems, legally binding e-signature (DocuSign-style;
+Business Pro ~$45/user/mo), police/CJIS systems, ERP and finance, GIS desktop licences. **Most governments
+will keep Microsoft or Google for email**, so treat the office-suite column as "documents moved
+onto Plajah", not a guaranteed cancellation. The civic-tools column is the saving that's certain.
+
+### Result
+
+| Tier | Desk seats (est.) | Plajah: Civic + Workspace /mo | Plajah per year | Today: civic tools | Today: office suite | Today: PDF, video, design | **Today total** | **Saving** |
+|---|---|---|---|---|---|---|---|---|
+| City Under 25k | 60 | $500 + $250 | $9k | $20k–$35k | $10k–$28k | $10k | **$40k–$73k** | **77–88%** |
+| City 25k–100k | 250 | $1,500 + $1,000 | $30k | $40k–$80k | $42k–$117k | $38k | **$120k–$235k** | **75–87%** |
+| City 100k–500k | 900 | $3,500 + $3,000 | $78k | $60k–$120k | $151k–$421k | $138k | **$349k–$679k** | **78–89%** |
+| City Over 500k | 2,500 | $7,500 + $8,000 | $186k | $100k–$180k | $420k–$1.17M | $383k | **$903k–$1.73M** | **79–89%** |
+| County Under 100k | 200 | $1,250 + $800 | $25k | $40k–$80k | $34k–$94k | $31k | **$104k–$204k** | **76–88%** |
+| County 100k–500k | 800 | $3,000 + $3,000 | $72k | $60k–$120k | $134k–$374k | $123k | **$317k–$617k** | **77–88%** |
+| County 500k–1M | 1,800 | $6,000 + $6,500 | $150k | $100k–$180k | $302k–$842k | $276k | **$678k–$1.30M** | **78–88%** |
+| County Over 1M | 4,000 | $10,000 + $14,000 | $288k | $150k–$250k | $672k–$1.87M | $613k | **$1.44M–$2.74M** | **80–89%** |
+| State Under 3M | 800 | $15,000 + $3,000 | $216k | not counted | $134k–$374k | $123k | **$257k–$497k** | **16–57%** |
+| State 3–10M | 1,500 | $25,000 + $6,000 | $372k | not counted | $252k–$702k | $230k | **$482k–$932k** | **23–60%** |
+| State Over 10M | 3,000 | $40,000 + $12,000 | $624k | not counted | $504k–$1.40M | $460k | **$964k–$1.86M** | **35–67%** |
+
+Counting only the civic-tools column, the Civic plan on its own (without the Workspace add-on) costs less than the tools it replaces at every city and county tier.
+With the office suite and per-seat tools included, cities and counties save roughly 75–89%.
+
 ## 4. Making it easy to buy
 
 - **Under approval thresholds.** Village and Town tiers fit under the purchase limit many places let a
