@@ -7,6 +7,7 @@ build first. The detailed designs are in:
 - `docs/TERRA_CIVIC_PROGRAMS_BLUEPRINT.md`: grant and program administration for governments
 - `docs/TERRA_CIVIC_PRICING.md`: government pricing tiers with market research
 - `docs/TERRA_CIVIC_LEDGER_BLUEPRINT.md`: the public Civic Record ledger and open code hosting/codification
+- `docs/TERRA_CIVIC_DESK_BLUEPRINT.md`: Civic Desk, the government CRM
 
 ---
 
@@ -42,6 +43,9 @@ and small businesses.
 | D14 | **Open code hosting:** every participating jurisdiction's code is free to read, with point-in-time history, bulk download and an open API. Ideally the city's contract designates it official. **Codification runs on the platform:** enacted amendments are applied automatically, then the clerk or codifier signs |
 | D15 | **Civic Record ledger = a transparency log** (the Certificate Transparency / Sigstore model): statements signed by officials, a Merkle log, checkpoints cosigned by independent witnesses (libraries, universities, press), and timestamps anchored to Bitcoin via OpenTimestamps. **No token, wallet, gas, NFT or EVM mirror.** Kept separate from `blockchain/contracts/*`. See `TERRA_CIVIC_LEDGER_BLUEPRINT.md` |
 | D16 | **The ledger also logs data governance and AI provenance:** sensitive-data access, records disposal, and which ARIA model produced each published analysis. No personal data goes in the log, only salted commitments that can be crypto-shredded |
+
+| D17 | **Pricing is the Civic Rate:** $2,400 a year + 30¢ per resident (15¢ above a million). One public formula for the whole government, every department and employee included (pricing doc §3D) |
+| D18 | **Civic Desk = the government CRM:** one record per resident, business and organization; cases routed by service and ward against response targets; duplicate detection; redacted public view. Preview built (`components/terra/civic/CivicDesk.tsx`), see `TERRA_CIVIC_DESK_BLUEPRINT.md` |
 
 ## 3. Legal issues flagged (take to counsel)
 

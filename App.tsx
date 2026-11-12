@@ -534,6 +534,7 @@ const ListingFilm = retryLazy(() => import('./components/terra/ListingFilm'));
 const TerraFeed = retryLazy(() => import('./components/terra/TerraFeed'));
 const TerraListings = retryLazy(() => import('./components/terra/ListingsManager'));
 const TerraLawLibrary = retryLazy(() => import('./components/terra/TerraLawLibrary'));
+const CivicDesk = retryLazy(() => import('./components/terra/civic/CivicDesk'));
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
 const ArtistProjectManager = retryLazy(() => import('./components/ArtistProjectManager'));
 const ChoraArtistManager = retryLazy(() => import('./components/ChoraArtistManager'));
@@ -2855,6 +2856,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('TERRA_LISTINGS');
     } else if (target === 'TERRA_LAW') {
       setView('TERRA_LAW');
+    } else if (target === 'TERRA_DESK') {
+      setView('TERRA_DESK');
     } else if (target === 'TERRA_PASSPORT') {
       setTerraPassportTarget(params?.terraTarget || null);
       setView('TERRA_PASSPORT');
@@ -6681,6 +6684,19 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'TERRA_LAW' && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <TerraLawLibrary onBack={() => goBack('TERRA')} />
+              </Suspense>
+            )}
+
+            {view === 'TERRA_DESK' && (userProfile?.role === 'admin' || user?.email === 'kmoody2003@gmail.com') && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <CivicDesk
+                  onBack={() => goBack('TERRA')}
+                  onOpenMap={() => setView('TERRA_MAP')}
+                  onOpenLaw={(id) => {
+                    try { const u = new URL(window.location.href); u.searchParams.set('view', 'law'); u.searchParams.set('law', id); window.history.replaceState(window.history.state, '', u.toString()); } catch { /* URL sync is optional */ }
+                    setView('TERRA_LAW');
+                  }}
+                />
               </Suspense>
             )}
 

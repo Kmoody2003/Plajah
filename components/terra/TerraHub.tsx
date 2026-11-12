@@ -232,6 +232,36 @@ export const TerraHub: React.FC<TerraHubProps> = ({ onNavigate, isAdmin }) => {
           </motion.button>
         )}
 
+        {isAdmin && (
+          <motion.button initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            onClick={() => onNavigate?.('TERRA_DESK')}
+            className="w-full text-left relative overflow-hidden rounded-3xl p-6 border border-white/[0.08] group"
+            style={{ background: 'linear-gradient(135deg, #0f1f27, #0f1118 55%, #16122a)' }}>
+            <div className="pointer-events-none absolute -right-16 -top-16 w-72 h-72 rounded-full blur-3xl opacity-40"
+                 style={{ background: 'radial-gradient(circle, #4FC3D6, transparent 70%)' }} />
+            <div className="relative flex items-start gap-4 flex-wrap">
+              <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
+                   style={{ background: 'linear-gradient(135deg, #4FC3D6, #A78BFA)' }}>
+                <Landmark size={18} className="text-white" />
+              </div>
+              <div className="flex-1 min-w-[220px]">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-base font-black text-white">Civic Desk</p>
+                  <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full"
+                        style={{ color: '#4FC3D6', background: '#4FC3D61c' }}>Private beta · admins</span>
+                </div>
+                <p className="mt-1 text-[12px] text-white/55 leading-relaxed max-w-2xl">
+                  The government CRM: one record per resident, business and organization, requests routed to the
+                  right department, response targets, duplicate detection and a private-by-default public status page.
+                </p>
+              </div>
+              <span className="self-center inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black text-[10px] font-black uppercase tracking-widest group-hover:brightness-95">
+                Open <ArrowRight size={12} />
+              </span>
+            </div>
+          </motion.button>
+        )}
+
         {/* Public-record lookup — the two answers a resident/business wants most,
             surfaced before the tool directory so the map isn't the only door in. */}
         <section>
