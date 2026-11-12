@@ -275,7 +275,9 @@ understated.
 Every other government suite sells seats, modules and multi-year contracts negotiated deal by deal.
 Terra Civic sells one thing, priced like a public utility, with the same formula for everyone:
 
-> **Annual price = $1,500 + 30¢ per resident (first million) + 15¢ per resident above a million.**
+> **Annual price = $2,400 + 30¢ per resident (first million) + 15¢ per resident above a million.**
+>
+> Monthly, that's **$200 plus 2.5¢ per resident** (1.25¢ above a million).
 
 That covers the **whole government**: every department, every office, every employee, the full platform
 (Law Library, Forum, Meetings, Programs Desk, Civic Record, Tela documents, sheets and forms,
@@ -286,16 +288,16 @@ reporter or a resident can work out the price with a calculator.
 
 | Example | Residents | Per year | Per month | Per resident | Today's spend replaced | Less | Est. margin |
 |---|---|---|---|---|---|---|---|
-| Village | 1,000 | **$1,800** | $150 | $1.80 | $5,437–$13,637 | 67–87% | ~26% |
-| Town | 5,000 | **$3,000** | $250 | $0.60 | $15,387–$38,387 | 81–92% | ~36% |
-| Small city | 15,000 | **$6,000** | $500 | $0.40 | $27,761–$62,761 | 78–90% | ~23% |
-| City | 60,000 | **$19,500** | $1,625 | $0.33 | $116,645–$228,645 | 83–91% | ~36% |
-| Large city | 250,000 | **$76,500** | $6,375 | $0.31 | $381,353–$741,353 | 80–90% | ~37% |
-| Detroit-size city | 630,000 | **$190,500** | $15,875 | $0.30 | $909,569–$1.75M | 79–89% | ~40% |
-| County | 300,000 | **$91,500** | $7,625 | $0.30 | $445,623–$865,623 | 79–89% | ~39% |
-| Oakland-size county | 1,270,000 | **$342,000** | $28,500 | $0.27 | $1.73M–$3.34M | 80–90% | ~38% |
-| Wayne-size county | 1,750,000 | **$414,000** | $34,500 | $0.24 | $2.35M–$4.53M | 82–91% | ~32% |
-| Michigan-size state | 10,100,000 | **$1.67M** | $138,875 | $0.17 | $8.11M–$15.69M | 79–89% | ~28% |
+| Village | 1,000 | **$2,700** | $225 | $2.70 | $5,437–$13,637 | 50–80% | ~51% |
+| Town | 5,000 | **$3,900** | $325 | $0.78 | $15,387–$38,387 | 75–90% | ~51% |
+| Small city | 15,000 | **$6,900** | $575 | $0.46 | $27,761–$62,761 | 75–89% | ~33% |
+| City | 60,000 | **$20,400** | $1,700 | $0.34 | $116,645–$228,645 | 83–91% | ~39% |
+| Large city | 250,000 | **$77,400** | $6,450 | $0.31 | $381,353–$741,353 | 80–90% | ~38% |
+| Detroit-size city | 630,000 | **$191,400** | $15,950 | $0.30 | $909,569–$1.75M | 79–89% | ~40% |
+| County | 300,000 | **$92,400** | $7,700 | $0.31 | $445,623–$865,623 | 79–89% | ~40% |
+| Oakland-size county | 1,270,000 | **$342,900** | $28,575 | $0.27 | $1.73M–$3.34M | 80–90% | ~39% |
+| Wayne-size county | 1,750,000 | **$414,900** | $34,575 | $0.24 | $2.35M–$4.53M | 82–91% | ~32% |
+| Michigan-size state | 10,100,000 | **$1.67M** | $138,950 | $0.17 | $8.11M–$15.69M | 79–89% | ~28% |
 
 "Today" uses the §3B method: civic tools from public contracts, plus the office suite (Google ~$14
 to Microsoft 365 G3 ~$39 per user per month) and per-seat PDF, video and design tools. Desk staff are
@@ -312,10 +314,10 @@ excludes legislative systems, so it's understated.
 ### Why it's built this way
 
 - **Costs follow residents, so the price does too.** Staff count, meeting volume, public traffic and storage
-  all scale with population. The $1,500 base covers the fixed cost of standing up a government (support,
+  all scale with population. The $2,400 base covers the fixed cost of standing up a government (support,
   setup, a meeting channel). The cost model is in §2. Estimated cost ≈ fixed cost + $24 per desk user a year +
   $0.05 per resident a year + used video.
-- **Small towns get the most.** A 1,000-person village pays $150 a month for the same platform Detroit uses.
+- **Small towns get the most.** A 1,000-person village pays $225 a month for the same platform Detroit uses.
   Self-serve setup and templates keep their fixed cost low. That's the adoption engine: there are far more small towns than big cities.
 - **Fair-margin promise (open book).** We target about 40% gross margin across all governments. Each year we
   publish a short cost report. If our civic margin goes over 50% for the year, the per-resident rate drops for
@@ -329,8 +331,9 @@ excludes legislative systems, so it's understated.
 
 ### Margin check (estimates)
 
-Most sizes land at about 35–50%. The thinnest are the state (~25–30%, because of large staff counts) and the
-10,000–25,000 band (~30%). Raise the base before the rate if real costs run hotter: the base is what protects small-town margins.
+Most sizes land at about 35–50%. The thinnest are the 10,000–25,000 band (~33%) and the state (~28%, because of
+large staff counts). The base was raised from $1,500 to $2,400 once meeting video was costed in, which lifted
+small-town margins from ~25% to ~50%. If real costs run hotter, raise the base before the rate: the base is what protects small towns.
 
 ## 4. Making it easy to buy
 
