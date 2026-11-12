@@ -107,7 +107,7 @@
     "test:comicproject": "npx tsx --test tests/comicProject.test.ts",
     "test:merch": "npx tsx --test tests/merchStudio.test.ts",
     "test:argilla": "npx tsx --test tests/argilla.test.ts",
-    "test:mocap": "npx tsx --test tests/mocap.test.ts tests/virtualCameraRig.test.ts tests/lifter.test.ts",
+    "test:mocap": "npx tsx --test tests/mocap.test.ts tests/virtualCameraRig.test.ts tests/lifter.test.ts tests/multicam.test.ts",
     "test:cad": "npx tsx --test tests/cad.test.ts",
     "test:guide": "npx tsx --test tests/guide.test.ts",
     "test:workspace": "npx tsx --test tests/workspace.test.ts",

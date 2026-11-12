@@ -528,10 +528,48 @@ there. It is off everywhere; re-test it on footage of real people before decidin
 camera is a job for a second camera**, which moves the two-phone mode up the list.
 
 **Next:**
-1. A real two-phone capture mode (the fix for hidden limbs): sync by a clap or flash, calibrate from the
-   performer's own body, triangulate with `services/cameraRig` (two phones at ~90° gave 11–15° in the renders).
+1. ~~Two-phone capture~~: built, §6d.
 2. Stream the lifter into the VTuber/puppet pose path behind a setting, and measure it on a real webcam.
 3. Kenne's own webcam take, to confirm on a real person (and re-test the hand pass on it).
+
+## 6d. Two-phone capture (2026-11-12, committed)
+
+**How it works for the performer:** two phones on stands, about 90° apart around the capture space, both
+recording. Clap once at the start where both can see and hear it. Do the take. In the capture room choose
+**Two cameras** and pick both videos (the first is camera A: its picture is the one shown).
+
+**What it does** (`services/mocap/multicam.ts`, no network, no calibration board):
+1. **Sync by sound.** Onset envelopes of both soundtracks, cross-correlated. Synthetic test: exact to 0.1 ms with
+   one clap or several. Declines (asks for a clap) when either track has no sharp sound.
+2. **Calibrate from the body.** MediaPipe's 3D body in each view is the same body turned by the angle between the
+   cameras: Horn's method gives camera B's rotation, fitting the body to each picture gives each camera's distance,
+   and the lens is the field of view that makes the two views agree best.
+3. **Fuse.** Every landmark is triangulated from both views (`services/cameraRig`). A limb point that sits behind
+   the torso and inside its outline in one view gets almost no weight there (MediaPipe guesses those).
+4. The result is an ordinary take (camera A's picture, fused 3D): the solver, BVH and games are unchanged, and the
+   one-camera body correction is skipped for it.
+
+**Benchmark** (`mocapMulti.scoreTwoCamera(render, a, b, {lagFrames, offset})`, fourCorners rig, peasant):
+
+| Take | One camera | **Two phones, self-calibrated** | Two cameras, true calibration |
+|---|---|---|---|
+| Walk (90° pairs) | 18.4–23.1° | **15.7–17.6°** | 12.9–14.9° |
+| Boxing (90°) | 30.2–41.7° | **26.4–29.4°** | 26.2–30.1° |
+| Punch (90°) | 32.2–36.1° | **27.6–29.4°** | 26.1–27.3° |
+| Kata (90°) | 28.6–31.5° | **22.7–24.4°** | 21.6–23.8° |
+| Opposite cameras (180°) | 18–32° | 24–46° (worse) | 25–38° |
+
+Self-calibration lands within a few degrees of knowing exactly where the cameras stand. The angle between cameras
+comes out within ~10°; distance and lens less well (baselines 3–9 m for a true 5.7–6.5 m), which barely matters
+for the body's shape. Opposite cameras are worse than one, and the room says so.
+
+**Movement sync doesn't work well enough to rely on.** Lining the recordings up by joint bends, joint speeds or
+heights in the picture was right in only 11–18 of 54 trials on fight takes, sometimes with a fair score. It is
+used only when unusually sure (score ≥ 0.5 and twice the next match), so in practice **the clap is required**.
+
+**Not yet:** a real pair of phone videos through the room (the error path is checked: unrelated clips → clap
+message → camera A alone). Live two-phone capture (streaming both phones) is a later step. Cameras must stay put
+(tripod or propped); a moving camera breaks the calibration.
 
 ## 7. Decisions for Kenne
 

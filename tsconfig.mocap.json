@@ -16,6 +16,7 @@
     "tests/mocapSynth.ts",
     "labs/mocap/bench.ts",
     "services/cameraRig/*.ts",
+    "tests/multicam.test.ts",
     "labs/mocap/multiview.ts",
     "tests/virtualCameraRig.test.ts",
     "tests/lifter.test.ts"

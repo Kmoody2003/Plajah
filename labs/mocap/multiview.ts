@@ -14,7 +14,8 @@ import { retarget, findBone, CMU_TO_CONTRACT } from '../../services/mocap/retarg
 import { toRaw, nextTs, PerformerLock } from '../../services/mocap/capture';
 import { PoseTracker } from '../../services/vtuber/poseTracker';
 import { calibration, triangulate, randomRig, fitRadius, type CameraRig, type Calibration, type Vec3 } from '../../services/cameraRig/rig';
-import type { RawFrame, PoseModel } from '../../services/mocap/types';
+import type { RawFrame, RawTake, PoseModel } from '../../services/mocap/types';
+import { syncByMotion, twoCamera } from '../../services/mocap/multicam';
 import { PAIRS, BONES } from './bench';
 
 export const CHARACTERS = ['peasant', 'samurai', 'knight', 'monk', 'viking', 'raider', 'fisherman', 'carpenter', 'chieftain'];
@@ -309,3 +310,65 @@ export async function generate(o: GenerateOptions = {}) {
   }
   return log;
 }
+
+// ── Two-phone mode check (services/mocap/multicam.ts) ──────────────────────────────────────────────────────
+/**
+ * Score the two-camera pipeline on a render: cameras `a` and `b` become two separate "phone recordings" (camera B
+ * starts `lagFrames` late, no calibration handed over), then sync, self-calibration and fusion run as for real
+ * uploads. Bone error is in camera A's axes against the truth, beside each single camera and the triangulation
+ * with the true calibration.
+ */
+export function scoreTwoCamera(r: MultiResult, a: number, b: number, o: { lagFrames?: number; offset?: number; fovDeg?: number } = {}) {
+  const lag = o.lagFrames ?? 0;
+  const asTake = (k: number, from: number): RawTake => ({
+    fps: r.fps, width: r.width, height: r.height,
+    frames: r.frames[k].slice(from).map((f, i) => (f ? { ...f, t: i / r.fps } : null)),
+    source: { kind: 'upload', label: `cam ${k}`, model: 'heavy' },
+  });
+  const ta = asTake(a, 0), tb = asTake(b, lag);
+  const sync = o.offset !== undefined ? undefined : syncByMotion(ta, tb);
+  const out = twoCamera(ta, tb, o.offset !== undefined ? { offset: o.offset, fovDeg: o.fovDeg } : { sync, fovDeg: o.fovDeg });
+  if (!('take' in out)) return { error: out.error, sync: out.sync };
+  let e = 0, n = 0, eA = 0, nA = 0;
+  const per: Record<string, number[]> = {};
+  r.truth.forEach((t, f) => {
+    const fr = out.take.frames[f], raw = ta.frames[f];
+    if (!fr) return;
+    const T = (k: string) => new THREE.Vector3(...t.world[k]);
+    const at = (w: { x: number; y: number; z: number }[], k2: string) => {
+      const m = MPI[k2], P = (i: number) => new THREE.Vector3(w[i].x, -w[i].y, -w[i].z);
+      return Array.isArray(m) ? P(m[0]).add(P(m[1])).multiplyScalar(0.5) : P(m);
+    };
+    for (const [name, [x, y]] of Object.entries(BONES)) {
+      const truth = rot(r.calib[a][f], T(y).sub(T(x))).normalize();
+      const d = ang(at(fr.world, y).sub(at(fr.world, x)).normalize(), truth);
+      e += d; n++; (per[name] ??= []).push(d);
+      if (raw) { eA += ang(at(raw.world, y).sub(at(raw.world, x)).normalize(), truth); nA++; }
+    }
+  });
+  const known = scoreViews(r, [a, b]);
+  const c = out.report.calibration;
+  return {
+    cams: [a, b], lagFrames: lag,
+    sync: { method: out.report.sync.method, offsetFrames: +(out.report.sync.offset * r.fps).toFixed(2), score: +out.report.sync.score.toFixed(2), margin: +out.report.sync.margin.toFixed(2) },
+    calibration: { fov: c.fovDeg[0], angleDeg: +c.angleDeg.toFixed(1), baselineM: +c.baselineM.toFixed(2), reprojPct: +(c.reproj * 100).toFixed(2), notes: c.notes },
+    trueAngleDeg: +relAngle(r.calib[a][0], r.calib[b][0]).toFixed(1),
+    trueBaselineM: +camDist(r.calib[a][0], r.calib[b][0]).toFixed(2),
+    singleADeg: +(eA / Math.max(1, nA)).toFixed(1),
+    twoPhoneDeg: +(e / Math.max(1, n)).toFixed(1),
+    knownCalibDeg: known.triangulatedDeg,
+    bones: Object.fromEntries(Object.entries(per).map(([k, v]) => [k, +(v.reduce((p, q) => p + q, 0) / v.length).toFixed(1)])),
+    hiddenFixes: out.report.hiddenFixes, fused: +out.report.fused.toFixed(2),
+  };
+}
+const relAngle = (ca: Calibration, cb: Calibration) => {
+  const A = new THREE.Matrix3().set(...(ca.R as [number, number, number, number, number, number, number, number, number]));
+  const B = new THREE.Matrix3().set(...(cb.R as [number, number, number, number, number, number, number, number, number]));
+  const M = B.multiply(A.transpose()).elements;
+  return THREE.MathUtils.radToDeg(Math.acos(Math.max(-1, Math.min(1, (M[0] + M[4] + M[8] - 1) / 2))));
+};
+const camCentre = (c: Calibration) => {
+  const R = c.R, t = c.t;
+  return new THREE.Vector3(-(R[0] * t[0] + R[3] * t[1] + R[6] * t[2]), -(R[1] * t[0] + R[4] * t[1] + R[7] * t[2]), -(R[2] * t[0] + R[5] * t[1] + R[8] * t[2]));
+};
+const camDist = (ca: Calibration, cb: Calibration) => camCentre(ca).distanceTo(camCentre(cb));

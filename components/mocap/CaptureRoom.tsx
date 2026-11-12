@@ -6,6 +6,7 @@ import SkeletonView from './SkeletonView';
 import { captureVideo, LiveCapture } from '../../services/mocap/capture';
 import { solveTake } from '../../services/mocap/solve';
 import { loadLifter, type Lifter } from '../../services/mocap/lifter';
+import { syncByAudio, syncByMotion, twoCamera, type TwoCameraReport } from '../../services/mocap/multicam';
 import { clipToBvh } from '../../services/mocap/bvh';
 import { detectStrikes, findLoop } from '../../services/mocap/moves';
 import { saveMotion, listMotions, loadMotion } from '../../services/mocap/library';
@@ -70,6 +71,9 @@ export default function CaptureRoom({ sendToGame, autoVideo }: Props) {
   const chunks = useRef<Blob[]>([]);
   const abort = useRef<AbortController | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const twoInput = useRef<HTMLInputElement>(null);
+  /** Set when the take on screen came from two cameras: how they were lined up and where they stood. */
+  const [twoCam, setTwoCam] = useState<(TwoCameraReport & { fallback?: string }) | null>(null);
 
   useEffect(() => {
     let on = true;
@@ -83,7 +87,9 @@ export default function CaptureRoom({ sendToGame, autoVideo }: Props) {
   // ── Solve (and re-solve when the smoothing changes) ─────────────────────────────────────────────────
   const solve = useCallback((t: RawTake, s: number | null, keep?: MotionClip) => {
     try {
-      const src = liftRef.current && lifterRef.current ? lifterRef.current.apply(t) : t;
+      // Two-camera takes already have real depth; the one-camera correction is for single views.
+      const two = (t.source as { cameras?: number }).cameras === 2;
+      const src = !two && liftRef.current && lifterRef.current ? lifterRef.current.apply(t) : t;
       const c = solveTake(src, { smooth: s ?? undefined, straighten: straightRef.current, name: keep?.name ?? t.source.label, id: keep?.id, rights: keep?.rights.performer });
       c.moves = detectStrikes(c);
       setClip(c); setSaved(false);
@@ -103,7 +109,7 @@ export default function CaptureRoom({ sendToGame, autoVideo }: Props) {
   useEffect(() => { if (lifterReady && take && clip && liftRef.current) solve(take, smooth, clip); }, [lifterReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openCamera = async () => {
-    setStatus('Starting the camera…'); setClip(null); setTake(null);
+    setStatus('Starting the camera…'); setClip(null); setTake(null); setTwoCam(null);
     if (videoUrl) { URL.revokeObjectURL(videoUrl); setVideoUrl(null); }
     try {
       const s = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } }, audio: false });
@@ -145,7 +151,7 @@ export default function CaptureRoom({ sendToGame, autoVideo }: Props) {
 
   // ── Upload ──────────────────────────────────────────────────────────────────────────────────────────
   const onFile = async (file: File) => {
-    stopCamera(); setClip(null); setTake(null);
+    stopCamera(); setClip(null); setTake(null); setTwoCam(null);
     if (videoUrl) URL.revokeObjectURL(videoUrl);
     const url = URL.createObjectURL(file);
     setVideoUrl(url);
@@ -159,6 +165,41 @@ export default function CaptureRoom({ sendToGame, autoVideo }: Props) {
       setLivePose(null);
       if (!t.frames.some(Boolean)) { setStatus('Nobody was found in this video.'); setMode('idle'); return; }
       { setSmooth(null); setTake(t); setFrame(0); solve(t, null); }
+    } catch (e) {
+      setStatus((e as Error).name === 'AbortError' ? 'Stopped.' : (e as Error).message); setMode('idle');
+    }
+  };
+
+  /** Two phones, two recordings of one take: read both, line them up, work out where the cameras stood, fuse. */
+  const onTwoFiles = async (files: File[]) => {
+    if (files.length !== 2) { setStatus('Choose exactly two videos: one from each phone.'); return; }
+    stopCamera(); setClip(null); setTake(null); setTwoCam(null);
+    const [fa, fb] = files;
+    if (videoUrl) URL.revokeObjectURL(videoUrl);
+    setVideoUrl(URL.createObjectURL(fa));
+    setMode('processing'); setProgress(0); setStatus('Loading the pose model…');
+    abort.current = new AbortController();
+    try {
+      const read = (f: File, k: 0 | 1) => captureVideo(f, {
+        model: 'heavy', signal: abort.current!.signal, label: f.name.replace(/\.[^.]+$/, ''),
+        onProgress: (d, n, fr) => { setProgress((k + d / n) / 2); setStatus(`Camera ${k ? 'B' : 'A'}: reading frame ${d} of ${n}`); if (!k) setLivePose(fr); },
+      });
+      const ta = await read(fa, 0), tb = await read(fb, 1);
+      setLivePose(null);
+      if (!ta.frames.some(Boolean)) { setStatus('Nobody was found in the first video.'); setMode('idle'); return; }
+      setStatus('Lining the two recordings up…');
+      const sync = (await syncByAudio(fa, fb)) ?? syncByMotion(ta, tb);
+      setStatus('Working out where the cameras stood…');
+      const out = twoCamera(ta, tb, { sync });
+      if ('error' in out) {
+        // Still useful as a one-camera take.
+        setTwoCam(null);
+        setSmooth(null); setTake(ta); setFrame(0); solve(ta, null);
+        setStatus(`${out.error} Showing camera A on its own.`);
+        return;
+      }
+      setTwoCam(out.report);
+      setSmooth(null); setTake(out.take); setFrame(0); solve(out.take, null);
     } catch (e) {
       setStatus((e as Error).name === 'AbortError' ? 'Stopped.' : (e as Error).message); setMode('idle');
     }
@@ -266,7 +307,7 @@ export default function CaptureRoom({ sendToGame, autoVideo }: Props) {
     // Replay the footage when the clip remembers where it came from.
     setVideoUrl(rec.clip.source.url ?? null);
     setStraight(!!rec.clip.stats?.straightened); straightRef.current = !!rec.clip.stats?.straightened;
-    setTake(rec.raw ?? null); setTrim([0, rec.clip.frames - 1]); setFrame(0); setMoveSel(null);
+    setTake(rec.raw ?? null); setTwoCam(null); setTrim([0, rec.clip.frames - 1]); setFrame(0); setMoveSel(null);
     // Re-solve from the raw take with today's solver (results and moves stay current); otherwise show it as saved.
     if (rec.raw) { setSmooth(null); solve(rec.raw, null, rec.clip); } else { setClip(rec.clip); setMode('review'); }
     setSaved(true);
@@ -291,6 +332,9 @@ export default function CaptureRoom({ sendToGame, autoVideo }: Props) {
           : <button className={ghost} onClick={() => { stopCamera(); setMode(clip ? 'review' : 'idle'); setStatus(''); }}>Close camera</button>}
         <button className={ghost} onClick={() => fileInput.current?.click()} disabled={mode === 'processing' || recording}>Upload video</button>
         <input ref={fileInput} type="file" accept="video/*" className="hidden" onChange={(e) => { const fl = e.target.files?.[0]; if (fl) onFile(fl); e.target.value = ''; }} />
+        <button className={ghost} onClick={() => twoInput.current?.click()} disabled={mode === 'processing' || recording}
+          title="Two phones filming the same take from different sides (about 90° apart). Clap once at the start, in view of both.">Two cameras</button>
+        <input ref={twoInput} type="file" accept="video/*" multiple className="hidden" onChange={(e) => { const fl = [...(e.target.files ?? [])]; if (fl.length) onTwoFiles(fl); e.target.value = ''; }} />
         {mode === 'processing' && <button className={ghost} onClick={() => abort.current?.abort()}>Stop</button>}
         <div className="ml-auto flex items-center gap-2">
           <select className="bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm" value="" onChange={(e) => e.target.value && openSaved(e.target.value)}>
@@ -346,12 +390,26 @@ export default function CaptureRoom({ sendToGame, autoVideo }: Props) {
             <button className={`${btn} py-1 ${smooth === null ? 'bg-violet-500/30 text-white' : 'bg-white/5 text-white/70 border border-white/10'}`} disabled={!take}
               onClick={() => { setSmooth(null); if (take) solve(take, null, clip ?? undefined); }} title="Each body point smoothed by its own measured noise">Auto</button>
           </div>
-          {lifterReady && (
+          {lifterReady && !twoCam && (
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <button className={`${btn} py-1 ${lift ? 'bg-violet-500 text-white' : 'bg-white/5 text-white/80 border border-white/10'}`} disabled={!take}
                 onClick={() => { const v = !lift; setLift(v); liftRef.current = v; if (take) solve(take, smooth, clip ?? undefined); }}>
                 {lift ? 'Body correction: on' : 'Body correction: off'}</button>
               <span className="text-xs text-white/50">Fixes one-camera depth mistakes (arms and legs pointing the wrong way toward or away from the camera).</span>
+            </div>
+          )}
+          {twoCam && (
+            <div className="rounded-lg border border-violet-400/30 bg-violet-500/10 px-3 py-2 text-sm text-white/80">
+              <div className="font-semibold text-white">Two cameras, fused</div>
+              <div>
+                Lined up by {twoCam.sync.method === 'audio' ? 'sound' : twoCam.sync.method === 'motion' ? 'movement' : 'hand'}
+                {' '}({twoCam.sync.offset >= 0 ? 'camera B started' : 'camera A started'} {Math.abs(twoCam.sync.offset).toFixed(2)} s later)
+                {' · '}cameras {Math.round(twoCam.calibration.angleDeg)}° apart, {twoCam.calibration.baselineM.toFixed(1)} m apart
+                {' · '}lens about {twoCam.calibration.fovDeg[0]}°
+                {' · '}{Math.round(twoCam.fused * 100)}% of frames seen by both
+                {twoCam.hiddenFixes > 0 && <> · {twoCam.hiddenFixes} hidden-limb fixes</>}
+              </div>
+              {twoCam.calibration.notes.map((n) => <div key={n} className="text-amber-300/90 text-xs mt-1">{n}</div>)}
             </div>
           )}
           {clip.stats && ((clip.stats.turnDeg > 90 && clip.stats.pathSpeed > 0.25) || clip.stats.straightened) && (
