@@ -64,7 +64,7 @@ templates (Programs blueprint §2) are what keep the price low.
 
 ---
 
-## 3. Proposed tiers (flat monthly price, billed annually)
+## 3. Proposed tiers (flat monthly price, billed annually) — superseded by §3A
 
 | Tier | Population | Monthly | Annual | Included pooled allowance | Market stack it replaces |
 |---|---|---|---|---|---|
@@ -93,6 +93,70 @@ Margins improve as support overhead spreads across more tenants. If real usage r
 first lever is the size of the included AI allowance, not the price.
 
 ---
+
+## 3A. Price list by government type (12 Nov 2026 — replaces the population-only tiers in §3)
+
+Flat monthly prices, billed annually, with unlimited users. Every tier includes the full
+platform: Law Library, Forum (private and public drafting), Meetings, Programs Desk, Tela
+documents, spreadsheets and forms, and ARIA. The §3 allowance rules (pooled storage, live hours, AI
+credits; opt-in overage at cost plus 20%; pass-throughs at cost) still apply.
+
+### Cities, villages and townships
+
+| Tier | Population | Monthly | Annual | What they typically pay today for meetings + engagement + grants + code hosting |
+|---|---|---|---|---|
+| City S | under 25,000 | **$500** | $6,000 | ~$20k–35k/yr (agenda software alone often $8k–21k) |
+| City M | 25,000–100,000 | **$1,500** | $18,000 | ~$40k–80k/yr |
+| City L | 100,000–500,000 | **$3,500** | $42,000 | ~$60k–120k/yr (Ocala FL pays ~$69k/yr for Legistar alone) |
+| City XL | over 500,000 (e.g. Detroit) | **$7,500** | $90,000 | $100k+/yr |
+
+### Counties
+
+Counties run more boards (commission, planning, road, health) and more programs than a city of the
+same size, so they sit a step above.
+
+| Tier | Population | Monthly | Annual | Market reference |
+|---|---|---|---|---|
+| County S | under 100,000 | **$1,250** | $15,000 | Troup County GA (~70k people) was quoted $81k first year, $61.5k/yr after, for Legistar alone |
+| County M | 100,000–500,000 | **$3,000** | $36,000 | ~$60k–120k/yr |
+| County L | 500,000–1,000,000 | **$6,000** | $72,000 | $100k+/yr |
+| County XL | over 1,000,000 (e.g. Wayne, Oakland) | **$10,000** | $120,000 | $150k+/yr |
+
+### States
+
+A state subscription covers the **legislature** (both chambers, legislative counsel and member
+offices: private drafting, public drafts, the conflict engine against the full state code, hearings and
+committee meetings) plus **one executive agency** for Programs Desk. Each extra agency is an add-on.
+
+| Tier | Population | Monthly | Annual | Add-on agency |
+|---|---|---|---|---|
+| State S | under 3 million | **$15,000** | $180,000 | +$2,500/mo |
+| State M | 3–10 million (Michigan ≈ 10M) | **$25,000** | $300,000 | +$3,500/mo |
+| State L | over 10 million | **$40,000** | $480,000 | +$5,000/mo |
+
+State pricing is a starting point. We have not yet gathered public contract figures for state
+legislative drafting and committee systems the way we did for cities (§1). **Validate against 3–5
+real state contracts before quoting.** State buyers will also expect GovRAMP (formerly StateRAMP)
+and an RFP or cooperative-contract path.
+
+### Federal (later, not offered yet)
+
+Per agency or per committee, **custom, starting around $50,000/mo**. It requires FedRAMP
+authorization (a large, multi-year compliance effort), so it isn't on the price list until that
+exists.
+
+### Why these numbers hold up
+
+- **Cities and counties pay roughly 40–80% less** than today's meetings + engagement + grants +
+  code stack (§1), and get drafting, the Law Library, documents and AI on top.
+- **Margins:** a City L or County M tenant costs an estimated $1,300–2,200/mo to serve at typical use
+  (§2), so $3,000–3,500 leaves a healthy margin. City S and County S are deliberately thin (about
+  break-even to 30%) because they're the land-grab tiers and sit under many purchase-approval
+  thresholds.
+- **States** carry heavier usage (hundreds of staff, many committee hearings, constant conflict
+  analysis across the whole code) and need more support, which the $15k–40k range is sized for.
+- **Discounts:** 2-year term −5%, 3-year term −10% with a price lock; a bundled county + its cities
+  −15% (sold through the county, which spreads Terra fast); pilots free for 3 months.
 
 ## 4. Making it easy to buy
 
