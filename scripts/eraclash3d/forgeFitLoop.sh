@@ -8,6 +8,7 @@ OUT="D:/Plajah Runtime/eraclash3d/forge/fidelity"
 best=0
 for i in $(seq 1 "$PASSES"); do
   npx tsx scripts/eraclash3d/forgeHaru.ts > /dev/null
+  npx tsx scripts/eraclash3d/forgeFidelity.ts --paint public/games/era-clash/3d/assets/characters/samurai_v3.glb > /dev/null
   line=$(npx tsx scripts/eraclash3d/forgeFidelity.ts --update-warp | tee "$OUT/pass_$i.txt" | grep -E '^fidelity')
   score=$(node -e "console.log(require('$OUT/fidelity.json').overall)")
   echo "pass $i: $line"

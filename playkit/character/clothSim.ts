@@ -209,6 +209,7 @@ export class ClothSim {
     const norA = new THREE.BufferAttribute(new Float32Array(nor.array as ArrayLike<number>), 3).setUsage(THREE.DynamicDrawUsage);
     geo.setAttribute('position', posA); geo.setAttribute('normal', norA);
     if (g.attributes.uv) geo.setAttribute('uv', g.attributes.uv);
+    if (g.attributes.uv1) geo.setAttribute('uv1', g.attributes.uv1); // the painted atlas (forgeFidelity --paint)
     if (g.attributes.tangent) geo.setAttribute('tangent', g.attributes.tangent);
     geo.setIndex(g.index);
     const mesh = new THREE.Mesh(geo, src.material);

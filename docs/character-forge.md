@@ -84,7 +84,12 @@ Each piece is its own mesh with its own material, made from parametric period pa
   - Scores so far (overall / head IoU front, side, back):
     - start: 53.8% / 0.73, 0.65, 0.74
     - after the loop and the art's ponytail arc: 53.5% / 0.81, 0.78, 0.78
-  - Colour is the gap (31–38%): flat materials against painted lacing and folds. The next step is painting every garment from the turnaround's views, as the head already is.
+  - `--paint <glb>` (`forgePaint.ts`) paints every garment and armour piece from the turnaround.
+    - **Atlas:** each piece gets its own atlas (xatlas, `engines/tela-3d/uv_atlas.py`) on TEXCOORD_1, so the tiling detail maps on TEXCOORD_0 keep working.
+    - **Projection:** in the art's pose with the springs settled, each texel takes the views that see it, depth-tested and weighted by facing. The side view is mirrored for the right side, which the sheet doesn't draw.
+    - **Unseen texels** keep the piece's colour.
+    - Measured after painting: 70.1%. Colour went from 31–38% to 66–68%, with the legs at ΔE 4–6.
+  - What's left: shape (72–75%): the shoulder guards stand out like wings and the dō's top is off by 2–3 cm. The head is 78–81% IoU. The GLB is now about 25 MB with the paintings.
 
 ### 5. Rig and export
 

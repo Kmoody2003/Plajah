@@ -57,6 +57,7 @@ const acc = (i: number): Float32Array | Uint32Array | Uint16Array | Uint8Array =
   const a = gltf.accessors[i], v = gltf.bufferViews[a.bufferView];
   const n = a.count * ({ SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 } as Record<string, number>)[a.type];
   const T = a.componentType === 5126 ? Float32Array : a.componentType === 5125 ? Uint32Array : a.componentType === 5123 ? Uint16Array : Uint8Array;
+  if (!v) return new T(n); // no buffer view: all zeros (glTF allows it, e.g. an empty morph target)
   const off = bin.byteOffset + (v.byteOffset ?? 0) + (a.byteOffset ?? 0);
   return new T(bin.buffer.slice(off, off + n * T.BYTES_PER_ELEMENT));
 };
@@ -68,7 +69,7 @@ const matColour = (mi: number | undefined) => {
   const m = mi === undefined ? null : gltf.materials[mi];
   const f = m?.pbrMetallicRoughness?.baseColorFactor ?? [0.8, 0.8, 0.8, 1];
   const ti = m?.pbrMetallicRoughness?.baseColorTexture?.index;
-  return { f, img: ti === undefined ? null : images[gltf.textures[ti].source], name: m?.name ?? '', index: mi ?? -1 };
+  return { f, img: ti === undefined ? null : images[gltf.textures[ti].source], name: m?.name ?? '', index: mi ?? -1, texCoord: m?.pbrMetallicRoughness?.baseColorTexture?.texCoord ?? 0 };
 };
 
 const N = gltf.nodes.length;
@@ -108,7 +109,10 @@ function worlds(pose: Record<string, number[]>): M4[] {
 // coarse for the face: the UVs are kept and sampled per pixel)
 interface Tri { p: number[]; n: number[]; uv: number[] | null; mat: ReturnType<typeof matColour>; tail?: boolean }
 const SKIP = new Set(['kabuto', 'katana']); // hidden by default / the drawn sword is a gameplay prop the art does not hold
+/** Each primitive's posed vertices from the last posedTris (`node:primitive`), for painting. */
+export const posedVerts = new Map<string, { pp: Float32Array; nn: Float32Array }>();
 function posedTris(pose: Record<string, number[]>): Tri[] {
+  posedVerts.clear();
   const W = worlds(pose);
   const skinMats = (gltf.skins ?? []).map((s: { joints: number[]; inverseBindMatrices: number }) => {
     const ibm = acc(s.inverseBindMatrices) as Float32Array;
@@ -125,11 +129,12 @@ function posedTris(pose: Record<string, number[]>): Tri[] {
       const T = acc(inst.TRANSLATION) as Float32Array, R = acc(inst.ROTATION) as Float32Array, S = acc(inst.SCALE) as Float32Array;
       for (let k = 0; k < T.length / 3; k++) instM.push(mul(W[ni], trs([...T.subarray(k * 3, k * 3 + 3)], [...R.subarray(k * 4, k * 4 + 4)], [...S.subarray(k * 3, k * 3 + 3)])));
     } else instM.push(W[ni]);
-    for (const pr of gltf.meshes[node.mesh].primitives) {
+    for (const [pi, pr] of (gltf.meshes[node.mesh].primitives as { attributes: Record<string, number>; indices?: number; material?: number }[]).entries()) {
       const P = acc(pr.attributes.POSITION) as Float32Array, Nn = acc(pr.attributes.NORMAL) as Float32Array;
-      const UV = pr.attributes.TEXCOORD_0 !== undefined ? acc(pr.attributes.TEXCOORD_0) as Float32Array : null;
-      const idx = pr.indices !== undefined ? acc(pr.indices) : Uint32Array.from({ length: P.length / 3 }, (_, i) => i);
       const mat = matColour(pr.material);
+      const uvAttr = pr.attributes[`TEXCOORD_${mat.texCoord}`];
+      const UV = uvAttr !== undefined ? acc(uvAttr) as Float32Array : null;
+      const idx = pr.indices !== undefined ? acc(pr.indices) : Uint32Array.from({ length: P.length / 3 }, (_, i) => i);
       const nv = P.length / 3;
       // the ponytail's own triangles (skinned to its tail chain), so the skull's outline can be measured without it
       const jointNames: string[] = node.skin !== undefined ? gltf.skins[node.skin].joints.map((j: number) => gltf.nodes[j].name) : [];
@@ -164,6 +169,7 @@ function posedTris(pose: Record<string, number[]>): Tri[] {
             nn[v * 3] = m[0] * qx + m[4] * qy + m[8] * qz; nn[v * 3 + 1] = m[1] * qx + m[5] * qy + m[9] * qz; nn[v * 3 + 2] = m[2] * qx + m[6] * qy + m[10] * qz;
           }
         }
+        if (!posedVerts.has(`${ni}:${pi}`)) posedVerts.set(`${ni}:${pi}`, { pp, nn });
         for (let t = 0; t < idx.length; t += 3) {
           const vs = [idx[t], idx[t + 1], idx[t + 2]];
           tris.push({
@@ -236,12 +242,13 @@ function render(tris: Tri[], v: ViewName) {
       const nx = w0 * t.n[0] + w1 * t.n[3] + w2 * t.n[6], ny = w0 * t.n[1] + w1 * t.n[4] + w2 * t.n[7], nz = w0 * t.n[2] + w1 * t.n[5] + w2 * t.n[8];
       const nl = Math.hypot(nx, ny, nz) || 1;
       const lam = Math.max(0, (nx * L[0] + ny * L[1] + nz * L[2]) / (nl * ll));
-      const shade = 0.55 + 0.75 * lam;
+      // soft, like the painted art's own light (and a painted-from-art texture already carries its shading)
+      const shade = 0.78 + 0.32 * lam;
       matId[i] = t.mat.img ? -2 : t.mat.index; shadeOf[i] = shade;
       for (let k = 0; k < 3; k++) rgb[i * 3 + k] = linToSrgb(col[k] * shade) * 255;
     }
   }
-  return { W, H, rgb, mask, matId, shadeOf };
+  return { W, H, rgb, mask, matId, shadeOf, depth };
 }
 function srgbToLin(c: number) { return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }
 function linToSrgb(c: number) { c = Math.max(0, Math.min(1, c)); return c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055; }
@@ -438,6 +445,15 @@ function calibrate(tris: Tri[]) {
 
 const t0 = Date.now();
 const pose = fitPose();
+if (args.includes('--paint')) {
+  const { paintFromSheet } = await import('./forgePaint');
+  const posedT = posedTris(poseOf(pose));
+  const views = (['front', 'side', 'back'] as ViewName[]).map((v) => { const r = render(posedT, v); return { name: v, r, shift: shiftBest(r.mask, r.W, VIEWS[v].x0), ...VIEWS[v] }; });
+  const out = args[args.indexOf('--paint') + 1] ?? file;
+  await paintFromSheet({ gltf, bin, acc, file, out, posedVerts, views, sheet: { W: SW, H: SHh, data: S, mask: artMask }, work: outDir });
+  console.log(`painted from the turnaround -> ${out}`);
+  process.exit(0);
+}
 const tris = posedTris(poseOf(pose));
 if (args.includes('--calibrate')) {
   const cal = calibrate(tris);
