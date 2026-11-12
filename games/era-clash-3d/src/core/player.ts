@@ -9,6 +9,8 @@ const WALK = 2.0, RUN = 5.6;            // m/s
 const ACCEL = 20, DECEL = 26;           // m/s² toward target speed (snappy, nimble starts/stops)
 const TURN = 16;                        // rad/s body turn rate
 const RADIUS = 0.32, HEIGHT = 1.8, GRAVITY = 24, STEP = 0.4;
+/** Swimming: the feet hang this far under the surface (head and shoulders out); a bank this high climbs out. */
+const SWIM_DEPTH = 1.15, HOIST = 1.95, SWIM_SPEED = 0.5;
 const MOUSE = 0.0017;                   // rad per mouse pixel at sensitivity 1 (- / = keys scale it, remembered)
 const SENS_KEY = 'eraclash3d.mouseSens';
 const MOUSE_SPIKE = 90;                 // px: larger single-event jumps are Chromium/Edge pointer-lock glitches
@@ -38,6 +40,15 @@ export class PlayerController {
   sprintLatch = false;
   private lastTap = { code: '', t: -1e9 };
   world: CollisionWorld | null = null;
+  /** The water's surface at (x, z) where one can swim, or null (waterways.ts). */
+  water: ((x: number, z: number) => number | null) | null = null;
+  /** In the water now (set by the physics). */
+  swimming = false;
+  private swimSurface = 0;
+  private swimTilt = 0;
+  private swimLift = 0;
+  /** Riding something (a raft): it takes the move intent and says where the feet are; collision is skipped. */
+  carrier: ((want: THREE.Vector3, dt: number) => THREE.Vector3) | null = null;
   character: Character | null = null;
   enabled = true;
   /** Combat hooks: movement scale while swinging, timed burst (dash/lunge), body snap. */
@@ -259,6 +270,7 @@ export class PlayerController {
   /** One collision sub-step of the current velocity (plus an optional push). */
   private step(dt: number, push: THREE.Vector3 | null) {
     const p = this.object.position;
+    const intent = new THREE.Vector3(this.vel.x, 0, this.vel.z);   // (before the walls trim it: the climb-out wants it)
     const next = p.clone().addScaledVector(this.vel, dt);
     if (push) next.add(push);
     next.y += this.vy * dt;
@@ -293,7 +305,8 @@ export class PlayerController {
       // edges) — the horizontal step is refused instead, so Jack stops at the edge.
       if (this.onGround && (r.pos.x !== p.x || r.pos.z !== p.z)) {
         const g = this.world.groundAt(r.pos.x, r.pos.z, p.y + 0.6, 40);
-        if (g === null || g < p.y - 2.5) { r.pos.x = p.x; r.pos.z = p.z; r.onGround = true; this.vel.x = 0; this.vel.z = 0; }
+        const wet = this.water?.(r.pos.x, r.pos.z) ?? null;
+        if ((g === null || g < p.y - 2.5) && wet === null) { r.pos.x = p.x; r.pos.z = p.z; r.onGround = true; this.vel.x = 0; this.vel.z = 0; }
       }
       next.copy(r.pos);
       this.onGround = r.onGround;
@@ -301,6 +314,20 @@ export class PlayerController {
       if (!this.onGround && this.vy <= 0) {
         const g = this.world.groundAt(next.x, next.z, next.y + 0.5, 0.95);
         if (g !== null && next.y - g < 0.45) { next.y = g; this.onGround = true; }
+      }
+      // Water: float with head and shoulders out; swim into a bank or a landing stage low enough and climb out.
+      const s = this.water?.(next.x, next.z) ?? null;
+      if (s !== null && next.y < s - SWIM_DEPTH + 0.02) {
+        next.y = s - SWIM_DEPTH; this.vy = 0; this.onGround = true; this.swimming = true; this.swimSurface = s;
+        if (wantH > 1e-3 && gotH < wantH * 0.6) {
+          const d = intent.clone().setLength(0.8);
+          if (this.world.groundAt(p.x + d.x, p.z + d.z, s + HOIST + 0.1, HOIST + 0.5) === null || (this.world.groundAt(p.x + d.x, p.z + d.z, s + HOIST + 0.1, HOIST + 0.5) ?? 0) < s - 0.05) d.setLength(1.3);
+          const g = this.world.groundAt(p.x + d.x, p.z + d.z, s + HOIST + 0.1, HOIST + 0.5);
+          if (g !== null && g > s - 0.05) {
+            const up = this.world.resolve(new THREE.Vector3(p.x + d.x, g + 0.02, p.z + d.z), RADIUS, HEIGHT);
+            if (Math.abs(up.pos.x - (p.x + d.x)) + Math.abs(up.pos.z - (p.z + d.z)) < 0.3) { next.set(up.pos.x, g, up.pos.z); this.swimming = false; this.vel.multiplyScalar(0.3); }
+          }
+        }
       }
     } else { next.y = Math.max(next.y, 0); this.onGround = next.y <= 0.001; }
     if (this.onGround && this.vy <= 0) { this.vy = 0; this.lastSafe.copy(next); }
@@ -334,6 +361,7 @@ export class PlayerController {
       const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
       want.addScaledVector(fwd, iz).addScaledVector(right, ix).normalize().multiplyScalar((running ? RUN : WALK) * this.speedScale * Math.max(0.35, mag));
     }
+    if (this.swimming) want.multiplyScalar(SWIM_SPEED);
     const dv = want.clone().sub(this.vel);
     const rate = (want.lengthSq() > this.vel.lengthSq() ? ACCEL : DECEL) * dt;
     if (dv.length() > rate) dv.setLength(rate);
@@ -365,20 +393,37 @@ export class PlayerController {
     if (this.character) {
       this.character.root.rotation.z = this.lean;
       this.flinchT = Math.max(0, this.flinchT - dt);
-      this.character.root.rotation.x = -0.32 * Math.sin(Math.PI * (this.flinchT / 0.3));
+      // swimming: tread water upright; stroking, lie forward along the surface
+      const moving = this.swimming && this.vel.length() > 0.4;
+      const ease = 1 - Math.exp(-dt * 5);
+      this.swimTilt += ((moving ? 1.25 : this.swimming ? 0.12 : 0) - this.swimTilt) * ease;
+      this.swimLift += ((moving ? 0.78 : 0) - this.swimLift) * ease;
+      this.character.root.rotation.x = -0.32 * Math.sin(Math.PI * (this.flinchT / 0.3)) + this.swimTilt;
+      this.character.root.position.y = this.swimLift;
     }
 
     // Integrate + collide in sub-steps (≤12 cm each) so sprints, rolls and lunges can't tunnel
     // through thin walls, rails or monsters.
     const p = this.object.position;
-    this.vy -= GRAVITY * dt;
-    const travel = this.vel.length() * dt + this.push.length();
-    const steps = Math.min(8, Math.max(1, Math.ceil(travel / 0.12)));
-    const sdt = dt / steps;
-    const before = p.clone();
-    for (let i = 0; i < steps; i++) this.step(sdt, i === 0 ? this.push : null);
-    this.push.set(0, 0, 0);
-    this.unstick(dt, before, ix !== 0 || iz !== 0);
+    if (this.carrier) {
+      // riding: the raft moves; the hero turns to the way it is steered
+      p.copy(this.carrier(want, dt));
+      if (want.lengthSq() > 0.01 && (!this.followCam || stickCamera)) {
+        const d = Math.atan2(Math.sin(Math.atan2(want.x, want.z) - this.yaw), Math.cos(Math.atan2(want.x, want.z) - this.yaw));
+        this.yaw += THREE.MathUtils.clamp(d, -3 * dt, 3 * dt);
+      }
+      this.vel.set(0, 0, 0); this.vy = 0; this.onGround = true; this.swimming = false; this.push.set(0, 0, 0); this.lastSafe.copy(p);
+    } else {
+      this.vy -= GRAVITY * dt;
+      const travel = this.vel.length() * dt + this.push.length();
+      const steps = Math.min(8, Math.max(1, Math.ceil(travel / 0.12)));
+      const sdt = dt / steps;
+      const before = p.clone();
+      this.swimming = false;
+      for (let i = 0; i < steps; i++) this.step(sdt, i === 0 ? this.push : null);
+      this.push.set(0, 0, 0);
+      this.unstick(dt, before, ix !== 0 || iz !== 0);
+    }
     this.object.rotation.y = this.yaw;
 
     this.character?.setLocomotion(speed, WALK, RUN);
