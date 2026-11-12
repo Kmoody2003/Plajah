@@ -76,6 +76,9 @@ function sway(amount: number, bow: number, flutter = 0) {
   return positionLocal.add(vec3(ox, 0, oz).mul(y.mul(y))).add(vec3(fl, fl, fl));
 }
 
+/** The ez-tree bark scans (pine | oak | birch), for things made of trees (fallen logs). */
+export function barkMaps(type: 'pine' | 'oak' | 'birch') { return { color: tex(`${type}_color_1k.jpg`, true), normal: tex(`${type}_normal_1k.jpg`, false), rough: tex(`${type}_roughness_1k.jpg`, false) }; }
+
 const barkMats = new Map<string, THREE.MeshStandardNodeMaterial>();
 function barkMaterial(type: string) {
   if (!barkMats.has(type)) {

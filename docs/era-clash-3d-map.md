@@ -86,7 +86,7 @@ North (+Z, up the valley) is at the top. As in the game view from above, +X is t
 
 | Quest | Where |
 |---|---|
-| ◆ Smoke Over Otsu-no-ura | Beach landing → Outer Wall gatehouse → Grand Marketplace → Magistrate Kuroda's compound (proposed) → Pier 3 → Ōtemon (main castle gate) → Forecourt under the keep → Castle hill gate → The keep door → Hōrin-ji (proposed) → Bell house → Temple stable |
+| ◆ Smoke Over Otsu-no-ura | Beach landing → Outer Wall gatehouse → Grand Marketplace → Magistrate Kuroda's compound (proposed) → Ōtemon (main castle gate) → Forecourt under the keep → Castle hill gate → The keep door → Hōrin-ji (proposed) → Bell house → Temple stable |
 | ◇ The Held | across the town (no single place) |
 | ◇ The Burning Boats | Pier 3 |
 | ◇ The Broker's Strongbox | Grand Marketplace → Sōbei's shop (proposed) |
@@ -99,6 +99,6 @@ North (+Z, up the valley) is at the top. As in the game view from above, +X is t
 - The castle keep on its moated stone base, the ramparts over the harbour (still 8).
 - Shop interiors you can step into in the merchant streets.
 - Canal boats moving on the water; the Petals on the Water escort.
-- The forest road: undergrowth, the open fish market on the new quay, watchtowers, hidden camps, the bridge rescue, the shrine of Michael, wildlife (docs/era-clash-3d-forest-road.md).
+- The forest road: the open fish market on the new quay, watchtowers, hidden camps, the bridge rescue, the shrine of Michael, wildlife (docs/era-clash-3d-forest-road.md).
 - Horses at the temple stable (they wait now; riding comes with the horse rig).
 - Act II (its own area): the valley ride, the mine and Gōzan (proposed), the ascent, the crystal cave, the lava caverns, the crater oasis and Kurenai the Ash Witch (proposed).
