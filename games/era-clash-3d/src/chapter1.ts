@@ -18,6 +18,8 @@ import { buildCanal } from './canal';
 import { buildChannel, makeWater, SEA_Y, type ChannelSpec, type Water, type Channel } from './waterways';
 import { buildHillside, type Hillside } from './hillside';
 import { buildCastleHill, castleHillCut, castleRoadAt, TEMPLE, type CastleHill } from './castleHill';
+import { buildUndergrowth, type Undergrowth } from './undergrowth';
+import { buildForestFloor } from './forestFloor';
 import { buildRiver, riverCut, riverAt, COAST_DZ, RIVER_TOP, type River } from './river';
 
 export interface Fire { group: THREE.Group; flames: THREE.Mesh[]; smoke: THREE.Mesh[]; seed: number; size: number; raid: boolean }
@@ -109,6 +111,8 @@ export function hillRisers() {
 }
 
 const HILL_RISERS = hillRisers();
+/** Where the forest opens into glades (> 0.62: no trees; the light shafts stand there). */
+const gladeNoise = (x: number, z: number) => Math.sin(x * 0.031 + 1.7) * Math.sin(z * 0.027 - 0.4) + 0.35 * Math.sin(x * 0.09 + z * 0.07);
 /** Ground height: sea → beach → village terrace → hill → the painting's hilltop, with valley walls. */
 export function heightAt(x: number, z: number): number {
   const ss = (a: number, b: number, v: number) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -583,7 +587,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
       const px = x + (hr(x, z) - 0.5) * 4.4, pz = z + (hr(z, x) - 0.5) * 4.4;
       const dr = Math.abs(px - roadX(pz));
       if (dr < 6.5 + hr(px, 3) * 3) continue;                                    // the road
-      const glade = Math.sin(px * 0.031 + 1.7) * Math.sin(pz * 0.027 - 0.4) + 0.35 * Math.sin(px * 0.09 + pz * 0.07);
+      const glade = gladeNoise(px, pz);
       if (glade > 0.62) continue;                                               // glades
       if (pz > -90 && hr(px, pz) < 0.75) continue;                              // thinning toward the fields
       const rv = riverAt(px, pz); if (rv && rv.d < rv.half + 2.2) continue;     // the river
@@ -640,8 +644,29 @@ export async function buildChapter1(): Promise<Chapter1World> {
     const slope = Math.hypot(heightAt(x + 0.5, z) - heightAt(x - 0.5, z), heightAt(x, z + 0.5) - heightAt(x, z - 0.5));
     if (slope > 0.95) return 0;
     for (const b0 of blockedNear(x, z)) if (x > b0.min.x && x < b0.max.x && z > b0.min.z && z < b0.max.z) return 0;
-    return sp.grass * (1 - Math.min(1, slope / 0.95) * 0.5);
+    // under the canopy the grass thins out to a forest floor (the ferns take over: undergrowth.ts)
+    return sp.grass * (1 - Math.min(1, slope / 0.95) * 0.5) * (1 - 0.8 * canopy(x, z));
   };
+  // ── The forest floor (undergrowth.ts, forestFloor.ts): a canopy map from the trees, then ferns, flowering shrubs,
+  //    wildflowers and irises round the camera; logs, boulders, mist and light shafts laid once ─────────────────
+  const CAN = 4, canopyGrid = new Map<number, number>(), ck = (i: number, j: number) => i * 100003 + j;
+  for (const t of treeSpots) for (let i = Math.floor((t.x - 6) / CAN); i <= Math.floor((t.x + 6) / CAN); i++) for (let j = Math.floor((t.z - 6) / CAN); j <= Math.floor((t.z + 6) / CAN); j++) {
+    const d = Math.hypot(i * CAN + CAN / 2 - t.x, j * CAN + CAN / 2 - t.z); if (d > 6.5) continue;
+    canopyGrid.set(ck(i, j), (canopyGrid.get(ck(i, j)) ?? 0) + (1 - d / 6.5));
+  }
+  const canopy = (x: number, z: number) => Math.min(1, (canopyGrid.get(ck(Math.floor(x / CAN), Math.floor(z / CAN))) ?? 0) / 1.6);
+  const riverEdge = (x: number, z: number) => { if (z > CHANNEL.z0 + 2) return Infinity; const r = riverAt(x, z); return r ? r.d - r.half : Infinity; };
+  const roadD = (x: number, z: number) => { const a = Math.abs(x - roadX(z)); if (z > 167 && z < 365) return Math.min(a, castleRoadAt(x, z).d); return a; };
+  const builtOver = (x: number, z: number) => { for (const b0 of blockedNear(x, z)) if (x > b0.min.x && x < b0.max.x && z > b0.min.z && z < b0.max.z) return true; return false; };
+  const wild = (x: number, z: number) => (z < OTSU.wallZ - 4 || (z > 168 && hillTerraceK(x, z) === 0)) && splatAt(x, z).sand < 0.3 ? 1 : 0;
+  const undergrowth: Undergrowth | null = new URLSearchParams(location.search).has('noplants') ? null
+    : buildUndergrowth({ heightAt, canopy, riverEdge, roadD, blocked: builtOver, wild });
+  if (undergrowth) group.add(undergrowth.group);
+  group.add(buildForestFloor({
+    area: { x0: -158, x1: 40, z0: -445, z1: -60 }, sunDir: new THREE.Vector3(120, -60, -260),
+    place: { heightAt, riverEdge, glade: (x, z) => THREE.MathUtils.clamp((gladeNoise(x, z) - 0.45) / 0.4, 0, 1),
+      free: (x, z, r) => roadD(x, z) > r + 4 && riverEdge(x, z) > r + 0.5 && !builtOver(x, z) && canopy(x, z) < 0.95 + 0 * r },
+  }));
   const params0 = new URLSearchParams(location.search);
   const grass: GrassField | null = params0.has('nograss') ? null : buildGrassField(heightAt, grassAt, Number(params0.get('grass')) || 2200);
   if (grass) group.add(grass.group);
@@ -668,6 +693,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
     },
     update(dt, t, camera) {
       grass?.update(camera.position);
+      undergrowth?.update(camera.position);
       for (const pl of plumes) pl.sprites.forEach((sp, k) => {
         const ph = ((t * 0.07 + k / pl.sprites.length + pl.seed) % 1);
         sp.position.set(pl.p.x + ph * ph * 7 + Math.sin(t * 0.4 + k + pl.seed) * 0.4, pl.p.y + ph * 14, pl.p.z + ph * 2.5);
