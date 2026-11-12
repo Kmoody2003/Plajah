@@ -120,7 +120,14 @@ Each piece is its own mesh with its own material, made from parametric period pa
     - The pose fit also scores the arms against the art's arm masks.
     - Result: hakama front/back fullness 13 → 7 cm, scabbard 40° down and 28° out (from 17°/16°), wakizashi off by default (the art shows one sword, `FORGE_WAKIZASHI=1`).
     - Part IoU after: dō 57, kusazuri 65, hakama 47 (side 66), obi 40.
-  - **Known limits of the part scores:** SAM's cut of the back-view arms fails (arms read 4% from behind), and the art's sword includes its sheathed hilt, which the model's scabbard doesn't have (the katana is drawn in the hand).
+  - **The part scorer, fixed** (2026-11-12). The first version mis-cut the arms from behind, the sash and the sword.
+    - **Per piece:** a part made of separate pieces (two arms, two shins) gets one SAM prompt per piece, joined after. SAM cuts one object per prompt.
+    - **Prompts on the art:** inside points only where the art has the figure.
+    - **Several prompt styles:** each piece is tried as box with points, points alone and box alone, keeping the cut that best fits the model's piece (grown 6 px) times SAM's confidence.
+    - **One owner per pixel:** the smaller cut wins (a sash over the tassets, a foot below the shin). Never the model's part, which would flatter the score, and never the surer cut, which swallowed small neighbours.
+    - **Doubtful cuts:** a cut far smaller or larger than the model's part, or fitting it badly, is marked `.unreliable` and left out of `--fast` and the search.
+    - The run takes 2.3 min (OpenCV dilation, not PIL's MaxFilter).
+    - Honest part IoU now: head 77, dō 67, kusazuri 70, sode 65, arms 54, obi 45, hakama 51, shins 69, feet 62, sword 31. The art's sword still includes the sheathed hilt the model's scabbard lacks.
   - What's left: shape (72–75%): the shoulder guards stand out like wings and the dō's top is off by 2–3 cm. The head is 78–81% IoU. The GLB is now about 25 MB with the paintings.
 
 ### 5. Rig and export

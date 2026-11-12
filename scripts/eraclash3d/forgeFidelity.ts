@@ -416,7 +416,8 @@ function headProfile(side: ReturnType<typeof score>, front: ReturnType<typeof sc
 const artParts = new Map<string, Uint8Array>(); // `${view}:${part}` -> mask in the view's frame
 for (const v of ['front', 'side', 'back'] as ViewName[]) for (const name of PARTS) {
   const f = path.join(outDir, 'parts', `${v}_${name}_art.png`);
-  if (!fs.existsSync(f)) continue;
+  // (a cut the part scorer doubted is left out: it would steer the fit toward SAM's mistake)
+  if (!fs.existsSync(f) || fs.existsSync(f.replace(/\.png$/, '.unreliable'))) continue;
   const png = PNG.sync.read(fs.readFileSync(f)), m = new Uint8Array(png.width * png.height);
   for (let i = 0; i < m.length; i++) m[i] = png.data[i * 4] > 127 ? 1 : 0;
   artParts.set(`${v}:${name}`, m);
@@ -524,13 +525,14 @@ if (args.includes('--parts')) {
   fs.writeFileSync(path.join(outDir, 'parts.json'), JSON.stringify(res, null, 2));
   // per part across the views: IoU (weighted by how much of it each view shows), outline, colour
   const table = PARTS.map((name) => {
-    const rows = Object.values(res).map((v) => v[name]).filter(Boolean);
+    const rows = Object.values(res).map((v) => (v as Record<string, { iou: number; outlineMm: number; deltaE: number; area: number; reliable: boolean }>)[name]).filter((r) => r && r.reliable);
     const w = rows.reduce((a, r) => a + r.area, 0) || 1;
     const avg = (k: 'iou' | 'outlineMm' | 'deltaE') => rows.reduce((a, r) => a + r[k] * r.area, 0) / w;
     return { name, views: rows.length, iou: avg('iou'), outlineMm: avg('outlineMm'), deltaE: avg('deltaE') };
   }).filter((r) => r.views);
-  console.log('part        IoU    outline   ΔE    (front / side / back IoU)');
-  for (const r of table) console.log(`${r.name.padEnd(10)} ${(r.iou * 100).toFixed(1).padStart(5)}%  ${r.outlineMm.toFixed(1).padStart(6)} mm  ${r.deltaE.toFixed(1).padStart(5)}   ${['front', 'side', 'back'].map((v) => res[v]?.[r.name] ? (res[v][r.name].iou * 100).toFixed(0) : '-').join(' / ')}`);
+  console.log('part        IoU    outline   ΔE    (front / side / back IoU; ? = SAM cut doubted, left out)');
+  for (const r of table) console.log(`${r.name.padEnd(10)} ${(r.iou * 100).toFixed(1).padStart(5)}%  ${r.outlineMm.toFixed(1).padStart(6)} mm  ${r.deltaE.toFixed(1).padStart(5)}   ${['front', 'side', 'back'].map((v) => { const x = res[v]?.[r.name]; return !x ? '-' : x.reliable ? (x.iou * 100).toFixed(0) : '?'; }).join(' / ')}`);
+  for (const [v, rows] of Object.entries(res)) for (const [name, x] of Object.entries(rows)) if (!x.reliable) console.log(`  ? ${v} ${name}: ${x.why}`);
   console.log(`images: ${outDir}/parts_<view>.png`);
   process.exit(0);
 }

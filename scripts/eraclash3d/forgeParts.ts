@@ -15,7 +15,24 @@ import { PNG } from 'pngjs';
 
 const PY = process.env.TELA3D_PY ?? 'D:/Plajah Runtime/tela3d-py/Scripts/python.exe';
 export interface PartView { name: string; x0: number; x1: number; shift: number; r: { W: number; H: number; mask: Uint8Array; partId: Int8Array; rgb: Float32Array } }
-export interface PartScore { iou: number; outlineMm: number; deltaE: number; area: number }
+export interface PartScore { iou: number; outlineMm: number; deltaE: number; area: number; reliable: boolean; why?: string }
+
+/** Connected pieces of a mask (4-connected): a part like the arms is two objects to SAM, each prompted on its own. */
+function pieces(m: Uint8Array, W: number, H: number, minArea: number): Uint8Array[] {
+  const lab = new Int32Array(W * H).fill(-1), out: Uint8Array[] = [];
+  for (let i = 0; i < W * H; i++) {
+    if (!m[i] || lab[i] >= 0) continue;
+    const id = out.length, stack = [i], px: number[] = []; lab[i] = id;
+    while (stack.length) {
+      const j = stack.pop()!; px.push(j);
+      const x = j % W, y = (j / W) | 0;
+      for (const k of [x > 0 ? j - 1 : -1, x < W - 1 ? j + 1 : -1, y > 0 ? j - W : -1, y < H - 1 ? j + W : -1]) if (k >= 0 && m[k] && lab[k] < 0) { lab[k] = id; stack.push(k); }
+    }
+    const piece = new Uint8Array(W * H); for (const j of px) piece[j] = 1;
+    out.push(px.length >= minArea ? piece : new Uint8Array(0));
+  }
+  return out.filter((q) => q.length);
+}
 
 const COLOURS = [[255, 200, 60], [230, 60, 50], [60, 200, 90], [60, 140, 255], [200, 90, 230], [40, 220, 220], [255, 130, 40], [150, 220, 60], [240, 120, 180], [180, 180, 180]];
 
@@ -63,36 +80,58 @@ export function scoreParts(views: PartView[], sheet: { W: number; H: number; dat
     fs.writeFileSync(imgFile, PNG.sync.write(artPng));
     const model = parts.map(() => new Uint8Array(W * H));
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const p = v.r.partId[y * W + x]; const ax = x + v.shift; if (p >= 0 && ax >= 0 && ax < W) model[p][y * W + ax] = 1; }
-    const inner = model.map((m) => { const d = chamfer(m, W, H, false); const out: number[] = []; for (let i = 0; i < W * H; i++) if (m[i] && d[i] > 4) out.push(i); return out; });
+    const figure = (i: number) => sheet.mask[((i / W) | 0) * sheet.W + v.x0 + (i % W)] === 1;
+    // insides: well within the model's part AND on the art's figure (a point off the art says nothing to SAM)
+    const insideOf = (m: Uint8Array) => { const d = chamfer(m, W, H, false); const out: number[] = []; for (let i = 0; i < W * H; i++) if (m[i] && d[i] > 4 && figure(i)) out.push(i); return out; };
+    const inner = model.map(insideOf);
     const jobs: Record<string, unknown>[] = [];
+    const jobsOf: Record<string, string[]> = {};
     parts.forEach((name, p) => {
-      if (inner[p].length < 150) return;
-      let x0 = W, y0 = H, x1 = 0, y1 = 0;
-      for (let i = 0; i < W * H; i++) if (model[p][i]) { const x = i % W, y = (i / W) | 0; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
-      const pad = Math.max(6, Math.round((x1 - x0 + y1 - y0) * 0.04));
-      const box = [Math.max(0, x0 - pad), Math.max(0, y0 - pad), Math.min(W - 1, x1 + pad), Math.min(H - 1, y1 + pad)];
-      // "not this": the other parts' insides within this part's box
-      const others: number[] = [];
-      parts.forEach((_, q) => { if (q !== p) for (const i of inner[q]) { const x = i % W, y = (i / W) | 0; if (x >= box[0] && x <= box[2] && y >= box[1] && y <= box[3]) others.push(i); } });
-      const guide = new PNG({ width: W, height: H });
-      for (let i = 0; i < W * H; i++) { const c = model[p][i] ? 255 : 0; guide.data[i * 4] = guide.data[i * 4 + 1] = guide.data[i * 4 + 2] = c; guide.data[i * 4 + 3] = 255; }
-      const gFile = path.join(work, `${v.name}_${name}_guide.png`);
-      fs.writeFileSync(gFile, PNG.sync.write(guide));
-      jobs.push({ name, pos: spread(inner[p], W, 6), neg: spread(others, W, 6), box, guide: gFile, out: path.join(work, `${v.name}_${name}_art.png`) });
+      jobsOf[name] = [];
+      pieces(model[p], W, H, 250).forEach((piece, k) => {
+        const inside = insideOf(piece);
+        if (inside.length < 120) return;
+        let x0 = W, y0 = H, x1 = 0, y1 = 0;
+        for (let i = 0; i < W * H; i++) if (piece[i]) { const x = i % W, y = (i / W) | 0; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+        const pad = Math.max(6, Math.round((x1 - x0 + y1 - y0) * 0.05));
+        const box = [Math.max(0, x0 - pad), Math.max(0, y0 - pad), Math.min(W - 1, x1 + pad), Math.min(H - 1, y1 + pad)];
+        // "not this": other parts' insides within the box (not this part's other piece: it is the same thing)
+        const others: number[] = [];
+        parts.forEach((_, q) => { if (q !== p) for (const i of inner[q]) { const x = i % W, y = (i / W) | 0; if (x >= box[0] && x <= box[2] && y >= box[1] && y <= box[3]) others.push(i); } });
+        const guide = new PNG({ width: W, height: H });
+        for (let i = 0; i < W * H; i++) { const c = piece[i] ? 255 : 0; guide.data[i * 4] = guide.data[i * 4 + 1] = guide.data[i * 4 + 2] = c; guide.data[i * 4 + 3] = 255; }
+        const id = `${name}#${k}`, gFile = path.join(work, `${v.name}_${name}_${k}_guide.png`), out = path.join(work, `${v.name}_${name}_${k}_cut.png`);
+        fs.writeFileSync(gFile, PNG.sync.write(guide));
+        jobs.push({ name: id, pos: spread(inside, W, 6), neg: spread(others, W, 6), box, guide: gFile, out });
+        jobsOf[name].push(out);
+      });
     });
     const jobFile = path.join(work, `${v.name}_jobs.json`);
-    fs.writeFileSync(jobFile, JSON.stringify({ image: imgFile, jobs }));
+    const resFile = path.join(work, `${v.name}_results.json`);
+    fs.writeFileSync(jobFile, JSON.stringify({ image: imgFile, results: resFile, jobs }));
     execFileSync(PY, ['engines/tela-3d/sam_prompt.py', jobFile], { stdio: ['ignore', 'ignore', 'inherit'] });
 
-    // ---- compare each pair ----------------------------------------------------------------------------------------
+    // ---- each part's art mask: its pieces joined, then one owner per pixel ----------------------------------------
+    const sam = JSON.parse(fs.readFileSync(resFile, 'utf8')) as Record<string, { guideIoU: number; score: number }>;
+    const artOf = parts.map((name) => {
+      const A = new Uint8Array(W * H);
+      for (const f of jobsOf[name]) { if (!fs.existsSync(f)) continue; const a = PNG.sync.read(fs.readFileSync(f)); for (let i = 0; i < W * H; i++) if (a.data[i * 4] > 127 && figure(i)) A[i] = 1; }
+      return A;
+    });
+    // a pixel two cuts claim goes to the smaller cut: a sash lies over the tassets, a foot ends the shin (as Argilla's own
+    // part finder does). Never to whichever part the model has there: that would lean the art toward the model and
+    // flatter the score; nor to the surer cut: big confident cuts swallowed their small neighbours.
+    const areaOf = artOf.map((A) => A.reduce((a, x) => a + x, 0));
+    const order = parts.map((_, p) => p).filter((p) => areaOf[p] > 0).sort((a, b) => areaOf[a] - areaOf[b]);
+    for (let i = 0; i < W * H; i++) {
+      let owner = -1;
+      for (const p of order) if (artOf[p][i]) { if (owner < 0) owner = p; else artOf[p][i] = 0; }
+    }
     result[v.name] = {};
     const overlay = PNG.sync.read(PNG.sync.write(artPng));
     parts.forEach((name, p) => {
-      const f = path.join(work, `${v.name}_${name}_art.png`);
-      if (!jobs.some((j) => j.name === name) || !fs.existsSync(f)) return;
-      const a = PNG.sync.read(fs.readFileSync(f));
-      const A = new Uint8Array(W * H);
-      for (let i = 0; i < W * H; i++) A[i] = a.data[i * 4] > 127 && sheet.mask[((i / W) | 0) * sheet.W + v.x0 + (i % W)] ? 1 : 0;
+      if (!jobsOf[name].length) return;
+      const A = artOf[p];
       const M = model[p];
       let inter = 0, uni = 0;
       for (let i = 0; i < W * H; i++) { if (A[i] && M[i]) inter++; if (A[i] || M[i]) uni++; }
@@ -116,7 +155,20 @@ export function scoreParts(views: PartView[], sheet: { W: number; H: number; dat
         const la = lab(ma[0] / n, ma[1] / n, ma[2] / n), lm = lab(mm[0] / n, mm[1] / n, mm[2] / n);
         de += Math.hypot(la[0] - lm[0], la[1] - lm[1], la[2] - lm[2]); dc++;
       }
-      result[v.name][name] = { iou: +(uni ? inter / uni : 0).toFixed(3), outlineMm: +(dn ? ds / dn / ppm * 1000 : 0).toFixed(1), deltaE: +(dc ? de / dc : 0).toFixed(1), area: inter };
+      // a cut is doubtful when it is far smaller or larger than the model's part, or fits it badly even grown: then it
+      // says more about SAM than about the model, and the search leaves it out
+      let aArea = 0, mArea = 0; for (let i = 0; i < W * H; i++) { aArea += A[i]; mArea += M[i]; }
+      const ratio = aArea / Math.max(1, mArea);
+      const fits = Object.entries(sam).filter(([k]) => k.startsWith(`${name}#`)).map(([, x]) => x.guideIoU);
+      const fit = fits.length ? Math.min(...fits) : 0;
+      const why = ratio < 0.35 ? `art cut ${Math.round(ratio * 100)}% of the model's` : ratio > 2.8 ? `art cut ${ratio.toFixed(1)}x the model's` : fit < 0.15 ? `cut fits poorly (${fit.toFixed(2)})` : undefined;
+      result[v.name][name] = { iou: +(uni ? inter / uni : 0).toFixed(3), outlineMm: +(dn ? ds / dn / ppm * 1000 : 0).toFixed(1), deltaE: +(dc ? de / dc : 0).toFixed(1), area: inter, reliable: !why, ...(why ? { why } : {}) };
+      // the joined, owned cut is what --fast compares against (and a doubtful one is marked, so it is left out)
+      const png = new PNG({ width: W, height: H });
+      for (let i = 0; i < W * H; i++) { const c = A[i] ? 255 : 0; png.data[i * 4] = png.data[i * 4 + 1] = png.data[i * 4 + 2] = c; png.data[i * 4 + 3] = 255; }
+      fs.writeFileSync(path.join(work, `${v.name}_${name}_art.png`), PNG.sync.write(png));
+      const flag = path.join(work, `${v.name}_${name}_art.unreliable`);
+      if (why) fs.writeFileSync(flag, why); else if (fs.existsSync(flag)) fs.unlinkSync(flag);
       // overlay: the art's part tinted, the model's part outlined, in the part's colour
       const c = COLOURS[p % COLOURS.length];
       for (let i = 0; i < W * H; i++) {
