@@ -36,8 +36,6 @@ import { grabStills } from '../../../services/reello/grabStills';
 import IntelOptionsEditor from './IntelOptionsEditor';
 import ReelloIntelDrafts from './ReelloIntelDrafts';
 import { openVideoStudio } from '../../../services/reello/videoStudio';
-import { openGenCloud } from '../../../services/genCloud/open';
-import { outputToFile } from '../../../services/genCloud/client';
 
 type Tab = 'UPLOAD' | 'FOLDERS' | 'TEMPLATES' | 'DRAFTS';
 const GENRES = ['General', 'Music', 'Vlog', 'Education', 'How-to', 'Comedy', 'Gaming', 'Faith', 'News', 'Sports', 'Food', 'Fashion', 'Business', 'Film & Animation'];
@@ -519,12 +517,7 @@ const ReelloUploadStudio: React.FC<ReelloUploadStudioProps> = ({ onClose, seedFi
           <nav className="flex gap-1 ml-2 overflow-x-auto">
             {TABS.map(t => <button key={t.id} onClick={() => setTab(t.id)} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm whitespace-nowrap ${tab === t.id ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white'}`}>{t.icon}<span className="hidden sm:inline">{t.label}</span></button>)}
           </nav>
-          <button onClick={() => openGenCloud({ source: 'reello', kinds: ['video'], aspect: '16:9', useLabel: 'Add to uploads',
-              onUse: async outs => { const files = await Promise.all(outs.filter(o => o.mime.startsWith('video/')).map((o, i) => outputToFile(o, `plajah-cloud-${Date.now()}-${i}`))); if (files.length) { setTab('UPLOAD'); guard(() => takeFiles(files)); } } })}
-            className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/15 text-sm text-white/80 hover:text-white" title="Generate a clip with Plajah Cloud">
-            <Sparkles size={15} /><span className="hidden sm:inline">Generate a clip</span>
-          </button>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10" aria-label="Close"><X size={20} /></button>
+          <button onClick={onClose} className="ml-auto p-2 rounded-full hover:bg-white/10" aria-label="Close"><X size={20} /></button>
         </header>
 
         {notice && (

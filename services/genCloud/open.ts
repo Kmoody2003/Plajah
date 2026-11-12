@@ -6,8 +6,8 @@ import type { JobOutput } from './client';
 
 export interface GenCloudOpenRequest {
   /** Which room asked (shown in the header, e.g. "for Tela"). */
-  source?: 'tela' | 'reello' | 'fabula' | 'app';
-  /** Limit the engine list (e.g. Reello → ['video']). */
+  source?: 'tela' | 'fabula' | 'app';
+  /** Limit the engine list (e.g. ['video']). */
   kinds?: GenKind[];
   prompt?: string;
   aspect?: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
@@ -15,7 +15,7 @@ export interface GenCloudOpenRequest {
   tab?: 'create' | 'credits';
   /** Called when the user presses "Use" on a result. Absent = results can only be opened/downloaded. */
   onUse?: (outputs: JobOutput[], meta: { engine: string; prompt: string }) => void | Promise<void>;
-  /** Label for the Use button ("Add to canvas", "Add to uploads", "Add to bin"). */
+  /** Label for the Use button ("Add to page", "Add to bin"). */
   useLabel?: string;
 }
 

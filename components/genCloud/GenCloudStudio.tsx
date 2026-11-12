@@ -1,6 +1,6 @@
 // components/genCloud/GenCloudStudio.tsx — the Plajah Cloud generate panel (images, video, voice).
 //
-// One panel for every room: Tela, Reello and Fabula open it through openGenCloud() with an onUse
+// One panel for every room: Tela and Fabula open it through openGenCloud() with an onUse
 // callback that drops results into their own canvas / upload queue / bin. Users see Plajah engine
 // names and credits only. Two tabs: Create (engine, prompt, options, live quote, results) and
 // Credits (balance by source + packs via Stripe Checkout). Local generation stays free in each room;
@@ -21,7 +21,7 @@ const KIND_META: Record<GenKind, { label: string; icon: React.ReactNode }> = {
   voice: { label: 'Voice', icon: <Mic size={15} /> },
 };
 const ASPECTS: Aspect[] = ['1:1', '16:9', '9:16', '4:3', '3:4'];
-const SOURCE_LABEL: Record<string, string> = { tela: 'Tela', reello: 'Reello', fabula: 'Fabula' };
+const SOURCE_LABEL: Record<string, string> = { tela: 'Tela', fabula: 'Fabula' };
 
 const money = (cents: number) => `$${(cents / 100).toFixed(cents % 100 ? 2 : 0)}`;
 const lockText = (e: EngineView) =>

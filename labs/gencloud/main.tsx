@@ -14,7 +14,6 @@ function Lab() {
       <h1 className="text-xl font-bold">Plajah Cloud lab</h1>
       <div className="flex flex-wrap gap-2">
         <button className={btn} onClick={() => openGenCloud({ source: 'tela', useLabel: 'Add to page', onUse })}>Open as Tela</button>
-        <button className={btn} onClick={() => openGenCloud({ source: 'reello', kinds: ['video'], useLabel: 'Add to uploads', onUse })}>Open as Reello</button>
         <button className={btn} onClick={() => openGenCloud({ source: 'fabula', kinds: ['video', 'image', 'voice'], useLabel: 'Add to bin', onUse })}>Open as Fabula</button>
         <button className={btn} onClick={() => openGenCloud({ tab: 'credits' })}>Credits</button>
       </div>

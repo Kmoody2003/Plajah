@@ -58,7 +58,7 @@ export const PLAN_LABEL: Record<string, string> = {
   studio_max: 'Studio Max', studio_team: 'Studio Team', production_house: 'Production House',
 };
 
-/** Download a generated result as a File (for rooms that insert local files: Tela, Reello). */
+/** Download a generated result as a File (for rooms that insert local files, e.g. Tela). */
 export async function outputToFile(o: JobOutput, name: string): Promise<File> {
   const res = await fetch(o.url);
   if (!res.ok) throw new Error(`download ${res.status}`);
