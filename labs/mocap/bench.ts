@@ -12,6 +12,7 @@ import { tracker, toRaw, nextTs, PerformerLock } from '../../services/mocap/capt
 import { solveTake, clipFrame, fk, JOINTS, type SolveOptions } from '../../services/mocap/solve';
 import { detectStrikes } from '../../services/mocap/moves';
 import { loadLifter } from '../../services/mocap/lifter';
+import { handRefiner, type HandRefineOptions } from '../../services/mocap/hands';
 import type { RawTake, RawFrame, PoseModel, MotionClip } from '../../services/mocap/types';
 
 const MOCAP = '/games/era-clash/3d/assets/mocap/';
@@ -48,6 +49,8 @@ export interface BenchOptions {
   solve?: SolveOptions;
   /** Keep a picture of these frame indices (with the detected landmarks drawn on), for checking by eye. */
   keep?: number[];
+  /** Also run the hand pass (services/mocap/hands.ts) on every frame; the result keeps both takes. */
+  hands?: boolean | HandRefineOptions;
 }
 
 export interface Truth { pos: Record<string, THREE.Vector3>; footY: { l: number; r: number }; footW: { l: THREE.Vector3; r: THREE.Vector3 }; hipWorldY: number;
@@ -58,7 +61,7 @@ const loaded = new Map<string, Promise<unknown>>();
 const once = <T,>(key: string, f: () => Promise<T>): Promise<T> => { if (!loaded.has(key)) loaded.set(key, f()); return loaded.get(key) as Promise<T>; };
 
 /** Render the take and capture it. Returns the raw take (as from a camera) and the truth per frame. */
-export async function render(o: BenchOptions): Promise<{ take: RawTake; truth: Truth[]; ms: { render: number; detect: number }; shots: string[] }> {
+export async function render(o: BenchOptions): Promise<{ take: RawTake; handTake?: RawTake; handStats?: { frames: number; found: number; moved: number; swapped: number; ms: number }; truth: Truth[]; ms: { render: number; detect: number }; shots: string[] }> {
   const [W, H] = o.size ?? [1280, 720], fps = 30, hfov = o.hfovDeg ?? 60;
   const fbx = await once(`fbx:${o.take}`, () => new FBXLoader().loadAsync(`${MOCAP}${o.take}.fbx`)) as THREE.Group;
   const gltf = await new GLTFLoader().loadAsync(`${CHARS}${o.character ?? 'samurai'}.glb`);
@@ -107,6 +110,9 @@ export async function render(o: BenchOptions): Promise<{ take: RawTake; truth: T
   const pose = await tracker(o.model ?? 'heavy');
   const lock = new PerformerLock();
   const frames: (RawFrame | null)[] = [], truth: Truth[] = [];
+  const hr = o.hands ? await handRefiner() : null, hopt = typeof o.hands === 'object' ? o.hands : {};
+  const handFrames: (RawFrame | null)[] = [];
+  const s0 = hr ? { ...hr.stats } : null; let tHands = 0;
   const shots: string[] = [];
   let tRender = 0, tDetect = 0;
   for (let i = 0; i < n; i++) {
@@ -117,6 +123,7 @@ export async function render(o: BenchOptions): Promise<{ take: RawTake; truth: T
     renderer.render(scene, cam);
     const b = performance.now();
     frames.push(toRaw(i / fps, lock.pick(pose.detectAll(canvas, nextTs(b)), i / fps)));
+    if (hr) { const c = performance.now(); handFrames.push(hr.refine(canvas, W, H, frames[frames.length - 1], hopt)); tHands += performance.now() - c; }
     if (o.keep?.includes(i)) {
       const c2 = document.createElement('canvas'); c2.width = W / 2; c2.height = H / 2; const g = c2.getContext('2d')!;
       g.drawImage(canvas, 0, 0, W / 2, H / 2);
@@ -137,6 +144,10 @@ export async function render(o: BenchOptions): Promise<{ take: RawTake; truth: T
   return {
     take: { fps, frames, width: W, height: H, hfovDeg: hfov, source: { kind: 'upload', label: `bench ${o.take}`, model: o.model ?? 'heavy' } },
     truth, ms: { render: tRender / n, detect: tDetect / n }, shots,
+    ...(hr && s0 ? {
+      handTake: { fps, frames: handFrames, width: W, height: H, hfovDeg: hfov, source: { kind: 'upload', label: `bench ${o.take} + hands`, model: o.model ?? 'heavy' } } as RawTake,
+      handStats: { frames: hr.stats.frames - s0.frames, found: hr.stats.found - s0.found, moved: hr.stats.moved - s0.moved, swapped: hr.stats.swapped - s0.swapped, ms: +(tHands / n).toFixed(1) },
+    } : {}),
   };
 }
 
@@ -268,7 +279,7 @@ export async function runSuite(cases: (BenchOptions & { key: string })[], onEach
   const out: (BenchReport & { key: string })[] = [];
   for (const c of cases) {
     const r = await render(c);
-    await set(`plajah.mocapbench.${c.key}`, { o: c, raw: r.take, truth: r.truth.map(ser), ms: r.ms });
+    await set(`plajah.mocapbench.${c.key}`, { o: c, raw: r.take, rawHands: r.handTake, handStats: r.handStats, truth: r.truth.map(ser), ms: r.ms });
     const rep = { key: c.key, ...rescore(c, r.take, r.truth, r.ms) };
     out.push(rep); onEach?.(rep);
   }
@@ -276,13 +287,14 @@ export async function runSuite(cases: (BenchOptions & { key: string })[], onEach
 }
 
 /** Re-solve and re-score stored cases with other solve options (no rendering). */
-export async function rescoreStored(keys: string[], solve: SolveOptions = {}, o: { lifter?: string | false; gate?: import('../../services/mocap/lifter').LiftGate | false; live?: boolean } = {}) {
+export async function rescoreStored(keys: string[], solve: SolveOptions = {}, o: { lifter?: string | false; gate?: import('../../services/mocap/lifter').LiftGate | false; live?: boolean; hands?: boolean } = {}) {
   const { get } = await import('idb-keyval');
   const lifter = o.lifter ? await loadLifter(o.lifter) : null;
   const out: (BenchReport & { key: string })[] = [];
   for (const key of keys) {
-    const b = await get(`plajah.mocapbench.${key}`) as { o: BenchOptions; raw: RawTake; truth: SerTruth[]; ms: { render: number; detect: number } } | undefined;
+    const b = await get(`plajah.mocapbench.${key}`) as { o: BenchOptions; raw: RawTake; rawHands?: RawTake; truth: SerTruth[]; ms: { render: number; detect: number } } | undefined;
     if (!b) continue;
+    if (o.hands) { if (!b.rawHands) continue; b.raw = b.rawHands; }
     // live: frame by frame through lifter.stream (no look-ahead), as a webcam would feed it.
     const lifted = !lifter ? b.raw : o.live ? (() => { const s = lifter.stream(b.raw, o.gate); return { ...b.raw, frames: b.raw.frames.map((f) => s.push(f)) }; })() : lifter.apply(b.raw, o.gate);
     out.push({ key, ...rescore({ ...b.o, solve }, lifted, b.truth.map(de), b.ms) });
@@ -295,10 +307,10 @@ export const line = (r: BenchReport & { key?: string }) => `${r.key ?? r.take}: 
 
 /** Where the error comes from, per joint: MediaPipe's 2D points vs the true joints projected into the image (px),
  *  and per bone: MediaPipe 3D direction error split into in-picture angle and depth angle (degrees). */
-export async function diagnose(key: string) {
+export async function diagnose(key: string, hands = false) {
   const { get } = await import('idb-keyval');
-  const b = await get(`plajah.mocapbench.${key}`) as { o: BenchOptions; raw: RawTake; truth: SerTruth[] };
-  const truth = b.truth.map(de), take = b.raw, W = take.width, H = take.height;
+  const b = await get(`plajah.mocapbench.${key}`) as { o: BenchOptions; raw: RawTake; rawHands?: RawTake; truth: SerTruth[] };
+  const truth = b.truth.map(de), take = hands && b.rawHands ? b.rawHands : b.raw, W = take.width, H = take.height;
   const f = (W / 2) / Math.tan(THREE.MathUtils.degToRad(take.hfovDeg ?? 60) / 2);
   const MPI: Record<string, number> = { lShldr: 11, rShldr: 12, lForeArm: 13, rForeArm: 14, lHand: 15, rHand: 16, lThigh: 23, rThigh: 24, lShin: 25, rShin: 26, lFoot: 27, rFoot: 28 };
   const px: Record<string, number[]> = {}, inPic: Record<string, number[]> = {}, depth: Record<string, number[]> = {};

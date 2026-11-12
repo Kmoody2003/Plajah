@@ -509,16 +509,29 @@ scores the live path. Not yet wired into a live consumer: the capture room's liv
 users are the VTuber and character puppets (`services/vtuber/poseTracker.ts` world points).
 
 **Why boxing stays bad** (diagnose `boxing-20`): MediaPipe's own 2D points are wrong. Left elbow and wrist sit
-50–100 px off at high confidence (0.8–0.97), and the two wrists are swapped in 48 of 180 frames. A lifter that only
-sees those points can't recover; the gate can't catch it either, because MediaPipe is confident. The fix is a
-second look at the hands: MediaPipe's hand landmarker on crops around each wrist (it also reports which hand is
-which), used to correct wrists and elbows before lifting.
+50–100 px off at high confidence (0.8–0.97), and the two wrists are swapped in 48 of 180 frames. A render of the
+take shows why: the performer has turned nearly side-on and **the left arm is hidden behind the body**. MediaPipe
+guesses the hidden arm and still reports it as seen, so neither the lifter nor the gate can catch it.
+
+**Hand pass, tried and parked** (`services/mocap/hands.ts`, 2026-11-12). MediaPipe's hand landmarker runs on zoomed
+crops around each wrist and elbow, and the wrists are moved onto the hands it finds (left/right from its own call,
+else by reach from each shoulder). Benchmark option: `hands: true` keeps both takes from one render.
+
+| Test | Result |
+|---|---|
+| Boxing, peasant | hands found in 12 of 180 frames; 34.3° → 34.3° |
+| Punch / kata, monk, fisherman, samurai | found in 5–42% of frames, 80–210 ms a frame |
+| Punch, fisherman, wrists it moved | 32.7 → **38.3 px** from the truth (better in 9 of 29); 27.8° → 27.9° |
+
+The game characters' hands are too coarse for the hand model, and the boxing arm is hidden, so it can't help
+there. It is off everywhere; re-test it on footage of real people before deciding. **A hidden limb from one
+camera is a job for a second camera**, which moves the two-phone mode up the list.
 
 **Next:**
-1. Hand-crop refinement for fast arm work (above), then re-benchmark punch/boxing/kata.
+1. A real two-phone capture mode (the fix for hidden limbs): sync by a clap or flash, calibrate from the
+   performer's own body, triangulate with `services/cameraRig` (two phones at ~90° gave 11–15° in the renders).
 2. Stream the lifter into the VTuber/puppet pose path behind a setting, and measure it on a real webcam.
-3. A real two-phone capture mode: sync by a clap or flash, calibrate from the performer's own body.
-4. Kenne's own webcam take, to confirm on a real person.
+3. Kenne's own webcam take, to confirm on a real person (and re-test the hand pass on it).
 
 ## 7. Decisions for Kenne
 
