@@ -572,10 +572,10 @@ on-ramp through Elevate Mobilize.
 
 1. First pilot target: student government, church/nonprofit bylaws, or a real municipal office?
 2. ~~Live drafting vs checkpoints~~ **Decided:** Private Draft plus published Public versions (§2.1).
-6. Which state and city should seed the Law Library first? It should match the pilot jurisdiction.
-7. Could meetings (§9) be the wedge product? Cities already buy meeting software (agenda,
-   streaming, minutes), so it may be an easier first sale than drafting.
 3. Which verification vendor for Tier 2, and is voter-file matching acceptable in launch states?
 4. Do unverified and out-of-district participants get stances at all, or only annotations?
 5. Is this a Plajah-branded surface or a white-label product governments embed on `.gov` sites?
    Government buyers usually require the latter.
+6. Which state and city should seed the Law Library first? It should match the pilot jurisdiction.
+7. Could meetings (§9) be the wedge product? Cities already buy meeting software (agenda,
+   streaming, minutes), so it may be an easier first sale than drafting.
