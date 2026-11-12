@@ -81,7 +81,7 @@ export function haruMaterials(): GMaterial[] {
     hair: { name: 'hair', color: [0.012, 0.01, 0.01, 1], metallic: 0, roughness: 0.45, sheen: { color: [0.25, 0.22, 0.2], roughness: 0.25 } },
     katana_steel: { name: 'katana_steel', color: [0.78, 0.8, 0.84, 1], metallic: 1, roughness: 0.14 },
     // strand cards: alpha-tested, both sides, the highlight stretched across the strands
-    hairCards: { name: 'hairCards', color: [0.03, 0.022, 0.018, 1], metallic: 0, roughness: 0.58, alphaMode: 'MASK', alphaCutoff: 0.35, anisotropy: { strength: 0.5, rotation: Math.PI / 2 }, specular: { factor: 0.3 } },
+    hairCards: { name: 'hairCards', color: [0.016, 0.013, 0.012, 1], metallic: 0, roughness: 0.42, alphaMode: 'MASK', alphaCutoff: 0.35, anisotropy: { strength: 0.75, rotation: Math.PI / 2 }, specular: { factor: 0.45 } },
   };
   for (const m of Object.values(byName)) if (m.sheen && m.name !== 'skin') {
     const k = m.name.startsWith('silk') ? 2.6 : 1.9;
@@ -360,4 +360,126 @@ export function paintFace(landmarks: V3[], headTop: number, napeY: number, centr
   const png = new PNG({ width: N, height: N });
   for (let i = 0; i < N * N; i++) { for (let k = 0; k < 3; k++) png.data[i * 4 + k] = Math.max(0, Math.min(255, Math.round(rgb[i * 3 + k]))); png.data[i * 4 + 3] = 255; }
   return { size: N, png: new Uint8Array(PNG.sync.write(png)), uvOf };
+}
+
+// ---- The face painted from front art (Muse) ------------------------------------------------------------------------
+// MediaPipe finds the same 468 landmarks on the art that the Forge face is built from, so the art maps onto the atlas
+// triangle by triangle (engines/tela-3d/face_landmarks.py). Outside the landmark mesh (temples, hairline, ears, neck) a
+// least-squares affine carries on, with the mesh's own correction relaxed smoothly out to the frame so there is no
+// seam. The art's grey background is left to the procedural paint underneath.
+
+export interface ArtLandmarks { width: number; height: number; image?: string; points: [number, number, number][] }
+
+export function paintFaceFromArt(base: FaceAtlas, landmarks: V3[], artPath: string, art: ArtLandmarks, tris: ArrayLike<number>, front = 0.72): FaceAtlas & { skin: RGB } {
+  const N = base.size, H = Math.floor(front * N);
+  const out = PNG.sync.read(Buffer.from(base.png));
+  const img = PNG.sync.read(fs.readFileSync(art.image ?? artPath));
+  const sx = img.width / art.width, sy = img.height / art.height;
+  const A = landmarks.slice(0, 468).map((p) => base.uvOf(p, false).map((c) => c * N) as [number, number]);
+  const B = art.points.slice(0, 468).map((p) => [p[0] * sx, p[1] * sy] as [number, number]);
+
+  // least-squares affine atlas → art
+  const M = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], bx = [0, 0, 0], by = [0, 0, 0];
+  A.forEach(([x, y], i) => { const r = [x, y, 1]; for (let a = 0; a < 3; a++) { for (let b = 0; b < 3; b++) M[a][b] += r[a] * r[b]; bx[a] += r[a] * B[i][0]; by[a] += r[a] * B[i][1]; } });
+  const solve = (m: number[][], v: number[]) => {
+    const a = m.map((row, i) => [...row, v[i]]);
+    for (let c = 0; c < 3; c++) { let p = c; for (let r = c + 1; r < 3; r++) if (Math.abs(a[r][c]) > Math.abs(a[p][c])) p = r; [a[c], a[p]] = [a[p], a[c]]; for (let r = 0; r < 3; r++) if (r !== c) { const f = a[r][c] / a[c][c]; for (let k = c; k < 4; k++) a[r][k] -= f * a[c][k]; } }
+    return [a[0][3] / a[0][0], a[1][3] / a[1][1], a[2][3] / a[2][2]];
+  };
+  const ax = solve(M, bx), ay = solve(M, by);
+  const affine = (x: number, y: number): [number, number] => [ax[0] * x + ax[1] * y + ax[2], ay[0] * x + ay[1] * y + ay[2]];
+
+  // piecewise warp inside the landmark mesh
+  const mapX = new Float32Array(N * H).fill(NaN), mapY = new Float32Array(N * H);
+  for (let t = 0; t < tris.length; t += 3) {
+    const [i, j, k] = [tris[t], tris[t + 1], tris[t + 2]];
+    const [a, b, c] = [A[i], A[j], A[k]];
+    const det = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1]);
+    if (Math.abs(det) < 1e-9) continue;
+    const x0 = Math.max(0, Math.floor(Math.min(a[0], b[0], c[0]))), x1 = Math.min(N - 1, Math.ceil(Math.max(a[0], b[0], c[0])));
+    const y0 = Math.max(0, Math.floor(Math.min(a[1], b[1], c[1]))), y1 = Math.min(H - 1, Math.ceil(Math.max(a[1], b[1], c[1])));
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const px = x + 0.5, py = y + 0.5;
+      const l0 = ((b[1] - c[1]) * (px - c[0]) + (c[0] - b[0]) * (py - c[1])) / det;
+      const l1 = ((c[1] - a[1]) * (px - c[0]) + (a[0] - c[0]) * (py - c[1])) / det;
+      const l2 = 1 - l0 - l1;
+      if (l0 < -1e-4 || l1 < -1e-4 || l2 < -1e-4) continue;
+      mapX[y * N + x] = l0 * B[i][0] + l1 * B[j][0] + l2 * B[k][0];
+      mapY[y * N + x] = l0 * B[i][1] + l1 * B[j][1] + l2 * B[k][1];
+    }
+  }
+  // the mesh's correction to the affine, relaxed out to zero at the frame on a coarse grid
+  const G = 8, gw = Math.ceil(N / G), gh = Math.ceil(H / G);
+  const dx = new Float32Array(gw * gh), dy = new Float32Array(gw * gh), known = new Uint8Array(gw * gh);
+  for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) {
+    const x = Math.min(N - 1, gx * G + G / 2), y = Math.min(H - 1, gy * G + G / 2), i = y * N + x;
+    if (Number.isNaN(mapX[i])) continue;
+    const [fx, fy] = affine(x + 0.5, y + 0.5);
+    dx[gy * gw + gx] = mapX[i] - fx; dy[gy * gw + gx] = mapY[i] - fy; known[gy * gw + gx] = 1;
+  }
+  for (let it = 0; it < 600; it++) for (let gy = 1; gy < gh - 1; gy++) for (let gx = 1; gx < gw - 1; gx++) {
+    const i = gy * gw + gx;
+    if (known[i]) continue;
+    dx[i] = (dx[i - 1] + dx[i + 1] + dx[i - gw] + dx[i + gw]) / 4;
+    dy[i] = (dy[i - 1] + dy[i + 1] + dy[i - gw] + dy[i + gw]) / 4;
+  }
+  const field = (arr: Float32Array, x: number, y: number) => {
+    const fx = Math.max(0, Math.min(gw - 1.001, x / G - 0.5)), fy = Math.max(0, Math.min(gh - 1.001, y / G - 0.5));
+    const ix = Math.floor(fx), iy = Math.floor(fy), u = fx - ix, v = fy - iy;
+    return (arr[iy * gw + ix] * (1 - u) + arr[iy * gw + ix + 1] * u) * (1 - v) + (arr[(iy + 1) * gw + ix] * (1 - u) + arr[(iy + 1) * gw + ix + 1] * u) * v;
+  };
+  const sampleArt = (x: number, y: number): number[] | null => {
+    if (x < 0 || y < 0 || x >= img.width - 1 || y >= img.height - 1) return null;
+    const ix = Math.floor(x), iy = Math.floor(y), u = x - ix, v = y - iy, c = [0, 0, 0];
+    for (const [ox, oy, w] of [[0, 0, (1 - u) * (1 - v)], [1, 0, u * (1 - v)], [0, 1, (1 - u) * v], [1, 1, u * v]]) {
+      const i = ((iy + oy) * img.width + ix + ox) * 4;
+      for (let k = 0; k < 3; k++) c[k] += img.data[i + k] * w;
+    }
+    return c;
+  };
+  const hashN = (x: number, y: number) => { const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); };
+  // the background: Muse's flat grey (low saturation, light)
+  const bgOf = (c: number[]) => { const mx = Math.max(...c), mn = Math.min(...c); return Math.max(0, Math.min(1, (1 - (mx - mn) / 22) * Math.min(1, (mn - 105) / 20))); };
+  // the art's skin tone (from inside the landmark mesh), and the procedural paint shifted to it so nothing seams
+  const skinAcc = [0, 0, 0]; let skinN = 0;
+  for (let i = 0; i < N * H; i += 7) {
+    if (Number.isNaN(mapX[i])) continue;
+    const c = sampleArt(mapX[i], mapY[i]);
+    if (c && c[0] > c[2] + 25 && c[0] > 110) { for (let k = 0; k < 3; k++) skinAcc[k] += c[k]; skinN++; }
+  }
+  const artSkin = skinAcc.map((v) => v / Math.max(1, skinN));
+  const procSkin = [196, 146, 112];
+  // distance (px) from the landmark mesh, for the soft edge below the brows (chamfer, two passes)
+  const dist = new Float32Array(N * H);
+  for (let i = 0; i < N * H; i++) dist[i] = Number.isNaN(mapX[i]) ? 1e9 : 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < N; x++) {
+    const i = y * N + x;
+    if (x) dist[i] = Math.min(dist[i], dist[i - 1] + 1);
+    if (y) dist[i] = Math.min(dist[i], dist[i - N] + 1, x ? dist[i - N - 1] + 1.414 : 1e9, x < N - 1 ? dist[i - N + 1] + 1.414 : 1e9);
+  }
+  for (let y = H - 1; y >= 0; y--) for (let x = N - 1; x >= 0; x--) {
+    const i = y * N + x;
+    if (x < N - 1) dist[i] = Math.min(dist[i], dist[i + 1] + 1);
+    if (y < H - 1) dist[i] = Math.min(dist[i], dist[i + N] + 1, x < N - 1 ? dist[i + N + 1] + 1.414 : 1e9, x ? dist[i + N - 1] + 1.414 : 1e9);
+  }
+  const browPx = A[9][1];
+  for (let y = 0; y < H; y++) for (let x = 0; x < N; x++) {
+    const i = y * N + x;
+    for (let k = 0; k < 3; k++) out.data[i * 4 + k] = Math.min(255, Math.round((out.data[i * 4 + k] * artSkin[k]) / procSkin[k]));
+    const inside = !Number.isNaN(mapX[i]);
+    let p: [number, number];
+    if (inside) p = [mapX[i], mapY[i]];
+    else { const f = affine(x + 0.5, y + 0.5); p = [f[0] + field(dx, x, y), f[1] + field(dy, x, y)]; }
+    const c = sampleArt(p[0], p[1]);
+    if (!c) continue;
+    // above the brows the art's forehead and hair carry on; below them only a soft rim past the jaw (no ears, no collar)
+    const rim = Math.max(Math.max(0, Math.min(1, (browPx + 10 - y) / 36)), Math.max(0, 1 - dist[i] / 40));
+    const a = inside ? 1 : rim * (1 - bgOf(c));
+    if (a <= 0) continue;
+    // fine skin grain the upscaled art doesn't have
+    const n = (hashN(x, y) - 0.5) * 6;
+    for (let k = 0; k < 3; k++) out.data[i * 4 + k] = Math.max(0, Math.min(255, Math.round(out.data[i * 4 + k] * (1 - a) + (c[k] + n) * a)));
+  }
+  const skin = artSkin.map((v) => toLinear(v / 255)) as RGB;
+  return { size: N, png: new Uint8Array(PNG.sync.write(out)), uvOf: base.uvOf, skin };
 }

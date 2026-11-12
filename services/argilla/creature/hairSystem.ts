@@ -220,4 +220,119 @@ export function chonmage(s: Scalp, opts: { headBone: string; columns: number; sn
   return { mesh: mb, cord, bones, springs, guides: guides.length, tie: tie.p };
 }
 
+/**
+ * Haru's hairline (his Muse turnaround) as height above the brow in metres, by azimuth round the head (0 = the brow,
+ * pi = the nape): high at the forehead, receding at the temples, down to the top of the ear at the sides and to the
+ * nape behind. The strand roots and the dark scalp under them both follow it.
+ */
+const HAIRLINE: [number, number][] = [[0, 0.062], [0.5, 0.068], [0.8, 0.06], [1.1, 0.024], [1.3, -0.012], [1.42, 0.004], [1.85, 0.006], [2.05, -0.03], [2.4, -0.075], [Math.PI, -0.1]];
+export function hairlineAt(a: number): number {
+  const x = Math.min(Math.PI, Math.abs(Math.atan2(Math.sin(a), Math.cos(a))));
+  for (let i = 1; i < HAIRLINE.length; i++) if (x <= HAIRLINE[i][0]) { const [a0, y0] = HAIRLINE[i - 1], [a1, y1] = HAIRLINE[i]; return y0 + ((y1 - y0) * (x - a0)) / (a1 - a0); }
+  return HAIRLINE[HAIRLINE.length - 1][1];
+}
+
+/**
+ * Haru's hair as his Muse turnaround shows it: everything drawn tight back from a high forehead (receding at the
+ * temples) and up from the nape to a tie high on the back of the crown, bound with navy cord, the tail lifting off the
+ * tie and falling to the upper back on a five-bone spring chain; a few loose strands in front of the ears.
+ */
+export function ponytail(s: Scalp, opts: { headBone: string; columns: number; snap?: Snap; length?: number }) {
+  const mb = new MeshBuilder(), cord = new MeshBuilder();
+  const guides: Guide[] = [];
+  const bones: Chain[] = [];
+  const springs: { bones: string[]; stiffness: number; drag: number; gravity: number; radius: number; maxAngle: number }[] = [];
+  const H = opts.headBone;
+  let r = 5;
+  const rand = () => { r = (r * 16807) % 2147483647; return r / 2147483647; };
+  const tieA = Math.PI, tieE = 0.92;
+  const tie = scalpPoint(s, tieA, tieE, 0.008);
+
+  // ---- Swept-back layers to the tie ---------------------------------------------------------------------------------
+  for (const layer of [0.0025, 0.005, 0.0075]) {
+    const count = layer < 0.004 ? 130 : 90;
+    for (let k = 0; k < count; k++) {
+      const a = (k / count) * Math.PI * 2 + rand() * 0.05;
+      // roots on the hairline (outer layers start a little higher, so the edge is soft, not a helmet rim)
+      const e0 = Math.asin(Math.max(-1, Math.min(1, (hairlineAt(a) + 0.002) / s.radii[1]))) + (layer - 0.0025) * 4 + rand() * 0.03;
+      const pts: Vec3[] = [], facing: Vec3[] = [];
+      const steps = 12;
+      const d0 = dirOf(a, e0), d1 = dirOf(tieA, tieE);
+      const om = Math.acos(Math.max(-1, Math.min(1, dot(d0, d1)))) || 1e-3;
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const d = norm(add(mul(d0, Math.sin((1 - t) * om)), mul(d1, Math.sin(t * om))));
+        const el = Math.asin(Math.max(-1, Math.min(1, d[1]))), az = Math.atan2(d[0], d[2]);
+        // pulled tight: close to the skin all the way, a little fuller as the strands bunch toward the tie
+        const lift = 0.0008 + (layer - 0.0008) * Math.min(1, t * 4) + 0.002 * t * t;
+        const q0 = scalpPoint(s, az, el, lift);
+        const q = opts.snap ? opts.snap(q0.p, lift) : q0;
+        pts.push(q.p); facing.push(q.n);
+      }
+      guides.push({ points: pts, facing, width: 0.015 + rand() * 0.007, bones: pts.map(() => H) });
+    }
+  }
+
+  // ---- The tail: lifts back off the tie, arcs over and falls down the back of the head to the upper back ----------
+  const L = opts.length ?? 0.3;
+  const back = s.centre[2] - s.radii[2];
+  const curve = (t: number): Vec3 => {
+    // a quadratic out-and-down arc, then straight down, clear of the skull (control points relative to the head)
+    const p0 = tie.p, p1: Vec3 = [0, tie.p[1] + 0.035, back - 0.045], p2: Vec3 = [0, s.centre[1] - L * 0.55, back - 0.055];
+    const u = Math.min(1, t * 1.6);
+    const q = add(add(mul(p0, (1 - u) ** 2), mul(p1, 2 * u * (1 - u))), mul(p2, u * u));
+    return t * 1.6 <= 1 ? q : add(p2, [0, -(t - 1 / 1.6) * L * 0.75, -(t - 1 / 1.6) * 0.03]);
+  };
+  const chain = [0, 1, 2, 3, 4].map((i) => `Tail_${i}`);
+  chain.forEach((name, i) => bones.push({ name, parent: i ? chain[i - 1] : H, at: curve(i / chain.length) }));
+  springs.push({ bones: chain, stiffness: 9, drag: 0.12, gravity: 9.8, radius: 0.016, maxAngle: 55 });
+  const boneAt = (t: number) => chain[Math.min(chain.length - 1, Math.floor(t * chain.length))];
+  for (let k = 0; k < 120; k++) {
+    const a = rand() * Math.PI * 2, rr = Math.sqrt(rand());
+    const reach = 0.78 + rand() * 0.22, wob = rand() * 6.28;
+    const pts: Vec3[] = [], facing: Vec3[] = [], bs: string[] = [];
+    const n = 16;
+    for (let i = 0; i <= n; i++) {
+      const t = (i / n) * reach;
+      const c = curve(t), along = norm(sub(curve(Math.min(1, t + 0.02)), curve(Math.max(0, t - 0.02))));
+      const sideV = norm(cross(along, [0, 0, -1])), outV = norm(cross(sideV, along));
+      // tight in the cord, full below it, thinning and spreading into strands at the ends
+      const rad = (0.011 + 0.03 * Math.min(1, t * 5) * (1 - 0.4 * t)) * rr + 0.004 * t * Math.sin(wob + t * 9);
+      const p = add(c, add(mul(sideV, Math.cos(a) * rad * 1.15), mul(outV, Math.sin(a) * rad * 0.8)));
+      pts.push(p); facing.push(norm(add(mul(sideV, Math.cos(a)), mul(outV, Math.sin(a))))); bs.push(t < 0.04 ? H : boneAt(t));
+    }
+    guides.push({ points: pts, facing, width: 0.018 + rand() * 0.01, bones: bs });
+  }
+  // the cord: three tight navy wraps where the tail leaves the tie
+  for (let w = 0; w < 3; w++) {
+    const t = 0.015 + w * 0.02, c = curve(t), along = norm(sub(curve(t + 0.02), c));
+    const sideV = norm(cross(along, [0, 0, -1])), outV = norm(cross(sideV, along));
+    const ring: Vec3[] = [];
+    for (let k = 0; k <= 16; k++) { const a = (k / 16) * Math.PI * 2; ring.push(add(c, add(mul(sideV, Math.cos(a) * 0.0125), mul(outV, Math.sin(a) * 0.0105)))); }
+    tube(cord, ring, 0.0022, 5, t < 0.04 ? H : chain[0]);
+  }
+
+  // ---- Loose strands in front of the ears, to the jaw, each side on a short chain ----------------------------------
+  for (const sx of [1, -1]) {
+    const root = scalpPoint(s, sx * 1.2, 0.32, 0.004);
+    const names = [`HairLock${sx > 0 ? 'L' : 'R'}_0`, `HairLock${sx > 0 ? 'L' : 'R'}_1`];
+    const down: Vec3 = norm([sx * 0.18, -1, 0.1]);
+    names.forEach((name, i) => bones.push({ name, parent: i ? names[0] : H, at: add(root.p, mul(down, i * 0.045)) }));
+    springs.push({ bones: names, stiffness: 12, drag: 0.15, gravity: 9.8, radius: 0.006, maxAngle: 45 });
+    for (let k = 0; k < 4; k++) {
+      const pts: Vec3[] = [], facing: Vec3[] = [], bs: string[] = [];
+      const len = 0.075 + rand() * 0.03;
+      for (let i = 0; i <= 8; i++) {
+        const t = i / 8;
+        pts.push(add(add(root.p, mul(down, t * len)), [sx * (k * 0.0025 + t * t * 0.004), 0, k * 0.003 - 0.004 + Math.sin(t * 3 + k) * 0.002]));
+        facing.push(root.n); bs.push(t < 0.3 ? H : t < 0.65 ? names[0] : names[1]);
+      }
+      guides.push({ points: pts, facing, width: 0.0045, bones: bs });
+    }
+  }
+
+  cards(mb, guides, opts.columns);
+  return { mesh: mb, cord, bones, springs, guides: guides.length, tie: tie.p };
+}
+
 export { lerp, dot };

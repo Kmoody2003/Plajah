@@ -17,12 +17,15 @@ import {
   meshField, bodyField, settleOnField, relaxMesh, compact, humanSkinWeights, bakeCorrective, nearestOnBody, neighbours,
   type BodyMesh, type CorrectiveSpec,
 } from '../../services/argilla/creature/humanFinish';
-import { buildHaruKit, quatFromBasis, unitBox, type MeshBuilder, type Wardrobe } from '../../services/argilla/creature/wardrobe';
+import { buildHaruKit, quatFromBasis, unitBox, MeshBuilder, type Wardrobe } from '../../services/argilla/creature/wardrobe';
+import { PNG } from 'pngjs';
+import { ear } from '../../services/argilla/creature/ears';
 import { nihonto, saya } from '../../services/argilla/creature/weapons';
 import { forgeToGlb, type ForgeCharacter, type ForgeRigid, type ForgeSocket } from '../../services/argilla/creature/exportCreature';
 import type { GPrim } from '../../services/argilla/creature/gltfWriter';
-import { haruMaterials, MATERIAL_INDEX, paintHaru, rgbaPng, paintFace } from './forgeLook';
-import { fitScalp, chonmage, strandAtlas } from '../../services/argilla/creature/hairSystem';
+import { haruMaterials, MATERIAL_INDEX, paintHaru, rgbaPng, paintFace, paintFaceFromArt, type ArtLandmarks } from './forgeLook';
+import { CANONICAL_INDICES } from '../../services/vtuber/rigBuilder/canonicalFace';
+import { fitScalp, ponytail, strandAtlas, hairlineAt } from '../../services/argilla/creature/hairSystem';
 import * as THREE from 'three';
 import { buildArkitShapes, ARKIT_SHAPES } from '../../services/vtuber/rigBuilder/arkitShapes';
 import { transferFace } from '../../services/vtuber/rigBuilder/transferFace';
@@ -98,14 +101,20 @@ async function main() {
   // ---- Wardrobe ------------------------------------------------------------------------------------------
   const kit = buildHaruKit(anatomy, field);
   log(`wardrobe: ${kit.pieces.map((p) => p.id).join(', ')}; ${kit.bones.length} chain bones, ${kit.springs.length} spring chains`);
-  // hair: strand cards over the painted scalp, the topknot and temple locks on spring chains
+  // hair: strand cards over the painted scalp, swept back to a tied ponytail on a spring chain (Muse turnaround)
   const scalp = fitScalp(head.mesh.positions, crownY, anatomy.face[9][1]); // landmark 9: between the brows
   const snap = (p: Vec3, lift: number) => {
     let q: Vec3 = [...p];
     for (let i = 0; i < 4; i++) { const d = field.d(q[0], q[1], q[2]) - lift; const g = field.grad(q[0], q[1], q[2]); q = [q[0] - g[0] * d, q[1] - g[1] * d, q[2] - g[2] * d]; }
     return { p: q, n: field.grad(q[0], q[1], q[2]) };
   };
-  const hair = chonmage(scalp, { headBone: 'Head', columns: 4, snap });
+  const hair = ponytail(scalp, { headBone: 'Head', columns: 4, snap });
+  // ears (the canonical face has none): on the side of the head, top at the brow, a little behind the head's middle
+  const ears = new MeshBuilder();
+  for (const sx of [1, -1]) {
+    const root = snap([sx * 0.12, anatomy.face[9][1] - 0.028, (zLo + zHi) / 2 - 0.012], 0);
+    ear(ears, { at: root.p, normal: root.n, bone: 'Head' });
+  }
   kit.bones.push(...hair.bones);
   kit.springs.push(...hair.springs);
   log(`hair: ${hair.guides} strand cards, ${hair.springs.length} spring chains`);
@@ -153,7 +162,7 @@ async function main() {
   // ---- Armour: rigid plates, one bone per vertex -------------------------------------------------------------
   const armourPrims: GPrim[] = [];
   for (const [mat, mb] of kit.armour) armourPrims.push(rigidPrim(mb, boneIndex, mat, 0));
-  armourPrims.push(rigidPrim(hair.mesh, boneIndex, 'hairCards', 0), rigidPrim(hair.cord, boneIndex, 'silk', 0));
+  armourPrims.push(rigidPrim(hair.mesh, boneIndex, 'hairCards', 0), rigidPrim(hair.cord, boneIndex, 'silk', 0), rigidPrim(ears, boneIndex, 'skin', 0));
   log(`armour: ${armourPrims.reduce((n, p) => n + p.positions.length / 3, 0)} verts in ${armourPrims.length} primitives`);
 
   // the dō's kebiki lacing: one silk cord, GPU-instanced per row bone
@@ -200,16 +209,29 @@ async function main() {
     },
   };
   // painted hair at the back stops just under where the cards end, so the front/back split never shows
-  const atlasFace = paintFace(anatomy.face, crownY, anatomy.face[9][1] - 0.045, (zLo + zHi) / 2, 1024);
+  // the procedural paint underneath (hair at the back, skin where the art has background), then Muse's front art
+  // warped onto the face along MediaPipe's landmarks when it is there (engines/tela-3d/face_landmarks.py)
+  const procFace = paintFace(anatomy.face, crownY, anatomy.face[9][1] - 0.1, (zLo + zHi) / 2, 1024);
+  const REF = process.env.FORGE_FACE_ART ?? 'D:/Plajah Runtime/forge/haru-ref/front.png';
+  const refMarks = REF.replace(/\.png$/, '.landmarks.json');
+  const fromArt = fs.existsSync(REF) && fs.existsSync(refMarks)
+    ? paintFaceFromArt(procFace, anatomy.face, REF, JSON.parse(fs.readFileSync(refMarks, 'utf8')) as ArtLandmarks, CANONICAL_INDICES)
+    : null;
+  const atlasFace = fromArt ?? procFace;
+  log(fromArt ? `face: painted from ${REF}` : 'face: procedural (no front art)');
   fs.writeFileSync(path.join(WORK, 'face_atlas.png'), atlasFace.png);
-  const browY = anatomy.face[9][1], napeY = 1.568, centreZ = (zLo + zHi) / 2;
-  /** Hair grows above a line that is high at the brow, at brow height over the ears and down to the nape behind. */
-  const onScalp = (p: Vec3) => {
-    const a = Math.atan2(p[0], p[2] - centreZ), front = Math.max(0, Math.cos(a)), back = Math.max(0, -Math.cos(a));
-    const line = browY + 0.045 - 0.05 * Math.min(1, (Math.abs(p[0]) / 0.075) ** 2);
-    // well inside what the cards cover; below that the texture's painted hair fades out softly
-    return front > 0.35 ? p[1] > line + 0.004 : p[1] > browY + 0.012 - (browY - napeY) * 0.6 * back;
+  const browY = anatomy.face[9][1], centreZ = (zLo + zHi) / 2;
+  /** Hair grows above the art's hairline (hairSystem.hairlineAt), the same line the strand roots start on. */
+  // ... and wherever the painted art is hair above the brows (its own hairline), so paint and scalp meet exactly
+  const atlasPx = PNG.sync.read(Buffer.from(atlasFace.png));
+  const paintedHair = (p: Vec3) => {
+    if (p[1] < browY + 0.02 || p[2] < centreZ) return false;
+    const [u, v] = atlasFace.uvOf(p, false);
+    const x = Math.min(atlasPx.width - 1, Math.max(0, Math.round(u * atlasPx.width))), y = Math.min(atlasPx.height - 1, Math.max(0, Math.round(v * atlasPx.height)));
+    const i = (y * atlasPx.width + x) * 4;
+    return 0.3 * atlasPx.data[i] + 0.59 * atlasPx.data[i + 1] + 0.11 * atlasPx.data[i + 2] < 62;
   };
+  const onScalp = (p: Vec3) => p[1] > browY + hairlineAt(Math.atan2(p[0], p[2] - centreZ)) + 0.002 || paintedHair(p);
   const headPrim = faceUvPrim(head, arkit, atlasFace.uvOf, centreZ);
   const scalpPrim = splitBy(headPrim, onScalp);
   const extrasFace = { landmarks: anatomy.face.flat().map((x) => +x.toFixed(5)), shapes: ARKIT_SHAPES };
@@ -238,14 +260,14 @@ async function main() {
   character.materials.push({ ...skinMat, name: 'face', color: [1, 1, 1, 1], baseColorTexture: base, roughness: 0.55, specular: { factor: 0.45 } });
   headPrim.material = character.materials.length - 1;
   // the scalp under the strand cards: the hair's colour, matte, with the cord normal map running along the strands
-  character.materials.push({ name: 'scalp', color: [0.022, 0.017, 0.014, 1], metallic: 0, roughness: 0.7, sheen: { color: [0.06, 0.05, 0.045], roughness: 0.4 } });
+  character.materials.push({ name: 'scalp', color: [0.014, 0.011, 0.01, 1], metallic: 0, roughness: 0.7, sheen: { color: [0.06, 0.05, 0.045], roughness: 0.4 } });
   scalpPrim.material = character.materials.length - 1;
   // skin elsewhere (hands, neck) in the face's tone
-  character.materials[MATERIAL_INDEX.skin] = { ...character.materials[MATERIAL_INDEX.skin], color: [0.55, 0.29, 0.16, 1] };
+  character.materials[MATERIAL_INDEX.skin] = { ...character.materials[MATERIAL_INDEX.skin], color: [...(fromArt?.skin ?? [0.55, 0.29, 0.16]), 1] as [number, number, number, number] };
   const atlas = character.images.length;
   character.images.push(rgbaPng(strandAtlas(512, 4), 512));
   const hc = character.materials[MATERIAL_INDEX.hairCards];
-  character.materials[MATERIAL_INDEX.hairCards] = { ...hc, color: [0.032, 0.025, 0.021, 1], baseColorTexture: atlas };
+  character.materials[MATERIAL_INDEX.hairCards] = { ...hc, color: [0.016, 0.013, 0.012, 1], baseColorTexture: atlas, roughness: 0.55, specular: { factor: 0.2 }, anisotropy: undefined };
   const glb = forgeToGlb(character);
   const out = process.env.FORGE_OUT ?? `public/games/era-clash/3d/assets/characters/${NAKED ? 'samurai_v3_body' : 'samurai_v3'}.glb`;
   fs.writeFileSync(out, glb);
