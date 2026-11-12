@@ -1223,6 +1223,16 @@ const App: React.FC = () => {
     };
   }, [setView]);
 
+  // A meeting past its room cap (components/meetings/MeetingRefusal) becomes a broadcast: open Go Live.
+  useEffect(() => {
+    const h = () => {
+      if (!auth.currentUser || auth.currentUser.isAnonymous) { loginWithGoogle(); return; }
+      (window as any).__reelloGoLivePending = true; setView('VIDEOS'); window.dispatchEvent(new CustomEvent('plajah:reelloGoLive'));
+    };
+    window.addEventListener('plajah:start-broadcast', h);
+    return () => window.removeEventListener('plajah:start-broadcast', h);
+  }, [setView]);
+
   // Jump to Live Feed from alerts, drawer, or notifications
   useEffect(() => {
     const handleWatchLive = (e: Event) => {

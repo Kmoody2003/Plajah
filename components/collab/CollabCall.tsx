@@ -14,6 +14,7 @@ import { LevelMeter } from '../live/LevelMeter';
 const LiveMediaSheet = lazy(() => import('../live/LiveMediaSheet'));
 import { personColor } from '../../services/coedit/project';
 import { initials } from './collabUi';
+import MeetingRefusal from '../meetings/MeetingRefusal';
 
 const Tile: React.FC<{ stream: MediaStream | null; name: string; uid: string; muted?: boolean; mirror?: boolean }> = ({ stream, name, uid, muted, mirror }) => {
   const ref = useRef<HTMLVideoElement>(null);
@@ -54,7 +55,9 @@ export const CollabCall: React.FC<{
           media: { audio: true, video: true },
           displayName: me?.displayName || 'You',
         }
-      : null
+      : null,
+    // Same room call as Chat, so the same engine: the SFU when it's on (server decides).
+    { sfu: { purpose: 'meeting' } }
   );
   const fx = useLiveFx(rtc);
   const [sheet, setSheet] = useState(false);
@@ -65,6 +68,7 @@ export const CollabCall: React.FC<{
   }, [joined, rtc.participants]);
 
   if (!joined) return null;
+  if (rtc.refusal) return <MeetingRefusal refusal={rtc.refusal} onClose={onLeave} compact />;
   return (
     <div className="flex flex-col gap-2 p-2">
       {rtc.error && <div className="text-[.66rem] text-red-300">{rtc.error}</div>}

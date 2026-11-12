@@ -1,0 +1,19 @@
+# Local LiveKit for the lab (labs/meetings-sfu). Same server LiveKit Cloud runs; self-host = this + TLS + TURN.
+port: 7880
+bind_addresses: ["127.0.0.1"]
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50200
+  use_external_ip: false
+  node_ip: 127.0.0.1
+keys:
+  devkey: plajah-lab-secret-0123456789abcdef0123
+room:
+  auto_create: false
+webhook:
+  api_key: devkey
+  urls:
+    - http://127.0.0.1:3247/api/meetings/sfu/webhook
+logging:
+  level: info

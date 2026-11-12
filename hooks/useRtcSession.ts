@@ -12,6 +12,9 @@ import {
   RtcSession, RtcSessionConfig, RtcParticipant, RtcDataMessage, RtcRole,
 } from '../services/rtcCore';
 import { SessionRecorder, SessionRecorderOptions } from '../services/sessionRecorder';
+import { MeetingSession, MeetingRoomRefusedError, sfuTargetFor } from '../services/meetings/meetingSession';
+import type { VideoPolicy, SfuEvents } from '../services/meetings/livekitSession';
+import type { SfuRoomKind, CapRefusal } from '../services/meetings/sfuCaps';
 
 /** A remote peer's stream WITH its identity — the join of remoteStreams × participants. This is
  *  what lets a consumer tell the host apart from guests (e.g. the Reello viewer renders the host's
@@ -82,6 +85,14 @@ export interface UseRtcSession {
   useDesktopAudio: () => Promise<boolean>;
   /** Your own screen-share stream (for a local "your desktop" preview tile). */
   screenStream: MediaStream | null;
+  /** Which engine carries this call: rtcCore mesh or LiveKit SFU (null until joined). */
+  engine: 'mesh' | 'sfu' | null;
+  /** The server refused the room (full / needs a plan / over 300 → broadcast). Show the offer, not a generic error. */
+  refusal: { reason: CapRefusal; message: string; cap: number } | null;
+  /** Who is talking now, loudest first (SFU only; empty on the mesh). */
+  activeSpeakers: string[];
+  /** SFU only: which remote videos to receive and which one in HD (paged grids). No-op on the mesh. */
+  setVideoPolicy: (policy: VideoPolicy) => void;
 }
 
 /** In-flight leaves per session path. A re-key (role change: listener → speaker) used to start the
@@ -95,7 +106,12 @@ function trackLeave(path: string, p: Promise<void>) {
 
 export function useRtcSession(
   config: RtcSessionConfig | null,
-  opts: { autoJoin?: boolean; onData?: (peerId: string, msg: RtcDataMessage) => void; excludePeerIds?: string[]; allowedPeerIds?: string[]; onRecordingStopped?: (blob: Blob) => void } = { autoJoin: true },
+  opts: {
+    autoJoin?: boolean; onData?: (peerId: string, msg: RtcDataMessage) => void; excludePeerIds?: string[]; allowedPeerIds?: string[]; onRecordingStopped?: (blob: Blob) => void;
+    /** Meetings/huddles: let the server put this call on the SFU (LiveKit) when it's on, with this room's cap.
+     *  Ignored for non-meeting paths; the server keeps 1:1 calls on the mesh. */
+    sfu?: { purpose: SfuRoomKind };
+  } = { autoJoin: true },
 ): UseRtcSession {
   // Keep the latest onData without re-keying the session.
   const onDataRef = useRef(opts.onData);
@@ -119,7 +135,10 @@ export function useRtcSession(
   const [devices, setDevices] = useState<{ cameras: MediaDeviceInfo[]; mics: MediaDeviceInfo[]; speakers: MediaDeviceInfo[] }>({ cameras: [], mics: [], speakers: [] });
   const [activeDevices, setActiveDevices] = useState<{ cameraId?: string; micId?: string }>({});
 
-  const sessionRef = useRef<RtcSession | null>(null);
+  const sessionRef = useRef<RtcSession | MeetingSession | null>(null);
+  const [engine, setEngine] = useState<'mesh' | 'sfu' | null>(null);
+  const [refusal, setRefusal] = useState<UseRtcSession['refusal']>(null);
+  const [activeSpeakers, setActiveSpeakers] = useState<string[]>([]);
   const enabledRef = useRef({ audio: true, video: true });
   enabledRef.current = { audio: audioEnabled, video: videoEnabled };
   const recorderRef = useRef<SessionRecorder | null>(null);
@@ -144,7 +163,9 @@ export function useRtcSession(
     setActiveSessionKey(key);
     let cancelled = false;
     const priorLeave = pendingLeaves.get(sessionPath);
-    const session = new RtcSession(config, {
+    const sfuTarget = opts.sfu ? sfuTargetFor(config) : null;
+    setRefusal(null);
+    const events: SfuEvents & { onEngine?: (e: 'mesh' | 'sfu') => void } = {
       onLocalStream: s => { if (!cancelled) { s.getAudioTracks().forEach(t => { t.enabled = enabledRef.current.audio; }); s.getVideoTracks().forEach(t => { t.enabled = enabledRef.current.video; }); setLocalStream(s); setLocalTracksVer(v => v + 1); } },
       onScreenStream: s => { if (!cancelled) { setScreenStream(s); setSharingScreen(!!s); } },
       onRemoteStream: (id, stream) => {
@@ -162,8 +183,16 @@ export function useRtcSession(
         setPeerStates(prev => { const n = new Map(prev); n.set(id, state); return n; });
       },
       onData: (id, msg) => { if (!cancelled) onDataRef.current?.(id, msg); },
-      onError: e => { if (!cancelled) setError(e.message); },
-    });
+      onError: (e: Error) => {
+        if (cancelled) return;
+        if (e instanceof MeetingRoomRefusedError) setRefusal({ reason: e.reason, message: e.message, cap: e.cap });
+        setError(e.message);
+      },
+      onActiveSpeakers: (ids: string[]) => { if (!cancelled) setActiveSpeakers(ids); },
+      onEngine: (e: 'mesh' | 'sfu') => { if (!cancelled) setEngine(e); },
+    };
+    const session = sfuTarget && opts.sfu ? new MeetingSession(config, events, opts.sfu.purpose, sfuTarget) : new RtcSession(config, events);
+    if (!sfuTarget) setEngine('mesh');
     sessionRef.current = session;
     session.setExcludedPeers(opts.excludePeerIds || []);
     session.setAllowedPeers(opts.allowedPeerIds);
@@ -193,6 +222,8 @@ export function useRtcSession(
       setSharingScreen(false);
       setError(null);
       setActiveSessionKey(null);
+      setEngine(null);
+      setActiveSpeakers([]);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
@@ -323,7 +354,11 @@ export function useRtcSession(
     if (s) trackLeave(s.path, s.leave());
   }, []);
 
-  const rejoin = useCallback(() => { setError(null); setRevive(n => n + 1); }, []);
+  const rejoin = useCallback(() => { setError(null); setRefusal(null); setRevive(n => n + 1); }, []);
+  const setVideoPolicy = useCallback((policy: VideoPolicy) => {
+    const s = sessionRef.current;
+    if (s instanceof MeetingSession) s.setVideoPolicy(policy);
+  }, []);
 
   return {
     rejoin,
@@ -338,5 +373,6 @@ export function useRtcSession(
     isRecording, startRecording, stopRecording, programStream, sendData,
     devices, activeDevices, refreshDevices, switchVideoDevice, switchAudioDevice,
     useDesktopAudio, screenStream: activeSessionKey === key ? screenStream : null,
+    engine: activeSessionKey === key ? engine : null, refusal, activeSpeakers: activeSessionKey === key ? activeSpeakers : [], setVideoPolicy,
   };
 }

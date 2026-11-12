@@ -7,6 +7,7 @@ import { useRtcSession } from '../../hooks/useRtcSession';
 import { LevelMeter } from '../live/LevelMeter';
 import { activeHuddlers, huddleLabel, type HuddlePresence } from '../../services/meetings/scheduleCore';
 import type { ChatRoom } from '../../types';
+import MeetingRefusal from './MeetingRefusal';
 
 /** Who is in a room's call right now (heart-beating participants of meeting_rtc/main). */
 export function useHuddlePresence(roomId: string | null | undefined): HuddlePresence[] {
@@ -59,11 +60,19 @@ export const HuddleDock: React.FC<{ room: ChatRoom; onLeave: () => void; onExpan
     role: 'participant',
     media: { audio: true, video: false },
     liveness: true,
-  }, { allowedPeerIds: room.participants });
+  }, { allowedPeerIds: room.participants, sfu: { purpose: 'huddle' } });
   const remotes = [...rtc.remoteStreams.entries()].filter(([id]) => room.participants.includes(id));
   const names = rtc.participants.filter(p => room.participants.includes(p.id)).map(p => p.name || 'Someone');
   const leave = () => { rtc.leave(); onLeave(); };
   const expand = () => { rtc.leave(); onExpand(); };
+  if (rtc.refusal) {
+    return (
+      <div className="fixed z-[480] w-[min(92vw,360px)] rounded-2xl bg-[#0f1a14]/95 backdrop-blur-xl border border-amber-400/30 shadow-2xl"
+        style={{ right: 'max(16px, env(safe-area-inset-right))', bottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+        <MeetingRefusal refusal={rtc.refusal} onClose={leave} compact />
+      </div>
+    );
+  }
   return (
     <div role="region" aria-label="Huddle" className="fixed z-[480] flex items-center gap-2 pl-3 pr-2 py-2 rounded-full bg-[#0f1a14]/95 backdrop-blur-xl border border-emerald-400/30 shadow-2xl text-white"
       style={{ right: 'max(16px, env(safe-area-inset-right))', bottom: 'max(16px, env(safe-area-inset-bottom))' }}>
