@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   buildHumanAnatomy, HARU_TUNE, HUMAN_JOINTS, PARENT, TWIST_JOINTS, qaxis, qrot,
-  type HumanAnatomy, type HumanJoint, type HumanPose,
+  type HumanAnatomy, type HumanJoint, type HumanPose, type HumanTune,
 } from '../../services/argilla/creature/human';
 import {
   meshField, bodyField, settleOnField, relaxMesh, compact, humanSkinWeights, bakeCorrective, nearestOnBody, neighbours,
@@ -24,6 +24,7 @@ import { nihonto, saya } from '../../services/argilla/creature/weapons';
 import { forgeToGlb, type ForgeCharacter, type ForgeRigid, type ForgeSocket } from '../../services/argilla/creature/exportCreature';
 import type { GPrim } from '../../services/argilla/creature/gltfWriter';
 import { haruMaterials, MATERIAL_INDEX, paintHaru, rgbaPng, paintFace, paintFaceFromArt, type ArtLandmarks } from './forgeLook';
+import { fitFaceToArt, paintHeadFromSheet, HARU_SHEET } from './forgeFaceFit';
 import { CANONICAL_INDICES } from '../../services/vtuber/rigBuilder/canonicalFace';
 import { fitScalp, ponytail, strandAtlas, hairlineAt } from '../../services/argilla/creature/hairSystem';
 import * as THREE from 'three';
@@ -41,10 +42,22 @@ const norm = (a: Vec3): Vec3 => { const l = Math.hypot(a[0], a[1], a[2]) || 1; r
 const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a: Vec3, b: Vec3): Vec3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const D2R = Math.PI / 180;
+/** Haru's head against the turnaround: the cranium a little larger, higher and forward of the average head, the neck thicker. */
+const HARU_HEAD = { forward: Number(process.env.FORGE_HEAD_FWD ?? 0.022), up: Number(process.env.FORGE_HEAD_UP ?? 0.012), scale: Number(process.env.FORGE_HEAD_SCALE ?? 1.07), width: Number(process.env.FORGE_HEAD_WIDTH ?? 0.95), neck: 1.18 };
 type Skin = { skinIndex: Uint16Array; skinWeight: Float32Array };
 
 async function main() {
-  const anatomy = buildHumanAnatomy(HARU_TUNE);
+  // the face's shape from Muse's art (forgeFaceFit.ts), and the head grown and moved forward to meet it as the
+  // turnaround's side view has it; the average face when the art is not on this machine
+  const REF = process.env.FORGE_FACE_ART ?? 'D:/Plajah Runtime/forge/haru-ref/front.png';
+  const refMarks = REF.replace(/\.png$/, '.landmarks.json');
+  let tune: HumanTune = HARU_TUNE;
+  if (fs.existsSync(refMarks) && fs.existsSync(HARU_SHEET.path) && process.env.FORGE_FACE_FIT !== '0') {
+    const fit = await fitFaceToArt({ landmarks: refMarks, chinY: 1.537 });
+    tune = { ...HARU_TUNE, face: fit.points, head: HARU_HEAD };
+    log(`face fitted to the art: ${JSON.stringify(fit.report)}`);
+  }
+  const anatomy = buildHumanAnatomy(tune);
   log(`anatomy: ${anatomy.bones.length} joints, ${anatomy.muscles.length} muscles, ${anatomy.parts.length} clay parts`);
 
   // ---- Body ----------------------------------------------------------------------------------------------
@@ -112,7 +125,9 @@ async function main() {
   // ears (the canonical face has none): on the side of the head, top at the brow, a little behind the head's middle
   const ears = new MeshBuilder();
   for (const sx of [1, -1]) {
-    const root = snap([sx * 0.12, anatomy.face[9][1] - 0.028, (zLo + zHi) / 2 - 0.012], 0);
+    // just behind the face's outline at the cheekbone (234/454), as the side view has it
+    const side = anatomy.face[sx > 0 ? 454 : 234];
+    const root = snap([sx * 0.12, anatomy.face[9][1] - 0.028, side[2] - 0.04], 0);
     ear(ears, { at: root.p, normal: root.n, bone: 'Head' });
   }
   kit.bones.push(...hair.bones);
@@ -128,10 +143,10 @@ async function main() {
   const regions: Record<string, (v: number) => boolean> = {
     kosode: (v) => { const p = P(v), b = dominant(v); return p[1] > 0.93 && p[1] < collarY(p) && /^(Hips|Spine|Spine1|Spine2|Neck|LeftShoulder|RightShoulder)$/.test(b); },
     koteCloth: (v) => /^(Left|Right)(Arm|ArmTwist|ForeArm|ForeArmTwist)$/.test(dominant(v)),
-    kyahan: (v) => /^(Left|Right)Leg$/.test(dominant(v)) && P(v)[1] < 0.36,
+    kyahan: (v) => /^(Left|Right)Leg$/.test(dominant(v)) && P(v)[1] < 0.5, // up to the hakama's gather under the knee
     tabi: (v) => /^(Left|Right)(Foot|ToeBase)$/.test(dominant(v)),
   };
-  const OFFSET: Record<string, number> = { kosode: 0.009, koteCloth: 0.0075, kyahan: 0.013, tabi: 0.0035 };
+  const OFFSET: Record<string, number> = { kosode: 0.009, koteCloth: 0.0075, kyahan: 0.03, tabi: 0.0035 };
   const offsetPieces = Object.fromEntries(Object.entries(regions).map(([name, sel]) => [name, cutOffset(body, skin, correctives, sel, OFFSET[name])]));
   log(`body-cut garments: ${Object.entries(offsetPieces).map(([k, p]) => `${k} ${p.mesh.positions.length / 3}`).join(', ')}`);
 
@@ -205,7 +220,7 @@ async function main() {
       hold: { Right: 'Right:katana', Left: 'Left:relaxed' },
       optional: { kabuto: process.env.FORGE_KABUTO === '1' },
       pieces: kit.pieces,
-      tune: anatomy.tune,
+      tune: { ...anatomy.tune, face: undefined },
       muscles: anatomy.muscles.map((m) => ({ id: m.id, label: m.label })),
     },
   };
@@ -213,27 +228,45 @@ async function main() {
   // the procedural paint underneath (hair at the back, skin where the art has background), then Muse's front art
   // warped onto the face along MediaPipe's landmarks when it is there (engines/tela-3d/face_landmarks.py)
   const procFace = paintFace(anatomy.face, crownY, anatomy.face[9][1] - 0.1, (zLo + zHi) / 2, 1024);
-  const REF = process.env.FORGE_FACE_ART ?? 'D:/Plajah Runtime/forge/haru-ref/front.png';
-  const refMarks = REF.replace(/\.png$/, '.landmarks.json');
   const fromArt = fs.existsSync(REF) && fs.existsSync(refMarks)
     ? paintFaceFromArt(procFace, anatomy.face, REF, JSON.parse(fs.readFileSync(refMarks, 'utf8')) as ArtLandmarks, CANONICAL_INDICES)
     : null;
-  const atlasFace = fromArt ?? procFace;
+  let atlasFace = fromArt ?? procFace;
   log(fromArt ? `face: painted from ${REF}` : 'face: procedural (no front art)');
-  fs.writeFileSync(path.join(WORK, 'face_atlas.png'), atlasFace.png);
   const browY = anatomy.face[9][1], centreZ = (zLo + zHi) / 2;
+  // the unrolled strip takes what is behind the face's outline (its cheekbone points, 234/454) and turned away, or
+  // behind the head's middle and facing back; everything on the face stays in the front projection
+  const sideZ = Math.min(anatomy.face[234][2], anatomy.face[454][2]) + 0.006;
+  // (never the throat's midline in front of the middle: the strip wraps round there)
+  const onStrip = (c: Vec3, nz: number) => !(Math.abs(c[0]) < 0.035 && c[2] > centreZ) && ((nz < 0.25 && c[2] < sideZ) || (nz < -0.15 && c[2] < centreZ));
+  const headPrim = faceUvPrim(head, arkit, atlasFace.uvOf, onStrip);
+  // the sides and back of the head from the turnaround's side and back views
+  if (fromArt && fs.existsSync(HARU_SHEET.path)) {
+    const toSrgb = (c: number) => 255 * (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
+    atlasFace = { ...atlasFace, png: await paintHeadFromSheet(atlasFace.png, { ...headPrim, uvs: headPrim.uvs! }, { chinY: 1.537, frontSkin: fromArt.skin.map(toSrgb), front: 0.72, faceZ: sideZ + 0.025, browY }) };
+    log('head: sides and back painted from the sheet');
+  }
+  fs.writeFileSync(path.join(WORK, 'face_atlas.png'), atlasFace.png);
   /** Hair grows above the art's hairline (hairSystem.hairlineAt), the same line the strand roots start on. */
   // ... and wherever the painted art is hair above the brows (its own hairline), so paint and scalp meet exactly
   const atlasPx = PNG.sync.read(Buffer.from(atlasFace.png));
-  const paintedHair = (p: Vec3) => {
-    if (p[1] < browY + 0.02 || p[2] < centreZ) return false;
-    const [u, v] = atlasFace.uvOf(p, false);
+  // (the atlas holds the art's hair all round now: in front above the brows, at the sides down the sideburns, at the
+  // back to the nape; beard and moustache are dark too, so the height limits keep them skin)
+  const paintedHair = (p: Vec3, nz: number) => {
+    const back = onStrip(p, nz);
+    // never on the face itself (its brows and nostril shadows are dark too): above the forehead, or behind the face
+    if (p[2] > sideZ + 0.02 && p[1] < browY + 0.035) return false;
+    // (down to the nape only at the back: the jaw's underside behind the chin is dark with beard, not hair)
+    const floor = nz > 0.6 ? 0.035 : nz > -0.3 || p[2] > centreZ - 0.02 ? -0.06 : -0.13;
+    if (p[1] < browY + floor) return false;
+    const [u, v] = atlasFace.uvOf(p, back);
     const x = Math.min(atlasPx.width - 1, Math.max(0, Math.round(u * atlasPx.width))), y = Math.min(atlasPx.height - 1, Math.max(0, Math.round(v * atlasPx.height)));
     const i = (y * atlasPx.width + x) * 4;
     return 0.3 * atlasPx.data[i] + 0.59 * atlasPx.data[i + 1] + 0.11 * atlasPx.data[i + 2] < 62;
   };
-  const onScalp = (p: Vec3) => p[1] > browY + hairlineAt(Math.atan2(p[0], p[2] - centreZ)) + 0.002 || paintedHair(p);
-  const headPrim = faceUvPrim(head, arkit, atlasFace.uvOf, centreZ);
+  // (the table decides only above the brows; lower down, at the sideburns and the nape, the art's own paint does, so
+  // the dark scalp never scatters into the skin triangle by triangle)
+  const onScalp = (p: Vec3, nz: number) => (p[1] > browY - 0.01 && p[1] > browY + hairlineAt(Math.atan2(p[0], p[2] - centreZ)) + 0.002) || paintedHair(p, nz);
   const scalpPrim = splitBy(headPrim, onScalp);
   const extrasFace = { landmarks: anatomy.face.flat().map((x) => +x.toFixed(5)), shapes: ARKIT_SHAPES };
   const character: ForgeCharacter = {
@@ -384,18 +417,19 @@ function matchPainted(p: ReturnType<typeof paintFromViews>, head: ReturnType<typ
  * a vertex used by both sides is split so neither stretches across the atlas.
  */
 /** Move the triangles that pass a test out of a primitive into a new one (same vertices, same morphs). */
-function splitBy(p: GPrim, test: (c: Vec3) => boolean): GPrim {
+function splitBy(p: GPrim, test: (c: Vec3, nz: number) => boolean): GPrim {
   const keep: number[] = [], moved: number[] = [];
   for (let t = 0; t < p.indices.length; t += 3) {
     const c: Vec3 = [0, 0, 0];
-    for (let e = 0; e < 3; e++) for (let k = 0; k < 3; k++) c[k] += p.positions[p.indices[t + e] * 3 + k] / 3;
-    (test(c) ? moved : keep).push(p.indices[t], p.indices[t + 1], p.indices[t + 2]);
+    let nz = 0;
+    for (let e = 0; e < 3; e++) { for (let k = 0; k < 3; k++) c[k] += p.positions[p.indices[t + e] * 3 + k] / 3; nz += p.normals[p.indices[t + e] * 3 + 2] / 3; }
+    (test(c, nz) ? moved : keep).push(p.indices[t], p.indices[t + 1], p.indices[t + 2]);
   }
   p.indices = new Uint32Array(keep);
   return { ...p, indices: new Uint32Array(moved) };
 }
 
-function faceUvPrim(head: ReturnType<typeof cutOffset>, morphs: Float32Array[], uvOf: (p: Vec3, back: boolean) => [number, number], centreZ: number): GPrim {
+function faceUvPrim(head: ReturnType<typeof cutOffset>, morphs: Float32Array[], uvOf: (p: Vec3, back: boolean) => [number, number], onStrip: (c: Vec3, nz: number) => boolean): GPrim {
   const m = head.mesh;
   const P = (v: number): Vec3 => [m.positions[v * 3], m.positions[v * 3 + 1], m.positions[v * 3 + 2]];
   const key = new Map<number, number>();
@@ -404,7 +438,8 @@ function faceUvPrim(head: ReturnType<typeof cutOffset>, morphs: Float32Array[], 
   for (let t = 0; t < m.indices.length; t += 3) {
     const vs = [m.indices[t], m.indices[t + 1], m.indices[t + 2]];
     const nz = vs.reduce((a, v) => a + m.normals[v * 3 + 2], 0) / 3, cz = vs.reduce((a, v) => a + m.positions[v * 3 + 2], 0) / 3;
-    const back = nz < -0.15 && cz < centreZ;
+    const cx = vs.reduce((a, v) => a + m.positions[v * 3], 0) / 3, cy = vs.reduce((a, v) => a + m.positions[v * 3 + 1], 0) / 3;
+    const back = onStrip([cx, cy, cz], nz);
     for (const v of vs) {
       const k = v * 2 + (back ? 1 : 0);
       let i = key.get(k);

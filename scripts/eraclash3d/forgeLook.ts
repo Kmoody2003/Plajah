@@ -417,11 +417,17 @@ export function paintFaceFromArt(base: FaceAtlas, landmarks: V3[], artPath: stri
     const [fx, fy] = affine(x + 0.5, y + 0.5);
     dx[gy * gw + gx] = mapX[i] - fx; dy[gy * gw + gx] = mapY[i] - fy; known[gy * gw + gx] = 1;
   }
-  for (let it = 0; it < 600; it++) for (let gy = 1; gy < gh - 1; gy++) for (let gx = 1; gx < gw - 1; gx++) {
+  // (free at the frame, not pinned to zero there: a correction forced back to nothing over a few cells folds the warp,
+  // and a band of hair from above the hairline lands on the forehead)
+  for (let it = 0; it < 900; it++) for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) {
     const i = gy * gw + gx;
     if (known[i]) continue;
-    dx[i] = (dx[i - 1] + dx[i + 1] + dx[i - gw] + dx[i + gw]) / 4;
-    dy[i] = (dy[i - 1] + dy[i + 1] + dy[i - gw] + dy[i + gw]) / 4;
+    let sx = 0, sy = 0, n = 0;
+    if (gx > 0) { sx += dx[i - 1]; sy += dy[i - 1]; n++; }
+    if (gx < gw - 1) { sx += dx[i + 1]; sy += dy[i + 1]; n++; }
+    if (gy > 0) { sx += dx[i - gw]; sy += dy[i - gw]; n++; }
+    if (gy < gh - 1) { sx += dx[i + gw]; sy += dy[i + gw]; n++; }
+    dx[i] = sx / n; dy[i] = sy / n;
   }
   const field = (arr: Float32Array, x: number, y: number) => {
     const fx = Math.max(0, Math.min(gw - 1.001, x / G - 0.5)), fy = Math.max(0, Math.min(gh - 1.001, y / G - 0.5));
@@ -439,7 +445,8 @@ export function paintFaceFromArt(base: FaceAtlas, landmarks: V3[], artPath: stri
   };
   const hashN = (x: number, y: number) => { const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); };
   // the background: Muse's flat grey (low saturation, light)
-  const bgOf = (c: number[]) => { const mx = Math.max(...c), mn = Math.min(...c); return Math.max(0, Math.min(1, (1 - (mx - mn) / 22) * Math.min(1, (mn - 105) / 20))); };
+  // (each factor clamped on its own: two negatives multiplied made warm skin read as background)
+  const bgOf = (c: number[]) => { const mx = Math.max(...c), mn = Math.min(...c); return Math.max(0, Math.min(1, 1 - (mx - mn) / 22)) * Math.max(0, Math.min(1, (mn - 105) / 20)); };
   // the art's skin tone (from inside the landmark mesh), and the procedural paint shifted to it so nothing seams
   const skinAcc = [0, 0, 0]; let skinN = 0;
   for (let i = 0; i < N * H; i += 7) {

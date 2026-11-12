@@ -188,6 +188,9 @@ function stepTravel(c: Character, dt: number) {
   async capture(name: string) {
     if (!renderer.domElement.width || !renderer.domElement.height) fit();
     placeCam();
+    // a hidden pane runs no animation frames, and skinning updates once per frame: step the frame so a capture after
+    // scrub() or a hand-stepped mixer shows the skinned meshes where their bones are, not at the bind pose
+    (renderer as unknown as { _nodes?: { nodeFrame?: { update(): void } } })._nodes?.nodeFrame?.update();
     renderer.render(scene, camera);
     const url = renderer.domElement.toDataURL('image/png');
     await fetch(`/__capture?name=${encodeURIComponent(name)}`, { method: 'POST', body: url });

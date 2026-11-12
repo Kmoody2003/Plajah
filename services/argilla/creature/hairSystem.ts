@@ -225,7 +225,9 @@ export function chonmage(s: Scalp, opts: { headBone: string; columns: number; sn
  * pi = the nape): high at the forehead, receding at the temples, down to the top of the ear at the sides and to the
  * nape behind. The strand roots and the dark scalp under them both follow it.
  */
-const HAIRLINE: [number, number][] = [[0, 0.062], [0.5, 0.068], [0.8, 0.06], [1.1, 0.024], [1.3, -0.012], [1.42, 0.004], [1.85, 0.006], [2.05, -0.03], [2.4, -0.075], [Math.PI, -0.1]];
+// (measured on the turnaround with the art-fitted head, 2026-11-12: the shaved front reaches the top of the skull, the
+// temples recede steeply to sideburns in front of the ear, hair passes over the ear's top and down to the nape, no lower than the cards can lie flat)
+const HAIRLINE: [number, number][] = [[0, 0.085], [0.5, 0.08], [0.85, 0.035], [1.1, -0.005], [1.28, -0.05], [1.45, -0.04], [1.65, 0.0], [1.85, 0.004], [2.05, -0.03], [2.4, -0.075], [Math.PI, -0.1]];
 export function hairlineAt(a: number): number {
   const x = Math.min(Math.PI, Math.abs(Math.atan2(Math.sin(a), Math.cos(a))));
   for (let i = 1; i < HAIRLINE.length; i++) if (x <= HAIRLINE[i][0]) { const [a0, y0] = HAIRLINE[i - 1], [a1, y1] = HAIRLINE[i]; return y0 + ((y1 - y0) * (x - a0)) / (a1 - a0); }

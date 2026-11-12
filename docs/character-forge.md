@@ -67,6 +67,12 @@ Each piece is its own mesh with its own material, made from parametric period pa
   - Sheet cut-outs projected per part with `paint_from_views` and the SAM parts.
   - Each character still looks like Muse's art, but on real geometry.
 
+- **Fit to the art, by measurement** (Haru v3, 2026-11-12):
+  - `scripts/eraclash3d/forgeSilhouette.ts` lays the GLB's rest silhouette over the turnaround, front and side, scaled so sole and chin agree. It prints art-against-model widths per height, and draws the model's outline over the art.
+  - **Face shape:** `forgeFaceFit.ts` takes MediaPipe's 468 landmarks on the front portrait (not the average canonical face), scaled to the sheet's face length. Their depth comes from MediaPipe, with the midline pulled onto the side view's profile (brow, nose, lips, chin).
+  - **Head:** the cranium, jaw and neck follow the face through the anatomy's head fit (`HumanTune.head`: forward, up, scale, width, neck).
+  - **Sides and back of the head:** painted from the sheet's side and back views, blended by the surface normal and tone-matched to the portrait's skin. Only skin and hair pixels are used: no collar, no background, and not the art's own ear.
+
 ### 5. Rig and export
 
 - **The GLB contains:**

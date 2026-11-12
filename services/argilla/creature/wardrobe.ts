@@ -461,9 +461,10 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
     const sx = s === 'Left' ? 1 : -1;
     const hang = norm([sx * Math.sin((14 * Math.PI) / 180), -Math.cos((14 * Math.PI) / 180), 0]);
     const outN = norm([sx * Math.cos((14 * Math.PI) / 180), Math.sin((14 * Math.PI) / 180), 0]);
-    const root: Vec3 = [sx * 0.215, 1.46, -0.005];
+    // hung high, their tops level with the base of the neck, as the turnaround draws them (forgeSilhouette.ts)
+    const root: Vec3 = [sx * 0.215, 1.5, -0.005];
     const chain: string[] = [];
-    const n = 7, h = 0.05, width = 0.24;
+    const n = 7, h = 0.046, width = 0.24;
     for (let j = 0; j < n; j++) {
       const name = `Sode${s[0]}_${j}`;
       const at = add(add(root, mul(hang, j * (h - 0.006))), mul(outN, j * 0.004));
@@ -551,6 +552,8 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
 
   // ---- Suneate: shin splints and the knee guard ------------------------------------------------------------------
   piece('suneate', 'Suneate (greaves): iron splints joined over mail, with a tateage knee guard');
+  // standoff of the splints from the shin: over thickly wrapped kyahan, as bulky as the turnaround draws them
+  const GREAVE = 0.042;
   for (const s of ['Left', 'Right'] as const) {
     const sx = s === 'Left' ? 1 : -1;
     const knee = J(`${s}Leg` as HumanJoint), ankle = J(`${s}Foot` as HumanJoint);
@@ -561,7 +564,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
         const c = lerp(knee, ankle, t);
         const a = a0 + (u - 0.5) * 0.36;
         const dir: Vec3 = norm([Math.sin(a) * sx, 0, Math.cos(a)]);
-        return add(c, mul(dir, reach(field, c, dir, 0.15) + 0.026));
+        return add(c, mul(dir, reach(field, c, dir, 0.15) + GREAVE));
       };
       plate(A('iron'), 3, 8, f, 0.003, `${s}Leg`, [0.04, 0.3]);
     }
@@ -570,7 +573,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
       const c = lerp(knee, ankle, -0.04 + (1 - v) * 0.16);
       const a = (u - 0.5) * 1.6;
       const dir: Vec3 = norm([Math.sin(a) * sx, 0.1, Math.cos(a)]);
-      return add(c, mul(dir, reach(field, c, dir, 0.15) + 0.035));
+      return add(c, mul(dir, reach(field, c, dir, 0.15) + GREAVE + 0.009));
     };
     plate(A('lacquer'), 10, 4, f, 0.004, `${s}Leg`, [0.12, 0.08]);
     const rim: Vec3[] = []; for (let k = 0; k <= 10; k++) rim.push(f(k / 10, 1)); tube(A('gold'), rim, 0.003, 5, `${s}Leg`);
@@ -578,7 +581,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
     for (const yy of [0.2, 0.62]) {
       const c = lerp(knee, ankle, 0.12 + yy * 0.72);
       const pts: Vec3[] = [];
-      for (let k = 0; k <= 24; k++) { const a = (k / 24) * Math.PI * 2; const dir: Vec3 = [Math.sin(a), 0, Math.cos(a)]; pts.push(add(c, mul(dir, reach(field, c, dir, 0.15) + 0.031))); }
+      for (let k = 0; k <= 24; k++) { const a = (k / 24) * Math.PI * 2; const dir: Vec3 = [Math.sin(a), 0, Math.cos(a)]; pts.push(add(c, mul(dir, reach(field, c, dir, 0.15) + GREAVE + 0.005))); }
       tube(A('silkRed'), pts, 0.003, 5, `${s}Leg`);
     }
   }
@@ -588,7 +591,8 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
   for (const s of ['Left', 'Right'] as const) {
     const sx = s === 'Left' ? 1 : -1;
     const hip = J(`${s}UpLeg` as HumanJoint), knee = J(`${s}Leg` as HumanJoint), ankle = J(`${s}Foot` as HumanJoint);
-    const yTopH = 1.0, yGather = 0.27;
+    // gathered just under the knee into the greaves' top, as the turnaround has it (fitted with forgeSilhouette.ts)
+    const yTopH = 1.0, yGather = 0.47;
     // the leg's centre line at a height
     const centre = (y: number): Vec3 => {
       if (y >= knee[1]) return lerp(knee, hip, (y - knee[1]) / (hip[1] - knee[1]));
@@ -596,10 +600,16 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
     };
     const mb = Cl('hakama');
     const nu = 40, nv = 28;
-    const balloon = (y: number) => {
-      // wide from mid-thigh to below the knee, gathered at the greaves
+    /**
+     * How far the cloth stands off the leg: bloused over the gather (fullest a hand above it), easing to the thigh, a
+     * little flare under the dō. Fuller front and back than to the side (the art's profile is the widest view).
+     */
+    const balloon = (y: number, a: number) => {
       const t = (y - yGather) / (yTopH - yGather);
-      return 0.012 + 0.07 * Math.sin(Math.min(1, t * 1.35) * Math.PI) ** 0.8 * (t < 0.08 ? smooth01(t / 0.08) : 1) + (t > 0.85 ? (t - 0.85) * 0.12 : 0);
+      const rise = t < 0.1 ? Math.sin((t / 0.1) * Math.PI / 2) ** 0.5 : 1 - 0.62 * smooth01((t - 0.1) / 0.75);
+      const amp = 0.108 * Math.sin(a) ** 2 + 0.13 * Math.cos(a) ** 2;
+      // (the gather itself stands off the bulky greaves' top: the knee plate tucks up under the blouse)
+      return 0.012 + 0.03 * (1 - smooth01(t / 0.3)) + amp * rise + (t > 0.85 ? (t - 0.85) * 0.12 : 0);
     };
     const rings = new Map<number, (a: number) => number>();
     const ringAt = (v: number) => {
@@ -622,7 +632,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
       // inner side of the leg stays closer (the crotch), pleats in front
       const inner = Math.max(0, -Math.sin(a)) * 0.6;
       const pleat = Math.cos(a) > 0.2 ? 0.004 * Math.sin(u * 5 * Math.PI * 2) : 0;
-      const r = ringAt(v)(a) + balloon(y) * (1 - inner) + 0.008 + pleat;
+      const r = ringAt(v)(a) + balloon(y, a) * (1 - inner) + 0.008 + pleat;
       return add(c, mul(dir, r));
     };
     sheet(mb, nu, nv, f, `${s}UpLeg`, [1.2, 0.8]);
@@ -631,7 +641,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
     w.clothSims.push(clothGrid(`hakama${s[0]}`, 'hakama', 18, 12, f, (v) => {
       const y = yGather + (yTopH - yGather) * v;
       const tied = v < 0.03 || v > 0.94 ? 1 : 0;
-      return { pin: tied, maxDist: tied ? 0 : 0.075 * Math.sin(Math.PI * Math.min(1, (y - yGather) / (0.95 - yGather))) ** 0.6 };
+      return { pin: tied, maxDist: tied ? 0 : 0.075 * Math.sin(Math.PI * Math.min(1, (y - yGather) / (0.95 - yGather))) ** 0.5 };
     }, { drive: 3, damping: 1.4, radius: 0.012 }));
   }
   piece('kosode', 'Kosode: the inner robe, its sleeves tied short over the kote, sleeve hems on spring chains', ['Kosode, Momoyama period, the Met']);

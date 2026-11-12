@@ -57,6 +57,13 @@ export interface HumanTune {
   weight: number;
   /** Years; only shapes the face and posture lightly. */
   age: number;
+  /**
+   * The face's 468 landmarks already placed in metres (rest pose, +z forward), e.g. fitted to a character's art
+   * (scripts/eraclash3d/forgeFaceFit.ts). Without it the canonical MediaPipe face is used at an average size.
+   */
+  face?: Vec3[];
+  /** Cranium, jaw and neck top moved and scaled to meet a fitted face: about a pivot under the skull. */
+  head?: { forward: number; up: number; scale: number; neck?: number; width?: number };
 }
 
 export const HARU_TUNE: HumanTune = { height: 1.74, build: 1.04, musculature: 0.72, weight: 0.18, age: 31 };
@@ -100,6 +107,8 @@ export interface HumanAnatomy {
   capsules: BodyCapsule[];
   /** The 468 canonical face landmarks placed on this head (rest pose, world space). */
   face: Vec3[];
+  /** Where a point authored on the average head lands on this one (the head's fit; identity without one). */
+  headXf: (p: Vec3) => Vec3;
   /** The canonical face mesh set in by `thickness`: the field adds a shell of that thickness around it. */
   faceShell: { points: Vec3[]; indices: number[]; thickness: number };
   /** Grip sockets in the rest pose: palm centre and the hilt axis through the curled fingers. */
@@ -158,9 +167,13 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
   J.Spine1 = P(0, 1.185, -0.018);
   J.Spine2 = P(0, 1.305, -0.012);
   J.Neck = P(0, 1.465, -0.022);
-  J.Head = P(0, 1.565, -0.006);
+  // the head's own fit (art-fitted characters): everything above the neck goes through HX
+  const hf = tune.head ?? { forward: 0, up: 0, scale: 1 };
+  const pivot = P(0, 1.565, -0.03);
+  const HX = (v: Vec3): Vec3 => [v[0] * hf.scale * (hf.width ?? 1), pivot[1] + (v[1] - pivot[1]) * hf.scale + hf.up * k, pivot[2] + (v[2] - pivot[2]) * hf.scale + hf.forward * k];
+  J.Head = HX(P(0, 1.565, -0.006));
   tips.Hips = J.Spine; tips.Spine = J.Spine1; tips.Spine1 = J.Spine2; tips.Spine2 = J.Neck; tips.Neck = J.Head;
-  tips.Head = P(0, 1.74, -0.006);
+  tips.Head = HX(P(0, 1.74, -0.006));
 
   J.LeftShoulder = P(0.022 * W, 1.43, 0.012);
   J.LeftArm = P(0.172 * W, 1.405, -0.012);
@@ -220,7 +233,7 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
   tips.LeftUpLeg = J.LeftLeg; tips.LeftLeg = J.LeftFoot; tips.LeftFoot = J.LeftToeBase; tips.LeftToeBase = P(0.124, 0.02, 0.19);
 
   // the eyes sit behind the lids of the face they look out of: centre of each eye's opening, set back by the eyeball
-  const face = placeFace(k);
+  const face = tune.face ? tune.face.map((p) => [...p] as Vec3) : placeFace(k);
   const eyeOf = (ids: number[]): Vec3 => { const c = ids.reduce<Vec3>((a, i) => add(a, face[i]), [0, 0, 0]); return add(mul(c, 1 / ids.length), [0, 0, -EYE_R * k + 0.0025 * k]); };
   J.LeftEye = eyeOf([263, 362, 386, 374]);
   tips.LeftEye = add(J.LeftEye, P(0, 0, 0.02));
@@ -325,7 +338,9 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
   }
   // belly front and the neck
   cone('Spine', P(0, 1.02, 0.045), 0.09, P(0, 1.15, 0.055), 0.088, 0.05, 'Spine1');
-  cone('Neck', P(0, 1.44, -0.015), 0.058, P(0, 1.58, -0.005), 0.05, 0.03, 'Head');
+  const neckR = hf.neck ?? 1;
+  // with a fitted head the neck meets the skull further back and lower, leaving the angle under the chin open
+  cone('Neck', P(0, 1.44, -0.015), 0.058 * neckR, HX(tune.head ? P(0, 1.57, -0.022) : P(0, 1.58, -0.005)), 0.05 * neckR, 0.03, 'Head');
 
   for (const s of ['Left', 'Right'] as HumanSide[]) {
     const j = (n: string) => J[S(s, n)];
@@ -370,21 +385,23 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
   }
 
   // ---- Head: cranium, jaw and a face that passes through the canonical landmarks -----------------------
+  const hcone = (a: Vec3, ra: number, b: Vec3, rb: number, blend: number) => cone('Head', HX(a), ra * hf.scale, HX(b), rb * hf.scale, blend);
   // cranium behind the face mask (the canonical landmarks make the whole front of the head): about 19.5 cm from brow
   // to the back of the skull and 15 cm across, not the long egg of a first pass
-  cone('Head', P(0, 1.655, -0.012), 0.08, P(0, 1.668, -0.02), 0.08, 0.02);
-  for (const sx of [1, -1]) cone('Head', [sx * 0.03 * k, 1.66 * k, -0.01 * k], 0.072, [sx * 0.03 * k, 1.63 * k, -0.035 * k], 0.06, 0.03);
-  cone('Head', P(0, 1.6, -0.02), 0.06, P(0, 1.57, 0.0), 0.05, 0.03);                   // skull base to the jaw hinge
+  hcone(P(0, 1.655, -0.012), 0.08, P(0, 1.668, -0.02), 0.08, 0.02);
+  for (const sx of [1, -1]) hcone(P(sx * 0.03, 1.66, -0.01), 0.072, P(sx * 0.03, 1.63, -0.035), 0.06, 0.03);
+  hcone(P(0, 1.6, -0.02), 0.06, P(0, 1.57, 0.0), 0.05, 0.03);                   // skull base to the jaw hinge
   for (const sx of [1, -1]) {
-    cone('Head', [sx * 0.055 * k, 1.592 * k, -0.005 * k], 0.022, [sx * 0.035 * k, 1.55 * k, 0.05 * k], 0.016, 0.02); // jaw line
-    // ears
-    cone('Head', [sx * 0.074 * k, 1.645 * k, -0.005 * k], 0.012, [sx * 0.077 * k, 1.615 * k, -0.012 * k], 0.009, 0.006);
+    // jaw line: from under the ear to the chin's corner on the face itself
+    // (its end sits well inside the mask, so three smooth unions there never swell into a jowl)
+    const jawEnd = add(face[sx > 0 ? 379 : 150], [0, 0.002 * k, -0.02 * k]);
+    cone('Head', HX(P(sx * 0.055, 1.592, -0.005)), 0.022 * hf.scale, jawEnd, tune.face ? 0.011 : 0.016, 0.02);
   }
   // The face is MediaPipe's canonical face mesh itself, as a thin shell whose outer side passes through the
   // landmarks (faceShell, smooth-unioned into the field by humanFinish). Behind its outline the skull rises to meet it,
   // so the mask has no rim.
   const normals = landmarkNormals(face);
-  const centre: Vec3 = P(0, 1.62, -0.02);
+  const centre: Vec3 = HX(P(0, 1.62, -0.02));
   const outward = normals.map((n, i) => (dot(n, sub(face[i], centre)) < 0 ? mul(n, -1) : n));
   const SHELL = 0.0035 * k;
   // the canonical face subdivided once and smoothed, so its surface is skin, not 468 facets
@@ -394,14 +411,19 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
     parts.push({ op: 'add', a: c, ra: 0.012 * k, b: c, rb: 0.012 * k, blend: 0.012 * k, boneA: 'Head', boneB: 'Head' });
   }
   // forehead and cheek fill behind the mask, so a gap between the shell and the skull never shows through the eyes
-  cone('Head', P(0, 1.67, 0.025), 0.05, P(0, 1.6, 0.03), 0.045, 0.03);
-  for (const sx of [1, -1]) cone('Head', [sx * 0.04 * k, 1.63 * k, 0.025 * k], 0.035, [sx * 0.035 * k, 1.585 * k, 0.03 * k], 0.03, 0.03);
+  // (placed from the face itself: between the brows and above each cheekbone, set back under the shell)
+  const behind = (i: number, d: number) => sub(face[i], mul(outward[i], d * k));
+  cone('Head', behind(9, 0.069), 0.05, behind(164, 0.069), 0.045, 0.03);
+  for (const sx of [1, -1]) cone('Head', behind(sx > 0 ? 347 : 118, 0.052), 0.035, behind(sx > 0 ? 432 : 212, 0.049), 0.03, 0.03);
+  // the brow rising on past the face's top edge (10) and sloping back to the crown, as a profile shows it
+  if (tune.face) cone('Head', add(face[10], [0, -0.01 * k, -0.04 * k]), 0.04, add(face[10], [0, 0.017 * k, -0.084 * k]), 0.04, 0.03);
   // eye sockets read through the lids: a shallow carve under the brow, the eyeballs behind
   for (const s of ['Left', 'Right'] as HumanSide[]) {
     ball(S(s, 'Eye'), J[S(s, 'Eye')], EYE_R, 0.002);
   }
-  carve('Head', P(0, 1.58, 0.096), 0.0035, P(0.017, 1.578, 0.088), 0.0025, 0.004);   // mouth line
-  carve('Head', P(0, 1.58, 0.096), 0.0035, P(-0.017, 1.578, 0.088), 0.0025, 0.004);
+  // mouth line: between the lips, out to each corner
+  const lips = lerp(face[13], face[14], 0.5);
+  for (const corner of [61, 291]) carve('Head', add(lips, [0, 0, -0.003 * k]), 0.0035, add(face[corner], [0, 0, -0.004 * k]), 0.0025, 0.004);
   // topknot (chonmage) and hair cap are their own mesh; the skull just carries them
 
   // ---- Capsules for cloth and spring chains --------------------------------------------------------------
@@ -427,7 +449,7 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
     grip[s] = { at: add(lerp(hand, knuck, 0.82), mul(palmN, 0.026 * k)), axis: thumbS, palm: palmN };
   }
 
-  return { tune, bones, byName, muscles, parts, capsules, face, faceShell: { points: fine.points, indices: fine.indices, thickness: SHELL }, grip };
+  return { tune, bones, byName, muscles, parts, capsules, face, faceShell: { points: fine.points, indices: fine.indices, thickness: SHELL }, grip, headXf: HX };
 }
 
 /** Eyeball radius at 1.74 m (an adult eye is about 24 mm across). */
