@@ -555,7 +555,7 @@ for (const [v, r] of Object.entries(report)) {
   sum += vs + vc; wsum += 2 * vw;
 }
 const overall = +(sum / wsum).toFixed(3);
-const result = { file, pose: Object.fromEntries(Object.entries(pose).map(([k, v]) => [k, +v.toFixed(3)])), overall, axes, views: report, ms: Date.now() - t0 };
+const result = { file, pose: Object.fromEntries(Object.entries(pose).map(([k, v]) => [k, +(v as number).toFixed(3)])), overall, axes, views: report, ms: Date.now() - t0 };
 fs.writeFileSync(path.join(outDir, 'fidelity.json'), JSON.stringify(result, null, 2));
 if (args.includes('--json')) console.log(JSON.stringify(result));
 else {
