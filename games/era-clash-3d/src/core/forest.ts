@@ -10,6 +10,7 @@
 // ez-tree only supplies geometry; materials are the game's own node materials (its Phong materials
 // and WebGL shader patches don't run on the WebGPU renderer).
 import * as THREE from 'three/webgpu';
+import { windAt, localWindDir } from './wind';
 import { texture, uv, positionLocal, time, sin, cos, vec2, vec3, float, attribute, mix, color, uniform } from 'three/tsl';
 import { Tree } from '@dgreenheck/ez-tree';
 import { rng } from './kit';
@@ -59,10 +60,20 @@ function copyGeo(src: { attributes: Record<string, { array: ArrayLike<number>; i
  * Wind: tops sway more than trunks; each instance on its own phase. The phase is a per-instance
  * attribute, not instanceIndex: culling repacks the visible instances every frame.
  */
-function sway(amount: number) {
-  const ph = attribute<'float'>('treePhase', 'float');
-  const y = positionLocal.y;
-  return positionLocal.add(vec3(sin(time.mul(1.4).add(ph).add(y.mul(2.1))).mul(amount), 0, cos(time.mul(1.1).add(ph.mul(0.7)).add(y.mul(1.6))).mul(amount)).mul(y.mul(y)));
+function sway(amount: number, bow: number, flutter = 0) {
+  // treeWind: (phase, x, z, yaw) per instance — the tree bows downwind as the gust bands pass (core/wind.ts) and
+  // rocks on its own phase, harder in a gust; leaves add a quick flutter of their own
+  const tw = attribute<'vec4'>('treeWind', 'vec4');
+  const ph = tw.x, y = positionLocal.y;
+  const ld = localWindDir(tw.w), push = windAt(vec2(tw.y, tw.z));
+  const rock = push.add(0.35);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ox: any = sin(time.mul(1.4).add(ph).add(y.mul(2.1))).mul(amount).mul(rock).add(ld.x.mul(push).mul(bow));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const oz: any = cos(time.mul(1.1).add(ph.mul(0.7)).add(y.mul(1.6))).mul(amount).mul(rock).add(ld.y.mul(push).mul(bow));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fl: any = flutter ? sin(time.mul(9.0).add(positionLocal.x.mul(37)).add(positionLocal.z.mul(29)).add(ph)).mul(flutter).mul(push.add(0.2)) : 0;
+  return positionLocal.add(vec3(ox, 0, oz).mul(y.mul(y))).add(vec3(fl, fl, fl));
 }
 
 const barkMats = new Map<string, THREE.MeshStandardNodeMaterial>();
@@ -72,7 +83,7 @@ function barkMaterial(type: string) {
     m.colorNode = texture(tex(`${type}_color_1k.jpg`, true), uv()).rgb.mul(color(0x9a958c));
     m.normalMap = tex(`${type}_normal_1k.jpg`, false);
     m.roughnessMap = tex(`${type}_roughness_1k.jpg`, false);
-    m.positionNode = sway(0.006);
+    m.positionNode = sway(0.008, 0.016);
     barkMats.set(type, m);
   }
   return barkMats.get(type)!;
@@ -91,7 +102,7 @@ function leafMaterial(type: string, tintKey = type) {
     // blossom petals are thin and translucent: backlit, they glow pale pink instead of going dark
     if (tintKey === 'cherry') (m as unknown as { emissiveNode: unknown }).emissiveNode = color(0xf2b4c4).mul(0.42);
     m.opacityNode = t.a;
-    m.positionNode = sway(0.012);
+    m.positionNode = sway(0.016, 0.024, 0.0035);
     leafMats.set(key, m);
   }
   return leafMats.get(key)!;
@@ -355,7 +366,7 @@ export class Forest {
         mat.opacityNode = c.a;
         // a flat card goes dark when the low sun is behind it: a little of its own colour back (blossom glows more)
         (mat as unknown as { emissiveNode: unknown }).emissiveNode = c.rgb.mul(spName === 'cherry' ? 0.45 : 0.14);
-        mat.positionNode = sway(0.008);
+        mat.positionNode = sway(0.012, 0.02);
         const im = new THREE.InstancedMesh(geo, mat, ms.length);
         ms.forEach((m, i) => im.setMatrixAt(i, m));
         im.computeBoundingSphere();
@@ -370,12 +381,14 @@ export class Forest {
 
   /** Give meshes (same instance order) a stable sway phase per tree and register them for culling. */
   private track(meshes: THREE.InstancedMesh[], mats: THREE.Matrix4[], minD = 0, maxD = Infinity) {
-    const phases = Float32Array.from(mats, (_, i) => i * 1.37);
+    // per instance: sway phase, ground position and facing (for the wind's direction in the tree's own frame)
+    const phases = new Float32Array(mats.length * 4);
+    mats.forEach((m, i) => { const e = m.elements; phases.set([i * 1.37, e[12], e[14], Math.atan2(e[8], e[10])], i * 4); });
     const attrs = [...new Set(meshes.map((m) => m.instanceMatrix))];
     const phaseAttrs: THREE.InstancedBufferAttribute[] = [];
     for (const geo of new Set(meshes.map((m) => m.geometry))) {
-      const a = new THREE.InstancedBufferAttribute(phases.slice(), 1);
-      geo.setAttribute('treePhase', a);
+      const a = new THREE.InstancedBufferAttribute(phases.slice(), 4);
+      geo.setAttribute('treeWind', a);
       phaseAttrs.push(a);
     }
     const geo = meshes[0].geometry;
@@ -415,7 +428,7 @@ export class Forest {
         if (d2 < lo || d2 >= hi) continue;
         if (!_frustum.intersectsSphere(_sphere.copy(s.sphere).applyMatrix4(s.mats[i]))) continue;
         for (const a of s.attrs) (a.array as Float32Array).set(s.mats[i].elements, n * 16);
-        for (const a of s.phaseAttrs) (a.array as Float32Array)[n] = s.phases[i];
+        for (const a of s.phaseAttrs) (a.array as Float32Array).set(s.phases.subarray(i * 4, i * 4 + 4), n * 4);
         n++;
       }
       for (const a of s.attrs) a.needsUpdate = true;

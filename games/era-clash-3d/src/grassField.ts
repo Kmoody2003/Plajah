@@ -4,6 +4,7 @@
 // Clumped placement, no grass on roads, sand, cliffs or under buildings (grassAt).
 import * as THREE from 'three/webgpu';
 import { uv, mix, color, time, sin, positionLocal, vec3, attribute, float } from 'three/tsl';
+import { windAt, localWindDir } from './core/wind';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type N = any;
@@ -42,9 +43,13 @@ export function buildGrassField(heightAt: (x: number, z: number) => number, gras
   const t: N = uv().y;
   // base dark and cool, tips warm and dry; each blade a little different
   mat.colorNode = mix(color(0x1c3414), mix(color(0x6f9a3c), color(0x9fae4e), tint), t.mul(t).mul(0.9));
-  // wind: a slow gust sweeping the field plus a quick flutter, bending more toward the tip
-  const sway: N = sin(time.mul(1.3).add(phase)).mul(0.55).add(sin(time.mul(3.7).add(phase.mul(2.3))).mul(0.18));
-  mat.positionNode = positionLocal.add(vec3(sway.mul(0.16), float(0), sway.mul(0.07)).mul(t.mul(t)));
+  // wind (core/wind.ts): every blade bends downwind as the gust bands roll over the field, plus its own quick
+  // flutter; the tip goes furthest (and dips a little as it bends)
+  const aw: N = attribute('aWind', 'vec3');
+  const ld: N = localWindDir(aw.z), push: N = windAt(aw.xy);
+  const sway: N = sin(time.mul(2.1).add(phase)).mul(0.55).add(sin(time.mul(5.3).add(phase.mul(2.3))).mul(0.3));
+  const bend: N = push.mul(0.42).add(sway.mul(0.05).mul(push.add(0.3)));
+  mat.positionNode = positionLocal.add(vec3(ld.x.mul(bend), bend.mul(bend).mul(-0.6), ld.y.mul(bend)).mul(t.mul(t)));
   mat.roughnessNode = float(0.85);
   mat.metalnessNode = float(0);
 
@@ -53,6 +58,7 @@ export function buildGrassField(heightAt: (x: number, z: number) => number, gras
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
   function fill(tile: Tile) {
     const mesh = tile.mesh, ph = mesh.geometry.getAttribute('aPhase') as THREE.InstancedBufferAttribute, ti = mesh.geometry.getAttribute('aTint') as THREE.InstancedBufferAttribute;
+    const wa = mesh.geometry.getAttribute('aWind') as THREE.InstancedBufferAttribute;
     let n = 0;
     const x0 = tile.cx * TILE, z0 = tile.cz * TILE;
     const clumps = Math.round(perTile / 6);
@@ -67,22 +73,24 @@ export function buildGrassField(heightAt: (x: number, z: number) => number, gras
         const x = cxw + Math.cos(a) * rr, z = czw + Math.sin(a) * rr;
         if (grassAt(x, z) <= 0.05) continue;
         p.set(x, heightAt(x, z) - 0.02, z);
-        q.setFromAxisAngle(up, hash(x * 7.1 | 0, z * 9.3 | 0) * Math.PI * 2);
+        const yaw = hash(x * 7.1 | 0, z * 9.3 | 0) * Math.PI * 2;
+        q.setFromAxisAngle(up, yaw);
         const hgt = (0.42 + 0.5 * hash(b + 3, c + 5)) * (0.6 + 0.4 * dens);
         s.set(1, hgt, 1);
         m4.compose(p, q, s); mesh.setMatrixAt(n, m4);
-        ph.setX(n, x * 0.35 + z * 0.22); ti.setX(n, hash(c, b));
+        ph.setX(n, x * 0.35 + z * 0.22); ti.setX(n, hash(c, b)); wa.setXYZ(n, x, z, yaw);
         n++;
       }
     }
     mesh.count = n;
-    mesh.instanceMatrix.needsUpdate = true; ph.needsUpdate = true; ti.needsUpdate = true;
+    mesh.instanceMatrix.needsUpdate = true; ph.needsUpdate = true; ti.needsUpdate = true; wa.needsUpdate = true;
     mesh.computeBoundingSphere();
   }
   for (let i = 0; i < (2 * R + 1) ** 2; i++) {
     const g = geo.clone();
     g.setAttribute('aPhase', new THREE.InstancedBufferAttribute(new Float32Array(perTile), 1));
     g.setAttribute('aTint', new THREE.InstancedBufferAttribute(new Float32Array(perTile), 1));
+    g.setAttribute('aWind', new THREE.InstancedBufferAttribute(new Float32Array(perTile * 3), 3));
     const mesh = new THREE.InstancedMesh(g, mat, perTile);
     mesh.frustumCulled = true; mesh.castShadow = false; mesh.receiveShadow = true;
     group.add(mesh);

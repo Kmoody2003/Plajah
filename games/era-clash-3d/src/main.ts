@@ -22,6 +22,8 @@ import { OTSU } from './otsu';
 import { CANAL } from './chapter1';
 import { Rafts } from './raft';
 import { WorldMap } from './worldMap';
+import { updateWind } from './core/wind';
+import { castleRoadPoints } from './castleHill';
 import { COAST_DZ } from './river';
 import { cityPlaces, PLANNED } from './places';
 import { uvMaterial } from './core/materials';
@@ -780,6 +782,41 @@ function win() {
   try { window.parent?.postMessage({ type: 'plajah.xp', gameId: 'era-clash', amount: xp, reason: `3D · ${chapter.title}` }, '*'); } catch { /* standalone */ }
   setTimeout(() => { $('endT').textContent = 'The Field Is Yours'; $('endS').textContent = `${chapter.title} is won. +${xp} XP · villagers saved ${villagers.saved}/${villagers.total}`; $('end').classList.add('on'); document.exitPointerLock?.(); }, 1800);
 }
+// ── Spoken scenes (quests' tell): a line at a time in a box at the foot of the screen; the game holds ─────────────
+let telling: { lines: { who: string; line: string }[]; i: number; done?: () => void } | null = null;
+const tellEl = document.createElement('div');
+tellEl.id = 'tell';
+tellEl.style.cssText = 'position:fixed;left:50%;bottom:9vh;transform:translateX(-50%);width:min(760px,92vw);padding:16px 22px 14px;background:rgba(12,9,6,.88);border:1px solid #6b5636;box-shadow:0 8px 40px #000;color:#f4e6c8;font-family:Georgia,serif;display:none;z-index:30;cursor:pointer';
+document.body.appendChild(tellEl);
+function showLine() {
+  if (!telling) return;
+  const l = telling.lines[telling.i];
+  tellEl.innerHTML = `<div class="cz" style="color:#f0c46a;font-size:13px;letter-spacing:.12em;margin-bottom:6px">${l.who.toUpperCase()}</div><div style="font-size:17px;line-height:1.5">${l.line}</div><div style="text-align:right;font-size:11px;opacity:.6;margin-top:8px">G · Enter · click — ${telling.i + 1}/${telling.lines.length}</div>`;
+}
+function tell(lines: { who: string; line: string }[], done?: () => void) {
+  telling = { lines, i: 0, done }; hero.block = false;
+  tellEl.style.display = 'block'; showLine();
+}
+function tellNext() {
+  if (!telling) return;
+  if (++telling.i < telling.lines.length) { showLine(); return; }
+  const d = telling.done; telling = null; tellEl.style.display = 'none'; d?.();
+}
+tellEl.addEventListener('click', tellNext);
+addEventListener('keydown', (e) => { if (telling && !e.repeat && (e.code === 'KeyG' || e.code === 'Enter' || e.code === 'Space')) { e.preventDefault(); e.stopImmediatePropagation(); tellNext(); } }, true);
+/** The end of Act I (docs/era-clash-3d-act2-volcano.md): the crew mounts up for the mountain. */
+function actEnd() {
+  if (mode !== 'play') return;
+  mode = 'won';
+  sfx('taikoWin', 1);
+  const xp = 60 + 15 * CH;
+  try { window.parent?.postMessage({ type: 'plajah.xp', gameId: 'era-clash', amount: xp, reason: `3D · ${chapter.title} · Act I` }, '*'); } catch { /* standalone */ }
+  setTimeout(() => {
+    $('endT').textContent = 'Act I — Smoke Over Otsu-no-ura';
+    $('endS').textContent = `Into the night, for the mountain. Act II, The Ash Witch, is still being built. +${xp} XP · villagers saved ${villagers.saved}/${villagers.total}`;
+    $('end').classList.add('on'); document.exitPointerLock?.();
+  }, 1600);
+}
 function lose() {
   mode = 'lost';
   setTimeout(() => { $('endT').textContent = 'Haru Falls'; $('endS').textContent = 'The field is lost — but the tale is not. Fight it again.'; $('end').classList.add('on'); document.exitPointerLock?.(); }, 1400);
@@ -796,7 +833,7 @@ addEventListener('resize', resize); resize();
 const ZERO = new THREE.Vector3();
 
 function tick(rawDt: number) {
-  if (paused || worldMap?.open) return;
+  if (paused || worldMap?.open || telling) return;
   let dt = rawDt;
   if (hitstop > 0) { hitstop -= rawDt; dt = rawDt * 0.05; }
   if (slowmo > 0) { slowmo -= rawDt; dt *= 0.35; }
@@ -916,7 +953,7 @@ function tick(rawDt: number) {
         hero.hp = Math.min(hero.maxHp, hero.hp + hero.maxHp * 0.35);
         allies.forEach((a) => { if (a.alive) a.hp = Math.min(a.maxHp, a.hp + a.maxHp * 0.35); });
       }
-    } else if (!pending.length && !enemies.some((m) => m.alive && m.object.position.distanceTo(world.otsu.spots.forecourt) < 45)) win();
+    }   // (the chapter is won at the end of the main quest now: the temple, the stable — quests.ts → actEnd)
   }
   // raiders far off aren't drawn (the city holds many bands at once)
   for (const m of enemies) m.object.visible = !m.alive || m.object.position.distanceToSquared(camera.position) < 4900;
@@ -946,6 +983,7 @@ renderer.setAnimationLoop(() => {
     const c = Math.round(THREE.MathUtils.clamp(next, Q.resMin, resMax));
     if (Math.abs(c - internalH) >= 8) { internalH = c; applyRes(); }
   }
+  updateWind(Math.min(raw, 0.05));   // the gusts (core/wind.ts)
   tick(Math.min(raw, 0.05));
   if (mode !== 'story') { hud(); labels(); }
   worldMap.update();
@@ -984,6 +1022,7 @@ const qSpots = (() => {
     broker: at(pz.x + 5.0, pz.z - 2.4), strongbox: at(roadX(34) + 11.7, 34),
     otemon: o.otemon, forecourt: o.forecourt,
     hill: { ...world.hill.spots, mother: at(-82.6, 48.4) },
+    castle: world.castleHill.spots,
   };
 })();
 const quests: Quests = new Quests({
@@ -1006,10 +1045,12 @@ const quests: Quests = new Quests({
   openGate: () => { if (!gateOpen) { gateOpen = true; gateT = 0; sfx('taikoWin', 1); card('The Castle Gate', 'The seal is shown. The gate opens.'); } },
   douse: (i) => { const f = world.boatFires[i]; if (f) f.group.visible = false; },
   douseSignal: () => { world.signalFire.group.visible = false; },
+  tell: (lines, done) => tell(lines, done),
+  actEnd: () => actEnd(),
 }, qSpots);
 // ── The map (worldMap.ts, places.ts): M opens it; drawn from the live world, labelled from cityPlaces() ─────────
 const worldMap = new WorldMap({
-  heightAt: world.heightAt, water: world.water, footprints: world.footprints, road: roadX, roadSpan: [-470, OTSU.otemonZ], trees: world.treeSpots,
+  heightAt: world.heightAt, water: world.water, footprints: world.footprints, road: roadX, roadSpan: [-470, OTSU.otemonZ], trees: world.treeSpots, extraRoads: [castleRoadPoints()],
   places: () => cityPlaces({ ...qSpots, landings: world.landings, rafts: world.rafts, bridges: world.bridges, river: world.river }),
   live: {
     hero: () => ({ x: player.object.position.x, z: player.object.position.z, yaw: player.yaw }),
@@ -1066,7 +1107,7 @@ let camHold: (() => void) | null = null;
   useCapture, mocapMoves,
   strike, superMove, roll, grabOrThrow, props, villagers, setStance, binds, spawnFoe, lockedOn: () => lock, player, camera, scene, world, enemies, allies, strikeLog,
   warp(z: number) { const x = roadX(z); player.teleport(new THREE.Vector3(x, world.heightAt(x, z), z), 0); allies.forEach((a, i) => a.object.position.set(x + (i ? 2 : -2), world.heightAt(x, z), z - 2)); },
-  worldMap, rafts,
+  worldMap, rafts, get hero() { return hero; },
   /** Dev: write docs/era-clash-3d-map.png + .md from the running game (the vite dev server saves them). */
   async mapDoc() {
     const places = cityPlaces({ ...qSpots, landings: world.landings, rafts: world.rafts, bridges: world.bridges, river: world.river }).filter((p) => p.kind !== 'travel' && p.kind !== 'quest');

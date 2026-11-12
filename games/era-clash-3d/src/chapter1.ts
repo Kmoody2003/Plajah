@@ -3,6 +3,7 @@
 // (stage-japan.webp): the wooden platform, the five-storey pagoda and the cherry trees, with the painting itself
 // hung as the far backdrop. +Z runs up the valley; sea level is y = 0.
 import * as THREE from 'three/webgpu';
+import { bellyCloth } from './core/wind';
 import { color, positionWorld, normalize, mix, smoothstep, vertexColor, texture, uv, vec2, vec3, time, sin, float, instancedBufferAttribute, uniform, attribute, normalMap } from 'three/tsl';
 import { collide } from './core/collision';
 import { uvMaterial, pbr, HIRES } from './core/materials';
@@ -16,6 +17,7 @@ import { buildOtsu, OTSU, type Otsu } from './otsu';
 import { buildCanal } from './canal';
 import { buildChannel, makeWater, SEA_Y, type ChannelSpec, type Water, type Channel } from './waterways';
 import { buildHillside, type Hillside } from './hillside';
+import { buildCastleHill, castleHillCut, castleRoadAt, TEMPLE, type CastleHill } from './castleHill';
 import { buildRiver, riverCut, riverAt, COAST_DZ, RIVER_TOP, type River } from './river';
 
 export interface Fire { group: THREE.Group; flames: THREE.Mesh[]; smoke: THREE.Mesh[]; seed: number; size: number; raid: boolean }
@@ -41,6 +43,8 @@ export interface Chapter1World {
   rafts: { p: THREE.Vector3; yaw: number }[];
   /** The river through the forest and its road bridge (river.ts). */
   river: River;
+  /** The castle on its hill and Hōrin-ji (castleHill.ts): the end of Act I. */
+  castleHill: CastleHill;
   /** The forest belt's trees (for the map). */
   treeSpots: { x: number; z: number; r: number }[];
   /** For the map (worldMap.ts): every building footprint, the landings, and the bridges (canal x / channel z). */
@@ -59,7 +63,9 @@ export interface Chapter1World {
 
 // The playable ground: the city opens west of the main road (the merchant quarter, the canal; the hillside and the
 // west shore follow — docs/era-clash-3d-city-plan.md), the east side stays the valley wall.
-const X_MIN = -185, X_MAX = 75, Z_MIN = -120, Z_MAX = 175;
+const X_MIN = -185, X_MAX = 125, Z_MIN = -120, Z_MAX = 175;
+/** The castle hill's terrain tile (z Z_MAX…NORTH_Z1): the road north to the castle and Hōrin-ji (castleHill.ts). */
+const NORTH_Z1 = 470;
 /** The forest belt's terrain tile (z FOREST_Z0…Z_MIN): the coast moved 400 m south (river.ts COAST_DZ). */
 const FOREST_Z0 = -540;
 /** The canal across the city (z of its centre line, half its width, its water and its bed), x from WEST to EAST. */
@@ -134,6 +140,7 @@ export function heightAt(x: number, z: number): number {
     y = Math.min(y, y + (CHANNEL.bed - y) * k);
   }
   if (z < CHANNEL.z0 + 2) y = riverCut(x, z, y);   // the river through the forest
+  if (z > 160) y = castleHillCut(x, z, y);          // the castle's hill, its road, the temple's terrace
   return y;
 }
 /** Where the road runs (x for a given z). */
@@ -217,20 +224,25 @@ export async function buildChapter1(): Promise<Chapter1World> {
     // the river's banks: wet gravel at the water, mud above it
     const rv = z < CHANNEL.z0 + 2 ? riverAt(x, z) : null;
     const bank = rv ? 1 - ss(rv.half + 0.5, rv.half + 3.5, rv.d) : 0;
+    // the castle road (packed earth, gravel shoulders) and the temple's raked-gravel court
+    const cr = z > 167 && z < 365 ? castleRoadAt(x, z) : null;
+    const court = Math.abs(x - TEMPLE.x) < TEMPLE.hw && Math.abs(z - TEMPLE.z) < TEMPLE.hd ? 1 : 0;
     // inside the Outer Wall the town is packed earth wall to wall (the alleys are dirt, not meadow)
     const town = ss(OTSU.wallZ - 1, OTSU.wallZ + 1, z) * (1 - ss(CANAL.z + CANAL.half + 9, CANAL.z + CANAL.half + 13, z)) * (x < roadX(z) ? ss(-164, -158, x) : 1 - ss(28, 32, dr));
     const lastR = HILL_RISERS[HILL_RISERS.length - 1] + 1.4;
     const hillTown = hillTerraceK(x, z) * (1 - ss(lastR - 0.5, lastR + 0.5, z)) * ss(HILL.x0 + 6, HILL.x0 + 9, x);
-    const dirt = Math.max((1 - ss(1.6, 2.6, dr)) * onRoad, town, hillTown * 0.85, bank * 0.6);
-    const gravel = Math.max((ss(1.4, 2.2, dr) * (1 - ss(3.2, 4.4, dr))) * onRoad * 0.9 * (1 - town), rv ? 1 - ss(rv.half - 0.5, rv.half + 1.2, rv.d) : 0);
+    const dirt = Math.max((1 - ss(1.6, 2.6, dr)) * onRoad, town, hillTown * 0.85, bank * 0.6, cr ? 1 - ss(2.4, 3.4, cr.d) : 0);
+    const gravel = Math.max((ss(1.4, 2.2, dr) * (1 - ss(3.2, 4.4, dr))) * onRoad * 0.9 * (1 - town), rv ? 1 - ss(rv.half - 0.5, rv.half + 1.2, rv.d) : 0, cr ? ss(2.4, 3.2, cr.d) * (1 - ss(3.6, 4.8, cr.d)) : 0, court);
     const grass = Math.max(0, 1 - sand - dirt - gravel);
     return { grass, dirt, gravel, sand };
   };
-  const ground = buildTerrain({ xMin: X_MIN, xMax: X_MIN + 260, zMin: Z_MIN, zMax: Z_MAX, segX: 260, segZ: 300, heightAt, splatAt });
+  const ground = buildTerrain({ xMin: X_MIN, xMax: X_MAX, zMin: Z_MIN, zMax: Z_MAX, segX: X_MAX - X_MIN, segZ: 300, heightAt, splatAt });
   group.add(collide(ground));
   // the forest belt down to the new coast: same x columns, so the two tiles meet vertex for vertex at Z_MIN
-  const forestGround = buildTerrain({ xMin: X_MIN, xMax: X_MIN + 260, zMin: FOREST_Z0, zMax: Z_MIN, segX: 260, segZ: 280, heightAt, splatAt });
+  const forestGround = buildTerrain({ xMin: X_MIN, xMax: X_MAX, zMin: FOREST_Z0, zMax: Z_MIN, segX: X_MAX - X_MIN, segZ: 280, heightAt, splatAt });
   group.add(collide(forestGround));
+  const northGround = buildTerrain({ xMin: X_MIN, xMax: X_MAX, zMin: Z_MAX, zMax: NORTH_Z1, segX: X_MAX - X_MIN, segZ: 236, heightAt, splatAt });
+  group.add(collide(northGround));
   group.add(buildSea());
 
   // The town's surfaces (CC0 scans): sugi (Japanese cedar) boarding on the shopfronts, charred-black planks for
@@ -276,7 +288,8 @@ export async function buildChapter1(): Promise<Chapter1World> {
     const hull = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.0, 11, 10, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).rotateY(Math.PI / 2), darkWood);
     hull.rotation.z = Math.PI; hull.position.y = 1.3; hull.castShadow = true;
     const mast = box(0.22, 7, 0.22, darkWood, 4.2);
-    const sail = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 4.6), new THREE.MeshStandardNodeMaterial({ color: 0xc8b48a, roughness: 1, side: THREE.DoubleSide }));
+    const sailMat = new THREE.MeshStandardNodeMaterial({ color: 0xc8b48a, roughness: 1, side: THREE.DoubleSide }); sailMat.positionNode = bellyCloth(0.5);
+    const sail = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 4.6, 8, 8), sailMat);
     sail.position.set(0, 5, 0.3); sail.rotation.y = Math.PI / 2;
     b.add(hull, mast, sail);
     at(collide(b), x, z, yaw, -0.6);
@@ -310,6 +323,9 @@ export async function buildChapter1(): Promise<Chapter1World> {
   const lacquer = weather(uvMaterial('japanese_cedar_planks', [1.1, 1.1], { tint: 0x9a3a2a }), 'japanese_cedar_planks', 0.4);
   const hill = buildHillside({ spec: HILL, risers: hillRisers(), heightAt, mats: { wood, darkWood, plaster, tile, stone: stoneMat, flags: flagMat, lacquer } });
   group.add(hill.group);
+  // the end of Act I: the castle on its hill and Hōrin-ji beside its road (castleHill.ts)
+  const castleHill = buildCastleHill({ heightAt, mats: { stone: stoneMat, plaster, wood, darkWood, tile, lacquer, thatch } });
+  group.add(castleHill.group);
   const PLAZA = { x: roadX(OTSU.plaza.z), z: OTSU.plaza.z, r: OTSU.plaza.r };
   const village = buildVillage({
     heightAt, roadX, mats: { wood, darkWood, plaster, thatch, tile },
@@ -342,7 +358,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
   /** The ground anything walks on: the terrain, or a bridge deck over the canal. */
   const groundAt = (x: number, z: number) => Math.max(heightAt(x, z), canal.deckAt(x, z), channel.deckAt(x, z), river.deckAt(x, z));
   // the landmarks of the reference shots: the volcano, the castle on its hill, forested hills between
-  const landmarks = buildLandmarks({ inner: { xMin: X_MIN, xMax: X_MAX, zMin: FOREST_Z0, zMax: Z_MAX }, heightAt });
+  const landmarks = buildLandmarks({ inner: { xMin: X_MIN, xMax: X_MAX, zMin: FOREST_Z0, zMax: NORTH_Z1 }, heightAt });
   group.add(landmarks.group);
 
   // ── The street: big irregular flagstones wall to wall through the town, with kerb stones (the shots) ───
@@ -543,6 +559,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
     const near: TreeSpot[] = cherries.map(([x, z, h]) => ({ p: V(x, z), h: h * 1.1, species: 'cherry' as const }));
     for (const t of canal.cherries) near.push({ p: V(t.x, t.z), h: t.h * 1.1, species: 'cherry' });
     for (const t of hill.trees) near.push({ p: V(t.x, t.z), h: t.blossom ? t.h * 1.1 : t.h * 1.15, species: t.blossom ? 'cherry' : 'umbrella' });
+    for (const t of castleHill.trees) near.push({ p: V(t.x, t.z), h: t.blossom ? t.h * 1.1 : t.h * 1.15, species: t.blossom ? 'cherry' : 'umbrella' });
     for (const t of otsu.yardTrees) near.push({ p: V(t.x, t.z), h: t.blossom ? t.h * 1.1 : t.h * 1.15, species: t.blossom ? 'cherry' : 'umbrella' });
     // the valley walls: about two in five full 3D (the nearest rank), the rest impostors like the far hills
     const wallFar: TreeSpot[] = [];
@@ -578,7 +595,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
     }
     forest.plant(belt, { oak: 1 }, 4471, 32);   // dense: 3D only close by, the baked impostors beyond
     for (const t of belt) treeSpots.push({ x: t.p.x, z: t.p.z, r: t.h * 0.28 });
-    forest.plantFar([...wallFar, ...landmarks.treeFar.map((t) => ({ p: new THREE.Vector3(t.x, t.y + 0.3, t.z), h: t.h * (hillSpecies(t) === 'pine' ? 1.35 : 1), species: hillSpecies(t) as Species }))], ['umbrella']);
+    forest.plantFar([...wallFar, ...landmarks.treeFar.filter((t) => !(t.z > 160 && t.z < 470 && t.x < 125 && t.x > -185)).map((t) => ({ p: new THREE.Vector3(t.x, t.y + 0.3, t.z), h: t.h * (hillSpecies(t) === 'pine' ? 1.35 : 1), species: hillSpecies(t) as Species }))], ['umbrella']);
   }
   group.add(forest.group);
 
@@ -600,7 +617,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
   for (const s of sections) for (const p of s.spawn) p.y = heightAt(p.x, p.z);
 
   // ── Grass blades (grassField.ts): everywhere the meadow is, but never under a building, on a road or a cliff ─
-  const blocked: THREE.Box3[] = [...village.footprints, ...otsu.footprints, ...canal.footprints, ...hill.footprints, ...channel.footprints, ...river.footprints];
+  const blocked: THREE.Box3[] = [...village.footprints, ...otsu.footprints, ...canal.footprints, ...hill.footprints, ...channel.footprints, ...river.footprints, ...castleHill.footprints];
   group.updateMatrixWorld(true);
   for (const o of group.children) {
     if (o === ground || !o.userData.collide) continue;
@@ -633,7 +650,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
 
   return {
     group, grass, spawn, sections, fires, bell, petals, heightAt: groundAt, village, forest, otsu, boatFires, hill, signalFire, water, channel,
-    waterPosts: [...canal.posts, ...channel.posts, ...river.posts], river, treeSpots,
+    waterPosts: [...canal.posts, ...channel.posts, ...river.posts], river, treeSpots, castleHill,
     // for the map (worldMap.ts / places.ts)
     footprints: blocked, landings: { canal: canal.landings, channel: channel.landings },
     bridges: { canal: [roadX(CANAL.z), -52, -86, -120], channel: [-12, 12, CANAL.z - CANAL.half - 4.6] },

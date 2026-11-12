@@ -17,6 +17,7 @@ export interface PlaceSources {
   rafts: { p: V }[];
   bridges: { canal: number[]; channel: number[] };
   river: River;
+  castle: { castleGate: V; keepDoor: V; yard: V; temple: V; templeGate: V; bellHouse: V; abbot: V; stable: V };
 }
 
 export function cityPlaces(s: PlaceSources): Place[] {
@@ -30,7 +31,8 @@ export function cityPlaces(s: PlaceSources): Place[] {
     P('merchant', 'Merchant Quarter', 'district', -105, -8, 'Shop streets and the Maze of Alleyways west of the road, between the Outer Wall and the canal.', [3, 5, 12, 17]),
     P('hill', 'Residential Hill', 'district', hx, 82, 'Five stone-walled terraces with stepped lanes, board fences and small houses.', [21, 24, 27]),
     P('samurai', 'Samurai District', 'district', roadX(80), 80, 'Four walled compounds either side of the avenue, behind the Samurai District gate.', [1, 23]),
-    P('castle', 'Castle', 'district', roadX(140), 145, 'The masugata and the forecourt under the keep: the finale.', [8, 18, 19, 26, 31]),
+    P('castle', 'Castle approach', 'district', roadX(140), 145, 'The main gate, the masugata and the forecourt below the castle hill.', [8, 18, 19, 26, 31]),
+    P('castleHill', 'Castle on the hill', 'district', 62, 420, "Lord Kageyama's keep (proposed name) on its walled hilltop, 46 m up: the gate, the yard, the empty keep.", [4, 10, 14]),
     // landmarks
     P('beach', 'Beach landing', 'landmark', s.beach.x, s.beach.z, "Where Haru's warband comes ashore.", [15, 29]),
     P('market', 'Grand Marketplace', 'landmark', s.plaza.x, s.plaza.z, 'The square on the road: stalls, the broker, the first fight inside the wall.', [25]),
@@ -43,10 +45,15 @@ export function cityPlaces(s: PlaceSources): Place[] {
     P('forecourt', 'Forecourt under the keep', 'landmark', s.forecourt.x, s.forecourt.z, 'The last fight.', [19]),
     ...s.boats.map((b, i) => P(`pier${i}`, `Pier ${i + 1}`, 'landmark', b.pier.x, b.pier.z, 'A burning boat to douse (The Burning Boats).', [16, 28], false)),
     P('roadBridge', 'River bridge', 'landmark', s.river.bridge.x, s.river.bridge.z, 'The road crosses the river halfway through the forest on a timber bridge.'),
+    P('keep', 'The keep door', 'landmark', s.castle.keepDoor.x, s.castle.keepDoor.z, 'The keep stands empty; the search here starts the end of Act I.'),
+    P('horinji', 'Hōrin-ji (proposed)', 'landmark', s.castle.temple.x, s.castle.temple.z, 'Temple on a terrace by the castle road: main hall, bell house, stable. Abbot Ennen and Sōta (proposed).'),
+    P('bellhouse', 'Bell house', 'landmark', s.castle.bellHouse.x, s.castle.bellHouse.z, 'Where Sōta is bound.', undefined, false),
+    P('stable', 'Temple stable', 'landmark', s.castle.stable.x, s.castle.stable.z, 'The horses for the ride to the mountain (Act II).', [23], false),
     // gates and walls
     P('outerGate', 'Outer Wall gatehouse', 'gate', s.gate.x, s.gate.z, 'The town gate on the forest road (z −36).', [14]),
     P('waterGate', 'Water gate (mizumon)', 'gate', CHANNEL.x, OTSU.wallZ, 'The channel passes under the Outer Wall: a raft or a swim into town that skips the gatehouse.'),
     P('samuraiGate', 'Samurai District gate', 'gate', roadX(OTSU.samuraiGateZ), OTSU.samuraiGateZ, 'Gate across the avenue at z 50.'),
+    P('castleGate', 'Castle hill gate', 'gate', s.castle.castleGate.x, s.castle.castleGate.z, 'A yagura gate where the ridge road reaches the hilltop walls.'),
     P('otemon', 'Ōtemon (main castle gate)', 'gate', s.otemon.x, s.otemon.z, "Barred until the magistrate's seal is shown.", [18, 26, 31]),
     // water
     P('canal', 'The canal', 'water', -140, CANAL.z, `Stone banks and arched bridges along z ${CANAL.z}, about 1.35 m deep: swim or raft.`, [2], true),
@@ -67,4 +74,7 @@ export const PLANNED = [
   'The castle keep on its moated stone base, the ramparts over the harbour (still 8).',
   'Shop interiors you can step into in the merchant streets.',
   'Canal boats moving on the water; the Petals on the Water escort.',
+  'The forest road: undergrowth, the open fish market on the new quay, watchtowers, hidden camps, the bridge rescue, the shrine of Michael, wildlife (docs/era-clash-3d-forest-road.md).',
+  'Horses at the temple stable (they wait now; riding comes with the horse rig).',
+  'Act II (its own area): the valley ride, the mine and Gōzan (proposed), the ascent, the crystal cave, the lava caverns, the crater oasis and Kurenai the Ash Witch (proposed).',
 ];

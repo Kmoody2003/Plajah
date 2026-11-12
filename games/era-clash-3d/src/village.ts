@@ -5,6 +5,7 @@
 // firewood is stacked against the walls. Static pieces are merged per material (a few draw calls for the whole
 // village, which matters on the iGPU); the loose props are returned for props.ts to simulate.
 import * as THREE from 'three/webgpu';
+import { hangingCloth, awningRipple } from './core/wind';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { collide } from './core/collision';
 import { rng } from './core/kit';
@@ -108,6 +109,10 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
   };
   const indigo = new THREE.MeshStandardNodeMaterial({ map: clothTex('#1f2f4a', '#7a8aa8', true), roughness: 0.95, side: THREE.DoubleSide });
   const hemp = new THREE.MeshStandardNodeMaterial({ map: clothTex('#c2ad86', '#6a5a3a', false), roughness: 1, side: THREE.DoubleSide });
+  // the wind (core/wind.ts): noren hang from their rail and stream; the stalls' stretched awnings ripple
+  const indigoAwn = indigo.clone(), hempAwn = hemp.clone();
+  indigoAwn.positionNode = awningRipple(); hempAwn.positionNode = awningRipple();
+  indigo.positionNode = hangingCloth(0.32); hemp.positionNode = hangingCloth(0.32);
   // chōchin: paper over bamboo ribs with a brushed character, glowing from the candle inside (the ribs stay dark)
   const lanternTex = (paper: string, ink: string, ch: string) => {
     const c = document.createElement('canvas'); c.width = 256; c.height = 128;
@@ -337,7 +342,7 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
       // noren across the shop bay (or the door), a lantern, a hanging sign
       const nw = shop ? bayW : 1.1, np = Math.max(2, Math.round(nw / 0.48));
       const cloth = R() < 0.6 ? indigo : hemp;
-      for (let k = 0; k < np; k++) put(plane(nw / np - 0.03, 0.78), cloth, F, { x: door - nw / 2 + (k + 0.5) * (nw / np), y: 0.5 + 2.0, z: fz + 0.2 }, false);
+      for (let k = 0; k < np; k++) put(new THREE.PlaneGeometry(nw / np - 0.03, 0.78, 1, 5), cloth, F, { x: door - nw / 2 + (k + 0.5) * (nw / np), y: 0.5 + 2.0, z: fz + 0.2 }, false);
       put(boxGeo(nw + 0.2, 0.04, 0.04), D, F, { x: door, y: 0.5 + 2.4, z: fz + 0.2 }, false);
       if (R() < 0.6) {
         const lg = new THREE.SphereGeometry(0.2, 14, 10); lg.scale(1, 1.35, 1);
@@ -424,7 +429,8 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
     }
     const stallN = 11, sr = PZ.r * 0.6;
     const madder = new THREE.MeshStandardNodeMaterial({ color: 0x7a2418, roughness: 1, side: THREE.DoubleSide });
-    const banners = [indigo, hemp, madder];
+    madder.positionNode = awningRipple();
+    const banners = [indigoAwn, hempAwn, madder];
     for (let i = 0; i < stallN; i++) {
       const a = (i / stallN) * Math.PI * 2;
       if (nearRoad(a, 0.42)) continue;
@@ -492,7 +498,7 @@ export function buildVillage(o: { heightAt: (x: number, z: number) => number; ro
     const yaw = side > 0 ? -Math.PI / 2 : Math.PI / 2;
     const F = frameAt(x, z, yaw);
     for (const sx of [-1, 1]) put(boxGeo(0.1, 2.3, 0.1), mats.darkWood, F, { x: sx * 1.0, y: 1.15, z: -0.6 }, false);
-    put(boxGeo(2.4, 0.04, 1.6), R() < 0.5 ? indigo : hemp, F, { y: 2.25, z: -0.1, rx: 0.22 }, false);
+    put(boxGeo(2.4, 0.04, 1.6), R() < 0.5 ? indigoAwn : hempAwn, F, { y: 2.25, z: -0.1, rx: 0.22 }, false);
     addProp('table', x, z, yaw);
     const ty = heightAt(x, z) + 0.76;
     const fwd = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));   // local +x in world

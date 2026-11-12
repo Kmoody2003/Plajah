@@ -8,6 +8,7 @@
 //
 // Static pieces merge per material (a few draw calls for the whole kit on the iGPU); solid ones collide.
 import * as THREE from 'three/webgpu';
+import { hangingCloth, bellyCloth } from './core/wind';
 import { COAST_DZ } from './river';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { collide } from './core/collision';
@@ -61,6 +62,7 @@ export function buildOtsu(o: { heightAt: (x: number, z: number) => number; roadX
   const ridgeMat = uvMaterial('grey_roof_tiles', [1.6, 1.6], { tint: 0x5c606a });
   const blackWall = uvMaterial('black_painted_planks', [1.1, 1.1], { tint: 0x6a6460 });
   const hemp = new THREE.MeshStandardNodeMaterial({ color: 0xc9b48c, roughness: 1, side: THREE.DoubleSide });
+  hemp.positionNode = bellyCloth(0.55);   // the sails fill with the wind (core/wind.ts)
   const yardTrees: Otsu['yardTrees'] = [];
   const boatSpots: Otsu['spots']['boats'] = [];
   let magistrate: Otsu['spots']['magistrate'] | null = null;
@@ -141,7 +143,7 @@ export function buildOtsu(o: { heightAt: (x: number, z: number) => number; roadX
     put(boxGeo(B * 1.9, 0.08, L * 0.9), mats.wood, F, { y: B * 0.8 }, false);
     if (big) {
       put(boxGeo(0.22, 7, 0.22), mats.darkWood, F, { y: 4.4 }, false);
-      put(new THREE.PlaneGeometry(3.8, 4.4), hemp, F, { y: 5.0, z: 0.25, ry: Math.PI / 2 }, false);
+      put(new THREE.PlaneGeometry(3.8, 4.4, 8, 8), hemp, F, { y: 5.0, z: 0.25, ry: Math.PI / 2 }, false);
       for (let k = 0; k < 6; k++) put(boxGeo(3.9, 0.06, 0.06), mats.darkWood, F, { y: 3.0 + k * 0.82, z: 0.26, ry: Math.PI / 2 }, false);
     }
   };
@@ -164,11 +166,12 @@ export function buildOtsu(o: { heightAt: (x: number, z: number) => number; roadX
     for (let i = 0; i <= 128; i += 10) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 16, 128); g.stroke(); g.beginPath(); g.moveTo(i + 16, 0); g.lineTo(i, 128); g.stroke(); }
     const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 2); t.colorSpace = THREE.SRGBColorSpace;
     const net = new THREE.MeshStandardNodeMaterial({ map: t, alphaTest: 0.4, transparent: false, side: THREE.DoubleSide, roughness: 1 });
+    net.positionNode = hangingCloth(0.22);   // the drying nets stir in the wind
     for (const x of [-44, -35.5, -25]) {
       const F = frame(x, QUAY.top, QUAY.z1 - 2.2, 0.05);
       for (const sx of [-1, 1]) put(boxGeo(0.12, 2.6, 0.12), mats.darkWood, F, { x: sx * 2.2, y: 1.3 }, false);
       put(boxGeo(4.6, 0.1, 0.1), mats.darkWood, F, { y: 2.55 }, false);
-      put(new THREE.PlaneGeometry(4.2, 2.1), net, F, { y: 1.45 }, false);
+      put(new THREE.PlaneGeometry(4.2, 2.1, 6, 4), net, F, { y: 1.45 }, false);
     }
     for (let k = 0; k < 16; k++) {
       const x = QUAY.x0 + 3 + R() * (QUAY.x1 - QUAY.x0 - 6), z = QUAY.z0 + 1.6 + R() * 2.4;
@@ -289,7 +292,8 @@ export function buildOtsu(o: { heightAt: (x: number, z: number) => number; roadX
     const C = OTSU.forecourt, xL = gx0 - C.half, xR = gx0 + C.half;
     wallRun(xL, OTSU.masugata.z1, xL, C.z1, { h: 2.8, base: 1.6, thick: 1.2 });
     wallRun(xR, OTSU.masugata.z1, xR, C.z1, { h: 2.8, base: 1.6, thick: 1.2, gaps: [{ t: (142 - OTSU.masugata.z1) / (C.z1 - OTSU.masugata.z1), hw: 2.2 }] });
-    wallRun(xL, C.z1, xR, C.z1, { h: 0.9, base: 1.2, thick: 1.0 });
+    // (a gap at the middle: the road north to the castle on its hill and Hōrin-ji, castleHill.ts)
+    wallRun(xL, C.z1, xR, C.z1, { h: 0.9, base: 1.2, thick: 1.0, gaps: [{ t: 0.5, hw: 2.8 }] });
     // the corner turret (sumi-yagura): a stone base, two plastered storeys, tiled roofs
     const tx = xL + 3.6, tz = C.z1 - 3.6, ty = lowest(tx, tz, 4), T = frame(tx, ty, tz, 0);
     put(boxGeo(7.2, 3.6, 7.2), mats.quay, T, { y: 1.8 });
