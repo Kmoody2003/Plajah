@@ -12,7 +12,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, Inbox, Users, BarChart3, PlusCircle, Search, Clock, AlertTriangle, CheckCircle2, User, Building2,
-  Landmark, MapPin, Send, StickyNote, GitMerge, ChevronRight, Phone, Mail, Globe2, RotateCcw, Scale, Eye,
+  Landmark, MapPin, Send, StickyNote, GitMerge, ChevronRight, Phone, Mail, Globe2, RotateCcw, Scale, Eye, Megaphone, FileSignature,
 } from 'lucide-react';
 import {
   type Case, type CaseStatus, type Constituent, type ServiceType, type SlaState, type Channel,
@@ -21,6 +21,9 @@ import {
 } from '../../../services/terra/civic/desk/deskCore';
 import type { DeskData } from '../../../services/terra/civic/desk/deskSample';
 import { createPreviewStore } from '../../../services/terra/civic/desk/deskStore';
+import CivicNotices from './CivicNotices';
+import { TelaSignCeremony } from '../../tela/sign/TelaSignCeremony';
+import { createEnvelope, send as sendEnvelope, sha256Hex, canonical, type Envelope } from '../../../services/tela/sign/signCore';
 
 const CYAN = '#4FC3D6';
 const ORANGE = '#FF8C00';
@@ -32,7 +35,7 @@ const GREEN = '#3DD68C';
 const STAFF_ID = 's-you';
 const STAFF_NAME = 'You (desk staff)';
 
-type View = 'queue' | 'people' | 'dashboard' | 'new';
+type View = 'queue' | 'people' | 'dashboard' | 'notices' | 'new';
 
 // ── small helpers ────────────────────────────────────────────────────────────
 function ago(t: number, now: number): string {
@@ -103,6 +106,7 @@ const CivicDesk: React.FC<CivicDeskProps> = ({ onBack, onOpenLaw, onOpenMap }) =
     { id: 'queue', label: 'Queue', icon: <Inbox size={14} />, badge: m.overdue },
     { id: 'people', label: 'People & orgs', icon: <Users size={14} /> },
     { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 size={14} /> },
+    { id: 'notices', label: 'Notices', icon: <Megaphone size={14} /> },
     { id: 'new', label: 'New request', icon: <PlusCircle size={14} /> },
   ];
 
@@ -140,11 +144,16 @@ const CivicDesk: React.FC<CivicDeskProps> = ({ onBack, onOpenLaw, onOpenMap }) =
           <QueueView data={data} now={now} selected={selectedCase} onSelect={setSelectedCase}
             svc={svc} dept={dept} person={person} staffName={staffName} updateCase={updateCase}
             commitBoth={(a, b, msg) => commit({ ...data, cases: data.cases.map((x) => (x.id === a.id ? a : x.id === b.id ? b : x)) }, msg)}
+            saveEnvelope={(env, msg) => commit({ ...data, envelopes: [env, ...data.envelopes.filter((e) => e.id !== env.id)] }, msg)}
             openPerson={openPerson} onOpenLaw={onOpenLaw} onOpenMap={onOpenMap} />
         )}
         {view === 'people' && (
           <PeopleView data={data} now={now} selected={selectedPerson} onSelect={setSelectedPerson} svc={svc} openCase={openCaseView}
             newFor={(id) => { setPrefillFor(id); setView('new'); }} />
+        )}
+        {view === 'notices' && (
+          <CivicNotices data={data} now={now} onOpenLaw={onOpenLaw}
+            onPublish={(n) => commit({ ...data, notices: [n, ...data.notices] }, 'Notice published')} />
         )}
         {view === 'dashboard' && <DashboardView data={data} now={now} m={m} dept={dept} svc={svc} openCase={openCaseView} />}
         {view === 'new' && (
@@ -174,6 +183,23 @@ interface QueueProps {
   person: (id?: string) => Constituent | undefined; staffName: (id?: string) => string | undefined;
   updateCase: (c: Case, msg?: string) => void; commitBoth: (a: Case, b: Case, msg?: string) => void;
   openPerson: (id: string) => void; onOpenLaw?: (id: string) => void; onOpenMap?: () => void;
+  saveEnvelope: (env: Envelope, msg?: string) => void;
+}
+
+const DOC_TYPE: Record<string, string> = { 'permit-q': 'permit', 'biz-license': 'license', 'food-license': 'license', 'rental-issue': 'agreement', records: 'acknowledgment' };
+
+/** The decision letter a case produces, as text: hashed for the envelope and rendered as the signing page. */
+function letterText(c: Case, s: ServiceType, deptName: string, who?: Constituent) {
+  return {
+    heading: `${s.name} — decision`,
+    lines: [
+      `Reference ${c.ref}`,
+      `To: ${who?.name ?? 'Applicant'}${c.location?.line1 ? `, ${c.location.line1}` : ''}`,
+      `${deptName} has reviewed your request: “${c.description}”`,
+      'The request is approved on these conditions: work follows the plans on file; inspections are scheduled before use; this approval expires in 12 months if work has not started.',
+      'By signing, the applicant accepts these conditions. The department signs to issue the approval.',
+    ],
+  };
 }
 
 const STATUS_FILTERS: { id: string; label: string }[] = [
@@ -358,6 +384,9 @@ function CaseDetail(p: QueueProps & { c: Case }) {
         </select>
       </div>
 
+      {/* Tela Sign */}
+      <SignSection {...p} c={c} />
+
       {/* composer */}
       {c.status !== 'duplicate' && (
         <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-3">
@@ -397,6 +426,81 @@ function CaseDetail(p: QueueProps & { c: Case }) {
         ))}
       </ol>
     </article>
+  );
+}
+
+function SignSection(p: QueueProps & { c: Case }) {
+  const { c, data } = p;
+  const s = p.svc(c.serviceTypeId), d = p.dept(c.departmentId), who = p.person(c.constituentId);
+  const mine = data.envelopes.filter((e) => e.id.startsWith(`env-${c.id}-`));
+  const [open, setOpen] = useState<{ envId: string; signerId: string } | null>(null);
+  const env = open ? data.envelopes.find((e) => e.id === open.envId) : undefined;
+  const approver = data.staff.find((x) => x.departmentId === c.departmentId) ?? { id: STAFF_ID, name: STAFF_NAME };
+  const canSend = !!who?.email && c.status !== 'duplicate';
+  const [err, setErr] = useState<string | null>(null);
+
+  const create = () => {
+    if (!who?.email) return;
+    const text = letterText(c, s, d?.publicName ?? 'The department', who);
+    const draft = {
+      id: `env-${c.id}-${mine.length + 1}`, title: `${s.name} decision · ${c.ref}`, docType: DOC_TYPE[c.serviceTypeId] ?? 'decision letter',
+      docHash: sha256Hex(canonical(text)), pages: 1, now: Date.now(), message: 'Please review the conditions and sign to accept them.',
+      sender: { id: STAFF_ID, name: STAFF_NAME, org: d?.publicName },
+      signers: [
+        { id: who.id, name: who.name, email: who.email, role: 'signer' as const, order: 1, auth: 'email_link' as const, consumer: who.kind === 'person' },
+        { id: approver.id, name: approver.name, email: `${approver.id}@sample-city.example`, role: 'approver' as const, order: 2, auth: 'plajah_account' as const },
+      ],
+      fields: [
+        { id: 'agree', signerId: who.id, type: 'checkbox' as const, label: 'I accept the conditions', page: 1, x: 8, y: 64, w: 4, h: 3, required: true },
+        { id: 'sig-a', signerId: who.id, type: 'signature' as const, page: 1, x: 8, y: 74, w: 38, h: 9, required: true },
+        { id: 'date-a', signerId: who.id, type: 'date_signed' as const, page: 1, x: 8, y: 85, w: 22, h: 4, required: true },
+        { id: 'sig-b', signerId: approver.id, type: 'signature' as const, page: 1, x: 54, y: 74, w: 38, h: 9, required: true },
+        { id: 'date-b', signerId: approver.id, type: 'date_signed' as const, page: 1, x: 54, y: 85, w: 22, h: 4, required: true },
+      ],
+    };
+    try { p.saveEnvelope(sendEnvelope(createEnvelope(draft), Date.now()), 'Sent for signature'); setErr(null); } catch (e: any) { setErr(e?.message || String(e)); }
+  };
+
+  const page = (e: Envelope) => {
+    const t = letterText(c, s, d?.publicName ?? 'The department', who);
+    return [(
+      <div key="p1" className="h-full flex flex-col">
+        <div className="flex items-center justify-between border-b border-black/10 pb-[3%]"><b style={{ fontSize: '1.3em' }}>Sample City</b><span className="text-black/50">{d?.name}</span></div>
+        <p className="mt-[5%] font-bold" style={{ fontSize: '1.25em' }}>{t.heading}</p>
+        {t.lines.map((l, i) => <p key={i} className="mt-[2.5%]">{l}</p>)}
+        <p className="mt-[3%] pl-[6%]">I accept the conditions above.</p>
+        <div className="mt-auto grid grid-cols-2 gap-[8%] text-black/50" style={{ fontSize: '0.85em' }}><span>Applicant</span><span>For the department</span></div>
+        <p className="mt-[9%] text-black/35" style={{ fontSize: '0.7em' }}>Document {e.docHash.slice(0, 16)}… · Tela Sign</p>
+      </div>
+    )];
+  };
+
+  return (
+    <div className="mt-3 rounded-xl bg-white/[0.03] p-3.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="flex-1 text-[10px] font-black uppercase tracking-widest text-white/35 flex items-center gap-1.5"><FileSignature size={12} /> Signatures</p>
+        <button onClick={create} disabled={!canSend} title={canSend ? undefined : 'Needs a reporter with an email address'}
+          className={`${btn} text-black`} style={{ background: VIOLET }}><FileSignature size={13} /> Send decision for signature</button>
+      </div>
+      {err && <p role="alert" className="mt-2 text-[12px] text-rose-200">{err}</p>}
+      {mine.length === 0 && <p className="mt-2 text-[12px] text-white/45">Send the decision letter to {who?.name ?? 'the applicant'} and a department approver, signed in order, with an audit trail and certificate.</p>}
+      {mine.map((e) => (
+        <div key={e.id} className="mt-2 flex flex-wrap items-center gap-2 text-[12px]">
+          <span className="flex-1 min-w-0 truncate">{e.title}</span>
+          <Pill color={e.status === 'completed' ? GREEN : e.status === 'sent' ? CYAN : AMBER}>{e.status === 'sent' ? 'Out for signature' : e.status}</Pill>
+          {e.signers.filter((x) => x.role !== 'cc').map((x) => (
+            <button key={x.id} onClick={() => setOpen({ envId: e.id, signerId: x.id })} className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/10">
+              {x.status === 'signed' ? '✓ ' : ''}{e.status === 'sent' && (x.status === 'ready' || x.status === 'viewed') ? `Sign as ${x.name.split(' ')[0]}` : x.name.split(' ')[0]}
+            </button>
+          ))}
+          <button onClick={() => setOpen({ envId: e.id, signerId: '__cert' })} className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/10">Certificate</button>
+        </div>
+      ))}
+      {open && env && (
+        <TelaSignCeremony envelope={env} signerId={open.signerId === '__cert' ? env.signers[0].id : open.signerId} certificateOnly={open.signerId === '__cert'} pages={page(env)}
+          onChange={(next) => p.saveEnvelope(next)} onClose={() => setOpen(null)} />
+      )}
+    </div>
   );
 }
 

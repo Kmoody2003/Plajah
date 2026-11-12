@@ -8,6 +8,8 @@
  */
 
 import type { Case, Constituent, Department, ReplyTemplate, ServiceType } from './deskCore';
+import type { Notice, Subscriber } from '../notices/noticesCore';
+import type { Envelope } from '../../../tela/sign/signCore';
 import { openCase, setStatus, reply, assign, addNote, DAY_MS, HOUR_MS } from './deskCore';
 
 export const SAMPLE_DEPARTMENTS: Department[] = [
@@ -95,6 +97,37 @@ export interface DeskData {
   constituents: Constituent[];
   cases: Case[];
   seq: number;
+  /** Plajah users following this government (Civic Notices). */
+  subscribers: Subscriber[];
+  notices: Notice[];
+  /** Tela Sign envelopes sent from cases. */
+  envelopes: Envelope[];
+}
+
+const WARD_CENTERS: Record<string, { lat: number; lng: number }> = {
+  '1': { lat: 42.420, lng: -83.230 }, '2': { lat: 42.420, lng: -83.140 }, '3': { lat: 42.430, lng: -83.020 },
+  '4': { lat: 42.400, lng: -82.950 }, '5': { lat: 42.350, lng: -83.060 }, '6': { lat: 42.320, lng: -83.100 }, '7': { lat: 42.360, lng: -83.180 },
+};
+
+/** Fictional followers: the sample residents plus ~120 other Plajah users spread across the wards. */
+export function buildSubscribers(): Subscriber[] {
+  const r = rng(29);
+  const subs: Subscriber[] = [];
+  const add = (userId: string, ward: string, lang?: string) => {
+    const c = WARD_CENTERS[ward];
+    const point = { lat: c.lat + (r() - 0.5) * 0.03, lng: c.lng + (r() - 0.5) * 0.04 };
+    const follows: Subscriber['follows'] = [{ kind: 'address', point, radiusM: [400, 800, 1600][Math.floor(r() * 3)], label: 'home' }, { kind: 'ward', ward }];
+    if (r() < 0.35) follows.push({ kind: 'jurisdiction' });
+    if (r() < 0.2) follows.push({ kind: 'law', sectionId: 'mcl-125.3201' });
+    if (r() < 0.15) follows.push({ kind: 'topic', topic: 'hearing' });
+    const consent: Subscriber['consent'] = {};
+    if (r() < 0.7) consent.push = { at: 1, source: 'app' };
+    if (r() < 0.45) consent.email = { at: 1, source: 'web' };
+    subs.push({ userId, jurisdictionId: 'sample-city', follows, consent, language: lang, cadence: r() < 0.3 ? 'daily' : 'instant', quietHours: r() < 0.4 ? [21, 7] : undefined });
+  };
+  for (const c of SAMPLE_CONSTITUENTS) if (c.kind === 'person' && c.address?.ward) add(c.id, c.address.ward, c.language);
+  for (let i = 0; i < 120; i++) add(`u-${i}`, String(1 + Math.floor(r() * 7)), r() < 0.12 ? 'es' : r() < 0.08 ? 'ar' : undefined);
+  return subs;
 }
 
 /** Build a believable working set of cases relative to `now`. */
@@ -141,5 +174,5 @@ export function buildSample(now: number): DeskData {
     }
     cases.push(c);
   }
-  return { departments: SAMPLE_DEPARTMENTS, services: SAMPLE_SERVICES, templates: SAMPLE_TEMPLATES, staff: SAMPLE_STAFF, constituents: SAMPLE_CONSTITUENTS, cases, seq };
+  return { departments: SAMPLE_DEPARTMENTS, services: SAMPLE_SERVICES, templates: SAMPLE_TEMPLATES, staff: SAMPLE_STAFF, constituents: SAMPLE_CONSTITUENTS, cases, seq, subscribers: buildSubscribers(), notices: [], envelopes: [] };
 }

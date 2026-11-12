@@ -81,3 +81,32 @@ Meetings, Programs and the Civic Record.
 1. Which service catalog and response targets for the pilot city? Start from its current 311 categories.
 2. Should anonymous reports be allowed for code complaints (retaliation risk) as well as street issues?
 3. Should email-in go through the tenant's own domain (`help@city.gov`) or a Plajah relay?
+
+## 5. Civic Notices — governments talking to the people who follow them (built, preview)
+
+Plajah users follow what affects them: their address with a radius, their ward, a parcel, a permit or case, a
+section of law, a topic, or the whole city. Governments publish notices (service disruptions, hearings, ordinance
+changes, permits nearby, programs, emergencies) and Civic Notices decides who gets each one, on which channels, and when.
+
+- **Core:** `services/terra/civic/notices/noticesCore.ts` (tests: `tests/civicNotices.test.ts`).
+  - **Matching** covers address radius, ward, parcel, law section, case, topic and citywide. Citywide and topic followers
+    don't get hyper-local notices, and a person's case updates go only to that person.
+  - **Consent** is per channel and records when and where it was given. In-app is always on for what you follow;
+    push and email need consent; SMS is modelled but stays off until platform SMS consent (TCPA) exists.
+  - **Timing:** quiet hours, a daily digest for routine notices, and emergencies always sent immediately.
+  - **Language:** each person gets the notice in their preferred language when a translation exists.
+  - **Statutory checks:** `checkZoningHearingNotice` follows MCL 125.3103 (newspaper notice and mailed or delivered
+    notice to owners and occupants within 300 ft, each at least 15 days ahead, plus the required contents). The app
+    notice never counts as the legal notice; it's added on top.
+  - **Law changes:** `lawChangeNotice` turns a code amendment into a notice to everyone following that section.
+- **UI:** the Notices tab in Civic Desk (`components/terra/civic/CivicNotices.tsx`). It has a composer, area selection,
+  the attached law, a live "who gets it" count (in-app, push, email, now, delayed, digest, languages), the hearing
+  checklist that blocks publishing until it passes, and a preview of what a follower sees.
+- **Delivery rails to reuse:** `createNotification` and FCM push (`services/backendService.ts`, `server.ts` /api/push),
+  Resend email with HMAC unsubscribe (`services/notify`), and the campaign consent/suppression pattern (`routes/campaigns.ts`).
+  The follow model mirrors `services/orgFollowService.ts`, and consent mirrors `BusinessSubscription`.
+
+## 6. Tela Sign from a case
+
+Each case can send its decision letter for signature: the resident signs first (with the ESIGN disclosure if they're
+a consumer), then a department approver, and both get the certificate and audit trail. See `TELA_SIGN_BLUEPRINT.md`.

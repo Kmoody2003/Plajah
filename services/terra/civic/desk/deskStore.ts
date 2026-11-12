@@ -8,7 +8,7 @@
  */
 
 import type { DeskData } from './deskSample';
-import { buildSample } from './deskSample';
+import { buildSample, buildSubscribers } from './deskSample';
 
 export interface DeskStore {
   load(): DeskData;
@@ -17,7 +17,7 @@ export interface DeskStore {
   readonly kind: 'preview' | 'tenant';
 }
 
-const KEY = 'plajah:terra:civicDesk:preview:v1';
+const KEY = 'plajah:terra:civicDesk:preview:v2';
 
 export function createPreviewStore(now = Date.now()): DeskStore {
   let mem: DeskData | null = null;
@@ -27,7 +27,7 @@ export function createPreviewStore(now = Date.now()): DeskStore {
       if (mem) return mem;
       try {
         const raw = localStorage.getItem(KEY);
-        if (raw) { mem = JSON.parse(raw) as DeskData; return mem; }
+        if (raw) { const d = JSON.parse(raw) as DeskData; mem = { ...d, subscribers: d.subscribers ?? buildSubscribers(), notices: d.notices ?? [], envelopes: d.envelopes ?? [] }; return mem; }
       } catch { /* storage blocked or corrupt — fall through to a fresh sample */ }
       mem = buildSample(now);
       return mem;

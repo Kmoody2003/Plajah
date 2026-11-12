@@ -78,7 +78,7 @@
     "test:civics": "npx tsx --test tests/comparativeCivics.test.ts",
     "test:terra": "npx tsx --test tests/terraCodec.test.ts",
     "test:terralaw": "npx tsx --test tests/terraLaw.test.ts tests/terraLawRouter.test.ts",
-    "test:civicdesk": "npx tsx --test tests/civicDesk.test.ts",
+    "test:civicdesk": "npx tsx --test tests/civicDesk.test.ts tests/civicNotices.test.ts tests/telaSign.test.ts",
     "terra:law:ingest": "npx tsx scripts/terra/ingestMichiganLaw.ts --fetch",
     "test:datacommons": "npx tsx --test tests/dataCommons.test.ts tests/grants.test.ts tests/grantsRouter.test.ts tests/grantSchool.test.ts tests/contracts.test.ts tests/keyRotation.test.ts tests/aiLanes.test.ts",
     "test:paper": "npx tsx --test --experimental-test-module-mocks tests/paperTrading.test.ts",

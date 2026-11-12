@@ -47,6 +47,9 @@ and small businesses.
 | D17 | **Pricing is the Civic Rate:** $2,400 a year + 30¢ per resident (15¢ above a million). One public formula for the whole government, every department and employee included (pricing doc §3D) |
 | D18 | **Civic Desk = the government CRM:** one record per resident, business and organization; cases routed by service and ward against response targets; duplicate detection; redacted public view. Preview built (`components/terra/civic/CivicDesk.tsx`), see `TERRA_CIVIC_DESK_BLUEPRINT.md` |
 
+| D19 | **Civic Notices:** Plajah users follow their address, ward, parcel, case, law sections or topics and get government updates in-app, by push and by email, with per-channel consent, quiet hours, digests and their language. Statutory notices (e.g. MCL 125.3103) are checked, never replaced |
+| D20 | **Tela Sign:** a native DocuSign-class signing product in the Tela document layer: envelopes, routing order, ESIGN consent, drawn or typed signatures, a hash-chained audit trail, a certificate, and UETA/ESIGN exclusion checks. See `TELA_SIGN_BLUEPRINT.md` |
+
 ## 3. Legal issues flagged (take to counsel)
 
 - Gift of public funds and appropriation purpose. This is why governments pay Plajah, not a fund (D10).
