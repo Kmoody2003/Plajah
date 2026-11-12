@@ -20,17 +20,32 @@ const STEP: Record<keyof ArmourFit, [number, number, number]> = { // step, min, 
   kusaLameH: [0.006, 0.04, 0.08], kusaFlare: [0.004, 0, 0.025], kusaClear: [0.006, 0, 0.04],
   sodeX: [0.02, 0.17, 0.3], sodeY: [0.02, 1.42, 1.54], sodeZ: [0.02, -0.06, 0.05], sodeOut: [6, -5, 35],
   sodeLameH: [0.005, 0.03, 0.06], sodeW: [0.03, 0.16, 0.32], sodeR: [0.008, 0.01, 0.05],
+  hakLat: [0.015, 0.04, 0.16], hakFB: [0.015, 0.05, 0.18], sayaDown: [4, 20, 65], sayaOut: [5, 0, 50],
 };
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const run = (args: string[]) => execFileSync(npx, ['tsx', ...args], { encoding: 'utf8', shell: process.platform === 'win32', stdio: ['ignore', 'pipe', 'inherit'] });
-/** Torso counts double (the dō and the sode live there); legs for the kusazuri's hem. */
+/**
+ * Half the whole figure's shape (torso double: the dō and the sode live there; legs for the kusazuri's hem), half how
+ * well each armour part overlaps the art's own (forgeFidelity --parts cut them with SAM): so each part is pulled toward
+ * its counterpart, and a part grown over its neighbours no longer wins on the silhouette alone.
+ */
+const SCORED = ['do', 'kusazuri', 'sode', 'obi', 'hakama', 'shins', 'sword'];
+/** Windows can hold the file a moment (indexer, antivirus): try again rather than lose a long search. */
+function writeFit(fit: ArmourFit) {
+  for (let k = 0; ; k++) {
+    try { fs.writeFileSync(FILE, JSON.stringify(fit, null, 2)); return; } catch (e) { if (k >= 20) throw e; Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250); }
+  }
+}
 function evaluate(fit: ArmourFit): number {
-  fs.writeFileSync(FILE, JSON.stringify(fit, null, 2));
+  writeFit(fit);
   run(['scripts/eraclash3d/forgeHaru.ts']);
   const out = JSON.parse(run(['scripts/eraclash3d/forgeFidelity.ts', '--fast']).trim().split('\n').pop()!);
-  let s = 0, w = 0;
-  for (const v of ['front', 'side', 'back']) { s += out[v].torso.shape * 2 + out[v].legs.shape; w += 3; }
-  return s / w;
+  let s = 0, w = 0, ps = 0, pw = 0;
+  for (const v of ['front', 'side', 'back']) {
+    s += out[v].torso.shape * 2 + out[v].legs.shape; w += 3;
+    for (const p of SCORED) if (out[v].parts?.[p] !== undefined) { ps += out[v].parts[p]; pw++; }
+  }
+  return pw ? 0.5 * (s / w) + 0.5 * (ps / pw) : s / w;
 }
 
 let fit: ArmourFit = { ...ARMOUR_FIT_DEFAULT, ...(fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8')) : {}) };
@@ -56,6 +71,6 @@ for (let r = 0; r < rounds; r++) {
   }
   console.log(`round ${r + 1}: ${(best * 100).toFixed(2)}% (${((Date.now() - t0) / 60000).toFixed(1)} min)`);
 }
-fs.writeFileSync(FILE, JSON.stringify(fit, null, 2));
+writeFit(fit);
 run(['scripts/eraclash3d/forgeHaru.ts']); // the GLB on disk is the best fit
 console.log(`best ${(best * 100).toFixed(2)}%: ${JSON.stringify(fit)}`);

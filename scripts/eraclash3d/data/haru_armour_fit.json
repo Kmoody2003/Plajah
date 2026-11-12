@@ -2,7 +2,7 @@
   "doBottom": 0.995,
   "doTop": 1.38,
   "doClear": 0.03,
-  "kusaLameH": 0.08,
+  "kusaLameH": 0.077,
   "kusaFlare": 0.012,
   "kusaClear": 0.006,
   "sodeX": 0.215,
@@ -11,5 +11,9 @@
   "sodeOut": 20,
   "sodeLameH": 0.046,
   "sodeW": 0.27,
-  "sodeR": 0.025
+  "sodeR": 0.025,
+  "hakLat": 0.108,
+  "hakFB": 0.07,
+  "sayaDown": 40,
+  "sayaOut": 28
 }

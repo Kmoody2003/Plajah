@@ -223,7 +223,8 @@ async function main() {
     const meshes: ForgeSocket['meshes'] = [];
     if (s.name === 'socket_hand_R') meshes.push({ name: 'katana', at: [0, 0.05, 0], prims: localPrims(katana.meshes), markers: [{ name: 'katana_base', at: katana.base }, { name: 'katana_tip', at: katana.tip }] });
     if (s.name === 'socket_obi_katana') meshes.push({ name: 'katana_saya', prims: localPrims(saya({ length: 0.76, sori: 0.016, bone: '' })) });
-    if (s.name === 'socket_obi_wakizashi') meshes.push({ name: 'wakizashi', prims: localPrims(saya({ length: 0.54, sori: 0.012, bone: '', hilt: 0.17 })) });
+    // (the art shows one sword: the wakizashi is there with FORGE_WAKIZASHI=1)
+    if (s.name === 'socket_obi_wakizashi' && process.env.FORGE_WAKIZASHI === '1') meshes.push({ name: 'wakizashi', prims: localPrims(saya({ length: 0.54, sori: 0.012, bone: '', hilt: 0.17 })) });
     return { name: s.name, bone: s.bone, at: s.at, rotation: quatFromBasis(s.x, s.y, z), meshes };
   });
 

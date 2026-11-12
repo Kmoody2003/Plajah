@@ -313,11 +313,18 @@ export interface ArmourFit {
   kusaLameH: number; kusaFlare: number; kusaClear: number;
   /** Sode: where the top lame hangs (x out, y up, z), its outward lean (degrees), lame height, width, collision radius. */
   sodeX: number; sodeY: number; sodeZ: number; sodeOut: number; sodeLameH: number; sodeW: number; sodeR: number;
+  /** Hakama: how full it blouses to the side and to the front and back (metres off the leg at its fullest). */
+  hakLat: number; hakFB: number;
+  /** The scabbard in the obi: degrees below level, and degrees out from straight back. */
+  sayaDown: number; sayaOut: number;
 }
 export const ARMOUR_FIT_DEFAULT: ArmourFit = {
   doBottom: 1.035, doTop: 1.36, doClear: 0.03,
   kusaLameH: 0.058, kusaFlare: 0.008, kusaClear: 0.012,
   sodeX: 0.215, sodeY: 1.5, sodeZ: -0.005, sodeOut: 14, sodeLameH: 0.046, sodeW: 0.24, sodeR: 0.025,
+  hakLat: 0.108, hakFB: 0.13,
+  // measured on the turnaround: hilt up and forward at the left hip, the scabbard 44° down and 28° out behind him
+  sayaDown: 44, sayaOut: 28,
 };
 
 export function buildHaruKit(anatomy: HumanAnatomy, field: Field, fitIn: Partial<ArmourFit> = {}): Wardrobe {
@@ -629,7 +636,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field, fit: ArmourFit): Wardrobe 
     const balloon = (y: number, a: number) => {
       const t = (y - yGather) / (yTopH - yGather);
       const rise = t < 0.1 ? Math.sin((t / 0.1) * Math.PI / 2) ** 0.5 : 1 - 0.62 * smooth01((t - 0.1) / 0.75);
-      const amp = 0.108 * Math.sin(a) ** 2 + 0.13 * Math.cos(a) ** 2;
+      const amp = fit.hakLat * Math.sin(a) ** 2 + fit.hakFB * Math.cos(a) ** 2;
       // (the gather itself stands off the bulky greaves' top: the knee plate tucks up under the blouse)
       return 0.012 + 0.03 * (1 - smooth01(t / 0.3)) + amp * rise + (t > 0.85 ? (t - 0.85) * 0.12 : 0);
     };
@@ -768,7 +775,8 @@ function haruKit(anatomy: HumanAnatomy, field: Field, fit: ArmourFit): Wardrobe 
   w.sockets.push({ name: 'socket_hand_L', bone: 'LeftHand', at: L.at, x: norm(sub(alongL, mul(L.axis, dot(alongL, L.axis)))), y: L.axis });
   const s1 = sec(1.02);
   const obiFront = (a: number): Vec3 => [Math.cos(a) * (s1.radius(a) + doClear + 0.03), 1.0, s1.cz + Math.sin(a) * (s1.radius(a) + doClear + 0.03)];
-  const sayaDir = norm([0.28, -0.32, -1]);
+  const dn = (fit.sayaDown * Math.PI) / 180, ou = (fit.sayaOut * Math.PI) / 180;
+  const sayaDir = norm([Math.cos(dn) * Math.sin(ou), -Math.sin(dn), -Math.cos(dn) * Math.cos(ou)]);
   // worn edge-up: the edge faces the sky
   const upEdge = (y: Vec3) => norm(sub([0, 1, 0], mul(y, dot([0, 1, 0], y))));
   w.sockets.push({ name: 'socket_obi_katana', bone: 'Hips', at: obiFront(Math.PI / 2 - 0.55), x: upEdge(mul(sayaDir, -1)), y: mul(sayaDir, -1) });

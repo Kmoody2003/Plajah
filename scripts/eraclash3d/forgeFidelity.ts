@@ -412,6 +412,28 @@ function headProfile(side: ReturnType<typeof score>, front: ReturnType<typeof sc
   return { rows: rows.map((r, i) => ({ y: r.y, front: cl(F[i]), back: cl(B[i]), half: cl(Hh[i]) })), top: cl(top) };
 }
 
+// ---- the art's own parts (cut by SAM in a --parts run, then reused) ------------------------------------------------
+const artParts = new Map<string, Uint8Array>(); // `${view}:${part}` -> mask in the view's frame
+for (const v of ['front', 'side', 'back'] as ViewName[]) for (const name of PARTS) {
+  const f = path.join(outDir, 'parts', `${v}_${name}_art.png`);
+  if (!fs.existsSync(f)) continue;
+  const png = PNG.sync.read(fs.readFileSync(f)), m = new Uint8Array(png.width * png.height);
+  for (let i = 0; i < m.length; i++) m[i] = png.data[i * 4] > 127 ? 1 : 0;
+  artParts.set(`${v}:${name}`, m);
+}
+/** How well one model part overlaps the art's (IoU), in a rendered view; null when the art's part isn't cut yet. */
+function partIoU(r: ReturnType<typeof render>, v: ViewName, name: string, shift: number): number | null {
+  const A = artParts.get(`${v}:${name}`); if (!A) return null;
+  const p = PARTS.indexOf(name as (typeof PARTS)[number]);
+  let inter = 0, uni = 0;
+  for (let y = 0; y < r.H; y++) for (let x = 0; x < r.W; x++) {
+    const i = y * r.W + x, mx = x - shift;
+    const m = mx >= 0 && mx < r.W && r.partId[y * r.W + mx] === p ? 1 : 0;
+    if (m && A[i]) inter++; if (m || A[i]) uni++;
+  }
+  return uni ? inter / uni : 0;
+}
+
 // ---- the art's pose, fitted ---------------------------------------------------------------------------------------
 // arms hang from the A (rotate about the body's forward axis), elbows bend a little, legs stand apart
 function poseOf(p: { arm: number; armFwd: number; elbow: number; leg: number }) {
@@ -430,7 +452,8 @@ function fitPose() {
   const iouOf = (q: typeof p) => {
     const tris = posedTris(poseOf(q));
     let s = 0;
-    for (const v of ['front', 'side'] as ViewName[]) { const r = render(tris, v); const sc = score(r, v, false); s += sc.regions.torso.iou + sc.regions.legs.iou; }
+    // the whole figure, and the arms against the art's own arms (they decide the pose; a figure IoU barely feels them)
+    for (const v of ['front', 'side'] as ViewName[]) { const r = render(tris, v); const sc = score(r, v, false); s += sc.regions.torso.iou + sc.regions.legs.iou + 2 * (partIoU(r, v, 'arms', sc.shift) ?? 0); }
     return s;
   };
   let best = iouOf(p);
@@ -479,13 +502,16 @@ const t0 = Date.now();
 // --fast: the last fitted pose, shape only, no images (the armour fit runs this many times)
 const FAST = args.includes('--fast');
 const lastPose = (() => { try { return JSON.parse(fs.readFileSync(path.join(outDir, 'fidelity.json'), 'utf8')).pose; } catch { return null; } })();
-const pose = FAST && lastPose ? lastPose : fitPose();
+const pose = FAST && lastPose && !args.includes('--refit-pose') ? lastPose : fitPose();
 if (FAST) {
   const tr = posedTris(poseOf(pose));
-  const out: Record<string, Record<string, { shape: number; iou: number; outlineMm: number }>> = {};
+  const out: Record<string, Record<string, unknown>> = {};
   for (const v of ['front', 'side', 'back'] as ViewName[]) {
-    const r = score(render(tr, v), v, false);
+    const rr = render(tr, v), r = score(rr, v, false);
     out[v] = Object.fromEntries(Object.entries(r.regions).map(([k, x]) => [k, { shape: x.shape, iou: x.iou, outlineMm: x.outlineMm }]));
+    const parts: Record<string, number> = {};
+    for (const name of PARTS) { const q = partIoU(rr, v, name, r.shift); if (q !== null) parts[name] = +q.toFixed(3); }
+    (out[v] as Record<string, unknown>).parts = parts;
   }
   console.log(JSON.stringify(out));
   process.exit(0);

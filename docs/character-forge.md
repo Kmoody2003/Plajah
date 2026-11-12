@@ -115,6 +115,12 @@ Each piece is its own mesh with its own material, made from parametric period pa
       | sword | 18 / 0 / 31 |
 
     - The worst offenders are named: the scabbard sticks out level where the art's hangs diagonally, the arms stand off the body, the hakama is too wide and too high, and the sode spread wider than the art's.
+  - **The search on parts** (2026-11-12, second pass).
+    - The art's SAM cuts are cached, so `--fast` reports each part's IoU in seconds. The search scores half whole-figure shape, half the part IoUs (dō, kusazuri, sode, obi, hakama, shins, sword), with the hakama's fullness and the scabbard's angle added.
+    - The pose fit also scores the arms against the art's arm masks.
+    - Result: hakama front/back fullness 13 → 7 cm, scabbard 40° down and 28° out (from 17°/16°), wakizashi off by default (the art shows one sword, `FORGE_WAKIZASHI=1`).
+    - Part IoU after: dō 57, kusazuri 65, hakama 47 (side 66), obi 40.
+  - **Known limits of the part scores:** SAM's cut of the back-view arms fails (arms read 4% from behind), and the art's sword includes its sheathed hilt, which the model's scabbard doesn't have (the katana is drawn in the hand).
   - What's left: shape (72–75%): the shoulder guards stand out like wings and the dō's top is off by 2–3 cm. The head is 78–81% IoU. The GLB is now about 25 MB with the paintings.
 
 ### 5. Rig and export
