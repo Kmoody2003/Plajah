@@ -146,7 +146,13 @@ export async function paintHeadFromSheet(
     if (side && wSide > 0 && headPixel(side)) { for (let k = 0; k < 3; k++) out[k] += side[k] * wSide; wt += wSide; }
     if (back && wBack > 0 && headPixel(back)) { for (let k = 0; k < 3; k++) out[k] += back[k] * wBack; wt += wBack; }
     if (!wt) return above < 1 ? { c: opts.frontSkin, w: 1 } : null;
-    return { c: out.map((v, k) => Math.min(255, (v / wt) * tone[k]) * above + opts.frontSkin[k] * (1 - above)), w: wt };
+    let c = out.map((v, k) => Math.min(255, (v / wt) * tone[k]) * above + opts.frontSkin[k] * (1 - above));
+    // the painting's own highlights (a sheen on the cheekbone) come off: the game lights the head itself, and a painted
+    // highlight lit again reads as a pale stripe
+    const lum = (q: number[]) => 0.3 * q[0] + 0.59 * q[1] + 0.11 * q[2];
+    const cap = lum(opts.frontSkin) * 1.04, l = lum(c);
+    if (l > cap) c = c.map((q) => q * (cap / l));
+    return { c, w: wt };
   };
   const done = new Uint8Array(N * N);
   const { positions: P, normals: Nn, uvs: U, indices: I } = head;
@@ -169,6 +175,13 @@ export async function paintHeadFromSheet(
       const pt = [0, 1, 2].map((k) => l0 * P[v[0] * 3 + k] + l1 * P[v[1] * 3 + k] + l2 * P[v[2] * 3 + k]);
       const nr = [0, 1, 2].map((k) => l0 * Nn[v[0] * 3 + k] + l1 * Nn[v[1] * 3 + k] + l2 * Nn[v[2] * 3 + k]);
       const l = Math.hypot(nr[0], nr[1], nr[2]) || 1; nr[0] /= l; nr[1] /= l; nr[2] /= l;
+      // the front portrait seen at a glancing angle (the cheek turning toward the ear, under the jaw) is a smear of
+      // stretched pixels: there it fades to the art's skin tone, and the profile (when it sees the spot) paints over
+      if (y < opts.front * N && pt[1] < opts.browY + 0.02) {
+        const g = Math.max(0, Math.min(1, (Math.max(Math.abs(nr[0]), -nr[1] * 0.8) - 0.5) / 0.3));
+        const e = g * g * (3 - 2 * g);
+        if (e > 0) for (let c = 0; c < 3; c++) atlas.data[i * 4 + c] = Math.round(atlas.data[i * 4 + c] * (1 - e) + opts.frontSkin[c] * 0.94 * e);
+      }
       paint: {
         let sv = viewColour(pt, nr);
         // on the strip, a side of the head below the brows that the sheet has nothing for (beard shadow, the ear, the
@@ -226,7 +239,14 @@ const MID_Z = 0.03, MID_BAND = 0.07;
 export function loadHeadWarp(file = HEAD_WARP_FILE): HeadWarp | null {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')) as HeadWarp; } catch { return null; }
 }
-export function headWarpMap(w: HeadWarp, browY: number, crownY: number) {
+export function headWarpMap(w0: HeadWarp, browY: number, crownY: number) {
+  // smoothed over about ±2.5 cm: a row corrected hard beside one left alone is a crease in the skull
+  const sig = 0.025 / w0.step;
+  const w: HeadWarp = { ...w0, rows: w0.rows.map((r, i) => {
+    const acc = { front: 0, back: 0, half: 0 }; let ws = 0;
+    w0.rows.forEach((q, j) => { const g = Math.exp(-(((i - j) / sig) ** 2) / 2); acc.front += q.front * g; acc.back += q.back * g; acc.half += q.half * g; ws += g; });
+    return { y: r.y, front: acc.front / ws, back: acc.back / ws, half: acc.half / ws };
+  }) };
   const at = (y: number, k: 'front' | 'back' | 'half') => {
     if (y <= WARP_LO || y >= WARP_HI) return 0;
     const f = (y - w.rows[0].y) / w.step, i = Math.max(0, Math.min(w.rows.length - 2, Math.floor(f))), t = Math.max(0, Math.min(1, f - i));

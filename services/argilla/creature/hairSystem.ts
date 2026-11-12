@@ -225,9 +225,9 @@ export function chonmage(s: Scalp, opts: { headBone: string; columns: number; sn
  * pi = the nape): high at the forehead, receding at the temples, down to the top of the ear at the sides and to the
  * nape behind. The strand roots and the dark scalp under them both follow it.
  */
-// (measured on the turnaround with the art-fitted head, 2026-11-12: the shaved front reaches the top of the skull, the
+// (measured on the turnaround with the art-fitted head, 2026-11-12: the shaved centre runs to the crown (sakayaki), the
 // temples recede steeply to sideburns in front of the ear, hair passes over the ear's top and down to the nape, no lower than the cards can lie flat)
-const HAIRLINE: [number, number][] = [[0, 0.085], [0.5, 0.08], [0.85, 0.035], [1.1, -0.005], [1.28, -0.05], [1.45, -0.04], [1.65, 0.0], [1.85, 0.004], [2.05, -0.03], [2.4, -0.075], [Math.PI, -0.1]];
+const HAIRLINE: [number, number][] = [[0, 0.12], [0.35, 0.11], [0.6, 0.06], [0.85, 0.03], [1.1, 0.0], [1.28, -0.015], [1.45, -0.02], [1.65, 0.0], [1.85, 0.004], [2.05, -0.03], [2.4, -0.075], [Math.PI, -0.1]];
 export function hairlineAt(a: number): number {
   const x = Math.min(Math.PI, Math.abs(Math.atan2(Math.sin(a), Math.cos(a))));
   for (let i = 1; i < HAIRLINE.length; i++) if (x <= HAIRLINE[i][0]) { const [a0, y0] = HAIRLINE[i - 1], [a1, y1] = HAIRLINE[i]; return y0 + ((y1 - y0) * (x - a0)) / (a1 - a0); }
@@ -251,8 +251,10 @@ export function ponytail(s: Scalp, opts: { headBone: string; columns: number; sn
   const tie = scalpPoint(s, tieA, tieE, 0.008);
 
   // ---- Swept-back layers to the tie ---------------------------------------------------------------------------------
-  for (const layer of [0.0025, 0.005, 0.0075]) {
-    const count = layer < 0.004 ? 130 : 90;
+  // pulled tight: the art's hair lies flat to the skull, a few millimetres of it, not a cap
+  // (two sparse layers: the scalp carries the art's painted hair; the cards only break its outline and catch light)
+  for (const layer of [0.0015, 0.003]) {
+    const count = layer < 0.0025 ? 80 : 45;
     for (let k = 0; k < count; k++) {
       const a = (k / count) * Math.PI * 2 + rand() * 0.05;
       // roots on the hairline (outer layers start a little higher, so the edge is soft, not a helmet rim)

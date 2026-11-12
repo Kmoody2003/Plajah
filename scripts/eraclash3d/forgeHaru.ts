@@ -116,6 +116,7 @@ async function main() {
   }
   const inHead = (v: number) => Pb(v)[1] >= SEAM;
   const head = cutOffset(body, skin, [], inHead, 0);
+  rigFaceToHead(head.mesh.positions, head.skin, anatomy);
   const arkit = faceShapes(head.mesh, anatomy.face);
   let crownY = -Infinity, zLo = Infinity, zHi = -Infinity;
   for (let v = 0; v < head.mesh.positions.length / 3; v++) { crownY = Math.max(crownY, head.mesh.positions[v * 3 + 1]); zLo = Math.min(zLo, head.mesh.positions[v * 3 + 2]); zHi = Math.max(zHi, head.mesh.positions[v * 3 + 2]); }
@@ -254,7 +255,7 @@ async function main() {
   // the sides and back of the head from the turnaround's side and back views
   if (fromArt && fs.existsSync(HARU_SHEET.path)) {
     const toSrgb = (c: number) => 255 * (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
-    atlasFace = { ...atlasFace, png: await paintHeadFromSheet(atlasFace.png, { ...headPrim, uvs: headPrim.uvs! }, { chinY: 1.537, frontSkin: fromArt.skin.map(toSrgb), front: 0.72, faceZ: sideZ + 0.025, browY, seamY: SEAM }) };
+    atlasFace = { ...atlasFace, png: await paintHeadFromSheet(atlasFace.png, { ...headPrim, uvs: headPrim.uvs! }, { chinY: 1.537, frontSkin: fromArt.skin.map(toSrgb), front: 0.72, faceZ: sideZ - 0.005, browY, seamY: SEAM }) /* behind the face's outline only: the profile's cheek highlight must not stripe the face */ };
     log('head: sides and back painted from the sheet');
   }
   fs.writeFileSync(path.join(WORK, 'face_atlas.png'), atlasFace.png);
@@ -305,7 +306,8 @@ async function main() {
   character.materials.push({ ...skinMat, name: 'face', color: [1, 1, 1, 1], baseColorTexture: base }); // the body's own gloss: no shading step at the neck
   headPrim.material = character.materials.length - 1;
   // the scalp under the strand cards: the hair's colour, matte, with the cord normal map running along the strands
-  character.materials.push({ name: 'scalp', color: [0.014, 0.011, 0.01, 1], metallic: 0, roughness: 0.7, sheen: { color: [0.06, 0.05, 0.045], roughness: 0.4 } });
+  // (painted with the art's own hair from the face atlas, front, sides and back; glossier than skin, a soft sheen)
+  character.materials.push({ name: 'scalp', color: [1, 1, 1, 1], baseColorTexture: base, metallic: 0, roughness: 0.5, specular: { factor: 0.35 }, sheen: { color: [0.06, 0.05, 0.045], roughness: 0.4 } });
   scalpPrim.material = character.materials.length - 1;
   // skin elsewhere (hands, neck) in the face's tone
   character.materials[MATERIAL_INDEX.skin] = { ...character.materials[MATERIAL_INDEX.skin], color: [...(fromArt?.skin ?? [0.55, 0.29, 0.16]), 1] as [number, number, number, number] };
@@ -381,6 +383,29 @@ function grips(a: HumanAnatomy) {
 }
 
 // ---- Face -------------------------------------------------------------------------------------------------------
+
+/**
+ * Everything above the jaw line moves with the head alone. The anatomy's weights blend the neck and upper spine far up
+ * into the cheeks and mouth (its neck cone reaches the jaw), so the face sheared whenever the neck bent. The line runs
+ * chin (152) to the jaw's angle (58/288) and on round the skull's base; the throat under it keeps the anatomy's blend.
+ * Eyeballs keep their own bones.
+ */
+function rigFaceToHead(pos: Float32Array, s: Skin, a: HumanAnatomy) {
+  const H = HUMAN_JOINTS.indexOf('Head'), eyes = new Set([HUMAN_JOINTS.indexOf('LeftEye'), HUMAN_JOINTS.indexOf('RightEye')]);
+  const chin = a.face[152], gon = a.face[58];
+  const jawY = (z: number) => z >= chin[2] ? chin[1] : z <= gon[2] ? gon[1] + 0.006 : gon[1] + (chin[1] - gon[1]) * ((z - gon[2]) / (chin[2] - gon[2]));
+  for (let v = 0; v < pos.length / 3; v++) {
+    const t = Math.max(0, Math.min(1, (pos[v * 3 + 1] - (jawY(pos[v * 3 + 2]) - 0.012)) / 0.02));
+    const w = t * t * (3 - 2 * t);
+    if (w <= 0) continue;
+    if ([0, 1, 2, 3].some((k) => eyes.has(s.skinIndex[v * 4 + k]) && s.skinWeight[v * 4 + k] > 0.5)) continue;
+    const m = new Map<number, number>();
+    for (let k = 0; k < 4; k++) if (s.skinWeight[v * 4 + k] > 0) m.set(s.skinIndex[v * 4 + k], (m.get(s.skinIndex[v * 4 + k]) ?? 0) + s.skinWeight[v * 4 + k] * (1 - w));
+    m.set(H, (m.get(H) ?? 0) + w);
+    const top = [...m].sort((p, q) => q[1] - p[1]).slice(0, 4), sum = top.reduce((acc, [, x]) => acc + x, 0) || 1;
+    for (let k = 0; k < 4; k++) { s.skinIndex[v * 4 + k] = top[k]?.[0] ?? 0; s.skinWeight[v * 4 + k] = (top[k]?.[1] ?? 0) / sum; }
+  }
+}
 
 /** The VTuber rig builder's 43 ARKit shapes, authored on the canonical face (the landmarks this head was built on). */
 function faceShapes(m: { positions: Float32Array; normals: Float32Array; indices: Uint32Array }, landmarks: Vec3[]): Float32Array[] {

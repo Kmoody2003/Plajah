@@ -359,20 +359,24 @@ function headProfile(side: ReturnType<typeof score>, front: ReturnType<typeof sc
     let fr = 0, bk = 0, hf = 0;
     if (y >= 1.5) {
       const ra = run(side.A, side.W, row, cSide), rm = run(side.mask, side.W, row, cSide), rs = run(sideSkull, side.W, row, cSide);
-      if (ra && rm) fr = (rm[0] - ra[0]) / ppm;
+      // (from the jaw up: below it the art's goatee and collar stand in front of the throat)
+      if (ra && rm && y >= 1.56) fr = (rm[0] - ra[0]) / ppm;
       // the back: the model's skull without its ponytail against the art's; a row where the art's ponytail joins the
       // head (its edge far past the skull) says nothing about the skull and is left alone
       if (ra && rs && y >= 1.62) { const d = (rs[1] - ra[1]) / ppm; if (d > -0.035) bk = d; }
       const fa = run(front.A, front.W, row, cFront), fm = run(front.mask, front.W, row, cFront);
       // (from the jaw up: lower, the art's collar and shoulder straps join the neck's row)
-      if (fa && fm && y >= 1.56) hf = ((fa[1] - fa[0]) - (fm[1] - fm[0])) / 2 / ppm;
+      // (and not across the ears: they are their own mesh, and the art's are drawn smaller and closer; measured, they
+      // pinched the skull into a ridge)
+      if (fa && fm && y >= 1.56 && (y < 1.61 || y > 1.72)) hf = ((fa[1] - fa[0]) - (fm[1] - fm[0])) / 2 / ppm;
     }
     rows.push({ y: +y.toFixed(3), front: fr, back: bk, half: hf });
   }
-  // the crown: the top of the figure just beside the bun (±4.5 cm), art against model
+  // the crown: in profile, over the front of the skull (6-9 cm ahead of the head's middle), where the hair lies flat:
+  // beside the topknot (front view) or at the tie (behind) the art's top is the bun, not the head
   const topAt = (m: Uint8Array, W: number, c: number) => { for (let r = 0; r < SH.sole; r++) if (m[r * W + c]) return r; return SH.sole; };
-  const off = Math.round(0.045 * ppm);
-  const top = ((topAt(front.mask, front.W, cFront - off) + topAt(front.mask, front.W, cFront + off)) - (topAt(front.A, front.W, cFront - off) + topAt(front.A, front.W, cFront + off))) / 2 / ppm;
+  const cols = [0.06, 0.075, 0.09].map((dz) => cSide - Math.round(dz * ppm));
+  const top = cols.reduce((acc, c) => acc + topAt(sideSkull, side.W, c) - topAt(side.A, side.W, c), 0) / cols.length / ppm;
   // a 5-row median against stray strands, then clamped: no row moves more than 2 cm a pass
   const med = (k: 'front' | 'back' | 'half') => rows.map((_, i) => { const a = rows.slice(Math.max(0, i - 2), i + 3).map((r) => r[k]).sort((p, q) => p - q); return a[a.length >> 1]; });
   const F = med('front'), B = med('back'), Hh = med('half');

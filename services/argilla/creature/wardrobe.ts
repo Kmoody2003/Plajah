@@ -656,6 +656,26 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
       return { pin: tied, maxDist: tied ? 0 : 0.075 * Math.sin(Math.PI * Math.min(1, (y - yGather) / (0.95 - yGather))) ** 0.5 };
     }, { drive: 3, damping: 1.4, radius: 0.012 }));
   }
+  // ---- Eri: the kosode's collar, high round the neck and crossing in a V under the chin (left over right) ----------
+  piece('eri', 'Eri: the kosode collar, standing round the back of the neck and crossing left over right at the chest');
+  {
+    const smooth = (t: number) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3 - 2 * x); };
+    for (const lapel of [1, -1]) { // +1 the wearer's left, on top; -1 the right, under it
+      const end = Math.PI + 0.32;
+      const f = (u: number, v: number): Vec3 => {
+        const phi = u * end;                       // round from the back of the neck
+        const a = -Math.PI / 2 + lapel * phi;      // a = π/2 is the front
+        // high at the back, a little lower at the sides, then down the chest to the V
+        const yc = phi <= Math.PI / 2 ? 1.505 - 0.03 * smooth(phi / (Math.PI / 2)) : 1.475 - ((phi - Math.PI / 2) / (Math.PI / 2)) * 0.085;
+        const y = yc + (v - 0.5) * 0.036;
+        const sc = sec(y);
+        const r = sc.radius(a) + 0.011 + (lapel > 0 ? 0.004 : 0) + (1 - v) * 0.003;
+        return [Math.cos(a) * r, y, sc.cz + Math.sin(a) * r];
+      };
+      sheet(Cl('kosode'), 40, 4, f, 'Spine2', [0.6, 0.04]);
+    }
+  }
+
   piece('kosode', 'Kosode: the inner robe, its sleeves tied short over the kote, sleeve hems on spring chains', ['Kosode, Momoyama period, the Met']);
   for (const s of ['Left', 'Right'] as const) {
     const sh = J(`${s}Arm` as HumanJoint), el = J(`${s}ForeArm` as HumanJoint);
