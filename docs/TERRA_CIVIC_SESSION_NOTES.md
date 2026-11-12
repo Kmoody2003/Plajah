@@ -66,7 +66,7 @@ and small businesses.
 6. Should Programs ever disburse money itself (fiscal-agent mode)?
 7. Should Meetings be the wedge product, since cities already buy meeting software?
 8. Validate the video cost line with real Mux usage before publishing prices.
-9. Has Michigan adopted UELMA (authenticated official electronic legal material)? Which Michigan institutions should be the first witnesses?
+9. ~~UELMA in Michigan~~ **Answered:** yes, 2018 PA 488 (see §7). Still open: which Michigan institutions should be the first witnesses?
 
 ## 5. Build order (when back at the computer)
 
@@ -77,6 +77,34 @@ and small businesses.
 5. Programs eligibility engine (pure, tested like `services/grants/readiness.ts`) and templates.
 6. Private Draft / Publish flow on Tela.
 7. Civic ledger: statement schema, then official passkey signing, then the tile log with OpenTimestamps, then the in-browser verifier and record badges, then witnesses (Ledger blueprint §9).
+
+## 7. Research: Michigan law sources (12 Nov 2026)
+
+Found by web search. The legislature's site was blocked from this session, so these details still
+need to be checked by hand.
+
+- **Michigan Compiled Laws (MCL):** the Legislature publishes per-chapter **XML** files in a
+  public directory (`legislature.mi.gov/documents/mcl/`), plus an archive folder with yearly
+  snapshots from 2013 to 2026, and per-section and per-chapter PDFs. No single zip bulk download was
+  found; we'd crawl the chapter XML files politely.
+- **Michigan Constitution (1963):** the Legislature's own PDF publication, supplemented through June 2025
+  (`legislature.mi.gov/Publications/MIConstitution.pdf`), plus per-article PDFs in the MCL system.
+- **UELMA:** **Michigan enacted it**, as 2018 PA 488, MCL 4.1121–4.1131, effective 28 Dec 2018.
+  It covers the 1963 Constitution, public acts, the MCL and administrative rules. Still to check:
+  which electronic version is designated official, and how it's authenticated. Our ledger should
+  verify against that official source.
+- **Copyright:** MCL 4.1204 and 4.1204b say online publication doesn't waive the **state's copyright
+  or proprietary interests**. Access must be free, but free access doesn't automatically mean free
+  reuse. The Legislative Council has registered copyright in compilation and editorial matter.
+  The statute text itself is uncopyrightable, and under *Georgia v. Public.Resource.Org* (2020),
+  work produced by a legislature's own agency (the Legislative Service Bureau) in the course of its
+  duties is likely uncopyrightable too. **Plan:** host the text, generate our own structure and
+  summaries, label pages "Unofficial copy", and **ask the Legislative Service Bureau for a data
+  partnership or written permission** before launch. It's low cost and buys goodwill with the people
+  who run the official source.
+- **Detroit City Code:** check where the official current code is hosted (the city's site and/or a
+  codifier such as Municode) and its terms of use. The Detroit contract should grant hosting and
+  official-designation rights.
 
 ## 6. Git status and how to recover the work
 

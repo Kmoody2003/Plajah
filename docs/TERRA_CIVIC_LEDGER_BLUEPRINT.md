@@ -243,7 +243,7 @@ It fits inside every pricing tier without changing prices.
 
 ## 10. Open questions
 
-1. Has Michigan adopted UELMA? This affects how "official" Terra-hosted codes can be on day one.
+1. ~~Has Michigan adopted UELMA?~~ **Yes:** 2018 PA 488, MCL 4.1121–4.1131 (covers the Constitution, public acts, MCL and admin rules). Next: confirm the official source and its authentication method, and verify against it.
 2. Which Michigan institutions should we approach first as witnesses?
 3. Should we run our own Bitcoin timestamp calendar server as well as the public OpenTimestamps
    ones, for redundancy?
