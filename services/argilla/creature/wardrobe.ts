@@ -314,6 +314,8 @@ export interface ArmourFit {
   doBottom: number; doTop: number; doClear: number;
   /** Kusazuri: height of each lame, how much each lame flares out past the one above, stand-off from the dō. */
   kusaLameH: number; kusaFlare: number; kusaClear: number;
+  /** How many tassets hang round the waist (the flat-lay shows six). */
+  kusaCount: number;
   /** Sode: where the top lame hangs (x out, y up, z), its outward lean (degrees), lame height, width, collision radius. */
   sodeX: number; sodeY: number; sodeZ: number; sodeOut: number; sodeLameH: number; sodeW: number; sodeR: number;
   /** Hakama: how full it blouses to the side and to the front and back (metres off the leg at its fullest). */
@@ -323,7 +325,7 @@ export interface ArmourFit {
 }
 export const ARMOUR_FIT_DEFAULT: ArmourFit = {
   doBottom: 1.035, doTop: 1.36, doClear: 0.03,
-  kusaLameH: 0.058, kusaFlare: 0.008, kusaClear: 0.012,
+  kusaLameH: 0.058, kusaFlare: 0.008, kusaClear: 0.012, kusaCount: 6,
   sodeX: 0.215, sodeY: 1.5, sodeZ: -0.005, sodeOut: 14, sodeLameH: 0.046, sodeW: 0.24, sodeR: 0.025,
   hakLat: 0.108, hakFB: 0.13,
   // measured on the turnaround: hilt up and forward at the left hip, the scabbard 44° down and 28° out behind him
@@ -442,7 +444,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field, fit: ArmourFit): Wardrobe 
 
   // ---- Kusazuri: seven tassets on spring chains -----------------------------------------------------------------------
   piece('kusazuri', 'Kusazuri (tassets): seven columns of five lames, laced, on spring chains');
-  const tassets = 7, lames = 5, lameH = fit.kusaLameH, kTop = yBottom + 0.004;
+  const tassets = Math.round(fit.kusaCount), lames = 5, lameH = fit.kusaLameH, kTop = yBottom + 0.004;
   const kBottom = kTop - lames * (lameH - 0.008) - 0.008;
   const hipSec = sec(0.93), waistSec = sec(kTop);
   for (let i = 0; i < tassets; i++) {
@@ -766,6 +768,53 @@ function haruKit(anatomy: HumanAnatomy, field: Field, fit: ArmourFit): Wardrobe 
       for (let k = 0; k <= 8; k++) pts.push(add(knot, [dx + k * 0.002, -k * (l / 8), 0.008 + k * 0.001]));
       tube(mb, pts, 0.016, 6, 'Hips', 0.25);
     }
+  }
+
+  // ---- Hachimaki: the navy headband of the turnaround and the flat-lay, tied at the back with two tails --------------
+  piece('hachimaki', 'Hachimaki: navy cotton headband, knotted at the back, two short tails');
+  {
+    const browY = anatomy.face[9][1];
+    const front = anatomy.face[10];
+    const c: Vec3 = [0, browY + 0.045, front[2] - 0.1];
+    const ringAt = (a: number, lift: number): Vec3 => {
+      const y = c[1] + 0.012 * Math.cos(a); // a little higher over the brow than at the nape
+      const o: Vec3 = [0, y, c[2]];
+      const dir: Vec3 = [Math.sin(a), 0, Math.cos(a)];
+      return add(o, mul(dir, reach(field, o, dir, 0.2) + lift));
+    };
+    sheet(A('kosode'), 64, 2, (u, v) => { const p = ringAt(u * Math.PI * 2, 0.006); return [p[0], p[1] - 0.012 + v * 0.024, p[2]]; }, 'Head', [1.5, 0.05]);
+    const knot = ringAt(Math.PI, 0.016);
+    tube(A('kosode'), [add(knot, [-0.015, 0, 0]), add(knot, [0.015, 0, 0])], 0.012, 8, 'Head', 0.7);
+    for (const sx of [1, -1]) {
+      const pts: Vec3[] = [];
+      for (let k = 0; k <= 6; k++) pts.push(add(knot, [sx * (0.01 + k * 0.006), -k * 0.011, -0.004 - k * 0.002]));
+      tube(A('kosode'), pts, (t) => 0.007 * (1 - t * 0.3), 5, 'Head', 0.3);
+    }
+  }
+
+  // ---- Waraji: straw sandals under the feet, navy cords from the toe post round the ankle ----------------------------
+  piece('waraji', 'Waraji: woven straw sandals, tied with navy cord');
+  for (const s of ['Left', 'Right'] as const) {
+    const foot = J(`${s}Foot` as HumanJoint), toe = J(`${s}ToeBase` as HumanJoint);
+    const tip = anatomy.byName[`${s}ToeBase` as HumanJoint].tip;
+    const x = (foot[0] + toe[0]) / 2, z0 = foot[2] - 0.075, z1 = tip[2] + 0.02, zt = toe[2] - 0.01;
+    for (const [za, zb, bone] of [[z0, zt, `${s}Foot`], [zt, z1, `${s}ToeBase`]] as const) {
+      plate(A('straw'), 6, 8, (u, v) => {
+        const z = za + (zb - za) * v;
+        const t = (z - z0) / (z1 - z0);
+        const half = 0.044 * Math.sqrt(Math.max(0.15, Math.sin(Math.PI * Math.min(1, 0.12 + t * 0.95))));
+        return [x + (u - 0.5) * 2 * half, 0.012, z];
+      }, 0.011, bone, [0.1, 0.25]);
+    }
+    // the cords: from the toe post up over the instep to loops either side of the heel, and round the ankle
+    const post: Vec3 = [x + (s === 'Left' ? -0.012 : 0.012), 0.022, z1 - 0.06];
+    for (const side of [1, -1]) {
+      const loop: Vec3 = [x + side * 0.046, 0.03, foot[2] - 0.02];
+      tube(A('silk'), [post, [x + side * 0.03, 0.055, (post[2] + loop[2]) / 2], loop], 0.0045, 5, `${s}Foot`);
+    }
+    const ring: Vec3[] = [];
+    for (let k = 0; k <= 16; k++) { const a = (k / 16) * Math.PI * 2; ring.push([foot[0] + Math.cos(a) * 0.045, foot[1] + 0.005, foot[2] + Math.sin(a) * 0.045]); }
+    tube(A('silk'), ring, 0.004, 5, `${s}Foot`);
   }
 
   // ---- Weapons: katana in the right hand, its saya and the wakizashi in the obi ------------------------------------

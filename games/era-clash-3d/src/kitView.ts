@@ -33,6 +33,7 @@ const loaded = await Promise.all(manifest.assets.map(async (a) => ({ a, root: (a
 const rows: { a: (typeof manifest.assets)[number]; root: THREE.Object3D }[][] = [[], [], []];
 for (const it of loaded) (it.a.kind === 'weapon' ? rows[2] : it.a.kind === 'garment' ? rows[1] : rows[0]).push(it);
 let z = 0, maxW = 0;
+const byId = new Map<string, THREE.Object3D>();
 for (const row of rows) {
   let x = 0, depth = 0;
   const placed: [THREE.Object3D, number][] = [];
@@ -40,7 +41,7 @@ for (const row of rows) {
     if (a.kind === 'weapon') root.rotation.z = -Math.PI / 2; // lying down, hilt to the left
     const box = new THREE.Box3().setFromObject(root), size = box.getSize(new THREE.Vector3());
     root.position.x += x - box.min.x; root.position.y += -box.min.y; root.position.z += z - (box.min.z + box.max.z) / 2;
-    placed.push([root, size.x]); x += size.x + 0.12; depth = Math.max(depth, size.z);
+    placed.push([root, size.x]); x += size.x + 0.12; depth = Math.max(depth, size.z); byId.set(a.id, root);
     scene.add(root);
   }
   for (const [root] of placed) root.position.x -= (x - 0.12) / 2;
@@ -50,6 +51,13 @@ view.z = z / 2; view.y = 0.1; view.dist = Number(params.get('dist') ?? Math.max(
 renderer.setAnimationLoop(() => { place(); renderer.render(scene, camera); });
 (window as unknown as Record<string, unknown>).kit = {
   view,
+  /** Frame one asset: the camera on it, at a distance from its size. */
+  focus(id: string, yaw = 0, pitch = 0.25) {
+    const r = byId.get(id); if (!r) return false;
+    const box = new THREE.Box3().setFromObject(r), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
+    Object.assign(view, { x: c.x, y: c.y, z: c.z, yaw, pitch, dist: Math.max(size.x, size.y, size.z) * 2.6 + 0.2 });
+    return true;
+  },
   async capture(name: string) {
     place();
     (renderer as unknown as { _nodes?: { nodeFrame?: { update(): void } } })._nodes?.nodeFrame?.update();

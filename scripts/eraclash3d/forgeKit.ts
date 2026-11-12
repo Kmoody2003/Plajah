@@ -13,6 +13,7 @@ import { writeGlb, type GMaterial, type GMesh, type GNode, type GPrim } from '..
 import { MeshBuilder, unitBox, type Wardrobe } from '../../services/argilla/creature/wardrobe';
 import { nihonto, saya } from '../../services/argilla/creature/weapons';
 import type { Vec3 } from '../../services/argilla/engine';
+import { paintKit, HARU_FLATLAY, type PaintSpec } from './forgeKitPaint';
 
 export interface KitAsset {
   id: string; label: string; era: string; refs: string[]; file: string;
@@ -24,14 +25,19 @@ export interface KitAsset {
   kind: 'armour' | 'garment' | 'weapon';
 }
 
-const GARMENTS = new Set(['hakama', 'kosode', 'eri', 'obi']);
-const ATTACH: Record<string, string> = { do: 'Spine1', kusazuri: 'Hips', sode: 'Spine2', kote: 'Spine2', suneate: 'Hips', haidate: 'Hips', kabuto: 'Head', hakama: 'Hips', kosode: 'Spine1', eri: 'Spine2', obi: 'Hips' };
+const GARMENTS = new Set(['hakama', 'kosode', 'eri', 'obi', 'hachimaki', 'tabi', 'waraji']);
+const ATTACH: Record<string, string> = { do: 'Spine1', kusazuri: 'Hips', sode: 'Spine2', kote: 'Spine2', suneate: 'Hips', haidate: 'Hips', kabuto: 'Head', hakama: 'Hips', kosode: 'Spine1', eri: 'Spine2', obi: 'Hips', hachimaki: 'Head', tabi: 'Hips', waraji: 'Hips' };
 /** The node a vertex goes in: its bone, less a chain link's number (Kusazuri3_2 -> Kusazuri3). */
 const family = (bone: string) => bone.replace(/_\d+$/, '');
 
-export function exportKit(opts: {
+export async function exportKit(opts: {
   kit: Wardrobe; materials: GMaterial[]; images: (Uint8Array | { bytes: Uint8Array; mime: string })[]; materialIndex: Record<string, number>;
   outDir: string; character: string;
+  /** Pieces cut from the body itself (the kote's sleeve, the kyahan under the greaves, the tabi): joined to their asset. */
+  bodyCut?: { piece: string; mat: string; positions: Float32Array; normals: Float32Array; indices: Uint32Array }[];
+  /** The character's flat-lay cut into pieces (cut_pieces.py), to paint each asset from; and how each lies in it. */
+  flatLay?: { dir: string; specs: Record<string, PaintSpec> };
+  work?: string;
 }) {
   const { kit, outDir } = opts;
   fs.mkdirSync(outDir, { recursive: true });
@@ -83,7 +89,24 @@ export function exportKit(opts: {
       for (const i of box.idx) g.idx.push(base + i);
     }
   }
+  for (const b of opts.bodyCut ?? []) {
+    let part = byPiece.get(b.piece); if (!part) { part = new Map(); byPiece.set(b.piece, part); }
+    for (let t = 0; t < b.indices.length; t += 3) {
+      const vs = [b.indices[t], b.indices[t + 1], b.indices[t + 2]];
+      const fam = (b.positions[vs[0] * 3] + b.positions[vs[1] * 3] + b.positions[vs[2] * 3]) >= 0 ? `${b.mat}_Left` : `${b.mat}_Right`;
+      let node = part.get(fam); if (!node) { node = new Map(); part.set(fam, node); }
+      let g = node.get(b.mat); if (!g) { g = { pos: [], nor: [], uv: [], idx: [] }; node.set(b.mat, g); (g as unknown as { map: Map<number, number> }).map = new Map(); }
+      const map = (g as unknown as { map: Map<number, number> }).map;
+      for (const v of vs) {
+        let i = map.get(v);
+        if (i === undefined) { i = g.pos.length / 3; map.set(v, i); g.pos.push(b.positions[v * 3], b.positions[v * 3 + 1], b.positions[v * 3 + 2]); g.nor.push(b.normals[v * 3], b.normals[v * 3 + 1], b.normals[v * 3 + 2]); g.uv.push(0, 0); }
+        g.idx.push(i);
+      }
+    }
+  }
   const label = new Map(kit.pieces.map((p) => [p.id, p]));
+  label.set('tabi', { id: 'tabi', label: 'Tabi: split-toe socks', era: 'Sengoku–early Edo (c. 1570–1620)', refs: [] });
+  const painted = new Map<string, Buffer>();
   const write = (id: string, part: Part, kind: KitAsset['kind'], attach: string, meta = label.get(id)) => {
     // the asset's frame: the bottom of its middle
     let mn: Vec3 = [Infinity, Infinity, Infinity], mx: Vec3 = [-Infinity, -Infinity, -Infinity];
@@ -96,8 +119,15 @@ export function exportKit(opts: {
       let i = matUsed.get(src);
       if (i === undefined) {
         const m: GMaterial = { ...opts.materials[src] };
+        if (kind === 'garment') m.doubleSided = true; // cloth has two sides
+        const pic = painted.get(id);
+        if (pic) {
+          // painted from the flat-lay on the atlas: the picture is the colour (and its weave), not a tiling detail map
+          images.push({ bytes: new Uint8Array(pic), mime: 'image/jpeg' });
+          m.baseColorTexture = images.length - 1; m.color = [1, 1, 1, m.color[3] ?? 1]; m.normalTexture = undefined; m.uvScale = undefined;
+        }
         for (const k of ['baseColorTexture', 'normalTexture', 'ormTexture'] as const) {
-          const t = m[k]; if (t === undefined) continue;
+          const t = m[k]; if (t === undefined || (k === 'baseColorTexture' && pic)) continue;
           let j = imgUsed.get(t); if (j === undefined) { j = images.length; images.push(opts.images[t]); imgUsed.set(t, j); }
           m[k] = j;
         }
@@ -127,16 +157,26 @@ export function exportKit(opts: {
       size: [mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]].map((v) => +v.toFixed(3)) as [number, number, number], tris, nodes: [...part.keys()],
     });
   };
-  for (const [id, part] of byPiece) write(id, part, GARMENTS.has(id) ? 'garment' : 'armour', ATTACH[id] ?? 'Hips');
+  const todo: [string, Part, KitAsset['kind'], string, ReturnType<typeof label.get>?][] = [];
+  for (const [id, part] of byPiece) todo.push([id, part, GARMENTS.has(id) ? 'garment' : 'armour', ATTACH[id] ?? 'Hips']);
 
   // ---- weapons: built on their own, in their own frame (blade along +y from the hilt's end) ------------------------
   const asPart = (meshes: Map<string, MeshBuilder>, fam: string): Part => new Map([[fam, new Map([...meshes].map(([mat, mb]) => [mat, { pos: [...mb.pos], nor: [...mb.nor], uv: [...mb.uv], idx: [...mb.idx] }]))]]);
   const katana = nihonto({ nagasa: 0.7, tsuka: 0.25, sori: 0.016, width: 0.032, bone: '' });
   const weaponMeta = (id: string, text: string) => ({ id, label: text, era: 'Sengoku–early Edo (c. 1570–1620)', refs: ['Momoyama uchigatana koshirae, the Met'] });
-  write('katana', asPart(katana.meshes, 'katana'), 'weapon', 'RightHand', weaponMeta('katana', 'Katana: 70 cm blade, ray-skin and silk tsuka, iron tsuba'));
+  todo.push(['katana', asPart(katana.meshes, 'katana'), 'weapon', 'RightHand', weaponMeta('katana', 'Katana: 70 cm blade, ray-skin and silk tsuka, iron tsuba')]);
   // the scabbard as the art draws it worn: with the sheathed sword's hilt standing out of it
-  write('katana_saya', asPart(saya({ length: 0.76, sori: 0.016, bone: '', hilt: 0.25 }), 'saya'), 'weapon', 'Hips', weaponMeta('katana_saya', 'Katana in its saya: black lacquer, navy sageo, the hilt out of the mouth'));
-  write('wakizashi', asPart(saya({ length: 0.54, sori: 0.012, bone: '', hilt: 0.17 }), 'wakizashi'), 'weapon', 'Hips', weaponMeta('wakizashi', 'Wakizashi in its saya'));
+  todo.push(['katana_saya', asPart(saya({ length: 0.76, sori: 0.016, bone: '', hilt: 0.25 }), 'saya'), 'weapon', 'Hips', weaponMeta('katana_saya', 'Katana in its saya: black lacquer, navy sageo, the hilt out of the mouth')]);
+  todo.push(['wakizashi', asPart(saya({ length: 0.54, sori: 0.012, bone: '', hilt: 0.17 }), 'wakizashi'), 'weapon', 'Hips', weaponMeta('wakizashi', 'Wakizashi in its saya')]);
+
+  // ---- painted from the flat-lay, then written ------------------------------------------------------------------
+  if (opts.flatLay && fs.existsSync(opts.flatLay.dir)) {
+    const srgb = (v: number) => 255 * (v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055);
+    const base = (mat: string) => (opts.materials[opts.materialIndex[mat] ?? 0]?.color ?? [0.5, 0.5, 0.5]).slice(0, 3).map((v) => srgb(v ?? 0.5));
+    const pics = await paintKit(todo.map(([id, part]) => ({ id, part, spec: opts.flatLay!.specs[id], base })), opts.flatLay.dir, opts.work ?? path.join(outDir, '.paint'));
+    for (const [id, b] of pics) painted.set(id, b);
+  }
+  for (const [id, part, kind, attach, meta] of todo) write(id, part, kind, attach, meta);
 
   fs.writeFileSync(path.join(outDir, 'kit.json'), JSON.stringify({ character: opts.character, assets }, null, 2));
   return assets;

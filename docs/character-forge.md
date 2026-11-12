@@ -138,7 +138,17 @@ Each piece is its own mesh with its own material, made from parametric period pa
   - Each GLB is in its own frame (origin at the bottom of its middle) and split into nodes by what moves on its own: each tasset, each sode, left and right. The dō's instanced lacing becomes real cords on it.
   - `kit.json` lists for each piece: label, era and evidence, size, triangle count, the bone it hangs from, and where it sits as worn.
   - `games/era-clash-3d/kit.html` lays the kit out like a flat-lay.
-  - First pass: these are the worn shells, single-sided, in flat colours. The kote is only its splints (its sleeve is cut from the body).
+  - **Rebuilt from the flat-lay** (2026-11-12, `forgeKitPaint.ts`).
+    - Each asset is painted from its own flat-lay picture on one xatlas atlas:
+      - dō, kusazuri and sode together from the assembled armour, the dō's back from its back plate;
+      - hakama and kosode as worn;
+      - obi and hachimaki unrolled round the body;
+      - kote, suneate, tabi and waraji per side along their length;
+      - swords along the blade.
+    - New pieces: hachimaki (knotted, two tails) and waraji (straw soles, navy cords). The kote takes its cloth sleeve, the suneate its kyahan, and the tabi are an asset of their own (all cut from the body).
+    - Six kusazuri (`ArmourFit.kusaCount`), as the flat-lay shows. Garments are double-sided.
+    - Sizes: 16 assets, 20 MB (dō 5.6 MB; the armour atlases are 2048).
+    - Open: the kabuto has no picture (the art shows none), the tabi's white cut-out is still patchy, and the shells are not yet solid.
 - **The flat-lay** (`D:\Plajah Runtimeorge\haru-ref\outfit-props.png`, Muse) shows every piece clean and unoccluded.
   - `engines/tela-3d/cut_pieces.py` (SAM, box prompts per item, pairs halved) cuts its 15 items into `haru-ref/pieces/`, with size, aspect and k-means colours. The boxes are in `scripts/eraclash3d/data/haru_outfit_pieces.json`.
   - The white tabi on the pale ground still cuts patchily.

@@ -26,6 +26,7 @@ import { forgeToGlb, type ForgeCharacter, type ForgeRigid, type ForgeSocket } fr
 import type { GPrim } from '../../services/argilla/creature/gltfWriter';
 import { haruMaterials, MATERIAL_INDEX, paintHaru, rgbaPng, paintFace, paintFaceFromArt, type ArtLandmarks } from './forgeLook';
 import { exportKit } from './forgeKit';
+import { HARU_FLATLAY } from './forgeKitPaint';
 import { fitFaceToArt, paintHeadFromSheet, HARU_SHEET, loadHeadWarp, headWarpMap, warpField, HEAD_WARP_FILE } from './forgeFaceFit';
 import { CANONICAL_INDICES } from '../../services/vtuber/rigBuilder/canonicalFace';
 import { fitScalp, ponytail, strandAtlas, hairlineAt } from '../../services/argilla/creature/hairSystem';
@@ -334,7 +335,11 @@ async function main() {
   character.materials[MATERIAL_INDEX.hairCards] = { ...hc, color: [0.016, 0.013, 0.012, 1], baseColorTexture: atlas, roughness: 0.55, specular: { factor: 0.2 }, anisotropy: undefined };
   // every armour, garment and weapon piece also as its own asset (forgeKit.ts)
   if (process.env.FORGE_KIT !== '0' && !NAKED) {
-    const assets = exportKit({ kit, materials: character.materials, images: character.images, materialIndex: MATERIAL_INDEX, outDir: 'public/games/era-clash/3d/assets/props/haru', character: 'Haru' });
+    const bodyCut = ([['kote', 'koteCloth'], ['suneate', 'kyahan'], ['tabi', 'tabi'], ['kosode', 'kosode']] as const).map(([piece, mat]) => ({ piece, mat, ...offsetPieces[mat].mesh }));
+    const assets = await exportKit({
+      kit, materials: character.materials, images: character.images, materialIndex: MATERIAL_INDEX, outDir: 'public/games/era-clash/3d/assets/props/haru', character: 'Haru',
+      bodyCut, flatLay: { dir: process.env.FORGE_FLATLAY ?? 'D:/Plajah Runtime/forge/haru-ref/pieces', specs: HARU_FLATLAY }, work: path.join(WORK, 'kit_paint'),
+    });
     log(`kit: ${assets.length} assets -> public/games/era-clash/3d/assets/props/haru (${assets.map((a) => a.id).join(', ')})`);
   }
   const glb = forgeToGlb(character);

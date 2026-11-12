@@ -10,7 +10,7 @@ import type { GMaterial } from '../../services/argilla/creature/gltfWriter';
 import type { ForgeCharacter } from '../../services/argilla/creature/exportCreature';
 
 export const ART = 'public/games/era-clash/assets/sprite-samurai.png';
-const NAMES = ['skin', 'lacquer', 'lacquerBlack', 'gold', 'iron', 'leather', 'silk', 'silkRed', 'hakama', 'kosode', 'koteCloth', 'kyahan', 'obi', 'tabi', 'hair', 'katana_steel', 'hairCards'] as const;
+const NAMES = ['skin', 'lacquer', 'lacquerBlack', 'gold', 'iron', 'leather', 'silk', 'silkRed', 'hakama', 'kosode', 'koteCloth', 'kyahan', 'obi', 'tabi', 'hair', 'katana_steel', 'hairCards', 'straw'] as const;
 export const MATERIAL_INDEX = Object.fromEntries(NAMES.map((n, i) => [n, i])) as Record<string, number>;
 
 type RGB = [number, number, number];
@@ -78,6 +78,7 @@ export function haruMaterials(): GMaterial[] {
     kyahan: { name: 'kyahan', color: c(p.hakama, 0.8), metallic: 0, roughness: 0.9, sheen: { color: [0.3, 0.3, 0.45], roughness: 0.7 } },
     obi: { name: 'obi', color: c(p.obi), metallic: 0, roughness: 0.7, sheen: { color: [0.45, 0.55, 0.9], roughness: 0.4 } },
     tabi: { name: 'tabi', color: [0.05, 0.05, 0.08, 1], metallic: 0, roughness: 0.85, sheen: { color: [0.2, 0.2, 0.3], roughness: 0.6 } },
+    straw: { name: 'straw', color: [0.5, 0.36, 0.16, 1], metallic: 0, roughness: 0.92, sheen: { color: [0.6, 0.5, 0.3], roughness: 0.7 } },
     hair: { name: 'hair', color: [0.012, 0.01, 0.01, 1], metallic: 0, roughness: 0.45, sheen: { color: [0.25, 0.22, 0.2], roughness: 0.25 } },
     katana_steel: { name: 'katana_steel', color: [0.78, 0.8, 0.84, 1], metallic: 1, roughness: 0.14 },
     // strand cards: alpha-tested, both sides, the highlight stretched across the strands

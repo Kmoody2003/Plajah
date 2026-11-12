@@ -46,19 +46,18 @@
         0.009
       ],
       "size": [
-        0.539,
+        0.541,
         0.36,
         0.445
       ],
-      "tris": 16240,
+      "tris": 13920,
       "nodes": [
         "Kusazuri0",
         "Kusazuri1",
         "Kusazuri2",
         "Kusazuri3",
         "Kusazuri4",
-        "Kusazuri5",
-        "Kusazuri6"
+        "Kusazuri5"
       ]
     },
     {
@@ -100,21 +99,23 @@
       "kind": "armour",
       "attach": "Spine2",
       "restOrigin": [
-        0,
-        0.9288,
-        0.0788
+        -0.0005,
+        0.9069,
+        0.013
       ],
       "size": [
-        1.161,
-        0.267,
-        0.087
+        1.242,
+        0.532,
+        0.233
       ],
-      "tris": 1688,
+      "tris": 19360,
       "nodes": [
         "LeftForeArm",
         "RightForeArm",
         "LeftHand",
-        "RightHand"
+        "RightHand",
+        "koteCloth_Right",
+        "koteCloth_Left"
       ]
     },
     {
@@ -130,18 +131,75 @@
       "attach": "Hips",
       "restOrigin": [
         0,
-        0.1497,
-        0.0032
+        -0.037,
+        -0.0023
       ],
       "size": [
         0.38,
-        0.386,
-        0.256
+        0.573,
+        0.267
       ],
-      "tris": 2992,
+      "tris": 7890,
       "nodes": [
         "LeftLeg",
-        "RightLeg"
+        "RightLeg",
+        "kyahan_Right",
+        "kyahan_Left"
+      ]
+    },
+    {
+      "id": "waraji",
+      "label": "Waraji: woven straw sandals, tied with navy cord",
+      "era": "Momoyama (late 16th c.)",
+      "refs": [
+        "紺糸威南蛮胴具足, Azuchi-Momoyama, Japan Search",
+        "Tachidō tosei-gusoku, Momoyama–Edo, Wikimedia Commons"
+      ],
+      "file": "waraji.glb",
+      "kind": "garment",
+      "attach": "Hips",
+      "restOrigin": [
+        0.0004,
+        0.012,
+        0.0565
+      ],
+      "size": [
+        0.314,
+        0.079,
+        0.307
+      ],
+      "tris": 1392,
+      "nodes": [
+        "LeftFoot",
+        "RightFoot",
+        "LeftToeBase",
+        "RightToeBase"
+      ]
+    },
+    {
+      "id": "hachimaki",
+      "label": "Hachimaki: navy cotton headband, knotted at the back, two short tails",
+      "era": "Momoyama (late 16th c.)",
+      "refs": [
+        "紺糸威南蛮胴具足, Azuchi-Momoyama, Japan Search",
+        "Tachidō tosei-gusoku, Momoyama–Edo, Wikimedia Commons"
+      ],
+      "file": "hachimaki.glb",
+      "kind": "garment",
+      "attach": "Head",
+      "restOrigin": [
+        0,
+        1.6558,
+        0.0125
+      ],
+      "size": [
+        0.212,
+        0.103,
+        0.277
+      ],
+      "tris": 392,
+      "nodes": [
+        "Head"
       ]
     },
     {
@@ -208,18 +266,20 @@
       "attach": "Spine1",
       "restOrigin": [
         0,
-        1.1965,
-        -0.0021
+        0.9298,
+        0.0028
       ],
       "size": [
         0.746,
-        0.27,
-        0.205
+        0.547,
+        0.313
       ],
-      "tris": 2880,
+      "tris": 11037,
       "nodes": [
         "LeftArm",
-        "RightArm"
+        "RightArm",
+        "kosode_Right",
+        "kosode_Left"
       ]
     },
     {
@@ -273,6 +333,30 @@
       "tris": 9600,
       "nodes": [
         "Head"
+      ]
+    },
+    {
+      "id": "tabi",
+      "label": "Tabi: split-toe socks",
+      "era": "Sengoku–early Edo (c. 1570–1620)",
+      "refs": [],
+      "file": "tabi.glb",
+      "kind": "garment",
+      "attach": "Hips",
+      "restOrigin": [
+        0,
+        -0.0063,
+        0.0823
+      ],
+      "size": [
+        0.371,
+        0.108,
+        0.239
+      ],
+      "tris": 3709,
+      "nodes": [
+        "tabi_Right",
+        "tabi_Left"
       ]
     },
     {
