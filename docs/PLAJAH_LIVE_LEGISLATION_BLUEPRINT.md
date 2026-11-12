@@ -566,6 +566,53 @@ legislation), and **universities** (civics curriculum on Academia, with mock leg
 engine). Candidates can use it during campaigns to co-write platform planks, which is a natural
 on-ramp through Elevate Mobilize.
 
+### 13.1 Community revenue share (proposal and legal review)
+
+**The idea:** government revenue from Forum shouldn't just go to Plajah. A share should flow to
+the platform's creators and small businesses as ongoing income.
+
+**Recommended structure (the legal one):**
+
+```
+Government ──(normal SaaS contract, invoice, line-item price)──► Plajah
+                                                                  │
+                         Plajah's own policy, set in its terms ───┤
+                                                                  ▼
+                                   Community Revenue Pool (X% of civic revenue)
+                                                                  │
+                                 platform-wide formula, Stripe Connect payouts
+                                                                  ▼
+                                       creators + small businesses (1099 income)
+```
+
+The government buys a service at a stated price, as it would from any vendor. After that, the
+money is Plajah's revenue, and sharing it is Plajah's business decision, published in its terms
+like the existing 90/10 creator split. The government never pays a fund and never directs who gets
+paid.
+
+**Why not have the government pay the fund directly.** These are issues to take to a
+government-contracts lawyer, not legal conclusions:
+
+| Issue | What it is | Risk if the government pays the fund directly |
+|---|---|---|
+| **Gift of public funds** | Most state constitutions bar giving public money to private people without a public purpose and fair value in return (for example California Const. art. XVI §6) | High. Payments to creators who provided the government nothing look like a gift |
+| **Appropriations and purpose** | Public money can only be spent on what it was appropriated for (the federal Purpose Statute, 31 USC 1301(a), and state equivalents) | High. A software budget line can't fund private payouts |
+| **Procurement** | Contracts must go through bidding or cooperative-purchasing rules with a clear price for clear deliverables | Medium. Unusual payment structures fail procurement review and slow sales |
+| **Officials' conflicts of interest** | Officials can't have a financial interest in contracts they approve (for example California Gov. Code §1090, which can void the contract and is a crime) | High **even under the recommended structure** if an official, staffer or their family is a paid creator. They must be excluded from the civic share, or at least from shares tied to their own body's contract |
+| **Civic integrity** | If participants are paid from the contract of the government whose bills they're commenting on, their input is tainted, and opponents will say so | High. The pool must be platform-wide, never tied to a jurisdiction's participants, and never tied to participation |
+| **Legislative office budgets** | Office allowances generally can't benefit constituents personally (the US House Members' Representational Allowance rules and many state equivalents) | High if a legislator's office budget pays into anything that reaches constituents |
+| **Religion clauses** | Elevate puts churches and ministries on the platform. Neutral, generally available programs can include religious recipients (*Carson v. Makin*, 2022), but direct government money to churches still raises federal questions and state "no-aid" (Blaine) provisions | Medium. This mostly disappears when the money is Plajah's revenue, not the government's |
+| **Securities** | Calling payouts "dividends" or tying them to platform profits, especially through `PLAJToken.sol` or anything purchasable, can make them an investment contract under the *Howey* test | Medium. Call it a **revenue share** or **community pool**, base it on activity, not ownership, and keep it away from tokens |
+| **Tax and payments** | Payouts are taxable income to recipients and need W-9/W-8 collection and 1099 reporting. Holding and passing on money for others can require money-transmitter licenses | Low if it runs through Stripe Connect as payouts do today |
+| **Optics** | "City pays influencers through software contract" | High. Pick a clean structure and publish the formula |
+
+**Optional second track, government-run grants.** Some cities and states already fund local
+artists and small businesses directly through programs that have their own legal authority,
+eligibility rules and budgets. Examples include guaranteed income for artists and small-business
+recovery grants. Plajah could offer to *administer* such a program on the platform for a fee.
+That's a separate contract, and the government sets the rules. It shouldn't be bundled with the
+Forum subscription.
+
 ---
 
 ## 14. Open questions for product
@@ -579,3 +626,6 @@ on-ramp through Elevate Mobilize.
 6. Which state and city should seed the Law Library first? It should match the pilot jurisdiction.
 7. Could meetings (§9) be the wedge product? Cities already buy meeting software (agenda,
    streaming, minutes), so it may be an easier first sale than drafting.
+8. What percentage of civic revenue goes to the Community Revenue Pool (§13.1), and what formula
+   splits it (activity, earnings, equal shares)? Get legal sign-off on the exclusion rules before
+   promising it to anyone.
