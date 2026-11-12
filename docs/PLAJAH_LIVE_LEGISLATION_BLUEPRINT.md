@@ -611,7 +611,36 @@ artists and small businesses directly through programs that have their own legal
 eligibility rules and budgets. Examples include guaranteed income for artists and small-business
 recovery grants. Plajah could offer to *administer* such a program on the platform for a fee.
 That's a separate contract, and the government sets the rules. It shouldn't be bundled with the
-Forum subscription.
+Forum subscription. **Designed in `docs/PLAJAH_PUBLIC_PROGRAMS_BLUEPRINT.md`.**
+
+### 13.2 Pool design (decided direction, 12 Nov 2026)
+
+Government subscription revenue from Forum and Programs Desk goes into the **Community Revenue
+Pool**. The pool is split by category, with charities and creators weighted more heavily and small
+businesses second:
+
+| Category | Starting weight (to be tuned) | Eligibility | Split inside the category |
+|---|---|---|---|
+| **Charities** | 40% | Verified 501(c)(3), checked against IRS exempt-organization data (Pub 78 / Business Master File). Churches are tax-exempt without applying to the IRS, so they need a separate verification path, such as an IRS letter or denominational group ruling, or an attestation plus an org-verification review | Formula to be decided: equal base share plus activity on the platform |
+| **Creators** | 40% | Stripe Connect–verified creators in good standing above a minimum activity floor | Formula to be decided, for example proportional to engagement or earnings with a per-creator cap so the pool doesn't concentrate at the top |
+| **Small businesses** | 20% | Verified Plajah Business accounts under a size threshold | Formula to be decided |
+
+Rules:
+
+- **Name it a "community revenue share"**, not profit sharing (a term of art for employee
+  retirement plans) and not dividends (securities). Payouts are discretionary, at Plajah's sole
+  discretion under published terms, not an entitlement or an investment return.
+- **Pool-wide formula only.** Never tied to a specific government's contract, to that jurisdiction's
+  participants, or to participation in Forum or any Programs Desk outcome.
+- **Exclusions:** officials, staff and immediate family of any paying government body, and
+  organizations they control, are excluded from the share funded by civic revenue. An alternative
+  is a strict disclosure-and-recusal regime, but only with counsel's approval.
+- **Gaming defense:** pool payouts are a target for fake accounts. Use Stripe Connect identity
+  verification, minimum account age and activity thresholds, and the anti-bot playbook.
+- **Charity gifts are corporate donations.** Plajah's deduction for them has limits (for a C
+  corporation, generally 10% of taxable income per year, with a carryforward). Check with an
+  accountant.
+- **Publish the formula and the yearly totals.** It's the best answer to the optics risk in §13.1.
 
 ---
 
@@ -626,6 +655,6 @@ Forum subscription.
 6. Which state and city should seed the Law Library first? It should match the pilot jurisdiction.
 7. Could meetings (§9) be the wedge product? Cities already buy meeting software (agenda,
    streaming, minutes), so it may be an easier first sale than drafting.
-8. What percentage of civic revenue goes to the Community Revenue Pool (§13.1), and what formula
-   splits it (activity, earnings, equal shares)? Get legal sign-off on the exclusion rules before
+8. What percentage of civic revenue goes to the Community Revenue Pool, and what formula splits
+   it inside each category (§13.2)? Get legal sign-off on the exclusion rules before
    promising it to anyone.
