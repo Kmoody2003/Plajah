@@ -130,6 +130,20 @@ Each piece is its own mesh with its own material, made from parametric period pa
     - Honest part IoU now: head 77, dō 67, kusazuri 70, sode 65, arms 54, obi 45, hakama 51, shins 69, feet 62, sword 31. The art's sword still includes the sheathed hilt the model's scabbard lacks.
   - What's left: shape (72–75%): the shoulder guards stand out like wings and the dō's top is off by 2–3 cm. The head is 78–81% IoU. The GLB is now about 25 MB with the paintings.
 
+- **Every piece its own asset** (Kenne, 2026-11-12: weapons, armour and hardware modelled separately as real 3D assets for the game and anything else).
+  - The wardrobe tags each vertex with its piece. `forgeKit.ts` (run by the build) writes each piece as its own GLB to `public/games/era-clash/3d/assets/props/haru/`:
+    - **Armour:** dō, kusazuri, sode, kote, suneate, kabuto.
+    - **Garments:** hakama, eri, kosode, obi.
+    - **Weapons:** katana, the katana in its saya with the hilt out, wakizashi.
+  - Each GLB is in its own frame (origin at the bottom of its middle) and split into nodes by what moves on its own: each tasset, each sode, left and right. The dō's instanced lacing becomes real cords on it.
+  - `kit.json` lists for each piece: label, era and evidence, size, triangle count, the bone it hangs from, and where it sits as worn.
+  - `games/era-clash-3d/kit.html` lays the kit out like a flat-lay.
+  - First pass: these are the worn shells, single-sided, in flat colours. The kote is only its splints (its sleeve is cut from the body).
+- **The flat-lay** (`D:\Plajah Runtimeorge\haru-ref\outfit-props.png`, Muse) shows every piece clean and unoccluded.
+  - `engines/tela-3d/cut_pieces.py` (SAM, box prompts per item, pairs halved) cuts its 15 items into `haru-ref/pieces/`, with size, aspect and k-means colours. The boxes are in `scripts/eraclash3d/data/haru_outfit_pieces.json`.
+  - The white tabi on the pale ground still cuts patchily.
+  - It differs from the turnaround: it adds a wakizashi, white tabi and a hachimaki, and shows 6 tassets where the model has 7.
+
 ### 5. Rig and export
 
 - **The GLB contains:**

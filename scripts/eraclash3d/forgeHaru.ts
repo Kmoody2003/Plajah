@@ -25,6 +25,7 @@ import { nihonto, saya } from '../../services/argilla/creature/weapons';
 import { forgeToGlb, type ForgeCharacter, type ForgeRigid, type ForgeSocket } from '../../services/argilla/creature/exportCreature';
 import type { GPrim } from '../../services/argilla/creature/gltfWriter';
 import { haruMaterials, MATERIAL_INDEX, paintHaru, rgbaPng, paintFace, paintFaceFromArt, type ArtLandmarks } from './forgeLook';
+import { exportKit } from './forgeKit';
 import { fitFaceToArt, paintHeadFromSheet, HARU_SHEET, loadHeadWarp, headWarpMap, warpField, HEAD_WARP_FILE } from './forgeFaceFit';
 import { CANONICAL_INDICES } from '../../services/vtuber/rigBuilder/canonicalFace';
 import { fitScalp, ponytail, strandAtlas, hairlineAt } from '../../services/argilla/creature/hairSystem';
@@ -331,6 +332,11 @@ async function main() {
   character.images.push(rgbaPng(strandAtlas(512, 4), 512));
   const hc = character.materials[MATERIAL_INDEX.hairCards];
   character.materials[MATERIAL_INDEX.hairCards] = { ...hc, color: [0.016, 0.013, 0.012, 1], baseColorTexture: atlas, roughness: 0.55, specular: { factor: 0.2 }, anisotropy: undefined };
+  // every armour, garment and weapon piece also as its own asset (forgeKit.ts)
+  if (process.env.FORGE_KIT !== '0' && !NAKED) {
+    const assets = exportKit({ kit, materials: character.materials, images: character.images, materialIndex: MATERIAL_INDEX, outDir: 'public/games/era-clash/3d/assets/props/haru', character: 'Haru' });
+    log(`kit: ${assets.length} assets -> public/games/era-clash/3d/assets/props/haru (${assets.map((a) => a.id).join(', ')})`);
+  }
   const glb = forgeToGlb(character);
   const out = process.env.FORGE_OUT ?? `public/games/era-clash/3d/assets/characters/${NAKED ? 'samurai_v3_body' : 'samurai_v3'}.glb`;
   fs.writeFileSync(out, glb);

@@ -1,0 +1,21 @@
+{
+  "image": "D:/Plajah Runtime/forge/haru-ref/outfit-props.png",
+  "note": "Muse flat-lay of Haru's outfit and props (2026-11-12). Boxes in the 2048x1365 image; 'pair' pieces hold two.",
+  "pieces": [
+    { "id": "katana", "box": [36, 123, 998, 210], "part": "sword" },
+    { "id": "katana_saya", "box": [66, 240, 691, 317], "part": "sword" },
+    { "id": "wakizashi", "box": [527, 327, 1009, 394], "part": "sword" },
+    { "id": "do_assembled", "box": [1064, 41, 1454, 512], "part": "do", "note": "dō with sode and kusazuri as worn" },
+    { "id": "do_front", "box": [1495, 118, 1741, 430], "part": "do" },
+    { "id": "do_back", "box": [1751, 118, 2007, 430], "part": "do" },
+    { "id": "kusazuri_set", "box": [20, 481, 604, 788], "part": "kusazuri", "count": 6 },
+    { "id": "kote_pair", "box": [645, 496, 968, 968], "part": "arms", "pair": true },
+    { "id": "suneate_pair", "box": [1080, 578, 1439, 942], "part": "shins", "pair": true },
+    { "id": "kosode", "box": [1464, 491, 2033, 963], "part": "arms" },
+    { "id": "hakama", "box": [61, 845, 532, 1321], "part": "hakama" },
+    { "id": "obi", "box": [568, 1095, 1040, 1183], "part": "obi" },
+    { "id": "hachimaki", "box": [1070, 1085, 1475, 1224], "part": "head" },
+    { "id": "tabi", "box": [1515, 1024, 1747, 1280], "part": "feet", "pair": true },
+    { "id": "waraji", "box": [1756, 1029, 2002, 1280], "part": "feet", "pair": true }
+  ]
+}

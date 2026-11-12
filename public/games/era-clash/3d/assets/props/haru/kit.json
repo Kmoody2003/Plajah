@@ -1,0 +1,354 @@
+{
+  "character": "Haru",
+  "assets": [
+    {
+      "id": "do",
+      "label": "Dō (cuirass): seven rows of lacquered kozane, kon-ito kebiki odoshi",
+      "era": "Momoyama (late 16th c.)",
+      "refs": [
+        "紺糸威南蛮胴具足, Azuchi-Momoyama, Japan Search",
+        "Tachidō tosei-gusoku, Momoyama–Edo, Wikimedia Commons"
+      ],
+      "file": "do.glb",
+      "kind": "armour",
+      "attach": "Spine1",
+      "restOrigin": [
+        0,
+        0.9835,
+        0.0098
+      ],
+      "size": [
+        0.556,
+        0.491,
+        0.363
+      ],
+      "tris": 19560,
+      "nodes": [
+        "Spine",
+        "Spine1",
+        "Spine2"
+      ]
+    },
+    {
+      "id": "kusazuri",
+      "label": "Kusazuri (tassets): seven columns of five lames, laced, on spring chains",
+      "era": "Momoyama (late 16th c.)",
+      "refs": [
+        "紺糸威南蛮胴具足, Azuchi-Momoyama, Japan Search",
+        "Tachidō tosei-gusoku, Momoyama–Edo, Wikimedia Commons"
+      ],
+      "file": "kusazuri.glb",
+      "kind": "armour",
+      "attach": "Hips",
+      "restOrigin": [
+        0,
+        0.6425,
+        0.009
+      ],
+      "size": [
+        0.539,
+        0.36,
+        0.445
+      ],
+      "tris": 16240,
+      "nodes": [
+        "Kusazuri0",
+        "Kusazuri1",
+        "Kusazuri2",
+        "Kusazuri3",
+        "Kusazuri4",
+        "Kusazuri5",
+        "Kusazuri6"
+      ]
+    },
+    {
+      "id": "sode",
+      "label": "Sode (shoulder guards): seven lames, laced, hung from the watagami on spring chains",
+      "era": "Momoyama (late 16th c.)",
+      "refs": [
+        "紺糸威南蛮胴具足, Azuchi-Momoyama, Japan Search",
+        "Tachidō tosei-gusoku, Momoyama–Edo, Wikimedia Commons"
+      ],
+      "file": "sode.glb",
+      "kind": "armour",
+      "attach": "Spine2",
+      "restOrigin": [
+        0,
+        1.2277,
+        -0.025
+      ],
+      "size": [
+        0.728,
+        0.276,
+        0.304
+      ],
+      "tris": 6256,
+      "nodes": [
+        "SodeL",
+        "SodeR"
+      ]
+    },
+    {
+      "id": "kote",
+      "label": "Kote (armoured sleeves): navy cloth over mail, iron splints on the forearm, tekko hand plate",
+      "era": "Momoyama (late 16th c.)",
+      "refs": [
+        "紺糸威南蛮胴具足, Azuchi-Momoyama, Japan Search",
+        "Tachidō tosei-gusoku, Momoyama–Edo, Wikimedia Commons"
+      ],
+      "file": "kote.glb",
+      "kind": "armour",
+      "attach": "Spine2",
+      "restOrigin": [
+        0,
+        0.9288,
+        0.0788
+      ],
+      "size": [
+        1.161,
+        0.267,
+        0.087
+      ],
+      "tris": 1688,
+      "nodes": [
+        "LeftForeArm",
+        "RightForeArm",
+        "LeftHand",
+        "RightHand"
+      ]
+    },
+    {
+      "id": "suneate",
+      "label": "Suneate (greaves): iron splints joined over mail, with a tateage knee guard",
+      "era": "Momoyama (late 16th c.)",
+      "refs": [
+        "紺糸威南蛮胴具足, Azuchi-Momoyama, Japan Search",
+        "Tachidō tosei-gusoku, Momoyama–Edo, Wikimedia Commons"
+      ],
+      "file": "suneate.glb",
+      "kind": "armour",
+      "attach": "Hips",
+      "restOrigin": [
+        0,
+        0.1497,
+        0.0032
+      ],
+      "size": [
+        0.38,
+        0.386,
+        0.256
+      ],
+      "tris": 2992,
+      "nodes": [
+        "LeftLeg",
+        "RightLeg"
+      ]
+    },
+    {
+      "id": "hakama",
+      "label": "Hakama: pleated trousers, ballooning to the knee and gathered into the greaves",
+      "era": "Momoyama (late 16th c.)",
+      "refs": [
+        "Tachidō tosei-gusoku, Momoyama–Edo, Wikimedia Commons"
+      ],
+      "file": "hakama.glb",
+      "kind": "garment",
+      "attach": "Hips",
+      "restOrigin": [
+        0,
+        0.47,
+        0.0183
+      ],
+      "size": [
+        0.598,
+        0.53,
+        0.351
+      ],
+      "tris": 4480,
+      "nodes": [
+        "LeftUpLeg",
+        "RightUpLeg"
+      ]
+    },
+    {
+      "id": "eri",
+      "label": "Eri: the kosode collar, standing round the back of the neck and crossing left over right at the chest",
+      "era": "Momoyama (late 16th c.)",
+      "refs": [
+        "紺糸威南蛮胴具足, Azuchi-Momoyama, Japan Search",
+        "Tachidō tosei-gusoku, Momoyama–Edo, Wikimedia Commons"
+      ],
+      "file": "eri.glb",
+      "kind": "garment",
+      "attach": "Spine2",
+      "restOrigin": [
+        0.002,
+        1.3547,
+        0.013
+      ],
+      "size": [
+        0.407,
+        0.168,
+        0.242
+      ],
+      "tris": 640,
+      "nodes": [
+        "Spine2"
+      ]
+    },
+    {
+      "id": "kosode",
+      "label": "Kosode: the inner robe, its sleeves tied short over the kote, sleeve hems on spring chains",
+      "era": "Momoyama (late 16th c.)",
+      "refs": [
+        "Kosode, Momoyama period, the Met"
+      ],
+      "file": "kosode.glb",
+      "kind": "garment",
+      "attach": "Spine1",
+      "restOrigin": [
+        0,
+        1.1965,
+        -0.0021
+      ],
+      "size": [
+        0.746,
+        0.27,
+        0.205
+      ],
+      "tris": 2880,
+      "nodes": [
+        "LeftArm",
+        "RightArm"
+      ]
+    },
+    {
+      "id": "obi",
+      "label": "Uwa-obi: the outer sash over the dō, holding the swords",
+      "era": "Momoyama (late 16th c.)",
+      "refs": [
+        "紺糸威南蛮胴具足, Azuchi-Momoyama, Japan Search",
+        "Tachidō tosei-gusoku, Momoyama–Edo, Wikimedia Commons"
+      ],
+      "file": "obi.glb",
+      "kind": "garment",
+      "attach": "Hips",
+      "restOrigin": [
+        0,
+        0.8592,
+        0.0266
+      ],
+      "size": [
+        0.431,
+        0.191,
+        0.389
+      ],
+      "tris": 644,
+      "nodes": [
+        "Spine",
+        "Hips"
+      ]
+    },
+    {
+      "id": "kabuto",
+      "label": "Kabuto: 62-plate suji-bachi bowl, mabizashi visor, fukigaeshi turnbacks, five-lame shikoro",
+      "era": "Momoyama (late 16th c.)",
+      "refs": [
+        "紺糸威南蛮胴具足, Azuchi-Momoyama, Japan Search",
+        "Tachidō tosei-gusoku, Momoyama–Edo, Wikimedia Commons"
+      ],
+      "file": "kabuto.glb",
+      "kind": "armour",
+      "attach": "Head",
+      "restOrigin": [
+        0,
+        1.4933,
+        -0.0426
+      ],
+      "size": [
+        0.404,
+        0.292,
+        0.379
+      ],
+      "tris": 9600,
+      "nodes": [
+        "Head"
+      ]
+    },
+    {
+      "id": "katana",
+      "label": "Katana: 70 cm blade, ray-skin and silk tsuka, iron tsuba",
+      "era": "Sengoku–early Edo (c. 1570–1620)",
+      "refs": [
+        "Momoyama uchigatana koshirae, the Met"
+      ],
+      "file": "katana.glb",
+      "kind": "weapon",
+      "attach": "RightHand",
+      "restOrigin": [
+        0,
+        -0.25,
+        0
+      ],
+      "size": [
+        0.076,
+        0.98,
+        0.076
+      ],
+      "tris": 748,
+      "nodes": [
+        "katana"
+      ]
+    },
+    {
+      "id": "katana_saya",
+      "label": "Katana in its saya: black lacquer, navy sageo, the hilt out of the mouth",
+      "era": "Sengoku–early Edo (c. 1570–1620)",
+      "refs": [
+        "Momoyama uchigatana koshirae, the Met"
+      ],
+      "file": "katana_saya.glb",
+      "kind": "weapon",
+      "attach": "Hips",
+      "restOrigin": [
+        0.0142,
+        -0.772,
+        0
+      ],
+      "size": [
+        0.092,
+        1.024,
+        0.064
+      ],
+      "tris": 636,
+      "nodes": [
+        "saya"
+      ]
+    },
+    {
+      "id": "wakizashi",
+      "label": "Wakizashi in its saya",
+      "era": "Sengoku–early Edo (c. 1570–1620)",
+      "refs": [
+        "Momoyama uchigatana koshirae, the Met"
+      ],
+      "file": "wakizashi.glb",
+      "kind": "weapon",
+      "attach": "Hips",
+      "restOrigin": [
+        0.0142,
+        -0.552,
+        0
+      ],
+      "size": [
+        0.092,
+        0.724,
+        0.064
+      ],
+      "tris": 636,
+      "nodes": [
+        "wakizashi"
+      ]
+    }
+  ]
+}

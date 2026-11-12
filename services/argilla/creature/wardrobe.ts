@@ -24,9 +24,11 @@ import type { HumanAnatomy, HumanJoint } from './human';
 
 export class MeshBuilder {
   pos: number[] = []; nor: number[] = []; uv: number[] = []; idx: number[] = []; bone: string[] = [];
+  /** Which piece each vertex belongs to (the wardrobe sets `tag` as it builds), so a piece can leave as its own asset. */
+  tags: string[] = []; tag = '';
   get count() { return this.pos.length / 3; }
   vert(p: Vec3, n: Vec3, u: number, v: number, bone: string) {
-    this.pos.push(p[0], p[1], p[2]); this.nor.push(n[0], n[1], n[2]); this.uv.push(u, v); this.bone.push(bone);
+    this.pos.push(p[0], p[1], p[2]); this.nor.push(n[0], n[1], n[2]); this.uv.push(u, v); this.bone.push(bone); this.tags.push(this.tag);
     return this.count - 1;
   }
   tri(a: number, b: number, c: number) { this.idx.push(a, b, c); }
@@ -34,6 +36,7 @@ export class MeshBuilder {
   append(o: MeshBuilder) {
     const base = this.count;
     this.pos.push(...o.pos); this.nor.push(...o.nor); this.uv.push(...o.uv); this.bone.push(...o.bone);
+    for (let k = 0; k < o.count; k++) this.tags.push(o.tags[k] || this.tag);
     for (const i of o.idx) this.idx.push(i + base);
   }
 }
@@ -339,10 +342,11 @@ function haruKit(anatomy: HumanAnatomy, field: Field, fit: ArmourFit): Wardrobe 
     armour: new Map(), cloth: new Map(), lacing: [], kabuto: new Map(), hair: new MeshBuilder(),
     bones: [], springs: [], clothChains: new Map(), clothSims: [], sockets: [], pieces: [],
   };
-  const A = (mat: string) => { let m = w.armour.get(mat); if (!m) { m = new MeshBuilder(); w.armour.set(mat, m); } return m; };
-  const Cl = (mat: string) => { let m = w.cloth.get(mat); if (!m) { m = new MeshBuilder(); w.cloth.set(mat, m); } return m; };
-  const K = (mat: string) => { let m = w.kabuto.get(mat); if (!m) { m = new MeshBuilder(); w.kabuto.set(mat, m); } return m; };
-  const piece = (id: string, label: string, refs = REF_TOSEI) => w.pieces.push({ id, label, era: ERA, refs });
+  let current = '';
+  const A = (mat: string) => { let m = w.armour.get(mat); if (!m) { m = new MeshBuilder(); w.armour.set(mat, m); } m.tag = current; return m; };
+  const Cl = (mat: string) => { let m = w.cloth.get(mat); if (!m) { m = new MeshBuilder(); w.cloth.set(mat, m); } m.tag = current; return m; };
+  const K = (mat: string) => { let m = w.kabuto.get(mat); if (!m) { m = new MeshBuilder(); w.kabuto.set(mat, m); } m.tag = current; return m; };
+  const piece = (id: string, label: string, refs = REF_TOSEI) => { current = id; w.pieces.push({ id, label, era: ERA, refs }); };
   const cord = new Map<string, { t: number[]; r: number[]; s: number[] }>();
   /** One lacing stitch: centre, along (the cord's run), out (the plate normal), width and length. */
   const stitch = (bone: string, c: Vec3, along: Vec3, out: Vec3, width: number, length: number, thick = 0.0022) => {
