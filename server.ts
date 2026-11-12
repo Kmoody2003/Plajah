@@ -128,6 +128,7 @@ import { createGamerRouter } from './routes/gamerNet';
 import { liveGamerStore } from './services/gamerNet/liveStore';
 import { verifyIdToken as verifyGamerToken, verifyIdTokenDetailed, fsGetUser as gamerUserDoc } from './services/firebaseAdminRest';
 import { createLiveGameRouter } from './routes/liveGames';
+import { createLivePartyRouter } from './routes/liveParty';
 import { createGamerSocialRouter } from './routes/gamerSocial';
 import { fsQuery as gamerFsQuery } from './services/firebaseAdminRest';
 import { driveRouter } from './routes/drive';
@@ -15497,6 +15498,13 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // Live party games on streams + feed (Sketch Rush): server-refereed rounds, judged guesses, gamer ledger awards
   // (routes/liveGames.ts, docs/LIVE_PARTY_GAMES.md). Strokes arrive in small batches, so the limit is generous.
   app.use('/api/live-game', rateLimit({ windowMs: 60 * 1000, max: 600, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '32kb' }), createLiveGameRouter({
+    store: liveGamerStore(restCas),
+    verify: async token => { const d = await verifyIdTokenDetailed(token).catch(() => null); return d ? { uid: d.uid, guest: d.isAnonymous } : null; },
+    userCard: async uid => { const u = await gamerUserDoc(uid); return u ? { name: String(u.displayName || u.username || 'Player'), photo: String(u.photoURL || u.avatarUrl || ''), isChild: u.isChild === true || u.accountType === 'CHILD' } : null; },
+    appendEvent: gamerRouter.appendEvent,
+  }));
+  // Brain Rush / Crowd Says / Impostor Night — same room, deps and ledger as Sketch Rush (routes/liveParty.ts).
+  app.use('/api/live-party', rateLimit({ windowMs: 60 * 1000, max: 600, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '8kb' }), createLivePartyRouter({
     store: liveGamerStore(restCas),
     verify: async token => { const d = await verifyIdTokenDetailed(token).catch(() => null); return d ? { uid: d.uid, guest: d.isAnonymous } : null; },
     userCard: async uid => { const u = await gamerUserDoc(uid); return u ? { name: String(u.displayName || u.username || 'Player'), photo: String(u.photoURL || u.avatarUrl || ''), isChild: u.isChild === true || u.accountType === 'CHILD' } : null; },

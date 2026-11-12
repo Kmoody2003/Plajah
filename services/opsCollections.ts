@@ -64,7 +64,7 @@ export const OPS_COLLECTIONS: ReadonlySet<string> = new Set([
   'wcMatchRooms', 'wcVideoRooms', 'wcFanClubs', 'community_notes', 'oraCorner', 'oraRestLoops',
   'photoCritiques', 'photoSalons', 'halloweenVaultRooms',
   // Live party games (routes/liveGames.ts): written only by the server; clients read all but liveGameSecrets.
-  'liveGames', 'liveGameStrokes', 'liveGameFeed', 'liveGamePlayers', 'liveGameSecrets',
+  'liveGames', 'liveGameStrokes', 'liveGameFeed', 'liveGamePlayers', 'liveGameSecrets', 'liveGameAnswers',
 ]);
 
 /** plajah-prod collections copied read-only into plajah-ops, because ops rules authorize against them

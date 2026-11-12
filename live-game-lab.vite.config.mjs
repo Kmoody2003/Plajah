@@ -22,7 +22,7 @@ export default defineConfig({
         const inLive = /liveGames[\/]/.test(importer);
         if (id === '../firebase' && inLive) return '\0lab-auth';
         if (id === '../backendService' && inLive) return '\0lab-backend';
-        if (id === '../../services/liveGames/realtime' && /useLiveGame/.test(importer)) return path.resolve('services/liveGames/realtimePoll.ts');
+        if (id === '../../services/liveGames/realtime' && /liveGames[\/]/.test(importer)) return path.resolve('services/liveGames/realtimePoll.ts');
         return null;
       },
       load(id) {
@@ -41,16 +41,19 @@ export default defineConfig({
         });
         const { createGamerRouter } = await server.ssrLoadModule('/routes/gamerNet.ts');
         const { createLiveGameRouter } = await server.ssrLoadModule('/routes/liveGames.ts');
+        const { createLivePartyRouter } = await server.ssrLoadModule('/routes/liveParty.ts');
         const { memoryGamerStore } = await server.ssrLoadModule('/services/gamerNet/store.ts');
         const store = memoryGamerStore();
         const card = async (uid) => ({ name: uid.startsWith('guest') ? '' : uid[0].toUpperCase() + uid.slice(1) });
         const gamer = createGamerRouter({ store, verify: async (t) => (t.startsWith('tok-') ? t.slice(4) : null), userCard: card });
         const app = express();
         app.use('/api/gamer', express.json(), gamer);
-        app.use('/api/live-game', express.json({ limit: '32kb' }), createLiveGameRouter({
+        const liveDeps = {
           store, userCard: card, appendEvent: gamer.appendEvent,
           verify: async (t) => (t.startsWith('tok-') ? { uid: t.slice(4), guest: t.startsWith('tok-guest') } : null),
-        }));
+        };
+        app.use('/api/live-game', express.json({ limit: '32kb' }), createLiveGameRouter(liveDeps));
+        app.use('/api/live-party', express.json({ limit: '8kb' }), createLivePartyRouter(liveDeps));
         server.middlewares.use(app);
       },
     },

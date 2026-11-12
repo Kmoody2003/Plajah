@@ -57,14 +57,37 @@ A correct guess writes only the guesser's own player doc, so a burst of solvers 
 Round end reads up to 1,000 player docs to pay the drawer and build the top 10. Past that size, the scoreboard
 needs a sharded counter.
 
-## Next games on the same room
+## Brain Rush, Crowd Says, Impostor Night (built 2026-11-12)
+
+Same room as Sketch Rush: the public doc in `liveGames` (with `kind`), players, feed, guests, gamer ledger,
+feed card and Live now strip. Their referee is `routes/liveParty.ts` at `/api/live-party`. The rules are in
+`services/liveGames/party.ts` and the content in `services/liveGames/partyContent.ts`. Answers go to
+`liveGameAnswers/{id}_{round}_{uid}` (no client access), one per player per round, and points are paid once
+when the round closes.
+
+| Game | Round | Scoring |
+|---|---|---|
+| **Brain Rush** | question + 4 choices, 6–20 s | right = 100 + up to 400 for speed |
+| **Crowd Says** | survey prompt, everyone answers; answers are grouped ("Pizza!", "pizzas", "a pizza") into a top-6 board | on the board = 100–500 by popularity; off it = 0 |
+| **Impostor Night** | crew get the word, impostors (1 per 7 players, max 4) only the category; one-word clues (can't be the word), then everyone votes | clue 50; crew who voted an impostor +200; impostor not caught +400 |
+
+Nothing secret is on the public doc while a round is open. The trivia answer, the impostor word and the impostor
+list appear only in `reveal`. Players get their own role and word from `GET /api/live-party/:id` (`mine`).
+
+## Launching
+
+- **Plajah Games** → Plajah Originals: the Sketch Rush card plus Brain Rush, Crowd Says and Impostor Night
+  tiles open `components/liveGames/LiveGamesStudio.tsx` (set up → run → Go live).
+- **From a live stream**: the phone streamer's dock has a **Games** button (`LiveGameDock`). Pick a game and
+  the room opens tied to that stream and is posted to the streamer's feed. The board is burned into the
+  program video (`useProgramOverlay`), and a panel over the camera holds the game and Start / Next / End.
+- **From the feed**: the post's card plays any of the four (`LiveGameCard` → `LiveGamePlay`).
+
+Note: the program overlay shares the composer's single overlay slot with baked emote effects. Starting a game
+takes that slot while the game runs.
+
+## Still to come
 
 | Game | Based on | Live twist |
 |---|---|---|
-| **Brain Rush** | live trivia | 10-second answers, scored by speed; knockout mode |
-| **Crowd Says** | survey-guessing shows | the audience's own answers become the hidden board |
-| **Impostor Night** | social deduction | host narrates, secret roles, chat argues and votes |
 | Charades | charades | reuses Sketch Rush judging; the host acts on camera instead of drawing |
-
-Each needs its own prompts, judge and screen. Rounds, timers, server-judged answers, feed joining, guests,
-scoreboard and ledger awards are shared.

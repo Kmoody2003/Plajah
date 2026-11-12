@@ -9,7 +9,7 @@ const KithParty = React.lazy(() => import('./kithParty/KithParty'));
 const EraClashFrame = React.lazy(() => import('./games/EraClashFrame'));
 const CyberTicTacToe = React.lazy(() => import('./games/CyberTicTacToe'));
 const GamerHub = React.lazy(() => import('./games/GamerHub'));
-const SketchRushStudio = React.lazy(() => import('./liveGames/SketchRushStudio'));
+const LiveGamesStudio = React.lazy(() => import('./liveGames/LiveGamesStudio'));
 const LiveNowStrip = React.lazy(() => import('./liveGames/LiveNowStrip'));
 import { PostGameButton } from './games/social/PostGameButton';
 
@@ -42,7 +42,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
   const [showKithParty, setShowKithParty] = useState(false);
   const [showEraClash, setShowEraClash] = useState(false);
   const [showTtt, setShowTtt] = useState(false);
-  const [showSketch, setShowSketch] = useState(false);
+  const [liveGameKind, setLiveGameKind] = useState<null | 'pick' | 'sketch' | 'trivia' | 'crowd' | 'impostor'>(null);
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [gameOwners, setGameOwners] = useState<Record<string, UserProfile>>({});
@@ -142,7 +142,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
       <CyberTicTacToe onExit={() => setShowTtt(false)} onOpenLeaderboard={() => { setShowTtt(false); setActiveTab('LEADERBOARDS'); }} />
     </React.Suspense>
   );
-  if (showSketch) return <React.Suspense fallback={<div className="p-8">Loading Sketch Rush…</div>}><SketchRushStudio onExit={() => setShowSketch(false)} /></React.Suspense>;
+  if (liveGameKind) return <React.Suspense fallback={<div className="p-8">Loading live games…</div>}><LiveGamesStudio initialKind={liveGameKind === 'pick' ? undefined : liveGameKind} onExit={() => setLiveGameKind(null)} /></React.Suspense>;
   if (showEraClash) return <React.Suspense fallback={<div className="p-8">Loading Era Clash…</div>}><EraClashFrame onExit={() => setShowEraClash(false)} /></React.Suspense>;
   if (showKithParty) return <React.Suspense fallback={<div className="p-8">Loading Kith Party…</div>}><KithParty onBack={() => setShowKithParty(false)} /></React.Suspense>;
 
@@ -281,7 +281,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
              </div>
              {/* Live party games — host on a stream, the audience plays from the feed */}
              <button
-               onClick={() => setShowSketch(true)}
+               onClick={() => setLiveGameKind('sketch')}
                className="mt-4 w-full text-left relative rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden border border-pink-400/30 p-5 sm:p-8 active:scale-[0.99] transition-transform"
                style={{ background: 'radial-gradient(36rem 18rem at 90% -10%, rgba(236,72,153,0.28), transparent 60%), radial-gradient(30rem 18rem at 0% 120%, rgba(124,58,237,0.30), transparent 60%), #120a2a' }}
              >
@@ -301,6 +301,23 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
                  <span className="inline-flex items-center justify-center gap-2 min-h-[48px] px-6 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-widest"><Play size={16} fill="currentColor" /> Host</span>
                </div>
              </button>
+             {/* The other live party games — same room, same feed join, same gamer score */}
+             <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+               {([
+                 ['trivia', '🧠', 'BRAIN RUSH', 'Rapid-fire trivia. Right and fast wins.', 'border-sky-400/30', 'rgba(14,165,233,0.25)'],
+                 ['crowd', '📊', 'CROWD SAYS', 'Answer like the crowd. The room makes the board.', 'border-amber-400/30', 'rgba(245,158,11,0.25)'],
+                 ['impostor', '🕵️', 'IMPOSTOR NIGHT', 'Everyone knows the word but one. Clue, argue, vote.', 'border-emerald-400/30', 'rgba(16,185,129,0.25)'],
+               ] as const).map(([k, emoji, name, blurb, border, glow]) => (
+                 <button key={k} onClick={() => setLiveGameKind(k)}
+                   className={`text-left rounded-[1.5rem] border ${border} p-4 sm:p-5 active:scale-[0.99] transition-transform`}
+                   style={{ background: `radial-gradient(20rem 10rem at 90% -10%, ${glow}, transparent 60%), #0d0b1e` }}>
+                   <div className="text-3xl" aria-hidden>{emoji}</div>
+                   <h4 className="mt-1 text-lg sm:text-xl font-black tracking-tight">{name}</h4>
+                   <p className="text-white/65 text-xs sm:text-sm mt-0.5">{blurb}</p>
+                   <span className="mt-3 inline-flex items-center gap-1.5 min-h-[36px] px-4 rounded-xl bg-white text-black text-[10px] font-black uppercase tracking-widest"><Play size={13} fill="currentColor" /> Host live</span>
+                 </button>
+               ))}
+             </div>
              <React.Suspense fallback={null}><LiveNowStrip /></React.Suspense>
              <button
                onClick={() => setShowEraClash(true)}

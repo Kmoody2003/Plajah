@@ -1,11 +1,11 @@
-// A live Sketch Rush game inside a timeline post (post.liveGameEmbed). Scroll past it and you can play right
+// A live party game (any of the four) inside a timeline post (post.liveGameEmbed). Scroll past it and you can play right
 // there: the drawing is live, the guess box is on the card, and signed-out viewers join as guests in one tap.
 // It only listens while it's on screen, so a feed full of games costs nothing off screen.
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Pencil, Play, X } from 'lucide-react';
-import SketchRushPlay from './SketchRushPlay';
+import { Play, X } from 'lucide-react';
+import LiveGamePlay, { GAME_EMOJI, GAME_TITLES } from './LiveGamePlay';
 import { sanitizeLiveGameEmbed, ensurePlayable } from '../../services/liveGames/client';
 
 export default function LiveGameCard({ embed: raw }: { embed: unknown }) {
@@ -26,10 +26,10 @@ export default function LiveGameCard({ embed: raw }: { embed: unknown }) {
     <div ref={root} className="mt-3" onClick={e => e.stopPropagation()}>
       {visible || joined ? (
         joined
-          ? <SketchRushPlay gid={embed.gid} compact onOpenFull={() => setFull(true)} />
+          ? <LiveGamePlay gid={embed.gid} kind={embed.kind} compact onOpenFull={() => setFull(true)} />
           : (
             <div className="relative">
-              <SketchRushPlay gid={embed.gid} compact />
+              <LiveGamePlay gid={embed.gid} kind={embed.kind} compact />
               <button
                 onClick={async () => { await ensurePlayable(); setJoined(true); }}
                 className="absolute inset-x-6 bottom-5 flex items-center justify-center gap-2 rounded-2xl bg-white py-3 text-sm font-black uppercase tracking-widest text-black shadow-2xl"
@@ -37,13 +37,13 @@ export default function LiveGameCard({ embed: raw }: { embed: unknown }) {
             </div>
           )
       ) : (
-        <div className="flex h-48 items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-[#2a1458] to-[#0d1a3a] text-sm font-bold text-white/70"><Pencil size={16} /> Sketch Rush</div>
+        <div className="flex h-48 items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-[#2a1458] to-[#0d1a3a] text-sm font-bold text-white/70"><span aria-hidden>{GAME_EMOJI[embed.kind]}</span> {GAME_TITLES[embed.kind]}</div>
       )}
       {full && createPortal(
         <div className="fixed inset-0 z-[180] overflow-y-auto bg-black/80 p-2 backdrop-blur sm:p-6">
           <div className="mx-auto max-w-5xl">
             <button onClick={() => setFull(false)} className="mb-2 ml-auto flex items-center gap-1 rounded-full bg-white/10 px-3 py-1.5 text-sm text-white"><X size={16} /> Close</button>
-            <SketchRushPlay gid={embed.gid} />
+            <LiveGamePlay gid={embed.gid} kind={embed.kind} />
           </div>
         </div>,
         document.body,

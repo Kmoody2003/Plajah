@@ -172,6 +172,8 @@ export function createLiveGameRouter(deps: LiveGameDeps): Router {
   async function settle(gid: string): Promise<C.LiveGameDoc | null> {
     for (let i = 0; i < 4; i++) {
       const g = await readGame(gid); if (!g) return null;
+      // Brain Rush / Crowd Says / Impostor Night share the collection but have their own referee (routes/liveParty.ts).
+      if (g.kind !== 'sketch') return g;
       const sec = g.status === 'drawing' ? await readSecret(gid) : null;
       const step = C.tick(g, sec?.word ?? '', now());
       if (step.kind === 'none') return g;
@@ -235,7 +237,9 @@ export function createLiveGameRouter(deps: LiveGameDeps): Router {
     const rows = await store.query(GAMES, [{ field: 'status', value: 'drawing' }], 30);
     const more = await store.query(GAMES, [{ field: 'status', value: 'choosing' }], 30);
     const lobby = await store.query(GAMES, [{ field: 'status', value: 'lobby' }], 30);
-    const list = [...rows, ...more, ...lobby].map(x => x.data as C.LiveGameDoc)
+    const party: typeof rows = [];
+    for (const st of ['answer', 'vote', 'reveal']) party.push(...await store.query(GAMES, [{ field: 'status', value: st }], 30));
+    const list = [...rows, ...more, ...party, ...lobby].map(x => x.data as C.LiveGameDoc)
       .filter(g => t - g.hostSeenAt < C.HOST_GONE_MS)
       .sort((a, b) => b.players - a.players || b.updatedAt - a.updatedAt).slice(0, 20);
     res.json({ games: list });

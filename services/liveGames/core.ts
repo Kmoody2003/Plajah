@@ -8,7 +8,8 @@
 
 import { PROFANITY_SET, normalizeForMatch } from '../profanityLexicon';
 
-export type LiveGameKind = 'sketch';
+/** 'sketch' is refereed by routes/liveGames.ts; the others by routes/liveParty.ts (services/liveGames/party.ts). */
+export type LiveGameKind = 'sketch' | 'trivia' | 'crowd' | 'impostor';
 export type LiveGameStatus = 'lobby' | 'choosing' | 'drawing' | 'reveal' | 'ended';
 /** Who holds the pen each round: always the host, or pass it to the previous round's fastest guesser. */
 export type PenMode = 'host' | 'top-guesser';

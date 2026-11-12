@@ -27,8 +27,10 @@ import {
   Users, Share2, Check, Heart, Send, ChevronDown, Eye, Zap, Sparkles,
   Clock, Settings, Volume2, VolumeX, RotateCcw, ArrowLeft, Save, Trash2,
   LayoutGrid, Monitor, UserSquare2, Columns2, MonitorSmartphone, Plus, BarChart3,
-  FileText, HardDriveDownload, FolderOpen, Download, ShieldCheck, Clapperboard, Smile, SmilePlus, Music2,
+  FileText, HardDriveDownload, FolderOpen, Download, ShieldCheck, Clapperboard, Smile, SmilePlus, Music2, Gamepad2,
 } from 'lucide-react';
+// Live party games launched from the stream (Sketch Rush, Brain Rush, Crowd Says, Impostor Night).
+const LiveGameDock = React.lazy(() => import('./liveGames/LiveGameDock'));
 import { LiveComposer, type ComposerMode, LOOKS, type LookId, AMBIENT_FX, type AmbientFx } from '../services/liveComposer';
 import type { LensId } from '../services/lenses/lensEngine';
 import { LensPicker, LensVideoOverlay } from './LensVideoOverlay';
@@ -594,6 +596,7 @@ function MobileStreamer({ onClose, clubId, isPrivate, liveOverlay, onOpenStudio,
   const [peakViewers, setPeakViewers] = useState(0);
   const [totalViews, setTotalViews] = useState(0);
   const [showChat, setShowChat] = useState(false);
+  const [gamesOpen, setGamesOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [reactions, setReactions] = useState<Reaction[]>([]);
   // Emotes: the host's overlay layer (also the chorus authority), studio sheet, picker, channel emotes.
@@ -1660,6 +1663,14 @@ function MobileStreamer({ onClose, clubId, isPrivate, liveOverlay, onOpenStudio,
       {/* Live UI */}
       {step === 'live' && liveOverlay?.(streamId)}
       {step === 'live' && (
+        <React.Suspense fallback={null}>
+          <LiveGameDock
+            streamId={streamId} open={gamesOpen} onClose={() => setGamesOpen(false)}
+            setOverlay={fn => { ensureComposer().then(c => c.setOverlayDrawer(fn ?? programOverlay ?? null)).catch(() => {}); }}
+          />
+        </React.Suspense>
+      )}
+      {step === 'live' && (
         <>
           {/* FX engine status + error — always visible so on-device failures are diagnosable
               (tap to dismiss the error). 'FX ready' = composer publishing; 'raw camera' = not. */}
@@ -2143,6 +2154,7 @@ function MobileStreamer({ onClose, clubId, isPrivate, liveOverlay, onOpenStudio,
                 <span className="text-[10px] text-white font-semibold">End</span>
               </button>
               <DockButton label={camOn ? 'Cam' : 'Hidden'} onClick={() => setCamOn(c => !c)} alert={!camOn}>{camOn ? <Camera size={21} /> : <CameraOff size={21} />}</DockButton>
+              <DockButton label="Games" onClick={() => { setModeMenuOpen(false); setLensRowOpen(false); setGamesOpen(o => !o); }} on={gamesOpen}><Gamepad2 size={21} /></DockButton>
               <DockButton label="Tools" onClick={() => { setLensRowOpen(false); openModeMenu(); }} on={modeMenuOpen}>{modeBusy ? <RotateCcw size={20} className="animate-spin" /> : <LayoutGrid size={21} />}</DockButton>
             </div>
           </div>
