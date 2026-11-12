@@ -1,6 +1,8 @@
-# Plajah Live Legislation Engine — Blueprint
+# Terra Civic — Forum: the Live Legislation Engine (Blueprint)
 
-**Working name:** *Forum* (placeholder — rename freely).
+**Home:** Plajah **Terra**, not a new vertical. Terra Civic is the governance layer of Terra
+(see §0.1). *Forum* is a working name for the legislation surface.
+**Companion:** `docs/TERRA_CIVIC_PROGRAMS_BLUEPRINT.md` (grant and program administration).
 **Status:** design only. Nothing wired.
 **Date:** 12 November 2026.
 **Builds on:** Tela document graph (`docs/TELA_CREATIVE_ENGINE_ARCHITECTURE.md`), ARIA
@@ -39,6 +41,52 @@ Four rules shape everything below:
    unchanged. There is no token and no gas, and nobody needs a wallet to take part. The log proves
    *that* a verified person in District 4 signalled X on clause 3(b) at time T, and that the
    published tally includes that signal. It does not decide who is right.
+
+### 0.1 Home: Plajah Terra
+
+Terra is already Plajah's real-estate and civic surface: a parcel spine (Detroit, 377,863 parcels,
+updated daily), civic records (permits, blight, rental compliance, demolitions, 311, Land Bank),
+encoded zoning with a buildable-envelope engine, business-licence and rental lookups, and Business
+Compliance. Its rules are already Forum's rules: every fact carries its source and vintage,
+jurisdictions are hand-verified one at a time rather than scraped nationwide, and nothing claims a
+determination it can't make. Governance is the layer that writes the rules Terra already reads.
+
+**Terra Civic** adds four capabilities to Terra, with no new vertical and no new front door:
+
+| Capability | What it is | Blueprint |
+|---|---|---|
+| **Forum** | Private and public drafting, clause-level participation, consensus, response ledger | This doc §2–6 |
+| **Law Library** | Constitutions, codes and ordinances in the provision graph, plus conflict analysis | This doc §8 |
+| **Meetings** | Hearings, notices, public comment, minutes, boards | This doc §9 |
+| **Programs** | Grant and program administration for governments | `TERRA_CIVIC_PROGRAMS_BLUEPRINT.md` |
+
+**Where it connects to what Terra already has:**
+
+| Existing Terra piece | Terra Civic connection |
+|---|---|
+| **Parcel spine** (`services/terra/terraTypes.ts`) | A provision can bind to a geography: a zoning district, overlay, corridor or set of parcels. Every parcel then knows which pending bills, hearings and programs touch it |
+| **Zoning + envelope engine** (`services/terra/zoning/*`) | **Zoning amendment impact.** Encode a proposed zoning text change as `ZoningRule` edits, rerun `envelopeEngine` across every affected parcel, and map who gains or loses buildable area, height or uses. This is the strongest single "real-world data" feature, and it only works because Terra already interprets zoning rules. The engine's blockers and disclaimer carry over unchanged |
+| **Property Passport** | New timeline rows: "Rezoning proposed (Forum bill, Public v2) · hearing 3 Dec · comment open". Owners and tenants find out about legislation through the page for their own address |
+| **Terra Explorer** (citizen map) | New layers: pending legislation, upcoming hearings and their notice radius, active programs, and funded program sites |
+| **Civic records** (`CivicRecordKind`) | They become live indicators (§7). Blight, permits, rental certification and 311 trends bind to the provisions that target them, and keep running after enactment as the scorecard |
+| **Terra Lookup / Business Compliance** | Businesses see the programs they're likely eligible for (Programs Desk), and licence and compliance rules link to their source ordinances in the Law Library |
+| **Site Scout** | Commercial mode only, as today. It can show active incentive programs near a site, but never mixes demographics into residential surfaces (the fair-housing rule stays) |
+| **Open Listing Record fingerprinting** | Already honest about "fingerprinted, not blockchain-verified". Forum adopts the same wording until Registry anchoring (§4.2 step 3) actually exists |
+| **TerraHub** | A third audience tab next to "For residents" and "For real-estate pros": **"For government"** (Forum, Meetings, Programs admin). Resident-facing Civic cards sit under "For residents" |
+
+**Coverage follows Terra's ladder.** Detroit first, then Wayne, Oakland and Macomb, then Michigan,
+then outward city by city. The Law Library starts with the Michigan Constitution, the Michigan
+Compiled Laws, and the Detroit City Code (zoning is Chapter 50, which Terra already partly encodes).
+Michigan specifics to configure: the Open Meetings Act for notice and public comment, the Michigan
+FOIA, and the Michigan Zoning Enabling Act's notice to owners and occupants near a proposed
+rezoning, which the Explorer's notice-radius layer can generate. Detroit's Community Benefits
+Ordinance process (community meetings with a Neighborhood Advisory Council for large
+developments) is a natural first Meetings use case, because it already sits where real estate
+meets governance.
+
+**Code placement (when built):** `services/terra/civic/{forum,lawLibrary,meetings,programs}/*`,
+`components/terra/civic/*`, routes under `/api/terra/civic/*`. `TerraJurisdiction` is reused as the
+jurisdiction key everywhere.
 
 ---
 
@@ -460,7 +508,7 @@ operation through to the final text. Offices will be asked about it.
 ## 12. Data model sketch
 
 ```ts
-// services/forum/types.ts (Phase 0)
+// services/terra/civic/forum/types.ts (Phase 0)
 type ProvisionId = string;            // stable, e.g. "sec-3.b.ii"
 type BillVersionId = string;
 
@@ -551,9 +599,9 @@ written to the log.
 
 | Phase | Scope | Exit criterion |
 |---|---|---|
-| **0 Foundation** | `services/forum/types.ts`, Akoma Ntoso import → Tela, provision IDs, redline, Private Draft / Publish split | Import a real city ordinance, render it with stable IDs, publish v1 from a private draft |
+| **0 Foundation** | `services/terra/civic/forum/types.ts`, Akoma Ntoso import → Tela, provision IDs, redline, Private Draft / Publish split | Import a real city ordinance, render it with stable IDs, publish v1 from a private draft |
 | **0.5 Law Library seed** | One state's constitution and code plus one city's municipal code, point-in-time versions, citation parser, comparative print | A real bill shows "the law as it would read" and its dangling references |
-| **1 Pilot: low stakes, real text** | Annotations, proposed wordings, Tier 1 plus postcard Tier 2, split tallies, response ledger, ARIA explainer and synthesis | One real drafting body runs a full cycle. Best first customers: **student government** (Academia), **church/nonprofit bylaws** (Elevate), an **HOA**, or a **city councilmember's office** via Elevate Mobilize relationships |
+| **1 Pilot: Detroit** | Annotations, proposed wordings, Tier 1 plus postcard Tier 2, split tallies, response ledger, ARIA explainer and synthesis | One real drafting body runs a full cycle. Best first runs: a **Community Benefits Ordinance** engagement or a **Detroit zoning amendment** (both use Terra's parcel spine and envelope engine), or a **councilmember's office** through Elevate Mobilize. Student government (Academia) and church bylaws (Elevate) are good low-stakes rehearsals |
 | **2 Consensus** | Statements, clustering, opinion map, ranked choice, form-letter dedup | Sponsor cites the opinion map in a public decision |
 | **2.5 Meetings** | Agenda, notice, livestream, speaker queue, remote testimony, draft minutes, boards with open-meetings guardrails | One real public body runs a meeting end to end on Forum |
 | **3 Live data and analysis** | Indicator bindings, scenario sliders, monitoring dashboards (reuse Museion adapters), full conflict report, similar-law finder, cross-state outcome comparisons | One enacted measure with a live post-enactment scorecard. Counsel confirms the conflict report caught a real issue |
@@ -611,7 +659,7 @@ artists and small businesses directly through programs that have their own legal
 eligibility rules and budgets. Examples include guaranteed income for artists and small-business
 recovery grants. Plajah could offer to *administer* such a program on the platform for a fee.
 That's a separate contract, and the government sets the rules. It shouldn't be bundled with the
-Forum subscription. **Designed in `docs/PLAJAH_PUBLIC_PROGRAMS_BLUEPRINT.md`.**
+Forum subscription. **Designed in `docs/TERRA_CIVIC_PROGRAMS_BLUEPRINT.md`.**
 
 ### 13.2 Pool design (decided direction, 12 Nov 2026)
 
@@ -646,13 +694,13 @@ Rules:
 
 ## 14. Open questions for product
 
-1. First pilot target: student government, church/nonprofit bylaws, or a real municipal office?
+1. First pilot target: a Detroit zoning amendment or CBO engagement (recommended, given Terra), a councilmember's office, or a low-stakes rehearsal (student government, church bylaws)?
 2. ~~Live drafting vs checkpoints~~ **Decided:** Private Draft plus published Public versions (§2.1).
 3. Which verification vendor for Tier 2, and is voter-file matching acceptable in launch states?
 4. Do unverified and out-of-district participants get stances at all, or only annotations?
 5. Is this a Plajah-branded surface or a white-label product governments embed on `.gov` sites?
    Government buyers usually require the latter.
-6. Which state and city should seed the Law Library first? It should match the pilot jurisdiction.
+6. ~~Law Library seed~~ **Decided:** Michigan and Detroit, following Terra's coverage ladder (§0.1).
 7. Could meetings (§9) be the wedge product? Cities already buy meeting software (agenda,
    streaming, minutes), so it may be an easier first sale than drafting.
 8. What percentage of civic revenue goes to the Community Revenue Pool, and what formula splits

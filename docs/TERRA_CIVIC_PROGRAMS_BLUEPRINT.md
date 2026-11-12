@@ -1,9 +1,10 @@
-# Plajah Public Programs — Blueprint (grant and program administration for governments)
+# Terra Civic — Programs: grant and program administration for governments (Blueprint)
 
+**Home:** Plajah **Terra**, as part of Terra Civic (see `TERRA_CIVIC_FORUM_BLUEPRINT.md` §0.1).
 **Working name:** *Programs Desk* (placeholder).
 **Status:** design only. Nothing wired.
 **Date:** 12 November 2026.
-**Companion to:** `docs/PLAJAH_LIVE_LEGISLATION_BLUEPRINT.md` (Forum). This is the funder-side twin of the
+**Companion to:** `docs/TERRA_CIVIC_FORUM_BLUEPRINT.md` (Forum). This is the funder-side twin of the
 existing applicant-side Grants module (`services/grants/*`, `services/dataCommons/grants.ts`,
 `routes/grants.ts`, `components/elevate/Grant*.tsx`).
 
@@ -39,6 +40,22 @@ works for every program on the platform and for federal grants through the Match
    invisible to reviewers.
 4. **Deterministic where it counts.** Eligibility rules, scoring arithmetic and award totals are code,
    versioned and auditable. Same rule as `readiness.ts`: "no model call decides what is missing."
+
+### 0.1 Terra fit
+
+- **Geography is the parcel spine.** Program boundaries, corridors and set-asides are drawn on
+  Terra's map. Eligibility rules like `within_boundary` resolve an applicant's address to a Terra
+  parcel, which is more reliable than a geocoder alone.
+- **Property-based programs** (façade, home repair, lead abatement, storefront activation) attach the
+  application to the parcel. Reviewers see the Property Passport (permits, blight tickets, rental
+  certification, Land Bank status), and every fact keeps its source and vintage.
+- **Business programs** read Business Compliance and Terra Lookup's licence check to confirm an
+  active licence, with the existing honesty rule: "no match" means no match, not "unlicensed".
+- **Impact** uses Terra's civic records as indicators. Blight tickets, permits and 311 trends near
+  funded parcels, compared with similar unfunded blocks.
+- **Public awards dashboard** is a Terra Explorer layer. Funded sites are on the map, and
+  privacy-sensitive programs are shown only as aggregates.
+- **Code placement:** `services/terra/civic/programs/*`, `components/terra/civic/programs/*`.
 
 ---
 
@@ -198,7 +215,7 @@ and are never shown to reviewers.
 ## 10. Data model sketch
 
 ```ts
-// services/programs/types.ts (Phase 0)
+// services/terra/civic/programs/types.ts (Phase 0)
 interface GovTenant { id: string; name: string; jurisdiction: { level: 'municipal'|'county'|'state'|'tribal'|'school_district'|'special_district'; fips?: string };
   boundaryRef: string; domains: string[]; sso?: { provider: 'entra'|'okta'|'google'; tenantRef: string };
   paymentMode: 'payment_file'|'erp'|'fiscal_agent'; retentionYears: number }
@@ -243,7 +260,8 @@ interface Award { applicationId: string; amount: number; agreementDocId: string;
 ## 12. Open questions
 
 1. Best first tenant: an Elevate church/nonprofit coalition running its own community fund
-   (fastest to launch and lowest compliance burden), or a small city?
+   (fastest to launch and lowest compliance burden), a Detroit property program such as façade or
+   home repair (strongest Terra fit), or a small city in Wayne, Oakland or Macomb?
 2. Should Mode C (Plajah disburses) exist at all, or should Plajah stay out of moving public money for good?
 3. Which ERPs matter first for the pilot region?
 4. Which ID-verification vendor? The same one as Forum Tier 2 so applicants verify once.
