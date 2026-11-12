@@ -78,7 +78,13 @@ Each piece is its own mesh with its own material, made from parametric period pa
 
 ### 6. Engine: shared, in `playkit`
 
-- **Spring bones:** verlet chains with stiffness, drag, gravity and collision with the body's capsules.
+- **Spring bones:** verlet chains with stiffness, drag, gravity and collision with the body's capsules. For rigid pieces that swing: tassets, shoulder guards, the ponytail.
+- **Cloth** (`clothSim.ts`): soft garments (hakama legs, kosode sleeves) as XPBD cloth.
+  - **The grid:** a coarse particle grid sampled from the surface the garment was modelled on, exported in `extras.forge.cloth`.
+  - **Anchors:** each particle is skinned on the CPU with the garment's own weights. Tied rows are pinned. Elsewhere a max-distance tether to the anchor holds through any animation, with a gentle pull back to the cut.
+  - **Solve:** stretch, shear and bend constraints, small substeps at 120 Hz, and the body capsules.
+  - **The mesh:** the garment mesh follows the grid triangle by triangle, keeping its pleats.
+  - **Check:** `npx tsx scripts/eraclash3d/benchCloth.ts` times the solve and checks the tether.
 - **Morph drivers:** joint angle in, morph weight out.
 - **Skinning:** the dual-quaternion skinning node.
 - **Cost:** budgeted against the Arc iGPU (a spring pass under 0.3 ms for a full cast).

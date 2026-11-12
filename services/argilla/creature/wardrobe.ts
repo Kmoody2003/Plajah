@@ -227,7 +227,48 @@ function rayHull(hull: [number, number][], o: [number, number], d: [number, numb
 
 // ---- The kit --------------------------------------------------------------------------------------------------------
 
-export interface SpringChainOut { bones: string[]; stiffness: number; drag: number; gravity: number; radius: number }
+export interface SpringChainOut { bones: string[]; stiffness: number; drag: number; gravity: number; radius: number; maxAngle?: number }
+
+/**
+ * A garment simulated as cloth (playkit/character/clothSim.ts): a coarse particle grid sampled from the same surface
+ * the garment's mesh was built from, row-major, row 0 at v = 0. The game binds the mesh to it triangle by triangle.
+ */
+export interface ClothSimOut {
+  name: string;
+  /** The cloth material whose primitive this grid drives. */
+  material: string;
+  cols: number;
+  rows: number;
+  /** Columns wrap round (a tube: a trouser leg, a sleeve). */
+  wrapU: boolean;
+  /** Rest positions, flat xyz, metres. */
+  points: number[];
+  /** Per particle: 1 = held to the body where the garment is tied, 0 = free. */
+  pin: number[];
+  /** Per particle: how far it may swing from where the body puts it, metres. */
+  maxDist: number[];
+  /** Pull back toward the body's pose, 1/s (fabric memory of its cut). */
+  drive: number;
+  /** Stretch and bend compliance (XPBD, m/N): 0 = rigid. */
+  stretch: number;
+  bend: number;
+  /** Velocity damping, 1/s, and the particle radius for collision, metres. */
+  damping: number;
+  radius: number;
+}
+
+function clothGrid(name: string, material: string, cols: number, rows: number, f: (u: number, v: number) => Vec3, rowSpec: (v: number) => { pin: number; maxDist: number }, opts: Partial<ClothSimOut> = {}): ClothSimOut {
+  const points: number[] = [], pin: number[] = [], maxDist: number[] = [];
+  for (let j = 0; j < rows; j++) {
+    const v = j / (rows - 1), r = rowSpec(v);
+    for (let i = 0; i < cols; i++) {
+      const p = f(i / cols, v);
+      points.push(+p[0].toFixed(5), +p[1].toFixed(5), +p[2].toFixed(5));
+      pin.push(+r.pin.toFixed(3)); maxDist.push(+r.maxDist.toFixed(4));
+    }
+  }
+  return { name, material, cols, rows, wrapU: true, points, pin, maxDist, drive: 2.5, stretch: 2e-6, bend: 4e-4, damping: 1.2, radius: 0.008, ...opts };
+}
 export interface ExtraBone { name: string; parent: string; at: Vec3 }
 
 export interface WardrobePiece {
@@ -252,6 +293,8 @@ export interface Wardrobe {
   springs: SpringChainOut[];
   /** Cloth vertices in these ranges get chain weights: [material, vertex index] → chain bone weights. */
   clothChains: Map<string, Map<number, [string, number][]>>;
+  /** Garments the game simulates as cloth. */
+  clothSims: ClothSimOut[];
   sockets: { name: string; bone: string; at: Vec3; x: Vec3; y: Vec3 }[];
   pieces: WardrobePiece[];
 }
@@ -268,7 +311,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
   const J = (n: HumanJoint) => anatomy.byName[n].at;
   const w: Wardrobe = {
     armour: new Map(), cloth: new Map(), lacing: [], kabuto: new Map(), hair: new MeshBuilder(),
-    bones: [], springs: [], clothChains: new Map(), sockets: [], pieces: [],
+    bones: [], springs: [], clothChains: new Map(), clothSims: [], sockets: [], pieces: [],
   };
   const A = (mat: string) => { let m = w.armour.get(mat); if (!m) { m = new MeshBuilder(); w.armour.set(mat, m); } return m; };
   const Cl = (mat: string) => { let m = w.cloth.get(mat); if (!m) { m = new MeshBuilder(); w.cloth.set(mat, m); } return m; };
@@ -542,7 +585,6 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
 
   // ---- Cloth -----------------------------------------------------------------------------------------------------
   piece('hakama', 'Hakama: pleated trousers, ballooning to the knee and gathered into the greaves', ['Tachidō tosei-gusoku, Momoyama–Edo, Wikimedia Commons']);
-  const chainWeights = (mat: string) => { let m = w.clothChains.get(mat); if (!m) { m = new Map(); w.clothChains.set(mat, m); } return m; };
   for (const s of ['Left', 'Right'] as const) {
     const sx = s === 'Left' ? 1 : -1;
     const hip = J(`${s}UpLeg` as HumanJoint), knee = J(`${s}Leg` as HumanJoint), ankle = J(`${s}Foot` as HumanJoint);
@@ -552,19 +594,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
       if (y >= knee[1]) return lerp(knee, hip, (y - knee[1]) / (hip[1] - knee[1]));
       return lerp(ankle, knee, (y - ankle[1]) / (knee[1] - ankle[1]));
     };
-    // spring chains on the hem bulge: four per leg, from the knee
-    const chainNames: { name: string; ang: number }[] = [];
-    for (let c = 0; c < 4; c++) {
-      const ang = (c / 4) * Math.PI * 2;
-      const dir: Vec3 = [Math.sin(ang) * sx, 0, Math.cos(ang)];
-      const top = add(centre(0.5), mul(dir, 0.08));
-      const b0 = `Hakama${s[0]}${c}_0`, b1 = `Hakama${s[0]}${c}_1`;
-      w.bones.push({ name: b0, parent: `${s}Leg`, at: top }, { name: b1, parent: b0, at: add(add(centre(0.36), mul(dir, 0.09)), [0, 0, 0]) });
-      w.springs.push({ bones: [b0, b1], stiffness: 24, drag: 0.2, gravity: 6, radius: 0.03, maxAngle: 30 });
-      chainNames.push({ name: b0, ang });
-    }
     const mb = Cl('hakama');
-    const base = mb.count;
     const nu = 40, nv = 28;
     const balloon = (y: number) => {
       // wide from mid-thigh to below the knee, gathered at the greaves
@@ -596,20 +626,13 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
       return add(c, mul(dir, r));
     };
     sheet(mb, nu, nv, f, `${s}UpLeg`, [1.2, 0.8]);
-    // chain weights for the bulge band
-    for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) {
-      const y = yGather + (yTopH - yGather) * (j / nv);
-      const band = smooth01((y - yGather) / 0.06) * (1 - smooth01((y - 0.46) / 0.12));
-      if (band <= 0.01) continue;
-      const a = (i / nu) * Math.PI * 2;
-      const ws: [string, number][] = [];
-      for (const c of chainNames) {
-        const d = Math.abs(Math.atan2(Math.sin(a - c.ang), Math.cos(a - c.ang)));
-        const k = Math.max(0, 1 - d / (Math.PI / 2));
-        if (k > 0) ws.push([y < 0.42 ? c.name.replace(/_0$/, '_1') : c.name, k * band]);
-      }
-      chainWeights('hakama').set(base + j * (nu + 1) + i, ws);
-    }
+    // the leg as cloth: tied under the dō at the top, gathered into the greaves at the bottom, the balloon between free
+    // to swing (most at the knee and below, where the leg moves most inside it)
+    w.clothSims.push(clothGrid(`hakama${s[0]}`, 'hakama', 18, 12, f, (v) => {
+      const y = yGather + (yTopH - yGather) * v;
+      const tied = v < 0.03 || v > 0.94 ? 1 : 0;
+      return { pin: tied, maxDist: tied ? 0 : 0.075 * Math.sin(Math.PI * Math.min(1, (y - yGather) / (0.95 - yGather))) ** 0.6 };
+    }, { drive: 3, damping: 1.4, radius: 0.012 }));
   }
   piece('kosode', 'Kosode: the inner robe, its sleeves tied short over the kote, sleeve hems on spring chains', ['Kosode, Momoyama period, the Met']);
   for (const s of ['Left', 'Right'] as const) {
@@ -618,19 +641,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
     const ref: Vec3 = Math.abs(axis[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
     const e1 = norm(cross(axis, ref)), e2 = cross(e1, axis);
     const t0 = -0.08, t1 = 0.62;
-    const chainNames: { name: string; ang: number }[] = [];
-    for (let c = 0; c < 3; c++) {
-      const ang = Math.PI * 0.5 + (c - 1) * 1.1; // below the arm: front, under, back
-      const dir = norm(add(mul(e1, Math.cos(ang)), mul(e2, Math.sin(ang))));
-      const at = add(lerp(sh, el, 0.42), mul(dir, 0.06));
-      const b0 = `Sleeve${s[0]}${c}_0`;
-      w.bones.push({ name: b0, parent: `${s}Arm`, at });
-      w.bones.push({ name: `Sleeve${s[0]}${c}_1`, parent: b0, at: add(lerp(sh, el, 0.62), mul(dir, 0.075)) });
-      w.springs.push({ bones: [b0, `Sleeve${s[0]}${c}_1`], stiffness: 18, drag: 0.18, gravity: 7, radius: 0.02, maxAngle: 40 });
-      chainNames.push({ name: b0, ang });
-    }
     const mb = Cl('kosode');
-    const base = mb.count;
     const nu = 40, nv = 18;
     const secs = new Map<number, (a: number) => number>();
     const sleeveSec = (j: number) => {
@@ -654,19 +665,11 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
       return add(c, mul(dir, r));
     };
     sheet(mb, nu, nv, f, `${s}Arm`, [0.6, 0.4]);
-    for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) {
-      const t = t0 + (t1 - t0) * (j / nv);
-      const band = smooth01((t - 0.3) / 0.2);
-      if (band <= 0.01) continue;
-      const a = (i / nu) * Math.PI * 2;
-      const ws: [string, number][] = [];
-      for (const c of chainNames) {
-        const d = Math.abs(Math.atan2(Math.sin(a - c.ang), Math.cos(a - c.ang)));
-        const k = Math.max(0, 1 - d / 1.3);
-        if (k > 0) ws.push([t > 0.52 ? c.name.replace(/_0$/, '_1') : c.name, k * band]);
-      }
-      chainWeights('kosode').set(base + j * (nu + 1) + i, ws);
-    }
+    // the sleeve as cloth: sewn to the body at the shoulder, the rest hanging and swinging, most at the hem
+    w.clothSims.push(clothGrid(`sleeve${s[0]}`, 'kosode', 14, 8, f, (v) => ({
+      pin: v < 0.16 ? 1 : 0,
+      maxDist: v < 0.16 ? 0 : 0.085 * Math.min(1, (v - 0.16) / 0.84) ** 0.8,
+    }), { drive: 2, damping: 1.1, radius: 0.01 }));
   }
   piece('obi', 'Uwa-obi: the outer sash over the dō, holding the swords');
   {

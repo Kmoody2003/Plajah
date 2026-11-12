@@ -167,7 +167,11 @@ function stepTravel(c: Character, dt: number) {
     const rig = (performance.now() - t0) / n;
     const t1 = performance.now();
     for (let i = 0; i < n; i++) f.springs.update(1 / 60);
-    return { rigMs: rig, springsMs: (performance.now() - t1) / n, chains: f.springs.chains.length, joints: f.springs.chains.reduce((a, c) => a + c.joints.length, 0) };
+    const springsMs = (performance.now() - t1) / n;
+    const t2 = performance.now();
+    for (let i = 0; i < n; i++) f.cloth?.update(1 / 60);
+    const clothMs = f.cloth ? (performance.now() - t2) / n : 0;
+    return { rigMs: rig, springsMs, clothMs, particles: f.cloth?.particles ?? 0, clothMeshes: f.cloth?.bound.map((b) => b.mesh.name) ?? [], chains: f.springs.chains.length, joints: f.springs.chains.reduce((a, c) => a + c.joints.length, 0) };
   },
   /** Play `name` from its start to `t` seconds at 60 Hz right now (springs integrate through it), then hold. */
   scrub(name: string, t: number, lead = 0) {

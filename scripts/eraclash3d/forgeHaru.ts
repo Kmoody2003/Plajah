@@ -197,6 +197,7 @@ async function main() {
       version: 3,
       height: 1.8, // crown with the topknot to the sole
       springs: kit.springs,
+      cloth: kit.clothSims,
       capsules: anatomy.capsules.map((c) => ({ bone: c.bone, a: sub(c.a, anatomy.byName[c.bone].at), b: sub(c.b, anatomy.byName[c.bone].at), r: c.r })),
       drivers,
       twists: Object.entries(TWIST_JOINTS).map(([bone, t]) => ({ bone, driver: t.driver, share: t.share, axis: norm(sub(anatomy.byName[t.parent as HumanJoint].tip, anatomy.byName[t.parent as HumanJoint].at)) })),

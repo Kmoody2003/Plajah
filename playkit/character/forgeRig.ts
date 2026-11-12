@@ -3,18 +3,21 @@
  *
  * The GLB carries what glTF has no word for in `extras.forge` on its root node: spring chains and the body capsules
  * they collide with, corrective-shape drivers, twist drivers, hand grips and the blade's markers. This reads them and
- * runs, once per frame after the animation mixer: twist and grip, the correctives, then the springs.
+ * runs, once per frame after the animation mixer: twist and grip, the correctives, the springs, then the cloth.
  */
 import * as THREE from 'three/webgpu';
 import { SpringBones, type CapsuleSpec, type SpringChainSpec } from './springBones';
 import { MorphDrivers, type MorphDriverSpec, type TwistDriverSpec } from './morphDrivers';
 import { enableDualQuaternionSkinning } from './dqSkinning';
+import { ClothSim, type ClothSimSpec } from './clothSim';
 
 export interface ForgeExtras {
   version: number;
   /** Standing height of the authored figure in metres (crown to sole, hair included). */
   height: number;
   springs: SpringChainSpec[];
+  /** Garments simulated as cloth (clothSim.ts). */
+  cloth?: ClothSimSpec[];
   capsules: CapsuleSpec[];
   drivers: MorphDriverSpec[];
   twists: TwistDriverSpec[];
@@ -29,6 +32,8 @@ export interface ForgeExtras {
 export interface ForgeRig {
   extras: ForgeExtras;
   springs: SpringBones;
+  /** The garments' cloth, when the figure has any. */
+  cloth: ClothSim | null;
   drivers: MorphDrivers;
   /** Set a hand's grip by name ('katana', 'fist', 'relaxed'). */
   grip(hand: 'Left' | 'Right', pose: string): void;
@@ -52,6 +57,7 @@ export function forgeRig(model: THREE.Object3D, opts: { dqs?: boolean } = {}): F
   if (dqsOn) model.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) enableDualQuaternionSkinning(o as THREE.SkinnedMesh); });
   const springs = new SpringBones(model, extras.springs, extras.capsules);
   const drivers = new MorphDrivers(model, extras.drivers, extras.twists);
+  const cloth = extras.cloth?.length ? new ClothSim(model, extras.cloth, extras.capsules) : null;
   const bones = new Map<string, THREE.Object3D>();
   model.traverse((o) => { if ((o as THREE.Bone).isBone) bones.set(o.name, o); });
   const held: Record<string, string> = { ...extras.hold };
@@ -72,7 +78,7 @@ export function forgeRig(model: THREE.Object3D, opts: { dqs?: boolean } = {}): F
   };
   let first = true;
   return {
-    extras, springs, drivers,
+    extras, springs, cloth, drivers,
     grip(hand, pose) { held[hand] = `${hand}:${pose}`; },
     update(dt) {
       const t0 = performance.now();
@@ -80,8 +86,9 @@ export function forgeRig(model: THREE.Object3D, opts: { dqs?: boolean } = {}): F
       drivers.updateTwists();
       model.updateMatrixWorld(true);
       drivers.update();
-      if (first) { springs.reset(); first = false; }
+      if (first) { springs.reset(); cloth?.reset(); first = false; }
       springs.update(dt);
+      cloth?.update(dt);
       cost = performance.now() - t0;
     },
     get costMs() { return cost; },
