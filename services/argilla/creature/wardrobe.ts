@@ -302,12 +302,31 @@ export interface Wardrobe {
 const ERA = 'Momoyama (late 16th c.)';
 const REF_TOSEI = ['紺糸威南蛮胴具足, Azuchi-Momoyama, Japan Search', 'Tachidō tosei-gusoku, Momoyama–Edo, Wikimedia Commons'];
 
-export function buildHaruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
+/**
+ * The armour's shape as numbers a fit can move (scripts/eraclash3d/forgeArmourFit.ts searches them against the art; the
+ * fitted values live in scripts/eraclash3d/data/haru_armour_fit.json).
+ */
+export interface ArmourFit {
+  /** Dō: the bottom and top of the laced rows, and the stand-off from the body. */
+  doBottom: number; doTop: number; doClear: number;
+  /** Kusazuri: height of each lame, how much each lame flares out past the one above, stand-off from the dō. */
+  kusaLameH: number; kusaFlare: number; kusaClear: number;
+  /** Sode: where the top lame hangs (x out, y up, z), its outward lean (degrees), lame height, width, collision radius. */
+  sodeX: number; sodeY: number; sodeZ: number; sodeOut: number; sodeLameH: number; sodeW: number; sodeR: number;
+}
+export const ARMOUR_FIT_DEFAULT: ArmourFit = {
+  doBottom: 1.035, doTop: 1.36, doClear: 0.03,
+  kusaLameH: 0.058, kusaFlare: 0.008, kusaClear: 0.012,
+  sodeX: 0.215, sodeY: 1.5, sodeZ: -0.005, sodeOut: 14, sodeLameH: 0.046, sodeW: 0.24, sodeR: 0.025,
+};
+
+export function buildHaruKit(anatomy: HumanAnatomy, field: Field, fitIn: Partial<ArmourFit> = {}): Wardrobe {
+  const fit: ArmourFit = { ...ARMOUR_FIT_DEFAULT, ...fitIn };
   orientTo(field);
-  try { return haruKit(anatomy, field); } finally { orientTo(null); }
+  try { return haruKit(anatomy, field, fit); } finally { orientTo(null); }
 }
 
-function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
+function haruKit(anatomy: HumanAnatomy, field: Field, fit: ArmourFit): Wardrobe {
   const J = (n: HumanJoint) => anatomy.byName[n].at;
   const w: Wardrobe = {
     armour: new Map(), cloth: new Map(), lacing: [], kabuto: new Map(), hair: new MeshBuilder(),
@@ -342,11 +361,11 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
 
   // ---- Dō: seven rows of kozane plates, laced kebiki ----------------------------------------------------------------
   piece('do', 'Dō (cuirass): seven rows of lacquered kozane, kon-ito kebiki odoshi');
-  const doRows = 7, yBottom = 1.035, yTop = 1.36, rowH = (yTop - yBottom) / doRows;
+  const doRows = 7, yBottom = fit.doBottom, yTop = fit.doTop, rowH = (yTop - yBottom) / doRows;
   const rowBone = (i: number): HumanJoint => (i < 2 ? 'Spine' : i < 4 ? 'Spine1' : 'Spine2');
   const sections = new Map<number, ReturnType<typeof trunkSection>>();
   const sec = (y: number) => { const k = Math.round(y * 200); let s = sections.get(k); if (!s) { s = trunkSection(field, k / 200); sections.set(k, s); } return s; };
-  const doClear = 0.03;
+  const doClear = fit.doClear;
   for (let i = 0; i < doRows; i++) {
     const y0 = yBottom + i * rowH - 0.008, y1 = yBottom + (i + 1) * rowH + 0.006;
     const bone = rowBone(i);
@@ -382,7 +401,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
   // munaita (chest plate) and oshitsuke-ita (back plate): solid lacquered plates over the top row, gold-rimmed
   for (const side of [1, -1]) {
     const bone: HumanJoint = 'Spine2';
-    const y0 = yTop - 0.004, y1 = side > 0 ? 1.425 : 1.445;
+    const y0 = yTop - 0.004, y1 = yTop + (side > 0 ? 0.065 : 0.085); // the chest plate, the back plate a little higher
     const half = side > 0 ? 0.105 : 0.12;
     const f = (u: number, v: number): Vec3 => {
       const a = Math.PI / 2 * side + (u - 0.5) * (half * 2 / 0.16);
@@ -412,7 +431,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
 
   // ---- Kusazuri: seven tassets on spring chains -----------------------------------------------------------------------
   piece('kusazuri', 'Kusazuri (tassets): seven columns of five lames, laced, on spring chains');
-  const tassets = 7, lames = 5, lameH = 0.058, kTop = yBottom + 0.004;
+  const tassets = 7, lames = 5, lameH = fit.kusaLameH, kTop = yBottom + 0.004;
   const kBottom = kTop - lames * (lameH - 0.008) - 0.008;
   const hipSec = sec(0.93), waistSec = sec(kTop);
   for (let i = 0; i < tassets; i++) {
@@ -422,13 +441,13 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
     for (let j = 0; j < lames; j++) {
       const name = `Kusazuri${i}_${j}`;
       const yTopJ = kTop - j * (lameH - 0.008);
-      const r = Math.max(waistSec.radius(a0), hipSec.radius(a0)) + doClear + 0.012 + j * 0.008;
+      const r = Math.max(waistSec.radius(a0), hipSec.radius(a0)) + doClear + fit.kusaClear + j * fit.kusaFlare;
       const at: Vec3 = [Math.cos(a0) * r, yTopJ, waistSec.cz + Math.sin(a0) * r];
       w.bones.push({ name, parent: j ? `Kusazuri${i}_${j - 1}` : 'Spine', at });
       chain.push(name);
       const f = (u: number, v: number): Vec3 => {
         const a = a0 + (u - 0.5) * span * (1 + j * 0.03);
-        const rr = Math.max(waistSec.radius(a), hipSec.radius(a)) + doClear + 0.012 + j * 0.008 + (1 - v) * 0.006;
+        const rr = Math.max(waistSec.radius(a), hipSec.radius(a)) + doClear + fit.kusaClear + j * fit.kusaFlare + (1 - v) * 0.006;
         const tooth = v > 0.97 ? 0.0035 * Math.abs(Math.sin(u * 14 * Math.PI)) : 0;
         return [Math.cos(a) * rr, yTopJ - lameH + v * lameH + tooth, waistSec.cz + Math.sin(a) * rr];
       };
@@ -453,19 +472,20 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
         tube(A('gold'), pts, 0.0035, 4, name);
       }
     }
-    w.springs.push({ bones: chain, stiffness: 22, drag: 0.18, gravity: 9.8, radius: 0.02, maxAngle: 22 });
+    // (a collision radius as thick as the hakama on the thigh: a lifted knee pushes the tasset out over the cloth)
+    w.springs.push({ bones: chain, stiffness: 22, drag: 0.18, gravity: 9.8, radius: 0.05, maxAngle: 22 });
   }
 
   // ---- Sode: shoulder guards on spring chains ------------------------------------------------------------------------
   piece('sode', 'Sode (shoulder guards): seven lames, laced, hung from the watagami on spring chains');
   for (const s of ['Left', 'Right'] as const) {
     const sx = s === 'Left' ? 1 : -1;
-    const hang = norm([sx * Math.sin((14 * Math.PI) / 180), -Math.cos((14 * Math.PI) / 180), 0]);
-    const outN = norm([sx * Math.cos((14 * Math.PI) / 180), Math.sin((14 * Math.PI) / 180), 0]);
+    const hang = norm([sx * Math.sin((fit.sodeOut * Math.PI) / 180), -Math.cos((fit.sodeOut * Math.PI) / 180), 0]);
+    const outN = norm([sx * Math.cos((fit.sodeOut * Math.PI) / 180), Math.sin((fit.sodeOut * Math.PI) / 180), 0]);
     // hung high, their tops level with the base of the neck, as the turnaround draws them (forgeSilhouette.ts)
-    const root: Vec3 = [sx * 0.215, 1.5, -0.005];
+    const root: Vec3 = [sx * fit.sodeX, fit.sodeY, fit.sodeZ];
     const chain: string[] = [];
-    const n = 7, h = 0.046, width = 0.24;
+    const n = 7, h = fit.sodeLameH, width = fit.sodeW;
     for (let j = 0; j < n; j++) {
       const name = `Sode${s[0]}_${j}`;
       const at = add(add(root, mul(hang, j * (h - 0.006))), mul(outN, j * 0.004));
@@ -494,7 +514,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
       if (j === n - 1) { const pts: Vec3[] = []; for (let k = 0; k <= 12; k++) pts.push(f(k / 12, 0)); tube(A('gold'), pts, 0.0035, 4, name); }
       if (j === 0) { const pts: Vec3[] = []; for (let k = 0; k <= 12; k++) pts.push(f(k / 12, 1)); tube(A('gold'), pts, 0.004, 4, name); }
     }
-    w.springs.push({ bones: chain, stiffness: 18, drag: 0.18, gravity: 9.8, radius: 0.025, maxAngle: 26 });
+    w.springs.push({ bones: chain, stiffness: 18, drag: 0.18, gravity: 9.8, radius: fit.sodeR, maxAngle: 26 });
   }
 
   // ---- Kote: cloth sleeve with iron splints and a hand plate ------------------------------------------------------
@@ -532,8 +552,9 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
   }
 
   // ---- Haidate: the thigh apron of small plates ---------------------------------------------------------------------
-  piece('haidate', 'Haidate (thigh guard): apron of small lacquered plates over the hakama, tied at the waist');
-  for (const s of ['Left', 'Right'] as const) {
+  // Haru's art shows none: below the kusazuri it is the hakama itself (FORGE_HAIDATE=1 puts it back)
+  if (process.env.FORGE_HAIDATE === '1') piece('haidate', 'Haidate (thigh guard): apron of small lacquered plates over the hakama, tied at the waist');
+  if (process.env.FORGE_HAIDATE === '1') for (const s of ['Left', 'Right'] as const) {
     const sx = s === 'Left' ? 1 : -1;
     const hip = J(`${s}UpLeg` as HumanJoint), knee = J(`${s}Leg` as HumanJoint);
     for (let row = 0; row < 6; row++) for (let col = 0; col < 5; col++) {
@@ -634,11 +655,11 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
       // (almost no fullness on the inner side: the legs part below the tassets, as the art's front view shows)
       const inner = Math.min(1, Math.max(0, -Math.sin(a)) * 1.25) * 0.92;
       const pleat = Math.cos(a) > 0.2 ? 0.004 * Math.sin(u * 5 * Math.PI * 2) : 0;
-      const r = ringAt(v)(a) + balloon(y, a) * (1 - inner) + 0.008 + pleat;
-      const p = add(c, mul(dir, r));
-      // under the tassets the cloth is gathered in: it never stands out past their inner face (they hang over it, as in
-      // the art); from their hem down it blouses freely
+      // under the tassets the cloth is gathered in close to the thigh (it moves with the thigh, and a full hakama there
+      // swung out through them with every step) and never past their inner face; from their hem down it blouses freely
       const under = smooth01((y - (kBottom - 0.06)) / 0.08);
+      const r = ringAt(v)(a) + balloon(y, a) * (1 - inner) * (1 - 0.75 * under) + 0.008 + pleat;
+      const p = add(c, mul(dir, r));
       if (under > 0) {
         const ab = Math.atan2(p[2] - waistSec.cz, p[0]);
         const lim = Math.max(waistSec.radius(ab), hipSec.radius(ab)) + doClear + 0.004;
@@ -653,7 +674,9 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
     w.clothSims.push(clothGrid(`hakama${s[0]}`, 'hakama', 18, 12, f, (v) => {
       const y = yGather + (yTopH - yGather) * v;
       const tied = v < 0.03 || v > 0.94 ? 1 : 0;
-      return { pin: tied, maxDist: tied ? 0 : 0.075 * Math.sin(Math.PI * Math.min(1, (y - yGather) / (0.95 - yGather))) ** 0.5 };
+      // under the tassets it may only shift a little (they hang over it: a free swing there pushed it out through them)
+      const underK = 1 - 0.85 * smooth01((y - (kBottom - 0.07)) / 0.06);
+      return { pin: tied, maxDist: tied ? 0 : 0.075 * Math.sin(Math.PI * Math.min(1, (y - yGather) / (0.95 - yGather))) ** 0.5 * underK };
     }, { drive: 3, damping: 1.4, radius: 0.012 }));
   }
   // ---- Eri: the kosode's collar, high round the neck and crossing in a V under the chin (left over right) ----------

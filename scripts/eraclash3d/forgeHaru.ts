@@ -8,6 +8,7 @@
  * face shapes from the VTuber rig builder, look from Haru's art. Intermediates go to D:\Plajah Runtime\eraclash3d\forge.
  */
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import {
   buildHumanAnatomy, HARU_TUNE, HUMAN_JOINTS, PARENT, TWIST_JOINTS, qaxis, qrot,
@@ -73,37 +74,48 @@ async function main() {
     for (const e of ['LeftEye', 'RightEye'] as const) { const b = anatomy.byName[e]; b.at = map.forward(b.at); b.tip = map.forward(b.tip); }
     log(`head warp: ${warp.passes} passes from the fidelity loop`);
   }
-  const raw = meshField(field, [-0.75, -0.02, -0.25], [0.75, 1.82, 0.3], voxel);
-  log(`surface nets @${voxel * 1000}mm: ${raw.positions.length / 3} verts`);
-  relaxMesh(raw, 2, 0.5);
-  settleOnField(raw, field, 2);
-  const { MeshoptSimplifier } = await import('meshoptimizer');
-  await MeshoptSimplifier.ready;
-  // the head keeps far more of its detail than the body (the face is what the camera looks at); the two are simplified
-  // apart with their shared border locked, so the seam stays closed
-  const headTris: number[] = [], restTris: number[] = [];
-  for (let i = 0; i < raw.indices.length; i += 3) {
-    const y = (raw.positions[raw.indices[i] * 3 + 1] + raw.positions[raw.indices[i + 1] * 3 + 1] + raw.positions[raw.indices[i + 2] * 3 + 1]) / 3;
-    (y > 1.47 ? headTris : restTris).push(raw.indices[i], raw.indices[i + 1], raw.indices[i + 2]);
-  }
-  const [simpleHead] = MeshoptSimplifier.simplify(new Uint32Array(headTris), raw.positions, 3, Number(process.env.FORGE_HEAD_TRIS ?? 22000) * 3, 0.0008, ['LockBorder']);
-  const [simpleRest] = MeshoptSimplifier.simplify(new Uint32Array(restTris), raw.positions, 3, Number(process.env.FORGE_TRIS ?? 50000) * 3, 0.002, ['LockBorder']);
-  const simple = new Uint32Array(simpleHead.length + simpleRest.length); simple.set(simpleHead); simple.set(simpleRest, simpleHead.length);
-  const body = compact({ positions: raw.positions, normals: raw.normals, indices: simple }).mesh;
-  settleOnField(body, field, 2);
-  log(`body: ${body.positions.length / 3} verts, ${body.indices.length / 3} tris`);
-  const skin = humanSkinWeights(body, anatomy, field);
-
-  // ---- Corrective shapes, baked from the anatomy ----------------------------------------------------------
+  // the body, its weights and correctives depend only on the anatomy, the head warp and the mesh settings: cached, so a
+  // wardrobe-only change (the armour fit) rebuilds in seconds instead of a minute
   const { specs, drivers } = correctiveSpecs(anatomy);
-  const correctives: Float32Array[] = [];
-  for (const spec of specs) {
-    const d = bakeCorrective(body, skin, anatomy, field, spec);
-    correctives.push(d);
-    let max = 0, moved = 0;
-    for (let i = 0; i < d.length; i += 3) { const l = Math.hypot(d[i], d[i + 1], d[i + 2]); max = Math.max(max, l); if (l > 0.001) moved++; }
-    log(`corrective ${spec.name}: ${moved} verts, max ${(max * 1000).toFixed(1)} mm`);
-  }
+  const bodyKey = createHash('sha1').update(JSON.stringify([tune, warp, voxel, process.env.FORGE_TRIS, process.env.FORGE_HEAD_TRIS,
+    ...['services/argilla/creature/human.ts', 'services/argilla/creature/humanFinish.ts', 'services/argilla/bake.ts'].map((f) => fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : '')])).digest('hex').slice(0, 16);
+  const cacheFile = path.join(WORK, `body_${bodyKey}.bin`);
+  const cached = process.env.FORGE_BODY_CACHE !== '0' ? loadBody(cacheFile) : null;
+  const { body, skin, correctives } = cached ?? await (async () => {
+    const raw = meshField(field, [-0.75, -0.02, -0.25], [0.75, 1.82, 0.3], voxel);
+    log(`surface nets @${voxel * 1000}mm: ${raw.positions.length / 3} verts`);
+    relaxMesh(raw, 2, 0.5);
+    settleOnField(raw, field, 2);
+    const { MeshoptSimplifier } = await import('meshoptimizer');
+    await MeshoptSimplifier.ready;
+    // the head keeps far more of its detail than the body (the face is what the camera looks at); the two are simplified
+    // apart with their shared border locked, so the seam stays closed
+    const headTris: number[] = [], restTris: number[] = [];
+    for (let i = 0; i < raw.indices.length; i += 3) {
+      const y = (raw.positions[raw.indices[i] * 3 + 1] + raw.positions[raw.indices[i + 1] * 3 + 1] + raw.positions[raw.indices[i + 2] * 3 + 1]) / 3;
+      (y > 1.47 ? headTris : restTris).push(raw.indices[i], raw.indices[i + 1], raw.indices[i + 2]);
+    }
+    const [simpleHead] = MeshoptSimplifier.simplify(new Uint32Array(headTris), raw.positions, 3, Number(process.env.FORGE_HEAD_TRIS ?? 22000) * 3, 0.0008, ['LockBorder']);
+    const [simpleRest] = MeshoptSimplifier.simplify(new Uint32Array(restTris), raw.positions, 3, Number(process.env.FORGE_TRIS ?? 50000) * 3, 0.002, ['LockBorder']);
+    const simple = new Uint32Array(simpleHead.length + simpleRest.length); simple.set(simpleHead); simple.set(simpleRest, simpleHead.length);
+    const body = compact({ positions: raw.positions, normals: raw.normals, indices: simple }).mesh;
+    settleOnField(body, field, 2);
+    log(`body: ${body.positions.length / 3} verts, ${body.indices.length / 3} tris`);
+    const skin = humanSkinWeights(body, anatomy, field);
+
+    // ---- Corrective shapes, baked from the anatomy ----------------------------------------------------------
+    const correctives: Float32Array[] = [];
+    for (const spec of specs) {
+      const d = bakeCorrective(body, skin, anatomy, field, spec);
+      correctives.push(d);
+      let max = 0, moved = 0;
+      for (let i = 0; i < d.length; i += 3) { const l = Math.hypot(d[i], d[i + 1], d[i + 2]); max = Math.max(max, l); if (l > 0.001) moved++; }
+      log(`corrective ${spec.name}: ${moved} verts, max ${(max * 1000).toFixed(1)} mm`);
+    }
+    return { body, skin, correctives };
+  })();
+  if (cached) log(`body from cache (${path.basename(cacheFile)}): ${body.positions.length / 3} verts`);
+  else saveBody(cacheFile, body, skin, correctives);
   const morphNames = specs.map((s) => s.name);
 
   // ---- Head: its own mesh above a seam under the jaw, the ARKit shapes on its canonical face, painted from its landmarks
@@ -123,7 +135,10 @@ async function main() {
   log(`head: ${head.mesh.positions.length / 3} verts, ${ARKIT_SHAPES.length} ARKit shapes from the canonical face`);
 
   // ---- Wardrobe ------------------------------------------------------------------------------------------
-  const kit = buildHaruKit(anatomy, field);
+  // the armour's fitted shape (forgeArmourFit.ts searches it against the art)
+  const ARMOUR_FIT_FILE = process.env.FORGE_ARMOUR_FIT ?? 'scripts/eraclash3d/data/haru_armour_fit.json';
+  const armourFit = fs.existsSync(ARMOUR_FIT_FILE) ? JSON.parse(fs.readFileSync(ARMOUR_FIT_FILE, 'utf8')) : {};
+  const kit = buildHaruKit(anatomy, field, armourFit);
   log(`wardrobe: ${kit.pieces.map((p) => p.id).join(', ')}; ${kit.bones.length} chain bones, ${kit.springs.length} spring chains`);
   // hair: strand cards over the painted scalp, swept back to a tied ponytail on a spring chain (Muse turnaround)
   const scalp = fitScalp(head.mesh.positions, crownY, anatomy.face[9][1]); // landmark 9: between the brows
@@ -325,6 +340,24 @@ async function main() {
     lacingInstances: kit.lacing.reduce((n, l) => n + l.t.length / 3, 0), pieces: kit.pieces,
   }, null, 2));
   log(`wrote ${out} (${(glb.length / 1e6).toFixed(1)} MB)`);
+}
+
+// ---- The body cache ---------------------------------------------------------------------------------------------
+
+function saveBody(file: string, body: BodyMesh, skin: Skin, correctives: Float32Array[]) {
+  const parts: ArrayBufferView[] = [body.positions, body.normals, body.indices, skin.skinIndex, skin.skinWeight, ...correctives];
+  const head = Buffer.from(JSON.stringify(parts.map((p) => [p.constructor.name, p.byteLength])));
+  fs.writeFileSync(file, Buffer.concat([Buffer.from(String(head.length).padStart(10, '0')), head, ...parts.map((p) => Buffer.from(p.buffer, p.byteOffset, p.byteLength))]));
+}
+function loadBody(file: string): { body: BodyMesh; skin: Skin; correctives: Float32Array[] } | null {
+  if (!fs.existsSync(file)) return null;
+  const b = fs.readFileSync(file), hl = Number(b.subarray(0, 10).toString());
+  const meta = JSON.parse(b.subarray(10, 10 + hl).toString()) as [string, number][];
+  let off = 10 + hl;
+  const T: Record<string, new (buf: ArrayBuffer) => ArrayBufferView> = { Float32Array, Uint32Array, Uint16Array };
+  const arrs = meta.map(([name, len]) => { const a = new T[name](b.buffer.slice(b.byteOffset + off, b.byteOffset + off + len)); off += len; return a; });
+  const [positions, normals, indices, skinIndex, skinWeight, ...cor] = arrs as [Float32Array, Float32Array, Uint32Array, Uint16Array, Float32Array, ...Float32Array[]];
+  return { body: { positions, normals, indices }, skin: { skinIndex, skinWeight }, correctives: cor };
 }
 
 // ---- Correctives and their drivers -------------------------------------------------------------------------------

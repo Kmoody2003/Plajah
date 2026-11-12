@@ -448,7 +448,20 @@ function calibrate(tris: Tri[]) {
 }
 
 const t0 = Date.now();
-const pose = fitPose();
+// --fast: the last fitted pose, shape only, no images (the armour fit runs this many times)
+const FAST = args.includes('--fast');
+const lastPose = (() => { try { return JSON.parse(fs.readFileSync(path.join(outDir, 'fidelity.json'), 'utf8')).pose; } catch { return null; } })();
+const pose = FAST && lastPose ? lastPose : fitPose();
+if (FAST) {
+  const tr = posedTris(poseOf(pose));
+  const out: Record<string, Record<string, { shape: number; iou: number; outlineMm: number }>> = {};
+  for (const v of ['front', 'side', 'back'] as ViewName[]) {
+    const r = score(render(tr, v), v, false);
+    out[v] = Object.fromEntries(Object.entries(r.regions).map(([k, x]) => [k, { shape: x.shape, iou: x.iou, outlineMm: x.outlineMm }]));
+  }
+  console.log(JSON.stringify(out));
+  process.exit(0);
+}
 if (args.includes('--paint')) {
   const { paintFromSheet } = await import('./forgePaint');
   const posedT = posedTris(poseOf(pose));

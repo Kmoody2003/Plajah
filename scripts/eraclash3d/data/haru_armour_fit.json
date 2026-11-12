@@ -1,0 +1,15 @@
+{
+  "doBottom": 0.995,
+  "doTop": 1.38,
+  "doClear": 0.03,
+  "kusaLameH": 0.08,
+  "kusaFlare": 0.012,
+  "kusaClear": 0.006,
+  "sodeX": 0.215,
+  "sodeY": 1.49,
+  "sodeZ": -0.025,
+  "sodeOut": 20,
+  "sodeLameH": 0.046,
+  "sodeW": 0.27,
+  "sodeR": 0.025
+}

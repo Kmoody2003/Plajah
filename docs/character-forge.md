@@ -89,6 +89,12 @@ Each piece is its own mesh with its own material, made from parametric period pa
     - **Projection:** in the art's pose with the springs settled, each texel takes the views that see it, depth-tested and weighted by facing. The side view is mirrored for the right side, which the sheet doesn't draw.
     - **Unseen texels** keep the piece's colour.
     - Measured after painting: 70.1%. Colour went from 31–38% to 66–68%, with the legs at ΔE 4–6.
+  - **Armour fit** (`forgeArmourFit.ts`): coordinate descent over `ArmourFit` (dō, kusazuri, sode).
+    - Each try rebuilds with the cached body (8 s), then scores torso and legs with `forgeFidelity --fast` (5 s).
+    - The result lives in `data/haru_armour_fit.json`.
+    - First run: 73.1% → 75.2% torso/legs shape. Kusazuri lames 5.8 → 8 cm, the dō 2 cm taller, the sode 3 cm wider, further back and leaning out 20°.
+  - The haidate is off by default (`FORGE_HAIDATE=1`): the art shows the hakama straight below the kusazuri.
+  - **In motion:** the hakama is slim under the tassets and the tassets collide as thick as the cloth, so a lifted knee no longer pushes the hakama through them. The static score cannot see this: check clips in the viewer.
   - What's left: shape (72–75%): the shoulder guards stand out like wings and the dō's top is off by 2–3 cm. The head is 78–81% IoU. The GLB is now about 25 MB with the paintings.
 
 ### 5. Rig and export
