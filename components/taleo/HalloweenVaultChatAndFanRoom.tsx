@@ -55,6 +55,7 @@ import { LivePollsPanel } from './LivePollsPanel';
 import { CAST_EMOTES, type CastEmoteId } from '../../services/halloween/ravencrestCastStage';
 import { PoseTracker, type PoseFrame } from '../../services/vtuber/poseTracker';
 import { AsyncPoseTracker } from '../../services/vtuber/poseTrackerAsync';
+import { createLiveLift, type LiveLift } from '../../services/mocap/liveLift';
 import { ClipRecorder } from './ClipRecorder';
 import { PUMPKIN_PATCH_CLUB_ID, openClubRoom, teamRoomFor } from '../../services/halloween/pumpkinPatchClub';
 import {
@@ -335,6 +336,8 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
   // Full-body tracking for the 3D characters (MediaPipe pose, loaded on first use).
   // Worker first (30 Hz, off the main thread); the blocking tracker only if workers can't run it.
   const poseTrackerRef = useRef<{ state: 'loading' | 'ready' | 'failed'; async?: AsyncPoseTracker; sync?: PoseTracker } | null>(null);
+  /** Body correction for the cast puppets' 3D body (services/mocap/liveLift). */
+  const liveLiftRef = useRef<LiveLift | null>(null);
   /** Latest person mask: the real body is dimmed behind the 3D character (segmentation). */
   const personMaskRef = useRef<PoseFrame['mask'] | null>(null);
   const castCharacter = useMemo(
@@ -518,7 +521,8 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
       const overlay = castOverlayRef.current;
       if (overlay && castActiveRef.current) {
         const pt = poseTrackerRef.current;
-        const applyPose = (fr: PoseFrame | null) => {
+        const applyPose = (raw: PoseFrame | null) => {
+          const fr = videoEl ? (liveLiftRef.current ??= createLiveLift()).apply(raw, videoEl.videoWidth, videoEl.videoHeight) : raw;
           overlay.setBodyPose(fr?.world ? { world: fr.world } : null);
           if (fr?.mask) personMaskRef.current = fr.mask;
         };

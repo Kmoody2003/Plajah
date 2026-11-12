@@ -10,6 +10,7 @@ import { FaceTracker, type FaceFrame } from './faceTracker';
 import { AsyncPoseTracker } from './poseTrackerAsync';
 import { PoseTracker, type PoseFrame } from './poseTracker';
 import { DetectFeed } from './detectFeed';
+import { createLiveLift, type LiveLift } from '../mocap/liveLift';
 
 interface Backend<F> {
   send(video: HTMLVideoElement, ts: number): void;
@@ -84,7 +85,9 @@ export class LiveFaceTracker extends LiveTracker<FaceFrame> {
 }
 
 export class LivePoseTracker extends LiveTracker<PoseFrame> {
-  constructor(opts: { full?: boolean; segmentation?: boolean } = {}) {
+  /** Body correction (the Plajah pose lifter on the 3D points); on unless `lift: false`. */
+  private lift: LiveLift | null;
+  constructor(opts: { full?: boolean; segmentation?: boolean; lift?: boolean } = {}) {
     super(async () => {
       const a = new AsyncPoseTracker();
       if (await a.init(opts)) {
@@ -94,5 +97,11 @@ export class LivePoseTracker extends LiveTracker<PoseFrame> {
       if (!(await s.init(opts))) return null;
       return { backend: syncBackend((v, ts) => s.detect(v, ts), () => s.dispose()), gap: 100 };
     });
+    this.lift = opts.lift === false ? null : createLiveLift();
+  }
+
+  override step(video: HTMLVideoElement, nowMs: number): PoseFrame | null | undefined {
+    const f = super.step(video, nowMs);
+    return f === undefined || !this.lift ? f : this.lift.apply(f, video.videoWidth, video.videoHeight);
   }
 }

@@ -505,8 +505,14 @@ worth checking on a real person.
 
 One model serves both; the causal one is kept off the site (`D:/Plajah Models/mocap/lifters/`). Live, the gate
 falls at once on a bad frame and climbs back over 4 frames. `mocapBench.rescoreStored(keys, {}, {lifter, live: true})`
-scores the live path. Not yet wired into a live consumer: the capture room's live view draws only 2D points, so the
-users are the VTuber and character puppets (`services/vtuber/poseTracker.ts` world points).
+scores the live path.
+
+**Wired live (2026-11-12):** `services/mocap/liveLift.ts` puts every live body frame through the stream. It is on
+by default in `LivePoseTracker` (VTuber voice studio; `new LivePoseTracker({ lift: false })` opts out) and in the
+Halloween fan room's cast puppets. Only the 3D points change; picture points and person masks are untouched, and
+frames pass through unchanged until the 4 MB model has loaded. Checked in the lab on the warrior kick clip played
+as a webcam: 165 frames corrected at 3.2 ms each, limbs moved ~9 cm on average from raw MediaPipe. Not yet
+watched on a real avatar with a real webcam.
 
 **Why boxing stays bad** (diagnose `boxing-20`): MediaPipe's own 2D points are wrong. Left elbow and wrist sit
 50–100 px off at high confidence (0.8–0.97), and the two wrists are swapped in 48 of 180 frames. A render of the
@@ -529,7 +535,7 @@ camera is a job for a second camera**, which moves the two-phone mode up the lis
 
 **Next:**
 1. ~~Two-phone capture~~: built, §6d.
-2. Stream the lifter into the VTuber/puppet pose path behind a setting, and measure it on a real webcam.
+2. ~~Stream the lifter into the VTuber/puppet pose path~~: wired, on by default; watch it on a real webcam.
 3. Kenne's own webcam take, to confirm on a real person (and re-test the hand pass on it).
 
 ## 6d. Two-phone capture (2026-11-12, committed)
