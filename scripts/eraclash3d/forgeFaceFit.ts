@@ -99,7 +99,7 @@ export async function fitFaceToArt(opts: { landmarks: string; chinY: number; she
  */
 export async function paintHeadFromSheet(
   atlasPng: Uint8Array, head: { positions: Float32Array; normals: Float32Array; uvs: Float32Array; indices: Uint32Array },
-  opts: { chinY: number; frontSkin: number[]; front: number; sheet?: typeof HARU_SHEET; /** The portrait alone in front of this depth (the face's features: a profile's brow or nostril must not land on them). */ faceZ: number; browY: number },
+  opts: { chinY: number; frontSkin: number[]; front: number; sheet?: typeof HARU_SHEET; /** The portrait alone in front of this depth (the face's features: a profile's brow or nostril must not land on them). */ faceZ: number; browY: number; /** Where the head mesh meets the body (it fades to the body's skin, `frontSkin`, there). */ seamY?: number },
 ): Promise<Uint8Array> {
   const sh = opts.sheet ?? HARU_SHEET;
   const ppm = (sh.sole - sh.chin) / opts.chinY;
@@ -132,7 +132,10 @@ export async function paintHeadFromSheet(
   const earZ = (cxSide - 1021.7) / ppm, earY = (sh.sole - 180) / ppm;
   const viewColour = (p: number[], nr: number[]): { c: number[]; w: number } | null => {
     // below the jaw line (chin to the angle under the ear) the art's beard shadow would land on the neck: skin there
-    if (p[1] < opts.chinY - 0.005 + 0.06 * Math.max(0, Math.min(1, (0.12 - p[2]) / 0.07))) return p[1] > opts.chinY - 0.06 ? { c: opts.frontSkin, w: 1 } : null;
+    // (faded over 2.5 cm, not cut: a hard stop drew a line round the jaw and the nape)
+    const jawLine = opts.chinY - 0.005 + 0.06 * Math.max(0, Math.min(1, (0.12 - p[2]) / 0.07));
+    const above = Math.max(0, Math.min(1, (p[1] - jawLine) / 0.025));
+    if (above <= 0) return p[1] > opts.chinY - 0.06 ? { c: opts.frontSkin, w: 1 } : null;
     if (((p[2] - earZ) / 0.03) ** 2 + ((p[1] - earY) / 0.045) ** 2 < 1 && Math.abs(nr[0]) > 0.3) return { c: opts.frontSkin, w: 1 };
     // side view for either side (the head is near enough symmetric), the back view behind
     // (only surfaces that really face a view: a forehead sloping away is hidden behind the side hair in a profile)
@@ -142,8 +145,8 @@ export async function paintHeadFromSheet(
     const back = sampleSheet(cxBack - p[0] * ppm, sh.sole - p[1] * ppm);
     if (side && wSide > 0 && headPixel(side)) { for (let k = 0; k < 3; k++) out[k] += side[k] * wSide; wt += wSide; }
     if (back && wBack > 0 && headPixel(back)) { for (let k = 0; k < 3; k++) out[k] += back[k] * wBack; wt += wBack; }
-    if (!wt) return null;
-    return { c: out.map((v, k) => Math.min(255, (v / wt) * tone[k])), w: wt };
+    if (!wt) return above < 1 ? { c: opts.frontSkin, w: 1 } : null;
+    return { c: out.map((v, k) => Math.min(255, (v / wt) * tone[k]) * above + opts.frontSkin[k] * (1 - above)), w: wt };
   };
   const done = new Uint8Array(N * N);
   const { positions: P, normals: Nn, uvs: U, indices: I } = head;
@@ -166,21 +169,27 @@ export async function paintHeadFromSheet(
       const pt = [0, 1, 2].map((k) => l0 * P[v[0] * 3 + k] + l1 * P[v[1] * 3 + k] + l2 * P[v[2] * 3 + k]);
       const nr = [0, 1, 2].map((k) => l0 * Nn[v[0] * 3 + k] + l1 * Nn[v[1] * 3 + k] + l2 * Nn[v[2] * 3 + k]);
       const l = Math.hypot(nr[0], nr[1], nr[2]) || 1; nr[0] /= l; nr[1] /= l; nr[2] /= l;
-      let sv = viewColour(pt, nr);
-      // on the strip, a side of the head below the brows that the sheet has nothing for (beard shadow, the ear, the
-      // collar) is skin, not the procedural hair
-      if (!sv && y >= opts.front * N && pt[1] < opts.browY && pt[1] > opts.chinY - 0.06 && Math.abs(nr[0]) > -nr[2]) sv = { c: opts.frontSkin, w: 1 };
-      if (!sv) continue;
-      // in the front region the portrait holds while the surface faces the camera, handing over as it turns away
-      const inFront = y < opts.front * N;
-      if (inFront && pt[2] > opts.faceZ) continue;
-      const k = inFront ? Math.max(0, Math.min(1, (0.45 - nr[2]) / 0.35)) * Math.min(1, sv.w / 0.25) : 1;
-      if (k <= 0) continue;
-      for (let c = 0; c < 3; c++) atlas.data[i * 4 + c] = Math.round(atlas.data[i * 4 + c] * (1 - k) + sv.c[c] * k);
+      paint: {
+        let sv = viewColour(pt, nr);
+        // on the strip, a side of the head below the brows that the sheet has nothing for (beard shadow, the ear, the
+        // collar) is skin, not the procedural hair
+        if (!sv && y >= opts.front * N && pt[1] < opts.browY && pt[1] > opts.chinY - 0.06 && Math.abs(nr[0]) > -nr[2]) sv = { c: opts.frontSkin, w: 1 };
+        if (!sv) break paint;
+        // in the front region the portrait holds while the surface faces the camera, handing over as it turns away
+        const inFront = y < opts.front * N;
+        if (inFront && pt[2] > opts.faceZ) break paint;
+        const k = inFront ? Math.max(0, Math.min(1, (0.45 - nr[2]) / 0.35)) * Math.min(1, sv.w / 0.25) : 1;
+        if (k <= 0) break paint;
+        for (let c = 0; c < 3; c++) atlas.data[i * 4 + c] = Math.round(atlas.data[i * 4 + c] * (1 - k) + sv.c[c] * k);
+      }
+      // the last few centimetres above the cut to the body fade to the body's own skin colour, so the seam never shows
+      const ws = opts.seamY === undefined ? 0 : Math.max(0, Math.min(1, 1 - (pt[1] - opts.seamY) / 0.045));
+      if (ws > 0) { const e = ws * ws * (3 - 2 * ws); for (let c = 0; c < 3; c++) atlas.data[i * 4 + c] = Math.round(atlas.data[i * 4 + c] * (1 - e) + opts.frontSkin[c] * e); }
     }
   }
-  // grow the strip's painting a few texels past its triangles, so filtering never pulls the procedural hair in at an edge
-  const y0 = Math.ceil(opts.front * N);
+  // grow the painting a few texels past its triangles, so filtering never pulls the procedural hair (or, at the neck,
+  // an unfaded colour) in at an edge
+  const y0 = 0;
   for (let pass = 0; pass < 6; pass++) {
     const add: [number, number[]][] = [];
     for (let y = y0; y < N; y++) for (let x = 0; x < N; x++) {

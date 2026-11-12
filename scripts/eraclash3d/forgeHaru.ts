@@ -243,7 +243,7 @@ async function main() {
   // the sides and back of the head from the turnaround's side and back views
   if (fromArt && fs.existsSync(HARU_SHEET.path)) {
     const toSrgb = (c: number) => 255 * (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
-    atlasFace = { ...atlasFace, png: await paintHeadFromSheet(atlasFace.png, { ...headPrim, uvs: headPrim.uvs! }, { chinY: 1.537, frontSkin: fromArt.skin.map(toSrgb), front: 0.72, faceZ: sideZ + 0.025, browY }) };
+    atlasFace = { ...atlasFace, png: await paintHeadFromSheet(atlasFace.png, { ...headPrim, uvs: headPrim.uvs! }, { chinY: 1.537, frontSkin: fromArt.skin.map(toSrgb), front: 0.72, faceZ: sideZ + 0.025, browY, seamY: SEAM }) };
     log('head: sides and back painted from the sheet');
   }
   fs.writeFileSync(path.join(WORK, 'face_atlas.png'), atlasFace.png);
@@ -291,7 +291,7 @@ async function main() {
   const base = character.images.length;
   character.images.push(atlasFace.png);
   const skinMat = character.materials[MATERIAL_INDEX.skin];
-  character.materials.push({ ...skinMat, name: 'face', color: [1, 1, 1, 1], baseColorTexture: base, roughness: 0.55, specular: { factor: 0.45 } });
+  character.materials.push({ ...skinMat, name: 'face', color: [1, 1, 1, 1], baseColorTexture: base }); // the body's own gloss: no shading step at the neck
   headPrim.material = character.materials.length - 1;
   // the scalp under the strand cards: the hair's colour, matte, with the cord normal map running along the strands
   character.materials.push({ name: 'scalp', color: [0.014, 0.011, 0.01, 1], metallic: 0, roughness: 0.7, sheen: { color: [0.06, 0.05, 0.045], roughness: 0.4 } });
