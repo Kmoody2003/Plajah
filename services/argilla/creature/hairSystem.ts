@@ -278,16 +278,20 @@ export function ponytail(s: Scalp, opts: { headBone: string; columns: number; sn
   // ---- The tail: lifts back off the tie, arcs over and falls down the back of the head to the upper back ----------
   const L = opts.length ?? 0.3;
   const back = s.centre[2] - s.radii[2];
+  // the arc measured on the turnaround's side view (2026-11-12), relative to the tie: up and back to a crest, then
+  // sweeping back as it falls, ending well behind the shoulders' line (a Catmull-Rom through the four)
+  const K: Vec3[] = [[0, 0, 0], [0, 0.034, -0.051], [0, -0.082, -0.123], [0, -0.227, -0.186]].map((d) => add(tie.p, d as Vec3)) as Vec3[];
+  void L; void back;
   const curve = (t: number): Vec3 => {
-    // a quadratic out-and-down arc, then straight down, clear of the skull (control points relative to the head)
-    const p0 = tie.p, p1: Vec3 = [0, tie.p[1] + 0.035, back - 0.045], p2: Vec3 = [0, s.centre[1] - L * 0.55, back - 0.055];
-    const u = Math.min(1, t * 1.6);
-    const q = add(add(mul(p0, (1 - u) ** 2), mul(p1, 2 * u * (1 - u))), mul(p2, u * u));
-    return t * 1.6 <= 1 ? q : add(p2, [0, -(t - 1 / 1.6) * L * 0.75, -(t - 1 / 1.6) * 0.03]);
+    const f = Math.max(0, Math.min(1, t)) * (K.length - 1), i = Math.min(K.length - 2, Math.floor(f)), u = f - i;
+    const p0 = K[Math.max(0, i - 1)], p1 = K[i], p2 = K[i + 1], p3 = K[Math.min(K.length - 1, i + 2)];
+    const u2 = u * u, u3 = u2 * u;
+    return [0, 1, 2].map((k) => 0.5 * (2 * p1[k] + (-p0[k] + p2[k]) * u + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * u2 + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * u3)) as Vec3;
   };
   const chain = [0, 1, 2, 3, 4].map((i) => `Tail_${i}`);
   chain.forEach((name, i) => bones.push({ name, parent: i ? chain[i - 1] : H, at: curve(i / chain.length) }));
-  springs.push({ bones: chain, stiffness: 9, drag: 0.12, gravity: 9.8, radius: 0.016, maxAngle: 55 });
+  // stiff enough to hold the art's arc standing, light enough to swing and trail in motion
+  springs.push({ bones: chain, stiffness: 16, drag: 0.12, gravity: 4, radius: 0.016, maxAngle: 55 });
   const boneAt = (t: number) => chain[Math.min(chain.length - 1, Math.floor(t * chain.length))];
   for (let k = 0; k < 120; k++) {
     const a = rand() * Math.PI * 2, rr = Math.sqrt(rand());
@@ -299,7 +303,7 @@ export function ponytail(s: Scalp, opts: { headBone: string; columns: number; sn
       const c = curve(t), along = norm(sub(curve(Math.min(1, t + 0.02)), curve(Math.max(0, t - 0.02))));
       const sideV = norm(cross(along, [0, 0, -1])), outV = norm(cross(sideV, along));
       // tight in the cord, full below it, thinning and spreading into strands at the ends
-      const rad = (0.011 + 0.03 * Math.min(1, t * 5) * (1 - 0.4 * t)) * rr + 0.004 * t * Math.sin(wob + t * 9);
+      const rad = (0.011 + 0.03 * Math.min(1, t * 5) + 0.03 * t * t) * rr + 0.006 * t * Math.sin(wob + t * 9); // spreading into strands
       const p = add(c, add(mul(sideV, Math.cos(a) * rad * 1.15), mul(outV, Math.sin(a) * rad * 0.8)));
       pts.push(p); facing.push(norm(add(mul(sideV, Math.cos(a)), mul(outV, Math.sin(a))))); bs.push(t < 0.04 ? H : boneAt(t));
     }

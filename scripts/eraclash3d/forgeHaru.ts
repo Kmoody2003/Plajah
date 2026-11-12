@@ -24,7 +24,7 @@ import { nihonto, saya } from '../../services/argilla/creature/weapons';
 import { forgeToGlb, type ForgeCharacter, type ForgeRigid, type ForgeSocket } from '../../services/argilla/creature/exportCreature';
 import type { GPrim } from '../../services/argilla/creature/gltfWriter';
 import { haruMaterials, MATERIAL_INDEX, paintHaru, rgbaPng, paintFace, paintFaceFromArt, type ArtLandmarks } from './forgeLook';
-import { fitFaceToArt, paintHeadFromSheet, HARU_SHEET } from './forgeFaceFit';
+import { fitFaceToArt, paintHeadFromSheet, HARU_SHEET, loadHeadWarp, headWarpMap, warpField, HEAD_WARP_FILE } from './forgeFaceFit';
 import { CANONICAL_INDICES } from '../../services/vtuber/rigBuilder/canonicalFace';
 import { fitScalp, ponytail, strandAtlas, hairlineAt } from '../../services/argilla/creature/hairSystem';
 import * as THREE from 'three';
@@ -62,7 +62,17 @@ async function main() {
 
   // ---- Body ----------------------------------------------------------------------------------------------
   const voxel = Number(process.env.FORGE_VOXEL ?? 0.0035);
-  const field = bodyField(anatomy);
+  let field = bodyField(anatomy);
+  // the fidelity loop's measured corrections (forgeFidelity.ts --update-warp): the head's field bent to the art's
+  // outlines, and the landmarks and eyes carried with it so the face's paint and rig stay on the surface
+  const warp = process.env.FORGE_WARP === '0' ? null : loadHeadWarp(process.env.FORGE_WARP_FILE ?? HEAD_WARP_FILE);
+  if (warp) {
+    const map = headWarpMap(warp, anatomy.face[9][1], anatomy.byName.Head.tip[1]);
+    field = warpField(field, map.inverse);
+    anatomy.face = anatomy.face.map((p) => map.forward(p));
+    for (const e of ['LeftEye', 'RightEye'] as const) { const b = anatomy.byName[e]; b.at = map.forward(b.at); b.tip = map.forward(b.tip); }
+    log(`head warp: ${warp.passes} passes from the fidelity loop`);
+  }
   const raw = meshField(field, [-0.75, -0.02, -0.25], [0.75, 1.82, 0.3], voxel);
   log(`surface nets @${voxel * 1000}mm: ${raw.positions.length / 3} verts`);
   relaxMesh(raw, 2, 0.5);
@@ -142,7 +152,8 @@ async function main() {
   const collarY = (p: Vec3) => (p[2] > 0.0 ? Math.min(1.47, 1.33 + Math.abs(p[0]) * 1.5) : 1.47);
   const regions: Record<string, (v: number) => boolean> = {
     kosode: (v) => { const p = P(v), b = dominant(v); return p[1] > 0.93 && p[1] < collarY(p) && /^(Hips|Spine|Spine1|Spine2|Neck|LeftShoulder|RightShoulder)$/.test(b); },
-    koteCloth: (v) => /^(Left|Right)(Arm|ArmTwist|ForeArm|ForeArmTwist)$/.test(dominant(v)),
+    // the sleeve runs on into a fingerless glove over the palm and the back of the hand (the art's navy tekko gloves)
+    koteCloth: (v) => /^(Left|Right)(Arm|ArmTwist|ForeArm|ForeArmTwist|Hand)$/.test(dominant(v)),
     kyahan: (v) => /^(Left|Right)Leg$/.test(dominant(v)) && P(v)[1] < 0.5, // up to the hakama's gather under the knee
     tabi: (v) => /^(Left|Right)(Foot|ToeBase)$/.test(dominant(v)),
   };

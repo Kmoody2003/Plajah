@@ -413,6 +413,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
   // ---- Kusazuri: seven tassets on spring chains -----------------------------------------------------------------------
   piece('kusazuri', 'Kusazuri (tassets): seven columns of five lames, laced, on spring chains');
   const tassets = 7, lames = 5, lameH = 0.058, kTop = yBottom + 0.004;
+  const kBottom = kTop - lames * (lameH - 0.008) - 0.008;
   const hipSec = sec(0.93), waistSec = sec(kTop);
   for (let i = 0; i < tassets; i++) {
     const a0 = Math.PI / 2 + (i / tassets) * Math.PI * 2;
@@ -513,7 +514,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
         const dirv = norm(add(mul(up, Math.cos(ang + (v - 0.5) * 0.45)), mul(side, Math.sin(ang + (v - 0.5) * 0.45))));
         return add(c, mul(dirv, rr));
       };
-      plate(A('iron'), 10, 3, f, 0.003, `${s}ForeArm`, [0.2, 0.04]);
+      plate(A('lacquer'), 10, 3, f, 0.003, `${s}ForeArm`, [0.2, 0.04]); // red lacquered, as the art paints them
     }
     // tekko: the hand plate over the back of the hand
     const knuck = anatomy.byName[`${s}Hand` as HumanJoint].tip;
@@ -526,7 +527,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
       const bulge = 0.016 + (1 - (2 * v - 1) ** 2) * 0.006;
       return add(add(c, mul(across, off)), mul(back, bulge));
     };
-    plate(A('iron'), 8, 6, f, 0.0025, `${s}Hand`, [0.1, 0.07]);
+    plate(A('lacquerBlack'), 8, 6, f, 0.0025, `${s}Hand`, [0.1, 0.07]);
     const rim: Vec3[] = []; for (let k = 0; k <= 8; k++) rim.push(f(1, k / 8)); tube(A('gold'), rim, 0.0025, 5, `${s}Hand`);
   }
 
@@ -566,7 +567,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
         const dir: Vec3 = norm([Math.sin(a) * sx, 0, Math.cos(a)]);
         return add(c, mul(dir, reach(field, c, dir, 0.15) + GREAVE));
       };
-      plate(A('iron'), 3, 8, f, 0.003, `${s}Leg`, [0.04, 0.3]);
+      plate(A(k % 2 ? 'lacquer' : 'lacquerBlack'), 3, 8, f, 0.003, `${s}Leg`, [0.04, 0.3]); // red and black bands, as the art
     }
     // tateage: the knee plate
     const f = (u: number, v: number): Vec3 => {
@@ -630,10 +631,21 @@ function haruKit(anatomy: HumanAnatomy, field: Field): Wardrobe {
       const a = u * Math.PI * 2;
       const dir: Vec3 = [Math.sin(a) * sx, 0, Math.cos(a)];
       // inner side of the leg stays closer (the crotch), pleats in front
-      const inner = Math.max(0, -Math.sin(a)) * 0.6;
+      // (almost no fullness on the inner side: the legs part below the tassets, as the art's front view shows)
+      const inner = Math.min(1, Math.max(0, -Math.sin(a)) * 1.25) * 0.92;
       const pleat = Math.cos(a) > 0.2 ? 0.004 * Math.sin(u * 5 * Math.PI * 2) : 0;
       const r = ringAt(v)(a) + balloon(y, a) * (1 - inner) + 0.008 + pleat;
-      return add(c, mul(dir, r));
+      const p = add(c, mul(dir, r));
+      // under the tassets the cloth is gathered in: it never stands out past their inner face (they hang over it, as in
+      // the art); from their hem down it blouses freely
+      const under = smooth01((y - (kBottom - 0.06)) / 0.08);
+      if (under > 0) {
+        const ab = Math.atan2(p[2] - waistSec.cz, p[0]);
+        const lim = Math.max(waistSec.radius(ab), hipSec.radius(ab)) + doClear + 0.004;
+        const rb = Math.hypot(p[0], p[2] - waistSec.cz);
+        if (rb > lim) { const k = 1 - (1 - lim / rb) * under; p[0] *= k; p[2] = waistSec.cz + (p[2] - waistSec.cz) * k; }
+      }
+      return p;
     };
     sheet(mb, nu, nv, f, `${s}UpLeg`, [1.2, 0.8]);
     // the leg as cloth: tied under the dō at the top, gathered into the greaves at the bottom, the balloon between free

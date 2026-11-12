@@ -207,3 +207,53 @@ export async function paintHeadFromSheet(
   }
   return new Uint8Array(PNG.sync.write(atlas));
 }
+
+// ---- The head warp: measured corrections from the fidelity loop ------------------------------------------------------
+
+/**
+ * Row-by-row corrections to the head and neck, measured against the art by forgeFidelity.ts (--update-warp) and
+ * accumulated over passes: how far the front (face, throat) and the back (skull, hair) of each row must move forward,
+ * how much wider each row must be, and how much higher the crown. The build bends its distance field by them, so the
+ * mesh, the wardrobe's fit and the hair all follow.
+ */
+export interface HeadWarp { step: number; rows: { y: number; front: number; back: number; half: number }[]; top: number; passes: number }
+/** Kept in the repo: the build reproduces the fitted head anywhere (the loop rewrites it). */
+export const HEAD_WARP_FILE = 'scripts/eraclash3d/data/haru_head_warp.json';
+const WARP_LO = 1.4, WARP_HI = 1.9;
+/** Front and back blend over this band round the head's middle (z, metres). */
+const MID_Z = 0.03, MID_BAND = 0.07;
+
+export function loadHeadWarp(file = HEAD_WARP_FILE): HeadWarp | null {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')) as HeadWarp; } catch { return null; }
+}
+export function headWarpMap(w: HeadWarp, browY: number, crownY: number) {
+  const at = (y: number, k: 'front' | 'back' | 'half') => {
+    if (y <= WARP_LO || y >= WARP_HI) return 0;
+    const f = (y - w.rows[0].y) / w.step, i = Math.max(0, Math.min(w.rows.length - 2, Math.floor(f))), t = Math.max(0, Math.min(1, f - i));
+    const v = w.rows[i][k] * (1 - t) + w.rows[i + 1][k] * t;
+    return v * Math.min(1, (y - WARP_LO) / 0.04); // fades in above the collar
+  };
+  const sm = (t: number) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3 - 2 * x); };
+  const lift = (y: number) => w.top * sm((y - browY) / Math.max(0.02, crownY - browY));
+  const dz = (y: number, z: number) => { const s = sm((z - (MID_Z - MID_BAND)) / (2 * MID_BAND)); return at(y, 'back') * (1 - s) + at(y, 'front') * s; };
+  const dx = (y: number, x: number) => Math.sign(x) * at(y, 'half') * Math.min(1, Math.abs(x) / 0.05);
+  const forward = (p: [number, number, number]): [number, number, number] => [p[0] + dx(p[1], p[0]), p[1] + lift(p[1]), p[2] + dz(p[1], p[2])];
+  const inverse = (p: [number, number, number]): [number, number, number] => {
+    let y = p[1]; for (let k = 0; k < 4; k++) y = p[1] - lift(y);
+    let z = p[2]; for (let k = 0; k < 4; k++) z = p[2] - dz(y, z);
+    let x = p[0]; for (let k = 0; k < 4; k++) x = p[0] - dx(y, x);
+    return [x, y, z];
+  };
+  return { forward, inverse };
+}
+/** A distance field bent by the warp (distances stay close: the corrections are a few centimetres over a head). */
+export function warpField<F extends { d: (x: number, y: number, z: number) => number; grad: (x: number, y: number, z: number) => [number, number, number] | number[] }>(field: F, inverse: (p: [number, number, number]) => [number, number, number]): F {
+  const d = (x: number, y: number, z: number) => { if (y < WARP_LO - 0.01) return field.d(x, y, z); const q = inverse([x, y, z]); return field.d(q[0], q[1], q[2]); };
+  const grad = (x: number, y: number, z: number): [number, number, number] => {
+    if (y < WARP_LO - 0.01) return field.grad(x, y, z) as [number, number, number];
+    const e = 0.0008;
+    const g: [number, number, number] = [d(x + e, y, z) - d(x - e, y, z), d(x, y + e, z) - d(x, y - e, z), d(x, y, z + e) - d(x, y, z - e)];
+    const l = Math.hypot(g[0], g[1], g[2]) || 1; return [g[0] / l, g[1] / l, g[2] / l];
+  };
+  return { ...field, d, grad };
+}

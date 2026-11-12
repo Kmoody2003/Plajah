@@ -73,6 +73,19 @@ Each piece is its own mesh with its own material, made from parametric period pa
   - **Head:** the cranium, jaw and neck follow the face through the anatomy's head fit (`HumanTune.head`: forward, up, scale, width, neck).
   - **Sides and back of the head:** painted from the sheet's side and back views, blended by the surface normal and tone-matched to the portrait's skin. Only skin and hair pixels are used: no collar, no background, and not the art's own ear.
 
+- **The fidelity loop** (Kenne, 2026-11-12: re-check the art from every angle and keep correcting until it scores 95%):
+  - `npx tsx scripts/eraclash3d/forgeFidelity.ts` scores the GLB against the turnaround.
+    - It poses Haru like the art (pose fitted to the silhouette) and settles the spring bones with the playkit's own `SpringBones`.
+    - It renders the front, side and back views in software, in the sheet's frame.
+    - It scores each region (head, torso, legs) on shape (silhouette IoU, outline distance) and colour (CIE Lab, 1.2 cm blocks).
+    - Images and `fidelity.json` go to `D:\Plajah Runtime\eraclash3dorgeidelity`.
+  - `--update-warp` measures the head's outline row by row against the art: front, back (without the ponytail), half-width and crown. It folds 80% of the gap into `scripts/eraclash3d/data/haru_head_warp.json`, which the build bends the head's distance field by.
+  - `bash scripts/eraclash3d/forgeFitLoop.sh [passes] [target]` builds, scores and updates until the score passes the target or stops improving.
+  - Scores so far (overall / head IoU front, side, back):
+    - start: 53.8% / 0.73, 0.65, 0.74
+    - after the loop and the art's ponytail arc: 53.5% / 0.81, 0.78, 0.78
+  - Colour is the gap (31–38%): flat materials against painted lacing and folds. The next step is painting every garment from the turnaround's views, as the head already is.
+
 ### 5. Rig and export
 
 - **The GLB contains:**
