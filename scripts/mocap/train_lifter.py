@@ -24,6 +24,7 @@ ap.add_argument('--data', default='D:/Plajah Models/mocap/lifter-data')
 ap.add_argument('--set', default='v1')
 ap.add_argument('--out', default='public/models/mocap/lifter-v1')
 ap.add_argument('--window', type=int, default=9)
+ap.add_argument('--causal', action='store_true', help='past frames only (live capture): the window ends on the frame being lifted')
 ap.add_argument('--hidden', type=int, default=512)
 ap.add_argument('--blocks', type=int, default=2)
 ap.add_argument('--epochs', type=int, default=40)
@@ -117,7 +118,7 @@ for jf in files:
             continue
         f = fill(f, found)
         t = target(rows)
-        pad = np.concatenate([np.repeat(f[:1], half, 0), f, np.repeat(f[-1:], half, 0)])
+        pad = np.concatenate([np.repeat(f[:1], args.window - 1, 0), f]) if args.causal else np.concatenate([np.repeat(f[:1], half, 0), f, np.repeat(f[-1:], half, 0)])
         win = np.lib.stride_tricks.sliding_window_view(pad, (args.window, FEAT)).reshape(n, args.window * FEAT)
         keep = np.where(found)[0]
         X, Y, K = sets[split]
@@ -204,7 +205,7 @@ def put(name, arr):
 put('mu', mu); put('sd', sd)
 for k, v in model.state_dict().items(): put(k, v.cpu().numpy())
 header = {
-    'format': 'plajah-lifter/1', 'window': args.window, 'feat': FEAT, 'hidden': args.hidden, 'blocks': args.blocks,
+    'format': 'plajah-lifter/1', 'window': args.window, 'causal': bool(args.causal), 'feat': FEAT, 'hidden': args.hidden, 'blocks': args.blocks,
     'joints': JOINTS, 'tensors': tensors, 'valBoneDeg': round(best[0], 2), 'mediapipeValBoneDeg': round(base.mean().item(), 2),
     'trainedOn': {'set': args.set, 'clips': len(files), 'performers': len(subjects), 'valPerformers': sorted(val_subj), 'windows': int(len(Xtr))},
     'data': 'CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu, NSF EIA-0196217) rendered on Plajah characters; model trained from scratch by Plajah.',

@@ -62,3 +62,17 @@ test('the confidence gate keeps MediaPipe where the lifter strays far or the lim
   const dim = { ...take, frames: take.frames.map((f) => ({ ...f!, pts: f!.pts.map((p) => ({ ...p, v: 0.1 })) })) } as RawTake;
   assert.deepEqual(lifter.apply(dim, { maxDisagreeDeg: 180 }).frames[1]!.world.map((q) => q.x), dim.frames[1]!.world.map((q) => q.x));
 });
+
+test('the live stream lifts one frame at a time, passes gaps through and fades on dim frames', () => {
+  const { lifter } = fixedLifter();
+  const cam = { width: 1280, height: 720, hfovDeg: 60 };
+  const take = { fps: 30, ...cam, frames: [frame(0), frame(1 / 30)], source: { kind: 'webcam', label: 't', model: 'full' } } as unknown as RawTake;
+  const s = lifter.stream(cam, false);
+  const off = lifter.apply(take, false);
+  assert.deepEqual(s.push(take.frames[0])!.world.map((q) => q.x), off.frames[0]!.world.map((q) => q.x));
+  assert.equal(s.push(null), null);
+  assert.deepEqual(s.push(take.frames[1])!.world.map((q) => q.x), off.frames[1]!.world.map((q) => q.x));
+  const g = lifter.stream(cam, { maxDisagreeDeg: 180 });
+  const dim = { ...take.frames[0]!, pts: take.frames[0]!.pts.map((p) => ({ ...p, v: 0.1 })) };
+  assert.deepEqual(g.push(dim)!.world.map((q) => q.x), dim.world.map((q) => q.x));
+});

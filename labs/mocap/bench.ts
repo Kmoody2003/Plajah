@@ -276,14 +276,16 @@ export async function runSuite(cases: (BenchOptions & { key: string })[], onEach
 }
 
 /** Re-solve and re-score stored cases with other solve options (no rendering). */
-export async function rescoreStored(keys: string[], solve: SolveOptions = {}, o: { lifter?: string | false; gate?: import('../../services/mocap/lifter').LiftGate | false } = {}) {
+export async function rescoreStored(keys: string[], solve: SolveOptions = {}, o: { lifter?: string | false; gate?: import('../../services/mocap/lifter').LiftGate | false; live?: boolean } = {}) {
   const { get } = await import('idb-keyval');
   const lifter = o.lifter ? await loadLifter(o.lifter) : null;
   const out: (BenchReport & { key: string })[] = [];
   for (const key of keys) {
     const b = await get(`plajah.mocapbench.${key}`) as { o: BenchOptions; raw: RawTake; truth: SerTruth[]; ms: { render: number; detect: number } } | undefined;
     if (!b) continue;
-    out.push({ key, ...rescore({ ...b.o, solve }, lifter ? lifter.apply(b.raw, o.gate) : b.raw, b.truth.map(de), b.ms) });
+    // live: frame by frame through lifter.stream (no look-ahead), as a webcam would feed it.
+    const lifted = !lifter ? b.raw : o.live ? (() => { const s = lifter.stream(b.raw, o.gate); return { ...b.raw, frames: b.raw.frames.map((f) => s.push(f)) }; })() : lifter.apply(b.raw, o.gate);
+    out.push({ key, ...rescore({ ...b.o, solve }, lifted, b.truth.map(de), b.ms) });
   }
   return out;
 }

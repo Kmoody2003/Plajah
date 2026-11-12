@@ -7,7 +7,7 @@
 import type { RawFrame, RawTake } from './types';
 
 interface Header {
-  format: string; window: number; feat: number; hidden: number; blocks: number; joints: string[];
+  format: string; window: number; causal?: boolean; feat: number; hidden: number; blocks: number; joints: string[];
   tensors: { name: string; shape: number[]; offset: number }[];
   valBoneDeg?: number; mediapipeValBoneDeg?: number;
 }
@@ -33,6 +33,17 @@ export interface Lifter {
    *  where the picture is poorly seen, or where the lifter and MediaPipe disagree wildly, keep MediaPipe (blended
    *  smoothly over time so nothing pops). */
   apply(take: RawTake, gate?: LiftGate | false): RawTake;
+  /** Live use, one frame at a time (VTuber, character puppets, live capture), with no look-ahead: the window repeats
+   *  the newest frame in place of the future, and the gate falls at once but rises over `smooth` frames. The regular
+   *  model streamed this way scored 22.7° on the benchmark (offline 21.9°, MediaPipe 26.9°, no case worse); a model
+   *  trained causal (`train_lifter.py --causal`) did no better (22.8°, boxing worse), so one model serves both. */
+  stream(camera: Pick<RawTake, 'width' | 'height' | 'hfovDeg'>, gate?: LiftGate | false): LiftStream;
+}
+
+export interface LiftStream {
+  /** Feed one live frame (null when nobody is in the picture); returns it with the corrected 3D body. */
+  push(fr: RawFrame | null): RawFrame | null;
+  reset(): void;
 }
 
 export interface LiftGate {
@@ -89,13 +100,9 @@ export function makeLifter(header: Header, bin: ArrayBuffer): Lifter {
     return linear(x, 'out', 45, H);
   };
 
-  const features = (take: RawTake): { f: Float32Array[]; found: boolean[] } => {
-    const W = take.width || 16, Hh = take.height || 9;
-    const fN = 0.5 / Math.tan(((take.hfovDeg ?? 60) * Math.PI) / 360);
-    const f: Float32Array[] = [], found: boolean[] = [];
-    for (const fr of take.frames) {
-      const v = new Float32Array(FEAT);
-      if (fr) {
+  const frameFeatures = (fr: RawFrame, W: number, Hh: number, fN: number) => {
+    const v = new Float32Array(FEAT);
+    {
         const rx = fr.pts.map((p) => (p.x - 0.5) / fN), ry = fr.pts.map((p) => (-(p.y - 0.5) * (Hh / W)) / fN);
         const hx = (rx[23] + rx[24]) / 2, hy = (ry[23] + ry[24]) / 2;
         const torso = Math.max(Math.hypot((rx[11] + rx[12]) / 2 - hx, (ry[11] + ry[12]) / 2 - hy), 1e-3);
@@ -103,10 +110,16 @@ export function makeLifter(header: Header, bin: ArrayBuffer): Lifter {
           v[i * 2] = (rx[i] - hx) / torso; v[i * 2 + 1] = (ry[i] - hy) / torso; v[66 + i] = fr.pts[i].v;
           v[99 + i * 3] = fr.world[i].x; v[99 + i * 3 + 1] = -fr.world[i].y; v[99 + i * 3 + 2] = -fr.world[i].z;
         }
-      }
-      f.push(v); found.push(!!fr);
     }
-    // Missing frames take the nearest found frame.
+    return v;
+  };
+  const lens = (take: Pick<RawTake, 'width' | 'height' | 'hfovDeg'>) =>
+    [take.width || 16, take.height || 9, 0.5 / Math.tan(((take.hfovDeg ?? 60) * Math.PI) / 360)] as const;
+  const features = (take: RawTake): { f: Float32Array[]; found: boolean[] } => {
+    const [W, Hh, fN] = lens(take);
+    const f: Float32Array[] = [], found: boolean[] = [];
+    for (const fr of take.frames) { f.push(fr ? frameFeatures(fr, W, Hh, fN) : new Float32Array(FEAT)); found.push(!!fr); }
+    // Missing frames take the nearest found frame (as in training).
     const idx = found.flatMap((x, i) => (x ? [i] : []));
     if (idx.length) for (let i = 0; i < f.length; i++) if (!found[i]) {
       let best = idx[0]; for (const j of idx) if (Math.abs(j - i) < Math.abs(best - i)) best = j;
@@ -116,7 +129,7 @@ export function makeLifter(header: Header, bin: ArrayBuffer): Lifter {
   };
 
   const predict = (take: RawTake) => {
-    const { f, found } = features(take), n = f.length, half = header.window >> 1;
+    const { f, found } = features(take), n = f.length, half = header.causal ? header.window - 1 : header.window >> 1;
     if (!found.some(Boolean)) return f.map(() => null);
     const inp = new Float32Array(IN);
     return f.map((_, i) => {
@@ -129,60 +142,86 @@ export function makeLifter(header: Header, bin: ArrayBuffer): Lifter {
   const J = (name: string) => header.joints.indexOf(name);
   const LIMBS: [number, number][] = [[11, 13], [13, 15], [12, 14], [14, 16], [23, 25], [25, 27], [24, 26], [26, 28], [23, 11], [24, 12]];
   const ss = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  /** MediaPipe's world points with the lifter's body put in (same scale and axes as MediaPipe's). */
+  const liftFrame = (fr: RawFrame, p: Float32Array): RawFrame => {
+    const w = fr.world.map((q) => ({ ...q }));
+    // Scale: MediaPipe's own hip→shoulder-mid length in metres (the lifter is proportion-free).
+    const mid = (a: number, b: number) => ({ x: (w[a].x + w[b].x) / 2, y: (w[a].y + w[b].y) / 2, z: (w[a].z + w[b].z) / 2 });
+    const hm = mid(23, 24), sm = mid(11, 12);
+    const scale = Math.hypot(sm.x - hm.x, sm.y - hm.y, sm.z - hm.z);
+    // Lifter joints in MediaPipe's axes (x right, y down, z away), recentred on the new hip midpoint.
+    const at = (j: number) => ({ x: p[j * 3] * scale, y: -p[j * 3 + 1] * scale, z: -p[j * 3 + 2] * scale });
+    const lt = at(J('lThigh')), rt = at(J('rThigh'));
+    const c = { x: (lt.x + rt.x) / 2, y: (lt.y + rt.y) / 2, z: (lt.z + rt.z) / 2 };
+    for (const [name, mp] of Object.entries(TO_MP)) {
+      const q = at(J(name)), dx = q.x - c.x - w[mp].x, dy = q.y - c.y - w[mp].y, dz = q.z - c.z - w[mp].z;
+      w[mp].x += dx; w[mp].y += dy; w[mp].z += dz;
+      for (const [anchor, riders] of RIDERS) if (anchor === mp) for (const r of riders) { w[r].x += dx; w[r].y += dy; w[r].z += dz; }
+    }
+    // Head points follow the shoulders' midpoint.
+    const ns = mid(11, 12), hx = ns.x - sm.x, hy = ns.y - sm.y, hz = ns.z - sm.z;
+    for (let k = 0; k <= 10; k++) { w[k].x += hx; w[k].y += hy; w[k].z += hz; }
+    return { ...fr, world: w };
+  };
+  /** 0..1: how well the limbs are seen, times how close the lifter stays to MediaPipe's own limb directions. */
+  const confidence = (fr: RawFrame, l: RawFrame, minVis: number, maxDeg: number) => {
+    let vis = 0; for (const [a, b] of LIMBS) vis += Math.min(fr.pts[a].v, fr.pts[b].v); vis /= LIMBS.length;
+    let deg = 0;
+    for (const [a, b] of LIMBS) {
+      const u = { x: fr.world[b].x - fr.world[a].x, y: fr.world[b].y - fr.world[a].y, z: fr.world[b].z - fr.world[a].z };
+      const v = { x: l.world[b].x - l.world[a].x, y: l.world[b].y - l.world[a].y, z: l.world[b].z - l.world[a].z };
+      const c = (u.x * v.x + u.y * v.y + u.z * v.z) / (Math.hypot(u.x, u.y, u.z) * Math.hypot(v.x, v.y, v.z) || 1);
+      deg += (Math.acos(Math.max(-1, Math.min(1, c))) * 180) / Math.PI;
+    }
+    deg /= LIMBS.length;
+    return ss(minVis - 0.15, minVis + 0.15, vis) * (1 - ss(maxDeg - 15, maxDeg + 15, deg));
+  };
+  const blend = (fr: RawFrame, l: RawFrame, a: number): RawFrame =>
+    a <= 0 ? fr : a >= 1 ? l : { ...fr, world: fr.world.map((q, k) => ({ ...q, x: q.x + (l.world[k].x - q.x) * a, y: q.y + (l.world[k].y - q.y) * a, z: q.z + (l.world[k].z - q.z) * a })) };
+
   const apply = (take: RawTake, gate: LiftGate | false = {}): RawTake => {
     const pred = predict(take);
-    const lifted = take.frames.map((fr, i): RawFrame | null => {
-      const p = pred[i];
-      if (!fr || !p) return fr;
-      const w = fr.world.map((q) => ({ ...q }));
-      // Scale: MediaPipe's own hip→shoulder-mid length in metres (the lifter is proportion-free).
-      const mid = (a: number, b: number) => ({ x: (w[a].x + w[b].x) / 2, y: (w[a].y + w[b].y) / 2, z: (w[a].z + w[b].z) / 2 });
-      const hm = mid(23, 24), sm = mid(11, 12);
-      const scale = Math.hypot(sm.x - hm.x, sm.y - hm.y, sm.z - hm.z);
-      // Lifter joints in MediaPipe's axes (x right, y down, z away), recentred on the new hip midpoint.
-      const at = (j: number) => ({ x: p[j * 3] * scale, y: -p[j * 3 + 1] * scale, z: -p[j * 3 + 2] * scale });
-      const lt = at(J('lThigh')), rt = at(J('rThigh'));
-      const c = { x: (lt.x + rt.x) / 2, y: (lt.y + rt.y) / 2, z: (lt.z + rt.z) / 2 };
-      const oldNeck = sm;
-      for (const [name, mp] of Object.entries(TO_MP)) {
-        const q = at(J(name)), dx = q.x - c.x - w[mp].x, dy = q.y - c.y - w[mp].y, dz = q.z - c.z - w[mp].z;
-        w[mp].x += dx; w[mp].y += dy; w[mp].z += dz;
-        for (const [anchor, riders] of RIDERS) if (anchor === mp) for (const r of riders) { w[r].x += dx; w[r].y += dy; w[r].z += dz; }
-      }
-      // Head points follow the shoulders' midpoint.
-      const ns = mid(11, 12), hx = ns.x - oldNeck.x, hy = ns.y - oldNeck.y, hz = ns.z - oldNeck.z;
-      for (let k = 0; k <= 10; k++) { w[k].x += hx; w[k].y += hy; w[k].z += hz; }
-      return { ...fr, world: w };
-    });
+    const lifted = take.frames.map((fr, i): RawFrame | null => (fr && pred[i] ? liftFrame(fr, pred[i]!) : fr));
     if (gate === false) return { ...take, frames: lifted, source: { ...take.source, lifted: true } as RawTake['source'] };
-    // Confidence: how well the limbs are seen, and how far the lifter strays from MediaPipe's own limb directions.
     const minVis = gate.minVis ?? 0.5, maxDeg = gate.maxDisagreeDeg ?? 40, R = gate.smooth ?? 4;
-    const raw = take.frames.map((fr, i) => {
-      const l = lifted[i];
-      if (!fr || !l || !pred[i]) return 0;
-      let vis = 0; for (const [a, b] of LIMBS) vis += Math.min(fr.pts[a].v, fr.pts[b].v); vis /= LIMBS.length;
-      let deg = 0;
-      for (const [a, b] of LIMBS) {
-        const u = { x: fr.world[b].x - fr.world[a].x, y: fr.world[b].y - fr.world[a].y, z: fr.world[b].z - fr.world[a].z };
-        const v = { x: l.world[b].x - l.world[a].x, y: l.world[b].y - l.world[a].y, z: l.world[b].z - l.world[a].z };
-        const c = (u.x * v.x + u.y * v.y + u.z * v.z) / (Math.hypot(u.x, u.y, u.z) * Math.hypot(v.x, v.y, v.z) || 1);
-        deg += (Math.acos(Math.max(-1, Math.min(1, c))) * 180) / Math.PI;
-      }
-      deg /= LIMBS.length;
-      return ss(minVis - 0.15, minVis + 0.15, vis) * (1 - ss(maxDeg - 15, maxDeg + 15, deg));
-    });
+    const raw = take.frames.map((fr, i) => (fr && lifted[i] && pred[i] ? confidence(fr, lifted[i]!, minVis, maxDeg) : 0));
     const weight = raw.map((_, i) => {
       let s = 0, n = 0; for (let k = -R; k <= R; k++) { const j = i + k; if (j >= 0 && j < raw.length && take.frames[j]) { s += raw[j]; n++; } }
       return n ? Math.min(raw[i] + 0.25, s / n) : 0; // a bad frame pulls its neighbours down, never up much
     });
-    const frames = take.frames.map((fr, i): RawFrame | null => {
-      const l = lifted[i], a = weight[i];
-      if (!fr || !l || a <= 0) return fr;
-      if (a >= 1) return l;
-      return { ...fr, world: fr.world.map((q, k) => ({ ...q, x: q.x + (l.world[k].x - q.x) * a, y: q.y + (l.world[k].y - q.y) * a, z: q.z + (l.world[k].z - q.z) * a })) };
-    });
+    const frames = take.frames.map((fr, i): RawFrame | null => (fr && lifted[i] ? blend(fr, lifted[i]!, weight[i]) : fr));
     return { ...take, frames, source: { ...take.source, lifted: true, liftWeight: weight.reduce((x, y) => x + y, 0) / Math.max(1, weight.length) } as RawTake['source'] };
   };
 
-  return { header, predict, apply };
+  const stream = (camera: Pick<RawTake, 'width' | 'height' | 'hfovDeg'>, gate: LiftGate | false = {}): LiftStream => {
+    const [W, Hh, fN] = lens(camera);
+    const ring: Float32Array[] = [];
+    const inp = new Float32Array(IN);
+    const half = header.causal ? header.window - 1 : header.window >> 1;
+    const minVis = gate ? gate.minVis ?? 0.5 : 0, maxDeg = gate ? gate.maxDisagreeDeg ?? 40 : 180;
+    const fall = gate ? 1 / Math.max(1, gate.smooth ?? 4) : 1;
+    let weight = 0;
+    return {
+      push(fr) {
+        if (!fr || fr.world.length !== 33) { // nobody in frame: the window keeps its last body; the weight decays
+          weight = Math.max(0, weight - fall);
+          return fr;
+        }
+        const f = frameFeatures(fr, W, Hh, fN);
+        if (!ring.length) for (let k = 0; k < header.window; k++) ring.push(f); else { ring.push(f); ring.shift(); }
+        // The newest frame is the one lifted. A causal model sees only the past; a centred one sees the newest frame
+        // repeated in place of the future it lacks (as at the end of a take), so it is less sure.
+        for (let k = 0; k < header.window; k++) inp.set(ring[Math.min(header.window - 1, header.window - 1 - half + k)], k * FEAT);
+        const l = liftFrame(fr, forward(inp));
+        if (!gate) return l;
+        const c = confidence(fr, l, minVis, maxDeg);
+        // Fall fast (one bad frame cuts the weight), rise slowly (over `smooth` frames): no look-ahead needed.
+        weight = c < weight ? c : Math.min(c, weight + fall);
+        return blend(fr, l, weight);
+      },
+      reset() { ring.length = 0; weight = 0; },
+    };
+  };
+
+  return { header, predict, apply, stream };
 }

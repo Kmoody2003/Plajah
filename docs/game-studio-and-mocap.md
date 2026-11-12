@@ -494,9 +494,29 @@ Smoothing; it appears once the model has loaded, and a take solved before that i
 (Kenne's warrior walk A) shake drops 5.0 → 2.4 mm and the grade goes Usable → Good; hip height reads ~0.12 m lower,
 worth checking on a real person.
 
+**Live** (`lifter.stream(camera, gate)`, one frame at a time, no look-ahead, about 2.5 ms per frame):
+
+| Mode | Mean | Worse than MediaPipe |
+|---|---|---|
+| Offline (`apply`, ±4 frames) | 21.9° | none |
+| Live, same model streamed (newest frame repeated in place of the future) | **22.7°** | none |
+| Live, model trained causal (`train_lifter.py --causal`, val 19.9°) | 22.8° | boxing 36.0° |
+| Live, causal, no gate | 24.0° | boxing, get-up |
+
+One model serves both; the causal one is kept off the site (`D:/Plajah Models/mocap/lifters/`). Live, the gate
+falls at once on a bad frame and climbs back over 4 frames. `mocapBench.rescoreStored(keys, {}, {lifter, live: true})`
+scores the live path. Not yet wired into a live consumer: the capture room's live view draws only 2D points, so the
+users are the VTuber and character puppets (`services/vtuber/poseTracker.ts` world points).
+
+**Why boxing stays bad** (diagnose `boxing-20`): MediaPipe's own 2D points are wrong. Left elbow and wrist sit
+50–100 px off at high confidence (0.8–0.97), and the two wrists are swapped in 48 of 180 frames. A lifter that only
+sees those points can't recover; the gate can't catch it either, because MediaPipe is confident. The fix is a
+second look at the hands: MediaPipe's hand landmarker on crops around each wrist (it also reports which hand is
+which), used to correct wrists and elbows before lifting.
+
 **Next:**
-1. A causal (no look-ahead) variant for live capture (the room's live preview still shows raw MediaPipe).
-2. Fights: the forearm in boxing is still ~110° off in both; more fight clips, or a hand-focused crop, next.
+1. Hand-crop refinement for fast arm work (above), then re-benchmark punch/boxing/kata.
+2. Stream the lifter into the VTuber/puppet pose path behind a setting, and measure it on a real webcam.
 3. A real two-phone capture mode: sync by a clap or flash, calibrate from the performer's own body.
 4. Kenne's own webcam take, to confirm on a real person.
 
