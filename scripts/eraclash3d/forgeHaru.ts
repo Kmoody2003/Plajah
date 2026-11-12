@@ -26,6 +26,7 @@ import { forgeToGlb, type ForgeCharacter, type ForgeRigid, type ForgeSocket } fr
 import type { GPrim } from '../../services/argilla/creature/gltfWriter';
 import { haruMaterials, MATERIAL_INDEX, paintHaru, rgbaPng, paintFace, paintFaceFromArt, type ArtLandmarks } from './forgeLook';
 import { exportKit } from './forgeKit';
+import { spec, WORK_DIR, dataFile, portraitLandmarks, flatLayPieceDir } from './forgeSpec';
 import { HARU_FLATLAY } from './forgeKitPaint';
 import { fitFaceToArt, paintHeadFromSheet, HARU_SHEET, loadHeadWarp, headWarpMap, warpField, HEAD_WARP_FILE } from './forgeFaceFit';
 import { CANONICAL_INDICES } from '../../services/vtuber/rigBuilder/canonicalFace';
@@ -35,7 +36,7 @@ import { buildArkitShapes, ARKIT_SHAPES } from '../../services/vtuber/rigBuilder
 import { transferFace } from '../../services/vtuber/rigBuilder/transferFace';
 import type { Vec3 } from '../../services/argilla/engine';
 
-export const WORK = process.env.FORGE_WORK ?? 'D:/Plajah Runtime/eraclash3d/forge';
+export const WORK = process.env.FORGE_WORK ?? WORK_DIR;
 fs.mkdirSync(WORK, { recursive: true });
 const t0 = Date.now();
 const log = (s: string) => console.log(`[forge ${((Date.now() - t0) / 1000).toFixed(1)}s] ${s}`);
@@ -46,18 +47,19 @@ const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a: Vec3, b: Vec3): Vec3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const D2R = Math.PI / 180;
 /** Haru's head against the turnaround: the cranium a little larger, higher and forward of the average head, the neck thicker. */
-const HARU_HEAD = { forward: Number(process.env.FORGE_HEAD_FWD ?? 0.022), up: Number(process.env.FORGE_HEAD_UP ?? 0.012), scale: Number(process.env.FORGE_HEAD_SCALE ?? 1.07), width: Number(process.env.FORGE_HEAD_WIDTH ?? 0.95), neck: 1.18 };
+const HARU_HEAD = { ...spec.head, ...(process.env.FORGE_HEAD_FWD ? { forward: Number(process.env.FORGE_HEAD_FWD) } : {}), ...(process.env.FORGE_HEAD_UP ? { up: Number(process.env.FORGE_HEAD_UP) } : {}) };
 type Skin = { skinIndex: Uint16Array; skinWeight: Float32Array };
 
 async function main() {
   // the face's shape from Muse's art (forgeFaceFit.ts), and the head grown and moved forward to meet it as the
   // turnaround's side view has it; the average face when the art is not on this machine
-  const REF = process.env.FORGE_FACE_ART ?? 'D:/Plajah Runtime/forge/haru-ref/front.png';
-  const refMarks = REF.replace(/\.png$/, '.landmarks.json');
-  let tune: HumanTune = HARU_TUNE;
+  if (spec.kit !== 'tosei-gusoku') throw new Error(`forgeHaru builds the tosei-gusoku kit; ${spec.id} asks for ${spec.kit}`);
+  const REF = process.env.FORGE_FACE_ART ?? spec.art.portrait;
+  const refMarks = portraitLandmarks();
+  let tune: HumanTune = { ...HARU_TUNE, ...spec.body };
   if (fs.existsSync(refMarks) && fs.existsSync(HARU_SHEET.path) && process.env.FORGE_FACE_FIT !== '0') {
     const fit = await fitFaceToArt({ landmarks: refMarks, chinY: 1.537 });
-    tune = { ...HARU_TUNE, face: fit.points, head: HARU_HEAD };
+    tune = { ...tune, face: fit.points, head: HARU_HEAD };
     log(`face fitted to the art: ${JSON.stringify(fit.report)}`);
   }
   const anatomy = buildHumanAnatomy(tune);
@@ -138,7 +140,7 @@ async function main() {
 
   // ---- Wardrobe ------------------------------------------------------------------------------------------
   // the armour's fitted shape (forgeArmourFit.ts searches it against the art)
-  const ARMOUR_FIT_FILE = process.env.FORGE_ARMOUR_FIT ?? 'scripts/eraclash3d/data/haru_armour_fit.json';
+  const ARMOUR_FIT_FILE = process.env.FORGE_ARMOUR_FIT ?? dataFile('armour_fit.json');
   const armourFit = fs.existsSync(ARMOUR_FIT_FILE) ? JSON.parse(fs.readFileSync(ARMOUR_FIT_FILE, 'utf8')) : {};
   const kit = buildHaruKit(anatomy, field, armourFit);
   log(`wardrobe: ${kit.pieces.map((p) => p.id).join(', ')}; ${kit.bones.length} chain bones, ${kit.springs.length} spring chains`);
@@ -300,7 +302,7 @@ async function main() {
   const scalpPrim = splitBy(headPrim, onScalp);
   const extrasFace = { landmarks: anatomy.face.flat().map((x) => +x.toFixed(5)), shapes: ARKIT_SHAPES };
   const character: ForgeCharacter = {
-    name: 'Haru',
+    name: spec.name,
     bones,
     skinned: NAKED
       ? [{ name: 'Haru_body', prims: [bodyPrim], targetNames: morphNames }]
@@ -337,13 +339,13 @@ async function main() {
   if (process.env.FORGE_KIT !== '0' && !NAKED) {
     const bodyCut = ([['kote', 'koteCloth'], ['suneate', 'kyahan'], ['tabi', 'tabi'], ['kosode', 'kosode']] as const).map(([piece, mat]) => ({ piece, mat, ...offsetPieces[mat].mesh }));
     const assets = await exportKit({
-      kit, materials: character.materials, images: character.images, materialIndex: MATERIAL_INDEX, outDir: 'public/games/era-clash/3d/assets/props/haru', character: 'Haru',
-      bodyCut, flatLay: { dir: process.env.FORGE_FLATLAY ?? 'D:/Plajah Runtime/forge/haru-ref/pieces', specs: HARU_FLATLAY }, work: path.join(WORK, 'kit_paint'),
+      kit, materials: character.materials, images: character.images, materialIndex: MATERIAL_INDEX, outDir: spec.out.kit, character: spec.name,
+      bodyCut, flatLay: { dir: process.env.FORGE_FLATLAY ?? flatLayPieceDir(), specs: HARU_FLATLAY }, work: path.join(WORK, 'kit_paint'),
     });
-    log(`kit: ${assets.length} assets -> public/games/era-clash/3d/assets/props/haru (${assets.map((a) => a.id).join(', ')})`);
+    log(`kit: ${assets.length} assets -> ${spec.out.kit} (${assets.map((a) => a.id).join(', ')})`);
   }
   const glb = forgeToGlb(character);
-  const out = process.env.FORGE_OUT ?? `public/games/era-clash/3d/assets/characters/${NAKED ? 'samurai_v3_body' : 'samurai_v3'}.glb`;
+  const out = process.env.FORGE_OUT ?? (NAKED ? spec.out.character.replace(/\.glb$/, '_body.glb') : spec.out.character);
   fs.writeFileSync(out, glb);
   fs.writeFileSync(path.join(WORK, 'haru_v3_report.json'), JSON.stringify({
     joints: bones.length, muscles: anatomy.muscles.length, morphs: morphNames, springs: kit.springs.length,

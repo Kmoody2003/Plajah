@@ -12,10 +12,12 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { ARMOUR_FIT_DEFAULT, type ArmourFit } from '../../services/argilla/creature/wardrobe';
+import { dataFile } from './forgeSpec';
 
-const FILE = 'scripts/eraclash3d/data/haru_armour_fit.json';
+const FILE = dataFile('armour_fit.json');
 const rounds = Number(process.argv[2] ?? 2);
-const STEP: Record<keyof ArmourFit, [number, number, number]> = { // step, min, max
+// step, min, max (the tasset count is the art's, not searched)
+const STEP: Partial<Record<keyof ArmourFit, [number, number, number]>> = {
   doBottom: [0.02, 0.95, 1.1], doTop: [0.02, 1.3, 1.42], doClear: [0.01, 0.015, 0.06],
   kusaLameH: [0.006, 0.04, 0.08], kusaFlare: [0.004, 0, 0.025], kusaClear: [0.006, 0, 0.04],
   sodeX: [0.02, 0.17, 0.3], sodeY: [0.02, 1.42, 1.54], sodeZ: [0.02, -0.06, 0.05], sodeOut: [6, -5, 35],
@@ -54,7 +56,7 @@ console.log(`start ${(best * 100).toFixed(2)}%`);
 const t0 = Date.now();
 for (let r = 0; r < rounds; r++) {
   for (const k of Object.keys(STEP) as (keyof ArmourFit)[]) {
-    const [step0, lo, hi] = STEP[k];
+    const [step0, lo, hi] = STEP[k]!;
     const step = step0 / 2 ** r;
     for (const dir of [1, -1]) {
       let moved = false;

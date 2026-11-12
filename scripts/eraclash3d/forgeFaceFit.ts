@@ -13,18 +13,11 @@ import fs from 'node:fs';
 import sharp from 'sharp';
 import { PNG } from 'pngjs';
 import type { Vec3 } from '../../services/argilla/engine';
+import { sheetIntake, dataFile } from './forgeSpec';
 
 /** Haru's turnaround (Muse): each view's columns, the soles' row, and the chin's row (MediaPipe on the front view's face). */
-export const HARU_SHEET = {
-  path: process.env.FORGE_SHEET ?? 'D:/Plajah Runtime/forge/haru-ref/sheet.png',
-  front: { x0: 100, x1: 700 },
-  side: { x0: 750, x1: 1300 },
-  back: { x0: 1350, x1: 1950 },
-  sole: 1322,
-  chin: 264.2,
-  /** Chin (152) to the top of the face oval (10) on the sheet's front face, in sheet pixels. */
-  faceLength: 134.7,
-};
+/** The character's turnaround as forge intake measured it (forgeSpec.ts). */
+export const HARU_SHEET = sheetIntake();
 
 export interface FaceFitReport { length: number; offsetZ: number; profileRms: number; rows: number }
 
@@ -231,7 +224,7 @@ export async function paintHeadFromSheet(
  */
 export interface HeadWarp { step: number; rows: { y: number; front: number; back: number; half: number }[]; top: number; passes: number }
 /** Kept in the repo: the build reproduces the fitted head anywhere (the loop rewrites it). */
-export const HEAD_WARP_FILE = 'scripts/eraclash3d/data/haru_head_warp.json';
+export const HEAD_WARP_FILE = dataFile('head_warp.json');
 const WARP_LO = 1.4, WARP_HI = 1.9;
 /** Front and back blend over this band round the head's middle (z, metres). */
 const MID_Z = 0.03, MID_BAND = 0.07;

@@ -19,13 +19,14 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { PNG } from 'pngjs';
 import { HARU_SHEET, HEAD_WARP_FILE, loadHeadWarp, type HeadWarp } from './forgeFaceFit';
+import { spec, WORK_DIR } from './forgeSpec';
 import * as THREE from 'three/webgpu';
 import { SpringBones } from '../../playkit/character/springBones';
 
 type M4 = Float64Array;
 const args = process.argv.slice(2);
-const file = args.find((a) => a.endsWith('.glb')) ?? 'public/games/era-clash/3d/assets/characters/samurai_v3.glb';
-const outDir = args.includes('--out') ? args[args.indexOf('--out') + 1] : 'D:/Plajah Runtime/eraclash3d/forge/fidelity';
+const file = args.find((a) => a.endsWith('.glb')) ?? spec.out.character;
+const outDir = args.includes('--out') ? args[args.indexOf('--out') + 1] : path.join(WORK_DIR, 'fidelity');
 fs.mkdirSync(outDir, { recursive: true });
 
 // ---- small maths ----------------------------------------------------------------------------------------------------

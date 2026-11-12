@@ -6,6 +6,59 @@ Kenne (2026-11-11): build the capability to make and rig high-quality characters
 
 The Forge is Game Studio's **Characters** room. It replaces the image-to-shell route (`buildSheetCast.py`, `buildWarriors.py`), which can only make one fused surface (`docs/era-clash-3d-characters-v2.md`).
 
+## The workflow: from a creator's art to a scored character and kit
+
+The Forge is a repeatable process, not a one-off. A character is one folder of data; one command runs every stage; every
+result is measured against the creator's own art and checked against quality gates. This is how Plajah's creators will
+bring their characters to life, so the same steps must give the same quality for anyone's art.
+
+### 1. What a creator brings
+
+| Art | What it is | Used for |
+|---|---|---|
+| Portrait | The face, straight on | The face's shape (468 landmarks) and its painting |
+| Turnaround | The character standing, front, side and back, on a plain ground | Body proportions, the head's outline, every part's shape, the clothes' painting, all scoring |
+| Flat-lay (optional) | Each piece of the outfit and every prop laid out on a plain ground | Each piece as its own asset, painted clean and unoccluded |
+
+The spec, `scripts/eraclash3d/characters/<id>/forge.json`, names these files and sets:
+- the body's settings (height, build, musculature, weight, age) and the head's starting fit;
+- the kit (`tosei-gusoku` today);
+- where the character and its kit are written;
+- the quality gates (overall, head, every part).
+
+A rough box per flat-lay piece goes in `flatlay_pieces.json`; intake snaps each box to the piece.
+
+### 2. One command
+
+```bash
+FORGE_SPEC=scripts/eraclash3d/characters/<id>/forge.json npx tsx scripts/eraclash3d/forge.ts
+```
+
+Seven stages run in order. A stage whose inputs haven't changed since it last ran is skipped. Name stages to run only those (`forge.ts parts score`), and add `--force` to rerun.
+
+| Stage | What it does | Writes |
+|---|---|---|
+| intake | Measures the art. Turnaround: each view's columns, the soles, the chin and face length (MediaPipe on the front figure's head). Portrait: its landmarks. Flat-lay: each piece cut out (SAM). Flags anything doubtful. | `intake.json` |
+| build | Body from the anatomy, face from the art, the head fitted by its warp, the wardrobe fitted by its armour fit, rig and springs. Every kit piece also as its own GLB, painted from the flat-lay. | the character GLB, the kit folder, `kit.json` |
+| fit-head | Measures the head and neck against the art's outline row by row and folds the gap into the warp, until the head stops improving. | `head_warp.json` |
+| parts | Cuts the art into its parts (SAM, prompted by the model's own parts, one prompt per piece, the smaller cut owning a shared pixel) and flags doubtful cuts. | the art's part masks |
+| fit-armour | Searches the kit's shape parameters against the whole silhouette and each part's overlap with the art. | `armour_fit.json` |
+| paint | Paints the character's clothes and armour from the turnaround, each texel from the views that see it. | the painted character |
+| score | Scores every view and every part, checks the gates, and writes the report. | `report.md` |
+
+### 3. Quality, measured
+
+- **Scores, not impressions:** every result is scored against the art from every view, on shape (silhouette overlap, outline distance) and colour (CIE Lab), whole figure and part by part. The report states the gates, what passed, and by how much the rest fell short.
+- **Below the gates, the work isn't finished.** The report says so, and the fit stages are what close the gap.
+- **The scorer can be wrong too.** Doubtful SAM cuts are flagged and left out of the search, never silently scored.
+- **The scores miss some things**, such as a crease in a surface or cloth through armour in motion. Close-ups in the game viewer (`forge.html`, `kit.html`) are part of the check.
+
+### 4. Adding a character
+
+1. Make `scripts/eraclash3d/characters/<id>/forge.json`, using Haru's as the pattern, and point it at the art.
+2. If there's a flat-lay, add `flatlay_pieces.json` with a rough box per piece.
+3. Run `forge.ts`. Then read `report.md` and the images it points to.
+
 ## What it builds on (nothing rebuilt)
 
 | Need | Already in Plajah |

@@ -10,13 +10,15 @@
 import fs from 'node:fs';
 import { PNG } from 'pngjs';
 import sharp from 'sharp';
+import { HARU_SHEET } from './forgeFaceFit';
+import { spec, WORK_DIR } from './forgeSpec';
 
-const file = process.argv[2] ?? 'public/games/era-clash/3d/assets/characters/samurai_v3.glb';
-const out = process.argv[3] ?? 'D:/Plajah Runtime/eraclash3d/forge/silhouette.png';
-const SHEET = process.env.FORGE_SHEET ?? 'D:/Plajah Runtime/forge/haru-ref/sheet.png';
+const file = process.argv[2] ?? spec.out.character;
+const out = process.argv[3] ?? `${WORK_DIR}/silhouette.png`;
+const SHEET = HARU_SHEET.path;
 /** Sheet views: x range of each figure, sole and chin rows (chin from face landmarks on the sheet's front face). */
-const VIEWS = { front: { x0: 100, x1: 700 }, side: { x0: 750, x1: 1300 } };
-const SOLE = 1322, CHIN = 264.2;
+const VIEWS = { front: HARU_SHEET.front, side: HARU_SHEET.side };
+const SOLE = HARU_SHEET.sole, CHIN = HARU_SHEET.chin;
 
 // ---- the model's triangles at rest ------------------------------------------------------------------------------
 const buf = fs.readFileSync(file);
