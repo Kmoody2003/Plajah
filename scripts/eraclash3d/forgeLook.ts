@@ -10,7 +10,7 @@ import type { GMaterial } from '../../services/argilla/creature/gltfWriter';
 import type { ForgeCharacter } from '../../services/argilla/creature/exportCreature';
 
 export const ART = 'public/games/era-clash/assets/sprite-samurai.png';
-const NAMES = ['skin', 'lacquer', 'lacquerBlack', 'gold', 'iron', 'leather', 'silk', 'silkRed', 'hakama', 'kosode', 'koteCloth', 'kyahan', 'obi', 'tabi', 'hair', 'katana_steel'] as const;
+const NAMES = ['skin', 'lacquer', 'lacquerBlack', 'gold', 'iron', 'leather', 'silk', 'silkRed', 'hakama', 'kosode', 'koteCloth', 'kyahan', 'obi', 'tabi', 'hair', 'katana_steel', 'hairCards'] as const;
 export const MATERIAL_INDEX = Object.fromEntries(NAMES.map((n, i) => [n, i])) as Record<string, number>;
 
 type RGB = [number, number, number];
@@ -80,12 +80,14 @@ export function haruMaterials(): GMaterial[] {
     tabi: { name: 'tabi', color: [0.05, 0.05, 0.08, 1], metallic: 0, roughness: 0.85, sheen: { color: [0.2, 0.2, 0.3], roughness: 0.6 } },
     hair: { name: 'hair', color: [0.012, 0.01, 0.01, 1], metallic: 0, roughness: 0.45, sheen: { color: [0.25, 0.22, 0.2], roughness: 0.25 } },
     katana_steel: { name: 'katana_steel', color: [0.78, 0.8, 0.84, 1], metallic: 1, roughness: 0.14 },
+    // strand cards: alpha-tested, both sides, the highlight stretched across the strands
+    hairCards: { name: 'hairCards', color: [0.03, 0.022, 0.018, 1], metallic: 0, roughness: 0.58, alphaMode: 'MASK', alphaCutoff: 0.35, anisotropy: { strength: 0.5, rotation: Math.PI / 2 }, specular: { factor: 0.3 } },
   };
   for (const m of Object.values(byName)) if (m.sheen && m.name !== 'skin') {
     const k = m.name.startsWith('silk') ? 2.6 : 1.9;
     m.sheen = { color: [Math.min(1, m.color[0] * k + 0.015), Math.min(1, m.color[1] * k + 0.015), Math.min(1, m.color[2] * k + 0.02)], roughness: m.sheen.roughness };
   }
-  return NAMES.map((n) => ({ ...byName[n], doubleSided: n === 'gold' || n === 'katana_steel' || n === 'obi' }));
+  return NAMES.map((n) => ({ ...byName[n], doubleSided: n === 'gold' || n === 'katana_steel' || n === 'obi' || n === 'hairCards' }));
 }
 
 // ---- Procedural detail maps ----------------------------------------------------------------------------------
@@ -111,6 +113,12 @@ function normalMap(size: number, h: (x: number, y: number) => number, strength: 
 const hash = (x: number, y: number) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
 
 /** Paint and detail Haru: weave on cloth and cords, orange-peel on lacquer, hammer marks on iron; the face from the art. */
+export function rgbaPng(px: Uint8Array, size: number): Uint8Array {
+  const png = new PNG({ width: size, height: size });
+  png.data.set(px);
+  return new Uint8Array(PNG.sync.write(png));
+}
+
 export async function paintHaru(c: ForgeCharacter, work: string, log: (s: string) => void) {
   const N = 256;
   // plain weave: over-under threads, 16 per tile
@@ -218,4 +226,138 @@ function readPainted(file: string): PaintedPart {
     normal: img(mat.normalTexture.index),
     orm: img(mat.pbrMetallicRoughness.metallicRoughnessTexture.index),
   };
+}
+
+// ---- The face painted from its own landmarks ----------------------------------------------------------------------
+// The Forge face IS MediaPipe's canonical face, so every feature's outline is known: paint lands exactly on the
+// geometry, at any resolution, with no reference photo. Haru's art gives the palette and the beard (a thin moustache
+// and a short chin beard), and the hair under the strand cards.
+
+type V3 = [number, number, number];
+const EYE_R_RING = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246];
+const EYE_L_RING = [263, 249, 390, 373, 374, 380, 381, 382, 362, 398, 384, 385, 386, 387, 388, 466];
+const UPPER_LID_R = [33, 246, 161, 160, 159, 158, 157, 173, 133], UPPER_LID_L = [263, 466, 388, 387, 386, 385, 384, 398, 362];
+const LOWER_LID_R = [33, 7, 163, 144, 145, 153, 154, 155, 133], LOWER_LID_L = [263, 249, 390, 373, 374, 380, 381, 382, 362];
+const BROW_R = [70, 63, 105, 66, 107, 55, 65, 52, 53, 46], BROW_L = [300, 293, 334, 296, 336, 285, 295, 282, 283, 276];
+const LIPS_OUT = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 409, 270, 269, 267, 0, 37, 39, 40, 185];
+const MOUSTACHE = [92, 165, 167, 164, 393, 391, 322, 410, 270, 269, 267, 0, 37, 39, 40, 186];
+const CHIN_BEARD = [17, 314, 405, 321, 200, 421, 428, 199, 208, 201, 181, 84];
+
+/** Convex hull of 2D points (counter-clockwise). */
+function hull2(p: [number, number][]): [number, number][] {
+  const pts = [...p].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cr = (o: number[], a: number[], b: number[]) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo: [number, number][] = [], up: [number, number][] = [];
+  for (const q of pts) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (const q of pts.reverse()) { while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
+
+export interface FaceAtlas { size: number; png: Uint8Array; uvOf: (p: V3, back: boolean) => [number, number] }
+
+/** Front of the head projected straight on in the top 72% of the atlas; the back of the head unrolled below. */
+export function paintFace(landmarks: V3[], headTop: number, napeY: number, centreZ: number, size = 1024): FaceAtlas {
+  const X0 = -0.1, X1 = 0.1, Y0 = headTop + 0.01, Y1 = 1.44, FRONT = 0.72;
+  const uvOf = (p: V3, back: boolean): [number, number] => back
+    ? [(Math.atan2(p[0], -(p[2] - centreZ)) / Math.PI + 1) / 2, FRONT + 0.02 + ((Y0 - p[1]) / (Y0 - Y1)) * (1 - FRONT - 0.04)]
+    : [(p[0] - X0) / (X1 - X0), ((Y0 - p[1]) / (Y0 - Y1)) * FRONT];
+  const N = size;
+  const rgb = new Float32Array(N * N * 3);
+  const px = (u: number, v: number): [number, number] => [u * N, v * N];
+  const L = (i: number) => px(...uvOf(landmarks[i], false));
+  const ring = (ids: number[]) => ids.map(L);
+  const set = (x: number, y: number, c: number[], a: number) => {
+    if (x < 0 || y < 0 || x >= N || y >= N || a <= 0) return;
+    const i = (y * N + x) * 3;
+    for (let k = 0; k < 3; k++) rgb[i + k] += (c[k] - rgb[i + k]) * Math.min(1, a);
+  };
+  const inPoly = (poly: [number, number][], x: number, y: number) => {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [xi, yi] = poly[i], [xj, yj] = poly[j];
+      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  };
+  const segDist = (x: number, y: number, a: [number, number], b: [number, number]) => {
+    const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / l2));
+    return Math.hypot(x - a[0] - dx * t, y - a[1] - dy * t);
+  };
+  const edgeDist = (poly: [number, number][], x: number, y: number) => { let d = Infinity; for (let i = 0; i < poly.length; i++) d = Math.min(d, segDist(x, y, poly[i], poly[(i + 1) % poly.length])); return d; };
+  const bbox = (poly: [number, number][], pad: number) => [Math.max(0, Math.floor(Math.min(...poly.map((p) => p[0])) - pad)), Math.max(0, Math.floor(Math.min(...poly.map((p) => p[1])) - pad)), Math.min(N - 1, Math.ceil(Math.max(...poly.map((p) => p[0])) + pad)), Math.min(N - 1, Math.ceil(Math.max(...poly.map((p) => p[1])) + pad))];
+  /** Fill a polygon with a soft edge `feather` px wide; `tex` varies the alpha per pixel (stubble, brow hairs). */
+  const fill = (poly: [number, number][], c: number[], a: number, feather: number, tex?: (x: number, y: number) => number) => {
+    const [x0, y0, x1, y1] = bbox(poly, feather);
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const inside = inPoly(poly, x + 0.5, y + 0.5);
+      const d = edgeDist(poly, x + 0.5, y + 0.5);
+      const k = inside ? Math.min(1, 0.5 + d / feather / 2) : Math.max(0, 0.5 - d / feather / 2);
+      set(x, y, c, a * k * (tex ? tex(x, y) : 1));
+    }
+  };
+  const stroke = (pts: [number, number][], c: number[], a: number, w0: number, w1 = w0) => {
+    const box = bbox(pts, Math.max(w0, w1) + 2);
+    for (let y = box[1]; y <= box[3]; y++) for (let x = box[0]; x <= box[2]; x++) {
+      let best = Infinity, t = 0;
+      for (let i = 0; i < pts.length - 1; i++) { const d = segDist(x + 0.5, y + 0.5, pts[i], pts[i + 1]); if (d < best) { best = d; t = (i + 0.5) / (pts.length - 1); } }
+      const w = w0 + (w1 - w0) * Math.sin(t * Math.PI);
+      set(x, y, c, a * Math.max(0, Math.min(1, w - best)));
+    }
+  };
+  const hashN = (x: number, y: number) => { const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); };
+
+  // skin: a warm tan with soft mottling
+  const skin = [196, 146, 112], hair = [20, 16, 14], brow = [32, 24, 20], lip = [150, 90, 80], sclera = [214, 208, 198], iris = [58, 38, 26];
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const n = (hashN(Math.floor(x / 6), Math.floor(y / 6)) - 0.5) * 8 + (hashN(x, y) - 0.5) * 5;
+    const i = (y * N + x) * 3; rgb[i] = skin[0] + n; rgb[i + 1] = skin[1] + n * 0.8; rgb[i + 2] = skin[2] + n * 0.7;
+  }
+  // the back of the head: hair down to the nape, skin below it
+  const napeV = uvOf([0, napeY, 0], true)[1] * N;
+  for (let y = Math.floor(FRONT * N); y < N; y++) for (let x = 0; x < N; x++) set(x, y, hair, Math.max(0, Math.min(1, (napeV - y) / 10 + 0.5)));
+  // the front: a hairline about 4.5 cm above the brows at the centre, curving down to the temples (the canonical face
+  // mesh only reaches mid-forehead, so its oval is no guide to where hair starts)
+  const browWorld = landmarks[9][1];
+  for (let y = 0; y < Math.floor(FRONT * N); y++) for (let x = 0; x < N; x++) {
+    const wx = X0 + (x / N) * (X1 - X0), wy = Y0 - (y / (FRONT * N)) * (Y0 - Y1);
+    const line = browWorld + 0.045 - 0.05 * Math.min(1, (Math.abs(wx) / 0.075) ** 2);
+    set(x, y, hair, Math.max(0, Math.min(1, (wy - line) / 0.004 + 0.5)));
+  }
+  // warmth on the cheeks and the nose, a shade in the eye sockets
+  const glow: [number, number, number[], number][] = [[50, 0.045, [188, 118, 96], 0.22], [280, 0.045, [188, 118, 96], 0.22], [4, 0.018, [190, 120, 100], 0.2], [159, 0.03, [150, 105, 85], 0.25], [386, 0.03, [150, 105, 85], 0.25]];
+  for (const [i, r, c, a] of glow) {
+    const [cx, cy] = L(i); const R = r * N;
+    for (let y = Math.floor(cy - R); y <= cy + R; y++) for (let x = Math.floor(cx - R); x <= cx + R; x++) set(x, y, c, a * Math.max(0, 1 - Math.hypot(x - cx, y - cy) / R));
+  }
+  // beard: a thin moustache and a short chin beard, as in the art (stubble texture)
+  const stubble = (x: number, y: number) => (hashN(x * 1.7, y * 2.3) > 0.45 ? 1 : 0.35);
+  fill(ring(MOUSTACHE), hair, 0.75, 6, stubble);
+  fill(hull2(ring(CHIN_BEARD)), hair, 0.7, 7, stubble);
+  // lips, and the line where they meet
+  fill(ring(LIPS_OUT), lip, 0.75, 4);
+  stroke([L(78), L(81), L(13), L(311), L(308)], [70, 40, 36], 0.9, 1.6, 2.4);
+  stroke([L(78), L(178), L(14), L(402), L(308)], [70, 40, 36], 0.6, 1.2, 1.6);
+  // brows: dense hair strokes inside each brow's outline
+  for (const b of [BROW_R, BROW_L]) fill(ring(b), brow, 0.95, 4, (x, y) => (hashN(x * 3.1, y * 0.9) > 0.3 ? 1 : 0.55));
+  // eyes: sclera, iris and pupil where the eyeball shows, then the lids' lash lines
+  const eyes: [number[], number[], number[]][] = [[EYE_R_RING, UPPER_LID_R, LOWER_LID_R], [EYE_L_RING, UPPER_LID_L, LOWER_LID_L]];
+  for (const [ringIds, up, low] of eyes) {
+    const eye = ring(ringIds);
+    fill(eye, sclera, 1, 3);
+    const c = eye.reduce((s, p) => [s[0] + p[0] / eye.length, s[1] + p[1] / eye.length], [0, 0]);
+    const ir = (0.0055 / (X1 - X0)) * N;
+    for (let y = Math.floor(c[1] - ir - 2); y <= c[1] + ir + 2; y++) for (let x = Math.floor(c[0] - ir - 2); x <= c[0] + ir + 2; x++) {
+      if (!inPoly(eye, x + 0.5, y + 0.5)) continue; // the lids cover what's outside the opening
+      const d = Math.hypot(x - c[0], y - c[1]);
+      set(x, y, iris, Math.max(0, Math.min(1, ir - d + 0.5)));
+      set(x, y, [8, 6, 6], Math.max(0, Math.min(1, ir * 0.42 - d + 0.5)));
+      if (Math.hypot(x - c[0] + ir * 0.35, y - c[1] + ir * 0.35) < ir * 0.18) set(x, y, [240, 236, 230], 0.8);
+    }
+    stroke(up.map(L), [16, 12, 10], 1, 2.0, 3.6);
+    stroke(low.map(L), [60, 42, 34], 0.6, 1.0, 1.4);
+  }
+  const png = new PNG({ width: N, height: N });
+  for (let i = 0; i < N * N; i++) { for (let k = 0; k < 3; k++) png.data[i * 4 + k] = Math.max(0, Math.min(255, Math.round(rgb[i * 3 + k]))); png.data[i * 4 + 3] = 255; }
+  return { size: N, png: new Uint8Array(PNG.sync.write(png)), uvOf };
 }

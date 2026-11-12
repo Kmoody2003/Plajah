@@ -21,7 +21,8 @@ import { buildHaruKit, quatFromBasis, unitBox, type MeshBuilder, type Wardrobe }
 import { nihonto, saya } from '../../services/argilla/creature/weapons';
 import { forgeToGlb, type ForgeCharacter, type ForgeRigid, type ForgeSocket } from '../../services/argilla/creature/exportCreature';
 import type { GPrim } from '../../services/argilla/creature/gltfWriter';
-import { haruMaterials, MATERIAL_INDEX, paintHaru, cropArt, paintFromViews } from './forgeLook';
+import { haruMaterials, MATERIAL_INDEX, paintHaru, rgbaPng, paintFace } from './forgeLook';
+import { fitScalp, chonmage, strandAtlas } from '../../services/argilla/creature/hairSystem';
 import * as THREE from 'three';
 import { buildArkitShapes, ARKIT_SHAPES } from '../../services/vtuber/rigBuilder/arkitShapes';
 import { transferFace } from '../../services/vtuber/rigBuilder/transferFace';
@@ -52,7 +53,16 @@ async function main() {
   settleOnField(raw, field, 2);
   const { MeshoptSimplifier } = await import('meshoptimizer');
   await MeshoptSimplifier.ready;
-  const [simple] = MeshoptSimplifier.simplify(raw.indices, raw.positions, 3, Number(process.env.FORGE_TRIS ?? 60000) * 3, 0.002, ['LockBorder']);
+  // the head keeps far more of its detail than the body (the face is what the camera looks at); the two are simplified
+  // apart with their shared border locked, so the seam stays closed
+  const headTris: number[] = [], restTris: number[] = [];
+  for (let i = 0; i < raw.indices.length; i += 3) {
+    const y = (raw.positions[raw.indices[i] * 3 + 1] + raw.positions[raw.indices[i + 1] * 3 + 1] + raw.positions[raw.indices[i + 2] * 3 + 1]) / 3;
+    (y > 1.47 ? headTris : restTris).push(raw.indices[i], raw.indices[i + 1], raw.indices[i + 2]);
+  }
+  const [simpleHead] = MeshoptSimplifier.simplify(new Uint32Array(headTris), raw.positions, 3, Number(process.env.FORGE_HEAD_TRIS ?? 22000) * 3, 0.0008, ['LockBorder']);
+  const [simpleRest] = MeshoptSimplifier.simplify(new Uint32Array(restTris), raw.positions, 3, Number(process.env.FORGE_TRIS ?? 50000) * 3, 0.002, ['LockBorder']);
+  const simple = new Uint32Array(simpleHead.length + simpleRest.length); simple.set(simpleHead); simple.set(simpleRest, simpleHead.length);
   const body = compact({ positions: raw.positions, normals: raw.normals, indices: simple }).mesh;
   settleOnField(body, field, 2);
   log(`body: ${body.positions.length / 3} verts, ${body.indices.length / 3} tris`);
@@ -70,7 +80,7 @@ async function main() {
   }
   const morphNames = specs.map((s) => s.name);
 
-  // ---- Head: its own mesh above a seam under the jaw, with the ARKit shapes and the face painted from the art ------
+  // ---- Head: its own mesh above a seam under the jaw, the ARKit shapes on its canonical face, painted from its landmarks
   const SEAM = 1.5;
   const Pb = (v: number): Vec3 => [body.positions[v * 3], body.positions[v * 3 + 1], body.positions[v * 3 + 2]];
   // correctives fade out just under the seam, so the head and the body never part
@@ -80,12 +90,25 @@ async function main() {
   }
   const inHead = (v: number) => Pb(v)[1] >= SEAM;
   const head = cutOffset(body, skin, [], inHead, 0);
-  const arkit = faceShapes(head.mesh, anatomy);
+  const arkit = faceShapes(head.mesh, anatomy.face);
+  let crownY = -Infinity, zLo = Infinity, zHi = -Infinity;
+  for (let v = 0; v < head.mesh.positions.length / 3; v++) { crownY = Math.max(crownY, head.mesh.positions[v * 3 + 1]); zLo = Math.min(zLo, head.mesh.positions[v * 3 + 2]); zHi = Math.max(zHi, head.mesh.positions[v * 3 + 2]); }
   log(`head: ${head.mesh.positions.length / 3} verts, ${ARKIT_SHAPES.length} ARKit shapes from the canonical face`);
 
   // ---- Wardrobe ------------------------------------------------------------------------------------------
   const kit = buildHaruKit(anatomy, field);
   log(`wardrobe: ${kit.pieces.map((p) => p.id).join(', ')}; ${kit.bones.length} chain bones, ${kit.springs.length} spring chains`);
+  // hair: strand cards over the painted scalp, the topknot and temple locks on spring chains
+  const scalp = fitScalp(head.mesh.positions, crownY, anatomy.face[9][1]); // landmark 9: between the brows
+  const snap = (p: Vec3, lift: number) => {
+    let q: Vec3 = [...p];
+    for (let i = 0; i < 4; i++) { const d = field.d(q[0], q[1], q[2]) - lift; const g = field.grad(q[0], q[1], q[2]); q = [q[0] - g[0] * d, q[1] - g[1] * d, q[2] - g[2] * d]; }
+    return { p: q, n: field.grad(q[0], q[1], q[2]) };
+  };
+  const hair = chonmage(scalp, { headBone: 'Head', columns: 4, snap });
+  kit.bones.push(...hair.bones);
+  kit.springs.push(...hair.springs);
+  log(`hair: ${hair.guides} strand cards, ${hair.springs.length} spring chains`);
   const boneNames = [...HUMAN_JOINTS, ...kit.bones.map((b) => b.name)];
   const boneIndex = new Map(boneNames.map((n, i) => [n, i] as const));
 
@@ -98,14 +121,8 @@ async function main() {
     koteCloth: (v) => /^(Left|Right)(Arm|ArmTwist|ForeArm|ForeArmTwist)$/.test(dominant(v)),
     kyahan: (v) => /^(Left|Right)Leg$/.test(dominant(v)) && P(v)[1] < 0.36,
     tabi: (v) => /^(Left|Right)(Foot|ToeBase)$/.test(dominant(v)),
-    hair: (v) => {
-      const p = P(v);
-      if (dominant(v) !== 'Head') return false;
-      const scalp = p[1] > 1.705 || (p[2] < -0.005 && p[1] > 1.585) || (Math.abs(p[0]) > 0.066 && p[1] > 1.635 && p[2] < 0.035);
-      return scalp;
-    },
   };
-  const OFFSET: Record<string, number> = { kosode: 0.009, koteCloth: 0.0075, kyahan: 0.013, tabi: 0.0035, hair: 0.0045 };
+  const OFFSET: Record<string, number> = { kosode: 0.009, koteCloth: 0.0075, kyahan: 0.013, tabi: 0.0035 };
   const offsetPieces = Object.fromEntries(Object.entries(regions).map(([name, sel]) => [name, cutOffset(body, skin, correctives, sel, OFFSET[name])]));
   log(`body-cut garments: ${Object.entries(offsetPieces).map(([k, p]) => `${k} ${p.mesh.positions.length / 3}`).join(', ')}`);
 
@@ -136,7 +153,7 @@ async function main() {
   // ---- Armour: rigid plates, one bone per vertex -------------------------------------------------------------
   const armourPrims: GPrim[] = [];
   for (const [mat, mb] of kit.armour) armourPrims.push(rigidPrim(mb, boneIndex, mat, 0));
-  armourPrims.push(rigidPrim(kit.hair, boneIndex, 'hair', 0));
+  armourPrims.push(rigidPrim(hair.mesh, boneIndex, 'hairCards', 0), rigidPrim(hair.cord, boneIndex, 'silk', 0));
   log(`armour: ${armourPrims.reduce((n, p) => n + p.positions.length / 3, 0)} verts in ${armourPrims.length} primitives`);
 
   // the dō's kebiki lacing: one silk cord, GPU-instanced per row bone
@@ -182,11 +199,19 @@ async function main() {
       muscles: anatomy.muscles.map((m) => ({ id: m.id, label: m.label })),
     },
   };
-  // the face, painted from the art: Haru's head is turned ~65° to his left in it, so it paints from there
-  const crop = cropArt([150, 14, 305, 132], (x, y) => ((x - 228) / 74) ** 2 + ((y - 72) / 60) ** 2 < 1 && !(y > 104 && x < 205), path.join(WORK, 'head_view.png'));
-  const painted = paintFromViews('head', head.mesh, [{ dir: 'yaw:-65', png: crop }], WORK, 1024, 0.45);
-  const headPrim = matchPainted(painted, head, arkit);
-  log(`head painted: ${headPrim.positions.length / 3} verts on its atlas`);
+  // painted hair at the back stops just under where the cards end, so the front/back split never shows
+  const atlasFace = paintFace(anatomy.face, crownY, anatomy.face[9][1] - 0.045, (zLo + zHi) / 2, 1024);
+  fs.writeFileSync(path.join(WORK, 'face_atlas.png'), atlasFace.png);
+  const browY = anatomy.face[9][1], napeY = 1.568, centreZ = (zLo + zHi) / 2;
+  /** Hair grows above a line that is high at the brow, at brow height over the ears and down to the nape behind. */
+  const onScalp = (p: Vec3) => {
+    const a = Math.atan2(p[0], p[2] - centreZ), front = Math.max(0, Math.cos(a)), back = Math.max(0, -Math.cos(a));
+    const line = browY + 0.045 - 0.05 * Math.min(1, (Math.abs(p[0]) / 0.075) ** 2);
+    // well inside what the cards cover; below that the texture's painted hair fades out softly
+    return front > 0.35 ? p[1] > line + 0.004 : p[1] > browY + 0.012 - (browY - napeY) * 0.6 * back;
+  };
+  const headPrim = faceUvPrim(head, arkit, atlasFace.uvOf, centreZ);
+  const scalpPrim = splitBy(headPrim, onScalp);
   const extrasFace = { landmarks: anatomy.face.flat().map((x) => +x.toFixed(5)), shapes: ARKIT_SHAPES };
   const character: ForgeCharacter = {
     name: 'Haru',
@@ -194,7 +219,7 @@ async function main() {
     skinned: NAKED
       ? [{ name: 'Haru_body', prims: [bodyPrim], targetNames: morphNames }]
       : [
-        { name: 'Haru_head', prims: [headPrim], targetNames: [...ARKIT_SHAPES], extras: { face: extrasFace } },
+        { name: 'Haru_head', prims: [headPrim, scalpPrim], targetNames: [...ARKIT_SHAPES], extras: { face: extrasFace } },
         { name: 'Haru_body', prims: [bodyPrim], targetNames: morphNames },
         { name: 'Haru_cloth', prims: clothPrims, targetNames: morphNames },
         { name: 'Haru_armour', prims: armourPrims },
@@ -206,12 +231,21 @@ async function main() {
     extras,
   };
   await paintHaru(character, WORK, log);
-  // the painted face's maps join the image list; its material is the skin's with the art on it
+  // the face's own painting; the hair cards get the generated strand atlas
   const base = character.images.length;
-  character.images.push(painted.base, painted.normal, painted.orm);
+  character.images.push(atlasFace.png);
   const skinMat = character.materials[MATERIAL_INDEX.skin];
-  character.materials.push({ ...skinMat, name: 'face', color: [1, 1, 1, 1], baseColorTexture: base, normalTexture: base + 1, normalScale: 0.2, roughness: 0.6 });
+  character.materials.push({ ...skinMat, name: 'face', color: [1, 1, 1, 1], baseColorTexture: base, roughness: 0.55, specular: { factor: 0.45 } });
   headPrim.material = character.materials.length - 1;
+  // the scalp under the strand cards: the hair's colour, matte, with the cord normal map running along the strands
+  character.materials.push({ name: 'scalp', color: [0.022, 0.017, 0.014, 1], metallic: 0, roughness: 0.7, sheen: { color: [0.06, 0.05, 0.045], roughness: 0.4 } });
+  scalpPrim.material = character.materials.length - 1;
+  // skin elsewhere (hands, neck) in the face's tone
+  character.materials[MATERIAL_INDEX.skin] = { ...character.materials[MATERIAL_INDEX.skin], color: [0.55, 0.29, 0.16, 1] };
+  const atlas = character.images.length;
+  character.images.push(rgbaPng(strandAtlas(512, 4), 512));
+  const hc = character.materials[MATERIAL_INDEX.hairCards];
+  character.materials[MATERIAL_INDEX.hairCards] = { ...hc, color: [0.032, 0.025, 0.021, 1], baseColorTexture: atlas };
   const glb = forgeToGlb(character);
   const out = process.env.FORGE_OUT ?? `public/games/era-clash/3d/assets/characters/${NAKED ? 'samurai_v3_body' : 'samurai_v3'}.glb`;
   fs.writeFileSync(out, glb);
@@ -282,13 +316,13 @@ function grips(a: HumanAnatomy) {
 // ---- Face -------------------------------------------------------------------------------------------------------
 
 /** The VTuber rig builder's 43 ARKit shapes, authored on the canonical face (the landmarks this head was built on). */
-function faceShapes(m: BodyMesh, a: HumanAnatomy): Float32Array[] {
+function faceShapes(m: { positions: Float32Array; normals: Float32Array; indices: Uint32Array }, landmarks: Vec3[]): Float32Array[] {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(m.positions.slice(), 3));
   geo.setAttribute('normal', new THREE.BufferAttribute(m.normals.slice(), 3));
   geo.setIndex(new THREE.BufferAttribute(m.indices.slice(), 1));
   const mesh = new THREE.Mesh(geo) as unknown as THREE.SkinnedMesh;
-  const P = a.face.map((p) => new THREE.Vector3(p[0], p[1], p[2]));
+  const P = landmarks.map((p) => new THREE.Vector3(p[0], p[1], p[2]));
   const { frame, shapes } = buildArkitShapes(P);
   transferFace(mesh, P, frame, shapes, { eyes: false, mouth: false });
   return (geo.morphAttributes.position ?? []).map((attr) => attr.array as Float32Array);
@@ -320,6 +354,50 @@ function matchPainted(p: ReturnType<typeof paintFromViews>, head: ReturnType<typ
   }
   if (exact < n * 0.98) console.warn(`[forge] painted head: only ${exact}/${n} vertices matched exactly`);
   return { positions: p.positions, normals, uvs: p.uvs, indices: p.indices, joints, weights, material: 0, targets };
+}
+
+/**
+ * The head with its atlas UVs: triangles facing forward take the front projection, the back of the head its own strip;
+ * a vertex used by both sides is split so neither stretches across the atlas.
+ */
+/** Move the triangles that pass a test out of a primitive into a new one (same vertices, same morphs). */
+function splitBy(p: GPrim, test: (c: Vec3) => boolean): GPrim {
+  const keep: number[] = [], moved: number[] = [];
+  for (let t = 0; t < p.indices.length; t += 3) {
+    const c: Vec3 = [0, 0, 0];
+    for (let e = 0; e < 3; e++) for (let k = 0; k < 3; k++) c[k] += p.positions[p.indices[t + e] * 3 + k] / 3;
+    (test(c) ? moved : keep).push(p.indices[t], p.indices[t + 1], p.indices[t + 2]);
+  }
+  p.indices = new Uint32Array(keep);
+  return { ...p, indices: new Uint32Array(moved) };
+}
+
+function faceUvPrim(head: ReturnType<typeof cutOffset>, morphs: Float32Array[], uvOf: (p: Vec3, back: boolean) => [number, number], centreZ: number): GPrim {
+  const m = head.mesh;
+  const P = (v: number): Vec3 => [m.positions[v * 3], m.positions[v * 3 + 1], m.positions[v * 3 + 2]];
+  const key = new Map<number, number>();
+  const pos: number[] = [], nor: number[] = [], uv: number[] = [], jn: number[] = [], wt: number[] = [], idx: number[] = [];
+  const mt = morphs.map(() => [] as number[]);
+  for (let t = 0; t < m.indices.length; t += 3) {
+    const vs = [m.indices[t], m.indices[t + 1], m.indices[t + 2]];
+    const nz = vs.reduce((a, v) => a + m.normals[v * 3 + 2], 0) / 3, cz = vs.reduce((a, v) => a + m.positions[v * 3 + 2], 0) / 3;
+    const back = nz < -0.15 && cz < centreZ;
+    for (const v of vs) {
+      const k = v * 2 + (back ? 1 : 0);
+      let i = key.get(k);
+      if (i === undefined) {
+        i = pos.length / 3; key.set(k, i);
+        pos.push(...P(v)); nor.push(m.normals[v * 3], m.normals[v * 3 + 1], m.normals[v * 3 + 2]); uv.push(...uvOf(P(v), back));
+        for (let c = 0; c < 4; c++) { jn.push(head.skin.skinIndex[v * 4 + c]); wt.push(head.skin.skinWeight[v * 4 + c]); }
+        morphs.forEach((d, j) => mt[j].push(d[v * 3], d[v * 3 + 1], d[v * 3 + 2]));
+      }
+      idx.push(i);
+    }
+  }
+  return {
+    positions: new Float32Array(pos), normals: new Float32Array(nor), uvs: new Float32Array(uv), indices: new Uint32Array(idx),
+    joints: new Uint16Array(jn), weights: new Float32Array(wt), material: 0, targets: mt.map((a) => new Float32Array(a)),
+  };
 }
 
 // ---- Mesh plumbing -----------------------------------------------------------------------------------------------

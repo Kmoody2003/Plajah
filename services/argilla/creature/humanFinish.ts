@@ -10,7 +10,6 @@
 import { compileRecipe, primsNear, recipeDistance, type ClayPart, type CompiledPrim } from '../bake';
 import type { Vec3 } from '../engine';
 import { skinWeights } from './finish';
-import { CANONICAL_INDICES } from '../../vtuber/rigBuilder/canonicalFace';
 import {
   HUMAN_JOINTS, TWIST_JOINTS, poseJoints, posedParts, qmul, qrot,
   type HumanAnatomy, type HumanJoint, type HumanPose, type JointXf,
@@ -413,7 +412,7 @@ export function bakeCorrective(
 
 /** The face shell as an extra field (rest position; the corrective poses never move the head). */
 export function bodyExtra(anatomy: HumanAnatomy) {
-  return { d: shellField(anatomy.faceShell.points, CANONICAL_INDICES, anatomy.faceShell.thickness), blend: 0.004 };
+  return { d: shellField(anatomy.faceShell.points, anatomy.faceShell.indices, anatomy.faceShell.thickness), blend: 0.004 };
 }
 /** The whole body's field: clay parts plus the face. */
 export function bodyField(anatomy: HumanAnatomy) { return fieldOf(anatomy.parts, bodyExtra(anatomy)); }

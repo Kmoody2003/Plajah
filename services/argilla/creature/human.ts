@@ -101,7 +101,7 @@ export interface HumanAnatomy {
   /** The 468 canonical face landmarks placed on this head (rest pose, world space). */
   face: Vec3[];
   /** The canonical face mesh set in by `thickness`: the field adds a shell of that thickness around it. */
-  faceShell: { points: Vec3[]; thickness: number };
+  faceShell: { points: Vec3[]; indices: number[]; thickness: number };
   /** Grip sockets in the rest pose: palm centre and the hilt axis through the curled fingers. */
   grip: Record<HumanSide, { at: Vec3; axis: Vec3; palm: Vec3 }>;
 }
@@ -219,7 +219,10 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
   J.LeftToeBase = P(0.116, 0.022, 0.118);
   tips.LeftUpLeg = J.LeftLeg; tips.LeftLeg = J.LeftFoot; tips.LeftFoot = J.LeftToeBase; tips.LeftToeBase = P(0.124, 0.02, 0.19);
 
-  J.LeftEye = P(0.032, 1.652, 0.083);
+  // the eyes sit behind the lids of the face they look out of: centre of each eye's opening, set back by the eyeball
+  const face = placeFace(k);
+  const eyeOf = (ids: number[]): Vec3 => { const c = ids.reduce<Vec3>((a, i) => add(a, face[i]), [0, 0, 0]); return add(mul(c, 1 / ids.length), [0, 0, -EYE_R * k + 0.0025 * k]); };
+  J.LeftEye = eyeOf([263, 362, 386, 374]);
   tips.LeftEye = add(J.LeftEye, P(0, 0, 0.02));
 
   for (const name of HUMAN_JOINTS) {
@@ -367,9 +370,10 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
   }
 
   // ---- Head: cranium, jaw and a face that passes through the canonical landmarks -----------------------
-  const face = placeFace(k);
-  // cranium behind the face mask: the canonical landmarks make the whole front of the head
-  cone('Head', P(0, 1.652, -0.022), 0.086, P(0, 1.664, -0.03), 0.086, 0.02);
+  // cranium behind the face mask (the canonical landmarks make the whole front of the head): about 19.5 cm from brow
+  // to the back of the skull and 15 cm across, not the long egg of a first pass
+  cone('Head', P(0, 1.655, -0.012), 0.08, P(0, 1.668, -0.02), 0.08, 0.02);
+  for (const sx of [1, -1]) cone('Head', [sx * 0.03 * k, 1.66 * k, -0.01 * k], 0.072, [sx * 0.03 * k, 1.63 * k, -0.035 * k], 0.06, 0.03);
   cone('Head', P(0, 1.6, -0.02), 0.06, P(0, 1.57, 0.0), 0.05, 0.03);                   // skull base to the jaw hinge
   for (const sx of [1, -1]) {
     cone('Head', [sx * 0.055 * k, 1.592 * k, -0.005 * k], 0.022, [sx * 0.035 * k, 1.55 * k, 0.05 * k], 0.016, 0.02); // jaw line
@@ -383,7 +387,8 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
   const centre: Vec3 = P(0, 1.62, -0.02);
   const outward = normals.map((n, i) => (dot(n, sub(face[i], centre)) < 0 ? mul(n, -1) : n));
   const SHELL = 0.0035 * k;
-  const shellPoints = face.map((p, i) => sub(p, mul(outward[i], SHELL)));
+  // the canonical face subdivided once and smoothed, so its surface is skin, not 468 facets
+  const fine = smoothSubdivide(face.map((p, i) => sub(p, mul(outward[i], SHELL))), Array.from(CANONICAL_INDICES));
   for (const i of FACE_OVAL) {
     const c = sub(face[i], mul(outward[i], 0.013 * k));
     parts.push({ op: 'add', a: c, ra: 0.012 * k, b: c, rb: 0.012 * k, blend: 0.012 * k, boneA: 'Head', boneB: 'Head' });
@@ -393,8 +398,7 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
   for (const sx of [1, -1]) cone('Head', [sx * 0.04 * k, 1.63 * k, 0.025 * k], 0.035, [sx * 0.035 * k, 1.585 * k, 0.03 * k], 0.03, 0.03);
   // eye sockets read through the lids: a shallow carve under the brow, the eyeballs behind
   for (const s of ['Left', 'Right'] as HumanSide[]) {
-    const eye = J[S(s, 'Eye')];
-    ball(S(s, 'Eye'), add(eye, P(0, 0, -0.004)), 0.0115, 0.004);
+    ball(S(s, 'Eye'), J[S(s, 'Eye')], EYE_R, 0.002);
   }
   carve('Head', P(0, 1.58, 0.096), 0.0035, P(0.017, 1.578, 0.088), 0.0025, 0.004);   // mouth line
   carve('Head', P(0, 1.58, 0.096), 0.0035, P(-0.017, 1.578, 0.088), 0.0025, 0.004);
@@ -423,7 +427,46 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
     grip[s] = { at: add(lerp(hand, knuck, 0.82), mul(palmN, 0.026 * k)), axis: thumbS, palm: palmN };
   }
 
-  return { tune, bones, byName, muscles, parts, capsules, face, faceShell: { points: shellPoints, thickness: SHELL }, grip };
+  return { tune, bones, byName, muscles, parts, capsules, face, faceShell: { points: fine.points, indices: fine.indices, thickness: SHELL }, grip };
+}
+
+/** Eyeball radius at 1.74 m (an adult eye is about 24 mm across). */
+const EYE_R = 0.0118;
+
+/** Midpoint subdivision with two passes of Laplacian smoothing; the mask's open border and holes stay put. */
+function smoothSubdivide(points: Vec3[], indices: number[]) {
+  const pts = points.slice();
+  const mid = new Map<string, number>();
+  const edgeUse = new Map<string, number>();
+  const ek = (a: number, b: number) => (a < b ? `${a}_${b}` : `${b}_${a}`);
+  for (let t = 0; t < indices.length; t += 3) for (let e = 0; e < 3; e++) { const k = ek(indices[t + e], indices[t + (e + 1) % 3]); edgeUse.set(k, (edgeUse.get(k) ?? 0) + 1); }
+  const border = new Set<number>();
+  const m = (a: number, b: number) => {
+    const k = ek(a, b);
+    let i = mid.get(k);
+    if (i === undefined) { i = pts.length; pts.push(lerp(pts[a], pts[b], 0.5)); mid.set(k, i); if (edgeUse.get(k) === 1) border.add(i); }
+    if (edgeUse.get(k) === 1) { border.add(a); border.add(b); }
+    return i;
+  };
+  const out: number[] = [];
+  for (let t = 0; t < indices.length; t += 3) {
+    const a = indices[t], b = indices[t + 1], c = indices[t + 2];
+    const ab = m(a, b), bc = m(b, c), ca = m(c, a);
+    out.push(a, ab, ca, ab, b, bc, ca, bc, c, ab, bc, ca);
+  }
+  const nb: Set<number>[] = pts.map(() => new Set());
+  for (let t = 0; t < out.length; t += 3) for (let e = 0; e < 3; e++) { const a = out[t + e], b = out[t + (e + 1) % 3]; nb[a].add(b); nb[b].add(a); }
+  for (let pass = 0; pass < 2; pass++) {
+    const next = pts.slice();
+    pts.forEach((p, i) => {
+      if (border.has(i) || !nb[i].size) return;
+      let c: Vec3 = [0, 0, 0];
+      for (const o of nb[i]) c = add(c, pts[o]);
+      next[i] = lerp(p, mul(c, 1 / nb[i].size), 0.5);
+    });
+    for (let i = 0; i < pts.length; i++) pts[i] = next[i];
+  }
+  return { points: pts, indices: out };
 }
 
 /** MediaPipe's face-oval landmarks (the mask's outline). */

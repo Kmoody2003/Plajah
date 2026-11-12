@@ -46,8 +46,10 @@ export function findForgeExtras(root: THREE.Object3D): ForgeExtras | null {
 export function forgeRig(model: THREE.Object3D, opts: { dqs?: boolean } = {}): ForgeRig | null {
   const extras = findForgeExtras(model);
   if (!extras) return null;
-  const dqsOff = typeof location !== 'undefined' && new URLSearchParams(location.search).get('dqs') === '0';
-  if (opts.dqs !== false && !dqsOff) model.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) enableDualQuaternionSkinning(o as THREE.SkinnedMesh); });
+  // Dual-quaternion skinning is opt-in (?dqs=1) until it is fixed: it misplaces the skinned meshes once the character's
+  // root has travelled away from the origin (found 2026-11-11). Linear skinning plus the corrective shapes is the default.
+  const dqsOn = opts.dqs ?? (typeof location !== 'undefined' && new URLSearchParams(location.search).get('dqs') === '1');
+  if (dqsOn) model.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) enableDualQuaternionSkinning(o as THREE.SkinnedMesh); });
   const springs = new SpringBones(model, extras.springs, extras.capsules);
   const drivers = new MorphDrivers(model, extras.drivers, extras.twists);
   const bones = new Map<string, THREE.Object3D>();

@@ -47,6 +47,11 @@ export interface GMaterial {
   specular?: { factor: number; color?: [number, number, number] };
   emissive?: [number, number, number];
   doubleSided?: boolean;
+  /** Alpha-tested cutouts (hair cards). */
+  alphaMode?: 'MASK' | 'BLEND';
+  alphaCutoff?: number;
+  /** KHR_materials_anisotropy: strength 0..1, rotation in radians from the tangent (u) direction. */
+  anisotropy?: { strength: number; rotation: number };
   extras?: Record<string, unknown>;
 }
 export interface GSkin { name: string; joints: number[]; inverseBindMatrices: Float32Array; skeleton?: number }
@@ -55,8 +60,8 @@ export interface GScene {
   roots: number[];
   meshes: GMesh[];
   materials: GMaterial[];
-  /** PNG bytes. */
-  images: Uint8Array[];
+  /** PNG bytes, or any web image with its mime type. */
+  images: (Uint8Array | { bytes: Uint8Array; mime: string })[];
   skins: GSkin[];
   extras?: Record<string, unknown>;
 }
@@ -153,7 +158,7 @@ export function writeGlb(scene: GScene): Uint8Array {
   });
 
   const skins = scene.skins.map((s) => ({ name: s.name, joints: s.joints, inverseBindMatrices: accessor(s.inverseBindMatrices, 'MAT4'), ...(s.skeleton !== undefined ? { skeleton: s.skeleton } : {}) }));
-  const images = scene.images.map((png) => ({ bufferView: push(png), mimeType: 'image/png' }));
+  const images = scene.images.map((im) => (im instanceof Uint8Array ? { bufferView: push(im), mimeType: 'image/png' } : { bufferView: push(im.bytes), mimeType: im.mime }));
   const textures = scene.images.map((_, i) => ({ source: i, sampler: 0 }));
 
   const materials = scene.materials.map((m) => {
@@ -171,10 +176,12 @@ export function writeGlb(scene: GScene): Uint8Array {
     if (m.ormTexture !== undefined) out.occlusionTexture = { index: m.ormTexture };
     if (m.emissive) out.emissiveFactor = m.emissive;
     if (m.doubleSided) out.doubleSided = true;
+    if (m.alphaMode) { out.alphaMode = m.alphaMode; if (m.alphaMode === 'MASK') out.alphaCutoff = m.alphaCutoff ?? 0.5; }
     const ext: Record<string, unknown> = {};
     if (m.clearcoat) { ext.KHR_materials_clearcoat = { clearcoatFactor: m.clearcoat.factor, clearcoatRoughnessFactor: m.clearcoat.roughness }; extensionsUsed.add('KHR_materials_clearcoat'); }
     if (m.sheen) { ext.KHR_materials_sheen = { sheenColorFactor: m.sheen.color, sheenRoughnessFactor: m.sheen.roughness }; extensionsUsed.add('KHR_materials_sheen'); }
     if (m.specular) { ext.KHR_materials_specular = { specularFactor: m.specular.factor, ...(m.specular.color ? { specularColorFactor: m.specular.color } : {}) }; extensionsUsed.add('KHR_materials_specular'); }
+    if (m.anisotropy) { ext.KHR_materials_anisotropy = { anisotropyStrength: m.anisotropy.strength, anisotropyRotation: m.anisotropy.rotation }; extensionsUsed.add('KHR_materials_anisotropy'); }
     if (Object.keys(ext).length) out.extensions = ext;
     if (m.extras) out.extras = m.extras;
     return out;

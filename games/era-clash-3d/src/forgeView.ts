@@ -31,12 +31,23 @@ ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground)
 
 const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 100);
 const view = { yaw: Number(params.get('yaw') ?? 0.5), pitch: Number(params.get('pitch') ?? 0.12), dist: Number(params.get('dist') ?? 5.4), y: Number(params.get('cy') ?? 1.0), x: Number(params.get('cx') ?? 0), z: 0 };
+/** Close-ups: aim at a bone of the v3 figure (e.g. 'Head') instead of a fixed point. */
+let follow: string | null = params.get('follow');
 const placeCam = () => {
+  if (follow && cast.length) {
+    let b: THREE.Object3D | undefined; cast[cast.length - 1].model.traverse((o) => { if (!b && o.name === follow) b = o; });
+    if (b) { const p = b.getWorldPosition(new THREE.Vector3()); view.x = p.x; view.y = p.y + 0.06; view.z = p.z; }
+  }
   camera.position.set(view.x + Math.sin(view.yaw) * view.dist, view.y + Math.sin(view.pitch) * view.dist, view.z + Math.cos(view.yaw) * view.dist);
   camera.lookAt(view.x, view.y, view.z);
   sun.position.set(-3, 5, view.z + 6); sun.target.position.set(0, 0, view.z); sun.target.updateMatrixWorld();
 };
-addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+/** The window's size, or a fixed 1280×1400 when the page has none (a hidden pane), so captures still render. */
+const fit = () => {
+  const w = innerWidth || 1500, h = innerHeight || 1100;
+  renderer.setSize(w, h, !!innerWidth); camera.aspect = w / h; camera.updateProjectionMatrix();
+};
+addEventListener('resize', fit);
 let drag: [number, number] | null = null;
 renderer.domElement.addEventListener('pointerdown', (e) => { drag = [e.clientX, e.clientY]; });
 addEventListener('pointerup', () => { drag = null; });
@@ -44,13 +55,14 @@ addEventListener('pointermove', (e) => { if (!drag) return; view.yaw -= (e.clien
 addEventListener('wheel', (e) => { view.dist = Math.max(1.2, Math.min(12, view.dist * (1 + e.deltaY * 0.001))); });
 
 const stats = document.getElementById('stats')!;
+const cast: Character[] = [];
 const [oldHaru, newHaru] = await Promise.all([
   loadJack('haru'),
   loadJack('haru', { url: `/games/era-clash/3d/assets/characters/${params.get('model') ?? 'samurai_v3'}.glb?v=${Date.now()}` }),
 ]);
 oldHaru.root.position.x = -0.9; newHaru.root.position.x = 0.9;
 scene.add(oldHaru.root, newHaru.root);
-const cast: Character[] = [oldHaru, newHaru];
+cast.push(oldHaru, newHaru);
 // the strikes the game cuts from CMU, on both skeletons
 await Promise.all(cast.flatMap((c) => Object.entries(HARU_MOVES).map(async ([k, d]) => {
   try { const m = await cutMove(c.model, k, d); if (m) c.addMove(k, m.clip); } catch (e) { console.warn(k, e); }
@@ -134,6 +146,7 @@ function stepTravel(c: Character, dt: number) {
   at(t: number) { tAt = t; },
   pause(b: boolean) { paused = b; },
   view,
+  follow(bone: string | null) { follow = bone; },
   stats: () => stats.textContent,
   /** GPU+CPU ms one figure adds to a frame: renders back-to-back with it shown and hidden (the other is hidden). */
   async cost(which = 1, n = 40, rounds = 4) {
@@ -159,6 +172,7 @@ function stepTravel(c: Character, dt: number) {
   /** Play `name` from its start to `t` seconds at 60 Hz right now (springs integrate through it), then hold. */
   scrub(name: string, t: number, lead = 0) {
     paused = true; tAt = -1;
+    if (!innerWidth) fit();
     // from a clean start: clips at time zero, both back at the origin, springs at rest
     for (const c of cast) { c.cancel(); c.mixer.setTime(0); c.root.position.z = 0; c.forge?.springs.reset(); }
     view.z = 0;
@@ -168,6 +182,7 @@ function stepTravel(c: Character, dt: number) {
     placeCam(); renderer.render(scene, camera);
   },
   async capture(name: string) {
+    if (!renderer.domElement.width || !renderer.domElement.height) fit();
     placeCam();
     renderer.render(scene, camera);
     const url = renderer.domElement.toDataURL('image/png');
