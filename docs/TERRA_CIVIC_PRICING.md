@@ -220,7 +220,7 @@ Counting only the civic-tools column, the Civic plan on its own (without the Wor
 With the office suite and per-seat tools included, cities and counties save roughly 75–89%.
 
 
-## 3C. Whole-government plans — the price list (12 Nov 2026; replaces §3A tiers and the §3B add-on)
+## 3C. Whole-government plans by tier — superseded by §3D (the Civic Rate)
 
 **One plan per government.** A city, county or state buys one subscription that covers **every
 department, every office and every employee**: the legislature or council, the executive, every agency,
@@ -268,6 +268,69 @@ thousands of staff, so the saving grows far more than the price does.
 / 60,000 by tier. Michigan's state workforce is on the order of 45,000–50,000 employees; verify per state
 before quoting. State "today" still excludes legislative and agency civic systems, so the saving is
 understated.
+
+
+## 3D. The Civic Rate — one public formula (12 Nov 2026; replaces §3A–3C)
+
+Every other government suite sells seats, modules and multi-year contracts negotiated deal by deal.
+Terra Civic sells one thing, priced like a public utility, with the same formula for everyone:
+
+> **Annual price = $1,500 + 30¢ per resident (first million) + 15¢ per resident above a million.**
+
+That covers the **whole government**: every department, every office, every employee, the full platform
+(Law Library, Forum, Meetings, Programs Desk, Civic Record, Tela documents, sheets and forms,
+LiveTalk video, ARIA). There are no seats, modules, tiers or per-agency fees. A council clerk, a
+reporter or a resident can work out the price with a calculator.
+
+### Examples
+
+| Example | Residents | Per year | Per month | Per resident | Today's spend replaced | Less | Est. margin |
+|---|---|---|---|---|---|---|---|
+| Village | 1,000 | **$1,800** | $150 | $1.80 | $5,437–$13,637 | 67–87% | ~26% |
+| Town | 5,000 | **$3,000** | $250 | $0.60 | $15,387–$38,387 | 81–92% | ~36% |
+| Small city | 15,000 | **$6,000** | $500 | $0.40 | $27,761–$62,761 | 78–90% | ~23% |
+| City | 60,000 | **$19,500** | $1,625 | $0.33 | $116,645–$228,645 | 83–91% | ~36% |
+| Large city | 250,000 | **$76,500** | $6,375 | $0.31 | $381,353–$741,353 | 80–90% | ~37% |
+| Detroit-size city | 630,000 | **$190,500** | $15,875 | $0.30 | $909,569–$1.75M | 79–89% | ~40% |
+| County | 300,000 | **$91,500** | $7,625 | $0.30 | $445,623–$865,623 | 79–89% | ~39% |
+| Oakland-size county | 1,270,000 | **$342,000** | $28,500 | $0.27 | $1.73M–$3.34M | 80–90% | ~38% |
+| Wayne-size county | 1,750,000 | **$414,000** | $34,500 | $0.24 | $2.35M–$4.53M | 82–91% | ~32% |
+| Michigan-size state | 10,100,000 | **$1.67M** | $138,875 | $0.17 | $8.11M–$15.69M | 79–89% | ~28% |
+
+"Today" uses the §3B method: civic tools from public contracts, plus the office suite (Google ~$14
+to Microsoft 365 G3 ~$39 per user per month) and per-seat PDF, video and design tools. Desk staff are
+estimated at 4 per 1,000 residents for cities and counties and 2.5 per 1,000 for states. State "today"
+excludes legislative systems, so it's understated.
+
+### What's included, sized by residents (pooled across the whole government)
+
+- **Storage:** 1 TB plus 50 GB per 1,000 residents.
+- **Live meeting video:** 10 hours plus 1 hour per 10,000 residents each month (600 hours max).
+- **AI:** 10,000 credits plus 1 credit per 10 residents each month (1 credit = $0.01 of model cost).
+- **Extra use** is opt-in, at cost plus 20%, with a cap the government sets. Departments never get a separate bill.
+
+### Why it's built this way
+
+- **Costs follow residents, so the price does too.** Staff count, meeting volume, public traffic and storage
+  all scale with population. The $1,500 base covers the fixed cost of standing up a government (support,
+  setup, a meeting channel). The cost model is in §2. Estimated cost ≈ fixed cost + $24 per desk user a year +
+  $0.05 per resident a year + used video.
+- **Small towns get the most.** A 1,000-person village pays $150 a month for the same platform Detroit uses.
+  Self-serve setup and templates keep their fixed cost low. That's the adoption engine: there are far more small towns than big cities.
+- **Fair-margin promise (open book).** We target about 40% gross margin across all governments. Each year we
+  publish a short cost report. If our civic margin goes over 50% for the year, the per-resident rate drops for
+  everyone the next year. Lower costs get passed through.
+- **A resident shouldn't pay twice.** When overlapping governments both subscribe (a city inside a subscribing county,
+  or a county inside a subscribing state), each gets 20% off.
+- **No lock-in.** Monthly or annual billing, cancel anytime with a full data export. A price lock of up to 3 years,
+  with increases capped at 3%, is optional, not required.
+- **Easy start.** 90-day free pilot for any government. States pay half in year one while departments come online.
+- **Revenue comes back.** A published share funds the Community Revenue Pool (§13 of the Forum blueprint).
+
+### Margin check (estimates)
+
+Most sizes land at about 35–50%. The thinnest are the state (~25–30%, because of large staff counts) and the
+10,000–25,000 band (~30%). Raise the base before the rate if real costs run hotter: the base is what protects small-town margins.
 
 ## 4. Making it easy to buy
 
