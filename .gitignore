@@ -166,3 +166,4 @@ public/games/ravencrest/assets/characters/jack_thorne_rigged.glb
 # Ravencrest: Muse source deliveries and per-character build intermediates (buildCast.py regenerates them)
 /Ravencrest Assets/
 /games/ravencrest/assets-src/*/
+.terra-law-src/

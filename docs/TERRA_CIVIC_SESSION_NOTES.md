@@ -106,6 +106,41 @@ need to be checked by hand.
   codifier such as Municode) and its terms of use. The Detroit contract should grant hosting and
   official-designation rights.
 
+## 8. Built: Law Library preview (12 Nov 2026)
+
+**What's in it:** all of Michigan's Compiled Laws (240 chapters, 3,995 acts, 43,550 sections) and the
+1963 Constitution (13 articles, 281 sections), current through PA 114 of 2026. Everything was ingested
+from the Legislature's public XML and PDFs.
+
+- **Ingest:** `npm run terra:law:ingest` (= `scripts/terra/ingestMichiganLaw.ts --fetch`) downloads
+  the chapter XML and Constitution PDFs (one file a second) and writes gzipped JSON to
+  `data/terraLaw/mi/` (~20 MB). The Constitution text comes from MCL "chapter 1" (the Legislature's
+  structured XML of it). The PDFs supply the preamble and the "current through" line. `pdftotext`
+  (poppler) is required.
+- **Parsers:** `services/terra/law/` (`miniXml`, `michiganMcl`, `michiganConstitution`, `lawSearch`,
+  `lawTypes`). These are pure functions with tests in `tests/terraLaw*.test.ts` (`npm run test:terralaw`).
+- **API:** `routes/terraLaw.ts`, mounted in `server.ts`. Public and read-only: index, search index,
+  Constitution, chapter and section.
+- **UI:** `components/terra/TerraLawLibrary.tsx`, view `TERRA_LAW`. It has a hero search, a "Running a
+  business?" rail (17 topics, each verified to resolve to a real act), a Constitution feature,
+  chapter browsing, a reader with Share / Cite / Official text, previous and next section, recently
+  viewed, and history and notes labelled as editorial.
+- **Access:** the TerraHub card is **admins only (private beta)**. Law pages themselves are public
+  and shareable by link: `/?view=law&law=mcl-125.3201`, `/?view=law&law=const-IX`,
+  `/?view=law&law=ch-408`.
+- **Labelled unofficial everywhere,** with the source and "current through", and a link to the
+  official page for every section.
+
+**Legal follow-up before a wider launch:** the Legislature's Constitution booklet says it is
+"provided free to Michigan citizens and is not for reproduction for resale or profit", and
+MCL 4.1204 preserves the state's claimed copyright in its compilation. We serve the text free, never
+paywalled, and label it unofficial. Still, **ask the Legislative Service Bureau for written permission
+or a data partnership** before promoting it beyond reviewers.
+
+**Next:** Detroit City Code (needs the city's source and terms); "Explain this section" with ARIA
+(plain-language summaries, labelled AI); pending bills (Open States / the Legislature's bill data);
+and linking zoning sections to Terra parcels.
+
 ## 6. Git status and how to recover the work
 
 - The branch `claude/playerterra-live-legislation-4qc9h5` has **7 local commits that were never pushed**. GitHub refused the push (403) because the Claude GitHub App doesn't have access to `Kmoody2003/Plajah`.

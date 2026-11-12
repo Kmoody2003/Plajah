@@ -16,7 +16,7 @@ import { motion } from 'motion/react';
 import { TerraLookup } from './TerraLookup';
 import {
   MapPin, Building2, FileText, Home, Ruler, Landmark, Rss, Film,
-  Compass, ArrowRight, ShieldCheck, Layers, Search, Store, Sparkles,
+  Compass, ArrowRight, ShieldCheck, Layers, Search, Store, Sparkles, Scale,
 } from 'lucide-react';
 
 const ACCENT = '#FF8C00';        // Terra — surveyor's flag / Plajah primary
@@ -111,9 +111,11 @@ const COV_STYLE: Record<string, { dot: string; text: string; chip: string }> = {
 
 export interface TerraHubProps {
   onNavigate?: (target: string, params?: any) => void;
+  /** Platform admins see private-beta surfaces (Terra Civic: Law Library). */
+  isAdmin?: boolean;
 }
 
-export const TerraHub: React.FC<TerraHubProps> = ({ onNavigate }) => {
+export const TerraHub: React.FC<TerraHubProps> = ({ onNavigate, isAdmin }) => {
   const [tab, setTab] = useState<Audience>('all');
 
   const visible = SERVICES.filter(s => tab === 'all' || s.audience.includes(tab as Exclude<Audience, 'all'>));
@@ -197,6 +199,38 @@ export const TerraHub: React.FC<TerraHubProps> = ({ onNavigate }) => {
             </p>
           </div>
         </motion.div>
+
+        {/* Terra Civic — Law Library (private beta: admins only on the hub; individual law pages
+            are public, unofficial copies that can be shared by link). */}
+        {isAdmin && (
+          <motion.button initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            onClick={() => onNavigate?.('TERRA_LAW')}
+            className="w-full text-left relative overflow-hidden rounded-3xl p-6 border border-white/[0.08] group"
+            style={{ background: 'linear-gradient(135deg, #1b1432, #120f1c 55%, #20101b)' }}>
+            <div className="pointer-events-none absolute -right-16 -top-16 w-72 h-72 rounded-full blur-3xl opacity-40"
+                 style={{ background: 'radial-gradient(circle, #A78BFA, transparent 70%)' }} />
+            <div className="relative flex items-start gap-4 flex-wrap">
+              <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
+                   style={{ background: 'linear-gradient(135deg, #A78BFA, #FF3D80)' }}>
+                <Scale size={18} className="text-white" />
+              </div>
+              <div className="flex-1 min-w-[220px]">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-base font-black text-white">Law Library</p>
+                  <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full"
+                        style={{ color: '#A78BFA', background: '#A78BFA1c' }}>Private beta · admins</span>
+                </div>
+                <p className="mt-1 text-[12px] text-white/55 leading-relaxed max-w-2xl">
+                  Every Michigan statute and the 1963 Constitution — searchable, readable and shareable inside
+                  Terra. The first piece of Terra Civic.
+                </p>
+              </div>
+              <span className="self-center inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black text-[10px] font-black uppercase tracking-widest group-hover:brightness-95">
+                Open <ArrowRight size={12} />
+              </span>
+            </div>
+          </motion.button>
+        )}
 
         {/* Public-record lookup — the two answers a resident/business wants most,
             surfaced before the tool directory so the map isn't the only door in. */}

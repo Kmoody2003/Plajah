@@ -533,6 +533,7 @@ const SiteScout = retryLazy(() => import('./components/terra/SiteScout'));
 const ListingFilm = retryLazy(() => import('./components/terra/ListingFilm'));
 const TerraFeed = retryLazy(() => import('./components/terra/TerraFeed'));
 const TerraListings = retryLazy(() => import('./components/terra/ListingsManager'));
+const TerraLawLibrary = retryLazy(() => import('./components/terra/TerraLawLibrary'));
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
 const ArtistProjectManager = retryLazy(() => import('./components/ArtistProjectManager'));
 const ChoraArtistManager = retryLazy(() => import('./components/ChoraArtistManager'));
@@ -779,6 +780,7 @@ const App: React.FC = () => {
     pitchParam === 'apps'         ? 'APPS'               :
     pitchParam === 'crossover'    ? 'CROSSOVER'          :
     pitchParam === 'terra'        ? 'TERRA'              :
+    (pitchParam === 'law' || searchParamsOnLoad.get('law') !== null) ? 'TERRA_LAW' :
     pitchParam === 'business'     ? 'PLAJAH_BUSINESS'    :
     pitchParam === 'elevate' || pitchParam === 'plajah-elevate' || searchParamsOnLoad.get('elevate') !== null ? 'PLAJAH_ELEVATE' :
     pitchParam === 'home'         ? 'PLAJAH_HOME'        :
@@ -798,7 +800,7 @@ const App: React.FC = () => {
   const hasDeepLink = (() => {
     if (channelShareOnLoad) return true;
     const sp = new URLSearchParams(window.location.search);
-    if (['id', 'type', 'reello', 'video', 'v', 'org', 'elevate', 'debate', 'club', 'livestream', 'stream', 'room', 'callin', 'listen', 'invite', 'pitch', 'view', 'g', 'atlas', 'party', 'collection', 'film', 'channel', 'ch', 'plajahId'].some(k => sp.get(k))) return true;
+    if (['id', 'type', 'reello', 'video', 'v', 'org', 'elevate', 'debate', 'club', 'livestream', 'stream', 'room', 'callin', 'listen', 'invite', 'pitch', 'view', 'law', 'g', 'atlas', 'party', 'collection', 'film', 'channel', 'ch', 'plajahId'].some(k => sp.get(k))) return true;
     if (/^#g\//.test(window.location.hash)) return true;
     // /link (TV sign-in approval) must not bounce a signed-out visitor to LANDING — they may
     // need to sign in on the phone first and then approve, and losing the ?c= code mid-flow
@@ -2851,6 +2853,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('TERRA_FEED');
     } else if (target === 'TERRA_LISTINGS') {
       setView('TERRA_LISTINGS');
+    } else if (target === 'TERRA_LAW') {
+      setView('TERRA_LAW');
     } else if (target === 'TERRA_PASSPORT') {
       setTerraPassportTarget(params?.terraTarget || null);
       setView('TERRA_PASSPORT');
@@ -6670,7 +6674,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'TERRA' && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <TerraHub onNavigate={handleGlobalNavigate} />
+                <TerraHub onNavigate={handleGlobalNavigate} isAdmin={userProfile?.role === 'admin' || user?.email === 'kmoody2003@gmail.com'} />
+              </Suspense>
+            )}
+
+            {view === 'TERRA_LAW' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <TerraLawLibrary onBack={() => goBack('TERRA')} />
               </Suspense>
             )}
 

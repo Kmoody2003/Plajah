@@ -70,6 +70,7 @@ import { createBookVaultRouter } from './routes/bookVault';
 import { createMusicDownloadRouter } from './routes/musicDownload';
 import { createFastVoteRouter } from './routes/fastVote';
 import { createMuseumRouter } from './routes/museum';
+import { createTerraLawRouter } from './routes/terraLaw';
 import { createDataCommonsRouter } from './routes/dataCommons';
 import { createGrantsRouter } from './routes/grants';
 import { createAdminKeysRouter } from './routes/adminKeys';
@@ -13710,6 +13711,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   fastVotePledgeHook = fastVote.onPledgeCheckoutCompleted;
   app.use(fastVote.router);
   app.use(createMuseumRouter({ limiter: apiLimiter }));
+  // Terra Law Library: public, read-only law text (unofficial copy) — data/terraLaw/*
+  app.use(createTerraLawRouter({ limiter: apiLimiter }));
   app.use(createDataCommonsRouter({ limiter: apiLimiter }));
   app.use(createGrantsRouter({ limiter: apiLimiter }));
   // Admin countdown for API keys that expire on a schedule (SAM.gov: 90 days). Dates only, never the key.
