@@ -107,7 +107,26 @@ function worlds(pose: Record<string, number[]>): M4[] {
 
 // every triangle of the figure, posed: positions, normals, colour per vertex (texture sampled at the vertex is too
 // coarse for the face: the UVs are kept and sampled per pixel)
-interface Tri { p: number[]; n: number[]; uv: number[] | null; mat: ReturnType<typeof matColour>; tail?: boolean }
+interface Tri { p: number[]; n: number[]; uv: number[] | null; mat: ReturnType<typeof matColour>; tail?: boolean; part: number }
+
+/** The parts the art is scored by, one by one (forgeFidelity --parts). */
+export const PARTS = ['head', 'do', 'kusazuri', 'sode', 'arms', 'obi', 'hakama', 'shins', 'feet', 'sword'] as const;
+/** Which part a triangle is: from its mesh, its material and the bone it mostly moves with. */
+function partOf(node: string, mat: string, joint: string): number {
+  const P = (n: (typeof PARTS)[number]) => PARTS.indexOf(n);
+  const m = mat.replace(/_painted$/, '');
+  if (/saya|wakizashi/.test(node)) return P('sword');
+  if (node === 'Haru_head' || /^(Head|Tail_|HairLock|LeftEye|RightEye)/.test(joint) || m === 'hairCards') return P('head');
+  if (/^Kusazuri/.test(joint)) return P('kusazuri');
+  if (/^Sode/.test(joint)) return P('sode');
+  if (m === 'hakama') return P('hakama');
+  if (m === 'obi') return P('obi');
+  if (m === 'tabi' || /(Foot|ToeBase)$/.test(joint)) return P('feet');
+  if (m === 'kyahan' || /(Left|Right)Leg$/.test(joint)) return P('shins');
+  if (/(Arm|ArmTwist|ForeArm|ForeArmTwist|Hand)$|Hand(Thumb|Index|Middle|Ring|Pinky)/.test(joint)) return P('arms');
+  if (/UpLeg$/.test(joint)) return P('hakama');
+  return P('do');
+}
 const SKIP = new Set(['kabuto', 'katana']); // hidden by default / the drawn sword is a gameplay prop the art does not hold
 /** Each primitive's posed vertices from the last posedTris (`node:primitive`), for painting. */
 export const posedVerts = new Map<string, { pp: Float32Array; nn: Float32Array }>();
@@ -139,10 +158,19 @@ function posedTris(pose: Record<string, number[]>): Tri[] {
       // the ponytail's own triangles (skinned to its tail chain), so the skull's outline can be measured without it
       const jointNames: string[] = node.skin !== undefined ? gltf.skins[node.skin].joints.map((j: number) => gltf.nodes[j].name) : [];
       let onTail: Uint8Array | null = null;
+      const vPart = new Int8Array(nv).fill(partOf(node.name, mat.name, parent[ni] >= 0 ? gltf.nodes[parent[ni]].name : ''));
       if (node.skin !== undefined && pr.attributes.JOINTS_0 !== undefined) {
         const J = acc(pr.attributes.JOINTS_0), Wt = acc(pr.attributes.WEIGHTS_0) as Float32Array;
         onTail = new Uint8Array(nv);
-        for (let v = 0; v < nv; v++) for (let k = 0; k < 4; k++) if (Wt[v * 4 + k] > 0.3 && /^Tail_/.test(jointNames[J[v * 4 + k]])) onTail[v] = 1;
+        for (let v = 0; v < nv; v++) {
+          let bk = 0; for (let k = 1; k < 4; k++) if (Wt[v * 4 + k] > Wt[v * 4 + bk]) bk = k;
+          vPart[v] = partOf(node.name, mat.name, jointNames[J[v * 4 + bk]]);
+          for (let k = 0; k < 4; k++) if (Wt[v * 4 + k] > 0.3 && /^Tail_/.test(jointNames[J[v * 4 + k]])) onTail[v] = 1;
+        }
+      } else {
+        // a rigid piece: the part of the bone it hangs from (the odoshi cords hang from the spine: the dō)
+        let a = ni; while (a >= 0 && !(gltf.skins?.[0]?.joints ?? []).includes(a)) a = parent[a];
+        vPart.fill(partOf(node.name, mat.name, a >= 0 ? gltf.nodes[a].name : ''));
       }
       for (const base of instM) {
         const pp = new Float32Array(nv * 3), nn = new Float32Array(nv * 3);
@@ -176,7 +204,7 @@ function posedTris(pose: Record<string, number[]>): Tri[] {
             p: vs.flatMap((v) => [pp[v * 3], pp[v * 3 + 1], pp[v * 3 + 2]]),
             n: vs.flatMap((v) => [nn[v * 3], nn[v * 3 + 1], nn[v * 3 + 2]]),
             uv: UV && mat.img ? vs.flatMap((v) => [UV[v * 2], UV[v * 2 + 1]]) : null,
-            mat, tail: onTail ? vs.some((v) => onTail![v]) : false,
+            mat, tail: onTail ? vs.some((v) => onTail![v]) : false, part: vPart[vs[0]],
           });
         }
       }
@@ -215,7 +243,7 @@ function render(tris: Tri[], v: ViewName) {
   const { x0, x1, proj } = VIEWS[v];
   const W = x1 - x0, H = SHh;
   const depth = new Float32Array(W * H).fill(-Infinity), rgb = new Float32Array(W * H * 3), mask = new Uint8Array(W * H);
-  const matId = new Int16Array(W * H).fill(-1), shadeOf = new Float32Array(W * H);
+  const matId = new Int16Array(W * H).fill(-1), shadeOf = new Float32Array(W * H), partId = new Int8Array(W * H).fill(-1);
   const L = LIGHT[v], ll = Math.hypot(L[0], L[1], L[2]);
   for (const t of tris) {
     const a = proj(t.p.slice(0, 3)), b = proj(t.p.slice(3, 6)), c = proj(t.p.slice(6, 9));
@@ -244,11 +272,11 @@ function render(tris: Tri[], v: ViewName) {
       const lam = Math.max(0, (nx * L[0] + ny * L[1] + nz * L[2]) / (nl * ll));
       // soft, like the painted art's own light (and a painted-from-art texture already carries its shading)
       const shade = 0.78 + 0.32 * lam;
-      matId[i] = t.mat.img ? -2 : t.mat.index; shadeOf[i] = shade;
+      matId[i] = t.mat.img ? -2 : t.mat.index; shadeOf[i] = shade; partId[i] = t.part;
       for (let k = 0; k < 3; k++) rgb[i * 3 + k] = linToSrgb(col[k] * shade) * 255;
     }
   }
-  return { W, H, rgb, mask, matId, shadeOf, depth };
+  return { W, H, rgb, mask, matId, shadeOf, depth, partId };
 }
 function srgbToLin(c: number) { return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }
 function linToSrgb(c: number) { c = Math.max(0, Math.min(1, c)); return c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055; }
@@ -460,6 +488,24 @@ if (FAST) {
     out[v] = Object.fromEntries(Object.entries(r.regions).map(([k, x]) => [k, { shape: x.shape, iou: x.iou, outlineMm: x.outlineMm }]));
   }
   console.log(JSON.stringify(out));
+  process.exit(0);
+}
+if (args.includes('--parts')) {
+  const { scoreParts } = await import('./forgeParts');
+  const posedT = posedTris(poseOf(pose));
+  const views = (['front', 'side', 'back'] as ViewName[]).map((v) => { const r = render(posedT, v); return { name: v, r, shift: shiftBest(r.mask, r.W, VIEWS[v].x0), x0: VIEWS[v].x0, x1: VIEWS[v].x1 }; });
+  const res = scoreParts(views, { W: SW, H: SHh, data: S, mask: artMask }, PARTS, ppm, outDir);
+  fs.writeFileSync(path.join(outDir, 'parts.json'), JSON.stringify(res, null, 2));
+  // per part across the views: IoU (weighted by how much of it each view shows), outline, colour
+  const table = PARTS.map((name) => {
+    const rows = Object.values(res).map((v) => v[name]).filter(Boolean);
+    const w = rows.reduce((a, r) => a + r.area, 0) || 1;
+    const avg = (k: 'iou' | 'outlineMm' | 'deltaE') => rows.reduce((a, r) => a + r[k] * r.area, 0) / w;
+    return { name, views: rows.length, iou: avg('iou'), outlineMm: avg('outlineMm'), deltaE: avg('deltaE') };
+  }).filter((r) => r.views);
+  console.log('part        IoU    outline   ΔE    (front / side / back IoU)');
+  for (const r of table) console.log(`${r.name.padEnd(10)} ${(r.iou * 100).toFixed(1).padStart(5)}%  ${r.outlineMm.toFixed(1).padStart(6)} mm  ${r.deltaE.toFixed(1).padStart(5)}   ${['front', 'side', 'back'].map((v) => res[v]?.[r.name] ? (res[v][r.name].iou * 100).toFixed(0) : '-').join(' / ')}`);
+  console.log(`images: ${outDir}/parts_<view>.png`);
   process.exit(0);
 }
 if (args.includes('--paint')) {

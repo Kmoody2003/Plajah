@@ -95,6 +95,26 @@ Each piece is its own mesh with its own material, made from parametric period pa
     - First run: 73.1% → 75.2% torso/legs shape. Kusazuri lames 5.8 → 8 cm, the dō 2 cm taller, the sode 3 cm wider, further back and leaning out 20°.
   - The haidate is off by default (`FORGE_HAIDATE=1`): the art shows the hakama straight below the kusazuri.
   - **In motion:** the hakama is slim under the tassets and the tassets collide as thick as the cloth, so a lifted knee no longer pushes the hakama through them. The static score cannot see this: check clips in the viewer.
+  - **Part by part** (`--parts`, `forgeParts.ts`, `engines/tela-3d/sam_prompt.py`).
+    - **Model parts:** each part of the posed model (head, dō, kusazuri, sode, arms, obi, hakama, shins, feet, sword) is rendered in the art's frame. A triangle's part comes from its mesh, material and dominant bone.
+    - **Art parts:** each model part prompts SAM 2.1 on the art with points inside it, points inside its neighbours as "not this", and its box. SAM cuts the art's matching part along the art's own edges.
+    - **Comparison:** each pair is compared on IoU, outline distance and colour. Overlays are written to `parts_<view>.png` (art part tinted, model part outlined, same colour).
+    - First run, IoU front / side / back:
+
+      | Part | IoU (front / side / back) |
+      |---|---|
+      | head | 66 / 75 / 63 |
+      | dō | 53 / 26 / 64 |
+      | kusazuri | 60 / 54 / 68 |
+      | sode | 32 / 82 / 33 |
+      | arms | 20 / 38 / 28 |
+      | obi | 42 / 24 / 47 |
+      | hakama | 47 / 54 / 34 |
+      | shins | 64 / 33 / 75 |
+      | feet | 49 / 63 / – |
+      | sword | 18 / 0 / 31 |
+
+    - The worst offenders are named: the scabbard sticks out level where the art's hangs diagonally, the arms stand off the body, the hakama is too wide and too high, and the sode spread wider than the art's.
   - What's left: shape (72–75%): the shoulder guards stand out like wings and the dō's top is off by 2–3 cm. The head is 78–81% IoU. The GLB is now about 25 MB with the paintings.
 
 ### 5. Rig and export
