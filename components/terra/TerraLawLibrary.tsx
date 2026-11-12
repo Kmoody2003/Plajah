@@ -852,7 +852,7 @@ const TerraLawLibrary: React.FC<TerraLawLibraryProps> = ({ onBack, initial, sync
   return (
     <div ref={scroller} className="h-full overflow-y-auto custom-scrollbar bg-[#08070d] text-white">
       {/* top bar */}
-      <div className="sticky top-0 z-30 bg-[#08070d]/80 backdrop-blur-2xl border-b border-white/[0.06]">
+      <div className="sticky top-0 z-30 bg-[#08070d]/95 backdrop-blur-2xl border-b border-white/[0.06]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
           <button onClick={back} className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-white transition-colors" aria-label="Back">
             <ArrowLeft size={15} />
