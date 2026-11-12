@@ -20,7 +20,7 @@ export interface Place {
 }
 
 /** The map's extent in world metres. */
-export const MAP_BOUNDS = { x0: -190, x1: 80, z0: -520, z1: 190 };   // the built city; widen as it grows (the castle keep: z ≈ 260)
+export const MAP_BOUNDS = { x0: -190, x1: 125, z0: -520, z1: 470 };   // the built city; widen as it grows (the castle keep: z ≈ 260)
 
 const KIND_STYLE: Record<PlaceKind, { color: string; icon: string }> = {
   district: { color: '#f4e6c8', icon: '' },
@@ -48,7 +48,9 @@ export class WorldMap {
   constructor(private o: { heightAt: (x: number, z: number) => number; water: Water; footprints: THREE.Box3[]; road: (z: number) => number;
     roadSpan: [number, number]; places: () => Place[]; live: MapLive;
     /** Tree trunks (x, z, crown radius) to draw the woods. */
-    trees?: { x: number; z: number; r: number }[] }) {
+    trees?: { x: number; z: number; r: number }[];
+    /** Other roads as point lists (the castle road). */
+    extraRoads?: { x: number; z: number }[][] }) {
     this.el = document.createElement('div');
     this.el.id = 'worldMap';
     this.el.style.cssText = 'position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(8,6,4,.86);z-index:40;font-family:inherit;color:#f4e6c8';
@@ -104,6 +106,7 @@ export class WorldMap {
     g.strokeStyle = 'rgba(214,196,150,.75)'; g.lineWidth = 6 * S; g.lineCap = 'round'; g.beginPath();
     for (let z = this.o.roadSpan[0]; z <= this.o.roadSpan[1]; z += 2) { const X = this.px(this.o.road(z)), Y = this.py(z); z === this.o.roadSpan[0] ? g.moveTo(X, Y) : g.lineTo(X, Y); }
     g.stroke();
+    for (const line of this.o.extraRoads ?? []) { g.lineWidth = 4.5 * S; g.beginPath(); line.forEach((p, i) => (i ? g.lineTo(this.px(p.x), this.py(p.z)) : g.moveTo(this.px(p.x), this.py(p.z)))); g.stroke(); }
     // the woods: a soft dark crown per tree
     if (this.o.trees) {
       g.fillStyle = 'rgba(28,48,22,.55)';

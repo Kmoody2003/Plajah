@@ -252,7 +252,9 @@ export function buildLandmarks(o: { inner: { xMin: number; xMax: number; zMin: n
     t.position.set(tx, 0, tz); castle.add(t);
   }
   // the outer walls between the turrets
-  for (const [ax, az, bx, bz] of [[-38, 22, 36, 30], [36, 30, -30, -34], [-30, -34, -38, 22]]) {
+  // (the outer walls between the turrets are gone: the castle's top is walkable now, walled round its rim by
+  //  castleHill.ts)
+  for (const [ax, az, bx, bz] of [] as number[][]) {
     const len = Math.hypot(bx - ax, bz - az);
     const w2 = new THREE.Mesh(new THREE.BoxGeometry(len, 7, 2.2), plaster); w2.position.set((ax + bx) / 2, 9.5, (az + bz) / 2); w2.rotation.y = -Math.atan2(bz - az, bx - ax); castle.add(w2);
     const s2 = new THREE.Mesh(new THREE.BoxGeometry(len, 6, 5), stone); s2.position.set((ax + bx) / 2, 3, (az + bz) / 2); s2.rotation.y = w2.rotation.y; castle.add(s2);

@@ -26,6 +26,10 @@ export interface QuestCtx {
   douse(i: number): void;
   /** The lookout's signal fire goes out. */
   douseSignal(): void;
+  /** A spoken scene: the game holds while the lines play (G / Enter / click advances); then `done`. */
+  tell(lines: { who: string; line: string }[], done?: () => void): void;
+  /** The end of Act I: the crew rides for the mountain. */
+  actEnd(): void;
 }
 
 interface Step {
@@ -41,6 +45,8 @@ interface QuestDef { id: string; title: string; main?: boolean; /** becomes avai
 export interface QuestState { def: QuestDef; i: number; state: 'hidden' | 'active' | 'done'; vars: Record<string, number>; count?: () => number }
 
 const MAGISTRATE = 'Magistrate Kuroda', BROKER = 'Sōbei the broker', MOTHER = 'Oyone';   // (proposed names)
+// Act I's end and Act II (docs/era-clash-3d-act2-volcano.md) — all proposed names
+const LORD = 'Lord Kageyama', ABBOT = 'Abbot Ennen', SOTA = 'Sōta', WITCH = 'Kurenai, the Ash Witch', DISCIPLE = 'Gōzan', TEMPLE_NAME = 'Hōrin-ji';
 const DEEDS = ['captives', 'boats', 'strongbox', 'children', 'signal'];
 
 export class Quests {
@@ -64,11 +70,13 @@ export class Quests {
     broker: THREE.Vector3; strongbox: THREE.Vector3; otemon: THREE.Vector3; forecourt: THREE.Vector3;
     /** The residential hill (hillside.ts): the mother at the lane's foot, the hiding places, the temple, the lookout. */
     hill: { mother: THREE.Vector3; hides: THREE.Vector3[]; temple: THREE.Vector3; templeGate: THREE.Vector3; lookoutFoot: THREE.Vector3; brazier: THREE.Vector3 };
+    /** The castle on its hill and Hōrin-ji (castleHill.ts). */
+    castle: { castleGate: THREE.Vector3; keepDoor: THREE.Vector3; temple: THREE.Vector3; templeGate: THREE.Vector3; bellHouse: THREE.Vector3; abbot: THREE.Vector3; stable: THREE.Vector3 };
   }) {
     c.scene.add(this.markers);
     const $ = (id: string) => document.getElementById(id)!;
     this.el = { obj: $('qObj'), way: $('qWay'), compass: $('qCompass'), hint: $('qHint'), log: $('qLog') };
-    const S = spots;
+    const S = spots, K = spots.castle;
     const near = (p: THREE.Vector3, r: number) => c.hero().distanceTo(p) < r;
 
     // ── The main road: from the beach to the castle ─────────────────────────────────────────────────
@@ -86,8 +94,40 @@ export class Quests {
         done: (q) => q.vars.seal === 1 },
       { text: () => "Carry the magistrate's seal to the castle's main gate", at: () => S.otemon, done: () => near(S.otemon, 6),
         enter: () => c.card("The Magistrate's Seal", 'Show it at the castle gate.') },
-      { text: () => 'Take the castle forecourt', at: () => S.forecourt, enter: () => c.openGate(), done: () => false },
-    ] });
+      { text: () => 'Take the castle forecourt', at: () => S.forecourt, enter: () => c.openGate(), done: () => c.section() >= 2 && c.clearNear(S.forecourt, 45) },
+      // ── the end of Act I: the castle on its hill, the empty keep, the temple ──
+      { text: () => `The lord's banners are down on the hill. Climb the road to the castle`, at: () => K.castleGate, done: () => near(K.castleGate, 9),
+        enter: () => c.card('The Castle Road', `No banner flies over ${LORD}'s keep.`) },
+      { text: () => `Search the keep for ${LORD}`, at: () => K.keepDoor,
+        use: { at: () => K.keepDoor, r: 3.2, label: 'Search the keep', act: (q) => {
+          q.vars.found = 1;
+          c.tell([
+            { who: 'The keep', line: 'Screens kicked in. Ash trodden into the mats. The lord’s sword-stand stands empty, and nobody answers in the halls.' },
+            { who: 'The keep', line: 'On the inner door, written in ash: a mountain, and a cave under its summit.' },
+            { who: 'The keep', line: `Below the castle, ${TEMPLE_NAME}'s bell is silent. If anyone saw where they took him, the monks did.` },
+          ]);
+        } }, done: (q) => q.vars.found === 1 },
+      { text: (q) => `Raiders hold ${TEMPLE_NAME}: drive them out (${5 - (q.count?.() ?? 5)}/5)`, at: () => K.temple,
+        enter: (q) => { q.count = c.band(K.temple, 5, 'Wakō Temple-Raider', 5); }, done: (q) => (q.count?.() ?? 1) === 0 },
+      { text: () => 'A soldier is bound in the bell house: cut him free', at: () => K.bellHouse,
+        use: { at: () => K.bellHouse, r: 2.6, label: 'Cut the ropes', act: (q) => {
+          q.vars.freed = 1; c.sfx('splinter');
+          if (this.sota) this.sota.position.copy(K.abbot).add(new THREE.Vector3(0.4, 0, 1.8));
+          c.tell([{ who: SOTA, line: `Thank the gods. I'm ${SOTA}, a spearman of the castle guard. The abbot is in the hall. He has to tell you. I can't tell it straight.` }]);
+        } }, done: (q) => q.vars.freed === 1 },
+      { text: () => `Speak with ${ABBOT}`, at: () => K.abbot,
+        use: { at: () => K.abbot, r: 3, label: `Speak with ${ABBOT}`, act: (q) => c.tell([
+          { who: ABBOT, line: 'You came up through the burning city. Then you have seen the keep. It is empty.' },
+          { who: ABBOT, line: `${LORD} was taken in the night. They carried him up the mountain, to the sacred cave under the summit.` },
+          { who: SOTA, line: `It was no raiders' work. A witch did it: ${WITCH}. She laid a hex on the garrison, on the whole army that kept this city.` },
+          { who: SOTA, line: 'I watched my brothers lay down their spears and walk off like sleepers. It never took hold of me. I don’t know why.' },
+          { who: SOTA, line: `They're in the old mine at the mountain's foot. Her disciple, ${DISCIPLE}, keeps them bound there and works them like oxen.` },
+          { who: ABBOT, line: 'Kill the witch and the hex breaks. Fail, and at daybreak she spills the lord’s blood on her altar, and the city’s protectors never wake.' },
+          { who: SOTA, line: 'I know the way: the mine first, then up past the snow. The horses in the stable are fresh. On foot the road is long, and she has eyes on it.' },
+          { who: ABBOT, line: 'Go now. The night will not wait for you.' },
+        ], () => { q.vars.heard = 1; }) }, done: (q) => q.vars.heard === 1 },
+      { text: () => 'The horses are saddled: ride for the mountain before dawn', at: () => K.stable, done: () => near(K.stable, 4.5) },
+    ], reward: () => c.actEnd() });
 
     // ── The deeds for the city ─────────────────────────────────────────────────────────────────────
     this.add({ id: 'captives', title: 'The Held', opens: () => c.section() >= 1, steps: [
@@ -139,6 +179,8 @@ export class Quests {
     ], reward: () => { c.heal(0.2); c.card('Fire from the Roofs', 'The signal is dark. No more ships will find the harbour.'); } });
 
     // the people the quests talk to
+    void this.npc('/games/era-clash/3d/assets/characters/monk.glb', K.abbot, -Math.PI / 2, 1.6);
+    void this.npc('/games/era-clash/3d/assets/characters/samurai.glb', K.bellHouse.clone().add(new THREE.Vector3(0.9, 0, 1.2)), Math.PI, 1.66).then((n) => { this.sota = n; });
     void this.npc('/games/era-clash/3d/assets/characters/carpenter.glb', S.magistrate.yard, S.magistrate.facing + Math.PI, 1.66);
     void this.npc('/games/era-clash/3d/assets/characters/fisherman.glb', S.broker, 0, 1.6);
     void this.npc('/games/era-clash/3d/assets/characters/peasant.glb', H.mother, Math.PI * 0.85, 1.52);
@@ -156,6 +198,7 @@ export class Quests {
     return null;
   }
   private kids: (THREE.Object3D | null)[] = [];
+  private sota: THREE.Object3D | null = null;
   private async npc(url: string, at: THREE.Vector3, yaw: number, height: number): Promise<THREE.Object3D | null> {
     try {
       const f = await loadGLB(url); const node = cloneSkinned(f.scene);

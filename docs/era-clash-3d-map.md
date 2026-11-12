@@ -1,6 +1,6 @@
 # Era Clash 3D: map of Otsu-no-ura
 
-Generated from the running game (`eraclash3d.mapDoc()` on the dev server) on 2026-11-11. Don't edit by hand: add places to `cityPlaces()` in `games/era-clash-3d/src/places.ts` and re-export.
+Generated from the running game (`eraclash3d.mapDoc()` on the dev server) on 2026-11-12. Don't edit by hand: add places to `cityPlaces()` in `games/era-clash-3d/src/places.ts` and re-export.
 
 North (+Z, up the valley) is at the top. As in the game view from above, +X is to the left. Coordinates are metres; sea level is y = 0.
 
@@ -16,7 +16,8 @@ North (+Z, up the valley) is at the top. As in the game view from above, +X is t
 | Merchant Quarter | -105 | -8 | 3, 5, 12, 17 | Shop streets and the Maze of Alleyways west of the road, between the Outer Wall and the canal. |
 | Residential Hill | -105 | 82 | 21, 24, 27 | Five stone-walled terraces with stepped lanes, board fences and small houses. |
 | Samurai District | 5 | 80 | 1, 23 | Four walled compounds either side of the avenue, behind the Samurai District gate. |
-| Castle | -5 | 145 | 8, 18, 19, 26, 31 | The masugata and the forecourt under the keep: the finale. |
+| Castle approach | -5 | 145 | 8, 18, 19, 26, 31 | The main gate, the masugata and the forecourt below the castle hill. |
+| Castle on the hill | 62 | 420 | 4, 10, 14 | Lord Kageyama's keep (proposed name) on its walled hilltop, 46 m up: the gate, the yard, the empty keep. |
 
 ## Landmarks
 
@@ -35,6 +36,10 @@ North (+Z, up the valley) is at the top. As in the game view from above, +X is t
 | Pier 2 | -29 | -485 | 16, 28 | A burning boat to douse (The Burning Boats). |
 | Pier 3 | -18 | -482 | 16, 28 | A burning boat to douse (The Burning Boats). |
 | River bridge | -4 | -245 |  | The road crosses the river halfway through the forest on a timber bridge. |
+| The keep door | 55 | 374 |  | The keep stands empty; the search here starts the end of Act I. |
+| Hōrin-ji (proposed) | -16 | 262 |  | Temple on a terrace by the castle road: main hall, bell house, stable. Abbot Ennen and Sōta (proposed). |
+| Bell house | -15 | 270 |  | Where Sōta is bound. |
+| Temple stable | -18 | 252 | 23 | The horses for the ride to the mountain (Act II). |
 
 ## Gates and walls
 
@@ -43,6 +48,7 @@ North (+Z, up the valley) is at the top. As in the game view from above, +X is t
 | Outer Wall gatehouse | -6 | -36 | 14 | The town gate on the forest road (z −36). |
 | Water gate (mizumon) | -69 | -36 |  | The channel passes under the Outer Wall: a raft or a swim into town that skips the gatehouse. |
 | Samurai District gate | 7 | 50 |  | Gate across the avenue at z 50. |
+| Castle hill gate | 53 | 347 |  | A yagura gate where the ridge road reaches the hilltop walls. |
 | Ōtemon (main castle gate) | -1 | 116 | 18, 26, 31 | Barred until the magistrate's seal is shown. |
 
 ## Waterways
@@ -80,7 +86,7 @@ North (+Z, up the valley) is at the top. As in the game view from above, +X is t
 
 | Quest | Where |
 |---|---|
-| ◆ Smoke Over Otsu-no-ura | Beach landing → Outer Wall gatehouse → Grand Marketplace → Magistrate Kuroda's compound (proposed) → Pier 3 → Ōtemon (main castle gate) → Forecourt under the keep |
+| ◆ Smoke Over Otsu-no-ura | Beach landing → Outer Wall gatehouse → Grand Marketplace → Magistrate Kuroda's compound (proposed) → Pier 3 → Ōtemon (main castle gate) → Forecourt under the keep → Castle hill gate → The keep door → Hōrin-ji (proposed) → Bell house → Temple stable |
 | ◇ The Held | across the town (no single place) |
 | ◇ The Burning Boats | Pier 3 |
 | ◇ The Broker's Strongbox | Grand Marketplace → Sōbei's shop (proposed) |
@@ -93,3 +99,6 @@ North (+Z, up the valley) is at the top. As in the game view from above, +X is t
 - The castle keep on its moated stone base, the ramparts over the harbour (still 8).
 - Shop interiors you can step into in the merchant streets.
 - Canal boats moving on the water; the Petals on the Water escort.
+- The forest road: undergrowth, the open fish market on the new quay, watchtowers, hidden camps, the bridge rescue, the shrine of Michael, wildlife (docs/era-clash-3d-forest-road.md).
+- Horses at the temple stable (they wait now; riding comes with the horse rig).
+- Act II (its own area): the valley ride, the mine and Gōzan (proposed), the ascent, the crystal cave, the lava caverns, the crater oasis and Kurenai the Ash Witch (proposed).
