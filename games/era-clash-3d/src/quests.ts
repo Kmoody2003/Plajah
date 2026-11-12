@@ -185,6 +185,20 @@ export class Quests {
     this.tracked = Math.min(this.tracked, act.length - 1);
     const q = act[this.tracked]; return { q, st: q.def.steps[q.i] };
   }
+  /** For the map: the tracked step's place first, then every live action point. */
+  mapPoints() {
+    const cur = this.current(), out: { x: number; z: number; title: string; tracked: boolean }[] = [];
+    if (cur) { const p = cur.st.at?.(cur.q) ?? cur.st.use?.at(cur.q); if (p) out.push({ x: p.x, z: p.z, title: cur.q.def.title, tracked: true }); }
+    for (const q of this.list) {
+      if (q.state !== 'active') continue;
+      const p = q.def.steps[q.i].use?.at(q); if (p) out.push({ x: p.x, z: p.z, title: q.def.title, tracked: false });
+    }
+    return out;
+  }
+  /** For the map doc: each quest's title and the places its steps point to, in order. */
+  route() {
+    return this.list.map((q) => ({ title: q.def.title, main: !!q.def.main, at: q.def.steps.map((st) => { try { return st.at?.(q) ?? st.use?.at(q) ?? null; } catch { return null; } }).filter((p): p is THREE.Vector3 => !!p) }));
+  }
   cycle() { const n = this.list.filter((q) => q.state === 'active').length; if (n) this.tracked = (this.tracked + 1) % n; }
 
   /** G pressed: if a quest action is in reach, do it (and the grab doesn't happen). */

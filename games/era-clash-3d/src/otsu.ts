@@ -8,6 +8,7 @@
 //
 // Static pieces merge per material (a few draw calls for the whole kit on the iGPU); solid ones collide.
 import * as THREE from 'three/webgpu';
+import { COAST_DZ } from './river';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { collide } from './core/collision';
 import { rng } from './core/kit';
@@ -124,7 +125,7 @@ export function buildOtsu(o: { heightAt: (x: number, z: number) => number; roadX
   };
 
   // ═══ The harbour (west of the landing): stone quay, three piers, boats at their moorings, dock warehouses ═══
-  const QUAY = { x0: -47, x1: -13, z0: -71, z1: -62, top: 1.45 };
+  const QUAY = { x0: -47, x1: -13, z0: -71 + COAST_DZ, z1: -62 + COAST_DZ, top: 1.45 };   // 400 m south of the wall now (river.ts)
   {
     const cx = (QUAY.x0 + QUAY.x1) / 2, cz = (QUAY.z0 + QUAY.z1) / 2, w = QUAY.x1 - QUAY.x0, d = QUAY.z1 - QUAY.z0;
     const F = frame(cx, 0, cz);
@@ -176,7 +177,7 @@ export function buildOtsu(o: { heightAt: (x: number, z: number) => number; roadX
   }
   // the dock warehouses (kura) behind the quay: white plaster over a black-boarded base, heavy tiled roofs
   for (const [x, w] of [[-42, 8], [-31.5, 9], [-21, 8]] as const) {
-    const z = -56.5, d = 7, y = lowest(x, z, 4.5) - 0.2, F = frame(x, y, z, 0);
+    const z = -56.5 + COAST_DZ, d = 7, y = lowest(x, z, 4.5) - 0.2, F = frame(x, y, z, 0);
     put(boxGeo(w + 0.3, 0.7, d + 0.3), mats.stone, F, { y: 0.35 });
     put(boxGeo(w, 1.6, d), blackWall, F, { y: 0.7 + 0.8 });
     put(boxGeo(w - 0.05, 2.9, d - 0.05), mats.plaster, F, { y: 0.7 + 1.6 + 1.45 });

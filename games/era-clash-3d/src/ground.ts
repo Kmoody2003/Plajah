@@ -95,13 +95,13 @@ export function buildSea() {
   const b: N = texture(rip, p.mul(1 / 23).add(vec2(time.mul(-0.009), time.mul(0.014)))).rgb;
   m.normalNode = normalMap(mix(a, b, 0.5));
   // deep water darker with distance from shore (−Z), lighter in the shallows
-  const shallow: N = smoothstep(-140, -70, positionWorld.z);
+  const shallow: N = smoothstep(-540, -470, positionWorld.z);
   m.colorNode = mix(color(0x06141e), color(0x17414a), shallow);
   m.roughnessNode = float(0.06);
   m.metalnessNode = float(0);
   // big enough that its edge sits in the haze, never against the photo's own ground
   const sea = new THREE.Mesh(new THREE.CircleGeometry(6000, 64).rotateX(-Math.PI / 2), m);
-  sea.position.set(0, 0.02, -70);
+  sea.position.set(0, 0.02, -470);   // the coast is 400 m south of the wall (river.ts COAST_DZ)
   sea.scale.set(1, 1, 1);
   void max;
   return sea;

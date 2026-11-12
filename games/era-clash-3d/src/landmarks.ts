@@ -89,14 +89,14 @@ export function buildLandmarks(o: { inner: { xMin: number; xMax: number; zMin: n
   const farHeight = (x: number, z: number) => {
     const ox = Math.max(0, inner.xMin + 2 - x, x - inner.xMax + 2), oz = Math.max(0, z - inner.zMax + 2);
     const out = Math.hypot(ox, oz);
-    if (!(z > -70 && out > 0)) return -30;
+    if (!(z > -470 && out > 0)) return -30;   // (the coast: river.ts COAST_DZ)
     const ridge = Math.min(1, out / 160);
     const axis = Math.abs(x + 0.0977 * z), side = THREE.MathUtils.smoothstep(axis, 160 + z * 0.06, 700 + z * 0.12);
     // big forms, eroded ridges on the slopes, small relief everywhere
     const big = 190 * fbm(x / 900, z / 900) + 120 * ridgedFbm(x / 700, z / 700) * side;
     let y = (6 + 26 * fbm(x / 220, z / 220) + side * big + 9 * (fbm(x / 48, z / 48) - 0.5) + 3 * (vnoise(x / 13, z / 13) - 0.5)) * ridge
       + o.heightAt(THREE.MathUtils.clamp(x, inner.xMin, inner.xMax), THREE.MathUtils.clamp(z, inner.zMin, inner.zMax)) * (1 - ridge);
-    y *= THREE.MathUtils.smoothstep(z, -70, 40);
+    y *= THREE.MathUtils.smoothstep(z, -470, -360);
     const dc = Math.hypot(x - castleAt.x, z - castleAt.z);
     return Math.max(y * (dc < 220 ? THREE.MathUtils.smoothstep(dc, 60, 220) : 1), dc < 140 ? 46 * (1 - THREE.MathUtils.smoothstep(dc, 70, 140)) : 0);
   };
@@ -193,7 +193,7 @@ export function buildLandmarks(o: { inner: { xMin: number; xMax: number; zMin: n
     };
     // the valley walls inside the play area (bare slopes in the first pass)
     // the hillsides in view of the city: dense woods (Ravencrest's standard), stands with the odd clearing
-    for (let z = -50; z < 175; z += 2.1) for (const sd of [-1, 1]) for (let k = 0; k < 6; k++) {
+    for (let z = -450; z < 175; z += 2.1) for (const sd of [-1, 1]) for (let k = 0; k < 6; k++) {
       const x = sd > 0 ? 45 + hash2(z, k * 7 + sd) * 44 : -(162 + hash2(z, k * 7 + sd) * 22);
       if (hash2(x, z + k) < 0.22 || fbm(x / 40, z / 40) < 0.3) continue;
       plant(x, z + (hash2(k, z) - 0.5) * 2.5, 7 + hash2(x * 2, z) * 6);
@@ -201,7 +201,7 @@ export function buildLandmarks(o: { inner: { xMin: number; xMax: number; zMin: n
     // the hills outside, thick where they rise, thin on the valley floor
     far = true;
     for (let i = 0; i < 110000 && n < MAXP; i++) {
-      const x = (hash2(i, 1.7) - 0.5) * 2400, z = -40 + hash2(2.3, i) * 1500;
+      const x = (hash2(i, 1.7) - 0.5) * 2400, z = -440 + hash2(2.3, i) * 1900;
       if (inside(x, z) || Math.hypot(x - castleAt.x, z - castleAt.z) < 80) continue;
       const y = groundY(x, z); if (y < 4) continue;
       const axis = Math.abs(x + 0.0977 * z);

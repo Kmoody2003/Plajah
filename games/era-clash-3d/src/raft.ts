@@ -54,14 +54,17 @@ export class Rafts {
   }
 
   /** Water clear for the raft at c (corners in the water, deep enough, off the bridge piers). */
-  private ok(c: THREE.Vector3, yaw: number) {
+  private ok(c: THREE.Vector3, yaw: number) { return this.bad(c, yaw) === 0; }
+  /** How many of the raft's corners (and centre) are out of the water or on a pier (0: clear). */
+  private bad(c: THREE.Vector3, yaw: number) {
     const s = Math.sin(yaw), co = Math.cos(yaw);
+    let n = 0;
     for (const [lx, lz] of [[-0.7, -1.55], [0.7, -1.55], [-0.7, 1.55], [0.7, 1.55], [0, 0]]) {
       const x = c.x + lx * co + lz * s, z = c.z - lx * s + lz * co;
-      if (this.o.water.surfaceAt(x, z) === null || this.o.water.depthAt(x, z) < 0.35) return false;
+      if (this.o.water.surfaceAt(x, z) === null || this.o.water.depthAt(x, z) < 0.35) n++;
     }
-    for (const p of this.o.posts) if (Math.hypot(c.x - p.x, c.z - p.z) < p.r + 0.75) return false;
-    return true;
+    for (const p of this.o.posts) if (Math.hypot(c.x - p.x, c.z - p.z) < p.r + 0.75) n++;
+    return n;
   }
 
   private place(r: Raft, t: number) {
@@ -94,9 +97,13 @@ export class Rafts {
       // it turns end-on to its way (either end leads)
       let d = Math.atan2(Math.sin(ty - r.yaw), Math.cos(ty - r.yaw));
       if (Math.abs(d) > Math.PI / 2) d = Math.atan2(Math.sin(ty + Math.PI - r.yaw), Math.cos(ty + Math.PI - r.yaw));
+      const y0 = r.yaw, b0 = this.bad(r.pos, y0);
       r.yaw += THREE.MathUtils.clamp(d, -1.4 * dt, 1.4 * dt);
+      if (this.bad(r.pos, r.yaw) > b0) r.yaw = y0;   // no turning into the bank
     }
-    if (this.ok(next, r.yaw)) r.pos.copy(next);
+    const now = this.bad(r.pos, r.yaw);
+    // a raft already wedged (turned against a bank) may move anywhere that frees it a little
+    if (this.ok(next, r.yaw) || (now > 0 && this.bad(next, r.yaw) < now)) r.pos.copy(next);
     else {
       // glance along the bank: keep whichever axis is free, lose most of the way
       const nx = r.pos.clone(); nx.x = next.x; const nz = r.pos.clone(); nz.z = next.z;

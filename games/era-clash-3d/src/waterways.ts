@@ -10,12 +10,15 @@ import { color, mix, positionWorld, sin, time, float, smoothstep, normalWorld, c
 import { collide } from './core/collision';
 import { boxGeo, gableGeo } from './village';
 import type { CanalSpec } from './canal';
+import { riverAt, COAST_DZ } from './river';
 
 /** The channel (runs along z at x): water level `inner` inside the wall, falling to the sea's level at the gate. */
 export interface ChannelSpec { x: number; half: number; z0: number; z1: number; bed: number; inner: number; sea: number; gateZ: number; out: number }
 export const SEA_Y = 0.02;
 /** The playable sea: rafts and swimmers keep inside it. */
-export const SEA_BOUNDS = { x0: -178, x1: 68, z0: -116 };
+export const SEA_BOUNDS = { x0: -178, x1: 68, z0: -116 + COAST_DZ };
+/** The sea starts south of here (the beach moved 400 m south with the forest). */
+export const SEA_Z = -60 + COAST_DZ;
 
 export interface Water {
   /** The water's surface at (x, z), or null where there is none (or it is too shallow to float a raft). */
@@ -47,7 +50,8 @@ export function makeWater(o: { canal: CanalSpec; channel: ChannelSpec; heightAt:
   const surfaceAt = (x: number, z: number) => {
     if (x > C.west + 0.4 && x < C.east - 0.4 && Math.abs(z - C.z) < C.half - 0.05) return C.water;
     if (Math.abs(x - H.x) < H.half - 0.05 && z > H.z0 && z < H.z1 + 0.5) return channelLevel(H, z);
-    if (z < -60 && z > SEA_BOUNDS.z0 && x > SEA_BOUNDS.x0 && x < SEA_BOUNDS.x1 && heightAt(x, z) < SEA_Y - 0.3) return SEA_Y;
+    if (z < H.z0 + 1) { const r = riverAt(x, z); if (r && r.d < r.half - 0.05 && heightAt(x, z) < r.level - 0.1) return r.level; }
+    if (z < SEA_Z && z > SEA_BOUNDS.z0 && x > SEA_BOUNDS.x0 && x < SEA_BOUNDS.x1 && heightAt(x, z) < SEA_Y - 0.3) return SEA_Y;
     return null;
   };
   return {
