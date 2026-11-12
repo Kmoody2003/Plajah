@@ -34,6 +34,7 @@ export type CreativeKind =
   | 'pixels'
   | 'beats'
   | 'argilla'
+  | 'motion'
   | 'other';
 
 export type QuotaClass = 'counted' | 'exempt';
@@ -60,6 +61,7 @@ export const KIND_QUOTA_CLASS: Record<CreativeKind, QuotaClass> = {
   pixels: 'counted',
   beats: 'counted',
   argilla: 'counted',
+  motion: 'counted',
   other: 'counted',
 };
 

@@ -23,6 +23,8 @@ const CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 const MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
 /** More accurate arms/torso (heavier); used by the 3D character puppets. */
 const MODEL_FULL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task';
+/** Most accurate and slowest; used for offline motion capture from uploaded video. */
+const MODEL_HEAVY = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task';
 
 export class PoseTracker {
   private pl: any = null;
@@ -31,8 +33,8 @@ export class PoseTracker {
 
   private wantMask = false;
 
-  /** `full` = the heavier, more accurate model; `segmentation` = also return a person mask. */
-  async init(opts: { full?: boolean; segmentation?: boolean } = {}): Promise<boolean> {
+  /** `full` = the heavier, more accurate model (`model: 'heavy'` = heavier still); `segmentation` = also return a person mask. */
+  async init(opts: { full?: boolean; model?: 'lite' | 'full' | 'heavy'; segmentation?: boolean; numPoses?: number } = {}): Promise<boolean> {
     if (this.ready) return true;
     if (this.loading) return false;
     this.loading = true;
@@ -45,9 +47,9 @@ export class PoseTracker {
       for (const delegate of ['GPU', 'CPU'] as const) {
         try {
           this.pl = await vision.PoseLandmarker.createFromOptions(fileset, {
-            baseOptions: { modelAssetPath: opts.full ? MODEL_FULL : MODEL, delegate },
+            baseOptions: { modelAssetPath: opts.model === 'heavy' ? MODEL_HEAVY : opts.model === 'full' || opts.full ? MODEL_FULL : MODEL, delegate },
             runningMode: 'VIDEO',
-            numPoses: 1,
+            numPoses: opts.numPoses ?? 1,
             outputSegmentationMasks: !!opts.segmentation,
           });
           break;
@@ -90,6 +92,24 @@ export class PoseTracker {
       };
     } catch {
       return null;
+    }
+  }
+
+  /** Every person found in the frame (needs init with numPoses > 1); no masks. */
+  detectAll(video: HTMLVideoElement | HTMLCanvasElement, tsMs: number): PoseFrame[] {
+    if (!this.ready || !this.pl) return [];
+    try {
+      const res = this.pl.detectForVideo(video, tsMs);
+      for (const m of res?.segmentationMasks ?? []) { try { m.close(); } catch { /* */ } }
+      return (res?.landmarks ?? []).map((lm: any[], k: number) => {
+        const wl = res?.worldLandmarks?.[k];
+        return {
+          pts: lm.map((p: any) => ({ x: p.x, y: p.y, v: p.visibility ?? 1 })),
+          world: wl?.map((p: any, i: number) => ({ x: p.x, y: p.y, z: p.z, v: lm[i]?.visibility ?? 1 })),
+        };
+      });
+    } catch {
+      return [];
     }
   }
 

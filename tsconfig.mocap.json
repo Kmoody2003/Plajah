@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "noEmit": true,
+    "types": [
+      "vite/client",
+      "node"
+    ]
+  },
+  "include": [
+    "services/mocap/*.ts",
+    "components/mocap/*.tsx",
+    "labs/mocap/main.tsx",
+    "tests/mocap.test.ts",
+    "tests/mocapSynth.ts",
+    "labs/mocap/bench.ts",
+    "services/cameraRig/*.ts",
+    "labs/mocap/multiview.ts",
+    "tests/virtualCameraRig.test.ts",
+    "tests/lifter.test.ts"
+  ]
+}

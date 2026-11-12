@@ -1,0 +1,194 @@
+{
+ "format": "plajah-lifter/1",
+ "window": 9,
+ "feat": 198,
+ "hidden": 512,
+ "blocks": 2,
+ "joints": [
+  "hip",
+  "neck",
+  "head",
+  "lShldr",
+  "lForeArm",
+  "lHand",
+  "rShldr",
+  "rForeArm",
+  "rHand",
+  "lThigh",
+  "lShin",
+  "lFoot",
+  "rThigh",
+  "rShin",
+  "rFoot"
+ ],
+ "tensors": [
+  {
+   "name": "mu",
+   "shape": [
+    1782
+   ],
+   "offset": 0
+  },
+  {
+   "name": "sd",
+   "shape": [
+    1782
+   ],
+   "offset": 1782
+  },
+  {
+   "name": "inp.weight",
+   "shape": [
+    512,
+    1782
+   ],
+   "offset": 3564
+  },
+  {
+   "name": "inp.bias",
+   "shape": [
+    512
+   ],
+   "offset": 915948
+  },
+  {
+   "name": "blocks.0.n.weight",
+   "shape": [
+    512
+   ],
+   "offset": 916460
+  },
+  {
+   "name": "blocks.0.n.bias",
+   "shape": [
+    512
+   ],
+   "offset": 916972
+  },
+  {
+   "name": "blocks.0.a.weight",
+   "shape": [
+    512,
+    512
+   ],
+   "offset": 917484
+  },
+  {
+   "name": "blocks.0.a.bias",
+   "shape": [
+    512
+   ],
+   "offset": 1179628
+  },
+  {
+   "name": "blocks.0.b.weight",
+   "shape": [
+    512,
+    512
+   ],
+   "offset": 1180140
+  },
+  {
+   "name": "blocks.0.b.bias",
+   "shape": [
+    512
+   ],
+   "offset": 1442284
+  },
+  {
+   "name": "blocks.1.n.weight",
+   "shape": [
+    512
+   ],
+   "offset": 1442796
+  },
+  {
+   "name": "blocks.1.n.bias",
+   "shape": [
+    512
+   ],
+   "offset": 1443308
+  },
+  {
+   "name": "blocks.1.a.weight",
+   "shape": [
+    512,
+    512
+   ],
+   "offset": 1443820
+  },
+  {
+   "name": "blocks.1.a.bias",
+   "shape": [
+    512
+   ],
+   "offset": 1705964
+  },
+  {
+   "name": "blocks.1.b.weight",
+   "shape": [
+    512,
+    512
+   ],
+   "offset": 1706476
+  },
+  {
+   "name": "blocks.1.b.bias",
+   "shape": [
+    512
+   ],
+   "offset": 1968620
+  },
+  {
+   "name": "n.weight",
+   "shape": [
+    512
+   ],
+   "offset": 1969132
+  },
+  {
+   "name": "n.bias",
+   "shape": [
+    512
+   ],
+   "offset": 1969644
+  },
+  {
+   "name": "out.weight",
+   "shape": [
+    45,
+    512
+   ],
+   "offset": 1970156
+  },
+  {
+   "name": "out.bias",
+   "shape": [
+    45
+   ],
+   "offset": 1993196
+  }
+ ],
+ "valBoneDeg": 19.14,
+ "mediapipeValBoneDeg": 32.03,
+ "trainedOn": {
+  "set": "v1",
+  "clips": 417,
+  "performers": 94,
+  "valPerformers": [
+   "10",
+   "102",
+   "104",
+   "113",
+   "127",
+   "22",
+   "27",
+   "31",
+   "55",
+   "64",
+   "80"
+  ],
+  "windows": 303238
+ },
+ "data": "CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu, NSF EIA-0196217) rendered on Plajah characters; model trained from scratch by Plajah."
+}
