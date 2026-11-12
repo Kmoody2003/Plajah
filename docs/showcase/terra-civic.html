@@ -1,0 +1,1043 @@
+<title>Terra Civic</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&family=Gochi+Hand&display=swap">
+<style>
+/* Layout: one dark Plajah stage; a centered 1120px column with full-bleed glow bands; content alternates text-left / demo-right. */
+:root {
+  color-scheme: dark;
+  --bg: #08070d;
+  --bg-2: #0f0d17;
+  --surface: #14111f;
+  --surface-2: #1b1729;
+  --line: #2a2440;
+  --fg: #f4f1fb;
+  --fg-2: #b9b2cc;
+  --fg-3: #7d7594;
+  --purple: #6B0099;
+  --magenta: #D40055;
+  --orange: #FF8C00;
+  --cyan: #00DAF3;
+  --lilac: #D0BCFF;
+  --violet: #A78BFA;
+  --green: #06D6A0;
+  --grad-brand: linear-gradient(120deg, #6B0099, #D40055);
+  --grad-warm: linear-gradient(110deg, #A78BFA 0%, #D40055 55%, #FF8C00 100%);
+  --font-display: "Outfit", "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Inter", "Manrope", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-law: "Noto Serif", Georgia, "Times New Roman", serif;
+  --r-sm: 12px; --r-md: 16px; --r-lg: 24px; --r-xl: 28px; --r-2xl: 36px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation: none !important; transition: none !important; } }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+a { color: inherit; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: -0.02em; }
+h2 { font-size: clamp(30px, 4.4vw, 48px); line-height: 1.04; font-weight: 900; }
+h3 { font-size: 20px; line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
+p { margin: 0; }
+.eyebrow { font-family: var(--font-display); font-size: 11px; font-weight: 800; letter-spacing: 0.24em; text-transform: uppercase; color: var(--fg-3); }
+.lede { color: var(--fg-2); font-size: 18px; max-width: 62ch; }
+.grad-text { background: var(--grad-warm); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; font-family: var(--font-display); font-size: 10.5px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; border: 1px solid; white-space: nowrap; }
+.chip.live { color: var(--green); border-color: color-mix(in srgb, var(--green) 45%, transparent); background: color-mix(in srgb, var(--green) 10%, transparent); }
+.chip.design { color: var(--lilac); border-color: color-mix(in srgb, var(--lilac) 40%, transparent); background: color-mix(in srgb, var(--lilac) 8%, transparent); }
+.chip.orange { color: var(--orange); border-color: color-mix(in srgb, var(--orange) 45%, transparent); background: color-mix(in srgb, var(--orange) 10%, transparent); }
+.chip.plain { color: var(--fg); border-color: var(--line); background: var(--surface); }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 10px currentColor; }
+section { padding-block: clamp(64px, 9vw, 112px); position: relative; }
+.sec-head { display: grid; gap: 14px; margin-bottom: 40px; max-width: 760px; }
+
+/* nav */
+.nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border-bottom: 1px solid var(--line); }
+.nav .wrap { display: flex; align-items: center; gap: 18px; height: 60px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.mark { width: 32px; height: 32px; border-radius: 10px; background: var(--grad-brand); display: grid; place-items: center; font-family: var(--font-display); font-weight: 900; font-size: 15px; color: #fff; }
+.brand b { font-family: var(--font-display); font-weight: 900; font-size: 16px; letter-spacing: -0.01em; }
+.brand span { color: var(--fg-3); font-size: 12px; font-weight: 600; }
+.nav-links { display: flex; gap: 4px; margin-left: auto; overflow-x: auto; scrollbar-width: none; }
+.nav-links::-webkit-scrollbar { display: none; }
+.nav-links a { text-decoration: none; font-size: 13px; font-weight: 600; color: var(--fg-2); padding: 8px 12px; border-radius: 999px; white-space: nowrap; }
+.nav-links a:hover, .nav-links a:focus-visible { color: var(--fg); background: var(--surface-2); outline: none; }
+@media (max-width: 760px) { .nav-links { display: none; } }
+
+/* hero */
+.hero { overflow: hidden; padding-block: clamp(56px, 8vw, 96px) clamp(48px, 6vw, 72px); }
+.glow { position: absolute; border-radius: 50%; filter: blur(80px); pointer-events: none; opacity: .55; }
+.hero .g1 { width: 560px; height: 560px; left: -200px; top: -220px; background: radial-gradient(circle, #6B0099, transparent 65%); }
+.hero .g2 { width: 520px; height: 520px; right: -180px; top: -120px; background: radial-gradient(circle, #D40055, transparent 65%); opacity: .4; }
+.hero .g3 { width: 460px; height: 460px; left: 35%; top: 180px; background: radial-gradient(circle, #FF8C00, transparent 65%); opacity: .22; }
+.hero-grid { position: relative; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap: 48px; align-items: center; }
+@media (max-width: 900px) { .hero-grid { grid-template-columns: minmax(0, 1fr); } }
+.hero h1 { font-size: clamp(46px, 8vw, 92px); line-height: 0.92; font-weight: 900; letter-spacing: -0.035em; }
+.hero .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 26px; }
+.hero .lede { margin-top: 24px; font-size: clamp(17px, 1.6vw, 20px); }
+.cta-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 32px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; height: 50px; padding: 0 24px; border-radius: 999px; font-family: var(--font-display); font-weight: 800; font-size: 15px; text-decoration: none; border: 1px solid transparent; cursor: pointer; }
+.btn.primary { background: var(--fg); color: var(--bg); }
+.btn.ghost { border-color: var(--line); color: var(--fg); background: var(--surface); }
+.btn:focus-visible { outline: 2px solid var(--violet); outline-offset: 3px; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; margin-top: 56px; position: relative; }
+@media (max-width: 700px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.stat b { display: block; font-family: var(--font-display); font-size: clamp(28px, 3.4vw, 40px); font-weight: 900; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12px; color: var(--fg-3); font-weight: 600; }
+
+/* hero card: a section as it reads in Terra */
+.law-card { position: relative; border-radius: var(--r-xl); border: 1px solid var(--line); background: linear-gradient(180deg, var(--surface-2), var(--surface)); padding: 26px; box-shadow: 0 40px 120px -40px rgba(212, 0, 85, .45); }
+.law-card .cite { display: inline-block; font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--violet); background: color-mix(in srgb, var(--violet) 14%, transparent); padding: 5px 10px; border-radius: 10px; }
+.law-card h3 { margin-top: 14px; font-size: 24px; }
+.law-card .crumb { margin-top: 6px; font-size: 12px; color: var(--fg-3); }
+.law-card .body { margin-top: 18px; display: grid; gap: 10px; font-family: var(--font-law); font-size: 15.5px; line-height: 1.7; color: color-mix(in srgb, var(--fg) 88%, transparent); }
+.law-card .body .rate { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: baseline; padding: 10px 14px; border-radius: var(--r-sm); background: color-mix(in srgb, var(--fg) 4%, transparent); font-family: var(--font-body); font-size: 14px; }
+.rate .n { font-family: var(--font-mono); color: var(--violet); font-weight: 700; font-size: 12px; }
+.rate .amt { font-family: var(--font-display); font-weight: 900; font-size: 20px; font-variant-numeric: tabular-nums; }
+.law-card .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.mini-btn { height: 34px; padding: 0 14px; border-radius: 999px; font-family: var(--font-display); font-weight: 800; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); }
+.mini-btn.solid { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.unofficial { margin-top: 16px; font-size: 11.5px; color: var(--fg-3); }
+
+/* demo */
+.demo { display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr); gap: 20px; }
+@media (max-width: 900px) { .demo { grid-template-columns: minmax(0, 1fr); } }
+.panel { border: 1px solid var(--line); background: var(--bg-2); border-radius: var(--r-lg); overflow: hidden; min-width: 0; }
+.search { padding: 1.5px; border-radius: var(--r-md); background: var(--grad-warm); margin: 18px; }
+.search label { display: flex; align-items: center; gap: 10px; border-radius: 14.5px; background: var(--bg-2); padding: 0 16px; height: 54px; }
+.search svg { flex: none; color: var(--fg-3); }
+.search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; color: var(--fg); font: 500 16px var(--font-body); }
+.search input::placeholder { color: var(--fg-3); }
+.sugs { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 18px 14px; }
+.sug { border: 1px solid var(--line); background: var(--surface); color: var(--fg-2); border-radius: 999px; padding: 6px 12px; font: 600 12px var(--font-body); cursor: pointer; }
+.sug:hover, .sug:focus-visible { color: var(--fg); border-color: var(--violet); outline: none; }
+.results { max-height: 470px; overflow-y: auto; border-top: 1px solid var(--line); }
+.res { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; width: 100%; text-align: left; padding: 13px 18px; background: transparent; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); color: var(--fg); cursor: pointer; font: inherit; }
+.res:hover, .res:focus-visible, .res[aria-current="true"] { background: var(--surface); outline: none; }
+.res .n { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--violet); background: color-mix(in srgb, var(--violet) 14%, transparent); padding: 3px 8px; border-radius: 8px; height: fit-content; white-space: nowrap; }
+.res b { display: block; font-size: 13.5px; font-weight: 600; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.res small { display: block; margin-top: 2px; font-size: 11.5px; color: var(--fg-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.empty { padding: 28px 18px; color: var(--fg-3); font-size: 14px; }
+.reader { padding: 26px clamp(18px, 3vw, 34px); }
+.reader .cite { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--violet); background: color-mix(in srgb, var(--violet) 14%, transparent); padding: 5px 10px; border-radius: 10px; display: inline-block; }
+.reader h3 { margin-top: 14px; font-size: clamp(20px, 2.2vw, 26px); }
+.reader .ctx { color: var(--fg-3); font-size: 12.5px; margin-top: 6px; }
+.reader .note { font-size: 11.5px; color: var(--fg-3); margin-top: 6px; }
+.reader .text { margin-top: 20px; display: grid; gap: 12px; font-family: var(--font-law); font-size: 16px; line-height: 1.75; color: color-mix(in srgb, var(--fg) 88%, transparent); }
+.reader .text p.sub { padding-left: 22px; }
+.reader .more { margin-top: 16px; font-size: 13px; color: var(--fg-2); padding: 12px 14px; border-radius: var(--r-sm); background: var(--surface); }
+.reader .hist { margin-top: 18px; font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); }
+.share-line { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.share-line code { font-family: var(--font-mono); font-size: 12px; color: var(--fg-2); background: var(--surface); border: 1px solid var(--line); padding: 7px 10px; border-radius: 10px; overflow-wrap: anywhere; }
+
+/* topics */
+.topics { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 14px; }
+.topic { border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--line); background: var(--bg-2); display: grid; grid-template-rows: 96px auto; }
+.topic .art { position: relative; }
+.topic .art span { position: absolute; top: 12px; right: 12px; font-family: var(--font-mono); font-size: 10px; font-weight: 700; color: #fff; background: rgba(0,0,0,.32); padding: 3px 8px; border-radius: 999px; }
+.topic .art i { position: absolute; left: 16px; bottom: 14px; font-style: normal; font-family: var(--font-display); font-weight: 900; font-size: 30px; color: rgba(255,255,255,.9); letter-spacing: -0.03em; }
+.topic .txt { padding: 14px 16px 16px; display: grid; gap: 4px; }
+.topic b { font-family: var(--font-display); font-weight: 800; font-size: 15px; }
+.topic p { font-size: 13px; color: var(--fg-2); line-height: 1.45; }
+.topic small { margin-top: 6px; font-size: 11px; color: var(--fg-3); font-weight: 600; }
+
+/* capabilities */
+.caps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; }
+.cap { grid-column: span 2; border: 1px solid var(--line); background: var(--bg-2); border-radius: var(--r-lg); padding: 24px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.cap.wide { grid-column: span 3; }
+.cap.feature { background: linear-gradient(160deg, color-mix(in srgb, var(--purple) 32%, var(--bg-2)), var(--bg-2) 60%); border-color: color-mix(in srgb, var(--violet) 40%, var(--line)); }
+@media (max-width: 900px) { .cap, .cap.wide { grid-column: span 3; } }
+@media (max-width: 620px) { .cap, .cap.wide { grid-column: span 6; } }
+.cap .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.glyph { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; }
+.cap ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.cap li { font-size: 13.5px; color: var(--fg-2); padding-left: 16px; position: relative; }
+.cap li::before { content: ""; position: absolute; left: 0; top: .62em; width: 6px; height: 6px; border-radius: 2px; background: var(--violet); }
+.cap p { color: var(--fg-2); font-size: 14px; }
+
+/* flow */
+.flow { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.4fr); gap: 18px; align-items: stretch; }
+@media (max-width: 860px) { .flow { grid-template-columns: minmax(0, 1fr); } .flow .arrow { transform: rotate(90deg); justify-self: center; } }
+.lane { border-radius: var(--r-lg); border: 1px solid var(--line); padding: 22px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.lane.private { background: repeating-linear-gradient(135deg, var(--bg-2) 0 14px, color-mix(in srgb, var(--fg) 2.5%, var(--bg-2)) 14px 28px); }
+.lane.public { background: var(--bg-2); }
+.lane h4 { margin: 0; font-family: var(--font-display); font-size: 13px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: var(--fg-2); display: flex; align-items: center; gap: 8px; }
+.step { border-radius: var(--r-sm); background: var(--surface); border: 1px solid var(--line); padding: 12px 14px; font-size: 13.5px; color: var(--fg-2); }
+.step b { color: var(--fg); font-weight: 700; }
+.arrow { align-self: center; font-family: var(--font-display); font-weight: 900; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--orange); display: grid; justify-items: center; gap: 6px; }
+.arrow svg { color: var(--orange); }
+.versions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 520px) { .versions { grid-template-columns: minmax(0, 1fr); } }
+.ver { border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface); padding: 12px; display: grid; gap: 6px; }
+.ver b { font-family: var(--font-display); font-weight: 800; }
+.ver span { font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-3); overflow-wrap: anywhere; }
+.signals { display: grid; gap: 8px; }
+.bar { display: grid; grid-template-columns: 150px minmax(0, 1fr) 44px; gap: 10px; align-items: center; font-size: 12.5px; color: var(--fg-2); }
+@media (max-width: 520px) { .bar { grid-template-columns: 110px minmax(0, 1fr) 40px; } }
+.bar .track { height: 10px; border-radius: 999px; background: color-mix(in srgb, var(--fg) 7%, transparent); overflow: hidden; }
+.bar .fill { height: 100%; border-radius: 999px; }
+.bar em { font-style: normal; font-family: var(--font-mono); font-size: 11.5px; color: var(--fg); text-align: right; font-variant-numeric: tabular-nums; }
+.fineprint { font-size: 11.5px; color: var(--fg-3); }
+
+/* parcel map */
+.terra { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: center; }
+@media (max-width: 900px) { .terra { grid-template-columns: minmax(0, 1fr); } }
+.map { border-radius: var(--r-xl); border: 1px solid var(--line); background: var(--bg-2); padding: 18px; }
+.map canvas { width: 100%; height: auto; aspect-ratio: 4 / 3; display: block; border-radius: var(--r-md); max-width: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; font-size: 12px; color: var(--fg-2); }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.links { display: grid; gap: 12px; }
+.link { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+@media (max-width: 520px) { .link { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+.link b { font-family: var(--font-display); font-weight: 800; font-size: 15px; }
+.link p { font-size: 14px; color: var(--fg-2); }
+
+/* ledger */
+.ledger-steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; counter-reset: s; }
+@media (max-width: 900px) { .ledger-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .ledger-steps { grid-template-columns: minmax(0, 1fr); } }
+.lstep { border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); padding: 20px; display: grid; gap: 8px; align-content: start; counter-increment: s; }
+.lstep::before { content: counter(s); font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--cyan); width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; background: color-mix(in srgb, var(--cyan) 12%, transparent); }
+.lstep b { font-family: var(--font-display); font-weight: 800; font-size: 15px; }
+.lstep p { font-size: 13px; color: var(--fg-2); }
+.badges { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+.badge { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 12.5px; font-weight: 600; color: var(--fg-2); }
+.badge b { color: var(--fg); }
+.nots { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.nots span { font-family: var(--font-display); font-weight: 800; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-3); padding: 6px 12px; border-radius: 999px; border: 1px dashed var(--line); }
+
+/* audiences */
+.aud { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 900px) { .aud { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .aud { grid-template-columns: minmax(0, 1fr); } }
+.who { border-top: 2px solid; padding-top: 16px; display: grid; gap: 8px; }
+.who b { font-family: var(--font-display); font-weight: 800; font-size: 18px; }
+.who p { font-size: 14px; color: var(--fg-2); }
+
+/* pricing */
+.tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); margin-bottom: 22px; }
+.tab { border: 0; background: transparent; color: var(--fg-2); font: 800 13px var(--font-display); padding: 10px 18px; border-radius: 999px; cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--fg); color: var(--bg); }
+.tab:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.tiers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.tiers.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 900px) { .tiers, .tiers.three { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .tiers, .tiers.three { grid-template-columns: minmax(0, 1fr); } }
+.tier { border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--bg-2); padding: 22px; display: grid; gap: 6px; align-content: start; }
+.tier .pop { font-size: 12px; color: var(--fg-3); font-weight: 600; }
+.tier .price { font-family: var(--font-display); font-weight: 900; font-size: 34px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.tier .price small { font-size: 14px; color: var(--fg-3); font-weight: 700; letter-spacing: 0; }
+.tier .yr { font-size: 12.5px; color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.tier .vs { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--fg-2); }
+.tier .vs b { color: var(--orange); }
+.included { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 8px; }
+.included span { font-size: 12.5px; color: var(--fg-2); padding: 7px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); }
+
+/* principles */
+.rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 40px; }
+@media (max-width: 760px) { .rules { grid-template-columns: minmax(0, 1fr); } }
+.rule { padding: 18px 0; border-top: 1px solid var(--line); display: grid; gap: 4px; }
+.rule b { font-family: var(--font-display); font-weight: 800; font-size: 17px; }
+.rule p { font-size: 14px; color: var(--fg-2); }
+
+footer { border-top: 1px solid var(--line); padding-block: 36px 48px; color: var(--fg-3); font-size: 12px; }
+footer .wrap { display: grid; gap: 10px; }
+.band { background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--purple) 10%, transparent) 50%, transparent); }
+:root { --c-today: #9372F0; --c-plajah: #DB6E00; }
+.tier .row2 { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.tier .row2 b { color: var(--fg); font-weight: 600; }
+.tier .save { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); display: grid; gap: 2px; }
+.tier .save .pct { font-family: var(--font-display); font-weight: 900; font-size: 22px; color: var(--fg); font-variant-numeric: tabular-nums; }
+.tier .save span { font-size: 12px; color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.vchart { margin: 26px 0 0; border: 1px solid var(--line); background: var(--bg-2); border-radius: var(--r-lg); padding: 22px clamp(14px, 3vw, 26px) 18px; position: relative; }
+.vchart-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 24px; margin-bottom: 18px; }
+.legend2 { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--fg-2); align-items: center; }
+.legend2 i { display: inline-block; width: 18px; height: 10px; border-radius: 3px; margin-right: 7px; vertical-align: -1px; }
+.sw-range { background: var(--c-today); }
+.sw-plajah { background: var(--c-plajah); width: 10px !important; height: 10px; border-radius: 50% !important; }
+.vplot { display: grid; gap: 14px; }
+.vrow { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 12px; align-items: center; }
+@media (max-width: 560px) { .vrow { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+.vrow .lab { font-size: 12.5px; color: var(--fg-2); font-weight: 600; }
+.vtrack { position: relative; height: 30px; border-radius: 6px; cursor: default; outline: none; }
+.vtrack:focus-visible { box-shadow: 0 0 0 2px var(--violet); }
+.vgrid { position: absolute; top: 0; bottom: 0; width: 1px; background: color-mix(in srgb, var(--fg) 8%, transparent); }
+.vrange { position: absolute; top: 9px; height: 12px; border-radius: 4px; background: var(--c-today); }
+.vdot { position: absolute; top: 7px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: var(--c-plajah); box-shadow: 0 0 0 2px var(--bg-2); }
+.vtrack:hover .vrange, .vtrack:focus-visible .vrange { filter: brightness(1.15); }
+.vval { position: absolute; top: 6px; font-size: 11.5px; color: var(--fg-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vaxis { position: relative; height: 22px; margin-top: 6px; margin-left: 140px; font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-3); }
+@media (max-width: 560px) { .vaxis { margin-left: 0; } }
+.vaxis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.vtip { position: absolute; z-index: 5; pointer-events: none; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 12px; color: var(--fg-2); box-shadow: 0 12px 40px rgba(0,0,0,.45); min-width: 210px; }
+.vtip .t { color: var(--fg); font-weight: 700; margin-bottom: 6px; }
+.vtip .r { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.vtip .r b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.vtip .k { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.vtable { margin-top: 12px; }
+.vtable summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--fg-2); padding: 8px 0; }
+.tscroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-md); }
+.vtable table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.vtable th, .vtable td { padding: 9px 12px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.vtable th:first-child, .vtable td:first-child { text-align: left; }
+.vtable th { color: var(--fg-3); font-weight: 600; font-size: 11.5px; }
+.assume { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; margin-top: 26px; }
+@media (max-width: 760px) { .assume { grid-template-columns: minmax(0, 1fr); } }
+.assume ul { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13.5px; color: var(--fg-2); }
+.assume b { color: var(--fg); font-weight: 600; }
+.trust { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 22px; }
+@media (max-width: 900px) { .trust { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .trust { grid-template-columns: minmax(0, 1fr); } }
+.trust div { border: 1px solid var(--line); border-radius: var(--r-md); padding: 14px 16px; background: var(--bg-2); display: grid; gap: 4px; }
+.trust b { font-family: var(--font-display); font-weight: 800; font-size: 14.5px; }
+.trust span { font-size: 12.5px; color: var(--fg-2); }
+.formula { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 22px 24px; border-radius: var(--r-xl); background: linear-gradient(120deg, color-mix(in srgb, var(--purple) 30%, var(--bg-2)), var(--bg-2) 70%); border: 1px solid color-mix(in srgb, var(--violet) 35%, var(--line)); }
+.f-part { display: grid; }
+.f-part b { font-family: var(--font-display); font-weight: 900; font-size: clamp(34px, 5vw, 56px); letter-spacing: -0.03em; line-height: 1; }
+.f-part span { font-size: 12.5px; color: var(--fg-2); margin-top: 6px; }
+.f-part.dim b { color: var(--fg-2); font-size: clamp(26px, 3.4vw, 38px); }
+.f-op { font-family: var(--font-display); font-weight: 900; font-size: 32px; color: var(--orange); }
+.calc { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 16px; margin-top: 22px; }
+@media (max-width: 860px) { .calc { grid-template-columns: minmax(0, 1fr); } }
+.calc-in, .calc-out { border: 1px solid var(--line); background: var(--bg-2); border-radius: var(--r-lg); padding: 22px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.lbl { font-family: var(--font-display); font-size: 11px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: var(--fg-3); }
+.seg { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); width: fit-content; max-width: 100%; }
+.seg button { border: 0; background: transparent; color: var(--fg-2); font: 800 13px var(--font-display); padding: 9px 16px; border-radius: 999px; cursor: pointer; }
+.seg button[aria-checked="true"] { background: var(--fg); color: var(--bg); }
+.seg button:focus-visible, .presets button:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.popnum { width: 100%; height: 58px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface); color: var(--fg); font: 900 30px var(--font-display); padding: 0 16px; font-variant-numeric: tabular-nums; }
+.popnum:focus { outline: 2px solid var(--violet); outline-offset: 1px; }
+#popr { width: 100%; accent-color: var(--c-plajah); }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.presets button { border: 1px solid var(--line); background: var(--surface); color: var(--fg-2); border-radius: 999px; padding: 6px 11px; font: 600 12px var(--font-body); cursor: pointer; }
+.out-main { display: grid; gap: 2px; }
+.out-k { font-size: 12px; color: var(--fg-3); font-weight: 600; }
+.out-main b { font-family: var(--font-display); font-weight: 900; font-size: clamp(42px, 6vw, 64px); letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.out-sub { font-size: 14px; color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.out-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
+@media (max-width: 520px) { .out-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.out-grid div { border-radius: var(--r-sm); background: var(--surface); padding: 10px 12px; display: grid; gap: 2px; min-width: 0; }
+.out-grid span { font-size: 11px; color: var(--fg-3); }
+.out-grid b { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.out-save { margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
+.out-save b { font-family: var(--font-display); font-weight: 900; font-size: 26px; color: var(--orange); font-variant-numeric: tabular-nums; }
+.out-save span { font-size: 13px; color: var(--fg-2); }
+.chip.built { color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 45%, transparent); background: color-mix(in srgb, var(--cyan) 10%, transparent); }
+.desk-grid { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: 16px; }
+@media (max-width: 900px) { .desk-grid { grid-template-columns: minmax(0, 1fr); } }
+.mock { border: 1px solid var(--line); background: var(--bg-2); border-radius: var(--r-lg); overflow: hidden; min-width: 0; }
+.mock-h { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--fg-3); }
+.mock-h b { color: var(--fg); font-family: var(--font-display); font-size: 13px; }
+.qrow { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 12px; padding: 12px 16px; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+.qrow.on { background: var(--surface); }
+.qrow i { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; }
+.ref { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); }
+.qrow b { display: block; font-size: 13.5px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qrow small { display: block; font-size: 11.5px; color: var(--fg-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; margin-left: 6px; border: 1px solid; }
+.pill.red { color: #FF5C6C; border-color: #FF5C6C55; background: #FF5C6C1a; }
+.pill.amber { color: #F5B544; border-color: #F5B54455; background: #F5B5441a; }
+.pill.green { color: #06D6A0; border-color: #06D6A055; background: #06D6A01a; }
+.casev { padding: 18px 20px; display: grid; gap: 12px; }
+.casev h3 { font-size: 20px; }
+.casev .meta { font-size: 12px; color: var(--fg-3); }
+.casev .desc { font-size: 15px; color: var(--fg); }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 520px) { .two { grid-template-columns: minmax(0, 1fr); } }
+.box { border-radius: var(--r-sm); background: var(--surface); padding: 10px 12px; font-size: 13px; min-width: 0; }
+.box span { display: block; font-size: 10px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--fg-3); margin-bottom: 4px; }
+.law-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.law-chips code { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--violet); background: color-mix(in srgb, var(--violet) 14%, transparent); padding: 4px 8px; border-radius: 8px; }
+.dup { border-radius: var(--r-sm); padding: 10px 12px; font-size: 12.5px; border: 1px solid #F5B54455; background: #F5B54412; color: var(--fg-2); }
+.dup b { color: #F5B544; }
+.tl { display: grid; gap: 6px; }
+.tl div { font-size: 12.5px; border-radius: 10px; padding: 8px 10px; background: var(--surface); color: var(--fg-2); }
+.tl div.reply { border: 1px solid color-mix(in srgb, var(--cyan) 40%, transparent); background: color-mix(in srgb, var(--cyan) 7%, transparent); color: var(--fg); }
+.tl div.int { border: 1px dashed var(--line); background: transparent; }
+.feats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+@media (max-width: 860px) { .feats { grid-template-columns: minmax(0, 1fr); } }
+.feat { border-top: 2px solid var(--cyan); padding-top: 12px; display: grid; gap: 4px; }
+.feat b { font-family: var(--font-display); font-weight: 800; font-size: 15px; }
+.feat p { font-size: 13.5px; color: var(--fg-2); }
+.ns-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { .ns-grid { grid-template-columns: minmax(0, 1fr); } }
+.phone { max-width: 360px; margin: 0 auto; border-radius: 34px; border: 1px solid var(--line); background: #050409; padding: 14px; display: grid; gap: 10px; }
+.notif { border-radius: 18px; background: var(--surface-2); padding: 12px 14px; display: grid; gap: 4px; }
+.notif .src { font-size: 11px; color: var(--fg-3); display: flex; justify-content: space-between; gap: 8px; }
+.notif b { font-size: 14px; }
+.notif p { font-size: 12.5px; color: var(--fg-2); }
+.notif.urgent { border: 1px solid #FF5C6C66; }
+.reach { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.reach div { border-radius: var(--r-sm); background: var(--surface); padding: 10px; text-align: center; }
+.reach b { display: block; font-family: var(--font-display); font-weight: 900; font-size: 22px; font-variant-numeric: tabular-nums; }
+.reach span { font-size: 11px; color: var(--fg-3); }
+.paper { border-radius: 10px; background: #fbfaf7; color: #1d1b26; padding: 22px 22px 18px; font-size: 12.5px; line-height: 1.55; display: grid; gap: 8px; }
+.paper .lh { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid #0001; padding-bottom: 8px; font-size: 12px; color: #6a6676; }
+.paper .lh b { color: #1d1b26; font-size: 14px; }
+.sigrow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 6px; }
+.sig { height: 54px; border-bottom: 1px solid #0003; display: flex; align-items: flex-end; }
+.sig svg { width: 100%; height: 48px; }
+.sig .typed { font-family: "Gochi Hand", "Segoe Script", cursive; font-size: 24px; color: #1b1638; white-space: nowrap; }
+.sigrow small { font-size: 10.5px; color: #6a6676; }
+.chain { display: grid; gap: 6px; margin-top: 12px; }
+.chain div { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; font-size: 12px; color: var(--fg-2); background: var(--surface); border-radius: 8px; padding: 7px 10px; align-items: center; }
+.chain code { font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-3); }
+.ok { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: #06D6A0; font-weight: 700; }
+</style>
+
+<nav class="nav" aria-label="Sections">
+  <div class="wrap">
+    <a class="brand" href="#top"><span class="mark">P</span><span><b>Terra Civic</b><br><span>Plajah Terra</span></span></a>
+    <div class="nav-links">
+      <a href="#law-library">Law Library</a>
+      <a href="#system">The system</a>
+      <a href="#desk">Civic Desk</a>
+      <a href="#drafting">Drafting</a>
+      <a href="#map">On the map</a>
+      <a href="#record">Public record</a>
+      <a href="#pricing">Pricing</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div>
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <div class="chips">
+          <span class="chip live"><span class="dot"></span>4 capabilities built in preview</span>
+          <span class="chip orange">Michigan · Detroit first</span>
+        </div>
+        <h1>Governance,<br><span class="grad-text">in plain sight.</span></h1>
+        <p class="lede">Terra Civic is the governance layer of Plajah Terra. People read the law where they already are, follow it as it's written, and see what it changes on the map. Governments get one place to draft, hold hearings, run programs and keep a public record anyone can check.</p>
+        <div class="cta-row">
+          <a class="btn primary" href="#law-library">Try the Law Library</a>
+          <a class="btn ghost" href="#system">See the full system</a>
+        </div>
+      </div>
+      <article class="law-card" aria-label="Example section as shown in Terra">
+        <span class="cite">MCL 408.934</span>
+        <h3>Minimum hourly wage rate.</h3>
+        <p class="crumb">Ch. 408 Labor · Improved Workforce Opportunity Wage Act</p>
+        <div class="body">
+          <p>(1) Subject to the exceptions specified in this act, the minimum hourly wage rate is:</p>
+          <div class="rate"><span class="n">(a)</span><span>Beginning February 21, 2025</span><span class="amt">$12.48</span></div>
+          <div class="rate"><span class="n">(b)</span><span>Beginning January 1, 2026</span><span class="amt">$13.73</span></div>
+          <div class="rate"><span class="n">(c)</span><span>Beginning January 1, 2027</span><span class="amt">$15.00</span></div>
+        </div>
+        <div class="actions">
+          <span class="mini-btn solid">Share</span><span class="mini-btn">Cite</span><span class="mini-btn">Official text</span>
+        </div>
+        <p class="unofficial">Unofficial copy · Michigan Legislature · current through PA 114 of 2026. Rates shown as a table here; Terra shows the statute text as written.</p>
+      </article>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>43,550</b><span>sections of Michigan law</span></div>
+      <div class="stat"><b>3,995</b><span>acts across 240 chapters</span></div>
+      <div class="stat"><b>281</b><span>sections of the 1963 Constitution</span></div>
+      <div class="stat"><b>PA 114 of 2026</b><span>current through</span></div>
+    </div>
+  </div>
+</header>
+
+<section id="law-library" class="band">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Live now · Law Library</span>
+      <h2>Look up the law without leaving Plajah.</h2>
+      <p class="lede">Every Michigan statute and the state Constitution, searchable by plain words or by citation. Each section opens in a calm reader with a link you can share. Try it below with a sample of real sections.</p>
+    </div>
+    <div class="demo">
+      <div class="panel">
+        <div class="search">
+          <label for="q">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+            <input id="q" type="search" autocomplete="off" placeholder="Try “sales tax” or “MCL 445.1”" aria-label="Search the sample of Michigan law">
+          </label>
+        </div>
+        <div class="sugs" id="sugs"></div>
+        <div class="results" id="results" role="list"></div>
+      </div>
+      <div class="panel reader" id="reader" aria-live="polite"></div>
+    </div>
+    <p class="fineprint" style="margin-top:14px">This page searches 104 real sections. Terra searches all 43,550. Text is an unofficial copy from the Michigan Legislature.</p>
+  </div>
+</section>
+
+<section id="business">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">For people running a business</span>
+      <h2>Start with the laws you'll actually use.</h2>
+      <p class="lede">Seventeen topics open straight to the act that governs them, from forming an LLC to selling fireworks. Each one is checked against the real data.</p>
+    </div>
+    <div class="topics" id="topics"></div>
+  </div>
+</section>
+
+<section id="system" class="band">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">The full system</span>
+      <h2>Eight capabilities, one Terra.</h2>
+      <p class="lede">Terra Civic adds governance to Terra instead of starting a new product. The Law Library, Civic Desk, Civic Notices and Tela Sign are built and running as previews. The rest is designed and ready to build.</p>
+    </div>
+    <div class="caps">
+      <article class="cap feature wide">
+        <div class="top"><span class="glyph" style="background:linear-gradient(135deg,#A78BFA,#D40055)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 0 0 6 0zM17 7l-3 7a3 3 0 0 0 6 0zM8 21h8"/></svg></span><span class="chip live"><span class="dot"></span>Live preview</span></div>
+        <h3>Law Library</h3>
+        <p>The state's laws and Constitution in a reader people enjoy using, with a conflict engine for drafters on top.</p>
+        <ul><li>Search, topic rails, shareable links</li><li>Coming next: Detroit City Code, pending bills, plain-language explanations from ARIA</li><li>For drafters: dangling references, conflicting definitions, preemption flags, and the law as amended</li></ul>
+      </article>
+      <article class="cap wide">
+        <div class="top"><span class="glyph" style="background:color-mix(in srgb,#FF8C00 20%,transparent);color:#FF8C00"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/></svg></span><span class="chip design">Designed</span></div>
+        <h3>Forum: live drafting</h3>
+        <p>Offices draft privately, then publish public versions people can read clause by clause, annotate, reword and support.</p>
+        <ul><li>Verified constituents, counted separately from everyone else</li><li>Consensus that bridges groups, not just headcount</li><li>A public "You said / We did" response record</li></ul>
+      </article>
+      <article class="cap">
+        <div class="top"><span class="glyph" style="background:color-mix(in srgb,#00DAF3 16%,transparent);color:#00DAF3"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><span class="chip design">Designed</span></div>
+        <h3>Meetings &amp; hearings</h3>
+        <p>Agendas, legal notice, livestream with captions, a fair public-comment queue, remote testimony, and minutes drafted for the clerk.</p>
+      </article>
+      <article class="cap">
+        <div class="top"><span class="glyph" style="background:color-mix(in srgb,#06D6A0 16%,transparent);color:#06D6A0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10h18M5 10v8M19 10v8M9 10v8M15 10v8M3 20h18M12 3l9 5H3z"/></svg></span><span class="chip design">Designed</span></div>
+        <h3>Programs Desk</h3>
+        <p>Any city or county runs grants and relief programs on Plajah: eligibility rules, review, awards and a public awards map.</p>
+      </article>
+      <article class="cap">
+        <div class="top"><span class="glyph" style="background:color-mix(in srgb,#D0BCFF 16%,transparent);color:#D0BCFF"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="chip design">Designed</span></div>
+        <h3>Civic Record</h3>
+        <p>Every official act is signed by the official, timestamped and copied by independent witnesses, so anyone can check that it wasn't changed.</p>
+      </article>
+      <article class="cap">
+        <div class="top"><span class="glyph" style="background:color-mix(in srgb,#00DAF3 16%,transparent);color:#00DAF3"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v12H5.5L4 18z"/><path d="M8 9h8M8 12h5"/></svg></span><span class="chip built"><span class="dot"></span>Built · preview</span></div>
+        <h3>Civic Desk</h3>
+        <p>The government CRM: one record per resident, business and organization, and requests routed to the right department against a response target.</p>
+      </article>
+      <article class="cap">
+        <div class="top"><span class="glyph" style="background:color-mix(in srgb,#FF8C00 18%,transparent);color:#FF8C00"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><span class="chip built"><span class="dot"></span>Built · preview</span></div>
+        <h3>Civic Notices</h3>
+        <p>Plajah users follow their address, ward, permits and laws, and hear from their government in-app, by push and by email, in their language.</p>
+      </article>
+      <article class="cap">
+        <div class="top"><span class="glyph" style="background:color-mix(in srgb,#A78BFA 18%,transparent);color:#A78BFA"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17c3 0 4-6 7-6s1 6 4 6 3-3 7-3"/><path d="M3 21h18"/></svg></span><span class="chip built"><span class="dot"></span>Built · preview</span></div>
+        <h3>Tela Sign</h3>
+        <p>Native e-signatures in every Tela document: signing order, consent, drawn or typed signatures, a tamper-evident audit trail and a certificate.</p>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<section id="desk">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Built · Civic Desk</span>
+      <h2>Serve people, not tickets.</h2>
+      <p class="lede">One record per resident, business and organization. Requests go to the department that owns them, are worked against a response target, and close with an answer the person can see. Here is the preview, with sample data.</p>
+    </div>
+    <div class="desk-grid">
+      <div class="mock" aria-label="Example queue">
+        <div class="mock-h"><b>Queue</b><span>overdue first, then priority</span></div>
+        <div class="qrow"><i style="background:#FF5C6C"></i><div><span class="ref">TC-26-001217</span><span class="pill red">Overdue</span><b>Water main break · 200 Vernor Hwy</b><small>Water · East Mack Block Club · 2d ago</small></div></div>
+        <div class="qrow on"><i style="background:#FF5C6C"></i><div><span class="ref">TC-26-001234</span><span class="pill amber">Due soon</span><b>Rental housing problem · 17467 Woodward Ave</b><small>Housing · Grace Whitfield · 20h ago</small></div></div>
+        <div class="qrow"><i style="background:#00DAF3"></i><div><span class="ref">TC-26-001212</span><span class="pill green">On track</span><b>Pothole · 15643 Fenkell St</b><small>Public Works · Anonymous · 1d ago</small></div></div>
+        <div class="qrow"><i style="background:#00DAF3"></i><div><span class="ref">TC-26-001235</span><span class="pill green">On track</span><b>Public records request</b><small>City Clerk · Livernois Auto Care · 3d ago</small></div></div>
+      </div>
+      <div class="mock" aria-label="Example case">
+        <div class="casev">
+          <div class="meta"><span class="ref">TC-26-001234</span> <span class="pill red">Urgent priority</span> · via walk-in</div>
+          <h3>Rental housing problem · 17467 Woodward Ave</h3>
+          <p class="desc">No heat in our unit for three days, landlord not answering.</p>
+          <div class="two">
+            <div class="box"><span>Reported by</span>Grace Whitfield · contact by email</div>
+            <div class="box"><span>Where</span>17467 Woodward Ave · Ward 5 · open in Terra map</div>
+          </div>
+          <div class="box"><span>The law behind this service</span><div class="law-chips"><code>MCL 554.602</code><code>MCL 554.613</code></div></div>
+          <div class="dup"><b>Looks like another report of the same thing.</b> TC-26-001229 at the same address, 2 days ago. Merging keeps the older case and tells the other reporter to follow it.</div>
+          <div class="tl">
+            <div class="reply"><b>Reply to resident</b> · Sam Ortiz · Thanks, an inspector is scheduled for tomorrow morning.</div>
+            <div class="int"><b>Priority raised</b> · Civic Desk · mentions "no heat" · staff only</div>
+            <div class="int"><b>Routed</b> · Civic Desk · Housing · staff only</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="feats">
+      <div class="feat"><b>Routing and targets in code</b><p>Service and ward decide the department. Response targets count business hours. Words like "gas leak" or "no heat" raise priority and say why.</p></div>
+      <div class="feat"><b>Nobody repeats themselves</b><p>Each person or business has one record across every department: requests, replies, language, preferred channel, licenses and who acts for whom.</p></div>
+      <div class="feat"><b>Public, but private</b><p>The public status page shows type, block and status. Names, contacts, exact addresses and staff notes never leave the desk.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="notices-sign" class="band">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Built · Civic Notices and Tela Sign</span>
+      <h2>Hear from your government. Sign without a second app.</h2>
+    </div>
+    <div class="ns-grid">
+      <div class="mock" style="padding:20px">
+        <h3>Civic Notices</h3>
+        <p style="color:var(--fg-2);font-size:14px;margin-top:6px">People follow their address, ward, permits, laws and topics. Staff see exactly who a notice reaches before they publish it.</p>
+        <div class="phone" style="margin-top:16px" aria-label="Example notifications">
+          <div class="notif"><div class="src"><span>Sample City · Ward 6</span><span>now</span></div><b>Corte de agua en Vernor Hwy</b><p>Cortarán el agua el jueves de 9am a 1pm. Guarde unos galones la noche anterior.</p></div>
+          <div class="notif"><div class="src"><span>Sample City · You follow MCL 125.3201</span><span>8:00</span></div><b>Zoning rule changed</b><p>Regulation of land development was amended. Read what changed in the Law Library.</p></div>
+          <div class="notif urgent"><div class="src"><span>Sample City · Emergency</span><span>now</span></div><b>Boil-water advisory</b><p>Boil tap water for one minute before drinking until further notice.</p></div>
+        </div>
+        <div class="reach"><div><b>15</b><span>following ward 6</span></div><div><b>13</b><span>push opted in</span></div><div><b>7</b><span>email opted in</span></div></div>
+        <p class="fineprint" style="margin-top:10px">Consent per channel. Quiet hours and a morning digest for routine notices; emergencies always go now. Hearing notices are checked against MCL 125.3103 and never replace the newspaper and mailed notice the law requires.</p>
+      </div>
+      <div class="mock" style="padding:20px">
+        <h3>Tela Sign</h3>
+        <p style="color:var(--fg-2);font-size:14px;margin-top:6px">Every Tela document can go out for signature: a permit decision, a vendor contract, a volunteer waiver.</p>
+        <div class="paper" style="margin-top:16px" aria-label="Example signed letter">
+          <div class="lh"><b>Sample City</b><span>Department of Public Works</span></div>
+          <p><b>Permit decision</b> · Reference TC-26-001206</p>
+          <p>The request is approved on these conditions: work follows the plans on file; inspections are scheduled before use.</p>
+          <div class="sigrow">
+            <div><div class="sig"><svg viewBox="0 0 200 48" aria-hidden="true"><path d="M8 38 C 20 10, 30 44, 44 24 S 62 8, 74 30 S 96 40, 110 18 S 140 30, 160 22" fill="none" stroke="#1b1638" stroke-width="2.4" stroke-linecap="round"/></svg></div><small>Ana Ruiz · applicant · drew signature</small></div>
+            <div><div class="sig"><span class="typed">Jordan Hale</span></div><small>Jordan Hale · for the department · typed</small></div>
+          </div>
+        </div>
+        <div class="chain" aria-label="Audit trail excerpt">
+          <div><code>2</code><span>Viewed · Ana Ruiz</span><code>af0405b4…</code></div>
+          <div><code>3</code><span>Consented to sign electronically</span><code>94b7b377…</code></div>
+          <div><code>6</code><span>Signed · Ana Ruiz</span><code>accbe469…</code></div>
+          <div><code>10</code><span>Completed · final fingerprint 71bf7d80…</span><code>003c3e98…</code></div>
+        </div>
+        <p style="margin-top:10px"><span class="ok">✓ Audit trail intact</span></p>
+        <p class="fineprint" style="margin-top:6px">Each event's hash covers the one before it, so editing history breaks the chain. Wills and court orders are blocked; shutoff, foreclosure and eviction notices still need paper (Michigan UETA, MCL 450.833; federal ESIGN).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="drafting">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">How drafting works in Forum</span>
+      <h2>Private while it's written. Public when it's ready.</h2>
+      <p class="lede">The office keeps its working copy to itself. Each time it publishes, people get a new public version, the changes from the last one, and a place to weigh in. Public versions can never be quietly edited.</p>
+    </div>
+    <div class="flow">
+      <div class="lane private">
+        <h4><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Private draft · office only</h4>
+        <div class="step"><b>Draft with staff and counsel.</b> Same editor as every Tela document.</div>
+        <div class="step"><b>Check against existing law.</b> References to repealed sections, conflicting definitions, state preemption.</div>
+        <div class="step"><b>Compare with other states.</b> Similar laws elsewhere and what happened after they passed.</div>
+      </div>
+      <div class="arrow" aria-hidden="true">
+        <svg width="54" height="22" viewBox="0 0 54 22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 11h48M41 3l9 8-9 8"/></svg>
+        Publish
+      </div>
+      <div class="lane public">
+        <h4><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>Public draft · everyone</h4>
+        <div class="versions">
+          <div class="ver"><b>Version 1</b><span>Comment window open</span></div>
+          <div class="ver"><b>Version 2</b><span>Changes from v1 shown</span></div>
+          <div class="ver"><b>Version 3</b><span>Committee markup</span></div>
+        </div>
+        <div class="signals" aria-label="Example support for one clause">
+          <div class="bar"><span>Verified in district</span><span class="track"><span class="fill" style="width:68%;background:var(--grad-warm)"></span></span><em>68%</em></div>
+          <div class="bar"><span>Verified elsewhere</span><span class="track"><span class="fill" style="width:51%;background:#A78BFA"></span></span><em>51%</em></div>
+          <div class="bar"><span>Not verified</span><span class="track"><span class="fill" style="width:44%;background:#7d7594"></span></span><em>44%</em></div>
+        </div>
+        <p class="fineprint">Example numbers. Support from verified constituents is always shown apart from everyone else, so an outside campaign can't drown out the district.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="map" class="band">
+  <div class="wrap terra">
+    <div>
+      <div class="sec-head" style="margin-bottom:12px">
+        <span class="eyebrow">Built on Terra's map</span>
+        <h2>See what a law changes, lot by lot.</h2>
+        <p class="lede">Terra already knows every Detroit parcel and its zoning. A proposed zoning amendment runs through the same engine, so the map shows who gains or loses buildable space before the vote.</p>
+      </div>
+      <div class="links">
+        <div class="link"><b>Property Passport</b><p>Each address shows the bills, hearings and programs that affect it.</p></div>
+        <div class="link"><b>Map layers</b><p>Pending legislation, hearing notice areas, active programs and funded sites.</p></div>
+        <div class="link"><b>Business pages</b><p>Licence rules link to the ordinance behind them, and likely grant programs appear beside them.</p></div>
+        <div class="link"><b>Live data</b><p>Permits, blight and 311 trends follow the clauses meant to change them, before and after a law passes.</p></div>
+      </div>
+    </div>
+    <figure class="map" style="margin:0">
+      <canvas id="parcels" width="800" height="600" aria-label="Illustration: parcels shaded by change in buildable area under a proposed zoning amendment"></canvas>
+      <div class="legend"><span><i style="background:#06D6A0"></i>Gains buildable area</span><span><i style="background:#D40055"></i>Loses buildable area</span><span><i style="background:#2a2440"></i>No change</span></div>
+      <figcaption class="fineprint" style="margin-top:8px">Illustration of the planned zoning-impact view. Not real parcel data.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="record">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">The Civic Record</span>
+      <h2>A public record anyone can check.</h2>
+      <p class="lede">Laws, votes, notices and awards go into an append-only log. It uses the same method that keeps web security certificates honest, with Bitcoin used only as an independent clock.</p>
+    </div>
+    <div class="ledger-steps">
+      <div class="lstep"><b>The official signs</b><p>The clerk certifies the ordinance with their own key. Plajah only runs the log.</p></div>
+      <div class="lstep"><b>It's logged for good</b><p>Records are added, never edited. A correction points back to the original.</p></div>
+      <div class="lstep"><b>Witnesses co-sign</b><p>Libraries, universities and newsrooms confirm the log only ever grew.</p></div>
+      <div class="lstep"><b>A public clock stamps it</b><p>A free OpenTimestamps proof ties the record to a Bitcoin block.</p></div>
+      <div class="lstep"><b>You check it</b><p>Tap the badge and your phone re-runs every check itself.</p></div>
+    </div>
+    <div class="badges">
+      <span class="badge"><span class="dot" style="color:#06D6A0"></span><b>Certified · Anchored</b> signed, witnessed and timestamped</span>
+      <span class="badge"><span class="dot" style="color:#A78BFA"></span><b>Fingerprinted</b> recorded, not yet signed</span>
+      <span class="badge"><span class="dot" style="color:#7d7594"></span><b>Unofficial</b> hosted copy</span>
+    </div>
+    <div class="nots"><span>No token</span><span>No wallet</span><span>No gas fees</span><span>No blockchain voting</span><span>No personal data on the log</span></div>
+  </div>
+</section>
+
+<section id="who" class="band">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Who it's for</span>
+      <h2>One place, four kinds of people.</h2>
+    </div>
+    <div class="aud">
+      <div class="who" style="border-color:#FF8C00"><b>Residents</b><p>Read the law in plain language, follow bills that touch your block, and testify from your phone.</p></div>
+      <div class="who" style="border-color:#06D6A0"><b>Businesses</b><p>Find the rules for your licence, wages and taxes, and the grants you likely qualify for.</p></div>
+      <div class="who" style="border-color:#A78BFA"><b>Legislators &amp; staff</b><p>Draft with a conflict check, hear verified constituents, and show what you changed because of them.</p></div>
+      <div class="who" style="border-color:#00DAF3"><b>Cities, counties &amp; states</b><p>Run meetings, codes, programs and the public record across every department, at one public per-resident rate.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="pricing">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">The Civic Rate · proposed launch pricing</span>
+      <h2>One public formula. Every department. Every employee.</h2>
+      <p class="lede">Other government suites sell seats, modules and multi-year contracts negotiated deal by deal. Terra Civic is priced like a public utility, with the same formula for every government, so anyone can check the bill.</p>
+    </div>
+
+    <div class="formula" aria-label="Pricing formula">
+      <div class="f-part"><b>$2,400</b><span>a year per government</span></div>
+      <div class="f-op">+</div>
+      <div class="f-part"><b>30¢</b><span>per resident, per year</span></div>
+      <div class="f-op">+</div>
+      <div class="f-part dim"><b>15¢</b><span>per resident above 1 million</span></div>
+    </div>
+    <p class="fineprint" style="margin-top:10px">Monthly, that's $200 plus 2.5¢ per resident. No seats, modules, tiers or per-agency fees.</p>
+
+    <div class="calc">
+      <div class="calc-in">
+        <label class="lbl" for="gov">Government</label>
+        <div class="seg" id="gov" role="radiogroup" aria-label="Government type">
+          <button type="button" role="radio" aria-checked="true" data-k="city">City or town</button>
+          <button type="button" role="radio" aria-checked="false" data-k="county">County</button>
+          <button type="button" role="radio" aria-checked="false" data-k="state">State</button>
+        </div>
+        <label class="lbl" for="pop">Residents</label>
+        <input id="pop" class="popnum" type="text" inputmode="numeric" value="5,000" aria-describedby="pop-help">
+        <input id="popr" type="range" min="0" max="1000" step="1" value="300" aria-label="Residents (slider)">
+        <p id="pop-help" class="fineprint">Type any population or drag. Try your town.</p>
+        <div class="presets" id="presets"></div>
+      </div>
+      <div class="calc-out" aria-live="polite">
+        <div class="out-main"><span class="out-k">Per month</span><b id="o-mo">—</b><span id="o-yr" class="out-sub">—</span></div>
+        <div class="out-grid">
+          <div><span>Per resident a year</span><b id="o-res">—</b></div>
+          <div><span>Desk staff covered (est.)</span><b id="o-staff">—</b></div>
+          <div><span>Storage included</span><b id="o-sto">—</b></div>
+          <div><span>Live video / month</span><b id="o-vid">—</b></div>
+          <div><span>AI credits / month</span><b id="o-ai">—</b></div>
+          <div><span>Today's tools (est.)</span><b id="o-today">—</b></div>
+        </div>
+        <div class="out-save"><b id="o-less">—</b><span id="o-save">—</span></div>
+      </div>
+    </div>
+
+    <figure class="vchart" aria-labelledby="vchart-title">
+      <div class="vchart-head">
+        <div>
+          <p class="eyebrow" id="vchart-title">Yearly cost: today's tools vs the Civic Rate</p>
+          <p class="fineprint">Log scale, so a village and a state fit on one axis.</p>
+        </div>
+        <div class="legend2" aria-label="Legend">
+          <span><i class="sw-range"></i>Today (low to high estimate)</span>
+          <span><i class="sw-plajah"></i>Civic Rate</span>
+        </div>
+      </div>
+      <div class="vplot" id="vplot"></div>
+      <div class="vaxis" id="vaxis" aria-hidden="true"></div>
+      <div class="vtip" id="vtip" role="status" hidden></div>
+    </figure>
+    <details class="vtable">
+      <summary>Show as a table</summary>
+      <div class="tscroll"><table id="vtable"></table></div>
+    </details>
+
+    <div class="trust">
+      <div><b>Small towns first</b><span>A 1,000-person village pays $225 a month for the same platform Detroit uses.</span></div>
+      <div><b>Fair-margin promise</b><span>We aim for about 40% margin and publish a yearly cost report. If civic margin tops 50%, the rate drops for everyone.</span></div>
+      <div><b>Pay once per resident</b><span>When a city and its county both subscribe, each gets 20% off. The same goes for a county and its state.</span></div>
+      <div><b>No lock-in</b><span>Monthly or annual, cancel anytime with a full data export. A 90-day pilot is free.</span></div>
+    </div>
+
+    <div class="assume">
+      <div>
+        <p class="eyebrow">How "today" is estimated</p>
+        <ul>
+          <li><b>Civic tools:</b> agenda and meeting software, streaming, engagement, grants and code hosting, from public city and county contracts.</li>
+          <li><b>Office suite:</b> Google Workspace at about $14 per user per month (low) to Microsoft 365 G3 for government at about $39 (high).</li>
+          <li><b>Per-seat tools:</b> Adobe Acrobat Pro for teams $23.99 (30% of staff), Zoom Workplace Business about $18.33 (25%), Adobe Creative Cloud Pro for teams $99.99 (1%).</li>
+          <li><b>Desk staff:</b> about 4 per 1,000 residents for cities and counties, 2.5 for states.</li>
+        </ul>
+      </div>
+      <div>
+        <p class="eyebrow">Not counted, because Plajah doesn't replace these yet</p>
+        <ul>
+          <li>Email and calendar. Most offices will keep Microsoft or Google for mail.</li>
+          <li>Legally binding e-signature, phone systems, police and court systems, finance and ERP.</li>
+          <li>State legislative drafting systems, so state savings are understated.</li>
+        </ul>
+        <p class="fineprint" style="margin-top:10px">Extra storage, video or AI beyond what's included is opt-in, at cost plus 20%, with a cap the government sets.</p>
+      </div>
+    </div>
+    <p class="fineprint" style="margin-top:14px">Proposed pricing. Staff counts and today's costs are estimates. Federal comes later and needs FedRAMP.</p>
+  </div>
+</section>
+
+<section id="principles" class="band">
+  <div class="wrap">
+    <div class="sec-head"><span class="eyebrow">Ground rules</span><h2>What Terra Civic will and won't do.</h2></div>
+    <div class="rules">
+      <div class="rule"><b>Elected officials keep the vote.</b><p>Public signals are advisory and verified. They are never presented as an election.</p></div>
+      <div class="rule"><b>ARIA explains, it never decides.</b><p>Counts and scores come from code. ARIA summarizes, cites sources and never edits a bill on its own.</p></div>
+      <div class="rule"><b>Every copy says what it is.</b><p>Hosted law is labelled unofficial, names its source and links to the official text.</p></div>
+      <div class="rule"><b>Moderation is viewpoint-neutral.</b><p>Published rules apply to everyone, and offices can respond to comments but not delete them.</p></div>
+      <div class="rule"><b>Governments decide their programs.</b><p>Plajah supplies the tools. Anyone eligible can apply without joining Plajah.</p></div>
+      <div class="rule"><b>Revenue comes back to the community.</b><p>A published share of government revenue funds Plajah's creators, charities and small businesses.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span><b style="color:var(--fg)">Terra Civic</b> · part of Plajah Terra · preview, November 2026</span>
+    <span>Statute and Constitution text: Michigan Legislature (legislature.mi.gov), shown as an unofficial copy, current through PA 114 of 2026. Market prices are from public city and county council records.</span>
+  </div>
+</footer>
+
+<script>
+const DATA = {"rows": [["mcl-408.934", "408.934", "Minimum hourly wage rate.", "Improved workforce opportunity wage act"], ["mcl-408.934a", "408.934a", "Compensation for workweek in excess of 40 hours; exceptions; rules; unpaid minimum wages; appropriation; compensatory time in lieu of monetary overtime compensation.", "Improved workforce opportunity wage act"], ["mcl-408.934d", "408.934d", "Minimum hourly wage; establishment; conditions; percentages; gratuities; notice of plan to distribute service charges; records.", "Improved workforce opportunity wage act"], ["mcl-436.1203", "436.1203", "Sale, delivery, or importation of alcoholic liquor or wine; duties of direct shipper of wine; common carrier; verification that individual accepting delivery is 21 years of age or older; original purchase and importation into state of spirits for sale, use, storage, or distribution; requirements; exceptions; direct shipper license required; application; fee; violation; delivery of beer and wine to home or designated location of consumer; holder of specially designated merchant license; sale or delivery of spirits by qualified small distiller requirements; delivery or sale of beer, wine, mixed spirit drink, or spirits by third party facilitator; reports; retention of books, records, and documents; disclosure; definitions.", "Michigan liquor control code of 1998"], ["mcl-436.1217", "436.1217", "Liquor control commission; investigations; inspection and search of licensed premises; seizure and use of evidence of violation; examining or copying books, records, and papers; issuance of subpoena; oath or affirmation; court order; contempt; fees of witnesses; service of subpoena; seal; certified copies as evidence.", "Michigan liquor control code of 1998"], ["mcl-436.1229", "436.1229", "Licensing hotel or merchant to sell spirits for consumption off premises; sale of alcoholic liquor; price; rules; definitions.", "Michigan liquor control code of 1998"], ["mcl-436.1507", "436.1507", "Liquor licenses; publicly owned airports; issuance.", "Michigan liquor control code of 1998"], ["mcl-436.1509", "436.1509", "Liquor licenses; municipal civic center or civic auditorium; conditions and limitations.", "Michigan liquor control code of 1998"], ["mcl-436.1511", "436.1511", "Class “C” or class “B” hotel license for hotel located within Mackinac Island state park; class “C” license for certain concessionaire; license for sale of alcoholic liquor at Presque Isle harbor marina; nontransferability of license.", "Michigan liquor control code of 1998"], ["mcl-436.1513", "436.1513", "Licenses; issuance to governing board of college or university; restrictions and prohibition; sale of alcoholic liquor on hotel or restaurant premises located on land owned by Central Michigan University, Wayne State University, Western Michigan University, Northern Michigan University, Eastern Michigan University, Oakland University, Lake Superior State University, Macomb Community College, Wayne County Community College, Schoolcraft College, Washtenaw County Community College, or Henry Ford College; conditions; golf course clubhouse; baseball stadium; restaurant; nontransferability; fee; \"college,\" \"university,\" and \"conference center\" defined.", "Michigan liquor control code of 1998"], ["mcl-450.4201", "450.4201", "Limited liability company; purpose.", "Michigan limited liability company act"], ["mcl-450.4202", "450.4202", "Limited liability company; formation; filing as evidence that all conditions performed; exception; duration.", "Michigan limited liability company act"], ["mcl-450.4204", "450.4204", "Limited liability company; low-profit limited liability company; name; requirements; rights.", "Michigan limited liability company act"], ["mcl-450.4204a", "450.4204a", "Limited liability company licensed as nursing home; use of terms.", "Michigan limited liability company act"], ["mcl-450.4210", "450.4210", "Limited liability company; powers.", "Michigan limited liability company act"], ["mcl-450.4216", "450.4216", "Limited liability company; powers.", "Michigan limited liability company act"], ["mcl-450.4705", "450.4705", "Merger of foreign limited liability companies with domestic limited liability companies; conditions; compliance and liability of surviving company.", "Michigan limited liability company act"], ["mcl-129.42", "129.42", "Security for deposit prohibited.", "DEPOSIT AND SAFEGUARDING OF PUBLIC MONEYS OF VILLAGE"], ["mcl-338.1075", "338.1075", "Renewal license; application; bond; fee; date; form; approval; effect of failure to renew; deposit of fees into security business fund.", "Private security business and security alarm act"], ["mcl-12.101", "12.101", "Deposit of real estate mortgage as collateral security fees; credited to general fund.", "SERVICE FEES ON REAL ESTATE MORTGAGES"], ["mcl-17.452", "17.452", "Aggregate principal amount of outstanding notes; limitation; repayment of indebtedness; pledge and deposit of undedicated revenues; validity of pledge; transactions to provide security; costs and fees; authorization of state treasurer to do certain acts; revenues, proceeds, and earnings from which principal and interest payable.", "STATE INDEBTEDNESS"], ["mcl-21.143", "21.143", "Financial institution as depository of surplus funds; compliance; location of principal office; security; rate of return; investment and use of surplus funds; disposition of earnings from loans; loss of principal or interest; reduction of earnings; investment in securities of no-load open-end or closed-end management type investment company or investment trust.", "SURPLUS FUNDS IN TREASURY"], ["mcl-38.19a", "38.19a", "Retirement upon satisfaction of certain requirements; monthly retirement allowance supplement; benefits, salary, or remuneration precluding payment under subsection (2); payment of sick leave; payment by retirement system; amount payable by principal departments; member considered retirant; deposit by principal department; use of deposits; exception; monthly payment by Michigan employment security commission; service credit for participation in pay reduction plan C; death of retirant or applicant for retirement.", "State employees' retirement act"], ["mcl-124.292c", "124.292c", "Bonds secured by trust indenture; provisions in resolution or trust indenture; annual audit; pledging eligible marketable securities as collateral security for deposits; expenses; construction of 1958 amendments.", "MUNICIPAL SEWAGE AND WATER SUPPLY SYSTEMS"], ["mcl-125.311", "125.311", "Annexed property to village; continuation of zoning regulation.", "ZONING REGULATIONS"], ["mcl-125.3202", "125.3202", "Zoning ordinance; determination by local legislative body; amendments or supplements; notice of proposed rezoning.", "Michigan zoning enabling act"], ["mcl-125.3203", "125.3203", "Zoning ordinance; plan; incorporation of airport layout plan or airport approach plan; zoning ordinance adopted before or after March 28, 2001; applicability of public transportation facilities.", "Michigan zoning enabling act"], ["mcl-125.3205", "125.3205", "Zoning ordinance subject to certain acts; regulation or control of oil or gas wells; prohibition; extraction of valuable natural resource; challenge to zoning decision; serious consequences resulting from extraction; factors; regulations not limited.", "Michigan zoning enabling act"], ["mcl-125.3205d", "125.3205d", "Zoning ordinance; prohibition or regulation of commemorative signs.", "Michigan zoning enabling act"], ["mcl-125.3207", "125.3207", "Zoning ordinance or decision; effect as prohibiting establishment of land use.", "Michigan zoning enabling act"], ["mcl-125.3209", "125.3209", "Township zoning ordinance not subject to county ordinance, rule, or regulation.", "Michigan zoning enabling act"], ["mcl-205.52", "205.52", "Sales tax; rate; additional applicability; separate books required; penalty; tax as personal obligation of taxpayer; exemption.", "General sales tax act"], ["mcl-205.53", "205.53", "License required to engage in business for which privilege tax imposed; bond or deposit; renewal; exemptions; suspension and restoration of license; violation as misdemeanor; penalty; registration under streamlined sales and use tax agreement; person subject to tobacco products tax act; affirmative defense.", "General sales tax act"], ["mcl-205.54", "205.54", "Deductions; filing estimated returns and annual periodic reconciliations; registration under streamlined sales and use tax agreement.", "General sales tax act"], ["mcl-205.54a", "205.54a", "Sales tax; exemptions; limitation.", "General sales tax act"], ["mcl-205.54d", "205.54d", "Additional sales excluded from tax.", "General sales tax act"], ["mcl-205.54g", "205.54g", "Sales exempt from tax; tax on sale of food or drink from vending machine; definitions.", "General sales tax act"], ["mcl-205.54i", "205.54i", "Bad debt; definitions; deduction; amount; payment of bad debt; liability; written election designating party claiming deduction; evidence required to support claim for deduction; change in tax rate; review; taxpayer under streamlined sales and use tax agreement.", "General sales tax act"], ["mcl-408.963", "408.963", "Earned sick time to be provided by employer; alternatives; accrual; use; carry over; \"year\" defined; workweek; compliance; pay rate; replacement worker not required.", "EARNED SICK TIME ACT"], ["mcl-408.964", "408.964", "Earned sick time; permissible uses; advance notice; incremental use; documentation; disclosure of details relating to domestic violence or sexual assault or family member's medical condition; other purposes.", "EARNED SICK TIME ACT"], ["mcl-408.965", "408.965", "Transfer of employee to separate division, entity, or location; retention of earned sick time; reinstatement; successor employer; unused earned sick time.", "EARNED SICK TIME ACT"], ["mcl-408.961", "408.961", "Short title.", "EARNED SICK TIME ACT"], ["mcl-408.962", "408.962", "Definitions.", "EARNED SICK TIME ACT"], ["mcl-408.963a", "408.963a", "Waiting period; exception; contributions to multiemployer plan.", "EARNED SICK TIME ACT"], ["mcl-408.966", "408.966", "Exercise of rights under act; interference, restraint, or denial prohibited; retaliatory personnel action or discrimination prohibited; absence control policy leading to or resulting in retaliatory personnel action prohibited; person mistakenly alleging violation.", "EARNED SICK TIME ACT"], ["mcl-289.2111", "289.2111", "Evaluation of food establishment by director; access; securing samples of food; examination of records; photographs or copies of records as evaluation; confidentiality.", "Food law of 2000"], ["mcl-289.3115", "289.3115", "Review of license application by local health department; inspection of establishment; temporary food establishment serving only low-risk food; in-office consultation; forward of approval or limitation to department.", "Food law of 2000"], ["mcl-289.4101", "289.4101", "Food establishment license; scope.", "Food law of 2000"], ["mcl-289.4103", "289.4103", "Application for license; submission; forms; information; mobile food establishment license; commissary service; forwarding recommendations to department; temporary license.", "Food law of 2000"], ["mcl-289.4107", "289.4107", "Food establishment license; qualifications.", "Food law of 2000"], ["mcl-289.4117", "289.4117", "Dairy and food safety fund; credit of money collected; creation; investment; lapse; administration; consumer food safety education fund; industry food-safety education fund; creation; use and carrying forward of funds; \"fee-exempt food establishment\" defined.", "Food law of 2000"], ["mcl-289.4121", "289.4121", "Changes proposed by food establishment; notice.", "Food law of 2000"], ["mcl-445.1", "445.1", "Certificate required to carry on business under assumed name; filing; form; contents; fee; execution and acknowledgment; exceptions; certification and return of duplicate; “person” and “address” defined; imposition of fee by certain charter counties.", "CARRYING ON BUSINESS UNDER ASSUMED OR FICTITIOUS NAME"], ["mcl-445.1a", "445.1a", "Certificate; use of assumed name authorized for 5 years; renewal certificate; filing, form, fee, and duration; notice; abandonment of assumed name; destruction of certificate.", "CARRYING ON BUSINESS UNDER ASSUMED OR FICTITIOUS NAME"], ["mcl-445.2", "445.2", "Assumed name certificates; filing period; rejection by county clerk.", "CARRYING ON BUSINESS UNDER ASSUMED OR FICTITIOUS NAME"], ["mcl-445.2a", "445.2a", "Assumed name; change of business location certificate, filing.", "CARRYING ON BUSINESS UNDER ASSUMED OR FICTITIOUS NAME"], ["mcl-445.2b", "445.2b", "Assumed name; discontinuance of operation certificate, filing.", "CARRYING ON BUSINESS UNDER ASSUMED OR FICTITIOUS NAME"], ["mcl-286.204", "286.204", "Inspection of stock before sale; application; assumed name.", "The insect pest and plant disease act"], ["mcl-445.1652", "445.1652", "Mortgage broker, mortgage lender, or mortgage servicer; license or registration required; exemption; application; compensation or other remuneration; words contained in name or assumed name; \"employee\" defined.", "Mortgage brokers, lenders, and servicers licensing act"], ["mcl-333.27301", "333.27301", "Medical marihuana licensing board; creation; membership; appointment; terms; vacancy; reimbursement for expenses; other public office; eligibility; removal of member; appointment and employment limitations; financial disclosure statement; direct or indirect interest.", "Medical marihuana facilities licensing act"], ["mcl-333.27305", "333.27305", "Board; disclosure form; providing certain notices to chairperson; ex parte communication; outside employment; personal transaction involving marihuana with licensee or applicant; violation.", "Medical marihuana facilities licensing act"], ["mcl-333.27407a", "333.27407a", "Operation of marihuana facility; license required; violation; penalties.", "Medical marihuana facilities licensing act"], ["mcl-333.27956", "333.27956", "Adoption or enforcement of ordinances by municipality; marihuana establishment local license; annual fee; restrictions on transportation or other facilities prohibited.", "Michigan regulation and taxation of marihuana act"], ["mcl-333.27959", "333.27959", "License to operate a marihuana establishment; application; qualifications; issuance; disclosure.", "Michigan regulation and taxation of marihuana act"], ["mcl-333.27201", "333.27201", "Protected activities; person owning or leasing property upon which marihuana facility located subject to penalties or sanctions prohibited; conditions; activities of certified public accountant or financial institution not subject to certain penalties or sanctions; other provisions of law inconsistent with act; definitions.", "Medical marihuana facilities licensing act"], ["mcl-333.27205", "333.27205", "Marihuana facility; ordinance; requirements.", "Medical marihuana facilities licensing act"], ["mcl-445.903o", "445.903o", "Regulation and verification of online marketplace and third-party sellers; information for consumers; requirements; failure to comply; suspension; enforcement.", "Michigan consumer protection act"], ["mcl-445.909a", "445.909a", "List of consumer complaints.", "Michigan consumer protection act"], ["mcl-257.2251", "257.2251", "Consumer protection disclosure requirements.", "Peer-to-peer car sharing program act"], ["mcl-333.5551", "333.5551", "Eye care consumer protection law; meanings of words and phrases.", "Public health code"], ["mcl-445.837", "445.837", "False statement; noncompliance; remedies; action pursuant to Michigan consumer protection act; other remedies.", "Joe Gagnon appliance repair act"], ["mcl-493.14a", "493.14a", "Compliance with federal consumer credit protection act.", "Regulatory loan act"], ["mcl-493.75", "493.75", "Violation of consumer credit protection act as violation of act.", "The secondary mortgage loan act"], ["mcl-79.11", "79.11", "Lighting facilities; legalized existing actions and franchises.", "VALIDATION OF ORDINANCES AND FRANCHISE GRANTS"], ["mcl-123.131", "123.131", "Public utility franchises in cities under 15,000; validation.", "PUBLIC UTILITY FRANCHISES; VALIDATION"], ["mcl-445.1504", "445.1504", "Arrangements between franchisor and franchisee to which act applicable; making offer or sale of franchise in state; accepting offer to sell in state; communication of acceptance.", "Franchise investment law"], ["mcl-445.1504b", "445.1504b", "Franchisee as sole employer.", "Franchise investment law"], ["mcl-445.1505", "445.1505", "Prohibited conduct in connection with offer, sale, or purchase of franchise.", "Franchise investment law"], ["mcl-445.1505a", "445.1505a", "Franchise opportunities handbook.", "Franchise investment law"], ["mcl-445.1506", "445.1506", "Exemption of offer and sale of franchise from MCL 445.1507a and 445.1508; circumstances; compliance with MCL 445.1508.", "Franchise investment law"], ["mcl-28.454", "28.454", "Sale of consumer fireworks; certificate required; violation as civil fine; penalty; application; requirements; issuance; validity; issuance of original or renewal certificate; sales tax license information; denial; transfer; display; prohibition; location or address; disposition of fees.", "Michigan fireworks safety act"], ["mcl-28.455", "28.455", "Sale of consumer fireworks from retail location; conditions; automatic sprinkler system; failure to comply; civil fine; insurance coverage; notice of dates and times of permissible use; form and content; conditions for sale over phone or internet.", "Michigan fireworks safety act"], ["mcl-28.456", "28.456", "Website; establishment and maintenance by department; registration with low-impact fireworks retail registry; application fee; failure to register; civil fine.", "Michigan fireworks safety act"], ["mcl-28.458", "28.458", "Fireworks safety fee; imposition; payment; deposit in fireworks safety fund; failure to comply; civil fine.", "Michigan fireworks safety act"], ["mcl-28.459", "28.459", "Fireworks safety fee; determination; rates; collection allowance.", "Michigan fireworks safety act"], ["mcl-28.460", "28.460", "Fireworks safety fees; remittance; forms; manner; payment liability; past due amounts; aggregate filing; failure to remit; civil fine.", "Michigan fireworks safety act"], ["mcl-28.461", "28.461", "Fireworks safety fund; creation within department of treasury; investment; money remaining in fund; lapse; expenditures; delegation of inspection duties; program.", "Michigan fireworks safety act"], ["mcl-125.54", "125.54", "Building permits, granting; public hearing.", "CERTIFICATION OF CITY AND VILLAGE PLATS"], ["mcl-125.1352", "125.1352", "Compliance of public facility with barrier free design requirements; leases and rentals by state or political subdivisions; approval of state or local administrative authority as condition of construction, lease, building permit, or certificate of occupancy; displaying, issuing, making, and distributing symbols of access; “building” defined; penalty.", "UTILIZATION OF PUBLIC FACILITIES BY PHYSICALLY LIMITED"], ["mcl-125.1510", "125.1510", "Application for building permit; form; fee; contents; statement; site plan; affidavit; filing written instrument designating agent, attorney, architect, engineer, or builder; additional information required for residential builder or residential maintenance and alteration contractor, plumbing contractor or master or journeyman plumber, electrical contractor or master or journeyman electrician, or mechanical contractor; statement required in building application form; filing application; availability of application and other writings to public; custody of application; imposition of requirements for additional permits; building permit not required; qualifying roadside stand; tent exempt from act and code.", "Stille-derossett-hale single state construction code act"], ["mcl-125.1511", "125.1511", "Building permit; examination and approval of application; issuance; changes in plans; commencement of construction; compliance with application; suspension, revocation, or cancellation.", "Stille-derossett-hale single state construction code act"], ["mcl-125.1519", "125.1519", "Premanufactured units; certificate of acceptability; rules; building permit; fee; objections; hearing.", "Stille-derossett-hale single state construction code act"], ["mcl-259.483", "259.483", "Building permits; public utility structures, emergency repair.", "Tall structure act"], ["mcl-259.488", "259.488", "Building permits; conduct, controlling statute and rules for conduct of public hearings.", "Tall structure act"], ["mcl-141.265", "141.265", "Additional powers; political subdivision construction.", "PUBLIC IMPROVEMENT FUNDS"], ["mcl-259.110", "259.110", "Public airport authority; political subdivision and instrument of local government; public agency; airport manager; qualified airport; powers of authority; incorporation of authority; presumption of validity; court jurisdiction; state transportation department as party; rules prohibited.", "Aeronautics code of the state of Michigan"], ["mcl-259.133", "259.133", "Additional powers of political subdivision establishing aeronautical facility.", "Aeronautics code of the state of Michigan"], ["mcl-259.305", "259.305", "Political subdivision; ordinance, regulation, or resolution limitations; powers; federal preemption; conflict with other sections of law; petition for fixed site facility designation; applicability.", "Unmanned aircraft systems act"], ["mcl-259.465", "259.465", "Powers and duties of contiguous political subdivision in adjoining state as to airports, landing fields, and other aeronautical facilities.", "Airport zoning act"], ["mcl-324.79302", "324.79302", "Political subdivision; powers.", "Natural resources and environmental protection act"], ["const-I-1", "Const. Art. I, § 1", "Political power.", "Constitution — Article I"], ["const-I-5", "Const. Art. I, § 5", "Freedom of speech and of press.", "Constitution — Article I"], ["mcl-125.3201", "125.3201", "Regulation of land development and establishment of districts; provisions; uniformity of regulations; designations; limitations.", "Michigan zoning enabling act"], ["mcl-554.602", "554.602", "Security deposit; amount.", "LANDLORD AND TENANT RELATIONSHIPS"]], "secs": {"mcl-408.934": {"num": "408.934", "catch": "Minimum hourly wage rate.", "ctx": "Improved workforce opportunity wage act", "body": [{"t": "p", "text": "(1) Subject to the exceptions specified in this act, the minimum hourly wage rate is:"}, {"t": "p", "text": "(a) Beginning February 21, 2025, $12.48."}, {"t": "p", "text": "(b) Beginning January 1, 2026, $13.73."}, {"t": "p", "text": "(c) Beginning January 1, 2027, $15.00."}, {"t": "p", "text": "(2) Every October beginning in October, 2027, the state treasurer shall calculate an adjusted minimum wage rate. The adjustment must increase the minimum wage by the rate of inflation. The state treasurer shall calculate the increase by multiplying the otherwise applicable minimum wage by the 12-month percentage increase, if any, in the Consumer Price Index for the midwest region, CPI-U, or a successor index, as published by the Bureau of Labor Statistics of the United States Department of Labor, based on the most recent 12-month period for which data are available. The state treasurer shall publish the adjusted minimum wage rate by November 1 of the year in which it is calculated. The adjusted minimum wage rate is effective beginning January 1 of the immediately succeeding year."}, {"t": "p", "text": "(3) An increase in the minimum hourly wage rate as prescribed in subsection (2) does not take effect if the unemployment rate, as determined by the Bureau of Labor Statistics of the United States Department of Labor, for this state is 8.5% or greater for the year immediately preceding the year of the prescribed increase."}], "more": false, "hist": ["2018, Act 337, Eff. Mar. 29, 2019", "Am. 2018, Act 368, Eff. Mar. 29, 2019", "2018, Act 337, Eff. Feb. 21, 2025"]}, "mcl-125.3201": {"num": "125.3201", "catch": "Regulation of land development and establishment of districts; provisions; uniformity of regulations; designations; limitations.", "ctx": "Michigan zoning enabling act", "body": [{"t": "p", "text": "(1) A local unit of government may provide by zoning ordinance for the regulation of land development and the establishment of 1 or more districts within its zoning jurisdiction which regulate the use of land and structures to meet the needs of the state's citizens for food, fiber, energy, and other natural resources, places of residence, recreation, industry, trade, service, and other uses of land, to ensure that use of the land is situated in appropriate locations and relationships, to limit the inappropriate overcrowding of land and congestion of population, transportation systems, and other public facilities, to facilitate adequate and efficient provision for transportation systems, sewage disposal, water, energy, education, recreation, and other public service and facility requirements, and to promote public health, safety, and welfare."}, {"t": "p", "text": "(2) Except as otherwise provided under this act, the regulations shall be uniform for each class of land or buildings, dwellings, and structures within a district."}, {"t": "p", "text": "(3) A local unit of government may provide under the zoning ordinance for the regulation of land development and the establishment of districts which apply only to land areas and activities involved in a special program to achieve specific land management objectives and avert or solve specific land use problems, including the regulation of land development and the establishment of districts in areas subject to damage from flooding or beach erosion."}, {"t": "p", "text": "(4) A local unit of government may adopt land development regulations under the zoning ordinance designating or limiting the location, height, bulk, number of stories, uses, and size of dwellings, buildings, and structures that may be erected or altered, including tents and recreational vehicles."}], "more": false, "hist": ["2006, Act 110, Eff. July 1, 2006"]}, "mcl-554.602": {"num": "554.602", "catch": "Security deposit; amount.", "ctx": "LANDLORD AND TENANT RELATIONSHIPS", "body": [{"t": "p", "text": "A landlord may require a security deposit for each rental unit. A security deposit shall be required and maintained in accordance with the terms of this act and shall not exceed 1 1/2 months' rent."}], "more": false, "hist": ["1972, Act 348, Eff. Apr. 1, 1973"]}, "mcl-450.4202": {"num": "450.4202", "catch": "Limited liability company; formation; filing as evidence that all conditions performed; exception; duration.", "ctx": "Michigan limited liability company act", "body": [{"t": "p", "text": "One or more persons, who may or may not become members, may be the organizers of a limited liability company by filing executed articles of organization.", "num": "(1)"}, {"t": "p", "text": "The existence of the limited liability company begins on the effective date of the articles of organization as provided in section 104. Filing is conclusive evidence that all conditions precedent required to be performed under this act are fulfilled and that the company is formed under this act, except in an action or special proceeding by the attorney general. The maximum duration of the limited liability company is perpetual unless otherwise provided in the articles of organization.", "num": "(2)"}], "more": false, "hist": ["1993, Act 23, Eff. June 1, 1993", "Am. 1997, Act 52, Imd. Eff. July 1, 1997", "Am. 2002, Act 686, Imd. Eff. Dec. 30, 2002"]}, "const-I-1": {"num": "Const. Art. I, § 1", "catch": "Political power.", "ctx": "Constitution — Article I", "body": [{"t": "p", "text": "All political power is inherent in the people. Government is instituted for their equal benefit, security and protection."}], "more": false, "hist": ["Const. 1963, Art. I, § 1, Eff. Jan. 1, 1964"]}, "const-I-5": {"num": "Const. Art. I, § 5", "catch": "Freedom of speech and of press.", "ctx": "Constitution — Article I", "body": [{"t": "p", "text": "Every person may freely speak, write, express and publish his views on all subjects, being responsible for the abuse of such right; and no law shall be enacted to restrain or abridge the liberty of speech or of the press."}], "more": false, "hist": ["Const. 1963, Art. I, § 5, Eff. Jan. 1, 1964"]}, "mcl-205.52": {"num": "205.52", "catch": "Sales tax; rate; additional applicability; separate books required; penalty; tax as personal obligation of taxpayer; exemption.", "ctx": "General sales tax act", "body": [{"t": "p", "text": "Except as provided in section 2a, there is levied upon and there shall be collected from all persons engaged in the business of making sales at retail, by which ownership of tangible personal property is transferred for consideration, an annual tax for the privilege of engaging in that business equal to 6% of the gross proceeds of the business, plus the penalty and interest if applicable as provided by law, less deductions allowed by this act.", "num": "(1)"}, {"t": "p", "text": "The tax under subsection (1) also applies to the following:", "num": "(2)"}, {"t": "p", "text": "The transmission and distribution of electricity, whether the electricity is purchased from the delivering utility or from another provider, if the sale is made to the consumer or user of the electricity for consumption or use rather than for resale.", "num": "(a)"}, {"t": "p", "text": "The sale of a prepaid telephone calling card or a prepaid authorization number for telephone use, rather than for resale, including the reauthorization of a prepaid telephone calling card or a prepaid authorization number.", "num": "(b)"}, {"t": "p", "text": "A conditional sale, installment lease sale, or other transfer of property, if title is retained as security for the purchase but is intended to be transferred later.", "num": "(c)"}, {"t": "p", "text": "Any person engaged in the business of making sales at retail who is at the same time engaged in some other kind of business, occupation, or profession not taxable under this act shall keep books to show separately the transactions used in determining the tax levied by this act. If the person fails to keep separate books, there shall be levied upon him or her the tax provided for in subsection (1) equal to 6% of the entire gross proceeds of both or all of his or her businesses. The taxes levied by this section are a personal obligation of the taxpayer.", "num": "(3)"}, {"t": "p", "text": "A meal provided free of charge or at a reduced rate to an employee during work hours by a food service establishment licensed by the Michigan department of agriculture for the convenience of the employer is not considered transferred for consideration.", "num": "(4)"}], "more": false, "hist": ["1933, Act 167, Imd. Eff. June 28, 1933", "CL 1948, 205.52", "Am. 1949, Act 272, Eff. July 1, 1949"]}, "mcl-445.1": {"num": "445.1", "catch": "Certificate required to carry on business under assumed name; filing; form; contents; fee; execution and acknowledgment; exceptions; certification and return of duplicate; “person” and “address” defined; imposition of fee by certain charter counties.", "ctx": "CARRYING ON BUSINESS UNDER ASSUMED OR FICTITIOUS NAME", "body": [{"t": "p", "text": "A person shall not carry on, conduct, or transact business in this state under an assumed name, or under a designation, name, or style other than the real name of the person owning, conducting, or transacting that business, unless the person files in duplicate in the office of the clerk of the county or counties in which the person owns, conducts, or transacts, or intends to own, conduct, or transact, business, or maintains an office or place of business, a certificate on a form furnished by the county clerk setting forth the name under which the business owned is, or is to be, conducted or transacted, and the true or real full name and address of the person owning, conducting, or transacting the business. At the time of filing the certificate, the person shall pay the clerk a filing fee of $6.00. The certificate shall be executed and duly acknowledged by the person owning, conducting, or intending to conduct the business.", "num": "(1)"}, {"t": "p", "text": "The selling of goods by sample or through a traveling agent or traveling salesperson, or by means of orders forwarded by the purchaser through the mails, shall not be construed for the purpose of this act as conducting or transacting business so as to require the filing of the certificates.", "num": "(2)"}, {"t": "p", "text": "The county clerk shall certify the duplicate and return it to the applicant.", "num": "(3)"}, {"t": "p", "text": "As used in this act:", "num": "(4)"}, {"t": "p", "text": "\"Person\" means 1 or more individuals, partnerships, trusts, fiduciaries, or other entities capable of contracting, except corporations and limited partnerships.", "num": "(a)"}, {"t": "p", "text": "\"Address\" means the residence or principal business address of the person.", "num": "(b)"}, {"t": "p", "text": "A charter county with a population of more than 2,000,000 may impose by ordinance a different amount for the filing fee prescribed by subsection (1). A charter county shall not impose a fee which is greater than the cost of the service for which the fee is charged.", "num": "(5)"}], "more": false, "hist": ["1907, Act 101, Eff. Sept. 28, 1907", "CL 1915, 6349", "CL 1929, 9825"]}}, "totals": {"chapters": 240, "acts": 3995, "sections": 43550}, "through": "PA 114 of 2026", "constSections": 281};
+const TOPICS = [
+  ['Forming an LLC','Formation, members and managers.','450','#5B8DEF','#A78BFA','Michigan Limited Liability Company Act'],
+  ['Your business name','Registering an assumed name (DBA).','445','#FF8C00','#D40055','Assumed or Fictitious Name'],
+  ['Minimum wage','Current rates, tipped wages, overtime.','408','#06D6A0','#00DAF3','Improved Workforce Opportunity Wage Act'],
+  ['Earned sick time','What employers must provide.','408','#00DAF3','#5B8DEF','Earned Sick Time Act'],
+  ['Sales tax','Rates, licenses and returns.','205','#FFC24B','#FF8C00','General Sales Tax Act'],
+  ['Use tax','Services, rentals, out-of-state buys.','205','#FF8C00','#FFC24B','Use Tax Act'],
+  ['Liquor licenses','Licensing and the Commission.','436','#D40055','#A78BFA','Michigan Liquor Control Code'],
+  ['Food & restaurants','Food establishment licenses.','289','#FF6B4A','#FFC24B','Food Law'],
+  ['Zoning & land use','Districts, variances, hearings.','125','#FF8C00','#5B8DEF','Michigan Zoning Enabling Act'],
+  ['Building permits','The state construction code.','125','#5B8DEF','#00DAF3','State Construction Code Act'],
+  ['Landlords & tenants','Leases and security deposits.','554','#A78BFA','#D40055','Landlord and Tenant Relationships'],
+  ['Cannabis businesses','Adult-use licensing.','333','#06D6A0','#A78BFA','Regulation and Taxation of Marihuana Act'],
+  ['Licensed trades','Barbers, builders, cosmetology.','339','#00DAF3','#06D6A0','Occupational Code'],
+  ['Consumer protection','Unfair practices and remedies.','445','#5B8DEF','#D40055','Michigan Consumer Protection Act'],
+  ['Franchises','Offering and buying a franchise.','445','#FFC24B','#06D6A0','Franchise Investment Law'],
+  ['Civil rights at work','Discrimination in jobs and service.','37','#D40055','#FF8C00','Elliott-Larsen Civil Rights Act'],
+  ['Selling fireworks','Consumer fireworks sales.','28','#FF6B4A','#D40055','Michigan Fireworks Safety Act'],
+];
+
+const SUGS = ['minimum wage', 'liquor license', 'security deposit', 'zoning', 'sales tax', 'MCL 445.1', 'freedom of speech'];
+const STOP = new Set(['the','a','an','of','and','or','to','in','for','on','my','is','law','laws','mcl','michigan']);
+const SYN = { wage: ['wage','wages'], liquor: ['liquor','alcohol','alcoholic'], license: ['license','licens','permit'], tax: ['tax','taxes'], rent: ['rent','rental','lease','landlord','tenant'], speech: ['speech','speak'], marijuana: ['marihuana'], cannabis: ['marihuana'] };
+const toks = (s) => s.toLowerCase().replace(/[^a-z0-9.\s]/g, ' ').split(/\s+/).filter((t) => t && !STOP.has(t));
+const fmt = (n) => n.toLocaleString('en-US');
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const cite = (r) => r[0].startsWith('mcl-') ? 'MCL ' + r[1] : r[1];
+const title = (s) => s.replace(/\w\S*/g, (w, i) => (i > 0 && /^(and|or|of|the|a|an|in|on|for|to|by)$/i.test(w)) ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+
+function search(q) {
+  const c = /(\d{1,3}[a-z]?\.\d+[a-z]?)/i.exec(q)?.[1];
+  const groups = toks(q).filter((t) => !/^\d+[a-z]?\.\d/.test(t)).map((t) => SYN[t] || [t]);
+  const out = [];
+  for (const r of DATA.rows) {
+    let s = 0;
+    if (c) { if (r[1] === c) s += 1000; else if (r[1].startsWith(c)) s += 300; }
+    if (groups.length) {
+      const cw = toks(r[2]), xw = toks(r[3]); let m = 0;
+      for (const g of groups) { const a = cw.some((w) => g.some((t) => w.startsWith(t))), b = xw.some((w) => g.some((t) => w.startsWith(t))); if (a || b) m++; if (a) s += 10; if (b) s += 6; }
+      if (m < groups.length) s = c && s >= 300 ? s : 0;
+    }
+    if (s > 0) out.push([s, r]);
+  }
+  return out.sort((a, b) => b[0] - a[0]).map((x) => x[1]).slice(0, 30);
+}
+
+const $q = document.getElementById('q'), $res = document.getElementById('results'), $reader = document.getElementById('reader');
+let current = 'mcl-408.934';
+function renderResults() {
+  const q = $q.value.trim();
+  const list = q ? search(q) : DATA.rows.filter((r) => DATA.secs[r[0]]);
+  if (!list.length) { $res.innerHTML = '<p class="empty">No sections in this sample match “' + esc(q) + '”. Terra searches all ' + fmt(DATA.totals.sections) + '.</p>'; return; }
+  $res.innerHTML = list.map((r) => '<button class="res" role="listitem" data-id="' + esc(r[0]) + '"' + (r[0] === current ? ' aria-current="true"' : '') + '><span class="n">' + esc(r[0].startsWith('mcl-') ? r[1] : r[1].replace(/^Const\.\s*/, '')) + '</span><span><b>' + esc(r[2]) + '</b><small>' + esc(title(r[3] || '')) + '</small></span></button>').join('');
+}
+function renderReader(id) {
+  current = id;
+  const row = DATA.rows.find((r) => r[0] === id);
+  const s = DATA.secs[id];
+  const link = '/?view=law&law=' + id;
+  if (!s) {
+    $reader.innerHTML = '<span class="cite">' + esc(cite(row)) + '</span><h3>' + esc(row[2]) + '</h3><p class="ctx">' + esc(title(row[3] || '')) + '</p>' +
+      '<p class="more">This sample page carries the full text for a handful of sections. In Terra, this one opens with its complete text, history and a link to the official page.</p>' +
+      '<div class="share-line"><span class="fineprint">Share link in Terra:</span><code>' + esc(link) + '</code></div>';
+  } else {
+    const paras = s.body.map((b) => {
+      if (b.t !== 'p') return '';
+      const txt = (b.num ? b.num + ' ' : '') + b.text;
+      const sub = /^\([a-z]{1,2}\)/.test(txt) || /^\([ivx]+\)/.test(txt);
+      return '<p' + (sub ? ' class="sub"' : '') + '>' + esc(txt) + '</p>';
+    }).join('');
+    $reader.innerHTML = '<span class="cite">' + esc(cite([id, s.num])) + '</span><h3>' + esc(s.catch) + '</h3><p class="ctx">' + esc(title(s.ctx || '')) + '</p>' +
+      '<p class="note">The heading is the Legislature\'s summary. The text below is the law.</p>' +
+      '<div class="text">' + paras + '</div>' + (s.more ? '<p class="more">Continues in Terra.</p>' : '') +
+      (s.hist && s.hist.length ? '<p class="hist">History: ' + esc(s.hist.join(' · ')) + '</p>' : '') +
+      '<div class="share-line"><span class="fineprint">Share link in Terra:</span><code>' + esc(link) + '</code></div>';
+  }
+  renderResults();
+}
+$q.addEventListener('input', renderResults);
+$res.addEventListener('click', (e) => { const b = e.target.closest('.res'); if (b) renderReader(b.dataset.id); });
+document.getElementById('sugs').innerHTML = SUGS.map((s) => '<button class="sug" type="button">' + esc(s) + '</button>').join('');
+document.getElementById('sugs').addEventListener('click', (e) => { const b = e.target.closest('.sug'); if (!b) return; $q.value = b.textContent; renderResults(); const first = search(b.textContent)[0]; if (first) renderReader(first[0]); });
+renderReader(current);
+
+document.getElementById('topics').innerHTML = TOPICS.map((t) => '<article class="topic"><div class="art" style="background:linear-gradient(135deg,' + t[3] + ',' + t[4] + ')"><span>MCL chapter</span><i>' + t[2] + '</i></div><div class="txt"><b>' + esc(t[0]) + '</b><p>' + esc(t[1]) + '</p><small>' + esc(t[5]) + '</small></div></article>').join('');
+
+const EXAMPLES = [{"name": "Village", "kind": "city", "pop": 1000, "price": 2700, "lo": 5437, "hi": 13637}, {"name": "Town", "kind": "city", "pop": 5000, "price": 3900, "lo": 15387, "hi": 38387}, {"name": "Small city", "kind": "city", "pop": 15000, "price": 6900, "lo": 27761, "hi": 62761}, {"name": "City", "kind": "city", "pop": 60000, "price": 20400, "lo": 116645, "hi": 228645}, {"name": "Large city", "kind": "city", "pop": 250000, "price": 77400, "lo": 381353, "hi": 741353}, {"name": "Detroit-size city", "kind": "city", "pop": 630000, "price": 191400, "lo": 909569, "hi": 1745569}, {"name": "County", "kind": "county", "pop": 300000, "price": 92400, "lo": 445623, "hi": 865623}, {"name": "Oakland-size county", "kind": "county", "pop": 1270000, "price": 342900, "lo": 1732712, "hi": 3336712}, {"name": "Wayne-size county", "kind": "county", "pop": 1750000, "price": 414900, "lo": 2349470, "hi": 4529470}, {"name": "Michigan-size state", "kind": "state", "pop": 10100000, "price": 1667400, "lo": 8113558, "hi": 15688558}];
+const money = (n) => n >= 1e6 ? '$' + (n / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'M' : n >= 1e4 ? '$' + Math.round(n / 1000).toLocaleString('en-US') + 'k' : '$' + Math.round(n).toLocaleString('en-US');
+const full = (n) => '$' + Math.round(n).toLocaleString('en-US');
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+const rate = (p) => 2400 + 0.30 * Math.min(p, 1e6) + 0.15 * Math.max(0, p - 1e6);
+function today(p, k) {
+  const staff = p * (k === 'state' ? 2.5 : 4) / 1000;
+  const tools = 12 * (staff * (0.3 * 23.99 + 0.25 * 18.33) + Math.max(1, Math.round(staff * 0.01)) * 99.99);
+  const civ = k === 'state' ? [0, 0] : p < 5000 ? [3000, 10000] : p < 25000 ? [8000, 25000] : p < 100000 ? [40000, 80000] : p < 500000 ? [60000, 120000] : [100000, 180000];
+  return [civ[0] + tools + 12 * staff * 14, civ[1] + tools + 12 * staff * 39, staff];
+}
+// calculator
+const $pop = document.getElementById('pop'), $r = document.getElementById('popr');
+let kind = 'city';
+const toSlider = (p) => Math.round(Math.log10(Math.max(100, p) / 100) / 5 * 1000); // 100 .. 10M
+const fromSlider = (v) => Math.round(100 * Math.pow(10, v / 1000 * 5) / (v > 600 ? 1000 : 100)) * (v > 600 ? 1000 : 100);
+function update(p) {
+  p = Math.max(0, Math.min(50e6, Math.round(p || 0)));
+  const y = rate(p), [lo, hi, staff] = today(p, kind);
+  document.getElementById('o-mo').textContent = full(y / 12);
+  document.getElementById('o-yr').textContent = full(y) + ' a year for the whole ' + (kind === 'city' ? 'city or town' : kind);
+  document.getElementById('o-res').textContent = p ? '$' + (y / p).toFixed(2) : '—';
+  document.getElementById('o-staff').textContent = Math.max(1, Math.round(staff)).toLocaleString('en-US');
+  const gb = 1000 + 50 * p / 1000; document.getElementById('o-sto').textContent = gb >= 1e6 ? (gb / 1e6).toFixed(1) + ' PB' : (gb / 1000).toFixed(gb < 1e4 ? 1 : 0) + ' TB';
+  document.getElementById('o-vid').textContent = Math.min(600, 10 + Math.floor(p / 10000)) + ' hrs';
+  document.getElementById('o-ai').textContent = Math.round(10000 + p / 10).toLocaleString('en-US');
+  document.getElementById('o-today').textContent = money(lo) + '–' + money(hi);
+  const l1 = Math.round(100 * (1 - y / lo)), l2 = Math.round(100 * (1 - y / hi));
+  document.getElementById('o-less').textContent = (l1 > 0 ? l1 : 0) + '–' + l2 + '% less';
+  document.getElementById('o-save').textContent = 'saves about ' + money(Math.max(0, lo - y)) + '–' + money(hi - y) + ' a year';
+}
+$pop.addEventListener('input', () => { const p = Number($pop.value.replace(/[^0-9]/g, '')); $r.value = toSlider(p); update(p); });
+$pop.addEventListener('blur', () => { const p = Number($pop.value.replace(/[^0-9]/g, '')); $pop.value = p.toLocaleString('en-US'); });
+$r.addEventListener('input', () => { const p = fromSlider(Number($r.value)); $pop.value = p.toLocaleString('en-US'); update(p); });
+document.getElementById('gov').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  kind = b.dataset.k;
+  for (const x of document.querySelectorAll('#gov button')) x.setAttribute('aria-checked', String(x === b));
+  update(Number($pop.value.replace(/[^0-9]/g, '')));
+});
+const PRESETS = [['Village', 'city', 1000], ['Town', 'city', 5000], ['Small city', 'city', 15000], ['Detroit', 'city', 630000], ['Wayne County', 'county', 1750000], ['Michigan', 'state', 10100000]];
+const pr = document.getElementById('presets');
+for (const [n, k, p] of PRESETS) {
+  const b = el('button', '', n); b.type = 'button';
+  b.addEventListener('click', () => { kind = k; for (const x of document.querySelectorAll('#gov button')) x.setAttribute('aria-checked', String(x.dataset.k === k)); $pop.value = p.toLocaleString('en-US'); $r.value = toSlider(p); update(p); });
+  pr.append(b);
+}
+$r.value = toSlider(5000); update(5000);
+
+// examples chart
+const plot = document.getElementById('vplot'), axis = document.getElementById('vaxis'), tip = document.getElementById('vtip');
+const MIN = 1000, MAX = 3e7, L0 = Math.log10(MIN), L1 = Math.log10(MAX);
+const pos = (v) => ((Math.log10(v) - L0) / (L1 - L0)) * 100;
+plot.replaceChildren(...EXAMPLES.map((r) => {
+  const row = el('div', 'vrow');
+  row.append(el('span', 'lab', r.name));
+  const t = el('div', 'vtrack'); t.tabIndex = 0;
+  t.setAttribute('aria-label', r.name + ', ' + r.pop.toLocaleString('en-US') + ' residents: today ' + money(r.lo) + ' to ' + money(r.hi) + ' a year; Civic Rate ' + money(r.price) + ' a year');
+  for (const g of [1e4, 1e5, 1e6, 1e7]) { const gl = el('span', 'vgrid'); gl.style.left = pos(g) + '%'; t.append(gl); }
+  const rg = el('span', 'vrange'); rg.style.left = pos(r.lo) + '%'; rg.style.width = (pos(r.hi) - pos(r.lo)) + '%';
+  const dot = el('span', 'vdot'); dot.style.left = pos(r.price) + '%';
+  const v1 = el('span', 'vval', money(r.price)); v1.style.right = (100 - pos(r.price) + 2) + '%';
+  t.append(rg, dot, v1);
+  const show = () => {
+    tip.replaceChildren(el('div', 't', r.name + ' · ' + r.pop.toLocaleString('en-US') + ' residents'));
+    const line = (c, n, v) => { const d = el('div', 'r'); const s = el('span'); const k = el('i', 'k'); k.style.background = c; s.append(k, document.createTextNode(n)); d.append(s, el('b', '', v)); return d; };
+    tip.append(line('var(--c-today)', 'Today', money(r.lo) + '–' + money(r.hi)), line('var(--c-plajah)', 'Civic Rate', money(r.price)), line('transparent', 'Less', Math.round(100 * (1 - r.price / r.lo)) + '–' + Math.round(100 * (1 - r.price / r.hi)) + '%'));
+    tip.hidden = false;
+    const fr = plot.parentElement.getBoundingClientRect(), tr = t.getBoundingClientRect();
+    tip.style.left = Math.min(Math.max(8, tr.left - fr.left + tr.width * pos(r.hi) / 100 - 110), fr.width - 230) + 'px';
+    tip.style.top = (tr.bottom - fr.top + 6) + 'px';
+  };
+  t.addEventListener('pointerenter', show); t.addEventListener('focus', show);
+  t.addEventListener('pointerleave', () => { tip.hidden = true; }); t.addEventListener('blur', () => { tip.hidden = true; });
+  row.append(t);
+  return row;
+}));
+axis.replaceChildren(...[1e4, 1e5, 1e6, 1e7].map((g) => { const s = el('span', '', money(g)); s.style.left = pos(g) + '%'; return s; }));
+const tb = document.getElementById('vtable');
+const thead = el('thead'), hr = el('tr'); for (const h of ['Example', 'Residents', 'Civic Rate / yr', 'Per month', 'Per resident', 'Today (est.)', 'Less']) hr.append(el('th', '', h)); thead.append(hr);
+const tbody = el('tbody');
+for (const r of EXAMPLES) { const tr = el('tr'); for (const c of [r.name, r.pop.toLocaleString('en-US'), full(r.price), full(r.price / 12), '$' + (r.price / r.pop).toFixed(2), money(r.lo) + '–' + money(r.hi), Math.round(100 * (1 - r.price / r.lo)) + '–' + Math.round(100 * (1 - r.price / r.hi)) + '%']) tr.append(el('td', '', c)); tbody.append(tr); }
+tb.replaceChildren(thead, tbody);
+
+
+
+// Illustration: a block of parcels shaded by change in buildable area (seeded, not real data).
+(function drawParcels() {
+  const c = document.getElementById('parcels'); if (!c) return;
+  const x = c.getContext('2d'); const W = c.width, H = c.height;
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  x.fillStyle = '#0b0a12'; x.fillRect(0, 0, W, H);
+  const streets = [150, 300, 450];
+  x.fillStyle = '#17142280';
+  for (const sy of streets) x.fillRect(0, sy - 9, W, 18);
+  x.fillRect(395, 0, 22, H);
+  x.strokeStyle = '#2a2440'; x.lineWidth = 1;
+  const rows = [[12, 132], [162, 282], [312, 432], [462, 588]];
+  rows.forEach(([y0, y1], ri) => {
+    for (const [x0, x1] of [[12, 386], [426, 788]]) {
+      let px = x0;
+      while (px < x1 - 10) {
+        const w = Math.min(x1 - px, 34 + Math.floor(rnd() * 30));
+        const corridor = ri === 1 || ri === 2;
+        const r = rnd();
+        let fill = '#2a2440';
+        if (corridor && r < 0.62) fill = '#06D6A0'; else if (!corridor && r < 0.12) fill = '#D40055'; else if (corridor && r < 0.7) fill = '#D40055';
+        x.globalAlpha = fill === '#2a2440' ? 1 : 0.35 + rnd() * 0.55;
+        x.fillStyle = fill; x.fillRect(px + 2, y0 + 2, w - 4, (y1 - y0) / 2 - 4);
+        x.fillRect(px + 2, y0 + (y1 - y0) / 2 + 2, w - 4, (y1 - y0) / 2 - 4);
+        x.globalAlpha = 1;
+        x.strokeRect(px + 2.5, y0 + 2.5, w - 5, (y1 - y0) / 2 - 5);
+        x.strokeRect(px + 2.5, y0 + (y1 - y0) / 2 + 2.5, w - 5, (y1 - y0) / 2 - 5);
+        px += w;
+      }
+    }
+  });
+  x.font = '600 15px Inter, system-ui, sans-serif'; x.fillStyle = '#b9b2cc';
+  x.fillText('Proposed mixed-use corridor', 24, 300 + 5);
+})();
+</script>
