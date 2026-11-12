@@ -204,7 +204,8 @@ export class Forest {
   }
 
   /** Full 3D trees (near the road). `mix` weights species when a spot doesn't name one. */
-  plant(spots: TreeSpot[], weights: Partial<Record<Species, number>>, seed = 1) {
+  /** `near`: full 3D inside this distance (default Forest.nearDist); a dense wood uses less (its impostors take over). */
+  plant(spots: TreeSpot[], weights: Partial<Record<Species, number>>, seed = 1, near = Forest.nearDist) {
     const R = rng(seed);
     const pick = (): Species => {
       const tot = SPECIES.reduce((s, k) => s + (weights[k] ?? 0), 0);
@@ -230,7 +231,7 @@ export class Forest {
       (byVariant.get(v) ?? byVariant.set(v, []).get(v)!).push(m);
       lod.push({ p: s.p, h: sc / 1.0, species: sp, variant: this.variants.indexOf(v) });
     }
-    if (Forest.nearDist < Infinity && lod.length) this.far.push({ spots: lod, species: ['pine'], minD: Forest.nearDist });
+    if (near < Infinity && lod.length) this.far.push({ spots: lod, species: ['pine'], minD: near });
     for (const [v, ms] of byVariant) {
       const add = (geo: THREE.BufferGeometry, mat: THREE.Material) => {
         const im = new THREE.InstancedMesh(geo, mat, ms.length);
@@ -246,7 +247,7 @@ export class Forest {
         this.group.add(pre);
         set.push(leaves, pre);
       }
-      this.track(set, ms, 0, Forest.nearDist);
+      this.track(set, ms, 0, near);
       this.stats.nearTris += v.tris * ms.length;
       this.stats.nearInstances += ms.length;
     }

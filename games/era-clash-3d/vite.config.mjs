@@ -24,6 +24,17 @@ const capturePlugin = {
         res.end('ok');
       });
     });
+    // POST /__mapdoc?f=png|md → docs/era-clash-3d-map.{png,md} (eraclash3d.mapDoc(): the map written from the running game)
+    server.middlewares.use('/__mapdoc', (req, res) => {
+      const f = new URL(req.url, 'http://x').searchParams.get('f') === 'md' ? 'md' : 'png';
+      let body = '';
+      req.on('data', (c) => { body += c; });
+      req.on('end', () => {
+        const out = path.resolve(here, '../../docs', `era-clash-3d-map.${f}`);
+        fs.writeFileSync(out, f === 'md' ? body : Buffer.from(body.replace(/^data:image\/\w+;base64,/, ''), 'base64'));
+        res.end('ok');
+      });
+    });
   },
 };
 

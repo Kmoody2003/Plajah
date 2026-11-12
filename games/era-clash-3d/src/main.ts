@@ -21,6 +21,9 @@ import { Quests } from './quests';
 import { OTSU } from './otsu';
 import { CANAL } from './chapter1';
 import { Rafts } from './raft';
+import { WorldMap } from './worldMap';
+import { COAST_DZ } from './river';
+import { cityPlaces, PLANNED } from './places';
 import { uvMaterial } from './core/materials';
 import { Forest } from './core/forest';
 import { Binds, openBindEditor, type Action } from './binds';
@@ -114,7 +117,7 @@ scene.add(villagers.group);
 const SAFETY = new THREE.Vector3(roadX(62), world.heightAt(roadX(62), 62), 62);
 // the townsfolk going about their day until the raiders come (townsfolk.ts)
 const townsfolk = new Townsfolk({ heightAt: world.heightAt, roadX, plaza: { x: roadX(OTSU.plaza.z), z: OTSU.plaza.z, r: OTSU.plaza.r }, safety: SAFETY, wallZ: OTSU.wallZ,
-  quay: { x0: -47, x1: -13, z: -66.5, top: 1.45 } });
+  quay: { x0: -47, x1: -13, z: -66.5 + COAST_DZ, top: 1.45 } });
 scene.add(townsfolk.group);
 void townsfolk.dress();
 const _threats: THREE.Vector3[] = [];
@@ -702,6 +705,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Escape') { if (editor?.listening) return; if (mode === 'play') setPaused(!paused); return; }
   if (e.repeat) return;
   if (e.code === 'KeyT' && mode === 'play' && !binds.actionsFor(e.code).length) { quests?.cycle(); return; }
+  if (e.code === 'KeyM' && mode === 'play' && !paused && !binds.actionsFor(e.code).length) { worldMap.toggle(); if (worldMap.open) document.exitPointerLock?.(); return; }
   const acts = binds.actionsFor(e.code);
   if (acts.length && mode === 'play') e.preventDefault();
   acts.forEach(press);
@@ -792,7 +796,7 @@ addEventListener('resize', resize); resize();
 const ZERO = new THREE.Vector3();
 
 function tick(rawDt: number) {
-  if (paused) return;
+  if (paused || worldMap?.open) return;
   let dt = rawDt;
   if (hitstop > 0) { hitstop -= rawDt; dt = rawDt * 0.05; }
   if (slowmo > 0) { slowmo -= rawDt; dt *= 0.35; }
@@ -944,6 +948,7 @@ renderer.setAnimationLoop(() => {
   }
   tick(Math.min(raw, 0.05));
   if (mode !== 'story') { hud(); labels(); }
+  worldMap.update();
   $('flash').style.opacity = String(Math.max(0, flashT -= raw) * 3);
   camHold?.();
   world.forest.cull(camera);   // after any camera change this frame: the trees drawn match the view rendered
@@ -974,7 +979,7 @@ const qSpots = (() => {
   const o = world.otsu.spots, pz = { x: roadX(OTSU.plaza.z), z: OTSU.plaza.z };
   const at = (x: number, z: number) => new THREE.Vector3(x, world.heightAt(x, z), z);
   return {
-    beach: at(2, -74), gate: at(roadX(OTSU.wallZ), OTSU.wallZ), plaza: at(pz.x, pz.z),
+    beach: at(2, -74 + COAST_DZ), gate: at(roadX(OTSU.wallZ), OTSU.wallZ), plaza: at(pz.x, pz.z),
     boats: o.boats, magistrate: o.magistrate,
     broker: at(pz.x + 5.0, pz.z - 2.4), strongbox: at(roadX(34) + 11.7, 34),
     otemon: o.otemon, forecourt: o.forecourt,
@@ -1002,6 +1007,16 @@ const quests: Quests = new Quests({
   douse: (i) => { const f = world.boatFires[i]; if (f) f.group.visible = false; },
   douseSignal: () => { world.signalFire.group.visible = false; },
 }, qSpots);
+// ── The map (worldMap.ts, places.ts): M opens it; drawn from the live world, labelled from cityPlaces() ─────────
+const worldMap = new WorldMap({
+  heightAt: world.heightAt, water: world.water, footprints: world.footprints, road: roadX, roadSpan: [-470, OTSU.otemonZ], trees: world.treeSpots,
+  places: () => cityPlaces({ ...qSpots, landings: world.landings, rafts: world.rafts, bridges: world.bridges, river: world.river }),
+  live: {
+    hero: () => ({ x: player.object.position.x, z: player.object.position.z, yaw: player.yaw }),
+    rafts: () => rafts.list.map((r, i) => ({ x: r.pos.x, z: r.pos.z, yaw: r.yaw, riding: i === rafts.riding })),
+    quests: () => quests.mapPoints(),
+  },
+});
 function questTick(dt: number) {
   quests.update(dt);
   // the shut gate: nobody passes until it opens (then the leaves swing in over a second and a half)
@@ -1051,6 +1066,17 @@ let camHold: (() => void) | null = null;
   useCapture, mocapMoves,
   strike, superMove, roll, grabOrThrow, props, villagers, setStance, binds, spawnFoe, lockedOn: () => lock, player, camera, scene, world, enemies, allies, strikeLog,
   warp(z: number) { const x = roadX(z); player.teleport(new THREE.Vector3(x, world.heightAt(x, z), z), 0); allies.forEach((a, i) => a.object.position.set(x + (i ? 2 : -2), world.heightAt(x, z), z - 2)); },
+  worldMap, rafts,
+  /** Dev: write docs/era-clash-3d-map.png + .md from the running game (the vite dev server saves them). */
+  async mapDoc() {
+    const places = cityPlaces({ ...qSpots, landings: world.landings, rafts: world.rafts, bridges: world.bridges, river: world.river }).filter((p) => p.kind !== 'travel' && p.kind !== 'quest');
+    const near = (v: THREE.Vector3) => places.reduce((b, p) => (Math.hypot(p.x - v.x, p.z - v.z) < Math.hypot(b.x - v.x, b.z - v.z) ? p : b)).name;
+    const quests2 = quests.route().map((q) => ({ title: `${q.main ? '◆' : '◇'} ${q.title}`, where: [...new Set(q.at.map(near))].join(' → ') || 'across the town (no single place)' }));
+    const { png, md } = worldMap.exportDoc({ quests: quests2, planned: PLANNED });
+    await fetch('/__mapdoc?f=png', { method: 'POST', body: png });
+    await fetch('/__mapdoc?f=md', { method: 'POST', body: md });
+    return { pngBytes: png.length, md: md.length };
+  },
   async capture(name: string) {
     post.pipeline.render();
     const url = renderer.domElement.toDataURL('image/jpeg', 0.88);
