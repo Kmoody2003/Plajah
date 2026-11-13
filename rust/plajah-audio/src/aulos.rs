@@ -390,8 +390,10 @@ impl AulosVoice {
         let len = C_AIR * period / sr * if w.bore == BORE_CYL { 0.5 } else { 1.0 };
         pl.apex_k = if w.bore == BORE_CONE { C_AIR / w.apex.max(0.005) } else { 0.0 };
         let alpha = 3.0e-5 * f.sqrt() / w.bore_r;
-        let g = (-alpha * len).exp().min(0.998);
-        let pd = onepole_pd(0.05, wv) + 2.0 * onepole_pd(pl.lat_b, wv);
+        let fh = (8.0 * f).min(0.3 * sr);
+        let alpha_h = 3.0e-5 * fh.sqrt() / w.bore_r;
+        let (g, lb) = crate::perform::fit_onepole((-alpha * len).exp().min(0.998), (-alpha_h * len).exp(), wv, TAU * fh / sr);
+        let pd = onepole_pd(lb, wv) + 2.0 * onepole_pd(pl.lat_b, wv);
         // Closed–open cylinder: f = c/4L → round trip half a period. Open–open: a period. A
         // truncated cone resonates at n·c/2(L + x₀): the round trip is a period less the apex.
         let loop_d = match w.bore {
@@ -401,7 +403,7 @@ impl AulosVoice {
         };
         let read = (loop_d - pd - 1.0).max(2.0);
         pl.bore.g = g;
-        pl.bore.b = 0.05;
+        pl.bore.b = lb;
         pl.bore.nap = 0;
         pl.bore.pd = 0.0;
         if self.t == 0 {
@@ -943,29 +945,30 @@ mod probe {
     #[ignore]
     fn aulos_probe() {
         let sr = 48000.0;
-        for &(inst, n) in &[(3usize, 67.0f32), (10, 61.0)] {
-          for &sign in &[-1.0f32, 1.0] {
-            for &gk in &[0.6f32, 1.0, 1.5] {
-              for &hk in &[0.5f32, 1.0, 2.0] {
-                let mut p = Params::new();
-                p.set(AULOS_BASE + AU_ENABLE, 1.0);
-                let mut v = AulosVoice::new(sr);
-                let mut rng = Rng(99);
-                v.role = Role { inst, section: 0, players: 1 };
-                v.trigger(midi_to_hz(n), 0.6, &p, &mut rng);
-                {
-                    let pl = &mut v.players[0];
-                    pl.sign = sign; pl.p_target *= gk; pl.h0 *= hk; pl.k_r /= hk;
-                    if sign < 0.0 { let per = pl.period; pl.bore.target = (0.5*per - 3.0).max(2.0); pl.bore.period = pl.bore.target; }
+        for &(inst, n) in &[(10usize, 61.0f32), (3, 67.0)] {
+            for &ak in &[0.0f32, 0.5, 1.0, 2.0] {
+                for &gk in &[0.8f32, 1.0, 1.3] {
+                    for &hk in &[0.6f32, 1.0, 1.6] {
+                        let mut p = Params::new();
+                        p.set(AULOS_BASE + AU_ENABLE, 1.0);
+                        let mut v = AulosVoice::new(sr);
+                        let mut rng = Rng(99);
+                        v.role = Role { inst, section: 0, players: 1 };
+                        v.trigger(midi_to_hz(n), 0.6, &p, &mut rng);
+                        {
+                            let pl = &mut v.players[0];
+                            pl.apex_k *= ak; pl.p_target *= gk; pl.h0 *= hk; pl.k_r /= hk;
+                        }
+                        let mut x = Vec::new();
+                        for _ in 0..(0.8 * sr) as usize { let (l, r) = v.render_sample(1.0, 0.0, &mut rng); x.push(0.5 * (l + r)); }
+                        let y = &x[(0.4 * sr) as usize..];
+                        let rm = (y.iter().map(|q| q * q).sum::<f32>() / y.len() as f32).sqrt();
+                        // zero crossings → rough f
+                        let zc = y.windows(2).filter(|w| w[0] <= 0.0 && w[1] > 0.0).count() as f32 / 0.4;
+                        if rm > 1e-4 { println!("{} apex×{} γ×{} h0×{}: rms {:.4} zc {:.0} Hz (want {:.0}) y {:.2e}", INSTRUMENT_NAMES[inst], ak, gk, hk, rm, zc, midi_to_hz(n), v.players[0].y); }
+                    }
                 }
-                let mut x = Vec::new(); let mut pin_max = 0.0f32;
-                for _ in 0..(0.8*sr) as usize { let (l, r) = v.render_sample(1.0, 0.0, &mut rng); x.push(0.5*(l+r)); pin_max = pin_max.max(v.players[0].dc.abs()); }
-                let y = &x[(0.4*sr) as usize..];
-                let rm = (y.iter().map(|q| q*q).sum::<f32>()/y.len() as f32).sqrt();
-                println!("{} sign {} γ×{} h0×{}: rms {:.4} y {:.2e} dc {:.0} slot {:.2}", INSTRUMENT_NAMES[inst], sign, gk, hk, rm, v.players[0].y, pin_max, v.players[0].slot_k);
-              }
             }
-          }
         }
     }
 }

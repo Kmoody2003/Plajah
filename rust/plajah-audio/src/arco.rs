@@ -246,6 +246,9 @@ struct Player {
     trem_rate: f32,
     touch_m: usize,
     noise_lp: f32,
+    bow_h: usize,
+    bow_w: [f32; 5],
+    bow_sw2: f32,
     // the player's life: slow wander of bow pressure/speed and pitch, a living vibrato
     wander_a: Wander,
     wander_p: Wander,
@@ -302,6 +305,9 @@ impl Player {
             trem_rate: 0.0,
             touch_m: 0,
             noise_lp: 0.0,
+            bow_h: 0,
+            bow_w: [1.0, 0.0, 0.0, 0.0, 0.0],
+            bow_sw2: 1.0,
             wander_a: Wander::new(3000.0),
             wander_p: Wander::new(3000.0),
             vib: Vibrato::default(),
@@ -637,6 +643,20 @@ impl ArcoVoice {
             pl.vib_depth = 1.0 + rng.bipolar() * 0.4 * (0.3 + vib_spread) * hum;
             pl.vib_delay = 0.12 + rng.next_f32() * 0.25;
             pl.vib.start(pl.vib_rate, 1.0, rng);
+            // Bow width: ~10 mm of hair on the string, in samples of string.
+            let taps = ((0.010 / (spec.c / sr)).round() as usize).clamp(1, 5) | 1;
+            pl.bow_h = taps / 2;
+            let mut ws = [0.0f32; 5];
+            let mut sum = 0.0;
+            for j in 0..taps {
+                ws[j] = (PI * (j as f32 + 1.0) / (taps as f32 + 1.0)).sin().powi(2);
+                sum += ws[j];
+            }
+            for w in ws.iter_mut() {
+                *w /= sum;
+            }
+            pl.bow_w = ws;
+            pl.bow_sw2 = ws.iter().map(|w| w * w).sum::<f32>().max(1e-6);
             pl.wander_a = Wander::new(sr / 16.0);
             pl.wander_p = Wander::new(sr / 16.0);
             pl.wander_a.reset(rng);
@@ -670,7 +690,8 @@ impl ArcoVoice {
             for (i, &(mf, q, mg)) in fd.modes.iter().take(MAX_MODES).enumerate() {
                 let spread = if rep > 1 || k > 0 { 1.0 + rng.bipolar() * 0.035 } else { 1.0 };
                 let mute_k = if mf > 500.0 { 1.0 - 0.25 * mute } else { 1.0 };
-                pl.modes[i] = Bp::new(mf * spread, q, sr);
+                // Wood is lossy: in-loop body modes at ~0.75 of the measured upper-bound Q.
+                pl.modes[i] = Bp::new(mf * spread, q * 0.75, sr);
                 pl.mode_g[i] = mg * mute_k * (1.0 + rng.bipolar() * 0.1 * (rep > 1) as u8 as f32);
                 gsum += pl.mode_g[i];
             }
@@ -902,17 +923,26 @@ impl ArcoVoice {
                         }
                     }
                 }
-                // Hair and rosin grain.
+                // Hair: a little grain in the pressure (the rosin's grain is in the slip, below).
                 pl.noise_lp += (rng.bipolar() - pl.noise_lp) * 0.2;
-                fnorm *= 1.0 + 0.03 * pl.noise_lp;
+                fnorm *= 1.0 + 0.015 * pl.noise_lp;
                 if fnorm > 1e-6 {
                     let z_t = pl.spec.z0;
                     let (z_eff, share_t) = if pl.torsion { (z_t * pl.kappa / (1.0 + pl.kappa), pl.kappa / (1.0 + pl.kappa)) } else { (z_t, 1.0) };
-                    let k = fnorm / (2.0 * z_eff);
+                    // The bow is a ribbon of hair ~10 mm wide: its force spreads over a few samples of
+                    // string (Hann weights), which rounds the Helmholtz corner as a real bow does —
+                    // a one-point bow gives a glassy, metallic edge. The friction acts on the
+                    // weighted mean velocity, which sees the impedance Z/Σw².
+                    let k = fnorm * pl.bow_sw2 / (2.0 * z_eff);
                     // The returning wave at the bow sits at the loop's true round trip minus m —
                     // fractional, so a gliding finger or vibrato moves it smoothly instead of in
                     // whole-sample jumps (each jump was a velocity step that broke the stick-slip).
-                    let (vh, a, bt) = (back_vel(&pl.tl, m_t), m_t, back_pos(&pl.tl, m_t));
+                    let hw = pl.bow_h.min(m_t.saturating_sub(1));
+                    let mut vh = 0.0;
+                    for j in 0..=2 * hw {
+                        let m = m_t + j - hw;
+                        vh += pl.bow_w[j + pl.bow_h - hw] * back_vel(&pl.tl, m);
+                    }
                     let (vr, ra, rb) = if pl.torsion {
                         let nr = (pl.rl.period * 0.5) as usize;
                         let m = pl.m_r.min(nr.saturating_sub(1)).max(1);
@@ -930,7 +960,9 @@ impl ArcoVoice {
                         let sgn = rel.signum();
                         let aa = rel.abs();
                         let v0 = 0.1;
-                        let bq = v0 - aa + k * mu_d;
+                        // Rosin grain: while the hair slips, the friction fluctuates.
+                        let md = mu_d * (1.0 + 0.3 * rng.bipolar());
+                        let bq = v0 - aa + k * md;
                         let cq = v0 * (k * ms - aa);
                         let x = (-bq + (bq * bq - 4.0 * cq).max(0.0).sqrt()) * 0.5;
                         vb_bow + sgn * x.max(0.0)
@@ -939,7 +971,12 @@ impl ArcoVoice {
                     let slip = (v - vb_bow).abs();
                     // Heat from slipping, cooling back toward ambient in a few ms.
                     pl.theta += (slip / v_tgt.max(0.02) * 0.5 - pl.theta) * (dt / 0.003);
-                    kick_frac(&mut pl.tl, a, bt, dv * share_t);
+                    for j in 0..=2 * hw {
+                        let m = m_t + j - hw;
+                        let wj = pl.bow_w[j + pl.bow_h - hw] / pl.bow_sw2;
+                        let bt = back_pos(&pl.tl, m);
+                        kick_frac(&mut pl.tl, m, bt, dv * share_t * wj);
+                    }
                     if pl.torsion {
                         kick_frac(&mut pl.rl, ra, rb, dv * (1.0 - share_t));
                     }
@@ -1174,7 +1211,7 @@ impl ArcoRack {
                 f_hi: 14000.0,
                 density: fd.density,
                 density_exp: 0.6,
-                eta: fd.eta,
+                eta: fd.eta * 1.35,
                 eta_slope: 0.25,
                 floor: fd.floor * (1.0 - 0.35 * mute),
                 peaks: &peaks,

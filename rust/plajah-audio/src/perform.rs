@@ -86,3 +86,30 @@ impl Vibrato {
         (self.depth * (1.0 + self.depth_w) * env * shape, shape)
     }
 }
+
+/// Fit a one-pole loss filter y = g((1−b)x + b·y₁) to round-trip gains `g1` at ω₁ and `gh` at ω_h
+/// (gh < g1: the highs lose more), returning (g, b). Used for air columns, whose wall losses grow
+/// as √f — a flat loss leaves the upper resonances too sharp, and that rings metallic.
+pub fn fit_onepole(g1: f32, gh: f32, w1: f32, wh: f32) -> (f32, f32) {
+    let target = (gh / g1).clamp(0.0, 1.0);
+    let ratio = |b: f32| ((1.0 - 2.0 * b * w1.cos() + b * b) / (1.0 - 2.0 * b * wh.cos() + b * b)).sqrt();
+    let mut b = 0.0;
+    if target < 0.9999 {
+        let (mut lo, mut hi) = (0.0f32, 0.95f32);
+        if ratio(hi) > target {
+            b = hi;
+        } else {
+            for _ in 0..40 {
+                let mid = 0.5 * (lo + hi);
+                if ratio(mid) > target {
+                    lo = mid;
+                } else {
+                    hi = mid;
+                }
+            }
+            b = 0.5 * (lo + hi);
+        }
+    }
+    let g = (g1 * (1.0 - 2.0 * b * w1.cos() + b * b).sqrt() / (1.0 - b)).min(0.9995);
+    (g, b)
+}

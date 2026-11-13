@@ -539,16 +539,19 @@ impl CornuVoice {
         // ratio up to 8 kHz the low-pass. (Kirchhoff: α ≈ 3·10⁻⁵ √f / r nepers/m.)
         let len = C_AIR * period / sr; // round-trip length (m)
         let alpha = |f: f32| 3.0e-5 * f.sqrt() / b.bore_r * b.loss;
-        let g = (-alpha(f_note) * len).exp().min(0.999);
+        // Fit the loss filter to α(f) at the note and three octaves up, so the upper resonances are
+        // as broad as a real bore's (a flat loss left them sharp — a metallic ring).
+        let fh = (8.0 * f_note).min(0.3 * sr);
         let w = TAU * f_note / sr;
-        let pd = filters_pd(pl.bell_b, &pl.mp, pl.mp_g, w) + onepole_pd(0.05, w);
+        let (g, lb) = crate::perform::fit_onepole((-alpha(f_note) * len).exp().min(0.999), (-alpha(fh) * len).exp(), w, TAU * fh / sr);
+        let pd = filters_pd(pl.bell_b, &pl.mp, pl.mp_g, w) + onepole_pd(lb, w);
         // The steepening line takes a share of the outgoing path.
         let share = (b.nl_len / (len * 0.5)).clamp(0.05, 0.6);
         let d_nl = ((period * 0.5 * share).max(2.0)).min((pl.nl.len() / 2 - 8) as f32);
         pl.nl_d0 = d_nl;
         let read = (period - pd - d_nl - 1.0).max(2.0);
         pl.bore.g = g;
-        pl.bore.b = 0.05;
+        pl.bore.b = lb;
         pl.bore.nap = 0;
         pl.bore.pd = 0.0;
         pl.target_period = read;
