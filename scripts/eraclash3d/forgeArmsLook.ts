@@ -86,14 +86,15 @@ export function armsLook(look: ArmLook): { materials: GMaterial[]; images: Uint8
       const g = fbm(a * 9 + (x >= BW / 2 ? 50 : 0), t * 70, 5);
       const grain = Math.sin((g * 6 + a * 3) * Math.PI * 2) * 0.5 + 0.5;
       let c: RGB, rough: number, h = grain * 0.15, metalness = 1;
-      if (a > 0.78) { const k = 0.8; c = [steel[0] * k, steel[1] * k, steel[2] * k]; rough = 0.07; h = 0; } // shinogi-ji: burnished
+      if (a > 0.78) { const k = 0.8; c = [steel[0] * k, steel[1] * k, steel[2] * k]; rough = 0.17; h = 0; } // shinogi-ji: burnished
       else {
         // across the line: nioi, a soft misty transition; nie: bright crystals scattered along it
         const s = (hl - a) / 0.025, w = 1 / (1 + Math.exp(-s * 2.2));
         const nie = Math.abs(a - hl) < 0.05 && hash(x * 1.7, y * 3.1) > 0.965 ? 0.12 : 0;
         const ji = 0.92 + grain * 0.08;
         c = [steel[0] * ji * (1 - w) + ha[0] * w + nie, steel[1] * ji * (1 - w) + ha[1] * w + nie, steel[2] * ji * (1 - w) + ha[2] * w + nie];
-        rough = 0.11 * (1 - w) + 0.36 * w + (nie ? -0.1 : 0);
+        // (a near-mirror catches the sun hot enough to flood the bloom: in a game a polish glints at about 0.2)
+        rough = 0.2 * (1 - w) + 0.38 * w + (nie ? -0.08 : 0);
         // the hardened band reads milky white, not mirror: its martensite scatters light, and the polisher's hazuya
         // stones frost it on purpose so the hamon shows against the dark mirror of the ji
         metalness = 1 - 0.5 * w;
@@ -105,7 +106,7 @@ export function armsLook(look: ArmLook): { materials: GMaterial[]; images: Uint8
     }
   }
   const asPng = (buf: Uint8Array, w: number, h: number) => png(w, h, (x, y) => { const i = (y * w + x) * 3; return [buf[i], buf[i + 1], buf[i + 2]]; });
-  const blade: GMaterial = { name: 'blade', color: [1, 1, 1, 1], metallic: 1, roughness: 1, baseColorTexture: img(asPng(base, BW, BH)), ormTexture: img(asPng(orm, BW, BH)), normalTexture: img(normals(BW, BH, height, 1.2)), normalScale: 0.25, doubleSided: true, anisotropy: { strength: 0.35, rotation: Math.PI / 2 } };
+  const blade: GMaterial = { name: 'blade', color: [1, 1, 1, 1], metallic: 1, roughness: 1, baseColorTexture: img(asPng(base, BW, BH)), ormTexture: img(asPng(orm, BW, BH)), normalTexture: img(normals(BW, BH, height, 1.2)), normalScale: 0.25, doubleSided: true };
 
   // ---- same: nodules (square tile, one round of the grip) -------------------------------------------------------------
   const N = 256;

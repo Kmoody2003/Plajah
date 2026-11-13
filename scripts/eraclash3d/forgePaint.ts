@@ -31,7 +31,7 @@ export interface PaintCtx {
 
 /** Meshes painted: everything the turnaround draws — clothes, armour, skin, scalp and face (FORGE_PAINT_SKIP narrows it). */
 const PAINT_NODES = /_(cloth|armour|head|body)$/;
-const SKIP_MATERIALS = new RegExp(`^(${process.env.FORGE_PAINT_SKIP ?? 'hairCards'})$`);
+const SKIP_MATERIALS = new RegExp(`^(${process.env.FORGE_PAINT_SKIP ?? 'hairCards|sageo'})$`);
 
 export async function paintFromSheet(c: PaintCtx) {
   const g = c.gltf;

@@ -1,37 +1,37 @@
 # Haru: Forge report
 
-2026-11-13 06:11 · spec `scripts/eraclash3d/characters/haru/forge.json` · character `public/games/era-clash/3d/assets/characters/samurai_v3.glb` · kit `public/games/era-clash/3d/assets/props/haru`
+2026-11-13 07:00 · spec `scripts/eraclash3d/characters/haru/forge.json` · character `public/games/era-clash/3d/assets/characters/samurai_v3.glb` · kit `public/games/era-clash/3d/assets/props/haru`
 
 ## Against the gates
 
 | Gate | Target | Now | |
 |---|---|---|---|
-| Overall (shape and colour, every view) | 95% | 84.5% | **10 short** |
-| Head (outline overlap, mean of views) | 85% | 86.3% | pass |
-| Every part (overlap with the art's own part) | 80% | weakest sword 46.0% | **34 short** |
+| Overall (shape and colour, every view) | 95% | 83.8% | **11 short** |
+| Head (outline overlap, mean of views) | 85% | 83.1% | **2 short** |
+| Every part (overlap with the art's own part) | 80% | weakest sword 51.4% | **29 short** |
 
 ## By view
 
 | View | Shape | Colour | Head IoU | Torso IoU | Legs IoU |
 |---|---|---|---|---|---|
-| front | 84.7% | 83.0% | 0.901 | 0.881 | 0.866 |
-| side | 78.5% | 87.6% | 0.798 | 0.902 | 0.839 |
-| back | 84.4% | 88.4% | 0.889 | 0.875 | 0.869 |
+| front | 82.5% | 83.7% | 0.858 | 0.903 | 0.853 |
+| side | 77.8% | 87.7% | 0.795 | 0.886 | 0.839 |
+| back | 81.8% | 89.5% | 0.84 | 0.897 | 0.853 |
 
 ## By part (weakest first)
 
 | Part | IoU | Front / side / back | Colour ΔE | Gate |
 |---|---|---|---|---|
-| sword | 46.0% | 39 / 50 / 51 | 19.3 | **34 short** |
-| arms | 53.8% | 49 / 62 / 55 | 3.4 | **26 short** |
-| feet | 56.0% | 54 / 59 / 16 | 4.8 | **24 short** |
-| obi | 58.9% | 38 / 49 / 78 | 4.3 | **21 short** |
-| kusazuri | 67.0% | 64 / 58 / 74 | 5.5 | **13 short** |
-| sode | 69.7% | 44 / 82 / 48 | 7.3 | **10 short** |
-| do | 70.0% | 64 / 64 / 78 | 8.6 | **10 short** |
-| shins | 74.3% | 70 / 72 / 79 | 3.1 | **6 short** |
-| hakama | 75.0% | 76 / 71 / 77 | 2.6 | **5 short** |
-| head | 77.4% | 81 / 76 / 76 | 8.6 | **3 short** |
+| sword | 51.4% | 40 / 56 / 53 | 17.2 | **29 short** |
+| feet | 55.2% | 60 / 51 / 18 | 5.3 | **25 short** |
+| arms | 57.8% | 54 / 61 / 60 | 3.4 | **22 short** |
+| obi | 58.0% | 40 / 41 / 79 | 4.3 | **22 short** |
+| kusazuri | 62.0% | 54 / 57 / 70 | 5.2 | **18 short** |
+| sode | 64.5% | 39 / 75 / 48 | 7.3 | **16 short** |
+| hakama | 67.6% | 65 / 71 / 69 | 2.6 | **12 short** |
+| do | 67.7% | 64 / 60 / 74 | 7.8 | **12 short** |
+| head | 75.4% | 81 / 71 / 76 | 8.8 | **5 short** |
+| shins | 75.6% | 73 / 73 / 80 | 3.1 | **4 short** |
 
 ## Who the Forge built
 

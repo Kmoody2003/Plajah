@@ -264,25 +264,67 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
   // Offsets are in the body frame (x out to the side being built, y up, z forward), metres at 1.74 m.
   const muscles: HumanMuscle[] = [];
   const parts: BodyPart[] = [];
-  const muscleScale = mix(0.82, 1.12, M);
-  const at = (j: HumanJoint, o: Vec3, s: HumanSide | null): Vec3 => add(J[j], s === 'Right' ? mirror(P(...o)) : P(...o));
+  // a lean man's muscle is a third again a sedentary one's in girth: the slider reaches that far now (it stopped at 1.12)
+  const muscleScale = mix(0.8, 1.38, M);
+  // Offsets are written as if the limb hung straight down (y down the limb, x out, z forward). The body is built in an
+  // A-pose, arms 48° out: an arm muscle's offsets are turned into its bone's own frame, or its ends land in the ribcage
+  // and the belly stretches across the gap to the arm (the spikes under the arms)
+  const ARM_CHAIN = /(Arm|ArmTwist|ForeArm|ForeArmTwist|Hand)$/;
+  const limbFrame = (j: HumanJoint, o: Vec3): Vec3 => {
+    if (!ARM_CHAIN.test(j) || /^(Left|Right)Shoulder$/.test(j)) return o;
+    const side = j.startsWith('Right') ? -1 : 1;
+    const bone = j.replace(/Twist$/, '') as HumanJoint;
+    const tip = tips[bone], d = norm(sub(tip, J[bone]));
+    const dl: Vec3 = side < 0 ? [-d[0], d[1], d[2]] : d;           // the left side's direction (offsets are left-side)
+    // rotation taking straight down (0,-1,0) to the bone's direction: about the axis down × d
+    const axis = cross([0, -1, 0], dl), sinA = len(axis), cosA = dot([0, -1, 0], dl);
+    if (sinA < 1e-6) return o;
+    const u = mul(axis, 1 / sinA);
+    // Rodrigues
+    return add(add(mul(o, cosA), mul(cross(u, o), sinA)), mul(u, dot(u, o) * (1 - cosA)));
+  };
+  // (some offsets were written for the A-pose already, some for a hanging arm: an attachment lies on or near its bone,
+  // so whichever reading puts it nearer the bone is the one meant)
+  const segDist = (p: Vec3, a: Vec3, b: Vec3) => { const ab = sub(b, a), t = Math.max(0, Math.min(1, dot(sub(p, a), ab) / (dot(ab, ab) || 1))); return len(sub(p, add(a, mul(ab, t)))); };
+  const at = (j: HumanJoint, o: Vec3, s: HumanSide | null): Vec3 => {
+    const asIs = add(J[j], s === 'Right' ? mirror(P(...o)) : P(...o));
+    if (!ARM_CHAIN.test(j) || /Shoulder$/.test(j)) return asIs;
+    const ol = limbFrame(j, o), turned = add(J[j], s === 'Right' ? mirror(P(...ol)) : P(...ol));
+    const bone = j.replace(/Twist$/, '') as HumanJoint;
+    return segDist(turned, J[bone], tips[bone]) < segDist(asIs, J[bone], tips[bone]) ? turned : asIs;
+  };
   const belly = (id: string, label: string, side: HumanSide | null, fj: HumanJoint, fo: Vec3, tj: HumanJoint, to: Vec3, radius: number, b = 0.45) => {
     muscles.push({ id: side ? `${id}${side[0]}` : id, label, side, from: { joint: fj, at: at(fj, fo, side) }, to: { joint: tj, at: at(tj, to, side) }, radius: radius * k * muscleScale, belly: b });
   };
   const S = (s: HumanSide, j: string) => `${s}${j}` as HumanJoint;
-  belly('rectusAbdominis', 'Abdominals', null, 'Hips', [0, 0.02, 0.085], 'Spine2', [0, -0.07, 0.1], 0.04, 0.5);
+  // rectus abdominis: three bellies a side between its tendinous bands, the linea alba down the middle (carved below)
+  for (const side of ['Left', 'Right'] as HumanSide[]) {
+    const rows: [HumanJoint, Vec3, HumanJoint, Vec3, number][] = [
+      ['Hips', [0.026, 0.04, 0.088], 'Spine', [0.03, 0.02, 0.098], 0.026],
+      ['Spine', [0.03, 0.035, 0.1], 'Spine1', [0.032, -0.03, 0.103], 0.024],
+      ['Spine1', [0.033, -0.012, 0.104], 'Spine1', [0.036, 0.05, 0.106], 0.023],
+    ];
+    rows.forEach(([fj, fo, tj, to, r], i) => belly(`rectus${i}`, `Abdominals ${i + 1}`, side, fj, fo, tj, to, r, 0.5));
+  }
   belly('erectorSpinae', 'Spinal erectors', null, 'Hips', [0, 0.05, -0.075], 'Spine2', [0, 0.02, -0.085], 0.042, 0.4);
   belly('splenius', 'Neck extensors', null, 'Spine2', [0, 0.1, -0.06], 'Head', [0, 0.01, -0.05], 0.03, 0.5);
   for (const s of ['Left', 'Right'] as HumanSide[]) {
     belly('sternocleid', 'Sternocleidomastoid', s, 'Spine2', [0.022, 0.12, 0.06], 'Head', [0.05, 0.0, -0.01], 0.014, 0.5);
+    // upper trapezius: the slope from the neck to the point of the shoulder that makes a strong man's neck sit in his
+    // shoulders rather than stand on them
+    belly('trapeziusUpper', 'Upper trapezius', s, 'Neck', [0.025, 0.035, -0.025], S(s, 'Shoulder'), [0.12, 0.02, -0.02], 0.026 * mix(1, 1.35, M), 0.4);
     belly('trapezius', 'Trapezius', s, 'Spine2', [0.03, 0.06, -0.075], 'Neck', [0.035, 0.03, -0.03], 0.034 * mix(1, 1.25, M), 0.45);
     belly('trapeziusMid', 'Mid trapezius', s, 'Spine1', [0.04, 0.05, -0.085], S(s, 'Shoulder'), [0.11, 0.0, -0.05], 0.026, 0.5);
-    belly('deltoidFront', 'Front deltoid', s, S(s, 'Shoulder'), [0.1, 0.0, 0.035], S(s, 'Arm'), [0.07, -0.08, 0.02], 0.028, 0.4);
-    belly('deltoidSide', 'Side deltoid', s, S(s, 'Shoulder'), [0.15, 0.005, -0.005], S(s, 'Arm'), [0.09, -0.08, 0.0], 0.03, 0.38);
-    belly('deltoidRear', 'Rear deltoid', s, S(s, 'Shoulder'), [0.12, -0.005, -0.05], S(s, 'Arm'), [0.07, -0.085, -0.02], 0.026, 0.4);
-    belly('pectoralis', 'Chest', s, 'Spine2', [0.035, 0.03, 0.095], S(s, 'Arm'), [0.035, -0.04, 0.03], 0.042, 0.42);
-    belly('pectoralisLow', 'Lower chest', s, 'Spine2', [0.04, -0.035, 0.09], S(s, 'Arm'), [0.03, -0.05, 0.02], 0.032, 0.45);
-    belly('latissimus', 'Lats', s, 'Spine1', [0.085, -0.01, -0.07], S(s, 'Arm'), [-0.025, -0.025, -0.02], 0.042, 0.4);
+    const power = mix(1, 1.3, M); // the fighting muscles: shoulders, chest, back
+    belly('deltoidFront', 'Front deltoid', s, S(s, 'Shoulder'), [0.1, 0.0, 0.035], S(s, 'Arm'), [0.07, -0.08, 0.02], 0.028 * power, 0.4);
+    belly('deltoidSide', 'Side deltoid', s, S(s, 'Shoulder'), [0.15, 0.005, -0.005], S(s, 'Arm'), [0.09, -0.08, 0.0], 0.031 * power, 0.38);
+    belly('deltoidRear', 'Rear deltoid', s, S(s, 'Shoulder'), [0.12, -0.005, -0.05], S(s, 'Arm'), [0.07, -0.085, -0.02], 0.026 * power, 0.4);
+    // the chest: a broad fan from the sternum to the humerus, upper (clavicular) and lower (sternal) heads
+    belly('pectoralis', 'Chest', s, 'Spine2', [0.03, 0.035, 0.105], S(s, 'Arm'), [-0.01, -0.03, 0.03], 0.05 * power, 0.36);
+    belly('pectoralisLow', 'Lower chest', s, 'Spine2', [0.045, -0.035, 0.1], S(s, 'Arm'), [-0.015, -0.04, 0.025], 0.042 * power, 0.38);
+    // the lats wrap the ribcage's side up into the armpit before they reach the arm (straight across, they cut the air)
+    belly('latissimus', 'Lats', s, 'Spine1', [0.07, -0.02, -0.075], 'Spine2', [0.125, -0.03, -0.045], 0.046 * power, 0.5);
+    belly('latissimusUp', 'Upper lats', s, 'Spine2', [0.12, -0.03, -0.045], S(s, 'Arm'), [-0.025, -0.03, -0.02], 0.03, 0.4);
     belly('serratus', 'Serratus', s, 'Spine1', [0.1, 0.0, 0.035], 'Spine2', [0.105, 0.05, 0.0], 0.022, 0.5);
     belly('obliques', 'Obliques', s, 'Hips', [0.12, 0.06, 0.02], 'Spine1', [0.12, 0.02, 0.04], 0.034, 0.45);
     belly('infraspinatus', 'Infraspinatus', s, 'Spine2', [0.07, -0.02, -0.09], S(s, 'Arm'), [0.0, 0.0, -0.035], 0.026, 0.45);
@@ -297,7 +339,7 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
     belly('gluteusMed', 'Gluteus medius', s, 'Hips', [0.11, 0.06, -0.03], S(s, 'UpLeg'), [0.06, -0.04, 0.0], 0.04, 0.45);
     belly('rectusFemoris', 'Quadriceps', s, S(s, 'UpLeg'), [0.012, -0.03, 0.05], S(s, 'Leg'), [0.0, 0.06, 0.045], 0.044, 0.45);
     belly('vastusLateralis', 'Outer quad', s, S(s, 'UpLeg'), [0.05, -0.07, 0.012], S(s, 'Leg'), [0.03, 0.08, 0.025], 0.042, 0.5);
-    belly('vastusMedialis', 'Inner quad', s, S(s, 'UpLeg'), [-0.02, -0.2, 0.025], S(s, 'Leg'), [-0.03, 0.06, 0.03], 0.038, 0.62);
+    belly('vastusMedialis', 'Inner quad', s, S(s, 'UpLeg'), [-0.02, -0.2, 0.025], S(s, 'Leg'), [-0.03, 0.06, 0.03], 0.033, 0.6);
     belly('adductors', 'Adductors', s, 'Hips', [0.03, -0.07, 0.02], S(s, 'UpLeg'), [-0.04, -0.2, 0.0], 0.045, 0.35);
     belly('hamstrings', 'Hamstrings', s, S(s, 'UpLeg'), [0.0, -0.06, -0.05], S(s, 'Leg'), [0.0, 0.05, -0.04], 0.045, 0.45);
     belly('sartorius', 'Sartorius', s, 'Hips', [0.11, -0.01, 0.06], S(s, 'Leg'), [-0.035, 0.0, 0.0], 0.014, 0.5);
@@ -314,6 +356,9 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
 
   // ---- Skeleton core and fat layer: what the body reads as when the muscle is lean -----------------------
   const fat = mix(0.0, 0.012, F) * k;
+  // the limbs' core is bone plus deep tissue: lean and muscular, the muscles over it make the limb's shape, so it thins
+  // (at musculature 0 the core is the old limb volume; the muscles then add little, as on an untrained body)
+  const limbCore = mix(1, 0.62, M), trunkCore = mix(1, 0.9, M);
   const cone = (bone: HumanJoint, a: Vec3, ra: number, b: Vec3, rb: number, blend = 0.02, boneB: HumanJoint = bone) =>
     parts.push({ op: 'add', a, ra: ra * k + fat, b, rb: rb * k + fat, blend: blend * k, boneA: bone, boneB });
   const carve = (bone: HumanJoint, a: Vec3, ra: number, b: Vec3, rb: number, blend = 0.01) =>
@@ -337,7 +382,15 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
     cone('Hips', X(P(0.07, 0.94, -0.05)), 0.075, X(P(0.08, 0.88, -0.04)), 0.07, 0.04, S(sideJ, 'UpLeg'));
   }
   // belly front and the neck
-  cone('Spine', P(0, 1.02, 0.045), 0.09, P(0, 1.15, 0.055), 0.088, 0.05, 'Spine1');
+  // the belly: flat and held over trained abdominals, rounder with weight
+  cone('Spine', P(0, 1.02, 0.045 * mix(1, 0.6, M) + 0.02 * F), 0.09 * trunkCore * mix(0.95, 1.2, F), P(0, 1.15, 0.055 * mix(1, 0.7, M)), 0.088 * trunkCore, 0.05, 'Spine1');
+  // definition: the linea alba down the middle of the abdominals and the bands across them, deeper the leaner and
+  // stronger the man (none on a soft body)
+  const defn = Math.max(0, M - 0.35) * (1 - F) * 1.6;
+  if (defn > 0.05) {
+    carve('Spine', P(0, 0.99, 0.128), 0.006 * defn, P(0, 1.28, 0.138), 0.007 * defn, 0.006);
+    for (const y of [1.085, 1.16]) carve('Spine1', P(-0.05, y, 0.132), 0.005 * defn, P(0.05, y + 0.004, 0.132), 0.005 * defn, 0.006);
+  }
   const neckR = hf.neck ?? 1;
   // with a fitted head the neck meets the skull further back and lower, leaving the angle under the chin open
   cone('Neck', P(0, 1.44, -0.015), 0.058 * neckR, HX(tune.head ? P(0, 1.57, -0.022) : P(0, 1.58, -0.005)), 0.05 * neckR, 0.03, 'Head');
@@ -345,14 +398,14 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
   for (const s of ['Left', 'Right'] as HumanSide[]) {
     const j = (n: string) => J[S(s, n)];
     // arm bones under the muscle, with the elbow and wrist knobs that make joints read as joints
-    cone(S(s, 'Arm'), j('Arm'), 0.042, j('ForeArm'), 0.032, 0.02, S(s, 'ForeArm'));
-    cone(S(s, 'ForeArm'), j('ForeArm'), 0.033, lerp(j('ForeArm'), j('Hand'), 0.55), 0.03, 0.015);
+    cone(S(s, 'Arm'), j('Arm'), 0.042 * limbCore, j('ForeArm'), 0.032 * limbCore, 0.02, S(s, 'ForeArm'));
+    cone(S(s, 'ForeArm'), j('ForeArm'), 0.033 * mix(1, 0.8, M), lerp(j('ForeArm'), j('Hand'), 0.55), 0.03 * mix(1, 0.85, M), 0.015);
     cone(S(s, 'ForeArm'), lerp(j('ForeArm'), j('Hand'), 0.55), 0.03, j('Hand'), 0.024, 0.015, S(s, 'ForeArmTwist'));
     ball(S(s, 'ForeArm'), add(j('ForeArm'), mul(norm(sub(j('ForeArm'), j('Hand'))), 0.018 * k)), 0.022, 0.012);
     // leg bones: femur under the quads, knee cap, shin, ankle knobs
-    cone(S(s, 'UpLeg'), j('UpLeg'), 0.075, j('Leg'), 0.048, 0.03, S(s, 'Leg'));
+    cone(S(s, 'UpLeg'), j('UpLeg'), 0.075 * limbCore, j('Leg'), 0.048 * mix(1, 0.8, M), 0.03, S(s, 'Leg'));
     ball(S(s, 'Leg'), add(j('Leg'), P(0, 0.008, 0.035)), 0.03, 0.015);
-    cone(S(s, 'Leg'), j('Leg'), 0.046, j('Foot'), 0.03, 0.02, S(s, 'Foot'));
+    cone(S(s, 'Leg'), j('Leg'), 0.046 * mix(1, 0.78, M), j('Foot'), 0.03, 0.02, S(s, 'Foot'));
     for (const side of [1, -1]) ball(S(s, 'Foot'), add(j('Foot'), P(side * 0.025, 0.0, -0.005)), 0.02, 0.01);
     // foot: heel, arch, ball and toes
     const heel = add(j('Foot'), P(0, -0.05, -0.045));
