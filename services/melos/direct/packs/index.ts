@@ -8,5 +8,16 @@
 // imported from '../styleKnowledge' (a value import would be circular).
 
 import type { StylePack } from '../styleKnowledge';
+import { CINEMATIC_EXTRA_PACKS } from './cinematic';
+import { CLASSICAL_EXTRA_PACKS } from './classical';
+import { JAZZ_EXTRA_PACKS } from './jazz';
+import { ELECTRONIC_EXTRA_PACKS } from './electronic';
+import { HIPHOP_EXTRA_PACKS } from './hiphop';
 
-export const EXTRA_PACKS: StylePack[] = [];
+export const EXTRA_PACKS: StylePack[] = [
+  ...CINEMATIC_EXTRA_PACKS,
+  ...CLASSICAL_EXTRA_PACKS,
+  ...JAZZ_EXTRA_PACKS,
+  ...ELECTRONIC_EXTRA_PACKS,
+  ...HIPHOP_EXTRA_PACKS,
+];
