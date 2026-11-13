@@ -72,6 +72,7 @@ import { createFastVoteRouter } from './routes/fastVote';
 import { createMuseumRouter } from './routes/museum';
 import { createTerraLawRouter } from './routes/terraLaw';
 import { createTelaSignRouter, firestoreSignStore } from './routes/telaSign';
+import { createPasskeyRouter, firestorePasskeyStore } from './routes/passkeys';
 import { createDataCommonsRouter } from './routes/dataCommons';
 import { createGrantsRouter } from './routes/grants';
 import { createAdminKeysRouter } from './routes/adminKeys';
@@ -13715,8 +13716,15 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // Terra Law Library: public, read-only law text (unofficial copy) — data/terraLaw/*
   app.use(createTerraLawRouter({ limiter: apiLimiter }));
   // Tela Sign: the server is the only writer of envelopes and audit trails — routes/telaSign.ts
+  // Passkeys (Windows Hello, fingerprint, face): public keys only, never biometrics — routes/passkeys.ts
+  const passkeyStore = firestorePasskeyStore();
+  app.use(createPasskeyRouter({
+    authMiddleware, limiter: apiLimiter, store: passkeyStore,
+    secret: () => process.env.TELA_SIGN_SECRET || '',
+    origin: () => process.env.VITE_APP_URL || 'https://plajah.com',
+  }));
   app.use(createTelaSignRouter({
-    authMiddleware, limiter: apiLimiter, store: firestoreSignStore(),
+    authMiddleware, limiter: apiLimiter, store: firestoreSignStore(), passkeys: passkeyStore,
     optionalUid: async (req: any) => {
       const h = String(req.headers.authorization || '');
       return h.startsWith('Bearer ') ? ((await verifyFirebaseToken(h.slice(7)))?.uid ?? null) : null;

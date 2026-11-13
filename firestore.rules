@@ -1892,6 +1892,10 @@ service cloud.firestore {
       allow write: if false;
     }
     // Tela Sign: written only by the server (routes/telaSign.ts); signers act through signed links.
+    // Passkeys: public keys only (the biometric never leaves the device); server-only — routes/passkeys.ts
+    match /passkeys/{credentialId} {
+      allow read, write: if false;
+    }
     match /telaSignEnvelopes/{envelopeId} {
       allow read, write: if false;
     }

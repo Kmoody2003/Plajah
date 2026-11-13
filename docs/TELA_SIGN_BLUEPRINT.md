@@ -161,7 +161,7 @@ A ladder: higher-risk documents require a higher level, and the audit trail reco
 | Level | Method | Build or buy | Cost to the customer |
 |---|---|---|---|
 | 0 | Email link (HMAC-signed) | Built | Free |
-| 1 | Plajah account; passkeys next | Built (account check); passkeys to build | Free |
+| 1 | Plajah account with a passkey (Windows Hello, fingerprint, face) | Built | Free |
 | 2 | Access code (built) or SMS code | Build | SMS at carrier cost |
 | 3a | **State mobile ID (mDL) from the phone's wallet** | **Build** | Free |
 | 3b | Photo of an ID card plus a selfie | **Buy** behind an adapter (start with Stripe Identity, ~$1.50 a check by third-party reports) | At cost |
@@ -181,4 +181,30 @@ conformance (NIST SP 800-63 IAL2). Vendors already carry that. We keep only the 
 **What we own either way:** verify once and reuse across Tela Sign, Forum Tier 2 and Grants; the rules that map document
 risk to a level (e.g. permits level 1, leases and grant agreements level 2, money or property level 3); and the record.
 
-**Order of work:** server authority (done) → passkeys → mDL verifier → vendor adapter for 3b → SMS once carrier registration is done.
+**Order of work:** server authority (done) → passkeys (done) → mDL verifier → vendor adapter for 3b → SMS once carrier registration is done.
+
+## 8. Passkey seals: fingerprint, face and Windows Hello (built 13 Nov 2026)
+
+**Where:** `services/auth/passkeyCore.ts` (verification, no dependencies), `routes/passkeys.ts` (add, list, remove
+passkeys on a Plajah account), `services/auth/passkeyClient.ts` (browser: `addPasskey`, `sealWithPasskey`), and the
+`seal-challenge` and `finish` endpoints in `routes/telaSign.ts`. Tests: `tests/passkeys.test.ts`; also run end to end in
+Chromium with its virtual authenticator.
+
+- **No biometric data reaches Plajah.** The device checks the finger or face in its own secure hardware and signs our
+  challenge. We store only the public key (`passkeys/{credentialId}`, server-only). Attestation is "none".
+- **The seal covers what was signed.** `sealChallenge` is a SHA-256 over the document fingerprint, the signer's values
+  and the current head of the audit chain. The device signs it; the signed event records the challenge, and the
+  signer's record keeps the full WebAuthn answer and public key, so `checkSeal` re-verifies it from the stored envelope
+  alone. Changing the document, a value or the history makes the seal fail; old seals can't be replayed.
+- **Senders can require it** per signer (`requirePasskey`, Plajah-account signers only). The public verify endpoint
+  reports `{ sealed, valid, verifiedOnDevice }`.
+- **Safety checks:** origin and relying-party checks, user verification required, and a counter that goes backwards is
+  treated as a possibly copied passkey (synced passkeys report 0 and are allowed).
+- **What it proves:** that someone who can unlock that person's device approved this exact state. It is a strong
+  authentication factor, not an identity check; pair it with a one-time identity check (§7) for level 3.
+- **Law:** Michigan UETA lets attribution be shown "in any manner, including a showing of the efficacy of any security
+  procedure" (MCL 450.839). Have counsel confirm the biometric-privacy position before launch.
+- **Always optional for the signer's method:** the device may use a PIN instead of a biometric, and senders who don't
+  require a passkey get the normal flow.
+- **Still to do:** the account settings screen for adding and removing passkeys, the button on the signing screen
+  (with step 1 of the next phase), and passwordless sign-in to Plajah with the same passkeys.

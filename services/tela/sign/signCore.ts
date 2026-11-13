@@ -97,6 +97,22 @@ export interface Signer {
   uid?: string;
   /** SHA-256 of an access code the sender shares out of band; the plain code is never stored. */
   accessCodeHash?: string;
+  /** Sender requires this signer to seal their signature with a passkey (fingerprint, face, Windows Hello). */
+  requirePasskey?: boolean;
+  /** The passkey seal, kept so anyone can re-check it offline with the public key. */
+  seal?: PasskeySeal;
+}
+
+/** A WebAuthn assertion over sealChallenge(): the device signed exactly this envelope state. */
+export interface PasskeySeal {
+  credentialId: string;
+  publicKey: string; // SPKI DER, base64url
+  alg: number;
+  challenge: string; // base64url
+  clientDataJSON: string;
+  authenticatorData: string;
+  signature: string;
+  userVerified: boolean;
 }
 
 export interface SignatureMark { method: 'drawn' | 'typed'; /** SVG path data (drawn) or the typed name. */ data: string; at: number }
@@ -298,14 +314,19 @@ export function fillField(env: Envelope, signerId: string, fieldId: string, valu
 }
 
 /** Finish signing for one signer. Fills date-signed fields, checks every required field and consent. */
-export function finish(env: Envelope, signerId: string, now: number, ctx: { ip?: string; userAgent?: string } = {}): Envelope {
+export function finish(env: Envelope, signerId: string, now: number, ctx: { ip?: string; userAgent?: string; seal?: PasskeySeal } = {}): Envelope {
   const s = signerOrThrow(env, signerId);
   if (s.status !== 'ready' && s.status !== 'viewed') throw new Error('It isn’t your turn to sign yet.');
   if (s.consumer && !s.consentedAt) throw new Error('Accept the electronic records disclosure before signing.');
+  if (s.requirePasskey && !ctx.seal) throw new Error('Confirm with your fingerprint, face or Windows Hello to finish.');
+  const { seal, ...net } = ctx;
   let next: Envelope = { ...env, fields: env.fields.map((f) => (f.signerId === signerId && f.type === 'date_signed' ? { ...f, value: new Date(now).toISOString().slice(0, 10) } : f)) };
   const missing = next.fields.filter((f) => f.signerId === signerId && f.required && (f.value === undefined || f.value === '' || f.value === false));
   if (missing.length) throw new Error(`Complete ${missing.length === 1 ? 'the' : missing.length} required field${missing.length === 1 ? '' : 's'} first.`);
-  next = append(patchSigner(next, signerId, { status: 'signed', signedAt: now }), { at: now, actor: signerId, event: 'signed', ...ctx });
+  next = append(patchSigner(next, signerId, { status: 'signed', signedAt: now, ...(seal ? { seal } : {}) }), {
+    at: now, actor: signerId, event: 'signed', ...net,
+    ...(seal ? { detail: `Sealed with a passkey${seal.userVerified ? ', verified on the device' : ''} · challenge ${seal.challenge}` } : {}),
+  });
   next = refreshReady(next);
   if (activeOrder(next) === null) {
     const finalHash = sha256Hex(canonical({ doc: next.docHash, fields: next.fields.map((f) => ({ id: f.id, signer: f.signerId, value: f.value })) }));
@@ -325,6 +346,29 @@ export function voidEnvelope(env: Envelope, by: string, reason: string, now: num
   return append({ ...env, status: 'voided' }, { at: now, actor: by, event: 'voided', detail: reason });
 }
 
+// ── Passkey seal ─────────────────────────────────────────────────────────────
+function hexToB64url(hex: string): string {
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  const bytes = hex.match(/../g)!.map((h) => parseInt(h, 16));
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 3) {
+    const n = (bytes[i] << 16) | ((bytes[i + 1] ?? 0) << 8) | (bytes[i + 2] ?? 0);
+    out += A[(n >> 18) & 63] + A[(n >> 12) & 63] + (i + 1 < bytes.length ? A[(n >> 6) & 63] : '') + (i + 2 < bytes.length ? A[n & 63] : '');
+  }
+  return out;
+}
+/**
+ * What a signer's passkey signs: the document, this signer's values and the current head of the audit chain.
+ * Any later change to the document, the values or the history makes the seal stop matching, and because the
+ * head changes with every event, an old seal can't be replayed.
+ */
+export function sealChallenge(env: Envelope, signerId: string): string {
+  const head = env.audit[env.audit.length - 1]?.hash ?? GENESIS;
+  // Date-signed fields are filled by the server as the signer finishes, so they aren't part of what the device signs.
+  const values = env.fields.filter((f) => f.signerId === signerId && f.type !== 'date_signed').map((f) => ({ id: f.id, value: f.value ?? null }));
+  return hexToB64url(sha256Hex(canonical({ purpose: 'tela-sign-seal', envelope: env.id, docHash: env.docHash, signer: signerId, values, head })));
+}
+
 // ── Certificate ──────────────────────────────────────────────────────────────
 export function certificate(env: Envelope) {
   const v = verifyAudit(env);
@@ -340,6 +384,7 @@ export function certificate(env: Envelope) {
       name: s.name, email: s.email, role: s.role, auth: s.auth,
       consentedAt: s.consentedAt, signedAt: s.signedAt, status: s.status,
       method: (env.fields.find((f) => f.signerId === s.id && f.type === 'signature')?.value as SignatureMark | undefined)?.method,
+      passkeySeal: s.seal ? { credentialId: s.seal.credentialId, userVerified: s.seal.userVerified, challenge: s.seal.challenge } : undefined,
     })),
     events: env.audit.map((e) => ({ seq: e.seq, at: e.at, actor: e.actor, event: e.event, detail: e.detail, hash: e.hash })),
   };

@@ -27,8 +27,10 @@
 import { Router } from 'express';
 import express from 'express';
 import nodeCrypto from 'node:crypto';
+import { verifyAssertion } from '../services/auth/passkeyCore';
+import type { PasskeyStore } from './passkeys';
 import {
-  ESIGN_DISCLOSURE, certificate, checkExclusions, consent, createEnvelope, decline, expireIfDue, fillField, finish,
+  ESIGN_DISCLOSURE, sealChallenge, certificate, checkExclusions, consent, createEnvelope, decline, expireIfDue, fillField, finish,
   send, sha256Hex, validateDraft, verifyAudit, view, voidEnvelope,
   type DraftInput, type Envelope, type Field, type Signer,
 } from '../services/tela/sign/signCore';
@@ -93,6 +95,25 @@ function tokenOk(secret: string, envelopeId: string, signerId: string, token: un
 }
 const codeHash = (envelopeId: string, code: string) => sha256Hex(`tela-sign-code:${envelopeId}:${code.trim()}`);
 
+// ── Seal re-check ────────────────────────────────────────────────────────────
+/**
+ * Re-check a signer's passkey seal from the stored envelope alone: rebuild the envelope as it stood just
+ * before they signed, recompute the challenge, and verify the device's signature with the saved public key.
+ */
+export function checkSeal(env: Envelope, signerId: string, origin: string): boolean {
+  const s = env.signers.find((x) => x.id === signerId);
+  const signedAt = env.audit.find((e) => e.event === 'signed' && e.actor === signerId);
+  if (!s?.seal || !signedAt) return false;
+  const before: Envelope = { ...env, audit: env.audit.filter((e) => e.seq < signedAt.seq) };
+  const challenge = sealChallenge(before, signerId);
+  if (challenge !== s.seal.challenge || !String(signedAt.detail || '').includes(challenge)) return false;
+  try {
+    verifyAssertion(s.seal, { credentialId: s.seal.credentialId, publicKey: s.seal.publicKey, alg: s.seal.alg as any, signCount: 0 } as any,
+      { challenge, origin, rpId: new URL(origin).hostname, requireUV: false });
+    return true;
+  } catch { return false; }
+}
+
 // ── Router ───────────────────────────────────────────────────────────────────
 export interface TelaSignDeps {
   authMiddleware: any;
@@ -105,6 +126,8 @@ export interface TelaSignDeps {
   origin: () => string;
   limiter?: any;
   now?: () => number;
+  /** Passkeys on Plajah accounts, for signers who seal with a fingerprint, face or Windows Hello. */
+  passkeys?: PasskeyStore | Promise<PasskeyStore>;
 }
 
 const SUPPORTED_AUTH = new Set(['email_link', 'plajah_account']);
@@ -116,7 +139,7 @@ export function signerView(env: Envelope, signerId: string) {
   return {
     id: env.id, title: env.title, docType: env.docType, docHash: env.docHash, pages: env.pages, message: env.message,
     sender: { name: env.sender.name, org: env.sender.org }, status: env.status, expiresAt: env.expiresAt,
-    you: (({ id, name, role, status, consumer, consentedAt, signedAt }) => ({ id, name, role, status, consumer, consentedAt, signedAt }))(env.signers.find((s) => s.id === signerId)!),
+    you: (({ id, name, role, status, consumer, consentedAt, signedAt, requirePasskey, auth }) => ({ id, name, role, status, consumer, consentedAt, signedAt, requirePasskey: !!requirePasskey, canUsePasskey: auth === 'plajah_account' }))(env.signers.find((s) => s.id === signerId)!),
     recipients: env.signers.map((s) => ({ id: s.id, name: s.name, role: s.role, order: s.order, status: s.status })),
     fields: env.fields,
     disclosure: ESIGN_DISCLOSURE,
@@ -201,6 +224,7 @@ export function createTelaSignRouter(deps: TelaSignDeps): Router {
       const auth = str(s?.auth, 30) || 'email_link';
       if (!SUPPORTED_AUTH.has(auth)) return fail(res, 400, `${auth === 'sms_code' ? 'Text-message codes' : 'ID verification'} isn’t available yet. Use an email link, a Plajah account or an access code.`);
       if (auth === 'plajah_account' && !str(s?.uid, 128)) return fail(res, 400, 'Choose the Plajah account that should sign.');
+      if (s?.requirePasskey === true && auth !== 'plajah_account') return fail(res, 400, 'Passkey sealing needs the signer’s Plajah account, because the passkey lives on that account.');
       const code = str(s?.accessCode, 64);
       if (code && code.length < 4) return fail(res, 400, 'Access codes need at least 4 characters.');
       signers.push({
@@ -208,6 +232,7 @@ export function createTelaSignRouter(deps: TelaSignDeps): Router {
         role: (['signer', 'approver', 'cc'].includes(s?.role) ? s.role : 'signer'), order: Math.max(1, Math.min(50, Number(s?.order) || 1)),
         auth: auth as Signer['auth'], consumer: s?.consumer !== false, uid: auth === 'plajah_account' ? str(s.uid, 128) : undefined,
         accessCodeHash: code ? codeHash(id, code) : undefined,
+        requirePasskey: s?.requirePasskey === true || undefined,
       });
     }
     const fields: Field[] = (Array.isArray(b.fields) ? b.fields.slice(0, 500) : []).map((f: any, i: number) => ({
@@ -288,7 +313,38 @@ export function createTelaSignRouter(deps: TelaSignDeps): Router {
       : typeof v === 'string' ? v.slice(0, 2000) : v === true || v === false ? v : undefined;
     return fillField(e, sid, str(req.body?.fieldId, 80), value as Field['value'], now());
   });
-  signerAction('finish', (e, sid, req) => finish(e, sid, now(), ctx(req)));
+  // Passkey seal: the device signs the exact envelope state (see sealChallenge in signCore).
+  r.get('/api/tela/sign/envelopes/:id/seal-challenge', async (req: any, res) => {
+    const who = await asSigner(req, res, req.query); if (!who) return;
+    if (who.signer.auth !== 'plajah_account' || !who.signer.uid || !deps.passkeys) return fail(res, 400, 'Passkey sealing needs a Plajah account.');
+    const keys = await (await deps.passkeys).listByUid(who.signer.uid);
+    if (!keys.length) return res.status(409).json({ error: 'Add a passkey to your Plajah account first.', needs: 'passkey_enrolment' });
+    const env = expireIfDue(who.env, now());
+    noStore(res);
+    res.json({ challenge: sealChallenge(env, who.signer.id), rpId: new URL(deps.origin()).hostname, userVerification: 'required', allowCredentials: keys.map((k) => ({ type: 'public-key', id: k.credentialId })) });
+  });
+
+  r.post('/api/tela/sign/envelopes/:id/finish', json, async (req: any, res) => {
+    const who = await asSigner(req, res, req.body); if (!who) return;
+    const a = req.body?.passkey;
+    let touched: { id: string; count: number } | null = null;
+    const out = await mutate(who.env.id, async (e) => {
+      if (!a) return finish(e, who.signer.id, now(), ctx(req));
+      if (!deps.passkeys || who.signer.auth !== 'plajah_account') throw new Error('Passkey sealing needs a Plajah account.');
+      const key = await (await deps.passkeys).get(String(a.credentialId || ''));
+      if (!key || key.uid !== who.signer.uid) throw new Error('That passkey isn’t on your account.');
+      const challenge = sealChallenge(e, who.signer.id);
+      const v = verifyAssertion(a, key, { challenge, origin: deps.origin(), rpId: new URL(deps.origin()).hostname, requireUV: true });
+      touched = { id: key.credentialId, count: v.signCount };
+      return finish(e, who.signer.id, now(), {
+        ...ctx(req),
+        seal: { credentialId: key.credentialId, publicKey: key.publicKey, alg: key.alg, challenge, clientDataJSON: String(a.clientDataJSON), authenticatorData: String(a.authenticatorData), signature: String(a.signature), userVerified: v.userVerified },
+      });
+    });
+    if (!out.env) return fail(res, out.status!, out.error!);
+    if (touched && deps.passkeys) await (await deps.passkeys).touch((touched as any).id, (touched as any).count, now());
+    noStore(res); res.json(signerView(out.env, who.signer.id));
+  });
   signerAction('decline', (e, sid, req) => decline(e, sid, str(req.body?.reason, 1000), now()));
 
   // ── Public verify ──────────────────────────────────────────────────────────
@@ -305,7 +361,13 @@ export function createTelaSignRouter(deps: TelaSignDeps): Router {
       title: env.title, status: env.status, sender: { name: env.sender.name, org: env.sender.org },
       documentFingerprint: env.docHash, finalFingerprint: env.finalHash ?? null, completedAt: env.completedAt ?? null,
       auditIntact: c.auditIntact, events: env.audit.length,
-      signers: c.signers.map((s) => ({ name: s.name, role: s.role, auth: s.auth, status: s.status, signedAt: s.signedAt ?? null, method: s.method ?? null })),
+      signers: env.signers.filter((s) => s.role !== 'cc').map((s) => {
+        const cs = c.signers.find((x) => x.name === s.name && x.role === s.role)!;
+        return {
+          name: s.name, role: s.role, auth: s.auth, status: s.status, signedAt: s.signedAt ?? null, method: cs?.method ?? null,
+          passkey: s.seal ? { sealed: true, valid: checkSeal(env, s.id, deps.origin()), verifiedOnDevice: s.seal.userVerified } : null,
+        };
+      }),
     });
   });
 

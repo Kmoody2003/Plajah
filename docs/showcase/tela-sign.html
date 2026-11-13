@@ -273,6 +273,7 @@ footer a { color: var(--fg-2); }
           <li><span><b>Requests you can trust.</b> They arrive in the Plajah app from a verified sender, and the email never asks for a password.</span><span class="st only">Tela-only</span></li>
           <li><span><b>Guided signing.</b> Big targets, the next field highlighted, works on any phone.</span><span class="st built">Built</span></li>
           <li><span><b>Know what you’re signing.</b> A plain-language summary beside the real text, in your language.</span><span class="st planned">Planned</span></li>
+          <li><span><b>Sign with your fingerprint, face or Windows Hello.</b> Your device seals exactly what you agreed to, and your biometric never leaves it.</span><span class="st built">Built</span></li>
           <li><span><b>Your proof is yours.</b> Keep the certificate and the full audit trail, and check them yourself whenever you want.</span><span class="st built">Built</span></li>
         </ul>
       </article>
@@ -287,7 +288,7 @@ footer a { color: var(--fg-2); }
       </article>
     </div>
     <div class="status-line">
-      <div><b style="color:var(--ok)">Built today</b>The signing flow, the tamper-evident audit trail and certificate, access codes, the server that writes every event, and the legal checks.</div>
+      <div><b style="color:var(--ok)">Built today</b>The signing flow, the tamper-evident audit trail and certificate, access codes, passkey seals (fingerprint, face, Windows Hello), the server that writes every event, and the legal checks.</div>
       <div><b style="color:var(--cyan)">Next</b>Email delivery, templates, bulk send and the sealed PDF.</div>
     </div>
   </div>
@@ -312,7 +313,7 @@ footer a { color: var(--fg-2); }
     </div>
     <div class="tbl-wrap"><table aria-label="Identity levels" style="min-width:560px"><thead><tr><th>Level</th><th>How the signer proves who they are</th><th>Who builds it</th><th>Cost</th></tr></thead><tbody>
       <tr><td class="area">0</td><td>A private signing link sent to their email</td><td><span class="st built">Built</span></td><td>Free</td></tr>
-      <tr><td class="area">1</td><td>Signed in to their Plajah account, with passkeys next</td><td><span class="st built">Built</span></td><td>Free</td></tr>
+      <tr><td class="area">1</td><td>Signed in to their Plajah account, and sealing the signature with a passkey: Windows Hello, a fingerprint or face unlock<span class="note">The finger or face is checked on the device. Plajah only ever receives a public key.</span></td><td><span class="st built">Built</span></td><td>Free</td></tr>
       <tr><td class="area">2</td><td>An access code the sender shares, or a text-message code</td><td><span class="st built">Code built</span> <span class="st planned">SMS planned</span></td><td>Texts at carrier cost</td></tr>
       <tr><td class="area">3</td><td>Their state's mobile ID, shared from the phone wallet and checked against the state's signature<span class="note">Works in Chrome and Safari today. Michigan's mobile ID is still a bill.</span></td><td><span class="st only">We build</span></td><td>Free</td></tr>
       <tr><td class="area">3</td><td>A photo of their ID card plus a selfie<span class="note">We keep the result, never the images.</span></td><td><span class="st partial">We buy</span></td><td>At cost, about $1.50</td></tr>
@@ -402,6 +403,7 @@ const ROWS = [
   ['Signers', 'Plain-language summary beside the document', 'Add-on AI', L, 'P1, ARIA, labelled'],
   ['Identity', 'Email link and Plajah account', '✓', B, ''],
   ['Identity', 'Access code', '✓', B, 'Enforced by the server, stored hashed'],
+  ['Identity', 'Seal the signature with Windows Hello, fingerprint or face', '—', O, 'Built: the device signs the exact document and values'],
   ['Identity', 'SMS code', '✓', L, 'P2, at carrier cost'],
   ['Identity', 'Verify a state mobile ID from the phone wallet', '—', O, 'Planned: signed by the state, free per check'],
   ['Identity', 'Government ID verification', 'Add-on', L, 'P2, at cost'],
