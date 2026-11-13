@@ -396,6 +396,8 @@ export async function saveProgram(p: ChurchProgram): Promise<void> {
 
   try {
     await setDoc(doc(opsDb, 'churchPrograms', normalized.id), JSON.parse(JSON.stringify(normalized)));
+    // Students on the roster hold the Enrolled Student role for this class (services/enrollmentCore.ts).
+    void import('./enrollments').then(m => m.syncProgramEnrollments(normalized.id, normalized.studentUids || [])).catch(() => {});
   } catch {
     // Offline or demo org fallback already saved in localStorage
   }
@@ -408,6 +410,7 @@ export async function deleteProgram(id: string, orgId?: string): Promise<void> {
   }
   try {
     await deleteDoc(doc(opsDb, 'churchPrograms', id));
+    void import('./enrollments').then(m => m.endProgramEnrollments(id)).catch(() => {});
   } catch {
     // ignore
   }

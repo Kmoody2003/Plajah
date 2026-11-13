@@ -888,6 +888,13 @@ service cloud.firestore {
         (d.tier == 'org' && (libAdmin(d.orgId) || (d.provisioned == 'teacher' && d.ownerUid == request.auth.uid && libTeacher(d.orgId))))
         || (d.tier != 'org' && d.ownerUid == request.auth.uid) || isAdmin());
     }
+    // Enrolled Student role (services/enrollmentCore.ts): server-written only. Students read their own;
+    // the org's owner, admins, pastors, staff and teachers read the org's.
+    match /enrollments/{id} {
+      allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid
+        || (resource.data.orgId != '' && libTeacher(resource.data.orgId)) || isAdmin());
+      allow write: if false;
+    }
     match /lessonLibrary/{id} {
       allow read: if isAuthenticated() && (resource.data.tier == 'platform' || resource.data.ownerUid == request.auth.uid
         || (resource.data.tier == 'org' && libTeacher(resource.data.orgId)) || isAdmin());

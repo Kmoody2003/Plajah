@@ -360,7 +360,7 @@ learnerAuthRouter.post('/join-class', async (req: Request, res: Response) => {
   if (enrolled.includes(uid)) return res.json({ classId: rec.classId });
   const capacity = Number(cls.capacity) || 0;
   if (capacity > 0 && enrolled.length >= capacity) return res.status(409).json({ error: 'This class is full.' });
-  if ((await fsAddClassMember(rec.classId, uid)) === 'error') return res.status(502).json({ error: 'Could not join. Try again.' });
+  if ((await fsAddClassMember(rec.classId, uid, 'join_code')) === 'error') return res.status(502).json({ error: 'Could not join. Try again.' });
   return res.json({ classId: rec.classId });
 });
 
@@ -378,7 +378,7 @@ learnerAuthRouter.post('/join-open-class', async (req: Request, res: Response) =
   if (enrolled.includes(uid)) return res.json({ classId });
   const capacity = Number(cls.capacity) || 0;
   if (capacity > 0 && enrolled.length >= capacity) return res.status(409).json({ error: 'This class is full.' });
-  if ((await fsAddClassMember(classId, uid)) === 'error') return res.status(502).json({ error: 'Could not join. Try again.' });
+  if ((await fsAddClassMember(classId, uid, 'open_course')) === 'error') return res.status(502).json({ error: 'Could not join. Try again.' });
   return res.json({ classId });
 });
 
