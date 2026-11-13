@@ -93,19 +93,19 @@ static WINDS: [Wind; NUM_INSTRUMENTS] = [
     Wind { ex: EX_JET, bore: BORE_OPEN, bore_r: 0.0052, lattice: 3800.0, p_close: 0.0, reed_f: 0.0, reed_q: 0.0, h0: 0.0, width: 0.0, jet_w: 0.0035, offset: 0.12, breath: 0.03, vibrato: 0.5, apex: 0.000, level: 0.9, range: (74.0, 108.0) },
     Wind { ex: EX_JET, bore: BORE_OPEN, bore_r: 0.0125, lattice: 1600.0, p_close: 0.0, reed_f: 0.0, reed_q: 0.0, h0: 0.0, width: 0.0, jet_w: 0.0075, offset: 0.12, breath: 0.04, vibrato: 0.55, apex: 0.000, level: 1.0, range: (55.0, 86.0) },
     // Oboe: narrow cone, double reed (stiff, small opening), lattice ~1.4 kHz: the nasal one.
-    Wind { ex: EX_DOUBLE, bore: BORE_CONE, bore_r: 0.0055, lattice: 1400.0, p_close: 11000.0, reed_f: 3300.0, reed_q: 4.0, h0: 1.8e-4, width: 0.007, jet_w: 0.0, offset: 0.0, breath: 0.004, vibrato: 0.4, apex: 0.035, level: 1.0, range: (58.0, 89.0) },
-    Wind { ex: EX_DOUBLE, bore: BORE_CONE, bore_r: 0.0065, lattice: 950.0, p_close: 9000.0, reed_f: 2600.0, reed_q: 4.0, h0: 2.0e-4, width: 0.0075, jet_w: 0.0, offset: 0.0, breath: 0.004, vibrato: 0.35, apex: 0.045, level: 1.0, range: (52.0, 81.0) },
+    Wind { ex: EX_DOUBLE, bore: BORE_CONE, bore_r: 0.0055, lattice: 1400.0, p_close: 11000.0, reed_f: 3300.0, reed_q: 4.0, h0: 7.2e-04, width: 0.007, jet_w: 0.0, offset: 0.0, breath: 0.004, vibrato: 0.4, apex: 0.035, level: 1.0, range: (58.0, 89.0) },
+    Wind { ex: EX_DOUBLE, bore: BORE_CONE, bore_r: 0.0065, lattice: 950.0, p_close: 9000.0, reed_f: 2600.0, reed_q: 4.0, h0: 8.0e-04, width: 0.0075, jet_w: 0.0, offset: 0.0, breath: 0.004, vibrato: 0.35, apex: 0.045, level: 1.0, range: (52.0, 81.0) },
     // B♭ clarinet: cylinder, single reed on a lay, lattice ~1.5 kHz.
     Wind { ex: EX_REED, bore: BORE_CYL, bore_r: 0.0075, lattice: 1500.0, p_close: 7000.0, reed_f: 2300.0, reed_q: 3.0, h0: 4.0e-4, width: 0.012, jet_w: 0.0, offset: 0.0, breath: 0.004, vibrato: 0.0, apex: 0.000, level: 1.0, range: (50.0, 91.0) },
     Wind { ex: EX_REED, bore: BORE_CYL, bore_r: 0.0115, lattice: 800.0, p_close: 5000.0, reed_f: 1500.0, reed_q: 3.0, h0: 6.0e-4, width: 0.016, jet_w: 0.0, offset: 0.0, breath: 0.004, vibrato: 0.0, apex: 0.000, level: 1.05, range: (34.0, 75.0) },
     // Bassoon: long narrow cone, double reed, low lattice ~450 Hz: dark and reedy.
-    Wind { ex: EX_DOUBLE, bore: BORE_CONE, bore_r: 0.0085, lattice: 480.0, p_close: 7000.0, reed_f: 1700.0, reed_q: 3.5, h0: 3.0e-4, width: 0.013, jet_w: 0.0, offset: 0.0, breath: 0.004, vibrato: 0.3, apex: 0.070, level: 1.05, range: (34.0, 72.0) },
-    Wind { ex: EX_DOUBLE, bore: BORE_CONE, bore_r: 0.0110, lattice: 260.0, p_close: 5000.0, reed_f: 1100.0, reed_q: 3.5, h0: 4.0e-4, width: 0.016, jet_w: 0.0, offset: 0.0, breath: 0.004, vibrato: 0.2, apex: 0.120, level: 1.1, range: (22.0, 55.0) },
+    Wind { ex: EX_DOUBLE, bore: BORE_CONE, bore_r: 0.0085, lattice: 480.0, p_close: 7000.0, reed_f: 1700.0, reed_q: 3.5, h0: 1.2e-03, width: 0.013, jet_w: 0.0, offset: 0.0, breath: 0.004, vibrato: 0.3, apex: 0.070, level: 1.05, range: (34.0, 72.0) },
+    Wind { ex: EX_DOUBLE, bore: BORE_CONE, bore_r: 0.0110, lattice: 260.0, p_close: 5000.0, reed_f: 1100.0, reed_q: 3.5, h0: 1.6e-03, width: 0.016, jet_w: 0.0, offset: 0.0, breath: 0.004, vibrato: 0.2, apex: 0.120, level: 1.1, range: (22.0, 55.0) },
     // Saxophones: wide cones, single reed, lattice ~1 kHz.
-    Wind { ex: EX_REED, bore: BORE_CONE, bore_r: 0.0075, lattice: 1700.0, p_close: 6500.0, reed_f: 2400.0, reed_q: 2.5, h0: 4.5e-4, width: 0.012, jet_w: 0.0, offset: 0.0, breath: 0.006, vibrato: 0.5, apex: 0.050, level: 1.0, range: (56.0, 87.0) },
-    Wind { ex: EX_REED, bore: BORE_CONE, bore_r: 0.0095, lattice: 1200.0, p_close: 5500.0, reed_f: 2000.0, reed_q: 2.5, h0: 5.5e-4, width: 0.014, jet_w: 0.0, offset: 0.0, breath: 0.006, vibrato: 0.5, apex: 0.070, level: 1.0, range: (49.0, 80.0) },
-    Wind { ex: EX_REED, bore: BORE_CONE, bore_r: 0.0120, lattice: 850.0, p_close: 4800.0, reed_f: 1600.0, reed_q: 2.5, h0: 6.5e-4, width: 0.016, jet_w: 0.0, offset: 0.0, breath: 0.007, vibrato: 0.5, apex: 0.100, level: 1.0, range: (44.0, 75.0) },
-    Wind { ex: EX_REED, bore: BORE_CONE, bore_r: 0.0150, lattice: 600.0, p_close: 4200.0, reed_f: 1200.0, reed_q: 2.5, h0: 7.5e-4, width: 0.018, jet_w: 0.0, offset: 0.0, breath: 0.007, vibrato: 0.4, apex: 0.140, level: 1.05, range: (36.0, 68.0) },
+    Wind { ex: EX_REED, bore: BORE_CONE, bore_r: 0.0075, lattice: 1700.0, p_close: 6500.0, reed_f: 2400.0, reed_q: 0.7, h0: 1.8e-03, width: 0.012, jet_w: 0.0, offset: 0.0, breath: 0.006, vibrato: 0.5, apex: 0.050, level: 1.0, range: (56.0, 87.0) },
+    Wind { ex: EX_REED, bore: BORE_CONE, bore_r: 0.0095, lattice: 1200.0, p_close: 5500.0, reed_f: 2000.0, reed_q: 0.7, h0: 2.2e-03, width: 0.014, jet_w: 0.0, offset: 0.0, breath: 0.006, vibrato: 0.5, apex: 0.070, level: 1.0, range: (49.0, 80.0) },
+    Wind { ex: EX_REED, bore: BORE_CONE, bore_r: 0.0120, lattice: 850.0, p_close: 4800.0, reed_f: 1600.0, reed_q: 0.7, h0: 2.6e-03, width: 0.016, jet_w: 0.0, offset: 0.0, breath: 0.007, vibrato: 0.5, apex: 0.100, level: 1.0, range: (44.0, 75.0) },
+    Wind { ex: EX_REED, bore: BORE_CONE, bore_r: 0.0150, lattice: 600.0, p_close: 4200.0, reed_f: 1200.0, reed_q: 0.7, h0: 3.0e-03, width: 0.018, jet_w: 0.0, offset: 0.0, breath: 0.007, vibrato: 0.4, apex: 0.140, level: 1.05, range: (36.0, 68.0) },
     // Alto recorder: duct-fixed jet, little dynamic range, pure.
     Wind { ex: EX_DUCT, bore: BORE_OPEN, bore_r: 0.0085, lattice: 2500.0, p_close: 0.0, reed_f: 0.0, reed_q: 0.0, h0: 0.0, width: 0.0, jet_w: 0.004, offset: 0.08, breath: 0.02, vibrato: 0.15, apex: 0.000, level: 0.9, range: (65.0, 93.0) },
     // E♭ clarinet: small, shrill.
@@ -405,7 +405,13 @@ impl AulosVoice {
         // A cone resonates like an open–open cylinder of its length (Benade): the reed sits a
         // fraction β of the way along it (β from the missing apex), with a wave line on each side,
         // both ends open. The two round trips add to one period.
-        let beta = if w.bore == BORE_CONE { (2.0 * w.apex * f / C_AIR).clamp(0.06, 0.35) } else { 0.0 };
+        // Where the reed sits on the equivalent open–open tube, as found by playing each one:
+        // saxophones ~¼, double reeds ~0.4 (their narrow cones put more of the bore behind the reed).
+        let beta = match (w.bore, w.ex) {
+            (BORE_CONE, EX_DOUBLE) => 0.4,
+            (BORE_CONE, _) => 0.25,
+            _ => 0.0,
+        };
         let loop_d = match w.bore {
             BORE_CYL => 0.5 * period,
             BORE_CONE => (1.0 - beta) * period,
