@@ -307,7 +307,7 @@ impl Engine {
     /// load), never while rendering.
     pub fn set_param(&mut self, id: u32, value: f32) {
         self.params.set(id, value);
-        if id == ARCO_BASE + AR_ENABLE && value > 0.5 {
+        if crate::orch::is_enable(id) && value > 0.5 {
             self.ensure_orch();
         }
     }
@@ -324,15 +324,13 @@ impl Engine {
         self.orch.ensure(kind);
     }
 
-    /// ARCO: give the new voice its role (instrument, section, players) and re-voice the chord it
-    /// joins. Notes that start within 40 ms of each other are one chord: an ensemble deals them
-    /// out top to bottom across its sections; a single section divides its players among them.
-    fn arco_assign(&mut self, new_idx: usize, note: f32) {
-        use crate::arco::{assign_sections, role_for, ENSEMBLE_NAMES, SECTION_SIZES};
-        let p = &self.params;
-        let ens = (p.get(ARCO_BASE + AR_ENSEMBLE).round().max(0.0) as usize).min(ENSEMBLE_NAMES.len() - 1);
-        let inst = (p.get(ARCO_BASE + AR_INSTRUMENT).round().max(0.0) as usize).min(crate::arco::NUM_INSTRUMENTS - 1);
-        let size = SECTION_SIZES[(p.get(ARCO_BASE + AR_SECTION).round().max(0.0) as usize).min(SECTION_SIZES.len() - 1)];
+    /// Orchestra family: give the new voice its role (instrument, seat, players) and re-voice the
+    /// chord it joins. Notes that start within 40 ms of each other are one chord: an ensemble deals
+    /// them out top to bottom across its sections; a single section divides its players among the
+    /// notes it holds (divisi).
+    fn orch_assign(&mut self, kind: u8, new_idx: usize, note: f32) {
+        use crate::orch::{assign_sections, ensemble, Role};
+        let Some(e) = ensemble(kind, &self.params) else { return };
         let recent = (self.sr * 0.04) as u32;
         let mut idx = [0usize; MAX_VOICES];
         let mut notes = [0.0f32; MAX_VOICES];
@@ -342,10 +340,10 @@ impl Engine {
             if i == new_idx {
                 continue;
             }
-            if v.arco_held() {
+            if v.orch_held_kind(kind) {
                 held += 1;
             }
-            if let Some(nt) = v.arco_recent(recent) {
+            if let Some(nt) = v.orch_recent(kind, recent) {
                 idx[n] = i;
                 notes[n] = nt;
                 n += 1;
@@ -364,24 +362,18 @@ impl Engine {
             sorted[k] = notes[order[k]];
         }
         let mut sec = [0usize; MAX_VOICES];
-        assign_sections(&sorted[..n], ens, &mut sec[..n]);
+        assign_sections(&sorted[..n], &e, &mut sec[..n]);
         let mut per = [0usize; 5];
         for k in 0..n {
             per[sec[k].min(4)] += 1;
         }
         for k in 0..n {
-            let s = sec[k].min(4);
-            let divisi = if ens == 0 { (held + 1).max(n) } else { per[s] };
-            let role = role_for(ens, s, divisi, inst, size);
+            let s = sec[k].min(e.n.max(1) - 1);
+            let divisi = if e.single { (held + 1).max(n) } else { per[s] };
+            let sc = e.secs[s];
+            let role = Role { inst: sc.inst, section: sc.seat, players: (sc.players / divisi.max(1)).max(1), bus: sc.bus };
             let vi = idx[order[k]];
-            let changed = match self.voices[vi].orch.arco.as_mut() {
-                Some(a) => {
-                    let old = a.role;
-                    a.role = role;
-                    old.inst != role.inst || old.players != role.players || old.section != role.section
-                }
-                None => false,
-            };
+            let changed = self.voices[vi].orch.set_role(role);
             if vi != new_idx && changed {
                 let params = &self.params;
                 self.voices[vi].orch_retrigger(params);
@@ -447,9 +439,11 @@ impl Engine {
             }
         }
 
-        // ARCO legato (single instrument): a note into exactly one held, bowed note is one bow.
-        let arco_on = self.params.get(ARCO_BASE + AR_ENABLE) > 0.5;
-        if arco_on && self.params.get(ARCO_BASE + AR_LEGATO) > 0.5 && self.params.get(ARCO_BASE + AR_ENSEMBLE) < 0.5 {
+        // Orchestra-family legato (single instrument): a note into exactly one held, sustained note
+        // is one bow / one breath — the finger, valve or slide moves.
+        let orch_kind = crate::orch::kind_for(&self.params);
+        let arco_on = orch_kind == crate::orch::KIND_ARCO;
+        if orch_kind != crate::orch::KIND_NONE && crate::orch::legato_on(orch_kind, &self.params) {
             let min_age = (self.sr * 0.06) as u32;
             let mut held = self.voices.iter_mut().filter_map(|v| v.orch_held().map(|t| (t, v)));
             if let (Some((t, v)), None) = (held.next(), held.next()) {
@@ -494,9 +488,9 @@ impl Engine {
         self.age_counter += 1;
         let age = self.age_counter;
         let sr = self.sr;
-        if arco_on {
+        if orch_kind != crate::orch::KIND_NONE {
             // The role first (the trigger reads it), then the chord around it.
-            self.arco_assign(idx, note);
+            self.orch_assign(orch_kind, idx, note);
         }
         let params = &self.params;
         let v = &mut self.voices[idx];
@@ -505,14 +499,12 @@ impl Engine {
         if arco_on && self.params.get(ARCO_BASE + AR_BASS_OCTAVE) > 0.5 && self.params.get(ARCO_BASE + AR_ENSEMBLE) >= 1.5 {
             // Basses double the lowest cello note an octave down (same voice id: one note-off).
             let is_low_cello = self.voices[idx].orch.arco.as_ref().map(|a| a.role.section == 3).unwrap_or(false)
-                && !self.voices.iter().enumerate().any(|(i, v)| i != idx && v.arco_held() && v.note < note);
+                && !self.voices.iter().enumerate().any(|(i, v)| i != idx && v.orch_held_kind(crate::orch::KIND_ARCO) && v.note < note);
             if is_low_cello && note - 12.0 >= 28.0 {
                 if let Some(j) = self.voices.iter().position(|v| !v.active) {
                     let ens = self.params.get(ARCO_BASE + AR_ENSEMBLE).round() as usize;
                     let size = crate::arco::ensemble_sections(ens, true).0[4].2;
-                    if let Some(a) = self.voices[j].orch.arco.as_mut() {
-                        a.role = crate::arco::Role { inst: 3, section: 4, players: size, bus: 3 };
-                    }
+                    self.voices[j].orch.set_role(crate::orch::Role { inst: 3, section: 4, players: size, bus: 3 });
                     self.age_counter += 1;
                     let age2 = self.age_counter;
                     let params = &self.params;

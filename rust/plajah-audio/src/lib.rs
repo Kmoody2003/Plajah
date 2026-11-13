@@ -27,6 +27,7 @@ mod tonos;
 mod bodyconv;
 mod arco;
 mod orch;
+mod cornu;
 mod string;
 mod sample;
 mod spatial;

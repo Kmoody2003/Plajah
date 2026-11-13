@@ -509,6 +509,28 @@ pub const AR_TENSION: u32 = 31;    // string tension and gauge (pitch held)
 // Blocks for the rest of the orchestra & guitar family (reserved; see cornu.rs, aulos.rs,
 // kithara.rs, volta.rs).
 pub const CORNU_BASE: u32 = 2200;
+// ── CORNU (instrument 10): orchestral brass — lips on air columns (cornu.rs) ───
+pub const CN_ENABLE: u32 = 0;
+pub const CN_INSTRUMENT: u32 = 1;  // index into cornu::INSTRUMENT_NAMES
+pub const CN_ENSEMBLE: u32 = 2;    // index into cornu::ENSEMBLE_NAMES
+pub const CN_SECTION: u32 = 3;     // index into cornu::SECTION_SIZES (a2, a3, a4…)
+pub const CN_ARTIC: u32 = 4;       // index into cornu::ARTIC_NAMES
+pub const CN_MUTE: u32 = 5;        // index into cornu::MUTE_NAMES
+pub const CN_DYNAMICS: u32 = 6;
+pub const CN_MOD_DYN: u32 = 7;     // >0.5: the mod wheel is breath pressure
+pub const CN_VEL_SENS: u32 = 8;
+pub const CN_PORTAMENTO: u32 = 9;  // slur / slide glide time
+pub const CN_LEGATO: u32 = 10;
+pub const CN_VIB_DEPTH: u32 = 11;
+pub const CN_TONGUE: u32 = 12;     // tonguing crispness (attack time)
+pub const CN_BRASSINESS: u32 = 13; // wave steepening, 0..2× physical (0.5 = physical)
+pub const CN_BELL: u32 = 14;       // bell cutoff (0.5 = as built)
+pub const CN_LIP: u32 = 15;        // lip tuning relative to the note (0.5 = a touch above)
+pub const CN_HAND: u32 = 16;       // horn: hand in the bell
+pub const CN_QUALITY: u32 = 17;    // simulated players per note
+pub const CN_INTONATION: u32 = 18;
+pub const CN_TIGHTNESS: u32 = 19;
+pub const CN_WIDTH: u32 = 20;
 pub const AULOS_BASE: u32 = 2300;
 pub const KITHARA_BASE: u32 = 2400;
 pub const VOLTA_BASE: u32 = 2500;
@@ -860,6 +882,20 @@ impl Params {
         self.set(ARCO_BASE + AR_VIB_DEPTH, 0.45);
         self.set(ARCO_BASE + AR_INTONATION, 0.35);
         self.set(ARCO_BASE + AR_TIGHTNESS, 0.35);
+        // CORNU: off unless enabled.
+        for id in CN_DYNAMICS..=CN_WIDTH {
+            self.set(CORNU_BASE + id, 0.5);
+        }
+        for id in [CN_ENABLE, CN_INSTRUMENT, CN_ENSEMBLE, CN_SECTION, CN_ARTIC, CN_MUTE, CN_MOD_DYN] {
+            self.set(CORNU_BASE + id, 0.0);
+        }
+        self.set(CORNU_BASE + CN_VEL_SENS, 0.8);
+        self.set(CORNU_BASE + CN_PORTAMENTO, 0.1);
+        self.set(CORNU_BASE + CN_LEGATO, 1.0);
+        self.set(CORNU_BASE + CN_VIB_DEPTH, 0.15);
+        self.set(CORNU_BASE + CN_QUALITY, 0.67);
+        self.set(CORNU_BASE + CN_INTONATION, 0.3);
+        self.set(CORNU_BASE + CN_TIGHTNESS, 0.3);
     }
 }
 

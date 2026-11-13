@@ -521,12 +521,12 @@ impl Voice {
         (self.active && !self.released && self.orch_active && self.orch.is_sustained()).then(|| self.orch.samples())
     }
 
-    /// A held ARCO voice that started within `max_age` samples: (note, samples).
-    pub fn arco_recent(&self, max_age: u32) -> Option<f32> {
-        (self.active && !self.released && self.orch_active && self.orch.kind() == crate::orch::KIND_ARCO && self.orch.samples() <= max_age).then_some(self.note)
+    /// A held orchestra-family voice of `kind` that started within `max_age` samples: its note.
+    pub fn orch_recent(&self, kind: u8, max_age: u32) -> Option<f32> {
+        (self.orch_held_kind(kind) && self.orch.samples() <= max_age).then_some(self.note)
     }
-    pub fn arco_held(&self) -> bool {
-        self.active && !self.released && self.orch_active && self.orch.kind() == crate::orch::KIND_ARCO
+    pub fn orch_held_kind(&self, kind: u8) -> bool {
+        self.active && !self.released && self.orch_active && self.orch.kind() == kind
     }
 
     /// Restart this voice's note under a new role (ensembles re-voice a chord as it arrives).

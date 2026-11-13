@@ -974,6 +974,12 @@ pub fn ensemble_sections(ens: usize, bass_octave: bool) -> ([(usize, usize, usiz
     (s, n)
 }
 
+/// An instrument's comfortable range and lowest note (MIDI), for ensembles.
+pub fn section_range(inst: usize) -> (f32, f32, f32) {
+    let fd = &FIDDLES[inst.min(NUM_INSTRUMENTS - 1)];
+    (fd.range.0, fd.range.1, fd.opens[0])
+}
+
 /// Assign notes (sorted high → low) to an ensemble's sections, keeping order (a higher note never
 /// goes to a lower section) and preferring each section's comfortable range. Returns, per note,
 /// the section index; several notes on one section are divisi.
@@ -1393,35 +1399,5 @@ mod tests {
         let p = params(0, A_SUSTAIN);
         let _ = render_role(&p, Role { inst: 0, section: 0, players: 16, bus: 0 }, 67.0, 2.0, 2.0);
         println!("8 simulated violinists: {:.2}% of a core", t0.elapsed().as_secs_f64() / 2.0 * 100.0);
-    }
-}
-#[cfg(test)]
-mod probe {
-    use super::*;
-    use super::tests::params;
-    #[test]
-    #[ignore]
-    fn arco_probe() {
-        let sr = 48000.0;
-        for (name, tor, rosin, force) in [("base", 0.5, 0.5, 0.5), ("notor", 0.0, 0.5, 0.5), ("notor lowF", 0.0, 0.5, 0.2), ("notor hiF", 0.0, 0.5, 0.85), ("tor hiF", 0.5, 0.5, 0.85)] {
-            let mut p = params(1, 0);
-            p.set(ARCO_BASE + AR_VIB_DEPTH, 0.0);
-            p.set(ARCO_BASE + AR_INTONATION, 0.0);
-            p.set(ARCO_BASE + AR_TORSION, tor);
-            p.set(ARCO_BASE + AR_ROSIN, rosin);
-            p.set(ARCO_BASE + AR_BOW_FORCE, force);
-            let mut v = ArcoVoice::new(sr);
-            let mut rng = Rng(4242);
-            v.role = Role { inst: 1, ..Role::default() };
-            v.trigger(midi_to_hz(50.0), 0.8, &p, &mut rng);
-            let n = (1.2 * sr) as usize; let mut buf = Vec::new();
-            for _ in 0..n { let _ = v.render_sample(1.0, 0.0, &mut rng); buf.push(v.bus_out); }
-            let x = &buf[(0.5*sr) as usize..];
-            let mut best = (0usize, -1.0f32);
-            for lag in 40..1200 { let mut c=0.0; let mut e1=0.0; let mut e2=0.0; for i in 0..8000 { c += x[i]*x[i+lag]; e1 += x[i]*x[i]; e2 += x[i+lag]*x[i+lag]; } let r = c/(e1*e2).sqrt().max(1e-12); if r > best.1 { best = (lag, r); } }
-            let cross = (sr / best.0 as f32 * 0.8) as i32; let _ = best.1;
-            println!("{:12} r {:.2}", name, best.1);
-            println!("{:12} crossings/s {:.1} expect {:.1}", name, cross as f32 / 0.8, midi_to_hz(50.0));
-        }
     }
 }
