@@ -79,6 +79,9 @@ import AmboLyricsControl from './AmboLyricsControl';
 import { setLiveLyricsPrefs, startLiveLyrics } from '../../services/ambo/liveLyrics';
 import { setLyricsProgram } from '../../services/ambo/lyricsProgram';
 import { setStageOutputting, isStageBackgrounded } from '../../services/ambo/stageSession';
+import AmboPresentationTimeline from './AmboPresentationTimeline';
+import { layoutTimeline, clipAtTime } from '../../services/ambo/presentationTimeline';
+import { sendPresentationToFabula } from '../../services/ambo/sendPresentationToFabula';
 import { lyricsFor } from '../../services/ambo/lyricFeed';
 import { startTypoTextDriver, publishScriptureToTypo, setTypoTextDemand } from '../../services/ambo/typoTextDriver';
 import { getVizParams, getVizApplyTarget, lastChangedVizMode, subscribeVizParams, numericVizParams } from '../../services/ambo/visualizerParams';
@@ -1288,8 +1291,7 @@ useEffect(() => {
   };
 
   // ── Audio Asset Slide Creation & Drag-and-Drop ──
-  const handleCreateAudioSlide = (track: AmboDJTrack) => {
-    const audioSlide: Slide = {
+  const buildAudioSlide = (track: AmboDJTrack): Slide => ({
       id: newId('sl_audio'),
       label: track.title,
       group: 'Audio Assets',
@@ -1330,8 +1332,10 @@ useEffect(() => {
         { kind: 'AUDIO_PLAY', src: track.url || '', volume: 1.0 },
       ],
       notes: track.key ? `Key: ${track.key} · BPM: ${track.bpm || 128}` : undefined,
-    };
+  });
 
+  const handleCreateAudioSlide = (track: AmboDJTrack) => {
+    const audioSlide = buildAudioSlide(track);
     setLibrary(libs => libs.map(sh => {
       if (sh.id !== activeShow.id) return sh;
       return { ...sh, slides: [...sh.slides, audioSlide] };
@@ -1340,16 +1344,12 @@ useEffect(() => {
     setActiveDjTrack(track);
   };
 
-  const handleInsertMediaSlide = (item: AmboMediaSourceItem) => {
+  /** A library source as a new slide (null when it can't become one). */
+  const buildMediaSourceSlide = (item: AmboMediaSourceItem): Slide | null => {
     let bgContent: LayerContent | null;
     if (item.kind === 'AUDIO' || item.kind === 'LOTTIE') {
       const dm = sourceToDropMedia(item);
-      const s = dm && slideFromMedia(dm);
-      if (s) {
-        setLibrary(libs => libs.map(sh => (sh.id !== activeShow.id ? sh : { ...sh, slides: [...sh.slides, s] })));
-        setSelected(slides.length);
-      }
-      return;
+      return (dm && slideFromMedia(dm)) || null;
     }
     if (item.kind === 'LIVE') {
       bgContent = { kind: 'LIVE', inputId: item.inputId || item.id, label: item.name };
@@ -1375,7 +1375,7 @@ useEffect(() => {
     }
     if (bgContent && (bgContent.kind === 'VIDEO' || bgContent.kind === 'IMAGE') && !bgContent.src) bgContent = null;
 
-    const newSlide: Slide = {
+    return {
       id: newId('sl_media'),
       label: item.name,
       group: item.kind === 'VIDEO' ? 'Video Media' : item.kind === 'IMAGE' ? 'Photos' : 'Visualizers',
@@ -1388,7 +1388,11 @@ useEffect(() => {
         },
       ] : [],
     };
+  };
 
+  const handleInsertMediaSlide = (item: AmboMediaSourceItem) => {
+    const newSlide = buildMediaSourceSlide(item);
+    if (!newSlide) return;
     setLibrary(libs => libs.map(sh => {
       if (sh.id !== activeShow.id) return sh;
       return { ...sh, slides: [...sh.slides, newSlide] };
@@ -2515,6 +2519,124 @@ useEffect(() => {
   useEffect(() => {
     setCurrentSlideLoops(1);
   }, [liveSlideId]);
+
+  // ── Presentation timeline (timed slideshow) ─────────────────────────────────
+  // The strip above the slide grid: each slide's time is its own advanceAfterSec or the
+  // presentation's default (8s). Play runs it on Program; the clock is wall time so a
+  // trim or default change mid-run simply re-lays the remaining slides.
+  const [timelinePlayhead, setTimelinePlayhead] = useState<number | null>(null);
+  const [timelineLoop, setTimelineLoop] = useState(false);
+  const timelineRun = useRef<{ origin: number; idx: number } | null>(null);
+  const timelineLive = useRef({ take, slides, activeShow, loop: timelineLoop });
+  timelineLive.current = { take, slides, activeShow, loop: timelineLoop };
+
+  const stopTimeline = useCallback(() => { timelineRun.current = null; setTimelinePlayhead(null); }, []);
+
+  const playTimeline = (fromIndex: number) => {
+    if (slides.length === 0) return;
+    const i = Math.max(0, Math.min(fromIndex, slides.length - 1));
+    const lay = layoutTimeline(slides, activeShow);
+    setIsLoopDeckActive(false); // one auto-advance engine at a time
+    timelineRun.current = { origin: performance.now() - lay.clips[i].start * 1000, idx: i };
+    setSelected(i);
+    take(slides[i]);
+    setTimelinePlayhead(lay.clips[i].start);
+  };
+
+  useEffect(() => {
+    if (timelinePlayhead == null) return;
+    const tick = setInterval(() => {
+      const run = timelineRun.current;
+      if (!run) return;
+      const { take: takeNow, slides: sl, activeShow: sh, loop } = timelineLive.current;
+      const lay = layoutTimeline(sl, sh);
+      if (lay.clips.length === 0) { stopTimeline(); return; }
+      let t = (performance.now() - run.origin) / 1000;
+      if (t >= lay.total) {
+        if (!loop) { stopTimeline(); return; }   // stays on the last slide
+        run.origin = performance.now();
+        t = 0;
+      }
+      const clip = clipAtTime(lay, t);
+      if (clip && clip.index !== run.idx) {
+        run.idx = clip.index;
+        setSelected(clip.index);
+        takeNow(sl[clip.index]);
+      }
+      setTimelinePlayhead(t);
+    }, 100);
+    return () => clearInterval(tick);
+  }, [timelinePlayhead != null, stopTimeline]);
+
+  // A slide taken by hand mid-run: the clock jumps to that slide and carries on from there.
+  useEffect(() => {
+    const run = timelineRun.current;
+    if (!run || !liveSlideId) return;
+    const idx = slides.findIndex(x => x.id === liveSlideId);
+    if (idx < 0 || idx === run.idx) return;
+    const lay = layoutTimeline(slides, activeShow);
+    run.idx = idx;
+    run.origin = performance.now() - lay.clips[idx].start * 1000;
+  }, [liveSlideId]);
+
+  // Switching presentation ends the run.
+  useEffect(() => { stopTimeline(); }, [activeShow.id, stopTimeline]);
+
+  const setPresentationDefaultSec = (sec: number) => {
+    setLibrary(libs => libs.map(sh => (sh.id !== activeShow.id ? sh : { ...sh, timeline: { ...(sh.timeline || {}), defaultSlideSec: sec } })));
+  };
+
+  const setSlideDurationSec = (slideId: string, sec: number | undefined) => {
+    setLibrary(libs => libs.map(sh => (sh.id !== activeShow.id ? sh : {
+      ...sh,
+      slides: sh.slides.map(sl => (sl.id !== slideId ? sl : { ...sl, advanceAfterSec: sec })),
+    })));
+    if (liveSlideObj?.id === slideId) setLiveSlideObj(prev => (prev ? { ...prev, advanceAfterSec: sec } : prev));
+  };
+
+  /** Library / media bin / desktop drop onto the timeline: new slides land at `at`. */
+  const handleDropOnTimeline = (e: React.DragEvent, at: number) => {
+    setIsDraggingOverDeck(false);
+    setInsertAt(null);
+    // A slide card dragged down from the grid: reorder, same as dropping it in the grid.
+    if (draggingSlideRef.current !== null) { const from = draggingSlideRef.current; draggingSlideRef.current = null; reorderSlide(from, at); return; }
+    const place = (news: Slide[]) => {
+      if (news.length === 0) return;
+      insertSlidesAfter(at - 1, news);
+      setSelected(at);
+    };
+    try {
+      const dataStr = e.dataTransfer.getData('application/json');
+      if (dataStr) {
+        const parsed = JSON.parse(dataStr);
+        if (parsed.type === 'ambo-audio' && parsed.track) { place([buildAudioSlide(parsed.track)]); setActiveDjTrack(parsed.track); return; }
+        if (parsed.type === 'ambo-source' && parsed.source) { const sl = buildMediaSourceSlide(parsed.source); place(sl ? [sl] : []); return; }
+        if (parsed.type === 'ambo-folder' && Array.isArray(parsed.items)) {
+          place(folderPayloadMedia(parsed).map(slideFromMedia).filter((x): x is Slide => !!x));
+          return;
+        }
+      }
+    } catch { /* not an in-app payload — treat as OS files */ }
+    webFileDropAt.current = Date.now();
+    const pending = filesFromDataTransfer(e.dataTransfer);
+    void (async () => {
+      try {
+        const media = await mediaFromFiles(await pending);
+        place(media.map(slideFromMedia).filter((x): x is Slide => !!x));
+      } catch (err: any) { showDropNote(`Drop failed: ${err?.message || 'could not read the files'}`); }
+    })();
+  };
+
+  const handleSendPresentationToFabula = async () => {
+    try {
+      setSaveFeedback('Sending to Fabula…');
+      const r = await sendPresentationToFabula(activeShow, slides);
+      setSaveFeedback(r.skipped ? `Opened in Fabula — ${r.skipped} local file${r.skipped > 1 ? 's' : ''} could not be copied` : `"${activeShow.title}" opened in Fabula`);
+    } catch (err: any) {
+      setSaveFeedback(`Send to Fabula failed: ${err?.message || 'unknown error'}`);
+    }
+    setTimeout(() => setSaveFeedback(null), 3500);
+  };
 
   // Watch Folder Connection Handler
   const handleConnectWatchFolder = async () => {
@@ -4051,6 +4173,27 @@ useEffect(() => {
                 <div className="text-white/50 text-xs">Supports Videos (.mp4, .mov), Photos (.png, .jpg), and Audio (.mp3, .wav)</div>
               </div>
             )}
+
+            {/* Presentation timeline — timed slideshow strip above the slides. */}
+            <AmboPresentationTimeline
+              show={activeShow}
+              slides={slides}
+              selected={selected}
+              liveSlideId={liveSlideId}
+              playheadSec={timelinePlayhead}
+              loop={timelineLoop}
+              onToggleLoop={() => setTimelineLoop(v => !v)}
+              onPlay={playTimeline}
+              onStop={stopTimeline}
+              onSelect={setSelected}
+              onTake={i => { setSelected(i); if (slides[i]) take(slides[i]); }}
+              onSetDefaultSec={setPresentationDefaultSec}
+              onSetSlideSec={setSlideDurationSec}
+              onReorder={reorderSlide}
+              onDropAt={handleDropOnTimeline}
+              onSendToFabula={handleSendPresentationToFabula}
+              thumbFor={sl => sl.thumb || (() => { const l = sl.layers.find(x => x.content.kind === 'IMAGE'); return l ? (l.content as { src: string }).src : undefined; })()}
+            />
 
             {/* Active Video Transport Bar (Scrubber, Volume, Loop, Restart) */}
             {programVideo && (

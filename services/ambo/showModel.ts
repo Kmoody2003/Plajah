@@ -258,6 +258,8 @@ export interface Show {
   tags?: string[];
   /** LoopDeck playback configuration for auto-advancing after N loops, random selection, and watch folders. */
   loopDeck?: LoopDeckSettings;
+  /** Timed-slideshow strip: seconds per slide when a slide has no `advanceAfterSec` (default 8). */
+  timeline?: { defaultSlideSec?: number };
 }
 
 /**
