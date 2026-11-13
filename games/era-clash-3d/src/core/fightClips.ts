@@ -283,7 +283,12 @@ export function bakeMove(model: THREE.Object3D, name: string, def: MoveDef, blad
       const airborne = P.Hips.clone().add(target.clone().sub(P0.Hips).multiplyScalar(1 - 0.45 * s.tuck).applyQuaternion(Qbody));
       let tgt = planted.lerp(airborne, s.air);
       if (kk.pos) tgt = tgt.lerp(toBody(kk.pos), kk.w);
-      const sol = solve2(P[up], tgt, L[0], L[1], toBody(new THREE.Vector3(0, 0.2, 1)));
+      // the knee's way: forward for a stance or a front/round kick; for a kick driven back behind the body (the
+      // spinning back kick's heel, ushiro-geri) the knee points down at the floor, or the solve folds the leg through
+      // itself the wrong way
+      const back = kk.pos && kk.pos.z < -0.2 ? kk.w : 0;
+      const pole = new THREE.Vector3(0, 0.2, 1).lerp(new THREE.Vector3(0, -1, -0.15), back);
+      const sol = solve2(P[up], tgt, L[0], L[1], toBody(pole));
       aim(up, low, sol.J.clone().sub(P[up])); place(low);
       aim(low, foot, sol.T.clone().sub(sol.J));
       W[foot] = Qbody.clone().multiply(Q0[foot]);

@@ -387,75 +387,79 @@
     },
     {
       "id": "katana",
-      "label": "Katana: 70 cm blade, ray-skin and silk tsuka, iron tsuba",
-      "era": "Sengoku–early Edo (c. 1570–1620)",
+      "label": "Katana (uchigatana): 70 cm blade with bo-hi, midare hamon, 24 cm tsuka; ray skin and silk hishi-maki, iron tsuba, gilt fittings",
+      "era": "Muromachi to early Edo (c. 1400–1615)",
       "refs": [
-        "Momoyama uchigatana koshirae, the Met"
+        "Kōkan Nagayama (1997) ch. 1–3",
+        "Morihiro Ogawa, Art of the Samurai (Met, 2009)",
+        "Conlan (2008)"
       ],
       "file": "katana.glb",
       "kind": "weapon",
       "attach": "RightHand",
       "restOrigin": [
-        0,
-        -0.25,
+        -0.0217,
+        -0.242,
         0
       ],
       "size": [
-        0.076,
-        0.98,
-        0.076
+        0.122,
+        0.945,
+        0.074
       ],
-      "tris": 748,
+      "tris": 12336,
       "nodes": [
         "katana"
       ]
     },
     {
       "id": "katana_saya",
-      "label": "Katana in its saya: black lacquer, navy sageo, the hilt out of the mouth",
-      "era": "Sengoku–early Edo (c. 1570–1620)",
+      "label": "Katana in its saya: urushi lacquer, horn koiguchi, kurikata and kojiri, the sageo wrapped and knotted",
+      "era": "Muromachi to early Edo (c. 1400–1615)",
       "refs": [
-        "Momoyama uchigatana koshirae, the Met"
+        "Kōkan Nagayama (1997) ch. 1–3",
+        "Morihiro Ogawa, Art of the Samurai (Met, 2009)",
+        "Conlan (2008)"
       ],
       "file": "katana_saya.glb",
       "kind": "weapon",
       "attach": "Hips",
       "restOrigin": [
-        0.0142,
-        -0.772,
+        -0.0286,
+        -0.735,
         0
       ],
       "size": [
-        0.092,
-        1.024,
-        0.064
+        0.135,
+        0.982,
+        0.074
       ],
-      "tris": 636,
+      "tris": 9448,
       "nodes": [
         "saya"
       ]
     },
     {
       "id": "wakizashi",
-      "label": "Wakizashi in its saya",
-      "era": "Sengoku–early Edo (c. 1570–1620)",
+      "label": "Wakizashi in its saya: 45 cm blade, notare hamon, 20 cm tsuka",
+      "era": "Muromachi to Edo",
       "refs": [
-        "Momoyama uchigatana koshirae, the Met"
+        "Kōkan Nagayama (1997)"
       ],
       "file": "wakizashi.glb",
       "kind": "weapon",
       "attach": "Hips",
       "restOrigin": [
-        0.0142,
-        -0.552,
+        -0.0213,
+        -0.52,
         0
       ],
       "size": [
-        0.092,
-        0.724,
+        0.111,
+        0.725,
         0.064
       ],
-      "tris": 636,
+      "tris": 8680,
       "nodes": [
         "wakizashi"
       ]

@@ -322,6 +322,8 @@ export interface ArmourFit {
   hakLat: number; hakFB: number;
   /** The scabbard in the obi: degrees below level, and degrees out from straight back. */
   sayaDown: number; sayaOut: number;
+  /** Where the scabbard passes through the obi: metres up from the sash's middle, radians round the waist from the hip. */
+  sayaLift: number; sayaAround: number;
   /** Hakama: how much of the fullness the inner side of each leg keeps away (1: none there, the legs part; 0: as full as outside). */
   hakInner: number;
   /** Eri (the kosode collar): its centre height at the back of the neck, its band height, how far it stands off the neck. */
@@ -344,6 +346,7 @@ export const ARMOUR_FIT_DEFAULT: ArmourFit = {
   hakLat: 0.108, hakFB: 0.13,
   // measured on the turnaround: hilt up and forward at the left hip, the scabbard 44° down and 28° out behind him
   sayaDown: 44, sayaOut: 28,
+  sayaLift: 0, sayaAround: 0,
   hakInner: 0.92,
   eriY: 1.505, eriH: 0.036, eriOut: 0.011,
   wataRise: 0.025, wataW: 0.1, kohire: 0.035,
@@ -375,7 +378,7 @@ export const PIECES: Record<string, { params: (keyof ArmourFit)[]; body?: boolea
   hachimaki: { params: [], note: 'headband' },
   waraji: { params: [], note: 'straw sandals' },
   tabi: { params: [], body: true, note: 'split-toe socks (cut from the body)' },
-  katana: { params: ['sayaDown', 'sayaOut'], note: 'katana in hand, saya in the obi (wants obi)' },
+  katana: { params: ['sayaDown', 'sayaOut', 'sayaLift', 'sayaAround'], note: 'katana in hand, saya in the obi (wants obi)' },
   kabuto: { params: [], note: 'helmet (hidden unless the game asks)' },
 };
 /** Kits as piece lists. A spec names one ("kit": "tosei-gusoku") or composes its own ({ preset, pieces, add, without }). */
@@ -401,7 +404,7 @@ export const FIT_STEPS: Partial<Record<keyof ArmourFit, [number, number, number]
   kusaLameH: [0.006, 0.04, 0.08], kusaFlare: [0.004, 0, 0.025], kusaClear: [0.006, 0, 0.04],
   sodeX: [0.02, 0.17, 0.3], sodeY: [0.02, 1.42, 1.54], sodeZ: [0.02, -0.06, 0.05], sodeOut: [6, -5, 35],
   sodeLameH: [0.005, 0.03, 0.06], sodeW: [0.03, 0.16, 0.32], sodeR: [0.008, 0.01, 0.05],
-  hakLat: [0.015, 0.04, 0.16], hakFB: [0.015, 0.05, 0.18], hakInner: [0.15, 0, 1], sayaDown: [4, 20, 65], sayaOut: [5, 0, 50],
+  hakLat: [0.015, 0.04, 0.16], hakFB: [0.015, 0.05, 0.18], hakInner: [0.15, 0, 1], sayaDown: [4, 20, 65], sayaOut: [5, 0, 50], sayaLift: [0.012, -0.06, 0.06], sayaAround: [0.06, -0.45, 0.45],
   eriY: [0.015, 1.48, 1.6], eriH: [0.012, 0.025, 0.09], eriOut: [0.006, 0.004, 0.04],
   wataRise: [0.01, 0, 0.07], wataW: [0.02, 0.06, 0.16], kohire: [0.015, 0, 0.08],
   greave: [0.008, 0.015, 0.06], hakGather: [0.02, 0.38, 0.56],
@@ -938,13 +941,15 @@ function kitOf(anatomy: HumanAnatomy, field: Field, fit: ArmourFit, wanted: Set<
   const L = anatomy.grip.Left, alongL = norm(sub(anatomy.byName.LeftHand.tip, anatomy.byName.LeftHand.at));
   w.sockets.push({ name: 'socket_hand_L', bone: 'LeftHand', at: L.at, x: norm(sub(alongL, mul(L.axis, dot(alongL, L.axis)))), y: L.axis });
   const s1 = sec(1.02);
-  const obiFront = (a: number): Vec3 => [Math.cos(a) * (s1.radius(a) + doClear + 0.03), 1.0, s1.cz + Math.sin(a) * (s1.radius(a) + doClear + 0.03)];
+  // the swords pass through the obi: at its fitted height (it was a fixed 1.0 m while the sash moved to fit the art)
+  const obiFront = (a: number): Vec3 => [Math.cos(a) * (s1.radius(a) + doClear + 0.03), fit.obiY ?? 1.0, s1.cz + Math.sin(a) * (s1.radius(a) + doClear + 0.03)];
   const dn = (fit.sayaDown * Math.PI) / 180, ou = (fit.sayaOut * Math.PI) / 180;
   const sayaDir = norm([Math.cos(dn) * Math.sin(ou), -Math.sin(dn), -Math.cos(dn) * Math.cos(ou)]);
   // worn edge-up: the edge faces the sky
   const upEdge = (y: Vec3) => norm(sub([0, 1, 0], mul(y, dot([0, 1, 0], y))));
-  w.sockets.push({ name: 'socket_obi_katana', bone: 'Hips', at: obiFront(Math.PI / 2 - 0.55), x: upEdge(mul(sayaDir, -1)), y: mul(sayaDir, -1) });
-  w.sockets.push({ name: 'socket_obi_wakizashi', bone: 'Hips', at: add(obiFront(Math.PI / 2 - 0.25), [0, 0.03, -0.01]), x: upEdge(mul(sayaDir, -1)), y: mul(sayaDir, -1) });
+  const lift: Vec3 = [0, fit.sayaLift ?? 0, 0], round = fit.sayaAround ?? 0;
+  w.sockets.push({ name: 'socket_obi_katana', bone: 'Hips', at: add(obiFront(Math.PI / 2 - 0.55 + round), lift), x: upEdge(mul(sayaDir, -1)), y: mul(sayaDir, -1) });
+  w.sockets.push({ name: 'socket_obi_wakizashi', bone: 'Hips', at: add(add(obiFront(Math.PI / 2 - 0.25 + round), [0, 0.03, -0.01]), lift), x: upEdge(mul(sayaDir, -1)), y: mul(sayaDir, -1) });
 
   // ---- Kabuto (optional; Haru's art shows him bareheaded) -------------------------------------------------------------
   piece('kabuto', 'Kabuto: 62-plate suji-bachi bowl, mabizashi visor, fukigaeshi turnbacks, five-lame shikoro');

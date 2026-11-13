@@ -22,7 +22,8 @@ import {
 import { buildKit, kitPieces, quatFromBasis, unitBox, MeshBuilder, type Wardrobe } from '../../services/argilla/creature/wardrobe';
 import { PNG } from 'pngjs';
 import { ear } from '../../services/argilla/creature/ears';
-import { nihonto, saya, sheathedHilt } from '../../services/argilla/creature/weapons';
+import { hiltInSaya, merged, mirroredZ } from '../../services/argilla/creature/koshirae';
+import { loadContext, wornSword, buildArm, lookOf, wear, armsRig } from './forgeArms';
 import { forgeToGlb, type ForgeCharacter, type ForgeRigid, type ForgeSocket } from '../../services/argilla/creature/exportCreature';
 import type { GPrim } from '../../services/argilla/creature/gltfWriter';
 import { haruMaterials, MATERIAL_INDEX, paintHaru, rgbaPng, paintFace, paintFaceFromArt, type ArtLandmarks } from './forgeLook';
@@ -170,6 +171,26 @@ async function main() {
   kit.bones.push(...hair.bones);
   kit.springs.push(...hair.springs);
   log(`hair: ${hair.guides} strand cards, ${hair.springs.length} spring chains`);
+
+  // ---- The arms, from the context stage (context.json): built from the Heritage Codex, worn as the record says ------
+  const context = loadContext();
+  const sword = wornSword(context);
+  const koshirae = buildArm(sword);
+  const armsNotes: string[] = [];
+  const obiSock = kit.sockets.find((s) => s.name === 'socket_obi_katana');
+  const worn = obiSock ? wear(sword, obiSock, anatomy.byName.Hips.at, armsNotes) : null;
+  const sayaMeshes = worn?.mirror ? mirroredZ(koshirae.saya) : koshirae.saya;
+  const sheathedHiltMeshes = worn?.mirror ? mirroredZ(hiltInSaya(koshirae)) : hiltInSaya(koshirae);
+  if (worn?.mirror) armsNotes.push('the kurikata turned to the omote, the face away from the body');
+  let sayaRig: ReturnType<typeof armsRig> | null = null;
+  if (obiSock && worn && !NAKED) {
+    // the kojiri and sageo ends follow the mirror too
+    const k2 = worn.mirror ? { ...koshirae, kojiri: [koshirae.kojiri[0], koshirae.kojiri[1], -koshirae.kojiri[2]] as Vec3, sageoEnds: koshirae.sageoEnds.map((e) => [e[0], e[1], -e[2]] as Vec3) } : koshirae;
+    sayaRig = armsRig(sword, k2, { at: obiSock.at, x: worn.x, y: worn.y, z: worn.mirror ? worn.z.map((v) => -v) as Vec3 : worn.z }, obiSock.bone);
+    kit.bones.push(...sayaRig.bones);
+    kit.springs.push(...sayaRig.springs);
+  }
+  log(`arms: ${sword ? `${sword.label} (${sword.why}), nagasa ${sword.dims.nagasa} m, tsuka ${sword.dims.tsuka} m, ${sword.features.bohi ? 'bo-hi, ' : ''}${sword.features.hamon} hamon` : 'no context: the codex typical uchigatana'}${armsNotes.length ? `; ${armsNotes.join('; ')}` : ''}`);
   const boneNames = [...HUMAN_JOINTS, ...kit.bones.map((b) => b.name)];
   const boneIndex = new Map(boneNames.map((n, i) => [n, i] as const));
 
@@ -229,6 +250,7 @@ async function main() {
   const armourPrims: GPrim[] = [];
   for (const [mat, mb] of kit.armour) armourPrims.push(rigidPrim(mb, boneIndex, mat, 0));
   armourPrims.push(rigidPrim(hair.mesh, boneIndex, 'hairCards', 0), rigidPrim(hair.cord, boneIndex, 'silk', 0), rigidPrim(ears, boneIndex, 'skin', 0));
+  if (sayaRig) armourPrims.push(rigidPrim(sayaRig.cord, boneIndex, 'sageo', 0));
   log(`armour: ${armourPrims.reduce((n, p) => n + p.positions.length / 3, 0)} verts in ${armourPrims.length} primitives`);
 
   // the dō's kebiki lacing: one silk cord, GPU-instanced per row bone
@@ -241,18 +263,18 @@ async function main() {
   log(`odoshi: ${kit.lacing.reduce((n, l) => n + l.t.length / 3, 0)} instanced cords on ${lacing.length} bones`);
 
   // ---- Sockets and swords --------------------------------------------------------------------------------
-  const katana = nihonto({ nagasa: 0.7, tsuka: 0.25, sori: 0.016, width: 0.032, bone: '' });
-  const sockets: ForgeSocket[] = kit.sockets.map((s) => {
+  // the sword in the hand and the sword in the obi are one koshirae: the same blade, hilt and fittings
+  const sockets: ForgeSocket[] = kit.sockets.filter((s) => s.name !== 'socket_obi_wakizashi' || process.env.FORGE_WAKIZASHI === '1').map((s) => {
     const z = cross(s.x, s.y);
     const meshes: ForgeSocket['meshes'] = [];
-    if (s.name === 'socket_hand_R') meshes.push({ name: 'katana', at: [0, 0.05, 0], prims: localPrims(katana.meshes), markers: [{ name: 'katana_base', at: katana.base }, { name: 'katana_tip', at: katana.tip }] });
-    if (s.name === 'socket_obi_katana') {
-      meshes.push({ name: 'katana_saya', prims: localPrims(saya({ length: 0.76, sori: 0.016, bone: '' })) });
+    if (s.name === 'socket_hand_R') meshes.push({ name: 'katana', at: [0, 0.05, 0], prims: localPrims(merged(koshirae.blade, koshirae.hilt)), markers: [{ name: 'katana_base', at: koshirae.base }, { name: 'katana_tip', at: koshirae.tip }] });
+    if (s.name === 'socket_obi_katana' && worn) {
+      meshes.push({ name: 'katana_saya', prims: localPrims(sayaMeshes) });
       // the katana as the art draws it, sheathed: its hilt out of the saya (the game hides it while the blade is drawn)
-      meshes.push({ name: 'katana_sheathed', prims: localPrims(sheathedHilt(0.25, '')) });
+      meshes.push({ name: 'katana_sheathed', prims: localPrims(sheathedHiltMeshes) });
+      // riding the scabbard's pivot, so it swings as the codex says it does
+      return { name: s.name, bone: sayaRig ? 'SayaPivot' : s.bone, at: s.at, rotation: quatFromBasis(worn.x, worn.y, cross(worn.x, worn.y)), meshes };
     }
-    // (the art shows one sword: the wakizashi is there with FORGE_WAKIZASHI=1)
-    if (s.name === 'socket_obi_wakizashi' && process.env.FORGE_WAKIZASHI === '1') meshes.push({ name: 'wakizashi', prims: localPrims(saya({ length: 0.54, sori: 0.012, bone: '', hilt: 0.17 })) });
     return { name: s.name, bone: s.bone, at: s.at, rotation: quatFromBasis(s.x, s.y, z), meshes };
   });
 
@@ -274,6 +296,9 @@ async function main() {
       twists: Object.entries(TWIST_JOINTS).map(([bone, t]) => ({ bone, driver: t.driver, share: t.share, axis: norm(sub(anatomy.byName[t.parent as HumanJoint].tip, anatomy.byName[t.parent as HumanJoint].at)) })),
       grips: grips(anatomy),
       hold: { Right: 'Right:katana', Left: 'Left:relaxed' },
+      // who the character is (forge context): how they carry themself, and what the Forge read it from
+      bearing: context?.bearing,
+      context: context ? { archetype: context.recognised.archetype, tradition: context.recognised.tradition, sword: sword ? { id: sword.id, dims: sword.dims, features: sword.features, carry: sword.carry } : null } : undefined,
       optional: { kabuto: process.env.FORGE_KABUTO === '1' },
       pieces: kit.pieces,
       tune: { ...anatomy.tune, face: undefined },
@@ -343,6 +368,15 @@ async function main() {
     extras,
   };
   await paintHaru(character, WORK, log);
+  // the arms' materials, painted from what they are made of and the flat-lay's colours (forgeArmsLook.ts)
+  const armsLookOut = lookOf(sword);
+  if (armsLookOut) {
+    const off = character.images.length;
+    character.images.push(...armsLookOut.images);
+    const shift = (i?: number) => (i === undefined ? undefined : i + off);
+    for (const m of armsLookOut.materials) character.materials[MATERIAL_INDEX[m.name]] = { ...m, baseColorTexture: shift(m.baseColorTexture), normalTexture: shift(m.normalTexture), ormTexture: shift(m.ormTexture) };
+    log(`arms look: ${armsLookOut.materials.length} materials, ${armsLookOut.images.length} maps`);
+  }
   // the face's own painting; the hair cards get the generated strand atlas
   const base = character.images.length;
   character.images.push(atlasFace.png);

@@ -30,8 +30,23 @@ const rounds = Number(args.find((a) => /^\d+$/.test(a)) ?? 3);
 const WORKERS = Number(args.includes('--workers') ? args[args.indexOf('--workers') + 1] : process.env.FORGE_WORKERS ?? Math.max(1, Math.min(4, Math.floor(os.totalmem() / 2 ** 30 / 7))));
 // the parameters of the pieces this character wears (wardrobe.ts PIECES), each with its step, minimum and maximum
 // (the body: shoulder breadth, muscle, fat; height is the spec's, the art's scale is set by it)
-const BODY_STEPS: Record<string, [number, number, number]> = { build: [0.04, 0.85, 1.25], musculature: [0.08, 0, 1], weight: [0.08, 0, 0.8] };
+// the bounds are the archetype's (forge context: a warrior is searched among strong, lean bodies), else the anatomy's own
+const CTX_BOUNDS = (() => { const f = dataFile('context.json'); return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')).body?.bounds as Record<string, [number, number, number]> | undefined : undefined; })();
+const BODY_STEPS: Record<string, [number, number, number]> = {
+  build: [0.04, CTX_BOUNDS?.build[0] ?? 0.85, CTX_BOUNDS?.build[2] ?? 1.25],
+  musculature: [0.08, CTX_BOUNDS?.musculature[0] ?? 0, CTX_BOUNDS?.musculature[2] ?? 1],
+  weight: [0.08, CTX_BOUNDS?.weight[0] ?? 0, CTX_BOUNDS?.weight[2] ?? 0.8],
+};
 const STEP = (BODY ? BODY_STEPS : Object.fromEntries(fitParamsOf(kitPieces(spec.kit)).map((k) => [k, FIT_STEPS[k]!]))) as Partial<Record<keyof ArmourFit, [number, number, number]>>;
+// --only a,b: search just those (e.g. the scabbard's mounting after the sword was rebuilt)
+const ONLY = args.includes('--only') ? new Set(args[args.indexOf('--only') + 1].split(',')) : null;
+if (ONLY) for (const k of Object.keys(STEP)) if (!ONLY.has(k)) delete (STEP as Record<string, unknown>)[k];
+// the record bounds what the art may ask: a worn sword's angle below level stays inside its carry range (forge context)
+{
+  const f = dataFile('context.json');
+  const sword = fs.existsSync(f) ? (JSON.parse(fs.readFileSync(f, 'utf8')).arms ?? []).find((a: { role?: string; carry?: { downDeg?: number[] } }) => a.role === 'worn' && a.carry?.downDeg) : null;
+  if (sword && STEP.sayaDown) STEP.sayaDown = [STEP.sayaDown[0], sword.carry.downDeg[0], sword.carry.downDeg[2]];
+}
 const SCORED = ['do', 'kusazuri', 'sode', 'obi', 'hakama', 'shins', 'sword', 'arms'];
 const slotDir = path.join(WORK_DIR, 'armour_search');
 fs.mkdirSync(slotDir, { recursive: true });

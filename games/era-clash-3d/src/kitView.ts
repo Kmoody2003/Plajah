@@ -5,6 +5,7 @@
 import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { initKTX2 } from './core/ktx2';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 const params = new URLSearchParams(location.search);
 const kitName = params.get('kit') ?? 'haru';
@@ -19,6 +20,9 @@ renderer.toneMappingExposure = 1.1;
 document.getElementById('view')!.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xd8d4cc);
+// a studio to reflect: polished steel, gilt and lacquer only read as themselves with something to mirror
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.8;
 scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8070, 2.2));
 const sun = new THREE.DirectionalLight(0xfff0e0, 2.4); sun.position.set(-2, 6, 4); scene.add(sun);
 const camera = new THREE.PerspectiveCamera(30, (innerWidth || 1500) / (innerHeight || 1100), 0.05, 100);

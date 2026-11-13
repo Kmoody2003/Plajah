@@ -34,11 +34,12 @@ A rough box per flat-lay piece goes in `flatlay_pieces.json`; intake snaps each 
 FORGE_SPEC=scripts/eraclash3d/characters/<id>/forge.json npx tsx scripts/eraclash3d/forge.ts
 ```
 
-Eight stages run in order. A stage whose inputs haven't changed since it last ran is skipped. Name stages to run only those (`forge.ts parts score`), and add `--force` to rerun.
+Nine stages run in order. A stage whose inputs haven't changed since it last ran is skipped. Name stages to run only those (`forge.ts parts score`), and add `--force` to rerun.
 
 | Stage | What it does | Writes |
 |---|---|---|
 | intake | Measures the art. Turnaround: each view's columns, the soles, the chin and face length (MediaPipe on the front figure's head). Portrait: its landmarks. Flat-lay: each piece cut out (SAM). Flags anything doubtful. | `intake.json` |
+| context | Works out who the character is before anything is built. It recognises the archetype (a warrior) and the tradition (Sengoku Japan) from the kit, the flat-lay and the spec, and resolves the arms that belong from the Heritage Codex. It measures them from the flat-lay and holds them to the historical record, then anchors them to museum objects and Combat Atlas entries. See §7. | `context.json` |
 | build | Body from the anatomy, face from the art, the head fitted by its warp, the wardrobe fitted by its armour fit, rig and springs. Every kit piece also as its own GLB, painted from the flat-lay. | the character GLB, the kit folder, `kit.json` |
 | fit-head | Measures the head and neck against the art's outline row by row and folds the gap into the warp, until the head stops improving. | `head_warp.json` |
 | parts | Cuts the art into its parts (SAM, prompted by the model's own parts, one prompt per piece, the smaller cut owning a shared pixel) and flags doubtful cuts. | the art's part masks |
@@ -74,6 +75,47 @@ The wardrobe (`services/argilla/creature/wardrobe.ts`) is a library of pieces: `
 ### 6. The body is fitted too
 
 `fit-body` searches the anatomy's own sliders against the art, the same way `fit-armour` searches the kit: shoulder breadth (`build`), `musculature` and `weight`. The anatomy grows the skeleton, muscle groups, fat and skin from those sliders. Skin weights and the corrective shapes follow from that body. The result goes to `body_fit.json`; height stays the spec's, since the art's scale is set by it.
+
+### 7. Context: the Forge knows what it is building
+
+Before the build, the `context` stage works out **who the character is**, and that decides a great deal: how the body is built and stands, which arms go with which, how each is made, what it is made of, how it is worn, and how it moves. The knowledge lives in the **Heritage Codex** (`services/argilla/heritage/codex.ts`), and every Forge reads it.
+
+- **Recognise.**
+  - The evidence is what the Forge already holds: the kit's pieces, the flat-lay's item ids and the spec's words. Each archetype and tradition in the codex has weighted cues.
+  - The result comes with a confidence and the cues that decided it. For Haru: warrior 97%, Sengoku Japan 100%.
+  - A `"context": { "archetype", "tradition", "words", "worn" }` block in `forge.json` confirms or overrides it.
+- **The archetype shapes the body.**
+  - A warrior's anatomy is searched among strong, lean bodies: `fit-body` takes the archetype's bounds.
+  - The archetype also sets a **bearing**, *commanding* for a warrior: chest open, shoulders settled, weight low and centred, gaze level. It goes into the GLB's `extras.forge.bearing`.
+  - It lists the fighting arts to study in the Combat Atlas.
+- **The tradition names the arms, and what goes with them.**
+  - It names the arms that belong, and their companions. A katana implies a wakizashi beside it and a sageo cord tying the saya to the obi.
+  - It also says how they are worn, for example through the uwa-obi over the dō, edge up, at the left hip. A tachi, slung edge-down, is never confused with it.
+  - An arm the turnaround wears is *worn*. One only the flat-lay shows is *kit*: it is built, but not put on the body.
+- **Each arm is measured, then held to the record.**
+  - The codex gives dimensions as [least, typical, most] (nagasa, sori, motohaba, kasane, kissaki, tsuka, tsuba, saya), plus construction, fittings, materials, carry and behaviour, each with sources.
+  - The flat-lay gives proportions (hilt to blade, scabbard to blade), colours (wrap, ray skin, fittings, lacquer) and features (a bo-hi groove, a midare or notare hamon). It also tells whether a sword is laid out bare or sheathed, from lacquer's tint against steel's grey.
+  - Anything outside the record is held to it and reported, never obeyed. The art's wakizashi hilt is twice any real one's. Physics comes before pictures: a scabbard is always long enough for its blade.
+- **Anchored to the real world.**
+  - Plajah's museum layer (`services/museum`: the Met, Cleveland, the Art Institute, Japan Search, …) is searched for period objects. Their recorded materials are tallied; Haru's arms have 31 objects behind them.
+  - The Combat Atlas gives the arts that teach how these people moved: Kendo, Judo and Sumo for a samurai.
+
+**The arms are built the way the craft builds them** (`services/argilla/creature/koshirae.ts`, painted by `scripts/eraclash3d/forgeArmsLook.ts`):
+- **The blade.** Shinogi-zukuri section, with the edge on the outside of a koshi-zori curve. It has the kissaki's fukura, and the bo-hi cut in when the art shows one.
+- **Its maps.** UVs lie across the blade, so the hamon's line is painted where a polisher raises it: frosted, milky and less metallic than the dark mirror of the ji. The ji has itame grain and nie along the line.
+- **The fittings.**
+  - Habaki, seppa, and an iron tsuba with its mimi rim and relief.
+  - On the hilt: fuchi, ray skin with real nodules, and the hishi-maki wrap. Two braids cross in the middle of each face and leave diamonds. Menuki sit under the wrap, with the mekugi and kashira.
+  - Gilt pieces are chased with nanako.
+- **The saya.** Urushi over its curve, with horn koiguchi, kurikata and kojiri, and the sageo wrapped and knotted.
+- **Metals.** A metal takes its *hue* from the art and its *brightness* from the codex. A photo of polished steel is mostly the room it reflects.
+
+**Worn and moving as the record says.**
+- The sword in the hand and the one in the obi are the same koshirae.
+- The build turns it edge-up or edge-down as its carry requires, and turns the kurikata to the omote face, away from the body.
+- The scabbard rides a `SayaPivot` spring bone, pinned at the obi and limited to the codex's swing (7° for an uchigatana). The sageo's free ends are cords on their own spring chains.
+
+**To teach the Forge a new tradition or weapon:** add an archetype, a tradition or an arms entry to the codex, with its cues, dimensions, carry, behaviour and sources. Every creator's Forge then knows it. A new builder (a European longsword, a spear) goes beside `koshirae.ts` and is named in the entry's `builder`.
 
 ## What it builds on (nothing rebuilt)
 

@@ -17,6 +17,8 @@
   "hakFB": 0.05,
   "sayaDown": 39,
   "sayaOut": 29.25,
+  "sayaLift": 0.024,
+  "sayaAround": -0.06,
   "hakInner": 0.545,
   "eriY": 1.505,
   "eriH": 0.036,

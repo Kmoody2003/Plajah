@@ -329,7 +329,8 @@ const HEROES: Record<Hero, { url: string; height: number; name: string; mocap?: 
 };
 
 /** Start downloading a hero's model (and the shared locomotion rig) early; loadJack reuses the fetch. */
-export function prefetchHero(hero: Hero) { loadGLB(HEROES[hero].url).catch(() => {}); loadGLB(ANIM_SOURCE_URL).catch(() => {}); }
+/** Start the hero's model (or the one `url` swaps in) and the animation source downloading before they are needed. */
+export function prefetchHero(hero: Hero, url?: string) { loadGLB(url ?? HEROES[hero].url).catch(() => {}); loadGLB(ANIM_SOURCE_URL).catch(() => {}); }
 
 /** `url` swaps the hero's model (e.g. Haru v3 from the Character Forge); everything else is the hero's own. */
 export async function loadJack(hero: Hero = 'jack', opts: { url?: string } = {}): Promise<Character> {

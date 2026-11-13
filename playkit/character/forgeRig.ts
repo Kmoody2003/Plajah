@@ -27,6 +27,8 @@ export interface ForgeExtras {
   hold: Record<string, string>;
   /** Pieces the game may hide (e.g. the kabuto) and whether they start shown. */
   optional?: Record<string, boolean>;
+  /** How the character carries themself (the Forge's context stage, from the archetype): degrees, + is extension. */
+  bearing?: { label: string; chest: number; chin: number; shoulders: number; stanceWidth: number; knees: number };
 }
 
 export interface ForgeRig {
@@ -76,6 +78,30 @@ export function forgeRig(model: THREE.Object3D, opts: { dqs?: boolean } = {}): F
       for (const [bone, q] of Object.entries(g)) bones.get(bone)?.quaternion.set(q[0], q[1], q[2], q[3]);
     }
   };
+  // the bearing: laid over whatever the animation does, about the figure's own left-right axis (a warrior's chest
+  // open, the neck taking most of it back so the gaze stays level); ?bearing=0 turns it off
+  const bearingOn = !(typeof location !== 'undefined' && new URLSearchParams(location.search).get('bearing') === '0');
+  const bear = bearingOn && extras.bearing ? extras.bearing : null;
+  const _ax = new THREE.Vector3(), _wq = new THREE.Quaternion();
+  const leant = new Map<string, { delta: THREE.Quaternion; after: THREE.Quaternion }>();
+  const lean = (name: string, deg: number) => {
+    const b = bones.get(name); if (!b || !deg || !b.parent) return;
+    // the axis in the bone's parent frame: rotating the bone about it turns it about the figure's left-right axis
+    model.getWorldQuaternion(_wq); _ax.set(1, 0, 0).applyQuaternion(_wq);
+    b.parent.getWorldQuaternion(_wq); _ax.applyQuaternion(_wq.invert()).normalize();
+    // a bone no clip animates keeps last frame's lean: take that off first, or it would add up frame by frame
+    const last = leant.get(name);
+    if (last && b.quaternion.equals(last.after)) b.quaternion.premultiply(_wq.copy(last.delta).invert());
+    const delta = new THREE.Quaternion().setFromAxisAngle(_ax, (-deg * Math.PI) / 180);
+    b.quaternion.premultiply(delta);
+    leant.set(name, { delta, after: b.quaternion.clone() });
+  };
+  const applyBearing = () => {
+    if (!bear) return;
+    model.updateMatrixWorld(true);
+    lean('Spine1', bear.chest * 0.4); lean('Spine2', bear.chest * 0.6);
+    lean('Neck', -bear.chest * 0.75 + bear.chin);
+  };
   let first = true;
   return {
     extras, springs, cloth, drivers,
@@ -83,6 +109,7 @@ export function forgeRig(model: THREE.Object3D, opts: { dqs?: boolean } = {}): F
     update(dt) {
       const t0 = performance.now();
       applyGrips();
+      applyBearing();
       drivers.updateTwists();
       model.updateMatrixWorld(true);
       drivers.update();

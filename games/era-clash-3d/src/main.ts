@@ -32,7 +32,8 @@ const chapter = FALLING_PETAL.chapters[CH];
 const scholar = params.get('mode') === 'scholar';
 
 // ── Quality tier by GPU (Ravencrest canon: the Intel Arc iGPU at 60 fps is the baseline) ─────────────
-prefetchHero('haru');
+// (Haru v3 is the hero: fetch the model that will be shown, not the old one; ?haru=v2 is the exception)
+prefetchHero('haru', params.get('haru') !== 'v2' ? '/games/era-clash/3d/assets/characters/samurai_v3.glb' : undefined);
 const adapterInfo = await navigator.gpu?.requestAdapter({ powerPreference: 'high-performance' })
   .then((a) => (a as unknown as { info?: { vendor?: string; architecture?: string } } | null)?.info).catch(() => undefined);
 const integrated = !adapterInfo || /intel|qualcomm|apple|arm/i.test(adapterInfo.vendor ?? '') || /xe-|gen-|integrated/i.test(adapterInfo.architecture ?? '');

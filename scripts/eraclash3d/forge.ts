@@ -5,6 +5,8 @@
  *
  * Stages, in order (name some to run only those; a stage whose inputs have not changed since it last ran is skipped):
  *   intake      measure the art: turnaround views, sole, chin, face length; portrait landmarks; flat-lay pieces cut
+ *   context     who this is: archetype and tradition recognised from the kit and flat-lay, the Heritage Codex's arms,
+ *               measured from the flat-lay and held to the historical record, museum objects and the Combat Atlas
  *   build       body from the anatomy, face from the art, wardrobe, rig; the kit's assets painted from the flat-lay
  *   fit-head    the head and neck bent to the art's outline, row by row, until it stops improving
  *   parts       the art cut into its parts by SAM, prompted by the model's own parts
@@ -20,7 +22,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { spec, SPEC_FILE, DATA_DIR, WORK_DIR, dataFile } from './forgeSpec';
 
-const STAGES = ['intake', 'build', 'fit-head', 'parts', 'fit-body', 'fit-armour', 'paint', 'score'] as const;
+const STAGES = ['intake', 'context', 'build', 'fit-head', 'parts', 'fit-body', 'fit-armour', 'paint', 'score'] as const;
 type Stage = (typeof STAGES)[number];
 const args = process.argv.slice(2);
 const only = args.filter((a) => (STAGES as readonly string[]).includes(a)) as Stage[];
@@ -51,10 +53,11 @@ const fileSig = (f: string) => { try { const s = fs.statSync(f); return `${f}:${
 const SRC = (names: string[]) => names.map((n) => fileSig(path.join('scripts/eraclash3d', n)));
 const DEPS: Record<Stage, () => string[]> = {
   intake: () => [fileSig(SPEC_FILE), fileSig(spec.art.portrait), fileSig(spec.art.turnaround), fileSig(spec.art.flatLay ?? ''), fileSig(dataFile('flatlay_pieces.json')), ...SRC(['forgeIntake.ts'])],
-  build: () => [fileSig(SPEC_FILE), fileSig(dataFile('intake.json')), fileSig(dataFile('body_fit.json')), fileSig(dataFile('flatlay_paint.json')), fileSig(dataFile('head_warp.json')), fileSig(dataFile('armour_fit.json')), ...SRC(['forgeBuild.ts', 'forgeLook.ts', 'forgeFaceFit.ts', 'forgeKit.ts', 'forgeKitPaint.ts']), fileSig('services/argilla/creature/wardrobe.ts'), fileSig('services/argilla/creature/human.ts'), fileSig('services/argilla/creature/hairSystem.ts')],
+  context: () => [fileSig(SPEC_FILE), fileSig(dataFile('intake.json')), fileSig(spec.art.flatLay ?? ''), ...SRC(['forgeContext.ts']), fileSig('services/argilla/heritage/codex.ts')],
+  build: () => [fileSig(SPEC_FILE), fileSig(dataFile('intake.json')), fileSig(dataFile('context.json')), ...SRC(['forgeArms.ts', 'forgeArmsLook.ts']), fileSig('services/argilla/creature/koshirae.ts'), fileSig(dataFile('body_fit.json')), fileSig(dataFile('flatlay_paint.json')), fileSig(dataFile('head_warp.json')), fileSig(dataFile('armour_fit.json')), ...SRC(['forgeBuild.ts', 'forgeLook.ts', 'forgeFaceFit.ts', 'forgeKit.ts', 'forgeKitPaint.ts']), fileSig('services/argilla/creature/wardrobe.ts'), fileSig('services/argilla/creature/human.ts'), fileSig('services/argilla/creature/hairSystem.ts')],
   'fit-head': () => [...DEPS.build(), ...SRC(['forgeFidelity.ts'])],
   parts: () => [fileSig(spec.out.character), ...SRC(['forgeParts.ts'])],
-  'fit-body': () => [fileSig(SPEC_FILE), fileSig(dataFile('head_warp.json')), ...SRC(['forgeArmourFit.ts'])],
+  'fit-body': () => [fileSig(SPEC_FILE), fileSig(dataFile('head_warp.json')), fileSig(dataFile('context.json')), ...SRC(['forgeArmourFit.ts'])],
   'fit-armour': () => [fileSig(spec.out.character), fileSig(dataFile('body_fit.json')), ...SRC(['forgeArmourFit.ts'])],
   paint: () => [fileSig(spec.out.character), ...SRC(['forgePaint.ts'])],
   score: () => [fileSig(spec.out.character), fileSig(dataFile('armour_fit.json')), fileSig(dataFile('head_warp.json'))],
@@ -69,6 +72,7 @@ const fidelity = () => JSON.parse(fs.readFileSync(path.join(WORK_DIR, 'fidelity'
 // ---- the stages ---------------------------------------------------------------------------------------------------
 const RUN: Record<Stage, () => void> = {
   intake() { tsx('intake', 'forgeIntake.ts'); const r = JSON.parse(fs.readFileSync(dataFile('intake.json'), 'utf8')); say(`intake: ${r.checks.length ? `checks: ${r.checks.join('; ')}` : 'all checks pass'}`); },
+  context() { const out = tsx('context', 'forgeContext.ts'); for (const l of out.split(/\r?\n/).filter((x) => /archetype|tradition|arm |museum:|atlas:/.test(x))) say(l.replace('[context] ', 'context: ')); },
   build() { const out = tsx('build', 'forgeBuild.ts'); say(`build: ${(out.match(/kit: (\d+) assets/) ?? [])[1] ?? '?'} kit assets, ${(out.match(/wrote .* \(([\d.]+ MB)\)/) ?? [])[1] ?? '?'}`); },
   'fit-head'() {
     // build, measure the outline, fold 80% of the gap into the warp; again until the head stops improving
@@ -95,6 +99,25 @@ const RUN: Record<Stage, () => void> = {
 };
 
 // ---- the report ---------------------------------------------------------------------------------------------------
+/** Who the Forge built, and what it anchored the build to (context.json). */
+function contextSection(): string[] {
+  const f = dataFile('context.json');
+  if (!fs.existsSync(f)) return [];
+  const c = JSON.parse(fs.readFileSync(f, 'utf8'));
+  const a = c.recognised.archetype, t = c.recognised.tradition;
+  const arms = (c.arms as { id: string; label?: string; role?: string; why?: string; dims?: Record<string, number>; features?: Record<string, unknown>; notes?: string[]; missing?: boolean; note?: string }[]);
+  return [
+    '## Who the Forge built',
+    '',
+    `- **${a.label}** (${Math.round(a.confidence * 100)}%, from ${a.cues.join(', ')}); bearing *${c.bearing.label}*; body searched within build ${c.body.bounds.build.join('–')}, musculature ${c.body.bounds.musculature.join('–')}, weight ${c.body.bounds.weight.join('–')}.`,
+    `- **${t.culture}, ${t.era} (${t.years.join('–')})** (${Math.round(t.confidence * 100)}%, from ${t.cues.slice(0, 8).join(', ')}${t.cues.length > 8 ? ', …' : ''}).`,
+    ...arms.map((x) => x.missing ? `- ${x.id}: ${x.note}` : `- **${x.label}**, ${x.role} (${x.why}): blade ${x.dims!.nagasa} m, sori ${x.dims!.sori} m, tsuka ${x.dims!.tsuka} m, saya ${x.dims!.saya} m${x.features!.bohi ? ', bo-hi' : ''}, ${x.features!.hamon} hamon.${x.notes!.length ? ` ${x.notes!.join('; ')}.` : ''}`),
+    `- Worn: ${c.wear[0]}`,
+    `- Anchored to ${c.museum.objects?.length ?? 0} museum objects (materials recorded: ${Object.entries(c.museum.materials ?? {}).slice(0, 8).map(([k, n]) => `${k} ${n}`).join(', ')}) and the Combat Atlas: ${c.atlas.map((x: { name: string; code: string }) => `${x.name} (${x.code})`).join(', ')}.`,
+    '',
+  ];
+}
+
 function report() {
   const f = fidelity();
   const parts = JSON.parse(fs.readFileSync(path.join(WORK_DIR, 'fidelity', 'parts.json'), 'utf8')) as Record<string, Record<string, { iou: number; outlineMm: number; deltaE: number; area: number; reliable: boolean; why?: string }>>;
@@ -133,6 +156,7 @@ function report() {
     '|---|---|---|---|---|',
     ...table.map((r) => `| ${r.n} | ${(r.iou * 100).toFixed(1)}% | ${r.per} | ${r.de.toFixed(1)} | ${pass(r.iou, g.part)} |`),
     '',
+    ...contextSection(),
     `Images: \`${path.join(WORK_DIR, 'fidelity')}\` (fidelity_<view>.png: art, model, overlay; delta_<view>.png: where colour is lost, green to red by ΔE, shape misses in red (art only) and blue (model only); parts_<view>.png: each art part tinted, the model's outlined).`,
     '',
   ].join('\n');

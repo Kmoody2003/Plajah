@@ -86,23 +86,64 @@ export function scoreParts(views: PartView[], sheet: { W: number; H: number; dat
     const inner = model.map(insideOf);
     const jobs: Record<string, unknown>[] = [];
     const jobsOf: Record<string, string[]> = {};
+    const thinPart: Record<string, boolean> = {};
     parts.forEach((name, p) => {
       jobsOf[name] = [];
-      pieces(model[p], W, H, 250).forEach((piece, k) => {
-        const inside = insideOf(piece);
-        if (inside.length < 120) return;
+      pieces(model[p], W, H, 40).forEach((piece, k) => {
+        // a thin part (a sword, a cord: nowhere more than ~8 px from its edge) is prompted along its length, and told
+        // "not this" right beside it, where SAM would otherwise spill into whatever it lies across (the sash it is
+        // thrust through); a broad part is prompted from deep inside, as before
+        const dIn = chamfer(piece, W, H, false);
+        let maxD = 0; for (let i = 0; i < W * H; i++) if (piece[i] && dIn[i] > maxD) maxD = dIn[i];
+        const thin = maxD < 8;
+        thinPart[name] = (thinPart[name] ?? true) && thin;
+        let area = 0; for (let i = 0; i < W * H; i++) area += piece[i];
+        if (!thin && area < 250) return;
+        const inside = thin ? (() => { const out: number[] = []; for (let i = 0; i < W * H; i++) if (piece[i] && dIn[i] >= Math.max(1, maxD * 0.55) && figure(i)) out.push(i); return out; })() : insideOf(piece);
+        if (inside.length < (thin ? 12 : 120)) return;
         let x0 = W, y0 = H, x1 = 0, y1 = 0;
         for (let i = 0; i < W * H; i++) if (piece[i]) { const x = i % W, y = (i / W) | 0; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
         const pad = Math.max(6, Math.round((x1 - x0 + y1 - y0) * 0.05));
         const box = [Math.max(0, x0 - pad), Math.max(0, y0 - pad), Math.min(W - 1, x1 + pad), Math.min(H - 1, y1 + pad)];
         // "not this": other parts' insides within the box (not this part's other piece: it is the same thing)
         const others: number[] = [];
-        parts.forEach((_, q) => { if (q !== p) for (const i of inner[q]) { const x = i % W, y = (i / W) | 0; if (x >= box[0] && x <= box[2] && y >= box[1] && y <= box[3]) others.push(i); } });
+        if (thin) {
+          // the ring 5–12 px outside the piece, on the figure: what it lies across
+          const dOut = chamfer(piece.map((v) => 1 - v) as unknown as Uint8Array, W, H, false);
+          for (let i = 0; i < W * H; i++) if (!piece[i] && dOut[i] >= 5 && dOut[i] <= 12 && figure(i) && !model[p][i]) others.push(i);
+        } else parts.forEach((_, q) => { if (q !== p) for (const i of inner[q]) { const x = i % W, y = (i / W) | 0; if (x >= box[0] && x <= box[2] && y >= box[1] && y <= box[3]) others.push(i); } });
+        if (thin) {
+          // a long thin part is too thin for SAM whole (it spills into the sash it crosses, or keeps a scrap): cut it in
+          // short segments along its length, each with its own box, points down its middle and "not this" beside it
+          const px: number[] = []; for (let i = 0; i < W * H; i++) if (piece[i]) px.push(i);
+          let mx = 0, my = 0; for (const i of px) { mx += i % W; my += (i / W) | 0; } mx /= px.length; my /= px.length;
+          let sxx = 0, syy = 0, sxy = 0; for (const i of px) { const dx = i % W - mx, dy = ((i / W) | 0) - my; sxx += dx * dx; syy += dy * dy; sxy += dx * dy; }
+          const ang = 0.5 * Math.atan2(2 * sxy, sxx - syy), ax = Math.cos(ang), ay = Math.sin(ang);
+          const tOf = (i: number) => (i % W - mx) * ax + (((i / W) | 0) - my) * ay;
+          let t0 = Infinity, t1 = -Infinity; for (const i of px) { const t = tOf(i); t0 = Math.min(t0, t); t1 = Math.max(t1, t); }
+          const SEG = 46, n = Math.max(1, Math.ceil((t1 - t0) / SEG));
+          for (let sgi = 0; sgi < n; sgi++) {
+            const a = t0 + sgi * SEG - 6, b = t0 + (sgi + 1) * SEG + 6;
+            const seg = new Uint8Array(W * H); let sx0 = W, sy0 = H, sx1 = 0, sy1 = 0, cnt = 0;
+            for (const i of px) { const t = tOf(i); if (t >= a && t <= b) { seg[i] = 1; cnt++; const x = i % W, y = (i / W) | 0; sx0 = Math.min(sx0, x); sx1 = Math.max(sx1, x); sy0 = Math.min(sy0, y); sy1 = Math.max(sy1, y); } }
+            if (cnt < 20) continue;
+            const sbox = [Math.max(0, sx0 - 6), Math.max(0, sy0 - 6), Math.min(W - 1, sx1 + 6), Math.min(H - 1, sy1 + 6)];
+            const sin = inside.filter((i) => seg[i]), sneg = others.filter((i) => { const x = i % W, y = (i / W) | 0; return x >= sbox[0] - 6 && x <= sbox[2] + 6 && y >= sbox[1] - 6 && y <= sbox[3] + 6; });
+            if (sin.length < 4) continue;
+            const gp = new PNG({ width: W, height: H });
+            for (let i = 0; i < W * H; i++) { const c = seg[i] ? 255 : 0; gp.data[i * 4] = gp.data[i * 4 + 1] = gp.data[i * 4 + 2] = c; gp.data[i * 4 + 3] = 255; }
+            const sid = `${name}#${k}.${sgi}`, sg = path.join(work, `${v.name}_${name}_${k}_${sgi}_guide.png`), so = path.join(work, `${v.name}_${name}_${k}_${sgi}_cut.png`);
+            fs.writeFileSync(sg, PNG.sync.write(gp));
+            jobs.push({ name: sid, pos: spread(sin, W, 4), neg: spread(sneg, W, 6), box: sbox, guide: sg, out: so, thin: true });
+            jobsOf[name].push(so);
+          }
+          return;
+        }
         const guide = new PNG({ width: W, height: H });
         for (let i = 0; i < W * H; i++) { const c = piece[i] ? 255 : 0; guide.data[i * 4] = guide.data[i * 4 + 1] = guide.data[i * 4 + 2] = c; guide.data[i * 4 + 3] = 255; }
         const id = `${name}#${k}`, gFile = path.join(work, `${v.name}_${name}_${k}_guide.png`), out = path.join(work, `${v.name}_${name}_${k}_cut.png`);
         fs.writeFileSync(gFile, PNG.sync.write(guide));
-        jobs.push({ name: id, pos: spread(inside, W, 6), neg: spread(others, W, 6), box, guide: gFile, out });
+        jobs.push({ name: id, pos: spread(inside, W, thin ? 10 : 6), neg: spread(others, W, thin ? 10 : 6), box, guide: gFile, out, ...(thin ? { thin: true } : {}) });
         jobsOf[name].push(out);
       });
     });
@@ -113,7 +154,7 @@ export function scoreParts(views: PartView[], sheet: { W: number; H: number; dat
 
     // ---- each part's art mask: its pieces joined, then one owner per pixel ----------------------------------------
     const sam = JSON.parse(fs.readFileSync(resFile, 'utf8')) as Record<string, { guideIoU: number; score: number }>;
-    const artOf = parts.map((name) => {
+    const artOf = parts.map((name, p) => {
       const A = new Uint8Array(W * H);
       for (const f of jobsOf[name]) { if (!fs.existsSync(f)) continue; const a = PNG.sync.read(fs.readFileSync(f)); for (let i = 0; i < W * H; i++) if (a.data[i * 4] > 127 && figure(i)) A[i] = 1; }
       return A;

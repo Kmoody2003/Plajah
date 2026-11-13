@@ -11,7 +11,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { writeGlb, type GMaterial, type GMesh, type GNode, type GPrim } from '../../services/argilla/creature/gltfWriter';
 import { MeshBuilder, unitBox, type Wardrobe } from '../../services/argilla/creature/wardrobe';
-import { nihonto, saya } from '../../services/argilla/creature/weapons';
+import { hiltInSaya, merged } from '../../services/argilla/creature/koshirae';
+import { loadContext, ownedArms, buildArm } from './forgeArms';
 import type { Vec3 } from '../../services/argilla/engine';
 import { paintKit, type PaintSpec } from './forgeKitPaint';
 
@@ -162,18 +163,33 @@ export async function exportKit(opts: {
 
   // ---- weapons: built on their own, in their own frame (blade along +y from the hilt's end) ------------------------
   const asPart = (meshes: Map<string, MeshBuilder>, fam: string): Part => new Map([[fam, new Map([...meshes].map(([mat, mb]) => [mat, { pos: [...mb.pos], nor: [...mb.nor], uv: [...mb.uv], idx: [...mb.idx] }]))]]);
-  const katana = nihonto({ nagasa: 0.7, tsuka: 0.25, sori: 0.016, width: 0.032, bone: '' });
-  const weaponMeta = (id: string, text: string) => ({ id, label: text, era: 'Sengoku–early Edo (c. 1570–1620)', refs: ['Momoyama uchigatana koshirae, the Met'] });
-  todo.push(['katana', asPart(katana.meshes, 'katana'), 'weapon', 'RightHand', weaponMeta('katana', 'Katana: 70 cm blade, ray-skin and silk tsuka, iron tsuba')]);
-  // the scabbard as the art draws it worn: with the sheathed sword's hilt standing out of it
-  todo.push(['katana_saya', asPart(saya({ length: 0.76, sori: 0.016, bone: '', hilt: 0.25 }), 'saya'), 'weapon', 'Hips', weaponMeta('katana_saya', 'Katana in its saya: black lacquer, navy sageo, the hilt out of the mouth')]);
-  todo.push(['wakizashi', asPart(saya({ length: 0.54, sori: 0.012, bone: '', hilt: 0.17 }), 'wakizashi'), 'weapon', 'Hips', weaponMeta('wakizashi', 'Wakizashi in its saya')]);
+  // every arm the context stage resolved (context.json), built from the Heritage Codex: the worn sword as its blade
+  // and as it hangs sheathed, the others (owned, or implied by the tradition) sheathed
+  const ctx = loadContext();
+  const arms = ownedArms(ctx);
+  const codexBuilt = new Set<string>();
+  const cm = (a: (typeof arms)[number], text: string) => ({ id: a.id, label: text, era: a.period, refs: (a as unknown as { sources?: string[] }).sources ?? [] });
+  for (const a of arms.length ? arms : [null]) {
+    const k = buildArm(a);
+    const cm2 = (id: string, text: string) => a ? { ...cm(a, text), id } : { id, label: text, era: 'Sengoku–early Edo (c. 1570–1620)', refs: [] };
+    const cut = a ? `${Math.round(a.dims.nagasa * 100)} cm blade${a.features.bohi ? ' with bo-hi' : ''}, ${a.features.hamon} hamon, ${Math.round(a.dims.tsuka * 100)} cm tsuka` : '70 cm blade';
+    if (!a || a.id === 'uchigatana') {
+      todo.push(['katana', asPart(merged(k.blade, k.hilt), 'katana'), 'weapon', 'RightHand', cm2('katana', `Katana (uchigatana): ${cut}; ray skin and silk hishi-maki, iron tsuba, gilt fittings`)]);
+      todo.push(['katana_saya', asPart(merged(k.saya, hiltInSaya(k)), 'saya'), 'weapon', 'Hips', cm2('katana_saya', 'Katana in its saya: urushi lacquer, horn koiguchi, kurikata and kojiri, the sageo wrapped and knotted')]);
+      codexBuilt.add('katana').add('katana_saya');
+    } else {
+      todo.push([a.id, asPart(merged(k.saya, hiltInSaya(k)), a.id), 'weapon', 'Hips', cm2(a.id, `${a.label} in its saya: ${cut}`)]);
+      codexBuilt.add(a.id);
+    }
+  }
 
   // ---- painted from the flat-lay, then written ------------------------------------------------------------------
   if (opts.flatLay && fs.existsSync(opts.flatLay.dir)) {
     const srgb = (v: number) => 255 * (v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055);
     const base = (mat: string) => (opts.materials[opts.materialIndex[mat] ?? 0]?.color ?? [0.5, 0.5, 0.5]).slice(0, 3).map((v) => srgb(v ?? 0.5));
-    const pics = await paintKit(todo.map(([id, part]) => ({ id, part, spec: opts.flatLay!.specs[id], base })), opts.flatLay.dir, opts.work ?? path.join(outDir, '.paint'));
+    // (the codex-built arms keep their own materials: their colours are already the flat-lay's, their surfaces what
+    // they are made of)
+    const pics = await paintKit(todo.map(([id, part]) => ({ id, part, spec: codexBuilt.has(id) ? undefined : opts.flatLay!.specs[id], base })), opts.flatLay.dir, opts.work ?? path.join(outDir, '.paint'));
     for (const [id, b] of pics) painted.set(id, b);
   }
   for (const [id, part, kind, attach, meta] of todo) write(id, part, kind, attach, meta);

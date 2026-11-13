@@ -61,6 +61,16 @@ with torch.inference_mode():
                     iou, q = 0.0, float(s)
                 if q > best_q:
                     best, best_q, best_iou, best_score = m, q, float(iou), float(s)
+        if job.get("thin") and g_grown is not None and best is not None:
+            # a thin part: keep only the pieces of the cut that run along the guide; a blob SAM spilled into elsewhere
+            # (the sash a sword is thrust through) is not the sword
+            n, lab = cv2.connectedComponents(best.astype(np.uint8))
+            keep = np.zeros_like(best)
+            for c in range(1, n):
+                comp = lab == c
+                if (comp & g_grown).sum() >= 0.5 * comp.sum():
+                    keep |= comp
+            best = keep
         Image.fromarray((best * 255).astype(np.uint8)).save(job["out"])
         results[job["name"]] = {"guideIoU": round(best_iou, 3), "score": round(best_score, 3)}
         print(f"{job['name']}: guide IoU {best_iou:.2f}, score {best_score:.2f}", flush=True)

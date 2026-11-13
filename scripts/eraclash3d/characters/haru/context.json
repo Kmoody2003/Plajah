@@ -1,0 +1,928 @@
+{
+  "note": "Written by forge context (forgeContext.ts) from the Heritage Codex, the flat-lay, Plajah's museum layer and the Combat Atlas. Confirm or override with a \"context\" block in forge.json.",
+  "recognised": {
+    "archetype": {
+      "id": "warrior",
+      "label": "Warrior / fighter",
+      "confidence": 0.97,
+      "cues": [
+        "katana",
+        "wakizashi",
+        "do",
+        "kusazuri",
+        "sode",
+        "kote",
+        "suneate",
+        "kabuto",
+        "samurai"
+      ],
+      "runnerUp": {
+        "id": "civilian",
+        "confidence": 0.283
+      }
+    },
+    "tradition": {
+      "id": "jp-sengoku",
+      "culture": "Japanese (samurai)",
+      "era": "Sengoku to early Edo",
+      "years": [
+        1467,
+        1615
+      ],
+      "confidence": 0.998,
+      "cues": [
+        "tosei-gusoku",
+        "katana",
+        "wakizashi",
+        "do",
+        "kusazuri",
+        "sode",
+        "kote",
+        "suneate",
+        "hachimaki",
+        "watagami",
+        "eri",
+        "hakama",
+        "kosode",
+        "obi",
+        "tabi",
+        "waraji",
+        "kabuto",
+        "samurai"
+      ],
+      "runnerUp": {
+        "id": "eu-late-medieval",
+        "confidence": 0
+      }
+    }
+  },
+  "body": {
+    "bounds": {
+      "build": [
+        1,
+        1.06,
+        1.18
+      ],
+      "musculature": [
+        0.62,
+        0.8,
+        0.96
+      ],
+      "weight": [
+        0.04,
+        0.14,
+        0.32
+      ]
+    },
+    "why": "Warrior / fighter: the anatomy's sliders are searched inside these"
+  },
+  "bearing": {
+    "label": "commanding",
+    "chest": 4,
+    "chin": 0,
+    "shoulders": -3,
+    "stanceWidth": 1.12,
+    "knees": 4,
+    "notes": [
+      "Chest open and the shoulders settled down and back: armour is carried from the hips, not hunched under.",
+      "Weight low and centred over the hips (koshi), knees soft, so the body can move off either foot.",
+      "Chin level, gaze to the horizon: enzan no metsuke, \"looking at the far mountain\", as kendo teaches it."
+    ]
+  },
+  "studies": [
+    "kendo",
+    "judo",
+    "sumo",
+    "armizare",
+    "kunstdesfechtens",
+    "eskrima",
+    "silat"
+  ],
+  "arms": [
+    {
+      "id": "uchigatana",
+      "label": "Uchigatana (katana)",
+      "role": "worn",
+      "period": "Muromachi to early Edo (c. 1400–1615)",
+      "builder": "nihonto",
+      "why": "the turnaround wears it",
+      "dims": {
+        "nagasa": 0.7,
+        "sori": 0.016,
+        "motohaba": 0.031,
+        "sakihaba": 0.022,
+        "kasane": 0.0072,
+        "kissaki": 0.036,
+        "tsuka": 0.242,
+        "tsuba": 0.078,
+        "saya": 0.735
+      },
+      "measured": {
+        "tsukaRatio": 0.346,
+        "sayaRatio": 0.875
+      },
+      "colours": {
+        "ito": [
+          0.007,
+          0.0103,
+          0.0185
+        ],
+        "same": [
+          0.5972,
+          0.5089,
+          0.4621
+        ],
+        "fittings": [
+          0.3564,
+          0.2423,
+          0.1714
+        ],
+        "steel": [
+          0.147,
+          0.1441,
+          0.1356
+        ],
+        "saya": [
+          0.008,
+          0.0137,
+          0.0242
+        ]
+      },
+      "features": {
+        "bohi": true,
+        "hamon": "midare",
+        "hamonDepth": "0.456"
+      },
+      "notes": [
+        "uchigatana saya 0.642 m from the art is outside the record (0.66–0.84 m): held at 0.660",
+        "uchigatana saya 0.66 m cannot hold a 0.7 m blade: lengthened to 0.735 m"
+      ],
+      "construction": {
+        "section": "shinogi-zukuri: edge (ha), flat (hira-ji) up to the ridge line (shinogi), then the shinogi-ji to the back (mune), iori-mune (peaked)",
+        "curve": "koshi-zori or torii-zori: the edge on the outside of the curve, deepest just below the middle",
+        "hi": "often a bo-hi groove along the shinogi-ji, lightening the blade",
+        "hamon": "midare (irregular) or notare (wavy) in the period; the art decides",
+        "tsuka": "wood core in ray skin, menuki ornaments under the wrap, bamboo mekugi peg through the tang, fuchi collar and kashira cap",
+        "wrap": "hishi-maki: two flat braids crossing over and under, folded paper hishigami under each crossing make the diamonds (about 7–9 a side)"
+      },
+      "fittings": [
+        {
+          "id": "habaki",
+          "label": "Habaki",
+          "material": "fittings",
+          "note": "blade collar: holds the sword in the saya by friction at the koiguchi"
+        },
+        {
+          "id": "seppa",
+          "label": "Seppa",
+          "material": "seppa",
+          "note": "a washer either side of the tsuba"
+        },
+        {
+          "id": "tsuba",
+          "label": "Tsuba",
+          "material": "tsuba",
+          "note": "the guard; balances the blade and stops the hand"
+        },
+        {
+          "id": "fuchi",
+          "label": "Fuchi",
+          "material": "fittings",
+          "note": "collar at the guard end of the hilt"
+        },
+        {
+          "id": "kashira",
+          "label": "Kashira",
+          "material": "fittings",
+          "note": "pommel cap; the wrap passes through its shitodome"
+        },
+        {
+          "id": "menuki",
+          "label": "Menuki",
+          "material": "fittings",
+          "note": "ornaments under the wrap, one each side, filling the palm"
+        },
+        {
+          "id": "mekugi",
+          "label": "Mekugi",
+          "material": "horn",
+          "note": "bamboo peg through tsuka and tang"
+        },
+        {
+          "id": "koiguchi",
+          "label": "Koiguchi",
+          "material": "horn",
+          "note": "the scabbard mouth"
+        },
+        {
+          "id": "kurikata",
+          "label": "Kurikata",
+          "material": "horn",
+          "note": "knob on the omote side of the saya for the sageo, a hand below the mouth"
+        },
+        {
+          "id": "kojiri",
+          "label": "Kojiri",
+          "material": "horn",
+          "note": "end cap of the saya"
+        },
+        {
+          "id": "sageo",
+          "label": "Sageo",
+          "material": "sageo",
+          "note": "flat silk cord through the kurikata; tied to the obi or hakama himo"
+        }
+      ],
+      "materials": {
+        "steel": {
+          "color": [
+            0.62,
+            0.64,
+            0.67
+          ],
+          "metallic": 1,
+          "roughness": 0.12,
+          "surface": "tamahagane, polished to a mirror ji; the hamon a frosted white band of nioi and nie along the edge; the hada grain like wood showing through the polish"
+        },
+        "hamon": {
+          "color": [
+            0.86,
+            0.87,
+            0.88
+          ],
+          "metallic": 0.5,
+          "roughness": 0.36,
+          "surface": "the hardened edge: crystalline, misty, frosted by the polish; milky white against the dark mirror of the ji"
+        },
+        "same": {
+          "color": [
+            0.86,
+            0.83,
+            0.75
+          ],
+          "metallic": 0,
+          "roughness": 0.55,
+          "surface": "ray skin: a field of small hard nodules, ivory-white, showing through the diamonds of the wrap"
+        },
+        "ito": {
+          "color": [
+            0.03,
+            0.035,
+            0.09
+          ],
+          "metallic": 0,
+          "roughness": 0.62,
+          "surface": "flat braided silk, wrapped in crossing turns over hishigami paper folds"
+        },
+        "fittings": {
+          "color": [
+            0.9,
+            0.68,
+            0.3
+          ],
+          "metallic": 1,
+          "roughness": 0.32,
+          "surface": "gilt copper or shakudō: fuchi, kashira, menuki and habaki"
+        },
+        "tsuba": {
+          "color": [
+            0.08,
+            0.075,
+            0.07
+          ],
+          "metallic": 1,
+          "roughness": 0.55,
+          "surface": "forged iron, dark patina, a raised rim (mimi) and relief or openwork"
+        },
+        "seppa": {
+          "color": [
+            0.75,
+            0.42,
+            0.25
+          ],
+          "metallic": 1,
+          "roughness": 0.3,
+          "surface": "copper washers either side of the tsuba"
+        },
+        "saya": {
+          "color": [
+            0.025,
+            0.03,
+            0.06
+          ],
+          "metallic": 0,
+          "roughness": 0.18,
+          "surface": "honoki (magnolia) wood under many coats of urushi lacquer, deep and glassy"
+        },
+        "sageo": {
+          "color": [
+            0.03,
+            0.04,
+            0.1
+          ],
+          "metallic": 0,
+          "roughness": 0.7,
+          "surface": "flat braided silk cord"
+        },
+        "horn": {
+          "color": [
+            0.02,
+            0.018,
+            0.016
+          ],
+          "metallic": 0,
+          "roughness": 0.25,
+          "surface": "buffalo horn: koiguchi, kurikata and kojiri"
+        }
+      },
+      "carry": {
+        "how": "thrust through the obi (over armour, the uwa-obi), hilt forward",
+        "side": "left",
+        "edge": "up",
+        "downDeg": [
+          20,
+          32,
+          45
+        ],
+        "tie": "the sageo wraps the saya below the kurikata and its ends tie off at the obi"
+      },
+      "behaviour": {
+        "scabbard": "Rigid. Pinned where it passes through the obi: it turns with the hips, not the legs, and the kojiri trails, rising when the hips rotate and the stride opens.",
+        "cord": "The sageo's free ends hang and swing with every step; they are cloth on the move, not part of the saya.",
+        "draw": "Left hand at the koiguchi, thumb pushes the tsuba to free the habaki (koiguchi o kiru); the saya is drawn back (saya-biki) as the blade leaves, edge-up, straight into the first cut (nukitsuke).",
+        "sheathe": "Noto: the blade's back slides across the left hand to the koiguchi, tip in, the saya pushed forward to meet it.",
+        "physics": {
+          "swingDeg": 7,
+          "stiffness": 40,
+          "drag": 0.35
+        }
+      },
+      "sources": [
+        "Kōkan Nagayama (1997) ch. 1–3",
+        "Morihiro Ogawa, Art of the Samurai (Met, 2009)",
+        "Conlan (2008)"
+      ]
+    },
+    {
+      "id": "wakizashi",
+      "label": "Wakizashi",
+      "role": "kit",
+      "period": "Muromachi to Edo",
+      "builder": "nihonto",
+      "why": "the flat-lay has it; the turnaround does not wear it",
+      "dims": {
+        "nagasa": 0.45,
+        "sori": 0.011,
+        "motohaba": 0.029,
+        "sakihaba": 0.021,
+        "kasane": 0.0068,
+        "kissaki": 0.032,
+        "tsuka": 0.2,
+        "tsuba": 0.068,
+        "saya": 0.52
+      },
+      "measured": {
+        "tsukaRatio": 0.601
+      },
+      "colours": {
+        "ito": [
+          0.0194,
+          0.0242,
+          0.0343
+        ],
+        "same": [
+          0.6724,
+          0.6445,
+          0.6105
+        ]
+      },
+      "features": {
+        "bohi": false,
+        "hamon": "notare"
+      },
+      "notes": [
+        "wakizashi is laid out sheathed: its hilt measured against the scabbard; the blade's features are not seen",
+        "wakizashi tsuka 0.313 m from the art is outside the record (0.14–0.2 m): held at 0.200"
+      ],
+      "construction": {
+        "section": "shinogi-zukuri",
+        "curve": "shallow",
+        "hi": "sometimes",
+        "hamon": "matches the katana when made as a pair",
+        "tsuka": "as the katana",
+        "wrap": "hishi-maki"
+      },
+      "fittings": [],
+      "materials": {
+        "steel": {
+          "color": [
+            0.62,
+            0.64,
+            0.67
+          ],
+          "metallic": 1,
+          "roughness": 0.12,
+          "surface": "tamahagane, polished to a mirror ji; the hamon a frosted white band of nioi and nie along the edge; the hada grain like wood showing through the polish"
+        },
+        "hamon": {
+          "color": [
+            0.86,
+            0.87,
+            0.88
+          ],
+          "metallic": 0.5,
+          "roughness": 0.36,
+          "surface": "the hardened edge: crystalline, misty, frosted by the polish; milky white against the dark mirror of the ji"
+        },
+        "same": {
+          "color": [
+            0.86,
+            0.83,
+            0.75
+          ],
+          "metallic": 0,
+          "roughness": 0.55,
+          "surface": "ray skin: a field of small hard nodules, ivory-white, showing through the diamonds of the wrap"
+        },
+        "ito": {
+          "color": [
+            0.03,
+            0.035,
+            0.09
+          ],
+          "metallic": 0,
+          "roughness": 0.62,
+          "surface": "flat braided silk, wrapped in crossing turns over hishigami paper folds"
+        },
+        "fittings": {
+          "color": [
+            0.9,
+            0.68,
+            0.3
+          ],
+          "metallic": 1,
+          "roughness": 0.32,
+          "surface": "gilt copper or shakudō: fuchi, kashira, menuki and habaki"
+        },
+        "tsuba": {
+          "color": [
+            0.08,
+            0.075,
+            0.07
+          ],
+          "metallic": 1,
+          "roughness": 0.55,
+          "surface": "forged iron, dark patina, a raised rim (mimi) and relief or openwork"
+        },
+        "seppa": {
+          "color": [
+            0.75,
+            0.42,
+            0.25
+          ],
+          "metallic": 1,
+          "roughness": 0.3,
+          "surface": "copper washers either side of the tsuba"
+        },
+        "saya": {
+          "color": [
+            0.025,
+            0.03,
+            0.06
+          ],
+          "metallic": 0,
+          "roughness": 0.18,
+          "surface": "honoki (magnolia) wood under many coats of urushi lacquer, deep and glassy"
+        },
+        "sageo": {
+          "color": [
+            0.03,
+            0.04,
+            0.1
+          ],
+          "metallic": 0,
+          "roughness": 0.7,
+          "surface": "flat braided silk cord"
+        },
+        "horn": {
+          "color": [
+            0.02,
+            0.018,
+            0.016
+          ],
+          "metallic": 0,
+          "roughness": 0.25,
+          "surface": "buffalo horn: koiguchi, kurikata and kojiri"
+        }
+      },
+      "carry": {
+        "how": "thrust through the obi inside the katana",
+        "side": "left",
+        "edge": "up",
+        "downDeg": [
+          30,
+          42,
+          55
+        ],
+        "tie": "sageo knotted round the saya"
+      },
+      "behaviour": {
+        "scabbard": "Rigid, rides the obi closer to the body than the katana.",
+        "cord": "Short free ends.",
+        "physics": {
+          "swingDeg": 5,
+          "stiffness": 46,
+          "drag": 0.35
+        }
+      },
+      "sources": [
+        "Kōkan Nagayama (1997)"
+      ]
+    }
+  ],
+  "companions": [
+    {
+      "with": "uchigatana",
+      "adds": "wakizashi",
+      "note": "A samurai of the period carried a shorter companion blade with the uchigatana; the pairing became the formal daishō in the Edo period.",
+      "present": true
+    },
+    {
+      "with": "uchigatana",
+      "adds": "sageo",
+      "note": "Every saya has its sageo, a flat braided silk cord through the kurikata, tied to the obi or hakama himo so the scabbard cannot slip out on the draw.",
+      "present": true
+    }
+  ],
+  "wear": [
+    "Over armour the swords are thrust through the uwa-obi, an outer sash tied over the dō (tosei-gusoku); without armour, through the obi over the kosode.",
+    "Uchigatana edge-up at the left hip, hilt forward and across the belly, the saya angled down and back past the hip.",
+    "The wakizashi rides inside the katana, closer to the body, at a steeper angle.",
+    "The tachi, older and for mounted warriors, hangs edge-down from the belt on two hangers (ashi): never confuse the two."
+  ],
+  "museum": {
+    "searched": "2026-11-13",
+    "objects": [
+      {
+        "q": "Japanese sword Muromachi",
+        "title": "Sword Guard (<i>Tsuba</i>) in the Japanese Style",
+        "date": "late 17th–early 18th century",
+        "culture": "Korean",
+        "medium": "Iron, silver",
+        "museum": "The Metropolitan Museum of Art",
+        "url": "https://www.metmuseum.org/art/collection/search/819635",
+        "image": "https://images.metmuseum.org/CRDImages/aa/web-large/LC-SR1-TR_489_2_2018_view1.jpg"
+      },
+      {
+        "q": "Japanese sword Muromachi",
+        "title": "Tokoname-Ware Jar",
+        "date": "15th century",
+        "culture": "Japanese",
+        "medium": "Stoneware with ash glaze",
+        "museum": "Art Institute of Chicago",
+        "url": "https://www.artic.edu/artworks/159536",
+        "image": "https://www.artic.edu/iiif/2/c743dc4e-1cc1-2931-93cb-4c97cabcd5dc/full/500,/0/default.jpg"
+      },
+      {
+        "q": "Japanese sword Muromachi",
+        "title": "Pair of Guardian Figures (Zuishin)",
+        "date": "c. 1560–1625",
+        "culture": "Japan, Muromachi period (1392–1573) to Edo period (1615–1858)",
+        "medium": "Japanese cypress (hinoki) with traces of color; crystal",
+        "museum": "Cleveland Museum of Art",
+        "url": "https://clevelandart.org/art/2020.215",
+        "image": "https://openaccess-cdn.clevelandart.org/2020.215/2020.215_web.jpg"
+      },
+      {
+        "q": "Japanese sword Muromachi",
+        "title": "黒漆太刀",
+        "date": "",
+        "culture": "京都国立博物館 Kyoto National Museum",
+        "medium": "cultural, art",
+        "museum": "Japan Search",
+        "url": "https://colbase.nich.go.jp/collection_items/kyohaku/E%E7%94%B2566",
+        "image": "https://colbase.nich.go.jp/media/kyohaku/E%E7%94%B2566/image/slideshow_s/229289_difile1-M.jpg"
+      },
+      {
+        "q": "Japanese sword Muromachi",
+        "title": "Blade and Mounting for a Short Sword (Wakizashi)",
+        "date": "blade, 16th century; mounting, early–mid 19th century",
+        "culture": "Japanese",
+        "medium": "Steel, wood, lacquer, silk, rayskin (samé), baleen, iron, gold",
+        "museum": "The Metropolitan Museum of Art",
+        "url": "https://www.metmuseum.org/art/collection/search/22645",
+        "image": "https://images.metmuseum.org/CRDImages/aa/web-large/51189.jpg"
+      },
+      {
+        "q": "Japanese sword Muromachi",
+        "title": "The actor Bando Mitsugoro II as Ishii Genzo",
+        "date": "1794",
+        "culture": "Toshusai Sharaku 東洲斎 写楽",
+        "medium": "Color woodblock print; oban",
+        "museum": "Art Institute of Chicago",
+        "url": "https://www.artic.edu/artworks/89856",
+        "image": "https://www.artic.edu/iiif/2/ea632771-07fe-0c80-a565-ef1624b28465/full/500,/0/default.jpg"
+      },
+      {
+        "q": "uchigatana koshirae",
+        "title": "Self-Portrait",
+        "date": "1878",
+        "culture": "Walter Shirlaw (American, 1838–1909)",
+        "medium": "Oil on canvas",
+        "museum": "Art Institute of Chicago",
+        "url": "https://www.artic.edu/artworks/11",
+        "image": "https://www.artic.edu/iiif/2/7b7a6f39-1cd8-ea2f-9811-18b0e23edac0/full/500,/0/default.jpg"
+      },
+      {
+        "q": "uchigatana koshirae",
+        "title": "朱漆打刀（重要文化財　刀　伝長船元重の拵）",
+        "date": "安土桃山～江戸時代・16～17世紀",
+        "culture": "Japan Search",
+        "medium": "cultural, art",
+        "museum": "Japan Search",
+        "url": "https://colbase.nich.go.jp/collection_items/tnm/F-19992-2",
+        "image": "https://colbase.nich.go.jp/media/tnm/F-19992-2/image/slideshow_s/F-19992-2_C0035428.jpg"
+      },
+      {
+        "q": "uchigatana koshirae",
+        "title": "Martin Vanden Bogaert Desjardins",
+        "date": "n.d.",
+        "culture": "Gérard Edelinck (French, born Flanders, 1640-1707)",
+        "medium": "Engraving and etching on cream wove paper",
+        "museum": "Art Institute of Chicago",
+        "url": "https://www.artic.edu/artworks/111",
+        "image": "https://www.artic.edu/iiif/2/13bb7117-5115-b409-1dbb-1d9c1d70a5c9/full/500,/0/default.jpg"
+      },
+      {
+        "q": "uchigatana koshirae",
+        "title": "草花鶏蒔絵芝山象嵌拵",
+        "date": "明治時代（19世紀）",
+        "culture": "Japan Search",
+        "medium": "art, cultural",
+        "museum": "Japan Search",
+        "url": "https://www.fujibi.or.jp/collection/artwork/00690/",
+        "image": "https://www.fujibi.or.jp/webp/assets/images/artwork/source/00690_01.jpg.webp"
+      },
+      {
+        "q": "uchigatana koshirae",
+        "title": "Remembrance of Italy",
+        "date": "c. 1866",
+        "culture": "Jean-Baptiste-Camille Corot (French, 1796-1875)",
+        "medium": "Etching on tan laid paper",
+        "museum": "Art Institute of Chicago",
+        "url": "https://www.artic.edu/artworks/27",
+        "image": "https://www.artic.edu/iiif/2/ab107179-7106-937e-7676-e0263b02e530/full/500,/0/default.jpg"
+      },
+      {
+        "q": "uchigatana koshirae",
+        "title": "御所人形 被布立姿",
+        "date": "江戸時代・19世紀",
+        "culture": "京都国立博物館 Kyoto National Museum",
+        "medium": "cultural, art",
+        "museum": "Japan Search",
+        "url": "https://colbase.nich.go.jp/collection_items/kyohaku/I%E7%94%B257",
+        "image": "https://colbase.nich.go.jp/media/kyohaku/I%E7%94%B257/image/slideshow_s/29891_difile3-L.jpg"
+      },
+      {
+        "q": "katana blade Momoyama",
+        "title": "Blade and Mounting for a Sword (Katana)",
+        "date": "blade, probably 19th century; mounting, 19th century",
+        "culture": "Japanese",
+        "medium": "Steel, wood, lacquer, iron, gold, copper-gold alloy (shakudō), rayskin (samé), leather, windmill palm leaves",
+        "museum": "The Metropolitan Museum of Art",
+        "url": "https://www.metmuseum.org/art/collection/search/21811",
+        "image": "https://images.metmuseum.org/CRDImages/aa/web-large/sfsbx11s2.JPG"
+      },
+      {
+        "q": "katana blade Momoyama",
+        "title": "Nuihaku (Noh Costume)",
+        "date": "Momoyama period (1568–1615), 16th century",
+        "culture": "Japan",
+        "medium": "Silk, plain weave; patterned with resist dyeing, impressed gold leaf, and embroidered with silk in satin, single satin, surface satin, and stem stitches; couching; lined with silk, plain weave; center back panels of silk, warp-float faced 3:1 twill weave self-patterned by areas of plain weave",
+        "museum": "Art Institute of Chicago",
+        "url": "https://www.artic.edu/artworks/88789",
+        "image": "https://www.artic.edu/iiif/2/9aa4e679-997b-f30d-71e6-1bfcc746a3bb/full/500,/0/default.jpg"
+      },
+      {
+        "q": "katana blade Momoyama",
+        "title": "刀",
+        "date": "安土桃山時代・天正４年(1576)",
+        "culture": "備中国重",
+        "medium": "cultural, art",
+        "museum": "Japan Search",
+        "url": "https://colbase.nich.go.jp/collection_items/tnm/F-19787",
+        "image": "https://colbase.nich.go.jp/media/tnm/F-19787/image/slideshow_s/F-19787_N0146294.jpg"
+      },
+      {
+        "q": "katana blade Momoyama",
+        "title": "Blade and Mounting for a Sword (Katana)",
+        "date": "blade, 16th century; mounting, mid–late 19th century",
+        "culture": "Japanese",
+        "medium": "Steel, wood, laquer, gold, enamel",
+        "museum": "The Metropolitan Museum of Art",
+        "url": "https://www.metmuseum.org/art/collection/search/22101",
+        "image": "https://images.metmuseum.org/CRDImages/aa/web-large/DT217427.jpg"
+      },
+      {
+        "q": "katana blade Momoyama",
+        "title": "Ceremonial Blades",
+        "date": "c. 100 CE",
+        "culture": "Colima or Jalisco",
+        "medium": "Red obsidian",
+        "museum": "Art Institute of Chicago",
+        "url": "https://www.artic.edu/artworks/185166",
+        "image": "https://www.artic.edu/iiif/2/eb08820c-f9a1-22a3-ee43-7ca9d96a76ca/full/500,/0/default.jpg"
+      },
+      {
+        "q": "katana blade Momoyama",
+        "title": "刀",
+        "date": "安土桃山～江戸時代・16～17世紀",
+        "culture": "堀川国安",
+        "medium": "cultural, art",
+        "museum": "Japan Search",
+        "url": "https://colbase.nich.go.jp/collection_items/tnm/F-20096",
+        "image": "https://colbase.nich.go.jp/media/tnm/F-20096/image/slideshow_s/F-20096_E0033700.jpg"
+      },
+      {
+        "q": "tsuba Momoyama iron",
+        "title": "Sword Guard (Tsuba)",
+        "date": "late 16th century",
+        "culture": "Japanese",
+        "medium": "Copper-gold alloy (shakudō), gold, copper",
+        "museum": "The Metropolitan Museum of Art",
+        "url": "https://www.metmuseum.org/art/collection/search/27603",
+        "image": "https://images.metmuseum.org/CRDImages/aa/web-large/DP320310.jpg"
+      },
+      {
+        "q": "tsuba Momoyama iron",
+        "title": "Articulated Dragon",
+        "date": "c. 1880",
+        "culture": "Myochin School",
+        "medium": "Wrought iron",
+        "museum": "Art Institute of Chicago",
+        "url": "https://www.artic.edu/artworks/129",
+        "image": "https://www.artic.edu/iiif/2/24f95cb3-6020-6476-806e-dfd00e9c4369/full/500,/0/default.jpg"
+      },
+      {
+        "q": "tsuba Momoyama iron",
+        "title": "角帽子 鶸色地紅葉筏模様",
+        "date": "安土桃山時代・16世紀",
+        "culture": "Japan Search",
+        "medium": "cultural, art",
+        "museum": "Japan Search",
+        "url": "https://colbase.nich.go.jp/collection_items/tnm/I-3301",
+        "image": "https://colbase.nich.go.jp/media/tnm/I-3301/image/slideshow_s/I-3301_C0019112.jpg"
+      },
+      {
+        "q": "tsuba Momoyama iron",
+        "title": "Sword Guard (Tsuba)",
+        "date": "ca. 1615–1868",
+        "culture": "Japanese",
+        "medium": "Iron, mother-of-pearl, gold, copper",
+        "museum": "The Metropolitan Museum of Art",
+        "url": "https://www.metmuseum.org/art/collection/search/34385",
+        "image": "https://images.metmuseum.org/CRDImages/aa/web-large/29.100.974_001feb2014.jpg"
+      },
+      {
+        "q": "tsuba Momoyama iron",
+        "title": "正親町天皇宸翰女房奉書",
+        "date": "桃山時代・16世紀",
+        "culture": "正親町天皇",
+        "medium": "cultural, art",
+        "museum": "Japan Search",
+        "url": "https://colbase.nich.go.jp/collection_items/kyohaku/B%E7%94%B2318",
+        "image": "https://colbase.nich.go.jp/media/kyohaku/B%E7%94%B2318/image/slideshow_s/15013_difile2-L.jpg"
+      },
+      {
+        "q": "wakizashi koshirae",
+        "title": "グリ彫金具脇指拵 Blade and Mounting for a Short Sword (<i>Wakizashi</i>)",
+        "date": "blade, 17th century; mounting, 19th century",
+        "culture": "Japanese",
+        "medium": "Steel, wood, lacquer, ray skin (<i>same</i>), baleen, copper-gold alloy (<i>shakudō</i>), copper (<i>hiirodō</i>)",
+        "museum": "The Metropolitan Museum of Art",
+        "url": "https://www.metmuseum.org/art/collection/search/24615",
+        "image": "https://images.metmuseum.org/CRDImages/aa/web-large/DP-22713-001.jpg"
+      },
+      {
+        "q": "wakizashi koshirae",
+        "title": "沃懸地鳳凰蒔絵小脇指",
+        "date": "江戸時代・19世紀",
+        "culture": "縁・笄・笄銘　後藤法眼一乗（花押）",
+        "medium": "cultural, art",
+        "museum": "Japan Search",
+        "url": "https://colbase.nich.go.jp/collection_items/tnm/F-4",
+        "image": "https://colbase.nich.go.jp/media/tnm/F-4/image/slideshow_s/F-4_E0036277.jpg"
+      },
+      {
+        "q": "tosei gusoku armor",
+        "title": "Armor (Gusoku)",
+        "date": "19th century",
+        "culture": "Japanese",
+        "medium": "Iron, lacquer, silk, leather, gold",
+        "museum": "The Metropolitan Museum of Art",
+        "url": "https://www.metmuseum.org/art/collection/search/25588",
+        "image": "https://images.metmuseum.org/CRDImages/aa/web-large/8809.jpg"
+      },
+      {
+        "q": "tosei gusoku armor",
+        "title": "Field Armor for Man",
+        "date": "c. 1520",
+        "culture": "South German, Nuremberg",
+        "medium": "Steel, iron, brass, leather, and textile",
+        "museum": "Art Institute of Chicago",
+        "url": "https://www.artic.edu/artworks/116363",
+        "image": "https://www.artic.edu/iiif/2/0b992dcc-d94b-d47d-f1e3-88c1ceb024bd/full/500,/0/default.jpg"
+      },
+      {
+        "q": "tosei gusoku armor",
+        "title": "白糸威二枚胴具足",
+        "date": "江戸時代・17世紀",
+        "culture": "徳川義寛氏寄贈",
+        "medium": "cultural, art",
+        "museum": "Japan Search",
+        "url": "https://colbase.nich.go.jp/collection_items/tnm/F-20117-1",
+        "image": "https://colbase.nich.go.jp/media/tnm/F-20117-1/image/slideshow_s/F-20117-1_C0033315.jpg"
+      },
+      {
+        "q": "tosei gusoku armor",
+        "title": "Armor (Gusoku)",
+        "date": "18th century",
+        "culture": "Japanese",
+        "medium": "Iron, lacquer, silk, textile, copper, silver, leather, bear fur",
+        "museum": "The Metropolitan Museum of Art",
+        "url": "https://www.metmuseum.org/art/collection/search/25640",
+        "image": "https://images.metmuseum.org/CRDImages/aa/web-large/DP299994.jpg"
+      },
+      {
+        "q": "tosei gusoku armor",
+        "title": "Portions of a Field Armor",
+        "date": "c. 1588",
+        "culture": "Jacob Halder (English, 1558–1608)",
+        "medium": "Steel, brass, gilding, leather, and silk velvet textile",
+        "museum": "Art Institute of Chicago",
+        "url": "https://www.artic.edu/artworks/106377",
+        "image": "https://www.artic.edu/iiif/2/0cf7f71b-f924-2c8f-c909-708bb2b9f4fc/full/500,/0/default.jpg"
+      },
+      {
+        "q": "tosei gusoku armor",
+        "title": "仁王胴具足",
+        "date": "安土桃山時代・16世紀",
+        "culture": "Japan Search",
+        "medium": "cultural, art",
+        "museum": "Japan Search",
+        "url": "https://colbase.nich.go.jp/collection_items/tnm/F-16000",
+        "image": "https://colbase.nich.go.jp/media/tnm/F-16000/image/slideshow_s/F-16000_C0006043.jpg"
+      }
+    ],
+    "materials": {
+      "iron": 8,
+      "gold": 8,
+      "steel": 6,
+      "lacquer": 5,
+      "wood": 5,
+      "silk": 5,
+      "copper": 5,
+      "leather": 5,
+      "silver": 2,
+      "paper": 2,
+      "brass": 2,
+      "ray skin": 1,
+      "same": 1
+    }
+  },
+  "atlas": [
+    {
+      "id": "kendo",
+      "code": "ASI-007",
+      "name": "Kendo",
+      "era": "medieval kenjutsu — modern kendo from 1952",
+      "form": "Weapon",
+      "lede": "Behind the mask and armour, kendo preserves the samurai’s swordsmanship as a thunderous modern discipline where a single perfect cut — spirit, sword and body as one — decides everything.",
+      "technique": "Kendoka strike four targets — men (head), kote (wrist), do (trunk) and tsuki (throat thrust) — with the shinai, gripped for cutting rather than hitting."
+    },
+    {
+      "id": "judo",
+      "code": "ASI-004",
+      "name": "Judo",
+      "era": "founded 1882 — Olympic since 1964",
+      "form": "Grappling",
+      "lede": "From a small temple hall in Tokyo, an educator distilled the samurai’s jujutsu into a modern path of maximum efficiency — and built the first Asian martial art to conquer the Olympic Games.",
+      "technique": "Judo’s core is the throw: te-waza (hand), koshi-waza (hip) and ashi-waza (foot) techniques, all premised on kuzushi — breaking the opponent’s balance before applying leverage."
+    },
+    {
+      "id": "sumo",
+      "code": "ASI-006",
+      "name": "Sumo",
+      "era": "ancient ritual roots — Edo-period professional tournaments",
+      "form": "Grappling",
+      "lede": "Half sacred rite, half explosive collision of giants, sumo compresses centuries of Shinto ceremony into bouts that can end in seconds on a ring of consecrated clay.",
+      "technique": "Bouts begin with the tachiai, a synchronized explosive charge; victory comes by forcing the opponent out of the 4.55-metre dohyo or making any part of his body beyond the soles touch the ground."
+    }
+  ],
+  "sources": [
+    "Kōkan Nagayama, The Connoisseur's Book of Japanese Swords (Kodansha, 1997)",
+    "Thomas D. Conlan, Weapons and Fighting Techniques of the Samurai Warrior 1200–1877 (Amber, 2008)",
+    "Anthony J. Bryant, Samurai 1550–1600 (Osprey Warrior 7, 1994)",
+    "Morihiro Ogawa, Art of the Samurai: Japanese Arms and Armor, 1156–1868 (The Metropolitan Museum of Art, 2009)"
+  ]
+}

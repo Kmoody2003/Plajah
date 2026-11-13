@@ -8,10 +8,12 @@ import path from 'node:path';
 import { PNG } from 'pngjs';
 import type { GMaterial } from '../../services/argilla/creature/gltfWriter';
 import type { ForgeCharacter } from '../../services/argilla/creature/exportCreature';
+import { ARMS_MATERIALS } from './forgeArmsLook';
 
 export const ART = 'public/games/era-clash/assets/sprite-samurai.png';
 const NAMES = ['skin', 'lacquer', 'lacquerBlack', 'gold', 'iron', 'leather', 'silk', 'silkRed', 'hakama', 'kosode', 'koteCloth', 'kyahan', 'obi', 'tabi', 'hair', 'katana_steel', 'hairCards', 'straw'] as const;
-export const MATERIAL_INDEX = Object.fromEntries(NAMES.map((n, i) => [n, i])) as Record<string, number>;
+/** The arms' materials follow (forgeArmsLook.ts paints them from the codex and the flat-lay's colours). */
+export const MATERIAL_INDEX = Object.fromEntries([...NAMES, ...ARMS_MATERIALS].map((n, i) => [n, i])) as Record<string, number>;
 
 type RGB = [number, number, number];
 const toLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
@@ -88,7 +90,11 @@ export function haruMaterials(): GMaterial[] {
     const k = m.name.startsWith('silk') ? 2.6 : 1.9;
     m.sheen = { color: [Math.min(1, m.color[0] * k + 0.015), Math.min(1, m.color[1] * k + 0.015), Math.min(1, m.color[2] * k + 0.02)], roughness: m.sheen.roughness };
   }
-  return NAMES.map((n) => ({ ...byName[n], doubleSided: n === 'gold' || n === 'katana_steel' || n === 'obi' || n === 'hairCards' }));
+  return [
+    ...NAMES.map((n) => ({ ...byName[n], doubleSided: n === 'gold' || n === 'katana_steel' || n === 'obi' || n === 'hairCards' })),
+    // placeholders until the arms are painted (forgeArmsLook.ts)
+    ...ARMS_MATERIALS.map((n) => ({ name: n, color: [0.3, 0.3, 0.3, 1] as [number, number, number, number], metallic: 0, roughness: 0.5 })),
+  ];
 }
 
 // ---- Procedural detail maps ----------------------------------------------------------------------------------

@@ -116,7 +116,7 @@ export const PARTS = ['head', 'do', 'kusazuri', 'sode', 'arms', 'obi', 'hakama',
 function partOf(node: string, mat: string, joint: string): number {
   const P = (n: (typeof PARTS)[number]) => PARTS.indexOf(n);
   const m = mat.replace(/_painted$/, '');
-  if (/saya|wakizashi|sheathed/.test(node)) return P('sword');
+  if (/saya|wakizashi|sheathed/.test(node) || /^(Sageo|Saya)/.test(joint) || m === 'sageo') return P('sword');
   if (/_head$/.test(node) || /^(Head|Tail_|HairLock|LeftEye|RightEye)/.test(joint) || m === 'hairCards') return P('head');
   if (/^Kusazuri/.test(joint)) return P('kusazuri');
   if (/^Sode/.test(joint)) return P('sode');
