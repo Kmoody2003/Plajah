@@ -35,3 +35,15 @@ Not verified:
 - `services/demucsClient.ts` stem separation itself (model weights not in repository; see blockers above).
 Requests for Claude:
 - None.
+
+
+## G4 Cloud writer lane for the brief (2026-11-13)
+Changed: `routes/choraDirect.ts`, `server.ts`, `tests/choraDirectWrite.test.ts`, `package.json`, `docs/chora/GEMINI_HANDBACK.md`
+Verified:
+- Created `routes/choraDirect.ts` (`createChoraDirectRouter`) and mounted it at `/api/chora/direct` (`POST /api/chora/direct/write`, `GET /api/chora/direct/ai-info`) in `server.ts` right beside `createMusicLabRouter` (also wired `SOULX_SINGER_EVALUATION_PERMISSION_REF` into `createMusicLabRouter`'s `evaluationPermission` callback).
+- Enforces `cloudConsent === true` (returns HTTP `428` with `code: 'CLOUD_CONSENT_REQUIRED'` otherwise), calls `services/ai/geminiLane.ts` (`createGeminiLane` / `laneModel('CHORA_DIRECT_MODEL')`), builds the user prompt strictly from `briefGrounding(brief, { chair, sectionId })` plus the council's `bar beat length pitch` instructions without inventing a second grounding, and validates/re-serialises all returned note lines through `parseNoteLines` and `toLines` in `services/melos/beats/council/noteLines.ts`.
+- Ran `npm run test:direct-write` -> 3/3 passed against a local HTTP server with an injected stub `LaneFn` (verifying `428` without `cloudConsent: true`, verbatim `briefGrounding` prompt construction, out-of-region/prose filtering via `parseNoteLines`, 3/4 waltz meter bar validation, and `422` when zero valid note lines are returned).
+Not verified:
+- Live Gemini API calls against `POST /api/chora/direct/write` (no cloud model traffic run without explicit user consent per house rules; tested with stubbed `LaneFn`).
+Requests for Claude:
+- None (`POST /api/chora/direct/write` accepts either `{ brief: SongBrief, chair, section, bars, cloudConsent: true }` or pre-rendered `{ grounding: string, chair, section, bars, cloudConsent: true }` and returns both `notes: ComposedNote[]` and `lines: string[]` / `text: string` in `bar beat length pitch` format).

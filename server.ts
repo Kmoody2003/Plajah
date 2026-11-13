@@ -49,6 +49,7 @@ import os from 'node:os';
 import Stripe from 'stripe';
 import { coraRouter } from './routes/cora';
 import { createMusicLabRouter } from './routes/musicLab';
+import { createChoraDirectRouter } from './routes/choraDirect';
 import { createAdminFilmIngestRouter, handleMuxAssetReadyForPublicDomain, startPublicDomainAutoIngestScheduler } from './routes/adminFilmIngest';
 import { createAdminPublishAsRouter } from './routes/adminPublishAs';
 import { learnerAuthRouter } from './routes/learnerAuth';
@@ -15094,7 +15095,13 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     authenticate: authMiddleware,
     isAdmin: async uid => !!await fetchFirebaseDoc('admins', uid),
     evaluationPermission: id => id === 'yue2' ? process.env.YUE2_EVALUATION_PERMISSION_REF
-      : id === 'sheetsage2' ? process.env.SHEETSAGE2_EVALUATION_PERMISSION_REF : undefined,
+      : id === 'sheetsage2' ? process.env.SHEETSAGE2_EVALUATION_PERMISSION_REF
+      : id === 'soulx-singer' ? process.env.SOULX_SINGER_EVALUATION_PERMISSION_REF : undefined,
+  }));
+  app.use('/api/chora/direct', createChoraDirectRouter({
+    authenticate: authMiddleware,
+    requireRegisteredUser,
+    limiter: aiLimiter,
   }));
   app.use('/api/admin/film-ingest', createAdminFilmIngestRouter({
     authenticate: authMiddleware,

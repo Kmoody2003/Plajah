@@ -19,6 +19,7 @@
     "test:direct": "tsx --test tests/choraDirect.test.ts",
     "test:direct-packs": "tsx --test tests/choraDirectPacks.test.ts",
     "test:transcribe": "tsx --test tests/choraTranscribe.test.ts",
+    "test:direct-write": "tsx --test tests/choraDirectWrite.test.ts",
     "test:music-lab": "tsx --test tests/musicEnginePolicy.test.ts && node scripts/testMelosGeneration.mjs",
     "test:lyra": "npx tsx --test tests/lyraInstrument.test.ts && cargo test --release --manifest-path rust/plajah-audio/Cargo.toml lyra",
     "test:tonos": "npx tsx --test tests/tonosInstrument.test.ts tests/tonosDeep.test.ts && cargo test --release --manifest-path rust/plajah-audio/Cargo.toml tonos",
