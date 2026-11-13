@@ -97,6 +97,8 @@ import { SavedFoldersMenu, setLastFolderId, openSavedHandle } from "../ui/SavedF
 import { isWindowsApp, pickWindowsFolder, pickWindowsFile, scanWindowsLibrary, convertWindowsPickedFileToFile, getStudioDisplays, openStudioCleanFeed, closeStudioCleanFeed, onNativeMessage, extractStudioThumbnails } from "../../services/windowsBridgeService";
 import { isVectorFile, rasterizeVector } from "../../services/fabula/vectorRaster";
 import GeneratePanel from "./GeneratePanel";
+import StoryIntelligencePanel from "./StoryIntelligencePanel";
+import { directScene, motivationsFrom, continuesFrom, mapCoverage, addPlaceholdersForMissing } from "../../services/fabula/story";
 import RunwayPluginPanel from "./RunwayPluginPanel";
 import { LocalCreativeStudio } from "./LocalCreativeStudio";
 import { specFromShot, connectorById, placeResultInCut } from "../../services/fabula/genAgent";
@@ -105,7 +107,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
 import { fetchAlbumById, uploadFabulaAsset, uploadVideo } from "../../services/backendService";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
-import { syncProductionToWorld, worldCharactersForProduction } from "../../services/fabulaWorldBridge";
+import { syncProductionToWorld, worldCharactersForProduction, withStoryIntel } from "../../services/fabulaWorldBridge";
 import { computeClipLinkedScript, formatTimecode as fmtScriptTc } from "../../services/storyIntelBridge";
 import SpatialMixer from "../spatialMixer/SpatialMixer";
 import { setComicHandoff } from "../../services/comicHandoff";
@@ -1382,6 +1384,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   const mediaFilesRef = useRef(null);               // plain files → auto-tagged import (media assets tab)
   const scriptFilesRef = useRef(null);              // .txt/.md/.fountain → Lorea script structuring
   const [genOpen, setGenOpen] = useState(false);    // generation agent panel (Kling/Magnific → bins)
+  const [storyOpen, setStoryOpen] = useState(false); // Story Intelligence: coverage, characters, direction, story
   // Context for the generation panel when it's opened from a SLATE shot card or a timeline clip rather
   // than the media pool — carries the compiled ShotSpec so the panel opens pre-filled with the shot's
   // prompt and the scene bible's identity locks as references. null = opened bare from the pool.
@@ -3380,6 +3383,20 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   // generation panel pre-filled, instead of the user copy-pasting into a provider by hand. `which`
   // picks which of the shot's prompts to run; the production's default target for that kind decides
   // the provider (still → stillTarget, video → service).
+  // Story Intelligence direction for one shot: the performance each character plays at this point in
+  // the scene's arc, and the continuity state the shot inherits (props in hand, marks, sides of frame,
+  // light direction) — carried in from the previous scene when this one continues it. It rides on the
+  // ShotSpec and is re-phrased per model, so switching provider doesn't lose it.
+  const directionForShot = (sc, shot) => {
+    if (!sc?.shots?.length || !shot?.id) return undefined;
+    try {
+      const motivations = motivationsFrom(prod?.storyIntel?.relationships);
+      const i = allScenes.findIndex((x) => x.scene.id === sc.id);
+      const prev = i > 0 ? allScenes[i - 1].scene : null;
+      const carryIn = prev && continuesFrom(sc) ? { characters: directScene(prev, motivations).ledger.out.characters } : undefined;
+      return directScene(sc, motivations, carryIn ? { carryIn } : {}).forShot(shot.id);
+    } catch (e) { console.warn("[story-intel] direction failed", e); return undefined; }
+  };
   const openGenForShot = (sc, shot, which) => {
     if (!shot?.[which]) return;
     const spec = specFromShot({
@@ -3387,6 +3404,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       aspect: prod?.defaults?.aspect,
       sceneId: sc?.id,
     });
+    if (which !== "voice") spec.direction = directionForShot(sc, shot);
     const target = which === "video" ? prod?.defaults?.service : prod?.defaults?.stillTarget;
     setGenCtx({
       spec,
@@ -6573,6 +6591,13 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
             <FileText size={11} /> TIMECODE SCRIPT
           </button>
           <button
+            className={`tbtn2 ${storyOpen ? "on" : "ghost"}`}
+            title="Story Intelligence — script vs. cut coverage, storyboards for the gaps, character sheets and voice locks, performance direction, story notes"
+            onClick={() => setStoryOpen(true)}
+          >
+            <Sparkles size={11} /> STORY INTEL
+          </button>
+          <button
             className="tbtn2 ghost"
             title="Connect & sync this production's characters, locations, and lore to Plajah World"
             onClick={() => setConnectWorldOpen(true)}
@@ -6978,6 +7003,23 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
           onChange={(clean) => updateClipAudio(audioEdit.clip.id, { clean })}
           onClose={() => setAudioEdit(null)} />
       )}
+      {storyOpen && prod && (
+        <StoryIntelligencePanel
+          prod={prod} clips={clips} sceneId={scene?.id} aspect={prod?.defaults?.aspect}
+          callJson={callClaudeJson} updateProd={updateProd} ping={ping}
+          onClose={() => setStoryOpen(false)}
+          onGotoScene={(actId, sceneId) => { setStoryOpen(false); gotoScene(actId, sceneId, "slate"); }}
+          onGenerate={({ spec, kind, title }) => {
+            setGenCtx({ spec, kind, title, provider: connectorById((kind === "video" ? prod?.defaults?.service : prod?.defaults?.stillTarget) || "")?.id });
+            setGenOpen(true);
+          }}
+          onAddSlots={() => {
+            const cov = mapCoverage(prod.acts || [], clips, prod.mediaPool || []);
+            const out = addPlaceholdersForMissing(clips, cov, prod.acts || [], uid, (shot, sc) => estimateShotSeconds(shot, sc?.mode));
+            if (out.added) { applyClips(out.clips); ping(`${out.added} empty slot${out.added === 1 ? "" : "s"} added at the end of V1 — board or generate into them.`); }
+          }}
+        />
+      )}
       {genOpen && (
         <GeneratePanel projectId={prod?.id || "local"} bins={binTree()}
           defaultBin={binFilter !== "all" ? binFilter : ""} context={genCtx}
@@ -7324,7 +7366,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
               onConnected={(wid) => updateProd((p) => { p.worldId = wid || undefined; })}
               onSync={(worldId) => syncProductionToWorld(worldId, {
                 id: prod.id, title: prod.title,
-                cast: (prod.cast || []).map((c) => ({ id: c.id, name: c.name, visual_lock: c.looks, voice_profile: c.voice, arc_in_scene: c.personality })),
+                cast: withStoryIntel((prod.cast || []).map((c) => ({ id: c.id, name: c.name, visual_lock: c.looks, voice_profile: c.voice, arc_in_scene: c.personality })), prod.storyIntel?.relationships),
                 worldCats: prod.worldCats,
               })}
               onImport={async (worldId) => {

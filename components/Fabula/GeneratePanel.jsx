@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import {
   listConnectors, listJobs, submitJob, pollJob, connectAccount, health,
-  assetTypeForMime, compileHandoff, refsForConnector, saveProviderKey, revokeProvider,
+  assetTypeForMime, compileHandoff, compileShotPrompt, refsForConnector, saveProviderKey, revokeProvider,
 } from "../../services/fabula/genAgent";
 
 const WALLET_LABEL = {
@@ -62,6 +62,14 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
   const refSplit = useMemo(
     () => (conn ? refsForConnector(spec, conn) : { used: [], dropped: [] }),
     [spec, conn],
+  );
+
+  // Story Intelligence direction riding on the spec (performance + continuity). It is compiled per
+  // model, so what a connected job sends is the same text the hand-off view shows.
+  const direction = spec.direction;
+  const directed = useMemo(
+    () => (conn && direction ? compileShotPrompt(spec, conn) : null),
+    [spec, conn, direction],
   );
 
   useEffect(() => {
@@ -141,8 +149,8 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
     setBusy(true);
     try {
       const job = await submitJob({
-        provider, kind, prompt: prompt.trim(), spec,
-        params: kind === "video" ? { aspect } : {},
+        provider, kind, prompt: directed?.prompt || prompt.trim(), spec,
+        params: { ...(kind === "video" ? { aspect } : {}), ...(directed?.negative ? { negative: directed.negative } : {}) },
         projectId, bin: bin || "Generated",
       });
       setJobs((js) => [job, ...js.filter((j) => j.id !== job.id)]);
@@ -279,6 +287,32 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
           </div>
         )}
 
+        {/* direction from Story Intelligence — what gets added so this shot matches its neighbours */}
+        {direction && (
+          <div className="gp-direction">
+            <div className="gp-hlbl">DIRECTED BY STORY INTELLIGENCE</div>
+            {(direction.performance || []).map((b) => (
+              <div key={b.character} className="gp-dline">
+                <b>{b.character}</b> {b.emotion.name}{b.toward && b.toward.name !== b.emotion.name ? ` → ${b.toward.name}` : ""} · plays to {b.tactic}
+              </div>
+            ))}
+            {(direction.continuity?.characters || []).filter((c) => c.props.length || c.marks.length || c.wardrobe.length).map((c) => (
+              <div key={`k-${c.name}`} className="gp-dline">
+                <b>{c.name}</b> holds: {[...c.props, ...c.wardrobe, ...c.marks].join(", ")}
+              </div>
+            ))}
+            {direction.boardStyle && <div className="gp-dline">Storyboard frame — drawn, not photographic.</div>}
+            {mode === "connected" && directed && (
+              <details className="gp-dmore">
+                <summary>What {conn?.name} will be sent</summary>
+                <pre className="gp-hprompt">{directed.prompt}</pre>
+                {directed.negative && <div className="gp-dline">Negative: {directed.negative}</div>}
+                {directed.notes.map((n, i) => <div key={i} className="gp-dline warn">{n}</div>)}
+              </details>
+            )}
+          </div>
+        )}
+
         {mode === "connected" ? (
           <div className="gp-controls">
             {(kind === "video" || conn?.caps?.aspects) && (
@@ -346,6 +380,12 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
           .gp-ctx{font-weight:700;letter-spacing:.04em;color:#f0913f;background:rgba(240,145,63,0.12);border:1px solid rgba(240,145,63,0.3);border-radius:999px;padding:2px 9px;font-size:10.5px}
           .gp-x{background:none;border:none;color:var(--w40,#9a96a8);cursor:pointer;padding:4px;border-radius:6px}
           .gp-x:hover{color:#fff;background:rgba(255,255,255,0.08)}
+          .gp-direction{border:1px solid rgba(139,92,246,0.3);background:rgba(139,92,246,0.08);border-radius:10px;padding:9px 11px;margin:0 0 12px;display:flex;flex-direction:column;gap:4px}
+          .gp-dline{font-size:11.5px;line-height:1.45;color:#d8d2ea}
+          .gp-dline b{color:#e9d5ff;font-weight:700;margin-right:4px}
+          .gp-dline.warn{color:#fcd34d}
+          .gp-dmore summary{font-size:11px;color:#c4b5fd;cursor:pointer;margin-top:4px}
+          .gp-dmore .gp-hprompt{margin-top:6px}
           .gp-note{font-size:12px;line-height:1.5;color:#d7c9a6;background:rgba(180,140,40,0.12);border:1px solid rgba(200,160,60,0.28);border-radius:10px;padding:9px 11px;margin-bottom:12px}
           .gp-conns{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:13px}
           @media(max-width:520px){.gp-conns{grid-template-columns:1fr}}

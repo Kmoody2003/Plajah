@@ -19,6 +19,7 @@
 
 import { get as idbGet, set as idbSet } from 'idb-keyval';
 import { getOptionalIdToken } from '../backendService';
+import { applyDirection, type ShotDirection } from './story/promptCompiler';
 
 const API = '/api/genagent';
 
@@ -372,6 +373,10 @@ export interface ShotSpec {
   sceneId?: string;
   shotId?: string;
   slug?: string;
+  /** Performance direction + continuity state for this shot, from Story Intelligence. Attached to the
+   *  SHOT rather than written into one provider's prompt, so it survives a change of model — the
+   *  compiler re-phrases it per connector. See story/promptCompiler.ts. */
+  direction?: ShotDirection;
 }
 
 /** Build a ShotSpec from a SLATE shot + its scene bible. `which` picks which of the shot's three
@@ -441,9 +446,15 @@ export function compileHandoff(spec: ShotSpec, connector: Connector): HandoffBun
     if (missing.length) prompt += `\n\n${missing.join(' ')}`;
   }
 
-  if (spec.negative) {
-    if (connector.caps.supportsNegative) notes.push(`Negative prompt: ${spec.negative}`);
-    else notes.push(`No negative-prompt field on ${connector.name} — "${spec.negative}" must be worked into the prompt.`);
+  // Performance + continuity, phrased for this model. A spec with no direction is left exactly as is.
+  const directed = applyDirection(prompt, spec, connector, used);
+  prompt = directed.prompt;
+  notes.push(...directed.notes);
+
+  const negative = [spec.negative, ...directed.negatives].filter(Boolean).join(', ');
+  if (negative) {
+    if (connector.caps.supportsNegative) notes.push(`Negative prompt: ${negative}`);
+    else if (spec.negative) notes.push(`No negative-prompt field on ${connector.name} — "${spec.negative}" must be worked into the prompt.`);
   }
 
   // Provider dialect: Midjourney takes trailing flags, everything else uses UI fields.
@@ -461,6 +472,22 @@ export function compileHandoff(spec: ShotSpec, connector: Connector): HandoffBun
   notes.push('Download the result into your watch folder and it lands in this bin automatically.');
 
   return { prompt, refs: used, droppedRefs: dropped, openUrl: connector.handoffUrl, notes };
+}
+
+/** The prompt and negative a CONNECTED job should send for this spec on this provider: identity locks
+ *  folded in, direction phrased in the model's dialect. Same text the handoff shows, minus the
+ *  provider-UI flags a person would type — so what the agent runs is what the user previewed. */
+export function compileShotPrompt(spec: ShotSpec, connector: Connector): { prompt: string; negative?: string; notes: string[] } {
+  const { used } = refsForConnector(spec, connector);
+  let prompt = (spec.prompt || '').trim();
+  const missing = (spec.refs || [])
+    .filter((r) => r.lock && !used.some((u) => u.name === r.name))
+    .map((r) => r.lock as string)
+    .filter((l) => !prompt.includes(l));
+  if (missing.length) prompt += `\n\n${missing.join(' ')}`;
+  const directed = applyDirection(prompt, spec, connector, used);
+  const negative = [spec.negative, ...(connector.caps.supportsNegative ? directed.negatives : [])].filter(Boolean).join(', ');
+  return { prompt: directed.prompt, negative: negative || undefined, notes: directed.notes };
 }
 
 // ── landing a result back in the cut ────────────────────────────────────────────
