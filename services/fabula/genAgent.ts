@@ -67,6 +67,9 @@ export interface Connector {
   handoffUrl?: string;     // where handoff mode opens the user
   desktopUrl?: string;     // native-app deep link, where one is known to exist
   walletNote?: string;     // plain-English billing truth, shown in the panel
+  /** Which prompt dialect this connector speaks, when it isn't its own id — a model reached through
+   *  an aggregator (e.g. Kling hosted on fal) is phrased for the MODEL, not for the host. */
+  dialect?: string;
   connectMode?: ConnectMode; // legacy field, retained for the existing backend contract
   connected?: boolean;     // user's account linked (filled by /connectors)
   hint?: string;           // masked tail of the stored key, e.g. "••••1234" — never the key itself
@@ -79,12 +82,12 @@ export interface GenJob {
   prompt: string;
   params?: Record<string, any>;
   spec?: ShotSpec;         // the full shot spec this job was compiled from (refs, locks, provenance)
-  mode?: GenMode;          // 'connected' (agent ran it) | 'handoff' (user ran it, watch folder caught it)
+  mode?: GenMode | 'local'; // 'connected' (agent ran it) | 'handoff' (user ran it) | 'local' (ran on this machine's GPU)
   projectId: string;
   bin: string;             // target bin the results should land in
   status: 'queued' | 'running' | 'done' | 'error' | 'backend-offline';
   progress?: number;       // 0..1
-  results?: { url: string; name: string; mime: string }[];
+  results?: { url: string; name: string; mime: string; /** Bytes of a locally generated take. */ blob?: Blob }[];
   error?: string;
   /** A non-fatal caveat about how the job had to be adapted — e.g. the provider has no 2.39:1 frame,
    *  so it was generated at the nearest ratio and needs cropping. Shown alongside the result. */
@@ -426,7 +429,8 @@ export function specFromShot(input: {
  *  service is going to silently drop. Text-only locks (no image) are never dropped — they fold into the
  *  prompt instead, which every provider understands. */
 export function refsForConnector(spec: ShotSpec, connector: Connector): { used: GenRef[]; dropped: GenRef[] } {
-  const imageRefs = (spec.refs || []).filter((r) => r.assetId || r.url);
+  // An image that only exists on this device (previewUrl) is still an attached reference.
+  const imageRefs = (spec.refs || []).filter((r) => r.assetId || r.url || r.previewUrl);
   const eligible = imageRefs.filter((r) => connector.caps.refRoles.includes(r.role));
   const used = eligible.slice(0, connector.caps.maxRefs);
   const dropped = imageRefs.filter((r) => !used.includes(r));
@@ -608,6 +612,8 @@ export async function submitJob(input: {
     const j: GenJob = { ...base, status: 'error', error: `${c.name} has no public API — use Hand off instead.` };
     await upsertLocal(j); return j;
   }
+  // A model on the user's own GPU is run from here — the cloud agent can't reach their machine.
+  if (c && c.walletModel === 'free_local') return startLocalJob({ ...base, id: `lj_${base.id.slice(3)}`, mode: 'local', status: 'running' }, c);
   try {
     const res = await fetch(`${API}/jobs`, { method: 'POST', headers: await authHeaders(), body: JSON.stringify(input) });
     if (res.ok) {
@@ -625,6 +631,10 @@ export async function submitJob(input: {
 
 /** Poll a single job's status; updates the local mirror. Returns null if unreachable. */
 export async function pollJob(projectId: string, jobId: string): Promise<GenJob | null> {
+  if (jobId.startsWith('lj_')) {
+    // Local jobs live in this tab. One that isn't here was interrupted by a reload.
+    return localJobs.get(jobId) || { ...(await loadLocal(projectId)).find((j) => j.id === jobId)!, status: 'error', error: 'This local generation was interrupted when the page reloaded.' };
+  }
   try {
     const res = await fetch(`${API}/jobs/${encodeURIComponent(jobId)}`, { method: 'GET', headers: await authHeaders() });
     if (!res.ok) return null;
@@ -632,6 +642,32 @@ export async function pollJob(projectId: string, jobId: string): Promise<GenJob 
     await upsertLocal({ ...job, projectId });
     return job;
   } catch { return null; }
+}
+
+// ── local jobs ──────────────────────────────────────────────────────────────────
+const localJobs = new Map<string, GenJob>();
+
+async function startLocalJob(job: GenJob, connector: Connector): Promise<GenJob> {
+  localJobs.set(job.id, job);
+  await upsertLocal({ ...job });
+  void (async () => {
+    let next: GenJob;
+    try {
+      const { runLocalGeneration } = await import('./localGen');
+      const compiled = job.spec ? compileShotPrompt(job.spec, connector) : { prompt: job.prompt, negative: undefined };
+      const out = await runLocalGeneration({
+        connector, spec: job.spec || { prompt: job.prompt, refs: [] },
+        prompt: job.prompt || compiled.prompt, negative: compiled.negative,
+      });
+      next = { ...job, status: 'done', results: out.results, note: out.note };
+    } catch (e: any) {
+      next = { ...job, status: 'error', error: e?.message || 'Local generation failed.' };
+    }
+    localJobs.set(job.id, next);
+    // The mirror keeps the outcome, not the bytes — those are saved into the project on import.
+    await upsertLocal({ ...next, results: next.results?.map(({ blob: _blob, ...r }) => r) }).catch(() => {});
+  })();
+  return job;
 }
 
 /** Map a result mime to a Fabula pool asset type. */

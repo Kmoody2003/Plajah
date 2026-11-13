@@ -63,7 +63,7 @@ const DIALECTS: Record<string, Dialect> = {
 };
 
 export function dialectFor(connector: Connector): Dialect {
-  return DIALECTS[connector.id] || (connector.kind === 'video'
+  return DIALECTS[connector.dialect || connector.id] || DIALECTS[connector.id] || (connector.kind === 'video'
     ? { form: 'prose', maxChars: 1500, nativeAudio: false }
     : { form: 'prose', maxChars: 1800, nativeAudio: false });
 }

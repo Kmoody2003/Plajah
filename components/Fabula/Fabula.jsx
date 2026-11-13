@@ -3610,13 +3610,22 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     if (!results?.length) return;
     const target = bin || "Generated";
     // Mint the pool assets first so the ids exist before any clip points at one.
-    const minted = results.map((r) => ({
-      id: uid(), name: r.name || "generated", type: r.type || "image", url: r.url, cloudUrl: r.url,
-      bin: target, duration: 0, generated: true, synced: true, session: true,
+    // A take generated on this machine arrives as bytes, not a cloud URL: keep the bytes with the
+    // project (so it survives a reload) and let the normal sync give other devices a copy.
+    const localIds = [];
+    const minted = results.map((r) => {
+      const id = uid();
+      if (r.blob) { stSet("studio:blob:" + id, r.blob); localIds.push(id); }
+      return {
+      id, name: r.name || "generated", type: r.type || "image", url: r.blob ? URL.createObjectURL(r.blob) : r.url,
+      ...(r.blob ? { localGenerated: true } : { cloudUrl: r.url, synced: true }),
+      bin: target, duration: 0, generated: true, session: true,
       shotId: job?.spec?.shotId,          // provenance: which SLATE shot this came from
       // A storyboard frame is a drawing — Continuity Eye must never use it as a picture reference.
       ...(job?.spec?.direction?.boardStyle ? { board: true } : {}),
-    }));
+      };
+    });
+    if (localIds.length) scheduleAutoSync(localIds);
     updateProd((p) => {
       p.mediaPool = p.mediaPool || []; p.bins = p.bins || [];
       if (!p.bins.includes(target)) p.bins.push(target);

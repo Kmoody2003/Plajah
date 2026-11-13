@@ -220,7 +220,7 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
           <button className="gp-x" onClick={onClose}><X size={16} /></button>
         </div>
 
-        {healthy === false && mode === "connected" && (
+        {healthy === false && mode === "connected" && conn?.walletModel !== "free_local" && (
           <div className="gp-note">
             The generation agent isn’t connected yet. You can still queue jobs — they’ll run once the
             cloud agent is live. Or switch to <b>Hand off</b> and run this on your own account right now.
@@ -351,7 +351,7 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
         {reviewTake && direction && mode === "connected" && (
           <label className="gp-autoretry">
             <input type="checkbox" checked={!!autoRetry} onChange={(e) => onAutoRetry?.(e.target.checked)} />
-            Every take is checked against this direction. Retry automatically when it doesn't match (up to {MAX_ATTEMPTS} tries — each retry is a new generation on your account).
+            Every take is checked against this direction. Retry automatically when it doesn't match (up to {MAX_ATTEMPTS} tries — {conn?.walletModel === "free_local" ? "free on your own GPU" : "each retry is a new generation on your account"}).
           </label>
         )}
 

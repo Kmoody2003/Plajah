@@ -28,6 +28,7 @@ import express from 'express';
 import { runLocalAceStep, localAceStepAvailable, normalizeLocalEngineUrl } from '../services/melos/generation/localAceStep';
 import { runGeneration } from '../services/melos/generation/adapters';
 import { musicEngineAccess } from '../services/musicEnginePolicy';
+import { runLocalGeneration, stillIntentFromSpec, motionIntentFromSpec, nearestAspect, isLocalConnector } from '../services/fabula/localGen';
 
 const conn = (id: string) => connectorById(id)!;
 
@@ -880,4 +881,76 @@ test('a retry states what was wrong first, on every model, and the loop is cappe
   assert.ok(compileShotPrompt(next, conn('kling')).prompt.indexOf('Correct from the last take') < compileShotPrompt(next, conn('kling')).prompt.indexOf('Continuity:'));
   assert.equal(canRetry({ ...review, attempt: MAX_ATTEMPTS }), false, 'after the last attempt a person decides');
   assert.equal(canRetry(normalizeReview({ checks: checks.map((c) => ({ id: c.id, pass: true })) }, checks)), false);
+});
+
+// ── local models through the same door ──────────────────────────────────────────
+
+const TINY_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR4nGP8z8Dwn4GBgYGJAQoAHxcCAr7cXvQAAAAASUVORK5CYII=';
+
+async function fakeSidecar(opts: { models?: Record<string, boolean>; fail?: boolean } = {}) {
+  const app = express(); app.use(express.json({ limit: '20mb' }));
+  const seen: any = {};
+  app.get('/health', (_req, res) => res.json({ gpuName: 'Test GPU', models: opts.models ?? { flux: true, wanVideo: true } }));
+  app.post('/generate', (req, res) => { seen.still = req.body; res.json(opts.fail ? { success: false, error: 'out of VRAM' } : { success: true, mediaUrl: TINY_PNG }); });
+  app.post('/generate-video', (req, res) => { seen.video = req.body; res.json({ success: true, videoUrl: `data:video/mp4;base64,${Buffer.alloc(4096, 7).toString('base64')}`, modelUsed: 'wan' }); });
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise<void>((r) => server.once('listening', r));
+  return { url: `http://127.0.0.1:${(server.address() as any).port}`, seen, close: () => new Promise<void>((r) => { server.closeAllConnections(); server.close(() => r()); }) };
+}
+
+test('the local connectors are recognised, and a spec maps onto the local pipelines', () => {
+  assert.equal(isLocalConnector(conn('local_wan')), true);
+  assert.equal(isLocalConnector(conn('kling')), false);
+  assert.deepEqual(nearestAspect('2.39:1', ['16:9', '2.39:1'] as const), { value: '2.39:1' });
+  assert.match(nearestAspect('2:1', ['16:9', '1:1'] as const).note || '', /crop to 2:1/);
+  const still = stillIntentFromSpec({ prompt: '', refs: [], aspect: '2.39:1', seed: 9 }, 'Close on Maya.', undefined, ['data:a', 'data:b']);
+  assert.deepEqual([still.intent.aspect, still.intent.seed, still.intent.referenceImages?.length], ['2.39:1', 9, 2]);
+  assert.equal(motionIntentFromSpec({ prompt: '', refs: [] }, 'She turns.', {}).intent.mode, 'text_to_video');
+  assert.equal(motionIntentFromSpec({ prompt: '', refs: [] }, 'She turns.', { first: 'data:a' }).intent.mode, 'single_keyframe');
+  const both = motionIntentFromSpec({ prompt: '', refs: [], duration: 8 }, 'She turns.', { first: 'data:a', last: 'data:b' }, [3, 5]);
+  assert.equal(both.intent.mode, 'first_and_last_frame');
+  assert.equal(both.intent.durationSec, 5);
+  assert.match(both.note || '', /generated 5s for a 8s shot/);
+});
+
+test('a directed still runs on the local GPU with its character references attached', async () => {
+  const sidecar = await fakeSidecar();
+  try {
+    const spec = reviewSpec();
+    spec.refs[0].previewUrl = TINY_PNG; spec.refs[1].previewUrl = TINY_PNG;
+    const c = conn('local_creative');
+    const out = await runLocalGeneration({ connector: c, spec, prompt: compileShotPrompt(spec, c).prompt }, { baseUrl: sidecar.url });
+    assert.equal(out.results.length, 1);
+    assert.ok(out.results[0].blob && out.results[0].mime === 'image/png');
+    const task = sidecar.seen.still.task;
+    assert.match(JSON.stringify(task), /holding ledger/, 'the continuity direction reached the local model');
+    assert.match(JSON.stringify(task), /iVBORw0KGgo/, 'and so did her reference images');
+  } finally { await sidecar.close(); }
+});
+
+test('a video shot with a start frame runs image-to-video on the local GPU', async () => {
+  const sidecar = await fakeSidecar();
+  try {
+    const spec: ShotSpec = { prompt: 'She does not blink.', aspect: '16:9', duration: 5, slug: '1D', refs: [{ role: 'first_frame', previewUrl: TINY_PNG, name: 'chosen still' }], direction: directScene(scene()).forShot('s4') };
+    const c = conn('local_wan');
+    const out = await runLocalGeneration({ connector: c, spec, prompt: compileShotPrompt(spec, c).prompt }, { baseUrl: sidecar.url });
+    assert.equal(out.results[0].name, '1D.mp4');
+    assert.equal(out.results[0].blob!.size, 4096);
+    assert.match(JSON.stringify(sidecar.seen.video.task), /Hold identity, wardrobe and light exactly as first frame/);
+  } finally { await sidecar.close(); }
+});
+
+test('local generation never hands back a stand-in: off, uninstalled or failed all say why', async () => {
+  const c = conn('local_creative'), spec: ShotSpec = { prompt: 'x', refs: [] };
+  await assert.rejects(runLocalGeneration({ connector: c, spec, prompt: 'x' }, { baseUrl: 'http://127.0.0.1:9' }), /isn't running/);
+  const noModel = await fakeSidecar({ models: { sdxl: true } });
+  try { await assert.rejects(runLocalGeneration({ connector: conn('local_wan'), spec, prompt: 'x' }, { baseUrl: noModel.url }), /Wan video model isn't installed/); } finally { await noModel.close(); }
+  const broken = await fakeSidecar({ fail: true });
+  try { await assert.rejects(runLocalGeneration({ connector: c, spec, prompt: 'x' }, { baseUrl: broken.url }), /out of VRAM/); } finally { await broken.close(); }
+});
+
+test('a model hosted elsewhere is phrased for the model, not the host', () => {
+  const viaHost = { ...conn('kling'), id: 'some_host_kling', dialect: 'kling' };
+  assert.deepEqual(dialectFor(viaHost), dialectFor(conn('kling')));
+  assert.equal(dialectFor({ ...conn('kling'), id: 'unknown_video' }).maxChars, 1500, 'an unknown model falls back to a safe default');
 });
