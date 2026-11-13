@@ -301,6 +301,7 @@ pub struct AulosVoice {
     dyn_: f32,
     mod_dyn: bool,
     expr: f32,
+    expr_init: bool,
     bend: f32,
     glide: f32,
     vib_amt: f32,
@@ -330,6 +331,7 @@ impl AulosVoice {
             dyn_: 0.5,
             mod_dyn: false,
             expr: 0.0,
+            expr_init: false,
             bend: 1.0,
             glide: 1.0,
             vib_amt: 0.0,
@@ -426,7 +428,10 @@ impl AulosVoice {
         self.mod_dyn = p01(p, AU_MOD_DYN) > 0.5;
         let vs = p01(p, AU_VEL_SENS);
         let v = 1.0 - vs + vs * self.vel;
-        self.dyn_ = if self.mod_dyn { self.expr.max(0.03) } else { (v * (0.4 + 1.2 * p01(p, AU_DYNAMICS))).clamp(0.02, 1.0) };
+        // With the mod wheel as dynamics the note is voiced at a reference mf and the wheel scales it
+        // from there (the wheel's real value arrives on the first sample).
+        self.expr_init = false;
+        self.dyn_ = if self.mod_dyn { 0.5 } else { (v * (0.4 + 1.2 * p01(p, AU_DYNAMICS))).clamp(0.02, 1.0) };
         let port = p01(p, AU_PORTAMENTO);
         self.glide = 1.0 - (-1.0 / (sr * (0.003 + 0.12 * port * port))).exp();
         self.vib_amt = p01(p, AU_VIB_DEPTH) * 2.0 * w.vibrato.max(0.15);
@@ -538,6 +543,10 @@ impl AulosVoice {
     pub fn render_sample(&mut self, bend: f32, mod_wheel: f32, rng: &mut Rng) -> (f32, f32) {
         let sr = self.sr;
         let dt = 1.0 / sr;
+        if !self.expr_init {
+            self.expr = mod_wheel;
+            self.expr_init = true;
+        }
         self.expr += (mod_wheel - self.expr) * 0.002;
         self.bend += (bend - self.bend) * 0.01;
         if self.stacc > 0 && self.t >= self.stacc && !self.released {

@@ -29,6 +29,7 @@ mod tonos;
 mod bodyconv;
 mod arco;
 mod orch;
+mod perform;
 mod cornu;
 mod cornu_habits;
 mod aulos;

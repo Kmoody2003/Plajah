@@ -30,6 +30,7 @@
 //! Everything allocates at construction.
 
 use crate::bodyconv::{render_cloud, BodyConv, ModeCloud};
+use crate::perform::{Vibrato, Wander};
 use crate::osc::Rng;
 use crate::params::*;
 use crate::tonos::{design_loss, onepole_pd, Bp, Loop, Material, StringSpec, GUT, MATERIALS, NSTEEL, STEEL, STOP_FRETLESS};
@@ -245,6 +246,13 @@ struct Player {
     trem_rate: f32,
     touch_m: usize,
     noise_lp: f32,
+    // the player's life: slow wander of bow pressure/speed and pitch, a living vibrato
+    wander_a: Wander,
+    wander_p: Wander,
+    vib: Vibrato,
+    ctl_cents: f32,
+    ctl_cents_t: f32,
+    ctl_amp: f32,
 }
 
 impl Player {
@@ -294,6 +302,12 @@ impl Player {
             trem_rate: 0.0,
             touch_m: 0,
             noise_lp: 0.0,
+            wander_a: Wander::new(3000.0),
+            wander_p: Wander::new(3000.0),
+            vib: Vibrato::default(),
+            ctl_cents: 0.0,
+            ctl_cents_t: 0.0,
+            ctl_amp: 1.0,
         }
     }
     fn clear(&mut self) {
@@ -418,6 +432,7 @@ pub struct ArcoVoice {
     dyn_: f32,
     mod_dyn: bool,
     expr: f32,
+    expr_init: bool,
     bend: f32,
     glide: f32,
     vib_amt: f32,
@@ -450,6 +465,7 @@ impl ArcoVoice {
             dyn_: 0.5,
             mod_dyn: false,
             expr: 0.0,
+            expr_init: false,
             bend: 1.0,
             glide: 1.0,
             vib_amt: 0.0,
@@ -518,7 +534,10 @@ impl ArcoVoice {
         self.mod_dyn = p01(p, AR_MOD_DYN) > 0.5;
         let vs = p01(p, AR_VEL_SENS);
         let v = 1.0 - vs + vs * self.vel;
-        self.dyn_ = if self.mod_dyn { self.expr.max(0.03) } else { (v * (0.4 + 1.2 * p01(p, AR_DYNAMICS))).clamp(0.02, 1.0) };
+        // With the mod wheel as dynamics the note is voiced at a reference mf and the wheel scales it
+        // from there (the wheel's real value arrives on the first sample).
+        self.expr_init = false;
+        self.dyn_ = if self.mod_dyn { 0.5 } else { (v * (0.4 + 1.2 * p01(p, AR_DYNAMICS))).clamp(0.02, 1.0) };
         let set = pidx(p, AR_STRING_SET, STRING_SET_NAMES.len());
         let tension = 2f32.powf((p01(p, AR_TENSION) - 0.5) * 1.0);
         let pref = p01(p, AR_STRING_PREF);
@@ -529,7 +548,8 @@ impl ArcoVoice {
         self.rosin_soft = 0.15 + 0.4 * rosin;
         self.bow_len = fd.bow_len * 2.0 * p01(p, AR_BOW_LENGTH);
         self.release_rate = 1.0 / (sr * (0.012 + 0.25 * p01(p, AR_RELEASE).powi(2)));
-        self.release_damp = 0.002 + 0.02 * (1.0 - p01(p, AR_RELEASE));
+        // After the bow leaves, a stopped string rings on for ~0.5–1.5 s (the finger stays down).
+        self.release_damp = 0.0016 + 0.006 * (1.0 - p01(p, AR_RELEASE));
         let port = p01(p, AR_PORTAMENTO);
         self.glide = 1.0 - (-1.0 / (sr * (0.006 + 0.3 * port * port))).exp();
         self.vib_amt = p01(p, AR_VIB_DEPTH);
@@ -616,6 +636,14 @@ impl ArcoVoice {
             pl.vib_rs = w.sin();
             pl.vib_depth = 1.0 + rng.bipolar() * 0.4 * (0.3 + vib_spread) * hum;
             pl.vib_delay = 0.12 + rng.next_f32() * 0.25;
+            pl.vib.start(pl.vib_rate, 1.0, rng);
+            pl.wander_a = Wander::new(sr / 16.0);
+            pl.wander_p = Wander::new(sr / 16.0);
+            pl.wander_a.reset(rng);
+            pl.wander_p.reset(rng);
+            pl.ctl_cents = 0.0;
+            pl.ctl_cents_t = 0.0;
+            pl.ctl_amp = 1.0;
             pl.speed_k = 1.0 + rng.bipolar() * 0.12 * hum;
             pl.force_k = 1.0 + rng.bipolar() * 0.12 * hum;
             pl.onset = if lead { 0 } else { (rng.next_f32() * (0.004 + 0.04 * tight) * sr) as u32 };
@@ -738,6 +766,10 @@ impl ArcoVoice {
     pub fn render_sample(&mut self, bend: f32, mod_wheel: f32, rng: &mut Rng) -> (f32, f32) {
         let sr = self.sr;
         let dt = 1.0 / sr;
+        if !self.expr_init {
+            self.expr = mod_wheel;
+            self.expr_init = true;
+        }
         self.expr += (mod_wheel - self.expr) * 0.002;
         self.bend += (bend - self.bend) * 0.01;
         let dyn_now = if self.mod_dyn { self.expr.max(0.02) } else { self.dyn_ };
@@ -745,7 +777,11 @@ impl ArcoVoice {
         // The mod wheel moves speed and force together (force ∝ speed keeps the stroke at the
         // same place in Schelleng's window). Same for every player: computed once.
         let k_dyn = if self.mod_dyn { speed_curve(dyn_now) / speed_curve(dyn_at) } else { 1.0 };
-        let vib_depth_c = self.vib_amt * 22.0 * (0.6 + 0.6 * dyn_now);
+        // Real string vibrato: ±15–30 cents, wider when playing out.
+        let vib_depth_c = self.vib_amt * 40.0 * (0.5 + 0.7 * dyn_now);
+        // How much a player's bow pressure / speed and intonation wander (sections a little more).
+        let life_amp = 0.045;
+        let life_pitch = 2.5;
         let vib_extra = if self.mod_dyn { 0.0 } else { self.expr };
         let vib_wheel = 25.0 * vib_extra;
         let release_damp = self.release_damp;
@@ -763,24 +799,19 @@ impl ArcoVoice {
                 continue;
             }
             let pt = (self.t - pl.onset) as f32 * dt;
-            // Intonation: a slow drift the player keeps hearing and correcting.
-            if self.t % 64 == 0 {
-                pl.drift += (rng.bipolar() * 0.6 - pl.drift * 0.02) * 0.05;
+            // The player's life, at control rate: bow pressure and speed wander a few percent,
+            // intonation wanders a few cents (the ear pulls it back), and the vibrato develops
+            // into the note with its own rate and depth.
+            if (self.t - pl.onset) % 16 == 0 {
+                let wa = pl.wander_a.tick(rng);
+                let wp = pl.wander_p.tick(rng);
+                let (v, shape) = pl.vib.cents(pt, 16.0 * dt, wp);
+                pl.ctl_cents_t = v * vib_depth_c * pl.vib_depth + vib_wheel * pl.vib_depth * shape + wp * life_pitch;
+                pl.ctl_amp = 1.0 + wa * life_amp;
             }
-            // Vibrato: comes in after the note settles; deeper with the mod wheel. A rotating
-            // phasor (renormalised now and then) instead of sin() per player per sample.
-            let (c0, s0) = (pl.vib_c, pl.vib_s);
-            pl.vib_c = c0 * pl.vib_rc - s0 * pl.vib_rs;
-            pl.vib_s = c0 * pl.vib_rs + s0 * pl.vib_rc;
-            if self.t % 1024 == 0 {
-                let m = 1.0 / (pl.vib_c * pl.vib_c + pl.vib_s * pl.vib_s).sqrt();
-                pl.vib_c *= m;
-                pl.vib_s *= m;
-            }
-            let vin = ((pt - pl.vib_delay) / 0.35).clamp(0.0, 1.0);
-            let vib_c = (vib_depth_c * vin + vib_wheel) * pl.vib_depth * pl.vib_s;
+            pl.ctl_cents += (pl.ctl_cents_t - pl.ctl_cents) * 0.0625;
             // 2^(c/1200) to second order (≤ 0.1 cent error inside ±60 cents).
-            let y = (vib_c + pl.drift) * (std::f32::consts::LN_2 / 1200.0);
+            let y = pl.ctl_cents * (std::f32::consts::LN_2 / 1200.0);
             let pitch = self.bend * (1.0 + y + 0.5 * y * y);
             {
                 let l = &mut pl.tl;
@@ -819,7 +850,7 @@ impl ArcoVoice {
                     _ => (1.0 / (sr * 0.018), self.release_rate),
                 };
                 pl.env += (target - pl.env).clamp(-dn, up);
-                let (v_tgt, f_tgt) = (pl.v_b * k_dyn, pl.f_b * k_dyn);
+                let (v_tgt, f_tgt) = (pl.v_b * k_dyn * (1.0 + 0.5 * (pl.ctl_amp - 1.0)), pl.f_b * k_dyn * pl.ctl_amp);
                 let mut vb_bow = v_tgt * pl.dir;
                 let mut fnorm = f_tgt * pl.env;
                 match artic {
@@ -1411,7 +1442,7 @@ mod tests {
         for i in 0..4 {
             e.note_off(i + 1);
         }
-        for _ in 0..(3.0 * SR) as usize / 128 {
+        for _ in 0..(5.0 * SR) as usize / 128 {
             e.render(128);
         }
         assert_eq!(e.active_voices(), 0, "voices should free after release");

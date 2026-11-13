@@ -29,6 +29,7 @@
 use crate::osc::Rng;
 use crate::params::*;
 use crate::tonos::{onepole_pd, Bp, Loop};
+use crate::perform::{Vibrato, Wander};
 use std::f32::consts::PI;
 
 const TAU: f32 = 2.0 * PI;
@@ -233,6 +234,18 @@ struct Player {
     trim_s: f32,
     rad_lp: f32,
     rad_a: f32,
+    mu_s: f32,
+    mu_rate: f32,
+    // the player's life (see perform.rs)
+    wander_a: Wander,
+    wander_p: Wander,
+    vib: Vibrato,
+    ctl_cents: f32,
+    ctl_cents_t: f32,
+    ctl_amp: f32,
+    scoop: f32,
+    slur_t: f32,
+    combo: f32,
     // humanising
     onset: u32,
     cents: f32,
@@ -299,6 +312,17 @@ impl Player {
             trim_s: 1.0,
             rad_lp: 0.0,
             rad_a: 0.5,
+            mu_s: 1.0,
+            mu_rate: 0.001,
+            wander_a: Wander::new(3000.0),
+            wander_p: Wander::new(3000.0),
+            vib: Vibrato::default(),
+            ctl_cents: 0.0,
+            ctl_cents_t: 0.0,
+            ctl_amp: 1.0,
+            scoop: 0.0,
+            slur_t: 1.0,
+            combo: 0.0,
             onset: 0,
             cents: 0.0,
             drift: 0.0,
@@ -401,6 +425,7 @@ pub struct CornuVoice {
     dyn_: f32,
     mod_dyn: bool,
     expr: f32,
+    expr_init: bool,
     bend: f32,
     glide: f32,
     vib_amt: f32,
@@ -423,6 +448,9 @@ pub struct CornuVoice {
     pub(crate) learning: bool,
     tongue: f32,
     buzz: f32,
+    combo: f32,
+    click: u32,
+    click_bp: Bp,
 }
 
 impl CornuVoice {
@@ -439,6 +467,7 @@ impl CornuVoice {
             dyn_: 0.5,
             mod_dyn: false,
             expr: 0.0,
+            expr_init: false,
             bend: 1.0,
             glide: 1.0,
             vib_amt: 0.0,
@@ -460,6 +489,9 @@ impl CornuVoice {
             learning: false,
             tongue: 0.8,
             buzz: 0.5,
+            combo: 0.0,
+            click: 0,
+            click_bp: Bp::default(),
         }
     }
 
@@ -539,10 +571,14 @@ impl CornuVoice {
         self.mod_dyn = p01(p, CN_MOD_DYN) > 0.5;
         let vs = p01(p, CN_VEL_SENS);
         let v = 1.0 - vs + vs * self.vel;
-        self.dyn_ = if self.mod_dyn { self.expr.max(0.03) } else { (v * (0.4 + 1.2 * p01(p, CN_DYNAMICS))).clamp(0.02, 1.0) };
+        // With the mod wheel as dynamics the note is voiced at a reference mf and the wheel scales it
+        // from there (the wheel's real value arrives on the first sample).
+        self.expr_init = false;
+        self.dyn_ = if self.mod_dyn { 0.5 } else { (v * (0.4 + 1.2 * p01(p, CN_DYNAMICS))).clamp(0.02, 1.0) };
         let note = 69.0 + 12.0 * (note_hz / 440.0).log2();
-        let (f_col, partial, _) = fingering(b, self.inst, note);
+        let (f_col, partial, combo) = fingering(b, self.inst, note);
         self.partial = partial;
+        self.combo = combo;
         let slide = p01(p, CN_PORTAMENTO);
         self.glide = 1.0 - (-1.0 / (sr * (0.004 + 0.25 * slide * slide))).exp();
         self.vib_amt = p01(p, CN_VIB_DEPTH);
@@ -591,6 +627,17 @@ impl CornuVoice {
             pl.gain = each * if k == 0 { 1.0 } else { 0.85 + 0.3 * rng.next_f32() };
             pl.vib_rate = 4.8 + 1.2 * rng.next_f32();
             pl.vib_phase = rng.next_f32() * TAU;
+            pl.vib.start(pl.vib_rate, 1.0, rng);
+            pl.wander_a = Wander::new(sr / 16.0);
+            pl.wander_p = Wander::new(sr / 16.0);
+            pl.wander_a.reset(rng);
+            pl.wander_p.reset(rng);
+            pl.ctl_cents = 0.0;
+            pl.ctl_cents_t = 0.0;
+            pl.ctl_amp = 1.0;
+            pl.slur_t = 1.0;
+            // A tongued note scoops up into its slot by a few cents (the lips settle).
+            pl.scoop = if self.artic == ART_LEGATO { 0.0 } else { -(6.0 + 18.0 * rng.next_f32()) };
             // The bell lets the highs out above its cutoff: a reflection low-pass.
             let fc = b.bell_fc * bell * if self.mute == 5 { 0.5 } else { 1.0 };
             pl.bell_b = (-TAU * fc / sr).exp();
@@ -614,6 +661,8 @@ impl CornuVoice {
             pl.lip_trim = trim;
             pl.trim_s = trim;
             pl.mu_k = mk;
+            pl.mu_s = mk;
+            pl.mu_rate = 1.0 - (-1.0 / (0.02 * sr)).exp();
             pl.p_k = pk;
             pl.w_l = TAU * f_note * (LIP_RATIO + lip_tune);
             // Steepening: Δτ = β·L·p/(c·ρc²), in samples per pascal.
@@ -650,6 +699,8 @@ impl CornuVoice {
         // ×4: sits level with ARCO at mf after the radiation changes.
         self.norm = b.level * 1.0 / b.p_range.1;
         self.tilt_k = 1.0 - (-TAU * 1500.0 / sr).exp();
+        self.click = 0;
+        self.click_bp = Bp::new(2600.0, 4.0, sr);
         self.t = 0;
     }
 
@@ -661,10 +712,16 @@ impl CornuVoice {
         }
         let b = &BRASS[self.inst];
         let note = 69.0 + 12.0 * (note_hz / 440.0).log2();
-        let (f_col, partial, _) = fingering(b, self.inst, note);
+        let (f_col, partial, combo) = fingering(b, self.inst, note);
+        // Valves pressed or lifted: the pistons knock (a slide doesn't).
+        if (combo - self.combo).abs() > 0.1 && b.valves != VALVE_SLIDE {
+            self.click = (self.sr * 0.004) as u32;
+        }
+        self.combo = combo;
         self.partial = partial;
         let lip_tune = (p01(p, CN_LIP) - 0.5) * 0.12;
         for k in 0..self.np {
+            self.players[k].slur_t = 0.0;
             self.set_column(k, f_col, partial);
             let pl = &mut self.players[k];
             let f_note = note_hz * 2f32.powf(pl.cents / 1200.0);
@@ -689,6 +746,10 @@ impl CornuVoice {
     pub fn render_sample(&mut self, bend: f32, mod_wheel: f32, rng: &mut Rng) -> (f32, f32) {
         let sr = self.sr;
         let dt = 1.0 / sr;
+        if !self.expr_init {
+            self.expr = mod_wheel;
+            self.expr_init = true;
+        }
         self.expr += (mod_wheel - self.expr) * 0.002;
         self.bend += (bend - self.bend) * 0.01;
         if self.stacc > 0 && self.t >= self.stacc && !self.released {
@@ -734,14 +795,32 @@ impl CornuVoice {
             if self.released && fall_hold {
                 target *= 1.0 - rel_time / 0.3;
             }
-            let rate = if target > pl.p_mouth { dt / self.attack } else { dt / 0.025 };
-            pl.p_mouth += (target - pl.p_mouth) * rate.min(1.0);
-            pl.vib_phase += TAU * pl.vib_rate * dt;
-            if pl.vib_phase > TAU {
-                pl.vib_phase -= TAU;
+            // The player's life at control rate: breath wanders a few percent, the lips' pitch a few
+            // cents; vibrato (lip/jaw, so mostly pitch) develops into the note.
+            if (self.t - pl.onset) % 16 == 0 {
+                let wa = pl.wander_a.tick(rng);
+                let wp = pl.wander_p.tick(rng);
+                let (v, shape) = pl.vib.cents(pt, 16.0 * dt, wp);
+                let wheel = if self.mod_dyn { 0.0 } else { 18.0 * self.expr * shape };
+                let mut c = v * self.vib_amt * 30.0 + wheel + wp * 3.0 + pl.scoop * (-pt / 0.045).exp();
+                if self.released {
+                    // Letting go: the lips relax and the pitch sags as the air dies.
+                    c -= 14.0 * (rel_time / 0.12).min(1.0);
+                }
+                pl.ctl_cents_t = c;
+                pl.ctl_amp = 1.0 + wa * 0.035;
             }
-            let vin = ((pt - 0.35) / 0.4).clamp(0.0, 1.0);
-            let vib = 1.0 + (self.vib_amt * 0.03 * vin + 0.02 * if self.mod_dyn { 0.0 } else { self.expr }) * pl.vib_phase.sin();
+            pl.ctl_cents += (pl.ctl_cents_t - pl.ctl_cents) * 0.0625;
+            target *= pl.ctl_amp;
+            // A slur: the air dips for a moment as the lips break to the new partial.
+            if pl.slur_t < 0.08 {
+                target *= 1.0 - 0.22 * (-pl.slur_t / 0.025).exp();
+                pl.slur_t += dt;
+            }
+            // Releases taper (40 ms), they don't stop.
+            let rate = if target > pl.p_mouth { dt / self.attack } else { dt / 0.04 };
+            pl.p_mouth += (target - pl.p_mouth) * rate.min(1.0);
+            let vib = 1.0;
             if self.t % 64 == 0 {
                 pl.drift += (rng.bipolar() * 0.4 - pl.drift * 0.03) * 0.05;
             }
@@ -749,7 +828,8 @@ impl CornuVoice {
             // The slide / lipping moves continuously, never in steps (a step in the bore's
             // length is a click).
             pl.trim_s += (pl.lip_trim - pl.trim_s) * 0.0015;
-            let tune = self.bend * shift * (1.0 + pl.drift * 0.000_577) * pl.trim_s;
+            let yc = pl.ctl_cents * (std::f32::consts::LN_2 / 1200.0);
+            let tune = self.bend * shift * (1.0 + yc + 0.5 * yc * yc) * pl.trim_s;
             pl.bore.period += (pl.bore.target - pl.bore.period) * self.glide;
             let read = (pl.bore.period / tune).clamp(2.0, (BORE_BUF - 8) as f32);
             let w_l = pl.w_l * tune;
@@ -778,7 +858,9 @@ impl CornuVoice {
             // Breath turbulence through the lips.
             // Breath turbulence through the lips, band-limited (it's air, not white noise).
             pl.turb_lp += (rng.bipolar() - pl.turb_lp) * 0.25;
-            let turb = pl.turb_lp * TURB * u.abs();
+            // The tongue's "t": a burst of turbulence as it leaves the lips.
+            let tongue = if artic != ART_LEGATO && pt < 0.012 { 1.0 + 30.0 * (1.0 - pt / 0.012) } else { 1.0 };
+            let turb = pl.turb_lp * TURB * tongue * u.abs();
             let u = u + turb;
             let p_mp = 2.0 * p_in + pl.zc * u;
             let p_out = p_in + pl.zc * u;
@@ -809,7 +891,7 @@ impl CornuVoice {
                     pl.ear_period = if pl.ear_period > 0.0 { 0.7 * pl.ear_period + 0.3 * per } else { per };
                     let err = (expect / pl.ear_period).ln(); // > 0: sounding sharp
                     if pt > 0.09 && !self.released {
-                        pl.lip_trim = pl.trim_s * (-err * 0.5).exp();
+                        pl.lip_trim = pl.trim_s * (-err.clamp(-0.03, 0.03) * 0.08).exp();
                         pl.lip_trim = pl.lip_trim.clamp(0.78, 1.1);
                     }
                 }
@@ -842,7 +924,9 @@ impl CornuVoice {
                 pl.buzz_ph -= 1.0;
             }
             let buzz = if artic != ART_LEGATO && !self.learning { self.buzz * (-pt / 0.05).exp() * (TAU * pl.buzz_ph).sin() } else { 0.0 };
-            let mut acc = (pm * (1.0 + buzz) - p_mp) / (pl.mu * pl.mu_k) - (w_l / pl.q_l) * pl.v - w_l * w_l * pl.x;
+            // Lip tension changes over ~20 ms (muscle), never instantly.
+            pl.mu_s += (pl.mu_k - pl.mu_s) * pl.mu_rate;
+            let mut acc = (pm * (1.0 + buzz) - p_mp) / (pl.mu * pl.mu_s) - (w_l / pl.q_l) * pl.v - w_l * w_l * pl.x;
             // Lips meet softly: soft tissue in contact is a stiff, lossy spring, not a wall.
             let pen = -(pl.h0 + pl.x);
             if pen > 0.0 {
@@ -901,6 +985,13 @@ impl CornuVoice {
             let dry = self.mute_dry + 0.6 * open;
             l = l * dry + wet;
             r = r * dry + wet;
+        }
+        if self.click > 0 {
+            let n = rng.bipolar() * (self.click as f32 / (self.sr * 0.004));
+            let c = self.click_bp.tick(n) * 0.004;
+            l += c;
+            r += c;
+            self.click -= 1;
         }
         // The player layer: real brass spans ~30 dB and brightens hugely toward ff; the lips and
         // steepening give part of that (≈9 dB), this gives the rest (loudness + a 1.5 kHz tilt).
@@ -1253,6 +1344,62 @@ pub static HABITS: [&[(f32, f32, f32)]; 10] = [
             for x in [0.5 * (l + r), pl.p_mouth, pl.p_k, pl.mu_k, pl.lip_trim] { out.extend_from_slice(&x.to_le_bytes()); }
         }
         std::fs::write(std::env::var("DUMP").unwrap(), out).unwrap();
+    }
+
+    /// Envelope roughness: std/mean of the 4 ms RMS over 0.4–0.9 s (a steady note is < 0.05).
+    pub(crate) fn roughness(x: &[f32], f: f32) -> f32 {
+        let sr = 48000.0;
+        let w = (3.0 * sr / f) as usize;
+        let seg = &x[(0.4 * sr) as usize..(0.9 * sr) as usize];
+        let r: Vec<f32> = seg.chunks(w).map(|c| (c.iter().map(|v| v * v).sum::<f32>() / c.len() as f32).sqrt()).collect();
+        let m = r.iter().sum::<f32>() / r.len() as f32;
+        let sd = (r.iter().map(|v| (v - m) * (v - m)).sum::<f32>() / r.len() as f32).sqrt();
+        sd / m.max(1e-9)
+    }
+    #[test]
+    #[ignore]
+    fn cornu_rough() {
+        for inst in 0..NUM_INSTRUMENTS {
+            let b = &BRASS[inst];
+            let mut line = format!("{:16}", INSTRUMENT_NAMES[inst]);
+            let mut n = b.range.0 + 1.0;
+            while n <= b.range.1 {
+                let x = render(&params(0), inst, n, 0.75, 1.0, 1.0);
+                line += &format!(" {}:{:.2}", n, roughness(&x, midi_to_hz(n)));
+                n += 3.0;
+            }
+            println!("{}", line);
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn cornu_slur_rough() {
+        let sr = 48000.0;
+        for &(moddyn, label) in &[(false, "velocity"), (true, "modwheel const"), (true, "modwheel ramp")] {
+            let mut p = params(0);
+            if moddyn { p.set(CORNU_BASE + CN_MOD_DYN, 1.0); }
+            let mut v = CornuVoice::new(sr);
+            let mut rng = Rng(5);
+            v.role = Role { inst: 5, section: 0, players: 1 };
+            let notes = [65.0f32, 64.0, 62.0, 60.0, 65.0];
+            let mut x = Vec::new();
+            for (k, &n) in notes.iter().enumerate() {
+                if k == 0 { v.trigger(midi_to_hz(n), 0.7, &p, &mut rng); } else { v.slur(midi_to_hz(n), 0.7, &p, &mut rng); }
+                for i in 0..(0.9 * sr) as usize {
+                    let mw = if label == "modwheel ramp" { 0.4 + 0.4 * ((k as f32 * 0.9 + i as f32 / sr) / 4.5) } else { 0.7 };
+                    let (l, r) = v.render_sample(1.0, mw, &mut rng);
+                    x.push(0.5 * (l + r));
+                }
+            }
+            let mut line = format!("{:16}", label);
+            for (k, &n) in notes.iter().enumerate() {
+                let n0 = (0.9 * sr) as usize;
+                let seg = &x[k * n0..(k + 1) * n0];
+                line += &format!(" {}:{:.2}", n, roughness(seg, midi_to_hz(n)));
+            }
+            println!("{}", line);
+        }
     }
 
     #[test]
