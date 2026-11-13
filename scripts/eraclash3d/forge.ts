@@ -26,6 +26,15 @@ const args = process.argv.slice(2);
 const only = args.filter((a) => (STAGES as readonly string[]).includes(a)) as Stage[];
 const force = args.includes('--force');
 fs.mkdirSync(WORK_DIR, { recursive: true });
+// one run per character at a time: two would share the work folder's scratch files (the searches' slots, the atlases)
+const LOCK = path.join(WORK_DIR, 'forge.lock');
+const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+if (fs.existsSync(LOCK)) {
+  const held = Number(fs.readFileSync(LOCK, 'utf8'));
+  if (held && held !== process.pid && alive(held)) { console.error(`[forge] ${spec.id} is already running (pid ${held}); wait for it, or end it first`); process.exit(1); }
+}
+fs.writeFileSync(LOCK, String(process.pid));
+process.on('exit', () => { try { if (Number(fs.readFileSync(LOCK, 'utf8')) === process.pid) fs.unlinkSync(LOCK); } catch { /* gone */ } });
 const env = { ...process.env, FORGE_SPEC: SPEC_FILE };
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const t0 = Date.now();
