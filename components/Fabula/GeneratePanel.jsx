@@ -19,6 +19,7 @@ import {
   listConnectors, listJobs, submitJob, pollJob, connectAccount, health,
   assetTypeForMime, compileHandoff, compileShotPrompt, refsForConnector, saveProviderKey, revokeProvider,
 } from "../../services/fabula/genAgent";
+import { canRetry, correctedSpec, MAX_ATTEMPTS } from "../../services/fabula/story/reviewTake";
 
 const WALLET_LABEL = {
   shared: "Draws your plan credits",
@@ -27,7 +28,11 @@ const WALLET_LABEL = {
   free_local: "100% Free · Runs on Local GPU",
 };
 
-export default function GeneratePanel({ projectId, bins = [], defaultBin, onClose, importResults, context }) {
+export default function GeneratePanel({ projectId, bins = [], defaultBin, onClose, importResults, context, reviewTake, autoRetry = false, onAutoRetry }) {
+  // Review of finished takes against their direction: jobId → "running" | TakeReview | { error }.
+  const [reviews, setReviews] = useState({});
+  const autoRetryRef = useRef(autoRetry);
+  autoRetryRef.current = autoRetry;
   const [healthy, setHealthy] = useState(null);        // null=checking, true/false
   const [connectors, setConnectors] = useState([]);
   const [provider, setProvider] = useState(context?.provider || "");
@@ -106,13 +111,43 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
           imported.current.add(j.id);
           // The job goes with the results: its spec carries the shotId, which is how a finished
           // generation finds the placeholder clip it should fill in the cut.
-          importResults?.(j.results.map((r) => ({ ...r, type: assetTypeForMime(r.mime) })), j.bin, j);
+          const assets = importResults?.(j.results.map((r) => ({ ...r, type: assetTypeForMime(r.mime) })), j.bin, j);
+          reviewJob(j, assets);
         }
       });
       setJobs(updated);
     }, 4000);
     return () => clearInterval(t);
   }, [jobs, projectId, importResults]);
+
+  // Submit the same shot again with what the last take got wrong stated up front.
+  const retryJob = async (j, review) => {
+    const c = connectors.find((x) => x.id === j.provider);
+    if (!c || !j.spec) return;
+    const next = correctedSpec(j.spec, review);
+    const compiled = compileShotPrompt(next, c);
+    const job = await submitJob({
+      provider: j.provider, kind: j.kind, prompt: compiled.prompt, spec: next,
+      params: { ...(j.params || {}), ...(compiled.negative ? { negative: compiled.negative } : {}) },
+      projectId, bin: j.bin,
+    });
+    setJobs((js) => [job, ...js.filter((x) => x.id !== job.id)]);
+  };
+
+  // Look at a finished take against the direction it was made from. Only directed shots are reviewed
+  // (a character sheet or a bare prompt has nothing to check against). A failed review can retry by
+  // itself when the user has turned that on — each retry is a new paid generation, so it is opt-in.
+  const reviewJob = async (j, assets) => {
+    if (!reviewTake || !j.spec?.direction || j.spec.sheet || !assets?.length) return;
+    setReviews((m) => ({ ...m, [j.id]: "running" }));
+    try {
+      const review = await reviewTake({ job: j, assets });
+      setReviews((m) => ({ ...m, [j.id]: review }));
+      if (autoRetryRef.current && canRetry(review)) await retryJob(j, review);
+    } catch (e) {
+      setReviews((m) => ({ ...m, [j.id]: { error: e?.message || "The take couldn't be reviewed." } }));
+    }
+  };
 
   const doConnect = async (pid) => {
     setKeyErr("");
@@ -313,6 +348,13 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
           </div>
         )}
 
+        {reviewTake && direction && mode === "connected" && (
+          <label className="gp-autoretry">
+            <input type="checkbox" checked={!!autoRetry} onChange={(e) => onAutoRetry?.(e.target.checked)} />
+            Every take is checked against this direction. Retry automatically when it doesn't match (up to {MAX_ATTEMPTS} tries — each retry is a new generation on your account).
+          </label>
+        )}
+
         {mode === "connected" ? (
           <div className="gp-controls">
             {(kind === "video" || conn?.caps?.aspects) && (
@@ -341,6 +383,16 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
               )}
             </div>
             <pre className="gp-hprompt">{handoff?.prompt || "—"}</pre>
+            {handoff?.refs?.some((r) => r.previewUrl || r.url) && (
+              <div className="gp-refpack">
+                <span className="gp-hlbl">REFERENCE PACK</span>
+                {handoff.refs.filter((r) => r.previewUrl || r.url).map((r, i) => (
+                  <a key={i} className="gp-refimg" href={r.previewUrl || r.url} download={`${(r.name || r.role).replace(/[^a-z0-9]+/gi, "_")}.png`} title={`Download — attach as ${r.role.replace(/_/g, " ")}`}>
+                    <img src={r.previewUrl || r.url} alt="" /><span>{r.name || r.role}</span>
+                  </a>
+                ))}
+              </div>
+            )}
             {!!handoff?.notes?.length && (
               <ol className="gp-hnotes">
                 {handoff.notes.map((n, i) => <li key={i}>{n}</li>)}
@@ -361,6 +413,25 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
                 </div>
                 <div className="gp-job-prompt">{j.prompt}</div>
                 {j.note && <div className="gp-job-note"><AlertTriangle size={10} /> {j.note}</div>}
+                {(j.spec?.attempt || 1) > 1 && <div className="gp-job-note">Attempt {j.spec.attempt} of {MAX_ATTEMPTS} — retried with corrections.</div>}
+                {(() => {
+                  const r = reviews[j.id];
+                  if (!r) return null;
+                  if (r === "running") return <div className="gp-review"><Loader size={10} className="gp-spin" /> Checking the take against its direction…</div>;
+                  if (r.error) return <div className="gp-review warn"><AlertTriangle size={10} /> Not reviewed — {r.error}</div>;
+                  return (
+                    <div className={`gp-review ${r.verdict}`}>
+                      <div><b>{r.verdict === "pass" ? "Matches its direction" : r.verdict === "retry" ? "Doesn't match" : "Worth a look"}</b> · {r.score}/100{r.unknown ? ` · ${r.unknown} couldn't be judged` : ""}</div>
+                      {[...r.failed, ...r.warnings].slice(0, 5).map((c) => (
+                        <div key={c.id} className="gp-rline">{c.must ? "✕" : "!"} {c.question}{c.observed ? ` — saw: ${c.observed}` : ""}</div>
+                      ))}
+                      {canRetry(r) && connectors.find((x) => x.id === j.provider)?.modes?.includes("connected") && (
+                        <button className="gp-hbtn" onClick={() => retryJob(j, r)}>Retry with these corrections</button>
+                      )}
+                      {r.verdict === "retry" && !canRetry(r) && <div className="gp-rline">That was the last automatic attempt — this one needs your eye.</div>}
+                    </div>
+                  );
+                })()}
               </div>
               <div className="gp-job-side">
                 {statusPill(j)}
@@ -380,6 +451,15 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
           .gp-ctx{font-weight:700;letter-spacing:.04em;color:#f0913f;background:rgba(240,145,63,0.12);border:1px solid rgba(240,145,63,0.3);border-radius:999px;padding:2px 9px;font-size:10.5px}
           .gp-x{background:none;border:none;color:var(--w40,#9a96a8);cursor:pointer;padding:4px;border-radius:6px}
           .gp-x:hover{color:#fff;background:rgba(255,255,255,0.08)}
+          .gp-review{margin-top:6px;font-size:11px;line-height:1.45;color:#cfcbe0;border-left:3px solid #64748b;padding:2px 0 2px 8px;display:flex;flex-direction:column;gap:3px;max-width:420px}
+          .gp-review.pass{border-color:#34d399}.gp-review.retry{border-color:#fb7185}.gp-review.review,.gp-review.warn{border-color:#fbbf24}
+          .gp-review b{color:#f1eefb}
+          .gp-rline{color:#b9b4cf}
+          .gp-review .gp-hbtn{align-self:flex-start;margin-top:2px}
+          .gp-refpack{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+          .gp-refimg{display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;color:#b9b4cf;font-size:10px;max-width:84px}
+          .gp-refimg img{width:72px;height:54px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,0.14)}
+          .gp-autoretry{display:flex;align-items:center;gap:6px;font-size:11px;color:#b9b4cf;margin:0 0 10px}
           .gp-direction{border:1px solid rgba(139,92,246,0.3);background:rgba(139,92,246,0.08);border-radius:10px;padding:9px 11px;margin:0 0 12px;display:flex;flex-direction:column;gap:4px}
           .gp-dline{font-size:11.5px;line-height:1.45;color:#d8d2ea}
           .gp-dline b{color:#e9d5ff;font-weight:700;margin-right:4px}

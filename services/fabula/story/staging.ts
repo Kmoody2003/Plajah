@@ -194,7 +194,14 @@ export function blockingClause(s: ShotStaging): string {
     const rx = p.x - camera.x, ry = p.y - camera.y;
     return { depth: (rx * dx + ry * dy) / len, across: (rx * -dy + ry * dx) / len };
   };
-  const visible = s.marks.filter((m) => !m.offstage).map((m) => ({ m, v: view(m) })).filter((x) => x.v.depth > -0.02).sort((a, b) => a.v.depth - b.v.depth);
+  // Who this setup actually frames: a single, an insert or a POV holds its subject alone; an
+  // over-the-shoulder holds the subject and the shoulder it looks past; wider setups hold everyone.
+  const framed = (m: StageMark) => {
+    if (camera.kind === 'wide' || camera.kind === 'two-shot' || !camera.subject) return true;
+    if (m.name === camera.subject) return true;
+    return camera.kind === 'ots' && s.marks.filter((x) => !x.offstage && x.name !== camera.subject)[0]?.name === m.name;
+  };
+  const visible = s.marks.filter((m) => !m.offstage && framed(m)).map((m) => ({ m, v: view(m) })).filter((x) => x.v.depth > -0.02).sort((a, b) => a.v.depth - b.v.depth);
   if (!visible.length) return '';
   // Depth words only when the figures really are at different distances from this camera — in a
   // flat two-shot, calling one of them "background" would be wrong.

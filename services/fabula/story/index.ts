@@ -25,6 +25,7 @@ export * from './clipVision';
 export * from './voiceReference';
 export * from './scriptBridge';
 export * from './staging';
+export * from './reviewTake';
 
 export interface SceneDirection {
   plan: ScenePerformancePlan;

@@ -98,7 +98,7 @@ import { isWindowsApp, pickWindowsFolder, pickWindowsFile, scanWindowsLibrary, c
 import { isVectorFile, rasterizeVector } from "../../services/fabula/vectorRaster";
 import GeneratePanel from "./GeneratePanel";
 import StoryIntelligencePanel from "./StoryIntelligencePanel";
-import { directScene, motivationsFrom, continuesFrom, mapCoverage, addPlaceholdersForMissing, breakdownForScene, matchProductionScene, fileSheetResult, placeSuggestionInCut, pullScriptIntoProduction, pushSceneToScript, scoreCueRequest, voiceTagFor } from "../../services/fabula/story";
+import { directScene, motivationsFrom, continuesFrom, mapCoverage, addPlaceholdersForMissing, breakdownForScene, matchProductionScene, fileSheetResult, placeSuggestionInCut, pullScriptIntoProduction, pushSceneToScript, scoreCueRequest, voiceTagFor, shotRefs, reviewChecklist, reviewPrompt, normalizeReview } from "../../services/fabula/story";
 import RunwayPluginPanel from "./RunwayPluginPanel";
 import { LocalCreativeStudio } from "./LocalCreativeStudio";
 import { specFromShot, connectorById, placeResultInCut } from "../../services/fabula/genAgent";
@@ -3550,7 +3550,12 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       aspect: prod?.defaults?.aspect,
       sceneId: sc?.id,
     });
-    if (which !== "voice") spec.direction = directionForShot(sc, shot);
+    if (which !== "voice") {
+      spec.direction = directionForShot(sc, shot);
+      // Identity references follow the characters who are IN this shot: their sheet images and
+      // locks, in place of every bible lock as text. Anything else on the spec (a first frame) stays.
+      spec.refs = [...shotRefs(sc, shot, prod), ...spec.refs.filter((r) => r.role !== "character" && r.role !== "location")];
+    }
     const target = which === "video" ? prod?.defaults?.service : prod?.defaults?.stillTarget;
     setGenCtx({
       spec,
@@ -3631,16 +3636,55 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     const shotId = job?.spec?.shotId;
     const playable = minted.find((a) => a.type === "video") || minted.find((a) => a.type === "image");
     let swapped = 0, alt = 0;
+    let slotted = 0;
     if (shotId && playable) {
       const placed = placeResultInCut(clips, shotId, playable, uid);
       swapped = placed.filled; alt = placed.alternates;
       if (swapped || alt) { setClips(placed.clips); commitClips(placed.clips); }
+      else {
+        // The script has this shot but the cut has no slot for it yet (a board made straight from the
+        // coverage map). Give it one at the end of V1 rather than leaving the take stranded in a bin.
+        const found = allScenes.map(({ scene: sc }) => ({ sc, shot: (sc.shots || []).find((x) => x.id === shotId) })).find((x) => x.shot);
+        const has = clips.some((c) => c.shotId === shotId && !String(c.trackId || "").startsWith("a"));
+        if (found && !has) {
+          const end = clips.filter((c) => c.trackId === "v1").reduce((m, c) => Math.max(m, (c.start || 0) + (c.duration || 0)), 0);
+          const next = [...clips, { id: uid(), trackId: "v1", start: Math.round(end * 10) / 10, duration: estimateShotSeconds(found.shot, found.sc.mode), srcIn: 0, kind: "media", assetId: playable.id, shotId, label: `${found.shot.slug} · ${found.shot.type || ""}`.trim() }];
+          setClips(next); commitClips(next); slotted = 1;
+        }
+      }
     }
 
     const added = `${results.length} generated result${results.length === 1 ? "" : "s"} added to ${target}`;
     ping(swapped ? `${added} — ${swapped} placeholder${swapped === 1 ? "" : "s"} filled in the cut`
       : alt ? `${added} — alternate take laid in, previous muted`
-        : added);
+        : slotted ? `${added} — laid at the end of V1 as this shot's slot`
+          : added);
+    return minted;
+  };
+  // Review a finished take against the direction it was generated from: a vision pass answers a
+  // checklist built from the shot's continuity, staging, performance and identity references. The
+  // verdict is kept on the asset, so a take that doesn't match is marked wherever it is used.
+  const storyReviewTake = async ({ job, assets }) => {
+    const spec = job?.spec;
+    const take = assets.find((a) => a.type === "video") || assets.find((a) => a.type === "image");
+    if (!spec?.direction || !take?.url) throw new Error("Nothing to review.");
+    const frame = take.type === "video" ? await videoFrameB64(take.url) : await imageUrlB64(take.url);
+    const refs = [];
+    // A storyboard isn't checked for photographic likeness, so it needs no identity references.
+    for (const r of (spec.direction.boardStyle ? [] : (spec.refs || []).filter((x) => x.role === "character" && x.lock && x.assetId)).slice(0, 3)) {
+      const a = (prod.mediaPool || []).find((x) => x.id === r.assetId);
+      try { if (a?.url) refs.push({ name: r.name, image: await imageUrlB64(a.url) }); } catch { /* a reference that won't load is skipped; the lock text is checked instead */ }
+    }
+    const names = refs.map((r) => r.name);
+    const checks = reviewChecklist(spec, names);
+    if (!checks.length) throw new Error("This shot's direction has nothing checkable in it.");
+    const raw = await claudeVisionJson([frame, ...refs.map((r) => r.image)], reviewPrompt(checks, names, take.type === "video" ? "video" : "image"));
+    const review = normalizeReview(raw, checks, spec.attempt || 1);
+    updateProd((p) => {
+      const a = (p.mediaPool || []).find((x) => x.id === take.id);
+      if (a) a.review = { verdict: review.verdict, score: review.score, summary: review.summary, attempt: review.attempt, at: review.at, failed: [...review.failed, ...review.warnings].map((c) => ({ id: c.id, question: c.question, observed: c.observed, must: c.must })) };
+    });
+    return review;
   };
   // ── Media Assets: notes + add-to-scene ────────────────────────────────────────
   const updateAssetNote = (assetId, note) => updateProd((p) => { const a = p.mediaPool?.find((x) => x.id === assetId); if (a) a.note = note; });
@@ -7187,7 +7231,9 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       {genOpen && (
         <GeneratePanel projectId={prod?.id || "local"} bins={binTree()}
           defaultBin={binFilter !== "all" ? binFilter : ""} context={genCtx}
-          importResults={importGenResults} onClose={() => { setGenOpen(false); setGenCtx(null); }} />
+          importResults={importGenResults} onClose={() => { setGenOpen(false); setGenCtx(null); }}
+          reviewTake={storyReviewTake} autoRetry={!!prod?.storyIntel?.autoRetry}
+          onAutoRetry={(on) => updateProd((p) => { p.storyIntel = { ...(p.storyIntel || {}), autoRetry: on }; })} />
       )}
       {runwayPluginOpen && (
         <RunwayPluginPanel

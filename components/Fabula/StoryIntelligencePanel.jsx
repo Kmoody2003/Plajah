@@ -19,7 +19,7 @@ import {
   mapCoverage, planStoryboards, gatherCharacterEvidence, planVoiceLock, planCharacterSheet,
   relationshipEvidence, relationshipsTask, normalizeRelationships, motivationsFrom,
   describeBins, binReasoningTask, normalizeBinSuggestions, gapFillTask, normalizeGapFill,
-  critiqueTask, normalizeCritique, directScene, SHEET_VIEWS, continuesFrom,
+  critiqueTask, normalizeCritique, directScene, SHEET_VIEWS, continuesFrom, shotRefs,
   characterStateClause, environmentStateClause,
   breakdownForScene, matchProductionScene, planContinuityChecks, toContinuityCheck,
   clipsToWatch, normalizeClipAnalysis, fileClipAnalysis, planVoiceReference, renderVoiceReference, sectionTiming,
@@ -166,7 +166,7 @@ export default function StoryIntelligencePanel({
   };
 
   const boards = useMemo(
-    () => planStoryboards(coverage, acts, { aspect, directionFor: (sc, sh) => directionFor(sc).forShot(sh.id) }),
+    () => planStoryboards(coverage, acts, { aspect, directionFor: (sc, sh) => directionFor(sc).forShot(sh.id), refsFor: (sc, sh) => shotRefs(sc, sh, prod) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [coverage, acts, aspect, motivations],
   );

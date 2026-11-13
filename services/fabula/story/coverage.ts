@@ -142,7 +142,9 @@ export function describeShot(shot: any, scene: any): string {
 export function planStoryboards(
   coverage: CoverageMap,
   acts: any[],
-  opts: { aspect?: string; boardStyle?: string; include?: ShotCoverage[]; directionFor?: (scene: any, shot: any) => ShotDirection | undefined } = {},
+  opts: { aspect?: string; boardStyle?: string; include?: ShotCoverage[]; directionFor?: (scene: any, shot: any) => ShotDirection | undefined;
+    /** References for a shot (see characterIntel.shotRefs). Defaults to every bible lock, text only. */
+    refsFor?: (scene: any, shot: any) => GenRef[] } = {},
 ): BoardRequest[] {
   const include = opts.include || ['missing', 'placeholder'];
   const sceneById = new Map<string, any>();
@@ -156,11 +158,14 @@ export function planStoryboards(
       if (!include.includes(row.status)) continue;
       const shot = (scene.shots || []).find((s: any) => s.id === row.shotId);
       if (!shot) continue;
-      const refs: GenRef[] = [];
-      for (const c of scene.bible?.characters || []) {
-        if (c?.visual_lock) refs.push({ role: 'character', name: c.name, lock: c.visual_lock, worldEntityId: c.id });
+      let refs: GenRef[] = [];
+      if (opts.refsFor) refs = opts.refsFor(scene, shot);
+      else {
+        for (const c of scene.bible?.characters || []) {
+          if (c?.visual_lock) refs.push({ role: 'character', name: c.name, lock: c.visual_lock, worldEntityId: c.id });
+        }
+        if (scene.bible?.environment_lock) refs.push({ role: 'location', name: 'ENVIRONMENT', lock: scene.bible.environment_lock });
       }
-      if (scene.bible?.environment_lock) refs.push({ role: 'location', name: 'ENVIRONMENT', lock: scene.bible.environment_lock });
       const direction: ShotDirection = { ...(opts.directionFor?.(scene, shot) || {}), boardStyle: opts.boardStyle || DEFAULT_BOARD_STYLE };
       out.push({
         actId: sc.actId, sceneId: sc.sceneId, sceneTitle: sc.title, shotId: shot.id, slug: shot.slug, status: row.status,

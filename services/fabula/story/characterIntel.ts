@@ -17,6 +17,7 @@
 
 import type { CutClip, GenRef, ShotSpec } from '../genAgent';
 import { castInClip, speechSegments } from './clipVision';
+import { charactersInShot } from './performance';
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const lc = (s: any) => String(s || '').toLowerCase();
@@ -291,4 +292,56 @@ export function relationshipEvidence(prod: any): RelationshipEdge[] {
     }
   }
   return [...edges.values()].sort((x, y) => (y.sharedScenes * 2 + y.exchanges) - (x.sharedScenes * 2 + x.exchanges));
+}
+
+// ── references for a shot ───────────────────────────────────────────────────────
+
+const mediaId = (m: any): string | undefined => (typeof m === 'string' ? m : m?.assetId);
+const isHttp = (u?: string) => !!u && /^https?:\/\//.test(u);
+
+/** A cast member's best reference pictures, in the order a generator should get them: the whole
+ *  character sheet, then the head-on views, then anything the filmmaker locked, then the rest.
+ *  Stills only — storyboard frames are never identity references. */
+export function characterReferenceImages(member: any, pool: any[]): any[] {
+  const byId = new Map<string, any>((pool || []).map((a) => [a.id, a]));
+  const order: (string | undefined)[] = [
+    member?.sheet?.turnaround, member?.sheet?.front, member?.sheet?.three_quarter, member?.sheet?.full_body,
+    ...Object.values(member?.sheet || {}) as string[],
+    ...(member?.media || []).filter((m: any) => typeof m === 'object' && m?.locked).map(mediaId),
+    ...(member?.media || []).map(mediaId),
+  ];
+  const out: any[] = [];
+  for (const id of order) {
+    const a = id ? byId.get(id) : undefined;
+    if (a && a.type === 'image' && !a.board && !out.includes(a)) out.push(a);
+  }
+  return out;
+}
+
+/** The references a shot should carry: for each character IN THE SHOT, their sheet images and their
+ *  identity lock; then the environment lock. Characters who aren't in frame are left out — describing
+ *  someone in a prompt is the surest way to make them appear. A shot that names no one (an empty
+ *  wide) carries the whole scene's cast. */
+export function shotRefs(scene: any, shot: any, prod: any, opts: { maxPerCharacter?: number } = {}): GenRef[] {
+  const bible = scene?.bible || {};
+  const chars: any[] = (bible.characters || []).filter((c: any) => c?.name);
+  const names = chars.map((c) => c.name);
+  const present = charactersInShot(shot, names).map((p) => p.name);
+  const inShot = present.length ? chars.filter((c) => present.includes(c.name)) : chars;
+  const max = opts.maxPerCharacter ?? 2;
+  const refs: GenRef[] = [];
+  for (const c of inShot) {
+    const member = (prod?.cast || []).find((m: any) => lc(m?.name) === lc(c.name));
+    const lock: string | undefined = c.visual_lock || member?.looks || undefined;
+    const images = characterReferenceImages(member, prod?.mediaPool || []).slice(0, max);
+    images.forEach((a, i) => refs.push({
+      role: 'character', name: i === 0 ? c.name : `${c.name} (view ${i + 1})`, assetId: a.id,
+      url: isHttp(a.cloudUrl) ? a.cloudUrl : isHttp(a.url) ? a.url : undefined, previewUrl: a.url || a.cloudUrl,
+      // The lock rides on the first image only, so it is written into a prompt once.
+      lock: i === 0 ? lock : undefined, worldEntityId: i === 0 ? (c.id || member?.id) : undefined,
+    }));
+    if (!images.length && lock) refs.push({ role: 'character', name: c.name, lock, worldEntityId: c.id || member?.id });
+  }
+  if (bible.environment_lock) refs.push({ role: 'location', name: 'ENVIRONMENT', lock: bible.environment_lock });
+  return refs;
 }

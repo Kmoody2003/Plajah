@@ -354,6 +354,9 @@ export interface GenRef {
    *  established look follows them across every shot without the user re-attaching it each time. */
   worldEntityId?: string;
   url?: string;
+  /** A locally displayable address for the image (may be a blob: or data: URL). For showing and
+   *  downloading the reference on this device only — never sent to a provider; that is `url`. */
+  previewUrl?: string;
   name?: string;
   /** Verbatim text lock from the scene bible (visual_lock / environment_lock) — carried alongside the
    *  image because most providers honor both, and the text is what keeps identity stable. */
@@ -379,6 +382,14 @@ export interface ShotSpec {
   direction?: ShotDirection;
   /** Set on character-sheet generations: the cast member and view the result should be filed under. */
   sheet?: { castId: string; view: string };
+  /** Which try this is. A take that failed review is retried with corrections; this caps the loop. */
+  attempt?: number;
+}
+
+/** Identity locks are pasted verbatim, but several in a row need to read as separate sentences. */
+function joinLocks(locks: string[]): string {
+  const seen = new Set<string>();
+  return locks.map((l) => l.trim()).filter((l) => l && !seen.has(l) && !!seen.add(l)).map((l) => (/[.!?]$/.test(l) ? l : `${l}.`)).join(' ');
 }
 
 /** Build a ShotSpec from a SLATE shot + its scene bible. `which` picks which of the shot's three
@@ -440,12 +451,14 @@ export function compileHandoff(spec: ShotSpec, connector: Connector): HandoffBun
 
   // Text locks that aren't carried as images fold into the prompt verbatim — that's how identity holds
   // on services with no reference-image slot.
+  // A character's written lock is kept even when their reference image is attached: the picture and
+  // the words reinforce each other, and on a hand-off the image only helps if the user attaches it.
   const textLocks = (spec.refs || [])
-    .filter((r) => r.lock && !used.some((u) => u.name === r.name))
+    .filter((r) => r.lock && (r.role === 'character' || !used.some((u) => u.name === r.name)))
     .map((r) => r.lock as string);
   if (textLocks.length && !textLocks.every((l) => prompt.includes(l))) {
     const missing = textLocks.filter((l) => !prompt.includes(l));
-    if (missing.length) prompt += `\n\n${missing.join(' ')}`;
+    if (missing.length) prompt += `\n\n${joinLocks(missing)}`;
   }
 
   // Performance + continuity, phrased for this model. A spec with no direction is left exactly as is.
@@ -483,10 +496,10 @@ export function compileShotPrompt(spec: ShotSpec, connector: Connector): { promp
   const { used } = refsForConnector(spec, connector);
   let prompt = (spec.prompt || '').trim();
   const missing = (spec.refs || [])
-    .filter((r) => r.lock && !used.some((u) => u.name === r.name))
+    .filter((r) => r.lock && (r.role === 'character' || !used.some((u) => u.name === r.name)))
     .map((r) => r.lock as string)
     .filter((l) => !prompt.includes(l));
-  if (missing.length) prompt += `\n\n${missing.join(' ')}`;
+  if (missing.length) prompt += `\n\n${joinLocks(missing)}`;
   const directed = applyDirection(prompt, spec, connector, used);
   const negative = [spec.negative, ...directed.negatives].filter(Boolean).join(', ');
   return { prompt: directed.prompt, negative: negative || undefined, notes: directed.notes };

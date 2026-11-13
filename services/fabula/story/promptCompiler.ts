@@ -29,6 +29,9 @@ export interface ShotDirection {
   /** Where each character sits in THIS camera's frame, from the staging plan. When present it replaces
    *  the ledger's scene-level sides, which are only true for the master. */
   blocking?: string;
+  /** What the previous take of this shot got wrong, from review (reviewTake.ts). Stated first and
+   *  never trimmed — a retry that drops its corrections is just the same mistake again. */
+  corrections?: string[];
   /** Set for storyboard frames — a drawing style that replaces the photographic finish. */
   boardStyle?: string;
 }
@@ -68,7 +71,7 @@ export function dialectFor(connector: Connector): Dialect {
 export const DEFAULT_BOARD_STYLE =
   'storyboard frame, loose graphite and grey marker, clear silhouettes and staging, arrows for camera and character movement, no photographic detail';
 
-interface Section { id: 'performance' | 'continuity' | 'hold' | 'dialogue' | 'board' | 'guard' | 'blocking'; text: string; /** lower = kept longer */ priority: number }
+interface Section { id: 'performance' | 'continuity' | 'hold' | 'dialogue' | 'board' | 'guard' | 'blocking' | 'corrections'; text: string; /** lower = kept longer */ priority: number }
 
 /** The drift guards as something to DO, for models with no negative-prompt field. A negative phrase
  *  dropped into a positive prompt tends to summon the thing it names, so these are restated. */
@@ -124,6 +127,10 @@ export function applyDirection(prompt: string, spec: ShotSpec, connector: Connec
   const hasFirstFrame = medium === 'video' && usedRefs.some((r) => r.role === 'first_frame');
   const sections: Section[] = [];
   const notes: string[] = [];
+
+  if (dir.corrections?.length) {
+    sections.push({ id: 'corrections', priority: 0, text: d.form === 'tags' ? dir.corrections.join(', ') : `Correct from the last take: ${dir.corrections.join(' ')}` });
+  }
 
   if (dir.continuity) {
     const text = continuitySection(dir.continuity, d, !!dir.blocking);

@@ -20,6 +20,7 @@ import {
   placeSuggestionInCut, fileSheetResult, planVoiceReference, voiceTagFor, sectionTiming, scoreCueRequest,
   scenesFromScriptElements, pullScriptIntoProduction, scriptElementsFromScene, pushSceneToScript,
   planStaging, blockingClause, sideOfLine, setupKindFor,
+  shotRefs, characterReferenceImages, reviewChecklist, reviewPrompt, normalizeReview, canRetry, correctedSpec, MAX_ATTEMPTS,
 } from '../services/fabula/story';
 
 import { scoreFrames, continuityVerdict, CONTINUITY_W, CONTINUITY_H } from '../services/continuityCheck';
@@ -776,4 +777,107 @@ test('the local engine address can only point at this machine or the local netwo
   assert.equal(normalizeLocalEngineUrl('https://example.com'), null);
   assert.equal(normalizeLocalEngineUrl('file:///etc/passwd'), null);
   assert.equal(normalizeLocalEngineUrl('not a url'), null);
+});
+
+// ── references that follow the character ────────────────────────────────────────
+
+const refProd = () => {
+  const p: any = prod();
+  p.mediaPool.push(
+    { id: 'sheetM', type: 'image', name: 'maya turnaround.png', cloudUrl: 'https://cdn.example/maya.png', url: 'blob:local-maya' },
+    { id: 'frontM', type: 'image', name: 'maya front.png', url: 'blob:local-front' },
+    { id: 'brdM', type: 'image', name: 'maya board.png', board: true },
+  );
+  p.cast[0].sheet = { turnaround: 'sheetM', front: 'frontM' };
+  p.cast[0].media.push({ assetId: 'brdM', locked: true });
+  return p;
+};
+
+test('a shot carries the sheet images of the characters in it — and nobody else', () => {
+  const p = refProd(), sc = scene();
+  assert.deepEqual(characterReferenceImages(p.cast[0], p.mediaPool).map((a) => a.id), ['sheetM', 'frontM', 'ref1'], 'sheet first; a storyboard frame is never an identity reference');
+  const cu = shotRefs(sc, sc.shots[3], p);                       // CU — MAYA
+  assert.deepEqual(cu.map((r) => [r.role, r.name, r.assetId]), [['character', 'MAYA', 'sheetM'], ['character', 'MAYA (view 2)', 'frontM'], ['location', 'ENVIRONMENT', undefined]]);
+  assert.equal(cu[0].url, 'https://cdn.example/maya.png', 'a provider gets the hosted address');
+  assert.equal(cu[1].url, undefined, 'a device-only image is never sent as a URL');
+  assert.equal(cu[1].previewUrl, 'blob:local-front');
+  assert.ok(cu[0].lock && !cu[1].lock, 'the written lock rides once');
+  const wide = shotRefs(sc, sc.shots[0], p);                     // both named in the master
+  assert.deepEqual(wide.filter((r) => r.role === 'character').map((r) => r.name), ['MAYA', 'MAYA (view 2)', 'ELI']);
+  assert.equal(wide.find((r) => r.name === 'ELI')!.lock, ELI_LOCK, 'no picture of Eli yet — his written lock stands in');
+});
+
+test('Eli is not described in Maya\'s close-up, and locks read as separate sentences', () => {
+  const p = refProd(), sc = scene();
+  const spec: ShotSpec = { prompt: 'Close on Maya.', refs: shotRefs(sc, sc.shots[3], p), direction: directScene(sc).forShot('s4') };
+  const out = compileHandoff(spec, conn('dreamina'));
+  assert.doesNotMatch(out.prompt, /white beard|ELI/);
+  assert.match(out.prompt, /Blocking \(single\): MAYA centre frame\./, 'a single frames its subject alone');
+  assert.ok(out.notes.some((n) => /Attach "MAYA" as character/.test(n)));
+  assert.match(out.prompt, /cropped black hair/, 'her written lock stays in the prompt alongside the attached image');
+  // A provider with no reference slot gets both locks, punctuated.
+  const text = compileHandoff({ prompt: 'Wide.', refs: [{ role: 'character', name: 'A', lock: 'A, tall' }, { role: 'character', name: 'B', lock: 'B, short' }] }, conn('ideogram')).prompt;
+  assert.match(text, /A, tall\. B, short\./);
+});
+
+// ── reviewing a take ────────────────────────────────────────────────────────────
+
+const reviewSpec = (): ShotSpec => {
+  const p = refProd(), sc = scene();
+  return { prompt: 'Close on Maya.', refs: shotRefs(sc, sc.shots[3], p), shotId: 's4', seed: 42, direction: directScene(sc).forShot('s4') };
+};
+
+test('the checklist is built from the shot\'s own direction', () => {
+  const checks = reviewChecklist(reviewSpec(), ['MAYA']);
+  const by = (id: string) => checks.find((c) => c.id === id);
+  assert.match(by('identity:maya')!.question, /same person as reference image 1/);
+  assert.equal(by('prop:maya:ledger')!.must, true);
+  assert.equal(by('emotion:maya')!.must, false, 'expression informs; it never rejects a take by itself');
+  assert.equal(by('time')!.question, 'Is it night?');
+  assert.equal(by('placement:maya'), undefined, 'one person in frame — there are no sides to swap');
+  const master = reviewChecklist({ prompt: 'Wide.', refs: [], direction: directScene(scene()).forShot('s1') });
+  assert.deepEqual(master.filter((c) => c.kind === 'placement').map((c) => c.question), ['Is MAYA on frame-left?', 'Is ELI on frame-right?']);
+  const prompt = reviewPrompt(checks, ['MAYA']);
+  assert.match(prompt, /IMAGE 2 is the reference for MAYA/);
+  assert.match(prompt, /- prop:maya:ledger: Is MAYA holding ledger\?/);
+});
+
+test('a storyboard is checked as a drawing, not for photographic identity', () => {
+  const s = reviewSpec(); s.direction = { ...s.direction, boardStyle: 'storyboard frame' };
+  const checks = reviewChecklist(s);
+  assert.ok(checks.some((c) => c.id === 'style' && c.must));
+  assert.ok(!checks.some((c) => c.kind === 'identity' || c.kind === 'time'));
+  assert.ok(checks.some((c) => c.id === 'prop:maya:ledger'), 'a board still has to show the prop');
+});
+
+test('a missing prop rejects the take; a soft expression only flags it; silence is never a pass', () => {
+  const spec = reviewSpec(), checks = reviewChecklist(spec, ['MAYA']);
+  const all = (pass: any) => ({ checks: checks.map((c) => ({ id: c.id, pass })) });
+  assert.equal(normalizeReview(all(true), checks).verdict, 'pass');
+  const noProp = normalizeReview({ checks: checks.map((c) => ({ id: c.id, pass: c.id !== 'prop:maya:ledger', observed: 'hands empty' })), summary: 'Good likeness, no ledger.' }, checks);
+  assert.equal(noProp.verdict, 'retry');
+  assert.deepEqual(noProp.failed.map((c) => [c.id, c.observed]), [['prop:maya:ledger', 'hands empty']]);
+  assert.ok(noProp.score < 100 && noProp.score > 50);
+  const soft = normalizeReview({ checks: checks.map((c) => ({ id: c.id, pass: c.kind !== 'emotion' })) }, checks);
+  assert.equal(soft.verdict, 'review');
+  assert.equal(soft.failed.length, 0);
+  assert.equal(normalizeReview({ checks: [] }, checks).verdict, 'review', 'the model answering nothing is not a pass');
+  assert.equal(normalizeReview(all(null), checks).verdict, 'review');
+});
+
+test('a retry states what was wrong first, on every model, and the loop is capped', () => {
+  const spec = reviewSpec(), checks = reviewChecklist(spec, ['MAYA']);
+  const review = normalizeReview({ checks: checks.map((c) => ({ id: c.id, pass: c.id !== 'prop:maya:ledger' })) }, checks, 1);
+  assert.equal(canRetry(review), true);
+  const next = correctedSpec(spec, review);
+  assert.equal(next.attempt, 2);
+  assert.equal(next.seed, undefined, 'the same seed would give the same wrong image');
+  assert.equal(next.shotId, 's4', 'it is still the same shot — the result lands in the same slot');
+  for (const id of ['kling', 'runway', 'flux', 'local_wan']) {
+    const out = compileShotPrompt({ ...next, prompt: 'x'.repeat(600) }, conn(id)).prompt;
+    assert.match(out, /Correct from the last take: MAYA is holding ledger/, `${id} dropped the correction`);
+  }
+  assert.ok(compileShotPrompt(next, conn('kling')).prompt.indexOf('Correct from the last take') < compileShotPrompt(next, conn('kling')).prompt.indexOf('Continuity:'));
+  assert.equal(canRetry({ ...review, attempt: MAX_ATTEMPTS }), false, 'after the last attempt a person decides');
+  assert.equal(canRetry(normalizeReview({ checks: checks.map((c) => ({ id: c.id, pass: true })) }, checks)), false);
 });
