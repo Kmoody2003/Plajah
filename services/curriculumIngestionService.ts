@@ -198,6 +198,17 @@ const STORAGE_SUBMISSIONS_KEY = (orgId: string) => {
   return userScopedKey(uid, name);
 };
 
+// What the shared library (the cloud) holds for each scope, kept in this page's memory. The library is
+// shown from here first, so it never depends on this browser having room to keep a copy: a full
+// localStorage used to empty the whole library. The local copy is only for working offline.
+const cloudUnits = new Map<string, Map<string, IngestedCurriculumUnit>>();
+const cloudFor = (orgId: string) => {
+  const k = normalizeToGreatFaithOrgId(orgId);
+  let m = cloudUnits.get(k);
+  if (!m) cloudUnits.set(k, (m = new Map()));
+  return m;
+};
+
 function inferLessonLibraryCategory(
   title: string,
   unitKind: IngestedCurriculumUnit['kind'],
@@ -240,7 +251,10 @@ export function listIngestedUnits(
     const resolvedOrgName = orgName || '';
     const orgEduFolder = getOrgEducationFolderName(resolvedOrgName);
 
-    const ownList = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId));
+    const cloud = cloudUnits.get(safeOrgId);
+    const localList = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId));
+    // Cloud copies first (they win the dedupe below), then lessons only on this device.
+    const ownList = cloud?.size ? [...cloud.values(), ...localList.filter(u => !cloud.has(u.id))] : localList;
     // Older builds copied every org's lessons into Great Faith's library; those copies also sit in their
     // own org's storage on this device, so leave them out of Great Faith's.
     const primaryList = safeOrgId === GREAT_FAITH_OLD_LOCAL_ID ? withoutOtherOrgsCopies(ownList) : ownList;
@@ -381,15 +395,23 @@ export function saveIngestedUnit(unit: IngestedCurriculumUnit): void {
     // The org's own course imports are the org's (admin) lessons, whoever's browser read them in.
     if (!normalizedUnit.provisioned) normalizedUnit.provisioned = isStandaloneTeacher ? 'teacher' : isSampleCourseUnit(unit) || libraryActorIsAdmin(safeOrgId) ? 'admin' : 'teacher';
     if (!normalizedUnit.ownerUid) normalizedUnit.ownerUid = libraryActorUid() || undefined;
-    const existing = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId)).filter(
-      u => u.id !== unit.id && u.title.toLowerCase() !== unit.title.toLowerCase()
-    );
-    localStorage.setItem(STORAGE_UNITS_KEY(safeOrgId), JSON.stringify([normalizedUnit, ...existing]));
-    // …and in the shared library, so the org's teachers (or the teacher's other devices) have it too.
+    // The shared library first, so the org's teachers (or the teacher's other devices) have it, and this
+    // page shows it, even when this browser has no room left for its own copy.
     if (normalizedUnit.tier !== 'platform') {
       const uid = libraryActorUid();
-      if (uid) void pushLibraryUnit(normalizedUnit, isStandaloneTeacher ? 'user' : 'org', isStandaloneTeacher ? uid : safeOrgId);
+      if (uid) {
+        const cloud = cloudFor(safeOrgId);
+        for (const [id, x] of cloud) if (id !== unit.id && x.title.toLowerCase() === unit.title.toLowerCase()) cloud.delete(id);
+        cloud.set(normalizedUnit.id, normalizedUnit);
+        void pushLibraryUnit(normalizedUnit, isStandaloneTeacher ? 'user' : 'org', isStandaloneTeacher ? uid : safeOrgId);
+      }
     }
+    try {
+      const existing = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId)).filter(
+        u => u.id !== unit.id && u.title.toLowerCase() !== unit.title.toLowerCase()
+      );
+      localStorage.setItem(STORAGE_UNITS_KEY(safeOrgId), JSON.stringify([normalizedUnit, ...existing]));
+    } catch { /* storage full: the cloud copy above is the lesson */ }
     // An org's lessons stay in that org's library only (older builds also copied every one into Great Faith's).
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('plajah:lessonLibraryUpdated', { detail: { orgId: safeOrgId } }));
@@ -401,9 +423,10 @@ export function saveIngestedUnit(unit: IngestedCurriculumUnit): void {
 
 export function deleteIngestedUnit(orgId: string, unitId: string, opts: { shared?: boolean } = {}): void {
   try {
+    cloudUnits.get(normalizeToGreatFaithOrgId(orgId))?.delete(unitId);
+    if (opts.shared) void removeLibraryUnit(unitId);
     const existing = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(orgId)).filter(u => u.id !== unitId);
     localStorage.setItem(STORAGE_UNITS_KEY(orgId), JSON.stringify(existing));
-    if (opts.shared) void removeLibraryUnit(unitId);
   } catch {
     // ignore
   }
@@ -415,6 +438,8 @@ export function deleteIngestedUnit(orgId: string, unitId: string, opts: { shared
  */
 export function mergeSharedUnits(orgId: string, shared: IngestedCurriculumUnit[]): void {
   if (!shared.length) return;
+  const cloud = cloudFor(orgId);
+  for (const u of shared) cloud.set(u.id, { ...cloud.get(u.id), ...u });
   try {
     const key = STORAGE_UNITS_KEY(orgId);
     const byId = new Map(readRawStoredUnitsForKey(key).map(u => [u.id, u] as const));
@@ -437,6 +462,8 @@ export function updateUnitLivingTemplate(
 ): void {
   try {
     const safeOrgId = normalizeToGreatFaithOrgId(orgId);
+    const cached = cloudUnits.get(safeOrgId)?.get(unitId);
+    if (cached) cached.livingTemplateId = livingTemplateId;
     const existing = listIngestedUnits(safeOrgId);
     const updated = existing.map(u =>
       u.id === unitId ? { ...u, livingTemplateId } : u
