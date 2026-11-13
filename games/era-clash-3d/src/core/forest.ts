@@ -81,14 +81,16 @@ function sway(amount: number, bow: number, flutter = 0) {
  * each other with screen-space dither (complementary noise, so no gap and no double), instead of the tree snapping
  * between the two at one line. `treeLod` per instance: (switch distance, 0 = full tree | 1 = impostor).
  */
-export const LOD_FADE = 9;
+export const LOD_FADE = 4;
+/** Off while the impostors are baked (whole trees, nowhere near the camera). */
+const uLodOn = uniform(1);
 function lodMask() {
   const tw = attribute<'vec4'>('treeWind', 'vec4'), lod = attribute<'vec2'>('treeLod', 'vec2');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const d: any = vec2(tw.y, tw.z).sub(cameraPosition.xz).length();
   const k = smoothstep(lod.x.sub(LOD_FADE), lod.x.add(LOD_FADE), d);
   const n = interleavedGradientNoise(screenCoordinate.xy);
-  return select(lod.y.greaterThan(0.5), n.lessThan(k), n.greaterThanEqual(k));
+  return uLodOn.lessThan(0.5).or(select(lod.y.greaterThan(0.5), n.lessThan(k), n.greaterThanEqual(k)));
 }
 
 /** The ez-tree bark scans (pine | oak | birch), for things made of trees (fallen logs). */
@@ -113,7 +115,7 @@ const leafMats = new Map<string, THREE.MeshLambertNodeMaterial>();
 function leafMaterial(type: string, tintKey = type) {
   const key = type + '|' + tintKey;
   if (!leafMats.has(key)) {
-    const m = new THREE.MeshLambertNodeMaterial({ side: THREE.DoubleSide, alphaTest: 0.45 });
+    const m = new THREE.MeshLambertNodeMaterial({ side: THREE.DoubleSide, alphaTest: 0.45, alphaToCoverage: true });
     const t = texture(tex(`${type}_color.png`, true), uv());
     // blossom: the leaf card's shape, its colour taken toward the tint (a pale pink, not a dark green × pink)
     const base = tintKey === 'cherry' ? t.rgb.dot(vec3(0.3, 0.6, 0.1)).mul(0.5).add(0.9) : t.rgb.mul(2.1);
@@ -135,7 +137,7 @@ function leafMaterial(type: string, tintKey = type) {
  */
 function depthPrepass(im: THREE.InstancedMesh) {
   const lit = im.material as THREE.MeshLambertNodeMaterial;
-  const d = new THREE.MeshBasicNodeMaterial({ side: lit.side, alphaTest: lit.alphaTest, colorWrite: false });
+  const d = new THREE.MeshBasicNodeMaterial({ side: lit.side, alphaTest: lit.alphaTest, alphaToCoverage: lit.alphaToCoverage, colorWrite: false });
   d.opacityNode = lit.opacityNode;
   d.maskNode = lit.maskNode;
   d.positionNode = lit.positionNode;   // same sway graph → same depth, so the lit pass's LessEqual matches
@@ -146,6 +148,17 @@ function depthPrepass(im: THREE.InstancedMesh) {
   pre.frustumCulled = im.frustumCulled;
   pre.renderOrder = -1;
   return pre;
+}
+
+/** A still, whole tree for the impostor bake: the variant's geometry with zero wind and no LOD band. */
+function bakeView(src: THREE.BufferGeometry) {
+  const g = new THREE.BufferGeometry();
+  g.setIndex(src.index);
+  for (const [k, a] of Object.entries(src.attributes)) g.setAttribute(k, a);
+  const n = src.attributes.position.count;
+  g.setAttribute('treeWind', new THREE.BufferAttribute(new Float32Array(n * 4), 4));
+  g.setAttribute('treeLod', new THREE.BufferAttribute(new Float32Array(n * 2), 2));
+  return g;
 }
 
 const _frustum = new THREE.Frustum(), _vp = new THREE.Matrix4(), _sphere = new THREE.Sphere();
@@ -316,14 +329,15 @@ export class Forest {
     renderer.getClearColor(prevClear as never);
     // The bake has no prepass: leaves must write their own depth or back leaves cover front ones.
     leafMats.forEach((m) => { m.depthWrite = true; });
+    uLodOn.value = 0;
     try {
       for (const [vi, v] of this.variants.entries()) {
         if (v.species === 'dead') continue;
         const sc = new THREE.Scene();
         sc.add(new THREE.AmbientLight(0xffffff, 1.6));
         const sun = new THREE.DirectionalLight(0xffffff, 0.6); sun.position.set(1, 2, 2); sc.add(sun);
-        sc.add(new THREE.Mesh(v.bark, barkMaterial(v.barkType)));
-        if (v.leaves && v.leafType) sc.add(new THREE.Mesh(v.leaves, leafMaterial(v.leafType, v.tint)));
+        sc.add(new THREE.Mesh(bakeView(v.bark), barkMaterial(v.barkType)));
+        if (v.leaves && v.leafType) sc.add(new THREE.Mesh(bakeView(v.leaves), leafMaterial(v.leafType, v.tint)));
         const half = v.width * 0.55;
         const cam = new THREE.OrthographicCamera(-half, half, 1.02, -0.02, 0.01, 10);
         const shots: THREE.Texture[] = [];
@@ -344,6 +358,7 @@ export class Forest {
       renderer.setRenderTarget(prevTarget);
       renderer.setClearColor(prevClear, prevAlpha);
       leafMats.forEach((m) => { m.depthWrite = false; });
+      uLodOn.value = 1;
     }
 
     for (const { spots, species, minD } of this.far) {
@@ -383,7 +398,7 @@ export class Forest {
           geo.setIndex(idx);
         };
         merge([qa, qb, qc]);
-        const mat = new THREE.MeshLambertNodeMaterial({ side: THREE.DoubleSide, alphaTest: 0.5 });
+        const mat = new THREE.MeshLambertNodeMaterial({ side: THREE.DoubleSide, alphaTest: 0.5, alphaToCoverage: true });
         // Render targets are stored top-down under WebGPU (flip V), bottom-up under WebGL.
         const fuv = isWebGL ? uv() : vec2(uv().x, float(1).sub(uv().y));
         const [ta, tb, tc] = vw.shots.map((t) => texture(t, fuv));

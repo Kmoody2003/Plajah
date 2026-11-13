@@ -116,7 +116,9 @@ export function buildPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, ca
     aoNode.distanceExponent.value = 1.6;
     aoNode.thickness.value = 1.2;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const occ = (aoNode as any).getTextureNode().r;
+    // GTAO samples a 4×4 noise pattern; without a blur that pattern prints as a regular dot grid on walls and the far
+    // hills (worst after the upscale + sharpen). A small blur at the AO's own resolution resolves it.
+    const occ = (gaussianBlur((aoNode as any).getTextureNode(), float(1) as never, 2) as any).r;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     composed = (composed as any).mul(vec4(vec3(mix(float(1), occ, 0.85)), 1)) as V4;
   }
