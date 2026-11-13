@@ -68,6 +68,8 @@ export interface CollabDockProps<T> {
   zIndex?: number;
   /** One app-specific tab after Activity (Chora: the contribution ledger / credits). */
   extraTab?: { label: string; icon: React.ComponentType<{ size?: number }>; render: () => React.ReactNode };
+  /** Where Aria writes her live meeting notes when someone brings her into the call (Tela). */
+  ariaSink?: import('../../hooks/useAriaMeeting').AriaNotesSink | null;
 }
 
 export function CollabDock<T>(props: CollabDockProps<T>) {
@@ -184,7 +186,7 @@ export function CollabDock<T>(props: CollabDockProps<T>) {
       {/* The call keeps running while you look at other tabs. */}
       {co.isShared && roomId && inCall && !popOut && (
         <div className={tab === 'call' ? '' : 'border-b border-white/[0.06] max-h-[150px] overflow-hidden'}>
-          <CollabCall roomId={roomId} joined={inCall && !popOut} onLeave={() => setInCall(false)} onPopOut={() => setPopOut(true)} onParticipants={setCallers} />
+          <CollabCall roomId={roomId} joined={inCall && !popOut} onLeave={() => setInCall(false)} onPopOut={() => setPopOut(true)} onParticipants={setCallers} ariaSink={props.ariaSink} />
         </div>
       )}
 

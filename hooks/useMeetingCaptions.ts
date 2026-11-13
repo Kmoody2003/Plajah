@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CaptionAssembler } from '../services/meetings/meetingRecordingCore';
 import { saveCaption } from '../services/meetings/meetingRecording';
 
-export interface LiveCaption { uid: string; name: string; text: string; final: boolean; at: number }
+export interface LiveCaption { uid: string; name: string; text: string; final: boolean; at: number; /** The speaker asked Aria not to hear them. */ noAria?: boolean }
 
 interface Args {
   roomId: string;
@@ -15,6 +15,12 @@ interface Args {
   recording: { id: string; startedAt: number } | null;
   /** You chose not to be transcribed into recordings. */
   optOut: boolean;
+  /** Transcribe my mic even with captions hidden (Aria is listening in the call). */
+  forceTranscribe?: boolean;
+  /** Every finished line, mine (with my real name) and others'. */
+  onFinal?: (line: LiveCaption) => void;
+  /** Keep my lines out of Aria's notes (they still show as captions). */
+  noAria?: boolean;
 }
 
 /**
@@ -22,7 +28,7 @@ interface Args {
  * so nothing is sent to a server and every line already knows who said it. Lines travel to the
  * others over the call's data channel; while a recording runs they are also saved to its transcript.
  */
-export function useMeetingCaptions({ roomId, selfId, selfName, localStream, sendData, recording, optOut }: Args) {
+export function useMeetingCaptions({ roomId, selfId, selfName, localStream, sendData, recording, optOut, forceTranscribe, onFinal, noAria }: Args) {
   const [showCaptions, setShowCaptions] = useState(false);
   const [lines, setLines] = useState<LiveCaption[]>([]);
   const [status, setStatus] = useState<string>('');
@@ -30,6 +36,8 @@ export function useMeetingCaptions({ roomId, selfId, selfName, localStream, send
   const recRef = useRef(recording); recRef.current = recording;
   const optRef = useRef(optOut); optRef.current = optOut;
   const sendRef = useRef(sendData); sendRef.current = sendData;
+  const finalRef = useRef(onFinal); finalRef.current = onFinal;
+  const noAriaRef = useRef(noAria); noAriaRef.current = noAria;
   const lastInterimSent = useRef(0);
 
   const push = useCallback((c: LiveCaption) => {
@@ -44,11 +52,13 @@ export function useMeetingCaptions({ roomId, selfId, selfName, localStream, send
   const receive = useCallback((uid: string, name: string, payload: any) => {
     const text = typeof payload?.text === 'string' ? payload.text.slice(0, 600) : '';
     if (!text) return;
-    push({ uid, name, text, final: payload?.final === true, at: Date.now() });
+    const c: LiveCaption = { uid, name, text, final: payload?.final === true, at: Date.now(), ...(payload?.noAria === true ? { noAria: true } : {}) };
+    push(c);
+    if (c.final) finalRef.current?.(c);
   }, [push]);
 
   // Transcribe my mic while I want captions OR a recording needs my words.
-  const transcribeMe = !!localStream && !!selfId && (showCaptions || (!!recording && !optOut));
+  const transcribeMe = !!localStream && !!selfId && (showCaptions || !!forceTranscribe || (!!recording && !optOut));
   useEffect(() => {
     if (!transcribeMe || !localStream || !selfId) return;
     const audio = localStream.getAudioTracks();
@@ -64,7 +74,9 @@ export function useMeetingCaptions({ roomId, selfId, selfName, localStream, send
           const now = Date.now();
           if (done) {
             push({ uid: selfId, name: 'You', text: done, final: true, at: now });
-            sendRef.current('caption', { text: done, final: true });
+            const keepOut = noAriaRef.current === true;
+            sendRef.current('caption', { text: done, final: true, ...(keepOut ? { noAria: true } : {}) });
+            finalRef.current?.({ uid: selfId, name: selfName, text: done, final: true, at: now, ...(keepOut ? { noAria: true } : {}) });
             const rec = recRef.current;
             if (rec && !optRef.current) void saveCaption(roomId, rec.id, { name: selfName, text: done, at: now - rec.startedAt });
           } else if (asm.interim && now - lastInterimSent.current > 400) {

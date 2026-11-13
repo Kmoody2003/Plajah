@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true, "types": ["vite/client", "node"] },
+  "include": ["services/meetings/ariaMeeting*.ts", "hooks/useAriaMeeting.ts", "hooks/useMeetingCaptions.ts", "components/collab/AriaMeetingPanel.tsx", "components/collab/CollabCall.tsx", "components/collab/CollabDock.tsx", "tests/ariaMeeting.test.ts", "labs/aria-meeting/main.tsx"]
+}
