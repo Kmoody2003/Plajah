@@ -11,7 +11,7 @@
 // and WebGL shader patches don't run on the WebGPU renderer).
 import * as THREE from 'three/webgpu';
 import { windAt, localWindDir } from './wind';
-import { texture, uv, positionLocal, time, sin, cos, vec2, vec3, float, attribute, mix, color, uniform } from 'three/tsl';
+import { texture, uv, positionLocal, time, sin, cos, vec2, vec3, float, attribute, mix, color, uniform, cameraPosition, smoothstep, interleavedGradientNoise, screenCoordinate, select } from 'three/tsl';
 import { Tree } from '@dgreenheck/ez-tree';
 import { rng } from './kit';
 
@@ -76,6 +76,21 @@ function sway(amount: number, bow: number, flutter = 0) {
   return positionLocal.add(vec3(ox, 0, oz).mul(y.mul(y))).add(vec3(fl, fl, fl));
 }
 
+/**
+ * LOD cross-fade: a near tree and its impostor overlap across ±LOD_FADE m of the switch distance and dissolve into
+ * each other with screen-space dither (complementary noise, so no gap and no double), instead of the tree snapping
+ * between the two at one line. `treeLod` per instance: (switch distance, 0 = full tree | 1 = impostor).
+ */
+export const LOD_FADE = 9;
+function lodMask() {
+  const tw = attribute<'vec4'>('treeWind', 'vec4'), lod = attribute<'vec2'>('treeLod', 'vec2');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const d: any = vec2(tw.y, tw.z).sub(cameraPosition.xz).length();
+  const k = smoothstep(lod.x.sub(LOD_FADE), lod.x.add(LOD_FADE), d);
+  const n = interleavedGradientNoise(screenCoordinate.xy);
+  return select(lod.y.greaterThan(0.5), n.lessThan(k), n.greaterThanEqual(k));
+}
+
 /** The ez-tree bark scans (pine | oak | birch), for things made of trees (fallen logs). */
 export function barkMaps(type: 'pine' | 'oak' | 'birch') { return { color: tex(`${type}_color_1k.jpg`, true), normal: tex(`${type}_normal_1k.jpg`, false), rough: tex(`${type}_roughness_1k.jpg`, false) }; }
 
@@ -87,6 +102,7 @@ function barkMaterial(type: string) {
     m.normalMap = tex(`${type}_normal_1k.jpg`, false);
     m.roughnessMap = tex(`${type}_roughness_1k.jpg`, false);
     m.positionNode = sway(0.008, 0.016);
+    m.maskNode = lodMask();
     barkMats.set(type, m);
   }
   return barkMats.get(type)!;
@@ -106,6 +122,7 @@ function leafMaterial(type: string, tintKey = type) {
     if (tintKey === 'cherry') (m as unknown as { emissiveNode: unknown }).emissiveNode = color(0xf2b4c4).mul(0.42);
     m.opacityNode = t.a;
     m.positionNode = sway(0.016, 0.024, 0.0035);
+    m.maskNode = lodMask();
     leafMats.set(key, m);
   }
   return leafMats.get(key)!;
@@ -120,6 +137,7 @@ function depthPrepass(im: THREE.InstancedMesh) {
   const lit = im.material as THREE.MeshLambertNodeMaterial;
   const d = new THREE.MeshBasicNodeMaterial({ side: lit.side, alphaTest: lit.alphaTest, colorWrite: false });
   d.opacityNode = lit.opacityNode;
+  d.maskNode = lit.maskNode;
   d.positionNode = lit.positionNode;   // same sway graph → same depth, so the lit pass's LessEqual matches
   lit.depthWrite = false;
   const pre = new THREE.InstancedMesh(im.geometry, d, im.count);
@@ -247,7 +265,13 @@ export class Forest {
     }
     if (near < Infinity && lod.length) this.far.push({ spots: lod, species: ['pine'], minD: near });
     for (const [v, ms] of byVariant) {
-      const add = (geo: THREE.BufferGeometry, mat: THREE.Material) => {
+      const add = (src: THREE.BufferGeometry, mat: THREE.Material) => {
+        // a view of the variant's geometry (shared vertex data, its own instance attributes): the same variant is
+        // planted by several plant() calls, and each set needs its own wind phases and LOD band
+        const geo = new THREE.BufferGeometry();
+        geo.setIndex(src.index);
+        for (const [k, a] of Object.entries(src.attributes)) geo.setAttribute(k, a);
+        geo.boundingSphere = src.boundingSphere; geo.boundingBox = src.boundingBox;
         const im = new THREE.InstancedMesh(geo, mat, ms.length);
         ms.forEach((m, i) => im.setMatrixAt(i, m));
         im.castShadow = true; im.receiveShadow = true;
@@ -261,7 +285,7 @@ export class Forest {
         this.group.add(pre);
         set.push(leaves, pre);
       }
-      this.track(set, ms, 0, near);
+      this.track(set, ms, 0, near < Infinity ? near + LOD_FADE : Infinity, { band: near < Infinity ? near : 1e6, far: 0 });
       this.stats.nearTris += v.tris * ms.length;
       this.stats.nearInstances += ms.length;
     }
@@ -370,12 +394,13 @@ export class Forest {
         // a flat card goes dark when the low sun is behind it: a little of its own colour back (blossom glows more)
         (mat as unknown as { emissiveNode: unknown }).emissiveNode = c.rgb.mul(spName === 'cherry' ? 0.45 : 0.14);
         mat.positionNode = sway(0.012, 0.02);
+        mat.maskNode = lodMask();
         const im = new THREE.InstancedMesh(geo, mat, ms.length);
         ms.forEach((m, i) => im.setMatrixAt(i, m));
         im.computeBoundingSphere();
         const pre = depthPrepass(im);
         this.group.add(im, pre);
-        this.track([im, pre], ms, minD, Infinity);
+        this.track([im, pre], ms, minD > 0 ? Math.max(0, minD - LOD_FADE) : 0, Infinity, { band: minD, far: 1 });
         this.stats.farInstances += ms.length;
       }
     }
@@ -383,7 +408,7 @@ export class Forest {
   }
 
   /** Give meshes (same instance order) a stable sway phase per tree and register them for culling. */
-  private track(meshes: THREE.InstancedMesh[], mats: THREE.Matrix4[], minD = 0, maxD = Infinity) {
+  private track(meshes: THREE.InstancedMesh[], mats: THREE.Matrix4[], minD = 0, maxD = Infinity, lod = { band: 1e6, far: 0 }) {
     // per instance: sway phase, ground position and facing (for the wind's direction in the tree's own frame)
     const phases = new Float32Array(mats.length * 4);
     mats.forEach((m, i) => { const e = m.elements; phases.set([i * 1.37, e[12], e[14], Math.atan2(e[8], e[10])], i * 4); });
@@ -393,6 +418,10 @@ export class Forest {
       const a = new THREE.InstancedBufferAttribute(phases.slice(), 4);
       geo.setAttribute('treeWind', a);
       phaseAttrs.push(a);
+      // the LOD band is the same for every instance of a set, so it never needs repacking
+      const band = new Float32Array(mats.length * 2);
+      for (let i = 0; i < mats.length; i++) { band[i * 2] = lod.band; band[i * 2 + 1] = lod.far; }
+      geo.setAttribute('treeLod', new THREE.InstancedBufferAttribute(band, 2));
     }
     const geo = meshes[0].geometry;
     if (!geo.boundingSphere) geo.computeBoundingSphere();
