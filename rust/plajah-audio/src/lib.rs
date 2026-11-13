@@ -30,6 +30,7 @@ mod bodyconv;
 mod arco;
 mod orch;
 mod cornu;
+mod cornu_habits;
 mod aulos;
 mod string;
 mod sample;

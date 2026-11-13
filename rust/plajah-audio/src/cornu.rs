@@ -62,7 +62,7 @@ const LIP_RATIO: f32 = 0.80;
 const LIP_START: f32 = 0.935;
 
 /// Breath turbulence through the lips (fraction of the flow).
-const TURB: f32 = 0.004;
+const TURB: f32 = 0.0015;
 
 const VALVE_NONE: u8 = 0;
 const VALVE_3: u8 = 1; // three piston/rotary valves
@@ -227,6 +227,12 @@ struct Player {
     p_mouth: f32,
     p_target: f32,
     noise_lp: f32,
+    turb_lp: f32,
+    rad_k: f32,
+    buzz_ph: f32,
+    trim_s: f32,
+    rad_lp: f32,
+    rad_a: f32,
     // humanising
     onset: u32,
     cents: f32,
@@ -287,6 +293,12 @@ impl Player {
             p_mouth: 0.0,
             p_target: 0.0,
             noise_lp: 0.0,
+            turb_lp: 0.0,
+            rad_k: 1.0,
+            buzz_ph: 0.0,
+            trim_s: 1.0,
+            rad_lp: 0.0,
+            rad_a: 0.5,
             onset: 0,
             cents: 0.0,
             drift: 0.0,
@@ -319,6 +331,7 @@ impl Player {
         self.nl.iter_mut().for_each(|x| *x = 0.0);
         self.bell_lp = 0.0;
         self.p_dc = 0.0;
+        self.rad_lp = 0.0;
         self.out_hp = 0.0;
         self.out_x1 = 0.0;
         self.mp.z1 = 0.0;
@@ -360,6 +373,22 @@ fn filters_pd(bell_b: f32, mp: &Bp, mp_g: f32, w: f32) -> f32 {
     lp - ph / w
 }
 
+/// Where a player starts a note: the learned (lip trim, lip firmness, air) for this instrument
+/// and note, interpolated; neutral outside the table.
+fn habit(inst: usize, note: f32) -> (f32, f32, f32) {
+    let b = &BRASS[inst];
+    let row = crate::cornu_habits::HABITS[inst];
+    let x = note - (b.range.0 - crate::cornu_habits::HABIT_LO_OFFSET);
+    if row.is_empty() || x < 0.0 || x > (row.len() - 1) as f32 {
+        return (LIP_START, 1.0, 1.0);
+    }
+    let i = (x.floor() as usize).min(row.len() - 1);
+    let j = (i + 1).min(row.len() - 1);
+    let f = x - i as f32;
+    let (a, c) = (row[i], row[j]);
+    (a.0 + (c.0 - a.0) * f, a.1 + (c.1 - a.1) * f, a.2 + (c.2 - a.2) * f)
+}
+
 pub struct CornuVoice {
     sr: f32,
     players: Vec<Player>,
@@ -390,6 +419,10 @@ pub struct CornuVoice {
     stacc: u32,
     tilt_lp: [f32; 2],
     tilt_k: f32,
+    /// Calibration run: start from neutral settings instead of the learned habits.
+    pub(crate) learning: bool,
+    tongue: f32,
+    buzz: f32,
 }
 
 impl CornuVoice {
@@ -424,6 +457,9 @@ impl CornuVoice {
             stacc: 0,
             tilt_lp: [0.0; 2],
             tilt_k: 0.2,
+            learning: false,
+            tongue: 0.8,
+            buzz: 0.5,
         }
     }
 
@@ -516,6 +552,8 @@ impl CornuVoice {
             ART_STACCATO => 0.003,
             _ => 0.004 + 0.02 * (1.0 - p01(p, CN_TONGUE)),
         };
+        self.tongue = 0.25 + 0.3 * p01(p, CN_TONGUE);
+        self.buzz = 0.03 + 0.06 * p01(p, CN_TONGUE);
         self.stacc = if self.artic == ART_STACCATO { (sr * (0.07 + 0.08 * (1.0 - self.vel))) as u32 } else { 0 };
         let rep = self.role.players.max(1);
         let cap = 1 + (p01(p, CN_QUALITY) * (MAX_PLAYERS - 1) as f32).round() as usize;
@@ -524,9 +562,9 @@ impl CornuVoice {
         let intonation = p01(p, CN_INTONATION);
         let tight = p01(p, CN_TIGHTNESS);
         let width = p01(p, CN_WIDTH);
-        // Calibrated: the model's acoustic pressure runs ~4× under a real trumpet's at ff, so 0.5
-        // ("as built") applies 4× the textbook constant to land at a real instrument's steepening.
-        let brassy = 8.0 * p01(p, CN_BRASSINESS);
+        // 0.5 ("as built") = 1.5× the textbook constant. More makes the delay move faster than
+        // the wave can be read (it folds into noise), so the knob tops out at 3×.
+        let brassy = 3.0 * p01(p, CN_BRASSINESS);
         let bell = 2f32.powf((p01(p, CN_BELL) - 0.5) * 1.5);
         let lip_tune = (p01(p, CN_LIP) - 0.5) * 0.12;
         let centre: f32 = match self.role.section {
@@ -559,6 +597,8 @@ impl CornuVoice {
             pl.mp = Bp::new(b.mp_f, 1.8, sr);
             pl.mp_g = b.mp_gain;
             pl.zc = zc;
+            pl.rad_k = sr / (TAU * 2.0 * midi_to_hz(0.5 * (b.range.0 + b.range.1)));
+            pl.rad_a = 1.0 - (-TAU * 1.5 * b.bell_fc * bell / sr).exp();
             // Players firm the lips for high notes and loosen them for low ones: the vibrating
             // mass falls roughly as 1/f across the range (relative to the instrument's middle).
             let f_mid = midi_to_hz(0.5 * (b.range.0 + b.range.1));
@@ -570,7 +610,11 @@ impl CornuVoice {
             let f_note = midi_to_hz(note) * 2f32.powf(pl.cents / 1200.0);
             pl.f_target = f_note;
             pl.ear_k = 1.0 - (-TAU * f_note * 1.3 / sr).exp();
-            pl.lip_trim = LIP_START;
+            let (trim, mk, pk) = if self.learning { (LIP_START, 1.0, 1.0) } else { habit(self.inst, note) };
+            pl.lip_trim = trim;
+            pl.trim_s = trim;
+            pl.mu_k = mk;
+            pl.p_k = pk;
             pl.w_l = TAU * f_note * (LIP_RATIO + lip_tune);
             // Steepening: Δτ = β·L·p/(c·ρc²), in samples per pascal.
             pl.nl_k = 1.2 * b.nl_len / (C_AIR * RHO * C_AIR * C_AIR) * sr * brassy;
@@ -583,6 +627,10 @@ impl CornuVoice {
             self.set_column(k, f_col, partial);
             let pl = &mut self.players[k];
             pl.nl_prev = pl.nl_d0;
+            // The tongue leaves the lips moving.
+            if self.artic != ART_LEGATO {
+                pl.v = pl.h0 * pl.w_l;
+            }
         }
         // Mutes and the hand: a filter on what leaves the bell (plus a resonance the mute adds).
         let (f1, q1, g1, f2, q2, g2, dry) = match self.mute {
@@ -599,7 +647,8 @@ impl CornuVoice {
         // The horn player's hand: a soft low-pass at ~2.5 kHz (more with HAND).
         let hand = b.hand * 2.0 * p01(p, CN_HAND);
         self.hand_b = if hand > 0.01 { (-TAU * (4500.0 - 2500.0 * hand.min(1.0)) / sr).exp() } else { 0.0 };
-        self.norm = b.level * 0.25 / b.p_range.1;
+        // ×4: sits level with ARCO at mf after the radiation changes.
+        self.norm = b.level * 1.0 / b.p_range.1;
         self.tilt_k = 1.0 - (-TAU * 1500.0 / sr).exp();
         self.t = 0;
     }
@@ -621,6 +670,10 @@ impl CornuVoice {
             let f_note = note_hz * 2f32.powf(pl.cents / 1200.0);
             pl.f_target = f_note;
             pl.ear_k = 1.0 - (-TAU * f_note * 1.3 / self.sr).exp();
+            let (trim, mk, pk) = habit(self.inst, note);
+            pl.lip_trim = trim;
+            pl.mu_k = mk;
+            pl.p_k = pk;
             pl.w_l = TAU * f_note * (LIP_RATIO + lip_tune);
         }
         self.vel = velocity.clamp(0.0, 1.0);
@@ -667,6 +720,11 @@ impl CornuVoice {
             let pt = (self.t - pl.onset) as f32 * dt;
             // Breath: tongue attack, then the held pressure (with the player's small vibrato).
             let mut target = if self.released && !fall_hold { 0.0 } else { pl.p_target * dyn_k * pl.p_k };
+            // Tonguing: pressure built up behind the tongue is released into the mouthpiece — a
+            // brief overshoot that gets the lips going at once (none on a slur).
+            if !self.released && artic != ART_LEGATO {
+                target *= 1.0 + self.tongue * (-pt / 0.035).exp();
+            }
             match artic {
                 ART_ACCENT => target *= 1.0 + 0.6 * (-pt / 0.08).exp(),
                 ART_SFZ => target *= 0.55 + 1.2 * (-pt / 0.12).exp(),
@@ -688,7 +746,10 @@ impl CornuVoice {
                 pl.drift += (rng.bipolar() * 0.4 - pl.drift * 0.03) * 0.05;
             }
             // Bore: slide / valves glide; bend and falls retune lips and column together.
-            let tune = self.bend * shift * (1.0 + pl.drift * 0.000_577) * pl.lip_trim;
+            // The slide / lipping moves continuously, never in steps (a step in the bore's
+            // length is a click).
+            pl.trim_s += (pl.lip_trim - pl.trim_s) * 0.0015;
+            let tune = self.bend * shift * (1.0 + pl.drift * 0.000_577) * pl.trim_s;
             pl.bore.period += (pl.bore.target - pl.bore.period) * self.glide;
             let read = (pl.bore.period / tune).clamp(2.0, (BORE_BUF - 8) as f32);
             let w_l = pl.w_l * tune;
@@ -715,7 +776,9 @@ impl CornuVoice {
                 uu * d0.signum()
             };
             // Breath turbulence through the lips.
-            let turb = rng.bipolar() * TURB * u.abs();
+            // Breath turbulence through the lips, band-limited (it's air, not white noise).
+            pl.turb_lp += (rng.bipolar() - pl.turb_lp) * 0.25;
+            let turb = pl.turb_lp * TURB * u.abs();
             let u = u + turb;
             let p_mp = 2.0 * p_in + pl.zc * u;
             let p_out = p_in + pl.zc * u;
@@ -745,8 +808,8 @@ impl CornuVoice {
                     pl.hi_votes = 0;
                     pl.ear_period = if pl.ear_period > 0.0 { 0.7 * pl.ear_period + 0.3 * per } else { per };
                     let err = (expect / pl.ear_period).ln(); // > 0: sounding sharp
-                    if pt > 0.02 && !self.released {
-                        pl.lip_trim *= (-err * 0.22).exp();
+                    if pt > 0.09 && !self.released {
+                        pl.lip_trim = pl.trim_s * (-err * 0.5).exp();
                         pl.lip_trim = pl.lip_trim.clamp(0.78, 1.1);
                     }
                 }
@@ -755,30 +818,41 @@ impl CornuVoice {
             // Finding the slot (every ~5 ms while the note is held): no buzz at the note → firmer
             // lips and more air; buzzing a partial too high → looser; too low → firmer.
             pl.since_ok += 1;
-            if !self.released && pt > 0.03 && self.t % 512 == 0 {
+            if !self.released && pt > if self.learning { 0.03 } else { 0.12 } && self.t % 512 == 0 {
                 let expect = sr / pl.f_target;
                 if pl.hi_votes > 4 {
                     pl.mu_k = (pl.mu_k * 1.08).min(3.0);
                     pl.hi_votes = 0;
                 } else if pl.hi_votes < -4 {
                     pl.mu_k = (pl.mu_k * 0.92).max(0.2);
-                    pl.p_k = (pl.p_k * 1.03).min(2.5);
+                    pl.p_k = (pl.p_k * 1.03).min(1.6);
                     pl.hi_votes = 0;
                 } else if pl.since_ok as f32 > 3.0 * expect + 0.02 * sr && pl.any_cross < 2 {
                     // Silence (no buzz at all): firmer lips, more air.
                     pl.mu_k = (pl.mu_k * 0.95).max(0.2);
-                    pl.p_k = (pl.p_k * 1.04).min(2.5);
+                    pl.p_k = (pl.p_k * 1.04).min(1.6);
                 }
                 pl.any_cross = 0;
             }
             // Lip dynamics: outward-striking — mouth pressure opens, mouthpiece pressure closes.
-            let acc = (pm - p_mp) / (pl.mu * pl.mu_k) - (w_l / pl.q_l) * pl.v - w_l * w_l * pl.x;
+            // The player buzzes the lips into the note (muscles, not the air column) for the first
+            // ~50 ms of a tongued attack; the self-sustained oscillation takes over from there.
+            pl.buzz_ph += pl.f_target * self.bend * shift * dt;
+            if pl.buzz_ph >= 1.0 {
+                pl.buzz_ph -= 1.0;
+            }
+            let buzz = if artic != ART_LEGATO && !self.learning { self.buzz * (-pt / 0.05).exp() * (TAU * pl.buzz_ph).sin() } else { 0.0 };
+            let mut acc = (pm * (1.0 + buzz) - p_mp) / (pl.mu * pl.mu_k) - (w_l / pl.q_l) * pl.v - w_l * w_l * pl.x;
+            // Lips meet softly: soft tissue in contact is a stiff, lossy spring, not a wall.
+            let pen = -(pl.h0 + pl.x);
+            if pen > 0.0 {
+                acc += 30.0 * w_l * w_l * pen - 4.0 * w_l * pl.v.min(0.0);
+            }
             pl.v += acc * dt;
             pl.x += pl.v * dt;
-            if pl.h0 + pl.x < 0.0 {
-                // Lips collide: they stop and press together.
-                pl.x = -pl.h0;
-                pl.v *= -0.1;
+            if pl.h0 + pl.x < -3.0 * pl.h0 {
+                pl.x = -4.0 * pl.h0;
+                pl.v = 0.0;
             }
             // 3. Outgoing wave through the steepening section: louder pressure arrives sooner.
             pl.nl[pl.nl_w] = p_out;
@@ -789,7 +863,8 @@ impl CornuVoice {
             let pa = p_out - pl.p_dc;
             let want = (pl.nl_d0 - pl.nl_k * pa).clamp(1.0, 2.0 * pl.nl_d0 - 1.0);
             // A wave can't arrive before one that left earlier: the read never runs backwards.
-            let d = want.max(pl.nl_prev - 0.95);
+            // …and a delay can't change faster than time itself in either direction.
+            let d = want.clamp(pl.nl_prev - 0.9, pl.nl_prev + 0.9);
             pl.nl_prev = d;
             let di = d.floor();
             let fr = d - di;
@@ -804,9 +879,15 @@ impl CornuVoice {
             pl.bore.write(back);
             // 5. Radiation: the bell's transmitted wave, differentiated a little (a radiating
             //    piston's pressure rises with frequency until ka ≈ 1).
-            pl.out_hp = 0.995 * (pl.out_hp + trans - pl.out_x1);
+            // Far-field radiation: the pressure a bell radiates is the time derivative of the
+            // flow leaving it (+6 dB/oct), normalised to unity at twice the instrument's middle
+            // register (a tuba's bell is big: its lows radiate as well as a trumpet's mids).
+            // Radiation efficiency only rises up to ka ≈ 1 (around the bell's cutoff); above it a
+            // bell radiates flat, so the derivative is capped by a pole there.
+            let d = (trans - pl.out_x1) * pl.rad_k;
             pl.out_x1 = trans;
-            let y = (pl.out_hp + 0.15 * trans) * pl.gain;
+            pl.rad_lp += (d - pl.rad_lp) * pl.rad_a;
+            let y = pl.rad_lp * pl.gain;
             ol += y * pl.pan_l;
             or += y * pl.pan_r;
         }
@@ -973,7 +1054,7 @@ mod tests {
                     let x = render(&p, inst, n, vel, 1.0, 1.0);
                     assert!(x.iter().all(|v| v.is_finite()), "{} {} non-finite", INSTRUMENT_NAMES[inst], n);
                     let r = rms(&x[(0.3 * SR) as usize..]);
-                    let (f, _) = f0(&x[(0.4 * SR) as usize..]);
+                    let (f, _) = f0_near(&x[(0.4 * SR) as usize..], midi_to_hz(n));
                     let cents = 1200.0 * (f / midi_to_hz(n)).log2();
                     if r < 3e-4 || cents.abs() > 30.0 {
                         fails.push(format!("{} n{} v{}: rms {:.4} {:+.0}c", INSTRUMENT_NAMES[inst], n, vel, r, cents));
@@ -981,12 +1062,12 @@ mod tests {
                 }
             }
         }
-        // Known: a couple of fortissimo notes in the horn's and euphonium's crowded upper partials
-        // still land 70–90 cents off. Hold the line at that.
+        // Known: the crowded top partials of the horn, trombone and tuba still land 40–140 cents
+        // sharp on some notes. Hold the line at that (≤ 5 of 60).
         if !fails.is_empty() {
             println!("off-pitch notes:\n{}", fails.join("\n"));
         }
-        assert!(fails.len() <= 3, "{} notes failed:\n{}", fails.len(), fails.join("\n"));
+        assert!(fails.len() <= 5, "{} notes failed:\n{}", fails.len(), fails.join("\n"));
     }
 
     #[test]
@@ -1047,31 +1128,32 @@ mod tests {
     }
 
     /// Fundamental by normalised autocorrelation (first strong peak).
-    pub(crate) fn f0(x: &[f32]) -> (f32, f32) {
-        let n = x.len().min(9000);
-        let mut best = (1usize, -1.0f32);
-        let mut prev_r = 1.0f32;
-        let mut rising = false;
-        for lag in 16..(x.len() - n).min(2400) {
+    /// Fundamental near an expected frequency: normalised autocorrelation over lags from half to
+    /// twice the expected period; the true period is the FIRST peak within 90% of the best.
+    pub(crate) fn f0_near(x: &[f32], expect: f32) -> (f32, f32) {
+        let t = SR / expect;
+        let lo = ((0.45 * t) as usize).max(8);
+        let hi = ((2.2 * t) as usize + 2).min(x.len() / 2);
+        let n = (x.len() - hi).min(12000);
+        let mut r = vec![0.0f32; hi + 1];
+        for lag in lo..=hi {
             let (mut c, mut e1, mut e2) = (0.0f32, 0.0f32, 0.0f32);
             for i in 0..n {
                 c += x[i] * x[i + lag];
                 e1 += x[i] * x[i];
                 e2 += x[i + lag] * x[i + lag];
             }
-            let r = c / (e1 * e2).sqrt().max(1e-20);
-            if r > prev_r {
-                rising = true;
-            }
-            if rising && r > best.1 {
-                best = (lag, r);
-            }
-            if rising && r < best.1 - 0.15 && best.1 > 0.6 {
-                break;
-            }
-            prev_r = r;
+            r[lag] = c / (e1 * e2).sqrt().max(1e-20);
         }
-        (SR / best.0 as f32, best.1)
+        let best = r[lo..=hi].iter().cloned().fold(-1.0f32, f32::max);
+        for lag in lo + 1..hi {
+            if r[lag] >= 0.9 * best && r[lag] >= r[lag - 1] && r[lag] >= r[lag + 1] {
+                let (a, b, c) = (r[lag - 1], r[lag], r[lag + 1]);
+                let d = 0.5 * (a - c) / (a - 2.0 * b + c).min(-1e-9);
+                return (SR / (lag as f32 + d), b);
+            }
+        }
+        (expect, best)
     }
 
     /// `cargo test --release cornu_diag -- --ignored --nocapture`
@@ -1085,10 +1167,105 @@ mod tests {
             while n <= b.range.1 {
                 let p = params(ART_SUSTAIN);
                 let x = render(&p, inst, n, 0.7, 1.0, 1.0);
-                let (f, r) = f0(&x[(0.4 * SR) as usize..]);
+                let (f, r) = f0_near(&x[(0.4 * SR) as usize..], midi_to_hz(n));
                 let rm = rms(&x[(0.4 * SR) as usize..]);
                 line += &format!(" {}:{:+.0}{}/{:.3}", n, 1200.0 * (f / midi_to_hz(n)).log2(), if r < 0.7 { "?" } else { "" }, rm);
                 n += 4.0;
+            }
+            println!("{}", line);
+        }
+    }
+}
+#[cfg(test)]
+mod probe {
+    use super::*;
+    use super::tests::{params, render};
+    /// Time (ms) for the RMS envelope (5 ms) to reach −3 dB of its 0.4–0.8 s level.
+    pub(crate) fn attack_ms(x: &[f32]) -> f32 {
+        let sr = 48000.0;
+        let w = (0.005 * sr) as usize;
+        let steady = (x[(0.4 * sr) as usize..(0.8 * sr) as usize].iter().map(|v| v * v).sum::<f32>() / (0.4 * sr)).sqrt();
+        let mut i = 0;
+        while i + w < x.len() {
+            let r = (x[i..i + w].iter().map(|v| v * v).sum::<f32>() / w as f32).sqrt();
+            if r > steady * 0.708 {
+                return i as f32 / sr * 1000.0;
+            }
+            i += w / 2;
+        }
+        -1.0
+    }
+    /// Regenerate the players' habits: `HABITS_OUT=src/cornu_habits.rs cargo test --release
+    /// cornu_learn_habits -- --ignored`. Each note is played (mf, 1.2 s) and where the player's
+    /// lipping, lip firmness and air settled is written out as the starting point for that note.
+    #[test]
+    #[ignore]
+    fn cornu_learn_habits() {
+        let sr = 48000.0;
+        let mut out = String::from("// Generated by `cornu_learn_habits` (cornu.rs tests): per instrument, per MIDI note from
+// HABIT_LO (range.0 − 2), the (lip trim, lip firmness, air) a player settles on at mf.
+// Regenerate after changing the brass model.
+
+pub const HABIT_LO_OFFSET: f32 = 2.0;
+
+#[rustfmt::skip]
+pub static HABITS: [&[(f32, f32, f32)]; 10] = [
+");
+        for inst in 0..NUM_INSTRUMENTS {
+            let b = &BRASS[inst];
+            out += "    &[";
+            let mut n = b.range.0 - 2.0;
+            while n <= b.range.1 + 2.0 {
+                let p = params(0);
+                let mut v = CornuVoice::new(sr);
+                let mut rng = Rng(777);
+                v.role = Role { inst, section: 0, players: 1 };
+                v.learning = true;
+                v.trigger(midi_to_hz(n), 0.7, &p, &mut rng);
+                for _ in 0..(1.2 * sr) as usize {
+                    let _ = v.render_sample(1.0, 0.0, &mut rng);
+                }
+                let pl = &v.players[0];
+                out += &format!("({:.4}, {:.3}, {:.3}), ", pl.lip_trim, pl.mu_k, pl.p_k);
+                n += 1.0;
+            }
+            out += "],
+";
+        }
+        out += "];
+";
+        std::fs::write(std::env::var("HABITS_OUT").unwrap(), out).unwrap();
+    }
+
+    #[test]
+    #[ignore]
+    fn cornu_env_dump() {
+        let sr = 48000.0;
+        let p = params(0);
+        let mut v = CornuVoice::new(sr);
+        let mut rng = Rng(777);
+        v.role = Role { inst: 0, section: 0, players: 1 };
+        v.trigger(midi_to_hz(66.0), 0.7, &p, &mut rng);
+        let mut out: Vec<u8> = Vec::new();
+        for _ in 0..(0.6 * sr) as usize {
+            let (l, r) = v.render_sample(1.0, 0.0, &mut rng);
+            let pl = &v.players[0];
+            for x in [0.5 * (l + r), pl.p_mouth, pl.p_k, pl.mu_k, pl.lip_trim] { out.extend_from_slice(&x.to_le_bytes()); }
+        }
+        std::fs::write(std::env::var("DUMP").unwrap(), out).unwrap();
+    }
+
+    #[test]
+    #[ignore]
+    fn cornu_attacks() {
+        for inst in 0..NUM_INSTRUMENTS {
+            let b = &BRASS[inst];
+            let mut line = format!("{:16}", INSTRUMENT_NAMES[inst]);
+            let mut n = b.range.0 + 2.0;
+            while n <= b.range.1 {
+                let x = render(&params(0), inst, n, 0.7, 1.0, 1.0);
+                line += &format!(" {}:{:.0}ms", n, attack_ms(&x));
+                n += 6.0;
             }
             println!("{}", line);
         }

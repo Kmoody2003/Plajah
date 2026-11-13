@@ -86,19 +86,19 @@ static FIDDLES: [Fiddle; NUM_INSTRUMENTS] = [
     // Violin: G3 D4 A4 E5 on a 328 mm string; A0 ≈ 275 Hz, B1− / B1+ ≈ 470 / 540 Hz; bridge hill 2.4–3 kHz.
     Fiddle { opens: &[55.0, 62.0, 69.0, 76.0], len: 0.328, tensions: &[44.0, 44.0, 50.0, 75.0], bow_len: 0.65, beta: 0.11,
         modes: &[(275.0, 12.0, 0.7), (405.0, 25.0, 0.45), (470.0, 30.0, 1.0), (540.0, 28.0, 1.0), (650.0, 30.0, 0.5), (750.0, 32.0, 0.45), (860.0, 32.0, 0.4), (950.0, 34.0, 0.35)],
-        y0: 3.0e-3, cross: 1000.0, density: 0.030, eta: 0.022, peaks: &[(2600.0, 2.2, 0.45), (4400.0, 0.6, 0.35)], floor: 0.32, level: 1.0, range: (62.0, 96.0) },
+        y0: 3.0e-3, cross: 1000.0, density: 0.030, eta: 0.022, peaks: &[(2600.0, 0.7, 0.45), (4400.0, 0.2, 0.35)], floor: 0.22, level: 1.0, range: (62.0, 96.0) },
     // Viola: C3 G3 D4 A4 on ~375 mm; the body is too small for its range, so A0 and B1 sit high (230 / 400–480 Hz).
     Fiddle { opens: &[48.0, 55.0, 62.0, 69.0], len: 0.375, tensions: &[50.0, 45.0, 45.0, 60.0], bow_len: 0.66, beta: 0.11,
         modes: &[(230.0, 12.0, 0.7), (340.0, 25.0, 0.45), (400.0, 30.0, 1.0), (480.0, 28.0, 0.95), (560.0, 30.0, 0.5), (660.0, 32.0, 0.45), (760.0, 32.0, 0.4), (840.0, 34.0, 0.35)],
-        y0: 2.6e-3, cross: 900.0, density: 0.036, eta: 0.024, peaks: &[(2000.0, 1.7, 0.5), (3600.0, 0.5, 0.35)], floor: 0.32, level: 1.0, range: (53.0, 81.0) },
+        y0: 2.6e-3, cross: 900.0, density: 0.036, eta: 0.024, peaks: &[(2000.0, 0.6, 0.5), (3600.0, 0.15, 0.35)], floor: 0.22, level: 1.0, range: (53.0, 81.0) },
     // Cello: C2 G2 D3 A3 on 690 mm; A0 ≈ 100 Hz; the B1+ mode near 176 Hz is where cellos keep their wolf.
     Fiddle { opens: &[36.0, 43.0, 50.0, 57.0], len: 0.69, tensions: &[130.0, 125.0, 125.0, 150.0], bow_len: 0.71, beta: 0.10,
         modes: &[(102.0, 12.0, 0.7), (145.0, 25.0, 0.5), (176.0, 45.0, 1.2), (220.0, 30.0, 0.9), (290.0, 30.0, 0.6), (380.0, 30.0, 0.5), (480.0, 30.0, 0.45), (560.0, 32.0, 0.4), (640.0, 34.0, 0.35)],
-        y0: 1.6e-3, cross: 700.0, density: 0.060, eta: 0.026, peaks: &[(1100.0, 1.2, 0.5), (2100.0, 1.0, 0.5)], floor: 0.32, level: 1.0, range: (36.0, 69.0) },
+        y0: 1.6e-3, cross: 700.0, density: 0.060, eta: 0.026, peaks: &[(1100.0, 0.6, 0.5), (2100.0, 0.4, 0.5)], floor: 0.22, level: 1.0, range: (36.0, 69.0) },
     // Double bass: E1 A1 D2 G2 on 1.06 m (orchestral steel); A0 ≈ 62 Hz.
     Fiddle { opens: &[28.0, 33.0, 38.0, 43.0], len: 1.06, tensions: &[330.0, 300.0, 290.0, 280.0], bow_len: 0.70, beta: 0.10,
         modes: &[(62.0, 12.0, 0.7), (95.0, 25.0, 0.6), (118.0, 35.0, 1.0), (150.0, 30.0, 0.9), (200.0, 30.0, 0.6), (260.0, 30.0, 0.5), (330.0, 30.0, 0.45), (410.0, 32.0, 0.4)],
-        y0: 0.9e-3, cross: 500.0, density: 0.090, eta: 0.030, peaks: &[(650.0, 1.2, 0.6), (1400.0, 0.6, 0.5)], floor: 0.32, level: 1.0, range: (28.0, 55.0) },
+        y0: 0.9e-3, cross: 500.0, density: 0.090, eta: 0.030, peaks: &[(650.0, 0.6, 0.6), (1400.0, 0.3, 0.5)], floor: 0.22, level: 1.0, range: (28.0, 55.0) },
 ];
 
 /// Standard section sizes in the ensembles (violins I, violins II, violas, cellos, basses).
@@ -313,6 +313,41 @@ impl Player {
     }
 }
 
+/// Age of the returning wave at distance m: the loop's true round trip (read + 1 + filter delay)
+/// minus m, fractional.
+#[inline]
+fn back_pos(l: &Loop, m: usize) -> f32 {
+    (l.read + 1.0 + l.pd - m as f32).max(m as f32 + 1.0)
+}
+/// Lagrange (3rd-order) weights for a fractional age b: taps at i−1, i, i+1, i+2.
+#[inline]
+fn lag_w(b: f32) -> (usize, [f32; 4]) {
+    let i = b.floor();
+    let t = 1.0 + (b - i);
+    let h0 = -(t - 1.0) * (t - 2.0) * (t - 3.0) / 6.0;
+    let h1 = t * (t - 2.0) * (t - 3.0) / 2.0;
+    let h2 = -t * (t - 1.0) * (t - 3.0) / 2.0;
+    let h3 = t * (t - 1.0) * (t - 2.0) / 6.0;
+    ((i as usize).max(1), [h0, h1, h2, h3])
+}
+/// Point velocity at m (outgoing minus returning wave), the returning one interpolated.
+#[inline]
+fn back_vel(l: &Loop, m: usize) -> f32 {
+    let (i, h) = lag_w(back_pos(l, m).max(2.0));
+    l.age(m) - (l.age(i - 1) * h[0] + l.age(i) * h[1] + l.age(i + 1) * h[2] + l.age(i + 2) * h[3])
+}
+/// A velocity change dv at m: into the outgoing wave, and out of the returning one with the
+/// same interpolation weights (transposed), so what the bow reads is what it changes.
+#[inline]
+fn kick_frac(l: &mut Loop, m: usize, b: f32, dv: f32) {
+    let (i, h) = lag_w(b.max(2.0));
+    l.add(m, dv);
+    l.add(i - 1, -dv * h[0]);
+    l.add(i, -dv * h[1]);
+    l.add(i + 1, -dv * h[2]);
+    l.add(i + 2, -dv * h[3]);
+}
+
 fn tune(l: &mut Loop, period: f32, g: f32, b: f32) {
     let w = TAU / period;
     l.g = g;
@@ -355,7 +390,12 @@ fn bow_for(artic: usize, mu_s: f32, mu_d: f32, pl: &Player, p: &Params, dyn_: f3
     let mut v_b = speed_curve(dyn_) * speed * pl.speed_k;
     let mut frac = 0.16 + 0.42 * p01(p, AR_BOW_FORCE) + 0.12 * dyn_;
     match artic {
-        A_PONT => frac *= 1.3,
+        // Near the bridge the window narrows from below too (F_min ∝ 1/β²): players speed up
+        // the bow rather than press.
+        A_PONT => {
+            frac *= 0.85;
+            v_b *= 1.4;
+        }
         A_TASTO => {
             frac *= 0.55;
             v_b *= 1.2;
@@ -621,7 +661,9 @@ impl ArcoVoice {
 
             let (v_b, f_b) = bow_for(artic, mu_s, mu_d, pl, p, dyn_);
             pl.v_b = v_b;
-            pl.f_b = f_b;
+            // Schelleng's window scales with the impedance the bow actually sees: with torsion
+            // the string's surface is softer (Z_eff = Z_t·κ/(1+κ)), so the same force presses harder.
+            pl.f_b = if pl.torsion { f_b * pl.kappa / (1.0 + pl.kappa) } else { f_b };
             pl.dir = 1.0;
             pl.bow_x = rng.next_f32() * 0.15 * bow_len;
             pl.change = 1.0;
@@ -803,8 +845,8 @@ impl ArcoVoice {
                 }
                 // Players dig in at the start of a stroke so the Helmholtz motion catches at once.
                 if !matches!(artic, A_SPICCATO | A_TREMOLO) {
-                    let dig = if artic == A_DETACHE { 1.6 } else { 1.0 };
-                    fnorm *= 1.0 + dig * (-pt / 0.06).exp();
+                    let dig = if artic == A_DETACHE { 0.8 } else { 0.5 };
+                    fnorm *= 1.0 + dig * (-pt / 0.05).exp();
                 }
                 // Bow changes: the bow is a real length.
                 if self.bow_len > 0.05 && !matches!(artic, A_TREMOLO | A_SPICCATO) {
@@ -831,22 +873,21 @@ impl ArcoVoice {
                 }
                 // Hair and rosin grain.
                 pl.noise_lp += (rng.bipolar() - pl.noise_lp) * 0.2;
-                fnorm *= 1.0 + 0.06 * pl.noise_lp;
+                fnorm *= 1.0 + 0.03 * pl.noise_lp;
                 if fnorm > 1e-6 {
                     let z_t = pl.spec.z0;
                     let (z_eff, share_t) = if pl.torsion { (z_t * pl.kappa / (1.0 + pl.kappa), pl.kappa / (1.0 + pl.kappa)) } else { (z_t, 1.0) };
                     let k = fnorm / (2.0 * z_eff);
-                    let (vh, a, b) = {
-                        let back = (pl.tl.period - m_t as f32).round().max(m_t as f32 + 1.0) as usize;
-                        (pl.tl.age(m_t) - pl.tl.age(back), m_t, back)
-                    };
+                    // The returning wave at the bow sits at the loop's true round trip minus m —
+                    // fractional, so a gliding finger or vibrato moves it smoothly instead of in
+                    // whole-sample jumps (each jump was a velocity step that broke the stick-slip).
+                    let (vh, a, bt) = (back_vel(&pl.tl, m_t), m_t, back_pos(&pl.tl, m_t));
                     let (vr, ra, rb) = if pl.torsion {
                         let nr = (pl.rl.period * 0.5) as usize;
                         let m = pl.m_r.min(nr.saturating_sub(1)).max(1);
-                        let back = (pl.rl.period - m as f32).round().max(m as f32 + 1.0) as usize;
-                        (pl.rl.age(m) - pl.rl.age(back), m, back)
+                        (back_vel(&pl.rl, m), m, back_pos(&pl.rl, m))
                     } else {
-                        (0.0, 0, 0)
+                        (0.0, 0, 0.0)
                     };
                     let v_in = vh + vr;
                     let rel = v_in - vb_bow;
@@ -867,12 +908,9 @@ impl ArcoVoice {
                     let slip = (v - vb_bow).abs();
                     // Heat from slipping, cooling back toward ambient in a few ms.
                     pl.theta += (slip / v_tgt.max(0.02) * 0.5 - pl.theta) * (dt / 0.003);
-                    pl.tl.add(a, dv * share_t);
-                    pl.tl.add(b, -dv * share_t);
+                    kick_frac(&mut pl.tl, a, bt, dv * share_t);
                     if pl.torsion {
-                        let dr = dv * (1.0 - share_t);
-                        pl.rl.add(ra, dr);
-                        pl.rl.add(rb, -dr);
+                        kick_frac(&mut pl.rl, ra, rb, dv * (1.0 - share_t));
                     }
                 }
                 // Harmonics: the finger rests on the node.
@@ -1109,7 +1147,7 @@ impl ArcoRack {
                 eta_slope: 0.25,
                 floor: fd.floor * (1.0 - 0.35 * mute),
                 peaks: &peaks,
-                tilt_db: -3.0 - 3.0 * mute,
+                tilt_db: -6.0 - 3.0 * mute,
                 seed: 0xA2C0 + (fi as u32) * 977 + (b as u32) * 131,
             };
             render_cloud(&cloud, sr, fd.y0 * body, &mut self.ir_l, &mut self.ir_r);
@@ -1399,5 +1437,28 @@ mod tests {
         let p = params(0, A_SUSTAIN);
         let _ = render_role(&p, Role { inst: 0, section: 0, players: 16, bus: 0 }, 67.0, 2.0, 2.0);
         println!("8 simulated violinists: {:.2}% of a core", t0.elapsed().as_secs_f64() / 2.0 * 100.0);
+    }
+}
+#[cfg(test)]
+mod probe {
+    use super::*;
+    use super::tests::params;
+    #[test]
+    #[ignore]
+    fn arco_slur_dump() {
+        let sr = 48000.0;
+        let mut p = params(0, 0);
+        p.set(ARCO_BASE + AR_VIB_DEPTH, 0.0);
+        let mut v = ArcoVoice::new(sr);
+        let mut rng = Rng(4242);
+        v.trigger(midi_to_hz(69.0), 0.75, &p, &mut rng);
+        let mut out: Vec<u8> = Vec::new();
+        for i in 0..(1.2 * sr) as usize {
+            if i == (0.6 * sr) as usize { v.slur(midi_to_hz(71.0), 0.75, &p, &mut rng); }
+            let (l, r) = v.render_sample(1.0, 0.0, &mut rng);
+            out.extend_from_slice(&(0.5 * (l + r)).to_le_bytes());
+            out.extend_from_slice(&v.bus_out.to_le_bytes());
+        }
+        std::fs::write(std::env::var("DUMP").unwrap(), out).unwrap();
     }
 }
