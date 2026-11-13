@@ -11,12 +11,14 @@
 
 use crate::arco::{ArcoRack, ArcoVoice};
 use crate::cornu::CornuVoice;
+use crate::aulos::AulosVoice;
 use crate::osc::Rng;
 use crate::params::*;
 
 pub const KIND_NONE: u8 = 0;
 pub const KIND_ARCO: u8 = 1;
 pub const KIND_CORNU: u8 = 2;
+pub const KIND_AULOS: u8 = 3;
 
 /// Which family model a patch enables (the first one switched on).
 pub fn kind_for(p: &Params) -> u8 {
@@ -26,12 +28,15 @@ pub fn kind_for(p: &Params) -> u8 {
     if p.get(CORNU_BASE + CN_ENABLE) > 0.5 {
         return KIND_CORNU;
     }
+    if p.get(AULOS_BASE + AU_ENABLE) > 0.5 {
+        return KIND_AULOS;
+    }
     KIND_NONE
 }
 
 /// Is `id` one of the family's enable switches?
 pub fn is_enable(id: u32) -> bool {
-    id == ARCO_BASE + AR_ENABLE || id == CORNU_BASE + CN_ENABLE
+    id == ARCO_BASE + AR_ENABLE || id == CORNU_BASE + CN_ENABLE || id == AULOS_BASE + AU_ENABLE
 }
 
 /// What a voice plays inside an ensemble.
@@ -115,6 +120,25 @@ pub fn ensemble(kind: u8, p: &Params) -> Option<Ensemble> {
                 e.n = n;
             }
         }
+        KIND_AULOS => {
+            use crate::aulos::*;
+            let ens = idx(p, AULOS_BASE + AU_ENSEMBLE, ENSEMBLE_NAMES.len());
+            if ens == 0 {
+                let inst = idx(p, AULOS_BASE + AU_INSTRUMENT, NUM_INSTRUMENTS);
+                let size = SECTION_SIZES[idx(p, AULOS_BASE + AU_SECTION, SECTION_SIZES.len())];
+                let (lo, hi, lowest) = section_range(inst);
+                e.secs[0] = Section { inst, seat: 0, players: size, bus: 0, lo, hi, lowest };
+                e.n = 1;
+                e.single = true;
+            } else {
+                let (secs, n) = ensemble_sections(ens);
+                for (i, &(inst, seat, players)) in secs.iter().take(n).enumerate() {
+                    let (lo, hi, lowest) = section_range(inst);
+                    e.secs[i] = Section { inst, seat, players, bus: 0, lo, hi, lowest };
+                }
+                e.n = n;
+            }
+        }
         _ => return None,
     }
     Some(e)
@@ -125,6 +149,7 @@ pub fn legato_on(kind: u8, p: &Params) -> bool {
     match kind {
         KIND_ARCO => p.get(ARCO_BASE + AR_LEGATO) > 0.5 && p.get(ARCO_BASE + AR_ENSEMBLE) < 0.5,
         KIND_CORNU => p.get(CORNU_BASE + CN_LEGATO) > 0.5 && p.get(CORNU_BASE + CN_ENSEMBLE) < 0.5,
+        KIND_AULOS => p.get(AULOS_BASE + AU_LEGATO) > 0.5 && p.get(AULOS_BASE + AU_ENSEMBLE) < 0.5,
         _ => false,
     }
 }
@@ -178,6 +203,7 @@ pub fn assign_sections(notes_desc: &[f32], e: &Ensemble, out: &mut [usize]) {
 pub struct OrchVoice {
     pub arco: Option<Box<ArcoVoice>>,
     pub cornu: Option<Box<CornuVoice>>,
+    pub aulos: Option<Box<AulosVoice>>,
     kind: u8,
     pub rng: Rng,
     sr: f32,
@@ -185,7 +211,7 @@ pub struct OrchVoice {
 
 impl OrchVoice {
     pub fn new(seed: u32) -> Self {
-        OrchVoice { arco: None, cornu: None, kind: KIND_NONE, rng: Rng((seed ^ 0x4F52_4348) | 1), sr: 48000.0 }
+        OrchVoice { arco: None, cornu: None, aulos: None, kind: KIND_NONE, rng: Rng((seed ^ 0x4F52_4348) | 1), sr: 48000.0 }
     }
 
     pub fn set_sample_rate(&mut self, sr: f32) {
@@ -196,6 +222,9 @@ impl OrchVoice {
         if let Some(c) = self.cornu.as_mut() {
             c.set_sample_rate(sr);
         }
+        if let Some(w) = self.aulos.as_mut() {
+            w.set_sample_rate(sr);
+        }
     }
 
     /// Allocate the model a patch needs (outside the render path).
@@ -205,6 +234,9 @@ impl OrchVoice {
         }
         if kind == KIND_CORNU && self.cornu.is_none() {
             self.cornu = Some(Box::new(CornuVoice::new(self.sr)));
+        }
+        if kind == KIND_AULOS && self.aulos.is_none() {
+            self.aulos = Some(Box::new(AulosVoice::new(self.sr)));
         }
     }
 
@@ -224,6 +256,11 @@ impl OrchVoice {
             let nr = crate::cornu::Role { inst: r.inst, section: r.section, players: r.players };
             changed |= c.role.inst != nr.inst || c.role.players != nr.players || c.role.section != nr.section;
             c.role = nr;
+        }
+        if let Some(w) = self.aulos.as_mut() {
+            let nr = crate::aulos::Role { inst: r.inst, section: r.section, players: r.players };
+            changed |= w.role.inst != nr.inst || w.role.players != nr.players || w.role.section != nr.section;
+            w.role = nr;
         }
         changed
     }
@@ -246,6 +283,13 @@ impl OrchVoice {
                     self.kind = KIND_CORNU;
                 }
             }
+            KIND_AULOS => {
+                if let Some(w) = self.aulos.as_mut() {
+                    w.set_sample_rate(self.sr);
+                    w.trigger(hz, vel, p, &mut self.rng);
+                    self.kind = KIND_AULOS;
+                }
+            }
             _ => {}
         }
         self.kind != KIND_NONE
@@ -261,6 +305,11 @@ impl OrchVoice {
             KIND_CORNU => {
                 if let Some(c) = self.cornu.as_mut() {
                     c.slur(hz, vel, p, &mut self.rng);
+                }
+            }
+            KIND_AULOS => {
+                if let Some(w) = self.aulos.as_mut() {
+                    w.slur(hz, vel, p, &mut self.rng);
                 }
             }
             _ => {}
@@ -279,6 +328,11 @@ impl OrchVoice {
                     c.release();
                 }
             }
+            KIND_AULOS => {
+                if let Some(w) = self.aulos.as_mut() {
+                    w.release();
+                }
+            }
             _ => {}
         }
     }
@@ -290,6 +344,9 @@ impl OrchVoice {
         if let Some(c) = self.cornu.as_mut() {
             c.reset();
         }
+        if let Some(w) = self.aulos.as_mut() {
+            w.reset();
+        }
         self.kind = KIND_NONE;
     }
 
@@ -297,6 +354,7 @@ impl OrchVoice {
         match self.kind {
             KIND_ARCO => self.arco.as_ref().map(|a| a.is_quiet()).unwrap_or(true),
             KIND_CORNU => self.cornu.as_ref().map(|c| c.is_quiet()).unwrap_or(true),
+            KIND_AULOS => self.aulos.as_ref().map(|w| w.is_quiet()).unwrap_or(true),
             _ => true,
         }
     }
@@ -305,6 +363,7 @@ impl OrchVoice {
         match self.kind {
             KIND_ARCO => self.arco.as_ref().map(|a| a.samples()).unwrap_or(0),
             KIND_CORNU => self.cornu.as_ref().map(|c| c.samples()).unwrap_or(0),
+            KIND_AULOS => self.aulos.as_ref().map(|w| w.samples()).unwrap_or(0),
             _ => 0,
         }
     }
@@ -314,6 +373,7 @@ impl OrchVoice {
         match self.kind {
             KIND_ARCO => self.arco.as_ref().map(|a| a.is_bowed()).unwrap_or(false),
             KIND_CORNU => self.cornu.as_ref().map(|c| c.is_sustained()).unwrap_or(false),
+            KIND_AULOS => self.aulos.as_ref().map(|w| w.is_sustained()).unwrap_or(false),
             _ => false,
         }
     }
@@ -332,6 +392,13 @@ impl OrchVoice {
             KIND_CORNU => {
                 if let Some(c) = self.cornu.as_mut() {
                     let (l, r) = c.render_sample(bend, mod_wheel, &mut self.rng);
+                    return (l, r, 0, 0.0);
+                }
+                (0.0, 0.0, 0, 0.0)
+            }
+            KIND_AULOS => {
+                if let Some(w) = self.aulos.as_mut() {
+                    let (l, r) = w.render_sample(bend, mod_wheel, &mut self.rng);
                     return (l, r, 0, 0.0);
                 }
                 (0.0, 0.0, 0, 0.0)

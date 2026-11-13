@@ -33,6 +33,7 @@ mod perform;
 mod cornu;
 mod cornu_habits;
 mod aulos;
+mod aulos_habits;
 mod string;
 mod sample;
 mod spatial;
