@@ -3465,21 +3465,36 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     ping(`${member.name}'s line placed on ${aTrack.toUpperCase()} in the locked voice.`);
   };
   // Run a score section through the platform's music generation and lay the cue under its shots.
+  // Three ways a cue can be generated, tried in this order:
+  //   1. the user's OWN machine — an open model they downloaded and are running (no platform compute,
+  //      so no gate at all);
+  //   2. the platform's hosted music lab — admin-only, because it is one shared server runtime with no
+  //      per-user quota yet (routes/musicLab.ts);
+  // and when neither is available the reason is given, with what would make it work.
   const storyScoreCue = async (section, timing, progress) => {
-    const { getMusicEngines, runLocalMusicGeneration } = await import("../../services/melos/generation/client");
-    const engines = await getMusicEngines();
-    const engine = engines.find((e) => e.kinds.includes("audio") && e.access.allowed && e.runtimeConnected);
-    if (!engine) {
-      const why = engines.find((e) => e.kinds.includes("audio"))?.access?.reason;
-      throw new Error(`No music engine is available to this account right now${why ? ` (${why})` : ""}. The cue text can still be copied into any music tool.`);
+    const request = scoreCueRequest(section, timing.seconds, Date.now() % 100000);
+    const local = await import("../../services/melos/generation/localAceStep");
+    let audio = null, source = "", warning = "";
+    if (await local.localAceStepAvailable()) {
+      const out = await local.runLocalAceStep(request, { progress });
+      audio = out.audio; source = "your music engine"; warning = out.warning || "";
+    } else {
+      const lab = await import("../../services/melos/generation/client");
+      let engines = [];
+      try { engines = await lab.getMusicEngines(); } catch { /* not an admin, or the lab isn't deployed here */ }
+      const engine = engines.find((e) => e.kinds.includes("audio") && e.access.allowed && e.runtimeConnected);
+      if (!engine) {
+        throw new Error(`No music engine found. To generate cues on your own machine, run ACE-Step and it will be picked up at ${local.getLocalAceStepUrl()} (change the address under Score & sound brief). The platform's hosted engines are limited to admin evaluation for now. The cue text can be copied into any music tool meanwhile.`);
+      }
+      const out = await lab.runLocalMusicGeneration({ engine: engine.id, ...request }, new AbortController().signal, progress);
+      if (!out.audio) throw new Error(out.result?.warning || `${engine.name} finished without returning audio.`);
+      audio = out.audio; source = engine.name;
     }
-    const { result, audio } = await runLocalMusicGeneration({ engine: engine.id, ...scoreCueRequest(section, timing.seconds, Date.now() % 100000) }, new AbortController().signal, progress);
-    if (!audio) throw new Error(result?.warning || `${engine.name} finished without returning audio.`);
     const aTracks = tracks.filter((tr) => tr.type === "audio");
     const mTrack = (aTracks[1] || aTracks[0])?.id || "a2";
     const clip = await placeAudioClip(audio, `Score ${section.fromSlug}${section.toSlug !== section.fromSlug ? "–" + section.toSlug : ""}`, { trackId: mTrack, at: timing.start, defer: true });
     if (clip) applyClips([...clips, clip]);
-    ping(`Score cue from ${engine.name} laid on ${mTrack.toUpperCase()} at ${fmtTc(timing.start, prod.defaults.format)}.`);
+    ping(`Score cue from ${source} laid on ${mTrack.toUpperCase()} at ${fmtTc(timing.start, prod.defaults.format)}.${warning ? " " + warning : ""}`);
   };
   // The screenplay (written in the script editor) ⇄ this production.
   const storyScripts = async () => {

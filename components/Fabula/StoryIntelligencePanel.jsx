@@ -25,6 +25,7 @@ import {
   clipsToWatch, normalizeClipAnalysis, fileClipAnalysis, planVoiceReference, renderVoiceReference, sectionTiming,
 } from "../../services/fabula/story";
 import { encodeMonoWav } from "../../services/audio/proceduralFoleyEngine";
+import { getLocalAceStepUrl, setLocalAceStepUrl, localAceStepAvailable } from "../../services/melos/generation/localAceStep";
 import { compareFrames, grabVideoFrame, continuityVerdict } from "../../services/continuityCheck";
 
 const STATUS = {
@@ -107,9 +108,14 @@ export default function StoryIntelligencePanel({
   const [scriptMsg, setScriptMsg] = useState("");
   const [stageShot, setStageShot] = useState("");
   const [working, setWorking] = useState("");    // key of a per-item action in flight (voice, score…)
+  // The user's own music engine: where it is, and whether it's answering.
+  const [engineUrl, setEngineUrl] = useState(() => getLocalAceStepUrl());
+  const [engineUp, setEngineUp] = useState(null);   // null = not checked yet
+  const checkEngine = async (url) => { setEngineUp(null); setEngineUp(await localAceStepAvailable(url)); };
   const [checks, setChecks] = useState({});      // Continuity Eye results this session, by check key
   const [checking, setChecking] = useState("");
   const [tab, setTab] = useState("coverage");
+  useEffect(() => { if (tab === "direction" && onScoreCue) checkEngine(getLocalAceStepUrl()); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [tab]);
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [dirScene, setDirScene] = useState(sceneId || "");
@@ -553,6 +559,14 @@ export default function StoryIntelligencePanel({
               {dir && !!dir.score.length && (
                 <div className="si-card">
                   <div className="si-card-head"><b>Score &amp; sound brief</b></div>
+                  {onScoreCue && (
+                    <div className="si-row">
+                      <span className={`si-state ${engineUp ? "ready" : engineUp === false ? "insufficient" : ""}`}>{engineUp ? "your music engine is connected" : engineUp === false ? "no music engine found" : "checking…"}</span>
+                      <input className="si-sel" style={{ maxWidth: 230, flex: "0 1 230px" }} value={engineUrl} onChange={(e) => setEngineUrl(e.target.value)} aria-label="Address of the music engine on your machine" spellCheck={false} />
+                      <button className="si-btn sm" onClick={() => { try { const u = setLocalAceStepUrl(engineUrl); setEngineUrl(u); checkEngine(u); } catch (e) { setErr(e.message); } }}>Use this address</button>
+                      <span className="si-dim">Cues generate on an ACE-Step you run yourself — your machine, no platform credits. Hosted engines are admin-only for now.</span>
+                    </div>
+                  )}
                   {dir.score.map((s, i) => (
                     <div key={i} className="si-beat">
                       <b>{s.fromSlug}{s.toSlug !== s.fromSlug ? `–${s.toSlug}` : ""}</b> {s.cue.prompt}

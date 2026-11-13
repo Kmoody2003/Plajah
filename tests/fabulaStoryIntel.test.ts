@@ -23,6 +23,10 @@ import {
 } from '../services/fabula/story';
 
 import { scoreFrames, continuityVerdict, CONTINUITY_W, CONTINUITY_H } from '../services/continuityCheck';
+import express from 'express';
+import { runLocalAceStep, localAceStepAvailable, normalizeLocalEngineUrl } from '../services/melos/generation/localAceStep';
+import { runGeneration } from '../services/melos/generation/adapters';
+import { musicEngineAccess } from '../services/musicEnginePolicy';
 
 const conn = (id: string) => connectorById(id)!;
 
@@ -704,4 +708,72 @@ test('movement in the action moves the mark and is carried into later shots and 
   assert.match(out, /Blocking \(over the shoulder\)/);
   assert.match(out, /moving in from screen-left/);
   assert.doesNotMatch(out, /MAYA — frame-left/, 'the scene-level side is dropped when this camera\'s blocking says where she is');
+});
+
+// ── music on the user's own machine ─────────────────────────────────────────────
+
+/** A stand-in ACE-Step server speaking the real task protocol. */
+async function fakeAceStep(opts: { fail?: boolean } = {}) {
+  const app = express(); app.use(express.json());
+  const seen: any = { polls: 0 };
+  app.use((_req, res, next) => { res.setHeader('Access-Control-Allow-Origin', '*'); next(); });
+  app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+  app.post('/release_task', (req, res) => { seen.task = req.body; res.json({ code: 200, data: { task_id: 'job1' } }); });
+  app.post('/query_result', (_req, res) => {
+    seen.polls++;
+    if (seen.polls < 2) return res.json({ code: 200, data: [{ task_id: 'job1', status: 0 }] });
+    res.json({ code: 200, data: [{ task_id: 'job1', status: opts.fail ? 2 : 1, result: JSON.stringify([{ file: '/v1/audio?path=cue.wav' }]) }] });
+  });
+  app.get('/v1/audio', (_req, res) => { res.setHeader('Content-Type', 'audio/wav'); res.send(Buffer.from('RIFFfake-wav-bytes')); });
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise<void>((r) => server.once('listening', r));
+  return { url: `http://127.0.0.1:${(server.address() as any).port}`, seen, close: () => new Promise<void>((r) => { server.closeAllConnections(); server.close(() => r()); }) };
+}
+
+test('a score cue runs on the user\'s own ACE-Step with no admin access involved', async () => {
+  const engine = await fakeAceStep();
+  try {
+    assert.equal(await localAceStepAvailable(engine.url), true);
+    const brief = scoreBrief(planScenePerformance(scene()));
+    const messages: string[] = [];
+    const out = await runLocalAceStep(scoreCueRequest(brief[0], 6), { baseUrl: engine.url, pollMs: 5, progress: (m) => messages.push(m) });
+    assert.equal(out.audio.size, 18);
+    assert.equal(engine.seen.task.task_type, 'text2music');
+    assert.equal(engine.seen.task.bpm, brief[0].cue.tempoBpm);
+    assert.equal(engine.seen.task.audio_duration, 10, 'the engine\'s minimum length');
+    assert.match(out.warning || '', /at least 10 seconds/);
+    assert.ok(messages.length >= 3);
+    // The hosted lab's gate is untouched: it still refuses a non-admin outright.
+    assert.equal(musicEngineAccess('ace-step', { isAdmin: false, runtimeConnected: true }).allowed, false);
+  } finally { await engine.close(); }
+});
+
+test('the server lab and the local client send the engine the same task', async () => {
+  const engine = await fakeAceStep();
+  try {
+    const req = { engine: 'ace-step' as const, kind: 'audio' as const, prompt: 'low strings', lyrics: '', bpm: 72, bars: 4, seconds: 20, key: 'A minor', seed: 7 };
+    const hosted = await runGeneration(req, { url: engine.url }, new AbortController().signal, () => {});
+    const hostedTask = engine.seen.task; engine.seen.polls = 0;
+    await runLocalAceStep(req, { baseUrl: engine.url, pollMs: 5 });
+    assert.deepEqual(engine.seen.task, hostedTask);
+    assert.equal(hosted.audio!.length, 18);
+  } finally { await engine.close(); }
+});
+
+test('a local engine that is off, or fails, says so plainly', async () => {
+  assert.equal(await localAceStepAvailable('http://127.0.0.1:9'), false);
+  await assert.rejects(runLocalAceStep({ kind: 'audio', prompt: 'x', lyrics: '', bpm: 80, seconds: 12, key: 'C major', seed: 1 }, { baseUrl: 'http://127.0.0.1:9' }), /Couldn't reach the music engine/);
+  const engine = await fakeAceStep({ fail: true });
+  try {
+    await assert.rejects(runLocalAceStep({ kind: 'audio', prompt: 'x', lyrics: '', bpm: 80, seconds: 12, key: 'C major', seed: 1 }, { baseUrl: engine.url, pollMs: 5 }), /generation failed/);
+  } finally { await engine.close(); }
+});
+
+test('the local engine address can only point at this machine or the local network', () => {
+  assert.equal(normalizeLocalEngineUrl('http://127.0.0.1:8001/anything'), 'http://127.0.0.1:8001');
+  assert.equal(normalizeLocalEngineUrl('http://192.168.1.20:8001'), 'http://192.168.1.20:8001');
+  assert.equal(normalizeLocalEngineUrl('http://studio-pc.local:8001'), 'http://studio-pc.local:8001');
+  assert.equal(normalizeLocalEngineUrl('https://example.com'), null);
+  assert.equal(normalizeLocalEngineUrl('file:///etc/passwd'), null);
+  assert.equal(normalizeLocalEngineUrl('not a url'), null);
 });
