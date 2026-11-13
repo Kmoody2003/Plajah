@@ -1984,6 +1984,20 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Connect Mastodon, Bluesky, Threads &amp; Audius to unify your presence</p>
               </header>
 
+              {/* ── Connect Bluesky / Threads / Mastodon — first thing on the page ── */}
+              <section>
+                <FediverseSettings />
+              </section>
+
+              {/* ── Open networks: your @handle@plajah on the fediverse, Nostr (opt-in), Mobilizon/Lemmy/BookWyrm/Owncast/Matrix ── */}
+              <React.Suspense fallback={null}>
+                <section className="space-y-6">
+                  <LazyFediverseIdentityCard />
+                  <LazyNostrPanel />
+                  <LazyOpenNetworksPanel />
+                </section>
+              </React.Suspense>
+
               {/* ── Audius Settings ── */}
               <section className="space-y-6">
                 <div className="flex items-center gap-3">
@@ -2086,19 +2100,6 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 <FediverseHub onOpenSettings={() => setActiveTab('NETWORKS')} />
               </section>
 
-              <div className="pt-8 border-t border-white/[0.06]">
-                <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30 mb-6">Connect / Manage Accounts</h2>
-                <FediverseSettings />
-              </div>
-
-              {/* ── Open networks: your @handle@plajah on the fediverse, Nostr (opt-in), Mobilizon/Lemmy/BookWyrm/Owncast/Matrix ── */}
-              <React.Suspense fallback={null}>
-                <section className="space-y-6">
-                  <LazyFediverseIdentityCard />
-                  <LazyNostrPanel />
-                  <LazyOpenNetworksPanel />
-                </section>
-              </React.Suspense>
             </motion.div>
           )}
 

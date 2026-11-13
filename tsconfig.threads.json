@@ -5,6 +5,6 @@
     "services/fediverse/threads.ts", "services/fediverse/auth.ts", "services/fediverse/service.ts", "services/fediverse/mastodon.ts",
     "routes/threadsOAuth.ts", "routes/threadsClient.ts", "routes/fediverseNative.ts",
     "contexts/FediverseContext.tsx", "components/FediverseSettings.tsx", "components/discovery/NetworkInvites.tsx",
-    "components/feed/ExternalPostCard.tsx", "components/ProfileFeed.tsx"
+    "components/feed/ExternalPostCard.tsx", "components/ProfileFeed.tsx", "components/UserDashboard.tsx"
   ]
 }

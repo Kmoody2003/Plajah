@@ -347,6 +347,15 @@ function ThreadsForm({ onSuccess }: { onSuccess: () => void }) {
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
+// One card per network, always visible: what it does, who is connected, and a big Connect button that opens that
+// network's sign-in right in the card. (The old layout hid all three behind small chips under the feed.)
+
+const CARD_ORDER: FediverseProtocol[] = ['bluesky', 'threads', 'mastodon'];
+const CARD_COPY: Record<FediverseProtocol, string> = {
+  bluesky: 'Your Bluesky timeline in Social, likes, reposts, replies, and share your posts out.',
+  threads: 'Share your Plajah posts to Threads with photos and video, reply and repost, and see your Threads posts in Social.',
+  mastodon: 'Any Mastodon server: your home timeline, follows and notifications, and share your posts out.',
+};
 
 type ConnectPanel = FediverseProtocol | null;
 
@@ -354,157 +363,108 @@ export default function FediverseSettings() {
   const { accounts, feed, isLoadingFeed, isLoadingAccounts, disconnectAccount, refreshFeed } = useFediverse();
   const [connectPanel, setConnectPanel] = useState<ConnectPanel>(null);
 
-  const totalPosts = feed.length;
-  const byProtocol = (p: FediverseProtocol) => accounts.filter(a => a.protocol === p).length;
-
   return (
-    <div className="flex flex-col gap-6 max-w-xl">
-
-      {/* Protocol stats */}
-      <div className="grid grid-cols-3 gap-3">
-        {PROTOCOLS.map(p => (
-          <div key={p.id} className="flex flex-col gap-1 p-3 rounded-xl"
-            style={{ background: p.bg, border: `1px solid ${p.color}20` }}>
-            <div className="flex items-center gap-1.5" style={{ color: p.color }}>
-              {p.icon}
-              <span className="text-[10px] font-black uppercase tracking-widest">{p.label}</span>
-            </div>
-            <p className="text-2xl font-black text-white">{byProtocol(p.id)}</p>
-            <p className="text-[9px] text-white/30">{byProtocol(p.id) === 1 ? 'account' : 'accounts'}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Connected accounts */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-black uppercase tracking-widest text-white/60">Connected accounts</h3>
+    <div className="flex flex-col gap-4 max-w-3xl">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-black uppercase tracking-widest text-white/60">Your networks</h3>
+        {accounts.length > 0 && (
           <button onClick={refreshFeed} disabled={isLoadingFeed}
             className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-white/30 hover:text-white/60 transition-colors">
             <RefreshCw size={10} className={isLoadingFeed ? 'animate-spin' : ''} />
-            {isLoadingFeed ? 'Refreshing…' : `${totalPosts} posts loaded`}
+            {isLoadingFeed ? 'Refreshing…' : `${feed.length} posts loaded`}
           </button>
-        </div>
-
-        {isLoadingAccounts ? (
-          <div className="flex items-center gap-2 text-white/30 py-4">
-            <RefreshCw size={12} className="animate-spin" />
-            <span className="text-xs">Loading accounts…</span>
-          </div>
-        ) : accounts.length === 0 ? (
-          <div className="py-8 text-center">
-            <Globe size={24} className="mx-auto mb-3 text-white/10" />
-            <p className="text-white/20 text-sm">No fediverse accounts connected.</p>
-            <p className="text-white/15 text-xs mt-1">Connect below to cross-post Plajah content.</p>
-          </div>
-        ) : (
-          <AnimatePresence>
-            <div className="flex flex-col gap-2">
-              {accounts.map(acc => (
-                <AccountCard
-                  key={acc.id}
-                  account={acc}
-                  onDisconnect={() => disconnectAccount(acc.id)}
-                />
-              ))}
-            </div>
-          </AnimatePresence>
         )}
       </div>
 
-      {/* Add account */}
-      <div>
-        <h3 className="text-xs font-black uppercase tracking-widest text-white/60 mb-3">Add account</h3>
-        <div className="flex gap-2 flex-wrap">
-          {PROTOCOLS.map(p => (
-            <button key={p.id}
-              onClick={() => setConnectPanel(connectPanel === p.id ? null : p.id)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
-              style={{
-                background: connectPanel === p.id ? p.color : p.bg,
-                color: connectPanel === p.id ? '#fff' : p.color,
-                border: `1px solid ${p.color}40`,
-              }}>
-              {p.icon}
-              <span>{p.label}</span>
-              {p.oauthSupported && connectPanel !== p.id && (
-                <span className="text-[8px] px-1.5 py-0.5 rounded bg-white/10">OAuth</span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        <AnimatePresence>
-          {connectPanel && (() => {
-            const meta = PROTOCOLS.find(p => p.id === connectPanel)!;
-            return (
-              <motion.div key={connectPanel}
-                initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
-                exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                className="overflow-hidden">
-                <div className="p-4 rounded-xl" style={{ background: meta.bg, border: `1px solid ${meta.color}20` }}>
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs font-black uppercase tracking-widest" style={{ color: meta.color }}>
-                      Connect {meta.label}
-                    </p>
-                    <button onClick={() => setConnectPanel(null)}
-                      className="text-white/20 hover:text-white/60 transition-colors">
-                      <X size={14} />
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-white/40 mb-1">{meta.description}</p>
-
-                  {connectPanel === 'mastodon' && <MastodonForm onSuccess={() => setConnectPanel(null)} />}
-                  {connectPanel === 'bluesky'  && <BlueskyForm  onSuccess={() => setConnectPanel(null)} />}
-                  {connectPanel === 'threads'  && <ThreadsForm  onSuccess={() => setConnectPanel(null)} />}
+      {CARD_ORDER.map(id => {
+        const meta = PROTOCOLS.find(p => p.id === id)!;
+        const mine = accounts.filter(a => a.protocol === id);
+        const open = connectPanel === id;
+        return (
+          <section key={id} className="rounded-2xl p-4 sm:p-5"
+            style={{ background: mine.length ? meta.bg : 'rgba(255,255,255,0.03)', border: `1px solid ${mine.length ? `${meta.color}40` : 'rgba(255,255,255,0.08)'}` }}>
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.color}30` }}>
+                {meta.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-black text-white">{meta.label}</p>
+                  {isLoadingAccounts ? (
+                    <span className="text-[10px] text-white/30">checking…</span>
+                  ) : mine.length ? (
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400"><CheckCircle size={11} /> Connected</span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-white/30">Not connected</span>
+                  )}
                 </div>
-              </motion.div>
-            );
-          })()}
-        </AnimatePresence>
-      </div>
+                <p className="text-[11px] text-white/45 mt-0.5 leading-relaxed">{CARD_COPY[id]}</p>
+              </div>
+              <button type="button" onClick={() => setConnectPanel(open ? null : id)}
+                className="shrink-0 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all"
+                style={open
+                  ? { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.12)' }
+                  : mine.length
+                    ? { background: 'transparent', color: meta.color, border: `1px solid ${meta.color}50` }
+                    : { background: id === 'threads' ? '#ffffff' : meta.color, color: id === 'threads' ? '#000' : '#fff', border: '1px solid transparent' }}>
+                {open ? 'Cancel' : mine.length ? 'Add another' : 'Connect'}
+              </button>
+            </div>
 
-      {/* Capability matrix */}
-      <div>
-        <h3 className="text-xs font-black uppercase tracking-widest text-white/60 mb-3">Platform capabilities</h3>
-        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
-          <table className="w-full text-[10px]">
-            <thead>
-              <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
-                <th className="text-left px-3 py-2 font-black uppercase tracking-widest text-white/40">Feature</th>
-                {PROTOCOLS.map(p => (
-                  <th key={p.id} className="px-3 py-2 font-black uppercase tracking-widest text-center"
-                    style={{ color: p.color }}>{p.label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {([
-                ['OAuth sign-in',     ['✅', '✅', '✅']],
-                ['Home timeline',     ['✅', '✅', 'Your posts']],
-                ['Publish posts',     ['✅', '✅', '✅']],
-                ['Photos / video',    ['✅', '✅', '✅']],
-                ['Rich link cards',   ['✅', '✅', '✅']],
-                ['Reply threading',   ['✅', '✅', '✅']],
-                ['Like / unlike',     ['✅', '✅', '❌']],
-                ['Repost / boost',    ['✅', '✅', '✅']],
-                ['Follow / unfollow', ['✅', '✅', '❌']],
-                ['Notifications',     ['✅', '✅', '❌']],
-                ['Cross-post',        ['✅', '✅', '✅']],
-              ] as [string, string[]][]).map(([label, vals], i) => (
-                <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                  <td className="px-3 py-2 text-white/50">{label}</td>
-                  {vals.map((v, j) => (
-                    <td key={j} className="px-3 py-2 text-center">{v}</td>
-                  ))}
-                </tr>
+            {mine.length > 0 && (
+              <div className="flex flex-col gap-2 mt-3">
+                <AnimatePresence>
+                  {mine.map(acc => <AccountCard key={acc.id} account={acc} onDisconnect={() => disconnectAccount(acc.id)} />)}
+                </AnimatePresence>
+              </div>
+            )}
+
+            <AnimatePresence>
+              {open && (
+                <motion.div key="form" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                  {id === 'mastodon' && <MastodonForm onSuccess={() => setConnectPanel(null)} />}
+                  {id === 'bluesky' && <BlueskyForm onSuccess={() => setConnectPanel(null)} />}
+                  {id === 'threads' && <ThreadsForm onSuccess={() => setConnectPanel(null)} />}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </section>
+        );
+      })}
+
+      {/* Capability matrix — reference, folded away */}
+      <details className="group rounded-xl" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
+        <summary className="cursor-pointer select-none px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white/60">What each network allows</summary>
+        <table className="w-full text-[10px]">
+          <thead>
+            <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
+              <th className="text-left px-3 py-2 font-black uppercase tracking-widest text-white/40">Feature</th>
+              {PROTOCOLS.map(p => (
+                <th key={p.id} className="px-3 py-2 font-black uppercase tracking-widest text-center" style={{ color: p.color }}>{p.label}</th>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
+            </tr>
+          </thead>
+          <tbody>
+            {([
+              ['Sign in on the network’s own page', ['✅', '✅', '✅']],
+              ['Home timeline',     ['✅', '✅', 'Your posts']],
+              ['Publish posts',     ['✅', '✅', '✅']],
+              ['Photos / video',    ['✅', '✅', '✅']],
+              ['Rich link cards',   ['✅', '✅', '✅']],
+              ['Reply threading',   ['✅', '✅', '✅']],
+              ['Like / unlike',     ['✅', '✅', '❌']],
+              ['Repost / boost',    ['✅', '✅', '✅']],
+              ['Follow / unfollow', ['✅', '✅', '❌']],
+              ['Notifications',     ['✅', '✅', '❌']],
+            ] as [string, string[]][]).map(([label, vals], i) => (
+              <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <td className="px-3 py-2 text-white/50">{label}</td>
+                {vals.map((v, j) => <td key={j} className="px-3 py-2 text-center">{v}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </details>
     </div>
   );
 }
