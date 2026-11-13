@@ -61,3 +61,86 @@ Michigan law confirmed in the Terra Law Library: MCL 450.837 (electronic signatu
 
 The exclusion checks encode the main statutory exceptions, but each government's counsel decides which
 documents it signs electronically and at what identity level.
+
+---
+
+## 4. DocuSign, feature by feature (13 Nov 2026)
+
+Status key: **Built** = in `signCore` / the signing screen today · **Partial** = the pieces exist elsewhere in Plajah but
+aren't wired into Tela Sign · **Planned** = on the roadmap below · **Not planned** = deliberately out of scope for now ·
+**Tela-only** = something DocuSign doesn't offer.
+
+| Area | Feature | Tela Sign |
+|---|---|---|
+| Sending | Envelopes, signing order, parallel signers | Built |
+| | Several documents in one envelope | Planned (P1) |
+| | Templates with roles | Planned (P1) |
+| | Bulk send (one template to many people) | Planned (P1) |
+| | Self-service forms people fill and sign (PowerForms / Web Forms) | Partial: Tela forms exist (`telaHtmlExport.renderForm`) |
+| | Conditional routing, signing groups | Planned (P2) |
+| | Reminders and expiry | Partial: expiry built, reminders planned (P1) |
+| | Correct an envelope in flight | Planned (P1), with signer-proposed corrections (Tela-only) |
+| | Void | Built |
+| | Sender branding | Planned (P2) |
+| Fields | Signature, initials, date signed, name, text, checkbox | Built |
+| | Dropdown, radio, number, email, formulas, validation, conditional fields | Partial: Tela Base already has SELECT/NUMBER/DATE fields |
+| | Signer attachments (upload a document while signing) | Planned (P2) |
+| | AI field placement (DocuSign "Agreement Prep") | Partial: Tela document intelligence and the Grants `HUMAN_ONLY` detector exist |
+| Signers | No account needed | Built (email link) |
+| | Mobile signing | Built |
+| | Draw or type a signature | Built; uploading an image is planned |
+| | In-person signing (a host hands over a tablet) | Planned (P1), which matters for counters, permit desks and clinics |
+| | Decline with reason | Built |
+| | Reassign or delegate | Planned (P2) |
+| | Comments on the document | Planned (P2) |
+| | Signing screen in the signer's language | Partial: notices are multilingual; the signing UI is planned (P1) |
+| Identity | Email link, Plajah account | Built |
+| | Access code, SMS code | Planned (P1, SMS after platform SMS consent) |
+| | Government ID verification | Planned (P2, same vendor as Forum Tier 2) |
+| | Knowledge-based questions | Not planned (weak and being phased out industry-wide) |
+| Delivery | Email | Planned (P1, Resend + HMAC links already in the repo) |
+| | SMS, WhatsApp | SMS planned (P2); WhatsApp not planned |
+| | Plajah inbox and push | **Tela-only**: requests arrive inside an app the person already trusts |
+| Evidence | ESIGN consent | Built |
+| | Audit trail and certificate | Built: hash-chained and re-verifiable on screen (stronger than a plain log) |
+| | Sealed PDF with the certificate attached | Planned (P1, pdf-lib) |
+| | Public "verify this document" page | **Tela-only**, planned (P1); `verifyAudit` is built |
+| | Civic Record anchoring | **Tela-only**, planned |
+| | UETA/ESIGN exclusion checks | **Tela-only**, built |
+| | 21 CFR Part 11, eIDAS qualified signatures | Not planned (US government and SMB focus first) |
+| | FedRAMP | Not planned yet; GovRAMP for state and local is planned |
+| Money | Collect payment while signing | Planned (P2, Stripe Connect already in Plajah) |
+| Notary | Witness signing | Planned (P2) |
+| | Remote online notarization | Planned (P3, Michigan MCL 55.286d) |
+| Platform | API and webhooks | Planned (P2) |
+| | Salesforce, Microsoft 365 and similar connectors | Not planned for now |
+| | Built into Civic Desk, Programs Desk, Business, Elevate | **Tela-only**; Civic Desk is built |
+| Admin | Users, roles, retention rules, bulk export | Planned (P2) |
+| AI | Plain-language summary of what you're signing | Planned (P1): ARIA, labelled, never replaces the text |
+
+## 5. Every pain point, and Tela Sign's answer
+
+| Pain point (DocuSign) | Tela Sign's answer |
+|---|---|
+| **Per-seat prices, envelope caps and overage fees.** Third-party guides report about 100 envelopes per user per year on Standard and Business Pro, with overages of a few dollars each | No seats and no envelope caps. Signing is included in Plajah plans and in the Civic Rate for governments. Only real third-party costs (SMS, ID checks) pass through, at cost |
+| **Auto-renewal and cancellation traps.** Most of DocuSign's 1-star Trustpilot reviews are about renewals and cancelling | Monthly or annual, a reminder 30 days before any renewal, one-click cancel, and a full export of every document and certificate whenever you want it |
+| **Phishing.** "DocuSign" emails are among the most impersonated, and attackers abuse the real platform too | Requests land in the signer's Plajah inbox from a verified sender badge (governments verified by domain). Emails only say a document is waiting and show a match code that also appears in the app, and they never ask for a password. A public verify page checks any document by its fingerprint. New senders are rate-limited and screened |
+| **Signers don't know what they're signing or where to click** | A guided "next field" flow, large touch targets, an ARIA plain-language summary (labelled AI) next to the real text, and the signing screen in the signer's language |
+| **Placing fields is tedious** | AI field placement from Tela's document intelligence, reusable templates with roles, and fields that use the same page model as every Tela document |
+| **Fixing a mistake means voiding and starting over** | Correct an envelope in flight: only the affected signers re-review, and the audit trail shows exactly what changed. Signers can propose a correction instead of declining |
+| **Add-ons cost extra** (SMS delivery, ID verification, payments) | In-app and push delivery are free. SMS and ID checks are billed at cost. Payments use Plajah's existing Stripe Connect |
+| **Your proof lives in their system** | Export the sealed PDF, the certificate and the raw audit chain. Anyone can re-verify the hashes offline, and final fingerprints can be anchored on the public Civic Record |
+| **Government needs** (records retention, public records, accessibility, many approvers) | Built into Civic Desk and Programs Desk: retention schedules, FOIA export with redaction, WCAG 2.1 AA, approver chains, and signed decisions linked to the case |
+
+## 6. Roadmap
+
+- **P1 (parity for everyday use):** server-side envelopes, email delivery, reminders, templates, bulk send,
+  several documents per envelope, in-person signing, access codes, correct-in-flight, sealed PDF and certificate export,
+  the public verify page, a translated signing screen, and the ARIA summary.
+- **P2 (business-grade):** advanced fields and conditional logic, attachments, delegate and comments, payments, SMS
+  delivery and codes, ID verification, witness signing, API and webhooks, branding, admin and retention.
+- **P3:** remote online notarization (MCL 55.286d), Civic Record anchoring by default for governments, and GovRAMP.
+
+Sources for DocuSign details (third-party where noted): DocuSign features page and SMS delivery announcement;
+pricing and envelope-limit summaries from Signeasy and Automation Atlas; billing complaints from the BBB and DocuSign
+community forums; phishing alerts from the DocuSign Trust Center. Verify DocuSign's current terms before citing them publicly.
