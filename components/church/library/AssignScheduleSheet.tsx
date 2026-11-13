@@ -2,7 +2,8 @@
 // course's student desks at once, each with its own due date laid out on the course calendar.
 //   1. Course   2. Spread (start day + one per class meeting / week / day / all on one day)
 //   3. Calendar — tap an item, then a day, to move it; or set its date in the list
-//   4. When students see each one, desk tools, optional course-plan weeks → Schedule
+//   4. When students can open each one, when it's due, what happens after, desk tools, course-plan weeks → Schedule
+// Each item's date is its class date; it opens `lead` days before and is due `dueAfter` days after it (end of day).
 import React, { useEffect, useMemo, useState } from 'react';
 import type { ChurchProgram } from '../../../services/churchEducationService';
 import type { IngestedCurriculumUnit } from '../../../services/curriculumIngestionService';
@@ -10,7 +11,8 @@ import type { DeskAssignmentToolsConfig } from '../../../services/universalStude
 import { CADENCE_LABEL, addMonths, fromIsoDay, isoDay, monthGrid, opensBefore, spreadDates, type Cadence } from '../../../services/edu/courseSchedule';
 import { announceWorkChanged, fmtDay } from '../christianEd/edWork';
 import { KIND_META, kindOf } from './TelaPage';
-import type { CourseSource } from './courseSource';
+import { calendarDay, type CourseSource } from './courseSource';
+import { AFTER_DUE_LABEL, endOfDay, type AfterDue } from '../../../services/edu/assignmentPolicy';
 
 const TOOLS: Array<[keyof DeskAssignmentToolsConfig, string]> = [
   ['allowSelfCheckBeforeTurnIn', 'Check my work'],
@@ -19,6 +21,8 @@ const TOOLS: Array<[keyof DeskAssignmentToolsConfig, string]> = [
   ['allowSacredLibraryAndReferences', 'Sacred Library'],
 ];
 const LEADS: Array<[number, string]> = [[0, 'Right away'], [1, 'The day before'], [3, '3 days before'], [7, 'A week before']];
+const DUE_AFTER: Array<[number, string]> = [[0, 'On the class date'], [1, 'The day after'], [7, 'A week after (next class)']];
+const DAY = 86_400_000;
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 export interface ScheduledResult {
@@ -48,6 +52,8 @@ export default function AssignScheduleSheet({ units, source, onClose, onDone, on
   const [order, setOrder] = useState(() => units.map(u => u.id));
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [lead, setLead] = useState(3);
+  const [dueAfter, setDueAfter] = useState(0);
+  const [afterDue, setAfterDue] = useState<AfterDue>('lock');
   const [tools, setTools] = useState<Record<keyof DeskAssignmentToolsConfig, boolean>>({
     allowSelfCheckBeforeTurnIn: true,
     allowHandRaiseQuestion: true,
@@ -68,10 +74,16 @@ export default function AssignScheduleSheet({ units, source, onClose, onDone, on
   useEffect(() => { if (firstDue) setMonth(new Date(firstDue)); }, [firstDue]);
   // Items already on this course (re-scheduling a desk item moves it; Academia sends a new copy).
   const [already, setAlready] = useState<Set<string>>(new Set());
+  // The last class date already holding work, so "after what's scheduled" can start the day after it.
+  const [lastTaken, setLastTaken] = useState(0);
   useEffect(() => {
-    if (!program) { setAlready(new Set()); return; }
+    if (!program) { setAlready(new Set()); setLastTaken(0); return; }
     let live = true;
-    source.list(program).then(items => { if (live) setAlready(new Set(items.map(i => i.unitId).filter((x): x is string => !!x))); }).catch(() => {});
+    source.list(program).then(items => {
+      if (!live) return;
+      setAlready(new Set(items.map(i => i.unitId).filter((x): x is string => !!x)));
+      setLastTaken(items.reduce((mx, i) => Math.max(mx, calendarDay(i)), 0));
+    }).catch(() => {});
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [program?.id]);
@@ -101,8 +113,15 @@ export default function AssignScheduleSheet({ units, source, onClose, onDone, on
       for (const id of order) {
         const unit = byId.get(id);
         if (!unit) continue;
-        const due = dates[id];
-        await source.deliver(program, unit, { dueAt: due.getTime(), opensAt: opensBefore(due, lead)?.getTime(), tools });
+        const classDay = dates[id];
+        const opens = opensBefore(classDay, lead)?.getTime();
+        await source.deliver(program, unit, {
+          scheduledFor: classDay.getTime(),
+          dueAt: endOfDay(classDay.getTime() + dueAfter * DAY),
+          opensAt: opens && opens > Date.now() ? opens : undefined,
+          afterDue,
+          tools,
+        });
       }
       const plan = program.program;
       if (addToPlan && onSaveProgram && plan && plan.weeks.length) {
@@ -169,6 +188,12 @@ export default function AssignScheduleSheet({ units, source, onClose, onDone, on
                 Starting
                 <input type="date" className="field" value={start} onChange={e => { if (e.target.value) { setStart(e.target.value); respread(); } }} style={{ maxWidth: 190 }} />
               </label>
+              {lastTaken > Date.now() && (
+                <button type="button" className="btn sm" onClick={() => { setStart(isoDay(new Date(lastTaken + DAY))); respread(); }}
+                  title="Start the day after the last class date that already has work">
+                  After what’s scheduled ({fmtDay(new Date(lastTaken))})
+                </button>
+              )}
               <div className="chips" role="group" aria-label="How to space them">
                 {(Object.keys(CADENCE_LABEL) as Cadence[]).filter(c => c !== 'meetings' || !program || program.meetingSchedule).map(c => (
                   <button key={c} type="button" className="chip" aria-pressed={cadence === c} onClick={() => { setCadence(c); respread(); }}>
@@ -240,12 +265,28 @@ export default function AssignScheduleSheet({ units, source, onClose, onDone, on
         <section className="lib-step">
           <div className="lib-step-n">4</div>
           <div className="stack grow">
-            <div className="lib-step-t">Students see each one</div>
-            <div className="chips" role="group" aria-label="When students see each item">
+            <div className="lib-step-t">Students can open each one</div>
+            <div className="chips" role="group" aria-label="When students can open and work on each item">
               {LEADS.map(([d, l]) => (
-                <button key={d} type="button" className="chip" aria-pressed={lead === d} onClick={() => setLead(d)}>{l}{d ? ' it’s due' : ''}</button>
+                <button key={d} type="button" className="chip" aria-pressed={lead === d} onClick={() => setLead(d)}>{l}{d ? ' the class' : ''}</button>
               ))}
             </div>
+            {program?.kind !== 'ACADEMIA' && (
+              <>
+                <div className="small">Due</div>
+                <div className="chips" role="group" aria-label="When each item is due">
+                  {DUE_AFTER.map(([d, l]) => (
+                    <button key={d} type="button" className="chip" aria-pressed={dueAfter === d} onClick={() => setDueAfter(d)}>{l}</button>
+                  ))}
+                </div>
+                <div className="small">After the due date</div>
+                <div className="chips" role="group" aria-label="What happens after the due date">
+                  {(Object.keys(AFTER_DUE_LABEL) as AfterDue[]).map(k => (
+                    <button key={k} type="button" className="chip" aria-pressed={afterDue === k} onClick={() => setAfterDue(k)}>{AFTER_DUE_LABEL[k]}</button>
+                  ))}
+                </div>
+              </>
+            )}
             {source.deskTools && program?.kind !== 'ACADEMIA' ? (
               <>
                 <div className="small">Desk tools</div>

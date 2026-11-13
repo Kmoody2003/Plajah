@@ -8,6 +8,7 @@
 import { opsDb, auth } from './firebase';
 import { collection, deleteDoc, doc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import type { UniversalDeskAssignment, StudentDeskWorkspaceState } from './universalStudentDeskService';
+import { logEduEvent } from './edu/eduLedger';
 
 const strip = <T,>(o: T): T => JSON.parse(JSON.stringify(o));
 
@@ -32,6 +33,8 @@ export interface EduSubmissionRecord {
   teacherFeedbackNote?: string;
   reviewedByUid?: string;
   reviewedAt?: number;
+  /** Turned in after the due date (only possible on an accept-late assignment). */
+  late?: boolean;
   turnedInAt: number;
   updatedAt: number;
 }
@@ -78,7 +81,8 @@ export function withAnswerKeys(a: UniversalDeskAssignment, keys?: AnswerKeyMap):
 export function slimAssignment(a: UniversalDeskAssignment, programId: string) {
   const { rawCurriculumText: _r, rawAnswerKeyText: _k, sacredLibrarySupplements: _s, ...unit } = a.unitSnapshot;
   const hasKeys = Object.keys(collectKeys(a)).length > 0;
-  return strip({ ...a, unitSnapshot: { ...withoutKeys(unit), answerKeyWithheld: hasKeys || undefined }, programId, mirroredAt: Date.now() });
+  // A copy that came from the class mirror has no keys left but still had them withheld: keep saying so.
+  return strip({ ...a, unitSnapshot: { ...withoutKeys(unit), answerKeyWithheld: hasKeys || a.unitSnapshot.answerKeyWithheld || undefined }, programId, mirroredAt: Date.now() });
 }
 
 export async function mirrorAssignment(a: UniversalDeskAssignment): Promise<void> {
@@ -156,6 +160,7 @@ export async function mirrorTurnIn(a: UniversalDeskAssignment, ws: StudentDeskWo
     ),
     turnedInAt: ws.turnedInAt || Date.now(),
     updatedAt: Date.now(),
+    ...(ws.late ? { late: true } : {}),
   };
   try {
     await setDoc(doc(opsDb, 'churchEduSubmissions', rec.id), strip(rec));
@@ -236,6 +241,7 @@ export async function returnSubmission(
       updatedAt: next.updatedAt,
     })
   );
+  void logEduEvent({ orgId: rec.orgId, programId: rec.programId, assignmentId: rec.assignmentId, assignmentTitle: rec.assignmentTitle, studentUid: rec.studentUid, event: 'returned', detail: { student: rec.studentName, percentage: next.percentage } });
   return next;
 }
 

@@ -206,9 +206,14 @@ const Lab: React.FC = () => {
       mk('lab-unit-syllabus', 'Kids Sunday School · Fall syllabus', 'September – December', 'SYLLABUS', [], reading),
     ]) saveIngestedUnit(academia ? { ...u, orgId: 'teacher-personal-hq', scopeKind: 'user' } : { ...u, orgId: church.id });
     const teach = as !== 'library-student';
+    // ?plan=full: Kids Sunday School's course plan holds three more lessons, for the calendar's Auto-schedule.
+    const planFull = new URLSearchParams(location.search).get('plan') === 'full';
+    const shownPrograms = planFull
+      ? programs.map(p => (p.id === kids.id ? { ...p, weeks: p.weeks.map((w, i) => (i === 0 ? { ...w, unitIds: [...(w.unitIds || []), 'lab-unit-good-sam'] } : i === 1 ?{ ...w, unitIds: [...(w.unitIds || []), 'lab-unit-mustard', 'lab-unit-midterm'] } : w)) } : p))
+      : programs;
     return (
       <div style={{ maxWidth: 1240, margin: '0 auto', padding: '24px 20px 60px' }}>
-        <OrgLessonLibraryHub orgId={academia ? 'teacher-personal-hq' : church.id} orgName={academia ? teacher.name : church.name} scopeKind={academia ? 'user' : 'org'} programs={academia ? [] : programs} canAccessAnswerKey={teach} canUploadToLibrary={teach}
+        <OrgLessonLibraryHub orgId={academia ? 'teacher-personal-hq' : church.id} orgName={academia ? teacher.name : church.name} scopeKind={academia ? 'user' : 'org'} programs={academia ? [] : shownPrograms} canAccessAnswerKey={teach} canUploadToLibrary={teach}
           currentUserUid={teach ? teacher.uid : student.uid} currentUserName={teach ? teacher.name : student.name} onSaveProgram={save} />
       </div>
     );

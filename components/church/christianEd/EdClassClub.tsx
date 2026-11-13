@@ -16,6 +16,10 @@ import AnnouncementsPanel from '../../announcements/AnnouncementsPanel';
 import { coverFor, initials } from './edStyles';
 import { announceWorkChanged, currentWeekIndex, needsReview, type ClassWork } from './edWork';
 import { openLessonLibrary } from '../../../services/lessonLibraryNav';
+import { AssignmentDatesEditor, ClassLedgerPanel, ExtensionRequestsPanel, datesLine } from './EdWorkRules';
+import { dueChipText } from '../../desk/DueStatePanel';
+import { turnInState } from '../../../services/edu/assignmentPolicy';
+import { logEduEvent } from '../../../services/edu/eduLedger';
 
 export type ClassChannel = 'feed' | 'lessons' | 'work' | 'live' | 'media' | 'people' | 'forum';
 
@@ -64,6 +68,8 @@ const EdClassClub: React.FC<Props> = props => {
   const [editingClass, setEditingClass] = useState(false);
   const [draft, setDraft] = useState<ChurchProgram>(p);
   const [err, setErr] = useState('');
+  const [editingDates, setEditingDates] = useState<string | null>(null);
+  const [ledgerKey, setLedgerKey] = useState(0);
 
   const assignments = work?.assignments || [];
   const subs = work?.submissions || [];
@@ -126,6 +132,7 @@ const EdClassClub: React.FC<Props> = props => {
   const removeAssignment = async (a: UniversalDeskAssignment) => {
     removeDeskAssignment(a.id);
     await unmirrorAssignment(a.id);
+    void logEduEvent({ orgId, programId: p.id, assignmentId: a.id, assignmentTitle: a.title, event: 'unassigned', actorName: viewer.name, detail: { dueAt: a.dueAt } });
     announceWorkChanged();
     onRefresh();
   };
@@ -307,6 +314,7 @@ const EdClassClub: React.FC<Props> = props => {
               </div>
             </button>
           )}
+          <ExtensionRequestsPanel programId={p.id} assignments={assignments} onChanged={() => setLedgerKey(k => k + 1)} />
           {assignments.map(a => {
             const list = byAssignment.get(a.id) || [];
             const pending = list.filter(s => needsReview(s, a)).length;
@@ -322,7 +330,7 @@ const EdClassClub: React.FC<Props> = props => {
                   <div className="grow">
                     <div className="t">{a.title}</div>
                     <div className="u">
-                      {a.dueLabel} · {inCount} of {withAccounts} turned in
+                      {datesLine(a)} · {inCount} of {withAccounts} turned in
                       {avg !== null ? ` · avg ${avg}%` : ''}
                       {back ? ` · ${back} returned` : ''}
                     </div>
@@ -341,6 +349,9 @@ const EdClassClub: React.FC<Props> = props => {
                   <button type="button" className="btn sm" onClick={() => setPreview(a.unitSnapshot)}>
                     Open
                   </button>
+                  <button type="button" className="btn sm" onClick={() => setEditingDates(editingDates === a.id ? null : a.id)} aria-expanded={editingDates === a.id}>
+                    Dates &amp; rules
+                  </button>
                   <button type="button" className="btn sm" onClick={() => removeAssignment(a)}>
                     Unassign
                   </button>
@@ -348,9 +359,13 @@ const EdClassClub: React.FC<Props> = props => {
                     Move to resources
                   </button>
                 </div>
+                {editingDates === a.id && (
+                  <AssignmentDatesEditor a={a} onDone={() => { setEditingDates(null); setLedgerKey(k => k + 1); announceWorkChanged(); onRefresh(); }} />
+                )}
               </div>
             );
           })}
+          <ClassLedgerPanel programId={p.id} refreshKey={ledgerKey} />
         </div>
       );
     }
@@ -367,7 +382,7 @@ const EdClassClub: React.FC<Props> = props => {
                 <div className="grow">
                   <div className="t">{a.title}</div>
                   <div className="u">
-                    {ws?.status === 'RETURNED_WITH_FEEDBACK' && ws.teacherFeedbackNote ? `“${ws.teacherFeedbackNote}”` : a.dueLabel}
+                    {ws?.status === 'RETURNED_WITH_FEEDBACK' && ws.teacherFeedbackNote ? `“${ws.teacherFeedbackNote}”` : ws?.status === 'TURNED_IN' ? a.dueLabel : dueChipText(a, turnInState(a))}
                     {score ? ` · ${score}` : ''}
                   </div>
                 </div>

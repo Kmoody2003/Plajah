@@ -13,6 +13,8 @@ import { auth } from './firebase';
 import { adoptFromSharedDesk, deskAssignmentsKey } from './hqScopeWall';
 import { appendRecord } from './learningLedgerService';
 import { mirrorAssignment, mirrorDraft, mirrorTurnIn, type EduSubmissionRecord } from './christianEdSync';
+import { afterDueOf, canTurnIn, isLate, turnInState, type AfterDue, type ExtensionLike } from './edu/assignmentPolicy';
+import { logEduEvent, type LedgerEvent } from './edu/eduLedger';
 
 export type DeskContextDomain = 'CHRISTIAN_EDUCATION' | 'ACADEMIA' | 'ORG_TRAINING';
 
@@ -54,6 +56,10 @@ export interface UniversalDeskAssignment {
   opensAt?: number;
   /** Last time its dates were moved; the newer of this and assignedAt wins when copies disagree. */
   rescheduledAt?: number;
+  /** The class date it belongs to (the calendar shows it here); absent = the due date. */
+  scheduledFor?: number;
+  /** After the due date: 'lock' (default — only with a granted extension) or 'accept_late' (marked late). */
+  afterDue?: AfterDue;
   totalPoints: number;
   questionCount: number;
   toolsConfig: DeskAssignmentToolsConfig;
@@ -83,6 +89,8 @@ export interface StudentDeskWorkspaceState {
   /** Populated once turned in and auto-graded */
   submission?: StudentUnitSubmission;
   teacherFeedbackNote?: string;
+  /** Turned in after the due date (an accept-late assignment). */
+  late?: boolean;
 }
 
 /** The old desk every account on a browser shared. Read once to move each person's own work out of it. */
@@ -184,6 +192,10 @@ export function assignUnitToClassroomDesk(params: {
   dueLabel: string;
   dueAt?: number;
   opensAt?: number;
+  scheduledFor?: number;
+  afterDue?: AfterDue;
+  /** What the class ledger calls it (the auto-scheduler records 'auto_scheduled'). */
+  ledgerEvent?: LedgerEvent;
   instructions?: string;
   livingTemplateId?: string;
   assignedByUid?: string;
@@ -225,6 +237,8 @@ export function assignUnitToClassroomDesk(params: {
     dueAt: params.dueAt || Date.now() + 2 * 86400_000,
     dueLabel: params.dueLabel || 'Due This Week',
     ...(params.opensAt && params.opensAt > Date.now() ? { opensAt: params.opensAt } : {}),
+    ...(params.scheduledFor ? { scheduledFor: params.scheduledFor } : {}),
+    afterDue: params.afterDue || 'lock',
     totalPoints: params.unit.totalPoints,
     questionCount: params.unit.questions.length,
     toolsConfig: {
@@ -240,8 +254,17 @@ export function assignUnitToClassroomDesk(params: {
   const next = [assignment, ...all.filter(a => a.id !== assignment.id)];
   writeStoredAssignments(next);
   void mirrorAssignment(assignment);
+  if (assignment.domain === 'CHRISTIAN_EDUCATION') void logEduEvent({
+    orgId: assignment.orgId, programId: assignment.classroomId, assignmentId: assignment.id, assignmentTitle: assignment.title,
+    event: params.ledgerEvent || 'assigned', actorName: assignment.assignedByName,
+    detail: ledgerDates(assignment),
+  });
   return assignment;
 }
+
+const ledgerDates = (a: Pick<UniversalDeskAssignment, 'opensAt' | 'scheduledFor' | 'dueAt' | 'afterDue'>) => ({
+  opensAt: a.opensAt || null, scheduledFor: a.scheduledFor || null, dueAt: a.dueAt, afterDue: afterDueOf(a),
+});
 
 /** Takes an assignment off this device's desk (the teacher unassigned it). */
 export function removeDeskAssignment(id: string): void {
@@ -264,15 +287,36 @@ export function isOpenFor(a: Pick<UniversalDeskAssignment, 'opensAt' | 'assigned
 }
 
 /** Moves an assigned item to new dates (calendar drag or edit). Returns the updated assignment, or null if it isn't on this device. */
-export function rescheduleDeskAssignment(id: string, at: { dueAt: number; dueLabel: string; opensAt?: number | null }): UniversalDeskAssignment | null {
+export function rescheduleDeskAssignment(id: string, at: { dueAt: number; dueLabel: string; opensAt?: number | null; scheduledFor?: number | null; afterDue?: AfterDue }): UniversalDeskAssignment | null {
   const all = readStoredAssignments();
   const cur = all.find(a => a.id === id);
   if (!cur) return null;
-  const { opensAt: _old, ...rest } = cur;
-  const next: UniversalDeskAssignment = { ...rest, dueAt: at.dueAt, dueLabel: at.dueLabel, rescheduledAt: Date.now(), ...(at.opensAt && at.opensAt > Date.now() ? { opensAt: at.opensAt } : {}) };
+  const { opensAt: _old, scheduledFor: _sf, ...rest } = cur;
+  const scheduledFor = at.scheduledFor === undefined ? cur.scheduledFor : at.scheduledFor || undefined;
+  const next: UniversalDeskAssignment = {
+    ...rest, dueAt: at.dueAt, dueLabel: at.dueLabel, rescheduledAt: Date.now(),
+    ...(at.opensAt && at.opensAt > Date.now() ? { opensAt: at.opensAt } : {}),
+    ...(scheduledFor ? { scheduledFor } : {}),
+    afterDue: at.afterDue || afterDueOf(cur),
+  };
   writeStoredAssignments(all.map(a => (a.id === id ? next : a)));
   void mirrorAssignment(next);
+  if (next.domain === 'CHRISTIAN_EDUCATION') {
+    const policyOnly = next.dueAt === cur.dueAt && (next.opensAt || 0) === (cur.opensAt || 0) && (next.scheduledFor || 0) === (cur.scheduledFor || 0);
+    void logEduEvent({
+      orgId: next.orgId, programId: next.classroomId, assignmentId: next.id, assignmentTitle: next.title,
+      event: policyOnly ? 'policy_changed' : 'rescheduled',
+      detail: { ...ledgerDates(next), previousDueAt: cur.dueAt, previousOpensAt: cur.opensAt || null, previousAfterDue: afterDueOf(cur) },
+    });
+  }
   return next;
+}
+
+/** Why a turn-in was refused: past due on a locked assignment without a granted extension, or not open yet. */
+export class TurnInLockedError extends Error {
+  constructor(public readonly reason: 'past_due' | 'not_open') {
+    super(reason === 'past_due' ? 'This was due already. Ask your teacher for an extension to turn it in.' : 'This is not open yet.');
+  }
 }
 
 /**
@@ -407,10 +451,24 @@ export function turnInStudentDeskAssignment(params: {
   answers: Record<string, string>;
   scratchpadNotes?: string;
   deskLivingTemplateId?: string;
+  /** This student's extension request, if any: a granted one moves the deadline. */
+  extension?: ExtensionLike | null;
 }): {
   workspace: StudentDeskWorkspaceState;
   submission: StudentUnitSubmission;
 } {
+  // 0. The due date and after-due rule (the database rules check the same thing on the server copy).
+  const a = params.assignment;
+  const state = turnInState(a, params.extension);
+  if (!canTurnIn(state)) {
+    if (a.domain === 'CHRISTIAN_EDUCATION' && state.kind === 'locked') void logEduEvent({
+      orgId: a.orgId, programId: a.classroomId, assignmentId: a.id, assignmentTitle: a.title, studentUid: params.studentUid,
+      event: 'turn_in_refused', actorName: params.studentName, detail: { dueAt: state.dueAt, extension: state.extension || null },
+    });
+    throw new TurnInLockedError(state.kind === 'not_open' ? 'not_open' : 'past_due');
+  }
+  const late = isLate(a, params.extension, Date.now());
+
   // 1. Grade and update Mastery Graph via curriculumIngestionService
   const submission = gradeAndRecordUnitSubmission({
     unit: params.assignment.unitSnapshot,
@@ -457,11 +515,17 @@ export function turnInStudentDeskAssignment(params: {
     lastSavedAt: now,
     turnedInAt: now,
     submission,
+    ...(late ? { late: true } : {}),
   };
 
   map[params.assignment.id] = workspace;
   writeWorkspaceMap(params.studentUid, map);
   void mirrorTurnIn(params.assignment, workspace);
+  if (a.domain === 'CHRISTIAN_EDUCATION') void logEduEvent({
+    orgId: a.orgId, programId: a.classroomId, assignmentId: a.id, assignmentTitle: a.title, studentUid: params.studentUid,
+    event: late ? 'turned_in_late' : 'turned_in', actorName: params.studentName,
+    detail: { dueAt: a.dueAt, turnedInAt: now, extended: state.kind === 'extended', percentage: submission.percentage },
+  });
 
   return { workspace, submission };
 }

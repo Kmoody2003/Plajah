@@ -6,6 +6,8 @@
 
 import { auth } from '../../services/firebase';
 import React, { useEffect, useMemo, useState } from 'react';
+import { DueStatePanel, dueChipText, useMyExtension } from './DueStatePanel';
+import { canTurnIn, turnInState } from '../../services/edu/assignmentPolicy';
 import {
   BookOpen,
   CheckCircle2,
@@ -192,6 +194,10 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
       null
     );
   }, [assignments, filteredAssignments, activeAssignmentId]);
+  // Due date, after-due rule and this student's extension (services/edu/assignmentPolicy).
+  const [myExtension, setMyExtension] = useMyExtension(activeAssignment);
+  const dueState = activeAssignment ? turnInState(activeAssignment, myExtension) : null;
+  const turnInAllowed = !dueState || canTurnIn(dueState);
 
   const activeWorkspace: StudentDeskWorkspaceState | null = useMemo(() => {
     if (!activeAssignment) return null;
@@ -306,14 +312,22 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
 
   const handleTurnInFromDesk = () => {
     if (!activeAssignment) return;
-    const { workspace } = turnInStudentDeskAssignment({
-      studentUid,
-      studentName,
-      assignment: activeAssignment,
-      answers,
-      scratchpadNotes: scratchpad,
-      deskLivingTemplateId: deskTemplateOverride || activeAssignment.livingTemplateId,
-    });
+    let workspace;
+    try {
+      ({ workspace } = turnInStudentDeskAssignment({
+        studentUid,
+        studentName,
+        assignment: activeAssignment,
+        answers,
+        scratchpadNotes: scratchpad,
+        deskLivingTemplateId: deskTemplateOverride || activeAssignment.livingTemplateId,
+        extension: myExtension,
+      }));
+    } catch {
+      // Past due on a locked assignment: the panel by the Turn In button explains and offers an extension.
+      setSelfCheckBanner(null);
+      return;
+    }
     setWorkspaces(prev => ({ ...prev, [activeAssignment.id]: workspace }));
     setMasteryMap(loadOrgMasterySummary(orgId));
     setTurnInCelebration(true);
@@ -754,7 +768,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                       {activeAssignment.classroomName}
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-300/40 text-amber-200 text-[10px] font-bold">
-                      📅 {activeAssignment.dueLabel}
+                      📅 {dueState ? dueChipText(activeAssignment, dueState) : activeAssignment.dueLabel}
                     </span>
                   </div>
 
@@ -902,7 +916,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                       </>
                     )}
                   </div>
-                  {selfCheckBanner.ready && (
+                  {selfCheckBanner.ready && turnInAllowed && (
                     <button
                       type="button"
                       onClick={handleTurnInFromDesk}
@@ -1159,6 +1173,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                 <div className="flex flex-wrap items-center gap-2">
                   {!isTurnedIn ? (
                     <>
+                      <DueStatePanel assignment={activeAssignment} studentName={studentName} extension={myExtension} onExtension={setMyExtension} />
                       {activeAssignment.toolsConfig.allowSelfCheckBeforeTurnIn && (
                         <button
                           type="button"
@@ -1168,14 +1183,16 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                           <Check size={13} /> Self-Check My Work
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={handleTurnInFromDesk}
-                        className="px-5 py-2.5 rounded-full text-xs font-black text-black shadow-xl inline-flex items-center gap-1.5 transition hover:opacity-95"
-                        style={{ background: activeTemplate.accentGradient }}
-                      >
-                        <Send size={13} /> Turn In Assignment to Teacher
-                      </button>
+                      {turnInAllowed && (
+                        <button
+                          type="button"
+                          onClick={handleTurnInFromDesk}
+                          className="px-5 py-2.5 rounded-full text-xs font-black text-black shadow-xl inline-flex items-center gap-1.5 transition hover:opacity-95"
+                          style={{ background: activeTemplate.accentGradient }}
+                        >
+                          <Send size={13} /> {dueState?.kind === 'late_allowed' ? 'Turn In Late' : 'Turn In Assignment to Teacher'}
+                        </button>
+                      )}
                     </>
                   ) : (
                     <button

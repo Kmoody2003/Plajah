@@ -41,8 +41,10 @@ import { getDefaultLivingTemplateForUnit } from '../../services/council/livingDo
 import AssignScheduleSheet, { type ScheduledResult } from './library/AssignScheduleSheet';
 import SendToClassSheet from './library/SendToClassSheet';
 import CourseCalendar from './library/CourseCalendar';
-import { useCourseSource } from './library/courseSource';
-import { fmtDay } from './christianEd/edWork';
+import { calendarDay, useCourseSource, type ScheduleCourse } from './library/courseSource';
+import { announceWorkChanged, fmtDay } from './christianEd/edWork';
+import useContextMenu, { type MenuNode } from '../ui/ContextMenu';
+import { autoSchedule } from '../../services/edu/assignmentPolicy';
 import { canChangeUnit, copyAsTemplate, fetchLibraryUnits, provisionedOf, pushLibraryUnit, setLibraryActor, type LibraryTier } from '../../services/lessonLibraryStore';
 
 export interface OrgLessonLibraryHubProps {
@@ -325,6 +327,54 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
     setCalFocus(r.first);
     setStatus(`Scheduled ${r.count} for ${r.programName}: ${fmtDay(r.first)}${r.count > 1 ? ` → ${fmtDay(r.last)}` : ''}.`);
   };
+  // Right-click a lesson: put it (or the whole selection) on a class's next free class dates, opening 3 days
+  // ahead, due on the class date, locked after it. Each one goes to the class ledger as auto-scheduled.
+  const autoScheduleTo = async (course: ScheduleCourse, ids: string[]) => {
+    const list = ids.map(id => visible.find(x => x.id === id)).filter((u): u is IngestedCurriculumUnit => !!u && assignable(u) && isWork(u));
+    if (!list.length) { setStatus('Only lessons with questions can be scheduled; send readings to a class’s Discussion instead.'); return; }
+    setBusy('auto');
+    try {
+      const taken = (await source.list(course)).map(calendarDay);
+      const slots = autoSchedule(list.length, { meetingSchedule: course.meetingSchedule, taken, leadDays: 3, dueAfterDays: 0, afterDue: 'lock' });
+      for (let i = 0; i < list.length; i++) {
+        const s = slots[i];
+        await source.deliver(course, list[i], {
+          scheduledFor: s.scheduledFor, dueAt: s.dueAt, opensAt: s.opensAt ?? undefined, afterDue: s.afterDue, ledgerEvent: 'auto_scheduled',
+          tools: { allowSelfCheckBeforeTurnIn: true, allowHandRaiseQuestion: true, allowScratchpadNotes: false, allowSacredLibraryAndReferences: true },
+        });
+      }
+      announceWorkChanged();
+      setSelected([]);
+      const first = new Date(slots[0].scheduledFor), last = new Date(slots[slots.length - 1].scheduledFor);
+      setCalProgram(course.id);
+      setCalFocus(first);
+      setStatus(`Auto-scheduled ${list.length} for ${course.name}: ${fmtDay(first)}${list.length > 1 ? ` → ${fmtDay(last)}` : ''}. Change any of them on the calendar.`);
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : 'Couldn’t schedule all of them. Check the calendar for what went out.');
+    } finally {
+      setBusy('');
+    }
+  };
+  const cardMenu = useContextMenu<IngestedCurriculumUnit>(u => {
+    const ids = selected.includes(u.id) && selected.length > 1 ? selected : [u.id];
+    const many = ids.length > 1 ? ` ${ids.length} selected` : '';
+    const nodes: MenuNode<IngestedCurriculumUnit>[] = [
+      { kind: 'header', label: many ? `${ids.length} selected` : u.title, swatch: KIND_META[kindOf(u)].color },
+      { id: 'preview', label: 'Preview', onSelect: () => openPreview(u.id) },
+    ];
+    if (canAssign && assignable(u)) {
+      nodes.push(
+        { id: 'assign', label: `Assign & schedule${many}…`, onSelect: () => startAssign(ids) },
+        {
+          id: 'auto', label: `Auto-schedule${many} to`, disabled: !source.courses.length || !!busy,
+          submenu: source.courses.map(c => ({ id: c.id, label: c.meetingSchedule ? `${c.name} · ${c.meetingSchedule}` : c.name, onSelect: () => void autoScheduleTo(c, ids) })),
+        },
+        { id: 'sel', label: selected.includes(u.id) ? 'Deselect' : 'Select', onSelect: () => toggle(u.id) },
+      );
+    }
+    if (canChange(u)) nodes.push({ kind: 'separator' }, { id: 'edit', label: 'Edit in Tela', onSelect: () => void editInTela(u) });
+    return nodes;
+  });
   const newInTela = () =>
     openTelaClasswork({
       orgId: isStandaloneTeacher ? '' : orgId,
@@ -445,6 +495,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
           onProgram={setCalProgram}
           onPreview={id => openPreview(id)}
           onSchedule={() => setView('library')}
+          units={visible}
         />
       ) : (
         <>
@@ -497,7 +548,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
                 const k = kindOf(u);
                 const on = selected.includes(u.id);
                 return (
-                  <div key={u.id} className={`lib-card${on ? ' sel' : ''}`}>
+                  <div key={u.id} className={`lib-card${on ? ' sel' : ''}`} {...cardMenu.bind(u)}>
                     {canAssign && assignable(u) && (
                       <span role="checkbox" tabIndex={0} aria-checked={on} aria-label={`Select ${u.title}`} className="lib-sel"
                         onClick={() => toggle(u.id)} onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(u.id); } }}>
@@ -522,6 +573,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
             </div>
           )}
 
+          {cardMenu.node}
           {canAssign && selected.length > 0 && (
             <div className="lib-actionbar" role="region" aria-label="Selection">
               <strong style={{ fontFamily: 'var(--fd)' }}>{selected.length} selected</strong>
