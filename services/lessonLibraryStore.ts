@@ -128,7 +128,10 @@ export async function fetchLibraryUnits(tier: LibraryTier, scopeId: string): Pro
   try {
     const q = tier === 'user'
       ? query(collection(opsDb, COL), where('tier', '==', 'user'), where('ownerUid', '==', auth.currentUser.uid))
-      : query(collection(opsDb, COL), where('tier', '==', tier), where('scopeId', '==', scopeId));
+      : tier === 'org'
+        // orgId (always equal to scopeId) is what the read rule checks, so a teacher's query must name it.
+        ? query(collection(opsDb, COL), where('tier', '==', 'org'), where('orgId', '==', scopeId))
+        : query(collection(opsDb, COL), where('tier', '==', tier), where('scopeId', '==', scopeId));
     const snap = await getDocs(q);
     return snap.docs.map(s => fromDoc(s.data() as LibraryDoc)).filter((u): u is IngestedCurriculumUnit => !!u);
   } catch {

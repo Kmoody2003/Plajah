@@ -250,9 +250,23 @@ export async function recomputeOrgStaffUids(orgId: string): Promise<void> {
       const progs = await getDocs(query(collection(opsDb, 'churchPrograms'), where('orgId', '==', orgId)));
       classTeachers = progs.docs.flatMap(d => (d.data().teacherUids as string[] | undefined) || []);
     } catch { /* classes unreadable: role-based teachers only */ }
+    // Everyone in the org's Christian Education department (any role) works with its lessons too.
+    // Heads and volunteers alike: membership in the department is what counts, plus its named heads.
+    let eduDeptIds = new Set<string>();
+    let eduDeptHeads: string[] = [];
+    try {
+      const orgSnap = await getDoc(doc(db, 'organizations', orgId));
+      const ministries = ((orgSnap.data()?.ministries || []) as Array<{ id?: string; name?: string; headUids?: string[] }>);
+      const eduDepts = ministries.filter(d => d.id && /education$/i.test(String(d.name || '').trim()));
+      eduDeptIds = new Set(eduDepts.map(d => d.id as string));
+      eduDeptHeads = eduDepts.flatMap(d => d.headUids || []);
+    } catch { /* org unreadable: roles and classes only */ }
+    const inEduDept = (m: OrgMembership) => (m.ministryIds || []).some(id => eduDeptIds.has(id))
+      || ((m as { ministryRoles?: Array<{ ministryId?: string }> }).ministryRoles || []).some(r => !!r.ministryId && eduDeptIds.has(r.ministryId));
     const eduTeacherUids = Array.from(new Set([
-      ...members.filter(m => m.status === 'ACTIVE' && (m.role === 'ADMIN' || memberRoleKeys(m).some(k => TEACHING.has(k)))).map(m => m.userId),
+      ...members.filter(m => m.status === 'ACTIVE' && (m.role === 'ADMIN' || memberRoleKeys(m).some(k => TEACHING.has(k)) || inEduDept(m))).map(m => m.userId),
       ...classTeachers,
+      ...eduDeptHeads,
     ].filter(Boolean)));
     await updateDoc(doc(db, 'organizations', orgId), { staffUids, eduTeacherUids, updatedAt: Date.now() });
     await refreshOpsMirror(orgId);
