@@ -93,6 +93,10 @@ export interface Signer {
   status: 'waiting' | 'ready' | 'viewed' | 'signed' | 'declined';
   consentedAt?: number;
   signedAt?: number;
+  /** Plajah account that must be signed in to act as this signer (auth 'plajah_account'). */
+  uid?: string;
+  /** SHA-256 of an access code the sender shares out of band; the plain code is never stored. */
+  accessCodeHash?: string;
 }
 
 export interface SignatureMark { method: 'drawn' | 'typed'; /** SVG path data (drawn) or the typed name. */ data: string; at: number }

@@ -1891,6 +1891,13 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (resource.data.get('subjectUid', '') == request.auth.uid || isAdmin());
       allow write: if false;
     }
+    // Tela Sign: written only by the server (routes/telaSign.ts); signers act through signed links.
+    match /telaSignEnvelopes/{envelopeId} {
+      allow read, write: if false;
+    }
+    match /telaSignLocks/{lockId} {
+      allow read, write: if false;
+    }
     match /ledgerHeads/{workKey} {
       allow read, write: if false;
     }

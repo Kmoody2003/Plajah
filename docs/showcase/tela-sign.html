@@ -201,7 +201,7 @@ footer a { color: var(--fg-2); }
 <nav class="nav" aria-label="Sections">
   <div class="wrap">
     <a class="brand" href="#top"><span class="mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M3 17c3 0 4-6 7-6s1 6 4 6 3-3 7-3"/><path d="M3 21h18"/></svg></span><span><b>Tela Sign</b><br><span>by Plajah</span></span></a>
-    <div class="links"><a href="#pain">Pain points</a><a href="#parity">vs DocuSign</a><a href="#roadmap">Roadmap</a></div>
+    <div class="links"><a href="#pain">Pain points</a><a href="#identity">Identity</a><a href="#parity">vs DocuSign</a><a href="#roadmap">Roadmap</a></div>
   </div>
 </nav>
 
@@ -236,7 +236,26 @@ footer a { color: var(--fg-2); }
   </div>
 </section>
 
-<section id="parity">
+<section id="identity">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Identity checks</span>
+      <h2>The right check for the document, and no more.</h2>
+      <p class="lede">Higher-risk documents ask for a stronger check, and the certificate records which one was used. Most of it we build. The one piece we buy is the photo-and-selfie scan, because deepfake defense and biometric privacy law are a full-time job.</p>
+    </div>
+    <div class="tbl-wrap"><table aria-label="Identity levels" style="min-width:560px"><thead><tr><th>Level</th><th>How the signer proves who they are</th><th>Who builds it</th><th>Cost</th></tr></thead><tbody>
+      <tr><td class="area">0</td><td>A private signing link sent to their email</td><td><span class="st built">Built</span></td><td>Free</td></tr>
+      <tr><td class="area">1</td><td>Signed in to their Plajah account, with passkeys next</td><td><span class="st built">Built</span></td><td>Free</td></tr>
+      <tr><td class="area">2</td><td>An access code the sender shares, or a text-message code</td><td><span class="st built">Code built</span> <span class="st planned">SMS planned</span></td><td>Texts at carrier cost</td></tr>
+      <tr><td class="area">3</td><td>Their state's mobile ID, shared from the phone wallet and checked against the state's signature<span class="note">Works in Chrome and Safari today. Michigan's mobile ID is still a bill.</span></td><td><span class="st only">We build</span></td><td>Free</td></tr>
+      <tr><td class="area">3</td><td>A photo of their ID card plus a selfie<span class="note">We keep the result, never the images.</span></td><td><span class="st partial">We buy</span></td><td>At cost, about $1.50</td></tr>
+      <tr><td class="area">3</td><td>Staff check the ID at a counter during in-person signing</td><td><span class="st planned">Planned</span></td><td>Free</td></tr>
+    </tbody></table></div>
+    <p class="fine" style="margin-top:12px">Verify once, reuse it across Tela Sign, the Forum and Grants. Security questions about your history are not offered: they are easy to look up and the industry is dropping them.</p>
+  </div>
+</section>
+
+<section id="parity" class="band">
   <div class="wrap">
     <div class="sec-head">
       <span class="eyebrow">Feature by feature</span>
@@ -249,14 +268,14 @@ footer a { color: var(--fg-2); }
   </div>
 </section>
 
-<section id="roadmap" class="band">
+<section id="roadmap">
   <div class="wrap">
     <div class="sec-head">
       <span class="eyebrow">Roadmap</span>
       <h2>From preview to the signing tool everyone uses.</h2>
     </div>
     <div class="road">
-      <div class="phase"><span class="k">P1 · everyday parity</span><h3>Send, sign, prove</h3><ul><li>Server-side envelopes, email delivery and reminders</li><li>Templates and bulk send</li><li>Several documents per envelope</li><li>In-person signing at a counter or tablet</li><li>Access codes</li><li>Correct an envelope in flight</li><li>Sealed PDF with the certificate</li><li>Public verify page</li><li>Signing screen in the signer's language</li><li>Plain-language summary by ARIA, labelled</li></ul></div>
+      <div class="phase"><span class="k">P1 · everyday parity</span><h3>Send, sign, prove</h3><ul><li><b style="color:var(--ok)">Built:</b> the server writes every envelope and audit event, with access codes and account checks</li><li>Email delivery and reminders</li><li>Templates and bulk send</li><li>Several documents per envelope</li><li>In-person signing at a counter or tablet</li><li>Access codes</li><li>Correct an envelope in flight</li><li>Sealed PDF with the certificate</li><li>Public verify page</li><li>Signing screen in the signer's language</li><li>Plain-language summary by ARIA, labelled</li></ul></div>
       <div class="phase"><span class="k">P2 · business grade</span><h3>Forms, money, identity</h3><ul><li>Dropdowns, formulas, validation and conditional fields</li><li>Signer attachments, comments, delegation</li><li>Payments while signing (Stripe Connect)</li><li>SMS delivery and codes</li><li>Government ID verification</li><li>Witness signing</li><li>API and webhooks</li><li>Branding, admin roles, retention rules</li></ul></div>
       <div class="phase"><span class="k">P3 · public trust</span><h3>Notary and the public record</h3><ul><li>Remote online notarization (Michigan MCL 55.286d)</li><li>Civic Record anchoring by default for governments</li><li>GovRAMP for state and local buyers</li></ul></div>
     </div>
@@ -315,7 +334,9 @@ const ROWS = [
   ['Signers', 'Signing screen in the signer’s language', '✓', P, 'Notices are multilingual; signing screen P1'],
   ['Signers', 'Plain-language summary beside the document', 'Add-on AI', L, 'P1, ARIA, labelled'],
   ['Identity', 'Email link and Plajah account', '✓', B, ''],
-  ['Identity', 'Access code, SMS code', '✓', L, 'P1 / P2'],
+  ['Identity', 'Access code', '✓', B, 'Enforced by the server, stored hashed'],
+  ['Identity', 'SMS code', '✓', L, 'P2, at carrier cost'],
+  ['Identity', 'Verify a state mobile ID from the phone wallet', '—', O, 'Planned: signed by the state, free per check'],
   ['Identity', 'Government ID verification', 'Add-on', L, 'P2, at cost'],
   ['Identity', 'Knowledge-based questions', '✓', N, 'Weak, being phased out'],
   ['Delivery', 'Email', '✓', L, 'P1'],
@@ -324,7 +345,7 @@ const ROWS = [
   ['Evidence', 'Consent to sign electronically', '✓', B, ''],
   ['Evidence', 'Audit trail and certificate', '✓', B, 'Hash-chained, re-verified on screen'],
   ['Evidence', 'Sealed PDF with the certificate attached', '✓', L, 'P1'],
-  ['Evidence', 'Public page to verify any document by fingerprint', '—', O, 'P1; the check is built'],
+  ['Evidence', 'Public page to verify any document by fingerprint', '—', O, 'Server check built; page P1'],
   ['Evidence', 'Anchoring on a public record', '—', O, 'Civic Record, P3 default for governments'],
   ['Evidence', 'Warns before signing documents the law excludes', '—', O, 'Built: UETA and ESIGN exclusions'],
   ['Evidence', '21 CFR Part 11, EU qualified signatures', '✓', N, 'US government and small business first'],

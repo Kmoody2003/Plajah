@@ -1,6 +1,6 @@
 # Tela Sign — native e-signatures in the Tela document layer (Blueprint)
 
-**Status:** core built and tested, signing screen built, used from Civic Desk (preview). Not yet server-backed.
+**Status:** core built and tested, signing screen built, used from Civic Desk (preview). Server API built and tested (`routes/telaSign.ts`); the signing screen still runs on the local preview until it is switched to the API.
 **Date:** 12 November 2026.
 **Where:** `services/tela/sign/signCore.ts` (tests: `tests/telaSign.test.ts`), `components/tela/sign/TelaSignCeremony.tsx`.
 
@@ -41,9 +41,17 @@ Michigan law confirmed in the Terra Law Library: MCL 450.837 (electronic signatu
 
 ## 2. Production plan
 
-1. **Server authority:** envelopes and the audit trail are written only by the server
+1. **Server authority (built 13 Nov 2026, `routes/telaSign.ts`, tests `tests/telaSignRouter.test.ts`):** envelopes and the audit trail are written only by the server
    (`/api/tela/sign/*`, a server-only collection like `licenseLedger`). The server stamps time, IP and user agent, and
    checks that the document hash matches the stored file.
+   Built: senders create, send and void with their Plajah session; signers act through HMAC-signed links
+   (`TELA_SIGN_SECRET`); the server stamps time, IP and user agent, enforces turn order and consent, and sets
+   signature times itself. Envelopes are stored as one JSON string (`telaSignEnvelopes`) so hashes never drift,
+   and every write claims a create-only lock on the version it starts from (`telaSignLocks`), so concurrent
+   writes can't fork the history. Access codes (stored hashed) and Plajah-account signers are enforced.
+   SMS and ID verification are refused at creation until they exist, so nobody believes they're enforced.
+   A public `GET /api/tela/sign/verify/:hash` returns names, dates and the integrity check (no emails).
+   Still to do: switch the signing screen and Civic Desk to the API, store the document itself, and email delivery.
 2. **Delivery:** signing links by email (Resend, with the existing HMAC-token pattern from `services/notify`), in-app and push;
    SMS codes once platform SMS consent exists. Reminders and expiry run on the existing cron pattern.
 3. **PDF in and out:** upload a PDF, use Tela document intelligence plus the Grants `HUMAN_ONLY` detector
@@ -95,7 +103,8 @@ aren't wired into Tela Sign · **Planned** = on the roadmap below · **Not plann
 | | Comments on the document | Planned (P2) |
 | | Signing screen in the signer's language | Partial: notices are multilingual; the signing UI is planned (P1) |
 | Identity | Email link, Plajah account | Built |
-| | Access code, SMS code | Planned (P1, SMS after platform SMS consent) |
+| | Access code | Built (server: stored hashed, required before any action) |
+| | SMS code | Planned (P2, after platform SMS consent and carrier registration) |
 | | Government ID verification | Planned (P2, same vendor as Forum Tier 2) |
 | | Knowledge-based questions | Not planned (weak and being phased out industry-wide) |
 | Delivery | Email | Planned (P1, Resend + HMAC links already in the repo) |
@@ -104,7 +113,7 @@ aren't wired into Tela Sign · **Planned** = on the roadmap below · **Not plann
 | Evidence | ESIGN consent | Built |
 | | Audit trail and certificate | Built: hash-chained and re-verifiable on screen (stronger than a plain log) |
 | | Sealed PDF with the certificate attached | Planned (P1, pdf-lib) |
-| | Public "verify this document" page | **Tela-only**, planned (P1); `verifyAudit` is built |
+| | Public "verify this document" page | **Tela-only**; the public API is built, the page is P1 |
 | | Civic Record anchoring | **Tela-only**, planned |
 | | UETA/ESIGN exclusion checks | **Tela-only**, built |
 | | 21 CFR Part 11, eIDAS qualified signatures | Not planned (US government and SMB focus first) |
@@ -144,3 +153,32 @@ aren't wired into Tela Sign · **Planned** = on the roadmap below · **Not plann
 Sources for DocuSign details (third-party where noted): DocuSign features page and SMS delivery announcement;
 pricing and envelope-limit summaries from Signeasy and Automation Atlas; billing complaints from the BBB and DocuSign
 community forums; phishing alerts from the DocuSign Trust Center. Verify DocuSign's current terms before citing them publicly.
+
+## 7. Identity checks: what we build and what we buy (13 Nov 2026)
+
+A ladder: higher-risk documents require a higher level, and the audit trail records which level was used.
+
+| Level | Method | Build or buy | Cost to the customer |
+|---|---|---|---|
+| 0 | Email link (HMAC-signed) | Built | Free |
+| 1 | Plajah account; passkeys next | Built (account check); passkeys to build | Free |
+| 2 | Access code (built) or SMS code | Build | SMS at carrier cost |
+| 3a | **State mobile ID (mDL) from the phone's wallet** | **Build** | Free |
+| 3b | Photo of an ID card plus a selfie | **Buy** behind an adapter (start with Stripe Identity, ~$1.50 a check by third-party reports) | At cost |
+| 3c | ID checked by staff at a counter (in-person signing) | Build | Free |
+| — | Knowledge-based questions | Not offered | — |
+
+**Why build 3a.** Chrome (141+, OpenID4VP and ISO 18013-7 Annex C) and Safari (26+, Annex C only) let a website ask the
+phone's wallet for a state-issued ID through the W3C Digital Credentials API. The credential is signed by the issuing
+state, so we verify a signature rather than judge a photo, and the person can share only what's needed (name, date of
+birth, or just "over 18"). We build the request, the verifier and a trust list of state issuer keys (AAMVA's Digital
+Trust Service). Caveat: Michigan doesn't issue a mobile ID yet; SB 617–621 were in Senate committee in February 2026.
+
+**Why buy 3b.** Document-and-selfie checks are an arms race against deepfakes and injected camera feeds, need large fraud
+datasets, bring biometric-privacy liability (Illinois BIPA above all), and government buyers ask for audited
+conformance (NIST SP 800-63 IAL2). Vendors already carry that. We keep only the result, level and method, never the images.
+
+**What we own either way:** verify once and reuse across Tela Sign, Forum Tier 2 and Grants; the rules that map document
+risk to a level (e.g. permits level 1, leases and grant agreements level 2, money or property level 3); and the record.
+
+**Order of work:** server authority (done) → passkeys → mDL verifier → vendor adapter for 3b → SMS once carrier registration is done.

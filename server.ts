@@ -71,6 +71,7 @@ import { createMusicDownloadRouter } from './routes/musicDownload';
 import { createFastVoteRouter } from './routes/fastVote';
 import { createMuseumRouter } from './routes/museum';
 import { createTerraLawRouter } from './routes/terraLaw';
+import { createTelaSignRouter, firestoreSignStore } from './routes/telaSign';
 import { createDataCommonsRouter } from './routes/dataCommons';
 import { createGrantsRouter } from './routes/grants';
 import { createAdminKeysRouter } from './routes/adminKeys';
@@ -13713,6 +13714,16 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use(createMuseumRouter({ limiter: apiLimiter }));
   // Terra Law Library: public, read-only law text (unofficial copy) — data/terraLaw/*
   app.use(createTerraLawRouter({ limiter: apiLimiter }));
+  // Tela Sign: the server is the only writer of envelopes and audit trails — routes/telaSign.ts
+  app.use(createTelaSignRouter({
+    authMiddleware, limiter: apiLimiter, store: firestoreSignStore(),
+    optionalUid: async (req: any) => {
+      const h = String(req.headers.authorization || '');
+      return h.startsWith('Bearer ') ? ((await verifyFirebaseToken(h.slice(7)))?.uid ?? null) : null;
+    },
+    secret: () => process.env.TELA_SIGN_SECRET || '',
+    origin: () => process.env.VITE_APP_URL || 'https://plajah.com',
+  }));
   app.use(createDataCommonsRouter({ limiter: apiLimiter }));
   app.use(createGrantsRouter({ limiter: apiLimiter }));
   // Admin countdown for API keys that expire on a schedule (SAM.gov: 90 days). Dates only, never the key.
