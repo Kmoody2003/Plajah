@@ -154,6 +154,20 @@ that (about $1,350 a month). The extra 0.5× covers on-call and upgrade work, an
    the room `cr.<roomId>.main`. After everyone leaves, `GET /api/meetings/sfu/usage` should show the
    minutes.
 
+**Status (2026-11-13).** Steps 1–3 are done. The project is `wss://plajah-4oni0hov.livekit.cloud`, the
+webhook points at `https://plajah-api-6zybxwxfqa-uw.a.run.app/api/meetings/sfu/webhook`, and the three
+secrets exist in Secret Manager with `secretAccessor` granted to the plajah-api runtime account. They are
+**not bound** to plajah-api yet. Bind them, with the flag, when this branch reaches master:
+
+```bash
+gcloud run services update plajah-api --region us-west1 --update-secrets=LIVEKIT_URL=LIVEKIT_URL:latest,LIVEKIT_API_KEY=LIVEKIT_API_KEY:latest,LIVEKIT_API_SECRET=LIVEKIT_API_SECRET:latest --update-env-vars=MEETINGS_SFU=1
+```
+
+The multi-tab lab passed against Cloud on 2026-11-13: 4 people on the SFU, paged grid (off-page = audio
+only), data messages, leave updates, member/guest/stranger checks, and 1:1 staying on the mesh. To rerun
+it, put the keys in a git-ignored `.env.livekit.local` at the repo root; the lab uses it in place of the
+local server. Cloud webhooks can't reach 127.0.0.1, so the lab's ledger stays empty in that mode.
+
 **Turning the flag on or off mid-call.** Calls that are already running keep their engine. People who join after the change
 get the new engine, so a call can briefly split in two. Flip the flag when traffic is low.
 
