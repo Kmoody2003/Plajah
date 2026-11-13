@@ -17,6 +17,8 @@ mod lfo;
 mod lyra;
 #[cfg(test)]
 mod lyra_demos;
+#[cfg(test)]
+mod orch_demos;
 mod modal;
 mod modmatrix;
 mod osc;
@@ -28,6 +30,7 @@ mod bodyconv;
 mod arco;
 mod orch;
 mod cornu;
+mod aulos;
 mod string;
 mod sample;
 mod spatial;

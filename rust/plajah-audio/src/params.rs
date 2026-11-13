@@ -532,6 +532,26 @@ pub const CN_INTONATION: u32 = 18;
 pub const CN_TIGHTNESS: u32 = 19;
 pub const CN_WIDTH: u32 = 20;
 pub const AULOS_BASE: u32 = 2300;
+// ── AULOS (instrument 11): woodwinds — reeds and jets on air columns (aulos.rs) ───
+pub const AU_ENABLE: u32 = 0;
+pub const AU_INSTRUMENT: u32 = 1;
+pub const AU_ENSEMBLE: u32 = 2;
+pub const AU_SECTION: u32 = 3;
+pub const AU_ARTIC: u32 = 4;
+pub const AU_DYNAMICS: u32 = 5;
+pub const AU_MOD_DYN: u32 = 6;     // >0.5: the mod wheel is breath
+pub const AU_VEL_SENS: u32 = 7;
+pub const AU_PORTAMENTO: u32 = 8;
+pub const AU_LEGATO: u32 = 9;
+pub const AU_VIB_DEPTH: u32 = 10;  // 0.5 = the instrument's usual vibrato
+pub const AU_TONGUE: u32 = 11;
+pub const AU_REED: u32 = 12;       // reed hardness (0.5 = medium)
+pub const AU_EMBOUCHURE: u32 = 13; // lip on the reed: tight/thin … loose/open
+pub const AU_LATTICE: u32 = 14;    // tone-hole lattice cutoff (0.5 = as built)
+pub const AU_QUALITY: u32 = 15;
+pub const AU_INTONATION: u32 = 16;
+pub const AU_TIGHTNESS: u32 = 17;
+pub const AU_WIDTH: u32 = 18;
 pub const KITHARA_BASE: u32 = 2400;
 pub const VOLTA_BASE: u32 = 2500;
 
@@ -896,6 +916,19 @@ impl Params {
         self.set(CORNU_BASE + CN_QUALITY, 0.67);
         self.set(CORNU_BASE + CN_INTONATION, 0.3);
         self.set(CORNU_BASE + CN_TIGHTNESS, 0.3);
+        // AULOS: off unless enabled.
+        for id in AU_DYNAMICS..=AU_WIDTH {
+            self.set(AULOS_BASE + id, 0.5);
+        }
+        for id in [AU_ENABLE, AU_INSTRUMENT, AU_ENSEMBLE, AU_SECTION, AU_ARTIC, AU_MOD_DYN] {
+            self.set(AULOS_BASE + id, 0.0);
+        }
+        self.set(AULOS_BASE + AU_VEL_SENS, 0.8);
+        self.set(AULOS_BASE + AU_PORTAMENTO, 0.08);
+        self.set(AULOS_BASE + AU_LEGATO, 1.0);
+        self.set(AULOS_BASE + AU_QUALITY, 0.67);
+        self.set(AULOS_BASE + AU_INTONATION, 0.3);
+        self.set(AULOS_BASE + AU_TIGHTNESS, 0.3);
     }
 }
 
