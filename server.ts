@@ -124,6 +124,7 @@ import { activeRecipients, allocateSplits, checkSplitConfig, createCreatorPayout
 import { createCreativeStorageRouter } from './routes/creativeStorage';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { makerBuildRouter } from './routes/makerBuild';
+import { telaPdfRouter } from './routes/telaPdf';
 import { createGamerRouter } from './routes/gamerNet';
 import { liveGamerStore } from './services/gamerNet/liveStore';
 import { verifyIdToken as verifyGamerToken, verifyIdTokenDetailed, fsGetUser as gamerUserDoc } from './services/firebaseAdminRest';
@@ -3886,7 +3887,9 @@ async function startServer() {
     // Veo/Pixels proxy: /content carries base64 inlineData audio, /generate can carry an image.
     '/api/ai/veo/content', '/api/ai/veo/generate',
     // Elevate: a chunk of contribution-statement PDFs (base64) to email.
-    '/api/elevate/statements/email']);
+    '/api/elevate/statements/email',
+    // Tela PDF reader: Ask-this-PDF sends page text; Smart Fill sends a form's questions.
+    '/api/tela/pdf/ask', '/api/tela/pdf/map', '/api/tela/pdf/profile']);
   // Signed webhooks registered further down verify an HMAC over the exact bytes, so their
   // own express.raw must see the untouched body — parsing it here broke every signature.
   const RAW_BODY_ROUTES = new Set(['/api/merch/stripe-webhook', '/api/mux/webhook', '/api/campaigns/webhook/resend']);
@@ -15474,6 +15477,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 
   // Plajah Build: recalls, maker terms, part prices, maker exchange (routes/makerBuild.ts).
   app.use('/api/build', express.json({ limit: '64kb' }), makerBuildRouter);
+  // Tela PDF reader: Smart Fill profile sync, Aria field mapping, Ask this PDF (routes/telaPdf.ts).
+  app.use('/api/tela/pdf', express.json({ limit: '3mb' }), telaPdfRouter);
   // Games in the Social timeline: who's on the timeline now, feed matchmaking, challenges, live links (routes/gamerSocial.ts).
   app.use('/api/gamer/social', rateLimit({ windowMs: 60 * 1000, max: 180, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '8kb' }), createGamerSocialRouter({
     store: liveGamerStore(restCas),

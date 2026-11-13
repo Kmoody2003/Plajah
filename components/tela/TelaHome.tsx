@@ -256,6 +256,7 @@ export default function TelaHome({
   onOpenCad,
   onOpenElec,
   onOpenSew,
+  onOpenPdf,
   onOpenBio,
   onBack,
   viewerUid = null,
@@ -283,6 +284,8 @@ export default function TelaHome({
   onOpenElec?: () => void;
   onOpenSew?: () => void;
   onOpenBio?: () => void;
+  /** PDF reader: read, search, mark up, sign and Smart Fill forms. */
+  onOpenPdf?: () => void;
   onBack?: () => void;
 }) {
   const [promptText, setPromptText] = useState('');
@@ -743,6 +746,17 @@ export default function TelaHome({
         </div>
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          {onOpenPdf && (
+            <button
+              onClick={onOpenPdf}
+              className="h-9 px-3.5 flex items-center gap-2 rounded-[10px] text-[.72rem] font-bold text-white/85 bg-white/[.05] border border-emerald-300/30 hover:bg-emerald-300/10 hover:text-white transition-all font-sans"
+              title="Read, search, highlight, sign and fill PDF forms. Smart Fill answers form questions from your profile"
+              data-testid="tela-home-pdf"
+            >
+              <span className="hidden sm:inline">PDF Reader</span>
+              <span className="sm:hidden">PDF</span>
+            </button>
+          )}
           {onOpenBio && (
             <button
               onClick={onOpenBio}

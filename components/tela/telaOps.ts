@@ -8,7 +8,7 @@
 
 import type {
   TelaBinding, TelaBlock, TelaDevice, TelaDoc, TelaField, TelaFrame,
-  TelaFramePreset, TelaImageLayer, TelaImageLayerGroup, TelaNotesDevice, TelaRow, TelaVectorObject,
+  TelaFramePreset, TelaImageLayer, TelaImageLayerGroup, TelaMediaDevice, TelaNotesDevice, TelaRow, TelaVectorObject,
 } from '../../types';
 import type { LivingBook, LivingPage } from '../../services/living/contracts';
 import { setLivingPage } from '../../services/living/authoring/livingDoc';
@@ -50,6 +50,8 @@ export type TelaOp =
    *  Typing bursts in one story share `coalesce` so undo takes back a burst, not a keystroke. */
   | { type: 'WRITER_EDIT'; deviceId: string; ops: import('../../services/text/document/ops').WriterOp[]; label?: string; coalesce?: string | null }
   | { type: 'UPDATE_NOTES_DEVICE'; deviceId: string; patch: Partial<TelaNotesDevice> }
+  /** A media file replaced in place (e.g. a PDF saved from the PDF reader with answers and marks). */
+  | { type: 'UPDATE_MEDIA_DEVICE'; deviceId: string; patch: Partial<Pick<TelaMediaDevice, 'src' | 'name' | 'size' | 'storagePath' | 'sessionOnly' | 'mimeType'>> }
   | { type: 'SET_GRID_CELL'; deviceId: string; key: string; value: string }
   // Grid workbook (sheet engine): the whole immutable workbook after one user
   // action (edit, paste, sort…). Workbooks share untouched rows, so this is a
@@ -180,6 +182,11 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
       const d = doc.devices[op.deviceId];
       if (!d || d.type !== 'WRITER' || !op.ops.length) return doc;
       return { ...doc, devices: { ...doc.devices, [op.deviceId]: applyWriterEdit(d, op.ops) }, updatedAt: now };
+    }
+    case 'UPDATE_MEDIA_DEVICE': {
+      const d = doc.devices[op.deviceId];
+      if (!d || d.type !== 'MEDIA') return doc;
+      return { ...doc, devices: { ...doc.devices, [op.deviceId]: { ...d, ...op.patch, id: d.id, type: 'MEDIA' } }, updatedAt: now };
     }
     case 'UPDATE_NOTES_DEVICE': {
       const d = doc.devices[op.deviceId];

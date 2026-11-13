@@ -1,0 +1,23 @@
+/* Tela PDF reader: the pdf.js text layer (selectable, searchable text over the canvas). Scoped to .tela-pdf. */
+.tela-pdf .pdf-page { --user-unit: 1; --total-scale-factor: calc(var(--scale-factor) * var(--user-unit)); --scale-round-x: 1px; --scale-round-y: 1px; position: relative; }
+.tela-pdf .textLayer { position: absolute; text-align: initial; inset: 0; overflow: clip; opacity: 1; line-height: 1; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; caret-color: CanvasText; z-index: 2; }
+.tela-pdf .textLayer :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }
+.tela-pdf .textLayer span.markedContent { top: 0; height: 0; }
+.tela-pdf .textLayer ::selection { background: rgba(0, 218, 243, 0.32); }
+.tela-pdf .textLayer br::selection { background: transparent; }
+.tela-pdf .textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: 0; cursor: default; user-select: none; }
+.tela-pdf .textLayer.selecting .endOfContent { top: 0; }
+.tela-pdf [data-main-rotation="90"] { transform: rotate(90deg) translateY(-100%); }
+.tela-pdf [data-main-rotation="180"] { transform: rotate(180deg) translate(-100%, -100%); }
+.tela-pdf [data-main-rotation="270"] { transform: rotate(270deg) translateX(-100%); }
+.tela-pdf .pdf-dark canvas { filter: invert(0.88) hue-rotate(180deg) contrast(0.95); }
+.tela-pdf .pdf-tool-ink .textLayer, .tela-pdf .pdf-tool-note .textLayer, .tela-pdf .pdf-tool-text .textLayer, .tela-pdf .pdf-tool-sign .textLayer { pointer-events: none; }
+.tela-pdf .pdf-field { position: absolute; z-index: 4; box-sizing: border-box; background: rgba(0, 150, 255, 0.10); border: 1px solid rgba(0, 120, 255, 0.35); color: #0b1530; font-family: Helvetica, Arial, sans-serif; padding: 0 3px; border-radius: 2px; outline: none; }
+.tela-pdf .pdf-field:focus { background: rgba(255, 255, 255, 0.95); border-color: #00a6c8; box-shadow: 0 0 0 2px rgba(0, 218, 243, 0.45); }
+.tela-pdf .pdf-field.smart { background: rgba(52, 211, 153, 0.18); border-color: rgba(16, 185, 129, 0.75); }
+.tela-pdf .pdf-field.suggest { background: rgba(251, 191, 36, 0.20); border-color: rgba(217, 119, 6, 0.8); }
+.tela-pdf .pdf-field.human { background: rgba(212, 0, 85, 0.08); border: 1px dashed rgba(212, 0, 85, 0.7); }
+.tela-pdf .pdf-field.virtual { border-style: dashed; }
+.tela-pdf .pdf-hit { position: absolute; z-index: 3; background: rgba(255, 196, 0, 0.38); border-radius: 2px; pointer-events: none; mix-blend-mode: multiply; }
+.tela-pdf .pdf-hit.current { background: rgba(255, 120, 0, 0.55); outline: 2px solid rgba(255, 120, 0, 0.9); }
+@media print { .tela-pdf { display: none; } }

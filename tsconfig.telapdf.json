@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true, "types": ["vite/client", "node"] },
+  "include": ["services/tela/pdf/*.ts", "components/tela/pdf/*.tsx", "routes/telaPdf.ts", "tests/telaPdf.test.ts", "labs/tela-pdf/main.tsx"]
+}

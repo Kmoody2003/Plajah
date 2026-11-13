@@ -34,6 +34,7 @@ import {
 import { CreativeStorageMeter, CreativeVersionHistory, useCreativeSyncState } from '../creative/CreativeCloudPanels';
 import { useCoedit, type UseCoedit } from '../../hooks/useCoedit';
 import { CollabDock } from '../collab/CollabDock';
+import type { AriaNotesSink } from '../../hooks/useAriaMeeting';
 import { TelaSecurityPanel } from './TelaSecurityPanel';
 import { cleanAndReport, TELA_THREAT_EVENT, type TelaThreat, type TelaThreatDetail } from '../../services/tela/telaSecurity';
 import { accessExpired, getMyRevocation, reportMyAccessExpired, setProjectLocked } from '../../services/coedit/project';
@@ -141,6 +142,7 @@ const ComicDrawCanvas = React.lazy(() => import('../ComicDrawCanvas'));
 const DesignImportDialog = React.lazy(() => import('./import/DesignImportDialog'));   // Photoshop / Illustrator import progress + report
 const TelaPluginPanel = React.lazy(() => import('./import/TelaPluginPanel'));   // Photoshop .8bf filters (desktop app)
 const TelaLibraryPanel = React.lazy(() => import('./import/TelaLibraryPanel'));   // Imported brushes, shapes, swatches, patterns
+const TelaPdfReader = React.lazy(() => import('./pdf/TelaPdfReader'));   // PDF reader: search, markup, sign, Smart Fill forms
 const ComposeWithCouncil = React.lazy(() => import('../living/ComposeWithCouncil'));   // Composer Council panel (services/living/composer)
 const TelaBehaviorsPanel = React.lazy(() => import('./TelaBehaviorsPanel'));   // Live authoring: behaviours, sounds, music (services/living)
 import { OPEN_STORY_INTEL_EVENT, takePendingStoryIntel, type StoryIntelRequest } from '../../services/storyIntel/open';
@@ -539,6 +541,13 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     const reopen = (event: Event) => setElecOpen({ elec: (event as CustomEvent<{ elec?: TelaElecRef }>).detail?.elec });
     window.addEventListener('tela:open-elec', reopen);
     return () => window.removeEventListener('tela:open-elec', reopen);
+  }, []);
+  // PDF reader: from Tela home (empty, or a picked file) or a PDF already on the canvas (saves back into that device).
+  const [pdfReader, setPdfReader] = useState<{ source: import('./pdf/TelaPdfReader').PdfSource | null; deviceId?: string } | null>(null);
+  useEffect(() => {
+    const open = (event: Event) => { const d = (event as CustomEvent<{ deviceId: string; src: string; name: string }>).detail; if (d?.src) setPdfReader({ source: { name: d.name, url: d.src }, deviceId: d.deviceId }); };
+    window.addEventListener('tela:open-pdf', open);
+    return () => window.removeEventListener('tela:open-pdf', open);
   }, []);
   useEffect(() => {
     const reopen = (event: Event) => setCadOpen({ cad: (event as CustomEvent<{ cad?: TelaCadRef }>).detail?.cad });
@@ -1552,6 +1561,28 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     const blocks = [makeBlock('p', '')];
     addFrame('PAPER', 'LETTER', { id: uid('dev'), type: 'WRITER', blocks, story: storyFromBlocks(blocks) }, `Page ${n}`, { pos });
   };
+  // Aria in the call (components/collab): her live meeting notes are a normal Writer page in this
+  // doc, written through the same ops as any edit, so co-editing, undo and history all apply.
+  const ariaSink: AriaNotesSink | null = doc && !doc.locked ? {
+    title: doc.title || 'Untitled canvas',
+    createPage: (blocks, label) => {
+      const frames = docRef.current?.frames || [];
+      const right = frames.reduce((m, f) => Math.max(m, f.x + f.w), 0);
+      const top = frames.length ? Math.min(...frames.map(f => f.y)) : 0;
+      const device: TelaWriterDevice = { id: uid('dev'), type: 'WRITER', blocks, story: storyFromBlocks(blocks) };
+      addFrame('PAPER', 'LETTER', device, label, { pos: { x: frames.length ? right + 80 : 0, y: top } });
+      return device.id;
+    },
+    readPage: (deviceId) => {
+      const d = docRef.current?.devices[deviceId];
+      return d?.type === 'WRITER' ? d.blocks : null;
+    },
+    writePage: (deviceId, blocks) => dispatchOp({ type: 'SET_WRITER_BLOCKS', deviceId, blocks }),
+    focusPage: (deviceId) => {
+      const f = docRef.current?.frames.find(fr => fr.deviceIds.includes(deviceId));
+      if (f) { setActiveFrameId(f.id); requestAnimationFrame(() => fitFrame(f)); }
+    },
+  } : null;
   const insertScriptFrame = (script: { title: string; blocks: TelaBlock[] }) => {
     const paperFrames = (docRef.current?.frames || []).filter(f => f.kind === 'PAPER');
     const lastPaper = paperFrames[paperFrames.length - 1];
@@ -2601,6 +2632,8 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     if (isDesignFile(file.name)) { await importDesignFiles([file]); return; }
     if (isCadFileName(file.name) && !/\.(glb|gltf)$/i.test(file.name)) { setCadOpen({ file: { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) } }); return; }
     if (isPresetFile(file.name)) { await importPresetsToLibrary([file]); return; }
+    // From Tela home a PDF opens in the reader (read, fill, sign). Inside a canvas, Import still converts it to editable pages.
+    if (showHome && (/\.pdf$/i.test(file.name) || file.type === 'application/pdf')) { setPdfReader({ source: { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) } }); return; }
     setImportError(null);
     setImportBusy(true);
     try {
@@ -3115,6 +3148,28 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     );
   }
 
+  if (pdfReader) {
+    const target = pdfReader.deviceId ? doc.devices[pdfReader.deviceId] : undefined;
+    const savePdf = async (bytes: Uint8Array, name: string) => {
+      const file = new File([bytes], name, { type: 'application/pdf' });
+      const up = await uploadTelaAsset(file);
+      if (target && target.type === 'MEDIA') {
+        dispatchOp({ type: 'UPDATE_MEDIA_DEVICE', deviceId: target.id, patch: { src: up.src, storagePath: up.storagePath, sessionOnly: up.sessionOnly, size: file.size, name, mimeType: 'application/pdf' } });
+        return;
+      }
+      // From home: a new Tela document holding the PDF on a Letter page, so it syncs like any other doc.
+      const now = Date.now();
+      const device: TelaMediaDevice = { id: uid('dev'), type: 'MEDIA', kind: 'PDF', name, src: up.src, mimeType: 'application/pdf', size: file.size, width: 816, height: 1056, storagePath: up.storagePath, sessionOnly: up.sessionOnly };
+      const frame: TelaFrame = { id: uid('frame'), kind: 'PAPER', preset: 'LETTER', x: 0, y: 0, w: 816, h: 1056, deviceIds: [device.id], label: name.replace(/\.pdf$/i, '') };
+      const created: TelaDoc = { id: newTelaId(), ownerId: auth.currentUser?.uid || 'local', title: name.replace(/\.pdf$/i, ''), frames: [frame], devices: { [device.id]: device }, bindings: [], createdAt: now, updatedAt: now };
+      openDoc(created); setShowHome(false);
+      setPdfReader(r => r ? { ...r, deviceId: device.id } : r);
+    };
+    return <React.Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-[#0d0c12] text-white/60">Opening the PDF reader…</div>}>
+      <TelaPdfReader source={pdfReader.source} onClose={() => setPdfReader(null)} onSaveToTela={savePdf} saveLabel={target ? 'Save' : 'Save to Tela'} />
+    </React.Suspense>;
+  }
+
   const workspaceOpen = bioOpen ? 'biology' : elecOpen ? 'electronics' : cadOpen ? 'architecture' : sewOpen ? 'sewing' : null;
   if (workspaceOpen) {
     const toGrid = (rows: string[][]): TelaGridDevice => {
@@ -3223,7 +3278,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
       {designImport && <React.Suspense fallback={null}><DesignImportDialog state={designImport} onClose={() => setDesignImport(null)} onOpenSmart={(id, name) => void openImportedSmartObject(id, name)}/></React.Suspense>}
       {libraryPanel && <React.Suspense fallback={null}><TelaLibraryPanel initialTab={libraryPanel.tab} note={libraryPanel.note} onClose={() => setLibraryPanel(null)} onPlaceShape={placeLibraryShape} onUseColor={useLibraryColor} onUsePattern={p => void useLibraryPattern(p)} onUseBrush={useLibraryBrush}/></React.Suspense>}
       {accessEndedNote && <div role="alert" className="fixed top-4 left-1/2 -translate-x-1/2 z-[9000] max-w-[min(560px,calc(100vw-32px))] flex items-start gap-3 rounded-xl border border-amber-300/30 bg-[#1b1710] px-4 py-3 text-xs text-amber-100"><span className="flex-1">{accessEndedNote}</span><button className="font-bold text-white/70 hover:text-white" onClick={() => setAccessEndedNote('')}>Dismiss</button></div>}
-      <TelaHome recent={canvasList || []} viewerUid={auth.currentUser?.uid || null} memberOrgIds={memberOrgIds} orgNames={orgNames} onOpen={id => void openCanvas(id)} onCreate={kind => void createHomeDocument(kind)} onChooseStyle={entry => void createStyleDocument(entry)} onChoosePublication={template => void createPublicationDocument(template)} onChooseTemplate={template => void createTemplateDocument(template)} onImport={() => fileRef.current?.click()} onOpenMerch={() => setMerchStudioOpen(true)} onOpenStoryIntel={() => setStoryIntel({})} onOpenArgilla={() => setArgillaOpen({})} onOpenCad={() => setCadOpen({})} onOpenBio={() => setBioOpen({})} onOpenElec={() => setElecOpen({})} onOpenSew={() => setSewOpen(true)} onBack={onBack}/>
+      <TelaHome recent={canvasList || []} viewerUid={auth.currentUser?.uid || null} memberOrgIds={memberOrgIds} orgNames={orgNames} onOpen={id => void openCanvas(id)} onCreate={kind => void createHomeDocument(kind)} onChooseStyle={entry => void createStyleDocument(entry)} onChoosePublication={template => void createPublicationDocument(template)} onChooseTemplate={template => void createTemplateDocument(template)} onImport={() => fileRef.current?.click()} onOpenMerch={() => setMerchStudioOpen(true)} onOpenStoryIntel={() => setStoryIntel({})} onOpenArgilla={() => setArgillaOpen({})} onOpenCad={() => setCadOpen({})} onOpenBio={() => setBioOpen({})} onOpenElec={() => setElecOpen({})} onOpenSew={() => setSewOpen(true)} onOpenPdf={() => setPdfReader({ source: null })} onBack={onBack}/>
     </>;
   }
 
@@ -3503,6 +3558,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           pill="inline"
           open={collabOpen}
           onOpenChange={setCollabOpen}
+          ariaSink={ariaSink}
         />
         {/* Save state — click for version history */}
         <div className="relative">
