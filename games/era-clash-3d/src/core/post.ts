@@ -97,7 +97,19 @@ export function buildPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, ca
   }
   let aoNode: ReturnType<typeof ao> | null = null;
   if (q.ao) {
-    aoNode = ao(depthTex, null as never, camera);   // no normal target: GTAO rebuilds normals from depth
+    // GTAO rebuilds normals from depth with textureDimensions(depth, level), which WGSL has no form of for a
+    // multisampled depth texture: with MSAA on, the shader failed to compile and AO never ran. Resolve the depth
+    // first (sample 0, full float precision, nearest) into a plain texture at the scene pass's size.
+    let aoDepth: unknown = depthTex;
+    if (q.msaa) {
+      const t = rtt(depthTex as never, null, null, { type: THREE.FloatType });
+      // (32-bit float is not filterable everywhere in WebGPU: read it nearest)
+      if (t.renderTarget) t.renderTarget.texture.minFilter = t.renderTarget.texture.magFilter = THREE.NearestFilter;
+      const update = t.updateBefore.bind(t);
+      t.updateBefore = (frame) => { if (t.width !== sceneRT.width || t.height !== sceneRT.height) t.setSize(sceneRT.width, sceneRT.height); return update(frame); };
+      aoDepth = t;
+    }
+    aoNode = ao(aoDepth as never, null as never, camera);   // no normal target: GTAO rebuilds normals from depth
     aoNode.resolutionScale = 0.5;
     aoNode.samples.value = 8;
     aoNode.radius.value = 0.9;

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Character Forge · Kit</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #16110d; overflow: hidden; color: #e8d8b0; font: 13px/1.4 Georgia, serif; }
+    #view { position: fixed; inset: 0; }
+    #hud { position: fixed; left: 12px; top: 10px; z-index: 2; background: #0009; padding: 8px 12px; border: 1px solid #6b4d2a; max-width: 40ch; }
+    #list { white-space: pre; font-family: ui-monospace, monospace; font-size: 11px; color: #c9a46a; }
+  </style>
+</head>
+<body>
+  <div id="view"></div>
+  <div id="hud"><b>Haru's kit</b> · each piece its own asset (props/haru/kit.json)<div id="list">loading…</div></div>
+  <script type="module" src="./src/kitView.ts"></script>
+</body>
+</html>

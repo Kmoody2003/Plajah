@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Character Forge · Rig test</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #16110d; overflow: hidden; color: #e8d8b0; font: 13px/1.4 Georgia, serif; }
+    #view { position: fixed; inset: 0; }
+    #hud { position: fixed; left: 12px; top: 10px; z-index: 2; background: #0009; padding: 8px 12px; border: 1px solid #6b4d2a; }
+    #hud button { font: inherit; background: #2a1c10; color: #f4e6c8; border: 1px solid #c9973f; margin: 2px; padding: 3px 8px; cursor: pointer; }
+    #hud button.on { background: #8a2a14; }
+    #stats { margin-top: 6px; color: #c9a46a; white-space: pre; font-family: ui-monospace, monospace; font-size: 11px; }
+    .tag { position: fixed; bottom: 14px; z-index: 2; font: 600 13px Georgia, serif; letter-spacing: .12em; color: #f4e6c8; text-shadow: 0 1px 3px #000; }
+  </style>
+</head>
+<body>
+  <div id="view"></div>
+  <div id="hud">
+    <div id="clips"></div>
+    <div id="stats">loading…</div>
+  </div>
+  <div class="tag" style="left: 22%">CURRENT HARU</div>
+  <div class="tag" style="left: 68%">HARU v3 · FORGE</div>
+  <script type="module" src="./src/forgeView.ts"></script>
+</body>
+</html>

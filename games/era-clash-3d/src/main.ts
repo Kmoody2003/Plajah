@@ -39,7 +39,8 @@ const chapter = FALLING_PETAL.chapters[CH];
 const scholar = params.get('mode') === 'scholar';
 
 // ── Quality tier by GPU (Ravencrest canon: the Intel Arc iGPU at 60 fps is the baseline) ─────────────
-prefetchHero('haru');
+// (Haru v3 is the hero: fetch the model that will be shown, not the old one; ?haru=v2 is the exception)
+prefetchHero('haru', params.get('haru') !== 'v2' ? '/games/era-clash/3d/assets/characters/samurai_v3.glb' : undefined);
 const adapterInfo = await navigator.gpu?.requestAdapter({ powerPreference: 'high-performance' })
   .then((a) => (a as unknown as { info?: { vendor?: string; architecture?: string } } | null)?.info).catch(() => undefined);
 const integrated = !adapterInfo || /intel|qualcomm|apple|arm/i.test(adapterInfo.vendor ?? '') || /xe-|gen-|integrated/i.test(adapterInfo.architecture ?? '');
@@ -178,10 +179,15 @@ async function useCapture(name: string): Promise<string[]> {
 }
 /** Haru's strikes, cut from CMU motion capture by his Atlas art (moves.ts); the authored poses are the fallback. */
 const mocapMoves = new Map<string, CutMove>();
-const heroReady = loadJack('haru').then(async (c) => {
+// Haru v3 from the Character Forge (real armour and cloth, springs, correctives; docs/character-forge.md) is the hero.
+// ?haru=v2 brings back the previous model, which is also the fallback if v3 can't load.
+const HARU_V3 = params.get('haru') !== 'v2';
+const heroReady = (HARU_V3
+  ? loadJack('haru', { url: '/games/era-clash/3d/assets/characters/samurai_v3.glb' }).catch((e) => { console.warn('[eraclash3d] Haru v3', e); return loadJack('haru'); })
+  : loadJack('haru')).then(async (c) => {
   haru = c; player.character = c; player.object.add(c.root);
   // painted cloth and lacquer, not chrome: drop the baked gloss, as for the sheet cast (mobs.ts matte)
-  c.root.traverse((o) => {
+  if (!c.forge) c.root.traverse((o) => {
     const m = o as THREE.Mesh; if (!m.isMesh) return;
     for (const mat of (Array.isArray(m.material) ? m.material : [m.material]) as THREE.MeshStandardMaterial[]) {
       if (!mat.isMeshStandardMaterial) continue;

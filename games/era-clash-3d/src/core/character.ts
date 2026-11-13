@@ -6,6 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ktx2Ready } from './ktx2';
 import { bakeMove, MOVES } from './fightClips';
 import { addPonytail, type Ponytail } from './hair';
+import { forgeRig, findForgeExtras, type ForgeRig } from '../../../../playkit/character/forgeRig';
 
 // Jack: the Tripo/Meshy image-to-3D build (default — the user's pick; its texture's stray
 // back-of-head face is painted out by scripts/ravencrest/fixJackHead.py). Meta Muse's contract
@@ -62,6 +63,8 @@ export interface Character {
   hair?: Ponytail;
   /** Katana markers (trail sampling) and its steel (power glow). */
   blade: { base: THREE.Object3D; tip: THREE.Object3D; steel: THREE.MeshStandardNodeMaterial } | null;
+  /** Character Forge rig (springs, correctives, twist, grips), when the model was built in the Forge. */
+  forge?: ForgeRig;
 }
 
 /** Bone-name match, ignoring Mixamo prefixes and GLTFLoader's de-duplication suffix (_1, _2…). */
@@ -326,18 +329,23 @@ const HEROES: Record<Hero, { url: string; height: number; name: string; mocap?: 
 };
 
 /** Start downloading a hero's model (and the shared locomotion rig) early; loadJack reuses the fetch. */
-export function prefetchHero(hero: Hero) { loadGLB(HEROES[hero].url).catch(() => {}); loadGLB(ANIM_SOURCE_URL).catch(() => {}); }
+/** Start the hero's model (or the one `url` swaps in) and the animation source downloading before they are needed. */
+export function prefetchHero(hero: Hero, url?: string) { loadGLB(url ?? HEROES[hero].url).catch(() => {}); loadGLB(ANIM_SOURCE_URL).catch(() => {}); }
 
-export async function loadJack(hero: Hero = 'jack'): Promise<Character> {
-  const H = HEROES[hero];
+/** `url` swaps the hero's model (e.g. Haru v3 from the Character Forge); everything else is the hero's own. */
+export async function loadJack(hero: Hero = 'jack', opts: { url?: string } = {}): Promise<Character> {
+  const H = { ...HEROES[hero], ...(opts.url ? { url: opts.url } : {}) };
   const [jack, soldier] = await Promise.all([loadGLB(H.url), loadGLB(ANIM_SOURCE_URL)]);
   const model = jack.scene;
+  // A Forge model carries real PBR (lacquer, silk, iron) and its own sword, springs and correctives.
+  const forged = findForgeExtras(model);
   model.traverse((o) => {
     const m = o as THREE.Mesh;
     if (m.isMesh) {
       m.castShadow = true;
       m.receiveShadow = true;
       m.frustumCulled = false;
+      if (forged) return;
       const mat = m.material as THREE.MeshStandardMaterial;
       // Generated albedo has some baked light; keep it matte and slightly cooler like the sheet.
       mat.roughness = Math.max(mat.roughness ?? 0.8, 0.75);
@@ -346,7 +354,7 @@ export async function loadJack(hero: Hero = 'jack'): Promise<Character> {
   });
   // Measured in bind pose (bones as loaded); Box3 accounts for skinning and the cm armature.
   const box = new THREE.Box3().setFromObject(model);
-  const minY = box.min.y, height = box.max.y - box.min.y;
+  const minY = forged ? 0 : box.min.y, height = forged ? forged.height : box.max.y - box.min.y;
   const s = H.height / height;
   model.scale.setScalar(s);
   model.position.y = -minY * s;
@@ -373,12 +381,24 @@ export async function loadJack(hero: Hero = 'jack'): Promise<Character> {
   };
   // Combat moves: authored katana key poses baked onto Jack's own skeleton (fightClips.ts).
   // In the rest pose the blade points along the body's forward axis (+Z), see the mount below.
-  const moves = Object.fromEntries(Object.entries(MOVES).map(([k, def]) => [k, bakeMove(model, k, def, new THREE.Vector3(0, 0, 1), contract ? CONTRACT_ALIAS : {})])) as Record<CombatMove, THREE.AnimationClip>;
+  // A Forge model's katana is already in its hand socket; its blade's rest direction is read from its markers.
+  const ownBase = forged ? model.getObjectByName('katana_base') : undefined, ownTip = forged ? model.getObjectByName('katana_tip') : undefined;
+  const bladeRest = ownBase && ownTip ? worldPos(ownTip).sub(worldPos(ownBase)).normalize() : new THREE.Vector3(0, 0, 1);
+  const moves = Object.fromEntries(Object.entries(MOVES).map(([k, def]) => [k, bakeMove(model, k, def, bladeRest, contract ? CONTRACT_ALIAS : {})])) as Record<CombatMove, THREE.AnimationClip>;
 
   // Katana in the right hand: in the rest pose the blade points along the body's forward axis.
   const hand = findBone(model, 'RightHand') ?? null;
   let blade: Character['blade'] = null;
-  if (hand) {
+  if (ownBase && ownTip) {
+    // the blade is in his hand: the sheathed hilt the art draws at the obi goes (the saya stays, empty)
+    const sheathed = model.getObjectByName('katana_sheathed'); if (sheathed) sheathed.visible = false;
+    let steel: THREE.MeshStandardNodeMaterial | null = null;
+    model.getObjectByName('katana')?.traverse((o) => {
+      const m = (o as THREE.Mesh).material as THREE.MeshStandardNodeMaterial | undefined;
+      if (m && m.name === 'katana_steel') steel = m;
+    });
+    blade = { base: ownBase, tip: ownTip, steel: steel ?? new THREE.MeshStandardNodeMaterial() };
+  } else if (hand) {
     const k = katana();
     blade = k.userData;
     hand.updateWorldMatrix(true, false);
@@ -398,6 +418,7 @@ export async function loadJack(hero: Hero = 'jack'): Promise<Character> {
   const hair = hero === 'elise' && headBone ? addPonytail(model, headBone, root) : undefined;
 
   const mixer = new THREE.AnimationMixer(model);
+  const forge = forged ? forgeRig(model) ?? undefined : undefined;
   const actions = Object.fromEntries(Object.entries(clips).map(([k, c]) => [k, mixer.clipAction(c)])) as Record<keyof typeof clips, THREE.AnimationAction>;
   const oneShots = Object.fromEntries(Object.entries(moves).map(([k, c]) => {
     const a = mixer.clipAction(c);
@@ -487,10 +508,11 @@ export async function loadJack(hero: Hero = 'jack'): Promise<Character> {
     }
     const r = origUpdate(dt);
     hair?.update(dt);
+    forge?.update(dt);
     return r;
   };
   return {
-    root, mixer, play, setLocomotion, act, cancel, hand, blade, hair, hero, addMove, model,
+    root, mixer, play, setLocomotion, act, cancel, hand, blade, hair, hero, addMove, model, forge,
     get acting() { return acting ? { name: acting.name, t: acting.t, dur: acting.dur } : null; },
   };
 }

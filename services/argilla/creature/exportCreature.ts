@@ -10,6 +10,8 @@ import type { MotionStyle } from './codex';
 import { JOINTS, parentOf } from './anatomy';
 import type { CreatureModel } from './finish';
 import { ClipName, clipLength, CreatureMotion } from './motion';
+import type { GMaterial, GNode, GPrim, GScene } from './gltfWriter';
+import { writeGlb } from './gltfWriter';
 
 const FPS = 30;
 export const CLIPS: ClipName[] = ['idle', 'walk', 'run', 'signature'];
@@ -133,4 +135,91 @@ export async function creatureToGlb(model: CreatureModel, style: MotionStyle, na
   texture.dispose();
   bitmap.close();
   return new Blob([result as ArrayBuffer], { type: 'model/gltf-binary' });
+}
+
+// ---- Human characters (Character Forge) -------------------------------------------------------------------------
+// A Forge character is one skinned body plus wardrobe pieces. Deforming pieces (cloth, the body, spring-chain armour)
+// are skinned meshes on one skeleton; rigid plates are parented straight to their single bone; instanced parts (silk
+// lacing) ride a bone through EXT_mesh_gpu_instancing. Written with the dependency-free gltfWriter so the Forge's
+// build runs in Node as well as in a worker.
+
+
+type V3 = [number, number, number];
+export interface ForgeBone { name: string; parent: string | null; at: V3; extras?: Record<string, unknown> }
+export interface ForgeSkinned { name: string; prims: GPrim[]; targetNames?: string[]; extras?: Record<string, unknown> }
+export interface ForgeRigid {
+  name: string;
+  bone: string;
+  /** Rest-pose world positions; converted to bone space on export. */
+  prims: GPrim[];
+  instances?: { translations: Float32Array; rotations: Float32Array; scales?: Float32Array };
+  extras?: Record<string, unknown>;
+}
+export interface ForgeSocket {
+  name: string;
+  bone: string;
+  /** Rest world position and rotation [x, y, z, w]. */
+  at: V3;
+  rotation: [number, number, number, number];
+  /** Meshes in socket space, each its own node (so a sword can be hidden or moved to another socket). */
+  meshes: { name: string; prims: GPrim[]; at?: V3; markers?: { name: string; at: V3 }[] }[];
+}
+export interface ForgeCharacter {
+  name: string;
+  bones: ForgeBone[];
+  sockets?: ForgeSocket[];
+  skinned: ForgeSkinned[];
+  rigid: ForgeRigid[];
+  materials: GMaterial[];
+  images: Uint8Array[];
+  extras: Record<string, unknown>;
+}
+
+export function forgeToGlb(c: ForgeCharacter): Uint8Array {
+  const nodes: GNode[] = [];
+  const index = new Map<string, number>();
+  const at = new Map(c.bones.map((b) => [b.name, b.at] as const));
+  for (const b of c.bones) {
+    const p = b.parent ? at.get(b.parent)! : [0, 0, 0];
+    index.set(b.name, nodes.length);
+    nodes.push({ name: b.name, translation: [b.at[0] - p[0], b.at[1] - p[1], b.at[2] - p[2]], children: [], extras: b.extras });
+  }
+  for (const b of c.bones) if (b.parent) nodes[index.get(b.parent)!].children!.push(index.get(b.name)!);
+  const ibm = new Float32Array(c.bones.length * 16);
+  c.bones.forEach((b, i) => {
+    ibm.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -b.at[0], -b.at[1], -b.at[2], 1], i * 16);
+  });
+  const meshes: GScene['meshes'] = [];
+  const rootChildren: number[] = [index.get(c.bones.find((b) => !b.parent)!.name)!];
+  for (const s of c.skinned) {
+    meshes.push({ name: s.name, primitives: s.prims, targetNames: s.targetNames });
+    nodes.push({ name: s.name, mesh: meshes.length - 1, skin: 0, extras: s.extras });
+    rootChildren.push(nodes.length - 1);
+  }
+  for (const r of c.rigid) {
+    const o = at.get(r.bone)!;
+    const local = (p: Float32Array) => { const out = p.slice(); for (let i = 0; i < out.length; i += 3) { out[i] -= o[0]; out[i + 1] -= o[1]; out[i + 2] -= o[2]; } return out; };
+    meshes.push({ name: r.name, primitives: r.prims.map((p) => ({ ...p, positions: r.instances ? p.positions : local(p.positions) })) });
+    const inst = r.instances ? { ...r.instances, translations: local(r.instances.translations) } : undefined;
+    nodes.push({ name: r.name, mesh: meshes.length - 1, instances: inst, extras: r.extras });
+    nodes[index.get(r.bone)!].children!.push(nodes.length - 1);
+  }
+  for (const so of c.sockets ?? []) {
+    const o = at.get(so.bone)!;
+    const kids: number[] = [];
+    for (const m of so.meshes) {
+      meshes.push({ name: m.name, primitives: m.prims });
+      const markerNodes = (m.markers ?? []).map((mk) => { nodes.push({ name: mk.name, translation: mk.at }); return nodes.length - 1; });
+      nodes.push({ name: m.name, mesh: meshes.length - 1, translation: m.at, children: markerNodes });
+      kids.push(nodes.length - 1);
+    }
+    nodes.push({ name: so.name, translation: [so.at[0] - o[0], so.at[1] - o[1], so.at[2] - o[2]], rotation: so.rotation, children: kids });
+    nodes[index.get(so.bone)!].children!.push(nodes.length - 1);
+  }
+  nodes.push({ name: c.name, children: rootChildren, extras: c.extras });
+  const root = nodes.length - 1;
+  return writeGlb({
+    nodes, roots: [root], meshes, materials: c.materials, images: c.images,
+    skins: [{ name: `${c.name}_skin`, joints: c.bones.map((b) => index.get(b.name)!), inverseBindMatrices: ibm, skeleton: index.get(c.bones[0].name) }],
+  });
 }

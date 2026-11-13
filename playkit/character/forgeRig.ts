@@ -1,0 +1,123 @@
+/**
+ * forgeRig.ts — brings a Character Forge GLB to life in any playkit game (Era Clash, Ravencrest).
+ *
+ * The GLB carries what glTF has no word for in `extras.forge` on its root node: spring chains and the body capsules
+ * they collide with, corrective-shape drivers, twist drivers, hand grips and the blade's markers. This reads them and
+ * runs, once per frame after the animation mixer: twist and grip, the correctives, the springs, then the cloth.
+ */
+import * as THREE from 'three/webgpu';
+import { SpringBones, type CapsuleSpec, type SpringChainSpec } from './springBones';
+import { MorphDrivers, type MorphDriverSpec, type TwistDriverSpec } from './morphDrivers';
+import { enableDualQuaternionSkinning } from './dqSkinning';
+import { ClothSim, type ClothSimSpec } from './clothSim';
+
+export interface ForgeExtras {
+  version: number;
+  /** Standing height of the authored figure in metres (crown to sole, hair included). */
+  height: number;
+  springs: SpringChainSpec[];
+  /** Garments simulated as cloth (clothSim.ts). */
+  cloth?: ClothSimSpec[];
+  capsules: CapsuleSpec[];
+  drivers: MorphDriverSpec[];
+  twists: TwistDriverSpec[];
+  /** Hand poses: bone → local rotation [x, y, z, w]. */
+  grips: Record<string, Record<string, [number, number, number, number]>>;
+  /** Which grip each hand holds by default. */
+  hold: Record<string, string>;
+  /** Pieces the game may hide (e.g. the kabuto) and whether they start shown. */
+  optional?: Record<string, boolean>;
+  /** How the character carries themself (the Forge's context stage, from the archetype): degrees, + is extension. */
+  bearing?: { label: string; chest: number; chin: number; shoulders: number; stanceWidth: number; knees: number };
+}
+
+export interface ForgeRig {
+  extras: ForgeExtras;
+  springs: SpringBones;
+  /** The garments' cloth, when the figure has any. */
+  cloth: ClothSim | null;
+  drivers: MorphDrivers;
+  /** Set a hand's grip by name ('katana', 'fist', 'relaxed'). */
+  grip(hand: 'Left' | 'Right', pose: string): void;
+  update(dt: number): void;
+  /** Spring + driver cost of the last frame, ms. */
+  readonly costMs: number;
+}
+
+export function findForgeExtras(root: THREE.Object3D): ForgeExtras | null {
+  let found: ForgeExtras | null = null;
+  root.traverse((o) => { if (!found && o.userData?.forge?.springs) found = o.userData.forge as ForgeExtras; });
+  return found;
+}
+
+export function forgeRig(model: THREE.Object3D, opts: { dqs?: boolean } = {}): ForgeRig | null {
+  const extras = findForgeExtras(model);
+  if (!extras) return null;
+  // Dual-quaternion skinning is opt-in (?dqs=1) until it is fixed: it misplaces the skinned meshes once the character's
+  // root has travelled away from the origin (found 2026-11-11). Linear skinning plus the corrective shapes is the default.
+  const dqsOn = opts.dqs ?? (typeof location !== 'undefined' && new URLSearchParams(location.search).get('dqs') === '1');
+  if (dqsOn) model.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) enableDualQuaternionSkinning(o as THREE.SkinnedMesh); });
+  const springs = new SpringBones(model, extras.springs, extras.capsules);
+  const drivers = new MorphDrivers(model, extras.drivers, extras.twists);
+  const cloth = extras.cloth?.length ? new ClothSim(model, extras.cloth, extras.capsules) : null;
+  const bones = new Map<string, THREE.Object3D>();
+  model.traverse((o) => { if ((o as THREE.Bone).isBone) bones.set(o.name, o); });
+  const held: Record<string, string> = { ...extras.hold };
+  for (const [name, on] of Object.entries(extras.optional ?? {})) { const o = model.getObjectByName(name); if (o) o.visible = on; }
+  // cords, rims and stitches are too fine to read in a shadow map: they only receive
+  model.traverse((o) => {
+    const m = o as THREE.Mesh;
+    const name = (m.material as THREE.Material | undefined)?.name ?? '';
+    if (m.isMesh && /^(gold|silk|silkRed)$/.test(name)) m.castShadow = false;
+  });
+  let cost = 0;
+  const applyGrips = () => {
+    for (const pose of Object.values(held)) {
+      const g = extras.grips[pose];
+      if (!g) continue;
+      for (const [bone, q] of Object.entries(g)) bones.get(bone)?.quaternion.set(q[0], q[1], q[2], q[3]);
+    }
+  };
+  // the bearing: laid over whatever the animation does, about the figure's own left-right axis (a warrior's chest
+  // open, the neck taking most of it back so the gaze stays level); ?bearing=0 turns it off
+  const bearingOn = !(typeof location !== 'undefined' && new URLSearchParams(location.search).get('bearing') === '0');
+  const bear = bearingOn && extras.bearing ? extras.bearing : null;
+  const _ax = new THREE.Vector3(), _wq = new THREE.Quaternion();
+  const leant = new Map<string, { delta: THREE.Quaternion; after: THREE.Quaternion }>();
+  const lean = (name: string, deg: number) => {
+    const b = bones.get(name); if (!b || !deg || !b.parent) return;
+    // the axis in the bone's parent frame: rotating the bone about it turns it about the figure's left-right axis
+    model.getWorldQuaternion(_wq); _ax.set(1, 0, 0).applyQuaternion(_wq);
+    b.parent.getWorldQuaternion(_wq); _ax.applyQuaternion(_wq.invert()).normalize();
+    // a bone no clip animates keeps last frame's lean: take that off first, or it would add up frame by frame
+    const last = leant.get(name);
+    if (last && b.quaternion.equals(last.after)) b.quaternion.premultiply(_wq.copy(last.delta).invert());
+    const delta = new THREE.Quaternion().setFromAxisAngle(_ax, (-deg * Math.PI) / 180);
+    b.quaternion.premultiply(delta);
+    leant.set(name, { delta, after: b.quaternion.clone() });
+  };
+  const applyBearing = () => {
+    if (!bear) return;
+    model.updateMatrixWorld(true);
+    lean('Spine1', bear.chest * 0.4); lean('Spine2', bear.chest * 0.6);
+    lean('Neck', -bear.chest * 0.75 + bear.chin);
+  };
+  let first = true;
+  return {
+    extras, springs, cloth, drivers,
+    grip(hand, pose) { held[hand] = `${hand}:${pose}`; },
+    update(dt) {
+      const t0 = performance.now();
+      applyGrips();
+      applyBearing();
+      drivers.updateTwists();
+      model.updateMatrixWorld(true);
+      drivers.update();
+      if (first) { springs.reset(); cloth?.reset(); first = false; }
+      springs.update(dt);
+      cloth?.update(dt);
+      cost = performance.now() - t0;
+    },
+    get costMs() { return cost; },
+  };
+}
