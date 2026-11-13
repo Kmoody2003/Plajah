@@ -19,6 +19,7 @@ use crate::shaper::{ShapeMode, Shaper};
 use crate::soma::SomaVoice;
 use crate::lyra::LyraVoice;
 use crate::tonos::TonosVoice;
+use crate::orch::OrchVoice;
 use crate::spatial::{pan_gains, Layout, Position, MAX_CHANNELS};
 use crate::tables::WaveTable;
 
@@ -122,6 +123,9 @@ pub struct Voice {
     tonos: TonosVoice,
     tonos_rng: Rng,
     tonos_active: bool,
+    /// ARCO / CORNU / AULOS / KITHARA / VOLTA (allocated only when a patch enables one).
+    pub(crate) orch: OrchVoice,
+    orch_active: bool,
 }
 
 impl Voice {
@@ -154,6 +158,8 @@ impl Voice {
             tonos: TonosVoice::new(48000.0),
             tonos_rng: Rng((seed ^ 0x544F_4E53) | 1),
             tonos_active: false,
+            orch: OrchVoice::new(seed),
+            orch_active: false,
             active: false,
             note: 60.0,
             velocity: 0.8,
@@ -202,6 +208,7 @@ impl Voice {
         self.soma.set_sample_rate(sr);
         self.lyra.set_sample_rate(sr);
         self.tonos.set_sample_rate(sr);
+        self.orch.set_sample_rate(sr);
     }
 
     pub fn set_sample(&mut self, slot: i32, start_frame: f64, detune_cents: f32) {
@@ -322,6 +329,10 @@ impl Voice {
             self.tonos.set_sample_rate(sr_hint);
             self.tonos.trigger(midi_to_hz(note), self.velocity, p, &mut self.tonos_rng);
         }
+        self.orch_active = !self.soma_active && !self.lyra_active && !self.tonos_active && {
+            self.orch.set_sample_rate(sr_hint);
+            self.orch.trigger(p, midi_to_hz(note), self.velocity)
+        };
 
         if self.modal_active {
             self.modal.reset();
@@ -360,6 +371,8 @@ impl Voice {
         self.soma.reset();
         self.lyra.reset();
         self.tonos.reset();
+        self.orch.reset();
+        self.orch_active = false;
     }
 
     #[inline]
@@ -372,6 +385,9 @@ impl Voice {
         }
         if self.tonos_active {
             return self.tonos.is_quiet();
+        }
+        if self.orch_active {
+            return self.orch.is_quiet();
         }
 
         if self.modal_active {
@@ -491,6 +507,36 @@ impl Voice {
         (self.tonos.last_bridge_force, self.tonos.last_floor)
     }
 
+    /// Legato into an orchestra-family voice (bowed: one bow, the finger moves). False when not one.
+    pub fn orch_slur(&mut self, note: f32, vel: f32, p: &Params) -> bool {
+        if !self.orch_active {
+            return false;
+        }
+        self.orch.slur(p, midi_to_hz(note), vel.clamp(0.0, 1.0));
+        true
+    }
+
+    /// A held, sounding, sustained orchestra-family voice and how long it has sounded (samples).
+    pub fn orch_held(&self) -> Option<u32> {
+        (self.active && !self.released && self.orch_active && self.orch.is_sustained()).then(|| self.orch.samples())
+    }
+
+    /// A held ARCO voice that started within `max_age` samples: (note, samples).
+    pub fn arco_recent(&self, max_age: u32) -> Option<f32> {
+        (self.active && !self.released && self.orch_active && self.orch.kind() == crate::orch::KIND_ARCO && self.orch.samples() <= max_age).then_some(self.note)
+    }
+    pub fn arco_held(&self) -> bool {
+        self.active && !self.released && self.orch_active && self.orch.kind() == crate::orch::KIND_ARCO
+    }
+
+    /// Restart this voice's note under a new role (ensembles re-voice a chord as it arrives).
+    pub fn orch_retrigger(&mut self, p: &Params) {
+        if self.orch_active {
+            let hz = midi_to_hz(self.note);
+            self.orch.trigger(p, hz, self.velocity);
+        }
+    }
+
     pub fn tonos_held(&self) -> Option<u32> {
         (self.active && !self.released && self.tonos_active).then(|| self.tonos.samples())
     }
@@ -539,6 +585,55 @@ impl Voice {
                 }
             }
             let (yl, yr) = self.tonos.render_sample(bend, mod_wheel, &mut self.tonos_rng);
+            if nch >= 2 {
+                out[0][f] += yl * level * gains[0] * 1.4142;
+                out[1][f] += yr * level * gains[1] * 1.4142;
+                for c in 2..nch {
+                    out[c][f] += 0.5 * (yl + yr) * level * gains[c];
+                }
+            } else if nch == 1 {
+                out[0][f] += 0.5 * (yl + yr) * level;
+            }
+        }
+        self.age += frames as u64;
+        if self.is_finished() {
+            self.active = false;
+        }
+    }
+
+    /// The orchestra-family render path: the model's physics is the envelope; bridge forces go to
+    /// the deep-body bus.
+    #[allow(clippy::too_many_arguments)]
+    fn render_orch(
+        &mut self,
+        out: &mut [[f32; crate::engine::MAX_BLOCK]; MAX_CHANNELS],
+        frames: usize,
+        p: &Params,
+        globals: &ModValues,
+        layout: Layout,
+        base_pos: Position,
+        mut bus: Option<&mut [[f32; crate::engine::MAX_BLOCK]; crate::arco::NBUS]>,
+    ) {
+        let nch = layout.channels();
+        let mut gains = [0.0f32; MAX_CHANNELS];
+        pan_gains(base_pos, layout, 0.0, &mut gains);
+        if self.released {
+            self.orch.release();
+        }
+        let bend_range = (p.get(P_BEND_RANGE) * 24.0).max(2.0);
+        let total_bend = (globals.pitch_bend + self.expr.pitch_bend).clamp(-1.0, 1.0);
+        let bend = (2.0f32).powf((total_bend * bend_range) / 12.0);
+        let mod_wheel = (globals.mod_wheel + self.expr.pressure + self.expr.timbre * 0.5).clamp(0.0, 1.0);
+        let level = p.get(P_MASTER_GAIN).max(0.0);
+        for f in 0..frames {
+            if self.start_delay > 0 {
+                self.start_delay -= 1;
+                continue;
+            }
+            let (yl, yr, bi, force) = self.orch.render_sample(bend, mod_wheel);
+            if let Some(b) = bus.as_deref_mut() {
+                b[bi][f] += force * level;
+            }
             if nch >= 2 {
                 out[0][f] += yl * level * gains[0] * 1.4142;
                 out[1][f] += yr * level * gains[1] * 1.4142;
@@ -671,8 +766,13 @@ impl Voice {
         layout: Layout,
         base_pos: Position,
         wf: &WobbleFrame,
+        bus: Option<&mut [[f32; crate::engine::MAX_BLOCK]; crate::arco::NBUS]>,
     ) {
         if !self.active {
+            return;
+        }
+        if self.orch_active {
+            self.render_orch(out, frames, p, globals, layout, base_pos, bus);
             return;
         }
         if self.soma_active {

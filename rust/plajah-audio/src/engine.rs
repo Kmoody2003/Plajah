@@ -5,6 +5,7 @@ use crate::diffuser::{Diffuser, VeilSpec};
 use crate::bajo::BajoRack;
 use crate::lyra::LyraRack;
 use crate::tonos::TonosRack;
+use crate::orch::OrchRack;
 use crate::lfo::Lfo;
 use crate::modmatrix::{ModMatrix, ModSource, ModValues, Route};
 use crate::osc::Rng;
@@ -79,6 +80,8 @@ pub struct Engine {
     lyra: LyraRack,
     /// TONOS sympathetic strings (sitar tarafs, sarangi, nyckelharpa…).
     tonos: TonosRack,
+    /// ARCO's deep bodies (and the rest of the orchestra & guitar family's racks).
+    orch: OrchRack,
 
     events: Vec<ScheduledEvent>,
     events_dirty: bool,
@@ -121,6 +124,7 @@ impl Engine {
             aura: AuraRack::new(sr_real),
             lyra: LyraRack::new(sr_real),
             tonos: TonosRack::new(sr_real),
+            orch: OrchRack::new(),
             voices,
             lfos: [Lfo::default(); NUM_LFO],
             tables,
@@ -299,6 +303,92 @@ impl Engine {
         }
     }
 
+    /// Set a parameter. Switching on an orchestra-family model allocates its voices here (at patch
+    /// load), never while rendering.
+    pub fn set_param(&mut self, id: u32, value: f32) {
+        self.params.set(id, value);
+        if id == ARCO_BASE + AR_ENABLE && value > 0.5 {
+            self.ensure_orch();
+        }
+    }
+
+    fn ensure_orch(&mut self) {
+        let kind = crate::orch::kind_for(&self.params);
+        if kind == crate::orch::KIND_NONE {
+            return;
+        }
+        for v in self.voices.iter_mut() {
+            v.orch.ensure(kind);
+            v.orch.set_sample_rate(self.sr);
+        }
+        self.orch.ensure(kind);
+    }
+
+    /// ARCO: give the new voice its role (instrument, section, players) and re-voice the chord it
+    /// joins. Notes that start within 40 ms of each other are one chord: an ensemble deals them
+    /// out top to bottom across its sections; a single section divides its players among them.
+    fn arco_assign(&mut self, new_idx: usize, note: f32) {
+        use crate::arco::{assign_sections, role_for, ENSEMBLE_NAMES, SECTION_SIZES};
+        let p = &self.params;
+        let ens = (p.get(ARCO_BASE + AR_ENSEMBLE).round().max(0.0) as usize).min(ENSEMBLE_NAMES.len() - 1);
+        let inst = (p.get(ARCO_BASE + AR_INSTRUMENT).round().max(0.0) as usize).min(crate::arco::NUM_INSTRUMENTS - 1);
+        let size = SECTION_SIZES[(p.get(ARCO_BASE + AR_SECTION).round().max(0.0) as usize).min(SECTION_SIZES.len() - 1)];
+        let recent = (self.sr * 0.04) as u32;
+        let mut idx = [0usize; MAX_VOICES];
+        let mut notes = [0.0f32; MAX_VOICES];
+        let mut n = 0;
+        let mut held = 0;
+        for (i, v) in self.voices.iter().enumerate() {
+            if i == new_idx {
+                continue;
+            }
+            if v.arco_held() {
+                held += 1;
+            }
+            if let Some(nt) = v.arco_recent(recent) {
+                idx[n] = i;
+                notes[n] = nt;
+                n += 1;
+            }
+        }
+        idx[n] = new_idx;
+        notes[n] = note;
+        n += 1;
+        let mut order = [0usize; MAX_VOICES];
+        for (k, o) in order.iter_mut().enumerate().take(n) {
+            *o = k;
+        }
+        order[..n].sort_by(|&a, &b| notes[b].partial_cmp(&notes[a]).unwrap_or(core::cmp::Ordering::Equal));
+        let mut sorted = [0.0f32; MAX_VOICES];
+        for k in 0..n {
+            sorted[k] = notes[order[k]];
+        }
+        let mut sec = [0usize; MAX_VOICES];
+        assign_sections(&sorted[..n], ens, &mut sec[..n]);
+        let mut per = [0usize; 5];
+        for k in 0..n {
+            per[sec[k].min(4)] += 1;
+        }
+        for k in 0..n {
+            let s = sec[k].min(4);
+            let divisi = if ens == 0 { (held + 1).max(n) } else { per[s] };
+            let role = role_for(ens, s, divisi, inst, size);
+            let vi = idx[order[k]];
+            let changed = match self.voices[vi].orch.arco.as_mut() {
+                Some(a) => {
+                    let old = a.role;
+                    a.role = role;
+                    old.inst != role.inst || old.players != role.players || old.section != role.section
+                }
+                None => false,
+            };
+            if vi != new_idx && changed {
+                let params = &self.params;
+                self.voices[vi].orch_retrigger(params);
+            }
+        }
+    }
+
     pub fn note_on(&mut self, note: f32, vel: f32, voice_id: u32, frame_offset: u32) {
         let mono = self.params.get(P_VOICE_MODE) > 0.5;
         let legato = self.params.get(P_VOICE_MODE) > 1.5;
@@ -312,8 +402,8 @@ impl Engine {
                     v.note = note;
                     v.velocity = vel.clamp(0.0, 1.0);
                     v.voice_id = voice_id;
-                    if !v.lyra_slur(note, vel, &self.params) {
-                        v.tonos_slur(note, vel, &self.params);
+                    if !v.lyra_slur(note, vel, &self.params) && !v.tonos_slur(note, vel, &self.params) {
+                        v.orch_slur(note, vel, &self.params);
                     }
                     return;
                 }
@@ -357,6 +447,22 @@ impl Engine {
             }
         }
 
+        // ARCO legato (single instrument): a note into exactly one held, bowed note is one bow.
+        let arco_on = self.params.get(ARCO_BASE + AR_ENABLE) > 0.5;
+        if arco_on && self.params.get(ARCO_BASE + AR_LEGATO) > 0.5 && self.params.get(ARCO_BASE + AR_ENSEMBLE) < 0.5 {
+            let min_age = (self.sr * 0.06) as u32;
+            let mut held = self.voices.iter_mut().filter_map(|v| v.orch_held().map(|t| (t, v)));
+            if let (Some((t, v)), None) = (held.next(), held.next()) {
+                if t > min_age {
+                    v.note = note;
+                    v.velocity = vel.clamp(0.0, 1.0);
+                    v.voice_id = voice_id;
+                    v.orch_slur(note, vel, &self.params);
+                    return;
+                }
+            }
+        }
+
         let glide_from = if self.params.get(P_GLIDE) > 0.0005 {
             self.voices.iter().find(|v| v.active).map(|v| v.note)
         } else {
@@ -388,10 +494,34 @@ impl Engine {
         self.age_counter += 1;
         let age = self.age_counter;
         let sr = self.sr;
+        if arco_on {
+            // The role first (the trigger reads it), then the chord around it.
+            self.arco_assign(idx, note);
+        }
         let params = &self.params;
         let v = &mut self.voices[idx];
         v.note_on(note, vel, voice_id, params, glide_from, frame_offset, sr);
         v.age = age;
+        if arco_on && self.params.get(ARCO_BASE + AR_BASS_OCTAVE) > 0.5 && self.params.get(ARCO_BASE + AR_ENSEMBLE) >= 1.5 {
+            // Basses double the lowest cello note an octave down (same voice id: one note-off).
+            let is_low_cello = self.voices[idx].orch.arco.as_ref().map(|a| a.role.section == 3).unwrap_or(false)
+                && !self.voices.iter().enumerate().any(|(i, v)| i != idx && v.arco_held() && v.note < note);
+            if is_low_cello && note - 12.0 >= 28.0 {
+                if let Some(j) = self.voices.iter().position(|v| !v.active) {
+                    let ens = self.params.get(ARCO_BASE + AR_ENSEMBLE).round() as usize;
+                    let size = crate::arco::ensemble_sections(ens, true).0[4].2;
+                    if let Some(a) = self.voices[j].orch.arco.as_mut() {
+                        a.role = crate::arco::Role { inst: 3, section: 4, players: size, bus: 3 };
+                    }
+                    self.age_counter += 1;
+                    let age2 = self.age_counter;
+                    let params = &self.params;
+                    let v2 = &mut self.voices[j];
+                    v2.note_on(note - 12.0, vel, voice_id, params, None, frame_offset, sr);
+                    v2.age = age2;
+                }
+            }
+        }
 
         for l in self.lfos.iter_mut() {
             l.retrigger_now(&mut self.rng);
@@ -569,14 +699,16 @@ impl Engine {
         // Split the borrow: voices render into scratch while reading shared state immutably.
         // `veil`, `bajo` and `aura` come out in the same destructure because all three need
         // `scratch` and a second `let Engine { .. } = self` would be a double mutable borrow.
-        let Engine { voices, scratch, params, matrix, tables, samples, sr, layout, position, veil, bajo, aura, lyra, tonos, .. } = self;
+        let Engine { voices, scratch, params, matrix, tables, samples, sr, layout, position, veil, bajo, aura, lyra, tonos, orch, .. } = self;
         let mut active_cnt = 0u32;
+        orch.clear_bus(frames);
         for v in voices.iter_mut() {
             if v.active {
                 active_cnt += 1;
-                v.render(scratch, frames, params, matrix, &globals, tables, samples, *sr, *layout, *position, &wf);
+                v.render(scratch, frames, params, matrix, &globals, tables, samples, *sr, *layout, *position, &wf, orch.bus());
             }
         }
+        orch.process(scratch, frames, nch, params, *sr);
 
         if LyraRack::active(params) {
             lyra.process(scratch, frames, nch, params);

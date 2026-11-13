@@ -24,6 +24,9 @@ mod params;
 mod shaper;
 mod soma;
 mod tonos;
+mod bodyconv;
+mod arco;
+mod orch;
 mod string;
 mod sample;
 mod spatial;
@@ -62,7 +65,9 @@ use spatial::{IamfRole, Layout, Position};
 /// and the electric guitar rig (LY_PICKUP..LY_ECHO_TIME, 1924–1935).
 /// v17 adds TONOS (param block 2000+): world string instruments as physical strings, and the
 /// TonosRack of sympathetic strings; MAX_PARAM_ID grows to 2100.
-pub const ABI_VERSION: u32 = 18; // 18: TONOS deep body; 17: TONOS world strings (block 2000+); 16: SOMA deep skin
+/// v19 adds the orchestra & guitar family blocks (2100–2599), ARCO orchestral strings first;
+/// MAX_PARAM_ID grows to 2600, and switching a family model on allocates its voices.
+pub const ABI_VERSION: u32 = 19; // 19: ARCO orchestral strings (block 2100+); 18: TONOS deep body; 17: TONOS world strings (block 2000+); 16: SOMA deep skin
 
 #[unsafe(no_mangle)]
 pub extern "C" fn pa_abi_version() -> u32 {
@@ -149,7 +154,7 @@ pub unsafe extern "C" fn pa_all_notes_off(p: *mut Engine, hard: u32) {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn pa_set_param(p: *mut Engine, id: u32, value: f32) {
     let e = eng!(p);
-    e.params.set(id, value);
+    e.set_param(id, value);
 }
 
 /// # Safety

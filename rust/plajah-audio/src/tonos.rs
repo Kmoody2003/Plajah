@@ -55,9 +55,9 @@ pub const EX_BOW: u8 = 5;
 pub const EX_WHEEL: u8 = 6; // hurdy-gurdy: rosined wheel, endless bow
 pub const EX_HARMONIC: u8 = 7; // đàn bầu: pluck while the palm touches a node
 
-const STOP_OPEN: u8 = 0; // one string per note (zithers, harps, lyres)
-const STOP_FRET: u8 = 1;
-const STOP_FRETLESS: u8 = 2; // fingertip on a fingerboard
+pub(crate) const STOP_OPEN: u8 = 0; // one string per note (zithers, harps, lyres)
+pub(crate) const STOP_FRET: u8 = 1;
+pub(crate) const STOP_FRETLESS: u8 = 2; // fingertip on a fingerboard
 const STOP_AIR: u8 = 3; // no fingerboard: the finger presses the string in the air (erhu, sarangi)
 const STOP_TANGENT: u8 = 4; // wooden key tangent (hurdy-gurdy, nyckelharpa)
 
@@ -70,14 +70,14 @@ const RATTLE_CHIEN: u8 = 3; // hurdy-gurdy trompette's buzzing bridge
 /// frequency-independent floor Q⁻¹. Wound strings use an effective ρ (mass of the winding) and E
 /// (stiffness of the core) — that's what makes a wound bass string heavy but not stiff.
 #[derive(Clone, Copy)]
-struct Material {
-    rho: f32,
-    e: f32,
-    delta: f32,
-    q0: f32,
+pub(crate) struct Material {
+    pub(crate) rho: f32,
+    pub(crate) e: f32,
+    pub(crate) delta: f32,
+    pub(crate) q0: f32,
 }
 pub const MATERIAL_NAMES: [&str; 9] = ["Steel", "Bronze-wound", "Nylon", "Gut", "Silk", "Horsehair", "Polyester (tetron)", "Nylon-wrapped steel", "Brass"];
-static MATERIALS: [Material; 9] = [
+pub(crate) static MATERIALS: [Material; 9] = [
     Material { rho: 7850.0, e: 2.0e11, delta: 1.5e-4, q0: 2.0e-5 },
     Material { rho: 9000.0, e: 6.0e10, delta: 6.0e-4, q0: 5.0e-5 },
     Material { rho: 1140.0, e: 5.0e9, delta: 2.0e-2, q0: 4.0e-4 },
@@ -88,13 +88,13 @@ static MATERIALS: [Material; 9] = [
     Material { rho: 5500.0, e: 4.0e10, delta: 4.0e-3, q0: 1.0e-4 },
     Material { rho: 8500.0, e: 1.0e11, delta: 3.0e-4, q0: 3.0e-5 },
 ];
-const STEEL: u8 = 0;
-const NYLON: u8 = 2;
-const GUT: u8 = 3;
+pub(crate) const STEEL: u8 = 0;
+pub(crate) const NYLON: u8 = 2;
+pub(crate) const GUT: u8 = 3;
 const SILK: u8 = 4;
 const HAIR: u8 = 5;
 const TETRON: u8 = 6;
-const NSTEEL: u8 = 7;
+pub(crate) const NSTEEL: u8 = 7;
 
 const BODY_WOOD: u8 = 0; // wooden soundboard on a box or bowl: plate modes + Helmholtz air
 const BODY_SKIN: u8 = 1; // skin belly: membrane Bessel modes + cavity air
@@ -306,14 +306,14 @@ static SYMP_SCALES: [&[u8]; 9] = [
 // ── small DSP pieces ────────────────────────────────────────────────────────────────────────────
 
 #[derive(Clone, Copy, Default)]
-struct Allpass {
-    a: f32,
-    x1: f32,
-    y1: f32,
+pub(crate) struct Allpass {
+    pub(crate) a: f32,
+    pub(crate) x1: f32,
+    pub(crate) y1: f32,
 }
 impl Allpass {
     #[inline]
-    fn tick(&mut self, x: f32) -> f32 {
+    pub(crate) fn tick(&mut self, x: f32) -> f32 {
         let y = self.a * x + self.x1 - self.a * self.y1;
         self.x1 = x;
         self.y1 = y;
@@ -323,23 +323,23 @@ impl Allpass {
 
 /// Band-pass biquad (RBJ, 0 dB at centre) — positive real, so a bank of them is a passive admittance.
 #[derive(Clone, Copy, Default)]
-struct Bp {
-    b0: f32,
-    b2: f32,
-    a1: f32,
-    a2: f32,
-    z1: f32,
-    z2: f32,
+pub(crate) struct Bp {
+    pub(crate) b0: f32,
+    pub(crate) b2: f32,
+    pub(crate) a1: f32,
+    pub(crate) a2: f32,
+    pub(crate) z1: f32,
+    pub(crate) z2: f32,
 }
 impl Bp {
-    fn new(f: f32, q: f32, sr: f32) -> Self {
+    pub(crate) fn new(f: f32, q: f32, sr: f32) -> Self {
         let w = TAU * f.clamp(15.0, sr * 0.45) / sr;
         let alpha = w.sin() / (2.0 * q.max(0.3));
         let a0 = 1.0 + alpha;
         Bp { b0: alpha / a0, b2: -alpha / a0, a1: -2.0 * w.cos() / a0, a2: (1.0 - alpha) / a0, z1: 0.0, z2: 0.0 }
     }
     #[inline]
-    fn tick(&mut self, x: f32) -> f32 {
+    pub(crate) fn tick(&mut self, x: f32) -> f32 {
         let y = self.b0 * x + self.z1;
         self.z1 = -self.a1 * y + self.z2;
         self.z2 = self.b2 * x - self.a2 * y;
@@ -348,11 +348,11 @@ impl Bp {
 }
 
 /// Phase delay (samples) of y = g((1−b)x + b·y₁) at ω.
-fn onepole_pd(b: f32, w: f32) -> f32 {
+pub(crate) fn onepole_pd(b: f32, w: f32) -> f32 {
     (b * w.sin()).atan2(1.0 - b * w.cos()) / w
 }
 /// Phase delay (samples) of (a + z⁻¹)/(1 + a z⁻¹) at ω.
-fn allpass_pd(a: f32, w: f32) -> f32 {
+pub(crate) fn allpass_pd(a: f32, w: f32) -> f32 {
     let ph = -(w.sin()).atan2(a + w.cos()) + (a * w.sin()).atan2(1.0 + a * w.cos());
     -ph / w
 }
@@ -457,7 +457,7 @@ fn string_for(inst: &Inst, mat: &Material, note_hz: f32, tension_scale: f32, har
 }
 
 /// The string's decay rate σ(f) (1/s): air drag, internal friction, material floor, and the stop.
-fn decay_rate(s: &StringSpec, mat: &Material, stop: u8, f: f32, damp_scale: f32) -> f32 {
+pub(crate) fn decay_rate(s: &StringSpec, mat: &Material, stop: u8, f: f32, damp_scale: f32) -> f32 {
     let r_air = 2.0 * PI * ETA_AIR + 2.0 * PI * s.d * (PI * ETA_AIR * RHO_AIR * f).sqrt();
     let sig_air = r_air / (2.0 * s.mu);
     let ei = mat.e * PI * s.dc.powi(4) / 64.0;
@@ -479,7 +479,7 @@ fn decay_rate(s: &StringSpec, mat: &Material, stop: u8, f: f32, damp_scale: f32)
 }
 
 /// Fit the one-pole loss filter y = g((1−b)x + b·y₁) to the round-trip gains at f₀ and a partial.
-fn design_loss(s: &StringSpec, mat: &Material, stop: u8, sr: f32, damp_scale: f32) -> (f32, f32) {
+pub(crate) fn design_loss(s: &StringSpec, mat: &Material, stop: u8, sr: f32, damp_scale: f32) -> (f32, f32) {
     let f1 = s.f_loop;
     let fh = (f1 * 8.0).min(sr * 0.3).max(f1 * 1.5);
     let g1 = (-decay_rate(s, mat, stop, f1, damp_scale) / f1).exp();
@@ -512,7 +512,7 @@ fn design_loss(s: &StringSpec, mat: &Material, stop: u8, sr: f32, damp_scale: f3
 /// Returns (coefficient, count).
 /// `share` caps the allpasses' delay as a fraction of the loop: the filters sit lumped at the bridge,
 /// so every sample of delay spent in them is string the bow, hammer or jawari can't touch.
-fn design_dispersion(f1: f32, b_inh: f32, period: f32, loss_b: f32, sr: f32, share: f32) -> (f32, usize) {
+pub(crate) fn design_dispersion(f1: f32, b_inh: f32, period: f32, loss_b: f32, sr: f32, share: f32) -> (f32, usize) {
     if b_inh < 2.0e-6 || period < 12.0 {
         return (0.0, 0);
     }
@@ -575,27 +575,34 @@ pub fn deep_seed(note: f32, variant: u32) -> u32 {
 /// One string as a velocity-wave loop. Age a (samples since it left the bridge): a ≤ P/2 is the
 /// wave travelling to the nut at distance a; a > P/2 is the returning wave (sign-flipped) at P − a.
 /// Point velocity at m: u(m) − u(P−m); slope: −(u(m) + u(P−m))/c.
-struct Loop {
-    buf: Vec<f32>,
-    w: usize,
-    read: f32,
-    period: f32, // current loop period (samples)
-    target: f32, // glide target
-    pd: f32,     // filter phase delay at f₀
-    g: f32,
-    b: f32,
-    lp: f32,
-    ap: [Allpass; MAX_AP],
-    nap: usize,
-    yj: [f32; MAX_JAW],
-    y_ex: f32,
-    ratio: f32, // course detune ratio
+pub(crate) struct Loop {
+    pub(crate) buf: Vec<f32>,
+    pub(crate) w: usize,
+    pub(crate) read: f32,
+    pub(crate) period: f32, // current loop period (samples)
+    pub(crate) target: f32, // glide target
+    pub(crate) pd: f32,     // filter phase delay at f₀
+    pub(crate) g: f32,
+    pub(crate) b: f32,
+    pub(crate) lp: f32,
+    pub(crate) ap: [Allpass; MAX_AP],
+    pub(crate) nap: usize,
+    pub(crate) yj: [f32; MAX_JAW],
+    pub(crate) y_ex: f32,
+    pub(crate) ratio: f32, // course detune ratio
+    pub(crate) mask: usize,
 }
 
 impl Loop {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
+        Self::with_len(BUF)
+    }
+    /// A loop with its own buffer length (power of two, ≥ 2 × the longest period it will hold).
+    pub(crate) fn with_len(len: usize) -> Self {
+        let len = len.next_power_of_two();
         Loop {
-            buf: vec![0.0; BUF],
+            mask: len - 1,
+            buf: vec![0.0; len],
             w: 0,
             read: 100.0,
             period: 100.0,
@@ -611,7 +618,7 @@ impl Loop {
             ratio: 1.0,
         }
     }
-    fn clear(&mut self) {
+    pub(crate) fn clear(&mut self) {
         for x in self.buf.iter_mut() {
             *x = 0.0;
         }
@@ -624,22 +631,22 @@ impl Loop {
         self.y_ex = 0.0;
     }
     #[inline]
-    fn idx(&self, age: usize) -> usize {
-        (self.w.wrapping_sub(1 + age)) & (BUF - 1)
+    pub(crate) fn idx(&self, age: usize) -> usize {
+        (self.w.wrapping_sub(1 + age)) & self.mask
     }
     #[inline]
-    fn age(&self, a: usize) -> f32 {
+    pub(crate) fn age(&self, a: usize) -> f32 {
         self.buf[self.idx(a)]
     }
     #[inline]
-    fn add(&mut self, a: usize, v: f32) {
+    pub(crate) fn add(&mut self, a: usize, v: f32) {
         let i = self.idx(a);
         self.buf[i] += v;
     }
     /// Lagrange-interpolated read at fractional age d (d ≥ 1).
     #[inline]
-    fn read_at(&self, d: f32) -> f32 {
-        let d = d.clamp(1.0, (BUF - 4) as f32);
+    pub(crate) fn read_at(&self, d: f32) -> f32 {
+        let d = d.clamp(1.0, (self.mask - 3) as f32);
         let i = d.floor();
         let t = 1.0 + (d - i);
         let i = i as usize;
@@ -651,12 +658,12 @@ impl Loop {
         x0 * h0 + x1 * h1 + x2 * h2 + x3 * h3
     }
     #[inline]
-    fn write(&mut self, x: f32) {
+    pub(crate) fn write(&mut self, x: f32) {
         self.buf[self.w] = x;
-        self.w = (self.w + 1) & (BUF - 1);
+        self.w = (self.w + 1) & self.mask;
     }
     #[inline]
-    fn filter(&mut self, x: f32) -> f32 {
+    pub(crate) fn filter(&mut self, x: f32) -> f32 {
         self.lp = (1.0 - self.b) * x + self.b * self.lp;
         let mut z = self.lp * self.g;
         for a in self.ap[..self.nap].iter_mut() {
@@ -666,18 +673,18 @@ impl Loop {
     }
     /// Incoming point velocity at distance m (integer), and the paired ages.
     #[inline]
-    fn point(&self, m: usize) -> (f32, usize, usize) {
+    pub(crate) fn point(&self, m: usize) -> (f32, usize, usize) {
         let back = (self.period - m as f32).round().max(m as f32 + 1.0) as usize;
         (self.age(m) - self.age(back), m, back)
     }
     /// Apply a point force as a velocity change Δ to both outgoing waves.
     #[inline]
-    fn kick(&mut self, m: usize, back: usize, dv: f32) {
+    pub(crate) fn kick(&mut self, m: usize, back: usize, dv: f32) {
         self.add(m, dv);
         self.add(back, -dv);
     }
     /// ½∫(∂y/∂x)²dx / L, strided over the string (ΔL/L).
-    fn strain(&self, c: f32) -> f32 {
+    pub(crate) fn strain(&self, c: f32) -> f32 {
         let n = (self.period * 0.5) as usize;
         if n < 4 {
             return 0.0;

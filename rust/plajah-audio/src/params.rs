@@ -469,7 +469,51 @@ pub const TN_RELEASE_DAMP: u32 = 26; // how firmly the player stops the string o
 pub const TN_VEL_SENS: u32 = 27;
 pub const TN_LEGATO: u32 = 28;      // >0.5: a note into a held one slides (bowed: always one bow)
 
-pub const MAX_PARAM_ID: usize = 2100;
+// ── ARCO (instrument 09): orchestral strings — violin, viola, cello, double bass, sections ───
+// Block 2100 upward (arco.rs). Defaults to AR_ENABLE = 0. INSTRUMENT, ENSEMBLE, SECTION, ARTIC,
+// STRING_SET and SEATING are indices; the rest are 0..1 with 0.5 = as built / as played.
+pub const ARCO_BASE: u32 = 2100;
+pub const AR_ENABLE: u32 = 0;
+pub const AR_INSTRUMENT: u32 = 1;  // 0 violin, 1 viola, 2 cello, 3 double bass
+pub const AR_ENSEMBLE: u32 = 2;    // 0 one instrument (solo/section), 1 quartet, 2 quintet, 3 chamber string orchestra, 4 full string orchestra
+pub const AR_SECTION: u32 = 3;     // index into arco::SECTION_SIZES (players in the section)
+pub const AR_ARTIC: u32 = 4;       // index into arco::ARTIC_NAMES
+pub const AR_DYNAMICS: u32 = 5;    // dynamics when the mod wheel doesn't drive them (scales velocity)
+pub const AR_MOD_DYN: u32 = 6;     // >0.5: the mod wheel is dynamics (bow speed + force), velocity only the accent
+pub const AR_BOW_POS: u32 = 7;     // sound point: 0 sul tasto … 0.5 normal … 1 sul ponticello
+pub const AR_BOW_FORCE: u32 = 8;   // bow force within Schelleng's window
+pub const AR_BOW_SPEED: u32 = 9;
+pub const AR_ROSIN: u32 = 10;      // rosin grip (static friction) and how much it softens as it heats
+pub const AR_VIB_DEPTH: u32 = 11;
+pub const AR_VIB_RATE: u32 = 12;
+pub const AR_VIB_SPREAD: u32 = 13; // how differently the players of a section vibrate
+pub const AR_INTONATION: u32 = 14; // section tuning spread (0 = perfect unison)
+pub const AR_TIGHTNESS: u32 = 15;  // section timing spread (0 = together)
+pub const AR_MUTE: u32 = 16;       // con sordino
+pub const AR_STRING_SET: u32 = 17; // 0 synthetic core, 1 gut, 2 steel
+pub const AR_BODY: u32 = 18;       // bridge admittance (0.5 = as built)
+pub const AR_DEEP: u32 = 19;       // deep body (dense upper modes by convolution) level
+pub const AR_SEATING: u32 = 20;    // 0 American (violins left, cellos right), 1 European (violins antiphonal)
+pub const AR_WIDTH: u32 = 21;
+pub const AR_STRING_PREF: u32 = 22; // 0 highest string that reaches the note … 1 stay on lower strings (sul G)
+pub const AR_PORTAMENTO: u32 = 23; // legato slide time
+pub const AR_LEGATO: u32 = 24;     // >0.5: a note into one held note is one bow, the finger moves
+pub const AR_VEL_SENS: u32 = 25;
+pub const AR_TORSION: u32 = 26;    // torsional waves at the bow (0 off … 0.5 physical … 1 double)
+pub const AR_RELEASE: u32 = 27;    // how slowly the bow leaves the string
+pub const AR_BASS_OCTAVE: u32 = 28; // ensembles: basses double the cello line an octave down
+pub const AR_QUALITY: u32 = 29;    // simulated players per note: 0 → 1 … 1 → 8 (the rest are represented)
+pub const AR_BOW_LENGTH: u32 = 30; // bow length used (0.5 = whole bow; 0 = never runs out)
+pub const AR_TENSION: u32 = 31;    // string tension and gauge (pitch held)
+
+// Blocks for the rest of the orchestra & guitar family (reserved; see cornu.rs, aulos.rs,
+// kithara.rs, volta.rs).
+pub const CORNU_BASE: u32 = 2200;
+pub const AULOS_BASE: u32 = 2300;
+pub const KITHARA_BASE: u32 = 2400;
+pub const VOLTA_BASE: u32 = 2500;
+
+pub const MAX_PARAM_ID: usize = 2600;
 
 /// Flat store. A plain array keeps `set_param` and the mod matrix's destination lookup O(1)
 /// with no hashing on the audio thread.
@@ -794,6 +838,28 @@ impl Params {
         self.set(TONOS_BASE + TN_RELEASE_DAMP, 0.3);
         self.set(TONOS_BASE + TN_VEL_SENS, 0.85);
         self.set(TONOS_BASE + TN_LEGATO, 1.0);
+        // ARCO: off unless enabled.
+        for id in AR_DYNAMICS..=AR_TENSION {
+            self.set(ARCO_BASE + id, 0.5);
+        }
+        self.set(ARCO_BASE + AR_ENABLE, 0.0);
+        self.set(ARCO_BASE + AR_INSTRUMENT, 0.0);
+        self.set(ARCO_BASE + AR_ENSEMBLE, 0.0);
+        self.set(ARCO_BASE + AR_SECTION, 0.0);
+        self.set(ARCO_BASE + AR_ARTIC, 0.0);
+        self.set(ARCO_BASE + AR_MOD_DYN, 0.0);
+        self.set(ARCO_BASE + AR_MUTE, 0.0);
+        self.set(ARCO_BASE + AR_STRING_SET, 0.0);
+        self.set(ARCO_BASE + AR_SEATING, 0.0);
+        self.set(ARCO_BASE + AR_STRING_PREF, 0.2);
+        self.set(ARCO_BASE + AR_PORTAMENTO, 0.15);
+        self.set(ARCO_BASE + AR_LEGATO, 1.0);
+        self.set(ARCO_BASE + AR_VEL_SENS, 0.8);
+        self.set(ARCO_BASE + AR_BASS_OCTAVE, 0.0);
+        self.set(ARCO_BASE + AR_QUALITY, 0.72);
+        self.set(ARCO_BASE + AR_VIB_DEPTH, 0.45);
+        self.set(ARCO_BASE + AR_INTONATION, 0.35);
+        self.set(ARCO_BASE + AR_TIGHTNESS, 0.35);
     }
 }
 
