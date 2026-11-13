@@ -12,8 +12,22 @@
 // state it INHERITS, which the prompt compiler writes into the prompt for whichever model is in use —
 // that is what keeps shot 7 on Kling matching shot 6 on Veo.
 //
-// Pure and deterministic. Text-derived, so it is a strong draft a filmmaker can correct, not ground
-// truth; `overrides` on a shot always win.
+// It is the same continuity system the Film Production hub runs, extended to generated footage — not
+// a second one:
+//   • The hub's script BREAKDOWN is the source of truth. When the Fabula project is linked to a
+//     production, that scene's wardrobe, makeup/hair, props and set-dressing elements — with the
+//     `continuityState` the Script Supervisor recorded — seed the ledger. Text inference only adds
+//     what happens between shots; it never overrides the breakdown.
+//   • Continuity Eye (services/continuityCheck.ts) is the check. The ledger says what a frame should
+//     hold; Continuity Eye compares the frame that came back, and the verdict is logged as the same
+//     `ContinuityCheck` record the hub's Continuity tab writes (see `toContinuityCheck`).
+//
+// Pure and deterministic. Where there is no breakdown the state is text-derived — a strong draft a
+// filmmaker can correct, not ground truth; `continuityOverrides` on a shot always win.
+
+import type { ContinuityScore } from '../../continuityCheck';
+import type { ContinuityCheck, ProductionScene } from '../../filmProductionService';
+import type { BreakdownElement } from '../../productionBreakdownService';
 
 export type ScreenSide = 'frame-left' | 'frame-right' | 'center';
 
@@ -41,6 +55,8 @@ export interface EnvironmentContinuity {
   keySide?: 'camera-left' | 'camera-right';
   /** Changes to the set itself: a broken window, an overturned chair. */
   dressing: string[];
+  /** Props and vehicles the breakdown says belong in this scene — the hub's "should be here" list. */
+  required: string[];
 }
 
 export interface ShotContinuity {
@@ -66,11 +82,15 @@ export interface SceneLedger {
   /** State after the last shot — the starting point for a scene that continues from this one. */
   out: { characters: CharacterContinuity[]; environment: EnvironmentContinuity };
   issues: ContinuityIssue[];
+  /** Names of the Film Hub breakdown elements this ledger was seeded from. Empty = text-derived only. */
+  fromBreakdown: string[];
 }
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
 const add = (list: string[], item: string) => { const v = item.trim().toLowerCase(); if (v && !list.includes(v)) list.push(v); };
+/** As `add`, but keeps the wording as written — breakdown names and the supervisor's notes are theirs. */
+const addVerbatim = (list: string[], item: string) => { const v = item.trim(); if (v && !list.some((x) => x.toLowerCase() === v.toLowerCase())) list.push(v); };
 const remove = (list: string[], item: string) => {
   const v = item.trim().toLowerCase();
   const i = list.findIndex((x) => x === v || x.includes(v) || v.includes(x));
@@ -147,9 +167,47 @@ function matchAll(re: RegExp, text: string): string[] {
   return found;
 }
 
+/** The part of a Film Hub breakdown element the ledger reads. */
+export type BreakdownItem = Pick<BreakdownElement, 'name' | 'category'> & Partial<Pick<BreakdownElement, 'continuityState' | 'notes' | 'status' | 'occurrences'>>;
+
+/** The breakdown categories that carry continuity — the same set the hub's Continuity tab lists as
+ *  "should be here". */
+export const CONTINUITY_CATEGORIES: BreakdownElement['category'][] = ['PROPS', 'SET_DRESSING', 'WARDROBE', 'MAKEUP_HAIR', 'VEHICLES'];
+
+/** The breakdown elements that apply to one production scene. Omitted elements are skipped. */
+export function breakdownForScene(elements: BreakdownItem[] | undefined, productionSceneId: string | undefined): BreakdownItem[] {
+  if (!productionSceneId) return [];
+  return (elements || []).filter((el) => el.status !== 'OMITTED' && CONTINUITY_CATEGORIES.includes(el.category)
+    && (el.occurrences || []).some((o) => o.sceneId === productionSceneId));
+}
+
+const sceneKey = (s: string) => s.toUpperCase().replace(/[^A-Z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+/** Find the production scene a SLATE scene corresponds to: an explicit `filmSceneId`, then the takes
+ *  cut into it (assets from the hub carry `filmSceneId`), then the scene heading. */
+export function matchProductionScene(scene: any, productionScenes: ProductionScene[], opts: { clips?: any[]; pool?: any[] } = {}): ProductionScene | undefined {
+  const byId = (id?: string) => (id ? productionScenes.find((p) => p.id === id) : undefined);
+  if (byId(scene?.filmSceneId)) return byId(scene.filmSceneId);
+  const shotIds = new Set((scene?.shots || []).map((s: any) => s.id));
+  const votes = new Map<string, number>();
+  for (const c of opts.clips || []) {
+    if (!c?.shotId || !shotIds.has(c.shotId)) continue;
+    const id = (opts.pool || []).find((a) => a.id === c.assetId)?.filmSceneId;
+    if (id) votes.set(id, (votes.get(id) || 0) + 1);
+  }
+  const top = [...votes.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (top && byId(top[0])) return byId(top[0]);
+  const slug = sceneKey(scene?.slugline || scene?.title || '');
+  if (!slug) return undefined;
+  return productionScenes.find((p) => p.heading && sceneKey(p.heading) === slug)
+    || productionScenes.find((p) => p.set && sceneKey(p.set).length > 2 && slug.includes(sceneKey(p.set)) && slug.includes(p.dayNight));
+}
+
 export interface LedgerOptions {
   /** State to inherit from a scene this one continues directly from. */
   carryIn?: { characters: CharacterContinuity[]; environment?: Partial<EnvironmentContinuity> };
+  /** This scene's Film Hub breakdown elements (see `breakdownForScene`). Authoritative. */
+  breakdown?: BreakdownItem[];
 }
 
 /** Build the ledger for one SLATE scene (bible + ordered shots). */
@@ -167,6 +225,7 @@ export function buildSceneLedger(scene: any, opts: LedgerOptions = {}): SceneLed
     weather: weatherFrom(where),
     keySide: keySideFrom(bible.lighting_plan || ''),
     dressing: [],
+    required: [],
     ...(opts.carryIn?.environment || {}),
   };
 
@@ -182,6 +241,21 @@ export function buildSceneLedger(scene: any, opts: LedgerOptions = {}): SceneLed
       side, facing: side === 'frame-left' ? 'right' : side === 'frame-right' ? 'left' : undefined,
     };
   });
+
+  // Seed from the Film Hub breakdown. An element is a character's when their name is on it (its name,
+  // its continuity state, its notes, or the script line it was tagged from); otherwise it belongs to
+  // the scene. The Script Supervisor's `continuityState` travels with it verbatim.
+  const fromBreakdown: string[] = [];
+  for (const el of opts.breakdown || []) {
+    const label = `${el.name}${el.continuityState ? ` (${el.continuityState})` : ''}`;
+    const about = `${el.name} ${el.continuityState || ''} ${el.notes || ''} ${(el.occurrences || []).map((o) => o.quote || '').join(' ')}`;
+    const owner = chars.find((c) => new RegExp(`\\b${esc(c.name)}\\b`, 'i').test(about));
+    if (el.category === 'WARDROBE') { if (owner) addVerbatim(owner.wardrobe, `wearing ${label}`); else addVerbatim(env.required, label); }
+    else if (el.category === 'MAKEUP_HAIR') { if (owner) addVerbatim(owner.marks, label); else addVerbatim(env.required, label); }
+    else if (el.category === 'SET_DRESSING') addVerbatim(env.dressing, label);
+    else addVerbatim(env.required, label);
+    fromBreakdown.push(el.name);
+  }
 
   const issues: ContinuityIssue[] = [];
   const out: ShotContinuity[] = [];
@@ -231,7 +305,7 @@ export function buildSceneLedger(scene: any, opts: LedgerOptions = {}): SceneLed
     out.push(snapshot);
   }
 
-  return { sceneId: scene?.id, shots: out, out: { characters: clone(chars), environment: clone(env) }, issues };
+  return { sceneId: scene?.id, shots: out, out: { characters: clone(chars), environment: clone(env) }, issues, fromBreakdown };
 }
 
 /** Does this scene pick up directly from the previous one? Then its ledger should inherit state. */
@@ -240,11 +314,11 @@ export function continuesFrom(scene: any): boolean {
 }
 
 /** Ledgers for a run of scenes in story order, carrying state across the ones that are continuous. */
-export function buildProductionLedger(scenes: any[]): SceneLedger[] {
+export function buildProductionLedger(scenes: any[], breakdownFor: (scene: any) => BreakdownItem[] | undefined = () => undefined): SceneLedger[] {
   const ledgers: SceneLedger[] = [];
   let prev: SceneLedger | null = null;
   for (const sc of scenes) {
-    const l: SceneLedger = buildSceneLedger(sc, prev && continuesFrom(sc) ? { carryIn: { characters: prev.out.characters } } : {});
+    const l: SceneLedger = buildSceneLedger(sc, { breakdown: breakdownFor(sc), ...(prev && continuesFrom(sc) ? { carryIn: { characters: prev.out.characters } } : {}) });
     ledgers.push(l); prev = l;
   }
   return ledgers;
@@ -271,6 +345,7 @@ export function environmentStateClause(e: EnvironmentContinuity): string {
   if (e.weather) bits.push(e.weather);
   if (e.keySide) bits.push(`key light from ${e.keySide}`);
   if (e.dressing.length) bits.push(e.dressing.join(', '));
+  if (e.required?.length) bits.push(`in the scene: ${e.required.join(', ')}`);
   return bits.join('; ');
 }
 
@@ -281,4 +356,80 @@ export function continuityNegatives(s: ShotContinuity): string[] {
   if (s.environment.keySide) neg.push('light direction flipped');
   if (s.characters.some((c) => c.marks.length)) neg.push('clean unmarked skin and clothes');
   return neg;
+}
+
+// ── logging a check ─────────────────────────────────────────────────────────────
+
+/** A Continuity Eye verdict as the Film Hub's `ContinuityCheck` record — the one shape for a check,
+ *  whether it compared two frames on set or a generated shot against its reference. Thumbnails are
+ *  not stored, same as the hub. */
+export function toContinuityCheck(
+  result: ContinuityScore,
+  meta: { id: string; sceneId: string; sceneNum?: string; label?: string; note?: string; byMemberId?: string; byName?: string; createdAt?: number },
+): ContinuityCheck {
+  const row: ContinuityCheck = {
+    id: meta.id, sceneId: meta.sceneId, sceneNum: meta.sceneNum || '',
+    label: meta.label,
+    score: result.score, propsScore: result.propsScore, lightingScore: result.lightingScore,
+    lumaDelta: result.lumaDelta, colorTempNote: result.colorTempNote, flagCount: result.flags.length,
+    note: meta.note, byMemberId: meta.byMemberId, byName: meta.byName,
+    createdAt: meta.createdAt ?? Date.now(),
+  };
+  // Firestore rejects undefined fields — the hub strips them before every write, so do the same here.
+  return JSON.parse(JSON.stringify(row));
+}
+
+// ── what Continuity Eye can check for a generated scene ─────────────────────────
+
+export interface FrameRef { assetId: string; type: 'image' | 'video'; /** Seconds into the asset, for video. */ atSec: number; name?: string }
+
+export interface ContinuityCheckPlan {
+  shotId: string;
+  slug?: string;
+  /** take: this take against the one it replaced. first-frame: a generated clip against the still it
+   *  was started from. neighbour: this shot against the one before it in the scene. */
+  kind: 'take' | 'first-frame' | 'neighbour';
+  scope: 'same-setup' | 'cross-setup';
+  ref: FrameRef;
+  cur: FrameRef;
+  label: string;
+}
+
+/** The comparisons available for a scene, from what is actually in the cut and the bins. Same-setup
+ *  checks come first — they are the ones where a changed region means something. Storyboard frames
+ *  (assets marked `board`) are drawings and are never used as a reference. */
+export function planContinuityChecks(scene: any, clips: any[], pool: any[]): ContinuityCheckPlan[] {
+  const asset = (id?: string) => (pool || []).find((a) => a.id === id && (a.type === 'image' || a.type === 'video') && !a.board);
+  const picture = (clips || []).filter((c) => c?.assetId && c.kind !== 'script' && !String(c.trackId || '').startsWith('a'));
+  const frame = (c: any, edge: 'in' | 'out' | 'mid'): FrameRef | undefined => {
+    const a = asset(c?.assetId);
+    if (!a) return undefined;
+    const srcIn = Number(c.srcIn) || 0, dur = Number(c.duration) || 0;
+    const atSec = a.type === 'image' ? 0 : edge === 'in' ? srcIn + 0.1 : edge === 'out' ? Math.max(srcIn, srcIn + dur - 0.1) : srcIn + dur / 2;
+    return { assetId: a.id, type: a.type, atSec: Math.round(atSec * 100) / 100, name: a.name };
+  };
+
+  const plans: ContinuityCheckPlan[] = [];
+  let prev: { shot: any; clip: any } | null = null;
+  for (const shot of scene?.shots || []) {
+    const mine = picture.filter((c) => c.shotId === shot.id);
+    const live = mine.find((c) => !c.disabled);
+    if (!live) continue;
+    const slug = shot.slug || 'shot';
+
+    const muted = mine.find((c) => c.disabled && c.assetId !== live.assetId);
+    const ref = muted && frame(muted, 'mid'), cur = frame(live, 'mid');
+    if (ref && cur) plans.push({ shotId: shot.id, slug, kind: 'take', scope: 'same-setup', ref, cur, label: `${slug} · new take vs previous take` });
+
+    const liveAsset = asset(live.assetId);
+    const still = liveAsset?.type === 'video' ? (pool || []).find((a) => a.shotId === shot.id && a.type === 'image' && !a.board) : undefined;
+    const first = frame(live, 'in');
+    if (still && first) plans.push({ shotId: shot.id, slug, kind: 'first-frame', scope: 'same-setup', ref: { assetId: still.id, type: 'image', atSec: 0, name: still.name }, cur: first, label: `${slug} · clip vs its start frame` });
+
+    const before = prev && frame(prev.clip, 'out');
+    if (prev && before && first) plans.push({ shotId: shot.id, slug, kind: 'neighbour', scope: 'cross-setup', ref: before, cur: first, label: `${prev.shot.slug || 'previous'} → ${slug} · light across the cut` });
+
+    prev = { shot, clip: live };
+  }
+  return plans;
 }

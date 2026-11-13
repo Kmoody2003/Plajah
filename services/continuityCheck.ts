@@ -8,6 +8,16 @@
 //   • Lighting   — luminance + white-balance (colour-temp) deltas
 // Advisory only; the Script Supervisor decides. Object *naming* (matching a flag
 // to a specific breakdown prop) is P2 and needs detection/embeddings.
+//
+// The same engine checks GENERATED footage in Fabula (a new take against the one
+// it replaces, a video against its first frame, a shot against its neighbour).
+// For that it gained two things, neither of which changes a live-set check:
+//   • `scoreFrames` — the scoring core on raw pixels, with no DOM, so it can run
+//     on any two frames (and under test).
+//   • `scope` — 'same-setup' is the original comparison. 'cross-setup' is for two
+//     different camera setups in one scene, where the picture is SUPPOSED to
+//     differ: structure is still measured but not scored or flagged, and the
+//     verdict rests on what must survive a cut — exposure and white balance.
 
 export interface ContinuityFlag {
   x: number; y: number; w: number; h: number; // normalised 0..1 box
@@ -16,7 +26,16 @@ export interface ContinuityFlag {
   label: string;
 }
 
+/** What the two frames are. `same-setup` (default): the same shot twice — a reset on set, a
+ *  regenerated take, a video against its own first frame. `cross-setup`: two setups in one
+ *  scene, where only the light is expected to match. */
+export type ContinuityScope = 'same-setup' | 'cross-setup';
+
+/** The verdict without the thumbnails — what `scoreFrames` returns and what gets logged. */
+export type ContinuityScore = Omit<ContinuityResult, 'curThumb' | 'refThumb'>;
+
 export interface ContinuityResult {
+  scope?: ContinuityScope;
   score: number;          // 0–100 overall
   propsScore: number;     // structural (SSIM)
   lightingScore: number;  // luminance + white balance
@@ -29,7 +48,8 @@ export interface ContinuityResult {
   refThumb: string;
 }
 
-const W = 320, H = 180, BLOCK = 20;            // 16×9 blocks of 20px
+export const CONTINUITY_W = 320, CONTINUITY_H = 180;
+const W = CONTINUITY_W, H = CONTINUITY_H, BLOCK = 20;   // 16×9 blocks of 20px
 const COLS = W / BLOCK, ROWS = H / BLOCK;
 const C1 = (0.01 * 255) ** 2, C2 = (0.03 * 255) ** 2;
 const CHANGE_SSIM = 0.55;                       // block below this = "changed"
@@ -122,20 +142,20 @@ function lighting(a: Uint8ClampedArray, b: Uint8ClampedArray) {
 
 const clamp = (v: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
 
-export async function compareFrames(refSrc: Blob | string, curSrc: Blob | string): Promise<ContinuityResult> {
-  const [refBmp, curBmp] = await Promise.all([loadDrawable(refSrc), loadDrawable(curSrc)]);
-  const ref = draw(refBmp), cur = draw(curBmp);
-
-  const { global: ssim, changed } = ssimBlocks(ref.data, cur.data);
-  const { lumaDelta, warmthDelta } = lighting(ref.data, cur.data);
+/** Score two frames already reduced to CONTINUITY_W × CONTINUITY_H RGBA. No DOM — this is the whole
+ *  engine; `compareFrames` only loads pixels and adds thumbnails around it. */
+export function scoreFrames(ref: Uint8ClampedArray, cur: Uint8ClampedArray, scope: ContinuityScope = 'same-setup'): ContinuityScore {
+  const { global: ssim, changed } = ssimBlocks(ref, cur);
+  const { lumaDelta, warmthDelta } = lighting(ref, cur);
 
   const propsScore = clamp(Math.round(ssim * 100));
   // Lighting penalty: mean-luma shift (of 255) + white-balance shift.
   const lumaPct = Math.abs(lumaDelta) / 255 * 100;
   const lightingScore = clamp(Math.round(100 - lumaPct * 2.2 - Math.abs(warmthDelta) * 130));
-  const score = Math.round(propsScore * 0.6 + lightingScore * 0.4);
+  // Across two setups the frame is meant to change, so structure can't count against the cut.
+  const score = scope === 'cross-setup' ? lightingScore : Math.round(propsScore * 0.6 + lightingScore * 0.4);
 
-  const flags: ContinuityFlag[] = cluster(changed).slice(0, 6).map(box => ({
+  const flags: ContinuityFlag[] = scope === 'cross-setup' ? [] : cluster(changed).slice(0, 6).map(box => ({
     x: box.x, y: box.y, w: box.w, h: box.h, kind: 'CHANGE', severity: box.size >= 2 ? 'break' : 'drift',
     label: `Region changed · ${positionLabel(box.x, box.y, box.w, box.h)}`,
   }));
@@ -149,12 +169,47 @@ export async function compareFrames(refSrc: Blob | string, curSrc: Blob | string
   const kelvin = Math.round(Math.abs(warmthDelta) * 2600);
   const colorTempNote = Math.abs(warmthDelta) < 0.02 ? 'white balance holds' : `${warmthDelta > 0 ? '+' : '−'}${kelvin}K ${warmthDelta > 0 ? 'warmer' : 'cooler'}`;
 
+  return { scope, score, propsScore, lightingScore, ssim, lumaDelta: Math.round(lumaDelta), warmthDelta, colorTempNote, flags };
+}
+
+/** The Film Hub's three-way verdict, shared so set checks and generated checks read the same. */
+export const continuityVerdict = (score: number): 'Match' | 'Review' | 'Break' => (score >= 80 ? 'Match' : score >= 60 ? 'Review' : 'Break');
+
+export async function compareFrames(refSrc: Blob | string, curSrc: Blob | string, opts: { scope?: ContinuityScope } = {}): Promise<ContinuityResult> {
+  const [refBmp, curBmp] = await Promise.all([loadDrawable(refSrc), loadDrawable(curSrc)]);
+  const ref = draw(refBmp), cur = draw(curBmp);
   return {
-    score, propsScore, lightingScore, ssim, lumaDelta: Math.round(lumaDelta), warmthDelta,
-    colorTempNote, flags,
+    ...scoreFrames(ref.data, cur.data, opts.scope),
     curThumb: cur.canvas.toDataURL('image/jpeg', 0.6),
     refThumb: ref.canvas.toDataURL('image/jpeg', 0.6),
   };
+}
+
+/** Pull one frame out of a video (URL or Blob) as a JPEG — so a generated clip can be put through
+ *  the same comparison as a still. `atSec` is clamped inside the clip. */
+export async function grabVideoFrame(src: Blob | string, atSec = 0): Promise<Blob> {
+  const url = typeof src === 'string' ? src : URL.createObjectURL(src);
+  const video = document.createElement('video');
+  video.muted = true; video.playsInline = true; video.preload = 'auto'; video.crossOrigin = 'anonymous';
+  try {
+    await new Promise<void>((resolve, reject) => {
+      video.onloadedmetadata = () => resolve();
+      video.onerror = () => reject(new Error('That clip could not be decoded for a continuity frame.'));
+      video.src = url;
+    });
+    const t = Math.max(0, Math.min(atSec, Math.max(0, (video.duration || 0) - 0.05)));
+    await new Promise<void>((resolve, reject) => {
+      video.onseeked = () => resolve();
+      video.onerror = () => reject(new Error('Could not seek that clip for a continuity frame.'));
+      video.currentTime = t;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280; canvas.height = video.videoHeight || 720;
+    canvas.getContext('2d')!.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => (b ? resolve(b) : reject(new Error('Could not read a frame from that clip.'))), 'image/jpeg', 0.85));
+  } finally {
+    if (typeof src !== 'string') URL.revokeObjectURL(url);
+  }
 }
 
 /** Grab a single still from a live MediaStream (for capture-from-camera). */

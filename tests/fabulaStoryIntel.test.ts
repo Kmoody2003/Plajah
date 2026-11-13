@@ -11,11 +11,14 @@ import { connectorById, compileHandoff, compileShotPrompt, type ShotSpec, type C
 import {
   resolveEmotion, parseArc, tensionAt, planScenePerformance, scoreBrief, voiceDelivery,
   buildSceneLedger, buildProductionLedger, characterStateClause,
+  breakdownForScene, matchProductionScene, toContinuityCheck, planContinuityChecks, environmentStateClause,
   applyDirection, dialectFor, directScene,
   mapCoverage, planStoryboards, addPlaceholdersForMissing,
   gatherCharacterEvidence, planVoiceLock, planCharacterSheet, relationshipEvidence,
   relationshipsTask, normalizeRelationships, motivationsFrom, normalizeBinSuggestions, digestProduction,
 } from '../services/fabula/story';
+
+import { scoreFrames, continuityVerdict, CONTINUITY_W, CONTINUITY_H } from '../services/continuityCheck';
 
 const conn = (id: string) => connectorById(id)!;
 
@@ -143,6 +146,123 @@ test('state carries into a scene that continues, and not into one that does not'
   assert.deepEqual(l2.shots[0].characters.find((c) => c.name === 'ELI')!.marks, ['blood']);
   assert.deepEqual(l2.shots[0].characters.find((c) => c.name === 'MAYA')!.props, ['ledger']);
   assert.deepEqual(l3.shots[0].characters.find((c) => c.name === 'ELI')!.marks, []);
+});
+
+// ── the Film Hub's continuity engine, reused ────────────────────────────────────
+
+const BREAKDOWN = [
+  { name: "Maya's grey coat", category: 'WARDROBE', continuityState: 'left sleeve torn since Sc 4', occurrences: [{ sceneId: 'ps7', sceneNum: '7' }] },
+  { name: 'Split lip', category: 'MAKEUP_HAIR', notes: 'ELI — fresh, no swelling yet', occurrences: [{ sceneId: 'ps7', sceneNum: '7' }] },
+  { name: 'Ledger', category: 'PROPS', continuityState: 'water-stained cover', occurrences: [{ sceneId: 'ps7', sceneNum: '7' }] },
+  { name: 'Outboard motor on trestle', category: 'SET_DRESSING', occurrences: [{ sceneId: 'ps7', sceneNum: '7' }] },
+  { name: 'Flare gun', category: 'PROPS', status: 'OMITTED', occurrences: [{ sceneId: 'ps7', sceneNum: '7' }] },
+  { name: 'Radio', category: 'SOUND', occurrences: [{ sceneId: 'ps7', sceneNum: '7' }] },
+  { name: 'Rowboat', category: 'VEHICLES', occurrences: [{ sceneId: 'ps9', sceneNum: '9' }] },
+] as any[];
+const PROD_SCENES = [
+  { id: 'ps7', sceneNum: '7', intExt: 'INT', dayNight: 'NIGHT', set: 'BOATHOUSE', heading: 'INT. BOATHOUSE - NIGHT' },
+  { id: 'ps9', sceneNum: '9', intExt: 'EXT', dayNight: 'DAY', set: 'DOCK' },
+] as any[];
+
+test('the hub breakdown seeds the ledger: the supervisor\'s continuity state is authoritative from shot one', () => {
+  const items = breakdownForScene(BREAKDOWN, 'ps7');
+  assert.deepEqual(items.map((i) => i.name), ["Maya's grey coat", 'Split lip', 'Ledger', 'Outboard motor on trestle'], 'omitted and non-continuity elements are skipped');
+  const ledger = buildSceneLedger(scene(), { breakdown: items });
+  const first = ledger.shots[0];
+  assert.deepEqual(first.characters.find((c) => c.name === 'MAYA')!.wardrobe, ["wearing Maya's grey coat (left sleeve torn since Sc 4)"]);
+  assert.deepEqual(first.characters.find((c) => c.name === 'ELI')!.marks, ['Split lip'], 'a makeup element is given to the character named in its notes');
+  assert.deepEqual(first.environment.required, ['Ledger (water-stained cover)']);
+  assert.deepEqual(first.environment.dressing, ['Outboard motor on trestle']);
+  assert.match(environmentStateClause(first.environment), /in the scene: Ledger \(water-stained cover\)/);
+  assert.equal(ledger.fromBreakdown.length, 4);
+  // And it reaches the model, on every provider.
+  const spec: ShotSpec = { prompt: 'Close on Maya.', refs: [], direction: { continuity: ledger.shots[3] } };
+  for (const id of ['kling', 'runway', 'flux']) assert.match(compileHandoff(spec, conn(id)).prompt, /left sleeve torn since Sc 4/, id);
+});
+
+test('a ledger with no breakdown is unchanged — text inference still stands alone', () => {
+  const ledger = buildSceneLedger(scene());
+  assert.deepEqual(ledger.fromBreakdown, []);
+  assert.deepEqual(ledger.shots[0].environment.required, []);
+});
+
+test('a SLATE scene finds its production scene by link, by the takes cut into it, then by heading', () => {
+  assert.equal(matchProductionScene({ ...scene(), filmSceneId: 'ps9' }, PROD_SCENES)!.id, 'ps9');
+  const byTakes = matchProductionScene({ ...scene(), slugline: 'SOMEWHERE ELSE' }, PROD_SCENES, {
+    clips: [{ id: 'k', shotId: 's1', assetId: 'a1' }], pool: [{ id: 'a1', filmSceneId: 'ps9' }],
+  });
+  assert.equal(byTakes!.id, 'ps9');
+  assert.equal(matchProductionScene(scene(), PROD_SCENES)!.id, 'ps7');
+  assert.equal(matchProductionScene({ slugline: 'EXT. DOCK — DAY', shots: [] }, PROD_SCENES)!.id, 'ps9', 'falls back to set + time of day');
+  assert.equal(matchProductionScene({ slugline: 'INT. KITCHEN - DAY', shots: [] }, PROD_SCENES), undefined);
+});
+
+// A textured frame. Inside `patch` the texture is inverted and amplified — different structure at the
+// same average brightness — and optionally recoloured, so structure and light can be varied apart.
+const frameOf = (rgb: [number, number, number], patch?: { x: number; y: number; w: number; h: number; rgb?: [number, number, number] }) => {
+  const px = new Uint8ClampedArray(CONTINUITY_W * CONTINUITY_H * 4);
+  for (let y = 0; y < CONTINUITY_H; y++) for (let x = 0; x < CONTINUITY_W; x++) {
+    const i = (y * CONTINUITY_W + x) * 4;
+    const inPatch = !!patch && x >= patch.x && x < patch.x + patch.w && y >= patch.y && y < patch.y + patch.h;
+    const base = ((x * 7 + y * 13) % 23) - 11;
+    const tex = inPatch ? -base * 3 : base;
+    const [r, g, b] = (inPatch && patch!.rgb) || rgb;
+    px[i] = r + tex; px[i + 1] = g + tex; px[i + 2] = b + tex; px[i + 3] = 255;
+  }
+  return px;
+};
+
+test('Continuity Eye scores identical frames as a match and flags a changed region', () => {
+  const a = frameOf([120, 110, 100]);
+  const same = scoreFrames(a, frameOf([120, 110, 100]));
+  assert.equal(same.score, 100);
+  assert.equal(continuityVerdict(same.score), 'Match');
+  assert.equal(same.flags.length, 0);
+  const moved = scoreFrames(a, frameOf([120, 110, 100], { x: 200, y: 40, w: 80, h: 80, rgb: [230, 230, 230] }));
+  assert.ok(moved.propsScore < 100 && moved.flags.some((f) => f.kind === 'CHANGE' && /right/.test(f.label)), 'a prop-sized change should be boxed on the side it happened');
+});
+
+test('across two setups only the light is judged — a new angle is not a continuity break', () => {
+  const wide = frameOf([120, 110, 100]);
+  const close = frameOf([120, 110, 100], { x: 40, y: 20, w: 240, h: 140 });
+  const cross = scoreFrames(wide, close, 'cross-setup');
+  assert.equal(cross.flags.filter((f) => f.kind === 'CHANGE').length, 0);
+  assert.equal(cross.score, cross.lightingScore);
+  assert.ok(scoreFrames(wide, close).score < cross.score, 'the same pair judged as one setup would be marked down for the reframing');
+  // But a real lighting jump across the cut is still caught.
+  const cold = scoreFrames(wide, frameOf([60, 70, 110]), 'cross-setup');
+  assert.equal(continuityVerdict(cold.score), 'Break');
+  assert.ok(cold.flags.some((f) => f.kind === 'LIGHT' && /cooler/.test(f.label)));
+});
+
+test('a generated-shot check is logged as the same record the hub\'s Continuity tab writes', () => {
+  const r = scoreFrames(frameOf([120, 110, 100]), frameOf([150, 120, 90]));
+  const row = toContinuityCheck(r, { id: 'cc1', sceneId: 'ps7', sceneNum: '7', label: '1C → 1D · light across the cut', createdAt: 5 });
+  assert.deepEqual(Object.keys(row).sort(), ['colorTempNote', 'createdAt', 'flagCount', 'id', 'label', 'lightingScore', 'lumaDelta', 'propsScore', 'sceneId', 'sceneNum', 'score']);
+  assert.ok(!('note' in row), 'undefined fields must be stripped — Firestore rejects them');
+  assert.equal(row.flagCount, r.flags.length);
+});
+
+test('the checks offered come from what is really in the cut, and boards are never a reference', () => {
+  const sc = scene();
+  const p = [
+    { id: 'v1', type: 'video', name: '1A.mp4' }, { id: 'v2old', type: 'video', name: '1B take1.mp4' }, { id: 'v2', type: 'video', name: '1B take2.mp4' },
+    { id: 'still2', type: 'image', name: '1B still.png', shotId: 's2' }, { id: 'board3', type: 'image', name: '1C board.png', shotId: 's3', board: true },
+    { id: 'v3', type: 'video', name: '1C.mp4' },
+  ];
+  const c = [
+    { id: 'a', trackId: 'v1', start: 0, duration: 4, srcIn: 1, kind: 'media', assetId: 'v1', shotId: 's1' },
+    { id: 'b0', trackId: 'v1', start: 4, duration: 2, srcIn: 0, kind: 'media', assetId: 'v2old', shotId: 's2', disabled: true },
+    { id: 'b', trackId: 'v1', start: 4, duration: 2, srcIn: 0, kind: 'media', assetId: 'v2', shotId: 's2' },
+    { id: 'c', trackId: 'v1', start: 6, duration: 3, srcIn: 0, kind: 'media', assetId: 'v3', shotId: 's3' },
+    { id: 'd', trackId: 'v1', start: 9, duration: 2, kind: 'script', shotId: 's4' },
+  ];
+  const plans = planContinuityChecks(sc, c, p);
+  assert.deepEqual(plans.map((x) => `${x.slug}:${x.kind}:${x.scope}`), [
+    '1B:take:same-setup', '1B:first-frame:same-setup', '1B:neighbour:cross-setup', '1C:neighbour:cross-setup',
+  ]);
+  const cut = plans.find((x) => x.slug === '1B' && x.kind === 'neighbour')!;
+  assert.deepEqual([cut.ref.assetId, cut.ref.atSec, cut.cur.assetId, cut.cur.atSec], ['v1', 4.9, 'v2', 0.1], 'last frame of the outgoing shot against the first of the incoming');
 });
 
 // ── compiling for a model ───────────────────────────────────────────────────────

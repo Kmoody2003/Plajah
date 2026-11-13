@@ -98,7 +98,7 @@ import { isWindowsApp, pickWindowsFolder, pickWindowsFile, scanWindowsLibrary, c
 import { isVectorFile, rasterizeVector } from "../../services/fabula/vectorRaster";
 import GeneratePanel from "./GeneratePanel";
 import StoryIntelligencePanel from "./StoryIntelligencePanel";
-import { directScene, motivationsFrom, continuesFrom, mapCoverage, addPlaceholdersForMissing } from "../../services/fabula/story";
+import { directScene, motivationsFrom, continuesFrom, mapCoverage, addPlaceholdersForMissing, breakdownForScene, matchProductionScene } from "../../services/fabula/story";
 import RunwayPluginPanel from "./RunwayPluginPanel";
 import { LocalCreativeStudio } from "./LocalCreativeStudio";
 import { specFromShot, connectorById, placeResultInCut } from "../../services/fabula/genAgent";
@@ -1385,6 +1385,25 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   const scriptFilesRef = useRef(null);              // .txt/.md/.fountain → Lorea script structuring
   const [genOpen, setGenOpen] = useState(false);    // generation agent panel (Kling/Magnific → bins)
   const [storyOpen, setStoryOpen] = useState(false); // Story Intelligence: coverage, characters, direction, story
+  // The Film Production hub's continuity data for the production this project was cut from (the hub
+  // stamps `filmProductionId` on the project). Its scene list and script breakdown seed the continuity
+  // ledger, so generated shots hold the same wardrobe/props/makeup state the Script Supervisor logged.
+  const [filmHub, setFilmHub] = useState({ scenes: [], breakdown: [] });
+  const filmProductionId = prod?.filmProductionId;
+  useEffect(() => {
+    setFilmHub({ scenes: [], breakdown: [] });
+    if (!filmProductionId) return undefined;
+    let alive = true; const offs = [];
+    (async () => {
+      try {
+        const [FP, BD] = await Promise.all([import("../../services/filmProductionService"), import("../../services/productionBreakdownService")]);
+        if (!alive) return;
+        offs.push(FP.subScenes(filmProductionId, (scenes) => alive && setFilmHub((h) => ({ ...h, scenes }))));
+        offs.push(BD.subscribeBreakdownElements(filmProductionId, (breakdown) => alive && setFilmHub((h) => ({ ...h, breakdown }))));
+      } catch (e) { console.warn("[story-intel] film hub link unavailable", e); }
+    })();
+    return () => { alive = false; offs.forEach((off) => { try { off(); } catch { /* already closed */ } }); };
+  }, [filmProductionId]);
   // Context for the generation panel when it's opened from a SLATE shot card or a timeline clip rather
   // than the media pool — carries the compiled ShotSpec so the panel opens pre-filled with the shot's
   // prompt and the scene bible's identity locks as references. null = opened bare from the pool.
@@ -3393,8 +3412,9 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       const motivations = motivationsFrom(prod?.storyIntel?.relationships);
       const i = allScenes.findIndex((x) => x.scene.id === sc.id);
       const prev = i > 0 ? allScenes[i - 1].scene : null;
-      const carryIn = prev && continuesFrom(sc) ? { characters: directScene(prev, motivations).ledger.out.characters } : undefined;
-      return directScene(sc, motivations, carryIn ? { carryIn } : {}).forShot(shot.id);
+      const hubBreakdown = (x) => breakdownForScene(filmHub.breakdown, matchProductionScene(x, filmHub.scenes, { clips, pool: prod?.mediaPool })?.id);
+      const carryIn = prev && continuesFrom(sc) ? { characters: directScene(prev, motivations, { breakdown: hubBreakdown(prev) }).ledger.out.characters } : undefined;
+      return directScene(sc, motivations, { breakdown: hubBreakdown(sc), ...(carryIn ? { carryIn } : {}) }).forShot(shot.id);
     } catch (e) { console.warn("[story-intel] direction failed", e); return undefined; }
   };
   const openGenForShot = (sc, shot, which) => {
@@ -3463,6 +3483,8 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       id: uid(), name: r.name || "generated", type: r.type || "image", url: r.url, cloudUrl: r.url,
       bin: target, duration: 0, generated: true, synced: true, session: true,
       shotId: job?.spec?.shotId,          // provenance: which SLATE shot this came from
+      // A storyboard frame is a drawing — Continuity Eye must never use it as a picture reference.
+      ...(job?.spec?.direction?.boardStyle ? { board: true } : {}),
     }));
     updateProd((p) => {
       p.mediaPool = p.mediaPool || []; p.bins = p.bins || [];
@@ -7007,6 +7029,21 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         <StoryIntelligencePanel
           prod={prod} clips={clips} sceneId={scene?.id} aspect={prod?.defaults?.aspect}
           callJson={callClaudeJson} updateProd={updateProd} ping={ping}
+          filmHub={filmHub}
+          resolveFrame={async (assetId) => {
+            const a = (prod.mediaPool || []).find((x) => x.id === assetId);
+            const url = a?.url || a?.cloudUrl;
+            let blob = url ? await fetch(url).then((r) => (r.ok ? r.blob() : null)).catch(() => null) : null;
+            if (!blob || !blob.size) blob = await stGet("studio:blob:" + assetId);
+            if (!blob || !blob.size) throw new Error(`"${a?.name || "That clip"}" is offline on this device — relink it to check continuity.`);
+            return blob;
+          }}
+          onLogCheck={async (row) => {
+            // Same log the hub's Continuity tab writes to, so the Script Supervisor sees generated-shot checks too.
+            if (!filmProductionId) return;
+            try { (await import("../../services/filmProductionService")).putContinuityCheck(filmProductionId, row); }
+            catch (e) { console.warn("[story-intel] continuity log failed", e); }
+          }}
           onClose={() => setStoryOpen(false)}
           onGotoScene={(actId, sceneId) => { setStoryOpen(false); gotoScene(actId, sceneId, "slate"); }}
           onGenerate={({ spec, kind, title }) => {

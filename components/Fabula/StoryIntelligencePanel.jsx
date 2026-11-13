@@ -14,14 +14,16 @@
 // and feed back into direction (inferred motivations become each character's objective).
 
 import { useMemo, useState } from "react";
-import { X, Sparkles, Loader, Film, Users, Clapperboard, BookOpen, AlertTriangle, Copy, Mic, Image as ImageIcon } from "lucide-react";
+import { X, Sparkles, Loader, Film, Users, Clapperboard, BookOpen, AlertTriangle, Copy, Mic, Eye, Image as ImageIcon } from "lucide-react";
 import {
   mapCoverage, planStoryboards, gatherCharacterEvidence, planVoiceLock, planCharacterSheet,
   relationshipEvidence, relationshipsTask, normalizeRelationships, motivationsFrom,
   describeBins, binReasoningTask, normalizeBinSuggestions, gapFillTask, normalizeGapFill,
   critiqueTask, normalizeCritique, directScene, SHEET_VIEWS, continuesFrom,
   characterStateClause, environmentStateClause,
+  breakdownForScene, matchProductionScene, planContinuityChecks, toContinuityCheck,
 } from "../../services/fabula/story";
+import { compareFrames, grabVideoFrame, continuityVerdict } from "../../services/continuityCheck";
 
 const STATUS = {
   shot: { label: "Shot", color: "#34d399" },
@@ -37,7 +39,10 @@ const TABS = [["coverage", "COVERAGE", Film], ["characters", "CHARACTERS", Users
 
 export default function StoryIntelligencePanel({
   prod, clips, sceneId, aspect, callJson, updateProd, onGenerate, onAddSlots, onGotoScene, ping, onClose,
+  filmHub, resolveFrame, onLogCheck,
 }) {
+  const [checks, setChecks] = useState({});      // Continuity Eye results this session, by check key
+  const [checking, setChecking] = useState("");
   const [tab, setTab] = useState("coverage");
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
@@ -54,12 +59,38 @@ export default function StoryIntelligencePanel({
   const evidence = useMemo(() => gatherCharacterEvidence(prod, clips), [prod, clips]);
   const edges = useMemo(() => relationshipEvidence(prod), [prod]);
 
+  // The Film Hub side of the same continuity system: this scene's production scene and its breakdown.
+  const productionSceneFor = (scene) => matchProductionScene(scene, filmHub?.scenes || [], { clips, pool: prod?.mediaPool });
+  const hubBreakdown = (scene) => breakdownForScene(filmHub?.breakdown, productionSceneFor(scene)?.id);
+
   // Direction for a scene, with continuity carried in from the previous scene when this one continues it.
   const directionFor = (scene) => {
     const i = flatScenes.findIndex((x) => x.scene.id === scene.id);
     const prev = i > 0 ? flatScenes[i - 1].scene : null;
-    const carryIn = prev && continuesFrom(scene) ? { characters: directScene(prev, motivations).ledger.out.characters } : undefined;
-    return directScene(scene, motivations, carryIn ? { carryIn } : {});
+    const carryIn = prev && continuesFrom(scene) ? { characters: directScene(prev, motivations, { breakdown: hubBreakdown(prev) }).ledger.out.characters } : undefined;
+    return directScene(scene, motivations, { breakdown: hubBreakdown(scene), ...(carryIn ? { carryIn } : {}) });
+  };
+
+  // Continuity Eye — the Film Hub's frame comparison — run on a generated shot. Frames are pulled from
+  // the clips on this device; nothing is uploaded. The verdict is logged in the hub's record shape.
+  const checkKey = (pl) => `${pl.shotId}:${pl.kind}`;
+  const runCheck = async (pl, scene) => {
+    if (checking) return;
+    setChecking(checkKey(pl)); setErr("");
+    try {
+      const frameOf = async (f) => { const src = await resolveFrame(f.assetId); return f.type === "video" ? grabVideoFrame(src, f.atSec) : src; };
+      const [ref, cur] = [await frameOf(pl.ref), await frameOf(pl.cur)];
+      const result = await compareFrames(ref, cur, { scope: pl.scope });
+      setChecks((m) => ({ ...m, [checkKey(pl)]: result }));
+      const hub = productionSceneFor(scene);
+      const row = toContinuityCheck(result, {
+        id: `cc_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+        sceneId: hub?.id || scene.id, sceneNum: hub?.sceneNum || "", label: `Generated · ${pl.label}`,
+      });
+      updateProd((p) => { p.continuityChecks = [{ ...row, fabulaSceneId: scene.id, shotId: pl.shotId }, ...(p.continuityChecks || [])].slice(0, 200); });
+      onLogCheck?.(row);
+    } catch (e) { setErr(`Continuity check failed — ${e?.message || e}`); }
+    setChecking("");
   };
 
   const boards = useMemo(
@@ -123,6 +154,9 @@ export default function StoryIntelligencePanel({
   const sceneTitle = (id) => { const s = flatScenes.find((x) => x.scene.id === id)?.scene; return s ? (s.slugline || s.title || "Scene") : id; };
   const dirSceneObj = flatScenes.find((x) => x.scene.id === dirScene)?.scene || flatScenes.find((x) => (x.scene.shots || []).length)?.scene;
   const dir = dirSceneObj ? directionFor(dirSceneObj) : null;
+  const checkPlans = dirSceneObj ? planContinuityChecks(dirSceneObj, clips, prod?.mediaPool || []) : [];
+  const dirHubScene = dirSceneObj ? productionSceneFor(dirSceneObj) : null;
+  const verdictClass = (score) => (score >= 80 ? "ready" : score >= 60 ? "thin" : "insufficient");
 
   return (
     <div className="si-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
@@ -282,6 +316,15 @@ export default function StoryIntelligencePanel({
               </select>
               {!dir && <div className="si-empty">No scene has a shot list yet. Run the SLATE breakdown on a scene and its direction appears here.</div>}
               {dir && !dirSceneObj.bible && <div className="si-note">This scene has no bible yet, so there are no character arcs or locks to direct from. Run the SLATE breakdown first.</div>}
+              {dir && (
+                <div className="si-note">
+                  {dir.ledger.fromBreakdown.length
+                    ? `Continuity is held from the Film Hub breakdown for Scene ${dirHubScene?.sceneNum || ""} — ${dir.ledger.fromBreakdown.join(", ")}. Changes inside the scene are read from the shots.`
+                    : prod?.filmProductionId
+                      ? (dirHubScene ? `Scene ${dirHubScene.sceneNum} has no wardrobe, makeup, prop or set-dressing elements in the Film Hub breakdown yet — continuity here is read from the shot text.` : "This scene isn't matched to a scene in the linked production, so its breakdown can't be applied — continuity here is read from the shot text.")
+                      : "No Film Hub production is linked to this project — continuity is read from the shot text. Projects sent from the hub's Set-to-Cut use its script breakdown instead."}
+                </div>
+              )}
               {dir && dir.ledger.issues.map((x, i) => <div key={i} className="si-err"><AlertTriangle size={12} /> {x.slug}: {x.message}</div>)}
               {dir && dir.plan.shots.map((sp, i) => {
                 const cont = dir.ledger.shots[i];
@@ -302,9 +345,49 @@ export default function StoryIntelligencePanel({
                     {!sp.beats.length && <div className="si-dim">No character in frame.</div>}
                     {!!state.length && <div className="si-cont"><b>Holds</b> {state.join(" · ")}</div>}
                     {!!cont?.changes.length && <div className="si-dim">Changes in this shot: {cont.changes.join("; ")}</div>}
+                    {checkPlans.filter((pl) => pl.shotId === sp.shotId).map((pl) => {
+                      const r = checks[checkKey(pl)];
+                      return (
+                        <div key={pl.kind} className="si-check">
+                          <div className="si-row">
+                            <button className="si-btn sm" disabled={!!checking} onClick={() => runCheck(pl, dirSceneObj)}>
+                              {checking === checkKey(pl) ? <Loader size={10} className="si-spin" /> : <Eye size={10} />} {pl.kind === "take" ? "Check against previous take" : pl.kind === "first-frame" ? "Check against start frame" : "Check light against previous shot"}
+                            </button>
+                            {r && <span className={`si-state ${verdictClass(r.score)}`}>{continuityVerdict(r.score)} · {r.score}</span>}
+                            {r && <span className="si-dim">{pl.scope === "same-setup" ? `props/set ${r.propsScore} · ` : ""}lighting {r.lightingScore} · {r.colorTempNote} · {r.lumaDelta > 0 ? "+" : ""}{r.lumaDelta} luma</span>}
+                          </div>
+                          {r && (
+                            <div className="si-frames">
+                              <figure><img src={r.refThumb} alt="reference frame" /><figcaption>{pl.ref.name}</figcaption></figure>
+                              <figure>
+                                <div className="si-frame">
+                                  <img src={r.curThumb} alt="frame being checked" />
+                                  {r.flags.filter((f) => f.kind === "CHANGE").map((f, k) => (
+                                    <i key={k} className={f.severity} style={{ left: `${f.x * 100}%`, top: `${f.y * 100}%`, width: `${f.w * 100}%`, height: `${f.h * 100}%` }} title={f.label} />
+                                  ))}
+                                </div>
+                                <figcaption>{pl.cur.name}{r.flags.filter((f) => f.kind === "LIGHT").map((f) => ` — ${f.label}`).join("")}</figcaption>
+                              </figure>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}
+              {dir && (prod?.continuityChecks || []).some((c) => c.fabulaSceneId === dirSceneObj.id) && (
+                <div className="si-card">
+                  <div className="si-card-head"><b>Continuity log</b><span className="si-dim">{prod?.filmProductionId ? "Also written to the production's Continuity tab" : "Saved with this project"}</span></div>
+                  {(prod.continuityChecks || []).filter((c) => c.fabulaSceneId === dirSceneObj.id).slice(0, 8).map((c) => (
+                    <div key={c.id} className="si-row">
+                      <span className={`si-state ${verdictClass(c.score)}`}>{continuityVerdict(c.score)} · {c.score}</span>
+                      <span>{c.label}</span>
+                      <span className="si-dim">{c.colorTempNote} · {c.flagCount} flag{c.flagCount === 1 ? "" : "s"}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               {dir && !!dir.score.length && (
                 <div className="si-card">
                   <div className="si-card-head"><b>Score &amp; sound brief</b></div>
@@ -434,6 +517,14 @@ export default function StoryIntelligencePanel({
           .si-crit{border-left:3px solid #a5b4fc;padding:3px 0 3px 9px}
           .si-crit.strength{border-color:#34d399}.si-crit.problem{border-color:#fb7185}
           .si-crit .si-kind{margin-left:0}
+          .si-check{border-top:1px solid rgba(255,255,255,0.06);padding-top:6px;display:flex;flex-direction:column;gap:6px}
+          .si-frames{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:520px}
+          .si-frames figure{margin:0}
+          .si-frames img{display:block;width:100%;border-radius:6px;border:1px solid rgba(255,255,255,0.1)}
+          .si-frames figcaption{font-size:10.5px;color:#9d98b3;margin-top:3px;overflow-wrap:anywhere}
+          .si-frame{position:relative}
+          .si-frame i{position:absolute;border:2px dashed #f5b544;border-radius:3px}
+          .si-frame i.break{border-color:#ff5a6a}
         `}</style>
       </div>
     </div>
