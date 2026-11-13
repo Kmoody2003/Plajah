@@ -24,7 +24,7 @@ export const OPS_COLLECTIONS: ReadonlySet<string> = new Set([
   'chmsFinanceMeta', 'chmsHouseholds', 'chmsImports', 'chmsMessages', 'chmsNotes', 'chmsPayoutLines',
   'chmsPayouts', 'chmsPeople', 'chmsPledges', 'chmsShifts', 'chmsTasks', 'memberTasks',
   'churchEduAssignments', 'churchEduAnswerKeys', 'churchEduJoinRequests', 'churchEduSubmissions',
-  'orgAnnouncements', 'announcementResponses', 'docTemplates', 'orgTemplatePolicies', 'lessonLibrary', 'classThreads', 'classMedia', 'liveSources',
+  'orgAnnouncements', 'announcementResponses', 'docTemplates', 'orgTemplatePolicies', 'lessonLibrary', 'enrollments', 'classThreads', 'classMedia', 'liveSources',
   'churchPrayers', 'churchPrograms', 'congregants', 'donations',
   // Content HQ + org assets
   'contentRepurposeJobs', 'hqActivity', 'hqAlertState', 'hqAssetVersions', 'hqAuditLog', 'hqComments',

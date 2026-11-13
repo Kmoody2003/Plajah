@@ -182,6 +182,17 @@ t('library: a teacher with no org saves their own', 'ALLOW', OTHER, 'create', LL
 t('library: anyone signed in reads a platform lesson', 'ALLOW', OTHER, 'get', LL, { existing: lesson({ tier: 'platform', scopeId: 'platform', orgId: '', ownerUid: TEACH, provisioned: 'teacher' }) });
 t('library: cannot share to the platform as someone else', 'DENY', OTHER, 'create', LL, { data: lesson({ tier: 'platform', scopeId: 'platform', orgId: '', ownerUid: TEACH, provisioned: 'teacher' }) });
 
+// Enrolled Student role (services/enrollmentCore): server-written; the student and the org's staff read it.
+const EN = `${DB}/enrollments/christian_ed_c1_${MEMBER}`;
+const enr = (o) => ({ id: 'x', uid: MEMBER, kind: 'christian_ed', courseId: 'c1', courseTitle: 'Rev', orgId: 'o1', role: 'ENROLLED_STUDENT', status: 'active', source: 'class_roster', enrolledAt: 1, endedAt: 0, updatedAt: 1, ...o });
+t('enrollment: the student reads their own', 'ALLOW', MEMBER, 'get', EN, { existing: enr() });
+t('enrollment: an org teacher reads it', 'ALLOW', TEACH, 'get', EN, { existing: enr() });
+t('enrollment: the org owner reads it', 'ALLOW', OWNER, 'get', EN, { existing: enr() });
+t('enrollment: a stranger cannot read it', 'DENY', OTHER, 'get', EN, { existing: enr() });
+t('enrollment: a student cannot enroll themself', 'DENY', MEMBER, 'create', EN, { data: enr() });
+t('enrollment: a teacher cannot write one from the browser', 'DENY', TEACH, 'create', EN, { data: enr() });
+t('enrollment: a student cannot end someone else’s', 'DENY', MEMBER, 'update', EN, { existing: enr({ uid: OTHER }), data: enr({ uid: OTHER, status: 'ended' }) });
+
 // Class discussion board (services/classForum): class members only; your own vote; teachers moderate.
 const DEPT = 'deptmember';
 const PROG = { orgId: 'o1', departmentId: 'd1', createdBy: OWNER, teacherUids: [TEACH], studentUids: [MEMBER] };

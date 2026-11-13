@@ -359,7 +359,14 @@ export async function fsBumpCounter(path: string, by = 1): Promise<number | null
 }
 
 /** Add one student atomically: marker (only if new), private roster, public seat count. Idempotent. */
-export async function fsAddClassMember(classId: string, uid: string): Promise<'added' | 'already' | 'error'> {
+export async function fsAddClassMember(classId: string, uid: string, source = 'class'): Promise<'added' | 'already' | 'error'> {
+  const r = await addClassMemberOnce(classId, uid);
+  // Every seat granted here (join code, open course, payment) makes the learner an Enrolled Student of it.
+  if (r !== 'error') void import('./enrollmentServer').then(m => m.recordClassEnrollment(classId, uid, source)).catch(() => {});
+  return r;
+}
+
+async function addClassMemberOnce(classId: string, uid: string): Promise<'added' | 'already' | 'error'> {
   const root = docRootFor('classMembers');
   try {
     const res = await fetch(`https://firestore.googleapis.com/v1/${root}:commit`, {

@@ -55,6 +55,7 @@ import { learnerAuthRouter } from './routes/learnerAuth';
 import { schoolsRouter } from './routes/schools';
 import { elevateAccountsRouter } from './routes/elevateAccounts';
 import { elevateAccessRouter } from './routes/elevateAccess';
+import { enrollmentsRouter } from './routes/enrollments';
 import { coeditRouter, telaMediaRouter } from './routes/coeditSecurity';
 import { hqSecurityRouter } from './routes/hqSecurity';
 import { hqFileRouter } from './routes/hqFile';
@@ -1879,7 +1880,7 @@ async function firestoreArrayUnion(path: string, field: string, values: string[]
 async function enrollPaidLearner(courseId: string, uid: string, now = Date.now()): Promise<boolean> {
   let ok = false;
   for (let i = 0; i < 3 && !ok; i++) {
-    ok = (await fsAddClassMember(courseId, uid)) !== 'error';
+    ok = (await fsAddClassMember(courseId, uid, 'payment')) !== 'error';
     if (!ok) await new Promise(r => setTimeout(r, 400 * (i + 1)));
   }
   if (ok) {
@@ -14406,6 +14407,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use('/api/elevate/claim', express.json({ limit: '8kb' }), elevateAccountsRouter);
   app.use('/api/elevate/access', apiLimiter);
   app.use('/api/elevate/access', express.json({ limit: '8kb' }), elevateAccessRouter);
+  app.use('/api/enrollments', express.json({ limit: '4kb' }), enrollmentsRouter);
   // Shared documents: membership, paper trail, delete, and media behind a member check.
   app.use('/api/coedit', apiLimiter, express.json({ limit: '64kb' }), coeditRouter);
   app.use('/api/tela-media', apiLimiter, express.json({ limit: '8kb' }), telaMediaRouter);
