@@ -36,9 +36,12 @@ interface GamesViewProps {
   onBack?: () => void;
   onSelectGame: (game: Game) => void;
   onLaunchFse?: () => void;
+  /** Signed-in account: Kith Party's Voca Word Boost uses the reader's level, review words and child speech consent. */
+  user?: { uid?: string | null } | null;
+  profile?: any;
 }
 
-const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse }) => {
+const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse, user, profile }) => {
   const [showKithParty, setShowKithParty] = useState(false);
   const [showEraClash, setShowEraClash] = useState(false);
   const [showTtt, setShowTtt] = useState(false);
@@ -144,7 +147,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
   );
   if (liveGameKind) return <React.Suspense fallback={<div className="p-8">Loading live games…</div>}><LiveGamesStudio initialKind={liveGameKind === 'pick' ? undefined : liveGameKind} onExit={() => setLiveGameKind(null)} /></React.Suspense>;
   if (showEraClash) return <React.Suspense fallback={<div className="p-8">Loading Era Clash…</div>}><EraClashFrame onExit={() => setShowEraClash(false)} /></React.Suspense>;
-  if (showKithParty) return <React.Suspense fallback={<div className="p-8">Loading Kith Party…</div>}><KithParty onBack={() => setShowKithParty(false)} /></React.Suspense>;
+  if (showKithParty) return <React.Suspense fallback={<div className="p-8">Loading Kith Party…</div>}><KithParty onBack={() => setShowKithParty(false)} profile={profile} uid={user?.uid ?? null} /></React.Suspense>;
 
   return (
     <div className="h-full bg-transparent text-white overflow-y-auto overflow-x-hidden lg:overflow-hidden flex flex-col">

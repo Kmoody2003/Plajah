@@ -1,8 +1,13 @@
 import { type GameId } from './catalog';
-import { type CourseId, courseById, jumpFactorAt, loopPitchAt, courseMinimapPoint, getActiveCourse } from './course3d';
+import { type CourseId, courseMinimapPoint, getActiveCourse, gridProgress, setActiveCourse } from './course3d';
+import type {ItemId} from './abilities';
+import {createRaceExtras, racerDefaults, raceCountdown, stepRace, type RaceExtras} from './race';
 
-export interface Input { x:number; y:number; action:boolean; lanes:boolean[]; }
-export const emptyInput = ():Input => ({x:0,y:0,action:false,lanes:[false,false,false,false]});
+/** y < 0 accelerate, y > 0 brake / reverse. `item` fires the held item, `special` the Kith Type Special. */
+export interface Input { x:number; y:number; action:boolean; lanes:boolean[]; item:boolean; special:boolean;  /** Arrow presses since the last frame, in order (0 ← 1 ↓ 2 ↑ 3 →) — key-down events, so a quick tap is never lost. */
+ taps?:number[];
+}
+export const emptyInput = ():Input => ({x:0,y:0,action:false,lanes:[false,false,false,false],item:false,special:false});
 
 export interface Player {
  character:string; human:boolean; x:number; y:number; progress:number; lane:number; speed:number;
@@ -15,6 +20,31 @@ export interface Player {
  inLoop:boolean; loopAngle:number;
  swingTimer:number; shotPower:number;
  driftStage:number; surface:'asphalt'|'curb'|'offroad'; lateralG:number; slip:number;
+ /** kart yaw relative to the road tangent (rad), front-wheel angle (rad), yaw rate (rad/s) */
+ heading:number; wheelAngle:number; yawRate:number;
+ // ---- Kith Racing (circuit) ----
+ /** metres / second (negative while reversing); `speed` stays progress/second for older consumers */
+ mps:number; speedNorm:number; braking:boolean; reversing:boolean;
+ item:ItemId|null; itemCount:number; itemRoll:number;
+ /** Type Special meter 0..1 and active timer */
+ special:number; specialTime:number;
+ spin:number; spinDir?:number; stun:number; slowTime:number; blind:number; frozen:number;
+ shield:number; shieldTime:number; gearHits:number;
+ airTime:number; trick:boolean; trickSpin:number; onRamp:boolean; launched?:boolean;
+ /** shortcut index (-1 = on the road), progress along it 0..1 */
+ cut:number; cutU:number; cutBase:number;
+ respawn:number; respawnTo:number;
+ /** 0..1 rubber burn: skid marks + tyre smoke */
+ burnout:number; place:number; wallHit:number;
+ chargeStart:number|null; lastItem:boolean; lastSpecial:boolean;
+ trailTimer:number; botThink:number; botLane:number; superBoost:boolean; slipTime?:number; lastBump?:number;
+ /** Voca Word Boost: race time the open word challenge started (-1 = none), challenges used this race */
+ vocaCue?:number; vocaUsed?:number; vocaAt?:number;
+ /** Twist-kicker stunt: arrow combo to enter in the air (0 ← 1 ↓ 2 ↑ 3 →); landed clean or crashed. */
+ stunt?:{seq:number[]; idx:number; state:'active'|'done'|'fail'; dir:1|-1; at:number; doneAt:number}|null;
+ stuntPrev?:number;
+ /** 0..1 glider wings out (very high air) */
+ glide?:number;
 }
 
 export interface Note { time:number; lane:number; judged:boolean[]; }
@@ -41,19 +71,25 @@ export interface State {
  time:number;
  duration:number;
  autoAccelerate:boolean;
+ /** Voca Word Boost: on a jump or item box, Voca says a word; say it back for a super boost (≤2 per race). UI turns it on. */
+ vocaWords?:boolean;
+ /** UI-only bullet time: how fast the world moves vs the wall clock (1 = normal). The camera keeps real time. */
+ timeScale?:number;
  phase:'countdown'|'playing'|'finished';
  players:Player[];
  crystals:{x:number;y:number;active:boolean;respawn:number}[];
  notes:Note[];
  tennis:TennisBall;
  seed:number;
+ /** projectiles, traps, item boxes and race events — circuit only */
+ race?:RaceExtras;
 }
 
 export const TAU=Math.PI*2;
 const clamp=(n:number,a:number,b:number)=>Math.max(a,Math.min(b,n));
 function random(s:State) {s.seed=(Math.imul(s.seed,1664525)+1013904223)>>>0; return s.seed/4294967296;}
 
-export function trackPoint(t:number,lane=0,course:CourseId=getActiveCourse()) {
+export function trackPoint(t:number,lane=0,course:CourseId=getActiveCourse()):{x:number;y:number} {
  const mp=courseMinimapPoint(t,lane,course);
  return {x:480+(mp.x-60)*7.2,y:280+(mp.y-42)*5.8};
 }
@@ -64,8 +100,8 @@ export function createState(game:GameId,characters:string[],seed=421,course:Cour
   game,
   course,
   time:-3,
-  duration:game==='circuit'?120:game==='crystals'||game==='tennis'?60:45,
-  autoAccelerate:true,
+  duration:game==='circuit'?240:game==='crystals'||game==='tennis'?60:45,
+  autoAccelerate:false, // the player governs speed: ↑ / RT is the gas
   phase:'countdown',
   seed,
   crystals:[],
@@ -83,7 +119,7 @@ export function createState(game:GameId,characters:string[],seed=421,course:Cour
    human:i<characters.length,
    x:game==='tennis'?(i===0?480:i===1?480:i===2?310:650):250+i*150,
    y:game==='tennis'?(i===0?455:i===1?125:i===2?410:170):280,
-   progress:-i*.009,
+   progress:game==='circuit'?gridProgress(i,course):-i*.009,
    lane:(i-1.5)*19,
    speed:0,score:0,combo:0,bestCombo:0,boost:0,drift:0,cooldown:0,invincible:0,
    feedback:'',feedbackTime:0,finish:null,lastAction:false,lastLanes:[false,false,false,false],
@@ -93,9 +129,11 @@ export function createState(game:GameId,characters:string[],seed=421,course:Cour
    hopY:0,hopVy:0,driftDir:0,jounce:0,jounceVel:0,
    inLoop:false,loopAngle:0,
    swingTimer:0,shotPower:0,
-   driftStage:0,surface:'asphalt',lateralG:0,slip:0
+   driftStage:0,surface:'asphalt',lateralG:0,slip:0,heading:0,wheelAngle:0,yawRate:0,
+   ...(racerDefaults() as any),
   }))
  };
+ if(game==='circuit'){setActiveCourse(course);s.race=createRaceExtras(course);}
  for(let i=0;i<18;i++) s.crystals.push({x:100+random(s)*760,y:100+random(s)*350,active:true,respawn:0});
  for(let i=0;i<78;i++) s.notes.push({time:2+i*.54,lane:Math.floor(random(s)*4),judged:[false,false]});
  return s;
@@ -126,12 +164,20 @@ function resetTennisPoint(s:State,serverIdx:number){
  b.trail=[];
 }
 
+/** Seconds of course flyover before the 3-2-1 countdown (the UI sets s.time=-3-CIRCUIT_INTRO; sims/tests start at -3). */
+export const CIRCUIT_INTRO=8;
+
 export function step(s:State,inputs:Input[],dt:number) {
  if(s.phase==='finished') return;
  dt=clamp(dt,0,.05);s.time+=dt;
+ if(s.game==='circuit')raceCountdown(s,inputs,dt);
  if(s.time<0) return;
  s.phase='playing';
- const courseDef=courseById(s.course);
+ if(s.game==='circuit'){
+  stepRace(s,inputs,dt);
+  if(s.time>=s.duration||s.players.filter(p=>p.human).every(p=>p.finish!==null)) s.phase='finished';
+  return;
+ }
 
  s.players.forEach((p,i)=>{
   p.boost=Math.max(0,p.boost-dt);
@@ -141,163 +187,7 @@ export function step(s:State,inputs:Input[],dt:number) {
   p.swingTimer=Math.max(0,p.swingTimer-dt);
   const input=inputs[i]||emptyInput();
 
-  if(s.game==='circuit') {
-   if(p.finish!==null)return;
-   const steer=p.human?input.x:Math.sin(s.time*.8+i)*.15;
-   const throttle=p.human?(input.y>0?-1:s.autoAccelerate||input.y<0?1:0):1;
-   p.steerAngle+=(steer-p.steerAngle)*Math.min(1,dt*16);
-
-   // Mario Kart Hop-into-Drift Initiation
-   if(p.human&&input.action&&!p.lastAction&&p.hopY<=0.01&&p.speed>.02){
-    p.hopVy=2.35;
-    p.jounce=-0.10;
-    if(Math.abs(steer)>.12) p.driftDir=steer>0?1:-1;
-   }
-   if(p.human&&input.action&&p.driftDir===0&&Math.abs(steer)>.18){
-    p.driftDir=steer>0?1:-1;
-   }
-   if(!input.action){
-    p.driftDir=0;
-   }
-
-   // Counter-steer drift line modulation (steer into driftDir tightens arc; opposite widens line)
-   const effectiveSteer=p.human&&input.action&&p.driftDir!==0
-    ?(p.driftDir*0.18+steer*0.82)
-    :steer;
-   p.lane=clamp(p.lane-effectiveSteer*(input.action?34:52)*dt,-55,55);
-
-   if(!p.human){
-    // Bots steer toward boost pads before vertical loops and weave around single-lane hazards
-    const frac=((p.progress%1)+1)%1;
-    const approachingLoop=courseDef.loops.some(l=>frac>=l.boostPadT-0.04&&frac<=l.centerT+l.halfWidth);
-    const nearHazard=courseDef.hazards.find(h=>frac>=h.t-0.035&&frac<=h.t+0.01);
-    const desiredLane=approachingLoop?0:nearHazard?(nearHazard.lane>0?-22:22):Math.sin(s.time*.35+i)*25;
-    p.lane+=(desiredLane-p.lane)*dt*(approachingLoop||nearHazard?3.5:1);
-   }
-
-   const absLane=Math.abs(p.lane);
-   const offroad=absLane>51;
-   p.surface=offroad?'offroad':absLane>47?'curb':'asphalt';
-
-   const drifting=p.human&&input.action&&(Math.abs(steer)>.2||p.driftDir!==0)&&p.speed>.025;
-   if(drifting){
-    // Carving deeper into the turn charges Mini-Turbo sparks slightly faster
-    const intoTurn=p.driftDir!==0&&steer*p.driftDir>0?1.12:1.0;
-    p.drift=Math.min(1.6,p.drift+dt*intoTurn);
-   }
-   // Multi-tier drift charging: 1=Blue sparks, 2=Orange flame, 3=Ultra purple
-   p.driftStage=p.drift>=1.35?3:p.drift>=.85?2:p.drift>=.35?1:0;
-   if(p.lastAction&&!input.action&&p.drift>.35) {
-    p.boost=p.drift>=1.35?2.4:p.drift>=.85?1.7:1+p.drift;
-    p.pitch=-0.12; // Punchy wheelie nose-lift on Mini-Turbo release
-    p.jounceVel=1.4;
-    feedback(p,p.drift>=1.35?'ULTRA TURBO!':p.drift>=.85?'SUPER TURBO!':'DRIFT BOOST!');
-    p.drift=0;p.driftStage=0;p.driftDir=0;
-   }
-   if(!input.action){p.drift=0;p.driftStage=0;}
-   if(!p.human&&s.time>1.2&&Math.abs(steer)>.12){p.driftStage=Math.abs(steer)>.14?2:1;}
-   p.lastAction=input.action;
-
-   // Vertical 360-degree Loop-the-Loop physics (Amazon Canopy Loop)
-   const lp=loopPitchAt(p.progress,s.course);
-   p.inLoop=lp.inLoop;
-   p.loopAngle=lp.theta;
-   let loopSpeedMult=1.0;
-   if(lp.inLoop){
-    if(p.boost>0||p.speed>=.064){
-     loopSpeedMult=1.12; // Centrifugal loop sling
-    } else if(lp.theta>0.45&&lp.theta<2.55){
-     // Entering vertical climb without hitting the Power Boost pad slows the kart
-     loopSpeedMult=0.62;
-     if(p.human&&p.feedbackTime<=0) feedback(p,'HIT BOOST FOR LOOP!');
-    }
-   }
-
-   const target=throttle>0?(offroad?.028:p.boost>0?.106*loopSpeedMult:drifting?.058:.070*loopSpeedMult):0;
-   const accelRate=throttle<0?6.2:(p.speed<.035?2.4:1.8);
-   p.speed+=(target-p.speed)*Math.min(1,dt*accelRate);
-
-   // Vertical Hop & Course Jump Ramp Air Physics
-   const rampHeight=p.progress>0.08&&p.speed>.042?jumpFactorAt(p.progress,s.course)*0.38:0;
-   const wasAirborne=p.hopY>0.05;
-   if(p.hopVy!==0||p.hopY>rampHeight){
-    p.hopY+=p.hopVy*dt;
-    p.hopVy-=16.5*dt;
-    if(p.hopY<=rampHeight){
-     p.hopY=rampHeight;
-     if(p.hopVy<-0.8){
-      // Landed from hop or jump ramp: compress suspension & award Trick Boost on big ramps!
-      p.jounceVel=-Math.min(2.6,Math.abs(p.hopVy)*0.65);
-      if(wasAirborne&&rampHeight>0.15&&p.boost<=0){
-       p.boost=0.85;
-       feedback(p,'TRICK BOOST!');
-      }
-     }
-     p.hopVy=0;
-    }
-   } else {
-    p.hopY=rampHeight;
-   }
-
-   // Spring-damper chassis jounce oscillator
-   p.jounceVel+=(-p.jounce*72-p.jounceVel*11.5)*dt;
-   p.jounce=clamp(p.jounce+p.jounceVel*dt,-0.16,0.16);
-
-   // Chassis & 4-wheel independent suspension physics
-   const speedNorm=clamp(p.speed/.070,0,1.6);
-   const driftSign=p.driftDir!==0?p.driftDir:(steer<0?-1:1);
-   p.lateralG=speedNorm*(steer*1.4+(drifting?driftSign*.85:0));
-   const targetRoll=-p.lateralG*(drifting?-.17:.13);
-   p.roll+=(targetRoll-p.roll)*Math.min(1,dt*12);
-   const airPitch=p.hopY>0.12?clamp(p.hopVy*0.06,-0.22,0.22):0;
-   const targetPitch=airPitch+(throttle<0?.18:(p.speed<target?-(target-p.speed)*1.6:.0));
-   p.pitch+=(targetPitch-p.pitch)*Math.min(1,dt*10);
-   p.slip=drifting?1:offroad?.7:Math.min(1,Math.abs(p.lateralG)*.6);
-
-   const chatterL=p.surface==='curb'?Math.sin(s.time*72)*.045:offroad?Math.sin(s.time*36)*.065:0;
-   const chatterR=p.surface==='curb'?Math.cos(s.time*72)*.045:offroad?Math.cos(s.time*36)*.065:0;
-   p.suspensionFL=clamp(p.pitch*.48-p.roll*.45+p.jounce+chatterL,-.18,.18);
-   p.suspensionFR=clamp(p.pitch*.48+p.roll*.45+p.jounce+chatterR,-.18,.18);
-   p.suspensionRL=clamp(-p.pitch*.48-p.roll*.45+p.jounce+chatterR,-.18,.18);
-   p.suspensionRR=clamp(-p.pitch*.48+p.roll*.45+p.jounce+chatterL,-.18,.18);
-   p.suspensionFront=(p.suspensionFL+p.suspensionFR)*.5;
-   p.suspensionRear=(p.suspensionRL+p.suspensionRR)*.5;
-
-   // Engine RPM and gear simulation
-   const norm=clamp(p.speed/.070,0,1.5);
-   p.gear=norm>.9?4:norm>.6?3:norm>.3?2:1;
-   const gearRanges=[[0,.3],[.3,.6],[.6,.9],[.9,1.5]];
-   const curRange=gearRanges[p.gear-1];
-   const gearRatio=clamp((norm-curRange[0])/(curRange[1]-curRange[0]),0,1);
-   p.rpm=Math.round(p.boost>0?9600+Math.sin(s.time*50)*400:1200+gearRatio*6800);
-
-   const before=p.progress;p.progress+=p.speed*dt;
-   const fraction=((p.progress%1)+1)%1;
-   const isLoopPad=courseDef.loops.some(l=>Math.abs(fraction-l.boostPadT)<.016);
-   if(!offroad&&p.cooldown===0&&courseDef.boostPads.some(t=>Math.abs(fraction-t)<.014)&&Math.abs(p.lane)<(isLoopPad?36:25)){
-    p.boost=isLoopPad?1.95:1.4;
-    p.cooldown=isLoopPad?1.4:2;
-    p.jounceVel=1.2;
-    feedback(p,isLoopPad?'LOOP POWER BOOST!':'TURBO PAD!');
-   }
-   // Small single-lane avoidable surface hazards (can also be hopped over!)
-   if(p.hopY<0.2&&p.boost<=0&&p.invincible<=0){
-    const hitHaz=courseDef.hazards.find(h=>Math.abs(fraction-h.t)<.007&&Math.abs(p.lane-h.lane)<7.5);
-    if(hitHaz){
-     p.speed*=.74;
-     p.jounceVel=-1.5;
-     p.invincible=.85;
-     feedback(p,`${hitHaz.label}!`);
-    }
-   }
-   if(p.human&&s.time>1.2&&!offroad&&p.boost===0&&p.cooldown===0&&Math.abs(steer)>.05){
-    const leader=s.players.find((other,oi)=>oi!==i&&other.progress>p.progress&&other.progress-p.progress<.028&&Math.abs(other.lane-p.lane)<14);
-    if(leader){p.boost=.95;p.cooldown=2.4;feedback(p,'SLIPSTREAM!');}
-   }
-   if(p.progress>=3){p.finish=s.time;p.score=10000-Math.round(s.time*50);feedback(p,'FINISH!');}
-   if(Math.floor(before)<Math.floor(p.progress)&&p.progress>=1&&p.progress<3)feedback(p,`LAP ${Math.floor(p.progress)+1}`);
-   const pt=trackPoint(p.progress,p.lane,s.course);p.x=pt.x;p.y=pt.y;
-  } else if(s.game==='crystals') {
+  if(s.game==='crystals') {
    let dx=input.x,dy=input.y,action=input.action;
    if(!p.human) {
     const target=s.crystals.filter(c=>c.active).sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
@@ -444,7 +334,7 @@ export function step(s:State,inputs:Input[],dt:number) {
  }
 
  if(s.game==='crystals') s.crystals.forEach(c=>{if(!c.active&&s.time>=c.respawn){c.x=80+random(s)*800;c.y=90+random(s)*390;c.active=true;}});
- if(s.time>=s.duration||(s.game==='circuit'&&s.players.filter(p=>p.human).every(p=>p.finish!==null))) s.phase='finished';
+ if(s.time>=s.duration) s.phase='finished';
 }
 
 export function standings(s:State) {

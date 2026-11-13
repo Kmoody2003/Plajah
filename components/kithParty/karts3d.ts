@@ -1,7 +1,9 @@
 import * as T from 'three';
+import {kithGltfLoader} from './kithGltf';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {RoundedBoxGeometry} from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import type {Character} from './catalog';
+import {upgradeKartPaint} from './fx3d';
 
 export const KART_NAMES:Record<string,string>={
  rello:'Ember Fang',
@@ -22,7 +24,7 @@ function loadKartsGlb():Promise<T.Group>{
  if(!kartsGlbPromise){
   kartsGlbPromise=new Promise((resolve,reject)=>{
    if(typeof window==='undefined'){reject(new Error('no-window'));return;}
-   new GLTFLoader().load('/kith-party/models/karts.glb',gltf=>resolve(gltf.scene),undefined,err=>reject(err));
+   kithGltfLoader().load('/kith-party/models/karts.glb',gltf=>resolve(gltf.scene),undefined,err=>reject(err));
   });
  }
  return kartsGlbPromise;
@@ -164,23 +166,42 @@ export function makeKart(c:Character){
   oval(.42,.28,.92,mainBody.material as T.Material,side*.76,.68,-.15);
  }
 
- // Dual Rocket Exhaust Nozzles in Rear + Central Reactor Core Taillight
- const exhaustPorts:T.Vector3[]=[];
- // Central dark housing + glowing orange trapezoid reactor taillight above nozzles
+ // Rear reactor housing + taillight (lives in the chassis holder, replaced by the GLB chassis when it loads)
  rounded(1.06,.34,.22,dark,0,.52,-1.42);
  rounded(.12,.28,.24,dark,0,.48,-1.48);
  rounded(.34,.15,.16,lamp,0,.69,-1.44);
+
+ // Hot-rod dragster zoomie stacks: chrome headers sweep out of the engine bay, kick up and exit behind the
+ // rear axle. They sit on `body` (not the chassis holder) so they survive the GLB chassis swap.
+ // exhaustPorts = the stack exits (afterburner flames attach here, pointing -Z).
+ const exhaustPorts:T.Vector3[]=[];
+ const exhaustGroup=new T.Group();exhaustGroup.name='hotrod_stacks';body.add(exhaustGroup);
+ const chrome=new T.MeshPhysicalMaterial({color:'#f4f6fa',metalness:1,roughness:.1,clearcoat:.6,clearcoatRoughness:.05,envMapIntensity:1.8});
+ const heatChrome=new T.MeshPhysicalMaterial({color:'#e3c690',metalness:1,roughness:.16,envMapIntensity:1.6,iridescence:.6,iridescenceIOR:1.5});
+ heatChrome.userData.kpPaint=true;chrome.userData.kpPaint=true;
  for(const side of [-1,1]){
-  const exX=side*(isRello?.36:.44);
-  const exY=.48;
-  const exZ=-1.50;
+  const exX=side*(isRello?.42:.48);
+  const exY=.66;
+  const exZ=-1.72;
   exhaustPorts.push(new T.Vector3(exX,exY,exZ));
-  const barrel=add(new T.CylinderGeometry(.22,.24,.38,20),dark,exX,exY,exZ+.08);
-  barrel.rotation.x=Math.PI/2;
-  const rimNozzle=add(new T.TorusGeometry(.20,.052,10,22),accent,exX,exY,exZ-.08);
-  rimNozzle.rotation.y=Math.PI;
-  const chamber=add(new T.CylinderGeometry(.14,.14,.18,14),lamp,exX,exY,exZ-.02);
-  chamber.rotation.x=Math.PI/2;
+  // header collector out of the engine bay, over the haunch, kicking up into a short stack
+  const header=new T.CatmullRomCurve3([
+   new T.Vector3(side*.34,.56,-.62),
+   new T.Vector3(side*.62,.6,-.86),
+   new T.Vector3(side*.66,.58,-1.18),
+   new T.Vector3(side*.56,.6,-1.46),
+   new T.Vector3(exX,exY,exZ+.06),
+  ]);
+  const h=new T.Mesh(new T.TubeGeometry(header,28,.075,12,false),chrome);
+  h.castShadow=true;exhaustGroup.add(h);
+  // secondary tube (twin-runner look)
+  const runner=new T.CatmullRomCurve3([
+   new T.Vector3(side*.3,.5,-.5),new T.Vector3(side*.7,.48,-.9),new T.Vector3(side*.7,.5,-1.3),new T.Vector3(exX+side*.02,exY-.08,exZ+.24),
+  ]);
+  const r=new T.Mesh(new T.TubeGeometry(runner,22,.045,10,false),heatChrome);
+  r.castShadow=true;exhaustGroup.add(r);
+  // clamp band + heat shield
+  const band=new T.Mesh(new T.TorusGeometry(.085,.018,8,18),dark);band.position.set(side*.6,.6,-1.3);band.rotation.y=Math.PI/2+side*.3;exhaustGroup.add(band);
  }
 
  // Wheels: Ordered strictly [RL, RR, FL, FR] so wheels.slice(2,4) are the front steering wheels!
@@ -193,17 +214,28 @@ export function makeKart(c:Character){
  ];
  for(const cfg of wheelConfigs){
   const {side,z,isRear}=cfg;
-  const radius=rugged?(isRear?.52:.46):(isRear?.50:.42);
-  const width=isRear?.46:.36;
-  const wheelX=side*(isRear?1.08:1.02);
+  const radius=rugged?(isRear?.56:.46):(isRear?.55:.42);
+  const width=isRear?.62:.36;
+  const wheelX=side*(isRear?1.14:1.02);
   const wheel=new T.Group();
   wheel.rotation.order='YXZ';
   wheel.position.set(wheelX,radius,z);
   wheel.userData.baseY=radius;
   body.add(wheel);wheels.push(wheel);
 
-  const tire=add(new T.CylinderGeometry(radius,radius,width,24),rubber,0,0,0,wheel);
+  // slick with rounded shoulders (lathe profile) so the fat rears read as drag slicks
+  const tireProfile=[
+   new T.Vector2(radius*.62,-width/2),new T.Vector2(radius*.9,-width/2),new T.Vector2(radius*.98,-width/2+.05),
+   new T.Vector2(radius,-width/2+.12),new T.Vector2(radius,width/2-.12),new T.Vector2(radius*.98,width/2-.05),
+   new T.Vector2(radius*.9,width/2),new T.Vector2(radius*.62,width/2),
+  ];
+  const tire=add(new T.LatheGeometry(tireProfile,32),rubber,0,0,0,wheel);
   tire.rotation.z=Math.PI/2;
+  if(isRear){
+   // painted sidewall stripe (classic dragster lettering band)
+   const wall=add(new T.TorusGeometry(radius*.8,.012,6,40),ivory,side*(width*.5+.004),0,0,wheel);
+   wall.rotation.y=Math.PI/2;
+  }
   const rim=add(new T.CylinderGeometry(radius*.64,radius*.64,width+.02,18),dark,0,0,0,wheel);
   rim.rotation.z=Math.PI/2;
   const bandColor=isRello?'#ff7300':isChora?'#e8258b':isMoki?'#bee16f':isFenn?'#54e1ff':c.accent;
@@ -213,7 +245,7 @@ export function makeKart(c:Character){
   const hub=add(new T.CylinderGeometry(.13,.13,width+.05,14),accent,0,0,0,wheel);
   hub.rotation.z=Math.PI/2;
 
-  if(rugged){
+  if(rugged&&!isRear){
    for(let j=0;j<12;j++){
     const a=j*Math.PI/6;
     const tread=add(new T.BoxGeometry(width+.02,.04,.12),rubber,0,Math.cos(a)*radius,Math.sin(a)*radius,wheel);
@@ -331,11 +363,56 @@ export function makeKart(c:Character){
     clonedWheel.position.sub(wCenter);
     while(targetWheel.children.length>0) targetWheel.remove(targetWheel.children[0]);
     applyBlenderKartMaterial(clonedWheel);
-    targetWheel.add(clonedWheel);
+    // fatter drag slicks on the rear axle (scale about the wheel centre via a pivot)
+    const pivot=new T.Group();pivot.add(clonedWheel);if(idx<2)pivot.scale.x=1.3;
+    targetWheel.add(pivot);
    }
   });
+  updateRig();
+  upgradeKartPaint(body);
  }).catch(()=>{});
 
- return {body,wheels,exhaustPorts};
+ // Double-wishbone arms + shock absorbers from the chassis to each wheel hub. They live on `body`
+ // (survive the GLB swap) and updateRig() re-aims them to the animated wheel positions.
+ const rigMat=new T.MeshStandardMaterial({color:'#c9d0db',metalness:.9,roughness:.25});
+ const shockMat=new T.MeshStandardMaterial({color:c.accent,metalness:.6,roughness:.3,emissive:c.accent,emissiveIntensity:.25});
+ const rigGroup=new T.Group();rigGroup.name='suspension_rig';body.add(rigGroup);
+ const unitCyl=new T.CylinderGeometry(1,1,1,8);
+ interface Link {mesh:T.Mesh;anchor:T.Vector3;wheel:T.Group;offset:T.Vector3;radius:number}
+ const links:Link[]=[];
+ wheels.forEach((w,i)=>{
+  const side=i%2===0?-1:1;
+  const isRear=i<2;
+  const z=w.position.z;
+  const inner=isRear?.58:.56;
+  const hubX=Math.abs(w.position.x)-(isRear?.3:.2);
+  const mk=(ax:number,ay:number,az:number,ox:number,oy:number,oz:number,r:number,m:T.Material)=>{
+   const mesh=new T.Mesh(unitCyl,m);mesh.castShadow=true;rigGroup.add(mesh);
+   links.push({mesh,anchor:new T.Vector3(ax,ay,az),wheel:w,offset:new T.Vector3(ox,oy,oz),radius:r});
+  };
+  const hx=side*hubX-w.position.x;
+  mk(side*inner,.5,z+.16,hx,.1,0,.022,rigMat);   // upper wishbone front leg
+  mk(side*inner,.5,z-.16,hx,.1,0,.022,rigMat);   // upper wishbone rear leg
+  mk(side*inner,.32,z+.18,hx,-.1,0,.026,rigMat); // lower wishbone
+  mk(side*inner,.32,z-.18,hx,-.1,0,.026,rigMat);
+  mk(side*(inner-.06),.78,z,hx,-.02,0,.045,shockMat); // coilover shock
+ });
+ const tmpA=new T.Vector3(),tmpB=new T.Vector3(),up=new T.Vector3(0,1,0),dir=new T.Vector3();
+ function updateRig(){
+  for(const L of links){
+   tmpA.copy(L.anchor);
+   tmpB.copy(L.wheel.position).add(L.offset);
+   dir.subVectors(tmpB,tmpA);
+   const len=dir.length()||.001;
+   L.mesh.position.copy(tmpA).addScaledVector(dir,.5);
+   L.mesh.quaternion.setFromUnitVectors(up,dir.multiplyScalar(1/len));
+   L.mesh.scale.set(L.radius,len,L.radius);
+  }
+ }
+ updateRig();
+
+ upgradeKartPaint(body);
+
+ return {body,wheels,exhaustPorts,exhaustGroup,updateRig};
 }
 

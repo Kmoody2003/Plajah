@@ -9,6 +9,7 @@
     "kith:local": "node scripts/kith-party/serve.mjs dist-kith-party",
     "test:crossover": "npx tsx --test tests/crossoverCaptions.test.ts tests/crossoverRecipes.test.ts",
     "test:kith": "tsx --test tests/kithParty.test.ts",
+    "test:quest": "tsx --test tests/kithQuest.test.ts",
     "test:crew": "npx tsx --test tests/crew.test.ts tests/crewRoutes.test.ts",
     "test:onair": "npx tsx --test tests/onair.test.ts",
     "test:lexicon": "npx tsx --test tests/lexicon.test.ts",

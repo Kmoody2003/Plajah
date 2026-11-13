@@ -7915,7 +7915,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </div>
             )}
             {view === 'MOVIES_TV' && !getPlatformInfo().isTV && <MoviesTVView onBack={() => setView('DASHBOARD')} onSelectMovie={(m) => { setSelectedMovieItem(m); setView('MOVIE_UX'); }} onNavigate={(v) => setView(v as any)} />}
-            {view === 'GAMES' && <GamesView onBack={() => setView('DASHBOARD')} onSelectGame={handleSelectGame} onLaunchFse={() => setView('PLAJAH_FSE')} />}
+            {view === 'GAMES' && <GamesView onBack={() => setView('DASHBOARD')} onSelectGame={handleSelectGame} onLaunchFse={() => setView('PLAJAH_FSE')} user={user} profile={effectiveProfile || userProfile} />}
             {view === 'PLAJAH_FSE' && (
               <Suspense fallback={<div className="fixed inset-0 bg-[#07010f] grid place-items-center text-orange-400 font-mono z-50"><div className="flex flex-col items-center gap-3"><div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" /><span>Launching The Plajah FSE...</span></div></div>}>
                 <PlajahFseView

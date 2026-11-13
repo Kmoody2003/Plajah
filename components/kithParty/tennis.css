@@ -1,0 +1,72 @@
+/* Kith Tennis HUD — broadcast-style overlay on the 3D stadium */
+.kt-field{background:#14102a}
+.kt-overlay{position:absolute;inset:0;pointer-events:none;font-family:'Inter','Kith Inter',sans-serif;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.5)}
+.kt-board{position:absolute;top:14px;left:14px;min-width:270px;background:rgba(16,10,34,.84);border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.14);box-shadow:0 12px 34px rgba(0,0,0,.45);backdrop-filter:blur(8px)}
+.kt-row{display:grid;grid-template-columns:16px auto 1fr 38px 52px;align-items:center;gap:8px;padding:6px 0 6px 10px;font-size:13px;font-weight:900;letter-spacing:.3px}
+.kt-row+.kt-row{border-top:1px solid rgba(255,255,255,.08)}
+.kt-row.won b{color:#ffd23a}
+.kt-serve{color:#e8ff5a;font-size:13px;text-align:center}
+.kt-faces{display:flex}
+.kt-faces img{width:24px;height:24px;object-fit:contain;border-radius:50%;background:rgba(255,255,255,.12);margin-right:-6px}
+.kt-row b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:6px}
+.kt-games{text-align:center;font-size:17px}
+.kt-points{align-self:stretch;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#ffb02e,#ff7a1a);color:#1a0e2a;font-size:18px;text-shadow:none;min-width:52px}
+.kt-board-foot{display:flex;gap:8px;align-items:center;padding:5px 12px;font-size:9px;font-weight:900;letter-spacing:1.6px;color:#bfaee6;background:rgba(255,255,255,.05)}
+.kt-board-foot em{font-style:normal;color:#ffd23a;animation:kt-pulse .8s ease-in-out infinite alternate}
+.kt-rally{position:absolute;top:14px;right:14px;display:grid;grid-template-columns:auto auto;column-gap:6px;align-items:baseline;background:rgba(16,10,34,.74);border-radius:12px;padding:8px 14px;border:1px solid rgba(255,255,255,.12)}
+.kt-rally b{font-size:20px;font-weight:900;text-align:right}
+.kt-rally small{font-size:9px;font-weight:900;letter-spacing:1.4px;color:#bfaee6}
+.kt-call{position:absolute;top:30%;left:50%;transform:translateX(-50%);font:900 clamp(22px,4.2vw,46px)/1 'Kith Display',Inter,Arial,sans-serif;letter-spacing:-1px;text-transform:uppercase;white-space:nowrap;padding:12px 26px;border-radius:16px;background:linear-gradient(135deg,rgba(255,138,42,.92),rgba(219,56,143,.92));box-shadow:0 18px 50px rgba(0,0,0,.4);animation:kt-call .45s cubic-bezier(.2,1.4,.4,1) both}
+.kt-hint{position:absolute;bottom:22%;left:50%;transform:translateX(-50%);background:rgba(16,10,34,.78);border-radius:999px;padding:8px 16px;font-size:12px;font-weight:800;animation:kt-pulse 1s ease-in-out infinite alternate}
+.kt-hint kbd,.kt-special kbd{font:900 9px/1 Inter,Arial,sans-serif;background:#fff;color:#1a0e2a;border-radius:5px;padding:3px 5px;margin:0 3px;text-shadow:none}
+.kt-serve-meter{position:absolute;right:16%;bottom:18%;width:18px;height:170px;border-radius:12px;background:rgba(16,10,34,.78);border:2px solid rgba(255,255,255,.3)}
+.kt-serve-meter .kt-sweet{position:absolute;left:-2px;right:-2px;bottom:72%;height:16%;background:linear-gradient(#e8ff5a,#7cff6a);border-radius:6px;box-shadow:0 0 16px #e8ff5a}
+.kt-serve-meter i{position:absolute;left:50%;width:22px;height:22px;margin:0 0 -11px -11px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fbff9a,#cfe83a);box-shadow:0 0 10px #e8ff5a}
+.kt-serve-meter small{position:absolute;left:28px;bottom:70%;width:140px;font-size:10px;font-weight:900;letter-spacing:1px}
+.kt-player{position:absolute;left:14px;bottom:14px;display:flex;align-items:center;gap:10px;background:rgba(16,10,34,.8);border-radius:16px;padding:8px 14px 8px 8px;border:1px solid rgba(255,255,255,.14);min-width:250px;backdrop-filter:blur(6px)}
+.kt-player.player-1{left:auto;right:14px}
+.kt-player>img{width:48px;height:48px;object-fit:contain}
+.kt-player-body{display:flex;flex-direction:column;gap:5px;flex:1}
+.kt-player-name{font-size:12px;font-weight:900}
+.kt-player-name small{color:#ffd23a;margin-right:4px}
+.kt-player.player-1 .kt-player-name small{color:#3df5ff}
+.kt-special{display:flex;align-items:center;gap:7px}
+.kt-special>span{font-size:18px;width:24px;text-align:center}
+.kt-special>div{flex:1;display:flex;flex-direction:column;gap:3px}
+.kt-special b{font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:#e9ddff}
+.kt-special i,.kt-charge i{display:block;height:6px;border-radius:4px;background:var(--sp,#ff8a2a);box-shadow:0 0 10px var(--sp,#ff8a2a);transition:width .12s}
+.kt-special>div::after{content:'';display:block;height:6px;margin-top:-9px;border-radius:4px;background:rgba(255,255,255,.12);order:-1}
+.kt-special kbd{opacity:.35}
+.kt-player.ready{border-color:var(--sp);box-shadow:0 0 0 2px var(--sp),0 0 28px color-mix(in srgb,var(--sp) 50%,transparent)}
+.kt-player.ready .kt-special kbd{opacity:1;animation:kt-pulse .5s ease-in-out infinite alternate}
+.kt-player.armed .kt-special b::after{content:' · ARMED';color:var(--sp)}
+.kt-charge{display:flex;align-items:center;gap:6px}
+.kt-charge b{font-size:9px;letter-spacing:1px;color:#ffe9a0;min-width:56px}
+.kt-charge i{flex:none;background:linear-gradient(90deg,#ffe9a0,#ff8a2a);box-shadow:0 0 10px #ff8a2a}
+.kt-feedback{position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);white-space:nowrap;font:900 16px/1 'Kith Display',Inter,Arial,sans-serif;color:#ffd23a;animation:kt-pop .35s cubic-bezier(.2,1.6,.4,1) both}
+.kt-ready .kp-controls-card{margin:14px 0}
+.kt-tips{font-size:13px;opacity:.85}
+.kt-results{max-width:640px}
+.kt-final{font-weight:800;letter-spacing:.3px}
+.kt-stats{width:100%;border-collapse:collapse;margin:10px 0 14px;font-size:12px}
+.kt-stats th img{width:34px;height:34px;object-fit:contain}
+.kt-stats td{padding:4px 6px;text-align:center;border-top:1px solid rgba(0,0,0,.08)}
+.kt-stats td:first-child{text-align:left;font-weight:800}
+.kt-stats .kt-score td{font-weight:900}
+.kt-touch button small{display:block;font-size:7px;letter-spacing:.6px}
+@keyframes kt-call{from{opacity:0;transform:translateX(-50%) scale(.6)}to{opacity:1;transform:translateX(-50%) scale(1)}}
+@keyframes kt-pop{from{opacity:0;transform:translateX(-50%) translateY(8px) scale(.7)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
+@keyframes kt-pulse{from{opacity:.65}to{opacity:1}}
+@media (max-width:720px){
+ .kt-board{min-width:200px;top:8px;left:8px}
+ .kt-row{grid-template-columns:12px auto 1fr 26px 40px;font-size:11px}
+ .kt-player{min-width:0;padding:6px 10px 6px 6px}
+ .kt-player>img{width:34px;height:34px}
+ .kt-rally{top:8px;right:8px;padding:6px 10px}
+ .kt-call{font-size:20px;padding:8px 14px}
+}
+@media (prefers-reduced-motion:reduce){.kt-call,.kt-feedback,.kt-hint,.kt-board-foot em{animation:none}}
+/* setup screen */
+.kt-setup-row{display:flex;flex-wrap:wrap;gap:12px 22px;margin-top:16px}
+.kt-setup-row .kp-mode{margin:0}
+.kt-setup .kp-fair-play b{white-space:nowrap}

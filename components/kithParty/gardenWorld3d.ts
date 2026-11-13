@@ -1,8 +1,10 @@
 import * as T from 'three';
+import {kithGltfLoader} from './kithGltf';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {crestGeometry} from './karts3d';
-import {type CourseId, courseById, trackFrame, ensureOffTrackXZ, isSupportPillarSafe} from './course3d';
+import {type CourseId, courseById, trackFrame, worldPoint, ensureOffTrackXZ, isSupportPillarSafe} from './course3d';
+import {buildKitScenery, type KitForest} from './sanctuaryKit3d';
 
 /** Shared cached loader for Blender-sculpted monuments.glb */
 let monumentsGlbPromise:Promise<T.Group>|null=null;
@@ -10,7 +12,7 @@ function loadMonumentsGlb():Promise<T.Group>{
  if(!monumentsGlbPromise){
   monumentsGlbPromise=new Promise((resolve,reject)=>{
    if(typeof window==='undefined'){reject(new Error('no-window'));return;}
-   new GLTFLoader().load('/kith-party/models/monuments.glb',gltf=>resolve(gltf.scene),undefined,err=>reject(err));
+   kithGltfLoader().load('/kith-party/models/monuments.glb',gltf=>resolve(gltf.scene),undefined,err=>reject(err));
   });
  }
  return monumentsGlbPromise;
@@ -115,7 +117,9 @@ function makeTerrainStripeTexture(colA:string,colB:string):T.CanvasTexture{
  */
 function buildSculptedValleyTerrain(scene:T.Scene,courseId:CourseId){
  const def=courseById(courseId);
- const geo=new T.PlaneGeometry(680,680,88,88);
+ const mountain=isMountainWorld(courseId);
+ const SIZE=680,SEG=mountain?136:88;
+ const geo=new T.PlaneGeometry(SIZE,SIZE,SEG,SEG);
  geo.rotateX(-Math.PI/2);
  const pos=geo.getAttribute('position') as T.BufferAttribute;
 
@@ -123,7 +127,16 @@ function buildSculptedValleyTerrain(scene:T.Scene,courseId:CourseId){
  const trackSamples:T.Vector3[]=[];
  for(let i=0;i<120;i++) trackSamples.push(trackFrame(i/120,0,courseId).position);
 
- const baseFloor=courseId==='abyssal-trench'?-34:courseId==='dune-canyon'?-8:-10;
+ const baseFloor=terrainBaseFloor(courseId);
+ if(mountain){
+  // Mountain mode (descending sprint courses): the ground follows the road down the slope instead of
+  // sitting in a flat bowl, falls away into chasms under bridges and gap jumps, and drops below sea level
+  // far from the road. Lava channels are carved across each chasm.
+  const M=mountainModel(courseId);
+  for(let i=0;i<pos.count;i++) pos.setY(i,M.height(pos.getX(i),pos.getZ(i)));
+  geo.computeVertexNormals();
+  return finishTerrain(scene,courseId,geo,SIZE,SEG,baseFloor,M.seaLevel);
+ }
  for(let i=0;i<pos.count;i++){
   const vx=pos.getX(i), vz=pos.getZ(i);
   let minD=Infinity, nearestY=0;
@@ -136,6 +149,7 @@ function buildSculptedValleyTerrain(scene:T.Scene,courseId:CourseId){
   const hillWave=
    Math.sin(vx*0.024)*Math.cos(vz*0.024)*9.5+
    Math.sin(vx*0.055+1.3)*Math.sin(vz*0.048)*4.2+
+   Math.sin(vx*0.13+.7)*Math.cos(vz*0.11-.4)*1.1+
    Math.max(0,(r-175)*0.18);
   // Smoothly depress terrain under the road corridor (within 24m of centerline)
   const corridorBlend=Math.min(1,Math.max(0,(minD-18)/28));
@@ -145,37 +159,104 @@ function buildSculptedValleyTerrain(scene:T.Scene,courseId:CourseId){
   pos.setY(i,finalY);
  }
  geo.computeVertexNormals();
- const tex=makeTerrainStripeTexture(def.terrainColorA,def.terrainColorB);
+ return finishTerrain(scene,courseId,geo,SIZE,SEG,baseFloor,null);
+}
+
+function finishTerrain(scene:T.Scene,courseId:CourseId,geo:T.BufferGeometry,SIZE:number,SEG:number,baseFloor:number,seaLevel:number|null){
+ const def=courseById(courseId);
+ const pos=geo.getAttribute('position') as T.BufferAttribute;
+ // Vertex-colour biome blend: two grass tones broken by low-frequency noise, damp soil in the
+ // hollows, sun-bleached crests, rock on steep slopes, snow caps where the world calls for it.
+ const pal=worldPalette(courseId);
+ const nrm=geo.getAttribute('normal') as T.BufferAttribute;
+ const cols=new Float32Array(pos.count*3);
+ const gA=new T.Color(def.terrainColorA),gB=new T.Color(def.terrainColorB),rock=new T.Color(pal.rock),crest=new T.Color(pal.crest),damp=new T.Color(pal.damp),snow=new T.Color('#f4fbff'),blackSand=new T.Color('#1b1719'),c=new T.Color();
+ for(let i=0;i<pos.count;i++){
+  const x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i);
+  const n=Math.sin(x*.045+Math.cos(z*.031)*2)*.5+Math.sin(z*.052-x*.017)*.5;
+  c.copy(gA).lerp(gB,T.MathUtils.clamp(.5+n*.6,0,1));
+  const h=y-baseFloor;
+  if(seaLevel===null){
+   c.lerp(damp,T.MathUtils.clamp((1-h)/7,0,.65));
+   c.lerp(crest,T.MathUtils.clamp((h-9)/14,0,.55));
+  } else {
+   // mountain: ash dusting in drifts rather than by absolute height
+   const ashN=Math.sin(x*.021+z*.013)*.5+Math.sin(z*.037-x*.029)*.5;
+   c.lerp(crest,T.MathUtils.clamp(ashN*.6,0,.35));
+  }
+  c.lerp(rock,T.MathUtils.smoothstep(1-nrm.getY(i),.16,.4));
+  if(pal.snowAbove!==undefined) c.lerp(snow,T.MathUtils.clamp((y-pal.snowAbove)/6,0,.9));
+  if(seaLevel!==null){
+   // black-sand beach just above the waterline, wet and darker below it
+   const sand=T.MathUtils.clamp(1-(y-seaLevel)/3.2,0,1);
+   c.lerp(blackSand,sand*.9);
+   if(y<seaLevel) c.multiplyScalar(.7);
+  }
+  if(pal.volcanic) c.multiplyScalar(.62);
+  cols[i*3]=c.r;cols[i*3+1]=c.g;cols[i*3+2]=c.b;
+ }
+ geo.setAttribute('color',new T.BufferAttribute(cols,3));
  const mat=new T.MeshStandardMaterial({
-  map:tex,
-  roughness:courseId==='polar-vortex'?0.32:0.78,
-  metalness:courseId==='polar-vortex'?0.15:0.04,
-  envMapIntensity:0.85,
+  map:makeTerrainDetailTexture(),
+  vertexColors:true,
+  roughness:courseId==='polar-vortex'?0.36:0.88,
+  metalness:courseId==='polar-vortex'?0.12:0.0,
+  envMapIntensity:0.8,
  });
+ // second, much larger-scale sample of the detail map hides tiling
+ mat.onBeforeCompile=shader=>{
+  shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`
+   #ifdef USE_MAP
+    vec4 kpD1=texture2D(map,vMapUv);
+    vec4 kpD2=texture2D(map,vMapUv*0.11+vec2(0.37,0.21));
+    diffuseColor.rgb*=mix(vec3(1.0),kpD1.rgb*1.9,0.55)*mix(vec3(1.0),kpD2.rgb*1.9,0.35);
+   #endif`);
+ };
  const mesh=new T.Mesh(geo,mat);
  mesh.receiveShadow=true;
  scene.add(mesh);
+
+ const step=SIZE/SEG,row=SEG+1;
+ const heightAt=(x:number,z:number)=>{
+  const fx=T.MathUtils.clamp((x+SIZE/2)/step,0,SEG-1e-4),fz=T.MathUtils.clamp((z+SIZE/2)/step,0,SEG-1e-4);
+  const ix=Math.floor(fx),iz=Math.floor(fz),tx=fx-ix,tz=fz-iz;
+  const h00=pos.getY(iz*row+ix),h10=pos.getY(iz*row+ix+1),h01=pos.getY((iz+1)*row+ix),h11=pos.getY((iz+1)*row+ix+1);
+  return (h00*(1-tx)+h10*tx)*(1-tz)+(h01*(1-tx)+h11*tx)*tz;
+ };
+ return {mesh,heightAt,baseFloor};
 }
 
 /**
  * Adds 160 GPU-instanced trees / biome spires across the rolling hills outside the track corridor
  * (costs only 2 draw calls total, just like high-end Three.js sim-racing tracks!).
  */
-function buildInstancedHillForest(scene:T.Scene,courseId:CourseId){
- const count=160;
+function buildInstancedHillForest(scene:T.Scene,courseId:CourseId,heightAt?:(x:number,z:number)=>number,wind?:{value:number}){
+ const count=220;
+ const wp=worldPalette(courseId);
  const trunkGeo=new T.CylinderGeometry(0.28,0.48,3.6,6);
- const crownGeo=courseId==='polar-vortex'||courseId==='abyssal-trench'
-  ?new T.ConeGeometry(2.1,5.6,6)
-  :new T.DodecahedronGeometry(2.3,1);
- const trunkColor=courseId==='crestfall-gardens'?'#5c4566':courseId==='amazon-canopy'?'#4d331f':courseId==='dune-canyon'?'#8c4a27':'#2b4c66';
- const crownColor=courseId==='crestfall-gardens'?'#f28bc2':courseId==='amazon-canopy'?'#2e8540':courseId==='dune-canyon'?'#d97e38':courseId==='polar-vortex'?'#9ceeff':'#00e5ff';
+ const crownGeo=wp.conifer
+  ?new T.ConeGeometry(2.1,5.6,8)
+  :new T.IcosahedronGeometry(2.3,2);
+ if(!wp.conifer){
+  // lumpy, cloud-like canopy instead of a faceted ball
+  const cp=crownGeo.getAttribute('position') as T.BufferAttribute;
+  for(let i=0;i<cp.count;i++){
+   const x=cp.getX(i),y=cp.getY(i),z=cp.getZ(i);
+   const k=1+Math.sin(x*2.1+y*1.3)*.09+Math.sin(z*2.7-y*1.9)*.08;
+   cp.setXYZ(i,x*k,y*k*.92,z*k);
+  }
+  crownGeo.computeVertexNormals();
+ }
+ const trunkColor=wp.trunk;
+ const crownColor=wp.crown;
  const trunkMat=new T.MeshStandardMaterial({color:trunkColor,roughness:0.75});
  const crownMat=new T.MeshStandardMaterial({
   color:crownColor,
-  roughness:0.42,
-  emissive:courseId==='abyssal-trench'||courseId==='crestfall-gardens'?crownColor:'#000000',
-  emissiveIntensity:courseId==='abyssal-trench'?0.55:courseId==='crestfall-gardens'?0.18:0,
+  roughness:0.55,
+  emissive:wp.crownEmissive>0?crownColor:'#000000',
+  emissiveIntensity:wp.crownEmissive,
  });
+ if(wind) addWindSway(crownMat,wind,.32,true);
  const trunks=new T.InstancedMesh(trunkGeo,trunkMat,count);
  const crowns=new T.InstancedMesh(crownGeo,crownMat,count);
  trunks.castShadow=true;trunks.receiveShadow=true;
@@ -188,7 +269,7 @@ function buildInstancedHillForest(scene:T.Scene,courseId:CourseId){
   const rawX=Math.cos(a)*rad, rawZ=Math.sin(a)*rad;
   const safe=ensureOffTrackXZ(rawX,rawZ,6.5,courseId);
   const r=Math.hypot(safe.x,safe.z);
-  const y=baseFloor+Math.sin(safe.x*0.024)*Math.cos(safe.z*0.024)*9.5+Math.max(0,(r-175)*0.18);
+  const y=heightAt?heightAt(safe.x,safe.z)-.4:baseFloor+Math.sin(safe.x*0.024)*Math.cos(safe.z*0.024)*9.5+Math.max(0,(r-175)*0.18);
   const sc=0.85+(i%5)*0.24;
 
   dummy.position.set(safe.x,y+1.6*sc,safe.z);
@@ -208,14 +289,13 @@ function buildInstancedHillForest(scene:T.Scene,courseId:CourseId){
  scene.add(crowns);
 }
 
-/** Batched solid scenery + Blender hero monuments for all 5 Kith Circuit courses. */
-export function makeGardenWorld(
+/** Batched solid scenery + Blender hero monuments for the 5 original Kith Circuit courses. */
+function makeLegacyWorld(
  scene:T.Scene,
  point:(t:number,lane?:number,offset?:number)=>T.Vector3,
- courseId:CourseId='crestfall-gardens'
+ courseId:CourseId='crestfall-gardens',
+ forest?:KitForest
 ){
- buildSculptedValleyTerrain(scene,courseId);
- buildInstancedHillForest(scene,courseId);
 
  const surface=document.createElement('canvas');surface.width=surface.height=128;
  const surfaceCtx=surface.getContext('2d')!;surfaceCtx.fillStyle='#b8b8b8';surfaceCtx.fillRect(0,0,128,128);
@@ -250,6 +330,7 @@ export function makeGardenWorld(
  // COURSE 1: CRESTFALL GARDENS (Concept Art Kith Sanctuary — Zero Track Obstructions)
  // ============================================================================
  function tree(x:number,y:number,z:number,size:number,seed:number,leanX=0,leanZ=0){
+  if(forest){forest.add(x,y-.2,z,size*.82,seed);return;}
   const topX=x+(.22+leanX)*size, topY=y+2.6*size, topZ=z+leanZ*size;
   stem(vec(x,y,z),vec(topX,topY,topZ),.22*size,'#5e4968');
   for(let j=0;j<5;j++){
@@ -337,54 +418,10 @@ export function makeGardenWorld(
   shape(crestGeometry(),crystal(i%2?'#ff8c00':'#ff388f'),vec(isl.x+isl.r*.42,isl.y+1.2,isl.z),vec(1.8,2.5,1.8),new T.Euler(0,i*.9,.18));
  }
 
- // Continuous Trackside Balustrade Guardrails (strictly outside road coping at lane ±67)
- const triUpGeo=new T.ConeGeometry(.24,.36,3);triUpGeo.rotateY(Math.PI/2);
- const triDownGeo=new T.ConeGeometry(.24,.36,3);triDownGeo.rotateY(Math.PI/2);triDownGeo.rotateZ(Math.PI);
- const amberGlowMat=crystal('#ff9419',1.35);
-
- for(const side of [-1,1]){
-  const upperCurve=new T.CatmullRomCurve3(Array.from({length:241},(_,i)=>point(i/240,side*67,1.08)),true);
-  shape(new T.TubeGeometry(upperCurve,280,.18,6,true),material('#efe2d0'),vec(0,0,0));
-  const midCurve=new T.CatmullRomCurve3(Array.from({length:241},(_,i)=>point(i/240,side*67.5,0.62)),true);
-  shape(new T.TubeGeometry(midCurve,280,.26,6,true),material('#3c2d4d'),vec(0,0,0));
-  const lowerCurve=new T.CatmullRomCurve3(Array.from({length:241},(_,i)=>point(i/240,side*67,0.22)),true);
-  shape(new T.TubeGeometry(lowerCurve,280,.24,6,true),material('#a995b5'),vec(0,0,0));
-
-  for(let i=0;i<140;i++){
-   const t=i/140,p=point(t,side*66.2,0.62),q=point(t+.002,side*66.2,0.62),yaw=Math.atan2(q.x-p.x,q.z-p.z);
-   const tri=i%2===0?triUpGeo.clone():triDownGeo.clone();
-   shape(tri,amberGlowMat,p,vec(1,1,1),new T.Euler(0,yaw,0));
-  }
- }
-
- // Trackside Sakura Trees, Lanterns & Banners (verified off-track so inner loops never collide)
- for(let i=0;i<56;i++){
-  const t=i/56,side=i%2?1:-1;
-  const q=point(t+.002),yaw=Math.atan2(q.x-point(t).x,q.z-point(t).z);
-  const rawTree=point(t,side*98);
-  const safeTree=ensureOffTrackXZ(rawTree.x,rawTree.z,4.5,'crestfall-gardens');
-  if(i%2===0){
-   tree(safeTree.x,rawTree.y-.2,safeTree.z,1.35,i);
-  }
-  const lampBase=point(t,side*70.5);
-  stem(lampBase,lampBase.clone().add(vec(0,2.65,0)),.09,'#d8c7b4');
-  shape(crestGeometry(),crystal('#ffcf54',1.4),lampBase.clone().add(vec(0,2.82,0)),vec(.48,.52,.88),new T.Euler(0,yaw,0));
- }
-
- // Flanking Crystal Monoliths (verified off-track)
- const monolithProgress=[.05,.14,.26,.38,.52,.66,.78,.90];
+ // Balustrade, lantern pillars, pennants (trackFeatures3d road dressing) and crystal shrines + overhanging
+ // sakura (sanctuaryKit3d) replace the old tube rails, crest lamps and monoliths.
  const monolithAnchors:{group:T.Group;side:number}[]=[];
- for(const t of monolithProgress)for(const side of [-1,1]){
-  const rawP=point(t,side*115),q=point(t+.002),yaw=Math.atan2(q.x-point(t).x,q.z-point(t).z);
-  const safe=ensureOffTrackXZ(rawP.x,rawP.z,7.5,'crestfall-gardens');
-  const p=vec(safe.x,rawP.y,safe.z);
-  const anchor=new T.Group();
-  anchor.position.copy(p);
-  anchor.rotation.y=yaw;
-  scene.add(anchor);
-  monolithAnchors.push({group:anchor,side});
-  shape(crestGeometry(),crystal(side>0?'#ff8000':'#e62e8a',1.1),p,vec(4.8,side>0?7.2:5.8,3.8),new T.Euler(0,yaw,-side*.22));
- }
+ void crestGeometry;
 
  // Colossal Kith Guardians overlooking the circuit from safe vista plateaus
  const guardianAnchors:T.Group[]=[];
@@ -586,7 +623,8 @@ function buildAbyssalWorld(
  const coralColors=['#00f5ff','#ff2a9d','#9d4edd','#38ff9c','#ffb703'];
  for(let i=0;i<52;i++){
   const a=i*2.399, r=95+(i%5)*35;
-  const safe=ensureOffTrackXZ(Math.cos(a)*r,Math.sin(a)*r,18,'abyssal-trench');
+  const safe=ensureOffTrackXZ(Math.cos(a)*r,Math.sin(a)*r,12+(i%4)*4+3,'abyssal-trench');
+  if(!safe.safe)continue;
   const x=safe.x, z=safe.z, y=-28+(i%6)*5;
   shape(new T.ConeGeometry(12+(i%4)*4,28+(i%3)*12,7),material('#0c213d'),vec(x,y,z));
   const cCol=coralColors[i%coralColors.length];
@@ -747,13 +785,14 @@ function buildDuneWorld(
  // 1. Sweeping Golden Sand Dunes & Red-Rock Sandstone Canyon Mesas (all verified off-track!)
  for(let i=0;i<44;i++){
   const a=i*Math.PI*2/44, r=175+(i%4)*26;
-  const safe=ensureOffTrackXZ(Math.cos(a)*r,Math.sin(a)*r,30,'dune-canyon');
-  ell(safe.x,-4+(i%3)*3,safe.z,26+(i%3)*6,8+(i%4)*3.5,22+(i%2)*6,i%2?'#e09145':'#cf7932');
+  const dsx=26+(i%3)*6,dsz=22+(i%2)*6;
+  const safe=ensureOffTrackXZ(Math.cos(a)*r,Math.sin(a)*r,Math.max(dsx,dsz)+3,'dune-canyon');
+  if(safe.safe)ell(safe.x,-4+(i%3)*3,safe.z,dsx,8+(i%4)*3.5,dsz,i%2?'#e09145':'#cf7932');
   if(i%2===0){
    const mr=225+(i%3)*24;
-   const msafe=ensureOffTrackXZ(Math.cos(a)*mr,Math.sin(a)*mr,28,'dune-canyon');
+   const msafe=ensureOffTrackXZ(Math.cos(a)*mr,Math.sin(a)*mr,24+(i%4)*5+3,'dune-canyon');
    const mh=44+(i%4)*16;
-   shape(new T.CylinderGeometry(10+(i%3)*4,24+(i%4)*5,mh,7),material(i%4===0?'#b5482a':'#9c3b24'),vec(msafe.x,mh/2-12,msafe.z));
+   if(msafe.safe)shape(new T.CylinderGeometry(10+(i%3)*4,24+(i%4)*5,mh,7),material(i%4===0?'#b5482a':'#9c3b24'),vec(msafe.x,mh/2-12,msafe.z));
   }
  }
 
@@ -935,10 +974,11 @@ function buildPolarWorld(
 
  for(let i=0;i<36;i++){
   const a=i*Math.PI*2/36, r=178+(i%3)*26;
-  const safe=ensureOffTrackXZ(Math.cos(a)*r,Math.sin(a)*r,18,'polar-vortex');
+  const safe=ensureOffTrackXZ(Math.cos(a)*r,Math.sin(a)*r,14+(i%3)*4+3,'polar-vortex');
+  if(!safe.safe)continue;
   const h=28+(i%4)*14;
-  shape(new T.ConeGeometry(14+(i%3)*4,h,6),material(i%2?'#bce6ff':'#7ab8e6'),vec(safe.x,h/2-10,safe.z));
-  shape(crestGeometry(),crystal('#42f5ff',1.1),vec(safe.x,h-8,safe.z),vec(4.2,7.5,4.2),new T.Euler(0,i*0.8,0.15));
+  shape(new T.ConeGeometry(14+(i%3)*4,h,6),material(i%2?'#9cc8ea':'#5f95c4'),vec(safe.x,h/2-10,safe.z));
+  shape(crestGeometry(),crystal('#42f5ff',.6),vec(safe.x,h-8,safe.z),vec(4.2,7.5,4.2),new T.Euler(0,i*0.8,0.15));
  }
 
  for(const side of [-1,1]){
@@ -953,7 +993,7 @@ function buildPolarWorld(
   const p=vec(safe.x,rawP.y,safe.z);
   const f=trackFrame(t,0,'polar-vortex');
   const yaw=Math.atan2(f.tangent.x,f.tangent.z);
-  shape(crestGeometry(),crystal(i%2?'#00e5ff':'#e0ffff',1.2),p,vec(2.8,6.2+(i%3)*2.5,2.8),new T.Euler(0,yaw,-side*0.24));
+  shape(crestGeometry(),crystal(i%2?'#00e5ff':'#9fdcff',.65),p,vec(2.8,6.2+(i%3)*2.5,2.8),new T.Euler(0,yaw,-side*0.24));
   if(i%4===0){
    // Wide Ice Cavern Crystal Rib Arch spanning cleanly outside the ±12m road at 16.5m radius
    basisMat.makeBasis(f.right,f.normal,f.tangent);
@@ -1033,7 +1073,8 @@ function buildAmazonWorld(
  // 1. Lush Rainforest Mountainside Peaks & Kapok Canopy (all verified off-track!)
  for(let i=0;i<38;i++){
   const a=i*Math.PI*2/38, r=175+(i%4)*24;
-  const safe=ensureOffTrackXZ(Math.cos(a)*r,Math.sin(a)*r,20,'amazon-canopy');
+  const safe=ensureOffTrackXZ(Math.cos(a)*r,Math.sin(a)*r,16+(i%3)*5+3,'amazon-canopy');
+  if(!safe.safe)continue;
   const y=-6+(i%5)*6;
   shape(new T.ConeGeometry(16+(i%3)*5,34+(i%4)*12,7),material(i%2?'#295939':'#1e472c'),vec(safe.x,y+8,safe.z));
   jungleTree(safe.x,y+18,safe.z,1.3+(i%3)*0.35,i);
@@ -1148,5 +1189,757 @@ function buildAmazonWorld(
    attr.needsUpdate=true;
   },
   stats:{islands:38,kartDesigns:10,waterfalls:8,skyIslands:6}
+ };
+}
+
+// ============================================================================
+// GRAPHICS PASS: shared world layers for every course (wind foliage, water/lava, festival start)
+// ============================================================================
+
+const KNOWN_WORLDS:CourseId[]=['crestfall-gardens','abyssal-trench','dune-canyon','polar-vortex','amazon-canopy'];
+
+function terrainBaseFloor(courseId:CourseId){
+ return courseId==='abyssal-trench'?-34:courseId==='dune-canyon'?-8:-10;
+}
+
+interface WorldPalette {
+ rock:string; crest:string; damp:string; snowAbove?:number;
+ grass:[string,string]; flowers:string[]; flowerDensity:number; tuftScale:number; tuftDensity:number; tuftEmissive:number;
+ trunk:string; crown:string; crownEmissive:number; conifer:boolean;
+ water?:{deep:string;shallow:string;sky:string;lava?:boolean;ice?:boolean;level:number};
+ flags:string[]; volcanic?:boolean;
+}
+
+/** Per-world art direction; new courses get a palette derived from their CourseDef. */
+function worldPalette(courseId:CourseId):WorldPalette{
+ const def=courseById(courseId);
+ switch(courseId){
+  case 'crestfall-gardens':return {rock:'#8e7a9a',crest:'#b9d98a',damp:'#3f6a45',grass:['#4f8f3f','#a6d96a'],flowers:['#ff8fc8','#fff1f8','#ffd25a','#c49bff'],flowerDensity:.35,tuftScale:1,tuftDensity:1,tuftEmissive:0,trunk:'#5c4566',crown:'#f28bc2',crownEmissive:.18,conifer:false,water:{deep:'#13607a',shallow:'#3fd2e0',sky:'#ffe2f0',level:-7},flags:['#ff8c00','#ff388f','#fff4e6']};
+  case 'amazon-canopy':return {rock:'#5a5040',crest:'#5f9a3c',damp:'#1f3d22',grass:['#2f7a36','#77c24a'],flowers:['#ff5a3c','#ffd23f','#ff7ad1'],flowerDensity:.18,tuftScale:1.5,tuftDensity:1.25,tuftEmissive:0,trunk:'#4d331f',crown:'#2e8540',crownEmissive:0,conifer:false,water:{deep:'#1b4a33',shallow:'#5fae7e',sky:'#d9f296',level:-7},flags:['#9dff2e','#ffe866','#ff7a2a']};
+  case 'dune-canyon':return {rock:'#a8552e',crest:'#f2c27e',damp:'#b8642e',grass:['#c9a04a','#e8c070'],flowers:['#ff6a3d','#ffd27a'],flowerDensity:.06,tuftScale:.8,tuftDensity:.45,tuftEmissive:0,trunk:'#8c4a27',crown:'#d97e38',crownEmissive:0,conifer:false,flags:['#ff6a00','#ffaa00','#3d1536']};
+  case 'polar-vortex':return {rock:'#4f7391',crest:'#d9ecf8',damp:'#5f8fb3',snowAbove:4,grass:['#b8d6ea','#e8f5fc'],flowers:['#9fe8ff','#e0f7ff'],flowerDensity:.08,tuftScale:.7,tuftDensity:.4,tuftEmissive:.05,trunk:'#2b4c66',crown:'#9ceeff',crownEmissive:.04,conifer:true,water:{deep:'#0b2e4a',shallow:'#4fb7d8',sky:'#6ef2d8',ice:true,level:-6},flags:['#3df5ff','#ffffff','#7a5cff']};
+  case 'ember-ridge':return {rock:'#2b2426',crest:'#6e6462',damp:'#1e1416',grass:['#3a2c28','#5e4232'],flowers:['#ff6a1a','#ffb02e','#ff3d00'],flowerDensity:.14,tuftScale:.8,tuftDensity:.3,tuftEmissive:.5,trunk:'#1c1416',crown:'#3a2a26',crownEmissive:0,conifer:true,water:{deep:'#0a2230',shallow:'#2f7f8f',sky:'#ff9a5a',level:1},flags:['#ff5a1a','#ffb02e','#2a1a16'],volcanic:true};
+  case 'abyssal-trench':return {rock:'#1a2f4a',crest:'#2a5a7a',damp:'#0a1a30',grass:['#0e6b6b','#1ec8b0'],flowers:['#ff2e93','#00f0ff','#b36bff'],flowerDensity:.2,tuftScale:2.2,tuftDensity:.8,tuftEmissive:.55,trunk:'#2b4c66',crown:'#00e5ff',crownEmissive:.55,conifer:true,flags:['#00f0ff','#ff2e93','#ffffff']};
+  default:{
+   const hsl=new T.Color(def.terrainColorA).getHSL({h:0,s:0,l:0});
+   const volcanic=hsl.l<.22||/ember|lava|volcan|ash|magma/i.test(courseId+' '+def.name);
+   return {rock:volcanic?'#2a2024':'#6b6070',crest:def.terrainColorB,damp:new T.Color(def.terrainColorA).multiplyScalar(.6).getStyle(),
+    grass:volcanic?['#3a2c28','#6b4a36']:[def.terrainColorA,def.terrainColorB],flowers:volcanic?['#ff6a1a','#ffb02e']:[def.accent,'#ffffff'],flowerDensity:volcanic?.12:.2,
+    tuftScale:volcanic?.8:1,tuftDensity:volcanic?.35:.8,tuftEmissive:volcanic?.5:0,trunk:volcanic?'#1c1416':'#5c4a3a',crown:volcanic?'#3a2a26':def.terrainColorB,crownEmissive:0,conifer:volcanic,
+    water:volcanic?{deep:'#5a0c00',shallow:'#ff7a1a',sky:'#ffb04a',lava:true,level:-9}:{deep:'#13607a',shallow:'#3fd2e0',sky:def.skyHorizon,level:-7},
+    flags:[def.accent,def.stripeColor,'#ffffff'],volcanic};
+  }
+ }
+}
+
+function makeTerrainDetailTexture():T.CanvasTexture{
+ // neutral mid-grey micro detail (multiplied x1.9 in the shader): grass grain, pebbles, soft blotches
+ const c=document.createElement('canvas');c.width=c.height=256;
+ const x=c.getContext('2d')!;
+ x.fillStyle='rgb(134,134,134)';x.fillRect(0,0,256,256);
+ for(let i=0;i<60;i++){
+  const cx=(i*71)%256,cy=(i*113)%256;
+  const g=x.createRadialGradient(cx,cy,0,cx,cy,18+(i%5)*10);
+  const v=i%2?150:118;
+  g.addColorStop(0,`rgba(${v},${v},${v},.5)`);g.addColorStop(1,`rgba(${v},${v},${v},0)`);
+  x.fillStyle=g;x.fillRect(0,0,256,256);
+ }
+ for(let i=0;i<9000;i++){
+  const v=100+((i*37)%70);
+  x.fillStyle=`rgba(${v},${v},${v},.55)`;
+  x.fillRect((i*53+(i>>7)*11)%256,(i*97+(i>>5)*7)%256,1,1+(i%3));
+ }
+ const t=new T.CanvasTexture(c);
+ t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(48,48);t.anisotropy=8;
+ return t;
+}
+
+/** Vertex wind sway (object space, before the instance transform). baseY/heightNorm map local height to sway weight. */
+function addWindSway(mat:T.Material,wind:{value:number},amount:number,instanced:boolean,baseY=2.5,heightNorm=5){
+ const prev=mat.onBeforeCompile;
+ mat.onBeforeCompile=(shader,r)=>{
+  prev?.call(mat,shader,r);
+  shader.uniforms.uWind=wind;
+  shader.vertexShader='uniform float uWind;\n'+shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
+   {
+    vec2 kpP=${instanced?'vec2(instanceMatrix[3][0],instanceMatrix[3][2])':'vec2(0.0)'};
+    float kpW=clamp((position.y+${baseY.toFixed(3)})/${heightNorm.toFixed(3)},0.0,1.6);kpW*=kpW;
+    float kpS=sin(uWind*1.7+kpP.x*0.07+kpP.y*0.05)+0.45*sin(uWind*3.9+kpP.x*0.21-kpP.y*0.13);
+    transformed.x+=kpS*${amount.toFixed(3)}*kpW;
+    transformed.z+=cos(uWind*1.3+kpP.y*0.06+kpP.x*0.03)*${(amount*.6).toFixed(3)}*kpW;
+   }`);
+ };
+ mat.customProgramCacheKey=()=>`kp-wind-${amount}-${baseY}-${heightNorm}-${instanced?1:0}`;
+}
+
+function makeBladeTexture(kind:'grass'|'flower'|'kelp'):T.CanvasTexture{
+ const c=document.createElement('canvas');c.width=128;c.height=128;
+ const x=c.getContext('2d')!;
+ x.clearRect(0,0,128,128);
+ if(kind==='flower'){
+  // stem + bloom head, white so instance colour tints the petals
+  x.strokeStyle='rgba(90,150,70,1)';x.lineWidth=4;x.beginPath();x.moveTo(64,128);x.quadraticCurveTo(60,80,64,44);x.stroke();
+  for(let i=0;i<6;i++){const a=i*Math.PI/3;x.fillStyle='rgba(255,255,255,1)';x.beginPath();x.ellipse(64+Math.cos(a)*12,34+Math.sin(a)*12,11,7,a,0,7);x.fill();}
+  x.fillStyle='rgba(255,214,90,1)';x.beginPath();x.arc(64,34,7,0,7);x.fill();
+ } else {
+  const blades=kind==='kelp'?5:14;
+  for(let i=0;i<blades;i++){
+   const bx=10+(i*97)%108, lean=((i*37)%30-15)*(kind==='kelp'?.6:1), top=kind==='kelp'?4:6+((i*53)%40);
+   const w=kind==='kelp'?9:3+(i%3);
+   const g=x.createLinearGradient(0,128,0,top);
+   g.addColorStop(0,'rgba(150,150,150,1)');g.addColorStop(1,'rgba(255,255,255,1)');
+   x.fillStyle=g;
+   x.beginPath();x.moveTo(bx-w,128);x.quadraticCurveTo(bx+lean*.4,70,bx+lean,top);x.quadraticCurveTo(bx+lean*.4+w*.4,70,bx+w,128);x.closePath();x.fill();
+  }
+ }
+ const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;t.anisotropy=4;
+ return t;
+}
+
+/** three crossed vertical quads, base at y=0, normals pointing up for soft foliage lighting */
+function crossedQuadGeometry(w:number,h:number){
+ const parts:T.BufferGeometry[]=[];
+ for(let k=0;k<3;k++){
+  const g=new T.PlaneGeometry(w,h,1,2);g.translate(0,h/2,0);g.rotateY(k*Math.PI/3);parts.push(g);
+ }
+ const merged=mergeGeometries(parts,false)!;
+ parts.forEach(p=>p.dispose());
+ const n=merged.getAttribute('normal') as T.BufferAttribute;
+ for(let i=0;i<n.count;i++)n.setXYZ(i,0,1,0);
+ return merged;
+}
+
+function trackSampleXZ(courseId:CourseId,n=300){
+ const pts:{x:number;y:number;z:number;tx:number;tz:number}[]=[];
+ for(let i=0;i<n;i++){
+  const f=trackFrame(i/n,0,courseId);
+  pts.push({x:f.position.x,y:f.position.y,z:f.position.z,tx:f.tangent.x,tz:f.tangent.z});
+ }
+ return pts;
+}
+function minTrackDist(samples:{x:number;z:number}[],x:number,z:number){
+ let m=Infinity;
+ for(const s of samples){const d=(s.x-x)*(s.x-x)+(s.z-z)*(s.z-z);if(d<m)m=d;}
+ return Math.sqrt(m);
+}
+
+/** Thousands of instanced, wind-swept grass/kelp tufts and flowers hugging the terrain off the corridor. */
+function buildFoliage(scene:T.Scene,courseId:CourseId,pal:WorldPalette,heightAt:(x:number,z:number)=>number,wind:{value:number},waterLevel:number|null){
+ const samples=trackSampleXZ(courseId);
+ const isKelp=courseId==='abyssal-trench';
+ const tuftCount=Math.round(6500*pal.tuftDensity);
+ const flowerCount=Math.round(tuftCount*pal.flowerDensity);
+ const rnd=(()=>{let s=1337+courseId.length*97;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296;};})();
+ const place=(n:number,minD:number,maxD:number)=>{
+  const out:{x:number;y:number;z:number}[]=[];
+  let guard=n*4;
+  while(out.length<n&&guard-->0){
+   const s=samples[(rnd()*samples.length)|0];
+   const side=rnd()<.5?-1:1;
+   const d=minD+Math.pow(rnd(),1.7)*(maxD-minD);
+   const nx=s.tz,nz=-s.tx;
+   const x=s.x+nx*side*d+(rnd()-.5)*6,z=s.z+nz*side*d+(rnd()-.5)*6;
+   if(Math.abs(x)>330||Math.abs(z)>330) continue;
+   if(minTrackDist(samples,x,z)<17.5) continue;
+   const y=heightAt(x,z);
+   if(waterLevel!==null&&y<waterLevel+.15) continue;
+   out.push({x,y,z});
+  }
+  return out;
+ };
+ const dummy=new T.Object3D(),col=new T.Color();
+ const meshes:T.InstancedMesh[]=[];
+ const glow=isKelp?pal.grass[1]:pal.volcanic?'#ff5a12':pal.grass[1];
+ const mk=(geo:T.BufferGeometry,tex:T.Texture,pts:{x:number;y:number;z:number}[],colors:string[],scale:number,emissive:number,sway:number,h:number)=>{
+  const mat=new T.MeshStandardMaterial({map:tex,alphaTest:.45,side:T.DoubleSide,roughness:.8,metalness:0,emissive:emissive>0?glow:'#000000',emissiveIntensity:emissive});
+  if(emissive>0) mat.emissiveMap=tex;
+  addWindSway(mat,wind,sway,true,0,h);
+  const im=new T.InstancedMesh(geo,mat,Math.max(1,pts.length));
+  im.receiveShadow=true;im.castShadow=false;
+  pts.forEach((p,i)=>{
+   const s=scale*(.7+rnd()*.7);
+   dummy.position.set(p.x,p.y-.05,p.z);dummy.rotation.set(0,rnd()*Math.PI*2,0);dummy.scale.set(s,s*(.8+rnd()*.5),s);
+   dummy.updateMatrix();im.setMatrixAt(i,dummy.matrix);
+   col.set(colors[(rnd()*colors.length)|0]).offsetHSL((rnd()-.5)*.03,(rnd()-.5)*.1,(rnd()-.5)*.12);
+   im.setColorAt(i,col);
+  });
+  im.count=pts.length;
+  im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;
+  im.computeBoundingSphere();
+  scene.add(im);meshes.push(im);
+ };
+ const tuftH=isKelp?3.2:1.1;
+ mk(crossedQuadGeometry(isKelp?1.4:1.3,tuftH),makeBladeTexture(isKelp?'kelp':'grass'),place(tuftCount,17.5,150),pal.grass,pal.tuftScale,pal.tuftEmissive,isKelp?.55:.16,tuftH);
+ if(flowerCount>0) mk(crossedQuadGeometry(.7,.9),makeBladeTexture('flower'),place(flowerCount,18,110),pal.flowers,1,isKelp||pal.volcanic?.6:.08,.12,.9);
+ return {count:tuftCount+flowerCount,meshes};
+}
+
+/** Stylised water (or lava) plane: procedural wave normals, fresnel sky reflection, sun glint, ice floes. */
+function buildWater(scene:T.Scene,pal:WorldPalette,level:number){
+ const w=pal.water!;
+ const mat=new T.ShaderMaterial({
+  fog:true,
+  uniforms:{
+   uTime:{value:0},
+   uDeep:{value:new T.Color(w.deep)},uShallow:{value:new T.Color(w.shallow)},uSky:{value:new T.Color(w.sky)},
+   uSun:{value:new T.Vector3(55,82,-24).normalize()},
+   uLava:{value:w.lava?1:0},uIce:{value:w.ice?1:0},
+   ...T.UniformsLib.fog,
+  },
+  vertexShader:`varying vec3 vWorld;
+   #include <fog_pars_vertex>
+   void main(){vec4 wp=modelMatrix*vec4(position,1.0);vWorld=wp.xyz;vec4 mvPosition=viewMatrix*wp;gl_Position=projectionMatrix*mvPosition;
+   #include <fog_vertex>
+   }`,
+  fragmentShader:`uniform float uTime;uniform vec3 uDeep;uniform vec3 uShallow;uniform vec3 uSky;uniform vec3 uSun;uniform float uLava;uniform float uIce;
+   varying vec3 vWorld;
+   #include <fog_pars_fragment>
+   float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+   float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
+   vec2 wave(vec2 p,vec2 d,float f,float s,float a){float ph=dot(d,p)*f+uTime*s;return d*cos(ph)*a*f;}
+   void main(){
+    vec2 p=vWorld.xz;
+    if(uLava>0.5){
+     vec2 q=p*0.045+vec2(uTime*0.02,uTime*0.013);
+     float n=noise(q*3.0)*0.55+noise(q*7.0+uTime*0.05)*0.3+noise(q*15.0)*0.15;
+     float veins=smoothstep(0.42,0.58,n);
+     vec3 crust=uDeep*0.35;
+     vec3 hot=mix(uDeep*2.2,uShallow*2.6,smoothstep(0.55,0.85,n))*(0.85+0.15*sin(uTime*2.0+n*12.0));
+     vec3 col=mix(crust,hot,veins);
+     gl_FragColor=vec4(col,1.0);
+    } else {
+     vec2 g=vec2(0.0);
+     g+=wave(p,normalize(vec2(1.0,0.3)),0.11,1.3,0.55);
+     g+=wave(p,normalize(vec2(-0.4,1.0)),0.23,1.9,0.3);
+     g+=wave(p,normalize(vec2(0.7,-0.8)),0.47,2.7,0.16);
+     g+=wave(p,normalize(vec2(-0.9,-0.2)),0.93,3.6,0.08);
+     g+=(vec2(noise(p*0.8+uTime*0.3),noise(p*0.8-uTime*0.27))-0.5)*0.35;
+     vec3 N=normalize(vec3(-g.x,1.0,-g.y));
+     vec3 V=normalize(cameraPosition-vWorld);
+     float fres=0.03+0.97*pow(1.0-max(dot(N,V),0.0),5.0);
+     float tint=0.35+0.3*noise(p*0.02)+0.2*noise(p*0.06);
+     vec3 body=mix(uDeep,uShallow,tint);
+     vec3 col=mix(body,uSky,clamp(fres*0.9,0.0,1.0));
+     float spec=pow(max(dot(reflect(-V,N),uSun),0.0),220.0)*3.0+pow(max(dot(reflect(-V,N),uSun),0.0),30.0)*0.12;
+     col+=vec3(1.0,0.95,0.85)*spec;
+     if(uIce>0.5){
+      float floe=smoothstep(0.62,0.66,noise(p*0.05)*0.7+noise(p*0.2)*0.3);
+      col=mix(col,vec3(0.86,0.95,1.0),floe*0.9);
+     }
+     gl_FragColor=vec4(col,1.0);
+    }
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+    #include <fog_fragment>
+   }`,
+ });
+ const mesh=new T.Mesh(new T.PlaneGeometry(900,900,1,1),mat);
+ mesh.rotation.x=-Math.PI/2;mesh.position.y=level;
+ mesh.receiveShadow=false;
+ scene.add(mesh);
+ return {mesh,update(time:number){mat.uniforms.uTime.value=time;}};
+}
+
+/** Grandstands with a cheering instanced crowd, waving course flags and string lights around the start. */
+function buildStartFestival(scene:T.Scene,courseId:CourseId,pal:WorldPalette,heightAt:(x:number,z:number)=>number,wind:{value:number}){
+ const def=courseById(courseId);
+ const standMat=new T.MeshStandardMaterial({color:'#efe6da',roughness:.7});
+ const seatMat=new T.MeshStandardMaterial({color:def.accent,roughness:.5,metalness:.1});
+ const roofMat=new T.MeshPhysicalMaterial({color:pal.flags[1]??def.accent,roughness:.35,clearcoat:.6});
+ const glowMat=new T.MeshBasicMaterial({color:def.accent});
+ const steelMat=new T.MeshStandardMaterial({color:'#b8c0cc',metalness:.85,roughness:.3});
+ const standBatches=new Map<T.Material,T.BufferGeometry[]>();
+ const addBox=(m:T.Material,w:number,h:number,d:number,mtx:T.Matrix4,x:number,y:number,z:number)=>{
+  const g=new T.BoxGeometry(w,h,d);g.translate(x,y,z);g.applyMatrix4(mtx);
+  const list=standBatches.get(m)||[];list.push(g);standBatches.set(m,list);
+ };
+ const crowdSpots:{p:T.Vector3;yaw:number}[]=[];
+ const placements=[{t:.012,side:1},{t:.012,side:-1},{t:.955,side:1}];
+ for(const {t,side} of placements){
+  const f=trackFrame(t,0,courseId);
+  const raw=f.position.clone().addScaledVector(f.right,side*24);
+  const safe=ensureOffTrackXZ(raw.x,raw.z,12,courseId);
+  if(!safe.safe) continue;
+  const ground=heightAt(safe.x,safe.z);
+  const deck=Math.max(ground,f.position.y-1.5);
+  if(deck-ground>32) continue; // track is a very high viaduct here; a stand would be a tower
+  const yaw=Math.atan2(f.position.x-safe.x,f.position.z-safe.z);
+  const mtx=new T.Matrix4().compose(new T.Vector3(safe.x,deck,safe.z),new T.Quaternion().setFromEuler(new T.Euler(0,yaw,0)),new T.Vector3(1,1,1));
+  const W=24,tiers=5;
+  if(deck-ground>.3){ for(const lx of [-W/2+1,0,W/2-1])for(const lz of [0,-tiers*2]) addBox(steelMat,.5,deck-ground+.5,.5,mtx,lx,-(deck-ground)/2,lz); }
+  for(let k=0;k<tiers;k++){
+   addBox(standMat,W,1.1*(k+1),2,mtx,0,1.1*(k+1)/2,-k*2);
+   addBox(seatMat,W-.4,.18,.5,mtx,0,1.1*(k+1)+.09,-k*2+.55);
+   for(let s=0;s<20;s++){
+    const lx=-W/2+1.2+s*((W-2.4)/19)+(Math.sin(s*7.3+k)*.18);
+    const v=new T.Vector3(lx,1.1*(k+1)+.1,-k*2+.15).applyMatrix4(mtx);
+    crowdSpots.push({p:v,yaw});
+   }
+  }
+  // roof canopy on two masts + glowing fascia strip
+  addBox(steelMat,.35,8.5,.35,mtx,-W/2+.5,1.1*tiers+4.2,-tiers*2+.5);
+  addBox(steelMat,.35,8.5,.35,mtx,W/2-.5,1.1*tiers+4.2,-tiers*2+.5);
+  addBox(roofMat,W+1.5,.3,tiers*2+2.5,mtx,0,1.1*tiers+8.4,-tiers+.6);
+  addBox(glowMat,W+1.5,.22,.12,mtx,0,1.1*tiers+8.1,1.9);
+ }
+ for(const [m,list] of standBatches){
+  const merged=mergeGeometries(list.map(g=>g.index?g.toNonIndexed():g),false);
+  list.forEach(g=>g.dispose());
+  if(!merged) continue;
+  const mesh=new T.Mesh(merged,m);mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);
+ }
+
+ // Crowd: one instanced draw, bobbing/jumping in the vertex shader with per-fan phase
+ const body=new T.CapsuleGeometry(.26,.42,3,8);body.translate(0,.48,0);
+ const head=new T.SphereGeometry(.22,10,8);head.translate(0,1.06,0);
+ const armL=new T.CapsuleGeometry(.07,.42,2,6);armL.rotateZ(.5);armL.translate(-.32,1.05,0);
+ const armR=new T.CapsuleGeometry(.07,.42,2,6);armR.rotateZ(-.5);armR.translate(.32,1.05,0);
+ const fanGeo=mergeGeometries([body,head,armL,armR].map(g=>g.toNonIndexed()),false)!;
+ [body,head,armL,armR].forEach(g=>g.dispose());
+ const fanMat=new T.MeshStandardMaterial({roughness:.6});
+ fanMat.onBeforeCompile=shader=>{
+  shader.uniforms.uWind=wind;
+  shader.vertexShader='uniform float uWind;\n'+shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
+   {
+    float ph=fract(sin(dot(vec2(instanceMatrix[3][0],instanceMatrix[3][2]),vec2(12.9898,78.233)))*43758.5453)*6.2831;
+    float hype=0.6+0.4*sin(uWind*0.35+ph*0.2);
+    transformed.y+=abs(sin(uWind*5.5+ph))*0.28*hype;
+    if(position.y>0.85&&abs(position.x)>0.2){transformed.y+=abs(sin(uWind*7.0+ph))*0.25;transformed.x*=1.0+0.25*sin(uWind*7.0+ph);}
+   }`);
+ };
+ fanMat.customProgramCacheKey=()=>'kp-crowd';
+ const crowd=new T.InstancedMesh(fanGeo,fanMat,Math.max(1,crowdSpots.length));
+ const shirt=[...pal.flags,'#ffffff','#2b2f4a','#ffcf54','#5ad1ff','#ff6a6a'];
+ const dummy=new T.Object3D(),col=new T.Color();
+ crowdSpots.forEach((c,i)=>{
+  dummy.position.copy(c.p);dummy.rotation.set(0,c.yaw+(Math.sin(i*3.1)*.3),0);const s=.9+((i*37)%10)/40;dummy.scale.setScalar(s);dummy.updateMatrix();
+  crowd.setMatrixAt(i,dummy.matrix);
+  col.set(shirt[(i*7+(i>>3))%shirt.length]);crowd.setColorAt(i,col);
+ });
+ crowd.count=crowdSpots.length;
+ crowd.castShadow=true;crowd.receiveShadow=true;
+ crowd.computeBoundingSphere();
+ if(crowdSpots.length) scene.add(crowd);
+
+ // Flags: poles + waving banners around the start straight and sparsely round the lap
+ const zones:[number,number][]=[
+  ...(def.tunnels??[]).map(z=>[z.startT-.01,z.endT+.01] as [number,number]),
+  ...(def.bridges??[]).map(z=>[z.startT-.01,z.endT+.01] as [number,number]),
+  ...(def.jumps??[]).map(j=>[j.t-j.rampLen-.01,j.t+j.gap+.012] as [number,number]),
+  ...(def.loops??[]).map(l=>[l.centerT-l.halfWidth*1.8,l.centerT+l.halfWidth*1.8] as [number,number]),
+  ...(def.obstacles??[]).map(o=>[o.t-.012,o.t+.012] as [number,number]),
+ ];
+ const blocked=(t:number)=>zones.some(([a,b])=>t>=a&&t<=b);
+ const flagTs:number[]=[];
+ for(let t=-.06;t<=.06;t+=.012){const u=def.kind==='sprint'?(t<0?.99+t*.15:t+.012):(t+1)%1;flagTs.push(u);}
+ for(let t=.1;t<.92;t+=.045) flagTs.push(t);
+ const polePts:{base:T.Vector3;top:T.Vector3;yaw:number;color:string}[]=[];
+ flagTs.forEach((t,i)=>{
+  for(const side of [-1,1]){
+   if(t>.08&&t<.92&&(i+(side>0?1:0))%2) continue;
+   if(blocked(t)) continue;
+   const f=trackFrame(t,0,courseId);
+   if(f.inLoop) continue;
+   // poles stand on the road deck shoulder (outside the kart lanes, inside the deck edge) so they work
+   // on viaducts as well as on the ground
+   const base=worldPoint(t,side*71,0,courseId);
+   const top=base.clone().addScaledVector(f.normal,6.5);
+   polePts.push({base,top,yaw:Math.atan2(f.tangent.x,f.tangent.z),color:pal.flags[(i+(side>0?1:0))%pal.flags.length]});
+  }
+ });
+ const poleGeo=new T.CylinderGeometry(.07,.09,1,6);poleGeo.translate(0,.5,0);
+ const poles=new T.InstancedMesh(poleGeo,steelMat,Math.max(1,polePts.length));
+ const bannerGeo=new T.PlaneGeometry(2.2,1.3,10,3);bannerGeo.translate(1.1,-.65,0);
+ const bannerMat=new T.MeshStandardMaterial({side:T.DoubleSide,roughness:.65,emissive:'#ffffff',emissiveIntensity:.08});
+ bannerMat.onBeforeCompile=shader=>{
+  shader.uniforms.uWind=wind;
+  shader.vertexShader='uniform float uWind;\n'+shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
+   {
+    float ph=instanceMatrix[3][0]*0.13+instanceMatrix[3][2]*0.07;
+    float k=position.x/2.2;
+    transformed.z+=sin(position.x*2.6-uWind*7.0+ph)*0.22*k+sin(position.x*5.1-uWind*11.0+ph)*0.06*k;
+    transformed.y+=sin(position.x*1.7-uWind*5.0+ph)*0.08*k;
+   }`);
+ };
+ bannerMat.customProgramCacheKey=()=>'kp-banner';
+ const banners=new T.InstancedMesh(bannerGeo,bannerMat,Math.max(1,polePts.length));
+ polePts.forEach((pp,i)=>{
+  dummy.position.copy(pp.base);dummy.rotation.set(0,0,0);dummy.scale.set(1,pp.top.distanceTo(pp.base),1);dummy.updateMatrix();poles.setMatrixAt(i,dummy.matrix);
+  dummy.position.copy(pp.top);dummy.rotation.set(0,pp.yaw+Math.PI/2,0);dummy.scale.setScalar(1);dummy.updateMatrix();banners.setMatrixAt(i,dummy.matrix);
+  col.set(pp.color);banners.setColorAt(i,col);
+ });
+ poles.count=banners.count=polePts.length;
+ poles.castShadow=banners.castShadow=true;
+ poles.computeBoundingSphere();banners.computeBoundingSphere();
+ if(polePts.length){scene.add(poles);scene.add(banners);}
+
+ // String lights between neighbouring start-area poles (bloom makes them sparkle)
+ const bulbs:T.Vector3[]=[];
+ const startPoles=polePts.filter(p=>p.base.distanceTo(trackFrame(0,0,courseId).position)<90);
+ for(let i=0;i+2<startPoles.length;i++){
+  const a=startPoles[i].top.clone().add(new T.Vector3(0,-.3,0)),b=startPoles[i+2].top.clone().add(new T.Vector3(0,-.3,0));
+  if(a.distanceTo(b)>22) continue;
+  for(let k=1;k<12;k++){const u=k/12;const p=a.clone().lerp(b,u);p.y-=Math.sin(u*Math.PI)*1.2;bulbs.push(p);}
+ }
+ const bulbMesh=new T.InstancedMesh(new T.SphereGeometry(.11,6,5),new T.MeshBasicMaterial({color:'#ffffff'}),Math.max(1,bulbs.length));
+ const warm=['#ffd27a','#ff9a4a','#fff2c8',def.accent];
+ bulbs.forEach((b,i)=>{dummy.position.copy(b);dummy.rotation.set(0,0,0);dummy.scale.setScalar(1);dummy.updateMatrix();bulbMesh.setMatrixAt(i,dummy.matrix);col.set(warm[i%warm.length]).multiplyScalar(2.2);bulbMesh.setColorAt(i,col);});
+ bulbMesh.count=bulbs.length;bulbMesh.computeBoundingSphere();
+ if(bulbs.length) scene.add(bulbMesh);
+
+ return {crowd:crowdSpots.length,flags:polePts.length,bulbs:bulbs.length};
+}
+
+/** Scenery for courses without a bespoke legacy builder (e.g. new sprint courses): boulders, spires, drifting motes. */
+function buildGenericWorld(scene:T.Scene,courseId:CourseId,pal:WorldPalette,heightAt:(x:number,z:number)=>number){
+ const def=courseById(courseId);
+ const samples=trackSampleXZ(courseId,240);
+ const rockGeo=new T.DodecahedronGeometry(1,1);
+ const rp=rockGeo.getAttribute('position') as T.BufferAttribute;
+ for(let i=0;i<rp.count;i++){const x=rp.getX(i),y=rp.getY(i),z=rp.getZ(i);const k=1+Math.sin(x*3.1+z*2.3)*.12;rp.setXYZ(i,x*k,y*k*.75,z*k);}
+ rockGeo.computeVertexNormals();
+ const rocks=new T.InstancedMesh(rockGeo,new T.MeshStandardMaterial({color:pal.rock,roughness:.85,flatShading:true}),140);
+ const spireGeo=new T.ConeGeometry(1,1,5);spireGeo.translate(0,.5,0);
+ const spireMat=new T.MeshPhysicalMaterial({color:pal.volcanic?'#2a1a16':def.accent,roughness:.2,clearcoat:1,emissive:pal.volcanic?'#ff5a12':def.accent,emissiveIntensity:pal.volcanic?.35:.25,flatShading:true});
+ const spires=new T.InstancedMesh(spireGeo,spireMat,48);
+ const dummy=new T.Object3D();
+ let r=0,sp=0;
+ for(let i=0;i<400&&(r<140||sp<48);i++){
+  const a=i*2.39996,rad=30+(i%17)*16;
+  const x=Math.cos(a)*rad,z=Math.sin(a)*rad;
+  if(minTrackDist(samples,x,z)<20) continue;
+  const y=heightAt(x,z);
+  if(r<140&&i%3!==0){
+   const s=1.2+((i*31)%10)/2.5;
+   dummy.position.set(x,y+s*.25,z);dummy.rotation.set(i,i*1.7,i*.3);dummy.scale.setScalar(s);dummy.updateMatrix();rocks.setMatrixAt(r++,dummy.matrix);
+  } else if(sp<48){
+   const h=6+((i*13)%12);
+   dummy.position.set(x,y-.5,z);dummy.rotation.set((i%5-2)*.06,i,(i%3-1)*.08);dummy.scale.set(1.2+(i%4)*.4,h,1.2+(i%4)*.4);dummy.updateMatrix();spires.setMatrixAt(sp++,dummy.matrix);
+  }
+ }
+ rocks.count=r;spires.count=sp;
+ rocks.castShadow=rocks.receiveShadow=spires.castShadow=true;
+ rocks.computeBoundingSphere();spires.computeBoundingSphere();
+ scene.add(rocks,spires);
+ // drifting embers / motes
+ const n=600;const pos=new Float32Array(n*3);
+ for(let i=0;i<n;i++){pos[i*3]=(Math.sin(i*12.9)*.5)*320;pos[i*3+1]=Math.abs(Math.sin(i*3.7))*40-6;pos[i*3+2]=(Math.cos(i*7.3)*.5)*320;}
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(pos,3));
+ const m=new T.PointsMaterial({color:pal.volcanic?'#ff8a2a':'#ffffff',size:pal.volcanic?.35:.25,transparent:true,opacity:.85,blending:T.AdditiveBlending,depthWrite:false});
+ const motes=new T.Points(g,m);scene.add(motes);
+ return {
+  update(dt:number,time:number){
+   const arr=(g.getAttribute('position') as T.BufferAttribute).array as Float32Array;
+   for(let i=0;i<n;i++){arr[i*3+1]+=dt*(pal.volcanic?2.2:.6);arr[i*3]+=Math.sin(time+i)*dt*.8;if(arr[i*3+1]>40)arr[i*3+1]=-6;}
+   (g.getAttribute('position') as T.BufferAttribute).needsUpdate=true;
+  },
+  stats:{islands:0,kartDesigns:10,waterfalls:0,skyIslands:0,rocks:r,spires:sp},
+ };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Mountain worlds (point-to-point descents such as Ember Ridge Run)
+// ---------------------------------------------------------------------------------------------
+
+function isMountainWorld(courseId:CourseId){
+ if(KNOWN_WORLDS.includes(courseId)) return false;
+ let lo=Infinity,hi=-Infinity;
+ for(let i=0;i<=40;i++){const y=trackFrame(i/40*.999,0,courseId).position.y;lo=Math.min(lo,y);hi=Math.max(hi,y);}
+ return hi-lo>30;
+}
+
+interface Channel {a:T.Vector2;b:T.Vector2;bedY:number;t:number}
+const mountainCache=new Map<CourseId,ReturnType<typeof buildMountainModel>>();
+function mountainModel(courseId:CourseId){
+ let m=mountainCache.get(courseId);
+ if(!m){m=buildMountainModel(courseId);mountainCache.set(courseId,m);}
+ return m;
+}
+
+function buildMountainModel(courseId:CourseId){
+ const def=courseById(courseId);
+ const N=320;
+ const deepRanges:[number,number][]=[
+  ...(def.bridges??[]).map(b=>[b.startT,b.endT] as [number,number]),
+  ...(def.jumps??[]).filter(j=>j.gap>0).map(j=>[j.t,j.t+j.gap] as [number,number]),
+ ];
+ const S:{x:number;z:number;y:number;edgeY:number;deep:boolean}[]=[];
+ for(let i=0;i<N;i++){
+  const t=i/(N-1)*.999;
+  const c=worldPoint(t,0,0,courseId),l=worldPoint(t,-74,0,courseId),r=worldPoint(t,74,0,courseId);
+  const deep=deepRanges.some(([a,b])=>t>=a-.006&&t<=b+.006);
+  S.push({x:c.x,z:c.z,y:c.y,edgeY:Math.min(c.y,l.y,r.y),deep});
+ }
+ const minEdge=Math.min(...S.map(s=>s.edgeY));
+ const seaLevel=Math.min(courseById(courseId).id==='ember-ridge'?1:worldPalette(courseId).water?.level??1,minEdge-3);
+ // Lava channels cut across every chasm (perpendicular to the road), bed well below the deck
+ const channels:Channel[]=deepRanges.map(([a,b])=>{
+  const tc=(a+b)/2;
+  const f=trackFrame(tc,0,courseId);
+  const rx=f.right.x,rz=f.right.z,len=Math.hypot(rx,rz)||1;
+  const p=f.position;
+  return {a:new T.Vector2(p.x-rx/len*150,p.z-rz/len*150),b:new T.Vector2(p.x+rx/len*150,p.z+rz/len*150),bedY:p.y-15,t:tc};
+ });
+ // Crater behind the start line
+ const s0=trackFrame(0,0,courseId);
+ const craterC=new T.Vector2(s0.position.x-s0.tangent.x*70,s0.position.z-s0.tangent.z*70);
+ const craterTop=s0.position.y+9;
+ const segDist=(px:number,pz:number,c:Channel)=>{
+  const abx=c.b.x-c.a.x,abz=c.b.y-c.a.y;
+  const u=T.MathUtils.clamp(((px-c.a.x)*abx+(pz-c.a.y)*abz)/(abx*abx+abz*abz),0,1);
+  return Math.hypot(px-(c.a.x+abx*u),pz-(c.a.y+abz*u));
+ };
+ const crater=(x:number,z:number)=>{
+  const d=Math.hypot(x-craterC.x,z-craterC.y);
+  if(d>95) return null;
+  // rim at r=48, bowl down to craterTop-18 at the centre
+  const rim=craterTop-Math.pow(Math.abs(d-48)/47,1.6)*26;
+  const bowl=craterTop-18+Math.pow(d/48,2)*18;
+  return d<48?Math.min(rim,bowl):rim;
+ };
+ function height(x:number,z:number){
+  let minD=Infinity,edgeY=0,deep=false,wy=0,ws=0;
+  for(const s of S){
+   const d2=(x-s.x)*(x-s.x)+(z-s.z)*(z-s.z);
+   if(d2<minD){minD=d2;edgeY=s.edgeY;deep=s.deep;}
+   const w=1/(d2+900);
+   wy+=w*s.y;ws+=w;
+  }
+  minD=Math.sqrt(minD);
+  const idw=wy/ws;
+  const hill=Math.sin(x*0.031)*Math.cos(z*0.027)*5+Math.sin(x*0.08+1.3)*Math.sin(z*0.07)*2.2+Math.sin(x*.19)*Math.cos(z*.17)*.7;
+  let natural=idw-1.5+hill*(.4+Math.min(1,minD/80)*.6)-Math.max(0,minD-28)*.13;
+  const cr=crater(x,z);
+  if(cr!==null){const d=Math.hypot(x-craterC.x,z-craterC.y);const k=T.MathUtils.smoothstep(95-d,0,30);natural=natural*(1-k)+Math.max(natural,cr)*k;if(d<48)natural=Math.min(natural,cr);}
+  // carve lava channels
+  for(const c of channels){
+   const d=segDist(x,z,c);
+   if(d<18){const bed=c.bedY+Math.pow(Math.max(0,d-6.5)/11.5,2)*14;natural=Math.min(natural,bed);}
+  }
+  const under=deep?edgeY-16:edgeY-1.15;
+  const blend=T.MathUtils.clamp((minD-14)/(deep?36:22),0,1);
+  return under*(1-blend)+natural*blend;
+ }
+ return {height,seaLevel,channels,craterC,craterTop,samples:S};
+}
+
+const LAVA_FRAG=`uniform float uTime;uniform float uRibbon;varying vec2 vUv;varying vec3 vWorld;
+ float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+ float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
+ #include <fog_pars_fragment>
+ void main(){
+  vec2 q=uRibbon>0.5?vec2(vUv.x*1.6,vUv.y*0.12-uTime*0.35):vWorld.xz*0.06+vec2(uTime*0.03,uTime*0.02);
+  float n=noise(q*3.0)*0.55+noise(q*7.0+uTime*0.08)*0.3+noise(q*15.0)*0.15;
+  float crust=smoothstep(0.5,0.62,n);
+  float edge=uRibbon>0.5?smoothstep(0.0,0.18,vUv.x)*smoothstep(1.0,0.82,vUv.x):1.0;
+  vec3 hot=mix(vec3(1.9,0.35,0.04),vec3(3.2,1.5,0.35),smoothstep(0.2,0.5,n))*(0.85+0.15*sin(uTime*2.3+n*10.0));
+  vec3 col=mix(hot,vec3(0.07,0.03,0.03),crust*0.85);
+  col=mix(vec3(0.05,0.03,0.03),col,edge);
+  gl_FragColor=vec4(col,1.0);
+  #include <fog_fragment>
+ }`;
+function makeLavaMaterial(ribbon:boolean,time:{value:number}){
+ return new T.ShaderMaterial({
+  fog:true,side:T.DoubleSide,
+  uniforms:{uTime:time,uRibbon:{value:ribbon?1:0},...T.UniformsLib.fog},
+  vertexShader:`varying vec2 vUv;varying vec3 vWorld;
+   #include <fog_pars_vertex>
+   void main(){vUv=uv;vec4 wp=modelMatrix*vec4(position,1.0);vWorld=wp.xyz;vec4 mvPosition=viewMatrix*wp;gl_Position=projectionMatrix*mvPosition;
+   #include <fog_vertex>
+   }`,
+  fragmentShader:LAVA_FRAG,
+ });
+}
+
+/** Ember Ridge: crater lava lake, lava rivers and chasm flows, basalt column clusters, smoking vents, falling ash. */
+function buildEmberWorld(scene:T.Scene,courseId:CourseId,heightAt:(x:number,z:number)=>number){
+ const M=mountainModel(courseId);
+ const time={value:0};
+ const samples=trackSampleXZ(courseId,260);
+ const ribbonMat=makeLavaMaterial(true,time),poolMat=makeLavaMaterial(false,time);
+ // ribbons: a list of polyline points (x,z) draped on the terrain (or held flat at y)
+ const ribbon=(pts:{x:number;z:number;y?:number}[],width:number)=>{
+  if(pts.length<2) return;
+  const P:number[]=[],UV:number[]=[],I:number[]=[];
+  let acc=0;
+  for(let i=0;i<pts.length;i++){
+   const a=pts[Math.max(0,i-1)],b=pts[Math.min(pts.length-1,i+1)];
+   let dx=b.x-a.x,dz=b.z-a.z;const l=Math.hypot(dx,dz)||1;dx/=l;dz/=l;
+   const nx=-dz,nz=dx;
+   if(i>0) acc+=Math.hypot(pts[i].x-pts[i-1].x,pts[i].z-pts[i-1].z);
+   for(const side of [-1,1]){
+    const x=pts[i].x+nx*side*width/2,z=pts[i].z+nz*side*width/2;
+    const y=pts[i].y!==undefined?pts[i].y!:heightAt(x,z)+.3;
+    P.push(x,y,z);UV.push(side<0?0:1,acc);
+   }
+   if(i<pts.length-1){const j=i*2;I.push(j,j+2,j+1,j+1,j+2,j+3);}
+  }
+  const g=new T.BufferGeometry();
+  g.setAttribute('position',new T.Float32BufferAttribute(P,3));g.setAttribute('uv',new T.Float32BufferAttribute(UV,2));g.setIndex(I);
+  const mesh=new T.Mesh(g,ribbonMat);scene.add(mesh);
+ };
+ // 1. lava rivers alongside the descent (break wherever they would approach any part of the road)
+ const flows:[number,number,number][]=[[.03,.27,1],[.33,.52,-1],[.64,.77,1],[.82,.97,-1]];
+ for(const [a,b,side] of flows){
+  let run:{x:number;z:number}[]=[];
+  for(let t=a;t<=b;t+=.004){
+   const f=trackFrame(t,0,courseId);
+   const off=40+Math.sin(t*40)*6;
+   const x=f.position.x+f.right.x*side*off,z=f.position.z+f.right.z*side*off;
+   const len=Math.hypot(f.right.x,f.right.z)||1;void len;
+   if(minTrackDist(samples,x,z)<26||Math.abs(x)>330||Math.abs(z)>330){ribbon(run,5.5);run=[];continue;}
+   run.push({x,z});
+  }
+  ribbon(run,5.5);
+ }
+ // 2. lava streams along each carved chasm channel (flat at the bed)
+ for(const c of M.channels){
+  const pts:{x:number;z:number;y:number}[]=[];
+  for(let k=0;k<=60;k++){
+   const u=k/60;const x=c.a.x+(c.b.x-c.a.x)*u,z=c.a.y+(c.b.y-c.a.y)*u;
+   if(heightAt(x,z)<c.bedY-.5) continue;
+   pts.push({x,z,y:c.bedY+.45});
+  }
+  ribbon(pts,11);
+ }
+ // 3. crater lava lake + scattered pools (draped discs)
+ const pool=(cx:number,cz:number,r:number,y?:number)=>{
+  const g=new T.CircleGeometry(r,40,0,Math.PI*2);g.rotateX(-Math.PI/2);
+  const p=g.getAttribute('position') as T.BufferAttribute;
+  for(let i=0;i<p.count;i++){const x=p.getX(i)+cx,z=p.getZ(i)+cz;p.setXYZ(i,x,y!==undefined?y:heightAt(x,z)+.25,z);}
+  const m=new T.Mesh(g,poolMat);scene.add(m);
+ };
+ pool(M.craterC.x,M.craterC.y,34,M.craterTop-15);
+ let pools=0;
+ for(let i=0;i<120&&pools<6;i++){
+  const a=i*2.39996,rad=60+(i%13)*20;
+  const x=Math.cos(a)*rad,z=Math.sin(a)*rad;
+  if(Math.abs(x)>300||Math.abs(z)>300||minTrackDist(samples,x,z)<34) continue;
+  const h=heightAt(x,z);
+  if(h<M.seaLevel+3) continue;
+  const slope=Math.abs(heightAt(x+4,z)-heightAt(x-4,z))+Math.abs(heightAt(x,z+4)-heightAt(x,z-4));
+  if(slope>2.2) continue;
+  pool(x,z,5+(i%4)*2.2);pools++;
+ }
+ // 4. basalt column clusters (hex prisms, one instanced draw)
+ const colGeo=new T.CylinderGeometry(1,1,1,6);colGeo.translate(0,.5,0);
+ const basaltMat=new T.MeshStandardMaterial({color:'#2a2527',roughness:.82,metalness:.05,flatShading:true});
+ const cols=new T.InstancedMesh(colGeo,basaltMat,520);
+ const dummy=new T.Object3D();
+ let n=0;
+ for(let c=0;c<70&&n<500;c++){
+  const a=c*2.39996+.7,rad=34+(c%19)*14;
+  const cx=Math.cos(a)*rad+(c%3)*12,cz=Math.sin(a)*rad;
+  if(Math.abs(cx)>320||Math.abs(cz)>320||minTrackDist(samples,cx,cz)<24) continue;
+  const g0=heightAt(cx,cz);
+  if(g0<M.seaLevel-1) continue;
+  const k=6+(c%7);
+  for(let j=0;j<k&&n<520;j++){
+   const ang=j*1.05,rr=j===0?0:1.7+(j%3)*.5;
+   const x=cx+Math.cos(ang)*rr,z=cz+Math.sin(ang)*rr;
+   if(minTrackDist(samples,x,z)<20) continue;
+   const h=2+((c*7+j*13)%9)*.9*(j===0?1.4:1);
+   dummy.position.set(x,heightAt(x,z)-.6,z);dummy.rotation.set(0,(c+j)*.4,0);dummy.scale.set(.85,h,.85);dummy.updateMatrix();
+   cols.setMatrixAt(n++,dummy.matrix);
+  }
+ }
+ cols.count=n;cols.castShadow=cols.receiveShadow=true;cols.computeBoundingSphere();scene.add(cols);
+ // 5. smoking vents: rock cones with an ember throat + rising smoke plumes
+ const vents:T.Vector3[]=[];
+ for(let i=0;i<200&&vents.length<9;i++){
+  const a=i*1.913,rad=50+(i%11)*22;
+  const x=Math.cos(a)*rad,z=Math.sin(a)*rad;
+  if(Math.abs(x)>300||Math.abs(z)>300||minTrackDist(samples,x,z)<28) continue;
+  const y=heightAt(x,z);if(y<M.seaLevel+4) continue;
+  vents.push(new T.Vector3(x,y,z));
+ }
+ vents.push(new T.Vector3(M.craterC.x,M.craterTop-14,M.craterC.y));
+ const coneGeo=new T.ConeGeometry(5,4.5,9,1,true);coneGeo.translate(0,2,0);
+ const cones=new T.InstancedMesh(coneGeo,new T.MeshStandardMaterial({color:'#3a2c2a',roughness:.9,flatShading:true,side:T.DoubleSide}),vents.length);
+ const throats=new T.InstancedMesh(new T.CircleGeometry(1.6,12).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:new T.Color('#ff7a1a').multiplyScalar(2.5)}),vents.length);
+ vents.forEach((v,i)=>{
+  dummy.position.copy(v).add(new T.Vector3(0,-.5,0));dummy.rotation.set(0,i,0);dummy.scale.setScalar(i===vents.length-1?0:1);dummy.updateMatrix();cones.setMatrixAt(i,dummy.matrix);
+  dummy.position.copy(v).add(new T.Vector3(0,3.4,0));dummy.updateMatrix();throats.setMatrixAt(i,dummy.matrix);
+ });
+ cones.computeBoundingSphere();throats.computeBoundingSphere();scene.add(cones,throats);
+ const PER=46,plumeN=PER*vents.length;
+ const ppos=new Float32Array(plumeN*3),page=new Float32Array(plumeN);
+ for(let i=0;i<plumeN;i++){page[i]=(i%PER)/PER*6;}
+ const pg=new T.BufferGeometry();pg.setAttribute('position',new T.BufferAttribute(ppos,3));
+ const puff=document.createElement('canvas');puff.width=puff.height=64;
+ {const x=puff.getContext('2d')!;const gr=x.createRadialGradient(32,32,2,32,32,30);gr.addColorStop(0,'rgba(255,255,255,.8)');gr.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=gr;x.fillRect(0,0,64,64);}
+ const puffTex=new T.CanvasTexture(puff);
+ const plumeMat=new T.PointsMaterial({map:puffTex,color:'#5c5052',size:9,sizeAttenuation:true,transparent:true,opacity:.42,depthWrite:false});
+ const plumes=new T.Points(pg,plumeMat);plumes.frustumCulled=false;scene.add(plumes);
+ // 6. falling ash + rising embers
+ const ashN=1400;const apos=new Float32Array(ashN*3);
+ for(let i=0;i<ashN;i++){apos[i*3]=Math.sin(i*12.9898)*330;apos[i*3+1]=Math.abs(Math.sin(i*3.7))*95;apos[i*3+2]=Math.cos(i*7.233)*330;}
+ const ag=new T.BufferGeometry();ag.setAttribute('position',new T.BufferAttribute(apos,3));
+ const ash=new T.Points(ag,new T.PointsMaterial({color:'#bdb3ae',size:.32,transparent:true,opacity:.75,depthWrite:false}));ash.frustumCulled=false;scene.add(ash);
+ const emN=500;const epos=new Float32Array(emN*3);
+ for(let i=0;i<emN;i++){epos[i*3]=Math.sin(i*4.1)*300;epos[i*3+1]=Math.abs(Math.cos(i*1.7))*80;epos[i*3+2]=Math.cos(i*2.9)*300;}
+ const eg=new T.BufferGeometry();eg.setAttribute('position',new T.BufferAttribute(epos,3));
+ const embers=new T.Points(eg,new T.PointsMaterial({color:new T.Color('#ff8a2a').multiplyScalar(2),size:.4,transparent:true,opacity:.9,blending:T.AdditiveBlending,depthWrite:false}));embers.frustumCulled=false;scene.add(embers);
+ return {
+  update(dt:number,t:number){
+   time.value=t;
+   for(let i=0;i<plumeN;i++){
+    page[i]+=dt;if(page[i]>6)page[i]-=6;
+    const v=vents[(i/PER)|0],a=page[i];
+    ppos[i*3]=v.x+Math.sin(i*1.7+a*.8)*(.6+a*.9)+a*1.4;ppos[i*3+1]=v.y+3.5+a*4.2;ppos[i*3+2]=v.z+Math.cos(i*2.3+a*.7)*(.6+a*.9);
+   }
+   (pg.getAttribute('position') as T.BufferAttribute).needsUpdate=true;
+   for(let i=0;i<ashN;i++){apos[i*3+1]-=dt*(1.1+(i%5)*.3);apos[i*3]+=Math.sin(t*.7+i)*dt*.9;if(apos[i*3+1]<-4)apos[i*3+1]=95;}
+   (ag.getAttribute('position') as T.BufferAttribute).needsUpdate=true;
+   for(let i=0;i<emN;i++){epos[i*3+1]+=dt*(2+(i%4)*.6);epos[i*3]+=Math.sin(t*2+i)*dt*.7;if(epos[i*3+1]>85)epos[i*3+1]=0;}
+   (eg.getAttribute('position') as T.BufferAttribute).needsUpdate=true;
+  },
+  stats:{islands:0,kartDesigns:10,waterfalls:0,skyIslands:0,basalt:n,vents:vents.length,lavaPools:pools+1},
+ };
+}
+
+/** Crestfall's hillsides: the same scatter as the instanced hill forest, but as sculpted sakura. */
+function sakuraHills(forest:KitForest,courseId:CourseId,heightAt:(x:number,z:number)=>number){
+ for(let i=0;i<190;i++){
+  const a=i*2.39996, rad=45+(i%11)*22;
+  const safe=ensureOffTrackXZ(Math.cos(a)*rad,Math.sin(a)*rad,6.5,courseId);
+  forest.add(safe.x,heightAt(safe.x,safe.z)-.3,safe.z,.85+(i%5)*.16,i);
+ }
+}
+
+/** Scenery for every Kith Circuit course: terrain, wind-swept forest + foliage, water/lava, festival start, bespoke set pieces. */
+export function makeGardenWorld(
+ scene:T.Scene,
+ point:(t:number,lane?:number,offset?:number)=>T.Vector3,
+ courseId:CourseId='crestfall-gardens'
+){
+ const wind={value:0};
+ const pal=worldPalette(courseId);
+ const terrain=buildSculptedValleyTerrain(scene,courseId);
+ const mountain=isMountainWorld(courseId);
+ const kit=buildKitScenery(scene,courseId,terrain.heightAt,{mountain});
+ const base=KNOWN_WORLDS.includes(courseId)?makeLegacyWorld(scene,point,courseId,courseId==='crestfall-gardens'?kit.forest:undefined)
+  :courseId==='ember-ridge'||(mountain&&pal.volcanic)?buildEmberWorld(scene,courseId,terrain.heightAt)
+  :buildGenericWorld(scene,courseId,pal,terrain.heightAt);
+ let minTrackY=Infinity;
+ for(let i=0;i<200;i++) minTrackY=Math.min(minTrackY,trackFrame(i/200*.999,0,courseId).position.y);
+ // mountain worlds get a sea at the bottom of the descent; bowl worlds keep water well under the road
+ const waterLevel=mountain?mountainModel(courseId).seaLevel:pal.water?Math.min(pal.water.level,minTrackY-6):null;
+ if(mountain&&pal.water?.lava) pal.water={deep:'#0a2230',shallow:'#2f7f8f',sky:courseById(courseId).skyHorizon,level:waterLevel!};
+ const water=pal.water&&waterLevel!==null?buildWater(scene,pal,waterLevel):null;
+ const foliage=buildFoliage(scene,courseId,pal,terrain.heightAt,wind,waterLevel);
+ const fest=buildStartFestival(scene,courseId,pal,terrain.heightAt,wind);
+ if(courseId==='crestfall-gardens') sakuraHills(kit.forest,courseId,terrain.heightAt);
+ else buildInstancedHillForest(scene,courseId,terrain.heightAt,wind);
+ kit.flushForest();
+ return {
+  update(dt:number,time:number){
+   wind.value=time;
+   base.update(dt,time);
+   kit.update(dt,time);
+   water?.update(time);
+  },
+  heightAt:terrain.heightAt,
+  stats:{...base.stats,...kit.stats,foliage:foliage.count,crowd:fest.crowd,flags:fest.flags,water:water?(pal.water!.lava?'lava':'water'):'none'},
  };
 }

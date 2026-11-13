@@ -1,0 +1,106 @@
+{
+ "title": {
+  "title": "The Lantern Road",
+  "file": "title.mp3",
+  "loop": true,
+  "bpm": 108,
+  "duration": 53.93333333333333,
+  "loopStart": 0.3,
+  "loopEnd": 53.63333333333333
+ },
+ "calm-glowmoss": {
+  "title": "Glowmoss Lullaby",
+  "file": "calm-glowmoss.mp3",
+  "loop": true,
+  "bpm": 64,
+  "duration": 90.6,
+  "loopStart": 0.3,
+  "loopEnd": 90.3
+ },
+ "calm-cascade": {
+  "title": "Cascade Lullaby",
+  "file": "calm-cascade.mp3",
+  "loop": true,
+  "bpm": 72,
+  "duration": 80.6,
+  "loopStart": 0.3,
+  "loopEnd": 80.3
+ },
+ "calm-keep": {
+  "title": "Lanternkeep Lullaby",
+  "file": "calm-keep.mp3",
+  "loop": true,
+  "bpm": 58,
+  "duration": 99.91035416666666,
+  "loopStart": 0.3,
+  "loopEnd": 99.61035416666667
+ },
+ "energy-glowmoss": {
+  "title": "Glowmoss Gallop",
+  "file": "energy-glowmoss.mp3",
+  "loop": true,
+  "bpm": 138,
+  "duration": 42.339125,
+  "loopStart": 0.3,
+  "loopEnd": 42.039125
+ },
+ "energy-cascade": {
+  "title": "Cascade Gallop",
+  "file": "energy-cascade.mp3",
+  "loop": true,
+  "bpm": 144,
+  "duration": 40.6,
+  "loopStart": 0.3,
+  "loopEnd": 40.3
+ },
+ "energy-keep": {
+  "title": "Lanternkeep Gallop",
+  "file": "energy-keep.mp3",
+  "loop": true,
+  "bpm": 132,
+  "duration": 44.236354166666665,
+  "loopStart": 0.3,
+  "loopEnd": 43.93635416666666
+ },
+ "danger": {
+  "title": "Thorns in the Dark",
+  "file": "danger.mp3",
+  "loop": true,
+  "bpm": 63,
+  "duration": 46.31429166666667,
+  "loopStart": 0.3,
+  "loopEnd": 46.014291666666665
+ },
+ "fear": {
+  "title": "One Petal Left",
+  "file": "fear.mp3",
+  "loop": true,
+  "bpm": 84,
+  "duration": 46.31429166666667,
+  "loopStart": 0.3,
+  "loopEnd": 46.014291666666665
+ },
+ "battle": {
+  "title": "The Hollow Warden",
+  "file": "battle.mp3",
+  "loop": true,
+  "bpm": 160,
+  "duration": 36.6,
+  "loopStart": 0.3,
+  "loopEnd": 36.3
+ },
+ "clear": {
+  "title": "Lantern Lit",
+  "file": "clear.mp3",
+  "loop": false,
+  "bpm": 132,
+  "duration": 11.040895833333334
+ },
+ "gameover": {
+  "title": "The Lantern Dims",
+  "file": "gameover.mp3",
+  "loop": false,
+  "bpm": 72,
+  "duration": 21.470416666666665
+ }
+}

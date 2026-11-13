@@ -76,6 +76,7 @@ const COURSE_LYRIA_PROMPTS: Record<CourseId, string> = {
  'abyssal-trench': 'Deep sea bioluminescent electronic racing soundtrack, liquid FM synth plucks, driving sub bass, shimmering crystal pads, high-energy arcade breakbeat',
  'dune-canyon': 'Desert canyon overdrive arcade racing theme, clavinet funk riff, warm analog brass, driving percussion, cinematic adventure synth hook',
  'polar-vortex': 'Arctic aurora eurobeat synthwave racing anthem, crystalline bell lead, fast arpeggiated bassline, euphoric festival chords, crisp drums',
+ 'ember-ridge': 'Volcanic downhill sprint racing theme, distorted surf-rock guitar riff, pounding taiko and breakbeat drums, molten synth brass stabs, relentless high-tempo arcade energy',
  'amazon-canopy': 'Tropical jungle mountain speedway theme, infectious syncopated marimba synth lead, funky bass groove, tribal-arcade percussion, exhilarating loop-the-loop energy',
 };
 
@@ -308,8 +309,9 @@ export class LyriaMusicController {
    streamGain.connect(out);
 
    const now = ctx.currentTime;
-   if (this.nextPlayTime < now + 0.04) {
-    this.nextPlayTime = now + 0.06;
+   // Ran dry (or first chunk): re-buffer with a real cushion so network jitter doesn't underrun again.
+   if (this.nextPlayTime < now + 0.05) {
+    this.nextPlayTime = now + 0.35;
    }
    src.start(this.nextPlayTime);
    this.nextPlayTime += audioBuf.duration;
@@ -447,6 +449,13 @@ export class LyriaMusicController {
    { text: noteSteerPrompt, weight: 0.85 },
    { text: telemetryPrompt, weight: ev.boostActive || ev.inLoop ? 0.95 : 0.55 },
   ];
+  // race energy: driving four-on-the-floor arcade anthem, escalating on the final lap
+  if (ev.track === 'race') weightedPrompts.push({
+   text: ev.lap >= 3 || ev.intensity >= 0.9
+    ? 'Final lap climax, euphoric key-change, relentless drums, soaring supersaw hook, crowd-roaring energy'
+    : 'High-energy arcade racing anthem, punchy four-on-the-floor kick, sidechained synth bass, bright catchy hook',
+   weight: 0.8,
+  });
   const scaleEnum = SCALE_TO_LYRIA[ev.scaleName] || Scale.C_MAJOR_A_MINOR;
   const config = {
    bpm: Math.round(ev.bpm),
