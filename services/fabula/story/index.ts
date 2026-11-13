@@ -13,6 +13,7 @@
 import { planScenePerformance, scoreBrief, type CharacterMotivation, type ScenePerformancePlan } from './performance';
 import { buildSceneLedger, type LedgerOptions, type SceneLedger } from './continuityLedger';
 import type { ShotDirection } from './promptCompiler';
+import { blockingClause, planStaging, type StagingPlan } from './staging';
 
 export * from './performance';
 export * from './continuityLedger';
@@ -20,6 +21,10 @@ export * from './promptCompiler';
 export * from './coverage';
 export * from './characterIntel';
 export * from './storyBrain';
+export * from './clipVision';
+export * from './voiceReference';
+export * from './scriptBridge';
+export * from './staging';
 
 export interface SceneDirection {
   plan: ScenePerformancePlan;
@@ -28,14 +33,17 @@ export interface SceneDirection {
   forShot: (shotId: string) => ShotDirection | undefined;
   /** Score and sound sections for the scene, for the music side. */
   score: ReturnType<typeof scoreBrief>;
+  /** Marks, camera setups and the line of action. */
+  staging: StagingPlan;
 }
 
 /** Direct a scene: performance on an arc, continuity carried through, ready to attach shot by shot. */
 export function directScene(scene: any, motivations: Record<string, CharacterMotivation> = {}, ledgerOpts: LedgerOptions = {}): SceneDirection {
   const plan = planScenePerformance(scene, motivations);
   const ledger = buildSceneLedger(scene, ledgerOpts);
+  const staging = planStaging(scene, ledger);
   return {
-    plan, ledger, score: scoreBrief(plan),
+    plan, ledger, score: scoreBrief(plan), staging,
     forShot: (shotId: string) => {
       const perf = plan.shots.find((s) => s.shotId === shotId);
       const cont = ledger.shots.find((s) => s.shotId === shotId);
@@ -45,6 +53,7 @@ export function directScene(scene: any, motivations: Record<string, CharacterMot
       return {
         performance: perf?.beats,
         continuity: cont,
+        blocking: (() => { const st = staging.shots.find((s) => s.shotId === shotId); return st ? blockingClause(st) || undefined : undefined; })(),
         dialogue: line && shot?.character ? { speaker: shot.character, line } : undefined,
       };
     },

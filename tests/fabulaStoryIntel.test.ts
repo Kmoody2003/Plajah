@@ -16,6 +16,10 @@ import {
   mapCoverage, planStoryboards, addPlaceholdersForMissing,
   gatherCharacterEvidence, planVoiceLock, planCharacterSheet, relationshipEvidence,
   relationshipsTask, normalizeRelationships, motivationsFrom, normalizeBinSuggestions, digestProduction,
+  clipsToWatch, normalizeClipAnalysis, fileClipAnalysis, speechSegments, describeBins, binReasoningTask,
+  placeSuggestionInCut, fileSheetResult, planVoiceReference, voiceTagFor, sectionTiming, scoreCueRequest,
+  scenesFromScriptElements, pullScriptIntoProduction, scriptElementsFromScene, pushSceneToScript,
+  planStaging, blockingClause, sideOfLine, setupKindFor,
 } from '../services/fabula/story';
 
 import { scoreFrames, continuityVerdict, CONTINUITY_W, CONTINUITY_H } from '../services/continuityCheck';
@@ -325,7 +329,8 @@ test('drift guards go to the negative field where there is one', () => {
 test('when direction does not fit a model, performance goes before continuity and the cut is reported', () => {
   const spec = { ...directedSpec('s4', 'video'), prompt: 'x'.repeat(700) };
   const out = applyDirection(spec.prompt, spec, conn('local_wan'));
-  assert.deepEqual(out.trimmed, ['performance']);
+  assert.equal(out.trimmed[0], 'guard', 'the generic guards go first — continuity says the same thing specifically');
+  assert.ok(out.trimmed.includes('performance') && !out.trimmed.includes('continuity'));
   assert.match(out.prompt, /Continuity:/);
   assert.ok(out.notes.some((n) => /didn't fit/.test(n)));
 });
@@ -473,4 +478,230 @@ test('bin suggestions pointing at assets that do not exist are dropped', () => {
   ] }, bins);
   assert.equal(out.length, 1);
   assert.deepEqual(out[0].assetIds, ['alt1']);
+});
+
+// ── watching the bins ───────────────────────────────────────────────────────────
+
+const WATCHED = {
+  action: 'ELI wipes his hands on a rag and will not look at MAYA. She stands in the doorway.',
+  setting: 'INT. BOATHOUSE - NIGHT',
+  dialogue: [
+    { time: 1.0, speaker: 'ELI', text: 'I did what I had to do.' },
+    { time: 3.2, speaker: 'ELI', text: 'You were not here.' },
+    { time: 6.0, speaker: 'MAYA', text: 'Say it.' },
+    { time: 8.5, speaker: 'ELI', text: 'I sold her.' },
+  ],
+};
+
+test('unwatched clips outside the cut are watched first, and boards are never watched', () => {
+  const p = { mediaPool: [
+    { id: 'incut', type: 'video' }, { id: 'unused', type: 'video' }, { id: 'done', type: 'video', analysis: { action: 'x' } },
+    { id: 'brd', type: 'image', board: true }, { id: 'still', type: 'image' },
+  ] };
+  assert.deepEqual(clipsToWatch(p, [{ id: 'k', assetId: 'incut' }]).map((a) => a.id), ['unused', 'still', 'incut']);
+  assert.deepEqual(clipsToWatch(p, [], { max: 1 }).map((a) => a.id), ['incut']);
+});
+
+test('a watched clip is tagged to the cast it shows and becomes look and voice evidence from the bins', () => {
+  const p = prod();
+  p.mediaPool.push({ id: 'wild', type: 'video', name: 'A013_C004.mov', duration: 12 } as any);
+  const analysis = normalizeClipAnalysis(WATCHED, 1)!;
+  const { tagged } = fileClipAnalysis(p, 'wild', analysis);
+  assert.deepEqual(tagged.sort(), ['ELI', 'MAYA']);
+  const asset: any = p.mediaPool.find((a) => a.id === 'wild');
+  assert.deepEqual(asset.tags, ['maya', 'eli']);
+  assert.equal(asset.castId, undefined, 'two people in the clip — it is not one character\'s asset');
+
+  // ELI's two opening lines run together into one stretch; the line after MAYA speaks is its own.
+  assert.deepEqual(speechSegments(analysis, 'ELI', 12).map((x) => [x.srcIn, x.duration]), [[1, 4.2], [8.5, 1.6]]);
+
+  const eli = gatherCharacterEvidence(p, []).find((e) => e.name === 'ELI')!;
+  assert.ok(eli.looks.some((l) => l.assetId === 'wild'), 'a camera-named clip is now a look reference');
+  assert.equal(eli.voice.filter((v) => v.assetId === 'wild').length, 2);
+  assert.equal(planVoiceLock(eli).readiness, 'ready');
+});
+
+test('an unreadable analysis is not stored as a watched clip', () => {
+  assert.equal(normalizeClipAnalysis(null), null);
+  assert.equal(normalizeClipAnalysis({ action: '', dialogue: [] }), null);
+});
+
+test('the bin pass is told what was seen, and which clips were not watched', () => {
+  const p = prod();
+  p.mediaPool.push({ id: 'wild', type: 'video', name: 'A013_C004.mov', analysis: normalizeClipAnalysis(WATCHED, 1) } as any);
+  const task = binReasoningTask(p, describeBins(p, []));
+  assert.match(task.user, /A013_C004\.mov.*shows: INT\. BOATHOUSE - NIGHT\. ELI wipes his hands/);
+  assert.match(task.user, /take3\.mp4.*NOT WATCHED/);
+});
+
+// ── landing suggestions and sheets ──────────────────────────────────────────────
+
+test('an alternate take goes into its shot and mutes what was there; anything without a home is appended', () => {
+  const a = acts(), clips = cut();
+  let n = 0; const id = () => `n${++n}`;
+  const alt = placeSuggestionInCut(clips, { kind: 'alternate_take', sceneId: 'sc1', shotSlug: '1a', assetIds: ['alt1'] }, a, pool, id);
+  assert.equal(alt.how, 'alternate');
+  assert.equal(alt.clips.find((c) => c.id === 'k1')!.disabled, true, 'the take that was there is muted, not deleted');
+  const laid = alt.clips.find((c) => c.id === 'n1')!;
+  assert.deepEqual([laid.assetId, laid.start, laid.duration, laid.shotId], ['alt1', 0, 4, 's1']);
+
+  const fill = placeSuggestionInCut(clips, { kind: 'insert', sceneId: 'sc1', shotSlug: '1C', assetIds: ['alt1'] }, a, pool, id);
+  assert.equal(fill.how, 'filled');
+  assert.equal(fill.clips.find((c) => c.id === 'k3')!.assetId, 'alt1');
+
+  const loose = placeSuggestionInCut(clips, { kind: 'rebuild', assetIds: ['broll', 'alt1', 'missing'] }, a, pool, id);
+  assert.equal(loose.how, 'appended');
+  assert.deepEqual(loose.clips.slice(0, clips.length), clips, 'the cut as it stands is untouched');
+  assert.deepEqual(loose.clips.slice(clips.length).map((c) => [c.assetId, c.start, c.duration]), [['broll', 14, 6], ['alt1', 20, 4]]);
+  assert.equal(placeSuggestionInCut(clips, { kind: 'insert', assetIds: ['nope'] }, a, pool, id).how, 'none');
+});
+
+test('a generated sheet view files itself onto the cast member as a locked reference', () => {
+  const p = prod();
+  p.mediaPool.push({ id: 'gen1', type: 'image', name: 'maya turnaround.png' } as any);
+  const [maya] = gatherCharacterEvidence(p, []);
+  const plan = planCharacterSheet(maya, p.cast[0]);
+  assert.deepEqual(plan.turnaround.sheet, { castId: 'c1', view: 'turnaround' });
+  assert.ok(plan.requests.every((r) => r.spec.sheet?.castId === 'c1' && r.spec.sheet.view === r.view));
+  assert.equal(fileSheetResult(p, plan.turnaround.sheet, 'gen1'), true);
+  const member: any = p.cast[0];
+  assert.equal(member.sheet.turnaround, 'gen1');
+  const again = gatherCharacterEvidence(p, [])[0];
+  assert.ok(planCharacterSheet(again, member).refs.slice(0, 2).some((r) => r.assetId === 'gen1' && r.locked), 'the sheet is now a top reference for every later generation');
+  assert.equal(fileSheetResult(p, { castId: 'nobody', view: 'front' }, 'gen1'), false);
+});
+
+test('models with no negative field are told what to keep; models with one get the negatives', () => {
+  const spec = directedSpec('s1', 'video');
+  const runway = compileShotPrompt(spec, conn('runway'));
+  assert.match(runway.prompt, /Keep every face, hairstyle and outfit identical.*each character on their own side of frame.*light still coming from camera-left/);
+  assert.equal(runway.negative, undefined);
+  const kling = compileShotPrompt(spec, conn('kling'));
+  assert.doesNotMatch(kling.prompt, /Keep every face/);
+  assert.match(kling.negative || '', /wardrobe change/);
+});
+
+// ── voice and score ─────────────────────────────────────────────────────────────
+
+test('a voice reference is cut from the lock: several short stretches, no single take dominating', () => {
+  const ref = planVoiceReference({ samples: [
+    { assetId: 'a', srcIn: 2, duration: 30, source: 'timeline' }, { assetId: 'b', srcIn: 0, duration: 5, source: 'bin' },
+    { assetId: 'c', srcIn: 1, duration: 0, source: 'bin' }, { assetId: 'd', srcIn: 0, duration: 9, source: 'bin' },
+  ] });
+  assert.deepEqual(ref.cuts, [
+    { assetId: 'a', srcIn: 2, duration: 8 }, { assetId: 'b', srcIn: 0, duration: 5 }, { assetId: 'c', srcIn: 1, duration: 7 },
+  ]);
+  assert.equal(ref.totalSec, 20);
+  // One long take can fill the reference by itself, in consecutive windows.
+  const solo = planVoiceReference({ samples: [{ assetId: 'a', srcIn: 3, duration: 18, source: 'bin' }] });
+  assert.deepEqual(solo.cuts, [{ assetId: 'a', srcIn: 3, duration: 8 }, { assetId: 'a', srcIn: 11, duration: 8 }, { assetId: 'a', srcIn: 19, duration: 2 }]);
+});
+
+test('delivery for a locked voice follows the beat the character is playing', () => {
+  const plan = planScenePerformance(scene());
+  assert.equal(voiceTagFor(plan.shots[3].beats[0]), 'shout', 'Maya, furious, at the peak');
+  assert.equal(voiceTagFor(undefined), 'neutral');
+});
+
+test('a score section becomes a music request the length of its shots in the cut', () => {
+  const brief = scoreBrief(planScenePerformance(scene()));
+  const all = { ...brief[0], shotIds: ['s1', 's2'] };
+  assert.deepEqual(sectionTiming(all, cut()), { start: 0, seconds: 6 });
+  assert.equal(sectionTiming({ ...brief[0], shotIds: ['s4'] }, cut()), null, 'nothing cut yet — nothing to score to');
+  const req = scoreCueRequest(all, 6);
+  assert.deepEqual([req.kind, req.seconds, req.bpm, req.lyrics], ['audio', 6, all.cue.tempoBpm, '']);
+  assert.match(req.prompt, /instrumental, no vocals/);
+});
+
+// ── the screenplay ──────────────────────────────────────────────────────────────
+
+const el = (id: string, type: any, text: string) => ({ id, type, text });
+const SCREENPLAY = [
+  el('h1', 'SCENE_HEADING', 'int. boathouse - night'),
+  el('a1', 'ACTION', 'Maya stands in the doorway.'),
+  el('c1', 'CHARACTER', 'MAYA (CONT\'D)'), el('p1', 'PARENTHETICAL', 'quiet'), el('d1', 'DIALOGUE', 'Say it.'),
+  el('sec', 'SECTION', 'ACT TWO'),
+  el('h2', 'SCENE_HEADING', 'EXT. HARBOUR - DAWN'),
+  el('a2', 'ACTION', 'The slip is empty.'),
+];
+
+test('screenplay elements become scenes Fabula can read', () => {
+  const scenes = scenesFromScriptElements(SCREENPLAY as any);
+  assert.deepEqual(scenes.map((s) => [s.headingId, s.slugline, s.act]), [['h1', 'INT. BOATHOUSE - NIGHT', 1], ['h2', 'EXT. HARBOUR - DAWN', 2]]);
+  assert.equal(scenes[0].script, "Maya stands in the doorway.\n\nMAYA (CONT'D)\n(quiet)\nSay it.");
+  assert.deepEqual(scenes[0].characters, ['MAYA']);
+});
+
+test('pulling the script updates text, keeps the breakdown, adds new scenes and never deletes', () => {
+  const p: any = prod();
+  p.acts[0].scenes[1] = { ...p.acts[0].scenes[1], scriptElementId: 'gone', shots: [{ id: 'x1' }] };
+  let n = 0;
+  const report = pullScriptIntoProduction(p, SCREENPLAY as any, () => `id${++n}`, () => ({ shots: [], script: '' }), 99);
+  assert.deepEqual(report, { added: 1, updated: 1, unchanged: 0, flagged: 1, total: 2 });
+  const boathouse = p.acts[0].scenes[0];
+  assert.equal(boathouse.scriptElementId, 'h1');
+  assert.match(boathouse.script, /Say it\./);
+  assert.equal(boathouse.shots.length, 4, 'the shot list survives a rewrite');
+  assert.equal(boathouse.scriptRevisedAt, 99, 'and is marked as behind the script');
+  assert.equal(p.acts[0].scenes[1].notInScript, true, 'a scene cut from the script is flagged, with its footage intact');
+  assert.equal(p.acts[0].scenes[2].notInScript, undefined, 'a scene that was never in the script is the editor\'s own');
+  assert.equal(p.acts[1].scenes[0].slugline, 'EXT. HARBOUR - DAWN', 'the new scene lands in the act the script puts it in');
+  // Pulling again changes nothing.
+  assert.deepEqual(pullScriptIntoProduction(p, SCREENPLAY as any, () => `id${++n}`, () => ({}), 100), { added: 0, updated: 0, unchanged: 2, flagged: 0, total: 2 });
+});
+
+test('a scene written in Fabula goes back to the screenplay as proper elements, in story position', () => {
+  let n = 0; const id = () => `e${++n}`;
+  const written = { id: 'new', slugline: 'ext. dock - continuous', script: 'ELI holds out a key.\n\nELI\n(barely)\nI kept this.\n\nMAYA: Why?\n\nCUT TO:' };
+  assert.deepEqual(scriptElementsFromScene(written, id).map((e) => [e.type, e.text]), [
+    ['SCENE_HEADING', 'EXT. DOCK - CONTINUOUS'], ['ACTION', 'ELI holds out a key.'], ['CHARACTER', 'ELI'], ['PARENTHETICAL', '(barely)'],
+    ['DIALOGUE', 'I kept this.'], ['CHARACTER', 'MAYA'], ['DIALOGUE', 'Why?'], ['TRANSITION', 'CUT TO:'],
+  ]);
+  const pushed = pushSceneToScript(SCREENPLAY as any, written, { scriptElementId: 'h1' }, id);
+  const order = pushed.elements.filter((e) => e.type === 'SCENE_HEADING' || e.type === 'SECTION').map((e) => e.text);
+  assert.deepEqual(order, ['int. boathouse - night', 'EXT. DOCK - CONTINUOUS', 'ACT TWO', 'EXT. HARBOUR - DAWN'], 'after the scene before it, ahead of the act break');
+  // Pushing a linked scene again replaces it in place instead of duplicating it.
+  const again = pushSceneToScript(pushed.elements, { ...written, scriptElementId: pushed.headingId, script: 'ELI pockets the key.' }, undefined, id);
+  assert.equal(again.replaced, true);
+  assert.equal(again.elements.filter((e) => e.type === 'SCENE_HEADING').length, 3);
+  assert.ok(again.elements.some((e) => e.text === 'ELI pockets the key.') && !again.elements.some((e) => e.text === 'I kept this.'));
+});
+
+// ── staging ─────────────────────────────────────────────────────────────────────
+
+test('every default setup stays on the master side of the line, and blocking is read from each camera', () => {
+  const sc = scene();
+  const plan = planStaging(sc, buildSceneLedger(sc));
+  assert.deepEqual(plan.axis!.names, ['MAYA', 'ELI']);
+  assert.equal(plan.issues.length, 0);
+  assert.deepEqual(plan.shots.map((s) => s.camera.kind), ['wide', 'ots', 'single', 'single']);
+  assert.ok(plan.shots.every((s) => sideOfLine(plan.axis!.a, plan.axis!.b, s.camera) === sideOfLine(plan.axis!.a, plan.axis!.b, { x: 0.5, y: 0.94 })));
+  assert.match(blockingClause(plan.shots[0]), /wide.*MAYA frame-left.*ELI frame-right/, 'side by side in the master — no false depth');
+  // The same two people, seen from the OTS on Maya: she is the far figure, Eli's shoulder is the near one.
+  assert.match(blockingClause(plan.shots[1]), /over the shoulder\): ELI foreground .*MAYA background/);
+  assert.equal(setupKindFor('50-50 TWO SHOT'), 'two-shot');
+});
+
+test('a camera dragged across the line is caught, and a mark the filmmaker moves is honoured', () => {
+  const sc: any = scene();
+  sc.staging = { marks: { ELI: { x: 0.8, y: 0.3 } }, shots: { s3: { camera: { x: 0.5, y: 0.1 } } } };
+  const plan = planStaging(sc, buildSceneLedger(sc));
+  assert.deepEqual([plan.axis!.b.x, plan.axis!.b.y], [0.8, 0.3]);
+  assert.equal(plan.shots[2].crossesLine, true);
+  assert.equal(plan.issues.length, 1);
+  assert.match(plan.issues[0].message, /swap sides of frame/);
+});
+
+test('movement in the action moves the mark and is carried into later shots and the prompt', () => {
+  const sc: any = scene();
+  sc.shots[1] = { ...sc.shots[1], subject: 'MAYA crosses to ELI and picks up the ledger' };
+  const dir = directScene(sc);
+  const [s1, s2, , s4] = dir.staging.shots;
+  const maya = (s: any) => s.marks.find((m: any) => m.name === 'MAYA');
+  assert.ok(maya(s2).x > maya(s1).x && maya(s2).from, 'she has moved toward him');
+  assert.equal(maya(s4).x, maya(s2).x, 'and stays there');
+  const out = compileHandoff({ prompt: 'OTS on Maya.', refs: [], direction: dir.forShot('s2') }, conn('kling')).prompt;
+  assert.match(out, /Blocking \(over the shoulder\)/);
+  assert.match(out, /moving in from screen-left/);
+  assert.doesNotMatch(out, /MAYA — frame-left/, 'the scene-level side is dropped when this camera\'s blocking says where she is');
 });

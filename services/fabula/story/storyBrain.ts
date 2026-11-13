@@ -16,6 +16,7 @@
 import type { CharacterMotivation } from './performance';
 import type { CoverageMap } from './coverage';
 import type { RelationshipEdge } from './characterIntel';
+import { describeAnalysis } from './clipVision';
 
 export interface BrainTask { system: string; user: string }
 
@@ -104,14 +105,14 @@ export function describeBins(prod: any, clips: any[]): BinClipNote[] {
   const used = new Set(arr(clips).filter((c) => c && !c.disabled).map((c) => c.assetId).filter(Boolean));
   return arr(prod?.mediaPool).filter((a) => a?.type === 'video' || a?.type === 'image').map((a) => ({
     assetId: a.id, name: a.name, bin: a.bin, type: a.type, durationSec: Number(a.duration) || undefined,
-    tags: arr(a.tags).slice(0, 8), note: str(a.note) || undefined, seen: str(a.analysis?.action || a.seen) || undefined, inCut: used.has(a.id),
+    tags: arr(a.tags).slice(0, 8), note: str(a.note) || undefined, seen: describeAnalysis(a.analysis) || str(a.seen) || undefined, inCut: used.has(a.id),
   }));
 }
 
 export function binReasoningTask(prod: any, bins: BinClipNote[], coverage?: CoverageMap, focusSceneId?: string): BrainTask {
-  const list = bins.slice(0, 160).map((b) => `- ${b.assetId} | ${b.name} | ${b.type}${b.durationSec ? ` ${b.durationSec.toFixed(1)}s` : ''} | bin: ${b.bin || '—'} | ${b.inCut ? 'IN CUT' : 'unused'}${b.tags?.length ? ` | tags: ${b.tags.join(', ')}` : ''}${b.seen ? ` | shows: ${clip(b.seen, 160)}` : ''}${b.note ? ` | note: ${clip(b.note, 100)}` : ''}`).join('\n');
+  const list = bins.slice(0, 160).map((b) => `- ${b.assetId} | ${b.name} | ${b.type}${b.durationSec ? ` ${b.durationSec.toFixed(1)}s` : ''} | bin: ${b.bin || '—'} | ${b.inCut ? 'IN CUT' : 'unused'}${b.tags?.length ? ` | tags: ${b.tags.join(', ')}` : ''}${b.seen ? ` | shows: ${clip(b.seen, 260)}` : ' | NOT WATCHED'}${b.note ? ` | note: ${clip(b.note, 100)}` : ''}`).join('\n');
   return {
-    system: `${VOICE}\n\nTASK: Look across the media bins against the story and the cut. Find where footage that is NOT in the cut could serve the story: an alternate take for a shot that's already cut, an insert or reaction a scene is missing, a different way to build a scene from the coverage that exists, or material that suggests a story beat the script doesn't have. Reason about story, action and scene progression — what each clip shows and where in the scene's movement it belongs.\n\n${JSON_ONLY}\nSchema:\n{"suggestions":[{"kind":"alternate_take|insert|rebuild|unused_story","sceneId":"scene id from the digest, or empty","shotSlug":"shot slug it relates to, or empty","assetIds":["asset ids from the bin list, in cut order"],"idea":"what to do, under 30 words","why":"what it does for the story, under 24 words"}]}\nUp to 12 suggestions, most valuable first. Only use asset ids from the list. If a clip has no description, judge only from its name, tags and bin — and say so in "why".`,
+    system: `${VOICE}\n\nTASK: Look across the media bins against the story and the cut. Find where footage that is NOT in the cut could serve the story: an alternate take for a shot that's already cut, an insert or reaction a scene is missing, a different way to build a scene from the coverage that exists, or material that suggests a story beat the script doesn't have. Reason about story, action and scene progression — what each clip shows and where in the scene's movement it belongs.\n\n${JSON_ONLY}\nSchema:\n{"suggestions":[{"kind":"alternate_take|insert|rebuild|unused_story","sceneId":"scene id from the digest, or empty","shotSlug":"shot slug it relates to, or empty","assetIds":["asset ids from the bin list, in cut order"],"idea":"what to do, under 30 words","why":"what it does for the story, under 24 words"}]}\nUp to 12 suggestions, most valuable first. Only use asset ids from the list. A clip marked NOT WATCHED has not been seen: judge it only from its name, tags and bin, say so in "why", and prefer watched clips when both could do the job.`,
     user: `${digestProduction(prod, coverage)}\n\n${focusSceneId ? `FOCUS ON SCENE: ${focusSceneId}\n\n` : ''}MEDIA BINS:\n${list || '(empty)'}`,
   };
 }

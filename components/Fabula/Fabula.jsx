@@ -98,7 +98,7 @@ import { isWindowsApp, pickWindowsFolder, pickWindowsFile, scanWindowsLibrary, c
 import { isVectorFile, rasterizeVector } from "../../services/fabula/vectorRaster";
 import GeneratePanel from "./GeneratePanel";
 import StoryIntelligencePanel from "./StoryIntelligencePanel";
-import { directScene, motivationsFrom, continuesFrom, mapCoverage, addPlaceholdersForMissing, breakdownForScene, matchProductionScene } from "../../services/fabula/story";
+import { directScene, motivationsFrom, continuesFrom, mapCoverage, addPlaceholdersForMissing, breakdownForScene, matchProductionScene, fileSheetResult, placeSuggestionInCut, pullScriptIntoProduction, pushSceneToScript, scoreCueRequest, voiceTagFor } from "../../services/fabula/story";
 import RunwayPluginPanel from "./RunwayPluginPanel";
 import { LocalCreativeStudio } from "./LocalCreativeStudio";
 import { specFromShot, connectorById, placeResultInCut } from "../../services/fabula/genAgent";
@@ -3402,6 +3402,117 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   // generation panel pre-filled, instead of the user copy-pasting into a provider by hand. `which`
   // picks which of the shot's prompts to run; the production's default target for that kind decides
   // the provider (still → stillTarget, video → service).
+  // ── Story Intelligence: the parts that touch media, the cut, and other tools ─────────────────────
+  const storyAssetBlob = async (assetId) => {
+    const a = (prod?.mediaPool || []).find((x) => x.id === assetId);
+    const url = a?.url || a?.cloudUrl;
+    let blob = url ? await fetch(url).then((r) => (r.ok ? r.blob() : null)).catch(() => null) : null;
+    if (!blob || !blob.size) blob = await stGet("studio:blob:" + assetId);
+    if (!blob || !blob.size) throw new Error(`"${a?.name || "That clip"}" is offline on this device — relink it first.`);
+    return blob;
+  };
+  // Watch one clip with the same vision pass "build script from the cut" uses. Returns the raw
+  // analysis, or throws with the reason it couldn't be watched.
+  const storyWatchClip = async (asset) => {
+    let blob = await storyAssetBlob(asset.id);
+    if (blob.size > 18 * 1024 * 1024) blob = (await stGet("studio:proxy:" + asset.id)) || blob;
+    if (blob.size > 18 * 1024 * 1024) throw new Error(`"${asset.name}" is over 18MB — build a proxy for it and it can be watched.`);
+    const { analyzeClipForScript } = await import("../../services/geminiService");
+    const mime = blob.type || (asset.type === "audio" ? "audio/mpeg" : asset.type === "image" ? "image/jpeg" : "video/mp4");
+    const raw = await analyzeClipForScript(await blobToBase64(blob), mime, (prod.cast || []).map((c) => c.name).filter(Boolean), asset.name || "clip");
+    if (!raw) throw new Error(`"${asset.name}" couldn't be analysed — the vision service didn't answer.`);
+    return raw;
+  };
+  const storyPlaceSuggestion = (sug) => {
+    const out = placeSuggestionInCut(clips, sug, prod.acts || [], prod.mediaPool || [], uid);
+    if (out.how === "none") { ping("Those clips are no longer in the bins."); return; }
+    applyClips(out.clips);
+    ping(out.how === "alternate" ? "Alternate laid in — the previous take is muted, not removed (Ctrl+Z to undo)."
+      : out.how === "filled" ? "Laid into the empty slot for that shot."
+        : `${out.count} clip${out.count === 1 ? "" : "s"} added at the end of V1 for you to place.`);
+  };
+  // A rendered voice reference becomes a pool asset in a "Voice Locks" bin and is linked from the lock.
+  const storySaveVoiceReference = async (castId, wav, seconds) => {
+    const id = uid();
+    const name = (prod.cast || []).find((c) => c.id === castId)?.name || "character";
+    await stSet("studio:blob:" + id, wav);
+    updateProd((p) => {
+      p.bins = p.bins || []; if (!p.bins.includes("Voice Locks")) p.bins.push("Voice Locks");
+      p.mediaPool.push({ id, name: `${name} — voice reference.wav`, type: "audio", url: URL.createObjectURL(wav), duration: seconds, session: true, bin: "Voice Locks", castId, tags: [name.toLowerCase(), "voice lock"] });
+      const m = (p.cast || []).find((c) => c.id === castId);
+      if (m?.voiceLock) m.voiceLock = { ...m.voiceLock, referenceAssetId: id, referenceSec: seconds };
+    });
+    scheduleAutoSync([id]);
+    ping(`Voice reference built for ${name} — ${seconds}s, in the Voice Locks bin.`);
+  };
+  // Speak a line in a character's locked voice, with delivery from the performance direction, and lay
+  // it on the first audio track at the shot's position. Uses the on-platform cloning engine; if that
+  // engine isn't running this says so rather than placing a stand-in voice.
+  const storySpeakLine = async ({ castId, text, beat, shotId }) => {
+    const member = (prod.cast || []).find((c) => c.id === castId);
+    const refId = member?.voiceLock?.referenceAssetId;
+    if (!refId) throw new Error("Build the voice reference for this character first.");
+    const { fishSpeechProvider } = await import("../../services/voice/aria/providers/fishSpeech");
+    if (!(await fishSpeechProvider.available())) throw new Error("The voice-cloning engine (Fish Speech) isn't running on this machine, so the locked voice can't be spoken yet. Start it and try again.");
+    const refBlob = await storyAssetBlob(refId);
+    const referenceAudio = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(refBlob); });
+    const { plajahAudioCore } = await import("../../services/voice/plajahAudioCore");
+    const take = await plajahAudioCore.synthesizeFabulaDialogue({ text, speakerName: member.name, emotion: voiceTagFor(beat), engine: "fish_speech", referenceAudio, rate: beat?.vocal?.rate });
+    const at = clips.find((c) => c.shotId === shotId && !c.disabled && !String(c.trackId || "").startsWith("a"))?.start;
+    const aTrack = tracks.find((tr) => tr.type === "audio")?.id || "a1";
+    const clip = await placeAudioClip(take.audioBlob, `${member.name} — ${text.slice(0, 24)}`, { trackId: aTrack, at: at != null ? at : playhead, defer: true });
+    if (clip) applyClips([...clips, { ...clip, shotId, kind: "media" }]);
+    ping(`${member.name}'s line placed on ${aTrack.toUpperCase()} in the locked voice.`);
+  };
+  // Run a score section through the platform's music generation and lay the cue under its shots.
+  const storyScoreCue = async (section, timing, progress) => {
+    const { getMusicEngines, runLocalMusicGeneration } = await import("../../services/melos/generation/client");
+    const engines = await getMusicEngines();
+    const engine = engines.find((e) => e.kinds.includes("audio") && e.access.allowed && e.runtimeConnected);
+    if (!engine) {
+      const why = engines.find((e) => e.kinds.includes("audio"))?.access?.reason;
+      throw new Error(`No music engine is available to this account right now${why ? ` (${why})` : ""}. The cue text can still be copied into any music tool.`);
+    }
+    const { result, audio } = await runLocalMusicGeneration({ engine: engine.id, ...scoreCueRequest(section, timing.seconds, Date.now() % 100000) }, new AbortController().signal, progress);
+    if (!audio) throw new Error(result?.warning || `${engine.name} finished without returning audio.`);
+    const aTracks = tracks.filter((tr) => tr.type === "audio");
+    const mTrack = (aTracks[1] || aTracks[0])?.id || "a2";
+    const clip = await placeAudioClip(audio, `Score ${section.fromSlug}${section.toSlug !== section.fromSlug ? "–" + section.toSlug : ""}`, { trackId: mTrack, at: timing.start, defer: true });
+    if (clip) applyClips([...clips, clip]);
+    ping(`Score cue from ${engine.name} laid on ${mTrack.toUpperCase()} at ${fmtTc(timing.start, prod.defaults.format)}.`);
+  };
+  // The screenplay (written in the script editor) ⇄ this production.
+  const storyScripts = async () => {
+    const u = auth.currentUser?.uid; if (!u) return [];
+    const { listWritingProjects } = await import("../../services/loreaProjectsService");
+    return (await listWritingProjects(u)).projects.filter((x) => x.kind === "SCRIPT").map((x) => ({ id: x.id, title: x.title, scenes: x.chapterCount }));
+  };
+  const storyScriptDoc = async (scriptId) => {
+    const [{ db }, fs] = await Promise.all([import("../../services/firebase"), import("firebase/firestore")]);
+    const ref = fs.doc(db, "scripts", scriptId);
+    const snap = await fs.getDoc(ref);
+    if (!snap.exists()) throw new Error("That screenplay could not be opened.");
+    return { ref, fs, data: snap.data() };
+  };
+  const storyPullScript = async (scriptId) => {
+    const { data } = await storyScriptDoc(scriptId);
+    // Counted on a copy so the caller can report what the pull will do; the same merge is then applied.
+    const report = pullScriptIntoProduction(deepClone(prod), data.elements || [], uid, BLANK_SCENE);
+    updateProd((p) => { pullScriptIntoProduction(p, data.elements || [], uid, BLANK_SCENE); p.scriptId = scriptId; p.scriptTitle = data.titlePage?.title || p.scriptTitle; });
+    return report;
+  };
+  const storyPushScene = async (sceneId) => {
+    if (!prod.scriptId) throw new Error("Link a screenplay first.");
+    const i = allScenes.findIndex((x) => x.scene.id === sceneId);
+    if (i < 0) throw new Error("That scene is no longer in the production.");
+    const { ref, fs, data } = await storyScriptDoc(prod.scriptId);
+    const prevLinked = allScenes.slice(0, i).reverse().find((x) => x.scene.scriptElementId)?.scene;
+    const out = pushSceneToScript(data.elements || [], allScenes[i].scene, prevLinked, uid);
+    await fs.setDoc(ref, { elements: out.elements, updatedAt: Date.now() }, { merge: true });
+    updateProd((p) => { for (const a of p.acts || []) for (const sc of a.scenes || []) if (sc.id === sceneId) { sc.scriptElementId = out.headingId; delete sc.notInScript; } });
+    return out.replaced;
+  };
+
   // Story Intelligence direction for one shot: the performance each character plays at this point in
   // the scene's arc, and the continuity state the shot inherits (props in hand, marks, sides of frame,
   // light direction) — carried in from the previous scene when this one continues it. It rides on the
@@ -3491,6 +3602,11 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       if (!p.bins.includes(target)) p.bins.push(target);
       minted.forEach((a) => p.mediaPool.push(a));
     });
+
+    // A character-sheet generation files itself onto the cast member it was made for, as a locked
+    // reference — so the next generation of that character starts from the sheet.
+    const sheetImage = job?.spec?.sheet && minted.find((a) => a.type === "image");
+    if (sheetImage) updateProd((p) => { fileSheetResult(p, job.spec.sheet, sheetImage.id); });
 
     // Close the loop back into the cut. `buildEditFromBreakdown()` lays down a `kind:"script"`
     // placeholder per shot; the first playable result for that shotId takes its slot, keeping the
@@ -7030,14 +7146,10 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
           prod={prod} clips={clips} sceneId={scene?.id} aspect={prod?.defaults?.aspect}
           callJson={callClaudeJson} updateProd={updateProd} ping={ping}
           filmHub={filmHub}
-          resolveFrame={async (assetId) => {
-            const a = (prod.mediaPool || []).find((x) => x.id === assetId);
-            const url = a?.url || a?.cloudUrl;
-            let blob = url ? await fetch(url).then((r) => (r.ok ? r.blob() : null)).catch(() => null) : null;
-            if (!blob || !blob.size) blob = await stGet("studio:blob:" + assetId);
-            if (!blob || !blob.size) throw new Error(`"${a?.name || "That clip"}" is offline on this device — relink it to check continuity.`);
-            return blob;
-          }}
+          resolveFrame={storyAssetBlob}
+          watchClip={storyWatchClip} onPlaceSuggestion={storyPlaceSuggestion}
+          onSaveVoiceReference={storySaveVoiceReference} onSpeakLine={storySpeakLine} onScoreCue={storyScoreCue}
+          listScripts={storyScripts} onPullScript={storyPullScript} onPushScene={storyPushScene}
           onLogCheck={async (row) => {
             // Same log the hub's Continuity tab writes to, so the Script Supervisor sees generated-shot checks too.
             if (!filmProductionId) return;

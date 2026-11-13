@@ -16,6 +16,7 @@
 // Pure. Reads the production shape Fabula already saves (cast, mediaPool, acts) and the timeline clips.
 
 import type { CutClip, GenRef, ShotSpec } from '../genAgent';
+import { castInClip, speechSegments } from './clipVision';
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const lc = (s: any) => String(s || '').toLowerCase();
@@ -64,12 +65,21 @@ export function gatherCharacterEvidence(prod: any, clips: CutClip[]): CharacterE
       if (a.type === 'audio') voice.push({ assetId: a.id, srcIn: 0, duration: Number(a.duration) || 0, source: 'bin' });
       else pushLook(a, 'cast', { locked: typeof m === 'object' ? !!m.locked : false });
     }
-    // 2) The bins: tagged to them, or named for them.
+    // 2) The bins: tagged to them, named for them, or — once a clip has been watched — seen or heard
+    //    in it. A watched clip gives timed speech, so a voice can be locked from media never cut in.
     for (const a of pool) {
+      const seen = castInClip(a.analysis, [member]).length > 0;
       const tagged = a.castId === member.id || (a.tags || []).some((t: string) => lc(t) === lc(name)) || mentions(a.name || '', name);
-      if (!tagged) continue;
-      if (a.type === 'audio') { if (!voice.some((v) => v.assetId === a.id)) voice.push({ assetId: a.id, srcIn: 0, duration: Number(a.duration) || 0, source: 'bin' }); }
-      else pushLook(a, 'bin');
+      if (!tagged && !seen) continue;
+      const segments = speechSegments(a.analysis, name, Number(a.duration) || undefined);
+      if (segments.length) {
+        // Timed speech beats a whole-file guess: drop any untimed entry for this asset first.
+        for (let i = voice.length - 1; i >= 0; i--) if (voice[i].assetId === a.id && !voice[i].clipId) voice.splice(i, 1);
+        for (const seg of segments) voice.push({ assetId: a.id, srcIn: seg.srcIn, duration: seg.duration, line: seg.line, source: 'bin' });
+      } else if (a.type === 'audio' && !a.analysis) {
+        if (!voice.some((v) => v.assetId === a.id)) voice.push({ assetId: a.id, srcIn: 0, duration: Number(a.duration) || 0, source: 'bin' });
+      }
+      if (a.type !== 'audio') pushLook(a, 'bin', segments.length ? { atSec: segments[0].srcIn + segments[0].duration / 2 } : {});
     }
     // 3) The cut: clips whose shot is theirs.
     let shotCount = 0, lineCount = 0, screenSec = 0;
@@ -90,7 +100,7 @@ export function gatherCharacterEvidence(prod: any, clips: CutClip[]): CharacterE
       if (speaks && line && a && (a.type === 'video' || a.type === 'audio')) {
         lineCount++;
         // Prefer the dedicated voice clip over the picture clip's sync sound for the same shot.
-        const dupe = voice.findIndex((v) => v.shotId === c.shotId);
+        const dupe = voice.findIndex((v) => v.shotId && v.shotId === c.shotId);
         const sample: VoiceSample = { assetId: a.id, clipId: c.id, srcIn: Number(c.srcIn) || 0, duration: Number(c.duration) || 0, line, shotId: c.shotId, source: 'timeline' };
         if (dupe < 0) voice.push(sample);
         else if (!picture) voice[dupe] = sample;
@@ -165,7 +175,11 @@ export const SHEET_VIEWS = [
   { id: 'expressions', label: 'Expression range', ask: 'expression sheet: joy, anger, fear, grief — same face, same framing' },
   { id: 'wardrobe', label: 'Wardrobe detail', ask: 'wardrobe detail: fabric, colour and defining accessories' },
 ] as const;
-export type SheetViewId = typeof SHEET_VIEWS[number]['id'];
+export type SheetViewId = typeof SHEET_VIEWS[number]['id'] | 'turnaround';
+
+/** The whole sheet as one image — the quickest way to a usable reference, and what most models hold
+ *  identity from best. Filed as the `turnaround` view. */
+export const TURNAROUND_ASK = 'character turnaround sheet on one page: front, three-quarter, side profile and back views standing full body in a row, then a row of four head close-ups showing joy, anger, fear and grief — the same person, wardrobe and proportions in every view';
 
 export interface CharacterSheetPlan {
   castId: string;
@@ -177,7 +191,24 @@ export interface CharacterSheetPlan {
   missing: SheetViewId[];
   /** One still spec per missing view, carrying the look lock and the found refs. */
   requests: { view: SheetViewId; spec: ShotSpec }[];
+  /** The whole sheet in a single generation. */
+  turnaround: ShotSpec;
   notes: string[];
+}
+
+/** File a finished sheet image onto its cast member: the view slot, and their reference media (locked,
+ *  so it outranks bin clips next time). Mutates `prod` — call inside the production's update. */
+export function fileSheetResult(prod: any, sheet: { castId: string; view: string } | undefined, assetId: string): boolean {
+  const member = sheet && (prod?.cast || []).find((c: any) => c.id === sheet.castId);
+  if (!member || !assetId) return false;
+  member.sheet = { ...(member.sheet || {}), [sheet!.view]: assetId };
+  member.media = member.media || [];
+  if (!member.media.some((m: any) => (typeof m === 'string' ? m : m?.assetId) === assetId)) {
+    member.media.push({ assetId, role: 'reference', locked: true, note: `character sheet — ${sheet!.view.replace(/_/g, ' ')}`, verified: true });
+  }
+  const asset = (prod?.mediaPool || []).find((a: any) => a.id === assetId);
+  if (asset) { asset.castId = member.id; asset.sheetView = sheet!.view; }
+  return true;
 }
 
 /** Plan a character sheet from what the clips and bins hold. Locked cast references outrank bin
@@ -186,7 +217,7 @@ export function planCharacterSheet(ev: CharacterEvidence, member: any, opts: { a
   const rank = (l: LookRef) => (l.locked ? 0 : l.source === 'cast' ? 1 : l.source === 'bin' ? 2 : 3) + (l.type === 'image' ? 0 : 0.5);
   const refs = [...ev.looks].sort((a, b) => rank(a) - rank(b));
   const have: Partial<Record<SheetViewId, string>> = { ...(member?.sheet || {}) };
-  const missing = SHEET_VIEWS.map((v) => v.id).filter((id) => !have[id]);
+  const missing: SheetViewId[] = SHEET_VIEWS.map((v) => v.id).filter((id) => !have[id]);
   const lock: string = member?.looks || member?.visual_lock || '';
   const notes: string[] = [];
   if (!refs.length && !lock) notes.push(`Nothing shows ${ev.name} yet — no tagged media, no clips in the cut, no written look. Tag a clip or describe them first.`);
@@ -195,19 +226,25 @@ export function planCharacterSheet(ev: CharacterEvidence, member: any, opts: { a
 
   // Stills first as references; a video ref contributes the frame at `atSec`.
   const refPack: GenRef[] = refs.slice(0, 4).map((r) => ({ role: 'character', assetId: r.assetId, name: `${ev.name} ref`, lock: lock || undefined }));
+  const refsFor = (): GenRef[] => (refPack.length ? refPack : (lock ? [{ role: 'character', name: ev.name, lock } as GenRef] : []));
   const requests = missing.map((view) => {
     const v = SHEET_VIEWS.find((x) => x.id === view)!;
     return {
       view,
       spec: {
         prompt: `Character sheet — ${ev.name}, ${v.ask}. Plain neutral backdrop, no props, consistent with every other view.${lock ? ` ${lock}` : ''}`,
-        refs: refPack.length ? refPack : (lock ? [{ role: 'character', name: ev.name, lock } as GenRef] : []),
+        refs: refsFor(),
         aspect: opts.aspect || (view === 'full_body' ? '2:3' : '1:1'),
         slug: `${ev.name} · ${v.label}`,
+        sheet: { castId: ev.castId, view },
       } as ShotSpec,
     };
   });
-  return { castId: ev.castId, name: ev.name, refs, have, missing, requests, notes };
+  const turnaround: ShotSpec = {
+    prompt: `${ev.name} — ${TURNAROUND_ASK}. Plain neutral backdrop, even soft light, no props, no text.${lock ? ` ${lock}` : ''}`,
+    refs: refsFor(), aspect: '16:9', slug: `${ev.name} · Turnaround`, sheet: { castId: ev.castId, view: 'turnaround' },
+  };
+  return { castId: ev.castId, name: ev.name, refs, have, missing, requests, turnaround, notes };
 }
 
 // ── relationship evidence ───────────────────────────────────────────────────────

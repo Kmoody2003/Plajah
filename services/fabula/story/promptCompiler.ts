@@ -26,6 +26,9 @@ export interface ShotDirection {
   continuity?: ShotContinuity;
   /** The spoken line, for models that generate dialogue with the picture. */
   dialogue?: { speaker: string; line: string };
+  /** Where each character sits in THIS camera's frame, from the staging plan. When present it replaces
+   *  the ledger's scene-level sides, which are only true for the master. */
+  blocking?: string;
   /** Set for storyboard frames — a drawing style that replaces the photographic finish. */
   boardStyle?: string;
 }
@@ -65,7 +68,17 @@ export function dialectFor(connector: Connector): Dialect {
 export const DEFAULT_BOARD_STYLE =
   'storyboard frame, loose graphite and grey marker, clear silhouettes and staging, arrows for camera and character movement, no photographic detail';
 
-interface Section { id: 'performance' | 'continuity' | 'hold' | 'dialogue' | 'board'; text: string; /** lower = kept longer */ priority: number }
+interface Section { id: 'performance' | 'continuity' | 'hold' | 'dialogue' | 'board' | 'guard' | 'blocking'; text: string; /** lower = kept longer */ priority: number }
+
+/** The drift guards as something to DO, for models with no negative-prompt field. A negative phrase
+ *  dropped into a positive prompt tends to summon the thing it names, so these are restated. */
+export function positiveGuards(c: ShotContinuity): string {
+  const keep = ['every face, hairstyle and outfit identical to the previous shot'];
+  if (c.characters.length >= 2) keep.push('each character on their own side of frame');
+  if (c.environment.keySide) keep.push(`light still coming from ${c.environment.keySide}`);
+  if (c.characters.some((x) => x.marks.length)) keep.push('marks on skin and clothes still visible');
+  return `Keep ${keep.join('; ')}.`;
+}
 
 export interface DirectedPrompt {
   prompt: string;
@@ -89,8 +102,8 @@ function performanceSection(beats: PerformanceBeat[], d: Dialect, medium: 'image
     : `Performance: ${beats.map(stillDirection).join(' ')}`;
 }
 
-function continuitySection(c: ShotContinuity, d: Dialect): string {
-  const two = c.characters.length >= 2;
+function continuitySection(c: ShotContinuity, d: Dialect, hasBlocking = false): string {
+  const two = c.characters.length >= 2 && !hasBlocking;
   const chars = c.characters.map((x) => characterStateClause(x, { withSide: two })).filter(Boolean);
   const env = environmentStateClause(c.environment);
   const all = [...chars, env].filter(Boolean);
@@ -113,8 +126,11 @@ export function applyDirection(prompt: string, spec: ShotSpec, connector: Connec
   const notes: string[] = [];
 
   if (dir.continuity) {
-    const text = continuitySection(dir.continuity, d);
+    const text = continuitySection(dir.continuity, d, !!dir.blocking);
     if (text) sections.push({ id: 'continuity', text, priority: 1 });
+  }
+  if (dir.blocking) {
+    sections.push({ id: 'blocking', priority: 3, text: d.form === 'tags' ? dir.blocking.replace(/^Blocking \([^)]*\):\s*/, '').replace(/\.$/, '') : dir.blocking });
   }
   if (hasFirstFrame) {
     // The frame already carries identity. Re-describing it invites the model to re-synthesise the
@@ -125,13 +141,18 @@ export function applyDirection(prompt: string, spec: ShotSpec, connector: Connec
   }
   if (dir.performance?.length) {
     const text = performanceSection(dir.performance, d, medium);
-    if (text) sections.push({ id: 'performance', text, priority: 2 });
+    if (text) sections.push({ id: 'performance', text, priority: 3 });
   }
   if (dir.dialogue?.line && medium === 'video') {
-    if (d.nativeAudio) sections.push({ id: 'dialogue', priority: 3, text: `${dir.dialogue.speaker} says: "${dir.dialogue.line}"` });
+    if (d.nativeAudio) sections.push({ id: 'dialogue', priority: 2, text: `${dir.dialogue.speaker} says: "${dir.dialogue.line}"` });
     else notes.push(`${connector.name} doesn't generate dialogue — the line is directed as performance only; add the voice in post and lip-sync.`);
   }
   if (dir.boardStyle && medium === 'image') sections.push({ id: 'board', priority: 0, text: dir.boardStyle });
+  // No negative field on this model → the guards travel in the prompt, phrased as what to keep. They
+  // are the first thing cut when space is short: continuity already says the same thing specifically.
+  if (dir.continuity && !connector.caps.supportsNegative && !dir.boardStyle && d.form !== 'tags') {
+    sections.push({ id: 'guard', priority: 4, text: positiveGuards(dir.continuity) });
+  }
 
   // Fit the budget: drop the least important section first, and say so.
   const sep = d.form === 'tags' ? ', ' : ' ';
@@ -153,7 +174,7 @@ export function applyDirection(prompt: string, spec: ShotSpec, connector: Connec
 
   return {
     prompt: join(kept),
-    negatives: dir.continuity ? continuityNegatives(dir.continuity) : [],
+    negatives: dir.continuity && connector.caps.supportsNegative ? continuityNegatives(dir.continuity) : [],
     notes,
     trimmed,
   };

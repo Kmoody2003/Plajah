@@ -336,3 +336,32 @@ export function scoreBrief(plan: ScenePerformancePlan): { fromSlug?: string; toS
   }
   return out;
 }
+
+// ── a cue the music engine can run ──────────────────────────────────────────────
+
+export interface ScoreSection { fromSlug?: string; toSlug?: string; shotIds: string[]; cue: ScoreCue }
+
+/** Where a score section sits in the cut: from the first of its shots to the end of the last. Null
+ *  when none of its shots are on the timeline yet. */
+export function sectionTiming(section: ScoreSection, clips: any[]): { start: number; seconds: number } | null {
+  const mine = (clips || []).filter((c) => c && !c.disabled && c.shotId && section.shotIds.includes(c.shotId) && !String(c.trackId || '').startsWith('a'));
+  if (!mine.length) return null;
+  const start = Math.min(...mine.map((c) => Number(c.start) || 0));
+  const end = Math.max(...mine.map((c) => (Number(c.start) || 0) + (Number(c.duration) || 0)));
+  return { start: Math.round(start * 100) / 100, seconds: Math.round((end - start) * 100) / 100 };
+}
+
+/** A score section as a request for the platform's music generation (services/melos/generation). The
+ *  key follows the mode the scene's emotion asked for; length is the section's length in the cut. */
+export function scoreCueRequest(section: ScoreSection, seconds: number, seed = 1): {
+  kind: 'audio'; prompt: string; lyrics: string; bpm: number; bars: number; seconds: number; key: string; seed: number;
+} {
+  const { cue } = section;
+  const secs = Math.max(4, Math.min(120, Math.round(seconds)));
+  const key = /^major/.test(cue.mode) ? 'C major' : /^minor/.test(cue.mode) ? 'A minor' : /dissonant/.test(cue.mode) ? 'C chromatic' : 'D dorian';
+  return {
+    kind: 'audio',
+    prompt: `Film score underscore, instrumental, no vocals. ${cue.mode}, ${cue.texture}. Dynamics ${cue.dynamics}. Leaves room for dialogue.`,
+    lyrics: '', bpm: cue.tempoBpm, bars: Math.max(1, Math.round((secs * cue.tempoBpm) / 240)), seconds: secs, key, seed,
+  };
+}

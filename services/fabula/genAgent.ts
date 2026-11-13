@@ -377,6 +377,8 @@ export interface ShotSpec {
    *  SHOT rather than written into one provider's prompt, so it survives a change of model — the
    *  compiler re-phrases it per connector. See story/promptCompiler.ts. */
   direction?: ShotDirection;
+  /** Set on character-sheet generations: the cast member and view the result should be filed under. */
+  sheet?: { castId: string; view: string };
 }
 
 /** Build a ShotSpec from a SLATE shot + its scene bible. `which` picks which of the shot's three
@@ -486,7 +488,7 @@ export function compileShotPrompt(spec: ShotSpec, connector: Connector): { promp
     .filter((l) => !prompt.includes(l));
   if (missing.length) prompt += `\n\n${missing.join(' ')}`;
   const directed = applyDirection(prompt, spec, connector, used);
-  const negative = [spec.negative, ...(connector.caps.supportsNegative ? directed.negatives : [])].filter(Boolean).join(', ');
+  const negative = [spec.negative, ...directed.negatives].filter(Boolean).join(', ');
   return { prompt: directed.prompt, negative: negative || undefined, notes: directed.notes };
 }
 

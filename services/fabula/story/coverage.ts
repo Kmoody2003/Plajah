@@ -202,3 +202,64 @@ export function addPlaceholdersForMissing(
   }
   return { clips: added ? next : clips, added };
 }
+
+// ── laying a suggestion into the cut ────────────────────────────────────────────
+
+export interface PlacedSuggestion {
+  clips: CutClip[];
+  /** alternate: laid over a shot that already had picture (previous take muted). filled: took an empty
+   *  slot. appended: added at the end of V1 for the editor to place. none: nothing could be placed. */
+  how: 'alternate' | 'filled' | 'appended' | 'none';
+  count: number;
+  shotId?: string;
+}
+
+/** Put a bin suggestion's clips where they belong. An alternate take or an insert that names a shot
+ *  goes into that shot's slot — never deleting what was there. Anything else (a rebuild, an unscripted
+ *  beat, an insert with no home) is appended after the last clip on V1 in the suggested order, so the
+ *  cut as it stands is untouched and the editor decides where it lives. */
+export function placeSuggestionInCut(
+  clips: CutClip[],
+  suggestion: { kind: string; sceneId?: string; shotSlug?: string; assetIds: string[] },
+  acts: any[],
+  pool: any[],
+  mkId: () => string,
+): PlacedSuggestion {
+  const assets = suggestion.assetIds.map((id) => (pool || []).find((a) => a.id === id)).filter(Boolean);
+  if (!assets.length) return { clips, how: 'none', count: 0 };
+
+  let shot: any;
+  for (const act of acts || []) for (const sc of act?.scenes || []) {
+    if (suggestion.sceneId && sc.id !== suggestion.sceneId) continue;
+    const hit = suggestion.shotSlug && (sc.shots || []).find((s: any) => String(s.slug).toLowerCase() === String(suggestion.shotSlug).toLowerCase());
+    if (hit && !shot) shot = hit;
+  }
+
+  if (shot && (suggestion.kind === 'alternate_take' || suggestion.kind === 'insert')) {
+    const live = (clips || []).filter((c) => c.shotId === shot.id && !String(c.trackId || '').startsWith('a'));
+    if (live.length) {
+      const next: CutClip[] = [];
+      let filled = 0, alternates = 0;
+      for (const c of clips) {
+        const mine = c.shotId === shot.id && !String(c.trackId || '').startsWith('a');
+        if (!mine) { next.push(c); continue; }
+        if (c.kind === 'script') { next.push({ ...c, kind: 'media', assetId: assets[0].id, srcIn: 0, label: assets[0].name || c.label }); filled++; }
+        else if (!c.disabled) {
+          next.push({ ...c, disabled: true });
+          next.push({ id: mkId(), trackId: c.trackId, start: c.start, duration: c.duration, srcIn: 0, kind: 'media', assetId: assets[0].id, label: assets[0].name || c.label, shotId: shot.id });
+          alternates++;
+        } else next.push(c);
+      }
+      if (filled || alternates) return { clips: next, how: filled ? 'filled' : 'alternate', count: filled + alternates, shotId: shot.id };
+    }
+  }
+
+  let cursor = (clips || []).filter((c) => c.trackId === 'v1').reduce((end, c) => Math.max(end, (Number(c.start) || 0) + (Number(c.duration) || 0)), 0);
+  const next = [...(clips || [])];
+  for (const a of assets) {
+    const duration = Math.max(0.5, Math.round((Number(a.duration) || 3) * 10) / 10);
+    next.push({ id: mkId(), trackId: 'v1', start: Math.round(cursor * 10) / 10, duration, srcIn: 0, kind: 'media', assetId: a.id, label: a.name, ...(shot ? { shotId: shot.id } : {}) });
+    cursor += duration;
+  }
+  return { clips: next, how: 'appended', count: assets.length, shotId: shot?.id };
+}
