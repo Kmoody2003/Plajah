@@ -108,7 +108,7 @@ function worlds(pose: Record<string, number[]>): M4[] {
 
 // every triangle of the figure, posed: positions, normals, colour per vertex (texture sampled at the vertex is too
 // coarse for the face: the UVs are kept and sampled per pixel)
-interface Tri { p: number[]; n: number[]; uv: number[] | null; mat: ReturnType<typeof matColour>; tail?: boolean; part: number }
+interface Tri { p: number[]; n: number[]; uv: number[] | null; mat: ReturnType<typeof matColour>; tail?: boolean; part: number; tint?: number[] }
 
 /** The parts the art is scored by, one by one (forgeFidelity --parts). */
 export const PARTS = ['head', 'do', 'kusazuri', 'sode', 'arms', 'obi', 'hakama', 'shins', 'feet', 'sword'] as const;
@@ -131,8 +131,10 @@ function partOf(node: string, mat: string, joint: string): number {
 const SKIP = new Set(['kabuto', 'katana']); // hidden by default / the drawn sword is a gameplay prop the art does not hold
 /** Each primitive's posed vertices from the last posedTris (`node:primitive`), for painting. */
 export const posedVerts = new Map<string, { pp: Float32Array; nn: Float32Array }>();
+/** Each instanced node's instances, posed: centre and the way each faces (its local +z), by node index, for painting. */
+export const posedInstances = new Map<number, { centres: Float32Array; normals: Float32Array }>();
 function posedTris(pose: Record<string, number[]>): Tri[] {
-  posedVerts.clear();
+  posedVerts.clear(); posedInstances.clear();
   const W = worlds(pose);
   const skinMats = (gltf.skins ?? []).map((s: { joints: number[]; inverseBindMatrices: number }) => {
     const ibm = acc(s.inverseBindMatrices) as Float32Array;
@@ -148,7 +150,15 @@ function posedTris(pose: Record<string, number[]>): Tri[] {
     if (inst) {
       const T = acc(inst.TRANSLATION) as Float32Array, R = acc(inst.ROTATION) as Float32Array, S = acc(inst.SCALE) as Float32Array;
       for (let k = 0; k < T.length / 3; k++) instM.push(mul(W[ni], trs([...T.subarray(k * 3, k * 3 + 3)], [...R.subarray(k * 4, k * 4 + 4)], [...S.subarray(k * 3, k * 3 + 3)])));
+      const centres = new Float32Array(instM.length * 3), normals = new Float32Array(instM.length * 3);
+      instM.forEach((m, k) => {
+        centres.set([m[12], m[13], m[14]], k * 3);
+        const l = Math.hypot(m[8], m[9], m[10]) || 1; normals.set([m[8] / l, m[9] / l, m[10] / l], k * 3);
+      });
+      posedInstances.set(ni, { centres, normals });
     } else instM.push(W[ni]);
+    // instance colours (painted from the art: EXT_mesh_gpu_instancing _COLOR_0, linear), multiplying the material's
+    const instCol = inst?._COLOR_0 !== undefined ? acc(inst._COLOR_0) as Float32Array : null;
     for (const [pi, pr] of (gltf.meshes[node.mesh].primitives as { attributes: Record<string, number>; indices?: number; material?: number }[]).entries()) {
       const P = acc(pr.attributes.POSITION) as Float32Array, Nn = acc(pr.attributes.NORMAL) as Float32Array;
       const mat = matColour(pr.material);
@@ -173,7 +183,8 @@ function posedTris(pose: Record<string, number[]>): Tri[] {
         let a = ni; while (a >= 0 && !(gltf.skins?.[0]?.joints ?? []).includes(a)) a = parent[a];
         vPart.fill(partOf(node.name, mat.name, a >= 0 ? gltf.nodes[a].name : ''));
       }
-      for (const base of instM) {
+      for (const [ik, base] of instM.entries()) {
+        const tint = instCol ? [instCol[ik * 3], instCol[ik * 3 + 1], instCol[ik * 3 + 2]] : undefined;
         const pp = new Float32Array(nv * 3), nn = new Float32Array(nv * 3);
         if (node.skin !== undefined) {
           const J = acc(pr.attributes.JOINTS_0), Wt = acc(pr.attributes.WEIGHTS_0) as Float32Array, mats = skinMats[node.skin];
@@ -205,7 +216,7 @@ function posedTris(pose: Record<string, number[]>): Tri[] {
             p: vs.flatMap((v) => [pp[v * 3], pp[v * 3 + 1], pp[v * 3 + 2]]),
             n: vs.flatMap((v) => [nn[v * 3], nn[v * 3 + 1], nn[v * 3 + 2]]),
             uv: UV && mat.img ? vs.flatMap((v) => [UV[v * 2], UV[v * 2 + 1]]) : null,
-            mat, tail: onTail ? vs.some((v) => onTail![v]) : false, part: vPart[vs[0]],
+            mat, tail: onTail ? vs.some((v) => onTail![v]) : false, part: vPart[vs[0]], tint,
           });
         }
       }
@@ -261,6 +272,7 @@ function render(tris: Tri[], v: ViewName) {
       if (z <= depth[i]) continue;
       depth[i] = z; mask[i] = 1;
       let col = t.mat.f.slice(0, 3);
+      if (t.tint) col = col.map((f: number, j: number) => f * t.tint![j]);
       if (t.uv && t.mat.img) {
         const u = w0 * t.uv[0] + w1 * t.uv[2] + w2 * t.uv[4], vv = w0 * t.uv[1] + w1 * t.uv[3] + w2 * t.uv[5];
         const im = t.mat.img, tx = Math.min(im.w - 1, Math.max(0, Math.floor((u - Math.floor(u)) * im.w))), ty = Math.min(im.h - 1, Math.max(0, Math.floor((vv - Math.floor(vv)) * im.h)));
@@ -273,7 +285,7 @@ function render(tris: Tri[], v: ViewName) {
       const lam = Math.max(0, (nx * L[0] + ny * L[1] + nz * L[2]) / (nl * ll));
       // soft, like the painted art's own light (and a painted-from-art texture already carries its shading)
       const shade = 0.78 + 0.32 * lam;
-      matId[i] = t.mat.img ? -2 : t.mat.index; shadeOf[i] = shade; partId[i] = t.part;
+      matId[i] = t.mat.img || t.tint ? -2 : t.mat.index; shadeOf[i] = shade; partId[i] = t.part;
       for (let k = 0; k < 3; k++) rgb[i * 3 + k] = linToSrgb(col[k] * shade) * 255;
     }
   }
@@ -321,6 +333,7 @@ function score(r: ReturnType<typeof render>, v: ViewName, save: boolean) {
   const dA = chamfer(A, W, H), dM = chamfer(r.mask, W, H);
   const out: Record<string, RegionScore> = {};
   const B = 8;
+  const heat = save ? new Float32Array(W * H).fill(-1) : null; // each block's ΔE, for the heat map
   for (const [name, yLo, yHi] of REGIONS) {
     const r0 = Math.max(0, Math.floor(SH.sole - yHi * ppm)), r1 = Math.min(H, Math.ceil(SH.sole - yLo * ppm));
     let inter = 0, uni = 0, dsum = 0, dn = 0;
@@ -343,7 +356,9 @@ function score(r: ReturnType<typeof render>, v: ViewName, save: boolean) {
       }
       if (n < B * B * 0.8) continue;
       const la = lab(ma[0] / n, ma[1] / n, ma[2] / n), lm = lab(mm[0] / n, mm[1] / n, mm[2] / n);
-      de += Math.hypot(la[0] - lm[0], la[1] - lm[1], la[2] - lm[2]); dc++;
+      const e = Math.hypot(la[0] - lm[0], la[1] - lm[1], la[2] - lm[2]);
+      de += e; dc++;
+      if (heat) for (let y = by; y < by + B; y++) heat.fill(e, y * W + bx, y * W + bx + B);
     }
     const iou = uni ? inter / uni : 1, outlineMm = dn ? (dsum / dn / ppm) * 1000 : 0, deltaE = dc ? de / dc : 0;
     // shape: IoU, held back by outline error (5 mm costs about 2%); colour: ΔE 3 is a perfect match, ΔE 30 is none
@@ -362,6 +377,17 @@ function score(r: ReturnType<typeof render>, v: ViewName, save: boolean) {
       for (const [k, c] of [[0, art], [1, mod], [2, ov]] as const) png.data.set([...c.map((q) => Math.max(0, Math.min(255, Math.round(q)))), 255], ((y * W * 3) + k * W + x) * 4);
     }
     fs.writeFileSync(path.join(outDir, `fidelity_${v}.png`), PNG.sync.write(png));
+    // where it loses: the art in grey, each scored block tinted by its ΔE (green ≤ 3, yellow 10, red ≥ 20), shape misses in blue/purple
+    const hp = new PNG({ width: W, height: H });
+    for (let i = 0; i < W * H; i++) {
+      const x = i % W, y = (i / W) | 0, ai = (y * SW + x0 + x + s) * 4, g = (S[ai] + S[ai + 1] + S[ai + 2]) / 3;
+      const e = heat![i], a = A[i], m = r.mask[i];
+      let c = [g * 0.5 + 120, g * 0.5 + 120, g * 0.5 + 120];
+      if (e >= 0) { const t = Math.max(0, Math.min(1, (e - 3) / 17)); const col = t < 0.4 ? [60 + t / 0.4 * 190, 200, 60] : [250, 200 - (t - 0.4) / 0.6 * 170, 50]; c = [g * 0.35 + col[0] * 0.65, g * 0.35 + col[1] * 0.65, g * 0.35 + col[2] * 0.65]; }
+      else if (a && !m) c = [210, 50, 60]; else if (m && !a) c = [60, 90, 230];
+      hp.data.set([...c.map((q) => Math.max(0, Math.min(255, Math.round(q)))), 255], i * 4);
+    }
+    fs.writeFileSync(path.join(outDir, `delta_${v}.png`), PNG.sync.write(hp));
   }
   return { shift: s, regions: out, A, mask: r.mask, W, H };
 }
@@ -438,19 +464,21 @@ function partIoU(r: ReturnType<typeof render>, v: ViewName, name: string, shift:
 
 // ---- the art's pose, fitted ---------------------------------------------------------------------------------------
 // arms hang from the A (rotate about the body's forward axis), elbows bend a little, legs stand apart
-function poseOf(p: { arm: number; armFwd: number; elbow: number; leg: number }) {
+function poseOf(p: { arm: number; armFwd: number; elbow: number; leg: number; stagger?: number }) {
   const o: Record<string, number[]> = {};
   for (const sx of [1, -1]) {
     const s = sx > 0 ? 'Left' : 'Right';
     o[`${s}Arm`] = qmul(qaxis([1, 0, 0], -p.armFwd), qaxis([0, 0, 1], -sx * p.arm));
     o[`${s}ForeArm`] = qaxis([1, 0, 0], -p.elbow);
-    o[`${s}UpLeg`] = qaxis([0, 0, 1], sx * p.leg);
-    o[`${s}Foot`] = qaxis([0, 0, 1], -sx * p.leg);
+    // stagger: the near (left) leg forward and the far one back, as a turnaround's profile often stands
+    const st = sx * (p.stagger ?? 0);
+    o[`${s}UpLeg`] = qmul(qaxis([1, 0, 0], -st), qaxis([0, 0, 1], sx * p.leg));
+    o[`${s}Foot`] = qmul(qaxis([0, 0, 1], -sx * p.leg), qaxis([1, 0, 0], st));
   }
   return o;
 }
 function fitPose() {
-  let p = { arm: 0.66, armFwd: 0.0, elbow: 0.15, leg: 0.06 };
+  let p = { arm: 0.66, armFwd: 0.0, elbow: 0.15, leg: 0.06, stagger: 0 };
   const iouOf = (q: typeof p) => {
     const tris = posedTris(poseOf(q));
     let s = 0;
@@ -459,7 +487,7 @@ function fitPose() {
     return s;
   };
   let best = iouOf(p);
-  const steps: [keyof typeof p, number][] = [['arm', 0.08], ['leg', 0.03], ['armFwd', 0.1], ['elbow', 0.12]];
+  const steps: [keyof typeof p, number][] = [['arm', 0.08], ['leg', 0.03], ['stagger', 0.05], ['armFwd', 0.1], ['elbow', 0.12]];
   for (let round = 0; round < 2; round++) for (const [k, d] of steps) for (const dir of [1, -1]) {
     for (let tries = 0; tries < 3; tries++) {
       const q = { ...p, [k]: p[k] + dir * d / (round + 1) };
@@ -542,7 +570,7 @@ if (args.includes('--paint')) {
   const posedT = posedTris(poseOf(pose));
   const views = (['front', 'side', 'back'] as ViewName[]).map((v) => { const r = render(posedT, v); return { name: v, r, shift: shiftBest(r.mask, r.W, VIEWS[v].x0), ...VIEWS[v] }; });
   const out = args[args.indexOf('--paint') + 1] ?? file;
-  await paintFromSheet({ gltf, bin, acc, file, out, posedVerts, views, sheet: { W: SW, H: SHh, data: S, mask: artMask }, work: outDir });
+  await paintFromSheet({ gltf, bin, acc, file, out, posedVerts, posedInstances, views, sheet: { W: SW, H: SHh, data: S, mask: artMask }, work: outDir });
   console.log(`painted from the turnaround -> ${out}`);
   process.exit(0);
 }
@@ -584,7 +612,8 @@ for (const [v, r] of Object.entries(report)) {
   sum += vs + vc; wsum += 2 * vw;
 }
 const overall = +(sum / wsum).toFixed(3);
-const result = { file, pose: Object.fromEntries(Object.entries(pose).map(([k, v]) => [k, +(v as number).toFixed(3)])), overall, axes, views: report, ms: Date.now() - t0 };
+const views = Object.fromEntries(Object.entries(report).map(([v, r]) => [v, { shift: r.shift, regions: r.regions }]));
+const result = { file, pose: Object.fromEntries(Object.entries(pose).map(([k, v]) => [k, +(v as number).toFixed(3)])), overall, axes, views, ms: Date.now() - t0 };
 fs.writeFileSync(path.join(outDir, 'fidelity.json'), JSON.stringify(result, null, 2));
 if (args.includes('--json')) console.log(JSON.stringify(result));
 else {

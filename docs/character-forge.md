@@ -42,14 +42,15 @@ Seven stages run in order. A stage whose inputs haven't changed since it last ra
 | build | Body from the anatomy, face from the art, the head fitted by its warp, the wardrobe fitted by its armour fit, rig and springs. Every kit piece also as its own GLB, painted from the flat-lay. | the character GLB, the kit folder, `kit.json` |
 | fit-head | Measures the head and neck against the art's outline row by row and folds the gap into the warp, until the head stops improving. | `head_warp.json` |
 | parts | Cuts the art into its parts (SAM, prompted by the model's own parts, one prompt per piece, the smaller cut owning a shared pixel) and flags doubtful cuts. | the art's part masks |
-| fit-armour | Searches the kit's shape parameters against the whole silhouette and each part's overlap with the art. | `armour_fit.json` |
-| paint | Paints the character's clothes and armour from the turnaround, each texel from the views that see it. | the painted character |
+| fit-armour | Searches the kit's shape parameters (dō, watagami, collar, kusazuri, sode, hakama, greaves, scabbard) against the whole silhouette and each part's overlap with the art. It's a parallel pattern search: every parameter is stepped both ways, and the candidates are built and scored four at a time. The improving moves are then combined, and the best combination is kept. | `armour_fit.json` |
+| paint | Paints everything the turnaround draws from it, each texel from the views that see it: clothes, armour, skin, scalp and face. Instanced pieces (the lacing cords) get one colour per instance. | the painted character |
 | score | Scores every view and every part, checks the gates, and writes the report. | `report.md` |
 
 ### 3. Quality, measured
 
 - **Scores, not impressions:** every result is scored against the art from every view, on shape (silhouette overlap, outline distance) and colour (CIE Lab), whole figure and part by part. The report states the gates, what passed, and by how much the rest fell short.
 - **Below the gates, the work isn't finished.** The report says so, and the fit stages are what close the gap.
+- **Where it loses, drawn:** `delta_<view>.png` tints each scored block by its colour error (green to red) and marks shape misses (red: the art only; blue: the model only). Read it before changing anything: it says which piece to fix.
 - **The scorer can be wrong too.** Doubtful SAM cuts are flagged and left out of the search, never silently scored.
 - **The scores miss some things**, such as a crease in a surface or cloth through armour in motion. Close-ups in the game viewer (`forge.html`, `kit.html`) are part of the check.
 

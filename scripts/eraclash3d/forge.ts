@@ -8,8 +8,8 @@
  *   build       body from the anatomy, face from the art, wardrobe, rig; the kit's assets painted from the flat-lay
  *   fit-head    the head and neck bent to the art's outline, row by row, until it stops improving
  *   parts       the art cut into its parts by SAM, prompted by the model's own parts
- *   fit-armour  the kit's shape searched against those parts and the whole silhouette
- *   paint       the character's clothes and armour painted from the turnaround
+ *   fit-armour  the kit's shape searched against those parts and the whole silhouette (a parallel pattern search)
+ *   paint       everything the turnaround draws painted from it: clothes, armour, lacing, skin, scalp and face
  *   score       every view and every part against the art, checked against the spec's gates -> report.md
  * Each stage's log is in the work folder; the report says what passed, what did not, and by how much.
  */
@@ -73,8 +73,8 @@ const RUN: Record<Stage, () => void> = {
     tsx('fit-head', 'forgeHaru.ts'); // the character on disk carries the last warp
   },
   parts() { const out = tsx('parts', 'forgeFidelity.ts', '--parts'); say(`parts: ${out.split('\n').filter((l) => /^\w+\s+[\d.]+%/.test(l)).length} parts cut from the art`); },
-  'fit-armour'() { const out = tsx('fit-armour', 'forgeArmourFit.ts', String(Number(process.env.FORGE_ARMOUR_ROUNDS ?? 2))); say(`fit-armour: ${(out.match(/best ([\d.]+%)/) ?? [])[1] ?? '?'}`); },
-  paint() { tsx('paint', 'forgeHaru.ts'); tsx('paint', 'forgeFidelity.ts', '--paint', spec.out.character); say('paint: clothes and armour painted from the turnaround'); },
+  'fit-armour'() { const out = tsx('fit-armour', 'forgeArmourFit.ts', String(Number(process.env.FORGE_ARMOUR_ROUNDS ?? 3))); say(`fit-armour: ${(out.match(/best ([\d.]+%)/) ?? [])[1] ?? '?'}`); },
+  paint() { tsx('paint', 'forgeHaru.ts'); tsx('paint', 'forgeFidelity.ts', '--paint', spec.out.character); say('paint: everything the turnaround draws painted from it'); },
   score() {
     tsx('score', 'forgeFidelity.ts');
     tsx('score', 'forgeFidelity.ts', '--parts');
@@ -121,7 +121,7 @@ function report() {
     '|---|---|---|---|---|',
     ...table.map((r) => `| ${r.n} | ${(r.iou * 100).toFixed(1)}% | ${r.per} | ${r.de.toFixed(1)} | ${pass(r.iou, g.part)} |`),
     '',
-    `Images: \`${path.join(WORK_DIR, 'fidelity')}\` (fidelity_<view>.png: art, model, overlay; parts_<view>.png: each art part tinted, the model's outlined).`,
+    `Images: \`${path.join(WORK_DIR, 'fidelity')}\` (fidelity_<view>.png: art, model, overlay; delta_<view>.png: where colour is lost, green to red by ΔE, shape misses in red (art only) and blue (model only); parts_<view>.png: each art part tinted, the model's outlined).`,
     '',
   ].join('\n');
   fs.writeFileSync(dataFile('report.md'), md);

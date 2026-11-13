@@ -26,6 +26,7 @@ export const HARU_FLATLAY: Record<string, PaintSpec> = {
   do: { mode: 'worn', image: 'do_assembled', back: 'do_back', group: 'armour' },
   kusazuri: { mode: 'worn', image: 'do_assembled', group: 'armour' },
   sode: { mode: 'worn', image: 'do_assembled', group: 'armour' },
+  watagami: { mode: 'worn', image: 'do_assembled', group: 'armour' },
   hakama: { mode: 'worn', image: 'hakama' },
   kosode: { mode: 'worn', image: 'kosode', group: 'kosode' },
   eri: { mode: 'worn', image: 'kosode', group: 'kosode' },

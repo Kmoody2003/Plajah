@@ -322,6 +322,14 @@ export interface ArmourFit {
   hakLat: number; hakFB: number;
   /** The scabbard in the obi: degrees below level, and degrees out from straight back. */
   sayaDown: number; sayaOut: number;
+  /** Hakama: how much of the fullness the inner side of each leg keeps away (1: none there, the legs part; 0: as full as outside). */
+  hakInner: number;
+  /** Eri (the kosode collar): its centre height at the back of the neck, its band height, how far it stands off the neck. */
+  eriY: number; eriH: number; eriOut: number;
+  /** Watagami: how high the shoulder straps ride over the body (padding and all), how wide they run out from the neck, how far the kohire turn up. */
+  wataRise: number; wataW: number; kohire: number;
+  /** Suneate: how far the splints stand off the shin (over the kyahan wrap). Hakama: the height it is gathered at, into the greaves. */
+  greave: number; hakGather: number;
 }
 export const ARMOUR_FIT_DEFAULT: ArmourFit = {
   doBottom: 1.035, doTop: 1.36, doClear: 0.03,
@@ -330,6 +338,10 @@ export const ARMOUR_FIT_DEFAULT: ArmourFit = {
   hakLat: 0.108, hakFB: 0.13,
   // measured on the turnaround: hilt up and forward at the left hip, the scabbard 44° down and 28° out behind him
   sayaDown: 44, sayaOut: 28,
+  hakInner: 0.92,
+  eriY: 1.505, eriH: 0.036, eriOut: 0.011,
+  wataRise: 0.025, wataW: 0.1, kohire: 0.035,
+  greave: 0.042, hakGather: 0.47,
 };
 
 export function buildHaruKit(anatomy: HumanAnatomy, field: Field, fitIn: Partial<ArmourFit> = {}): Wardrobe {
@@ -429,16 +441,34 @@ function haruKit(anatomy: HumanAnatomy, field: Field, fit: ArmourFit): Wardrobe 
     for (let k = 0; k <= 24; k++) rim.push(f(k / 24, 1));
     tube(A('gold'), rim, 0.004, 6, bone);
   }
-  // watagami: the shoulder straps from the back plate over the shoulders, leather
+  // watagami: the shoulder straps from the back plate over the shoulders to the chest plate. On a tosei-gusoku they
+  // are wide lacquered plates on padding, riding high against the collar, with a kohire (a small upturned flap) at
+  // each outer end: the shoulder line the art draws rising to the neck.
+  piece('watagami', 'Watagami (shoulder straps): lacquered plates over the shoulders, kohire flaps at their outer ends');
   for (const sx of [1, -1]) {
-    const pts: Vec3[] = [];
-    for (let k = 0; k <= 12; k++) {
-      const t = k / 12;
-      const z = -0.11 + t * 0.2;
-      const yy = 1.43 + Math.sin(t * Math.PI) * 0.04;
-      pts.push([sx * 0.11, yy, z]);
+    // the body's top at (x, z): marched down from above the shoulder (below the jaw, so the head is never met)
+    const topAt = (x: number, z: number) => { for (let y = 1.56; y > 1.3; y -= 0.0025) if (field.d(x, y, z) < 0) return y; return 1.3; };
+    const xIn = 0.07, xOut = 0.07 + fit.wataW;
+    const f = (u: number, v: number): Vec3 => {
+      const z = -0.12 + u * 0.22;                     // back → front
+      const x = sx * (xIn + (xOut - xIn) * v);        // neck side → shoulder
+      // over the trapezius at the padding's height, rounding down over the front and back (where they meet the plates)
+      const ends = Math.sin(u * Math.PI) ** 0.35;
+      return [x, topAt(x, z) + 0.012 + fit.wataRise * ends * (1 - 0.5 * v), z];
+    };
+    plate(A('lacquer'), 14, 4, f, 0.005, 'Spine2', [0.3, 0.08]);
+    const rim: Vec3[] = []; for (let k = 0; k <= 14; k++) rim.push(f(k / 14, 0)); tube(A('gold'), rim, 0.003, 4, 'Spine2');
+    const rimO: Vec3[] = []; for (let k = 0; k <= 14; k++) rimO.push(f(k / 14, 1)); tube(A('gold'), rimO, 0.003, 4, 'Spine2');
+    // kohire: front and back of the outer end, turned up and out
+    for (const u0 of [0.28, 0.72]) {
+      const base = f(u0, 1);
+      const g = (a: number, b: number): Vec3 => {
+        const lift = fit.kohire * b;
+        return [base[0] + sx * (0.012 + 0.03 * b), base[1] - 0.01 + lift, base[2] + (a - 0.5) * 0.07 * (1 - 0.35 * b)];
+      };
+      plate(A('lacquer'), 6, 3, g, 0.004, 'Spine2', [0.1, 0.05]);
+      const edge: Vec3[] = []; for (let k = 0; k <= 6; k++) edge.push(g(k / 6, 1)); tube(A('gold'), edge, 0.003, 4, 'Spine2');
     }
-    tube(A('leather'), pts, 0.018, 8, 'Spine2', 0.25);
   }
   for (const [b, l] of cord) w.lacing.push({ bone: b, ...l });
 
@@ -588,7 +618,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field, fit: ArmourFit): Wardrobe 
   // ---- Suneate: shin splints and the knee guard ------------------------------------------------------------------
   piece('suneate', 'Suneate (greaves): iron splints joined over mail, with a tateage knee guard');
   // standoff of the splints from the shin: over thickly wrapped kyahan, as bulky as the turnaround draws them
-  const GREAVE = 0.042;
+  const GREAVE = fit.greave;
   for (const s of ['Left', 'Right'] as const) {
     const sx = s === 'Left' ? 1 : -1;
     const knee = J(`${s}Leg` as HumanJoint), ankle = J(`${s}Foot` as HumanJoint);
@@ -627,7 +657,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field, fit: ArmourFit): Wardrobe 
     const sx = s === 'Left' ? 1 : -1;
     const hip = J(`${s}UpLeg` as HumanJoint), knee = J(`${s}Leg` as HumanJoint), ankle = J(`${s}Foot` as HumanJoint);
     // gathered just under the knee into the greaves' top, as the turnaround has it (fitted with forgeSilhouette.ts)
-    const yTopH = 1.0, yGather = 0.47;
+    const yTopH = 1.0, yGather = fit.hakGather;
     // the leg's centre line at a height
     const centre = (y: number): Vec3 => {
       if (y >= knee[1]) return lerp(knee, hip, (y - knee[1]) / (hip[1] - knee[1]));
@@ -666,7 +696,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field, fit: ArmourFit): Wardrobe 
       const dir: Vec3 = [Math.sin(a) * sx, 0, Math.cos(a)];
       // inner side of the leg stays closer (the crotch), pleats in front
       // (almost no fullness on the inner side: the legs part below the tassets, as the art's front view shows)
-      const inner = Math.min(1, Math.max(0, -Math.sin(a)) * 1.25) * 0.92;
+      const inner = Math.min(1, Math.max(0, -Math.sin(a)) * 1.25) * fit.hakInner;
       const pleat = Math.cos(a) > 0.2 ? 0.004 * Math.sin(u * 5 * Math.PI * 2) : 0;
       // under the tassets the cloth is gathered in close to the thigh (it moves with the thigh, and a full hakama there
       // swung out through them with every step) and never past their inner face; from their hem down it blouses freely
@@ -702,10 +732,10 @@ function haruKit(anatomy: HumanAnatomy, field: Field, fit: ArmourFit): Wardrobe 
         const phi = u * end;                       // round from the back of the neck
         const a = -Math.PI / 2 + lapel * phi;      // a = π/2 is the front
         // high at the back, a little lower at the sides, then down the chest to the V
-        const yc = phi <= Math.PI / 2 ? 1.505 - 0.03 * smooth(phi / (Math.PI / 2)) : 1.475 - ((phi - Math.PI / 2) / (Math.PI / 2)) * 0.085;
-        const y = yc + (v - 0.5) * 0.036;
+        const yc = phi <= Math.PI / 2 ? fit.eriY - 0.03 * smooth(phi / (Math.PI / 2)) : fit.eriY - 0.03 - ((phi - Math.PI / 2) / (Math.PI / 2)) * (fit.eriY - 1.42);
+        const y = yc + (v - 0.5) * fit.eriH;
         const sc = sec(y);
-        const r = sc.radius(a) + 0.011 + (lapel > 0 ? 0.004 : 0) + (1 - v) * 0.003;
+        const r = sc.radius(a) + fit.eriOut + (lapel > 0 ? 0.004 : 0) + (1 - v) * 0.003;
         return [Math.cos(a) * r, y, sc.cz + Math.sin(a) * r];
       };
       sheet(Cl('kosode'), 40, 4, f, 'Spine2', [0.6, 0.04]);

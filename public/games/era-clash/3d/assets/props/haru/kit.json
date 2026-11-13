@@ -14,18 +14,44 @@
       "attach": "Spine1",
       "restOrigin": [
         0,
-        0.9835,
+        0.9747,
         0.0098
       ],
       "size": [
         0.556,
-        0.491,
+        0.496,
         0.363
       ],
-      "tris": 19560,
+      "tris": 19176,
       "nodes": [
         "Spine",
         "Spine1",
+        "Spine2"
+      ]
+    },
+    {
+      "id": "watagami",
+      "label": "Watagami (shoulder straps): lacquered plates over the shoulders, kohire flaps at their outer ends",
+      "era": "Momoyama (late 16th c.)",
+      "refs": [
+        "紺糸威南蛮胴具足, Azuchi-Momoyama, Japan Search",
+        "Tachidō tosei-gusoku, Momoyama–Edo, Wikimedia Commons"
+      ],
+      "file": "watagami.glb",
+      "kind": "armour",
+      "attach": "Hips",
+      "restOrigin": [
+        0,
+        1.3101,
+        -0.01
+      ],
+      "size": [
+        0.51,
+        0.257,
+        0.226
+      ],
+      "tris": 1664,
+      "nodes": [
         "Spine2"
       ]
     },
@@ -42,13 +68,13 @@
       "attach": "Hips",
       "restOrigin": [
         0,
-        0.6725,
-        0.009
+        0.6637,
+        0.0044
       ],
       "size": [
         0.445,
         0.33,
-        0.349
+        0.352
       ],
       "tris": 13920,
       "nodes": [
@@ -74,10 +100,10 @@
       "restOrigin": [
         0,
         1.2277,
-        -0.025
+        -0.0356
       ],
       "size": [
-        0.728,
+        0.708,
         0.276,
         0.271
       ],
@@ -132,12 +158,12 @@
       "restOrigin": [
         0,
         -0.037,
-        -0.0024
+        -0.0103
       ],
       "size": [
-        0.38,
-        0.573,
-        0.268
+        0.352,
+        0.572,
+        0.252
       ],
       "tris": 7844,
       "nodes": [
@@ -214,13 +240,13 @@
       "attach": "Hips",
       "restOrigin": [
         0,
-        0.47,
-        0.0128
+        0.43,
+        0.0067
       ],
       "size": [
-        0.484,
-        0.53,
-        0.332
+        0.459,
+        0.57,
+        0.33
       ],
       "tris": 4480,
       "nodes": [

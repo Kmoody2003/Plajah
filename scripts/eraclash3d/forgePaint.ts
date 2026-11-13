@@ -22,14 +22,16 @@ export interface PaintCtx {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   gltf: any; bin: Buffer; acc: Acc; file: string; out: string;
   posedVerts: Map<string, { pp: Float32Array; nn: Float32Array }>;
+  /** Instanced nodes (the lacing cords): each instance's posed centre and the way it faces, by node index. */
+  posedInstances?: Map<number, { centres: Float32Array; normals: Float32Array }>;
   views: View[];
   sheet: { W: number; H: number; data: Buffer; mask: Uint8Array };
   work: string;
 }
 
-/** Meshes painted: the clothes and the armour (not the head, which has its own art-warped face; not hair, eyes, skin). */
-const PAINT_NODES = /^(Haru_cloth|Haru_armour)$/;
-const SKIP_MATERIALS = /^(hairCards|skin|face|scalp)$/;
+/** Meshes painted: everything the turnaround draws — clothes, armour, skin, scalp and face (FORGE_PAINT_SKIP narrows it). */
+const PAINT_NODES = /_(cloth|armour|head|body)$/;
+const SKIP_MATERIALS = new RegExp(`^(${process.env.FORGE_PAINT_SKIP ?? 'hairCards'})$`);
 
 export async function paintFromSheet(c: PaintCtx) {
   const g = c.gltf;
@@ -147,11 +149,40 @@ export async function paintFromSheet(c: PaintCtx) {
     painted.set(`${j.node}:${j.prim}`, { vmap, idx, uv, jpeg });
   }
   console.log(`painted ${painted.size} pieces; ${(100 * seen / Math.max(1, total)).toFixed(0)}% of their surface seen by the art`);
-  writeGlb(c, painted);
+  // ---- instanced pieces (the lacing cords): one colour per instance, from the art where it sits ---------------------
+  const lin = (v: number) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  const instColours = new Map<number, Float32Array>();
+  for (const [ni, inst] of c.posedInstances ?? []) {
+    const n = inst.centres.length / 3, cols = new Float32Array(n * 3);
+    const mat = g.materials[g.meshes[g.nodes[ni].mesh].primitives[0].material];
+    const base = (mat?.pbrMetallicRoughness?.baseColorFactor ?? [0.5, 0.5, 0.5]).slice(0, 3) as number[];
+    let hit = 0;
+    const col = [0, 0, 0];
+    for (let k = 0; k < n; k++) {
+      const p = [inst.centres[k * 3], inst.centres[k * 3 + 1], inst.centres[k * 3 + 2]], nn = [inst.normals[k * 3], inst.normals[k * 3 + 1], inst.normals[k * 3 + 2]];
+      let r = 0, gg = 0, b = 0, wt = 0;
+      for (const d of DIRS) {
+        const f = nn[0] * d.dir[0] + nn[1] * d.dir[1] + nn[2] * d.dir[2];
+        if (f <= 0.12) continue;
+        const q = d.mirror ? [-p[0], p[1], p[2]] : p;
+        const [sx, sy, near] = d.view.proj(q);
+        const cx = Math.floor(sx - d.view.x0), cy = Math.floor(sy);
+        if (cx < 0 || cy < 0 || cx >= d.view.r.W || cy >= d.view.r.H) continue;
+        if (d.view.r.depth[cy * d.view.r.W + cx] - near > 0.012) continue;
+        if (!sampleArt(sx + d.view.shift, sy, col)) continue;
+        const w = f * f * d.w; r += col[0] * w; gg += col[1] * w; b += col[2] * w; wt += w;
+      }
+      if (wt > 0) { cols[k * 3] = lin(r / wt); cols[k * 3 + 1] = lin(gg / wt); cols[k * 3 + 2] = lin(b / wt); hit++; }
+      else { cols[k * 3] = base[0]; cols[k * 3 + 1] = base[1]; cols[k * 3 + 2] = base[2]; }
+    }
+    instColours.set(ni, cols);
+    console.log(`painted ${g.nodes[ni].name}: ${hit} of ${n} instances seen by the art`);
+  }
+  writeGlb(c, painted, instColours);
 }
 
 /** Rewrite the GLB: painted primitives re-cut by their atlases, every accessor re-serialised, new textures added. */
-function writeGlb(c: PaintCtx, painted: Map<string, { vmap: Uint32Array; idx: Uint32Array; uv: Float32Array; jpeg: Buffer }>) {
+function writeGlb(c: PaintCtx, painted: Map<string, { vmap: Uint32Array; idx: Uint32Array; uv: Float32Array; jpeg: Buffer }>, instColours = new Map<number, Float32Array>()) {
   const g = JSON.parse(JSON.stringify(c.gltf));
   const chunks: Buffer[] = []; let off = 0;
   const views: { buffer: number; byteOffset: number; byteLength: number; target?: number }[] = [];
@@ -211,6 +242,23 @@ function writeGlb(c: PaintCtx, painted: Map<string, { vmap: Uint32Array; idx: Ui
     m.pbrMetallicRoughness = { ...(m.pbrMetallicRoughness ?? {}), baseColorFactor: [1, 1, 1, m.pbrMetallicRoughness?.baseColorFactor?.[3] ?? 1], baseColorTexture: { index: g.textures.length - 1, texCoord: 1 } };
     g.materials.push(m);
     prim.material = g.materials.length - 1;
+  }
+  // instance colours (EXT_mesh_gpu_instancing's _COLOR_0, linear): the instanced piece gets a white copy of its material
+  const whiteOf = new Map<number, number>();
+  for (const [ni, cols] of instColours) {
+    const node = g.nodes[ni];
+    node.extensions.EXT_mesh_gpu_instancing.attributes._COLOR_0 = addAcc(cols, 'VEC3', 5126);
+    const mesh = JSON.parse(JSON.stringify(g.meshes[node.mesh]));
+    for (const pr of mesh.primitives) {
+      if (!whiteOf.has(pr.material)) {
+        const m = JSON.parse(JSON.stringify(c.gltf.materials[pr.material]));
+        m.name = `${m.name}_painted`;
+        m.pbrMetallicRoughness = { ...(m.pbrMetallicRoughness ?? {}), baseColorFactor: [1, 1, 1, m.pbrMetallicRoughness?.baseColorFactor?.[3] ?? 1] };
+        g.materials.push(m); whiteOf.set(pr.material, g.materials.length - 1);
+      }
+      pr.material = whiteOf.get(pr.material);
+    }
+    g.meshes.push(mesh); node.mesh = g.meshes.length - 1;
   }
   g.accessors = accessors;
   g.bufferViews = views;
