@@ -98,14 +98,6 @@
         "run": { "serviceId": "plajah-api", "region": "us-west1" }
       },
       {
-        "source": "/o/**",
-        "run": { "serviceId": "plajah-api", "region": "us-west1" }
-      },
-      {
-        "source": "/r/**",
-        "run": { "serviceId": "plajah-api", "region": "us-west1" }
-      },
-      {
         "source": "/assets/**",
         "run": { "serviceId": "plajah-api", "region": "us-west1" }
       },

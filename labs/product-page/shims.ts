@@ -3,12 +3,12 @@
 import type { StoreReview } from '../../types';
 
 const params = new URLSearchParams(location.search);
-const who = params.get('as') || 'shopper';   // ?as=shopper | seller | admin | guest
+const who = params.get('as') || 'shopper';   // ?as=shopper | seller | guest
 export const LAB_SELLER = '8dCD4GRrFzWi9y5tbWdfJEUHwYz2';
 export const auth: any = {
   currentUser: who === 'guest' ? null : {
-    uid: who === 'seller' ? LAB_SELLER : who === 'admin' ? 'lab-admin' : 'lab-shopper',
-    displayName: who === 'seller' ? 'Great Faith Ministries' : who === 'admin' ? 'Lab Admin' : 'Lab Shopper',
+    uid: who === 'seller' ? LAB_SELLER : 'lab-shopper',
+    displayName: who === 'seller' ? 'Great Faith Ministries' : 'Lab Shopper',
     photoURL: '',
     getIdToken: async () => 'lab',
   },

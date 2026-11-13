@@ -4,6 +4,8 @@ import { X, Maximize2, Share2, Users, Trophy, Sparkles, ChevronLeft } from 'luci
 import { motion } from 'motion/react';
 import { Game } from '../types';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
+import { auth } from '../services/backendService';
+import { attachIframeGameBridge, bridgeConfigFor } from '../services/iframeGameBridge';
 
 interface GamePlayerViewProps {
   game: Game;
@@ -16,7 +18,14 @@ const GamePlayerView: React.FC<GamePlayerViewProps> = ({ game, onBack }) => {
   useEffect(() => {
     // Pause audio when entering game player
     pause();
-  }, []);
+    // Iframe-game bridge: verified XP + achievement events from the embedded
+    // game, credited to the signed-in player's Plajah Points. No bridge for
+    // games without a config; guests (no uid) earn nothing.
+    const uid = auth.currentUser?.uid;
+    const bridgeConfig = bridgeConfigFor(game.id);
+    if (!uid || !bridgeConfig) return;
+    return attachIframeGameBridge({ game, userId: uid, config: bridgeConfig });
+  }, [game.id]);
 
   return (
     <motion.div 

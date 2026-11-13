@@ -1,6 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { parseSizeChart } from '../../services/storeShopCore';
-import { Camera, ImagePlus, Sparkles, X, Package, Shirt, Download, Link2, Trash2, Check, ChevronDown, Star, Plus, Wand2 } from 'lucide-react';
+import { Camera, ImagePlus, Sparkles, X, Package, Shirt, Download, Link2, Trash2, Check, ChevronDown, Star, Plus } from 'lucide-react';
 import type { StoreProduct, StoreProductVariant, StoreProductCategory } from '../../types';
 import {
   buildVariantMatrix, suggestSku, storefrontBadge, marginPct, isSafeVariantId, SIZE_PRESETS, COLOR_PRESETS, DEFAULT_LOW_STOCK,
@@ -11,8 +10,6 @@ import { Button, Chip } from '../ui';
 import Sheet from './Sheet';
 import BarcodeScanner from './BarcodeScanner';
 import { GROCERY_PACK } from '../../services/ebtCore';
-import { mediaOf, reconcileMedia } from '../../services/productMediaCore';
-import ProductTelaOverlay from '../store/ProductTelaOverlay';
 
 /**
  * Add / edit a product. Designed around three facts about small sellers:
@@ -85,9 +82,6 @@ const ProductEditor: React.FC<{
   const [compareAt, setCompareAt] = useState(product?.compareAtPrice ? String(product.compareAtPrice) : '');
   const [cost, setCost] = useState(product?.costPrice ? String(product.costPrice) : '');
   const [category, setCategory] = useState<StoreProductCategory>(product?.category || 'OTHER');
-  // Size chart typed as rows: "Size, Chest, Length" then "S, 36, 27" (first line = headings).
-  const [sizeChartText, setSizeChartText] = useState<string>(() => { const c = parseSizeChart((product as any)?.sizeChart); return c ? [['Size', ...c.columns].join(', '), ...c.rows.map(r => [r.size, ...r.values].join(', '))].join('\n') : ''; });
-  const [sizeChartUnit, setSizeChartUnit] = useState<'in' | 'cm'>(() => parseSizeChart((product as any)?.sizeChart)?.unit || 'in');
   const [ministryId, setMinistryId] = useState<string>(product ? (product.ministryId || '') : (who.defaultMinistryId || ''));
   const [catTouched, setCatTouched] = useState(!!product);
   const [sku, setSku] = useState(product?.sku || '');
@@ -102,9 +96,6 @@ const ProductEditor: React.FC<{
   const [featured, setFeatured] = useState(!!product?.isFeatured);
   const [backorder, setBackorder] = useState(!!product?.allowBackorder);
   const [images, setImages] = useState<string[]>(product?.images || []);
-  // Photos recomposed in Tela this session: new photo URL → its Tela doc (saved into the gallery's media).
-  const [telaLinks, setTelaLinks] = useState<Record<string, string>>({});
-  const [telaFor, setTelaFor] = useState<number | null>(null);
   const [baseStock, setBaseStock] = useState(String(product ? Math.max(0, product.stock ?? 0) : ''));
   const [sizes, setSizes] = useState<string[]>(o.sizes);
   const [colors, setColors] = useState<{ name: string; hex: string }[]>(o.colors);
@@ -174,13 +165,6 @@ const ProductEditor: React.FC<{
     if (!tags.trim()) setTags(d.tags.join(', '));
   };
 
-  // Keep the gallery (videos, Tela docs) in step with the photo list; a Tela-recomposed photo keeps its doc link.
-  const galleryMedia = (): Partial<StoreProduct> => {
-    if (!product?.media?.length && !Object.keys(telaLinks).length) return {};
-    const m = reconcileMedia(mediaOf(product || { images: [] } as any), images) || [];
-    return { media: m.map(x => (telaLinks[x.url] ? { ...x, telaDocId: telaLinks[x.url] } : x)) };
-  };
-
   // ── Save ──
   const save = async (publish: boolean) => {
     setErr('');
@@ -206,7 +190,6 @@ const ProductEditor: React.FC<{
       tags: tags.split(',').map(t => t.trim()).filter(Boolean), isFeatured: featured || undefined,
       sizeOptions: sizes.length ? sizes : undefined, colorOptions: colors.length ? colors : undefined,
       isClothing: category === 'APPAREL' ? true : product?.isClothing,
-      sizeChart: (() => { const rows = sizeChartText.split(/\r?\n/).map(l => l.split(',').map(x => x.trim())).filter(r => r.some(Boolean)); return rows.length > 1 ? parseSizeChart({ unit: sizeChartUnit, columns: rows[0].slice(1), rows: rows.slice(1).map(r => ({ size: r[0], values: r.slice(1) })) }) : null; })(),
       fulfillmentSource: mode === 'POD' ? (podProvider as any) : mode === 'ELSEWHERE' ? 'external' : 'manual',
       fulfillmentProviderId: mode === 'POD' && podProvider === 'api' ? podProviderId.trim() || undefined : undefined,
       fulfillmentExternalId: mode === 'POD' ? podExternalId.trim() || undefined : undefined,
@@ -225,7 +208,7 @@ const ProductEditor: React.FC<{
         ...who,
         id: isNew ? undefined : product!.id,
         original: isNew ? undefined : product,
-        fields: { ...carry, ...fields, ...galleryMedia() },
+        fields: { ...carry, ...fields },
         variants: finalVariants,
         // An untracked product's stock number is never touched (delta 0 against what it opened with).
         baseStock: tracked ? parseInt(baseStock, 10) || 0 : Math.max(0, product?.stock ?? 0),
@@ -286,8 +269,6 @@ const ProductEditor: React.FC<{
                   )}
                   <button type="button" aria-label="Remove photo" onClick={() => setImages(im => im.filter((_, j) => j !== i))}
                     className="absolute right-1 top-1 w-6 h-6 rounded-full bg-black/60 grid place-items-center opacity-0 group-hover:opacity-100 focus:opacity-100"><X size={12} className="text-white" /></button>
-                  <button type="button" aria-label="Edit this photo in Tela" title="Edit in Tela" onClick={() => setTelaFor(i)}
-                    className="absolute right-1 bottom-1 h-6 px-2 rounded-full bg-black/65 flex items-center gap-1 text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 focus:opacity-100"><Wand2 size={11} /> Tela</button>
                 </div>
               ))}
               <button type="button" onClick={() => fileRef.current?.click()} disabled={!!uploading}
@@ -418,7 +399,6 @@ const ProductEditor: React.FC<{
                       <input className="pj-input" style={{ height: 32 }} value={v.sku || ''} onChange={e => patchVariant(v.id, { sku: e.target.value })} placeholder="SKU" aria-label={`${v.name} SKU`} />
                       {tracked && <input className="pj-input text-center tabular-nums" style={{ height: 32 }} inputMode="numeric" value={v.stock} onFocus={e => e.currentTarget.select()} onChange={e => patchVariant(v.id, { stock: parseInt(e.target.value.replace(/\D/g, ''), 10) || 0 })} aria-label={`${v.name} stock`} />}
                       <input className="pj-input text-center tabular-nums" style={{ height: 32 }} inputMode="decimal" value={v.priceModifier ?? ''} onChange={e => patchVariant(v.id, { priceModifier: e.target.value ? parseFloat(e.target.value) || 0 : undefined })} placeholder="±$" aria-label={`${v.name} price difference`} />
-                      {mode === 'POD' && <input className="pj-input" style={{ height: 32, gridColumn: '1 / -1' }} value={v.externalId || ''} onChange={e => patchVariant(v.id, { externalId: e.target.value.trim() || undefined })} placeholder={`${v.name}: variant id at the printer (Printful sync variant id)`} aria-label={`${v.name} printer variant id`} />}
                     </div>
                   ))}
                   <p className="type-body-sm px-3 py-2" style={{ color: 'var(--on-surface-variant)', borderTop: '1px solid var(--pj-border)' }}>Columns: option · SKU{tracked ? ' · in stock' : ''} · price difference (e.g. +2 for 2XL)</p>
@@ -461,12 +441,6 @@ const ProductEditor: React.FC<{
                   <label className="type-label-md font-bold block" style={{ color: 'var(--text-primary)' }}>Tags
                     <input className="pj-input w-full mt-1" value={tags} onChange={e => setTags(e.target.value)} placeholder="tour, limited, hoodie" /></label>
                 </div>
-                {(category === 'APPAREL' || sizes.length > 0 || sizeChartText) && (
-                  <label className="type-label-md font-bold block" style={{ color: 'var(--text-primary)' }}>Size chart
-                    <span className="flex gap-2 mt-1 items-center type-body-sm font-normal" style={{ color: 'var(--on-surface-variant)' }}>One row per size; the first row names the measurements.
-                      <select className="pj-input ml-auto" style={{ width: 'auto' }} value={sizeChartUnit} onChange={e => setSizeChartUnit(e.target.value as 'in' | 'cm')} aria-label="Size chart unit"><option value="in">inches</option><option value="cm">cm</option></select></span>
-                    <textarea className="pj-input w-full mt-1 font-mono" rows={4} value={sizeChartText} onChange={e => setSizeChartText(e.target.value)} placeholder={'Size, Chest, Length\nS, 36, 27\nM, 40, 28\nL, 44, 29'} /></label>
-                )}
                 <div className="rounded-xl p-3 space-y-2" style={{ background: 'var(--surface-container)' }}>
                   <div className="type-label-md font-bold" style={{ color: 'var(--text-primary)' }}>Register: tax, SNAP and age checks</div>
                   <div className="flex flex-wrap gap-1.5">
@@ -512,15 +486,6 @@ const ProductEditor: React.FC<{
           <Button variant="ghost" size="xs" className="mt-2" icon={<Plus />} onClick={() => setMoreOpen(true)}>More options</Button>
         </aside>
       </div>
-      {telaFor !== null && images[telaFor] && (() => {
-        const url = images[telaFor];
-        const known = mediaOf(product || { images: [] } as any).find(m => m.url === url);
-        const item = { id: known?.id || `m_ed${telaFor}`, kind: (known?.kind === 'tela' ? 'tela' : 'image') as 'image' | 'tela', url, telaDocId: telaLinks[url] || known?.telaDocId };
-        return (
-          <ProductTelaOverlay product={product?.id ? product : { ...preview, id: 'new' }} item={item} onClose={() => setTelaFor(null)}
-            onDone={r => { setImages(im => im.map(u => (u === url ? r.url : u))); setTelaLinks(t => ({ ...t, [r.url]: r.telaDocId })); }} />
-        );
-      })()}
       {scanOpen && <BarcodeScanner title="Scan the barcode" onDetect={c => { setBarcode(c); setScanOpen(false); }} onClose={() => setScanOpen(false)} />}
     </Sheet>
   );

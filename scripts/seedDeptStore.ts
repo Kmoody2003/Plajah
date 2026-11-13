@@ -2,8 +2,7 @@
 //
 //   npx tsx scripts/seedDeptStore.ts scripts/seeds/<dept>.json --shots <outDir>   build the clean product shots locally, write NOTHING remote
 //   npx tsx scripts/seedDeptStore.ts scripts/seeds/<dept>.json                   DRY RUN: check every file + the org/department, write nothing
-//   npx tsx scripts/seedDeptStore.ts scripts/seeds/<dept>.json --publish         upload + write (a re-run never changes a listing that exists)
-//   … --publish --refresh-content                                              ALSO overwrite existing listings' words/photos (undoes seller edits)
+//   npx tsx scripts/seedDeptStore.ts scripts/seeds/<dept>.json --publish         upload + write (re-running updates the same docs)
 //
 // What --publish writes (all in the plajah-ops database):
 //   • Content HQ (orgAssets + hqAssetVersions): every ORIGINAL photo and every generated shot, filed in the department's
@@ -33,7 +32,6 @@ const shotsIdx = args.indexOf('--shots');
 const SHOTS_DIR = shotsIdx >= 0 ? args[shotsIdx + 1] : '';
 const scenesIdx = args.indexOf('--scenes');
 const SCENES_DIR = scenesIdx >= 0 ? args[scenesIdx + 1] : '';   // with --publish: add lifestyle scenes to existing products
-const REFRESH_CONTENT = args.includes('--refresh-content');      // with --publish: overwrite seller-edited title/description/photos (normally never)
 if (!manifestPath) { console.error('usage: npx tsx scripts/seedDeptStore.ts <manifest.json> [--shots <dir> | --publish]'); process.exit(1); }
 const m: Manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 
@@ -174,12 +172,8 @@ async function main() {
       await hqAsset(name, bytes, 'image/jpeg', dept.name, ['merch', 'product-shot', 'lifestyle', p.slug], `scene:${name}`);
       const url = await putObject(`users/${m.ownerUid}/store/${id}/${name}`, bytes, 'image/jpeg', true);
       const images: string[] = (existing.images || []).filter((u: string) => !u.includes(encodeURIComponent(`/${name}`)));
-      if (images.includes(url)) { console.log(`  scene ${id} already there`); continue; }
       images.splice(Math.min(1, images.length), 0, url);
-      // A gallery edited on the product page (photos / videos / Tela docs) keeps its order with the scene added.
-      const media: any[] | undefined = Array.isArray(existing.media) && existing.media.length ? existing.media.slice() : undefined;
-      if (media) media.splice(Math.min(1, media.length), 0, { id: `m_scene_${p.slug.replace(/[^a-z0-9]/gi, '_')}`, kind: 'image', url });
-      await patch(`storeProducts/${id}`, { images, ...(media ? { media } : {}), updatedAt: Date.now() });
+      await patch(`storeProducts/${id}`, { images, updatedAt: Date.now() });
       console.log(`  scene ${id} — ${images.length} photo(s)`);
     }
     return;
@@ -202,22 +196,15 @@ async function main() {
     const existing = await get(OPS, `storeProducts/${id}`);
     const now = Date.now();
     const description = p.supplement ? `${p.blurb}\n\n${m.supplementNote}` : p.blurb;
-    // Once a listing exists its words, photos and shelf belong to the seller: a re-run used to rewrite
-    // title/description/photos/specs/tags and silently undo edits made in the store manager or on the
-    // product page. Now only a first load writes them, unless --refresh-content is passed on purpose.
-    const content = {
-      title: p.title, description, category: p.category, images,
-      specs: p.specs.map(([label, value]) => ({ label, value })), tags: p.tags, ministryId: m.ministryId,
-    };
     await patch(`storeProducts/${id}`, {
-      id, sellerId: m.ownerUid, sellerName: m.sellerName, sellerType: 'ORG',
-      ...(existing && !REFRESH_CONTENT ? {} : content),
-      ...(existing ? {} : { isDigital: false, fulfillmentSource: 'manual', trackInventory: true, updatedAt: now }),
+      id, sellerId: m.ownerUid, sellerName: m.sellerName, sellerType: 'ORG', ministryId: m.ministryId,
+      title: p.title, description, category: p.category, images,
+      specs: p.specs.map(([label, value]) => ({ label, value })), tags: p.tags,
+      isDigital: false, fulfillmentSource: 'manual', trackInventory: true, updatedAt: now,
       // Seller-owned fields: set only the first time, never overwritten by a re-run.
       ...(existing ? {} : { price: 0, stock: 0, isActive: false, lowStockThreshold: 3, createdAt: now }),
-      ...(existing && REFRESH_CONTENT ? { media: null, updatedAt: now } : {}),   // the manifest's photos replace the gallery
     });
-    console.log(`  ${existing ? (REFRESH_CONTENT ? 'refreshed' : 'kept seller edits on') : 'created'} ${id} — ${images.length} photo(s)`);
+    console.log(`  ${existing ? 'updated' : 'created'} ${id} — ${images.length} photo(s)`);
   }
 }
 

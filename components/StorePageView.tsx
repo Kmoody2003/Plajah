@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import ShopCheckoutBox from './store/ShopCheckoutBox';
 import { createPortal } from 'react-dom';
 import ProductPage, { useProductRoute } from './store/ProductPage';
 import { motion, AnimatePresence } from 'motion/react';
@@ -14,7 +13,7 @@ import { motion as m, AnimatePresence as AP } from 'motion/react';
 import { auth } from '../services/backendService';
 import {
   fetchAllActiveProducts, fetchFeaturedProducts, fetchProductsByCategory,
-  listenToProducts, startStoreCheckout, type CheckoutOptions,
+  listenToProducts, startStoreCheckout,
 } from '../services/storeService';
 import { availableFor, storefrontBadge, unitPriceCents, liveVariants } from '../services/inventoryCore';
 import { joinWaitlist, leaveWaitlist, isOnWaitlist } from '../services/inventoryService';
@@ -189,6 +188,7 @@ export const ProductCard: React.FC<{
 
 // ── Cart Sidebar ──────────────────────────────────────────────────────────────
 const cartKey = (i: { product: StoreProduct; variantId?: string }) => `${i.product.id}|${i.variantId || ''}`;
+const FREE_SHIP_OVER = 50, FLAT_SHIP = 5.99;     // mirrors the server (create-order): "$5.99, free over $50"
 const CART_STORE_KEY = 'plajah_store_cart_v1';
 const persistCart = (items: StoreCartItem[]) => {
   try { localStorage.setItem(CART_STORE_KEY, JSON.stringify(items.map(i => ({ productId: i.product.id, variantId: i.variantId, quantity: i.quantity })))); } catch { /* private mode */ }
@@ -198,7 +198,7 @@ export const CartSidebar: React.FC<{
   items: StoreCartItem[];
   onUpdateQty: (key: string, qty: number) => void;
   onRemove: (key: string) => void;
-  onCheckout: (sellerId: string, opts: CheckoutOptions) => void;
+  onCheckout: (sellerId: string) => void;
   busySeller: string | null;
   error: string;
   onClose: () => void;
@@ -240,6 +240,9 @@ export const CartSidebar: React.FC<{
             <p className="text-[10px] font-black uppercase tracking-widest text-white/20">Your cart is empty</p>
           </div>
         ) : groups.map(([sellerId, lines]) => {
+          const subtotal = lines.reduce((s, i) => s + (unitPriceCents(i.product, i.variantId) / 100) * i.quantity, 0);
+          const physical = lines.some(i => !i.product.isDigital);
+          const shipping = physical ? (subtotal >= FREE_SHIP_OVER ? 0 : FLAT_SHIP) : 0;
           return (
             <div key={sellerId} className="space-y-3">
               {groups.length > 1 && <p className="text-[9px] font-black uppercase tracking-widest text-white/40">From {lines[0].product.sellerName || 'this shop'}</p>}
@@ -276,7 +279,23 @@ export const CartSidebar: React.FC<{
                   </div>
                 );
               })}
-              <ShopCheckoutBox sellerId={sellerId} lines={lines} label={groups.length > 1 ? (lines[0].product.sellerName || 'shop') : ''} busy={busySeller === sellerId} onCheckout={onCheckout} />
+              {physical && subtotal < FREE_SHIP_OVER && (
+                <div className="p-2.5 bg-green-500/10 border border-green-500/20 rounded-xl text-[10px] font-bold text-green-400 flex items-center gap-2">
+                  <Truck size={12} /> Add ${(FREE_SHIP_OVER - subtotal).toFixed(2)} more for free shipping
+                </div>
+              )}
+              <div className="space-y-1 text-[10px]">
+                <div className="flex items-center justify-between"><span className="text-white/40 font-bold uppercase tracking-widest">Subtotal</span><span className="font-black">${subtotal.toFixed(2)}</span></div>
+                {physical && <div className="flex items-center justify-between"><span className="text-white/40 font-bold uppercase tracking-widest">Shipping</span><span className="font-black">{shipping === 0 ? 'Free' : `$${shipping.toFixed(2)}`}</span></div>}
+                <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06]"><span className="text-[11px] font-black uppercase tracking-widest">Total</span><span className="text-lg font-black text-small-orange">${(subtotal + shipping).toFixed(2)}</span></div>
+              </div>
+              <button
+                onClick={() => onCheckout(sellerId)}
+                disabled={!!busySeller}
+                className="w-full py-3.5 bg-small-orange text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-small-orange/80 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {busySeller === sellerId ? <Loader2 size={15} className="animate-spin" /> : <>Checkout{groups.length > 1 ? ` · ${lines[0].product.sellerName || 'shop'}` : ''} <ArrowRight size={16} /></>}
+              </button>
             </div>
           );
         })}
@@ -396,16 +415,29 @@ const StorePageView: React.FC<StorePageViewProps> = ({ onBack, onGarageSale, sel
 
   // Real checkout: the SERVER re-prices and stock-checks every line, then sends the buyer to Stripe Checkout
   // (funds go straight to the shop; shipping address collected there). Stock is only taken once it's paid.
-  const handleCheckout = async (sellerId: string, opts: CheckoutOptions = {}) => {
+  const handleCheckout = async (sellerId: string) => {
+    if (!auth.currentUser) { setCheckoutError('Sign in to check out.'); return; }
     const group = cart.filter(i => (i.product.sellerId || '') === sellerId);
     if (!group.length) return;
     setBusySeller(sellerId); setCheckoutError('');
     try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/store/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          businessUid: sellerId,
+          items: group.map(i => ({ productId: i.product.id, variantId: i.variantId, qty: i.quantity })),
+          fulfillment: group.every(i => i.product.isDigital) ? 'PICKUP' : 'SHIP',
+          customerName: auth.currentUser.displayName || '',
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) throw new Error(data.error || 'Could not start checkout. Try again.');
       // Other shops stay in the saved cart; this shop's lines leave it as the buyer goes to pay.
       persistCart(cart.filter(i => (i.product.sellerId || '') !== sellerId));
-      await startStoreCheckout(sellerId, group, opts);
+      window.location.href = data.url;
     } catch (err: any) {
-      persistCart(cart);
       setCheckoutError(err?.message || 'Checkout failed. Try again.');
       setBusySeller(null);
     }
@@ -527,9 +559,9 @@ const StorePageView: React.FC<StorePageViewProps> = ({ onBack, onGarageSale, sel
         {!embedded && !searchQuery && selectedCategory === 'ALL' && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { icon: Truck, title: 'Shop shipping', desc: 'Each shop shows its rates and ship time', color: '#10B981' },
-              { icon: Shield, title: 'Secure checkout', desc: 'Card payments through Stripe', color: '#3B82F6' },
-              { icon: Zap, title: 'Clear returns', desc: 'Every product shows its shop’s return policy', color: '#F59E0B' },
+              { icon: Truck, title: 'Free Shipping', desc: 'On orders over $50', color: '#10B981' },
+              { icon: Shield, title: 'Buyer Protection', desc: '100% secure checkout', color: '#3B82F6' },
+              { icon: Zap, title: 'Fast Delivery', desc: '2-3 days express available', color: '#F59E0B' },
             ].map(({ icon: Icon, title, desc, color }) => (
               <div key={title} className="flex items-center gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
                 <div className="p-2.5 rounded-xl shrink-0" style={{ background: `${color}20` }}>
@@ -644,8 +676,7 @@ const StorePageView: React.FC<StorePageViewProps> = ({ onBack, onGarageSale, sel
           cartCount={cart.reduce((n, i) => n + i.quantity, 0)}
           onOpenCart={() => setShowCart(true)}
           onAddToCart={addToCart}
-          // Buy now opens the cart with this item, so the buyer still picks where it ships and can use a code.
-          onBuyNow={(p, v, q) => { addToCart(p, v, q || 1); setShowCart(true); }}
+          onBuyNow={async (p, v, q) => { persistCart(cart); await startStoreCheckout(p.sellerId, [{ product: p, variantId: v, quantity: q || 1 }]); }}
           onOpenProduct={openProduct}
           onBack={route.close}
         />

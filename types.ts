@@ -6481,8 +6481,6 @@ export interface StoreProductVariant {
   priceModifier?: number; // + or - from base price
   imageUrl?: string;
   barcode?: string;
-  /** Print-on-demand: this variant's id at the printer (Printful sync variant id). */
-  externalId?: string;
 }
 
 export interface StoreProduct {
@@ -6526,8 +6524,6 @@ export interface StoreProduct {
   colorOptions?: { name: string; hex: string }[];   // swatch selector
   sizeOptions?: string[];                            // size selector
   isClothing?: boolean;                              // enables AI try-on
-  /** Measurements per size, shown on the product page (services/storeShopCore.parseSizeChart). */
-  sizeChart?: { unit: 'in' | 'cm'; columns: string[]; rows: { size: string; values: string[] }[]; note?: string } | null;
   rating?: number;
   reviewCount?: number;
   soldCount?: number;
@@ -6543,9 +6539,6 @@ export interface StoreProduct {
   ministryId?: string;
   // ── Media / DAM link (surfaces a store product in the Content Asset Manager) ──
   videoUrl?: string;
-  /** The product gallery in order: photos, videos and Tela documents (services/productMediaCore). When set,
-   *  `images` is kept as its picture list (photos + each Tela doc's rendered image) for cards, cart and checkout. */
-  media?: StoreProductMedia[];
   linkedAssetId?: string;   // Track/Video/Album this product is tied to
   // ── Pluggable fulfillment (provider-agnostic; folded in from the legacy merch model) ──
   fulfillmentSource?: 'printful' | 'gelato' | 'manual' | 'external' | 'api';
@@ -6556,21 +6549,6 @@ export interface StoreProduct {
   externalStoreUrl?: string;        // Shopify/WooCommerce/etc. product URL
   // ── Consolidation bridge: set when this doc was migrated from a legacy MerchItem ──
   legacyMerchId?: string;
-}
-
-/** One item in a product gallery. A Tela document shows as its rendered image (`url`) and opens in Tela. */
-export interface StoreProductMedia {
-  id: string;
-  kind: 'image' | 'video' | 'tela';
-  /** image: the photo · video: the video file · tela: the rendered image of the document. */
-  url: string;
-  /** video: still shown before it plays. */
-  poster?: string;
-  /** tela: the Tela document (also set on a photo that was recomposed in Tela, so it reopens with its layers). */
-  telaDocId?: string;
-  /** The Content HQ file this came from (the HQ original is never changed). */
-  hqAssetId?: string;
-  alt?: string;
 }
 
 export interface StoreOrderItem {

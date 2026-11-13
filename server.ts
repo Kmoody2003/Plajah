@@ -20,7 +20,7 @@ import { readFileSync, existsSync } from 'fs';
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { buildProgramGuide, buildXmltv, buildMrss, nowAndNext, type EpgSlot, type EpgChannel, type MrssItem } from './services/fastChannelEpg';
 import { slotDurationSec } from './services/fastChannelTimeline';
-import { resolveLine as resolveInventoryLine, planDecrement as planDecrementInventory, variantStockSeed as variantStockSeedInventory, isTracked as isTrackedInventory, isSafeVariantId as isSafeVariantIdInventory, trackingUrl as trackingUrlInventory } from './services/inventoryCore';
+import { resolveLine as resolveInventoryLine, planDecrement as planDecrementInventory, variantStockSeed as variantStockSeedInventory, isTracked as isTrackedInventory, isSafeVariantId as isSafeVariantIdInventory } from './services/inventoryCore';
 import { computeTax, parseTaxSettings, normalizeTaxClass, type TaxSettings } from './services/taxCore';
 import { shouldPushChatMessage } from './services/chat/chatCore';
 import { validateTenders, sanitizeTip, parseTenders, tenderLabel, isStoredValueTender, type Tender } from './services/tenderCore';
@@ -108,9 +108,7 @@ import { createGeminiLane, geminiConfigured, geminiGenerate, laneModel } from '.
 import { systemText, toAnthropicResponse, toGeminiContents } from './services/ai/anthropicCompat';
 import { teacherPlayer, teacherSystem, teacherTurns } from './services/melos/beats/band/teacherPrompt';
 import { PLATFORM_CUT_PCT as BOOK_PLATFORM_CUT_PCT } from './services/bookmeta/pricing';
-import { plajahPlusBreakdown, saleBreakdown, storeOrderFees, type SaleBreakdown } from './services/payments/saleFees';
-import { encryptSecret as encryptShopSecret, decryptSecret as decryptShopSecret } from './services/fabula/genVault';
-import { parseShopSettings, quoteShipping, applyShopCode, normalizeCode as normalizeShopCode, parseShopCode, returnPolicyText, shippingPolicyText, orderEmail, shortOrderId, planOnlineRefund, remainingRefundLines, onlineRefundOrder, externalRefundEntry, isEmail as isShopEmail, ONLINE_CANCELLABLE, shipFromReady, parcelWeightOz, shippoShipment, shippoRates, printerVariantId, printfulOrderBody, printfulTracking, sellerDisputeShare, type ShopSettings, type ShipOption, type OrderEmailKind, type OrderEmailData } from './services/storeShopCore';
+import { plajahPlusBreakdown, saleBreakdown, type SaleBreakdown } from './services/payments/saleFees';
 import { checkSaleRoute, feesFromMeta, fixedCutBreakdown, paymentRouting, saleMeta, subscriptionRouting, type RouteCheck, type SaleRoute } from './services/payments/directRoute';
 import { readRegistry as readEditionRegistry, licenceActive, entitledEditions, editionOf, type BookVersionStamp } from './services/bookEditions/policy';
 import { createLedgerRouter, appendLedger } from './routes/ledger';
@@ -3612,37 +3610,6 @@ async function startServer() {
                     if (Number(card?.onlineOrders) >= 3) await unlock('LOYAL_SHOPPER');
                   } catch (e: any) { console.error('[store] rewards failed', e?.message || e); }
                 }
-                // Stripe Tax (when on) decides the tax at checkout: record what it charged.
-                if (order.stripeTax === true && (session as any).total_details) await firestoreWrite('storeOrders', meta.orderId, { taxCents: Number((session as any).total_details.amount_tax) || 0 }).catch(() => {});
-                if (order.discountCode && shop) await firestoreIncrement(`storeCodes/${shop}_${normalizeShopCode(order.discountCode)}`, { uses: 1 }).catch(() => false);
-                // Order emails: the buyer's confirmation (with downloads + the order link) and the seller's "new order".
-                try {
-                  const fresh: Record<string, any> = { ...order, ...(addr ? { shipName: String(ship?.name || ''), shipLine1: String(addr.line1 || ''), shipLine2: String(addr.line2 || ''), shipCity: String(addr.city || ''), shipState: String(addr.state || ''), shipPostal: String(addr.postal_code || ''), shipCountry: String(addr.country || '') } : {}), totalCents: Number(session.amount_total) || 0 };
-                  const settings = await loadShopSettings(shop);
-                  const shopName = await shopNameFor(shop);
-                  const origin = process.env.PUBLIC_APP_ORIGIN || 'https://plajah.com';
-                  const base: OrderEmailData = {
-                    shopName, orderId: meta.orderId, lines: orderLinesForEmail(fresh), subtotalCents: Number(order.subtotalCents) || 0, discountCents: Number(order.discountCents) || 0,
-                    shippingCents: (Number(order.shippingCents) || 0) + (Number(order.shippingTaxCents) || 0), taxCents: order.stripeTax ? Number((session as any).total_details?.amount_tax) || 0 : Number(order.taxCents) || 0,
-                    totalCents: Number(session.amount_total) || 0, ship: orderShipForEmail(fresh), contactEmail: settings.contactEmail, customerName: String(order.customerName || ship?.name || ''),
-                  };
-                  const buyerEmail = String(session.customer_details?.email || order.customerEmail || '');
-                  const pd = settings.shipping.processingDaysMin === settings.shipping.processingDaysMax ? `${settings.shipping.processingDaysMin}` : `${settings.shipping.processingDaysMin}–${settings.shipping.processingDaysMax}`;
-                  if (buyerEmail) await sendOrderEmailOnce(meta.orderId, 'CONFIRMED', buyerEmail, {
-                    ...base, orderUrl: orderStatusUrl(origin, fresh), downloads: await digitalDownloadsFor(fresh), returnPolicy: returnPolicyText(settings.returns),
-                    processing: fresh.fulfillment === 'SHIP' ? `ships in ${pd} business days` : '',
-                  });
-                  if (shop) {
-                    await firestoreCreate('notifications', { userId: shop, senderId: 'plajah-store', senderName: 'Plajah Store', senderPhoto: '', type: 'SYSTEM', title: `New order · $${((Number(session.amount_total) || 0) / 100).toFixed(2)}`, message: `${base.customerName || 'A customer'} ordered ${base.lines.map(l => `${l.qty}× ${l.title}`).slice(0, 3).join(', ')}.`, link: 'BUSINESS_DASHBOARD', targetId: meta.orderId, isRead: false, timestamp: Date.now() }).catch(() => {});
-                    const sellerTo = await sellerEmailFor(shop, settings);
-                    if (sellerTo) await sendOrderEmailOnce(meta.orderId, 'NEW_ORDER', sellerTo, { ...base, orderUrl: `${origin}/?view=BUSINESS_DASHBOARD` });
-                  }
-                } catch (e: any) { console.error('[store] order emails failed', e?.message || e); }
-                // Print on demand: printed lines go to the seller's own Printful account (they pay the printer).
-                try {
-                  const shipped: Record<string, any> = { ...order, ...(addr ? { shipName: String(ship?.name || ''), shipLine1: String(addr.line1 || ''), shipLine2: String(addr.line2 || ''), shipCity: String(addr.city || ''), shipState: String(addr.state || ''), shipPostal: String(addr.postal_code || ''), shipCountry: String(addr.country || '') } : {}), customerEmail: String(session.customer_details?.email || order.customerEmail || '') };
-                  await submitPrintfulOrder(meta.orderId, shipped);
-                } catch (e: any) { console.error('[store] printful submit failed', e?.message || e); }
               }
               if (order.giftCardsPending) { try { await issueOnlineGiftCards(String(meta.orderId), order); } catch (e: any) { console.error('[store] online gift cards failed', e?.message || e); } }
               try {
@@ -3718,7 +3685,6 @@ async function startServer() {
           try {
             const dispute = event.data.object;
             const charge = await getStripe().charges.retrieve(idOf(dispute.charge));
-            await flagStoreDispute(dispute, charge, event.type.endsWith('created') ? 'created' : 'closed').catch((e: any) => console.error('[Store] dispute flag failed:', e?.message));
             // A loss takes back the disputed money on top of anything already refunded.
             const lostCents = (Number(charge.amount_refunded) || 0) + (Number(dispute.amount) || 0);
             await creatorPayouts.applyDispute(idOf(charge.payment_intent) || '', String(dispute.status), lostCents, Number(charge.amount) || 0);
@@ -11152,7 +11118,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     app.get('*all', async (req, res, next) => {
       // API routes registered after this catch-all (/api/fetch-rss, /api/cora,
       // MUSE agent) must not be served the SPA shell — let them resolve.
-      if (req.path.startsWith('/api/') || req.path.startsWith('/t/') || req.path.startsWith('/i/') || req.path.startsWith('/o/') || req.path.startsWith('/r/')) return next();   // /t/* = public ticket page (ticketServer); /i/* = evite page (eviteServer); /o/* = buyer order page; /r/* = POS receipt
+      if (req.path.startsWith('/api/') || req.path.startsWith('/t/') || req.path.startsWith('/i/')) return next();   // /t/* = public ticket page (ticketServer); /i/* = evite page (eviteServer)
       // Hosting falls back here for /assets/** it doesn't have (this container's own bundle hashes,
       // which differ from the hosting build). A hashed file that isn't in dist/ is a 404 — never the shell.
       if (req.path.startsWith('/assets/')) return res.status(404).end();
@@ -11592,243 +11558,71 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // Stripe Connect DIRECT: funds settle straight to the BUSINESS's connected account; Plajah never
   // holds them (optional application fee only). Lines are priced + stock-checked SERVER-SIDE (variants
   // included); stock is decremented by the webhook once paid.
-  // Fees: services/payments/saleFees.storeOrderFees (5%, 0% with Plajah+). Shipping: each shop's own settings (storeShopCore).
-  // ── Online shop helpers (rules in services/storeShopCore.ts) ──────────────────────────────────
-  // businesses/{b}.storeSettings   JSON: return policy, shipping, contact (public read; parsed on every use)
-  // storeCodes/{b}_{CODE}         discount codes (server-only; sellerId = b)
-  // storeEmailLog/{orderId_KIND}   one email per order event (server-only lock)
-  const loadShopSettings = async (b: string): Promise<ShopSettings> => {
-    try { const d = await firestoreRead('businesses', b); return parseShopSettings(d?.storeSettings); } catch { return parseShopSettings(null); }
-  };
-  // The return address is private: businesses/{b} is public-read, so it lives in server-only shopSecrets/{b}.shipFrom
-  // and only the shop's own managers ever get it back.
-  const loadShopShipFrom = async (b: string): Promise<ShopSettings['shipFrom']> => {
-    try { const d = await firestoreGetDeep('shopSecrets', b); return parseShopSettings({ shipFrom: d?.shipFrom ? JSON.parse(String(d.shipFrom)) : null }).shipFrom; }
-    catch { return parseShopSettings(null).shipFrom; }
-  };
-  const shopNameFor = async (b: string): Promise<string> => {
+  const STORE_APP_FEE_BPS = 0; // Plajah's per-order platform fee in basis points (200 = 2%). 0 = none at launch.
+  const SHIP_FLAT_CENTS = 599, FREE_SHIP_OVER_CENTS = 5000;   // mirrors the storefront copy: "$5.99, free over $50"
+  app.post('/api/store/create-order', authMiddleware, express.json(), async (req: any, res) => {
     try {
-      const biz = await firestoreRead('businesses', b);
-      const n = biz?.name || biz?.businessName;
-      if (n) return String(n).slice(0, 80);
-      const org = await firestoreRead('organizations', b);
-      if (org?.name) return String(org.name).slice(0, 80);
-      const u = await firestoreRead('users', b);
-      return String(u?.displayName || u?.username || 'the shop').slice(0, 80);
-    } catch { return 'the shop'; }
-  };
-  /** Where the shop's own notices go: its public contact email, else the owner's account email. */
-  const sellerEmailFor = async (b: string, settings?: ShopSettings): Promise<string> => {
-    const s = settings || await loadShopSettings(b);
-    if (s.contactEmail) return s.contactEmail;
-    try {
-      const u = await firestoreRead('users', b);
-      if (u?.email && isShopEmail(String(u.email))) return String(u.email);
-      const org = await firestoreRead('organizations', b);
-      const owner = org?.creatorId ? await firestoreRead('users', String(org.creatorId)) : null;
-      if (owner?.email && isShopEmail(String(owner.email))) return String(owner.email);
-    } catch { /* none */ }
-    return '';
-  };
-  const sendStoreEmail = async (to: string, m: { subject: string; text: string; html: string }, replyTo?: string): Promise<boolean> => {
-    if (!process.env.RESEND_API_KEY || !isShopEmail(to)) return false;
-    try {
-      const r = await fetch('https://api.resend.com/emails', {
-        method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: process.env.RESEND_FROM || 'Plajah <onboarding@resend.dev>', to, subject: m.subject, text: m.text, html: m.html, ...(replyTo && isShopEmail(replyTo) ? { reply_to: replyTo } : {}) }),
-      });
-      return r.ok;
-    } catch { return false; }
-  };
-  /** One email per (order, event, recipient role): a create-once lock, released if the send fails so a retry can try again. */
-  const sendOrderEmailOnce = async (orderId: string, kind: OrderEmailKind, to: string, d: OrderEmailData, tag = ''): Promise<boolean> => {
-    if (!isShopEmail(to)) return false;
-    const lockId = `${orderId}_${kind}${tag ? `_${tag}` : ''}`.slice(0, 200);
-    const lock = await firestoreCreateOnce('storeEmailLog', lockId, { orderId, kind, at: Date.now() });
-    if (lock !== 'created') return false;
-    const ok = await sendStoreEmail(to, orderEmail(kind, d), kind === 'NEW_ORDER' || kind === 'DISPUTE' ? undefined : d.contactEmail);
-    if (!ok) await firestoreDeleteDoc('storeEmailLog', lockId).catch(() => {});
-    return ok;
-  };
-  const orderLinesForEmail = (o: any) => { try { return (JSON.parse(String(o.items || '[]')) as any[]).map(i => ({ title: String(i.title || 'Item'), qty: Number(i.qty) || 1, variantName: i.variantName || null, amountCents: i.chargeCents !== undefined ? Number(i.chargeCents) : (Number(i.unitAmount) || 0) * (Number(i.qty) || 1) })); } catch { return []; } };
-  const orderShipForEmail = (o: any) => (o.shipLine1 ? { name: o.shipName, line1: o.shipLine1, line2: o.shipLine2, city: o.shipCity, state: o.shipState, postal: o.shipPostal, country: o.shipCountry } : null);
-  const orderStatusUrl = (origin: string, o: any) => (o.statusToken ? `${origin}/o/${o.statusToken}` : `${origin}/?view=MY_ORDERS`);
-  /** Paid digital products on an order, with their files. */
-  const digitalDownloadsFor = async (o: any): Promise<{ title: string; url: string }[]> => {
-    const out: { title: string; url: string }[] = [];
-    let items: any[] = []; try { items = JSON.parse(String(o.items || '[]')); } catch { /* none */ }
-    for (const i of items.slice(0, 30)) {
-      const p = i?.productId ? await loadStoreProduct(String(i.productId)).catch(() => null) : null;
-      if (p?.isDigital && /^https:\/\//.test(String(p.digitalFileUrl || ''))) out.push({ title: String(p.title || i.title || 'Download'), url: String(p.digitalFileUrl) });
-    }
-    return out;
-  };
-  /**
-   * Who may run a shop's back office. The owner, a seated staff member with the permission, or (for an org's
-   * shop) the org's finance/IT/senior staff. Refunds need REFUNDS; status changes need ORDERS.
-   */
-  const shopCan = async (req: any, b: string, perm: 'ORDERS' | 'REFUNDS' | 'INVENTORY' | 'REPORTS'): Promise<{ ok: true; by: string; byName: string } | { ok: false; status: number; error: string }> => {
-    if (!req.uid || !b) return { ok: false, status: 401, error: 'Sign in first.' };
-    if (req.uid === b) return { ok: true, by: req.uid, byName: 'Owner' };
-    const perms = await businessStaffPerms(req.uid, b).catch(() => null);
-    if (perms && perms.includes(perm as any)) return { ok: true, by: req.uid, byName: 'Staff' };
-    const org = await assertOrgFinanceAccess(req.uid, b).catch(() => null);
-    if (org && 'org' in org) return { ok: true, by: req.uid, byName: 'Org admin' };
-    return { ok: false, status: 403, error: 'You don’t have access to this shop’s orders.' };
-  };
-  /** The shop's Stripe customer for a signed-in buyer, so Checkout remembers and prefills their address. */
-  const storeCustomerFor = async (uid: string, email?: string): Promise<string | undefined> => {
-    try {
-      const have = await firestoreRead('storeCustomers', uid);
-      if (have?.stripeCustomerId) return String(have.stripeCustomerId);
-      const c = await getStripe().customers.create({ ...(email ? { email } : {}), metadata: { uid, purpose: 'store' } }, { idempotencyKey: `storecust_${uid}` });
-      await firestoreWrite('storeCustomers', uid, { stripeCustomerId: c.id, createdAt: Date.now() });
-      return c.id;
-    } catch (e: any) { console.error('[store] customer', e?.message || e); return undefined; }
-  };
-  /** Price a cart for a shop: lines, discount code, shipping for the chosen country/method, tax and fees. Shared by checkout and the cart preview. */
-  const quoteStoreCart = async (b: string, body: any) => {
-    const priced = await priceStoreLines(Array.isArray(body?.items) ? body.items : [], b);
-    if (priced.ok === false) return { ok: false as const, status: priced.status, error: priced.error, code: priced.code, available: priced.available };
-    const { lines, products, subtotalCents } = priced;
-    const settings = await loadShopSettings(b);
-    const physical = lines.filter(l => !products.get(l.productId)?.isDigital);
-    const physicalUnits = physical.reduce((s, l) => s + l.qty, 0);
-    const wantsPickup = body?.fulfillment === 'PICKUP' && settings.shipping.pickup;
-    const needsShipping = physical.length > 0 && !wantsPickup;
-    // Discount code (merchandise only).
-    let discountCents = 0, freeShipping = false, discountCode = '';
-    if (body?.discountCode) {
-      const c = normalizeShopCode(body.discountCode);
-      const stored = c ? await firestoreRead('storeCodes', `${b}_${c}`).catch(() => null) : null;
-      const ap = applyShopCode(stored as any, subtotalCents);
-      if (ap.ok === false) return { ok: false as const, status: 400, error: ap.error, code: 'BAD_CODE' };
-      discountCents = ap.discountCents; freeShipping = ap.freeShipping; discountCode = ap.code;
-    }
-    let shipOption: ShipOption | null = null, shipCountry = '';
-    if (needsShipping) {
-      const q = quoteShipping(settings.shipping, { itemCount: physicalUnits, subtotalCents: subtotalCents - discountCents, toCountry: body?.shipCountry, freeShipping });
-      if (q.ok === false) return { ok: false as const, status: 400, error: q.error, code: q.code };
-      shipCountry = q.country;
-      shipOption = q.options.find(o => o.id === body?.shipMethod) || q.options[0];
-    }
-    const shippingCents = shipOption?.amountCents || 0;
-    const rsettings = await loadRegisterSettings(b);
-    const stripeTax = process.env.STORE_STRIPE_TAX === '1';
-    const taxed = computeTax(taxInputs(lines, products), stripeTax ? { defaultRateBps: 0 } : rsettings.tax, { discountCents });
-    const inclusive = !stripeTax && !!rsettings.tax.inclusive;
-    const shippingTaxCents = !stripeTax && !inclusive && settings.shipping.taxShipping && shippingCents > 0 ? Math.round(shippingCents * rsettings.tax.defaultRateBps / 10000) : 0;
-    const taxCents = inclusive ? 0 : taxed.taxCents + shippingTaxCents;
-    const merchandiseCents = subtotalCents - taxed.discountCents;
-    const totalCents = (inclusive ? taxed.totalCents : merchandiseCents + taxed.taxCents) + shippingCents + shippingTaxCents;
-    return {
-      ok: true as const, settings, lines, products, taxed, subtotalCents, discountCents: taxed.discountCents, discountCode, freeShipping,
-      needsShipping, wantsPickup, shipOption, shipCountry, shippingCents, shippingTaxCents, taxCents, inclusive, stripeTax, merchandiseCents, totalCents,
-    };
-  };
-
-  /** Cart preview: the real totals (code, shipping, tax) before the buyer goes to pay. */
-  app.post('/api/store/quote', express.json({ limit: '64kb' }), async (req: any, res) => {
-    try {
-      const b = String(req.body?.businessUid || '');
-      if (!b) return res.status(400).json({ error: 'businessUid required.' });
-      const q = await quoteStoreCart(b, req.body);
-      if (q.ok === false) return res.status(q.status).json({ error: q.error, code: q.code, available: q.available });
-      res.json({
-        subtotalCents: q.subtotalCents, discountCents: q.discountCents, discountCode: q.discountCode, shippingCents: q.shippingCents,
-        shippingLabel: q.shipOption?.label || (q.wantsPickup ? 'Local pickup' : ''), shipCountry: q.shipCountry,
-        taxCents: q.taxCents, taxAtCheckout: q.stripeTax, totalCents: q.totalCents,
-        shipping: { domesticCountry: q.settings.shipping.domesticCountry, countries: q.settings.shipping.international ? q.settings.shipping.countries : [], expressCents: q.settings.shipping.expressCents, pickup: q.settings.shipping.pickup, pickupNote: q.settings.shipping.pickupNote },
-      });
-    } catch (err: any) { console.error('/api/store/quote', err?.message || err); res.status(500).json({ error: 'Could not price your cart.' }); }
-  });
-
-  // Signed-in buyers get their order in My Orders and earn rewards; guests check out with just an email and
-  // follow the order from the link in their confirmation email (/o/:token).
-  app.post('/api/store/create-order', express.json({ limit: '64kb' }), async (req: any, res) => {
-    try {
-      const bearer = String(req.headers?.authorization || '');
-      const who = bearer.startsWith('Bearer ') ? await verifyFirebaseToken(bearer.slice(7)) : null;
-      if (bearer && !who) return res.status(401).json({ error: 'Your sign-in expired. Sign in again or check out as a guest.' });
-      const customerUid: string = who?.uid || '';
-      const { businessUid, note, customerName } = req.body || {};
-      if (!businessUid || !Array.isArray(req.body?.items) || req.body.items.length === 0) {
+      const customerUid: string = req.uid;
+      const { businessUid, items, fulfillment, note, customerName } = req.body || {};
+      if (!businessUid || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ error: 'businessUid and items are required.' });
       }
-      const b = String(businessUid);
-      if (customerUid && customerUid === b) return res.status(400).json({ error: 'You can’t buy from your own shop.' });
       // Resolve the business's connected Stripe account — the money goes straight to them.
       const acct = await shopPayoutAccount(b);
       if (!acct) return res.status(400).json({ error: STRIPE_TEST_MODE ? 'Stripe test mode: set STRIPE_TEST_DESTINATION (run scripts/stripeTestSetup.mjs).' : 'This shop has not connected Stripe payouts yet.' });
 
-      const q = await quoteStoreCart(b, req.body);
-      if (q.ok === false) return res.status(q.status).json({ error: q.error, code: q.code, available: q.available });
-      const { lines, products, taxed } = q;
+      const priced = await priceStoreLines(items, businessUid);
+      if (priced.ok === false) return res.status(priced.status).json({ error: priced.error, code: priced.code, available: priced.available });
+      const { lines, products, subtotalCents } = priced;
+      const needsShipping = fulfillment === 'SHIP' && lines.some(l => !products.get(l.productId)?.isDigital);
+      const shippingCents = needsShipping ? (subtotalCents >= FREE_SHIP_OVER_CENTS ? 0 : SHIP_FLAT_CENTS) : 0;
 
-      const lineItems: any[] = lines.map(l => ({
+      // Sales tax (owner-entered rates, server-computed). Digital/untaxed classes follow product.taxClass; shipping is not taxed here.
+      const rsettings = await loadRegisterSettings(businessUid);
+      const taxedOnline = computeTax(taxInputs(lines, products), rsettings.tax);
+      const onlineTaxCents = rsettings.tax.inclusive ? 0 : taxedOnline.taxCents;   // inclusive prices already carry tax
+
+      const lineItems = lines.map(l => ({
         price_data: {
           currency: 'usd',
           product_data: { name: l.variantName ? `${l.title} — ${l.variantName}` : l.title, ...(/^https:\/\//.test(l.image || '') && String(l.image).length < 2000 ? { images: [l.image] } : {}) },
           unit_amount: l.unitAmount,
-          ...(q.stripeTax ? { tax_behavior: 'exclusive' } : {}),
         },
         quantity: l.qty,
       }));
-      // Item tax rides its own line; tax on shipping is inside the shipping rate. (Inclusive prices already carry tax.)
-      if (!q.stripeTax && !q.inclusive && taxed.taxCents > 0) lineItems.push({ price_data: { currency: 'usd', product_data: { name: 'Sales tax' }, unit_amount: taxed.taxCents }, quantity: 1 });
-      // A code becomes a one-time Stripe coupon for exactly the discount we priced.
-      let discounts: any[] | undefined;
-      if (q.discountCents > 0) {
-        const coupon = await getStripe().coupons.create({ amount_off: q.discountCents, currency: 'usd', duration: 'once', max_redemptions: 1, name: `Code ${q.discountCode}`.slice(0, 40) });
-        discounts = [{ coupon: coupon.id }];
-      }
+
+      if (onlineTaxCents > 0) lineItems.push({ price_data: { currency: 'usd', product_data: { name: 'Sales tax' }, unit_amount: onlineTaxCents }, quantity: 1 } as any);
       const orderId = `so_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
       const statusToken = nodeCrypto.randomBytes(24).toString('hex');
       const fees = storeOrderFees({ merchandiseCents: q.merchandiseCents, shippingCents: q.shippingCents, totalCents: q.totalCents }, await shopHasPlajahPlus(b));
       const origin = trustedRequestOrigin(req);
-      const customer = customerUid ? await storeCustomerFor(customerUid, who?.email) : undefined;
       const session = await getStripe().checkout.sessions.create({
         mode: 'payment',
         payment_method_types: ['card'],
         line_items: lineItems,
-        ...(discounts ? { discounts } : {}),
         expires_at: Math.floor(Date.now() / 1000) + 31 * 60,        // don't hold a cart for 24h
-        ...(customer ? { customer, customer_update: { shipping: 'auto', address: 'auto' } } : who?.email ? { customer_email: who.email } : {}),
-        ...(q.stripeTax ? { automatic_tax: { enabled: true } } : {}),
-        ...(q.needsShipping && q.shipOption ? {
-          shipping_address_collection: { allowed_countries: [q.shipCountry] },
-          shipping_options: [{ shipping_rate_data: {
-            type: 'fixed_amount', fixed_amount: { amount: q.shippingCents + q.shippingTaxCents, currency: 'usd' },
-            display_name: q.shippingTaxCents ? `${q.shipOption.label} (incl. tax)` : q.shipOption.label,
-            ...(q.stripeTax ? { tax_behavior: 'exclusive' } : {}),
-          } }],
+        ...(needsShipping ? {
+          shipping_address_collection: { allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'NL', 'IE', 'NZ', 'MX'] },
+          shipping_options: [{ shipping_rate_data: { type: 'fixed_amount', fixed_amount: { amount: shippingCents, currency: 'usd' }, display_name: shippingCents ? 'Standard shipping' : 'Free shipping' } }],
         } : {}),
         payment_intent_data: {
-          ...(fees.applicationFeeCents > 0 ? { application_fee_amount: fees.applicationFeeCents } : {}),
+          ...(appFee > 0 ? { application_fee_amount: appFee } : {}),
           transfer_data: { destination: acct },   // DIRECT to the business — Plajah never holds the funds
-          metadata: { type: 'store_order', orderId, businessUid: b },
+          metadata: { type: 'store_order', orderId, businessUid },
         },
-        success_url: `${origin}/o/${statusToken}?paid=1`,
+        success_url: `${origin}/?order=success`,
         cancel_url: `${origin}/?order=cancelled`,
-        metadata: { type: 'store_order', orderId, businessUid: b },
+        metadata: { type: 'store_order', orderId, businessUid },
       });
       await firestoreWrite('storeOrders', orderId, {
-        businessUid: b, customerUid: customerUid || 'guest',
+        businessUid, customerUid,
         // buyerId/sellerId mirror customerUid/businessUid so the storeOrders security rules (which gate
         // read/update on buyerId==uid / sellerId==uid) permit the customer to read their orders and the
-        // business to read + advance them. Guests have no uid; they read through /o/:token.
-        buyerId: customerUid || 'guest', sellerId: b, guest: !customerUid, source: 'ONLINE',
-        items: JSON.stringify(lines.map((l, i) => ({
-          productId: l.productId, variantId: l.variantId || null, title: l.title, qty: l.qty, unitAmount: l.unitAmount,
-          variantName: l.variantName || null, image: l.image || null, sku: String(products.get(l.productId)?.sku || '').slice(0, 60) || null,
-          chargeCents: taxed.lines[i]?.chargeCents ?? l.unitAmount * l.qty, taxCents: taxed.lines[i]?.taxCents ?? 0,
-        }))),
-        subtotalCents: q.subtotalCents, discountCents: q.discountCents, discountCode: q.discountCode,
-        shippingCents: q.shippingCents, shippingTaxCents: q.shippingTaxCents, shippingMethod: q.shipOption?.id || '', shipCountry: q.shipCountry,
-        taxCents: q.taxCents, taxInclusive: q.inclusive, stripeTax: q.stripeTax,
-        platformFeeCents: fees.platformFeeCents, processingCents: fees.processingCents, feePct: fees.feePct,
-        fulfillment: q.needsShipping ? 'SHIP' : 'PICKUP',
-        ...(who?.email ? { customerEmail: String(who.email) } : {}),
+        // business to read + advance them.
+        buyerId: customerUid, sellerId: businessUid,
+        items: JSON.stringify(lines.map(l => ({ productId: l.productId, variantId: l.variantId || null, title: l.title, qty: l.qty, unitAmount: l.unitAmount, variantName: l.variantName || null, image: l.image || null }))),
+        subtotalCents, shippingCents, taxCents: taxedOnline.taxCents, taxInclusive: !!rsettings.tax.inclusive,
+        fulfillment: needsShipping ? 'SHIP' : 'PICKUP',
         note: String(note || '').slice(0, 500), customerName: String(customerName || '').slice(0, 120),
         status: 'PENDING_PAYMENT', createdAt: Date.now(), stripeSessionId: session.id, statusToken,
         ...(STRIPE_TEST_MODE ? { testMode: true } : {}),
@@ -11836,7 +11630,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       res.json({ url: session.url, orderId });
     } catch (err: any) {
       console.error('/api/store/create-order', err.message);
-      res.status(500).json({ error: 'Could not start checkout. Try again.' });
+      res.status(500).json({ error: err.message });
     }
   });
 

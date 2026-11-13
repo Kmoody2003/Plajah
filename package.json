@@ -78,8 +78,6 @@
     "drive:living": "node scripts/living/driveLab.mjs",
     "test:feedengine": "npx tsx --test tests/feedEngine.test.ts",
     "test:inventory": "npx tsx --test tests/inventoryCore.test.ts",
-    "test:store": "npx tsx --test tests/storeShop.test.ts",
-    "test:product-edit": "npx tsx --test tests/productEdit.test.ts",
     "test:commerce": "npx tsx --test tests/commerceBus.test.ts",
     "test:splits": "npx tsx --test tests/splitPayouts.test.ts tests/directRoute.test.ts tests/saleFees.test.ts",
     "test:shipped": "npx tsx --test tests/splitPayouts.test.ts tests/directRoute.test.ts tests/saleFees.test.ts tests/hqScopeWall.test.ts tests/hqAccountIsolation.test.ts tests/hqAccessPolicy.test.ts tests/hqSecurityAlerts.test.ts tests/hqFileRecord.test.ts tests/identityPowers.test.ts tests/mediaTrashPolicy.test.ts tests/hqMalwareScanner.test.ts",

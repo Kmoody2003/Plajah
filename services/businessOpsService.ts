@@ -16,7 +16,7 @@ export interface StoreOrderRecord {
   businessUid: string;
   customerUid: string;
   status: string;                 // PENDING_PAYMENT | CONFIRMED | PREPARING | READY | COMPLETED | CANCELLED
-  items: { productId: string; variantId?: string | null; title: string; qty: number; unitAmount: number; variantName?: string | null; image?: string | null; sku?: string | null; chargeCents?: number; taxCents?: number }[];
+  items: { productId: string; variantId?: string | null; title: string; qty: number; unitAmount: number; variantName?: string | null; image?: string | null }[];
   subtotalCents: number;
   shippingCents?: number;
   totalCents?: number;            // what the customer actually paid (Stripe total / POS net)
@@ -28,26 +28,9 @@ export interface StoreOrderRecord {
   trackingNumber?: string;
   trackingCarrier?: string;
   oversold?: boolean;             // paid for stock that had just run out — seller must restock or refund
-  source?: string;                // 'POS' for register sales, 'ONLINE' for the web shop
+  source?: string;                // 'POS' for register sales
   createdAt: number;
   paidAt?: number;
-  discountCents?: number;
-  discountCode?: string;
-  taxCents?: number;
-  shippingTaxCents?: number;
-  refundedCents?: number;
-  partiallyRefunded?: boolean;
-  refundLog?: { id: string; amountCents: number; at: number; lines?: { index: number; qty: number }[]; external?: boolean }[];
-  disputed?: boolean;
-  disputeDueBy?: number;
-  guest?: boolean;
-  statusToken?: string;
-  stripePaymentIntentId?: string;
-  labelUrl?: string;
-  trackingUrl?: string;
-  printfulStatus?: string;
-  printfulError?: string;
-  disputeReversedCents?: number;
 }
 
 function mapOrder(id: string, x: any): StoreOrderRecord {
@@ -62,13 +45,6 @@ function mapOrder(id: string, x: any): StoreOrderRecord {
     ship: x.shipLine1 ? { name: x.shipName || '', line1: x.shipLine1, line2: x.shipLine2 || undefined, city: x.shipCity || '', state: x.shipState || '', postal: x.shipPostal || '', country: x.shipCountry || '' } : undefined,
     trackingNumber: x.trackingNumber || undefined, trackingCarrier: x.trackingCarrier || undefined,
     oversold: x.oversold === true, source: x.source,
-    discountCents: x.discountCents || 0, discountCode: x.discountCode || undefined, taxCents: x.taxCents || 0, shippingTaxCents: x.shippingTaxCents || 0,
-    refundedCents: x.refundedCents || 0, partiallyRefunded: x.partiallyRefunded === true,
-    refundLog: (() => { try { const v = typeof x.refundLog === 'string' ? JSON.parse(x.refundLog) : x.refundLog; return Array.isArray(v) ? v : []; } catch { return []; } })(),
-    disputed: x.disputed === true, disputeDueBy: x.disputeDueBy || undefined, guest: x.guest === true, statusToken: x.statusToken || undefined,
-    stripePaymentIntentId: x.stripePaymentIntentId || undefined,
-    labelUrl: x.labelUrl || undefined, trackingUrl: x.trackingUrl || undefined,
-    printfulStatus: x.printfulStatus || undefined, printfulError: x.printfulError || undefined, disputeReversedCents: x.disputeReversedCents || 0,
   };
 }
 

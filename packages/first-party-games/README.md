@@ -46,6 +46,10 @@ See `docs/shared-primitives.md` for contracts.
   homes. Phone, certified gear, mixed reality and remote overwatch in one match.
   Status: **design only.** Gated on Plajah Business traction.
 
+- **`games/era-clash/`** — Six warriors from across history in fast arcade combat
+  (versus CPU, local 2P, online duels, Tales of the Ages campaign).
+  Status: **live.**
+
 ## Status conventions
 
 Every game README opens with one of:

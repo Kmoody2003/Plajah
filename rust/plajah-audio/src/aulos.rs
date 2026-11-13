@@ -967,11 +967,11 @@ mod probe {
     #[ignore]
     fn aulos_probe() {
         let sr = 48000.0;
-        for &(inst, n) in &[(10usize, 61.0f32), (3, 67.0), (7, 46.0)] {
+        for &(inst, n) in &[(10usize, 61.0f32), (3, 67.0), (4, 62.0), (7, 46.0), (9, 70.0), (11, 56.0), (12, 48.0), (8, 34.0)] {
             let mut hits = 0;
-            for &bk in &[0.3f32, 0.6, 1.0, 1.8, 3.0] {
-                for &gk in &[0.8f32, 1.2, 1.8, 2.6] {
-                    for &hk in &[0.5f32, 1.0, 2.0, 4.0] {
+            for &bk in &[0.25f32, 0.33, 0.4, 0.45] {
+                for &gk in &[0.7f32, 1.0, 1.5, 2.2] {
+                    for &hk in &[1.0f32, 2.0, 4.0] {
                         for &q in &[0.7f32, 2.5] {
                             let mut p = Params::new();
                             p.set(AULOS_BASE + AU_ENABLE, 1.0);
@@ -984,7 +984,7 @@ mod probe {
                                 pl.g_r = pl.w_r / q; pl.p_target *= gk; pl.h0 *= hk; pl.k_r /= hk;
                                 let per = pl.period;
                                 // move the reed along the tube: rescale the short side and the long side
-                                let up = (pl.up_read + 1.0) * bk;
+                                let up = per * bk;
                                 let lo_shift = up - (pl.up_read + 1.0);
                                 pl.up_read = (up - 1.0).max(1.0);
                                 pl.bore.target = (pl.bore.target - lo_shift).max(2.0);
@@ -997,7 +997,7 @@ mod probe {
                             let rm = (y.iter().map(|q| q * q).sum::<f32>() / y.len() as f32).sqrt();
                             let zc = y.windows(2).filter(|w| w[0] <= 0.0 && w[1] > 0.0).count() as f32 / 0.4;
                             let want = midi_to_hz(n);
-                            if rm > 2e-3 && (zc / want - 1.0).abs() < 0.2 { hits += 1; if hits < 6 { println!("{} β×{} γ×{} h0×{} q{}: rms {:.4} zc {:.0} (want {:.0})", INSTRUMENT_NAMES[inst], bk, gk, hk, q, rm, zc, want); } }
+                            if rm > 2e-3 && (zc / want - 1.0).abs() < 0.2 { hits += 1; if hits < 6 { println!("{} β={} γ×{} h0×{} q{}: rms {:.4} zc {:.0} (want {:.0})", INSTRUMENT_NAMES[inst], bk, gk, hk, q, rm, zc, want); } }
                         }
                     }
                 }
