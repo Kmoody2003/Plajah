@@ -142,6 +142,8 @@ import { isB2Path, b2ObjectRequest, deleteHqB2Objects } from './services/hq/b2St
 import { kithSightingsRouter } from './routes/kithSightings';
 import { createAriaSpeakRouter, decideAriaVoiceAccess } from './routes/ariaSpeak';
 import { createRtcIceRouter } from './routes/rtcIce';
+import { createMeetingsSfuRouter } from './routes/meetingsSfu';
+import { livekitConfigFromEnv } from './services/meetings/livekitServer';
 import { registerShuffleRoutes } from './services/shuffle/shuffleServer';
 import { createDefaultShuffleDeps } from './services/shuffle/shuffleDeps';
 import { decideVerifiedAgentTier, type VerifiedAgentTier, type VerifiedFacts } from './services/aria/ariaTier';
@@ -1137,6 +1139,11 @@ const queryFirebase = async (collectionId: string, filters: Array<{ field: strin
 // retention sweep. Numeric filter values are serialized as doubleValue to match how
 // the Firestore JS SDK writes client-set timestamps (retentionDeleteAt / expiresAt);
 // integer/double compare numerically in Firestore, but this avoids any type mismatch.
+/** Active Plajah+ (same statuses the rest of billing treats as paid). */
+async function hasPlajahPlusSub(uid: string): Promise<boolean> {
+  const subs = await queryFirebase('plajahPlusSubscriptions', [{ field: 'subscriberId', value: uid }], 10);
+  return subs.some((s: any) => ['active', 'trialing', 'past_due'].includes(String(s.status)));
+}
 const fsQueryDocs = async (
   collectionId: string,
   filters: Array<{ field: string; op: string; value: any }>,
@@ -3858,7 +3865,7 @@ async function startServer() {
     '/api/tela/pdf/ask', '/api/tela/pdf/map', '/api/tela/pdf/profile']);
   // Signed webhooks registered further down verify an HMAC over the exact bytes, so their
   // own express.raw must see the untouched body — parsing it here broke every signature.
-  const RAW_BODY_ROUTES = new Set(['/api/merch/stripe-webhook', '/api/mux/webhook', '/api/campaigns/webhook/resend']);
+  const RAW_BODY_ROUTES = new Set(['/api/merch/stripe-webhook', '/api/mux/webhook', '/api/campaigns/webhook/resend', '/api/meetings/sfu/webhook']);
   app.use((req, res, next) => {
     if (LARGE_BODY_ROUTES.has(req.path) || RAW_BODY_ROUTES.has(req.path)) return next();
     return tightJson(req, res, next);
@@ -14475,6 +14482,19 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // Access = verified owner email / admins collection / active Plajah+ subscription (all server-side).
   // Short-lived TURN credentials for WebRTC (routes/rtcIce.ts). Dark until CLOUDFLARE_TURN_* or METERED_* is set.
   app.use('/api/rtc/ice', createRtcIceRouter({ authMiddleware, limiter: apiLimiter }));
+  // Meetings on LiveKit (routes/meetingsSfu.ts, docs/MEETINGS_SFU.md): token minting with the room caps,
+  // webhook usage ledger. Dark until MEETINGS_SFU=1 + LIVEKIT_URL/API_KEY/API_SECRET; until then every
+  // call stays on the rtcCore mesh. 1:1 chat calls always stay peer-to-peer.
+  app.use('/api/meetings/sfu', createMeetingsSfuRouter({
+    authMiddleware, limiter: apiLimiter,
+    config: () => livekitConfigFromEnv(),
+    readDoc: (c, id) => firestoreGetDeep(c, id),
+    createOnce: (c, id, d) => firestoreCreateOnce(c, id, d),
+    patchDoc: (c, id, d) => firestorePatchDeep(c, id, d),
+    query: (c, f, n) => fsQueryDocs(c, f, n),
+    hasPlajahPlus: uid => hasPlajahPlusSub(uid),
+    isAdmin: isPlatformAdminReq,
+  }));
   // Shuffle — Omegle-style random 1:1 video (18+, server-only matchmaking; services/shuffle/*).
   registerShuffleRoutes(app, { authMiddleware, limiter: apiLimiter, deps: createDefaultShuffleDeps() });
 
@@ -15094,10 +15114,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     cronKeyOk: (req: any) => secretsEqual(req.headers['x-cron-key'], process.env.CRON_SECRET) || secretsEqual(req.headers['x-cron-key'], process.env.ADMIN_SEED_KEY),
     getStripe: () => getStripe(),
     trustedRequestOrigin: (req: any) => trustedRequestOrigin(req),
-    hasPlajahPlus: async (uid: string) => {
-      const subs = await queryFirebase('plajahPlusSubscriptions', [{ field: 'subscriberId', value: uid }], 10);
-      return subs.some((s: any) => ['active', 'trialing', 'past_due'].includes(String(s.status)));
-    },
+    hasPlajahPlus: (uid: string) => hasPlajahPlusSub(uid),
   });
   fastVotePledgeHook = fastVote.onPledgeCheckoutCompleted;
   app.use(fastVote.router);

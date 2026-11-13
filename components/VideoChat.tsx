@@ -26,6 +26,7 @@ import RomanceFXOverlay from './RomanceFXOverlay';
 import { CallControlBar, ReactionBar, ReactionFloats } from './call/CallControls';
 import { ChatProduction } from '../services/chatProduction';
 import { queueCallShow } from '../services/ambo/liveCallShows';
+import MeetingRefusal from './meetings/MeetingRefusal';
 
 export interface CallContact { uid: string; displayName: string; photoURL?: string }
 
@@ -41,6 +42,8 @@ export interface MeetingSession {
 interface VideoChatProps {
   /** Run on a scheduled meeting's shared session (guests possible) instead of the room's call. */
   session?: MeetingSession;
+  /** Room cap class on the SFU (services/meetings/sfuCaps.ts). Default 'meeting'; 1:1 calls stay peer-to-peer. */
+  sfuPurpose?: 'huddle' | 'meeting';
   room: ChatRoom;
   onClose: () => void;
   user: any;
@@ -72,6 +75,17 @@ const StreamTile: React.FC<{ stream: MediaStream; label: string; muted?: boolean
   );
 };
 
+const HiddenAudio: React.FC<{ stream: MediaStream }> = ({ stream }) => {
+  const ref = useRef<HTMLAudioElement>(null);
+  useEffect(() => { if (ref.current) ref.current.srcObject = stream; }, [stream]);
+  return <audio ref={ref} autoPlay playsInline className="hidden" />;
+};
+
+/** Remote tiles per grid page: 3×3 with you on desktop, 2×2 on phones. */
+function gridPageSize(): number {
+  return typeof window !== 'undefined' && window.innerWidth < 640 ? 3 : 8;
+}
+
 /**
  * VideoChat — messaging video/voice call on the unified rtcCore backbone (mesh),
  * so the SAME component handles 1:1 AND group calls. Includes fullscreen, an
@@ -79,7 +93,7 @@ const StreamTile: React.FC<{ stream: MediaStream; label: string; muted?: boolean
  * audio), add-a-caller, and a local self + screen preview.
  */
 
-const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = 'VIDEO', ringingName, onInvite, contacts = [], session }) => {
+const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = 'VIDEO', ringingName, onInvite, contacts = [], session, sfuPurpose = 'meeting' }) => {
   const isGuest = session?.role === 'guest';
   // Waiting room (members of a guest-enabled meeting): who is knocking, and who is already in.
   const [lobby, setLobby] = useState<LobbyEntry[]>([]);
@@ -152,6 +166,8 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
     media: { audio: true, video: callType !== 'AUDIO' },
     displayName: auth.currentUser?.displayName || 'You',
   } : null, {
+    // Groups and scheduled meetings go to the SFU when it's on (server decides; 1:1 stays mesh).
+    sfu: { purpose: sfuPurpose },
     excludePeerIds: excludedMeetingPeers,
     allowedPeerIds: isGuest ? undefined : [...room.participants, ...admittedGuests],
     // The session ended mid-recording: close out the meeting recording (the device copy is already safe).
@@ -260,8 +276,25 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
   };
 
   const remotes = [...rtc.remoteStreams.entries()].filter(([id]) => peerOk(id) && meetingPeerAllowed(meeting, selfId || '', id));
+  // Paged grid: only one page of remote videos is on screen (and, on the SFU, received at all); the
+  // loudest speaker is kept on the first page and gets the HD layer. Everyone off-page is still heard.
+  const pageSize = gridPageSize();
+  const speaker = rtc.activeSpeakers.find(id => id !== selfId && remotes.some(([r]) => r === id)) || null;
+  const pageCount = Math.max(1, Math.ceil(remotes.length / pageSize));
+  const [gridPage, setGridPage] = useState(0);
+  const page = Math.min(gridPage, pageCount - 1);
+  let pageRemotes = remotes.slice(page * pageSize, page * pageSize + pageSize);
+  if (page === 0 && speaker && !pageRemotes.some(([id]) => id === speaker) && pageRemotes.length) {
+    pageRemotes = [...pageRemotes.slice(0, -1), remotes.find(([id]) => id === speaker)!];
+  }
+  const offPage = remotes.filter(([id]) => !pageRemotes.some(([v]) => v === id));
+  const visibleKey = pageRemotes.map(([id]) => id).join(',');
+  const { setVideoPolicy } = rtc;
+  useEffect(() => {
+    setVideoPolicy({ visible: visibleKey ? visibleKey.split(',') : [], focus: speaker });
+  }, [visibleKey, speaker, setVideoPolicy]);
   const hasScreen = !!rtc.screenStream;
-  const total = remotes.length + 1;
+  const total = pageRemotes.length + 1;
   const tiles = total + (hasScreen ? 1 : 0);
   const anyConnecting = [...rtc.peerStates.values()].some(s => s === 'connecting' || s === 'new');
   const allConnected = remotes.length > 0 && [...rtc.peerStates.values()].every(s => s === 'connected');
@@ -466,14 +499,30 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
           {allConnected ? 'Connected' : ringingName && remotes.length === 0 ? `Ringing ${ringingName}…` : 'Connecting…'}
         </div>
       )}
-      {rtc.error && (
+      {rtc.error && !rtc.refusal && (
         <div className="shrink-0 flex items-center justify-center gap-2 py-1.5 bg-red-500/15 text-red-400 text-[9px] font-black uppercase tracking-widest">
           <WifiOff size={11} /> {rtc.error}
         </div>
       )}
 
+      {/* Room refused (full / needs a plan / past 300): offer the broadcast instead of a dead call. */}
+      {rtc.refusal && (
+        <div className="flex-1 flex items-center justify-center p-4">
+          <MeetingRefusal refusal={rtc.refusal} onClose={() => void end()} />
+        </div>
+      )}
+      {/* Off-page people are still heard (their video isn't received on the SFU, their audio is). */}
+      {offPage.map(([peerId, stream]) => <HiddenAudio key={peerId} stream={stream} />)}
+      {pageCount > 1 && (
+        <div className="shrink-0 flex items-center justify-center gap-3 py-1 text-[10px] font-black uppercase tracking-widest text-white/60">
+          <button type="button" onClick={() => setGridPage(Math.max(0, page - 1))} disabled={page === 0} aria-label="Previous page of people" className="px-2 py-0.5 rounded-lg bg-white/10 disabled:opacity-30">‹</button>
+          <span>{page + 1} / {pageCount} · {remotes.length + 1} in call</span>
+          <button type="button" onClick={() => setGridPage(Math.min(pageCount - 1, page + 1))} disabled={page >= pageCount - 1} aria-label="Next page of people" className="px-2 py-0.5 rounded-lg bg-white/10 disabled:opacity-30">›</button>
+        </div>
+      )}
+
       {/* Grid */}
-      <div className="flex-1 p-3 sm:p-6 lg:p-12 overflow-y-auto">
+      <div className={`flex-1 p-3 sm:p-6 lg:p-12 overflow-y-auto ${rtc.refusal ? 'hidden' : ''}`}>
         <div className={`grid gap-3 sm:gap-6 h-full ${cols}`}>
           {/* Local tile — always mounted so the self-preview stays attached */}
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
@@ -501,7 +550,7 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
           )}
 
           {/* Remote tiles — one per peer (1:1 or group, same path) */}
-          {remotes.map(([peerId, stream]) => (
+          {pageRemotes.map(([peerId, stream]) => (
             <StreamTile key={peerId} stream={stream} label={nameFor(peerId)} />
           ))}
 

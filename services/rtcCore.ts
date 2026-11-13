@@ -145,7 +145,7 @@ const HQ_VIDEO: MediaTrackConstraints = {
 };
 /** Merge full-HD/framerate targets into the caller's video constraints (facingMode/
  *  deviceId win; HQ fills the rest). `false` stays false. */
-function hqVideo(v: boolean | MediaTrackConstraints | undefined): boolean | MediaTrackConstraints {
+export function hqVideo(v: boolean | MediaTrackConstraints | undefined): boolean | MediaTrackConstraints {
   if (v === false) return false;
   if (v === true || v == null) return { ...HQ_VIDEO };
   return { ...HQ_VIDEO, ...v };
@@ -166,7 +166,7 @@ export const HQ_AUDIO: MediaTrackConstraints = {
 };
 /** Keep the session's audio profile (whatever the caller configured) when switching mic device,
  *  just pinning the chosen deviceId. So a HQ streamer stays HQ, and a call stays on its profile. */
-function withMicDevice(a: boolean | MediaTrackConstraints | undefined, deviceId: string): MediaTrackConstraints {
+export function withMicDevice(a: boolean | MediaTrackConstraints | undefined, deviceId: string): MediaTrackConstraints {
   const base = (a && typeof a === 'object') ? a : {};
   return { ...base, deviceId: { exact: deviceId } };
 }
@@ -191,7 +191,7 @@ function boostAudioSender(pc: RTCPeerConnection, bitrate: number): void {
  *  auto focus/exposure/white-balance, and nudge resolution toward the hardware max. */
 /** First capture. One bad piece must not cost the whole session: a busy or blocked mic still gets you a
  *  camera (and the reverse), and a device that rejects the HD targets still opens at its own defaults. */
-async function captureWithFallback(audio: boolean | MediaTrackConstraints, video: boolean | MediaTrackConstraints): Promise<MediaStream> {
+export async function captureWithFallback(audio: boolean | MediaTrackConstraints, video: boolean | MediaTrackConstraints): Promise<MediaStream> {
   const gum = (c: MediaStreamConstraints) => navigator.mediaDevices.getUserMedia(c);
   try { return await gum({ audio, video }); }
   catch (first: any) {
@@ -211,7 +211,7 @@ async function captureWithFallback(audio: boolean | MediaTrackConstraints, video
 
 /** Open a camera for a hot swap. Phones refuse a second open camera, so if the driver says busy, release
  *  the current one and try again, with short waits while the OS frees the sensor. */
-async function openFreeingCurrent(video: MediaTrackConstraints, current: MediaStreamTrack | undefined): Promise<MediaStream> {
+export async function openFreeingCurrent(video: MediaTrackConstraints, current: MediaStreamTrack | undefined): Promise<MediaStream> {
   const gum = () => navigator.mediaDevices.getUserMedia({ audio: false, video });
   try { return await gum(); }
   catch (e: any) {

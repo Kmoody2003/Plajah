@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "noEmit": true
+  },
+  "include": [
+    "services/meetings/sfuCaps.ts",
+    "services/meetings/sfuUsage.ts",
+    "services/meetings/livekitServer.ts",
+    "services/meetings/livekitSession.ts",
+    "services/meetings/meetingSession.ts",
+    "routes/meetingsSfu.ts",
+    "hooks/useRtcSession.ts",
+    "components/VideoChat.tsx",
+    "components/meetings/Huddle.tsx",
+    "components/meetings/MeetingJoinPage.tsx",
+    "components/meetings/MeetingRefusal.tsx",
+    "components/collab/CollabCall.tsx",
+    "tests/meetingsSfu.test.ts"
+  ]
+}

@@ -18,6 +18,7 @@ import { useMeetingCaptions, type LiveCaption } from '../../hooks/useMeetingCapt
 import { useAriaMeeting, type AriaNotesSink } from '../../hooks/useAriaMeeting';
 import { parsePresence, type AriaLane, type AriaPresence } from '../../services/meetings/ariaMeetingCore';
 import { AriaMeetingPanel } from './AriaMeetingPanel';
+import MeetingRefusal from '../meetings/MeetingRefusal';
 
 const Tile: React.FC<{ stream: MediaStream | null; name: string; uid: string; muted?: boolean; mirror?: boolean }> = ({ stream, name, uid, muted, mirror }) => {
   const ref = useRef<HTMLVideoElement>(null);
@@ -71,7 +72,7 @@ export const CollabCall: React.FC<{
           displayName: me?.displayName || 'You',
         }
       : null,
-    { autoJoin: true, onData }
+    { autoJoin: true, onData, sfu: { purpose: 'meeting' } }  // Same room call as Chat: the SFU when it's on (server decides)
   );
   const fx = useLiveFx(rtc);
   const [sheet, setSheet] = useState(false);
@@ -125,6 +126,7 @@ export const CollabCall: React.FC<{
   }, [joined, rtc.participants]);
 
   if (!joined) return null;
+  if (rtc.refusal) return <MeetingRefusal refusal={rtc.refusal} onClose={onLeave} compact />;
   return (
     <div className="flex flex-col gap-2 p-2">
       {rtc.error && <div className="text-[.66rem] text-red-300">{rtc.error}</div>}
