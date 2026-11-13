@@ -213,7 +213,7 @@ function readWord(raw: string): ParsedWord | null {
   if (!core.replace(/[^\p{L}\p{N}']/gu, '')) return null;
   const hyphenated = /\p{L}-\p{L}/u.test(core);
   // "wo-o-ord" (a repeated vowel across hyphens) is a melisma; "twenty-one" is just two words joined.
-  if (hyphenated && /(\p{L})-\1/u.test(core.toLowerCase())) marks.push('melisma');
+  if (hyphenated && /([aeiouy])-\1/.test(core.toLowerCase())) marks.push('melisma');
   const syllables = syllabify(core);
   const text = (marks.includes('melisma') ? core.replace(/-/g, '') : core) + tail;
   return { text, syllables, marks };

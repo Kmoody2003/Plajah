@@ -13,6 +13,7 @@
 // their flats ("i | bVI | bIII | bVII"). Bars are split on "|"; two chords in a bar share it.
 
 import type { Dynamic, SectionKind } from './songPrompt';
+import { EXTRA_PACKS } from './packs';
 
 export type StyleFamily = 'cinematic' | 'classical' | 'jazz' | 'electronic' | 'hiphop' | 'song';
 
@@ -1354,11 +1355,13 @@ const SONG: StylePack = {
   vocals: 'typical',
 };
 
-export const STYLE_PACKS: StylePack[] = [...CINEMATIC, ...CLASSICAL, ...JAZZ, ...ELECTRONIC, ...HIPHOP, SONG];
+export const STYLE_PACKS: StylePack[] = [...CINEMATIC, ...CLASSICAL, ...JAZZ, ...ELECTRONIC, ...HIPHOP, ...EXTRA_PACKS, SONG];
 
 export const packById = (id: string): StylePack | undefined => STYLE_PACKS.find((p) => p.id === id);
 
 export interface StyleMatch { pack: StylePack; score: number; hits: string[] }
+
+const FAMILY_WORD = /^(hip[- ]?hop|rap|jazz|edm|electronic|electronic dance|dance music|club|classical|orchestral|cinematic|film score|soundtrack|standards?|pop|rock|atmospheric)$/i;
 
 /**
  * Which packs the style tags point to, best first. A tag that names a style exactly ("deep house")
@@ -1374,8 +1377,13 @@ export function matchStyles(tags: string[]): StyleMatch[] {
       let best = 0;
       for (const m of tag.matchAll(re)) best = Math.max(best, m[0].length);
       if (!best) return;
-      // Earlier tags matter more (people lead with the genre); longer phrase = more specific.
-      score += best * (i === 0 ? 1.5 : 1) + (best === tag.length ? 4 : 0);
+      // A family word ("hip hop", "jazz", "edm") only points at the family's default pack, so it
+      // counts for little next to a word that names a style ("lofi", "drill", "bebop").
+      const words = [...tag.matchAll(re)].map((m) => m[0]);
+      const specific = words.filter((w) => !FAMILY_WORD.test(w));
+      const weight = specific.length ? Math.max(...specific.map((w) => w.length)) : 2;
+      // Earlier tags matter more (people lead with the genre); a whole-tag match is the most specific.
+      score += weight * (i === 0 ? 1.5 : 1) + (specific.length && best === tag.length ? 4 : 0);
       hits.push(tag);
     });
     if (score > 0) out.push({ pack, score, hits });
