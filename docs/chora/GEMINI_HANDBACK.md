@@ -1,0 +1,12 @@
+# Chora Direct — Gemini Handback
+
+## G1 & G1b ACE-Step edit modes and new engine registry entries (2026-11-13)
+Changed: `services/musicEnginePolicy.ts`, `services/melos/generation/types.ts`, `services/melos/generation/adapters.ts`, `services/melos/generation/jobs.ts`, `services/melos/generation/client.ts`, `routes/musicLab.ts`, `scripts/music_lab_worker.py`, `tests/musicEnginePolicy.test.ts`, `tests/melosGeneration.test.ts`, `package.json`, `docs/melos-music-lab.md`, `docs/chora/GEMINI_HANDBACK.md`
+Verified:
+- Read ACE-Step 1.5 `docs/en/API.md`, `docs/en/INFERENCE.md`, `acestep/constants.py`, and `acestep/api/http/release_task_request_parser.py` to confirm exact `task_type` values (`text2music`, `repaint`, `cover`, `lego`, `extract`, `complete`; no separate `extend` or `audio2audio` task types), multipart upload fields (`src_audio`, `reference_audio`), edit fields (`repainting_start`, `repainting_end`, `chunk_mask_mode="explicit"`, `audio_cover_strength`, `track_name`, `track_classes`, `global_caption`, `instruction`), and pure-`base` checkpoint requirement on `lego`/`extract`/`complete`.
+- Read `Soul-AILab/SoulX-Singer` `cli/inference.py` and `preprocess/tools/midi_parser.py` (`notes2meta`, `build_model`, `process(..., control="score")`) and registered `heartmula-rl-3b` (Apache-2.0) and `soulx-singer` (`evaluation` until Hugging Face weights licence tag is confirmed by Kenne; `MuLaCover` and `MuScriptor` excluded due to CC BY-NC 4.0 weights).
+- Ran `npm run test:music-lab` (`tsx --test tests/musicEnginePolicy.test.ts` -> 4/4 passed; `node scripts/testMelosGeneration.mjs` -> 20/20 passed, including `VocalRegenRequest` -> `repaint` / `cover` / `reference_audio` multipart fixture round-trips, `/v1/models` `turbo` + `sft` refusal on `lego`/`extract` with `base` checkpoint acceptance, and `soulx-singer` Python subprocess stub round-trip).
+Not verified:
+- Live GPU execution of ACE-Step `repaint`, `cover`, `reference_audio`, `lego`, `extract`, `complete`, `heartmula-rl-3b`, and `soulx-singer` (no local GPU/model jobs run on this 8 GB laptop per house rules, and `heartmula-rl-3b` / `soulx-singer` weights are not downloaded locally).
+Requests for Claude:
+- None (`VocalRegenRequest` in `services/melos/direct/vocalScore.ts` already provided all fields needed by `vocalRegenToAceRepaintRequest` and `vocalRegenToSoulxRequest`). Note: when wiring `VocalRegenRequest.audio` from Timeline clips, pass base64 WAV/FLAC/MP3 bytes in the optional `sourceAudioBase64` argument to `vocalRegenToAceRepaintRequest(regen, { sourceAudioBase64 })`.

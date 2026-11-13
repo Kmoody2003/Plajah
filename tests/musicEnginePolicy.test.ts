@@ -9,13 +9,29 @@ test('evaluation permission and a runtime never grant public access', () => {
     assert.equal(musicEngineAccess(engine.id, { isAdmin: false, evaluationPermission: 'agreement', runtimeConnected: true }).status, 403);
   }
 });
-test('restricted engines require permission independently of runtime configuration', () => {
-  for (const id of ['yue2', 'sheetsage2']) {
+test('restricted and evaluation-gated engines require permission independently of runtime configuration', () => {
+  for (const id of ['yue2', 'sheetsage2', 'soulx-singer'] as const) {
     assert.equal(musicEngineAccess(id, { isAdmin: true, runtimeConnected: true }).status, 403);
     assert.equal(musicEngineAccess(id, { isAdmin: true, evaluationPermission: '  ', runtimeConnected: true }).status, 403);
     assert.equal(musicEngineAccess(id, { isAdmin: true, evaluationPermission: 'agreement' }).status, 503);
     assert.equal(musicEngineAccess(id, { isAdmin: true, evaluationPermission: 'agreement', runtimeConnected: true }).allowed, true);
   }
+});
+test('new open-weights engines are registered appropriately and CC BY-NC models are excluded', () => {
+  const ids = MUSIC_ENGINES.map(e => e.id as string);
+  assert.ok(ids.includes('heartmula-rl-3b'));
+  assert.ok(ids.includes('soulx-singer'));
+  assert.ok(!ids.includes('mulacover'), 'MuLaCover weights are CC BY-NC 4.0');
+  assert.ok(!ids.includes('muscriptor'), 'MuScriptor weights are CC BY-NC 4.0');
+
+  const rl = MUSIC_ENGINES.find(e => e.id === 'heartmula-rl-3b')!;
+  assert.equal(rl.permissionRequired, false);
+  assert.match(rl.license, /Apache/i);
+  assert.equal(musicEngineAccess('heartmula-rl-3b', { isAdmin: true, runtimeConnected: true }).allowed, true);
+
+  const soulx = MUSIC_ENGINES.find(e => e.id === 'soulx-singer')!;
+  assert.equal(soulx.permissionRequired, true);
+  assert.match(soulx.name, /evaluation/i);
 });
 test('HTTP registry and execution attempts enforce admin access and fail closed', async () => {
   const app = express();
@@ -40,10 +56,12 @@ test('HTTP registry and execution attempts enforce admin access and fail closed'
     assert.equal(response.headers.get('cache-control'), 'no-store');
     const data = await response.json();
     assert.ok(data.engines.some((engine: any) => engine.id === 'yue2'));
+    assert.ok(data.engines.some((engine: any) => engine.id === 'heartmula-rl-3b'));
+    assert.ok(data.engines.some((engine: any) => engine.id === 'soulx-singer'));
     assert.ok(data.engines.every((engine: any) => !engine.publicAvailable && !engine.access.allowed));
     assert.equal((await fetch(`${base}/engines/yue2/generate`, { method: 'POST', headers: { Authorization: 'admin' } })).status, 503);
   } finally {
     server.closeAllConnections();
-    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    await new Promise<void>(resolve => server.close(() => resolve()));
   }
 });

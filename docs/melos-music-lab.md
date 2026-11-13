@@ -53,6 +53,67 @@ Do not force DCW on every checkpoint: the installed API warns that incompatible
 checkpoints can distort with it enabled. The adapter leaves that choice to the
 runtime and uses documented inference fields.
 
+### ACE-Step 1.5 edit modes and SoulX-Singer vocal regeneration (November 2026)
+
+`services/melos/generation/adapters.ts` and `types.ts` support the documented
+ACE-Step 1.5 `POST /release_task` `task_type` values (`docs/en/API.md`,
+`docs/en/INFERENCE.md`, and `acestep/constants.py`):
+
+- **`text2music`**: text-only requests continue to send the unchanged JSON body.
+  When `referenceAudio` is supplied, the adapter sends `multipart/form-data` with
+  file field `reference_audio` and `audio_cover_strength` (`0.0..1.0`, default
+  `0.2` for style/timbre guidance).
+- **`repaint`**: regional audio regeneration or song extension over uploaded
+  `src_audio`, sending `repainting_start` (`>= 0` s), `repainting_end` (`<= 600` s
+  or `-1` for end-of-audio), and `chunk_mask_mode="explicit"`. ACE-Step 1.5 has no
+  separate `extend` `task_type`; extension uses `repaint` with `repainting_end`
+  beyond the current window. `vocalRegenToAceRepaintRequest` builds a `repaint`
+  request directly from Chora Direct's `VocalRegenRequest`.
+- **`cover`**: audio-to-audio style/arrangement transfer over uploaded `src_audio`
+  with `audio_cover_strength` (`0.0..1.0`, default `1.0`). ACE-Step 1.5 has no
+  separate `audio2audio` `task_type`.
+- **`lego`**, **`extract`**, **`complete`** (**base checkpoint only**):
+  - `lego` generates a named stem (`track_name` in `woodwinds | brass | fx | synth |
+    strings | percussion | keyboard | guitar | bass | drums | backing_vocals |
+    vocals`) over `src_audio`, with formatted `instruction`, optional
+    `global_caption`, and optional `repainting_start` / `repainting_end`.
+  - `extract` isolates `track_name` from `src_audio`.
+  - `complete` fills in missing accompaniment over `src_audio` (optional
+    `track_classes` list).
+  - Before submitting `lego`, `extract`, or `complete`, the adapter queries
+    `GET /v1/models` and refuses with HTTP `409` and a clear checkpoint message
+    whenever the connected server runs `turbo` (`acestep-v15-turbo`) or `sft`
+    (`acestep-v15-sft`) instead of a `base` checkpoint (`acestep-v15-base` or
+    `acestep-v15-xl-base`).
+  - Note: ACE-Step automatically disables LM `thinking` on `repaint`, `cover`, and
+    `extract`.
+
+New registry entries in `services/musicEnginePolicy.ts`:
+
+- **`heartmula-rl-3b`** (Apache-2.0): RL-tuned 3B HeartMuLa song checkpoint
+  (`HeartMuLa-RL-oss-3B-20260123`). `MuLaCover` and `MuScriptor` are intentionally
+  **not** registered because their released weights are `CC BY-NC 4.0`.
+- **`soulx-singer`** (evaluation-gated via `SOULX_SINGER_EVALUATION_PERMISSION_REF`
+  until Kenne confirms the Hugging Face weights repository licence tag):
+  score-controlled singing synthesis (`Soul-AILab/SoulX-Singer`). The worker in
+  `scripts/music_lab_worker.py` converts `VocalRegenRequest.notes` (syllable, MIDI
+  pitch, start seconds, duration seconds, slur continuation) via
+  `preprocess.tools.midi_parser.notes2meta` (`English`, `Mandarin`, or `Cantonese`),
+  optionally preprocesses uploaded `referenceAudio` as prompt voice audio, and
+  calls `cli.inference.build_model` + `cli.inference.process` with `control="score"`.
+
+**Verification status:**
+
+- `text2music` (JSON, no audio upload): verified against both fixture servers and
+  the local ACE-Step 1.5 runtime.
+- `repaint`, `cover`, `text2music` with `reference_audio`, and base-only `lego`,
+  `extract`, and `complete` (including `/v1/models` refusal of `turbo` and `sft`):
+  **verified against multipart HTTP fixture servers in `scripts/testMelosGeneration.mjs`;
+  NOT yet verified against a live ACE-Step 1.5 GPU process on this laptop.**
+- `heartmula-rl-3b` and `soulx-singer`: **verified against Python subprocess fixture
+  stubs in `scripts/testMelosGeneration.mjs`; model weights have NOT been downloaded
+  or executed on this machine.**
+
 ### Training preparation and quality target
 
 `scripts/prepare_melos_training.py` inventories recordings without altering their
@@ -100,6 +161,7 @@ musical intelligence or benchmark parity from a small style adapter.
 Focused checks:
 
 ```powershell
+npm run test:music-lab
 node scripts/testMelosGeneration.mjs
 node --import tsx --test tests/musicEnginePolicy.test.ts
 python -m unittest discover -s tests -p test_melos_training.py
@@ -146,14 +208,17 @@ server cannot reach the laptop through its own `127.0.0.1`.
 | ACE-Step 1.5 | `MELOS_ACE_URL=http://127.0.0.1:8001`, `MELOS_ACE_TOKEN` matching its API key |
 | Qwen via Ollama | `MELOS_OLLAMA_URL=http://127.0.0.1:11434`, `MELOS_QWEN_MODEL=qwen3:8b`, optional `MELOS_OLLAMA_TOKEN` |
 | HeartMuLa | `MELOS_HEARTMULA_PYTHON` absolute environment interpreter, `MELOS_HEARTMULA_MODEL` downloaded HeartLib model directory |
+| HeartMuLa RL 3B | `MELOS_HEARTMULA_RL_PYTHON` (falls back to `MELOS_HEARTMULA_PYTHON`), `MELOS_HEARTMULA_RL_MODEL` downloaded `HeartMuLa-RL-oss-3B-20260123` directory |
+| SoulX-Singer | `MELOS_SOULX_SINGER_PYTHON`, `MELOS_SOULX_SINGER_MODEL` (`Soul-AILab/SoulX-Singer` repository/model root), `SOULX_SINGER_EVALUATION_PERMISSION_REF` |
 | YuE2 | `MELOS_YUE2_PYTHON`, `MELOS_YUE2_MODEL`, `MELOS_YUE2_VAE`, `YUE2_EVALUATION_PERMISSION_REF` |
 | SheetSage2 | `MELOS_SHEETSAGE2_PYTHON`, `MELOS_SHEETSAGE2_MODEL`, `SHEETSAGE2_EVALUATION_PERMISSION_REF` |
 
 Use separate Python environments: HeartMuLa recommends Python 3.10, SheetSage2
-3.10/3.11, YuE2 3.12. Install each official project's requirements; the worker also
-needs `music21` for YuE2 ABC conversion and `pretty_midi` for SheetSage2 MIDI
-conversion. Models and dependency models must already exist locally. The worker
-sets Hugging Face / Transformers offline mode and performs no downloads.
+3.10/3.11, YuE2 3.12, SoulX-Singer 3.10. Install each official project's
+requirements; the worker also needs `music21` for YuE2 ABC conversion and
+`pretty_midi` for SheetSage2 MIDI conversion. Models and dependency models must
+already exist locally. The worker sets Hugging Face / Transformers offline mode and
+performs no downloads.
 
 On this laptop, the GPU reports RTX 4070 Laptop, **8188 MiB VRAM**, with about
 32 GB system RAM. The launcher defaults to the 0.6B planning LM, CPU offload and
@@ -184,11 +249,13 @@ check job ownership. No engine in this lab is publicly available, including when
 evaluation permission is recorded. Requests fail closed on permission lookup
 errors. The frontend gets no operator tokens, paths or agreement references.
 
-YuE2 and SheetSage2 require written evaluation permission before executing their
-weights. The reference variables record an operator assertion about a received
-agreement; they do not obtain or verify permission. No permission reference has
-been set and no permission request has been sent. Public launch requires a
-separate reviewed policy change.
+YuE2, SheetSage2 and SoulX-Singer require evaluation permission confirmation before
+executing their weights (`YUE2_EVALUATION_PERMISSION_REF`,
+`SHEETSAGE2_EVALUATION_PERMISSION_REF`, `SOULX_SINGER_EVALUATION_PERMISSION_REF`).
+The reference variables record an operator assertion about a received agreement or
+confirmed Hugging Face weights licence tag; they do not obtain or verify permission.
+No permission reference has been set and no permission request has been sent.
+Public launch requires a separate reviewed policy change.
 
 The Node service permits one active job per process, with a 20-minute timeout.
 Run one server process for this laptop configuration. Cancelling ACE-Step stops
@@ -200,21 +267,25 @@ jobs, shared resource limits and private durable artifact storage.
 ## Checks
 
 ```powershell
+npm run test:music-lab
 npx tsx --test tests/musicEnginePolicy.test.ts
 node scripts/testMelosGeneration.mjs
 node scripts/previewMelosGeneration.mjs
 ```
 
-The first two cover access control, ownership, cancellation, insertion and API
+The first three cover access control, ownership, cancellation, insertion and API
 contracts. API tests use fixture servers, not model inference. The preview uses
 the real panel with supplied engine states and writes screenshots to
 `artifacts/melos-generation-ui`; it does not exercise authenticated generation.
 
-## Upstream references (checked September 11, 2026)
+## Upstream references (checked November 13, 2026)
 
 - https://github.com/ace-step/ACE-Step-1.5/blob/main/docs/en/API.md
+- https://github.com/ace-step/ACE-Step-1.5/blob/main/docs/en/INFERENCE.md
 - https://huggingface.co/ACE-Step/Ace-Step1.5
 - https://github.com/HeartMuLa/heartlib
+- https://huggingface.co/HeartMuLa/HeartMuLa-RL-oss-3B-20260123
+- https://github.com/Soul-AILab/SoulX-Singer
 - https://huggingface.co/Qwen/Qwen3-8B
 - https://github.com/spotify/basic-pitch
 - https://github.com/multimodal-art-projection/YuE#license

@@ -1,6 +1,26 @@
 import { auth } from '../../firebase';
 import { MUSIC_ENGINES, type MusicEngineId } from '../../musicEnginePolicy';
-import { ENGINE_KINDS, type GenerationJob, type GenerationKind, type GenerationRequest } from './types';
+import {
+  ACE_TASK_TYPES,
+  ACE_TRACK_NAMES,
+  ENGINE_KINDS,
+  vocalRegenToAceRepaintRequest,
+  vocalRegenToSoulxRequest,
+  type AceTaskType,
+  type AceTrackName,
+  type GenerationJob,
+  type GenerationKind,
+  type GenerationRequest,
+} from './types';
+
+export {
+  ACE_TASK_TYPES,
+  ACE_TRACK_NAMES,
+  vocalRegenToAceRepaintRequest,
+  vocalRegenToSoulxRequest,
+  type AceTaskType,
+  type AceTrackName,
+};
 
 export interface EngineStatus {
   id: MusicEngineId; name: string; purpose: string; kinds: GenerationKind[];

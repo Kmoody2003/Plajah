@@ -1,6 +1,6 @@
 import express, { Router, type RequestHandler } from 'express';
 import { MUSIC_ENGINES, musicEngineAccess, type MusicEngineId } from '../services/musicEnginePolicy';
-import { ENGINE_KINDS } from '../services/melos/generation/types';
+import { ACE_TASK_TYPES, ENGINE_KINDS } from '../services/melos/generation/types';
 import { MusicGenerationJobs, GenerationError } from '../services/melos/generation/jobs';
 import { generationConfigs } from '../services/melos/generation/adapters';
 
@@ -25,12 +25,13 @@ export function createMusicLabRouter(deps: Dependencies) {
       res.status(503).json({ error: 'Could not verify admin access' });
     }
   });
-  router.use(express.json({ limit: '28mb' }));
+  router.use(express.json({ limit: '56mb' }));
   router.get('/engines', (_req, res) => {
     res.json({ engines: MUSIC_ENGINES.map(engine => ({
       ...engine,
       publicAvailable: false,
       kinds: ENGINE_KINDS[engine.id],
+      ...(engine.id === 'ace-step' || engine.id === 'ace-step-2.5' ? { aceTasks: ACE_TASK_TYPES } : {}),
       runtimeConnected: jobs.configured(engine.id),
       permissionRecorded: !!deps.evaluationPermission?.(engine.id)?.trim(),
       access: musicEngineAccess(engine.id, {

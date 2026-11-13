@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { musicEngineAccess, type MusicEngineId } from '../../musicEnginePolicy';
 import { runGeneration, runtimeConfigured, type AdapterResult, type EngineConfigs } from './adapters';
-import { validateGenerationRequest, type GenerationJob, type GenerationRequest } from './types';
+import { AdapterUserError, validateGenerationRequest, type GenerationJob, type GenerationRequest } from './types';
 
 export class GenerationError extends Error { constructor(public status: number, message: string) { super(message); } }
 interface StoredJob extends GenerationJob { owner: string; controller: AbortController; audio?: Buffer }
@@ -44,9 +44,14 @@ export class MusicGenerationJobs {
     } catch (error) {
       if (job.status !== 'cancelled') {
         job.status = 'failed';
-        // Avoid exposing local paths, keys, request text or raw engine responses.
-        job.message = job.controller.signal.aborted ? 'Generation timed out' : 'Generation failed. Verify the runtime, model files and available memory.';
-        console.warn('[music-lab] generation failed', job.engine, error instanceof GenerationError ? error.status : 'runtime');
+        // Avoid exposing local paths, keys, request text or raw engine responses; preserve safe authored AdapterUserError messages.
+        job.message = job.controller.signal.aborted
+          ? 'Generation timed out'
+          : (error instanceof AdapterUserError || error instanceof GenerationError)
+            ? error.message
+            : 'Generation failed. Verify the runtime, model files and available memory.';
+        console.warn('[music-lab] generation failed', job.engine,
+          error instanceof GenerationError || error instanceof AdapterUserError ? error.status : 'runtime');
       }
     } finally { clearTimeout(timeout); this.active = false; }
   }
