@@ -21,3 +21,17 @@ Not verified:
 - Blind ear-level audio rendering across all 40 new packs (no local audio generation batches run on this laptop).
 Requests for Claude:
 - Optional cleanup in `services/melos/direct/styleKnowledge.ts`: a few core packs currently list subgenre names inside their `match` regexes (`amapiano|afro house` in `edm-deep-house`, `psytrance|psy[- ]?trance|goa` in `edm-trance`, `jungle|neurofunk` in `edm-dnb`, `idm` in `edm-ambient`, `smooth jazz` in `jazz-fusion`, `string quartet` in `classical-era`, `nocturne|waltz` in `classical-romantic`). Because core packs precede `EXTRA_PACKS` in `STYLE_PACKS`, a single-word exact tie (e.g. bare `"amapiano"` with no second tag) breaks in favour of the earlier core pack unless those subgenre tokens are removed from the core packs (keep `liquid` in `edm-dnb` if `'drum and bass, liquid'` in `tests/choraDirect.test.ts` should still pick `edm-dnb`).
+
+
+## G3 Audio to MIDI: chords and stems (2026-11-13)
+Changed: `services/melos/transcribe/chordsFromAudio.ts`, `services/melos/transcribe/stemTranscribe.ts`, `services/melos/transcribe/index.ts`, `tests/choraTranscribe.test.ts`, `package.json`, `docs/chora/GEMINI_HANDBACK.md`
+Verified:
+- Implemented `recognizeChordsFromAudio` (`chordsFromAudio.ts`): reuses `services/musicIntel/dsp.ts` (`measureAudio`, `estimateKey`, `fft`) and `services/melos/beats/{tempoMap,songKey}.ts` (`songTime`, `docKey`, `prefersFlats`), extracts parabolic peak-picked chroma per beat, matches 12 roots × 7 qualities (`major`, `minor`, `7`, `maj7`, `m7`, `dim`, `sus4`), smooths over the beat grid via Viterbi, and emits one `parseChord`-valid chord symbol per bar.
+- Implemented `transcribeSeparatedStems` (`stemTranscribe.ts`): routes `drums` -> `services/drumTranscription.ts` (`transcribeDrumsFromBuffer`), `vocals` -> `services/melos/beats/voice/pitchTrack.ts` (`trackBuffer` + `eventsToNotes`), `bass` -> `pitchTrack.ts` (`yin` + `NoteSegmenter` configured for 30–360 Hz fundamentals), and `other` -> `services/basicPitchBackend.ts` (`transcribeWithBasicPitch`), converting times via `songTime` / `TempoMap` and `snapGrid` without `60 / bpm`.
+- Inspected `services/demucsClient.ts` and recorded what verifying it requires (`DEMUCS_VERIFICATION_REPORT`): (1) vendoring `/models/demucs/htdemucs.onnx` (~90 MB, MIT `facebookresearch/demucs`) and `/models/demucs/ort/*.wasm` into `public/models/demucs/`; (2) confirming the ONNX export embeds real-valued STFT/iSTFT ops matching input `[1, 2, 343980]` (7.8 s @ 44.1 kHz stereo) and output `[1, 4, 2, 343980]` in `['drums', 'bass', 'other', 'vocals']` order; (3) closing `AudioContext` on decode error in `decodeStereo44k` and benchmarking WebGPU/WASM peak memory (~600–900 MB); (4) testing `invokeNativeStemSeparation` returned local file URLs under WebView2 CORS.
+- Ran `npm run test:transcribe` -> 3/3 passed on synthesised progressions (`C | Am | F | G7`, `Cmaj7 | Dm7 | Bdim | Gsus4`), single-beat chromatic glitch smoothing + flat spelling (`F | Bbmaj7`), and 4-stem routing with a stepped `TempoMap`.
+Not verified:
+- Browser WebAudio/WebGL execution of `transcribeWithBasicPitch` against `public/models/basic-pitch/model.json` on real polyphonic stems (tested via injected `basicPitchRunner` fixture in headless Node; headless Node reports `status: 'unavailable'` honestly rather than substituting monophonic/DSP notes under Basic Pitch's name).
+- `services/demucsClient.ts` stem separation itself (model weights not in repository; see blockers above).
+Requests for Claude:
+- None.
