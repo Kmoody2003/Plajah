@@ -144,6 +144,9 @@ impl Default for Role {
 
 struct Player {
     bore: Loop,
+    /// Cones: the short open–open stretch on the reed's other side (see `tune`).
+    up: Loop,
+    up_read: f32,
     lat1: f32,
     lat2: f32,
     lat_b: f32,
@@ -205,6 +208,8 @@ impl Player {
     fn new() -> Self {
         Player {
             bore: Loop::with_len(BUF),
+            up: Loop::with_len(2048),
+            up_read: 4.0,
             lat1: 0.0,
             lat2: 0.0,
             lat_b: 0.5,
@@ -260,6 +265,7 @@ impl Player {
     }
     fn clear(&mut self) {
         self.bore.clear();
+        self.up.clear();
         self.lat1 = 0.0;
         self.lat2 = 0.0;
         self.dc = 0.0;
@@ -388,7 +394,7 @@ impl AulosVoice {
         let wv = TAU * f / sr;
         // Wall loss (√f, nepers/m) over the round trip, at the note.
         let len = C_AIR * period / sr * if w.bore == BORE_CYL { 0.5 } else { 1.0 };
-        pl.apex_k = if w.bore == BORE_CONE { C_AIR / w.apex.max(0.005) } else { 0.0 };
+        pl.apex_k = 0.0;
         let alpha = 3.0e-5 * f.sqrt() / w.bore_r;
         let fh = (8.0 * f).min(0.3 * sr);
         let alpha_h = 3.0e-5 * fh.sqrt() / w.bore_r;
@@ -396,12 +402,23 @@ impl AulosVoice {
         let pd = onepole_pd(lb, wv) + 2.0 * onepole_pd(pl.lat_b, wv);
         // Closed–open cylinder: f = c/4L → round trip half a period. Open–open: a period. A
         // truncated cone resonates at n·c/2(L + x₀): the round trip is a period less the apex.
+        // A cone resonates like an open–open cylinder of its length (Benade): the reed sits a
+        // fraction β of the way along it (β from the missing apex), with a wave line on each side,
+        // both ends open. The two round trips add to one period.
+        let beta = if w.bore == BORE_CONE { (2.0 * w.apex * f / C_AIR).clamp(0.06, 0.35) } else { 0.0 };
         let loop_d = match w.bore {
             BORE_CYL => 0.5 * period,
-            BORE_CONE => (period - 2.0 * w.apex / C_AIR * sr).max(0.25 * period),
+            BORE_CONE => (1.0 - beta) * period,
             _ => period,
         };
         let read = (loop_d - pd - 1.0).max(2.0);
+        if w.bore == BORE_CONE {
+            let pd_up = onepole_pd(lb, wv);
+            pl.up.g = g;
+            pl.up.b = lb;
+            pl.up.nap = 0;
+            pl.up_read = (beta * period - pd_up - 1.0).clamp(1.0, 2000.0);
+        }
         pl.bore.g = g;
         pl.bore.b = lb;
         pl.bore.nap = 0;
@@ -600,12 +617,10 @@ impl AulosVoice {
             pl.lat2 = (1.0 - pl.lat_b) * pl.lat1 + pl.lat_b * pl.lat2;
             let refl = pl.lat2;
             let leak = ret - refl; // what the open holes and bell let out
-            let p_in = if pl.sign > 0.0 {
-                pl.dc += (refl - pl.dc) * pl.dc_k;
-                refl - 2.0 * pl.dc
-            } else {
-                -refl
-            };
+            let p_in = -refl;
+            // Cones: the wave coming back from the short side (open end, inverted).
+            let cone = w.bore == BORE_CONE;
+            let p_up = if cone { -pl.up.read_at((pl.up_read / tune).clamp(1.0, 2000.0)) } else { 0.0 };
 
             let (p_out, p_mp) = if jet {
                 // Acoustic velocity in the embouchure hole (last sample): (p_out − p_in)/(Zc·S).
@@ -644,19 +659,25 @@ impl AulosVoice {
                 let g = pl.width * h * (2.0 / RHO).sqrt();
                 // A cone's spherical waves: the flow the bore takes has a mass term at the apex,
                 // −(S/ρx₀)∫p dt, i.e. Zc·κ·∫p = (c/x₀)·∫p dt in pressure.
-                let apex_p = -pl.apex_k * pl.apex_i;
-                let d0 = pm - 2.0 * p_in - apex_p;
+                // Solved implicitly with the bore and the apex inertance together:
+                //   p_mp = (2·p_in + Zc·u − k·I) / (1 + k·dt),  I ← I + p_mp·dt
+                // (an explicit integrator lags a sample inside the loop and wrecks the resonances).
+                // Cylinder: p_mp = 2·p_in + Zc·u. Cone (reed between two lines, Zc ∥ Zc):
+                // p_mp = p_in + p_up + (Zc/2)·u.
+                let (zc_e, base) = if cone { (0.5 * pl.zc, p_in + p_up) } else { (pl.zc, 2.0 * p_in) };
+                let d0 = pm - base;
                 let u = if g <= 0.0 {
                     0.0
                 } else {
                     let g2 = g * g;
-                    0.5 * (-g2 * pl.zc + (g2 * g2 * pl.zc * pl.zc + 4.0 * g2 * d0.abs()).sqrt()) * d0.signum()
+                    0.5 * (-g2 * zc_e + (g2 * g2 * zc_e * zc_e + 4.0 * g2 * d0.abs()).sqrt()) * d0.signum()
                 };
                 pl.noise_lp += (rng.bipolar() - pl.noise_lp) * 0.5;
                 let u = u * (1.0 + w.breath * pl.noise_lp);
-                let p_mp = 2.0 * p_in + pl.zc * u + apex_p;
-                if pl.apex_k > 0.0 {
-                    pl.apex_i = (pl.apex_i + p_mp * dt) * 0.9995;
+                let p_mp = base + zc_e * u;
+                if cone {
+                    let o = pl.up.filter(p_mp - p_up);
+                    pl.up.write(o);
                 }
                 // Reed dynamics (two substeps): the pressure difference pushes it shut.
                 let dp = pm - p_mp;
@@ -670,7 +691,8 @@ impl AulosVoice {
                         pl.v = 0.0;
                     }
                 }
-                (p_in + pl.zc * u + apex_p, p_mp)
+                // Outgoing wave: what isn't the returning one.
+                (p_mp - p_in, p_mp)
             };
             let back = pl.bore.filter(p_out);
             pl.bore.write(back);
@@ -931,7 +953,7 @@ mod tests {
                 let x = render(&params(0), inst, n, 0.6, 1.0, 1.0);
                 let y = &x[(0.4 * SR) as usize..];
                 let (f, r) = f0(y);
-                line += &format!(" {}:{:+.0}{}/{:.3}", n, 1200.0 * (f / midi_to_hz(n)).log2(), if r < 0.7 { "?" } else { "" }, rms(y));
+                line += &format!(" {}:{:+.0}{}/{:.5}", n, 1200.0 * (f / midi_to_hz(n)).log2(), if r < 0.7 { "?" } else { "" }, rms(y));
                 n += 5.0;
             }
             println!("{}", line);
@@ -945,30 +967,42 @@ mod probe {
     #[ignore]
     fn aulos_probe() {
         let sr = 48000.0;
-        for &(inst, n) in &[(10usize, 61.0f32), (3, 67.0)] {
-            for &ak in &[0.0f32, 0.5, 1.0, 2.0] {
-                for &gk in &[0.8f32, 1.0, 1.3] {
-                    for &hk in &[0.6f32, 1.0, 1.6] {
-                        let mut p = Params::new();
-                        p.set(AULOS_BASE + AU_ENABLE, 1.0);
-                        let mut v = AulosVoice::new(sr);
-                        let mut rng = Rng(99);
-                        v.role = Role { inst, section: 0, players: 1 };
-                        v.trigger(midi_to_hz(n), 0.6, &p, &mut rng);
-                        {
-                            let pl = &mut v.players[0];
-                            pl.apex_k *= ak; pl.p_target *= gk; pl.h0 *= hk; pl.k_r /= hk;
+        for &(inst, n) in &[(10usize, 61.0f32), (3, 67.0), (7, 46.0)] {
+            let mut hits = 0;
+            for &bk in &[0.3f32, 0.6, 1.0, 1.8, 3.0] {
+                for &gk in &[0.8f32, 1.2, 1.8, 2.6] {
+                    for &hk in &[0.5f32, 1.0, 2.0, 4.0] {
+                        for &q in &[0.7f32, 2.5] {
+                            let mut p = Params::new();
+                            p.set(AULOS_BASE + AU_ENABLE, 1.0);
+                            let mut v = AulosVoice::new(sr);
+                            let mut rng = Rng(99);
+                            v.role = Role { inst, section: 0, players: 1 };
+                            v.trigger(midi_to_hz(n), 0.6, &p, &mut rng);
+                            {
+                                let pl = &mut v.players[0];
+                                pl.g_r = pl.w_r / q; pl.p_target *= gk; pl.h0 *= hk; pl.k_r /= hk;
+                                let per = pl.period;
+                                // move the reed along the tube: rescale the short side and the long side
+                                let up = (pl.up_read + 1.0) * bk;
+                                let lo_shift = up - (pl.up_read + 1.0);
+                                pl.up_read = (up - 1.0).max(1.0);
+                                pl.bore.target = (pl.bore.target - lo_shift).max(2.0);
+                                pl.bore.period = pl.bore.target;
+                                let _ = per;
+                            }
+                            let mut x = Vec::new();
+                            for _ in 0..(0.8 * sr) as usize { let (l, r) = v.render_sample(1.0, 0.0, &mut rng); x.push(0.5 * (l + r)); }
+                            let y = &x[(0.4 * sr) as usize..];
+                            let rm = (y.iter().map(|q| q * q).sum::<f32>() / y.len() as f32).sqrt();
+                            let zc = y.windows(2).filter(|w| w[0] <= 0.0 && w[1] > 0.0).count() as f32 / 0.4;
+                            let want = midi_to_hz(n);
+                            if rm > 2e-3 && (zc / want - 1.0).abs() < 0.2 { hits += 1; if hits < 6 { println!("{} β×{} γ×{} h0×{} q{}: rms {:.4} zc {:.0} (want {:.0})", INSTRUMENT_NAMES[inst], bk, gk, hk, q, rm, zc, want); } }
                         }
-                        let mut x = Vec::new();
-                        for _ in 0..(0.8 * sr) as usize { let (l, r) = v.render_sample(1.0, 0.0, &mut rng); x.push(0.5 * (l + r)); }
-                        let y = &x[(0.4 * sr) as usize..];
-                        let rm = (y.iter().map(|q| q * q).sum::<f32>() / y.len() as f32).sqrt();
-                        // zero crossings → rough f
-                        let zc = y.windows(2).filter(|w| w[0] <= 0.0 && w[1] > 0.0).count() as f32 / 0.4;
-                        if rm > 1e-4 { println!("{} apex×{} γ×{} h0×{}: rms {:.4} zc {:.0} Hz (want {:.0}) y {:.2e}", INSTRUMENT_NAMES[inst], ak, gk, hk, rm, zc, midi_to_hz(n), v.players[0].y); }
                     }
                 }
             }
+            println!("{}: {} working settings", INSTRUMENT_NAMES[inst], hits);
         }
     }
 }
