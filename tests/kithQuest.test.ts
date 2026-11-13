@@ -159,7 +159,8 @@ test('adaptive score: every stage has energy and danger zones; danger + battle p
 
 /* ── the Chora score: one project per cue ── */
 import {QUEST_CUES,lineBeats,parseLine,barVoicings} from '../data/gameScores/kithQuest';
-import {buildKithQuestGrooveDoc,kithQuestProjects,isKithQuestProjectId,KITH_QUEST_TAIL_BARS} from '../services/melos/kithQuestChoraProjects';
+import {buildKithQuestGrooveDoc,kithQuestProjects,isKithQuestProjectId,KITH_QUEST_TAIL_BARS,divisiLines} from '../services/melos/kithQuestChoraProjects';
+import {KITH_QUEST_MIX} from '../data/gameScores/kithQuestMix';
 
 test('every cue is written in whole bars and its parts stay inside the body',()=>{
  assert.equal(QUEST_CUES.length,12);
@@ -199,4 +200,24 @@ test('each cue builds a Chora project: instrument tracks, a loop region, a ring-
  // deterministic: same cue, same notes
  const a=buildKithQuestGrooveDoc('kithquest-battle'),b=buildKithQuestGrooveDoc('kithquest-battle');
  assert.deepEqual(a.arrangement.map(t=>t.clips.map(k=>k.notes)),b.arrangement.map(t=>t.clips.map(k=>k.notes)));
+});
+
+test('the council orchestration: a voice-led string section, TONOS in every loop, no bells, mix trims name real parts',()=>{
+ const BELLS=/celesta|bells|vitreous|glass|himalayan|ferrous|deep-wash|cimbalom|santur|yangqin/;
+ for(const c of QUEST_CUES){
+  assert.ok(!c.parts.some(p=>BELLS.test(p.preset)),`${c.id}: bell-type voice`);
+  assert.ok(!c.parts.some(p=>p.src==='pad'),`${c.id}: block pad`);
+  if(c.loop) assert.ok(c.parts.some(p=>p.inst==='tonos'),`${c.id}: no TONOS`);
+  const keys=new Set(c.parts.map(p=>p.key));
+  assert.equal(keys.size,c.parts.length,`${c.id}: duplicate part keys`);
+  for(const k of Object.keys(KITH_QUEST_MIX[c.id]??{})) assert.ok(keys.has(k),`${c.id}: mix trim for missing part ${k}`);
+ }
+ // the string choir: four lines, no crossed voices, each section inside its range, motion mostly by step
+ for(const id of ['title','calm-glowmoss','battle']){
+  const c=QUEST_CUES.find(x=>x.id===id)!, L=divisiLines(c);
+  assert.equal(L.length,4);
+  const at=(v:number,t:number)=>L[v].find(n=>t>=n.t-1e-6&&t<n.t+n.d-1e-6)?.key;
+  for(let t=0;t<c.chords.length*c.beats;t+=c.beats){const ks=[0,1,2,3].map(v=>at(v,t)!);for(let i=0;i<3;i++)assert.ok(ks[i]>ks[i+1],`${id} beat ${t}: crossed ${ks}`);}
+  for(const line of L){let leaps=0;for(let i=1;i<line.length;i++)if(Math.abs(line[i].key-line[i-1].key)>4)leaps++;assert.ok(leaps/line.length<0.25,`${id}: too many leaps`);}
+ }
 });

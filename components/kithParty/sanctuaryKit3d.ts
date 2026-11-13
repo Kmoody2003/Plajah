@@ -1334,10 +1334,15 @@ export function buildBridgeArcade(root: T.Group, def: CourseDef, startT: number,
  const m = kitMats(theme, key);
  disposables.push({dispose: () => releaseMats(key)});
  const batch = new Batch();
- const n = 6;
+ // other road running underneath (figure-8 crossings, tunnels): the arcade must never stand on it
+ const below: T.Vector3[] = [];
+ for (let k = 0; k < 720; k++) { const t = k / 720; let d = Math.abs(t - (startT + endT) / 2); if (d > .5) d = 1 - d; if (d > (endT - startT) / 2 + .03) below.push(worldPoint(t, 0, 0, def.id)); }
+ const clearOfRoad = (p: T.Vector3) => below.every(q => q.y > p.y - 4 || Math.hypot(q.x - p.x, q.z - p.z) > 15.5);
+ const n = 14;
  for (let i = 0; i < n; i++) {
   const t0 = startT + (endT - startT) * i / n, t1 = startT + (endT - startT) * (i + 1) / n;
   const a = worldPoint(t0, 0, 0, def.id), b = worldPoint(t1, 0, 0, def.id), f = trackFrame((t0 + t1) / 2, 0, def.id);
+  if (![a, a.clone().lerp(b, .5), b].every(clearOfRoad)) continue;
   const len = a.distanceTo(b) + .4, H = 30;
   const g = arcadeGeometry(len, H, 22, 1, .5);
   const tg = new T.Vector3(f.tangent.x, 0, f.tangent.z).normalize();

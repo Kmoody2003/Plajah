@@ -1,0 +1,35 @@
+{
+  "challenges": [
+    {
+      "to": "COMPOSER",
+      "point": "COMPOSER suggests chromatic mediant modulations (e.g., Db major in title cue bar 12, Eb Phrygian Dominant in energy-keep bar 24) that break the game engine's live dynamic crossfading system across Calm, Energy, Danger, and Fear states.",
+      "instead": "Maintain strict tonal center alignment (F major, D Lydian, D minor, D Phrygian) across all corresponding stage states so live stem crossfades land with perfect harmonic alignment, introducing color via modal counterpoint and inner voice-led suspensions rather than structural key changes."
+    },
+    {
+      "to": "PRODUCER",
+      "point": "PRODUCER relies heavily on rhythmic 16th-note ostinatos and dynamic volume hairpins to fix mud and dynamic range, but neglects specific note registers and voice-leading rules between desk splits.",
+      "instead": "Enforce strict register separation by opening a 2-octave window between Double Bass fundamental fundamentals (C1–F2) and Viola/Violin II counter-lines (F3–C4), ensuring inner suspensions (4–3, 9–8) resolve cleanly without relying solely on fader automation."
+    },
+    {
+      "to": "MIX",
+      "point": "MIX attempts to treat the 250–800 Hz low-mid mud buildup (up to 82.5% in calm-glowmoss) primarily through channel gain reduction, high-pass filtering, and spatial panning.",
+      "instead": "Fix low-mid mud at the source of orchestration: replace 4-voice sustained mid-register block chords with 5-part divisi desk lines, moving tenor Cello lines up into octave 3–4 and keeping Violin II/Viola lines out of the 250–500 Hz corridor."
+    },
+    {
+      "to": "MASTER",
+      "point": "MASTER imposes rigid velocity caps (e.g. limiting velocities to 45–65 in calm-glowmoss) and strict LUFS targets that risk choking human rubato expression and performDoc dynamic swells.",
+      "instead": "Allow full acoustic dynamic range (p to ff, dynamic deltas of 12–16 dB) using performDoc cinematic rubato and un-quantized expression swells, using spatial seating and divisi voicing to maintain headroom rather than artificial velocity ceilings."
+    }
+  ],
+  "concede": [
+    "Concede to MIX and MASTER on mono-folding all sub-120 Hz fundamental content (lyra-double-bass-arco, timpani-32-profondo, concert-gran-cassa) and using hard L35/L15/R15/R35 divisi string seating to eliminate negative stereo correlation (-0.11 to -0.08) on energy gallops.",
+    "Concede to PRODUCER on pairing warm gut/silk TONOS voices (tonos-kora-sesse, tonos-lute, tonos-koto, tonos-valiha) as rhythmic ostinato engines to introduce high-mid transient detail (2k–6k Hz) while strictly adhering to Kenne's zero-bell mandate.",
+    "Concede to COMPOSER on expanding all sustained pad tracks into proper 5-part divisi score architecture (Violins I, Violins II, Violas, Celli, Double Basses) with contrapuntal desk leading."
+  ],
+  "nonNegotiable": [
+    "Strict preservation of key and tempo relationships across all matching Calm, Energy, Danger, and Fear cues to guarantee seamless live dynamic gameplay stem crossfading.",
+    "Verbatim preservation of the LANTERN MOTIF (C5·F5 G5 A5 in F major) and its modal transformations (D minor for danger/Warden, D Phrygian for 1-HP fear), alongside note-for-note fidelity to Kenne's three stage lullaby melodies.",
+    "Acoustic register separation: mandatory 2-octave clearance between sub-bass fundamentals and inner-string suspensions (4–3, 9–8) to cure low-mid mud natively within Chora.",
+    "Complete elimination of generic single-track block pads in favor of full Chora suite acoustic/hybrid pairings (LYRA divisi orchestra, TONOS world string ostinatos, PNEUMA breath woodwinds, CANTUS/VELA vocal pads, and SOMA physically modelled percussion)."
+  ]
+}

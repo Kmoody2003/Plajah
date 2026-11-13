@@ -1,0 +1,121 @@
+{
+  "headline": "Transform block-chord sketches into 5-part divisi orchestral score architecture with contrapuntal inner voices, modal reharmonisations, and organic TONOS string acoustic warmth.",
+  "diagnosis": [
+    "Monolithic 4-bar block chord stacks choke the 250–800 Hz low-mid band (up to 82.5% in calm-glowmoss), creating severe frequency mud without linear contrapuntal movement.",
+    "Dynamic range across all loop masters is trapped between a compressed 1.2 dB and 6.1 dB DR, gutting dramatic narrative swells and cinematic breath.",
+    "Zero divisi voice-leading in string sections; strings act as static organ pads rather than expressive, counter-melodic classical sections (Violins I/II, Violas, Celli, Basses).",
+    "Underutilization of TONOS world string physics (kora, koto, lute, hardanger) to introduce plucked transients and sympathetic resonant shimmer beneath bowed LYRA sections.",
+    "Energy cues mirror calm cue melodies identically at faster tempos without introducing secondary counter-themes, rhythmic augmentation, or brass-driven fugato passages."
+  ],
+  "global": [
+    "Establish standard 5-part LYRA string sectioning across all cues: Violins I (panned L35, melody/desk 1), Violins II (panned L15, inner voice/counterpoint), Violas (panned R15, mid suspensions), Celli (panned R35, tenor counter-melodies), Double Basses (panned C, sub-foundation).",
+    "Purge single-stack 4-voice block chords. Voice all harmony using voice-leading suspensions (4-3, 9-8, 7-6) spread from sub-bass (C1-C2) to upper canopy (C5-C6) to eliminate the 250–800 Hz mud bulge.",
+    "Integrate warm gut/silk TONOS voices (tonos-kora, tonos-koto, tonos-lute, tonos-valiha) as harp/plucked ostinato engines locked to Chora ARP, adding organic pluck attacks without forbidden metallic bell sheen.",
+    "Automate performDoc rubato and track-level volume hairpins (p to ff) to expand live dynamic range from 1.5 dB DR up to 14–18 dB DR on loops.",
+    "Enforce modal/chromatic mediant transitions (e.g., F major to Db major, D minor to F# minor) during 16-bar repeat sections to elevate score architecture to cinematic form."
+  ],
+  "cues": {
+    "title": {
+      "verdict": "Solid thematic hook needing expansive 5-part string counterpoint and dual-theme movement architecture.",
+      "moves": [
+        "Bars 0–8: Assign Lantern Motif (C5-F5-G5-A5) to desk 1 solo horn (lyra-french-horn, L20), counter-pointed by low Cello 1 (lyra-cello, C3-F3-E3-D3) and soft tonos-kora ostinatos running 16th-note ARPs (F3-C4-F4-A4).",
+        "Bars 8–16: Reharmonise B-section into Chromatic Mediant Db major (Db-Ab-Db3) at bar 12 before resolving to C7; expand Violins I (lyra-silk-strings) with a soaring secondary counter-theme (F5-Ab5-C6-Db6).",
+        "Bars 16–24: Orchestrate full tutti climax. Violins I & II in octaves (F5/F6), Trombones (lyra-trombone) carrying low motif in minor augmentation (F2-Bb2-C3-Db3), SOMA timpani-32-profondo crescendoing from p to ff (-18 dB to -6 dB) on bar 23 roll."
+      ]
+    },
+    "calm-glowmoss": {
+      "verdict": "Enchanting melody burdened by an 82% 250–800 Hz mid-swamp; needs delicate air, woodwind counterpoint, and divisi string warmth.",
+      "moves": [
+        "Bars 0–16: Keep original clarinet melody verbatim. Strip block-chord pads; replace with lyra-string-quartet playing staggered 3-part suspensions (Viola G3 to F3, Cello D3 to C3). Add soft tonos-valiha rolling 3/4 arpeggios.",
+        "Bars 16–32: Violins I take upper canopy octave (A6-G6-F6) sul tasto (lyra-sul-tasto). Oboe counter-melody at bars 18–20 (C6-F6-G6-A6) answered by low lyra-english-horn in bar 22.",
+        "Dynamic Arc: Automate dynamic hairpins per 4-bar phrase, oscillating RMS from -26 dB (p) to -18 dB (mf) to break the static 1.2 dB DR flatline."
+      ]
+    },
+    "calm-cascade": {
+      "verdict": "Lydian atmosphere is harmonic gold; requires watery string textures, bow swells, and shimmering TONOS harp-lute weaves.",
+      "moves": [
+        "Bars 0–16: Keep flute Lydian tune verbatim. Replace block pad with lyra-viola and lyra-cello playing sul ponticello tremolo swells on D3-G#3-C#4, evoking mist over waterfall heights.",
+        "Bars 16–32: Introduce tonos-guzheng-glide and tonos-kantele (played soft fff velocity curve) weaving 16th-note descending water cascades across D5-C#5-G#4-F#4.",
+        "Counterpoint: At bar 20, desk 1 lyra-concert-violin plays counter-tune in tenor register (D4-F#4-G#4-A4), while desk 2 lyra-alto-flute mirrors the oboe lantern answers an octave below."
+      ]
+    },
+    "calm-keep": {
+      "verdict": "Haunting D minor lullaby needing noble gothic string architecture, soft vocal swells, and low woodwind resonance.",
+      "moves": [
+        "Bars 0–16: Felt piano plays main tune verbatim. Layer ISON drone (ison-cavern, D1+A1) panned center (-24 dB). Layer cantus-plainsong soft hum (D3-F3-A3) entering at bar 8.",
+        "Bars 16–32: Solo cello (lyra-cello) takes high melody register (A4-F5-A5-Bb5). Violins II and Violas perform slow 3/4 legato chordal transformations (Dm -> Bbmaj7#11 -> Gm9 -> A7b9).",
+        "Motif transformation: At bar 30, bassoon (lyra-bassoon) and english horn play the lantern motif in low D minor (D3-G3-A3-Bb3), creating a dark moonlit keep echo."
+      ]
+    },
+    "energy-glowmoss": {
+      "verdict": "Needs classical scherzo energy (Beethoven/Williams school) with spiccato string engines and syncopated SOMA groove.",
+      "moves": [
+        "Bars 0–16: Horns lead melody. Replace static chord stabs with 3/4 spiccato string motor (lyra-pizzicato + lyra-string-quartet spiccato running 16th-note patterns: F3-C4-F4-C4).",
+        "Bars 16–32: Trumpets shout motif (C5-F5-G5-A5) on beat 1 with SOMA bodhran-kerry-tipper and nagado-daiko-odaiko accenting beat 3. TONOS tonos-lute runs rapid 3/4 driving rhythm.",
+        "Low End Clean: Drop cello block chords; assign celli/basses to running staccato bassline (F2-F1-E1-Dm1) to fix stereo negative correlation (-0.08)."
+      ]
+    },
+    "energy-cascade": {
+      "verdict": "High-altitude Lydian gallop requiring brass fanfares, soaring divisi violins, and fast TONOS plucked ostinatos.",
+      "moves": [
+        "Bars 0–16: Horns + lyra-flugelhorn play theme in octaves. Divisi Violins I & II perform fast 16th-note Lydian runs (D4-E4-F#4-G#4-A4-B4-C#5-D5).",
+        "Bars 16–32: Full woodwind choir (flute, oboe, clarinet, piccolo) plays rapid descending 3/4 waterfall arpeggios. TONOS tonos-koto and tonos-pipa add sharp rhythmic transient stabs on accent beats.",
+        "Brass expansion: Trombones and tuba hit low D1 pedal stabs on beat 1, answered by lyra-french-horn counter-chords on beats 2 and 3."
+      ]
+    },
+    "energy-keep": {
+      "verdict": "Urgent castle pursuit scherzo; needs relentless string march, dramatic minor modulations, and dark brass stabs.",
+      "moves": [
+        "Bars 0–16: Horns in unison with lyra-bass-clarinet on theme. Celli and Violas drive a hammering 3/4 ostinato in D minor (D3-D3-E3-F3-D3-C#3).",
+        "Bars 16–32: Violins I enter with counter-melody in high register (D6-C6-Bb5-A5) over lyra-trumpet-cup playing syncopated motif calls. SOMA orchestral-field-snare executes crisp rimshots.",
+        "Harmonic shift: Insert a 4-bar modal shift to Eb Phrygian Dominant (Eb3-G3-Bb3-Db4) at bars 24–28 before snapping back to D minor cadence at bar 32."
+      ]
+    },
+    "danger": {
+      "verdict": "Currently murky and static; requires suspenseful aleatoric string textures, low woodwind motif creeps, and heartbeat dynamics.",
+      "moves": [
+        "Bars 0–8: VELA tremolo-strings perform microtonal sul ponticello swells (D3 to Eb3 clusters). Solo bassoon (lyra-bassoon) plays minor lantern motif (D3-G3-Ab3-Bb3) in dark register.",
+        "Bars 8–16: Add lyra-alto-flute and pneuma-shakuhachi overtones. SOMA tar-nubian-deep heartbeat pattern swells from -22 dB to -12 dB.",
+        "TONOS integration: Add tonos-hardanger sympathetic string drone on D2+A2, providing authentic bow friction and tension."
+      ]
+    },
+    "fear": {
+      "verdict": "Low-HP panic cue needs stark Phrygian isolation, dynamic ticking time-pressure, and desperate horn swells.",
+      "moves": [
+        "Bars 0–8: Cello solo (lyra-cello) plays motif in D Phrygian (A2-D3-Eb3-F3). Lyra-pizzicato plays continuous 16th-note clock-ticking pattern (D5-D5-Eb5-D5) alternating L/R.",
+        "Bars 8–16: Layer hushed CANTUS choir (cantus-vault) on D phrygian cluster (D3-Eb3-A3). Horn (lyra-french-horn) enters at bar 8 sfz crescendo (p to ff) taking over Phrygian line.",
+        "Percussion: SOMA tar-nubian-deep double heartbeat doubled by muted concert-gran-cassa low thump (40 Hz)."
+      ]
+    },
+    "battle": {
+      "verdict": "Warden war-waltz needs massive brass architecture, counter-point fugato, full SOMA battery, and 15+ dB dynamic swells.",
+      "moves": [
+        "Bars 0–16: Heavy D minor opening. Horns & Trombones play main boss waltz melody. Violins I/II run rapid spiccato triplets (D4-F4-A4-D5). SOMA bendir-atlas-gut and nagado-daiko-odaiko drive 3/4 rhythm.",
+        "Bars 16–32: Counterpoint battle! Violins + Trumpets sing main fight theme while low Trombones + Tuba scream the minor Lantern Motif in canon 1 bar behind. CANTUS cantus-byzantine choir layers dramatic Latin-style vocal stabs.",
+        "Dynamic climax: Expand dynamic range from flat 4.2 dB to 16 dB DR; bar 31 roll crescendos to peak -1.0 dBFS before loop seam."
+      ]
+    },
+    "clear": {
+      "verdict": "Victorious jingle needing brilliant brass fanfares, soaring woodwind runs, and opulent string resolution.",
+      "moves": [
+        "Bar 1: Open with bold lyra-trumpet-open and lyra-french-horn unison fanfare of Lantern Motif (C5-F5-G5-A5), backed by SOMA timpani roll and gran cassa impact.",
+        "Bar 2: Flute, piccolo, and Violins I execute rapid ascending F major scale run (F4 up to F6) into tonos-qanun glissando.",
+        "Bar 3: Resolve on rich orchestral Fmaj9 chord. Violins hold high A6, celli on F2, brass full 5-part harmony, harp sweep (lyra-harp) blossoming across 4 octaves."
+      ]
+    },
+    "gameover": {
+      "verdict": "Poignant, somber finale; requires delicate felt piano, mournful oboe counterpoint, and fading string breath.",
+      "moves": [
+        "Bars 1–2: Lyra-felt piano plays falling minor motif solo (A5-G5-F5-D5). Violins sul tasto (lyra-sul-tasto) enter ppp (-28 dB) with sustained D minor pad.",
+        "Bars 3–4: Solo oboe (lyra-oboe) joins piano in counter-point duet, fading into a solitary low Cello (lyra-cello) D2 sustain.",
+        "Final decay: SOMA ocean-frame-brush provides final soft breath wave; all instruments decay smoothly over 3-second tail into silence."
+      ]
+    }
+  },
+  "mustKeep": [
+    "The iconic LANTERN MOTIF (sol-do-re-mi / C5-F5-G5-A5) as the primary narrative spine across all cues and its modal shifts (minor/phrygian).",
+    "The 3 fixed lullaby melodies (calm-glowmoss, calm-cascade, calm-keep) loved by Kenne—keep tunes note-for-note while expanding orchestration.",
+    "Seamless game-loop structures, original key choices (F major, D Lydian, D minor, D Phrygian), and exact stage tempo relationships for dynamic game state crossfades.",
+    "The warm physical modeling core of Chora without using any metallic bell-type voices."
+  ]
+}

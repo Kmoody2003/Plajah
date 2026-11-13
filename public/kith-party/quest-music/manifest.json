@@ -94,13 +94,13 @@
   "file": "clear.mp3",
   "loop": false,
   "bpm": 132,
-  "duration": 11.040895833333334
+  "duration": 8.4545625
  },
  "gameover": {
   "title": "The Lantern Dims",
   "file": "gameover.mp3",
   "loop": false,
   "bpm": 72,
-  "duration": 21.470416666666665
+  "duration": 16.333354166666666
  }
 }

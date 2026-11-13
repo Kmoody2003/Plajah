@@ -1,0 +1,28 @@
+{
+  "challenges": [
+    {
+      "to": "PRODUCER",
+      "point": "Requesting an 18 dB dynamic range (PLR) on the Battle cue while targeting an integrated loudness of -14.0 LUFS requires transient peaks exceeding +4.0 dBFS, which shatters the true-peak ceiling and forces digital clipping.",
+      "instead": "Target an 8.5 to 10.0 dB PLR for Battle at -14.0 LUFS integrated, using soft-knee limiting and controlled transient shaping on SOMA drums to maintain a strict -1.0 dBTP ceiling."
+    },
+    {
+      "to": "COMPOSER",
+      "point": "Recommending performDoc rubato phrasing on looping stage cues (calm and energy variants) alters tempo micro-timing, breaking dynamic crossfades between Calm ↔ Energy state switches.",
+      "instead": "Keep performDoc rubato disabled on all looping cues to preserve strict grid alignment; achieve dynamic expressive swells using volume automation hairpins (CC1/CC11) exclusively."
+    },
+    {
+      "to": "MIX",
+      "point": "Adding FX1/FX2 wet delay and hall sends to fast energy/battle cues without low-frequency filtering risks re-introducing low-mid clutter (250–800 Hz) and negative stereo correlation in side reflections.",
+      "instead": "High-pass filter FX1/FX2 wet send inputs at 250 Hz and sum reverb/delay tails below 150 Hz to pure mono to ensure mono mobile translation."
+    }
+  ],
+  "concede": [
+    "Concede to MIX and MUSICIAN on mono-summing all low frequencies below 120 Hz across Double Basses, low Celli, and SOMA drums to eliminate negative stereo correlation (-0.11 to -0.08) across energy and battle cues.",
+    "Concede to COMPOSER and PRODUCER on replacing 4-voice sustained block chords with 5-part divisi string architecture, which naturally declutters the 250–800 Hz spectrum (currently at 82.5% in calm-glowmoss) without relying on channel EQ."
+  ],
+  "nonNegotiable": [
+    "Strict true-peak ceiling of -1.0 dBTP across all final render files and stems to guarantee zero inter-sample clipping during AAA/mobile platform encoding.",
+    "Enforced Peak-to-Loudness Ratio (PLR) minimum targets: at least 10–13 dB PLR on calm lullabies (at -18 to -20 LUFS) and 8–10 dB PLR on energy/battle cues (at -14 to -16 LUFS), banning master bus brickwall limiting.",
+    "Stereo phase correlation threshold of > +0.30 across all cues and > +0.50 below 200 Hz to guarantee full audio translation from small mobile/earbud hardware to multi-speaker setups."
+  ]
+}

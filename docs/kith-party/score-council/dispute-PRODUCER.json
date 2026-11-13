@@ -1,0 +1,34 @@
+{
+ "challenges": [
+  {
+   "to": "COMPOSER",
+   "point": "Proposing a chromatic mediant modulation to Db major in section B (bars 8–16) of title breaks the game-wide leitmotif grounding and complicates seamless crossfades.",
+   "instead": "Keep the F major foundation in title bars 8–16; instead of changing keys, re-architect the section energy by stripping the mid pads, laying a 16th-note tonos-kora picking pattern (F3-C4-A4), and building a dynamic swell (p to ff) that drops into the full tutti Lantern Road theme at bar 16."
+  },
+  {
+   "to": "MUSICIAN",
+   "point": "Adding tonos-sarangi pitch-glides over the brass stabs in battle bars 0–16 clutters the frequency space and distracts from the core horn hook. That is polishing a part that shouldn't be there.",
+   "instead": "Cut the sarangi glides. Focus the opening energy of battle on crisp lyra-trombone marcato stabs (D2-A2) locked to SOMA nagado-daiko-odaiko and bendir-atlas-gut gallop, letting the primary horn theme land clean and hard at bar 16."
+  },
+  {
+   "to": "MIX",
+   "point": "Attempting to fix the 82.5% mid-mud in calm-glowmoss solely through pan moves and send-level tweaks keeps the static, repetitive 32-bar structure intact. Fix the arrangement before the EQ.",
+   "instead": "Restructure calm-glowmoss into two distinct dynamic movements: Bars 0–16 feature a sparse solo lyra-clarinet over light tonos-kantele plucks (p, -24 dB RMS), then drop into Bars 16–32 with lush 5-part divisi lyra-silk-strings carrying the main melody in high octaves (mf, -16 dB RMS), expanding live dynamic range to 11 dB naturally."
+  },
+  {
+   "to": "MASTER",
+   "point": "Relying on master bus limiting and PLR targets to create dynamic contrast in danger (currently stuck at 3.0 dB DR) won't create actual game tension.",
+   "instead": "Re-arrange danger structurally: Bars 0–8 drop to bare minimum density with solo lyra-bassoon playing the minor lantern motif over a single SOMA tar-nubian-deep heartbeat pulse at ppp (-28 dBFS), then trigger a sudden aleatoric crescendo in tremolo-strings at bar 12 reaching ff (-10 dBFS), creating a buildable 15 dB dynamic arc."
+  }
+ ],
+ "concede": [
+  "Concede to COMPOSER and MUSICIAN on integrating gut/silk TONOS ostinatos (tonos-kora, tonos-koto, tonos-lute) across all stage loops to supply rhythmic momentum and 2k–6k Hz presence without using forbidden bell instruments.",
+  "Concede to MIX and MASTER on enforcing strict 5-part divisi string seating (Violins I L35, Violins II L15, Violas R15, Celli R35, Basses C0) and mono-folding sub-120 Hz frequencies to eliminate negative stereo correlation (-0.11 to -0.08) on energy and battle cues."
+ ],
+ "nonNegotiable": [
+  "The LANTERN MOTIF (sol·do–re–mi / C5 F5 G5 A5 in F major) and its modal shifts (minor for Hollow Warden, phrygian for 1 HP fear) must remain the clear, undeniable hook across all 12 cues.",
+  "The 3 calm lullabies (calm-glowmoss, calm-cascade, calm-keep) must retain Kenne's exact note-for-note melodies while their background arrangements evolve across 32-bar cycles to avoid player fatigue.",
+  "Every energy cue (energy-glowmoss, energy-cascade, energy-keep) and battle must deliver a definitive, high-impact tutti drop at Bar 16 featuring full SOMA percussion drive (nagado-daiko-odaiko, orchestral-field-snare) and octave brass calls."
+ ],
+ "_model": "gemini-3.6-flash"
+}

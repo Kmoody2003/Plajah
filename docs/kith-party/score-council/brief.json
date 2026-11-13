@@ -1,0 +1,1674 @@
+{
+ "ask": "Kenne (the owner) on the Kith Quest score, verbatim: \"we need to run these through composer and producer council, i want them to be more lush more orchestrated and beautiful, full realised score, high and classical and cinematic pieces, lush string and orchestral movements\". Earlier goals still stand: \"great but catchy … create new classic video game themes\", lullabies \"for adults\", enchanting, whimsical fantasy.\nKith Quest is an original 2D fantasy platformer: a small lantern-bearer crosses Glowmoss Hollow (mossy glowing forest), Cascade Heights (waterfalls, sky) and Lanternkeep (an old moonlit keep), ending in the Hollow Warden boss.\nCurrent state: 12 cues written as single-line parts with block-chord pads (each chord voiced as one sustained stack), a harp/ARP figure, and a few solo winds. Measurements of the current masters (band energy shares, stereo, dynamics) are attached; they show what a listener hears: mostly flat 1–5 dB dynamic range, lots of 250–800 Hz, little string movement.",
+ "constraints": [
+  "Original music only: no quoting or imitating any existing game or film theme. Name composers only as schools of craft.",
+  "Keep the LANTERN MOTIF (sol·do–re–mi, C5 . F5 G5 A5 in F) as the game-wide leitmotif and keep its transformations (minor for the Warden/danger, phrygian for fear).",
+  "The three calm lullabies (calm-glowmoss, calm-cascade, calm-keep) are melodies Kenne already loves: keep their tunes note for note; everything around them (harmony colour, counterpoint, orchestration, form) may grow.",
+  "Loops must stay seamless game loops (same tempo throughout; body length any whole number of bars; a loop can be longer to hold real movements: up to ~3 minutes).",
+  "clear and gameover are one-shot jingles (under ~12 s).",
+  "Moods are switched live by the game (calm ↔ energy per stage, danger, fear at 1 HP, battle for the boss): matching cues share key and tempo relationships so crossfades land.",
+  "No bell-type voices (see palette).",
+  "Every recommendation must be buildable with the palette above: name presets, registers (note names), bar ranges, dynamics.",
+  "Use the full Chora suite: every cue should feature TONOS world strings and SOMA percussion where they serve the music (e.g. kora/koto/lute ostinatos and colours beside the orchestra), not only LYRA."
+ ],
+ "palette": "Kenne: the cues are written and composed IN CHORA using the FULL suite of Chora instruments, including SOMA and the new plucked string instrument TONOS. Every part is a Chora instrument track; use the whole suite where it serves the music.\nLYRA (physical-model orchestra): lyra-silk-strings (long-bow violin section), lyra-string-quartet, lyra-concert-violin, lyra-viola, lyra-cello, lyra-double-bass-arco, lyra-pizzicato, lyra-sul-tasto (airy bowed), lyra-harp, lyra-concert-flute, lyra-alto-flute, lyra-piccolo, lyra-oboe, lyra-english-horn, lyra-clarinet, lyra-bass-clarinet, lyra-bassoon, lyra-french-horn, lyra-trumpet-open, lyra-trumpet-cup, lyra-flugelhorn, lyra-trombone, lyra-bass-trombone, lyra-tuba, lyra-felt (felt piano), lyra-concert-grand, lyra-tin-whistle, lyra-nylon, lyra-mandolin.\nTONOS (NEW: 52 physically modelled world string instruments, real string tension/body physics, sympathetic strings): plucked/hammered/bowed — tonos-kantele, tonos-kantele-bright, tonos-koto, tonos-guzheng, tonos-guzheng-glide, tonos-gayageum, tonos-gayageum-nonghyeon, tonos-pipa, tonos-pipa-lunzhi (tremolo), tonos-kora, tonos-kora-sesse, tonos-kamale-ngoni, tonos-valiha, tonos-lute, tonos-oud, tonos-oud-taqsim, tonos-qanun, tonos-santur, tonos-yangqin, tonos-cimbalom, tonos-cimbalom-dampers, tonos-bouzouki-tremolo, tonos-balalaika-tremolo, tonos-portuguese-guitar, tonos-baglama, tonos-sitar, tonos-tanpura-drone, tonos-hardanger (fiddle with sympathetics), tonos-nyckelharpa, tonos-hurdy-gurdy, tonos-hurdy-gurdy-coups, tonos-erhu-singing, tonos-morin-khuur, tonos-kamancheh, tonos-sarangi, tonos-esraj. Gut/silk/nylon-strung voices (koto, kora, lute, gayageum, oud, pipa, valiha) are the safest for warmth; steel hammered dulcimers (cimbalom, santur, yangqin) and bright kantele must stay sparing and soft so nothing reads as a metallic bell.\nVELA suite (sustained voices): VELA choir, vox-humana, tremolo-strings, hollow, aurora/aerial/cathedral (sustained pads), vespers/rise (pads); CANTUS voices: cantus-vault (cathedral choir), cantus-plainsong, cantus-byzantine; ISON drones: ison-bourdon, ison-shruti, ison-cavern; PNEUMA breath winds: pneuma-ney, pneuma-shakuhachi, pneuma-hall.\nSOMA (physically modelled percussion, 36 drums): timpani-29-dresden / timpani-32-profondo / timpani-23-piccolo / timpani-pedal-gliss / timpani-staccato-wood (tuned per bar), concert-gran-cassa, orchestral-field-snare, concert-tom-mahogany, gong-drum-boobam, nagado-daiko-odaiko, shime-daiko-tense, bodhran-kerry-tipper, bendir-atlas-gut, tar-nubian-deep, daf-persian-rings, ocean-frame-brush, shamanic-cedar-beater, kanjira-lizard-frame, darbuka, tabla, udu-igbo-clay, djembe, talking drum.\nGenerative: Chora ARP device (order/rate/octaves/euclidean accents, scale-locked), Humanize, modulators (LFO to pan/volume/mod-wheel swell), performDoc (cinematic rubato feel), volume automation lanes per track (hairpins, swells, terraced dynamics).\nMixing: per-track gain/pan/volume automation, 2 send buses: FX1 Spaces hall (Grand Concert Hall / Stone Chapel / Opera House), FX2 dotted-8th delay. No per-track EQ/filters in this pipeline: fix mud by voicing, register and orchestration.\nTracks are unlimited: divisi string sections are stacked LYRA tracks (Violins I / Violins II / Violas / Celli / Basses), each its own voice-led line (the engine voice-leads chords into these four upper lines with suspensions automatically), pan and hall send.\nFORBIDDEN by the owner: any bell-type voice (celesta, glockenspiel, tubular bells, struck glass, VELA struck family himalayan-bronze/vitreous/ferrous/deep-wash, glass choir) — Kenne heard a metallic sheen from them.",
+ "measurements": {
+  "battle": {
+   "seconds": 36.6,
+   "rmsDb": -19.7,
+   "crestDb": 17.7,
+   "bands": {
+    "sub_60": 0.007,
+    "low_60_250": 0.322,
+    "lowmid_250_800": 0.528,
+    "mid_800_2k": 0.079,
+    "presence_2k_6k": 0.047,
+    "air_6k": 0.017
+   },
+   "stereoCorr": -0.11,
+   "sideToMid": 1.12,
+   "dynamicRangeDb": 4.2
+  },
+  "calm-cascade": {
+   "seconds": 80.6,
+   "rmsDb": -21.8,
+   "crestDb": 15.2,
+   "bands": {
+    "sub_60": 0.157,
+    "low_60_250": 0.05,
+    "lowmid_250_800": 0.161,
+    "mid_800_2k": 0.371,
+    "presence_2k_6k": 0.248,
+    "air_6k": 0.013
+   },
+   "stereoCorr": 0.33,
+   "sideToMid": 0.69,
+   "dynamicRangeDb": 3.3
+  },
+  "calm-glowmoss": {
+   "seconds": 90.6,
+   "rmsDb": -21.9,
+   "crestDb": 13.9,
+   "bands": {
+    "sub_60": 0.031,
+    "low_60_250": 0.077,
+    "lowmid_250_800": 0.825,
+    "mid_800_2k": 0.051,
+    "presence_2k_6k": 0.014,
+    "air_6k": 0.002
+   },
+   "stereoCorr": 0.32,
+   "sideToMid": 0.71,
+   "dynamicRangeDb": 1.2
+  },
+  "calm-keep": {
+   "seconds": 99.9,
+   "rmsDb": -22.8,
+   "crestDb": 17.4,
+   "bands": {
+    "sub_60": 0.074,
+    "low_60_250": 0.144,
+    "lowmid_250_800": 0.661,
+    "mid_800_2k": 0.089,
+    "presence_2k_6k": 0.031,
+    "air_6k": 0.001
+   },
+   "stereoCorr": 0.06,
+   "sideToMid": 0.94,
+   "dynamicRangeDb": 5.4
+  },
+  "clear": {
+   "seconds": 11,
+   "rmsDb": -19.1,
+   "crestDb": 17.1,
+   "bands": {
+    "sub_60": 0.04,
+    "low_60_250": 0.124,
+    "lowmid_250_800": 0.429,
+    "mid_800_2k": 0.199,
+    "presence_2k_6k": 0.201,
+    "air_6k": 0.006
+   },
+   "stereoCorr": 0.16,
+   "sideToMid": 0.91,
+   "dynamicRangeDb": 29.6
+  },
+  "danger": {
+   "seconds": 46.3,
+   "rmsDb": -21.7,
+   "crestDb": 17.2,
+   "bands": {
+    "sub_60": 0.008,
+    "low_60_250": 0.394,
+    "lowmid_250_800": 0.208,
+    "mid_800_2k": 0.244,
+    "presence_2k_6k": 0.145,
+    "air_6k": 0.001
+   },
+   "stereoCorr": 0.13,
+   "sideToMid": 0.88,
+   "dynamicRangeDb": 3
+  },
+  "energy-cascade": {
+   "seconds": 40.6,
+   "rmsDb": -19.9,
+   "crestDb": 18,
+   "bands": {
+    "sub_60": 0.003,
+    "low_60_250": 0.223,
+    "lowmid_250_800": 0.606,
+    "mid_800_2k": 0.128,
+    "presence_2k_6k": 0.035,
+    "air_6k": 0.005
+   },
+   "stereoCorr": -0.11,
+   "sideToMid": 1.12,
+   "dynamicRangeDb": 4.9
+  },
+  "energy-glowmoss": {
+   "seconds": 42.3,
+   "rmsDb": -19.8,
+   "crestDb": 17.9,
+   "bands": {
+    "sub_60": 0.004,
+    "low_60_250": 0.198,
+    "lowmid_250_800": 0.623,
+    "mid_800_2k": 0.139,
+    "presence_2k_6k": 0.032,
+    "air_6k": 0.004
+   },
+   "stereoCorr": -0.08,
+   "sideToMid": 1.1,
+   "dynamicRangeDb": 5.6
+  },
+  "energy-keep": {
+   "seconds": 44.2,
+   "rmsDb": -19.9,
+   "crestDb": 17.9,
+   "bands": {
+    "sub_60": 0.003,
+    "low_60_250": 0.213,
+    "lowmid_250_800": 0.642,
+    "mid_800_2k": 0.111,
+    "presence_2k_6k": 0.028,
+    "air_6k": 0.003
+   },
+   "stereoCorr": -0.09,
+   "sideToMid": 1.1,
+   "dynamicRangeDb": 6.1
+  },
+  "fear": {
+   "seconds": 46.3,
+   "rmsDb": -20.9,
+   "crestDb": 18.9,
+   "bands": {
+    "sub_60": 0.001,
+    "low_60_250": 0.241,
+    "lowmid_250_800": 0.536,
+    "mid_800_2k": 0.182,
+    "presence_2k_6k": 0.039,
+    "air_6k": 0.001
+   },
+   "stereoCorr": 0.16,
+   "sideToMid": 0.9,
+   "dynamicRangeDb": 5.7
+  },
+  "gameover": {
+   "seconds": 21.5,
+   "rmsDb": -21.4,
+   "crestDb": 16.6,
+   "bands": {
+    "sub_60": 0.055,
+    "low_60_250": 0.17,
+    "lowmid_250_800": 0.643,
+    "mid_800_2k": 0.088,
+    "presence_2k_6k": 0.044,
+    "air_6k": 0
+   },
+   "stereoCorr": 0.45,
+   "sideToMid": 0.63,
+   "dynamicRangeDb": 40.5
+  },
+  "title": {
+   "seconds": 53.9,
+   "rmsDb": -20.1,
+   "crestDb": 18.1,
+   "bands": {
+    "sub_60": 0.005,
+    "low_60_250": 0.318,
+    "lowmid_250_800": 0.514,
+    "mid_800_2k": 0.134,
+    "presence_2k_6k": 0.028,
+    "air_6k": 0.001
+   },
+   "stereoCorr": -0.01,
+   "sideToMid": 1.02,
+   "dynamicRangeDb": 4.9
+  }
+ },
+ "cues": [
+  {
+   "id": "title",
+   "title": "The Lantern Road",
+   "blurb": "The main theme: horn, then strings, then trumpet and flute sing the lantern motif over an ARP harp, pizzicato and timpani.",
+   "bpm": 108,
+   "meter": "4/4",
+   "bars": 24,
+   "loop": true,
+   "key": "F major",
+   "sections": [
+    [
+     "A · The motif",
+     0,
+     8
+    ],
+    [
+     "B · The road lifts",
+     8,
+     16
+    ],
+    [
+     "A' · Lantern Road",
+     16,
+     24
+    ]
+   ],
+   "chords": "F | Dm | Bb | C | F | Dm | Bb C | F | Bb | Bb | C | C | Dm | Am | Gm7 | C7 | F | Dm | Bb | C | F | Dm | Bb C | F",
+   "melody": "C5:1.5 F5:.5 G5:1 A5:1 | A5:1.5 G5:.5 F5:1 C5:1 | D5:1.5 F5:.5 G5:1 A5:1 | G5:4 |C5:1.5 F5:.5 G5:1 A5:1 | C6:1.5 Bb5:.5 A5:1 F5:1 | G5:1 A5:.5 G5:.5 F5:1 E5:1 | F5:4 |Bb4:1 D5:1 F5:1 Bb5:1 | A5:2 F5:2 | G4:1 C5:1 E5:1 G5:1 | F5:2 E5:1 D5:1 |D5:1 F5:1 A5:1 D6:1 | C6:1.5 A5:.5 E5:2 | Bb5:1 A5:1 G5:1 F5:1 | G5:3 r:1 |C5:1.5 F5:.5 G5:1 A5:1 | A5:1.5 G5:.5 F5:1 C5:1 | D5:1.5 F5:.5 G5:1 A5:1 | G5:4 |C5:1.5 F5:.5 G5:1 A5:1 | C6:1.5 Bb5:.5 A5:1 F5:1 | G5:1 A5:.5 G5:.5 F5:1 E5:1 | F5:4",
+   "counter": "r:2 A4:1 C5:1 | F4:2 A4:2 | r:2 Bb4:1 D5:1 | C5:1 E5:1 G5:1 E5:1 |r:2 A4:1 C5:1 | F5:2 D5:2 | D5:1 C5:1 E5:2 | A4:1 C5:1 F5:2 |F4:2 Bb4:2 | C5:2 D5:2 | E4:2 G4:2 | A4:2 Bb4:2 |A4:2 F4:2 | E4:2 C5:2 | D5:2 Bb4:2 | C5:1 E5:1 G5:1 Bb5:1 |r:2 A4:1 C5:1 | F4:2 A4:2 | r:2 Bb4:1 D5:1 | C5:1 E5:1 G5:1 E5:1 |r:2 A4:1 C5:1 | F5:2 D5:2 | D5:1 C5:1 E5:2 | F5:4",
+   "bass": "F2:2 C3:2 | D2:2 A2:2 | Bb1:2 F2:2 | C2:2 G2:2 | F2:2 C3:2 | D2:2 A2:2 | Bb1:2 C2:2 | F2:4 |Bb1:2 F2:2 | Bb1:2 D2:2 | C2:2 G2:2 | C2:2 E2:2 | D2:2 A2:2 | A1:2 E2:2 | G1:2 D2:2 | C2:4 |F2:2 C3:2 | D2:2 A2:2 | Bb1:2 F2:2 | C2:2 G2:2 | F2:2 C3:2 | D2:2 A2:2 | Bb1:2 C2:2 | F2:4",
+   "parts": [
+    {
+     "label": "Lead Horn",
+     "preset": "lyra-french-horn",
+     "plays": "melody",
+     "oct": -12,
+     "bars": [
+      [
+       0,
+       8
+      ]
+     ]
+    },
+    {
+     "label": "Violins",
+     "preset": "lyra-silk-strings",
+     "plays": "melody",
+     "bars": [
+      [
+       8,
+       24
+      ]
+     ]
+    },
+    {
+     "label": "Trumpet",
+     "preset": "lyra-trumpet-open",
+     "plays": "melody",
+     "oct": -12,
+     "bars": [
+      [
+       16,
+       24
+      ]
+     ]
+    },
+    {
+     "label": "Flute",
+     "preset": "lyra-concert-flute",
+     "plays": "melody",
+     "bars": [
+      [
+       16,
+       24
+      ]
+     ]
+    },
+    {
+     "label": "Oboe",
+     "preset": "lyra-oboe",
+     "plays": "counter",
+     "bars": [
+      [
+       0,
+       8
+      ]
+     ]
+    },
+    {
+     "label": "Clarinet",
+     "preset": "lyra-clarinet",
+     "plays": "counter",
+     "bars": [
+      [
+       8,
+       16
+      ]
+     ]
+    },
+    {
+     "label": "Horns (counter)",
+     "preset": "lyra-french-horn",
+     "plays": "counter",
+     "bars": [
+      [
+       16,
+       24
+      ]
+     ]
+    },
+    {
+     "label": "Celli",
+     "preset": "lyra-cello",
+     "plays": "bass",
+     "oct": 12
+    },
+    {
+     "label": "Basses",
+     "preset": "lyra-double-bass-arco",
+     "plays": "bass",
+     "bars": [
+      [
+       8,
+       24
+      ]
+     ]
+    },
+    {
+     "label": "Harp (ARP)",
+     "preset": "lyra-harp",
+     "plays": "arp",
+     "oct": 12
+    },
+    {
+     "label": "String Pad",
+     "preset": "lyra-silk-strings",
+     "plays": "pad",
+     "bars": [
+      [
+       8,
+       24
+      ]
+     ]
+    },
+    {
+     "label": "Pizzicato",
+     "preset": "lyra-pizzicato",
+     "plays": "pizz",
+     "oct": -12,
+     "bars": [
+      [
+       0,
+       8
+      ]
+     ]
+    },
+    {
+     "label": "Timpani",
+     "preset": "timpani-29-dresden",
+     "plays": "timp",
+     "bars": [
+      [
+       0,
+       15
+      ]
+     ],
+     "line": "X-------------------------------"
+    },
+    {
+     "label": "Timpani (roll)",
+     "preset": "timpani-29-dresden",
+     "plays": "timp",
+     "bars": [
+      [
+       15,
+       16
+      ]
+     ],
+     "line": "x.x.x.x.xxxxxxxx"
+    },
+    {
+     "label": "Timpani (A')",
+     "preset": "timpani-29-dresden",
+     "plays": "timp",
+     "bars": [
+      [
+       16,
+       24
+      ]
+     ],
+     "line": "X-------x---f---"
+    },
+    {
+     "label": "Bodhrán",
+     "preset": "bodhran-kerry-tipper",
+     "plays": "drum",
+     "bars": [
+      [
+       16,
+       24
+      ]
+     ],
+     "line": "X--xX-x-X--xX-xx"
+    },
+    {
+     "label": "Gran Cassa",
+     "preset": "concert-gran-cassa",
+     "plays": "drum",
+     "bars": [
+      [
+       8,
+       9
+      ],
+      [
+       16,
+       17
+      ],
+      [
+       23,
+       24
+      ]
+     ],
+     "line": "X"
+    }
+   ]
+  },
+  {
+   "id": "calm-glowmoss",
+   "title": "Glowmoss Lullaby",
+   "blurb": "Stage 1, F major waltz: clarinet over harp and strings; then flute, with the oboe answering in the lantern motif.",
+   "bpm": 64,
+   "meter": "3/4",
+   "bars": 32,
+   "loop": true,
+   "key": "F major",
+   "sections": [
+    [
+     "Lullaby",
+     0,
+     16
+    ],
+    [
+     "Lullaby · the lantern answers",
+     16,
+     32
+    ]
+   ],
+   "chords": "F3+A3+C4+G4 | D3+F3+A3+C4 | Bb2+D3+F3+A3 | C3+E3+G3+Bb3 | F3+A3+C4+E4 | A2+E3+G3+C4 | Bb2+D3+F3+G3 | C3+E3+G3+D4 | F3+A3+C4+E4 | D3+F3+A3+C4 | Bb2+D3+F3+A3 | C3+E3+G3+Bb3 | A2+E3+G3+C4 | D3+F3+A3+C4 | G2+Bb2+D3+F3 | F3+A3+C4+G4 | F3+A3+C4+G4 | D3+F3+A3+C4 | Bb2+D3+F3+A3 | C3+E3+G3+Bb3 | F3+A3+C4+E4 | A2+E3+G3+C4 | Bb2+D3+F3+G3 | C3+E3+G3+D4 | F3+A3+C4+E4 | D3+F3+A3+C4 | Bb2+D3+F3+A3 | C3+E3+G3+Bb3 | A2+E3+G3+C4 | D3+F3+A3+C4 | G2+Bb2+D3+F3 | F3+A3+C4+G4",
+   "melody": "A5:2 G5:1 | F5:1 G5:1 A5:1 | Bb5:2 A5:1 | G5:3 | A5:2 C6:1 | A5:1 G5:1 E5:1 | F5:2 D5:1 | G5:3 |C6:2 D6:1 | C6:1 A5:1 G5:1 | Bb5:1.5 A5:.5 G5:1 | G5:2 E5:1 | A5:2 G5:1 | F5:1 E5:1 D5:1 | C5:1 D5:1 E5:1 | F5:3 | A5:2 G5:1 | F5:1 G5:1 A5:1 | Bb5:2 A5:1 | G5:3 | A5:2 C6:1 | A5:1 G5:1 E5:1 | F5:2 D5:1 | G5:3 |C6:2 D6:1 | C6:1 A5:1 G5:1 | Bb5:1.5 A5:.5 G5:1 | G5:2 E5:1 | A5:2 G5:1 | F5:1 E5:1 D5:1 | C5:1 D5:1 E5:1 | F5:3",
+   "counter": "r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:2 F6:1 | C6:.75 F6:.25 G6:1 A6:1 | r:3 | r:2 E6:1 | r:2 D6:1 | C6:.75 F6:.25 G6:1 A6:1 |r:3 | r:2 F6:1 | r:3 | C6:.75 E6:.25 G6:1 C7:1 | r:3 | r:2 A6:1 | G6:1 Bb6:1 G6:1 | C6:.75 F6:.25 G6:1 A6:1",
+   "parts": [
+    {
+     "label": "Clarinet",
+     "preset": "lyra-clarinet",
+     "plays": "melody",
+     "oct": -12,
+     "bars": [
+      [
+       0,
+       16
+      ]
+     ]
+    },
+    {
+     "label": "Flute",
+     "preset": "lyra-concert-flute",
+     "plays": "melody",
+     "oct": -12,
+     "bars": [
+      [
+       16,
+       32
+      ]
+     ]
+    },
+    {
+     "label": "Oboe (the lantern answers)",
+     "preset": "lyra-oboe",
+     "plays": "counter",
+     "oct": -12
+    },
+    {
+     "label": "Harp",
+     "preset": "lyra-harp",
+     "plays": "harp",
+     "oct": 12
+    },
+    {
+     "label": "Strings",
+     "preset": "lyra-silk-strings",
+     "plays": "pad"
+    },
+    {
+     "label": "Cello",
+     "preset": "lyra-cello",
+     "plays": "root",
+     "oct": -12
+    }
+   ]
+  },
+  {
+   "id": "calm-cascade",
+   "title": "Cascade Lullaby",
+   "blurb": "Stage 2, D Lydian waltz: a high flute like falling water, then a solo violin, the lantern motif in the oboe.",
+   "bpm": 72,
+   "meter": "3/4",
+   "bars": 32,
+   "loop": true,
+   "key": "D lydian",
+   "sections": [
+    [
+     "Lullaby",
+     0,
+     16
+    ],
+    [
+     "Lullaby · the lantern answers",
+     16,
+     32
+    ]
+   ],
+   "chords": "D3+F#3+A3+E4 | D3+E3+G#3+B3 | B2+F#3+A3+D4 | G2+B2+D3+F#3 | F#2+A2+D3+C#4 | G2+D3+F#3+A3 | E2+B2+D3+G3 | A2+D3+E3+A3 | D3+F#3+A3+E4 | D3+E3+G#3+B3 | F#2+C#3+E3+A3 | B2+D3+F#3+C#4 | G2+B2+D3+F#3 | G2+Bb2+D3+E3 | A2+D3+F#3+C#4 | A2+D3+E3+G3 | D3+F#3+A3+E4 | D3+E3+G#3+B3 | B2+F#3+A3+D4 | G2+B2+D3+F#3 | F#2+A2+D3+C#4 | G2+D3+F#3+A3 | E2+B2+D3+G3 | A2+D3+E3+A3 | D3+F#3+A3+E4 | D3+E3+G#3+B3 | F#2+C#3+E3+A3 | B2+D3+F#3+C#4 | G2+B2+D3+F#3 | G2+Bb2+D3+E3 | A2+D3+F#3+C#4 | A2+D3+E3+G3",
+   "melody": "A5:1 C#6:1 D6:1 | E6:2 B5:1 | C#6:1.5 B5:.5 A5:1 | F#5:3 | A5:1 B5:1 C#6:1 | D6:2 C#6:1 | B5:1 A5:1 G5:1 | E5:3 |A5:1 C#6:1 D6:1 | E6:1 G#5:1 B5:1 | A5:2 E5:1 | F#5:1 A5:1 C#6:1 | B5:2 F#5:1 | Bb5:2 A5:1 | F#5:2 E5:1 | D5:3 | A5:1 C#6:1 D6:1 | E6:2 B5:1 | C#6:1.5 B5:.5 A5:1 | F#5:3 | A5:1 B5:1 C#6:1 | D6:2 C#6:1 | B5:1 A5:1 G5:1 | E5:3 |A5:1 C#6:1 D6:1 | E6:1 G#5:1 B5:1 | A5:2 E5:1 | F#5:1 A5:1 C#6:1 | B5:2 F#5:1 | Bb5:2 A5:1 | F#5:2 E5:1 | D5:3",
+   "counter": "r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:2 G#6:1 | r:3 | A5:.75 D6:.25 E6:1 F#6:1 | r:3 | r:2 F#6:1 | r:3 | A5:.75 D6:.25 E6:1 A6:1 |r:3 | r:2 E6:1 | r:3 | r:3 | r:2 D6:1 | r:2 D6:1 | r:3 | A5:.75 D6:.25 E6:1 F#6:1",
+   "parts": [
+    {
+     "label": "Flute",
+     "preset": "lyra-concert-flute",
+     "plays": "melody",
+     "oct": 0,
+     "bars": [
+      [
+       0,
+       16
+      ]
+     ]
+    },
+    {
+     "label": "Solo Violin",
+     "preset": "lyra-concert-violin",
+     "plays": "melody",
+     "oct": -12,
+     "bars": [
+      [
+       16,
+       32
+      ]
+     ]
+    },
+    {
+     "label": "Oboe (the lantern answers)",
+     "preset": "lyra-oboe",
+     "plays": "counter",
+     "oct": -12
+    },
+    {
+     "label": "Harp",
+     "preset": "lyra-harp",
+     "plays": "harp",
+     "oct": 12
+    },
+    {
+     "label": "Strings",
+     "preset": "lyra-silk-strings",
+     "plays": "pad"
+    },
+    {
+     "label": "Cello",
+     "preset": "lyra-cello",
+     "plays": "root",
+     "oct": -12
+    }
+   ]
+  },
+  {
+   "id": "calm-keep",
+   "title": "Lanternkeep Lullaby",
+   "blurb": "Stage 3, D minor waltz: felt piano and a hushed choir, then a high cello, the motif bent into minor at the end.",
+   "bpm": 58,
+   "meter": "3/4",
+   "bars": 32,
+   "loop": true,
+   "key": "D minor",
+   "sections": [
+    [
+     "Lullaby",
+     0,
+     16
+    ],
+    [
+     "Lullaby · the lantern answers",
+     16,
+     32
+    ]
+   ],
+   "chords": "D3+A3+D4+F4 | Bb2+F3+A3+D4 | G2+D3+F3+Bb3 | A2+E3+G3+C#4 | F2+A2+D3+F3 | C3+G3+D4+E4 | Bb2+F3+A3+D4 | A2+D3+E3+A3 | D3+A3+E4+F4 | Bb2+D3+G3+D4 | C3+F3+A3+E4 | Bb2+F3+A3+E4 | G2+D3+F3+Bb3 | A2+E3+G3+C#4 | D3+A3+D4+F4 | D3+A3+D4+F4 | D3+A3+D4+F4 | Bb2+F3+A3+D4 | G2+D3+F3+Bb3 | A2+E3+G3+C#4 | F2+A2+D3+F3 | C3+G3+D4+E4 | Bb2+F3+A3+D4 | A2+D3+E3+A3 | D3+A3+E4+F4 | Bb2+D3+G3+D4 | C3+F3+A3+E4 | Bb2+F3+A3+E4 | G2+D3+F3+Bb3 | A2+E3+G3+C#4 | D3+A3+D4+F4 | D3+A3+D4+F4",
+   "melody": "A5:2 F5:1 | A5:1 Bb5:1 A5:1 | G5:2 F5:1 | E5:3 | F5:2 D5:1 | E5:1 G5:1 C6:1 | Bb5:2 A5:1 | A5:3 |D6:2 C6:1 | Bb5:1.5 A5:.5 G5:1 | A5:2 E5:1 | F5:1 E5:1 D5:1 | G5:2 Bb5:1 | A5:1 G5:1 C#5:1 | D5:3 | r:3 | A5:2 F5:1 | A5:1 Bb5:1 A5:1 | G5:2 F5:1 | E5:3 | F5:2 D5:1 | E5:1 G5:1 C6:1 | Bb5:2 A5:1 | A5:3 |D6:2 C6:1 | Bb5:1.5 A5:.5 G5:1 | A5:2 E5:1 | F5:1 E5:1 D5:1 | G5:2 Bb5:1 | A5:1 G5:1 C#5:1 | D5:3 | r:3",
+   "counter": "r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:2 D6:1 | r:3 | A5:.75 D6:.25 E6:1 C#6:1 | r:3 | r:2 E6:1 | r:3 | r:1 D6:1 E6:1 |r:3 | r:3 | r:3 | r:3 | r:3 | r:2 E6:1 | r:2 A5:1 | A5:.75 D6:.25 E6:1 F6:1",
+   "parts": [
+    {
+     "label": "Felt Piano",
+     "preset": "lyra-felt",
+     "plays": "melody",
+     "oct": 0,
+     "bars": [
+      [
+       0,
+       16
+      ]
+     ]
+    },
+    {
+     "label": "Solo Cello (high)",
+     "preset": "lyra-cello",
+     "plays": "melody",
+     "oct": -12,
+     "bars": [
+      [
+       16,
+       32
+      ]
+     ]
+    },
+    {
+     "label": "Oboe (the lantern answers)",
+     "preset": "lyra-oboe",
+     "plays": "counter",
+     "oct": -12
+    },
+    {
+     "label": "Harp",
+     "preset": "lyra-harp",
+     "plays": "harp",
+     "oct": 12
+    },
+    {
+     "label": "Strings",
+     "preset": "lyra-silk-strings",
+     "plays": "pad"
+    },
+    {
+     "label": "Cello",
+     "preset": "lyra-cello",
+     "plays": "root",
+     "oct": -12
+    },
+    {
+     "label": "Choir",
+     "preset": "choir",
+     "plays": "pad",
+     "oct": 12
+    }
+   ]
+  },
+  {
+   "id": "energy-glowmoss",
+   "title": "Glowmoss Gallop",
+   "blurb": "Stage 1 running: the Glowmoss waltz at 138 for horns, spiccato and bodhrán; trumpets call the lantern motif.",
+   "bpm": 138,
+   "meter": "3/4",
+   "bars": 32,
+   "loop": true,
+   "key": "F major",
+   "sections": [
+    [
+     "Gallop · horns",
+     0,
+     16
+    ],
+    [
+     "Gallop · the lantern shouts",
+     16,
+     32
+    ]
+   ],
+   "chords": "F3+A3+C4+G4 | D3+F3+A3+C4 | Bb2+D3+F3+A3 | C3+E3+G3+Bb3 | F3+A3+C4+E4 | A2+E3+G3+C4 | Bb2+D3+F3+G3 | C3+E3+G3+D4 | F3+A3+C4+E4 | D3+F3+A3+C4 | Bb2+D3+F3+A3 | C3+E3+G3+Bb3 | A2+E3+G3+C4 | D3+F3+A3+C4 | G2+Bb2+D3+F3 | F3+A3+C4+G4 | F3+A3+C4+G4 | D3+F3+A3+C4 | Bb2+D3+F3+A3 | C3+E3+G3+Bb3 | F3+A3+C4+E4 | A2+E3+G3+C4 | Bb2+D3+F3+G3 | C3+E3+G3+D4 | F3+A3+C4+E4 | D3+F3+A3+C4 | Bb2+D3+F3+A3 | C3+E3+G3+Bb3 | A2+E3+G3+C4 | D3+F3+A3+C4 | G2+Bb2+D3+F3 | F3+A3+C4+G4",
+   "melody": "A5:2 G5:1 | F5:1 G5:1 A5:1 | Bb5:2 A5:1 | G5:3 | A5:2 C6:1 | A5:1 G5:1 E5:1 | F5:2 D5:1 | G5:3 |C6:2 D6:1 | C6:1 A5:1 G5:1 | Bb5:1.5 A5:.5 G5:1 | G5:2 E5:1 | A5:2 G5:1 | F5:1 E5:1 D5:1 | C5:1 D5:1 E5:1 | F5:3 | A5:2 G5:1 | F5:1 G5:1 A5:1 | Bb5:2 A5:1 | G5:3 | A5:2 C6:1 | A5:1 G5:1 E5:1 | F5:2 D5:1 | G5:3 |C6:2 D6:1 | C6:1 A5:1 G5:1 | Bb5:1.5 A5:.5 G5:1 | G5:2 E5:1 | A5:2 G5:1 | F5:1 E5:1 D5:1 | C5:1 D5:1 E5:1 | F5:3",
+   "counter": "r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:2 F6:1 | C6:.75 F6:.25 G6:1 A6:1 | r:3 | r:2 E6:1 | r:2 D6:1 | C6:.75 F6:.25 G6:1 A6:1 |r:3 | r:2 F6:1 | r:3 | C6:.75 E6:.25 G6:1 C7:1 | r:3 | r:2 A6:1 | G6:1 Bb6:1 G6:1 | C6:.75 F6:.25 G6:1 A6:1",
+   "parts": [
+    {
+     "label": "Horns",
+     "preset": "lyra-french-horn",
+     "plays": "melody",
+     "oct": -12
+    },
+    {
+     "label": "Flute",
+     "preset": "lyra-concert-flute",
+     "plays": "melody",
+     "bars": [
+      [
+       16,
+       32
+      ]
+     ]
+    },
+    {
+     "label": "Violins",
+     "preset": "lyra-concert-violin",
+     "plays": "melody",
+     "bars": [
+      [
+       16,
+       32
+      ]
+     ]
+    },
+    {
+     "label": "Trumpets (the motif)",
+     "preset": "lyra-trumpet-open",
+     "plays": "counter",
+     "oct": -12
+    },
+    {
+     "label": "Spiccato Strings",
+     "preset": "lyra-string-quartet",
+     "plays": "spic"
+    },
+    {
+     "label": "Pizzicato Basses",
+     "preset": "lyra-pizzicato",
+     "plays": "pizz",
+     "oct": -12
+    },
+    {
+     "label": "Trombones",
+     "preset": "lyra-trombone",
+     "plays": "stab"
+    },
+    {
+     "label": "Harp (ARP)",
+     "preset": "lyra-harp",
+     "plays": "arp",
+     "bars": [
+      [
+       16,
+       32
+      ]
+     ]
+    },
+    {
+     "label": "Timpani",
+     "preset": "timpani-29-dresden",
+     "plays": "timp",
+     "line": "X-------x---"
+    },
+    {
+     "label": "Bodhrán",
+     "preset": "bodhran-kerry-tipper",
+     "plays": "drum",
+     "line": "X-xxX-xxX-x."
+    },
+    {
+     "label": "Concert Snare",
+     "preset": "orchestral-field-snare",
+     "plays": "drum",
+     "bars": [
+      [
+       16,
+       31
+      ]
+     ],
+     "line": "----x-----x-"
+    },
+    {
+     "label": "Snare (roll)",
+     "preset": "orchestral-field-snare",
+     "plays": "drum",
+     "bars": [
+      [
+       15,
+       16
+      ],
+      [
+       31,
+       32
+      ]
+     ],
+     "line": "x.x.xxxxXXXX"
+    },
+    {
+     "label": "Gran Cassa",
+     "preset": "concert-gran-cassa",
+     "plays": "drum",
+     "bars": [
+      [
+       0,
+       1
+      ],
+      [
+       8,
+       9
+      ],
+      [
+       16,
+       17
+      ],
+      [
+       24,
+       25
+      ]
+     ],
+     "line": "X"
+    }
+   ]
+  },
+  {
+   "id": "energy-cascade",
+   "title": "Cascade Gallop",
+   "blurb": "Stage 2 running: the Cascade waltz at 144, Lydian brass and a sixteenth-note harp ARP.",
+   "bpm": 144,
+   "meter": "3/4",
+   "bars": 32,
+   "loop": true,
+   "key": "D lydian",
+   "sections": [
+    [
+     "Gallop · horns",
+     0,
+     16
+    ],
+    [
+     "Gallop · the lantern shouts",
+     16,
+     32
+    ]
+   ],
+   "chords": "D3+F#3+A3+E4 | D3+E3+G#3+B3 | B2+F#3+A3+D4 | G2+B2+D3+F#3 | F#2+A2+D3+C#4 | G2+D3+F#3+A3 | E2+B2+D3+G3 | A2+D3+E3+A3 | D3+F#3+A3+E4 | D3+E3+G#3+B3 | F#2+C#3+E3+A3 | B2+D3+F#3+C#4 | G2+B2+D3+F#3 | G2+Bb2+D3+E3 | A2+D3+F#3+C#4 | A2+D3+E3+G3 | D3+F#3+A3+E4 | D3+E3+G#3+B3 | B2+F#3+A3+D4 | G2+B2+D3+F#3 | F#2+A2+D3+C#4 | G2+D3+F#3+A3 | E2+B2+D3+G3 | A2+D3+E3+A3 | D3+F#3+A3+E4 | D3+E3+G#3+B3 | F#2+C#3+E3+A3 | B2+D3+F#3+C#4 | G2+B2+D3+F#3 | G2+Bb2+D3+E3 | A2+D3+F#3+C#4 | A2+D3+E3+G3",
+   "melody": "A5:1 C#6:1 D6:1 | E6:2 B5:1 | C#6:1.5 B5:.5 A5:1 | F#5:3 | A5:1 B5:1 C#6:1 | D6:2 C#6:1 | B5:1 A5:1 G5:1 | E5:3 |A5:1 C#6:1 D6:1 | E6:1 G#5:1 B5:1 | A5:2 E5:1 | F#5:1 A5:1 C#6:1 | B5:2 F#5:1 | Bb5:2 A5:1 | F#5:2 E5:1 | D5:3 | A5:1 C#6:1 D6:1 | E6:2 B5:1 | C#6:1.5 B5:.5 A5:1 | F#5:3 | A5:1 B5:1 C#6:1 | D6:2 C#6:1 | B5:1 A5:1 G5:1 | E5:3 |A5:1 C#6:1 D6:1 | E6:1 G#5:1 B5:1 | A5:2 E5:1 | F#5:1 A5:1 C#6:1 | B5:2 F#5:1 | Bb5:2 A5:1 | F#5:2 E5:1 | D5:3",
+   "counter": "r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:2 G#6:1 | r:3 | A5:.75 D6:.25 E6:1 F#6:1 | r:3 | r:2 F#6:1 | r:3 | A5:.75 D6:.25 E6:1 A6:1 |r:3 | r:2 E6:1 | r:3 | r:3 | r:2 D6:1 | r:2 D6:1 | r:3 | A5:.75 D6:.25 E6:1 F#6:1",
+   "parts": [
+    {
+     "label": "Horns",
+     "preset": "lyra-french-horn",
+     "plays": "melody",
+     "oct": -12
+    },
+    {
+     "label": "Flute",
+     "preset": "lyra-concert-flute",
+     "plays": "melody",
+     "bars": [
+      [
+       16,
+       32
+      ]
+     ]
+    },
+    {
+     "label": "Violins",
+     "preset": "lyra-concert-violin",
+     "plays": "melody",
+     "bars": [
+      [
+       16,
+       32
+      ]
+     ]
+    },
+    {
+     "label": "Trumpets (the motif)",
+     "preset": "lyra-trumpet-open",
+     "plays": "counter",
+     "oct": -12
+    },
+    {
+     "label": "Spiccato Strings",
+     "preset": "lyra-string-quartet",
+     "plays": "spic"
+    },
+    {
+     "label": "Pizzicato Basses",
+     "preset": "lyra-pizzicato",
+     "plays": "pizz",
+     "oct": -12
+    },
+    {
+     "label": "Trombones",
+     "preset": "lyra-trombone",
+     "plays": "stab"
+    },
+    {
+     "label": "Harp (ARP)",
+     "preset": "lyra-harp",
+     "plays": "arp",
+     "bars": [
+      [
+       16,
+       32
+      ]
+     ]
+    },
+    {
+     "label": "Timpani",
+     "preset": "timpani-29-dresden",
+     "plays": "timp",
+     "line": "X-------x---"
+    },
+    {
+     "label": "Bodhrán",
+     "preset": "bodhran-kerry-tipper",
+     "plays": "drum",
+     "line": "X-xxX-xxX-x."
+    },
+    {
+     "label": "Concert Snare",
+     "preset": "orchestral-field-snare",
+     "plays": "drum",
+     "bars": [
+      [
+       16,
+       31
+      ]
+     ],
+     "line": "----x-----x-"
+    },
+    {
+     "label": "Snare (roll)",
+     "preset": "orchestral-field-snare",
+     "plays": "drum",
+     "bars": [
+      [
+       15,
+       16
+      ],
+      [
+       31,
+       32
+      ]
+     ],
+     "line": "x.x.xxxxXXXX"
+    },
+    {
+     "label": "Gran Cassa",
+     "preset": "concert-gran-cassa",
+     "plays": "drum",
+     "bars": [
+      [
+       0,
+       1
+      ],
+      [
+       8,
+       9
+      ],
+      [
+       16,
+       17
+      ],
+      [
+       24,
+       25
+      ]
+     ],
+     "line": "X"
+    }
+   ]
+  },
+  {
+   "id": "energy-keep",
+   "title": "Lanternkeep Gallop",
+   "blurb": "Stage 3 running: the Lanternkeep waltz at 132 in D minor, horns and snare up the castle stairs.",
+   "bpm": 132,
+   "meter": "3/4",
+   "bars": 32,
+   "loop": true,
+   "key": "D minor",
+   "sections": [
+    [
+     "Gallop · horns",
+     0,
+     16
+    ],
+    [
+     "Gallop · the lantern shouts",
+     16,
+     32
+    ]
+   ],
+   "chords": "D3+A3+D4+F4 | Bb2+F3+A3+D4 | G2+D3+F3+Bb3 | A2+E3+G3+C#4 | F2+A2+D3+F3 | C3+G3+D4+E4 | Bb2+F3+A3+D4 | A2+D3+E3+A3 | D3+A3+E4+F4 | Bb2+D3+G3+D4 | C3+F3+A3+E4 | Bb2+F3+A3+E4 | G2+D3+F3+Bb3 | A2+E3+G3+C#4 | D3+A3+D4+F4 | D3+A3+D4+F4 | D3+A3+D4+F4 | Bb2+F3+A3+D4 | G2+D3+F3+Bb3 | A2+E3+G3+C#4 | F2+A2+D3+F3 | C3+G3+D4+E4 | Bb2+F3+A3+D4 | A2+D3+E3+A3 | D3+A3+E4+F4 | Bb2+D3+G3+D4 | C3+F3+A3+E4 | Bb2+F3+A3+E4 | G2+D3+F3+Bb3 | A2+E3+G3+C#4 | D3+A3+D4+F4 | D3+A3+D4+F4",
+   "melody": "A5:2 F5:1 | A5:1 Bb5:1 A5:1 | G5:2 F5:1 | E5:3 | F5:2 D5:1 | E5:1 G5:1 C6:1 | Bb5:2 A5:1 | A5:3 |D6:2 C6:1 | Bb5:1.5 A5:.5 G5:1 | A5:2 E5:1 | F5:1 E5:1 D5:1 | G5:2 Bb5:1 | A5:1 G5:1 C#5:1 | D5:3 | r:3 | A5:2 F5:1 | A5:1 Bb5:1 A5:1 | G5:2 F5:1 | E5:3 | F5:2 D5:1 | E5:1 G5:1 C6:1 | Bb5:2 A5:1 | A5:3 |D6:2 C6:1 | Bb5:1.5 A5:.5 G5:1 | A5:2 E5:1 | F5:1 E5:1 D5:1 | G5:2 Bb5:1 | A5:1 G5:1 C#5:1 | D5:3 | r:3",
+   "counter": "r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:2 D6:1 | r:3 | A5:.75 D6:.25 E6:1 C#6:1 | r:3 | r:2 E6:1 | r:3 | r:1 D6:1 E6:1 |r:3 | r:3 | r:3 | r:3 | r:3 | r:2 E6:1 | r:2 A5:1 | A5:.75 D6:.25 E6:1 F6:1",
+   "parts": [
+    {
+     "label": "Horns",
+     "preset": "lyra-french-horn",
+     "plays": "melody",
+     "oct": -12
+    },
+    {
+     "label": "Flute",
+     "preset": "lyra-concert-flute",
+     "plays": "melody",
+     "bars": [
+      [
+       16,
+       32
+      ]
+     ]
+    },
+    {
+     "label": "Violins",
+     "preset": "lyra-concert-violin",
+     "plays": "melody",
+     "bars": [
+      [
+       16,
+       32
+      ]
+     ]
+    },
+    {
+     "label": "Trumpets (the motif)",
+     "preset": "lyra-trumpet-open",
+     "plays": "counter",
+     "oct": -12
+    },
+    {
+     "label": "Spiccato Strings",
+     "preset": "lyra-string-quartet",
+     "plays": "spic"
+    },
+    {
+     "label": "Pizzicato Basses",
+     "preset": "lyra-pizzicato",
+     "plays": "pizz",
+     "oct": -12
+    },
+    {
+     "label": "Trombones",
+     "preset": "lyra-trombone",
+     "plays": "stab"
+    },
+    {
+     "label": "Harp (ARP)",
+     "preset": "lyra-harp",
+     "plays": "arp",
+     "bars": [
+      [
+       16,
+       32
+      ]
+     ]
+    },
+    {
+     "label": "Timpani",
+     "preset": "timpani-29-dresden",
+     "plays": "timp",
+     "line": "X-------x---"
+    },
+    {
+     "label": "Bodhrán",
+     "preset": "bodhran-kerry-tipper",
+     "plays": "drum",
+     "line": "X-xxX-xxX-x."
+    },
+    {
+     "label": "Concert Snare",
+     "preset": "orchestral-field-snare",
+     "plays": "drum",
+     "bars": [
+      [
+       16,
+       31
+      ]
+     ],
+     "line": "----x-----x-"
+    },
+    {
+     "label": "Snare (roll)",
+     "preset": "orchestral-field-snare",
+     "plays": "drum",
+     "bars": [
+      [
+       15,
+       16
+      ],
+      [
+       31,
+       32
+      ]
+     ],
+     "line": "x.x.xxxxXXXX"
+    },
+    {
+     "label": "Gran Cassa",
+     "preset": "concert-gran-cassa",
+     "plays": "drum",
+     "bars": [
+      [
+       0,
+       1
+      ],
+      [
+       8,
+       9
+      ],
+      [
+       16,
+       17
+      ],
+      [
+       24,
+       25
+      ]
+     ],
+     "line": "X"
+    }
+   ]
+  },
+  {
+   "id": "danger",
+   "title": "Thorns in the Dark",
+   "blurb": "Danger zones: VELA tremolo strings, a tar heartbeat, high string sighs, a solo violin falling; the bassoon creeps the motif in minor.",
+   "bpm": 63,
+   "meter": "3/4",
+   "bars": 16,
+   "loop": true,
+   "key": "D minor",
+   "sections": [
+    [
+     "Thorns",
+     0,
+     8
+    ],
+    [
+     "Thorns · something follows",
+     8,
+     16
+    ]
+   ],
+   "chords": "D3+A3+D4+F4 | Bb2+F3+Bb3+D4 | G3+Bb3+D4+A4 | A3+C#4+E4+Bb4 | D3+A3+D4+F4 | Eb3+Bb3+Eb4+G4 | C#3+E3+G3+Bb3 | A3+D4+E4+G4 | D3+A3+D4+F4 | Bb2+F3+Bb3+D4 | G3+Bb3+D4+A4 | A3+C#4+E4+Bb4 | D3+A3+D4+F4 | Eb3+Bb3+Eb4+G4 | C#3+E3+G3+Bb3 | A3+D4+E4+G4",
+   "melody": "r:1 A5:1 Bb5:1 | A5:2 F5:1 | r:1 G5:1 Bb5:1 | C#6:2 Bb5:1 | r:1 D6:1 F6:1 | Eb6:2 D6:1 | C#6:1 Bb5:1 G5:1 | E5:1 r:2 | r:1 A5:1 Bb5:1 | A5:2 F5:1 | r:1 G5:1 Bb5:1 | C#6:2 Bb5:1 | r:1 D6:1 F6:1 | Eb6:2 D6:1 | C#6:1 Bb5:1 G5:1 | E5:1 r:2",
+   "counter": "r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | A2:.75 D3:.25 E3:1 C#3:1 | r:3 | r:3 | r:3 | A2:.75 D3:.25 E3:1 F3:1",
+   "parts": [
+    {
+     "label": "Solo Violin",
+     "preset": "lyra-concert-violin",
+     "plays": "melody"
+    },
+    {
+     "label": "Alto Flute",
+     "preset": "lyra-alto-flute",
+     "plays": "melody",
+     "oct": -12,
+     "bars": [
+      [
+       8,
+       16
+      ]
+     ]
+    },
+    {
+     "label": "Bassoon (the motif, minor)",
+     "preset": "lyra-bassoon",
+     "plays": "counter"
+    },
+    {
+     "label": "Tremolo Strings",
+     "preset": "tremolo-strings",
+     "plays": "pad",
+     "oct": -12
+    },
+    {
+     "label": "Basses",
+     "preset": "lyra-double-bass-arco",
+     "plays": "root",
+     "oct": -12
+    },
+    {
+     "label": "High string sighs",
+     "preset": "lyra-silk-strings",
+     "plays": "line",
+     "oct": -12,
+     "line": "A6:3 | F6:3 | A6:3 | Bb6:3 | A6:3 | G6:3 | Bb6:3 | G6:3 | A6:3 | F6:3 | A6:3 | Bb6:3 | A6:3 | G6:3 | Bb6:3 | G6:3"
+    },
+    {
+     "label": "Heartbeat (tar)",
+     "preset": "tar-nubian-deep",
+     "plays": "drum",
+     "bars": [
+      [
+       0,
+       8
+      ]
+     ],
+     "line": "X--x--------"
+    },
+    {
+     "label": "Heartbeat (faster)",
+     "preset": "tar-nubian-deep",
+     "plays": "drum",
+     "bars": [
+      [
+       8,
+       16
+      ]
+     ],
+     "line": "X--x--X--x--"
+    },
+    {
+     "label": "Timpani (roll)",
+     "preset": "timpani-29-dresden",
+     "plays": "timp",
+     "bars": [
+      [
+       15,
+       16
+      ]
+     ],
+     "line": "x.x.x.x.x.x."
+    }
+   ]
+  },
+  {
+   "id": "fear",
+   "title": "One Petal Left",
+   "blurb": "Last petal: the motif in phrygian on a low cello, ticking pizzicato, a double heartbeat, hushed choir; a horn takes it up the second time.",
+   "bpm": 84,
+   "meter": "4/4",
+   "bars": 16,
+   "loop": true,
+   "key": "D phrygian",
+   "sections": [
+    [
+     "One petal",
+     0,
+     8
+    ],
+    [
+     "One petal · closer",
+     8,
+     16
+    ]
+   ],
+   "chords": "D3+A3+D4+F4 | D3+Eb3+G3+Bb3 | D3+A3+D4+F4 | C#3+E3+G3+Bb3 | D3+A3+D4+F4 | D3+G3+Bb3+D4 | D3+Eb3+G3+Bb3 | A2+C#3+G3+Bb3 | D3+A3+D4+F4 | D3+Eb3+G3+Bb3 | D3+A3+D4+F4 | C#3+E3+G3+Bb3 | D3+A3+D4+F4 | D3+G3+Bb3+D4 | D3+Eb3+G3+Bb3 | A2+C#3+G3+Bb3",
+   "melody": "r:4 | A3:1.5 D4:.5 Eb4:2 | F4:3 r:1 | E4:1.5 C#4:.5 Bb3:2 | r:4 | A3:1.5 D4:.5 Eb4:1 F4:1 | G4:2 Eb4:2 | C#4:3 r:1 | r:4 | A3:1.5 D4:.5 Eb4:2 | F4:3 r:1 | E4:1.5 C#4:.5 Bb3:2 | r:4 | A3:1.5 D4:.5 Eb4:1 F4:1 | G4:2 Eb4:2 | C#4:3 r:1",
+   "parts": [
+    {
+     "label": "Cello (the motif, phrygian)",
+     "preset": "lyra-cello",
+     "plays": "melody"
+    },
+    {
+     "label": "Horn",
+     "preset": "lyra-french-horn",
+     "plays": "melody",
+     "oct": 12,
+     "bars": [
+      [
+       8,
+       16
+      ]
+     ]
+    },
+    {
+     "label": "Pizzicato (ticking)",
+     "preset": "lyra-pizzicato",
+     "plays": "tick"
+    },
+    {
+     "label": "High Violins",
+     "preset": "lyra-silk-strings",
+     "plays": "line",
+     "line": "A5:8 | Bb5:8 | A5:8 | G5:4 Bb5:4 | D6:8 | Eb6:8 | D6:8 | C#6:8"
+    },
+    {
+     "label": "Choir (hushed)",
+     "preset": "choir",
+     "plays": "pad",
+     "oct": 12,
+     "bars": [
+      [
+       8,
+       16
+      ]
+     ]
+    },
+    {
+     "label": "Clarinet (bent motif)",
+     "preset": "lyra-clarinet",
+     "plays": "line",
+     "oct": -12,
+     "line": "r:4 | r:4 | r:4 | r:2 A5:.75 D6:.25 Eb6:1 | r:4 | r:4 | r:4 | r:2 A5:.75 D6:.25 Eb6:1 | r:4 | r:4 | r:4 | r:2 A5:.75 D6:.25 Eb6:1 | r:4 | r:4 | r:4 | r:2 A5:.75 D6:.25 Eb6:1"
+    },
+    {
+     "label": "Heartbeat (tar)",
+     "preset": "tar-nubian-deep",
+     "plays": "drum",
+     "bars": [
+      [
+       0,
+       8
+      ]
+     ],
+     "line": "X--x------------"
+    },
+    {
+     "label": "Double heartbeat",
+     "preset": "tar-nubian-deep",
+     "plays": "drum",
+     "bars": [
+      [
+       8,
+       16
+      ]
+     ],
+     "line": "X--x----X--x----"
+    },
+    {
+     "label": "Gran Cassa",
+     "preset": "concert-gran-cassa",
+     "plays": "drum",
+     "bars": [
+      [
+       8,
+       9
+      ],
+      [
+       12,
+       13
+      ]
+     ],
+     "line": "X"
+    },
+    {
+     "label": "Timpani (roll)",
+     "preset": "timpani-29-dresden",
+     "plays": "timp",
+     "bars": [
+      [
+       15,
+       16
+      ]
+     ],
+     "line": "x.x.x.x.x.x.xxxx"
+    }
+   ]
+  },
+  {
+   "id": "battle",
+   "title": "The Hollow Warden",
+   "blurb": "Boss fight war-waltz in D minor: horns, then trumpets and violins, choir, spiccato, timpani, bendir gallop; trombones answer with the motif.",
+   "bpm": 160,
+   "meter": "3/4",
+   "bars": 32,
+   "loop": true,
+   "key": "D minor",
+   "sections": [
+    [
+     "Warden · horns",
+     0,
+     16
+    ],
+    [
+     "Warden · the lantern fights back",
+     16,
+     32
+    ]
+   ],
+   "chords": "D2+A2+D3+F3 | Bb1+F2+Bb2+D3 | G1+D2+G2+Bb2 | A1+E2+A2+C#3 | D2+A2+D3+F3 | Eb2+Bb2+Eb3+G3 | C#2+E2+G2+Bb2 | A1+E2+G2+C#3 | F2+C3+F3+A3 | C2+G2+C3+E3 | D2+A2+D3+F3 | Bb1+F2+Bb2+D3 | G1+D2+G2+Bb2 | Eb2+Bb2+Eb3+G3 | A1+E2+G2+C#3 | A1+E2+A2+C#3 | D2+A2+D3+F3 | Bb1+F2+Bb2+D3 | G1+D2+G2+Bb2 | A1+E2+A2+C#3 | D2+A2+D3+F3 | Eb2+Bb2+Eb3+G3 | C#2+E2+G2+Bb2 | A1+E2+G2+C#3 | F2+C3+F3+A3 | C2+G2+C3+E3 | D2+A2+D3+F3 | Bb1+F2+Bb2+D3 | G1+D2+G2+Bb2 | Eb2+Bb2+Eb3+G3 | A1+E2+G2+C#3 | A1+E2+A2+C#3",
+   "melody": "A4:1 D5:1 F5:1 | F5:2 D5:1 | G5:1 F5:1 D5:1 | C#5:3 | D5:1 F5:1 A5:1 | Bb5:2 G5:1 | G5:1 E5:1 C#5:1 | E5:3 |F5:1 A5:1 C6:1 | C6:2 G5:1 | A5:1 F5:1 D5:1 | F5:2 Bb5:1 | G5:1.5 F5:.5 D5:1 | Eb5:2 G5:1 | E5:1 C#5:1 E5:1 | A5:3 | A4:1 D5:1 F5:1 | F5:2 D5:1 | G5:1 F5:1 D5:1 | C#5:3 | D5:1 F5:1 A5:1 | Bb5:2 G5:1 | G5:1 E5:1 C#5:1 | E5:3 |F5:1 A5:1 C6:1 | C6:2 G5:1 | A5:1 F5:1 D5:1 | F5:2 Bb5:1 | G5:1.5 F5:.5 D5:1 | Eb5:2 G5:1 | E5:1 C#5:1 E5:1 | A5:3",
+   "counter": "r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | r:3 | A3:1.5 D4:.5 E4:1 | F4:3 | r:3 | r:3 | A3:1.5 D4:.5 E4:1 | F4:3 | r:3 | r:3 |C4:1.5 F4:.5 G4:1 | A4:3 | r:3 | r:3 | D4:1.5 G4:.5 A4:1 | Bb4:3 | r:3 | r:3",
+   "parts": [
+    {
+     "label": "Horns",
+     "preset": "lyra-french-horn",
+     "plays": "melody",
+     "oct": -12
+    },
+    {
+     "label": "Trumpets",
+     "preset": "lyra-trumpet-open",
+     "plays": "melody",
+     "bars": [
+      [
+       16,
+       32
+      ]
+     ]
+    },
+    {
+     "label": "Violins",
+     "preset": "lyra-concert-violin",
+     "plays": "melody",
+     "bars": [
+      [
+       16,
+       32
+      ]
+     ]
+    },
+    {
+     "label": "Trombones (stabs)",
+     "preset": "lyra-trombone",
+     "plays": "stab",
+     "oct": 12,
+     "bars": [
+      [
+       0,
+       16
+      ]
+     ]
+    },
+    {
+     "label": "Trombones (the motif, minor)",
+     "preset": "lyra-trombone",
+     "plays": "counter"
+    },
+    {
+     "label": "Choir",
+     "preset": "choir",
+     "plays": "pad",
+     "oct": 12
+    },
+    {
+     "label": "Spiccato Strings",
+     "preset": "lyra-string-quartet",
+     "plays": "spic",
+     "oct": 12
+    },
+    {
+     "label": "Basses",
+     "preset": "lyra-double-bass-arco",
+     "plays": "root"
+    },
+    {
+     "label": "Timpani",
+     "preset": "timpani-29-dresden",
+     "plays": "timp",
+     "bars": [
+      [
+       0,
+       16
+      ]
+     ],
+     "line": "X-----x-----"
+    },
+    {
+     "label": "Timpani (pass 2)",
+     "preset": "timpani-29-dresden",
+     "plays": "timp",
+     "bars": [
+      [
+       16,
+       32
+      ]
+     ],
+     "line": "X---f-x-----"
+    },
+    {
+     "label": "Bendir (gallop)",
+     "preset": "bendir-atlas-gut",
+     "plays": "drum",
+     "line": "X-xxo-xxo-xx"
+    },
+    {
+     "label": "Gran Cassa",
+     "preset": "concert-gran-cassa",
+     "plays": "drum",
+     "bars": [
+      [
+       0,
+       16
+      ]
+     ],
+     "line": "X"
+    },
+    {
+     "label": "Gran Cassa (pass 2)",
+     "preset": "concert-gran-cassa",
+     "plays": "drum",
+     "bars": [
+      [
+       16,
+       32
+      ]
+     ],
+     "line": "X"
+    },
+    {
+     "label": "Concert Snare",
+     "preset": "orchestral-field-snare",
+     "plays": "drum",
+     "bars": [
+      [
+       16,
+       31
+      ]
+     ],
+     "line": "x-x.x-x.x-xx"
+    },
+    {
+     "label": "Snare (roll)",
+     "preset": "orchestral-field-snare",
+     "plays": "drum",
+     "bars": [
+      [
+       15,
+       16
+      ],
+      [
+       31,
+       32
+      ]
+     ],
+     "line": "xxxxxxxxXXXX"
+    }
+   ]
+  },
+  {
+   "id": "clear",
+   "title": "Lantern Lit",
+   "blurb": "Stage clear: trumpet, flute and violins play the lantern motif over horns, a harp sweep and timpani, ending on F major 9.",
+   "bpm": 132,
+   "meter": "4/4",
+   "bars": 3,
+   "loop": false,
+   "key": "F major",
+   "sections": [
+    [
+     "Lantern Lit",
+     0,
+     3
+    ]
+   ],
+   "chords": "F | Bb C | Fmaj9",
+   "melody": "C5:.75 F5:.25 G5:.5 A5:.5 C6:1 A5:1 | Bb5:.5 A5:.5 G5:.5 A5:.5 C6:1 E6:1 | F6:4",
+   "counter": "A4:.75 C5:.25 E5:.5 F5:.5 A5:1 F5:1 | F5:.5 F5:.5 E5:.5 F5:.5 G5:1 Bb5:1 | A5:4",
+   "bass": "F2:2 C3:2 | Bb1:2 C2:2 | F1:4",
+   "parts": [
+    {
+     "label": "Trumpet",
+     "preset": "lyra-trumpet-open",
+     "plays": "melody",
+     "oct": -12
+    },
+    {
+     "label": "Flute",
+     "preset": "lyra-concert-flute",
+     "plays": "melody"
+    },
+    {
+     "label": "Violins",
+     "preset": "lyra-silk-strings",
+     "plays": "melody"
+    },
+    {
+     "label": "Horns",
+     "preset": "lyra-french-horn",
+     "plays": "counter",
+     "oct": -12
+    },
+    {
+     "label": "Trombone",
+     "preset": "lyra-trombone",
+     "plays": "bass",
+     "oct": 12
+    },
+    {
+     "label": "Celli + Basses",
+     "preset": "lyra-cello",
+     "plays": "bass",
+     "oct": 12
+    },
+    {
+     "label": "Strings",
+     "preset": "lyra-silk-strings",
+     "plays": "pad",
+     "oct": 12
+    },
+    {
+     "label": "Harp sweep",
+     "preset": "lyra-harp",
+     "plays": "line",
+     "line": "r:4 | r:3 F4:.125 G4:.125 A4:.125 C5:.125 D5:.125 F5:.125 G5:.125 A5:.125 | F4+C5+F5+A5:4"
+    },
+    {
+     "label": "Timpani",
+     "preset": "timpani-29-dresden",
+     "plays": "timp",
+     "line": "X-------x-------x.x.x.x.xxxxxxxxX---------------"
+    },
+    {
+     "label": "Gran Cassa",
+     "preset": "concert-gran-cassa",
+     "plays": "drum",
+     "bars": [
+      [
+       0,
+       1
+      ],
+      [
+       2,
+       3
+      ]
+     ],
+     "line": "X"
+    }
+   ]
+  },
+  {
+   "id": "gameover",
+   "title": "The Lantern Dims",
+   "blurb": "Game over: a felt piano lets the motif fall over strings, harp and a low cello, ending on a gentle F major.",
+   "bpm": 72,
+   "meter": "4/4",
+   "bars": 4,
+   "loop": false,
+   "key": "D minor",
+   "sections": [
+    [
+     "The Lantern Dims",
+     0,
+     4
+    ]
+   ],
+   "chords": "Dm | Bbmaj7 | Gm6 | F",
+   "melody": "A5:1.5 G5:.5 F5:1 D5:1 | F5:1.5 E5:.5 D5:2 | Bb4:1 D5:1 E5:2 | F5:4",
+   "bass": "D2:4 | Bb1:4 | G1:4 | F1:4",
+   "parts": [
+    {
+     "label": "Felt Piano",
+     "preset": "lyra-felt",
+     "plays": "melody"
+    },
+    {
+     "label": "Oboe",
+     "preset": "lyra-oboe",
+     "plays": "melody",
+     "oct": -12,
+     "bars": [
+      [
+       2,
+       4
+      ]
+     ]
+    },
+    {
+     "label": "Strings",
+     "preset": "lyra-silk-strings",
+     "plays": "pad"
+    },
+    {
+     "label": "Harp",
+     "preset": "lyra-harp",
+     "plays": "harp",
+     "oct": 12
+    },
+    {
+     "label": "Cello",
+     "preset": "lyra-cello",
+     "plays": "bass",
+     "oct": 12
+    },
+    {
+     "label": "Viola",
+     "preset": "lyra-viola",
+     "plays": "line",
+     "line": "F4:4 | F4:2 E4:2 | D4:4 | C4:4"
+    }
+   ]
+  }
+ ]
+}

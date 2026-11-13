@@ -20,7 +20,9 @@ import { applyHandPattern, type HandPatternResult } from '../../../services/melo
 import { performDoc } from '../../../services/melos/beats/patterns/performNotes';
 import { seedOf } from '../../../services/melos/beats/patterns/handDrumPerformer';
 import { eraClashProjects, eraClashProjectCopy, isEraClashProjectId } from '../../../services/melos/eraClashChoraProjects';
+import { eraClash3dProjects, eraClash3dProjectCopy, isEraClash3dProjectId } from '../../../services/melos/eraClash3dChoraProjects';
 import { TEMPLATE_PROJECT_PENDING_KEY } from '../../../services/melos/eraClashChoraLaunch';
+import { kithQuestProjects, kithQuestProjectCopy, isKithQuestProjectId } from '../../../services/melos/kithQuestChoraProjects';
 import { HandDrumLibrary, type HandDrumChoice } from './machine/HandDrumLibrary';
 import { playerById } from '../../../services/melos/beats/band/roster';
 import { BASSLINES, applyBassline, type BasslinePreset } from '../../../services/melos/beats/bassLines';
@@ -994,8 +996,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   // Game soundtrack templates (Era Clash): the project IS the game's cue. Always a fresh copy, so the
   // template itself never changes; the copy is the user's to save, remix and bounce.
   const loadGameSoundtrack = useCallback((projectId: string) => {
-    if (!isEraClashProjectId(projectId)) return;
-    const nextDoc = eraClashProjectCopy(projectId, auth.currentUser?.uid || 'local');
+    const is3d = isEraClash3dProjectId(projectId), isQuest = isKithQuestProjectId(projectId);
+    if (!is3d && !isQuest && !isEraClashProjectId(projectId)) return;
+    const nextDoc = (isQuest ? kithQuestProjectCopy : is3d ? eraClash3dProjectCopy : eraClashProjectCopy)(projectId, auth.currentUser?.uid || 'local');
     replace(nextDoc);
     setActivePatternId(nextDoc.patterns[0]?.id || '');
     setPlayMode('song');
@@ -1003,7 +1006,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     setView('timeline');
     setShowLiteraryScores(false);
     void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
-    flash(`Opened "${nextDoc.name}" — the game's own score: SOMA drums, LYRA/AURA/BAJO parts, a live arp and modulators. Your copy, change anything.`);
+    flash(isQuest
+      ? `Opened "${nextDoc.name}" — the game's own score: LYRA orchestra, AURA celesta, VELA choir and glass, SOMA timpani and frame drums, live ARP. Your copy, change anything.`
+      : `Opened "${nextDoc.name}" — the game's own score: SOMA drums, LYRA/AURA/BAJO parts, a live arp and modulators. Your copy, change anything.`);
   }, [replace, setView, flash]);
 
   useEffect(() => {
@@ -1647,7 +1652,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                     </div>
                     <div className="text-[9.5px] text-orange-200/80 mt-0.5">The fighting game's arena score — each cue is this project, bounced. Opens as your own copy.</div>
                     <div className="grid grid-cols-2 gap-1 mt-1.5">
-                      {eraClashProjects().map((p) => (
+                      {[...eraClashProjects(), ...eraClash3dProjects()].map((p) => (
                         <button key={p.id} onClick={() => loadGameSoundtrack(p.id)} title={p.blurb}
                           className="text-left px-2 py-1 rounded bg-black/40 hover:bg-orange-400/20 border border-white/10 hover:border-orange-400/40 transition">
                           <div className="flex items-center justify-between text-[9px] font-semibold text-white">
@@ -1655,6 +1660,25 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                             <span className="text-orange-300 font-mono ml-1 shrink-0">{Math.floor(p.durationSec / 60)}:{String(p.durationSec % 60).padStart(2, '0')}</span>
                           </div>
                           <div className="text-[8px] text-white/45 truncate">{p.era} · {p.key} · {p.bpm} BPM · {p.soma.length} SOMA drums</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mb-2 rounded-lg border border-amber-300/35 bg-amber-400/[0.06] p-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-bold text-white truncate">Game soundtracks · Kith Quest</span>
+                      <span className="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-200 border border-amber-300/30 shrink-0">LYRA · VELA · AURA · SOMA</span>
+                    </div>
+                    <div className="text-[9.5px] text-amber-100/80 mt-0.5">The platformer's orchestral score, one project per cue, built on the lantern motif. Opens as your own copy.</div>
+                    <div className="grid grid-cols-2 gap-1 mt-1.5">
+                      {kithQuestProjects().map((p) => (
+                        <button key={p.id} onClick={() => loadGameSoundtrack(p.id)} title={p.blurb}
+                          className="text-left px-2 py-1 rounded bg-black/40 hover:bg-amber-300/20 border border-white/10 hover:border-amber-300/40 transition">
+                          <div className="flex items-center justify-between text-[9px] font-semibold text-white">
+                            <span className="truncate">{p.title.replace(/^Kith Quest — /, '')}</span>
+                            <span className="text-amber-200 font-mono ml-1 shrink-0">{Math.floor(p.durationSec / 60)}:{String(p.durationSec % 60).padStart(2, '0')}</span>
+                          </div>
+                          <div className="text-[8px] text-white/45 truncate">{p.key} · {p.bpm} BPM · {p.loop ? 'loop' : 'jingle'}</div>
                         </button>
                       ))}
                     </div>

@@ -1,0 +1,123 @@
+{
+ "headline": "Restore Cinematic Headroom and Spectrum Translation: Revoice Low-Mid Clutter to Unlock 10–14 dB Dynamic Range and Sub-1.0 dBTP Ceiling",
+ "diagnosis": [
+  "Severe dynamic compression across masters: 1–5 dB dynamic range on calm cues leaves zero breathing room for orchestrational swells or game audio ducking.",
+  "Critical low-mid frequency masking: 250–800 Hz band occupies up to 82.5% of total spectrum energy in calm-glowmoss, suffocating high-frequency detail and upper string air.",
+  "Stereo phase cancellation risk: energy cues and battle show negative stereo correlation (-0.11 to -0.08) with side-to-mid ratios over 1.10, causing bass collapse on mono mobile speakers.",
+  "Sub-60 Hz energy leaks: clear and title carry under-60 Hz mud from un-truncated pad stacks without proper low-end management, risking speaker distortion at high playback volume.",
+  "Over-reliance on static sustained block pads flattening crest factor to under 14 dB on quiet tracks."
+ ],
+ "global": [
+  "Enforce target loudness standards: -18 LUFS (±1) for calm lullabies, -16 LUFS for stage energy/title, -14 LUFS for boss battle; peak ceiling strict -1.0 dBTP across all master outputs.",
+  "Mandate minimum Peak-to-Loudness Ratio (PLR) of 10 dB on lullabies and 8 dB on action cues; eradicate brickwall limiting on master stereo bus.",
+  "Mono-fold low end below 120 Hz across all cues to eliminate negative stereo correlation and secure mobile speaker translation.",
+  "Carve out the 250–800 Hz congestion by redistributing sustained block pads into wide open divisi voicing across lyra-silk-strings, lyra-viola, and lyra-cello.",
+  "Integrate TONOS plucked dynamics (tonos-kora, tonos-lute, tonos-koto) as transient high-frequency anchors (2 kHz–6 kHz) to reduce reliance on heavy upper-mid EQ boosting."
+ ],
+ "cues": {
+  "title": {
+   "verdict": "Flat 4.9 dB dynamic range and 51.4% low-mid clogging kill the cinematic grandeur of the main leitmotif.",
+   "moves": [
+    "Revoice block pads in bars 8–24 across divisi lyra-silk-strings (violins I C5–F6, violins II A4–D5), lyra-viola (F3–C4), and lyra-cello (F2–C3) to pull 250–800 Hz energy down from 51.4% to under 30%.",
+    "Introduce tonos-kora ostinato in bars 0–16 (octave 12, velocity 64–84) to add 2 kHz–5 kHz attack detail and open up 12 dB PLR.",
+    "Set master peak ceiling at -1.0 dBTP with target loudness of -16 LUFS integrated."
+   ]
+  },
+  "calm-glowmoss": {
+   "verdict": "Disastrous 1.2 dB dynamic range and 82.5% low-mid concentration make this feel like a choked static pad rather than a delicate waltz.",
+   "moves": [
+    "Strip block chord sustained pads; replace with light arpeggiated tonos-kantele and lyra-sul-tasto string pads (velocity 45–65) in bars 0–32.",
+    "Thin out sub-60 Hz energy from 3.1% to near 0.5% by shifting cello root notes from C2 to C3 in bars 0–16.",
+    "Widen dynamic range from 1.2 dB to 11.0 dB PLR, targeting -19 LUFS for a true hushed lullaby field."
+   ]
+  },
+  "calm-cascade": {
+   "verdict": "Decent air energy (24.8% at 2k–6k), but choked at 3.3 dB DR with sub-60 Hz rumble at 15.7% from unmanaged chord roots.",
+   "moves": [
+    "High-pass filter cellular bass rumble on lyra-cello below 80 Hz to tame the 15.7% sub energy spike.",
+    "Orchestrate waterfall textures using tonos-guzheng-glide and lyra-concert-flute in bars 0–16, keeping velocity automated between mf and ppp for natural dynamic decay.",
+    "Target -18 LUFS integrated with +12 dB crest factor."
+   ]
+  },
+  "calm-keep": {
+   "verdict": "Low-mid clutter at 66.1% smothers felt piano dynamics, resulting in a narrow 5.4 dB DR.",
+   "moves": [
+    "Decouple felt piano low-end by moving chords to octave 4; pass bass duties exclusively to lyra-double-bass-arco on pizz/arco hybrid at D2–A2.",
+    "Layer cantus-vault choir at low velocity (35–50) in bars 16–32 to expand presence energy (2k–6k Hz) from 3.1% to 15%.",
+    "Restore PLR to 13 dB with -1.0 dBTP limit."
+   ]
+  },
+  "energy-glowmoss": {
+   "verdict": "Negative stereo correlation (-0.08) and 62.3% mid mud cause complete phase cancellation when summed to mono.",
+   "moves": [
+    "Narrow spiccato string quarter panning to 60% side spread and mono-center all timpani and pizzicato bass below 150 Hz.",
+    "Add tonos-lute and bodhran-kerry-tipper drive in bars 0–32, using velocity dynamics (70–110) to create rhythmic accents with 9 dB DR.",
+    "Target -16 LUFS integrated and eliminate negative stereo correlation to +0.40 minimum."
+   ]
+  },
+  "energy-cascade": {
+   "verdict": "Severe mono phase issues (-0.11 correlation, 1.12 side-to-mid ratio) cause brass and harp to collapse on single speakers.",
+   "moves": [
+    "Collapse sub-120 Hz content to mono; re-pan lyra-french-horn (Left 35) and lyra-trumpet-open (Right 35) to balance side-to-mid energy to 0.70.",
+    "Inject tonos-koto sixteen-note arpeggios in bars 16–32 to cut through the mix without adding low-mid buildup.",
+    "Set peak limiter ceiling to -1.0 dBTP, targeting -15.5 LUFS."
+   ]
+  },
+  "energy-keep": {
+   "verdict": "Muddy 250–800 Hz profile (64.2%) masks trombone stabs and upper string counterpoint.",
+   "moves": [
+    "Spread lyra-trombone stabs across D3–A3 instead of tight D2–A2 clusters to relieve low-mid pressure.",
+    "Introduce tonos-bouzouki-tremolo on rhythmic driving lines (bars 16–32) for crisp transient cut in the 3 kHz region.",
+    "Lift DR from 6.1 dB to 9.5 dB PLR at -15 LUFS integrated."
+   ]
+  },
+  "danger": {
+   "verdict": "Low-mid energy (20.8%) is surprisingly cleaner, but dynamic range is locked at a flat 3.0 dB, destroying suspense.",
+   "moves": [
+    "Automate volume hairpins on tremolo-strings from ppp (bar 0) to fff (bar 15) to achieve true dynamic swells across 14 dB PLR.",
+    "Anchor heartbeat transients with tar-nubian-deep and tonos-oud-taqsim plucks in bars 0–16, keeping 60–250 Hz energy tight.",
+    "Target -18 LUFS with dramatic volume dips for 1 HP gameplay stress."
+   ]
+  },
+  "fear": {
+   "verdict": "53.6% low-mid clogging dampens phrygian motif impact; 5.7 dB DR lacks tension dynamics.",
+   "moves": [
+    "Shift ticking pizzicato to lyra-pizzicato in high register (A5–D6) combined with tonos-nyckelharpa for biting edge.",
+    "Clear out middle pads in bars 0–8; let low cello (D2–A2) hold ground against high violin lines with 10 dB dynamic delta.",
+    "Set target to -17 LUFS integrated, -1.0 dBTP maximum peak."
+   ]
+  },
+  "battle": {
+   "verdict": "Action peak ruined by negative stereo correlation (-0.11) and flat 4.2 dB DR despite boss status.",
+   "moves": [
+    "Re-balance brass stabs and nagado-daiko-odaiko percussion: mono-center all kick/cassa/taiko energy below 100 Hz.",
+    "Use full lyra orchestra divisi with tonos-pipa-lunzhi tremolo accents in bars 16–32 to add high presence (2k–6k Hz) and lift energy balance.",
+    "Target -14.0 LUFS integrated with minimum 8.5 dB PLR to ensure massive boss battle punch without digital clipping."
+   ]
+  },
+  "clear": {
+   "verdict": "29.6 dB DR is healthy for a jingle, but low-mid energy (42.9%) obscures the final Fmaj9 resolution.",
+   "moves": [
+    "Clean harp sweep velocity curve in bar 2 to peak sharply at bar 3 beat 1.",
+    "Open high brass and lyra-piccolo in bar 2–3 to boost air energy above 6 kHz from 0.6% to 5.0%.",
+    "Normalize peak output precisely to -1.0 dBTP at -15 LUFS short-term."
+   ]
+  },
+  "gameover": {
+   "verdict": "40.5 dB DR is structurally sound, but 64.3% mid-range concentration makes the felt piano sound boxed in.",
+   "moves": [
+    "Incorporate lyra-felt piano with open 10th intervals in left hand (D2–F3) rather than close triadic voicing.",
+    "Add subtle tonos-santur dampening tails in bars 2–4 to fill upper-mid presence lightly.",
+    "Target -20 LUFS integrated with completely transparent decay to total silence."
+   ]
+  }
+ },
+ "mustKeep": [
+  "The verbatim LANTERN MOTIF (sol·do–re–mi / C5 F5 G5 A5 in F) melodic integrity across all cue transformations.",
+  "The 3 calm lullaby core melodies (calm-glowmoss, calm-cascade, calm-keep) note-for-note as loved by Kenne.",
+  "Seamless game-loop bar structures and tempo alignments across calm ↔ energy pairs.",
+  "Strict prohibition of metallic bell voices (celesta, glockenspiel, tubular bells, struck glass).",
+  "One-shot timing constraints under 12s for clear and gameover cues."
+ ],
+ "_model": "gemini-3.6-flash"
+}

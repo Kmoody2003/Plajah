@@ -1,0 +1,194 @@
+{
+ "battle": {
+  "seconds": 36.6,
+  "rmsDb": -19.7,
+  "crestDb": 17.7,
+  "bands": {
+   "sub_60": 0.007,
+   "low_60_250": 0.322,
+   "lowmid_250_800": 0.528,
+   "mid_800_2k": 0.079,
+   "presence_2k_6k": 0.047,
+   "air_6k": 0.017
+  },
+  "stereoCorr": -0.11,
+  "sideToMid": 1.12,
+  "dynamicRangeDb": 4.2
+ },
+ "calm-cascade": {
+  "seconds": 80.6,
+  "rmsDb": -21.8,
+  "crestDb": 15.2,
+  "bands": {
+   "sub_60": 0.157,
+   "low_60_250": 0.05,
+   "lowmid_250_800": 0.161,
+   "mid_800_2k": 0.371,
+   "presence_2k_6k": 0.248,
+   "air_6k": 0.013
+  },
+  "stereoCorr": 0.33,
+  "sideToMid": 0.69,
+  "dynamicRangeDb": 3.3
+ },
+ "calm-glowmoss": {
+  "seconds": 90.6,
+  "rmsDb": -21.9,
+  "crestDb": 13.9,
+  "bands": {
+   "sub_60": 0.031,
+   "low_60_250": 0.077,
+   "lowmid_250_800": 0.825,
+   "mid_800_2k": 0.051,
+   "presence_2k_6k": 0.014,
+   "air_6k": 0.002
+  },
+  "stereoCorr": 0.32,
+  "sideToMid": 0.71,
+  "dynamicRangeDb": 1.2
+ },
+ "calm-keep": {
+  "seconds": 99.9,
+  "rmsDb": -22.8,
+  "crestDb": 17.4,
+  "bands": {
+   "sub_60": 0.074,
+   "low_60_250": 0.144,
+   "lowmid_250_800": 0.661,
+   "mid_800_2k": 0.089,
+   "presence_2k_6k": 0.031,
+   "air_6k": 0.001
+  },
+  "stereoCorr": 0.06,
+  "sideToMid": 0.94,
+  "dynamicRangeDb": 5.4
+ },
+ "clear": {
+  "seconds": 11.0,
+  "rmsDb": -19.1,
+  "crestDb": 17.1,
+  "bands": {
+   "sub_60": 0.04,
+   "low_60_250": 0.124,
+   "lowmid_250_800": 0.429,
+   "mid_800_2k": 0.199,
+   "presence_2k_6k": 0.201,
+   "air_6k": 0.006
+  },
+  "stereoCorr": 0.16,
+  "sideToMid": 0.91,
+  "dynamicRangeDb": 29.6
+ },
+ "danger": {
+  "seconds": 46.3,
+  "rmsDb": -21.7,
+  "crestDb": 17.2,
+  "bands": {
+   "sub_60": 0.008,
+   "low_60_250": 0.394,
+   "lowmid_250_800": 0.208,
+   "mid_800_2k": 0.244,
+   "presence_2k_6k": 0.145,
+   "air_6k": 0.001
+  },
+  "stereoCorr": 0.13,
+  "sideToMid": 0.88,
+  "dynamicRangeDb": 3.0
+ },
+ "energy-cascade": {
+  "seconds": 40.6,
+  "rmsDb": -19.9,
+  "crestDb": 18.0,
+  "bands": {
+   "sub_60": 0.003,
+   "low_60_250": 0.223,
+   "lowmid_250_800": 0.606,
+   "mid_800_2k": 0.128,
+   "presence_2k_6k": 0.035,
+   "air_6k": 0.005
+  },
+  "stereoCorr": -0.11,
+  "sideToMid": 1.12,
+  "dynamicRangeDb": 4.9
+ },
+ "energy-glowmoss": {
+  "seconds": 42.3,
+  "rmsDb": -19.8,
+  "crestDb": 17.9,
+  "bands": {
+   "sub_60": 0.004,
+   "low_60_250": 0.198,
+   "lowmid_250_800": 0.623,
+   "mid_800_2k": 0.139,
+   "presence_2k_6k": 0.032,
+   "air_6k": 0.004
+  },
+  "stereoCorr": -0.08,
+  "sideToMid": 1.1,
+  "dynamicRangeDb": 5.6
+ },
+ "energy-keep": {
+  "seconds": 44.2,
+  "rmsDb": -19.9,
+  "crestDb": 17.9,
+  "bands": {
+   "sub_60": 0.003,
+   "low_60_250": 0.213,
+   "lowmid_250_800": 0.642,
+   "mid_800_2k": 0.111,
+   "presence_2k_6k": 0.028,
+   "air_6k": 0.003
+  },
+  "stereoCorr": -0.09,
+  "sideToMid": 1.1,
+  "dynamicRangeDb": 6.1
+ },
+ "fear": {
+  "seconds": 46.3,
+  "rmsDb": -20.9,
+  "crestDb": 18.9,
+  "bands": {
+   "sub_60": 0.001,
+   "low_60_250": 0.241,
+   "lowmid_250_800": 0.536,
+   "mid_800_2k": 0.182,
+   "presence_2k_6k": 0.039,
+   "air_6k": 0.001
+  },
+  "stereoCorr": 0.16,
+  "sideToMid": 0.9,
+  "dynamicRangeDb": 5.7
+ },
+ "gameover": {
+  "seconds": 21.5,
+  "rmsDb": -21.4,
+  "crestDb": 16.6,
+  "bands": {
+   "sub_60": 0.055,
+   "low_60_250": 0.17,
+   "lowmid_250_800": 0.643,
+   "mid_800_2k": 0.088,
+   "presence_2k_6k": 0.044,
+   "air_6k": 0.0
+  },
+  "stereoCorr": 0.45,
+  "sideToMid": 0.63,
+  "dynamicRangeDb": 40.5
+ },
+ "title": {
+  "seconds": 53.9,
+  "rmsDb": -20.1,
+  "crestDb": 18.1,
+  "bands": {
+   "sub_60": 0.005,
+   "low_60_250": 0.318,
+   "lowmid_250_800": 0.514,
+   "mid_800_2k": 0.134,
+   "presence_2k_6k": 0.028,
+   "air_6k": 0.001
+  },
+  "stereoCorr": -0.01,
+  "sideToMid": 1.02,
+  "dynamicRangeDb": 4.9
+ }
+}

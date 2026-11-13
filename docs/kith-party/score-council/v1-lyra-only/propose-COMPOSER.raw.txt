@@ -1,0 +1,130 @@
+{
+  "headline": "Transforming static block-pads into a lush, 5-part divisi classical score with sweeping thematic developments and contrapuntal inner life.",
+  "diagnosis": [
+    "Dynamic range is severely constricted (1.2–6.1 dB DR across all main loops) caused by static block-chord pads running at frozen MIDI velocities.",
+    "Severe 250–800 Hz frequency buildup (exceeding 82% of total band energy in calm-glowmoss) due to root-position triad stacks jammed into the middle register.",
+    "Lack of contrapuntal movement: lead melodies sit atop static chords with no voice leading, contrary motion, or secondary thematic counter-lines.",
+    "Short 24–32 bar loop structures repeat without dynamic narrative development, missing secondary B-sections and chromatic mediant modulations."
+  ],
+  "global": [
+    "Establish a standard 5-part divisi string section layout using lyra-silk-strings and lyra-string-quartet (Violins I pan -35%, Violins II pan -15%, Violas pan +15%, Celli pan +35%, Double Basses center). High-pass filter Violins I/II at 90 Hz to eliminate low-mid buildup.",
+    "Automate dynamic swells (MIDI CC1 / performDoc rubato) across all string and woodwind parts to replace block pads with breathing bow strokes, opening dynamic range to 14–18 dB.",
+    "Enforce open-position voice leading: separate low bass roots (register C1–C3) from inner harmony (G3–E4) and upper counterpoint (C5–A6) to clear the 250–800 Hz muddy zone.",
+    "Weave thematic counterpoint across woodwinds (lyra-concert-flute, lyra-oboe, lyra-english-horn, lyra-clarinet) using canons and inversions of the LANTERN MOTIF (sol·do–re–mi)."
+  ],
+  "cues": {
+    "title": {
+      "verdict": "Expand the main theme into a 48-bar cinematic overture with an A-Lydian secondary section and sweeping orchestral counterpoint.",
+      "moves": [
+        "Extend loop from 24 to 48 bars. Insert a 16-bar B-section (bars 25–40) modulating from F major to A Lydian (A - B/A - C#m - E/G#) featuring lyra-french-horn on a soaring counter-theme (E4–C#4–B3–G#3).",
+        "Re-orchestrate bars 0–16: replace block pads with 5-part divisi strings (lyra-silk-strings) playing moving 8th-note counterpoint in contrary motion against the main horn tune.",
+        "Build a dynamic transition into A' (bars 41–48) using a 2-bar timpani roll (timpani-29-dresden) swelling from -24 dB to -3 dB alongside a full brass chorale (lyra-french-horn, lyra-trumpet-open, lyra-trombone)."
+      ]
+    },
+    "calm-glowmoss": {
+      "verdict": "Preserve the beloved F-major waltz melody verbatim while upgrading the background to a lush Schubertian string movement.",
+      "moves": [
+        "Retain the exact melody notes on lyra-clarinet (bars 0–16) and lyra-concert-flute (bars 16–32).",
+        "Replace chord stacks with a flowing 3/4 string movement: lyra-silk-strings (Violins I & II) playing sweeping 8th-note arpeggios (F4–A4–C5–F5), with lyra-viola taking inner voice leading (A3–C4).",
+        "Introduce a secondary woodwind counter-line in bars 16–32: lyra-english-horn playing the inverted LANTERN MOTIF (C4 . G3 F3 E3) underneath the flute line at -18 dB.",
+        "Extend loop to 64 bars: add a 32-bar development section touching Ab major submediant modal mixture before returning seamlessly to F major."
+      ]
+    },
+    "calm-cascade": {
+      "verdict": "Elevate the D Lydian waltz into a Marianelli-style soaring string movement with sparkling upper woodwind detail.",
+      "moves": [
+        "Preserve exact melody line on lyra-concert-flute (bars 0–16) and solo lyra-concert-violin (bars 16–32).",
+        "Transform lower accompaniment: replace block chords with divisi lyra-cello playing flowing 16th-note counter-lines (D3–F#3–A3–C#4) and lyra-viola holding shimmering Lydian G#3 pedal points.",
+        "Reharmonize bars 25–32: introduce a chromatic mediant shift (D Lydian to F# major: F#3+A#3+C#4) for elevated skyward tension before resolving.",
+        "Add delicate lyra-piccolo air accents (A6–C#7–D7) at soft velocity (-22 dB) to evoke falling water droplets."
+      ]
+    },
+    "calm-keep": {
+      "verdict": "Transform the D minor lullaby into a Chopin/Kilar nocturnal string movement with hushed contrapuntal depth.",
+      "moves": [
+        "Keep exact melody on lyra-felt piano (bars 0–16) and high solo lyra-cello (bars 16–32).",
+        "Replace static chord pad with dynamic divisi strings: lyra-double-bass-arco on low D1–D2 pedal, lyra-cello on 8th-note ostinato figures (D3–A3–F3–A3), and lyra-viola playing chromatic counter-lines (C#4–D4–Eb4–D4).",
+        "Introduce lyra-bass-clarinet in bars 16–32 playing the minor LANTERN MOTIF (A2 . D3 F3 E3) in register C2–F3 under the cello lead.",
+        "Apply high-pass filtering at 100 Hz and notch 350 Hz by -4 dB on background pads to eliminate low-mid mud, expanding dynamic range."
+      ]
+    },
+    "energy-glowmoss": {
+      "verdict": "Convert the 138 BPM gallop into a Williams-esque woodland scherzo with rich woodwind counterpoint and brass fanfares.",
+      "moves": [
+        "Re-voice main waltz melody across an octave doublet of lyra-french-horn and lyra-tin-whistle (register D4/D5).",
+        "Replace chord stabs with 16th-note spiccato runs on lyra-string-quartet and lyra-concert-violin (F4–G4–A4–Bb4–C5–D5).",
+        "Insert a 16-bar B-section (bars 33–48) modulating to Bb major; lyra-bassoon and lyra-trombone take an augmented LANTERN MOTIF in 3/4 quarter notes (F3 . Bb3 C4 D4).",
+        "Overhaul SOMA drums: combine bodhran-kerry-tipper with orchestral-field-snare rimshots and timpani-29-dresden downbeat accents (F2/F1)."
+      ]
+    },
+    "energy-cascade": {
+      "verdict": "Boost the D Lydian gallop into an exhilarating sky-chase score with flying woodwind runs and punchy brass.",
+      "moves": [
+        "Orchestrate main theme with lyra-silk-strings (Violins I & II in octaves A5/A6) and lyra-trumpet-open.",
+        "Replace sustained pads with fast woodwind arpeggios (lyra-concert-flute, lyra-clarinet) sweeping through D Lydian scales (D4–E4–F#4–G#4–A4–B4–C#5–D5).",
+        "Reharmonize bars 16–32: interject G# diminished 7th stabs on lyra-french-horn and lyra-trombone on beat 3 of alternating bars.",
+        "Extend loop with a 16-bar soaring B-section (bars 33–48) shifting to B Lydian (B–C#–D#–E#–F#)."
+      ]
+    },
+    "energy-keep": {
+      "verdict": "Upgrade the high-velocity D minor keep run into a dramatic Shore/Kilar gothic orchestral march.",
+      "moves": [
+        "Re-voice melody across low brass (lyra-trombone, lyra-tuba) and low strings (lyra-cello, lyra-double-bass-arco) in unison octaves (D2–D3).",
+        "Add aggressive spiccato violins (lyra-concert-violin) playing 16th-note motoric ostinatos on upper notes D5–F5–A5–G5.",
+        "Add canon entry at bar 16: lyra-trumpet-cup answers the low brass melody 1 measure later at the 5th (A4–D5–F5–E5).",
+        "Layer concert-gran-cassa sub impacts (40 Hz) with timpani-29-dresden rolls leading into major bar transitions."
+      ]
+    },
+    "danger": {
+      "verdict": "Expand suspense cue from a flat drone into a chromatic, edge-of-seat string and woodwind movement.",
+      "moves": [
+        "Replace generic tremolo pad with layered lyra-sul-tasto violins playing microtonal glissandi / sul ponticello tremors between C#5 and D5.",
+        "Double the bassoon minor LANTERN MOTIF (bars 8–16) with lyra-english-horn in octaves (A2/A3), swelling from pp (-24 dB) to f (-9 dB).",
+        "Add a low woodwind chord cluster (lyra-bass-clarinet, lyra-bassoon, lyra-tuba) holding D1–Eb1–G#1 tri-tone cluster to create dark tension.",
+        "Introduce rhythmic suspense with lyra-pizzicato celli playing irregular 7/8 meter pulse fragments (D2 . Eb2 . D2 Eb2)."
+      ]
+    },
+    "fear": {
+      "verdict": "Transform 1 HP fear into a heart-stopping Phrygian classical adagio with soaring expressivo lines.",
+      "moves": [
+        "Elevate cello melody (LANTERN MOTIF in D Phrygian: A3–D4–Eb4–F4) to solo lyra-cello in high thumb position (register A4–D5) with expressivo vibrato.",
+        "Add lyra-alto-flute playing an ascending countersubject (Bb4–C5–Db5–Eb5) in slow half-notes.",
+        "Reharmonize bars 8–16: oscillate underlying harmony between Eb major and D phrygian (Eb3+G3+Bb3 -> D3+F3+Ab3+C4), heightening fragile emotion.",
+        "Modulate tar-nubian-deep heartbeat with an LFO filter sweep (lowpass 150 Hz to 600 Hz) to simulate panic."
+      ]
+    },
+    "battle": {
+      "verdict": "Expand boss fight into an epic Beethovenian/Zimmer 3/4 war-waltz with rich choral-orchestral architecture.",
+      "moves": [
+        "Re-orchestrate opening (bars 0–16): replace block stabs with heavy brass low-end (lyra-tuba, lyra-bass-trombone, lyra-french-horn) playing Warden theme over 16th-note string ostinato (lyra-string-quartet + lyra-cello).",
+        "Insert a 32-bar development B-section (bars 33–64): modulate key from D minor to F# minor (chromatic mediant shift). Horns play the LANTERN MOTIF in major counter-defiance against the Warden's minor theme.",
+        "Split choir into 4-part SATB lines (Soprano F5–A5, Alto D5–F5, Tenor A4–D5, Bass D3–F3) singing counter-fugal lines in bars 16–32.",
+        "High-pass filter bendir-atlas-gut and orchestral-field-snare at 120 Hz to clear space for timpani-29-dresden and concert-gran-cassa 50 Hz sub-punches."
+      ]
+    },
+    "clear": {
+      "verdict": "Upgrade 3-bar jingle into a triumphant brass-and-string classical fanfare resolving on Fmaj9.",
+      "moves": [
+        "Expand structure from 3 bars to 4 bars at 132 BPM.",
+        "Assign main LANTERN MOTIF (C5–F5–G5–A5–C6) to lyra-trumpet-open and lyra-french-horn doubled by lyra-silk-strings Violins I.",
+        "Add dynamic lyra-harp 32nd-note Lydian glissando (F3–G3–A3–B3–C4–D4–E4–F4–G4–A4–C5–E5–F5–A5–C6–E6) sweeping into bar 4.",
+        "Resolve onto a lush Fmaj9(add11) chord voiced across 5 string parts and warm woodwinds, letting the final chord decay into FX1 Hall reverb tail."
+      ]
+    },
+    "gameover": {
+      "verdict": "Convert 4-bar jingle into a poignant Schubertian orchestral elegy for felt piano, solo oboe, and string quartet.",
+      "moves": [
+        "Slow tempo to 66 BPM and apply performDoc rubato automation for organic phrasing.",
+        "Voice leading: lyra-felt plays falling LANTERN MOTIF (A5–G5–F5–D5), answered by solo lyra-oboe on a descending counter-melody (F4–E4–D4–C#4).",
+        "Add lyra-string-quartet (Violins I, II, Viola, Cello) playing gentle chorale chords (Dm -> Bbmaj7 -> Gm6 -> F) with slow dynamic bow swells (ppp to p).",
+        "End on an unresolved soft F sustained chord fading into a low D2 cello pedal point."
+      ]
+    }
+  },
+  "mustKeep": [
+    "The core LANTERN MOTIF (sol·do–re–mi: C5 . F5 G5 A5 in F major) and its modal transformations across minor and phrygian cues.",
+    "The exact note-for-note melodies of the three stage lullabies (calm-glowmoss, calm-cascade, calm-keep) loved by Kenne.",
+    "Strict tempo and key relationship compatibility across calm and energy variants to guarantee seamless live crossfading.",
+    "The overarching structural progression across stages: Glowmoss (F major), Cascade (D Lydian), Lanternkeep (D minor), Hollow Warden (D minor / F# minor battle)."
+  ]
+}

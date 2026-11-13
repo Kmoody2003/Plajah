@@ -3,17 +3,20 @@
 // scripts/games/buildKithQuestAudio.ts), and "Open in Chora" builds a fresh copy of it.
 //
 // Every part is an instrument track on the timeline (the lullabies are waltzes, so the project carries a 3/4
-// meter and nothing lives on the 4/4 pad grid):
-//   LYRA   harp, silk strings, string quartet, cello, double bass, pizzicato, flute, alto flute, clarinet, oboe,
-//          bassoon, French horn, trumpet, trombone, concert violin, viola, felt piano
+// meter and nothing lives on the 4/4 pad grid). The whole Chora suite (Music Council, 2026-11-12 — see
+// docs/kith-party/score-council/synthesis.md):
+//   LYRA   the orchestra: a five-desk string section (Violins I/II, Violas, Celli, Basses — each a voice-led line from
+//          the chords, never a block pad), solo strings, sul tasto, winds, brass, harp, felt piano
+//   TONOS  world strings: kora, koto, valiha, guzheng, lute, nyckelharpa, hardanger, bouzouki, qanun
+//   VELA suite: VELA choir/tremolo strings, CANTUS vault/plainsong/byzantine choirs, ISON drones, PNEUMA breath
+//   SOMA   timpani (tuned to each bar's root), taiko, gran cassa, concert snare, bodhrán, bendir, daf, deep tar
+//          (the heartbeat); frame drums are played with sticks/beaters (hand map off), so a key is a stroke at pitch
 //   (no bell-type voices — celesta, bells, struck glass, glass choir — Kenne heard them as a metallic sheen)
-//   VELA   choir, tremolo strings
-//   SOMA   timpani (tuned to each bar's root), gran cassa, concert snare, bodhrán, bendir, deep tar (the heartbeat);
-//          the frame drums are played with sticks/beaters here (hand map off), so a key is a stroke at pitch
-// The generative side: Chora's ARP device plays the title harp and the energy harp from held chords (scale-locked,
-// Euclidean accents, seeded); Humanize note FX on the harps and the oboe answers; modulators sweep the ARP pans and swell the
-// tremolo; and the Session Band performs every written part (performDoc) so phrasing, timing and dynamics are played,
-// not quantized. Two send returns: FX 1 a Spaces hall (per cue), FX 2 a dotted-eighth delay for the sparkles.
+// The generative side: the string choir is voice-led (suspensions, ties) by divisiLines; figures (ostinatos, waltz
+// picking, cascades) are chord- and scale-relative; Chora's ARP device plays the title harp; volume automation lanes
+// give every sustained part its swells and terraces; modulators sweep the ARP pans and swell the tremolo; and the
+// Session Band performs every written part (performDoc) so phrasing, timing and dynamics are played, not quantized.
+// Two send returns: FX 1 a Spaces hall (per cue), FX 2 a dotted-eighth delay.
 //
 // Pure: no engine, no DOM.
 
@@ -27,6 +30,10 @@ import { serializeTonosPatch, tonosPatchFor } from './instruments/tonos/patch';
 import { tonosPresetById } from './instruments/tonos/presets';
 import { COLORS, V, clamp, fx, patchFor, presetName, seedOf, somaName, type EraClashProjectInfo } from './eraClashChoraProjects';
 import { QUEST_CUES, barVoicings, parseLine, type Cue, type CuePart } from '../../data/gameScores/kithQuest';
+import { KITH_QUEST_MIX } from '../../data/gameScores/kithQuestMix';
+
+/** The part's gain with the mix engineer's trim (scripts/games/balanceKithQuest.ts measures every track). */
+const partGain = (c: Cue, p: CuePart) => (p.gainDb ?? -10) + (KITH_QUEST_MIX[c.id]?.[p.key] ?? 0);
 
 export const KITH_QUEST_PREFIX = 'kithquest-';
 /** Bars of silence after the body so the last notes ring out (the build wraps them onto the loop start). */
@@ -42,7 +49,7 @@ export function kithQuestProjects(): KithQuestProjectInfo[] {
     id: KITH_QUEST_PREFIX + c.id, cueId: c.id, title: `Kith Quest — ${c.title}`, era: 'Kith Quest', blurb: c.blurb, bpm: c.bpm,
     key: keyName(c), bars: c.chords.length, durationSec: Math.round(c.chords.length * c.beats * 60 / c.bpm), loop: c.loop,
     soma: c.parts.filter((p) => p.inst === 'soma').map((p) => `${p.label} (${somaName(p.preset)})`).filter((x, i, a) => a.indexOf(x) === i),
-    instruments: c.parts.filter((p) => p.inst !== 'soma').map((p) => `${p.inst.toUpperCase()} ${presetName(V(p.inst, p.preset, p.label, 0))} as ${p.label}`),
+    instruments: c.parts.filter((p) => p.inst !== 'soma').map((p) => `${p.inst.toUpperCase()} ${p.inst === 'tonos' ? tonosPresetById(p.preset)?.name ?? p.preset : presetName(V(p.inst, p.preset, p.label, 0))} as ${p.label}`),
   }));
 }
 
@@ -156,7 +163,7 @@ export function divisiLines(c: Cue): DivNote[][] {
 /** Volume automation for a part: written dynamics (`dyn`) and/or breathing swells, in dB around the track's gain. */
 function dynamicsLane(c: Cue, p: CuePart, trackId: string): TrackAutomationLane | null {
   if (!p.dyn && !p.swell) return null;
-  const base = p.gainDb ?? -10, bars = c.chords.length, pts = new Map<number, number>();
+  const base = partGain(c, p), bars = c.chords.length, pts = new Map<number, number>();
   const dynAt = (bar: number) => {
     const d = p.dyn;
     if (!d?.length) return 0;
@@ -176,6 +183,46 @@ function dynamicsLane(c: Cue, p: CuePart, trackId: string): TrackAutomationLane 
   return { id: `${trackId}_dyn`, target: { kind: 'volume' }, points: [...pts.entries()].sort((a, b) => a[0] - b[0]).map(([beat, value]) => ({ beat, value: +clamp(value, -60, 6).toFixed(2), curve: 'smooth' as const })) };
 }
 
+/* ── Figures: chord- and scale-relative patterns (ostinatos, broken chords, waltz picking, cascades) ── */
+const SCALE_STEPS: Record<string, number[]> = {
+  major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10], lydian: [0, 2, 4, 6, 7, 9, 11], phrygian: [0, 1, 3, 5, 7, 8, 10],
+  dorian: [0, 2, 3, 5, 7, 9, 10], mixolydian: [0, 2, 4, 5, 7, 9, 10], harmonicMinor: [0, 2, 3, 5, 7, 8, 11],
+};
+const below = (pc: number, reg: number) => reg - (((reg - pc) % 12) + 12) % 12;
+/** The chord's tones climbing from its root at or below `reg` (index 0), extending both ways by octaves. */
+function chordTone(v: number[], reg: number, k: number): number {
+  const root = ((v[0] % 12) + 12) % 12;
+  const ints = [...new Set(v.map((x) => ((x - v[0]) % 12 + 12) % 12))].sort((a, b) => a - b);
+  const n = ints.length, o = Math.floor(k / n), i = ((k % n) + n) % n;
+  return below(root, reg) + ints[i] + 12 * o;
+}
+function scaleTone(c: Cue, reg: number, k: number): number {
+  const st = SCALE_STEPS[c.scale] ?? SCALE_STEPS.major;
+  const o = Math.floor(k / 7), i = ((k % 7) + 7) % 7;
+  return below(c.tonicPc, reg) + st[i] + 12 * o;
+}
+function figureNotes(c: Cue, p: CuePart, add: (t: number, d: number, key: number, vel?: number) => void): void {
+  const toks = (p.fig ?? '0 1 2 1').trim().split(/\s+/), step = p.step ?? 0.5, reg = p.reg ?? 60, oct = p.oct ?? 0;
+  const bars = c.chords.length, segs = segments(c), gate = p.gate ?? 0.95;
+  const notes: { t: number; d: number; key: number; vel: number }[] = [];
+  for (const s of segs) {
+    if (!inBars(p, s.bar) || rangePos(p, s.bar, bars).idx % (p.every ?? 1)) continue;
+    const barStart = s.bar * c.beats;
+    for (let t = s.at; t < s.at + s.len - 1e-6; t += step) {
+      const tok = toks[Math.round((t - barStart) / step) % toks.length];
+      if (tok === '.') continue;
+      if (tok === '_') { const last = notes[notes.length - 1]; if (last) last.d += step; continue; }
+      const m = /^(\^?)(-?\d+)([+-]*)(!?)$/.exec(tok);
+      if (!m) throw new Error(`kithQuest: bad figure token ${tok} in ${c.id}/${p.key}`);
+      const k = Number(m[2]);
+      const shift = [...m[3]].reduce((a, ch) => a + (ch === '+' ? 12 : -12), 0);
+      const key = (m[1] ? scaleTone(c, reg, k) : chordTone(s.v, reg, k)) + shift + oct;
+      notes.push({ t, d: step, key, vel: noteVel(c, p, t, bars) + (m[4] ? 12 : 0) });
+    }
+  }
+  for (const n of notes) add(n.t, n.d * gate, n.key, Math.round(clamp(n.vel, 12, 127)));
+}
+
 function partNotes(c: Cue, p: CuePart): NoteEvent[] {
   const bars = c.chords.length, oct = p.oct ?? 0, out: NoteEvent[] = [];
   const add = (t: number, d: number, key: number, vel?: number) => {
@@ -185,11 +232,18 @@ function partNotes(c: Cue, p: CuePart): NoteEvent[] {
   };
   const written = p.src === 'melody' ? c.melody : p.src === 'counter' ? c.counter : p.src === 'bass' ? c.bass : p.src === 'line' ? p.line : undefined;
   if (written !== undefined) {
-    for (const e of parseLine(written)) for (const k of e.keys) add(e.t, e.d, k + oct);
+    const body = bars * c.beats, sh = p.shift ?? 0;
+    for (const e of parseLine(written)) {
+      let t = e.t + sh;
+      if (c.loop && t >= body - 1e-6) t -= body;
+      for (const k of e.keys) add(t, e.d, k + oct);
+    }
     return out;
   }
+  if (p.src === 'figure') { figureNotes(c, p, add); return out; }
   if (p.src === 'divisi') {
-    for (const n of divisiLines(c)[p.voice ?? 0]) add(n.t, n.d, n.key + oct);
+    const lines = divisiLines(c);
+    for (const v of p.voices ?? [p.voice ?? 0]) for (const n of lines[v]) add(n.t, n.d, n.key + oct);
     return out;
   }
   const segs = segments(c), gate = p.gate ?? 1;
@@ -315,7 +369,7 @@ export function buildKithQuestGrooveDoc(cueOrProjectId: string, ownerId = 'kithq
     const pan = p.pan ?? 0;
     const t: ArrangeTrack = {
       id: trackId, kind: 'instrument', name: `${p.label} · ${p.inst.toUpperCase()}`, color, mute: false, solo: false,
-      gainDb: p.gainDb ?? -10, pan, clips: clipsFor(c, trackId, notes, color), armed: false, position: [pan, 0.1, -0.9],
+      gainDb: partGain(c, p), pan, clips: clipsFor(c, trackId, notes, color), armed: false, position: [pan, 0.1, -0.9],
       sends: [p.hall ?? 0.3, p.echo ?? 0],
       instrument: p.inst === 'soma'
         ? { type: 'soma', patch: somaPatch(p, `${trackId}_patch`), presetName: somaName(p.preset) }

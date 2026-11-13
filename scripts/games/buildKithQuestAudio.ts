@@ -38,24 +38,90 @@ function readBounce(id: string) {
   return { L, R, sr: meta.sampleRate as number };
 }
 
-/** RMS target per mood, then a 5 ms look-ahead peak limiter (ceiling .8) with a gentle release. */
-function master(L: Float32Array, R: Float32Array, rmsTarget: number, sr: number) {
-  const n = L.length;
-  let ss = 0; for (let i = 0; i < n; i++) ss += L[i] * L[i] + R[i] * R[i];
-  const g = rmsTarget / (Math.sqrt(ss / (2 * n)) || 1e-6), ceil = 0.8;
-  const look = Math.round(0.005 * sr), rel = Math.exp(-1 / (0.09 * sr));
+/* ── Mastering (Music Council 2026-11-12) ──────────────────────────────────────────────────
+ * 1. Mono-fold below 120 Hz (side channel high-passed): the low end sits centred, the battle's negative correlation goes.
+ * 2. Integrated loudness (ITU-R BS.1770: K-weighting, 400 ms blocks, −70 LUFS absolute and −10 LU relative gates)
+ *    brought to the mood's target, so a calm lullaby keeps its dynamics instead of being pushed up to an RMS.
+ * 3. A 5 ms look-ahead peak limiter at −1.5 dBFS (≈ −1 dBTP after encoding). */
+type BQ = [number, number, number, number, number];
+function biquad(x: Float32Array, [b0, b1, b2, a1, a2]: BQ): Float32Array {
+  const y = new Float32Array(x.length); let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  for (let i = 0; i < x.length; i++) { const v = b0 * x[i] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = x[i]; y2 = y1; y1 = v; y[i] = v; }
+  return y;
+}
+function highpass(f0: number, q: number, sr: number): BQ {
+  const w = 2 * Math.PI * f0 / sr, c = Math.cos(w), al = Math.sin(w) / (2 * q), a0 = 1 + al;
+  return [(1 + c) / 2 / a0, -(1 + c) / a0, (1 + c) / 2 / a0, -2 * c / a0, (1 - al) / a0];
+}
+function highshelf(f0: number, q: number, gainDb: number, sr: number): BQ {
+  const A = Math.pow(10, gainDb / 40), w = 2 * Math.PI * f0 / sr, c = Math.cos(w), al = Math.sin(w) / (2 * q), sq = 2 * Math.sqrt(A) * al;
+  const a0 = (A + 1) - (A - 1) * c + sq;
+  return [A * ((A + 1) + (A - 1) * c + sq) / a0, -2 * A * ((A - 1) + (A + 1) * c) / a0, A * ((A + 1) + (A - 1) * c - sq) / a0, 2 * ((A - 1) - (A + 1) * c) / a0, ((A + 1) - (A - 1) * c - sq) / a0];
+}
+export function lufs(L: Float32Array, R: Float32Array, sr: number): number {
+  const k = (x: Float32Array) => biquad(biquad(x, highshelf(1681.974450955533, 0.7071752369554196, 3.999843853973347, sr)), highpass(38.13547087602444, 0.5003270373238773, sr));
+  const kl = k(L), kr = k(R), blk = Math.round(0.4 * sr), hop = Math.round(0.1 * sr), z: number[] = [];
+  for (let s = 0; s + blk <= kl.length; s += hop) { let e = 0; for (let i = s; i < s + blk; i++) e += kl[i] * kl[i] + kr[i] * kr[i]; z.push(e / blk); }
+  const lk = (e: number) => -0.691 + 10 * Math.log10(e + 1e-12);
+  const abs = z.filter((e) => lk(e) > -70); if (!abs.length) return -70;
+  const rel = lk(abs.reduce((a, b) => a + b, 0) / abs.length) - 10;
+  const g = abs.filter((e) => lk(e) > rel);
+  return lk(g.reduce((a, b) => a + b, 0) / g.length);
+}
+function monoFold(L: Float32Array, R: Float32Array, sr: number) {
+  const n = L.length, side = new Float32Array(n);
+  for (let i = 0; i < n; i++) side[i] = (L[i] - R[i]) / 2;
+  const hp = biquad(biquad(side, highpass(120, 0.7071, sr)), highpass(120, 0.7071, sr));
+  for (let i = 0; i < n; i++) { const m = (L[i] + R[i]) / 2; L[i] = m + hp[i]; R[i] = m - hp[i]; }
+}
+function master(L: Float32Array, R: Float32Array, targetLufs: number, sr: number) {
+  monoFold(L, R, sr);
+  const n = L.length, g = Math.pow(10, (targetLufs - lufs(L, R, sr)) / 20), ceil = Math.pow(10, -1.5 / 20);
+  const look = Math.round(0.005 * sr), rel = Math.exp(-1 / (0.12 * sr));
   const need = new Float32Array(n);
   for (let i = 0; i < n; i++) { const p = Math.max(Math.abs(L[i]), Math.abs(R[i])) * g; need[i] = p > ceil ? ceil / p : 1; }
   let env = 1;
   for (let i = 0; i < n; i++) {
-    let m = 1; for (let j = i; j < Math.min(n, i + look); j += 8) if (need[j] < m) m = need[j];
+    let m = 1; for (let j = i; j < Math.min(n, i + look); j += 4) if (need[j] < m) m = need[j];
     env = m < env ? m : m + (env - m) * rel;
-    L[i] = Math.max(-0.84, Math.min(0.84, L[i] * g * env)); R[i] = Math.max(-0.84, Math.min(0.84, R[i] * g * env));
+    L[i] = Math.max(-ceil, Math.min(ceil, L[i] * g * env)); R[i] = Math.max(-ceil, Math.min(ceil, R[i] * g * env));
   }
 }
 
-const RMS: Record<string, number> = { calm: 0.1, energy: 0.15, title: 0.14, danger: 0.11, fear: 0.12, battle: 0.155, clear: 0.15, gameover: 0.1 };
-const rmsFor = (c: Cue) => RMS[c.id.split('-')[0]] ?? 0.13;
+/** Integrated loudness per mood (LUFS) — the council's targets. */
+const LUFS_TARGET: Record<string, number> = { calm: -19, title: -16, energy: -16, danger: -17.5, fear: -17.5, battle: -15, clear: -15, gameover: -16 };
+const targetFor = (c: Cue) => LUFS_TARGET[c.id.split('-')[0]] ?? -17;
+
+/* ── The Lyria bed (hybrid score, Kenne 2026-11-13) ─────────────────────────────────────────
+ * scripts/games/kith-quest-beds.sh records a cinematic orchestral bed per loop from Lyria RealTime (the cue's tempo,
+ * a scale holding exactly its notes, no drums). It is crossfaded into a seamless loop of the body's length and laid
+ * under the Chora score at a set loudness below it: the Chora themes stay on top, the bed is the orchestra's body. */
+const BED_REL: Record<string, number> = { title: -5, calm: -7, energy: -6, danger: -3, fear: -4, battle: -6 };
+function readBed(id: string, sr: number, len: number): { L: Float32Array; R: Float32Array } | null {
+  const f = path.join(CACHE, 'beds', `${id}.wav`);
+  if (!fs.existsSync(f)) return null;
+  const b = fs.readFileSync(f), n = (b.length - 44) / 4, bsr = b.readUInt32LE(24);
+  const L0 = new Float32Array(n), R0 = new Float32Array(n);
+  for (let i = 0; i < n; i++) { L0[i] = b.readInt16LE(44 + i * 4) / 32768; R0[i] = b.readInt16LE(46 + i * 4) / 32768; }
+  // resample to the bounce rate (linear: the bed is a soft sustained texture)
+  const ratio = bsr / sr, m = Math.floor(n / ratio), L = new Float32Array(m), R = new Float32Array(m);
+  for (let i = 0; i < m; i++) { const x = i * ratio, k = Math.floor(x), f2 = x - k; L[i] = L0[k] + ((L0[k + 1] ?? L0[k]) - L0[k]) * f2; R[i] = R0[k] + ((R0[k + 1] ?? R0[k]) - R0[k]) * f2; }
+  // seamless loop of `len`: the run past the end is equal-power crossfaded onto the start
+  const xf = Math.min(Math.round(4 * sr), m - len);
+  if (xf <= 0) return null;
+  const oL = L.slice(0, len), oR = R.slice(0, len);
+  for (let i = 0; i < xf; i++) { const t = i / xf, a = Math.sin(t * Math.PI / 2), z = Math.cos(t * Math.PI / 2); oL[i] = L[i] * a + L[len + i] * z; oR[i] = R[i] * a + R[len + i] * z; }
+  return { L: oL, R: oR };
+}
+function layBed(c: Cue, L: Float32Array, R: Float32Array, sr: number): string {
+  const rel = BED_REL[c.id.split('-')[0]];
+  if (rel === undefined) return '';
+  const bed = readBed(c.id, sr, L.length);
+  if (!bed) return ' (no bed)';
+  const g = Math.pow(10, (lufs(L, R, sr) + rel - lufs(bed.L, bed.R, sr)) / 20);
+  for (let i = 0; i < L.length; i++) { L[i] += bed.L[i] * g; R[i] += bed.R[i] * g; }
+  return ` + Lyria bed ${rel} dB`;
+}
 
 function writeWav(file: string, L: Float32Array, R: Float32Array, sr: number) {
   const n = L.length, buf = Buffer.alloc(44 + n * 4);
@@ -72,13 +138,14 @@ interface Entry { title: string; file: string; loop: boolean; bpm: number; durat
 function build(c: Cue): Entry {
   const { L, R, sr } = readBounce(c.id);
   const a = Math.round(ANCHOR * sr), bodyLen = Math.round(c.chords.length * c.beats * 60 / c.bpm * sr);
-  let oL: Float32Array, oR: Float32Array, entry: Entry;
+  let oL: Float32Array, oR: Float32Array, entry: Entry, bedNote = '';
   if (c.loop) {
     // the loop with its own ring-out wrapped onto the start
     const lL = new Float32Array(bodyLen), lR = new Float32Array(bodyLen);
     for (let i = 0; i < bodyLen; i++) { lL[i] = L[a + i] ?? 0; lR[i] = R[a + i] ?? 0; }
     for (let i = 0; a + bodyLen + i < L.length; i++) { lL[i % bodyLen] += L[a + bodyLen + i]; lR[i % bodyLen] += R[a + bodyLen + i]; }
-    master(lL, lR, rmsFor(c), sr);
+    bedNote = layBed(c, lL, lR, sr);
+    master(lL, lR, targetFor(c), sr);
     const roll = Math.round(ROLL * sr);
     oL = new Float32Array(bodyLen + 2 * roll); oR = new Float32Array(bodyLen + 2 * roll);
     for (let i = 0; i < oL.length; i++) { const k = ((i - roll) % bodyLen + bodyLen) % bodyLen; oL[i] = lL[k]; oR[i] = lR[k]; }
@@ -86,9 +153,10 @@ function build(c: Cue): Entry {
   } else {
     let end = L.length - 1;
     while (end > a && Math.max(Math.abs(L[end]), Math.abs(R[end])) < 0.0008) end--;
+    end = Math.min(end, a + bodyLen + Math.round(3 * sr)); // at most 3 s of ring-out after the last bar
     oL = L.slice(a, end + 1); oR = R.slice(a, end + 1);
-    master(oL, oR, rmsFor(c), sr);
-    const fade = Math.min(oL.length, Math.round(0.4 * sr));
+    master(oL, oR, targetFor(c), sr);
+    const fade = Math.min(oL.length, Math.round(1.2 * sr));
     for (let i = 0; i < fade; i++) { const g = i / fade; oL[oL.length - 1 - i] *= g; oR[oR.length - 1 - i] *= g; }
     entry = { title: c.title, file: `${c.id}.mp3`, loop: false, bpm: c.bpm, duration: oL.length / sr };
   }
@@ -96,7 +164,7 @@ function build(c: Cue): Entry {
   writeWav(wav, oL, oR, sr);
   jobs.push([wav, path.join(OUT, entry.file), sr]);
   let pk = 0; for (let i = 0; i < oL.length; i++) pk = Math.max(pk, Math.abs(oL[i]), Math.abs(oR[i]));
-  console.log(`${c.id.padEnd(16)} ${entry.loop ? 'loop' : 'jingle'} ${entry.duration.toFixed(1)}s peak ${pk.toFixed(2)}`);
+  console.log(`${c.id.padEnd(16)} ${entry.loop ? 'loop' : 'jingle'} ${entry.duration.toFixed(1)}s peak ${pk.toFixed(2)} · ${lufs(oL, oR, sr).toFixed(1)} LUFS (target ${targetFor(c)})${bedNote}`);
   return entry;
 }
 

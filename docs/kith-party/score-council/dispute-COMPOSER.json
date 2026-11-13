@@ -1,0 +1,36 @@
+{
+ "challenges": [
+  {
+   "to": "PRODUCER",
+   "point": "Proposing generic 16th-note plucked ostinatos as pure rhythmic filler ignores thematic metamorphosis; simply speeding up a lullaby without contrapuntal counter-subjects turns a classic video game theme into a mechanical loop.",
+   "instead": "Build true contrapuntal inner life in energy cues: in 'energy-glowmoss' (bars 16–32), do not just double the horn melody with trumpets. Write an inverted answer in lyra-french-horn (A4-F4-E4-D4) against the lead trumpet's Lantern Motif call (C5-F5-G5-A5), while tonos-lute runs a 3/4 syncopated counter-ostinato in F Lydian (F3-B3-C4-E4)."
+  },
+  {
+   "to": "MIX",
+   "point": "Treating frequency decluttering purely as panning and register gaps risks gutting the dramatic gravity of middle-voice suspensions (4-3, 7-6, 9-8) that define Romantic scoring.",
+   "instead": "Retain middle-register counter-lines in lyra-viola (C3-G4) and lyra-english-horn (F3-C4), but voice them in linear passing tones and suspensions rather than sustained 4-voice block chords. Mud is destroyed by linear voice-leading and rhythmic staggering, not by carving out the warm mid-range of woodwinds."
+  },
+  {
+   "to": "MASTER",
+   "point": "Treating dynamic expansion as a rigid LUFS/PLR target (-16 LUFS / 12 dB PLR) ignores dramatic narrative terracing across dynamic gameplay states.",
+   "instead": "Structure dynamic range through thematic dynamic arc: 'calm-keep' should remain hushed (p to mp, -24 dB to -16 dB RMS) with dramatic swells up to f (-10 dB RMS) only when the oboe sings the minor motif transformation in bar 30, creating real narrative breath rather than static master-bus volume lifting."
+  },
+  {
+   "to": "MUSICIAN",
+   "point": "Focusing heavily on instrument swaps (tonos-guzheng-glide, tonos-kantele) for textural color without enforcing structural B-section modulations leaves 32-bar loops harmonically static on repeat.",
+   "instead": "Force chromatic mediant and modal modulations in every 32-bar loop repeat. In 'title' (bars 8–16), modulate Section B from F major to Db major (Db3-Ab3-F4) before dominant preparation on C7; in 'energy-keep' (bars 24–28), shift to Eb Phrygian Dominant (Eb3-G3-Bb3-Db4) to heighten dynamic urgency."
+  }
+ ],
+ "concede": [
+  "The 5-part string section divisi (Violins I L35, Violins II L15, Violas R15, Celli R35, Double Basses C) is essential to replace monolithic block pads with voice-led classical counterpoint.",
+  "Purging the 250–800 Hz block chord mud stacks is mandatory to give woodwind solos and TONOS world string transients (tonos-kora, tonos-lute, tonos-valiha) acoustic room to breathe.",
+  "Mono-folding low bass fundamentals below 120 Hz across Double Basses (lyra-double-bass-arco) and SOMA drums (timpani-32-profondo, concert-gran-cassa) is required to resolve negative stereo phase correlation on action cues."
+ ],
+ "nonNegotiable": [
+  "The LANTERN LEITMOTIF (sol·do–re–mi / C5·F5 G5 A5 in F major) and its modal mutations (D minor in boss/danger, D Phrygian in 1 HP fear) must remain the unyielding thematic spine across all 12 score cues.",
+  "The verbatim note-for-note melodic integrity of Kenne's three calm lullabies (calm-glowmoss, calm-cascade, calm-keep) must be preserved without altering a single principal pitch.",
+  "Zero usage of metallic bell-type voices (celesta, glockenspiel, tubular bells, struck glass, VELA struck family); high register sparkle must come strictly from bowed string harmonics (lyra-sul-tasto), lyra-harp, or gut/silk TONOS voices (tonos-kantele-bright played soft, tonos-qanun).",
+  "Seamless game-loop bar boundaries and exact key/tempo matching across dynamic gameplay pairs (calm ↔ energy ↔ danger ↔ fear) must be strictly maintained for instantaneous stem crossfading."
+ ],
+ "_model": "gemini-3.6-flash"
+}

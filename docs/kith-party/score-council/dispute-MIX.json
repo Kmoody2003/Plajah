@@ -1,0 +1,36 @@
+{
+ "challenges": [
+  {
+   "to": "MASTER",
+   "point": "MASTER calls for pushing the battle master to -14.0 LUFS integrated, but forcing dense brass and SOMA taikos to that loudness level will crush the crest factor (gutting the existing 17.7 dB crest) and cause inter-sample clipping in the 250–800 Hz mud zone.",
+   "instead": "Cap battle at -16.0 LUFS integrated (-1.0 dBTP ceiling), using surgical register separation (moving trombone chord sustains up to D3–A3) and L/R divisi panning to achieve felt loudness without squashing transient dynamics below 8.5 dB DR."
+  },
+  {
+   "to": "PRODUCER",
+   "point": "PRODUCER proposes stacking tonos-bouzouki-tremolo and nagado-daiko-odaiko simultaneously in battle bars 16–32, which creates severe 200–500 Hz collision between bouzouki body resonances and daiko rim/shell overtones, masking the Lead Trumpet.",
+   "instead": "Pan tonos-bouzouki-tremolo hard L35% with an automated -3 dB volume dip during Trumpet statements, and keep nagado-daiko high-passed above 120 Hz while leaving sub-80 Hz punch exclusively to concert-gran-cassa at Pan C0%."
+  },
+  {
+   "to": "COMPOSER",
+   "point": "COMPOSER wants low Trombones to play the minor Lantern Motif in canon 1 bar behind the lead Violins/Trumpets in battle (bars 16–32), dumping heavy low-brass energy directly into the 200–400 Hz range occupied by Celli and Bendir.",
+   "instead": "Shift the canon answer to lyra-french-horn panned R25% in octave 3 (F3–Bb3) with a -14 dB FX1 hall send, preserving octave 2 (F2–Bb2) for Double Bass arco and SOMA sub impacts."
+  },
+  {
+   "to": "MUSICIAN",
+   "point": "MUSICIAN introduces tonos-sarangi pitch glides in fear (bars 0–8) panned L25%, bringing unstable 1.5k–3k Hz friction harmonics into direct frequency conflict with the primary low Cello solo.",
+   "instead": "Position tonos-sarangi at Pan R35% with an FX1 Stone Chapel send at -10 dB and gain-trimmed -6 dB below the Cello, framing it strictly as ambient tail resonance rather than a competing foreground lead."
+  }
+ ],
+ "concede": [
+  "Concede to MASTER on folding all signal energy below 120 Hz strictly to mono (Pan 0%) across all cues to immediately eliminate negative stereo correlation (-0.11 on battle, -0.11 on energy-cascade, -0.08 on energy-glowmoss).",
+  "Concede to COMPOSER and MUSICIAN on replacing block-chord sustained pads with 5-part divisi string seating (Violins I L35%, Violins II L15%, Violas R15%, Celli R35%, Basses C0%), which clears up to 40% of the measured 250–800 Hz mid mud.",
+  "Concede to PRODUCER on deploying gut/silk TONOS plucked ostinatos (kora, koto, lute) as high-frequency (2k–6k Hz) transient anchors to supply presence and air without using forbidden bell instruments or static EQ boosts."
+ ],
+ "nonNegotiable": [
+  "Low-end mono integrity: Double Basses, Celli root fundamentals below 120 Hz, Gran Cassa, and Timpani must remain strictly panned C0% with zero stereo widening or out-of-phase delay feedback.",
+  "Unmasked lead corridor: the 250–800 Hz mid range must be kept clear of 4-voice sustained block chords; inner voices must use open-fifth/octave spacing with linear voice-leading suspensions.",
+  "Phase compliance: stereo correlation must measure above +0.35 across all 12 final masters; any cue exhibiting negative stereo correlation will be rejected at export.",
+  "Dynamic crest factor: calm lullaby loops must maintain a minimum 10.0 dB dynamic range (PLR); heavy brickwall limiting on quiet cues is strictly forbidden."
+ ],
+ "_model": "gemini-3.6-flash"
+}

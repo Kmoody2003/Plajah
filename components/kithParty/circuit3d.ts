@@ -421,8 +421,7 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
    const mound=new T.Mesh(g,sand);mound.castShadow=true;mound.receiveShadow=true;
    mound.position.copy(f.position).addScaledVector(f.normal,-.05);mound.quaternion.setFromRotationMatrix(basisHelper);
    scene.add(mound);follow(mound,h.t);
-   const skirt=new T.Mesh(new T.CircleGeometry(sol.radius*1.45,28),new T.MeshStandardMaterial({color:'#d6964e',roughness:1,transparent:true,opacity:.75}));
-   skirt.rotation.x=-Math.PI/2;const sk=new T.Group();sk.add(skirt);sk.position.copy(f.position).addScaledVector(f.normal,.03);sk.quaternion.setFromRotationMatrix(basisHelper);scene.add(sk);follow(sk,h.t);
+   // no loose-sand skirt: what you see is exactly what's solid (race.ts hazardSolid radius)
    continue;
   }
   const hCol=h.kind==='crystal'?'#ff9d00':h.kind==='geyser'?'#00f5ff':h.kind==='ice-patch'?'#80f5ff':(h.kind as string)==='sand-pocket'?'#e6953e':'#78d629';

@@ -63,17 +63,22 @@ Kenne, 2026-11-12: *"take full advantage of chora instruments … write really g
   - Thorns in the Dark (danger) and One Petal Left (fear, D phrygian, 4/4)
   - The Hollow Warden (battle, D minor war-waltz, 160)
   - Lantern Lit (stage clear) and The Lantern Dims (game over)
+- **Music Council pass (2026-11-12/13).** Kenne: *"run these through composer and producer council … more lush, more orchestrated and beautiful, full realised score … lush string and orchestral movements"*, written and composed in Chora with the full suite, including SOMA and the new TONOS plucked strings.
+  - The council: `scripts/council/runKithQuestScoreCouncil.ts`. The five Music Council seats (Composer, Orchestrator, Producer, Mix, Master) propose, dispute, then Aria synthesises. It runs on the cloud Gemini lane, never a local model. Output is in `docs/kith-party/score-council/` (`synthesis.md` is the plan). The free-tier key allows 5 requests a minute and has a daily cap, so the script runs one call at a time and resumes from cached seats.
+  - Aria's decisions: no key changes in loops (mood crossfades must land); block-chord pads banned in favour of a five-desk divisi string section; TONOS gut and silk colours in every cue; low end mono below 120 Hz; per-mood loudness targets.
 - **The Chora projects:** `services/melos/kithQuestChoraProjects.ts` turns each cue into a `GrooveDoc`.
   - Every part is an instrument track on the timeline, and 3/4 cues carry a 3/4 meter.
-  - Instruments: the LYRA orchestra, VELA choir and tremolo strings, and SOMA timpani (tuned to each bar's root), gran cassa, snare, bodhrán, bendir and tar.
-  - **No bell-type voices** (celesta, bells, struck glass, glass choir). Kenne heard them as a metallic sheen over the whole score on 2026-11-12. The MP3s are encoded at 44.1 kHz, ~200 kbps, because the earlier 32 kHz, ~106 kbps encode added an audible codec haze.
-  - The generative side: Chora's ARP device on the title and gallop harps, Humanize note FX, modulators, and the Session Band performing every part (`performDoc`).
+  - **The string section** (`strings()` in the score): Violins I L35, Violins II L15, Violas R15, Celli R35, Basses centre. `divisiLines` voice-leads every chord into four lines: it searches each section's range for the spacing that covers the chord with the least motion, leans toward each section's singing register, penalises parallel fifths and octaves, adds 4–3 and 9–8 suspensions, and ties held notes.
+  - **Figures** (`src: 'figure'`): chord- and scale-relative tokens for ostinatos, waltz picking and cascades. Written lines can be shifted (`shift`) for canons and echoes. Volume automation (`dyn`, `swell`) gives each sustained part its swells and terraces.
+  - The suite: the LYRA orchestra; TONOS kora, koto, valiha, guzheng, lute, nyckelharpa, hardanger, bouzouki and qanun; the VELA choir and tremolo strings; CANTUS vault, plainsong and byzantine choirs; ISON drones; PNEUMA breath and shakuhachi; SOMA timpani (two sizes, tuned to each bar's root), taiko, gran cassa, snare, bodhrán, bendir, daf and tar.
+  - **No bell-type voices** (celesta, bells, struck glass, glass choir). Kenne heard them as a metallic sheen over the whole score on 2026-11-12. Steel dulcimers (cimbalom, santur, yangqin) stay out for the same reason. The MP3s are encoded at 44.1 kHz, ~200 kbps, because the earlier 32 kHz, ~106 kbps encode added an audible codec haze.
+  - **The mix-engineer pass:** `scripts/games/balanceKithQuest.ts` sets levels from solo stems of every track (`node scripts/kith-quest-stems.mjs <cue>`). Each track is judged only on the frames where it plays, and set relative to the tune: string desks −11 dB each, basses −12, figures −8, harp −10, answers and canons −6, choirs −12, drones −15. The trims are written to `data/gameScores/kithQuestMix.ts`. The first stems showed why this is needed: written gains left the strings 10–17 dB and the TONOS figures ~20 dB under the lead.
   - Two send returns: a Spaces hall and a dotted-eighth delay.
   - Chora Studio lists them under **Game soundtracks · Kith Quest**, and each opens as the user's own copy (the `BeatsRoom` `loadGameSoundtrack` branch).
 - **Bounce and master:**
   1. `npx vite --config kithquest-score-lab.vite.config.mjs` starts the lab on :3255.
-  2. `node scripts/kith-quest-bounce.mjs [cue,cue]` bounces with `renderGroove`.
-  3. `node node_modules/tsx/dist/cli.mjs scripts/games/buildKithQuestAudio.ts` masters the bounces.
+  2. `node scripts/kith-quest-bounce.mjs [cue,cue]` bounces with `renderGroove`, on a fresh page per cue (a dozen orchestra renders in one page went silent).
+  3. `node node_modules/tsx/dist/cli.mjs scripts/games/buildKithQuestAudio.ts` masters the bounces: mono-fold below 120 Hz, then integrated loudness (BS.1770) to the mood target (calm −19, title and energy −16, danger and fear −17.5, battle and clear −15, game over −16 LUFS), then a look-ahead limiter at −1.5 dBFS.
   - Output goes to `public/kith-party/quest-music/*.mp3` plus `manifest.json`.
   - For loops, the 2-bar ring-out is wrapped onto the loop start, and the file carries pre-roll and post-roll around `loopStart`/`loopEnd`.
 - **In game:** `quest/questMusic.ts` is the director.

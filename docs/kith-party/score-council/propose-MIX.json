@@ -1,0 +1,132 @@
+{
+ "headline": "Surgical frequency decluttering of 250–800 Hz mid-mud, phase-aligned panning to fix negative stereo correlation, and front-to-back hall staging.",
+ "diagnosis": [
+  "Severe 250–800 Hz low-mid mud accumulation across all calm and energy cues (e.g., calm-glowmoss hits 82.5% low-mid share; energy-glowmoss hits 62.3%), masking wind and string leads due to stacked octave-0 block-pad voicings.",
+  "Negative stereo correlation on all fast cues (battle at -0.11, energy-cascade at -0.11, energy-glowmoss at -0.08, energy-keep at -0.09, title at -0.01) caused by out-of-phase wide pads and unpanned divisi layering.",
+  "Squashed dynamics across all 10 loop Cues (1.2 dB DR on calm-glowmoss, 4.2 dB on battle) resulting from flat velocity stacks and absence of dynamic hairpin automation.",
+  "Unmanaged low-end collision in 60–250 Hz between Celli, Double Basses, Timpani, and Gran Cassa, causing phase cancellation and mud below 120 Hz."
+ ],
+ "global": [
+  "Establish standard 5-part divisi seating pan staging: Violins I L35%, Violins II L15%, Violas R15%, Celli R35%, Double Basses C0%. Route section sends to FX1 (Grand Concert Hall) at -18 dB for front-desk leads, -12 dB for mid-sections, -6 dB for VELA/CANTUS pads.",
+  "Clear the 250–400 Hz lead vocal/solo wind corridor: voice pads with open-fifth/octave drop spacing, keeping no sustained inner-voice chords between C3 and F4.",
+  "Enforce low-end clarity rule: Double Basses (lyra-double-bass-arco) and low SOMA drums (timpani-32-profondo, concert-gran-cassa) strictly centered (Pan 0%), staggered rhythmically to avoid simultaneous transient spikes below 80 Hz.",
+  "Automate performDoc and track volume lanes across all cues with dynamic swells (p to ff hairpins over 2–4 bar phrases) to expand dynamic range from <4 dB to >12 dB."
+ ],
+ "cues": {
+  "title": {
+   "verdict": "Fix near-zero stereo correlation (-0.01) and 51.4% low-mid mud; create spacious orchestral front-to-back staging for the lantern motif.",
+   "moves": [
+    "Pan Violins (lyra-silk-strings) L35%, Lead Horn (lyra-french-horn) C0%, Trumpet L10%, Flute R20%, Oboe R10% to eliminate negative phase cancellation in bars 0–24.",
+    "Drop String Pad register by one octave (C2–F3) and reduce gain by -4 dB to unmask the Lead Horn and Oboe in the 300–700 Hz band during bars 0–8.",
+    "Set lyra-harp ARP to Pan R30% with FX1 (Grand Concert Hall) send at -14 dB, giving high-frequency shimmer (2k–8k Hz) space away from central wind leads.",
+    "Automate volume swell on Timpani (timpani-29-dresden) roll in bar 15 from -18 dB to -2 dB with Gran Cassa impact at bar 16 beat 1 centered."
+   ]
+  },
+  "calm-glowmoss": {
+   "verdict": "De-congest catastrophic 82.5% low-mid share and 1.2 dB dynamic range into an airy, wide 3/4 waltz.",
+   "moves": [
+    "Thin the sustained block pad (F3+A3+C4+G4): move inner voices to lyra-viola (Pan R15%) and lyra-cello (Pan R35%, octave C2–F3), cutting energy at 250–500 Hz.",
+    "Assign lyra-clarinet solo (bars 0–16) to Pan L10% dry (-22 dB FX1), and lyra-concert-flute solo (bars 16–32) to Pan R10%, carving a pristine central pocket for the melody.",
+    "Integrate tonos-kora (plucked ostinato) panned L25% running 8th-note broken arpeggios, adding pluck transients in the 1.5k–4k Hz band to compensate for the 0.014 presence band shortfall.",
+    "Add volume hairpin automation on lyra-silk-strings pad: swell from -24 dB (bar 0) to -12 dB (bar 8), dropping back to -20 dB (bar 16) to establish a 10+ dB dynamic range contour."
+   ]
+  },
+  "calm-cascade": {
+   "verdict": "Balance sub-60 Hz boom (15.7%) against high Lydian woodwinds, restoring stereo width from 0.33 to 0.65.",
+   "moves": [
+    "Shift lyra-cello root notes down from octave -12 (D2–A2) to pure D1–A1 fundamentals, freeing the 150–300 Hz region for tonos-valiha and tonos-koto harp-like counter-patterns.",
+    "Pan Solo Violin (lyra-concert-violin, bars 16–32) to L20% with FX1 hall send at -16 dB; pan answering Oboe to R15%, creating spatial antiphon for the lantern motif.",
+    "Introduce tonos-koto (Pan R30%) playing 16th-note Lydian cascade figures (A5–C#6–D6–E6) wet (-10 dB FX1), adding pristine 4k–10k Hz air energy (currently sitting at a low 1.3%).",
+    "Automate performDoc rubato dynamics on Flute (bars 0–16) with expression swells on sustained notes (E6:2, F#5:3)."
+   ]
+  },
+  "calm-keep": {
+   "verdict": "Carve out 66.1% low-mid mud to let felt piano and hushed choir breathe in moonlit space.",
+   "moves": [
+    "Re-voice felt piano (lyra-felt) chords in bars 0–16: isolate root in left hand (D2–Bb1) panned C0%, voice right-hand triads above C4, eliminating chordal clumping between F3 and A3.",
+    "Position VELA choir pad (bars 16–32) wide across L45%/R45% with high-pass spacing above D3 and FX1 send at -8 dB, raising stereo correlation from 0.06 to +0.50.",
+    "Add tonos-nyckelharpa playing bowing accents on beat 1 of bars 16–32 (D3/A3), panned L20%, providing organic bow-noise texture in the 1k–3k Hz presence region.",
+    "Automate Solo Celli lead line (bars 16–32) dynamic wheel (CC1) from p (value 35) up to f (value 95) on peak D6 at bar 25."
+   ]
+  },
+  "energy-glowmoss": {
+   "verdict": "Eliminate phase inversion (-0.08 stereo corr) and 62.3% low-mid clutter in the 138 BPM gallop.",
+   "moves": [
+    "Fix negative correlation: pan Spiccato Strings (lyra-string-quartet) L30%/R30% divisi instead of wide stereo-widened single track; pan Horns L20% and Trumpets R20%.",
+    "Replace sustained Trombones mid-register stabs with short staccato accents on beats 1 and 3, reducing sustained energy in the 250–500 Hz zone.",
+    "Add tonos-kamale-ngoni panned L25% playing syncopated 16th-note bass-line octave jumps (F2–F3), lock-synced with bodhran-kerry-tipper (Pan C0%) for clean low-end punch.",
+    "Apply automated dynamic dips (-3 dB) on string pads whenever Trumpets call the lantern motif in bars 16–32."
+   ]
+  },
+  "energy-cascade": {
+   "verdict": "Correct negative correlation (-0.11) and expand 4.9 dB dynamic range into a soaring Lydian gallop.",
+   "moves": [
+    "Re-seat brass section: Horns L25%, Trombones R25%, Trumpets C0% (lead motif counter). Clear out out-of-phase FX2 delay feedback causing negative correlation.",
+    "Assign lyra-harp ARP sixteenths to Pan R35% paired with tonos-guzheng-glide panned L35%, creating a wide, sparkling high-frequency (2k–8k Hz) decorative frame.",
+    "Hollow out low-mid rhythm: shift pizzicato basses (lyra-pizzicato) to C0% octave D2–A2, leaving 300–600 Hz open for the Lead Horn gallop melody.",
+    "Automate Snare roll (orchestral-field-snare) in bars 15–16 and 31–32 with exponential volume curve from -24 dB to +1 dB for maximum section transition impact."
+   ]
+  },
+  "energy-keep": {
+   "verdict": "Clean up 64.2% low-mid buildup and negative correlation (-0.09) in the D minor castle gallop.",
+   "moves": [
+    "Unstack heavy D minor chord voicings: drop Double Basses to D1, move Trombones up to octave D3–F3 (Pan R20%), and keep Spiccato Violins in octave D4–A5 (Pan L25%).",
+    "Introduce tonos-tar-knocking/tonos-hurdy-gurdy rhythm accents on beats 2 and 3 panned L30%, providing distinct mid-range bite without adding muddy sustained pad tone.",
+    "Route section percussion (SOMA bodhran + field snare) to a tight acoustic room send, keeping Gran Cassa strictly dry and center at 0% pan.",
+    "Automate dynamic crescendo from bar 1 to bar 16 (p to ff), expanding dynamic range from 6.1 dB to 14 dB."
+   ]
+  },
+  "danger": {
+   "verdict": "Tighten 39.4% low-mid share and focus scary 3/4 tension, enhancing presence and air above 2 kHz.",
+   "moves": [
+    "Pan Tremolo Strings (tremolo-strings) L40%/R40% with high octave voicing (D4–F5), stripping away 200–400 Hz pad build-up.",
+    "Bring Solo Violin lead into Pan C0%, dry (-20 dB FX1 send), with Alto Flute (bars 8–16) panned R15%, creating a close-up, intimate foreground stage.",
+    "Layer tonos-hardanger fiddle playing sympathetic-string micro-swells behind the Bassoon counter-motif (bars 0–16), panned L20% with high presence detail (2k–5k Hz).",
+    "Set tar-nubian-deep heartbeat dynamics: bar 0–8 single stroke at -6 dB peak; bar 8–16 double stroke with second hit at -3 dB, centered at Pan C0%."
+   ]
+  },
+  "fear": {
+   "verdict": "Open up 53.6% low-mid frequency dominance; lift presence energy from 3.9% for intense 1 HP Phrygian panic.",
+   "moves": [
+    "Isolate low Cello Phrygian melody (bars 0–16) to Pan C0%; move ticking pizzicato (lyra-pizzicato) to Pan R30% with tight mechanical velocity (no pad bleed).",
+    "Introduce tonos-sarangi with pitch-glides on the Phrygian Eb4 to D4 resolution panned L25%, adding evocative friction texture in the 1k–4k Hz zone.",
+    "Filter hushed VELA choir (bars 8–16) to high register (A4–F5), panned L35%/R35% wet (-8 dB FX1), rising stereo correlation above 0.50.",
+    "Automate sharp accent dynamic spikes (+4 dB) on Gran Cassa hits at bars 8 and 12, followed by immediate quiet decay to enhance peak-to-RMS contrast."
+   ]
+  },
+  "battle": {
+   "verdict": "Remediate critical phase inversion (-0.11 stereo correlation) and 52.8% low-mid mud in the Hollow Warden war-waltz.",
+   "moves": [
+    "Eliminate negative phase correlation: un-group stereo brass/string pads. Pan Horns L30%, Trumpets R30%, Violins I L20%, Trombones R10%, Choir L40%/R40%.",
+    "Clear 250–500 Hz collision: remove low sustain from Trombones in bars 0–16; convert to short, sharp counter-punches on beat 1 and 3.",
+    "Add tonos-bouzouki-tremolo panned L15% doubling the fast violin gallop runs in bars 16–32, adding crisp high-mid transient bite (2k–6k Hz).",
+    "Balance SOMA drum low end: balance timpani-29-dresden (Pan L10%) against bendir-atlas-gut (Pan R15%) and concert-gran-cassa (Pan C0%), avoiding simultaneous sub-60 Hz frequency overlap."
+   ]
+  },
+  "clear": {
+   "verdict": "Preserve excellent 29.6 dB dynamic range while polishing high-frequency air and brass brilliance.",
+   "moves": [
+    "Pan Trumpet C0%, Flute L15%, Violins R15%, Horns L25%, Trombones R25% across the 3-bar span to create an expansive victory arc.",
+    "Add tonos-santur glissando swell across bar 2 beat 4 into bar 3 beat 1 (Pan L30% to R30% sweep), adding sparkling presence (4k–10k Hz).",
+    "Ensure lyra-harp sweep in bar 2 reaches top register F6 without clipping, feeding FX1 hall send at -10 dB for a wide tail.",
+    "Set final Fmaj9 chord (bar 3) track volume decay envelope over 4 seconds, letting the Grand Concert Hall tail die out naturally to -60 dB."
+   ]
+  },
+  "gameover": {
+   "verdict": "Maintain stellar 40.5 dB dynamic range and +0.45 correlation while softening 64.3% low-mid heaviness.",
+   "moves": [
+    "Keep felt piano (lyra-felt) front and center (Pan C0%), dropping left-hand accompaniment gain by -3 dB in the 200–400 Hz region.",
+    "Pan Oboe melody answer (bars 2–4) to R15% and Viola counter-line to L15%, separating them cleanly from the piano decay.",
+    "Layer tonos-dampers/tonos-kantele soft harmonic pluck on bar 4 final F major chord, panned R25% with -14 dB hall reverb.",
+    "Automate master fade-out starting at bar 3 beat 3 down to silence at bar 4 beat 4, protecting low-end tail from rumble."
+   ]
+  }
+ },
+ "mustKeep": [
+  "The game-wide LANTERN MOTIF (sol·do–re–mi: C5·F5 G5 A5 in F major) and its minor/phrygian transformations across all cues.",
+  "The exact melodic lines of the three calm lullabies (calm-glowmoss, calm-cascade, calm-keep) loved by Kenne.",
+  "The exceptional dynamic range performance of clear (29.6 dB) and gameover (40.5 dB).",
+  "Seamless game-loop bar boundaries and pitch/tempo crossfade relationships across stage calm/energy/danger/fear states."
+ ],
+ "_model": "gemini-3.6-flash"
+}
