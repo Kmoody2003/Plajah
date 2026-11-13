@@ -13,7 +13,10 @@ Every model goes through one fill path:
 Families:
   flux2_klein  FLUX.2 [klein] 4B   Flux2KleinInpaintPipeline (the source crop is a reference latent, the mask is
                                    re-imposed every step). fp8 layerwise storage + model offload fits the 8 GB 4070.
-  flux3_klein  FLUX 3 Image Klein  loaded from its diffusers repo when present (gated on Hugging Face).
+  flux3_klein  FLUX 3 Image Klein  diffusers modular pipeline (Flux3DistilledAutoBlocks, diffusers >= 0.42).
+                                   Text-to-image only here: it has no mask input, so fill skips it. The 9B prompt
+                                   upsampler step is dropped and the prompt is encoded as given. fp8 layerwise storage
+                                   + auto CPU offload for the 8 GB card. Gated on Hugging Face.
   sdxl         SDXL checkpoints    StableDiffusionXLInpaintPipeline from single-file checkpoints on D:.
   sd15         SD 1.5 checkpoints  StableDiffusionInpaintPipeline.
 
@@ -50,7 +53,7 @@ MODEL_REGISTRY = {
     },
     "flux3_klein": {
         "family": "flux3_klein", "label": "FLUX 3 Image Klein", "dir": "flux-3-image-klein",
-        "native_mp": 1.0, "multiple": 16, "steps": 8, "guidance": 1.0,
+        "native_mp": 1.0, "multiple": 16, "steps": 16, "guidance": 1.0, "fill": False,
     },
     "sdxl_turbo": {
         "family": "sdxl", "label": "SDXL Turbo", "file": "sd_xl_turbo_1.0_fp16.safetensors",
@@ -92,12 +95,16 @@ def model_available(model_id):
     return os.path.isfile(path) and os.path.getsize(path) > MIN_REAL_WEIGHT_BYTES
 
 
-def resolve_model(requested):
+def resolve_model(requested, purpose="t2i"):
+    """purpose='fill' only returns models with a masked inpaint path (FLUX 3 has none, so a fill asking for it gets
+    the next masked model, and modelUsed says which)."""
+    def usable(mid):
+        return model_available(mid) and (purpose != "fill" or MODEL_REGISTRY[mid].get("fill", True))
     rid = ALIASES.get(str(requested or "auto").lower(), str(requested or "auto").lower())
-    if rid in MODEL_REGISTRY and model_available(rid):
+    if rid in MODEL_REGISTRY and usable(rid):
         return rid
     for mid in AUTO_ORDER:
-        if model_available(mid):
+        if usable(mid):
             return mid
     raise RuntimeError(f"No usable image model under {MODELS_ROOT} (asked for {requested})")
 
@@ -172,17 +179,20 @@ def _load_flux2_klein(model_id):
 
 
 def _load_flux3_klein(model_id):
-    # FLUX 3 Image Klein ships as a diffusers modular repo; resolve its pipeline from the repo's own index.
-    from diffusers import DiffusionPipeline
+    # FLUX 3 Image Klein is a diffusers modular repo (modular_model_index.json). The upsampler step would need the
+    # separate 9B flux-3-image-klein-pup model, so it is popped and prompts are encoded as given.
+    from diffusers import ComponentsManager, Flux3DistilledAutoBlocks
     root = os.path.join(HF_ROOT, MODEL_REGISTRY[model_id]["dir"])
-    pipe = DiffusionPipeline.from_pretrained(root, torch_dtype=COMPUTE_DTYPE)
+    blocks = Flux3DistilledAutoBlocks()
+    blocks.sub_blocks.pop("prompt_upsampler")
+    manager = ComponentsManager()
+    pipe = blocks.init_pipeline(root, components_manager=manager)
+    pipe.load_components(dtype=COMPUTE_DTYPE)
     if DEVICE == "cuda":
-        if hasattr(pipe, "transformer"):
-            _fp8_storage(pipe.transformer)
-        if hasattr(pipe, "text_encoder"):
-            _fp8_storage(pipe.text_encoder)
-        pipe.enable_model_cpu_offload()
-    return pipe, pipe
+        _fp8_storage(pipe.transformer)
+        _fp8_storage(pipe.text_encoder)
+        manager.enable_auto_cpu_offload(device="cuda", memory_reserve_margin="1GB")
+    return None, pipe
 
 
 def _load_single_file(model_id):
@@ -300,7 +310,7 @@ def build_fill_prompt(task, mode):
 # ── jobs ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 def run_fill(task):
     t0 = time.time()
-    model_id = resolve_model(task.get("modelId"))
+    model_id = resolve_model(task.get("modelId"), purpose="fill")
     spec = MODEL_REGISTRY[model_id]
     src = decode_data_url(task.get("sourceImage") or task.get("image") or task.get("imageDataUrl")).convert("RGB")
     mask_raw = task.get("maskImage") or task.get("mask") or task.get("maskDataUrl")
@@ -399,11 +409,17 @@ def run_t2i(task):
     seed = int(task.get("seed") or 0) or int(time.time() * 1000) % 2147483647
     steps = int(task.get("steps") or 0) or spec["steps"]
     _, t2i = get_pipes(model_id)
-    kwargs = dict(prompt=task.get("prompt") or "", width=w, height=h, num_inference_steps=steps,
-                  guidance_scale=float(task.get("cfgScale") or 0) or spec["guidance"], generator=torch.Generator("cpu").manual_seed(seed))
-    if spec["family"] in ("sdxl", "sd15") and task.get("negativePrompt"):
-        kwargs["negative_prompt"] = task["negativePrompt"]
-    img = t2i(**kwargs).images[0]
+    gen = torch.Generator("cpu").manual_seed(seed)
+    if spec["family"] == "flux3_klein":
+        # distilled: no CFG and no negative prompt (the pipeline rejects them)
+        img = t2i(prompt=task.get("prompt") or "", width=w, height=h, num_inference_steps=steps,
+                  generator=gen, output="images")[0]
+    else:
+        kwargs = dict(prompt=task.get("prompt") or "", width=w, height=h, num_inference_steps=steps,
+                      guidance_scale=float(task.get("cfgScale") or 0) or spec["guidance"], generator=gen)
+        if spec["family"] in ("sdxl", "sd15") and task.get("negativePrompt"):
+            kwargs["negative_prompt"] = task["negativePrompt"]
+        img = t2i(**kwargs).images[0]
     return {
         "success": True, "mediaUrl": png_data_url(img), "format": "png", "mimeType": "image/png",
         "width": img.width, "height": img.height, "seed": seed, "steps": steps, "modelUsed": model_id,
