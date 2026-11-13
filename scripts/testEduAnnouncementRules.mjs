@@ -43,6 +43,8 @@ const baseMocks = [
   { function: 'exists', args: [{ exactValue: `${DB}/organizations/o1` }], result: { value: true } },
   { function: 'get', args: [{ exactValue: `${DB}/organizations/o1` }], result: { value: { data: ORG } } },
   { function: 'get', args: [{ exactValue: `${DB}/churchPrograms/c1` }], result: { value: { data: PROGRAM } } },
+  // as1 has no due date, so turning it in is always open.
+  { function: 'get', args: [{ exactValue: `${DB}/churchEduAssignments/as1` }], result: { value: { data: { id: 'as1', classroomId: 'c1', orgId: 'o1' } } } },
   ...Object.entries(ANN).map(([id, a]) => ({ function: 'get', args: [{ exactValue: `${DB}/orgAnnouncements/${id}` }], result: { value: { data: a } } })),
 ];
 const policyMocks = p => p
@@ -51,7 +53,7 @@ const policyMocks = p => p
   : [{ function: 'exists', args: [{ exactValue: `${DB}/orgTemplatePolicies/o1` }], result: { value: false } }];
 
 const cases = [];
-const t = (name, expect, who, method, path, { data, existing, policy } = {}) => cases.push({ name, expect, who, method, path, data, existing, policy });
+const t = (name, expect, who, method, path, { data, existing, policy, mocks, time } = {}) => cases.push({ name, expect, who, method, path, data, existing, policy, mocks, time });
 
 // ── Classes: roster, weekly plan and class chat — the class's own people + church staff only ──
 const CP = `${DB}/churchPrograms/c1`;
@@ -92,6 +94,50 @@ t('student re-turns-in before review', 'ALLOW', STUDENT, 'update', S, { existing
 t('student cannot mark their own work returned', 'DENY', STUDENT, 'update', S, { existing: sub, data: { ...sub, status: 'RETURNED_WITH_FEEDBACK', percentage: 100 } });
 t('student cannot edit work after it is returned', 'DENY', STUDENT, 'update', S,
   { existing: { ...sub, status: 'RETURNED_WITH_FEEDBACK' }, data: { ...sub, status: 'RETURNED_WITH_FEEDBACK', percentage: 100 } });
+
+// ── Due dates, late work, extensions (services/edu/assignmentPolicy.ts) ──────
+const NOW = '2026-11-13T12:00:00Z', NOW_MS = Date.parse(NOW), DAY = 86400000;
+const asg = (id, o) => ({ function: 'get', args: [{ exactValue: `${DB}/churchEduAssignments/${id}` }], result: { value: { data: { id, classroomId: 'c1', orgId: 'o1', ...o } } } });
+const extOf = (id, x) => x
+  ? [{ function: 'exists', args: [{ exactValue: `${DB}/churchEduExtensions/${id}__${STUDENT}` }], result: { value: true } },
+     { function: 'get', args: [{ exactValue: `${DB}/churchEduExtensions/${id}__${STUDENT}` }], result: { value: { data: x } } }]
+  : [{ function: 'exists', args: [{ exactValue: `${DB}/churchEduExtensions/${id}__${STUDENT}` }], result: { value: false } }];
+const subOf = (id, o) => ({ ...sub, assignmentId: id, ...o });
+const SP = id => `${DB}/churchEduSubmissions/${id}__${STUDENT}`;
+t('due: turn-in before the due date', 'ALLOW', STUDENT, 'create', SP('d1'), { data: subOf('d1'), mocks: [asg('d1', { dueAt: NOW_MS + DAY }), ...extOf('d1')], time: NOW });
+t('due: turn-in after the due date is locked', 'DENY', STUDENT, 'create', SP('d2'), { data: subOf('d2'), mocks: [asg('d2', { dueAt: NOW_MS - DAY }), ...extOf('d2')], time: NOW });
+t('due: re-turn-in after the due date is locked too', 'DENY', STUDENT, 'update', SP('d2'), { existing: subOf('d2'), data: subOf('d2', { updatedAt: 9 }), mocks: [asg('d2', { dueAt: NOW_MS - DAY }), ...extOf('d2')], time: NOW });
+t('due: saving a draft after the due date is fine', 'ALLOW', STUDENT, 'update', SP('d2'), { existing: subOf('d2', { status: 'IN_PROGRESS' }), data: subOf('d2', { status: 'IN_PROGRESS', updatedAt: 9 }), mocks: [asg('d2', { dueAt: NOW_MS - DAY }), ...extOf('d2')], time: NOW });
+t('due: a requested extension does not unlock', 'DENY', STUDENT, 'create', SP('d3'), { data: subOf('d3'), mocks: [asg('d3', { dueAt: NOW_MS - DAY }), ...extOf('d3', { status: 'requested' })], time: NOW });
+t('due: a granted extension unlocks until its date', 'ALLOW', STUDENT, 'create', SP('d4'), { data: subOf('d4'), mocks: [asg('d4', { dueAt: NOW_MS - DAY }), ...extOf('d4', { status: 'granted', extendedUntil: NOW_MS + DAY })], time: NOW });
+t('due: an extension that has run out is locked', 'DENY', STUDENT, 'create', SP('d5'), { data: subOf('d5'), mocks: [asg('d5', { dueAt: NOW_MS - 3 * DAY }), ...extOf('d5', { status: 'granted', extendedUntil: NOW_MS - DAY })], time: NOW });
+t('due: accept-late assignments take late work', 'ALLOW', STUDENT, 'create', SP('d6'), { data: subOf('d6', { late: true }), mocks: [asg('d6', { dueAt: NOW_MS - DAY, afterDue: 'accept_late' }), ...extOf('d6')], time: NOW });
+
+const X = `${DB}/churchEduExtensions/as1__${STUDENT}`;
+const ext = { id: `as1__${STUDENT}`, orgId: 'o1', programId: 'c1', assignmentId: 'as1', assignmentTitle: 'Week 3', studentUid: STUDENT, studentName: 'S', reason: 'I was sick', status: 'requested', requestedAt: 1 };
+t('extension: student asks', 'ALLOW', STUDENT, 'create', X, { data: ext });
+t('extension: student cannot grant their own', 'DENY', STUDENT, 'create', X, { data: { ...ext, status: 'granted', extendedUntil: 9 } });
+t('extension: cannot ask on behalf of another student', 'DENY', OTHER, 'create', `${DB}/churchEduExtensions/as1__${OTHER}`, { data: { ...ext, studentUid: OTHER, id: `as1__${OTHER}` } });
+t('extension: student cannot approve by update', 'DENY', STUDENT, 'update', X, { existing: ext, data: { ...ext, status: 'granted', extendedUntil: 9, decidedByUid: STUDENT } });
+t('extension: student asks again after a denial', 'ALLOW', STUDENT, 'update', X, { existing: { ...ext, status: 'denied', decidedByUid: TEACHER, decidedAt: 2 }, data: { ...ext, status: 'requested', reason: 'Please', requestedAt: 3, decidedByUid: '', decidedAt: 0 } });
+t('extension: teacher grants a new deadline', 'ALLOW', TEACHER, 'update', X, { existing: ext, data: { ...ext, status: 'granted', extendedUntil: 99, decidedByUid: TEACHER, decidedAt: 2 } });
+t('extension: teacher denies', 'ALLOW', TEACHER, 'update', X, { existing: ext, data: { ...ext, status: 'denied', decidedByUid: TEACHER, decidedAt: 2 } });
+t('extension: teacher cannot change the reason', 'DENY', TEACHER, 'update', X, { existing: ext, data: { ...ext, reason: 'edited', status: 'denied', decidedByUid: TEACHER, decidedAt: 2 } });
+t('extension: a stranger cannot read it', 'DENY', OTHER, 'get', X, { existing: ext });
+t('extension: the teacher reads it', 'ALLOW', TEACHER, 'get', X, { existing: ext });
+
+const L = `${DB}/churchEduLedger/e1`;
+const ev = (who, o) => ({ orgId: 'o1', programId: 'c1', assignmentId: 'as1', actorUid: who, actorName: who, event: 'rescheduled', at: NOW_MS, ...o });
+t('ledger: teacher records a class event', 'ALLOW', TEACHER, 'create', L, { data: ev(TEACHER), time: NOW });
+t('ledger: student records their own turn-in', 'ALLOW', STUDENT, 'create', L, { data: ev(STUDENT, { event: 'turned_in', studentUid: STUDENT }), time: NOW });
+t('ledger: student cannot record a teacher event', 'DENY', STUDENT, 'create', L, { data: ev(STUDENT, { event: 'extension_granted', studentUid: STUDENT }), time: NOW });
+t('ledger: nobody writes in another person name', 'DENY', STUDENT, 'create', L, { data: ev(TEACHER, { event: 'turned_in', studentUid: STUDENT }), time: NOW });
+t('ledger: a backdated entry is refused', 'DENY', TEACHER, 'create', L, { data: ev(TEACHER, { at: NOW_MS - DAY }), time: NOW });
+t('ledger: entries cannot be edited', 'DENY', TEACHER, 'update', L, { existing: ev(TEACHER), data: ev(TEACHER, { event: 'assigned' }) });
+t('ledger: entries cannot be deleted', 'DENY', OWNER, 'delete', L, { existing: ev(TEACHER) });
+t('ledger: student reads their own entries', 'ALLOW', STUDENT, 'get', L, { existing: ev(STUDENT, { event: 'turned_in', studentUid: STUDENT }) });
+t('ledger: student cannot read class-wide entries', 'DENY', STUDENT, 'get', L, { existing: ev(TEACHER) });
+t('ledger: stranger cannot read', 'DENY', OTHER, 'get', L, { existing: ev(TEACHER) });
 
 // ── Announcements ──────────────────────────────────────────────────────────
 const AN = id => `${DB}/orgAnnouncements/${id}`;
@@ -173,7 +219,8 @@ const body = {
       const req = { method: c.method, path: c.path };
       if (c.who) req.auth = { uid: c.who, token: { email: `${c.who}@example.test`, email_verified: true, firebase: { sign_in_provider: 'google.com' } } };
       if (c.data) req.resource = { data: c.data };
-      const tc = { expectation: c.expect, request: req, functionMocks: [...baseMocks, ...policyMocks(c.policy)] };
+      if (c.time) req.time = c.time;
+      const tc = { expectation: c.expect, request: req, functionMocks: [...baseMocks, ...policyMocks(c.policy), ...(c.mocks || [])] };
       if (c.existing) tc.resource = { data: c.existing };
       return tc;
     }),

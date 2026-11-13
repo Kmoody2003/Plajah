@@ -8,10 +8,13 @@ import {
   assignUnitToClassroomDesk,
   listDeskAssignments,
   mergeRemoteDeskAssignments,
+  removeDeskAssignment,
   rescheduleDeskAssignment,
   type DeskAssignmentToolsConfig,
 } from '../../../services/universalStudentDeskService';
-import { fetchProgramAssignments } from '../../../services/christianEdSync';
+import { fetchProgramAssignments, unmirrorAssignment } from '../../../services/christianEdSync';
+import { logEduEvent, type LedgerEvent } from '../../../services/edu/eduLedger';
+import type { AfterDue } from '../../../services/edu/assignmentPolicy';
 import { loadMyTeachingClasses, type TeachingClass } from '../../../services/teacherClasses';
 import { listClassHomework, publishLibraryUnitToClass, rescheduleClassHomework } from '../../../services/academiaLibrarySchedule';
 import { fmtDay } from '../christianEd/edWork';
@@ -40,6 +43,22 @@ export interface CourseItem {
   kind?: string;
   dueAt: number;
   opensAt?: number;
+  /** The class date it is for (Christian Ed); the calendar places it here, else on its due date. */
+  scheduledFor?: number;
+  afterDue?: AfterDue;
+}
+
+/** Where an item sits on the calendar: its class date, else its due date. */
+export const calendarDay = (i: Pick<CourseItem, 'scheduledFor' | 'dueAt'>) => i.scheduledFor || i.dueAt;
+
+export interface DeliverWhen {
+  dueAt: number;
+  opensAt?: number;
+  scheduledFor?: number;
+  afterDue?: AfterDue;
+  tools: DeskAssignmentToolsConfig;
+  /** What the class ledger calls it ('auto_scheduled' from the auto-scheduler). */
+  ledgerEvent?: LedgerEvent;
 }
 
 export interface CourseSource {
@@ -50,9 +69,11 @@ export interface CourseSource {
   empty: string;
   /** Desk tools and "add to the course plan" only exist for Christian Ed desks. */
   deskTools: boolean;
-  deliver: (course: ScheduleCourse, unit: IngestedCurriculumUnit, when: { dueAt: number; opensAt?: number; tools: DeskAssignmentToolsConfig }) => Promise<void>;
+  deliver: (course: ScheduleCourse, unit: IngestedCurriculumUnit, when: DeliverWhen) => Promise<void>;
   list: (course: ScheduleCourse) => Promise<CourseItem[]>;
-  move: (course: ScheduleCourse, item: CourseItem, at: { dueAt: number; opensAt?: number | null }) => Promise<CourseItem | null>;
+  move: (course: ScheduleCourse, item: CourseItem, at: { dueAt: number; opensAt?: number | null; scheduledFor?: number | null; afterDue?: AfterDue }) => Promise<CourseItem | null>;
+  /** Take it off students' desks (Christian Ed). Absent for Academia homework. */
+  remove?: (course: ScheduleCourse, item: CourseItem) => Promise<void>;
 }
 
 export function useCourseSource(opts: {
@@ -126,6 +147,9 @@ export function useCourseSource(opts: {
           dueAt: when.dueAt,
           dueLabel: `Due ${fmtDay(due)}`,
           opensAt: when.opensAt,
+          scheduledFor: when.scheduledFor,
+          afterDue: when.afterDue,
+          ledgerEvent: when.ledgerEvent,
           assignedByUid: teacher.uid,
           assignedByName: teacher.name,
           toolsConfig: when.tools,
@@ -142,12 +166,20 @@ export function useCourseSource(opts: {
           kind: a.unitSnapshot?.libraryCategory || a.unitKind,
           dueAt: a.dueAt,
           opensAt: a.opensAt,
+          scheduledFor: a.scheduledFor,
+          afterDue: a.afterDue,
         }));
       },
       move: async (course, item, at) => {
         if (course.kind === 'ACADEMIA') return (await rescheduleClassHomework(item.id, at)) ? { ...item, dueAt: at.dueAt, opensAt: at.opensAt && at.opensAt > Date.now() ? at.opensAt : undefined } : null;
-        const next = rescheduleDeskAssignment(item.id, { dueAt: at.dueAt, dueLabel: `Due ${fmtDay(new Date(at.dueAt))}`, opensAt: at.opensAt });
-        return next ? { ...item, dueAt: next.dueAt, opensAt: next.opensAt } : null;
+        const next = rescheduleDeskAssignment(item.id, { dueAt: at.dueAt, dueLabel: `Due ${fmtDay(new Date(at.dueAt))}`, opensAt: at.opensAt, scheduledFor: at.scheduledFor, afterDue: at.afterDue });
+        return next ? { ...item, dueAt: next.dueAt, opensAt: next.opensAt, scheduledFor: next.scheduledFor, afterDue: next.afterDue } : null;
+      },
+      remove: async (course, item) => {
+        if (course.kind === 'ACADEMIA') return;
+        removeDeskAssignment(item.id);
+        await unmirrorAssignment(item.id);
+        void logEduEvent({ orgId: course.orgId || orgId, programId: course.id, assignmentId: item.id, assignmentTitle: item.title, event: 'unassigned', actorName: teacher.name, detail: { dueAt: item.dueAt } });
       },
     };
   }, [academia, classes, programs, otherPrograms, orgId, orgName, teacher]);

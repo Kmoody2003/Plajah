@@ -700,6 +700,16 @@ service cloud.firestore {
       return isAuthenticated() && (request.auth.uid in eduProgram(pid).get('teacherUids', []) || orgAdminOf(eduProgram(pid).orgId));
     }
     function eduStudent(pid) { return isAuthenticated() && request.auth.uid in eduProgram(pid).get('studentUids', []); }
+    // Turning work in (status TURNED_IN) is allowed until the due date (+5 min grace), after it only when the
+    // assignment accepts late work or the teacher granted this student an extension (services/edu/assignmentPolicy).
+    function eduExt(aid, uid) { return get(/databases/$(database)/documents/churchEduExtensions/$(aid + '__' + uid)); }
+    function eduTurnInOpen(aid, uid) {
+      let a = get(/databases/$(database)/documents/churchEduAssignments/$(aid)).data;
+      return a.get('dueAt', 0) == 0 || request.time.toMillis() <= a.dueAt + 300000 || a.get('afterDue', 'lock') == 'accept_late'
+        || (exists(/databases/$(database)/documents/churchEduExtensions/$(aid + '__' + uid))
+          && eduExt(aid, uid).data.status == 'granted' && request.time.toMillis() <= eduExt(aid, uid).data.get('extendedUntil', 0) + 300000);
+    }
+    function eduTurnInOk(d) { return d.get('status', '') != 'TURNED_IN' || eduTurnInOpen(d.assignmentId, request.auth.uid); }
     match /churchEduAssignments/{aid} {
       allow read: if eduTeacher(resource.data.classroomId) || eduStudent(resource.data.classroomId);
       allow create, update: if eduTeacher(request.resource.data.classroomId);
@@ -713,13 +723,16 @@ service cloud.firestore {
         && sid == request.resource.data.assignmentId + '__' + request.auth.uid
         && eduStudent(request.resource.data.programId)
         && request.resource.data.get('status', '') != 'RETURNED_WITH_FEEDBACK'
-        && !request.resource.data.keys().hasAny(['reviewVerdicts', 'teacherFeedbackNote', 'reviewedByUid', 'reviewedAt']);
+        && !request.resource.data.keys().hasAny(['reviewVerdicts', 'teacherFeedbackNote', 'reviewedByUid', 'reviewedAt'])
+        && eduTurnInOk(request.resource.data);
       allow update: if (isAuthenticated() && resource.data.studentUid == request.auth.uid
           && resource.data.status != 'RETURNED_WITH_FEEDBACK'
           && request.resource.data.get('status', '') != 'RETURNED_WITH_FEEDBACK'
           && request.resource.data.studentUid == resource.data.studentUid
           && request.resource.data.programId == resource.data.programId
-          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['reviewVerdicts', 'teacherFeedbackNote', 'reviewedByUid', 'reviewedAt']))
+          && request.resource.data.assignmentId == resource.data.assignmentId
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['reviewVerdicts', 'teacherFeedbackNote', 'reviewedByUid', 'reviewedAt'])
+          && eduTurnInOk(request.resource.data))
         || (eduTeacher(resource.data.programId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewVerdicts', 'teacherFeedbackNote', 'earnedPoints', 'percentage', 'questionScores', 'reviewedByUid', 'reviewedAt', 'updatedAt']));
       allow delete: if eduTeacher(resource.data.programId);
@@ -728,6 +741,37 @@ service cloud.firestore {
     match /churchEduAnswerKeys/{aid} {
       allow read, delete: if eduTeacher(resource.data.programId);
       allow create, update: if eduTeacher(request.resource.data.programId) && request.resource.data.assignmentId == aid;
+    }
+    // Extension requests: a student asks; the class's teachers grant a new deadline or deny. A student can't
+    // decide their own and can ask again only while not granted.
+    match /churchEduExtensions/{xid} {
+      allow read: if isAuthenticated() && (resource.data.studentUid == request.auth.uid || eduTeacher(resource.data.programId));
+      allow create: if isAuthenticated() && request.resource.data.studentUid == request.auth.uid
+        && xid == request.resource.data.assignmentId + '__' + request.auth.uid
+        && eduStudent(request.resource.data.programId) && request.resource.data.status == 'requested'
+        && request.resource.data.reason is string && request.resource.data.reason.size() <= 1000
+        && !request.resource.data.keys().hasAny(['extendedUntil', 'decidedByUid', 'decidedAt']);
+      allow update: if (isAuthenticated() && resource.data.studentUid == request.auth.uid && resource.data.status != 'granted'
+          && request.resource.data.status == 'requested'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reason', 'requestedAt', 'decidedByUid', 'decidedAt', 'note'])
+          && request.resource.data.get('decidedByUid', '') == '' && request.resource.data.reason is string && request.resource.data.reason.size() <= 1000)
+        || (eduTeacher(resource.data.programId) && request.resource.data.status in ['granted', 'denied']
+          && request.resource.data.decidedByUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'extendedUntil', 'decidedByUid', 'decidedAt', 'note'])
+          && (request.resource.data.status == 'denied' || request.resource.data.extendedUntil is int));
+      allow delete: if eduTeacher(resource.data.programId);
+    }
+    // The class ledger: every scheduling, turn-in and extension event, add-only. Teachers write class events,
+    // students only their own turn-in and extension events; the time must be now. Nobody edits or deletes one.
+    match /churchEduLedger/{eid} {
+      allow read: if isAuthenticated() && (resource.data.get('studentUid', '') == request.auth.uid || eduTeacher(resource.data.programId));
+      allow create: if isAuthenticated() && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.at is int && math.abs(request.resource.data.at - request.time.toMillis()) < 300000
+        && request.resource.data.event is string
+        && (eduTeacher(request.resource.data.programId)
+          || (eduStudent(request.resource.data.programId) && request.resource.data.studentUid == request.auth.uid
+            && request.resource.data.event in ['turned_in', 'turned_in_late', 'turn_in_refused', 'extension_requested', 'opened']));
+      allow update, delete: if false;
     }
     match /churchEduJoinRequests/{rid} {
       allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid || eduTeacher(resource.data.programId));
