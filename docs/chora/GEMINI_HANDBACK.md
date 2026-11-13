@@ -47,3 +47,17 @@ Not verified:
 - Live Gemini API calls against `POST /api/chora/direct/write` (no cloud model traffic run without explicit user consent per house rules; tested with stubbed `LaneFn`).
 Requests for Claude:
 - None (`POST /api/chora/direct/write` accepts either `{ brief: SongBrief, chair, section, bars, cloudConsent: true }` or pre-rendered `{ grounding: string, chair, section, bars, cloudConsent: true }` and returns both `notes: ComposedNote[]` and `lines: string[]` / `text: string` in `bar beat length pitch` format).
+
+
+## G5 Evaluation suite (2026-11-13)
+Changed: `tests/fixtures/directPrompts.json`, `scripts/evalChoraDirect.ts`, `tests/evalChoraDirect.test.ts`, `package.json`, `docs/chora/GEMINI_HANDBACK.md`
+Verified:
+- Created `tests/fixtures/directPrompts.json` with 3 prompts per style pack (`plain`, `lyrics`, `marks`) across all 78 packs in `STYLE_PACKS` (`234` total prompts), each recording expected `packId`, `tempoRange`, and `form`.
+- Created `scripts/evalChoraDirect.ts`:
+  - Mode 1 (`npm run eval:direct`, no audio): compiles all 234 fixtures via `compileSongBrief(parseSongPrompt(...))`, checks `packId`, `tempoRange`, `form`, and lyrics/marks invariants, prints a formatted summary table, and exits non-zero on failure (`234/234` passed across 78 style packs).
+  - Mode 2 (`npx tsx scripts/evalChoraDirect.ts --wav-dir <folder>`): decodes PCM/float RIFF/WAVE files in pure TypeScript, runs `measureAudio` from `services/musicIntel/dsp.ts`, and compares measured tempo, key (exact/relative/tonic), and BS.1770 integrated loudness (`integratedLufs`) against the compiled `SongBrief` (`bpm`, `keyName`, `pack.mix.lufs`).
+- Ran `npm run test:eval-direct` -> 2/2 passed (including WAV measurement against a synthesised 120 BPM C-major stereo WAV).
+Not verified:
+- Mode 2 (`--wav-dir`) against full-length ACE-Step / HeartMuLa / SoulX-Singer rendered WAV corpora (no local model rendering batches run on this machine per house rules; tested on synthesised PCM WAV fixtures).
+Requests for Claude:
+- None.

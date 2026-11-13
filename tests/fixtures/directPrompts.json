@@ -1,0 +1,4455 @@
+[
+  {
+    "id": "cinematic-epic__plain",
+    "packId": "cinematic-epic",
+    "variant": "plain",
+    "prompt": "epic trailer, massive war drums, heroic brass",
+    "expect": {
+      "packId": "cinematic-epic",
+      "tempoRange": [
+        90,
+        140
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "build",
+        "breakdown",
+        "drop",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-epic__lyrics",
+    "packId": "cinematic-epic",
+    "variant": "lyrics",
+    "prompt": "epic trailer, massive war drums, heroic brass, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "cinematic-epic",
+      "tempoRange": [
+        90,
+        140
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-epic__marks",
+    "packId": "cinematic-epic",
+    "variant": "marks",
+    "prompt": "epic trailer, massive war drums, heroic brass, 115 bpm\n[Intro | 4 bars | p]\n{Dm | Dm | Bb | Bb}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "cinematic-epic",
+      "tempoRange": [
+        90,
+        140
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-hybrid__plain",
+    "packId": "cinematic-hybrid",
+    "variant": "plain",
+    "prompt": "hybrid action score, ticking thriller pulse",
+    "expect": {
+      "packId": "cinematic-hybrid",
+      "tempoRange": [
+        110,
+        160
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "build",
+        "drop",
+        "breakdown",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-hybrid__lyrics",
+    "packId": "cinematic-hybrid",
+    "variant": "lyrics",
+    "prompt": "hybrid action score, ticking thriller pulse, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "cinematic-hybrid",
+      "tempoRange": [
+        110,
+        160
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-hybrid__marks",
+    "packId": "cinematic-hybrid",
+    "variant": "marks",
+    "prompt": "hybrid action score, ticking thriller pulse, 135 bpm\n[Intro | 4 bars | p]\n{Dm | Dm | Dm | Dm}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "cinematic-hybrid",
+      "tempoRange": [
+        110,
+        160
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-drama__plain",
+    "packId": "cinematic-drama",
+    "variant": "plain",
+    "prompt": "emotional drama score, intimate strings, piano",
+    "expect": {
+      "packId": "cinematic-drama",
+      "tempoRange": [
+        56,
+        96
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "development",
+        "build",
+        "recap",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-drama__lyrics",
+    "packId": "cinematic-drama",
+    "variant": "lyrics",
+    "prompt": "emotional drama score, intimate strings, piano, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "cinematic-drama",
+      "tempoRange": [
+        56,
+        96
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-drama__marks",
+    "packId": "cinematic-drama",
+    "variant": "marks",
+    "prompt": "emotional drama score, intimate strings, piano, 76 bpm\n[Intro | 4 bars | p]\n{C | G | Am | F}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "cinematic-drama",
+      "tempoRange": [
+        56,
+        96
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-adventure__plain",
+    "packId": "cinematic-adventure",
+    "variant": "plain",
+    "prompt": "symphonic adventure, fantasy score, horn fanfare",
+    "expect": {
+      "packId": "cinematic-adventure",
+      "tempoRange": [
+        96,
+        152
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "development",
+        "build",
+        "recap",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-adventure__lyrics",
+    "packId": "cinematic-adventure",
+    "variant": "lyrics",
+    "prompt": "symphonic adventure, fantasy score, horn fanfare, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "cinematic-adventure",
+      "tempoRange": [
+        96,
+        152
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-adventure__marks",
+    "packId": "cinematic-adventure",
+    "variant": "marks",
+    "prompt": "symphonic adventure, fantasy score, horn fanfare, 124 bpm\n[Intro | 4 bars | p]\n{Bb | Bb | Eb | F}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "cinematic-adventure",
+      "tempoRange": [
+        96,
+        152
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-horror__plain",
+    "packId": "cinematic-horror",
+    "variant": "plain",
+    "prompt": "horror and suspense, eerie strings, gothic dread",
+    "expect": {
+      "packId": "cinematic-horror",
+      "tempoRange": [
+        48,
+        92
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "build",
+        "drop",
+        "breakdown",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-horror__lyrics",
+    "packId": "cinematic-horror",
+    "variant": "lyrics",
+    "prompt": "horror and suspense, eerie strings, gothic dread, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "cinematic-horror",
+      "tempoRange": [
+        48,
+        92
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-horror__marks",
+    "packId": "cinematic-horror",
+    "variant": "marks",
+    "prompt": "horror and suspense, eerie strings, gothic dread, 70 bpm\n[Intro | 4 bars | p]\n{Dm | Dm | Eb | Dm}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "cinematic-horror",
+      "tempoRange": [
+        48,
+        92
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "classical-baroque__plain",
+    "packId": "classical-baroque",
+    "variant": "plain",
+    "prompt": "baroque concerto grosso, harpsichord continuo, fugue",
+    "expect": {
+      "packId": "classical-baroque",
+      "tempoRange": [
+        60,
+        132
+      ],
+      "form": [
+        "theme",
+        "development",
+        "theme",
+        "development",
+        "recap",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "classical-baroque__lyrics",
+    "packId": "classical-baroque",
+    "variant": "lyrics",
+    "prompt": "baroque concerto grosso, harpsichord continuo, fugue, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "classical-baroque",
+      "tempoRange": [
+        60,
+        132
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "classical-baroque__marks",
+    "packId": "classical-baroque",
+    "variant": "marks",
+    "prompt": "baroque concerto grosso, harpsichord continuo, fugue, 96 bpm\n[Intro | 4 bars | p]\n{Dm | Gm | C | F}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "classical-baroque",
+      "tempoRange": [
+        60,
+        132
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "classical-era__plain",
+    "packId": "classical-era",
+    "variant": "plain",
+    "prompt": "classical era sonata, galant orchestra, minuet",
+    "expect": {
+      "packId": "classical-era",
+      "tempoRange": [
+        72,
+        152
+      ],
+      "form": [
+        "theme",
+        "interlude",
+        "theme",
+        "development",
+        "recap",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "classical-era__lyrics",
+    "packId": "classical-era",
+    "variant": "lyrics",
+    "prompt": "classical era sonata, galant orchestra, minuet, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "classical-era",
+      "tempoRange": [
+        72,
+        152
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "classical-era__marks",
+    "packId": "classical-era",
+    "variant": "marks",
+    "prompt": "classical era sonata, galant orchestra, minuet, 112 bpm\n[Intro | 4 bars | p]\n{C | C | G7 | G7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "classical-era",
+      "tempoRange": [
+        72,
+        152
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "classical-romantic__plain",
+    "packId": "classical-romantic",
+    "variant": "plain",
+    "prompt": "romantic orchestral rhapsody, lush strings, rubato",
+    "expect": {
+      "packId": "classical-romantic",
+      "tempoRange": [
+        52,
+        132
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "theme",
+        "development",
+        "recap",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "classical-romantic__lyrics",
+    "packId": "classical-romantic",
+    "variant": "lyrics",
+    "prompt": "romantic orchestral rhapsody, lush strings, rubato, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "classical-romantic",
+      "tempoRange": [
+        52,
+        132
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "classical-romantic__marks",
+    "packId": "classical-romantic",
+    "variant": "marks",
+    "prompt": "romantic orchestral rhapsody, lush strings, rubato, 92 bpm\n[Intro | 4 bars | p]\n{Dbm | A | Gbm | Ab7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "classical-romantic",
+      "tempoRange": [
+        52,
+        132
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "classical-impressionist__plain",
+    "packId": "classical-impressionist",
+    "variant": "plain",
+    "prompt": "impressionist orchestra, whole-tone flute, dreamy piano",
+    "expect": {
+      "packId": "classical-impressionist",
+      "tempoRange": [
+        50,
+        100
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "development",
+        "theme",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "classical-impressionist__lyrics",
+    "packId": "classical-impressionist",
+    "variant": "lyrics",
+    "prompt": "impressionist orchestra, whole-tone flute, dreamy piano, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "classical-impressionist",
+      "tempoRange": [
+        50,
+        100
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "classical-impressionist__marks",
+    "packId": "classical-impressionist",
+    "variant": "marks",
+    "prompt": "impressionist orchestra, whole-tone flute, dreamy piano, 75 bpm\n[Intro | 4 bars | p]\n{Dbmaj9 | Dbmaj9 | Bmaj9 | Bmaj9}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "classical-impressionist",
+      "tempoRange": [
+        50,
+        100
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "classical-minimalist__plain",
+    "packId": "classical-minimalist",
+    "variant": "plain",
+    "prompt": "minimalist ensemble, pulsing marimba, glass-like arpeggios",
+    "expect": {
+      "packId": "classical-minimalist",
+      "tempoRange": [
+        60,
+        144
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "build",
+        "development",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "classical-minimalist__lyrics",
+    "packId": "classical-minimalist",
+    "variant": "lyrics",
+    "prompt": "minimalist ensemble, pulsing marimba, glass-like arpeggios, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "classical-minimalist",
+      "tempoRange": [
+        60,
+        144
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "classical-minimalist__marks",
+    "packId": "classical-minimalist",
+    "variant": "marks",
+    "prompt": "minimalist ensemble, pulsing marimba, glass-like arpeggios, 102 bpm\n[Intro | 4 bars | p]\n{Am | Am | Am | Am}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "classical-minimalist",
+      "tempoRange": [
+        60,
+        144
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "jazz-swing__plain",
+    "packId": "jazz-swing",
+    "variant": "plain",
+    "prompt": "straight-ahead bebop, jazz quintet, walking upright",
+    "expect": {
+      "packId": "jazz-swing",
+      "tempoRange": [
+        120,
+        260
+      ],
+      "form": [
+        "intro",
+        "head",
+        "solo",
+        "solo",
+        "interlude",
+        "head",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "jazz-swing__lyrics",
+    "packId": "jazz-swing",
+    "variant": "lyrics",
+    "prompt": "straight-ahead bebop, jazz quintet, walking upright, lead vocals\n[Head]\nAmber twilight drifting through the clubroom smoke (mm-hmm)\nSoft brass answering every word we spoke\n[Bridge]\nTurn the page when the midnight changes fall\n[Outro]\nOne last chord fading down the hall",
+    "expect": {
+      "packId": "jazz-swing",
+      "tempoRange": [
+        120,
+        260
+      ],
+      "form": [
+        "head",
+        "bridge",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "jazz-swing__marks",
+    "packId": "jazz-swing",
+    "variant": "marks",
+    "prompt": "straight-ahead bebop, jazz quintet, walking upright, 190 bpm\n[Intro | 4 bars | p]\n{Fmaj7 D7 | Gm7 C7 | Am7 D7 | Gm7 C7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "jazz-swing",
+      "tempoRange": [
+        120,
+        260
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "jazz-modal__plain",
+    "packId": "jazz-modal",
+    "variant": "plain",
+    "prompt": "modal jazz, cool jazz sextet, Dorian horn voicings",
+    "expect": {
+      "packId": "jazz-modal",
+      "tempoRange": [
+        96,
+        160
+      ],
+      "form": [
+        "intro",
+        "head",
+        "solo",
+        "solo",
+        "solo",
+        "head",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "jazz-modal__lyrics",
+    "packId": "jazz-modal",
+    "variant": "lyrics",
+    "prompt": "modal jazz, cool jazz sextet, Dorian horn voicings, lead vocals\n[Head]\nAmber twilight drifting through the clubroom smoke (mm-hmm)\nSoft brass answering every word we spoke\n[Bridge]\nTurn the page when the midnight changes fall\n[Outro]\nOne last chord fading down the hall",
+    "expect": {
+      "packId": "jazz-modal",
+      "tempoRange": [
+        96,
+        160
+      ],
+      "form": [
+        "head",
+        "bridge",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "jazz-modal__marks",
+    "packId": "jazz-modal",
+    "variant": "marks",
+    "prompt": "modal jazz, cool jazz sextet, Dorian horn voicings, 128 bpm\n[Intro | 4 bars | p]\n{Dm7 | Dm7 | Dm7 | Dm7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "jazz-modal",
+      "tempoRange": [
+        96,
+        160
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "jazz-ballad__plain",
+    "packId": "jazz-ballad",
+    "variant": "plain",
+    "prompt": "late-night jazz ballad, smoky torch song, brushed snare",
+    "expect": {
+      "packId": "jazz-ballad",
+      "tempoRange": [
+        48,
+        76
+      ],
+      "form": [
+        "intro",
+        "head",
+        "solo",
+        "head",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "jazz-ballad__lyrics",
+    "packId": "jazz-ballad",
+    "variant": "lyrics",
+    "prompt": "late-night jazz ballad, smoky torch song, brushed snare, lead vocals\n[Head]\nAmber twilight drifting through the clubroom smoke (mm-hmm)\nSoft brass answering every word we spoke\n[Bridge]\nTurn the page when the midnight changes fall\n[Outro]\nOne last chord fading down the hall",
+    "expect": {
+      "packId": "jazz-ballad",
+      "tempoRange": [
+        48,
+        76
+      ],
+      "form": [
+        "head",
+        "bridge",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "jazz-ballad__marks",
+    "packId": "jazz-ballad",
+    "variant": "marks",
+    "prompt": "late-night jazz ballad, smoky torch song, brushed snare, 62 bpm\n[Intro | 4 bars | p]\n{Ebmaj7 Cm7 | Fm7 Bb7 | Gm7 C7 | Fm7 Bb7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "jazz-ballad",
+      "tempoRange": [
+        48,
+        76
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "jazz-bossa__plain",
+    "packId": "jazz-bossa",
+    "variant": "plain",
+    "prompt": "bossa nova, Brazilian jazz, nylon guitar",
+    "expect": {
+      "packId": "jazz-bossa",
+      "tempoRange": [
+        112,
+        148
+      ],
+      "form": [
+        "intro",
+        "head",
+        "solo",
+        "head",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "jazz-bossa__lyrics",
+    "packId": "jazz-bossa",
+    "variant": "lyrics",
+    "prompt": "bossa nova, Brazilian jazz, nylon guitar, lead vocals\n[Head]\nAmber twilight drifting through the clubroom smoke (mm-hmm)\nSoft brass answering every word we spoke\n[Bridge]\nTurn the page when the midnight changes fall\n[Outro]\nOne last chord fading down the hall",
+    "expect": {
+      "packId": "jazz-bossa",
+      "tempoRange": [
+        112,
+        148
+      ],
+      "form": [
+        "head",
+        "bridge",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "jazz-bossa__marks",
+    "packId": "jazz-bossa",
+    "variant": "marks",
+    "prompt": "bossa nova, Brazilian jazz, nylon guitar, 130 bpm\n[Intro | 4 bars | p]\n{Fmaj7 | Fmaj7 | G7 | G7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "jazz-bossa",
+      "tempoRange": [
+        112,
+        148
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "jazz-fusion__plain",
+    "packId": "jazz-fusion",
+    "variant": "plain",
+    "prompt": "jazz-funk fusion, electric Rhodes, tight syncopation",
+    "expect": {
+      "packId": "jazz-fusion",
+      "tempoRange": [
+        88,
+        132
+      ],
+      "form": [
+        "intro",
+        "head",
+        "bridge",
+        "solo",
+        "head",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "jazz-fusion__lyrics",
+    "packId": "jazz-fusion",
+    "variant": "lyrics",
+    "prompt": "jazz-funk fusion, electric Rhodes, tight syncopation, lead vocals\n[Head]\nAmber twilight drifting through the clubroom smoke (mm-hmm)\nSoft brass answering every word we spoke\n[Bridge]\nTurn the page when the midnight changes fall\n[Outro]\nOne last chord fading down the hall",
+    "expect": {
+      "packId": "jazz-fusion",
+      "tempoRange": [
+        88,
+        132
+      ],
+      "form": [
+        "head",
+        "bridge",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "jazz-fusion__marks",
+    "packId": "jazz-fusion",
+    "variant": "marks",
+    "prompt": "jazz-funk fusion, electric Rhodes, tight syncopation, 110 bpm\n[Intro | 4 bars | p]\n{Em9 | Em9 | A13 | A13}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "jazz-fusion",
+      "tempoRange": [
+        88,
+        132
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "jazz-bigband__plain",
+    "packId": "jazz-bigband",
+    "variant": "plain",
+    "prompt": "big band swing orchestra, brass shout chorus",
+    "expect": {
+      "packId": "jazz-bigband",
+      "tempoRange": [
+        112,
+        220
+      ],
+      "form": [
+        "intro",
+        "head",
+        "solo",
+        "interlude",
+        "chorus",
+        "head",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "jazz-bigband__lyrics",
+    "packId": "jazz-bigband",
+    "variant": "lyrics",
+    "prompt": "big band swing orchestra, brass shout chorus, lead vocals\n[Head]\nAmber twilight drifting through the clubroom smoke (mm-hmm)\nSoft brass answering every word we spoke\n[Bridge]\nTurn the page when the midnight changes fall\n[Outro]\nOne last chord fading down the hall",
+    "expect": {
+      "packId": "jazz-bigband",
+      "tempoRange": [
+        112,
+        220
+      ],
+      "form": [
+        "head",
+        "bridge",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "jazz-bigband__marks",
+    "packId": "jazz-bigband",
+    "variant": "marks",
+    "prompt": "big band swing orchestra, brass shout chorus, 166 bpm\n[Intro | 4 bars | p]\n{Bb7 | Eb7 | Bb7 | Bb7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "jazz-bigband",
+      "tempoRange": [
+        112,
+        220
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "edm-house__plain",
+    "packId": "edm-house",
+    "variant": "plain",
+    "prompt": "classic Chicago piano house, funky house groove",
+    "expect": {
+      "packId": "edm-house",
+      "tempoRange": [
+        120,
+        128
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "breakdown",
+        "build",
+        "drop",
+        "breakdown",
+        "build",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-house__lyrics",
+    "packId": "edm-house",
+    "variant": "lyrics",
+    "prompt": "classic Chicago piano house, funky house groove, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-house",
+      "tempoRange": [
+        120,
+        128
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-house__marks",
+    "packId": "edm-house",
+    "variant": "marks",
+    "prompt": "classic Chicago piano house, funky house groove, 124 bpm\n[Intro | 4 bars | mp]\n{Am7 | Dm7 | G | Cmaj7}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-house",
+      "tempoRange": [
+        120,
+        128
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-deep-house__plain",
+    "packId": "edm-deep-house",
+    "variant": "plain",
+    "prompt": "deep house, soulful house chords, warm sub",
+    "expect": {
+      "packId": "edm-deep-house",
+      "tempoRange": [
+        112,
+        124
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "breakdown",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-deep-house__lyrics",
+    "packId": "edm-deep-house",
+    "variant": "lyrics",
+    "prompt": "deep house, soulful house chords, warm sub, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-deep-house",
+      "tempoRange": [
+        112,
+        124
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-deep-house__marks",
+    "packId": "edm-deep-house",
+    "variant": "marks",
+    "prompt": "deep house, soulful house chords, warm sub, 118 bpm\n[Intro | 4 bars | mp]\n{Am9 | Am9 | Dm9 | Dm9}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-deep-house",
+      "tempoRange": [
+        112,
+        124
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-tech-house__plain",
+    "packId": "edm-tech-house",
+    "variant": "plain",
+    "prompt": "tech house, minimal tech groove, rolling bassline",
+    "expect": {
+      "packId": "edm-tech-house",
+      "tempoRange": [
+        124,
+        130
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "breakdown",
+        "build",
+        "drop",
+        "breakdown",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-tech-house__lyrics",
+    "packId": "edm-tech-house",
+    "variant": "lyrics",
+    "prompt": "tech house, minimal tech groove, rolling bassline, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-tech-house",
+      "tempoRange": [
+        124,
+        130
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-tech-house__marks",
+    "packId": "edm-tech-house",
+    "variant": "marks",
+    "prompt": "tech house, minimal tech groove, rolling bassline, 127 bpm\n[Intro | 4 bars | mp]\n{Fm | Fm | Fm | Fm}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-tech-house",
+      "tempoRange": [
+        124,
+        130
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-techno__plain",
+    "packId": "edm-techno",
+    "variant": "plain",
+    "prompt": "warehouse Berlin techno, peak-time acid techno",
+    "expect": {
+      "packId": "edm-techno",
+      "tempoRange": [
+        128,
+        145
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "breakdown",
+        "drop",
+        "interlude",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-techno__lyrics",
+    "packId": "edm-techno",
+    "variant": "lyrics",
+    "prompt": "warehouse Berlin techno, peak-time acid techno, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-techno",
+      "tempoRange": [
+        128,
+        145
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-techno__marks",
+    "packId": "edm-techno",
+    "variant": "marks",
+    "prompt": "warehouse Berlin techno, peak-time acid techno, 137 bpm\n[Intro | 4 bars | mp]\n{Am | Am | Am | Am}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-techno",
+      "tempoRange": [
+        128,
+        145
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-detroit-techno__plain",
+    "packId": "edm-detroit-techno",
+    "variant": "plain",
+    "prompt": "Detroit techno, hi-tech machine soul, warm pads",
+    "expect": {
+      "packId": "edm-detroit-techno",
+      "tempoRange": [
+        122,
+        135
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "breakdown",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-detroit-techno__lyrics",
+    "packId": "edm-detroit-techno",
+    "variant": "lyrics",
+    "prompt": "Detroit techno, hi-tech machine soul, warm pads, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-detroit-techno",
+      "tempoRange": [
+        122,
+        135
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-detroit-techno__marks",
+    "packId": "edm-detroit-techno",
+    "variant": "marks",
+    "prompt": "Detroit techno, hi-tech machine soul, warm pads, 129 bpm\n[Intro | 4 bars | mp]\n{Cm9 | Abmaj7 | Fm9 | Bb}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-detroit-techno",
+      "tempoRange": [
+        122,
+        135
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-trance__plain",
+    "packId": "edm-trance",
+    "variant": "plain",
+    "prompt": "uplifting euphoric trance, supersaw lead",
+    "expect": {
+      "packId": "edm-trance",
+      "tempoRange": [
+        132,
+        142
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "breakdown",
+        "build",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-trance__lyrics",
+    "packId": "edm-trance",
+    "variant": "lyrics",
+    "prompt": "uplifting euphoric trance, supersaw lead, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-trance",
+      "tempoRange": [
+        132,
+        142
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-trance__marks",
+    "packId": "edm-trance",
+    "variant": "marks",
+    "prompt": "uplifting euphoric trance, supersaw lead, 137 bpm\n[Intro | 4 bars | mp]\n{Am | F | C | G}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-trance",
+      "tempoRange": [
+        132,
+        142
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-progressive__plain",
+    "packId": "edm-progressive",
+    "variant": "plain",
+    "prompt": "progressive house, melodic techno journey",
+    "expect": {
+      "packId": "edm-progressive",
+      "tempoRange": [
+        118,
+        128
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "breakdown",
+        "drop",
+        "interlude",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-progressive__lyrics",
+    "packId": "edm-progressive",
+    "variant": "lyrics",
+    "prompt": "progressive house, melodic techno journey, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-progressive",
+      "tempoRange": [
+        118,
+        128
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-progressive__marks",
+    "packId": "edm-progressive",
+    "variant": "marks",
+    "prompt": "progressive house, melodic techno journey, 123 bpm\n[Intro | 4 bars | mp]\n{Fm | Fm | Db | Db}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-progressive",
+      "tempoRange": [
+        118,
+        128
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-festival__plain",
+    "packId": "edm-festival",
+    "variant": "plain",
+    "prompt": "big room festival EDM, mainstage electro house",
+    "expect": {
+      "packId": "edm-festival",
+      "tempoRange": [
+        124,
+        132
+      ],
+      "form": [
+        "intro",
+        "breakdown",
+        "build",
+        "drop",
+        "verse",
+        "breakdown",
+        "build",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-festival__lyrics",
+    "packId": "edm-festival",
+    "variant": "lyrics",
+    "prompt": "big room festival EDM, mainstage electro house, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-festival",
+      "tempoRange": [
+        124,
+        132
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-festival__marks",
+    "packId": "edm-festival",
+    "variant": "marks",
+    "prompt": "big room festival EDM, mainstage electro house, 128 bpm\n[Intro | 4 bars | mp]\n{Dm | Bb | F | C}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-festival",
+      "tempoRange": [
+        124,
+        132
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-dnb__plain",
+    "packId": "edm-dnb",
+    "variant": "plain",
+    "prompt": "drum and bass, fast roller, crisp breakbeat",
+    "expect": {
+      "packId": "edm-dnb",
+      "tempoRange": [
+        165,
+        178
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop",
+        "breakdown",
+        "build",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-dnb__lyrics",
+    "packId": "edm-dnb",
+    "variant": "lyrics",
+    "prompt": "drum and bass, fast roller, crisp breakbeat, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-dnb",
+      "tempoRange": [
+        165,
+        178
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-dnb__marks",
+    "packId": "edm-dnb",
+    "variant": "marks",
+    "prompt": "drum and bass, fast roller, crisp breakbeat, 172 bpm\n[Intro | 4 bars | mp]\n{Fm9 | Fm9 | Dbmaj7 | Dbmaj7}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-dnb",
+      "tempoRange": [
+        165,
+        178
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-dubstep__plain",
+    "packId": "edm-dubstep",
+    "variant": "plain",
+    "prompt": "dubstep, 140 wobble bass music, half-time snare",
+    "expect": {
+      "packId": "edm-dubstep",
+      "tempoRange": [
+        138,
+        150
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop",
+        "breakdown",
+        "build",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-dubstep__lyrics",
+    "packId": "edm-dubstep",
+    "variant": "lyrics",
+    "prompt": "dubstep, 140 wobble bass music, half-time snare, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-dubstep",
+      "tempoRange": [
+        138,
+        150
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-dubstep__marks",
+    "packId": "edm-dubstep",
+    "variant": "marks",
+    "prompt": "dubstep, 140 wobble bass music, half-time snare, 144 bpm\n[Intro | 4 bars | mp]\n{Fm | Fm | Db | Eb}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-dubstep",
+      "tempoRange": [
+        138,
+        150
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-future-bass__plain",
+    "packId": "edm-future-bass",
+    "variant": "plain",
+    "prompt": "future bass, melodic bass supersaw chords",
+    "expect": {
+      "packId": "edm-future-bass",
+      "tempoRange": [
+        130,
+        170
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "build",
+        "drop",
+        "verse",
+        "build",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-future-bass__lyrics",
+    "packId": "edm-future-bass",
+    "variant": "lyrics",
+    "prompt": "future bass, melodic bass supersaw chords, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-future-bass",
+      "tempoRange": [
+        130,
+        170
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-future-bass__marks",
+    "packId": "edm-future-bass",
+    "variant": "marks",
+    "prompt": "future bass, melodic bass supersaw chords, 150 bpm\n[Intro | 4 bars | mp]\n{Bbmaj7 | C | Dm7 | Am7}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-future-bass",
+      "tempoRange": [
+        130,
+        170
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-garage__plain",
+    "packId": "edm-garage",
+    "variant": "plain",
+    "prompt": "UK garage, shuffling 2-step rhythm, warm sub",
+    "expect": {
+      "packId": "edm-garage",
+      "tempoRange": [
+        128,
+        138
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "breakdown",
+        "drop",
+        "breakdown",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-garage__lyrics",
+    "packId": "edm-garage",
+    "variant": "lyrics",
+    "prompt": "UK garage, shuffling 2-step rhythm, warm sub, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-garage",
+      "tempoRange": [
+        128,
+        138
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-garage__marks",
+    "packId": "edm-garage",
+    "variant": "marks",
+    "prompt": "UK garage, shuffling 2-step rhythm, warm sub, 133 bpm\n[Intro | 4 bars | mp]\n{Fm9 | Fm9 | Dbmaj7 | Eb}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-garage",
+      "tempoRange": [
+        128,
+        138
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-synthwave__plain",
+    "packId": "edm-synthwave",
+    "variant": "plain",
+    "prompt": "synthwave, retro outrun 80s analog synths",
+    "expect": {
+      "packId": "edm-synthwave",
+      "tempoRange": [
+        80,
+        120
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus",
+        "verse",
+        "chorus",
+        "solo",
+        "chorus",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-synthwave__lyrics",
+    "packId": "edm-synthwave",
+    "variant": "lyrics",
+    "prompt": "synthwave, retro outrun 80s analog synths, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-synthwave",
+      "tempoRange": [
+        80,
+        120
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-synthwave__marks",
+    "packId": "edm-synthwave",
+    "variant": "marks",
+    "prompt": "synthwave, retro outrun 80s analog synths, 100 bpm\n[Intro | 4 bars | mp]\n{Am | F | C | G}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-synthwave",
+      "tempoRange": [
+        80,
+        120
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-ambient__plain",
+    "packId": "edm-ambient",
+    "variant": "plain",
+    "prompt": "ambient downtempo soundscape, warm evolving drone",
+    "expect": {
+      "packId": "edm-ambient",
+      "tempoRange": [
+        60,
+        100
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "development",
+        "theme",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-ambient__lyrics",
+    "packId": "edm-ambient",
+    "variant": "lyrics",
+    "prompt": "ambient downtempo soundscape, warm evolving drone, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-ambient",
+      "tempoRange": [
+        60,
+        100
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-ambient__marks",
+    "packId": "edm-ambient",
+    "variant": "marks",
+    "prompt": "ambient downtempo soundscape, warm evolving drone, 80 bpm\n[Intro | 4 bars | mp]\n{Cmaj7 | Cmaj7 | Fmaj7 | Fmaj7}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-ambient",
+      "tempoRange": [
+        60,
+        100
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-hardstyle__plain",
+    "packId": "edm-hardstyle",
+    "variant": "plain",
+    "prompt": "hardstyle, pitched reverse-bass kick, hard dance",
+    "expect": {
+      "packId": "edm-hardstyle",
+      "tempoRange": [
+        145,
+        160
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "breakdown",
+        "build",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-hardstyle__lyrics",
+    "packId": "edm-hardstyle",
+    "variant": "lyrics",
+    "prompt": "hardstyle, pitched reverse-bass kick, hard dance, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-hardstyle",
+      "tempoRange": [
+        145,
+        160
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-hardstyle__marks",
+    "packId": "edm-hardstyle",
+    "variant": "marks",
+    "prompt": "hardstyle, pitched reverse-bass kick, hard dance, 153 bpm\n[Intro | 4 bars | mp]\n{Fm | Db | Ab | Eb}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-hardstyle",
+      "tempoRange": [
+        145,
+        160
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-boombap__plain",
+    "packId": "hiphop-boombap",
+    "variant": "plain",
+    "prompt": "90s boom bap, golden-era east coast chopped drums",
+    "expect": {
+      "packId": "hiphop-boombap",
+      "tempoRange": [
+        82,
+        98
+      ],
+      "form": [
+        "intro",
+        "hook",
+        "verse",
+        "hook",
+        "verse",
+        "hook",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-boombap__lyrics",
+    "packId": "hiphop-boombap",
+    "variant": "lyrics",
+    "prompt": "90s boom bap, golden-era east coast chopped drums, lead vocals\n[Intro]\nTurn the headphones up in the booth (yeah)\n[Verse 1]\nStreetlight reflections on the corner store glass\nEvery bar carved clean while the night trains pass\n[Hook]\nStay steady on the rhythm when the bassline drops (drops)\nFrom the basement tape to the city rooftops",
+    "expect": {
+      "packId": "hiphop-boombap",
+      "tempoRange": [
+        82,
+        98
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "hook"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-boombap__marks",
+    "packId": "hiphop-boombap",
+    "variant": "marks",
+    "prompt": "90s boom bap, golden-era east coast chopped drums, 90 bpm\n[Intro | 4 bars | p]\n{Am7 | Am7 | Dm7 | Dm7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "hiphop-boombap",
+      "tempoRange": [
+        82,
+        98
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-trap__plain",
+    "packId": "hiphop-trap",
+    "variant": "plain",
+    "prompt": "Atlanta trap, booming 808s, triplet hi-hat rolls",
+    "expect": {
+      "packId": "hiphop-trap",
+      "tempoRange": [
+        120,
+        160
+      ],
+      "form": [
+        "intro",
+        "hook",
+        "verse",
+        "hook",
+        "verse",
+        "hook",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-trap__lyrics",
+    "packId": "hiphop-trap",
+    "variant": "lyrics",
+    "prompt": "Atlanta trap, booming 808s, triplet hi-hat rolls, lead vocals\n[Intro]\nTurn the headphones up in the booth (yeah)\n[Verse 1]\nStreetlight reflections on the corner store glass\nEvery bar carved clean while the night trains pass\n[Hook]\nStay steady on the rhythm when the bassline drops (drops)\nFrom the basement tape to the city rooftops",
+    "expect": {
+      "packId": "hiphop-trap",
+      "tempoRange": [
+        120,
+        160
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "hook"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-trap__marks",
+    "packId": "hiphop-trap",
+    "variant": "marks",
+    "prompt": "Atlanta trap, booming 808s, triplet hi-hat rolls, 140 bpm\n[Intro | 4 bars | p]\n{Fm | Fm | Db | Eb}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "hiphop-trap",
+      "tempoRange": [
+        120,
+        160
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-drill__plain",
+    "packId": "hiphop-drill",
+    "variant": "plain",
+    "prompt": "UK drill, sliding 808s, syncopated counter-snare",
+    "expect": {
+      "packId": "hiphop-drill",
+      "tempoRange": [
+        138,
+        146
+      ],
+      "form": [
+        "intro",
+        "hook",
+        "verse",
+        "hook",
+        "verse",
+        "hook",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-drill__lyrics",
+    "packId": "hiphop-drill",
+    "variant": "lyrics",
+    "prompt": "UK drill, sliding 808s, syncopated counter-snare, lead vocals\n[Intro]\nTurn the headphones up in the booth (yeah)\n[Verse 1]\nStreetlight reflections on the corner store glass\nEvery bar carved clean while the night trains pass\n[Hook]\nStay steady on the rhythm when the bassline drops (drops)\nFrom the basement tape to the city rooftops",
+    "expect": {
+      "packId": "hiphop-drill",
+      "tempoRange": [
+        138,
+        146
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "hook"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-drill__marks",
+    "packId": "hiphop-drill",
+    "variant": "marks",
+    "prompt": "UK drill, sliding 808s, syncopated counter-snare, 142 bpm\n[Intro | 4 bars | p]\n{F#m | F#m | D | C#}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "hiphop-drill",
+      "tempoRange": [
+        138,
+        146
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-lofi__plain",
+    "packId": "hiphop-lofi",
+    "variant": "plain",
+    "prompt": "lo-fi chillhop, dusty study beats, mellow Rhodes",
+    "expect": {
+      "packId": "hiphop-lofi",
+      "tempoRange": [
+        66,
+        92
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "interlude",
+        "verse",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-lofi__lyrics",
+    "packId": "hiphop-lofi",
+    "variant": "lyrics",
+    "prompt": "lo-fi chillhop, dusty study beats, mellow Rhodes, lead vocals\n[Intro]\nTurn the headphones up in the booth (yeah)\n[Verse 1]\nStreetlight reflections on the corner store glass\nEvery bar carved clean while the night trains pass\n[Hook]\nStay steady on the rhythm when the bassline drops (drops)\nFrom the basement tape to the city rooftops",
+    "expect": {
+      "packId": "hiphop-lofi",
+      "tempoRange": [
+        66,
+        92
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "hook"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-lofi__marks",
+    "packId": "hiphop-lofi",
+    "variant": "marks",
+    "prompt": "lo-fi chillhop, dusty study beats, mellow Rhodes, 79 bpm\n[Intro | 4 bars | p]\n{Fmaj7 | Em7 | Dm7 | Cmaj7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "hiphop-lofi",
+      "tempoRange": [
+        66,
+        92
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-gfunk__plain",
+    "packId": "hiphop-gfunk",
+    "variant": "plain",
+    "prompt": "West Coast G-funk, lowrider portamento synth, talkbox",
+    "expect": {
+      "packId": "hiphop-gfunk",
+      "tempoRange": [
+        86,
+        104
+      ],
+      "form": [
+        "intro",
+        "hook",
+        "verse",
+        "hook",
+        "verse",
+        "hook",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-gfunk__lyrics",
+    "packId": "hiphop-gfunk",
+    "variant": "lyrics",
+    "prompt": "West Coast G-funk, lowrider portamento synth, talkbox, lead vocals\n[Intro]\nTurn the headphones up in the booth (yeah)\n[Verse 1]\nStreetlight reflections on the corner store glass\nEvery bar carved clean while the night trains pass\n[Hook]\nStay steady on the rhythm when the bassline drops (drops)\nFrom the basement tape to the city rooftops",
+    "expect": {
+      "packId": "hiphop-gfunk",
+      "tempoRange": [
+        86,
+        104
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "hook"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-gfunk__marks",
+    "packId": "hiphop-gfunk",
+    "variant": "marks",
+    "prompt": "West Coast G-funk, lowrider portamento synth, talkbox, 95 bpm\n[Intro | 4 bars | p]\n{Gm7 | Gm7 | Cm7 | Cm7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "hiphop-gfunk",
+      "tempoRange": [
+        86,
+        104
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-phonk__plain",
+    "packId": "hiphop-phonk",
+    "variant": "plain",
+    "prompt": "drift phonk, distorted cowbell lead, Memphis tape",
+    "expect": {
+      "packId": "hiphop-phonk",
+      "tempoRange": [
+        120,
+        160
+      ],
+      "form": [
+        "intro",
+        "drop",
+        "breakdown",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-phonk__lyrics",
+    "packId": "hiphop-phonk",
+    "variant": "lyrics",
+    "prompt": "drift phonk, distorted cowbell lead, Memphis tape, lead vocals\n[Intro]\nTurn the headphones up in the booth (yeah)\n[Verse 1]\nStreetlight reflections on the corner store glass\nEvery bar carved clean while the night trains pass\n[Hook]\nStay steady on the rhythm when the bassline drops (drops)\nFrom the basement tape to the city rooftops",
+    "expect": {
+      "packId": "hiphop-phonk",
+      "tempoRange": [
+        120,
+        160
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "hook"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-phonk__marks",
+    "packId": "hiphop-phonk",
+    "variant": "marks",
+    "prompt": "drift phonk, distorted cowbell lead, Memphis tape, 140 bpm\n[Intro | 4 bars | p]\n{Fm | Fm | Gb | Fm}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "hiphop-phonk",
+      "tempoRange": [
+        120,
+        160
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-western__plain",
+    "packId": "cinematic-western",
+    "variant": "plain",
+    "prompt": "spaghetti western, frontier score, twang baritone guitar",
+    "expect": {
+      "packId": "cinematic-western",
+      "tempoRange": [
+        68,
+        128
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "development",
+        "recap",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-western__lyrics",
+    "packId": "cinematic-western",
+    "variant": "lyrics",
+    "prompt": "spaghetti western, frontier score, twang baritone guitar, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "cinematic-western",
+      "tempoRange": [
+        68,
+        128
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-western__marks",
+    "packId": "cinematic-western",
+    "variant": "marks",
+    "prompt": "spaghetti western, frontier score, twang baritone guitar, 98 bpm\n[Intro | 4 bars | p]\n{Dm | C | Bb | A}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "cinematic-western",
+      "tempoRange": [
+        68,
+        128
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-noir__plain",
+    "packId": "cinematic-noir",
+    "variant": "plain",
+    "prompt": "film noir, spy score, muted trumpet, brushed snare",
+    "expect": {
+      "packId": "cinematic-noir",
+      "tempoRange": [
+        66,
+        132
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "development",
+        "build",
+        "recap",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-noir__lyrics",
+    "packId": "cinematic-noir",
+    "variant": "lyrics",
+    "prompt": "film noir, spy score, muted trumpet, brushed snare, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "cinematic-noir",
+      "tempoRange": [
+        66,
+        132
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-noir__marks",
+    "packId": "cinematic-noir",
+    "variant": "marks",
+    "prompt": "film noir, spy score, muted trumpet, brushed snare, 99 bpm\n[Intro | 4 bars | p]\n{Emmaj7 | Em6 | Emmaj7 | Em6}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "cinematic-noir",
+      "tempoRange": [
+        66,
+        132
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-romance__plain",
+    "packId": "cinematic-romance",
+    "variant": "plain",
+    "prompt": "romantic score, sweeping love theme, solo cello",
+    "expect": {
+      "packId": "cinematic-romance",
+      "tempoRange": [
+        56,
+        88
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "development",
+        "recap",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-romance__lyrics",
+    "packId": "cinematic-romance",
+    "variant": "lyrics",
+    "prompt": "romantic score, sweeping love theme, solo cello, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "cinematic-romance",
+      "tempoRange": [
+        56,
+        88
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-romance__marks",
+    "packId": "cinematic-romance",
+    "variant": "marks",
+    "prompt": "romantic score, sweeping love theme, solo cello, 72 bpm\n[Intro | 4 bars | p]\n{Ebmaj7 | Gm7 | Abmaj7 | Abm6}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "cinematic-romance",
+      "tempoRange": [
+        56,
+        88
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-scifi__plain",
+    "packId": "cinematic-scifi",
+    "variant": "plain",
+    "prompt": "sci-fi score, analog synth score, cosmic arpeggiator",
+    "expect": {
+      "packId": "cinematic-scifi",
+      "tempoRange": [
+        72,
+        124
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "build",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-scifi__lyrics",
+    "packId": "cinematic-scifi",
+    "variant": "lyrics",
+    "prompt": "sci-fi score, analog synth score, cosmic arpeggiator, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "cinematic-scifi",
+      "tempoRange": [
+        72,
+        124
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-scifi__marks",
+    "packId": "cinematic-scifi",
+    "variant": "marks",
+    "prompt": "sci-fi score, analog synth score, cosmic arpeggiator, 98 bpm\n[Intro | 4 bars | p]\n{Cmaj7 | Ebmaj7 | Abmaj7 | G7sus4}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "cinematic-scifi",
+      "tempoRange": [
+        72,
+        124
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-comedy__plain",
+    "packId": "cinematic-comedy",
+    "variant": "plain",
+    "prompt": "comedy score, quirky animation score, pizzicato bassoon",
+    "expect": {
+      "packId": "cinematic-comedy",
+      "tempoRange": [
+        108,
+        160
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "interlude",
+        "development",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-comedy__lyrics",
+    "packId": "cinematic-comedy",
+    "variant": "lyrics",
+    "prompt": "comedy score, quirky animation score, pizzicato bassoon, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "cinematic-comedy",
+      "tempoRange": [
+        108,
+        160
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-comedy__marks",
+    "packId": "cinematic-comedy",
+    "variant": "marks",
+    "prompt": "comedy score, quirky animation score, pizzicato bassoon, 134 bpm\n[Intro | 4 bars | p]\n{C | G7 | C | C#dim7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "cinematic-comedy",
+      "tempoRange": [
+        108,
+        160
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-documentary__plain",
+    "packId": "cinematic-documentary",
+    "variant": "plain",
+    "prompt": "documentary underscore, investigative felt piano, marimba pulse",
+    "expect": {
+      "packId": "cinematic-documentary",
+      "tempoRange": [
+        84,
+        122
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "development",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-documentary__lyrics",
+    "packId": "cinematic-documentary",
+    "variant": "lyrics",
+    "prompt": "documentary underscore, investigative felt piano, marimba pulse, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "cinematic-documentary",
+      "tempoRange": [
+        84,
+        122
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-documentary__marks",
+    "packId": "cinematic-documentary",
+    "variant": "marks",
+    "prompt": "documentary underscore, investigative felt piano, marimba pulse, 103 bpm\n[Intro | 4 bars | p]\n{Dm7 | Dm7 | G | G}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "cinematic-documentary",
+      "tempoRange": [
+        84,
+        122
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-videogame__plain",
+    "packId": "cinematic-videogame",
+    "variant": "plain",
+    "prompt": "video-game orchestral, JRPG boss theme, heroic choir",
+    "expect": {
+      "packId": "cinematic-videogame",
+      "tempoRange": [
+        112,
+        164
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "development",
+        "bridge"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-videogame__lyrics",
+    "packId": "cinematic-videogame",
+    "variant": "lyrics",
+    "prompt": "video-game orchestral, JRPG boss theme, heroic choir, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "cinematic-videogame",
+      "tempoRange": [
+        112,
+        164
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "cinematic-videogame__marks",
+    "packId": "cinematic-videogame",
+    "variant": "marks",
+    "prompt": "video-game orchestral, JRPG boss theme, heroic choir, 138 bpm\n[Intro | 4 bars | p]\n{Dm | C | Bb | A7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "cinematic-videogame",
+      "tempoRange": [
+        112,
+        164
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "classical-quartet__plain",
+    "packId": "classical-quartet",
+    "variant": "plain",
+    "prompt": "chamber string quartet, two violins viola cello",
+    "expect": {
+      "packId": "classical-quartet",
+      "tempoRange": [
+        64,
+        144
+      ],
+      "form": [
+        "theme",
+        "interlude",
+        "theme",
+        "development",
+        "recap",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "classical-quartet__lyrics",
+    "packId": "classical-quartet",
+    "variant": "lyrics",
+    "prompt": "chamber string quartet, two violins viola cello, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "classical-quartet",
+      "tempoRange": [
+        64,
+        144
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "classical-quartet__marks",
+    "packId": "classical-quartet",
+    "variant": "marks",
+    "prompt": "chamber string quartet, two violins viola cello, 104 bpm\n[Intro | 4 bars | p]\n{Cm | Fm | G7 | Cm}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "classical-quartet",
+      "tempoRange": [
+        64,
+        144
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "classical-nocturne__plain",
+    "packId": "classical-nocturne",
+    "variant": "plain",
+    "prompt": "solo piano nocturne, bel-canto night piece",
+    "expect": {
+      "packId": "classical-nocturne",
+      "tempoRange": [
+        46,
+        76
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "theme",
+        "development",
+        "recap",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "classical-nocturne__lyrics",
+    "packId": "classical-nocturne",
+    "variant": "lyrics",
+    "prompt": "solo piano nocturne, bel-canto night piece, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "classical-nocturne",
+      "tempoRange": [
+        46,
+        76
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "classical-nocturne__marks",
+    "packId": "classical-nocturne",
+    "variant": "marks",
+    "prompt": "solo piano nocturne, bel-canto night piece, 61 bpm\n[Intro | 4 bars | p]\n{Dbm | Gbm | Ab7 | Dbm}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "classical-nocturne",
+      "tempoRange": [
+        46,
+        76
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "classical-choral__plain",
+    "packId": "classical-choral",
+    "variant": "plain",
+    "prompt": "sacred choral, cathedral a cappella choir, motet",
+    "expect": {
+      "packId": "classical-choral",
+      "tempoRange": [
+        48,
+        84
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "development",
+        "recap",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "classical-choral__lyrics",
+    "packId": "classical-choral",
+    "variant": "lyrics",
+    "prompt": "sacred choral, cathedral a cappella choir, motet, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "classical-choral",
+      "tempoRange": [
+        48,
+        84
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "classical-choral__marks",
+    "packId": "classical-choral",
+    "variant": "marks",
+    "prompt": "sacred choral, cathedral a cappella choir, motet, 66 bpm\n[Intro | 4 bars | p]\n{F | Bb | Gm7 | C}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "classical-choral",
+      "tempoRange": [
+        48,
+        84
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "classical-opera__plain",
+    "packId": "classical-opera",
+    "variant": "plain",
+    "prompt": "opera aria, dramatic bel canto soprano aria",
+    "expect": {
+      "packId": "classical-opera",
+      "tempoRange": [
+        52,
+        92
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "development",
+        "chorus",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "classical-opera__lyrics",
+    "packId": "classical-opera",
+    "variant": "lyrics",
+    "prompt": "opera aria, dramatic bel canto soprano aria, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "classical-opera",
+      "tempoRange": [
+        52,
+        92
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "classical-opera__marks",
+    "packId": "classical-opera",
+    "variant": "marks",
+    "prompt": "opera aria, dramatic bel canto soprano aria, 72 bpm\n[Intro | 4 bars | p]\n{Ab | Fm | Bbm7 | Eb7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "classical-opera",
+      "tempoRange": [
+        52,
+        92
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "classical-renaissance__plain",
+    "packId": "classical-renaissance",
+    "variant": "plain",
+    "prompt": "renaissance polyphony, modal counterpoint madrigal",
+    "expect": {
+      "packId": "classical-renaissance",
+      "tempoRange": [
+        56,
+        96
+      ],
+      "form": [
+        "theme",
+        "development",
+        "theme",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "classical-renaissance__lyrics",
+    "packId": "classical-renaissance",
+    "variant": "lyrics",
+    "prompt": "renaissance polyphony, modal counterpoint madrigal, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "classical-renaissance",
+      "tempoRange": [
+        56,
+        96
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "classical-renaissance__marks",
+    "packId": "classical-renaissance",
+    "variant": "marks",
+    "prompt": "renaissance polyphony, modal counterpoint madrigal, 76 bpm\n[Intro | 4 bars | p]\n{Dm | C | G | Dm}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "classical-renaissance",
+      "tempoRange": [
+        56,
+        96
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "classical-modernist__plain",
+    "packId": "classical-modernist",
+    "variant": "plain",
+    "prompt": "20th-century modernist, angular chamber serialism",
+    "expect": {
+      "packId": "classical-modernist",
+      "tempoRange": [
+        76,
+        152
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "development",
+        "recap",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "classical-modernist__lyrics",
+    "packId": "classical-modernist",
+    "variant": "lyrics",
+    "prompt": "20th-century modernist, angular chamber serialism, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "classical-modernist",
+      "tempoRange": [
+        76,
+        152
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "classical-modernist__marks",
+    "packId": "classical-modernist",
+    "variant": "marks",
+    "prompt": "20th-century modernist, angular chamber serialism, 114 bpm\n[Intro | 4 bars | p]\n{Cm | Gbm | Db | Bdim7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "classical-modernist",
+      "tempoRange": [
+        76,
+        152
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "classical-waltz__plain",
+    "packId": "classical-waltz",
+    "variant": "plain",
+    "prompt": "Viennese waltz, 3/4 ballroom concert waltz",
+    "expect": {
+      "packId": "classical-waltz",
+      "tempoRange": [
+        132,
+        186
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "theme",
+        "interlude",
+        "recap",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "classical-waltz__lyrics",
+    "packId": "classical-waltz",
+    "variant": "lyrics",
+    "prompt": "Viennese waltz, 3/4 ballroom concert waltz, lead vocals\n[Theme]\nAcross the quiet valley where the lanterns glow\nDistant voices rising through the winter snow\n[Development]\nShadows gather over stone and tide\n[Recap]\nMorning breaks across the mountainside",
+    "expect": {
+      "packId": "classical-waltz",
+      "tempoRange": [
+        132,
+        186
+      ],
+      "form": [
+        "theme",
+        "development",
+        "recap"
+      ]
+    }
+  },
+  {
+    "id": "classical-waltz__marks",
+    "packId": "classical-waltz",
+    "variant": "marks",
+    "prompt": "Viennese waltz, 3/4 ballroom concert waltz, 159 bpm\n[Intro | 4 bars | p]\n{D | D | A7 | A7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "classical-waltz",
+      "tempoRange": [
+        132,
+        186
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "jazz-latin__plain",
+    "packId": "jazz-latin",
+    "variant": "plain",
+    "prompt": "Latin jazz, Afro-Cuban mambo jazz, montuno piano",
+    "expect": {
+      "packId": "jazz-latin",
+      "tempoRange": [
+        164,
+        216
+      ],
+      "form": [
+        "intro",
+        "head",
+        "solo",
+        "interlude",
+        "head",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "jazz-latin__lyrics",
+    "packId": "jazz-latin",
+    "variant": "lyrics",
+    "prompt": "Latin jazz, Afro-Cuban mambo jazz, montuno piano, lead vocals\n[Head]\nAmber twilight drifting through the clubroom smoke (mm-hmm)\nSoft brass answering every word we spoke\n[Bridge]\nTurn the page when the midnight changes fall\n[Outro]\nOne last chord fading down the hall",
+    "expect": {
+      "packId": "jazz-latin",
+      "tempoRange": [
+        164,
+        216
+      ],
+      "form": [
+        "head",
+        "bridge",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "jazz-latin__marks",
+    "packId": "jazz-latin",
+    "variant": "marks",
+    "prompt": "Latin jazz, Afro-Cuban mambo jazz, montuno piano, 190 bpm\n[Intro | 4 bars | p]\n{Cm6 | G7#9 | Cm6 | G7#9}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "jazz-latin",
+      "tempoRange": [
+        164,
+        216
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "jazz-gypsy__plain",
+    "packId": "jazz-gypsy",
+    "variant": "plain",
+    "prompt": "gypsy jazz, jazz manouche, acoustic la pompe guitar",
+    "expect": {
+      "packId": "jazz-gypsy",
+      "tempoRange": [
+        152,
+        236
+      ],
+      "form": [
+        "intro",
+        "head",
+        "solo",
+        "solo",
+        "head",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "jazz-gypsy__lyrics",
+    "packId": "jazz-gypsy",
+    "variant": "lyrics",
+    "prompt": "gypsy jazz, jazz manouche, acoustic la pompe guitar, lead vocals\n[Head]\nAmber twilight drifting through the clubroom smoke (mm-hmm)\nSoft brass answering every word we spoke\n[Bridge]\nTurn the page when the midnight changes fall\n[Outro]\nOne last chord fading down the hall",
+    "expect": {
+      "packId": "jazz-gypsy",
+      "tempoRange": [
+        152,
+        236
+      ],
+      "form": [
+        "head",
+        "bridge",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "jazz-gypsy__marks",
+    "packId": "jazz-gypsy",
+    "variant": "marks",
+    "prompt": "gypsy jazz, jazz manouche, acoustic la pompe guitar, 194 bpm\n[Intro | 4 bars | p]\n{Dm6 | Dm6 | Gm6 | Gm6}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "jazz-gypsy",
+      "tempoRange": [
+        152,
+        236
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "jazz-free__plain",
+    "packId": "jazz-free",
+    "variant": "plain",
+    "prompt": "free jazz, avant-garde fire music, collective improvisation",
+    "expect": {
+      "packId": "jazz-free",
+      "tempoRange": [
+        90,
+        210
+      ],
+      "form": [
+        "head",
+        "solo",
+        "development",
+        "solo",
+        "head"
+      ]
+    }
+  },
+  {
+    "id": "jazz-free__lyrics",
+    "packId": "jazz-free",
+    "variant": "lyrics",
+    "prompt": "free jazz, avant-garde fire music, collective improvisation, lead vocals\n[Head]\nAmber twilight drifting through the clubroom smoke (mm-hmm)\nSoft brass answering every word we spoke\n[Bridge]\nTurn the page when the midnight changes fall\n[Outro]\nOne last chord fading down the hall",
+    "expect": {
+      "packId": "jazz-free",
+      "tempoRange": [
+        90,
+        210
+      ],
+      "form": [
+        "head",
+        "bridge",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "jazz-free__marks",
+    "packId": "jazz-free",
+    "variant": "marks",
+    "prompt": "free jazz, avant-garde fire music, collective improvisation, 150 bpm\n[Intro | 4 bars | p]\n{Cm7 | Dbmaj7 | Fm7 | Abmaj7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "jazz-free",
+      "tempoRange": [
+        90,
+        210
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "jazz-soul__plain",
+    "packId": "jazz-soul",
+    "variant": "plain",
+    "prompt": "soul jazz, greasy Hammond organ trio, shuffle groove",
+    "expect": {
+      "packId": "jazz-soul",
+      "tempoRange": [
+        92,
+        138
+      ],
+      "form": [
+        "intro",
+        "head",
+        "solo",
+        "solo",
+        "head",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "jazz-soul__lyrics",
+    "packId": "jazz-soul",
+    "variant": "lyrics",
+    "prompt": "soul jazz, greasy Hammond organ trio, shuffle groove, lead vocals\n[Head]\nAmber twilight drifting through the clubroom smoke (mm-hmm)\nSoft brass answering every word we spoke\n[Bridge]\nTurn the page when the midnight changes fall\n[Outro]\nOne last chord fading down the hall",
+    "expect": {
+      "packId": "jazz-soul",
+      "tempoRange": [
+        92,
+        138
+      ],
+      "form": [
+        "head",
+        "bridge",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "jazz-soul__marks",
+    "packId": "jazz-soul",
+    "variant": "marks",
+    "prompt": "soul jazz, greasy Hammond organ trio, shuffle groove, 115 bpm\n[Intro | 4 bars | p]\n{F7 | Bb7 | F7 | F7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "jazz-soul",
+      "tempoRange": [
+        92,
+        138
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "jazz-dixieland__plain",
+    "packId": "jazz-dixieland",
+    "variant": "plain",
+    "prompt": "Dixieland, New Orleans second line trad jazz",
+    "expect": {
+      "packId": "jazz-dixieland",
+      "tempoRange": [
+        128,
+        208
+      ],
+      "form": [
+        "intro",
+        "head",
+        "solo",
+        "solo",
+        "interlude",
+        "chorus",
+        "coda"
+      ]
+    }
+  },
+  {
+    "id": "jazz-dixieland__lyrics",
+    "packId": "jazz-dixieland",
+    "variant": "lyrics",
+    "prompt": "Dixieland, New Orleans second line trad jazz, lead vocals\n[Head]\nAmber twilight drifting through the clubroom smoke (mm-hmm)\nSoft brass answering every word we spoke\n[Bridge]\nTurn the page when the midnight changes fall\n[Outro]\nOne last chord fading down the hall",
+    "expect": {
+      "packId": "jazz-dixieland",
+      "tempoRange": [
+        128,
+        208
+      ],
+      "form": [
+        "head",
+        "bridge",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "jazz-dixieland__marks",
+    "packId": "jazz-dixieland",
+    "variant": "marks",
+    "prompt": "Dixieland, New Orleans second line trad jazz, 168 bpm\n[Intro | 4 bars | p]\n{Bb | Bb | F7 | F7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "jazz-dixieland",
+      "tempoRange": [
+        128,
+        208
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "jazz-smooth__plain",
+    "packId": "jazz-smooth",
+    "variant": "plain",
+    "prompt": "contemporary smooth jazz, quiet storm smooth sax",
+    "expect": {
+      "packId": "jazz-smooth",
+      "tempoRange": [
+        82,
+        112
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus",
+        "solo",
+        "chorus",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "jazz-smooth__lyrics",
+    "packId": "jazz-smooth",
+    "variant": "lyrics",
+    "prompt": "contemporary smooth jazz, quiet storm smooth sax, lead vocals\n[Head]\nAmber twilight drifting through the clubroom smoke (mm-hmm)\nSoft brass answering every word we spoke\n[Bridge]\nTurn the page when the midnight changes fall\n[Outro]\nOne last chord fading down the hall",
+    "expect": {
+      "packId": "jazz-smooth",
+      "tempoRange": [
+        82,
+        112
+      ],
+      "form": [
+        "head",
+        "bridge",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "jazz-smooth__marks",
+    "packId": "jazz-smooth",
+    "variant": "marks",
+    "prompt": "contemporary smooth jazz, quiet storm smooth sax, 97 bpm\n[Intro | 4 bars | p]\n{Ebmaj9 | Cm9 | Abmaj9 | Bb11}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "jazz-smooth",
+      "tempoRange": [
+        82,
+        112
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "edm-breakbeat__plain",
+    "packId": "edm-breakbeat",
+    "variant": "plain",
+    "prompt": "breakbeat, big beat, nu-skool funky breaks",
+    "expect": {
+      "packId": "edm-breakbeat",
+      "tempoRange": [
+        122,
+        138
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "breakdown",
+        "build",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-breakbeat__lyrics",
+    "packId": "edm-breakbeat",
+    "variant": "lyrics",
+    "prompt": "breakbeat, big beat, nu-skool funky breaks, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-breakbeat",
+      "tempoRange": [
+        122,
+        138
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-breakbeat__marks",
+    "packId": "edm-breakbeat",
+    "variant": "marks",
+    "prompt": "breakbeat, big beat, nu-skool funky breaks, 130 bpm\n[Intro | 4 bars | mp]\n{Em7 | Em7 | D | A7}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-breakbeat",
+      "tempoRange": [
+        122,
+        138
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-electro__plain",
+    "packId": "edm-electro",
+    "variant": "plain",
+    "prompt": "808 electro, electro-funk, robotic vocoder boogie",
+    "expect": {
+      "packId": "edm-electro",
+      "tempoRange": [
+        118,
+        136
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "interlude",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-electro__lyrics",
+    "packId": "edm-electro",
+    "variant": "lyrics",
+    "prompt": "808 electro, electro-funk, robotic vocoder boogie, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-electro",
+      "tempoRange": [
+        118,
+        136
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-electro__marks",
+    "packId": "edm-electro",
+    "variant": "marks",
+    "prompt": "808 electro, electro-funk, robotic vocoder boogie, 127 bpm\n[Intro | 4 bars | mp]\n{Cm | Cm | Ab | Bb}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-electro",
+      "tempoRange": [
+        118,
+        136
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-idm__plain",
+    "packId": "edm-idm",
+    "variant": "plain",
+    "prompt": "intelligent dance music, glitch braindance, micro-edited beats",
+    "expect": {
+      "packId": "edm-idm",
+      "tempoRange": [
+        95,
+        165
+      ],
+      "form": [
+        "intro",
+        "theme",
+        "development",
+        "breakdown",
+        "recap",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-idm__lyrics",
+    "packId": "edm-idm",
+    "variant": "lyrics",
+    "prompt": "intelligent dance music, glitch braindance, micro-edited beats, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-idm",
+      "tempoRange": [
+        95,
+        165
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-idm__marks",
+    "packId": "edm-idm",
+    "variant": "marks",
+    "prompt": "intelligent dance music, glitch braindance, micro-edited beats, 130 bpm\n[Intro | 4 bars | mp]\n{Dmaj9 | Bm9 | Gmaj7 | Em9}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-idm",
+      "tempoRange": [
+        95,
+        165
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-minimal__plain",
+    "packId": "edm-minimal",
+    "variant": "plain",
+    "prompt": "minimal techno, dub microhouse, clicks and cuts",
+    "expect": {
+      "packId": "edm-minimal",
+      "tempoRange": [
+        122,
+        130
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "breakdown",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-minimal__lyrics",
+    "packId": "edm-minimal",
+    "variant": "lyrics",
+    "prompt": "minimal techno, dub microhouse, clicks and cuts, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-minimal",
+      "tempoRange": [
+        122,
+        130
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-minimal__marks",
+    "packId": "edm-minimal",
+    "variant": "marks",
+    "prompt": "minimal techno, dub microhouse, clicks and cuts, 126 bpm\n[Intro | 4 bars | mp]\n{Am9 | Am9 | Am9 | Am9}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-minimal",
+      "tempoRange": [
+        122,
+        130
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-psytrance__plain",
+    "packId": "edm-psytrance",
+    "variant": "plain",
+    "prompt": "psychedelic trance, full-on psytrance, rolling 16th bass",
+    "expect": {
+      "packId": "edm-psytrance",
+      "tempoRange": [
+        138,
+        148
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "breakdown",
+        "build",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-psytrance__lyrics",
+    "packId": "edm-psytrance",
+    "variant": "lyrics",
+    "prompt": "psychedelic trance, full-on psytrance, rolling 16th bass, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-psytrance",
+      "tempoRange": [
+        138,
+        148
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-psytrance__marks",
+    "packId": "edm-psytrance",
+    "variant": "marks",
+    "prompt": "psychedelic trance, full-on psytrance, rolling 16th bass, 143 bpm\n[Intro | 4 bars | mp]\n{Em | Em | Em | Em}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-psytrance",
+      "tempoRange": [
+        138,
+        148
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-liquid-dnb__plain",
+    "packId": "edm-liquid-dnb",
+    "variant": "plain",
+    "prompt": "liquid drum and bass, soulful dnb piano roller",
+    "expect": {
+      "packId": "edm-liquid-dnb",
+      "tempoRange": [
+        170,
+        176
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop",
+        "breakdown",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-liquid-dnb__lyrics",
+    "packId": "edm-liquid-dnb",
+    "variant": "lyrics",
+    "prompt": "liquid drum and bass, soulful dnb piano roller, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-liquid-dnb",
+      "tempoRange": [
+        170,
+        176
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-liquid-dnb__marks",
+    "packId": "edm-liquid-dnb",
+    "variant": "marks",
+    "prompt": "liquid drum and bass, soulful dnb piano roller, 173 bpm\n[Intro | 4 bars | mp]\n{Fm9 | Fm9 | Dbmaj7 | Eb6}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-liquid-dnb",
+      "tempoRange": [
+        170,
+        176
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-neurofunk__plain",
+    "packId": "edm-neurofunk",
+    "variant": "plain",
+    "prompt": "neurofunk drum and bass, techstep modulated Reese",
+    "expect": {
+      "packId": "edm-neurofunk",
+      "tempoRange": [
+        172,
+        178
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop",
+        "breakdown",
+        "build",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-neurofunk__lyrics",
+    "packId": "edm-neurofunk",
+    "variant": "lyrics",
+    "prompt": "neurofunk drum and bass, techstep modulated Reese, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-neurofunk",
+      "tempoRange": [
+        172,
+        178
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-neurofunk__marks",
+    "packId": "edm-neurofunk",
+    "variant": "marks",
+    "prompt": "neurofunk drum and bass, techstep modulated Reese, 175 bpm\n[Intro | 4 bars | mp]\n{Fm | Fm | Fm | Gb}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-neurofunk",
+      "tempoRange": [
+        172,
+        178
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-jungle__plain",
+    "packId": "edm-jungle",
+    "variant": "plain",
+    "prompt": "ragga jungle, chopped 90s amen jungle, dub sub",
+    "expect": {
+      "packId": "edm-jungle",
+      "tempoRange": [
+        160,
+        172
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "drop",
+        "breakdown",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-jungle__lyrics",
+    "packId": "edm-jungle",
+    "variant": "lyrics",
+    "prompt": "ragga jungle, chopped 90s amen jungle, dub sub, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-jungle",
+      "tempoRange": [
+        160,
+        172
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-jungle__marks",
+    "packId": "edm-jungle",
+    "variant": "marks",
+    "prompt": "ragga jungle, chopped 90s amen jungle, dub sub, 166 bpm\n[Intro | 4 bars | mp]\n{Fm9 | Fm9 | Dbmaj7 | Eb}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-jungle",
+      "tempoRange": [
+        160,
+        172
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-amapiano__plain",
+    "packId": "edm-amapiano",
+    "variant": "plain",
+    "prompt": "South African amapiano, sgija log drum groove",
+    "expect": {
+      "packId": "edm-amapiano",
+      "tempoRange": [
+        110,
+        116
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "build",
+        "drop",
+        "breakdown",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-amapiano__lyrics",
+    "packId": "edm-amapiano",
+    "variant": "lyrics",
+    "prompt": "South African amapiano, sgija log drum groove, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-amapiano",
+      "tempoRange": [
+        110,
+        116
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-amapiano__marks",
+    "packId": "edm-amapiano",
+    "variant": "marks",
+    "prompt": "South African amapiano, sgija log drum groove, 113 bpm\n[Intro | 4 bars | mp]\n{Fm9 | Bbm9 | Dbmaj9 | Eb13}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-amapiano",
+      "tempoRange": [
+        110,
+        116
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-afro-house__plain",
+    "packId": "edm-afro-house",
+    "variant": "plain",
+    "prompt": "tribal afro house, afro-tech polyrhythmic percussion",
+    "expect": {
+      "packId": "edm-afro-house",
+      "tempoRange": [
+        118,
+        124
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "breakdown",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-afro-house__lyrics",
+    "packId": "edm-afro-house",
+    "variant": "lyrics",
+    "prompt": "tribal afro house, afro-tech polyrhythmic percussion, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-afro-house",
+      "tempoRange": [
+        118,
+        124
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-afro-house__marks",
+    "packId": "edm-afro-house",
+    "variant": "marks",
+    "prompt": "tribal afro house, afro-tech polyrhythmic percussion, 121 bpm\n[Intro | 4 bars | mp]\n{Am | Am | F | G}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-afro-house",
+      "tempoRange": [
+        118,
+        124
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-disco__plain",
+    "packId": "edm-disco",
+    "variant": "plain",
+    "prompt": "nu-disco, space boogie, four-on-the-floor octave bass",
+    "expect": {
+      "packId": "edm-disco",
+      "tempoRange": [
+        114,
+        126
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "prechorus",
+        "chorus",
+        "breakdown",
+        "chorus",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-disco__lyrics",
+    "packId": "edm-disco",
+    "variant": "lyrics",
+    "prompt": "nu-disco, space boogie, four-on-the-floor octave bass, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-disco",
+      "tempoRange": [
+        114,
+        126
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-disco__marks",
+    "packId": "edm-disco",
+    "variant": "marks",
+    "prompt": "nu-disco, space boogie, four-on-the-floor octave bass, 120 bpm\n[Intro | 4 bars | mp]\n{Am7 | Dm7 | Gmaj7 | Cmaj7}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-disco",
+      "tempoRange": [
+        114,
+        126
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-hyperpop__plain",
+    "packId": "edm-hyperpop",
+    "variant": "plain",
+    "prompt": "hyperpop, bubblegum bass, glitchcore maximalist pop",
+    "expect": {
+      "packId": "edm-hyperpop",
+      "tempoRange": [
+        135,
+        175
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "prechorus",
+        "chorus",
+        "breakdown",
+        "chorus",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "edm-hyperpop__lyrics",
+    "packId": "edm-hyperpop",
+    "variant": "lyrics",
+    "prompt": "hyperpop, bubblegum bass, glitchcore maximalist pop, lead vocals\n[Verse 1]\nSilver neon across the rain-wet avenue (avenue)\nHeartbeat locking into the midnight pulse\n[Build]\nHands rising into the strobe light haze\n[Drop]\nLet the low end carry us home tonight",
+    "expect": {
+      "packId": "edm-hyperpop",
+      "tempoRange": [
+        135,
+        175
+      ],
+      "form": [
+        "verse",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "edm-hyperpop__marks",
+    "packId": "edm-hyperpop",
+    "variant": "marks",
+    "prompt": "hyperpop, bubblegum bass, glitchcore maximalist pop, 155 bpm\n[Intro | 4 bars | mp]\n{F | G | Em | Am}\n[Build | 8 bars | mf | filtered]\n^Hold the tension / let the signal wait~\n[Drop | 16 bars | ff]\nInto the ^ni-i-ight / we shine~",
+    "expect": {
+      "packId": "edm-hyperpop",
+      "tempoRange": [
+        135,
+        175
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-jazz-rap__plain",
+    "packId": "hiphop-jazz-rap",
+    "variant": "plain",
+    "prompt": "jazz rap, conscious jazz-hip-hop, upright bass",
+    "expect": {
+      "packId": "hiphop-jazz-rap",
+      "tempoRange": [
+        84,
+        98
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "hook",
+        "verse",
+        "solo",
+        "hook",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-jazz-rap__lyrics",
+    "packId": "hiphop-jazz-rap",
+    "variant": "lyrics",
+    "prompt": "jazz rap, conscious jazz-hip-hop, upright bass, lead vocals\n[Intro]\nTurn the headphones up in the booth (yeah)\n[Verse 1]\nStreetlight reflections on the corner store glass\nEvery bar carved clean while the night trains pass\n[Hook]\nStay steady on the rhythm when the bassline drops (drops)\nFrom the basement tape to the city rooftops",
+    "expect": {
+      "packId": "hiphop-jazz-rap",
+      "tempoRange": [
+        84,
+        98
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "hook"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-jazz-rap__marks",
+    "packId": "hiphop-jazz-rap",
+    "variant": "marks",
+    "prompt": "jazz rap, conscious jazz-hip-hop, upright bass, 91 bpm\n[Intro | 4 bars | p]\n{Gm9 | C13 | Fmaj9 | Dm9}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "hiphop-jazz-rap",
+      "tempoRange": [
+        84,
+        98
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-trap-soul__plain",
+    "packId": "hiphop-trap-soul",
+    "variant": "plain",
+    "prompt": "trapsoul, dark R&B, underwater Rhodes, 808",
+    "expect": {
+      "packId": "hiphop-trap-soul",
+      "tempoRange": [
+        112,
+        136
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "prechorus",
+        "chorus",
+        "verse",
+        "chorus",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-trap-soul__lyrics",
+    "packId": "hiphop-trap-soul",
+    "variant": "lyrics",
+    "prompt": "trapsoul, dark R&B, underwater Rhodes, 808, lead vocals\n[Intro]\nTurn the headphones up in the booth (yeah)\n[Verse 1]\nStreetlight reflections on the corner store glass\nEvery bar carved clean while the night trains pass\n[Hook]\nStay steady on the rhythm when the bassline drops (drops)\nFrom the basement tape to the city rooftops",
+    "expect": {
+      "packId": "hiphop-trap-soul",
+      "tempoRange": [
+        112,
+        136
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "hook"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-trap-soul__marks",
+    "packId": "hiphop-trap-soul",
+    "variant": "marks",
+    "prompt": "trapsoul, dark R&B, underwater Rhodes, 808, 124 bpm\n[Intro | 4 bars | p]\n{F#m9 | Dmaj9 | Bm9 | C#m7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "hiphop-trap-soul",
+      "tempoRange": [
+        112,
+        136
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-cloud__plain",
+    "packId": "hiphop-cloud",
+    "variant": "plain",
+    "prompt": "cloud rap, ethereal vapor-trap, hazy reverb pads",
+    "expect": {
+      "packId": "hiphop-cloud",
+      "tempoRange": [
+        120,
+        146
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "hook",
+        "verse",
+        "hook",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-cloud__lyrics",
+    "packId": "hiphop-cloud",
+    "variant": "lyrics",
+    "prompt": "cloud rap, ethereal vapor-trap, hazy reverb pads, lead vocals\n[Intro]\nTurn the headphones up in the booth (yeah)\n[Verse 1]\nStreetlight reflections on the corner store glass\nEvery bar carved clean while the night trains pass\n[Hook]\nStay steady on the rhythm when the bassline drops (drops)\nFrom the basement tape to the city rooftops",
+    "expect": {
+      "packId": "hiphop-cloud",
+      "tempoRange": [
+        120,
+        146
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "hook"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-cloud__marks",
+    "packId": "hiphop-cloud",
+    "variant": "marks",
+    "prompt": "cloud rap, ethereal vapor-trap, hazy reverb pads, 133 bpm\n[Intro | 4 bars | p]\n{Dbmaj7 | Fm7 | Bbm7 | Gbmaj7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "hiphop-cloud",
+      "tempoRange": [
+        120,
+        146
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-crunk__plain",
+    "packId": "hiphop-crunk",
+    "variant": "plain",
+    "prompt": "crunk, Dirty South club bounce, brass stabs",
+    "expect": {
+      "packId": "hiphop-crunk",
+      "tempoRange": [
+        74,
+        102
+      ],
+      "form": [
+        "intro",
+        "hook",
+        "verse",
+        "hook",
+        "verse",
+        "hook",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-crunk__lyrics",
+    "packId": "hiphop-crunk",
+    "variant": "lyrics",
+    "prompt": "crunk, Dirty South club bounce, brass stabs, lead vocals\n[Intro]\nTurn the headphones up in the booth (yeah)\n[Verse 1]\nStreetlight reflections on the corner store glass\nEvery bar carved clean while the night trains pass\n[Hook]\nStay steady on the rhythm when the bassline drops (drops)\nFrom the basement tape to the city rooftops",
+    "expect": {
+      "packId": "hiphop-crunk",
+      "tempoRange": [
+        74,
+        102
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "hook"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-crunk__marks",
+    "packId": "hiphop-crunk",
+    "variant": "marks",
+    "prompt": "crunk, Dirty South club bounce, brass stabs, 88 bpm\n[Intro | 4 bars | p]\n{Cm | Cm | Db | Cm}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "hiphop-crunk",
+      "tempoRange": [
+        74,
+        102
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-oldschool__plain",
+    "packId": "hiphop-oldschool",
+    "variant": "plain",
+    "prompt": "old-school rap, 80s electro rap, turntable scratches",
+    "expect": {
+      "packId": "hiphop-oldschool",
+      "tempoRange": [
+        98,
+        118
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "hook",
+        "verse",
+        "hook",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-oldschool__lyrics",
+    "packId": "hiphop-oldschool",
+    "variant": "lyrics",
+    "prompt": "old-school rap, 80s electro rap, turntable scratches, lead vocals\n[Intro]\nTurn the headphones up in the booth (yeah)\n[Verse 1]\nStreetlight reflections on the corner store glass\nEvery bar carved clean while the night trains pass\n[Hook]\nStay steady on the rhythm when the bassline drops (drops)\nFrom the basement tape to the city rooftops",
+    "expect": {
+      "packId": "hiphop-oldschool",
+      "tempoRange": [
+        98,
+        118
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "hook"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-oldschool__marks",
+    "packId": "hiphop-oldschool",
+    "variant": "marks",
+    "prompt": "old-school rap, 80s electro rap, turntable scratches, 108 bpm\n[Intro | 4 bars | p]\n{Em7 | Em7 | A7 | A7}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "hiphop-oldschool",
+      "tempoRange": [
+        98,
+        118
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-detroit__plain",
+    "packId": "hiphop-detroit",
+    "variant": "plain",
+    "prompt": "Detroit rap, fast Michigan rap, off-beat piano loop",
+    "expect": {
+      "packId": "hiphop-detroit",
+      "tempoRange": [
+        176,
+        206
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "interlude",
+        "verse",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-detroit__lyrics",
+    "packId": "hiphop-detroit",
+    "variant": "lyrics",
+    "prompt": "Detroit rap, fast Michigan rap, off-beat piano loop, lead vocals\n[Intro]\nTurn the headphones up in the booth (yeah)\n[Verse 1]\nStreetlight reflections on the corner store glass\nEvery bar carved clean while the night trains pass\n[Hook]\nStay steady on the rhythm when the bassline drops (drops)\nFrom the basement tape to the city rooftops",
+    "expect": {
+      "packId": "hiphop-detroit",
+      "tempoRange": [
+        176,
+        206
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "hook"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-detroit__marks",
+    "packId": "hiphop-detroit",
+    "variant": "marks",
+    "prompt": "Detroit rap, fast Michigan rap, off-beat piano loop, 191 bpm\n[Intro | 4 bars | p]\n{Dm | Dm | Bb | A}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "hiphop-detroit",
+      "tempoRange": [
+        176,
+        206
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-jersey-club__plain",
+    "packId": "hiphop-jersey-club",
+    "variant": "plain",
+    "prompt": "Jersey club, Newark club triplet kick, vocal chops",
+    "expect": {
+      "packId": "hiphop-jersey-club",
+      "tempoRange": [
+        136,
+        148
+      ],
+      "form": [
+        "intro",
+        "build",
+        "drop",
+        "breakdown",
+        "drop",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-jersey-club__lyrics",
+    "packId": "hiphop-jersey-club",
+    "variant": "lyrics",
+    "prompt": "Jersey club, Newark club triplet kick, vocal chops, lead vocals\n[Intro]\nTurn the headphones up in the booth (yeah)\n[Verse 1]\nStreetlight reflections on the corner store glass\nEvery bar carved clean while the night trains pass\n[Hook]\nStay steady on the rhythm when the bassline drops (drops)\nFrom the basement tape to the city rooftops",
+    "expect": {
+      "packId": "hiphop-jersey-club",
+      "tempoRange": [
+        136,
+        148
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "hook"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-jersey-club__marks",
+    "packId": "hiphop-jersey-club",
+    "variant": "marks",
+    "prompt": "Jersey club, Newark club triplet kick, vocal chops, 142 bpm\n[Intro | 4 bars | p]\n{Fm9 | Dbmaj7 | Bbm7 | Eb}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "hiphop-jersey-club",
+      "tempoRange": [
+        136,
+        148
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-reggaeton__plain",
+    "packId": "hiphop-reggaeton",
+    "variant": "plain",
+    "prompt": "reggaeton, classic dembow perreo rhythm",
+    "expect": {
+      "packId": "hiphop-reggaeton",
+      "tempoRange": [
+        88,
+        102
+      ],
+      "form": [
+        "intro",
+        "chorus",
+        "verse",
+        "prechorus",
+        "chorus",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-reggaeton__lyrics",
+    "packId": "hiphop-reggaeton",
+    "variant": "lyrics",
+    "prompt": "reggaeton, classic dembow perreo rhythm, lead vocals\n[Intro]\nTurn the headphones up in the booth (yeah)\n[Verse 1]\nStreetlight reflections on the corner store glass\nEvery bar carved clean while the night trains pass\n[Hook]\nStay steady on the rhythm when the bassline drops (drops)\nFrom the basement tape to the city rooftops",
+    "expect": {
+      "packId": "hiphop-reggaeton",
+      "tempoRange": [
+        88,
+        102
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "hook"
+      ]
+    }
+  },
+  {
+    "id": "hiphop-reggaeton__marks",
+    "packId": "hiphop-reggaeton",
+    "variant": "marks",
+    "prompt": "reggaeton, classic dembow perreo rhythm, 95 bpm\n[Intro | 4 bars | p]\n{Bm | G | D | A}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "hiphop-reggaeton",
+      "tempoRange": [
+        88,
+        102
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "song__plain",
+    "packId": "song",
+    "variant": "plain",
+    "prompt": "indie pop rock, singer-songwriter acoustic and electric band",
+    "expect": {
+      "packId": "song",
+      "tempoRange": [
+        70,
+        140
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "prechorus",
+        "chorus",
+        "verse",
+        "prechorus",
+        "chorus",
+        "bridge",
+        "chorus",
+        "outro"
+      ]
+    }
+  },
+  {
+    "id": "song__lyrics",
+    "packId": "song",
+    "variant": "lyrics",
+    "prompt": "indie pop rock, singer-songwriter acoustic and electric band, lead vocals\n[Verse 1]\nCoffee cooling by the open window frame\nSummer wind still calling out your name (your name)\n[Chorus]\nWe keep driving toward the coastline light\nOutrunning every shadow in the night",
+    "expect": {
+      "packId": "song",
+      "tempoRange": [
+        70,
+        140
+      ],
+      "form": [
+        "verse",
+        "chorus"
+      ]
+    }
+  },
+  {
+    "id": "song__marks",
+    "packId": "song",
+    "variant": "marks",
+    "prompt": "indie pop rock, singer-songwriter acoustic and electric band, 105 bpm\n[Intro | 4 bars | p]\n{C | G | Am | F}\n[Verse 1 | 8 bars | mp | intimate]\n^Step into the lantern light~ / hear the ri-i-iver call\n[Chorus | 8 bars | f]\n*Carry* every ^pro-o-omise home~ / before the curtains fall",
+    "expect": {
+      "packId": "song",
+      "tempoRange": [
+        70,
+        140
+      ],
+      "form": [
+        "intro",
+        "verse",
+        "chorus"
+      ]
+    }
+  }
+]
