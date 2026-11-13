@@ -5579,6 +5579,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <div className={`mt-4 space-y-4 ${isSidebarCollapsed ? 'px-2' : 'px-6 group-hover/sidebar:px-6'}`}>
                 <SpatialToggle collapsed={isSidebarCollapsed || theme === 'BIG_SCREEN'} />
                 <div className={`flex items-center justify-center gap-1.5 ${isSidebarCollapsed ? 'flex-col' : ''}`}>
+                  {/* Stage live in the background — first in the row; one tap returns to it. */}
+                  {stageOutputting && view !== 'AMBO' && view !== 'AMBO_PRO' && (
+                    <button
+                      type="button"
+                      onClick={() => setView('AMBO_PRO' as AppView)}
+                      title="Stage is live — return to Stage"
+                      aria-label="Return to Stage (live)"
+                      className="relative shrink-0 p-2.5 rounded-2xl transition-all border hover:scale-105"
+                      style={{ background: 'rgba(255,140,0,0.18)', border: '1px solid rgba(255,140,0,0.5)' }}
+                    >
+                      <MonitorPlay size={16} className="text-small-orange" />
+                      <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
+                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full ring-2 ring-[#0a0a0a] bg-red-500" />
+                      </span>
+                    </button>
+                  )}
                   {/* Chat — jump to messages; incoming calls ring as a card near here */}
                   {user && (
                     <button
@@ -7750,7 +7767,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'SACRED_LIBRARY' && <SacredLibraryHub onBack={() => setView('DASHBOARD')} />}
             {/* Old "Ambo Presenter" retired — the AMBO view now redirects to the new presenter. */}
             {/* While Stage is outputting (desktop/web), it stays mounted — hidden — when the user goes
-                elsewhere in Plajah, so every screen keeps its signal. The Stage button above Aria brings
+                elsewhere in Plajah, so every screen keeps its signal. The Stage button in the left pillar brings
                 it straight back. Once nothing is outputting and Stage isn't on screen, it unmounts. */}
             {(view === 'AMBO' || view === 'AMBO_PRO' || (stageOutputting && !isMobile && !getPlatformInfo().isTV)) && (
               <div
@@ -8438,8 +8455,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           </Suspense>
           )}
 
-        {/* Stage running in the background — one tap returns to it. Sits directly above Aria. */}
-        {!isMobile && !getPlatformInfo().isTV && stageOutputting && view !== 'AMBO' && view !== 'AMBO_PRO' && (
+        {/* Stage running in the background — its return button lives in the left pillar's bottom icon
+            row. Layouts without that pillar (new Command Split nav, top-bar nav, public views) get
+            this floating fallback above Aria instead. */}
+        {!isMobile && !getPlatformInfo().isTV && stageOutputting && view !== 'AMBO' && view !== 'AMBO_PRO'
+          && (shellNext.enabled || navLayout.isBar || isPublicView || theme === 'PHONE') && (
           <button
             type="button"
             aria-label="Return to Stage (live)"
