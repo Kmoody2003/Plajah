@@ -3,6 +3,9 @@
 import express from 'express';
 import { createMeetingsSfuRouter } from '../../routes/meetingsSfu';
 import { livekitConfigFromEnv } from '../../services/meetings/livekitServer';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export const LAB_ENV = {
   MEETINGS_SFU: '1',
@@ -10,6 +13,17 @@ export const LAB_ENV = {
   LIVEKIT_API_KEY: 'devkey',
   LIVEKIT_API_SECRET: 'plajah-lab-secret-0123456789abcdef0123',
 };
+
+// Point the lab at LiveKit Cloud (or any server) by putting LIVEKIT_URL/KEY/SECRET in a git-ignored
+// .env.livekit.local at the repo root (or LAB_LIVEKIT_ENV=<file>). Without it: the local dev server above.
+// Cloud webhooks can't reach 127.0.0.1, so the ledger stays empty in that mode.
+const envFile = process.env.LAB_LIVEKIT_ENV || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.env.livekit.local');
+if (existsSync(envFile)) {
+  for (const line of readFileSync(envFile, 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^\s*(LIVEKIT_(?:URL|API_KEY|API_SECRET))\s*=\s*"?([^"]*?)"?\s*$/);
+    if (m && m[2]) (LAB_ENV as Record<string, string>)[m[1]] = m[2];
+  }
+}
 
 export function labApp() {
   const docs = new Map<string, Record<string, any>>([
