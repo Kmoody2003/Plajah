@@ -9,7 +9,7 @@
  */
 
 import React, { useMemo, useRef, useState } from 'react';
-import { PenLine, Type, Check, X, ShieldCheck, FileSignature, Undo2, AlertTriangle } from 'lucide-react';
+import { PenLine, Type, Check, X, ShieldCheck, FileSignature, Undo2, AlertTriangle, Fingerprint, Loader2 } from 'lucide-react';
 import {
   type Envelope, type Field, type SignatureMark, ESIGN_DISCLOSURE, view, consent, fillField, finish, decline, certificate, verifyAudit,
 } from '../../../services/tela/sign/signCore';
@@ -95,13 +95,31 @@ export interface TelaSignCeremonyProps {
   onClose: () => void;
   /** Show the certificate instead of the signing view. */
   certificateOnly?: boolean;
+  /**
+   * Server mode: every action goes to the Tela Sign server, which returns the new state. Without this the
+   * screen runs the preview locally on signCore.
+   */
+  actions?: SignActions;
+  /** Server mode: what to show once this signer is done (the full certificate is the sender's). */
+  renderDone?: (env: Envelope) => React.ReactNode;
 }
 
-export function TelaSignCeremony({ envelope, signerId, pages, onChange, onClose, certificateOnly }: TelaSignCeremonyProps) {
+export interface SignActions {
+  consent: () => Promise<Envelope>;
+  fill: (fieldId: string, value: Field['value']) => Promise<Envelope>;
+  finish: () => Promise<Envelope>;
+  decline: (reason: string) => Promise<Envelope>;
+  /** Fingerprint, face or Windows Hello. `required` when the sender asked for it. */
+  passkey?: { required: boolean; available: boolean; finish: () => Promise<Envelope> };
+}
+
+export function TelaSignCeremony({ envelope, signerId, pages, onChange, onClose, certificateOnly, actions, renderDone }: TelaSignCeremonyProps) {
   const signer = envelope.signers.find((s) => s.id === signerId)!;
   const [env, setEnv] = useState<Envelope>(() => {
+    if (actions) return envelope; // the server already recorded "viewed"
     try { return !certificateOnly && envelope.status === 'sent' && (signer.status === 'ready') ? view(envelope, signerId, Date.now(), { userAgent: navigator.userAgent }) : envelope; } catch { return envelope; }
   });
+  const [busy, setBusy] = useState(false);
   const [padFor, setPadFor] = useState<Field | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [declining, setDeclining] = useState(false);
@@ -112,12 +130,22 @@ export function TelaSignCeremony({ envelope, signerId, pages, onChange, onClose,
   const canAct = env.status === 'sent' && (me.status === 'ready' || me.status === 'viewed');
   const done = mine.filter((f) => f.type === 'date_signed' || (f.value !== undefined && f.value !== '' && f.value !== false)).length;
 
-  const apply = (fn: (e: Envelope) => Envelope) => {
-    try { const next = fn(env); setEnv(next); onChange(next); setErr(null); } catch (e: any) { setErr(e?.message || String(e)); }
+  const run = async (fn: () => Envelope | Promise<Envelope>) => {
+    if (busy) return;
+    setBusy(true);
+    try { const next = await fn(); setEnv(next); onChange(next); setErr(null); } catch (e: any) { setErr(e?.message || String(e)); } finally { setBusy(false); }
   };
+  const ua = () => ({ userAgent: navigator.userAgent });
+  const act = {
+    consent: () => run(() => actions ? actions.consent() : consent(env, signerId, Date.now(), ua())),
+    fill: (fieldId: string, value: Field['value']) => run(() => actions ? actions.fill(fieldId, value) : fillField(env, signerId, fieldId, value, Date.now())),
+    finish: () => run(() => actions ? actions.finish() : finish(env, signerId, Date.now(), ua())),
+    decline: () => run(() => actions ? actions.decline(reason) : decline(env, signerId, reason, Date.now())),
+  };
+  const pk = actions?.passkey;
 
   if (certificateOnly || env.status !== 'sent' || !canAct) {
-    return <Shell onClose={onClose} title={env.title}><Certificate env={env} /></Shell>;
+    return <Shell onClose={onClose} title={env.title}>{renderDone && !certificateOnly ? renderDone(env) : <Certificate env={env} />}</Shell>;
   }
 
   return (
@@ -134,7 +162,7 @@ export function TelaSignCeremony({ envelope, signerId, pages, onChange, onClose,
           <p className="text-sm font-black">Before you sign: agree to do this electronically</p>
           <ul className="mt-3 space-y-1.5 text-[13px] text-white/70 list-disc pl-5">{ESIGN_DISCLOSURE.map((d) => <li key={d}>{d}</li>)}</ul>
           <div className="mt-4 flex gap-2">
-            <button onClick={() => apply((e) => consent(e, signerId, Date.now(), { userAgent: navigator.userAgent }))} className="px-4 py-2.5 rounded-xl text-[12px] font-black text-black" style={{ background: CYAN }}>I agree, continue</button>
+            <button disabled={busy} onClick={act.consent} className="px-4 py-2.5 rounded-xl text-[12px] font-black text-black" style={{ background: CYAN }}>I agree, continue</button>
             <button onClick={() => setDeclining(true)} className="px-4 py-2.5 rounded-xl bg-white/[0.07] text-[12px] font-bold">I want paper instead</button>
           </div>
         </div>
@@ -155,7 +183,7 @@ export function TelaSignCeremony({ envelope, signerId, pages, onChange, onClose,
                     <button key={f.id} style={{ ...style, borderColor: tone, background: filled ? 'transparent' : `${tone}22` }} disabled={!ownField || f.type === 'date_signed'}
                       onClick={() => {
                         if (f.type === 'signature' || f.type === 'initials') setPadFor(f);
-                        else if (f.type === 'checkbox') apply((e) => fillField(e, signerId, f.id, !(f.value as boolean), Date.now()));
+                        else if (f.type === 'checkbox') act.fill(f.id, !(f.value as boolean));
                       }}
                       className="absolute rounded-md border-2 border-dashed flex items-center justify-center text-[10px] font-bold overflow-hidden"
                       aria-label={`${f.label ?? f.type.replace('_', ' ')} for ${owner.name}`}>
@@ -183,17 +211,27 @@ export function TelaSignCeremony({ envelope, signerId, pages, onChange, onClose,
           <textarea id="decline-reason" value={reason} onChange={(e) => setReason(e.target.value)} rows={2} className="mt-2 w-full rounded-xl bg-white/[0.05] border border-white/10 px-3 py-2 text-sm" />
           <div className="mt-2 flex gap-2 justify-end">
             <button onClick={() => setDeclining(false)} className="px-3 py-2 rounded-xl bg-white/[0.07] text-[12px] font-bold">Back</button>
-            <button onClick={() => apply((e) => decline(e, signerId, reason, Date.now()))} className="px-3 py-2 rounded-xl bg-rose-400 text-black text-[12px] font-black">Decline</button>
+            <button disabled={busy} onClick={act.decline} className="px-3 py-2 rounded-xl bg-rose-400 text-black text-[12px] font-black">Decline</button>
           </div>
         </div>
       ) : !needsConsent && (
         <div className="mt-6 flex flex-wrap gap-2 justify-end sticky bottom-0 py-3 bg-[#0d0c13]/95">
           <button onClick={() => setDeclining(true)} className="px-4 py-2.5 rounded-xl bg-white/[0.07] text-[12px] font-bold">Decline</button>
-          <button onClick={() => apply((e) => finish(e, signerId, Date.now(), { userAgent: navigator.userAgent }))} className="px-5 py-2.5 rounded-xl text-[12px] font-black text-black" style={{ background: CYAN }}>Finish {me.role === 'approver' ? 'approval' : 'signing'}</button>
+          {busy && <Loader2 size={16} className="animate-spin self-center text-white/50" aria-label="Working" />}
+          {pk && (pk.required || pk.available) && (
+            <button disabled={busy} onClick={() => run(pk.finish)} className="px-5 py-2.5 rounded-xl text-[12px] font-black text-black flex items-center gap-1.5" style={{ background: CYAN }}>
+              <Fingerprint size={15} /> Finish with fingerprint, face or Windows Hello
+            </button>
+          )}
+          {!pk?.required && (
+            <button disabled={busy} onClick={act.finish} className={`px-5 py-2.5 rounded-xl text-[12px] font-black ${pk?.available ? 'bg-white/[0.07] text-white' : 'text-black'}`} style={pk?.available ? undefined : { background: CYAN }}>
+              Finish {me.role === 'approver' ? 'approval' : 'signing'}{pk?.available ? ' without it' : ''}
+            </button>
+          )}
         </div>
       )}
 
-      {padFor && <SignaturePad name={me.name} onCancel={() => setPadFor(null)} onDone={(m) => { apply((e) => fillField(e, signerId, padFor.id, m, Date.now())); setPadFor(null); }} />}
+      {padFor && <SignaturePad name={me.name} onCancel={() => setPadFor(null)} onDone={(m) => { act.fill(padFor.id, m); setPadFor(null); }} />}
     </Shell>
   );
 }
@@ -234,7 +272,7 @@ export function Certificate({ env }: { env: Envelope }) {
         {cert.signers.map((s) => (
           <div key={s.email} className="px-4 py-3 grid sm:grid-cols-[1fr_auto] gap-1 text-[12.5px]">
             <span><b>{s.name}</b> <span className="text-white/45">· {s.role} · {s.email} · verified by {s.auth.replace('_', ' ')}</span></span>
-            <span className="text-white/60">{s.signedAt ? `${s.method === 'drawn' ? 'Drew' : 'Typed'} signature ${new Date(s.signedAt).toLocaleString()}` : s.status}{s.consentedAt ? ' · consented' : ''}</span>
+            <span className="text-white/60">{s.signedAt ? `${s.method === 'drawn' ? 'Drew' : 'Typed'} signature ${new Date(s.signedAt).toLocaleString()}` : s.status}{s.consentedAt ? ' · consented' : ''}{s.passkeySeal ? ` · sealed with a passkey${s.passkeySeal.userVerified ? ' (verified on the device)' : ''}` : ''}</span>
           </div>
         ))}
       </div>

@@ -12,7 +12,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, Inbox, Users, BarChart3, PlusCircle, Search, Clock, AlertTriangle, CheckCircle2, User, Building2,
-  Landmark, MapPin, Send, StickyNote, GitMerge, ChevronRight, Phone, Mail, Globe2, RotateCcw, Scale, Eye, Megaphone, FileSignature,
+  Landmark, MapPin, Send, StickyNote, GitMerge, ChevronRight, Phone, Mail, Globe2, RotateCcw, Scale, Eye, Megaphone, FileSignature, Copy, ExternalLink, RefreshCw, Fingerprint,
 } from 'lucide-react';
 import {
   type Case, type CaseStatus, type Constituent, type ServiceType, type SlaState, type Channel,
@@ -24,6 +24,8 @@ import { createPreviewStore } from '../../../services/terra/civic/desk/deskStore
 import CivicNotices from './CivicNotices';
 import { TelaSignCeremony } from '../../tela/sign/TelaSignCeremony';
 import { createEnvelope, send as sendEnvelope, sha256Hex, canonical, type Envelope } from '../../../services/tela/sign/signCore';
+import { senderApi, SignApiError, type SignerLink } from '../../../services/tela/sign/signClient';
+import { auth } from '../../../services/firebase';
 
 const CYAN = '#4FC3D6';
 const ORANGE = '#FF8C00';
@@ -429,36 +431,90 @@ function CaseDetail(p: QueueProps & { c: Case }) {
   );
 }
 
+// Signing links for server envelopes, kept in this browser until email delivery sends them.
+const LINKS_KEY = 'plajah:terra:civicDesk:signLinks:v1';
+const readLinks = (): Record<string, SignerLink[]> => { try { return JSON.parse(localStorage.getItem(LINKS_KEY) || '{}'); } catch { return {}; } };
+const saveLinks = (envId: string, links: SignerLink[]) => { try { localStorage.setItem(LINKS_KEY, JSON.stringify({ ...readLinks(), [envId]: links })); } catch { /* private mode */ } };
+const plainLetter = (t: { heading: string; lines: string[] }) => [t.heading, ...t.lines, 'I accept the conditions above.'].join('\n\n');
+const isServerEnv = (e: Envelope) => e.id.startsWith('env_');
+
 function SignSection(p: QueueProps & { c: Case }) {
   const { c, data } = p;
   const s = p.svc(c.serviceTypeId), d = p.dept(c.departmentId), who = p.person(c.constituentId);
-  const mine = data.envelopes.filter((e) => e.id.startsWith(`env-${c.id}-`));
+  const mine = data.envelopes.filter((e) => e.ref === c.id || e.id.startsWith(`env-${c.id}-`));
   const [open, setOpen] = useState<{ envId: string; signerId: string } | null>(null);
   const env = open ? data.envelopes.find((e) => e.id === open.envId) : undefined;
   const approver = data.staff.find((x) => x.departmentId === c.departmentId) ?? { id: STAFF_ID, name: STAFF_NAME };
   const canSend = !!who?.email && c.status !== 'duplicate';
   const [err, setErr] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [sealDept, setSealDept] = useState(true);
+  const [links, setLinks] = useState<Record<string, SignerLink[]>>(() => readLinks());
+  const api = useMemo(() => senderApi(async () => (auth.currentUser ? auth.currentUser.getIdToken() : null)), []);
 
-  const create = () => {
-    if (!who?.email) return;
+  const fields = (applicantId: string, deptId: string) => [
+    { id: 'agree', signerId: applicantId, type: 'checkbox' as const, label: 'I accept the conditions', page: 1, x: 8, y: 64, w: 4, h: 3, required: true },
+    { id: 'sig-a', signerId: applicantId, type: 'signature' as const, page: 1, x: 8, y: 74, w: 38, h: 9, required: true },
+    { id: 'date-a', signerId: applicantId, type: 'date_signed' as const, page: 1, x: 8, y: 85, w: 22, h: 4, required: true },
+    { id: 'sig-b', signerId: deptId, type: 'signature' as const, page: 1, x: 54, y: 74, w: 38, h: 9, required: true },
+    { id: 'date-b', signerId: deptId, type: 'date_signed' as const, page: 1, x: 54, y: 85, w: 22, h: 4, required: true },
+  ];
+
+  /** Preview fallback: the whole envelope lives in this browser. */
+  const createLocal = () => {
     const text = letterText(c, s, d?.publicName ?? 'The department', who);
     const draft = {
       id: `env-${c.id}-${mine.length + 1}`, title: `${s.name} decision · ${c.ref}`, docType: DOC_TYPE[c.serviceTypeId] ?? 'decision letter',
       docHash: sha256Hex(canonical(text)), pages: 1, now: Date.now(), message: 'Please review the conditions and sign to accept them.',
       sender: { id: STAFF_ID, name: STAFF_NAME, org: d?.publicName },
       signers: [
-        { id: who.id, name: who.name, email: who.email, role: 'signer' as const, order: 1, auth: 'email_link' as const, consumer: who.kind === 'person' },
+        { id: who!.id, name: who!.name, email: who!.email!, role: 'signer' as const, order: 1, auth: 'email_link' as const, consumer: who!.kind === 'person' },
         { id: approver.id, name: approver.name, email: `${approver.id}@sample-city.example`, role: 'approver' as const, order: 2, auth: 'plajah_account' as const },
       ],
-      fields: [
-        { id: 'agree', signerId: who.id, type: 'checkbox' as const, label: 'I accept the conditions', page: 1, x: 8, y: 64, w: 4, h: 3, required: true },
-        { id: 'sig-a', signerId: who.id, type: 'signature' as const, page: 1, x: 8, y: 74, w: 38, h: 9, required: true },
-        { id: 'date-a', signerId: who.id, type: 'date_signed' as const, page: 1, x: 8, y: 85, w: 22, h: 4, required: true },
-        { id: 'sig-b', signerId: approver.id, type: 'signature' as const, page: 1, x: 54, y: 74, w: 38, h: 9, required: true },
-        { id: 'date-b', signerId: approver.id, type: 'date_signed' as const, page: 1, x: 54, y: 85, w: 22, h: 4, required: true },
-      ],
+      fields: fields(who!.id, approver.id),
     };
-    try { p.saveEnvelope(sendEnvelope(createEnvelope(draft), Date.now()), 'Sent for signature'); setErr(null); } catch (e: any) { setErr(e?.message || String(e)); }
+    p.saveEnvelope(sendEnvelope(createEnvelope(draft), Date.now()), 'Sent for signature (preview copy)');
+  };
+
+  /** The real thing: the Tela Sign server writes the envelope and the audit trail. */
+  const create = async () => {
+    if (!who?.email || busy) return;
+    setBusy(true); setErr(null); setNote(null);
+    const me = auth.currentUser;
+    try {
+      if (!me) throw new SignApiError('Sign in to Plajah to send real envelopes.', 401);
+      const deptSignerId = `staff-${me.uid.slice(0, 12)}`;
+      const created = await api.create({
+        title: `${s.name} decision · ${c.ref}`, docType: DOC_TYPE[c.serviceTypeId] ?? 'decision letter', ref: c.id,
+        docText: plainLetter(letterText(c, s, d?.publicName ?? 'The department', who)), pages: 1,
+        message: 'Please review the conditions and sign to accept them.',
+        senderName: me.displayName || STAFF_NAME, senderOrg: d?.publicName,
+        signers: [
+          { id: who.id, name: who.name, email: who.email, role: 'signer', order: 1, auth: 'email_link', consumer: who.kind === 'person' },
+          { id: deptSignerId, name: me.displayName || approver.name, email: me.email || `${approver.id}@sample-city.example`, role: 'approver', order: 2, auth: 'plajah_account', uid: me.uid, consumer: false, requirePasskey: sealDept },
+        ],
+        fields: fields(who.id, deptSignerId),
+      });
+      const sent = await api.send(created.id);
+      saveLinks(sent.envelope.id, sent.links); setLinks(readLinks());
+      p.saveEnvelope(sent.envelope, 'Sent for signature');
+    } catch (e: any) {
+      if (e instanceof SignApiError && (e.status === 0 || e.status === 401 || e.status === 404 || e.status === 503)) {
+        // No server here (or not configured): keep the preview working, and say so.
+        try { createLocal(); setNote(`${e.message} Made a preview copy in this browser instead.`); } catch (x: any) { setErr(x?.message || String(x)); }
+      } else setErr(e?.message || String(e));
+    } finally { setBusy(false); }
+  };
+
+  const refresh = async (id: string) => {
+    try { p.saveEnvelope(await api.get(id)); setErr(null); } catch (e: any) { setErr(e?.message || String(e)); }
+  };
+  // Pull the latest state of this case's server envelopes when the case opens.
+  useEffect(() => { mine.filter(isServerEnv).forEach((e) => { if (e.status === 'sent') refresh(e.id); }); }, [c.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const copy = async (url: string, name: string) => {
+    try { await navigator.clipboard.writeText(url); setNote(`Copied ${name}’s signing link.`); } catch { setNote(url); }
   };
 
   const page = (e: Envelope) => {
@@ -479,23 +535,51 @@ function SignSection(p: QueueProps & { c: Case }) {
     <div className="mt-3 rounded-xl bg-white/[0.03] p-3.5">
       <div className="flex flex-wrap items-center gap-2">
         <p className="flex-1 text-[10px] font-black uppercase tracking-widest text-white/35 flex items-center gap-1.5"><FileSignature size={12} /> Signatures</p>
-        <button onClick={create} disabled={!canSend} title={canSend ? undefined : 'Needs a reporter with an email address'}
-          className={`${btn} text-black`} style={{ background: VIOLET }}><FileSignature size={13} /> Send decision for signature</button>
+        <label className="flex items-center gap-1.5 text-[11px] text-white/60 cursor-pointer" title="The department signer confirms with a fingerprint, face or Windows Hello">
+          <input type="checkbox" checked={sealDept} onChange={(e) => setSealDept(e.target.checked)} className="accent-[#4FC3D6]" />
+          <Fingerprint size={12} /> Department seals with a passkey
+        </label>
+        <button onClick={create} disabled={!canSend || busy} title={canSend ? undefined : 'Needs a reporter with an email address'}
+          className={`${btn} text-black`} style={{ background: VIOLET }}><FileSignature size={13} /> {busy ? 'Sending…' : 'Send decision for signature'}</button>
       </div>
       {err && <p role="alert" className="mt-2 text-[12px] text-rose-200">{err}</p>}
-      {mine.length === 0 && <p className="mt-2 text-[12px] text-white/45">Send the decision letter to {who?.name ?? 'the applicant'} and a department approver, signed in order, with an audit trail and certificate.</p>}
-      {mine.map((e) => (
-        <div key={e.id} className="mt-2 flex flex-wrap items-center gap-2 text-[12px]">
-          <span className="flex-1 min-w-0 truncate">{e.title}</span>
-          <Pill color={e.status === 'completed' ? GREEN : e.status === 'sent' ? CYAN : AMBER}>{e.status === 'sent' ? 'Out for signature' : e.status}</Pill>
-          {e.signers.filter((x) => x.role !== 'cc').map((x) => (
-            <button key={x.id} onClick={() => setOpen({ envId: e.id, signerId: x.id })} className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/10">
-              {x.status === 'signed' ? '✓ ' : ''}{e.status === 'sent' && (x.status === 'ready' || x.status === 'viewed') ? `Sign as ${x.name.split(' ')[0]}` : x.name.split(' ')[0]}
-            </button>
-          ))}
-          <button onClick={() => setOpen({ envId: e.id, signerId: '__cert' })} className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/10">Certificate</button>
-        </div>
-      ))}
+      {note && <p role="status" className="mt-2 text-[12px] text-white/60 break-all">{note}</p>}
+      {mine.length === 0 && <p className="mt-2 text-[12px] text-white/45">Send the decision letter to {who?.name ?? 'the applicant'} and the department, signed in order, with an audit trail and certificate.</p>}
+      {mine.map((e) => {
+        const server = isServerEnv(e);
+        const envLinks = links[e.id] ?? [];
+        return (
+          <div key={e.id} className="mt-2 rounded-lg border border-white/[0.06] p-2.5">
+            <div className="flex flex-wrap items-center gap-2 text-[12px]">
+              <span className="flex-1 min-w-0 truncate">{e.title}</span>
+              <Pill color={server ? GREEN : AMBER}>{server ? 'Tela Sign server' : 'Preview copy'}</Pill>
+              <Pill color={e.status === 'completed' ? GREEN : e.status === 'sent' ? CYAN : AMBER}>{e.status === 'sent' ? 'Out for signature' : e.status}</Pill>
+              {server && <button onClick={() => refresh(e.id)} className="p-1.5 rounded-lg bg-white/[0.06] hover:bg-white/10" aria-label="Refresh status"><RefreshCw size={12} /></button>}
+              <button onClick={() => setOpen({ envId: e.id, signerId: '__cert' })} className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/10">Certificate</button>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5 text-[12px]">
+              {e.signers.filter((x) => x.role !== 'cc').map((x) => {
+                const l = envLinks.find((k) => k.signerId === x.id);
+                const label = `${x.status === 'signed' ? '✓ ' : ''}${x.name.split(' ')[0]}${x.status === 'signed' ? ' signed' : x.status === 'declined' ? ' declined' : ''}`;
+                if (!server) {
+                  return <button key={x.id} onClick={() => setOpen({ envId: e.id, signerId: x.id })} className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/10">
+                    {e.status === 'sent' && (x.status === 'ready' || x.status === 'viewed') ? `Sign as ${x.name.split(' ')[0]}` : label}</button>;
+                }
+                return (
+                  <span key={x.id} className="inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-lg bg-white/[0.06]">
+                    {label}
+                    {l && x.status !== 'signed' && e.status === 'sent' && <>
+                      <button onClick={() => copy(l.url, x.name)} className="p-1 rounded hover:bg-white/10" aria-label={`Copy ${x.name}’s signing link`}><Copy size={11} /></button>
+                      <a href={l.url} target="_blank" rel="noopener" className="p-1 rounded hover:bg-white/10" aria-label={`Open ${x.name}’s signing page`}><ExternalLink size={11} /></a>
+                    </>}
+                  </span>
+                );
+              })}
+            </div>
+            {server && e.status === 'sent' && <p className="mt-1.5 text-[11px] text-white/40">Until email delivery is on, copy each signing link and send it yourself. The department link only works signed in as you.</p>}
+          </div>
+        );
+      })}
       {open && env && (
         <TelaSignCeremony envelope={env} signerId={open.signerId === '__cert' ? env.signers[0].id : open.signerId} certificateOnly={open.signerId === '__cert'} pages={page(env)}
           onChange={(next) => p.saveEnvelope(next)} onClose={() => setOpen(null)} />

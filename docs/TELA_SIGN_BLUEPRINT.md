@@ -1,6 +1,6 @@
 # Tela Sign — native e-signatures in the Tela document layer (Blueprint)
 
-**Status:** core built and tested, signing screen built, used from Civic Desk (preview). Server API built and tested (`routes/telaSign.ts`); the signing screen still runs on the local preview until it is switched to the API.
+**Status:** server API, signing page, passkey seals and Civic Desk sending are built and tested end to end in a browser (13 Nov 2026). Not yet: email delivery, stored files, sealed PDF.
 **Date:** 12 November 2026.
 **Where:** `services/tela/sign/signCore.ts` (tests: `tests/telaSign.test.ts`), `components/tela/sign/TelaSignCeremony.tsx`.
 
@@ -208,3 +208,22 @@ Chromium with its virtual authenticator.
   require a passkey get the normal flow.
 - **Still to do:** the account settings screen for adding and removing passkeys, the button on the signing screen
   (with step 1 of the next phase), and passwordless sign-in to Plajah with the same passkeys.
+
+## 9. Screens on the server (step 1, built 13 Nov 2026)
+
+- **Signing page** `components/tela/sign/TelaSignPage.tsx`, opened from `/?view=sign&env=…&s=…&t=…` (standalone, no app
+  shell, mounted early in `App.tsx`). Asks for the access code or a Plajah sign-in when the sender required one, shows
+  the document text, runs the ceremony against the server, offers "Finish with fingerprint, face or Windows Hello"
+  (and adds a passkey on first use), and ends on a done screen with the final fingerprint.
+- **Ceremony** `TelaSignCeremony` takes an `actions` prop: server mode sends every step to the server; without it the
+  local preview still works.
+- **Client** `services/tela/sign/signClient.ts` (`senderApi`, `signerApi`, `readSignerLink`).
+- **Civic Desk** "Send decision for signature" creates a real envelope linked to the case (`ref`), with the signed-in
+  staff member as the department signer (optionally passkey-sealed), and shows copy/open links per signer until email
+  delivery lands. If the server is unreachable or not configured it makes a clearly labelled preview copy instead.
+- **Account settings → Passkeys** `components/settings/PasskeysPanel.tsx`: add, list, remove.
+- **Server additions:** envelopes keep the document text (`body`, up to 200k characters) and the sender's `ref`.
+- **Verified** in Chromium against the real routers (preview harness in `scratch/signpreview`, not committed): access code
+  (wrong then right), consent, checkbox, drawn signature on a phone viewport, sign-in required for the department signer,
+  passkey enrolment and seal with a virtual Windows Hello authenticator, completion, passkey listed in settings, and the
+  public verify showing the seal valid. Civic Desk's sending was type-checked but not clicked through in the full app.

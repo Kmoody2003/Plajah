@@ -157,6 +157,10 @@ export interface Envelope {
   createdAt: number;
   expiresAt: number;
   completedAt?: number;
+  /** The sender's own reference, e.g. the Civic Desk case id. */
+  ref?: string;
+  /** The document text, when it was sent as text; its SHA-256 is docHash. */
+  body?: { text: string };
   /** SHA-256 over the document hash and every field value, set on completion. */
   finalHash?: string;
   audit: AuditEvent[];
@@ -223,6 +227,7 @@ export function verifyAudit(env: Envelope): { ok: boolean; brokenAt?: number } {
 export interface DraftInput {
   id: string; title: string; docType: string; docHash: string; pages: number; message?: string;
   sender: Envelope['sender']; signers: Omit<Signer, 'status'>[]; fields: Field[]; now: number; expiresInDays?: number;
+  ref?: string; body?: { text: string };
 }
 
 /** Validate a draft. Returns problems in plain language; an empty list means it can be sent. */
@@ -246,7 +251,7 @@ export function validateDraft(d: DraftInput): string[] {
 
 export function createEnvelope(d: DraftInput): Envelope {
   const env: Envelope = {
-    id: d.id, title: d.title, docType: d.docType, docHash: d.docHash, pages: d.pages, message: d.message, sender: d.sender,
+    id: d.id, title: d.title, docType: d.docType, docHash: d.docHash, pages: d.pages, message: d.message, sender: d.sender, ref: d.ref, body: d.body,
     signers: d.signers.map((s) => ({ ...s, status: 'waiting' })), fields: d.fields.map((f) => ({ ...f, value: undefined })),
     status: 'draft', createdAt: d.now, expiresAt: d.now + (d.expiresInDays ?? 30) * 86_400_000, audit: [],
   };

@@ -142,6 +142,7 @@ export function signerView(env: Envelope, signerId: string) {
     you: (({ id, name, role, status, consumer, consentedAt, signedAt, requirePasskey, auth }) => ({ id, name, role, status, consumer, consentedAt, signedAt, requirePasskey: !!requirePasskey, canUsePasskey: auth === 'plajah_account' }))(env.signers.find((s) => s.id === signerId)!),
     recipients: env.signers.map((s) => ({ id: s.id, name: s.name, role: s.role, order: s.order, status: s.status })),
     fields: env.fields,
+    body: env.body,
     disclosure: ESIGN_DISCLOSURE,
     finalHash: env.finalHash,
   };
@@ -214,6 +215,7 @@ export function createTelaSignRouter(deps: TelaSignDeps): Router {
   r.post('/api/tela/sign/envelopes', json, deps.authMiddleware, async (req: any, res) => {
     const b = req.body || {};
     const docText = typeof b.docText === 'string' ? b.docText : null;
+    if (docText !== null && docText.length > 200_000) return fail(res, 400, 'The document is too long to send as text. Upload it as a file instead.');
     const docHash = docText !== null ? sha256Hex(docText) : str(b.docHash, 64);
     if (b.docHash && docText !== null && b.docHash !== docHash) return fail(res, 400, 'The document fingerprint doesn’t match the document.');
     if (!isHex64(docHash)) return fail(res, 400, 'The document fingerprint is missing.');
@@ -244,6 +246,7 @@ export function createTelaSignRouter(deps: TelaSignDeps): Router {
       id, title: str(b.title, 200), docType: str(b.docType, 60) || 'document', docHash, pages: Math.max(1, Math.min(2000, Number(b.pages) || 1)),
       message: str(b.message, 2000) || undefined,
       sender: { id: req.uid, name: str(b.senderName, 120) || 'Plajah user', org: str(b.senderOrg, 120) || undefined },
+      ref: str(b.ref, 120) || undefined, body: docText !== null ? { text: docText.slice(0, 200_000) } : undefined,
       signers, fields, now: now(), expiresInDays: Math.max(1, Math.min(365, Number(b.expiresInDays) || 30)),
     };
     if (!draft.title) return fail(res, 400, 'Give the document a title.');

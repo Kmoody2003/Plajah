@@ -77,6 +77,7 @@ import { useFaithContentScope } from '../hooks/useFaithContentScope';
 // Content & Safety
 const LazyContentSafetySettings = React.lazy(() => import('./safety/ContentSafetySettings'));
 const LazyNotificationSettings = React.lazy(() => import('./NotificationSettings'));
+const LazyPasskeysPanel = React.lazy(() => import('./settings/PasskeysPanel'));
 // Opt-in rights layer: the switch, plus every work that already has a record.
 const LazyRegistrySettings = React.lazy(() => import('./registry/RegistrySettings'));
 
@@ -109,7 +110,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
   const [activeTab, setActiveTab] = useState<
     'ACCOUNT' | 'ASSETS' | 'PHOTOS' | 'BROADCAST' | 'PAYMENTS' | 'INTERESTS' |
     'MAILING_LIST' | 'SIDEBAR' | 'ALIASES' | 'STORE_MANAGEMENT' | 'REVENUE' |
-    'WORLDS' | 'RADIO_MANAGER' | 'THEMES' | 'NETWORKS' | 'CONNECTED_SERVICES' |
+    'WORLDS' | 'RADIO_MANAGER' | 'THEMES' | 'NETWORKS' | 'CONNECTED_SERVICES' | 'PASSKEYS' |
     'FILM_STUDIO' | 'FILM_RIGHTS' | 'FILM_ANALYTICS' |
     'MUSIC_STUDIO' | 'ARTIST_RADIO' | 'PODCAST_HUB' | 'AUDIO_HEALTH' |
     'BOOKS_STUDIO' | 'SERIAL_SCHEDULER' | 'BOOK_CLUBS' |
@@ -2101,6 +2102,14 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 </p>
               </div>
               <ConnectedServicesSettings />
+            </motion.div>
+          )}
+
+          {/* ── Passkeys — fingerprint, face, Windows Hello (routes/passkeys.ts) ── */}
+          {activeTab === 'PASSKEYS' && (
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Passkeys</h2>
+              <React.Suspense fallback={<p className="text-[12px] text-white/40">Loading…</p>}><LazyPasskeysPanel /></React.Suspense>
             </motion.div>
           )}
 

@@ -497,6 +497,7 @@ const FollowAlongView = retryLazy(() => import('./components/scripture/FollowAlo
 const AmboOutputWindow = retryLazy(() => import('./components/scripture/AmboOutputWindow'));
 const AmboOperatorWindow = retryLazy(() => import('./components/scripture/AmboOperatorWindow'));
 const TelehealthJoinPage = retryLazy(() => import('./components/clinic/TelehealthJoinPage'));
+const TelaSignPage = retryLazy(() => import('./components/tela/sign/TelaSignPage'));
 const AmboPartyEventReceiver = retryLazy(() => import('./components/scripture/AmboPartyEventReceiver'));
 import { registerEventDevice } from './services/ambo/amboPartyEventService';
 import PartyToastHost from './components/party/PartyToastHost';
@@ -744,6 +745,18 @@ const App: React.FC = () => {
         <TelehealthJoinPage />
       </Suspense>
     );
+  }
+
+  // Tela Sign: a signer opens ?view=sign&env=…&s=…&t=… — a standalone signing page, no app shell.
+  if (typeof window !== 'undefined') {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get('view') === 'sign' && q.get('env')) {
+      return (
+        <Suspense fallback={<div className="fixed inset-0 bg-[#0d0c13] flex items-center justify-center text-white/40 font-mono text-sm">Opening the document…</div>}>
+          <TelaSignPage />
+        </Suspense>
+      );
+    }
   }
 
   // Check for ?view=pitch-music|pitch-film|pitch-writer|research and ?room=<id> on load
