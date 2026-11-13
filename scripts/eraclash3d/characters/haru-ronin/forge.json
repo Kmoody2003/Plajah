@@ -1,0 +1,18 @@
+{
+  "id": "haru-ronin",
+  "name": "Haru",
+  "note": "Haru out of armour: the same art, body and head as characters/haru, wearing the wardrobe's kosode-hakama kit. Proves a kit is a choice of pieces, not code. His turnaround shows armour, so only intake and build apply (paint and score need art of this outfit).",
+  "art": {
+    "portrait": "D:/Plajah Runtime/forge/haru-ref/front.png",
+    "turnaround": "D:/Plajah Runtime/forge/haru-ref/sheet.png",
+    "views": ["front", "side", "back"]
+  },
+  "body": { "height": 1.74, "build": 1.04, "musculature": 0.72, "weight": 0.18, "age": 31 },
+  "head": { "forward": 0.022, "up": 0.012, "scale": 1.07, "width": 0.95, "neck": 1.18 },
+  "kit": { "preset": "kosode-hakama" },
+  "out": {
+    "character": "D:/Plajah Runtime/eraclash3d/forge/haru-ronin/haru_ronin.glb",
+    "kit": "D:/Plajah Runtime/eraclash3d/forge/haru-ronin/kit"
+  },
+  "gates": { "overall": 0.95, "part": 0.8, "head": 0.85 }
+}

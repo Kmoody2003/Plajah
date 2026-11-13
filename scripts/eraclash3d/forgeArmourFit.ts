@@ -1,7 +1,10 @@
 /**
  * forgeArmourFit.ts — fits the kit's shape to the turnaround by search, not by eye.
  *
- *   FORGE_SPEC=… npx tsx scripts/eraclash3d/forgeArmourFit.ts [rounds=3] [--workers N]
+ *   FORGE_SPEC=… npx tsx scripts/eraclash3d/forgeArmourFit.ts [rounds=3] [--workers N] [--body]
+ *
+ * --body searches the body instead (forge fit-body): its build, musculature and weight, the sliders the anatomy grows
+ * the skeleton, muscle and fat from, into body_fit.json. Each candidate grows a new body (no cache), so it is slower.
  *
  * A parallel pattern search over the wardrobe's ArmourFit (dō, watagami, eri, kusazuri, sode, hakama, scabbard):
  * - every parameter is stepped up and down from the current fit, and all those candidates are built and scored at once,
@@ -17,26 +20,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { spawn } from 'node:child_process';
-import { ARMOUR_FIT_DEFAULT, type ArmourFit } from '../../services/argilla/creature/wardrobe';
+import { ARMOUR_FIT_DEFAULT, FIT_STEPS, fitParamsOf, kitPieces, type ArmourFit } from '../../services/argilla/creature/wardrobe';
 import { dataFile, WORK_DIR, spec } from './forgeSpec';
 
-const FILE = dataFile('armour_fit.json');
 const args = process.argv.slice(2);
+const BODY = args.includes('--body');
+const FILE = dataFile(BODY ? 'body_fit.json' : 'armour_fit.json');
 const rounds = Number(args.find((a) => /^\d+$/.test(a)) ?? 3);
 const WORKERS = Number(args.includes('--workers') ? args[args.indexOf('--workers') + 1] : process.env.FORGE_WORKERS ?? Math.max(1, Math.min(4, Math.floor(os.totalmem() / 2 ** 30 / 7))));
-// step, min, max (the tasset count is the art's, not searched)
-const STEP: Partial<Record<keyof ArmourFit, [number, number, number]>> = {
-  doBottom: [0.02, 0.95, 1.1], doTop: [0.02, 1.3, 1.42], doClear: [0.01, 0.015, 0.06],
-  kusaLameH: [0.006, 0.04, 0.08], kusaFlare: [0.004, 0, 0.025], kusaClear: [0.006, 0, 0.04],
-  sodeX: [0.02, 0.17, 0.3], sodeY: [0.02, 1.42, 1.54], sodeZ: [0.02, -0.06, 0.05], sodeOut: [6, -5, 35],
-  sodeLameH: [0.005, 0.03, 0.06], sodeW: [0.03, 0.16, 0.32], sodeR: [0.008, 0.01, 0.05],
-  hakLat: [0.015, 0.04, 0.16], hakFB: [0.015, 0.05, 0.18], hakInner: [0.15, 0, 1], sayaDown: [4, 20, 65], sayaOut: [5, 0, 50],
-  eriY: [0.015, 1.48, 1.6], eriH: [0.012, 0.025, 0.09], eriOut: [0.006, 0.004, 0.04],
-  wataRise: [0.01, 0, 0.07], wataW: [0.02, 0.06, 0.16], kohire: [0.015, 0, 0.08],
-  greave: [0.008, 0.015, 0.06], hakGather: [0.02, 0.38, 0.56],
-  sleeveTop: [0.012, 0, 0.06], sleeveFull: [0.012, 0, 0.08],
-  obiY: [0.015, 0.95, 1.1], obiH: [0.012, 0.035, 0.1], obiOut: [0.008, 0, 0.04],
-};
+// the parameters of the pieces this character wears (wardrobe.ts PIECES), each with its step, minimum and maximum
+// (the body: shoulder breadth, muscle, fat; height is the spec's, the art's scale is set by it)
+const BODY_STEPS: Record<string, [number, number, number]> = { build: [0.04, 0.85, 1.25], musculature: [0.08, 0, 1], weight: [0.08, 0, 0.8] };
+const STEP = (BODY ? BODY_STEPS : Object.fromEntries(fitParamsOf(kitPieces(spec.kit)).map((k) => [k, FIT_STEPS[k]!]))) as Partial<Record<keyof ArmourFit, [number, number, number]>>;
 const SCORED = ['do', 'kusazuri', 'sode', 'obi', 'hakama', 'shins', 'sword', 'arms'];
 const slotDir = path.join(WORK_DIR, 'armour_search');
 fs.mkdirSync(slotDir, { recursive: true });
@@ -61,7 +56,7 @@ function writeJson(file: string, v: unknown) {
 async function evaluate(fit: ArmourFit, slot: number): Promise<number> {
   const fitFile = path.join(slotDir, `fit_${slot}.json`), glb = path.join(slotDir, `fit_${slot}.glb`);
   writeJson(fitFile, fit);
-  await run(['scripts/eraclash3d/forgeHaru.ts'], { FORGE_KIT: '0', FORGE_ARMOUR_FIT: fitFile, FORGE_OUT: glb });
+  await run(['scripts/eraclash3d/forgeBuild.ts'], { FORGE_KIT: '0', [BODY ? 'FORGE_BODY_FIT' : 'FORGE_ARMOUR_FIT']: fitFile, FORGE_OUT: glb });
   const out = JSON.parse((await run(['scripts/eraclash3d/forgeFidelity.ts', glb, '--fast'], {})).trim().split('\n').pop()!);
   let s = 0, w = 0, ps = 0, pw = 0;
   for (const v of ['front', 'side', 'back']) {
@@ -86,7 +81,9 @@ async function evaluateAll(fits: ArmourFit[]): Promise<number[]> {
 
 const t0 = Date.now();
 const mins = () => ((Date.now() - t0) / 60000).toFixed(1);
-let fit: ArmourFit = { ...ARMOUR_FIT_DEFAULT, ...(fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8')) : {}) };
+let fit: ArmourFit = BODY
+  ? { ...{ build: spec.body.build, musculature: spec.body.musculature, weight: spec.body.weight }, ...(fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8')) : {}) } as unknown as ArmourFit
+  : { ...ARMOUR_FIT_DEFAULT, ...(fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8')) : {}) };
 let [best] = await evaluateAll([fit]);
 if (best < 0) throw new Error('the starting fit could not be built and scored (see the failure above)');
 console.log(`start ${(best * 100).toFixed(2)}% (${WORKERS} workers, ${Object.keys(STEP).length} parameters)`);
@@ -118,5 +115,5 @@ for (let r = 0; r < rounds; r++) {
   console.log(`round ${r + 1}: ${(best * 100).toFixed(2)}% (${moved.join(', ')}; ${mins()} min)`);
 }
 writeJson(FILE, fit);
-await run(['scripts/eraclash3d/forgeHaru.ts'], {}); // the character and kit on disk are the best fit's
+await run(['scripts/eraclash3d/forgeBuild.ts'], {}); // the character and kit on disk are the best fit's
 console.log(`best ${(best * 100).toFixed(2)}%: ${JSON.stringify(fit)} -> ${spec.out.character}`);

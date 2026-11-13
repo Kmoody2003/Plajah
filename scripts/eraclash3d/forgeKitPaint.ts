@@ -11,6 +11,7 @@
  * Where the picture has nothing for a texel (off the cut-out), the piece keeps its own colour.
  */
 import fs from 'node:fs';
+import { dataFile } from './forgeSpec';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import sharp from 'sharp';
@@ -21,25 +22,11 @@ export type Part = Map<string, Map<string, G>>;
 type V3 = [number, number, number];
 export interface PaintSpec { mode: 'worn' | 'ring' | 'pair' | 'blade'; image: string; back?: string; group?: string; hiltUp?: boolean }
 
-/** How Haru's kit lies in his flat-lay. */
-export const HARU_FLATLAY: Record<string, PaintSpec> = {
-  do: { mode: 'worn', image: 'do_assembled', back: 'do_back', group: 'armour' },
-  kusazuri: { mode: 'worn', image: 'do_assembled', group: 'armour' },
-  sode: { mode: 'worn', image: 'do_assembled', group: 'armour' },
-  watagami: { mode: 'worn', image: 'do_assembled', group: 'armour' },
-  hakama: { mode: 'worn', image: 'hakama' },
-  kosode: { mode: 'worn', image: 'kosode', group: 'kosode' },
-  eri: { mode: 'worn', image: 'kosode', group: 'kosode' },
-  obi: { mode: 'ring', image: 'obi' },
-  hachimaki: { mode: 'ring', image: 'hachimaki' },
-  kote: { mode: 'pair', image: 'kote_pair' },
-  suneate: { mode: 'pair', image: 'suneate_pair' },
-  tabi: { mode: 'pair', image: 'tabi' },
-  waraji: { mode: 'pair', image: 'waraji' },
-  katana: { mode: 'blade', image: 'katana' },
-  katana_saya: { mode: 'blade', image: 'wakizashi', hiltUp: true },
-  wakizashi: { mode: 'blade', image: 'wakizashi', hiltUp: true },
-};
+/** How a character's kit lies in its flat-lay: the spec folder's flatlay_paint.json (none: the kit keeps its own colours). */
+export function flatLayPaint(): Record<string, PaintSpec> {
+  const f = dataFile('flatlay_paint.json');
+  return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')).pieces : {};
+}
 
 interface Img { w: number; h: number; d: Buffer }
 const loadImg = async (f: string): Promise<Img> => { const r = await sharp(f).ensureAlpha().raw().toBuffer({ resolveWithObject: true }); return { w: r.info.width, h: r.info.height, d: r.data }; };

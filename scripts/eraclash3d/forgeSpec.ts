@@ -10,18 +10,21 @@
  *     flatlay_pieces.json the flat-lay's pieces and how each lies                           forge intake (hints by a person)
  *     head_warp.json      the head fitted to the art's outline, row by row                   forge fit-head
  *     armour_fit.json     the kit's shape fitted to the art's parts                           forge fit-armour
+ *     flatlay_paint.json  how each kit piece lies in the flat-lay                             written by a person
  *     report.md           the last run: scores per view, per part, against the gates         forge score
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import type { HumanTune } from '../../services/argilla/creature/human';
+import type { KitSpec } from '../../services/argilla/creature/wardrobe';
 
 export interface ForgeSpec {
   id: string; name: string; note?: string;
   art: { portrait: string; turnaround: string; views: ('front' | 'side' | 'back')[]; flatLay?: string };
   body: Omit<HumanTune, 'face' | 'head'>;
   head: NonNullable<HumanTune['head']>;
-  kit: string;
+  /** The outfit: a preset name, or { preset, pieces, add, without } over the wardrobe's piece library (wardrobe.ts PIECES). */
+  kit: KitSpec;
   out: { character: string; kit: string };
   gates: { overall: number; part: number; head: number };
 }

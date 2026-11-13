@@ -8,6 +8,7 @@
  *   build       body from the anatomy, face from the art, wardrobe, rig; the kit's assets painted from the flat-lay
  *   fit-head    the head and neck bent to the art's outline, row by row, until it stops improving
  *   parts       the art cut into its parts by SAM, prompted by the model's own parts
+ *   fit-body    the body's build, musculature and weight searched against the art (the anatomy grows from them)
  *   fit-armour  the kit's shape searched against those parts and the whole silhouette (a parallel pattern search)
  *   paint       everything the turnaround draws painted from it: clothes, armour, lacing, skin, scalp and face
  *   score       every view and every part against the art, checked against the spec's gates -> report.md
@@ -19,7 +20,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { spec, SPEC_FILE, DATA_DIR, WORK_DIR, dataFile } from './forgeSpec';
 
-const STAGES = ['intake', 'build', 'fit-head', 'parts', 'fit-armour', 'paint', 'score'] as const;
+const STAGES = ['intake', 'build', 'fit-head', 'parts', 'fit-body', 'fit-armour', 'paint', 'score'] as const;
 type Stage = (typeof STAGES)[number];
 const args = process.argv.slice(2);
 const only = args.filter((a) => (STAGES as readonly string[]).includes(a)) as Stage[];
@@ -41,10 +42,11 @@ const fileSig = (f: string) => { try { const s = fs.statSync(f); return `${f}:${
 const SRC = (names: string[]) => names.map((n) => fileSig(path.join('scripts/eraclash3d', n)));
 const DEPS: Record<Stage, () => string[]> = {
   intake: () => [fileSig(SPEC_FILE), fileSig(spec.art.portrait), fileSig(spec.art.turnaround), fileSig(spec.art.flatLay ?? ''), fileSig(dataFile('flatlay_pieces.json')), ...SRC(['forgeIntake.ts'])],
-  build: () => [fileSig(SPEC_FILE), fileSig(dataFile('intake.json')), fileSig(dataFile('head_warp.json')), fileSig(dataFile('armour_fit.json')), ...SRC(['forgeHaru.ts', 'forgeLook.ts', 'forgeFaceFit.ts', 'forgeKit.ts', 'forgeKitPaint.ts']), fileSig('services/argilla/creature/wardrobe.ts'), fileSig('services/argilla/creature/human.ts'), fileSig('services/argilla/creature/hairSystem.ts')],
+  build: () => [fileSig(SPEC_FILE), fileSig(dataFile('intake.json')), fileSig(dataFile('body_fit.json')), fileSig(dataFile('flatlay_paint.json')), fileSig(dataFile('head_warp.json')), fileSig(dataFile('armour_fit.json')), ...SRC(['forgeBuild.ts', 'forgeLook.ts', 'forgeFaceFit.ts', 'forgeKit.ts', 'forgeKitPaint.ts']), fileSig('services/argilla/creature/wardrobe.ts'), fileSig('services/argilla/creature/human.ts'), fileSig('services/argilla/creature/hairSystem.ts')],
   'fit-head': () => [...DEPS.build(), ...SRC(['forgeFidelity.ts'])],
   parts: () => [fileSig(spec.out.character), ...SRC(['forgeParts.ts'])],
-  'fit-armour': () => [fileSig(spec.out.character), ...SRC(['forgeArmourFit.ts'])],
+  'fit-body': () => [fileSig(SPEC_FILE), fileSig(dataFile('head_warp.json')), ...SRC(['forgeArmourFit.ts'])],
+  'fit-armour': () => [fileSig(spec.out.character), fileSig(dataFile('body_fit.json')), ...SRC(['forgeArmourFit.ts'])],
   paint: () => [fileSig(spec.out.character), ...SRC(['forgePaint.ts'])],
   score: () => [fileSig(spec.out.character), fileSig(dataFile('armour_fit.json')), fileSig(dataFile('head_warp.json'))],
 };
@@ -58,23 +60,24 @@ const fidelity = () => JSON.parse(fs.readFileSync(path.join(WORK_DIR, 'fidelity'
 // ---- the stages ---------------------------------------------------------------------------------------------------
 const RUN: Record<Stage, () => void> = {
   intake() { tsx('intake', 'forgeIntake.ts'); const r = JSON.parse(fs.readFileSync(dataFile('intake.json'), 'utf8')); say(`intake: ${r.checks.length ? `checks: ${r.checks.join('; ')}` : 'all checks pass'}`); },
-  build() { const out = tsx('build', 'forgeHaru.ts'); say(`build: ${(out.match(/kit: (\d+) assets/) ?? [])[1] ?? '?'} kit assets, ${(out.match(/wrote .* \(([\d.]+ MB)\)/) ?? [])[1] ?? '?'}`); },
+  build() { const out = tsx('build', 'forgeBuild.ts'); say(`build: ${(out.match(/kit: (\d+) assets/) ?? [])[1] ?? '?'} kit assets, ${(out.match(/wrote .* \(([\d.]+ MB)\)/) ?? [])[1] ?? '?'}`); },
   'fit-head'() {
     // build, measure the outline, fold 80% of the gap into the warp; again until the head stops improving
     let best = -1;
     for (let pass = 1; pass <= Number(process.env.FORGE_HEAD_PASSES ?? 4); pass++) {
-      tsx('fit-head', 'forgeHaru.ts');
+      tsx('fit-head', 'forgeBuild.ts');
       tsx('fit-head', 'forgeFidelity.ts', '--update-warp');
       const f = fidelity(), head = (['front', 'side', 'back'] as const).reduce((a, v) => a + f.views[v].regions.head.iou, 0) / 3;
       say(`fit-head pass ${pass}: head IoU ${(head * 100).toFixed(1)}%`);
       if (head <= best + 0.002) break;
       best = head;
     }
-    tsx('fit-head', 'forgeHaru.ts'); // the character on disk carries the last warp
+    tsx('fit-head', 'forgeBuild.ts'); // the character on disk carries the last warp
   },
   parts() { const out = tsx('parts', 'forgeFidelity.ts', '--parts'); say(`parts: ${out.split('\n').filter((l) => /^\w+\s+[\d.]+%/.test(l)).length} parts cut from the art`); },
+  'fit-body'() { const out = tsx('fit-body', 'forgeArmourFit.ts', String(Number(process.env.FORGE_BODY_ROUNDS ?? 3)), '--body'); say(`fit-body: ${(out.match(/best ([\d.]+%)/) ?? [])[1] ?? '?'}`); },
   'fit-armour'() { const out = tsx('fit-armour', 'forgeArmourFit.ts', String(Number(process.env.FORGE_ARMOUR_ROUNDS ?? 3))); say(`fit-armour: ${(out.match(/best ([\d.]+%)/) ?? [])[1] ?? '?'}`); },
-  paint() { tsx('paint', 'forgeHaru.ts'); tsx('paint', 'forgeFidelity.ts', '--paint', spec.out.character); say('paint: everything the turnaround draws painted from it'); },
+  paint() { tsx('paint', 'forgeBuild.ts'); tsx('paint', 'forgeFidelity.ts', '--paint', spec.out.character); say('paint: everything the turnaround draws painted from it'); },
   score() {
     tsx('score', 'forgeFidelity.ts');
     tsx('score', 'forgeFidelity.ts', '--parts');

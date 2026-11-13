@@ -34,7 +34,7 @@ A rough box per flat-lay piece goes in `flatlay_pieces.json`; intake snaps each 
 FORGE_SPEC=scripts/eraclash3d/characters/<id>/forge.json npx tsx scripts/eraclash3d/forge.ts
 ```
 
-Seven stages run in order. A stage whose inputs haven't changed since it last ran is skipped. Name stages to run only those (`forge.ts parts score`), and add `--force` to rerun.
+Eight stages run in order. A stage whose inputs haven't changed since it last ran is skipped. Name stages to run only those (`forge.ts parts score`), and add `--force` to rerun.
 
 | Stage | What it does | Writes |
 |---|---|---|
@@ -42,6 +42,7 @@ Seven stages run in order. A stage whose inputs haven't changed since it last ra
 | build | Body from the anatomy, face from the art, the head fitted by its warp, the wardrobe fitted by its armour fit, rig and springs. Every kit piece also as its own GLB, painted from the flat-lay. | the character GLB, the kit folder, `kit.json` |
 | fit-head | Measures the head and neck against the art's outline row by row and folds the gap into the warp, until the head stops improving. | `head_warp.json` |
 | parts | Cuts the art into its parts (SAM, prompted by the model's own parts, one prompt per piece, the smaller cut owning a shared pixel) and flags doubtful cuts. | the art's part masks |
+| fit-body | Searches the body's build, musculature and weight against the art; the anatomy grows skeleton, muscle, fat and skin from them. | `body_fit.json` |
 | fit-armour | Searches the kit's shape parameters (dō, watagami, collar, kusazuri, sode, hakama, greaves, scabbard) against the whole silhouette and each part's overlap with the art. It's a parallel pattern search: every parameter is stepped both ways, and the candidates are built and scored four at a time. The improving moves are then combined, and the best combination is kept. | `armour_fit.json` |
 | paint | Paints everything the turnaround draws from it, each texel from the views that see it: clothes, armour, skin, scalp and face. Instanced pieces (the lacing cords) get one colour per instance. | the painted character |
 | score | Scores every view and every part, checks the gates, and writes the report. | `report.md` |
@@ -57,8 +58,22 @@ Seven stages run in order. A stage whose inputs haven't changed since it last ra
 ### 4. Adding a character
 
 1. Make `scripts/eraclash3d/characters/<id>/forge.json`, using Haru's as the pattern, and point it at the art.
-2. If there's a flat-lay, add `flatlay_pieces.json` with a rough box per piece.
-3. Run `forge.ts`. Then read `report.md` and the images it points to.
+2. Choose the outfit with `kit` (see below).
+3. If there's a flat-lay, add `flatlay_pieces.json` with a rough box per piece, and `flatlay_paint.json` saying how each piece lies in it.
+4. Run `forge.ts`. Then read `report.md` and the images it points to.
+
+### 5. Outfits are pieces, not code
+
+The wardrobe (`services/argilla/creature/wardrobe.ts`) is a library of pieces: `PIECES` lists each one with the fit parameters it reads.
+- **A kit is a list of pieces.** A spec names a preset (`"kit": "tosei-gusoku"`) or composes its own: `{ "preset": "kosode-hakama", "add": ["sode"], "without": ["hachimaki"] }`, or `{ "pieces": [...] }`.
+- **Pieces left out are never built, rigged or simulated.** Their bones, spring chains and cloth go too. The body stays visible where nothing covers it: a bare forearm, a shin with no greave.
+- **The search only tunes what is worn.** `fit-armour` takes its parameters from the pieces in the kit.
+- **Proof:** `characters/haru-ronin/` is Haru out of armour, the `kosode-hakama` preset with his hakama let down to the ankle in his `armour_fit.json`. It builds with no code changes. His turnaround shows armour, so only intake and build apply to him; paint and score need art of the outfit worn.
+- **A new kind of garment** (a coat, a cloak, plate armour) is a new entry in `PIECES` and its builder section. Every character can then wear it.
+
+### 6. The body is fitted too
+
+`fit-body` searches the anatomy's own sliders against the art, the same way `fit-armour` searches the kit: shoulder breadth (`build`), `musculature` and `weight`. The anatomy grows the skeleton, muscle groups, fat and skin from those sliders. Skin weights and the corrective shapes follow from that body. The result goes to `body_fit.json`; height stays the spec's, since the art's scale is set by it.
 
 ## What it builds on (nothing rebuilt)
 

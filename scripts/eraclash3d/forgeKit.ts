@@ -13,7 +13,7 @@ import { writeGlb, type GMaterial, type GMesh, type GNode, type GPrim } from '..
 import { MeshBuilder, unitBox, type Wardrobe } from '../../services/argilla/creature/wardrobe';
 import { nihonto, saya } from '../../services/argilla/creature/weapons';
 import type { Vec3 } from '../../services/argilla/engine';
-import { paintKit, HARU_FLATLAY, type PaintSpec } from './forgeKitPaint';
+import { paintKit, type PaintSpec } from './forgeKitPaint';
 
 export interface KitAsset {
   id: string; label: string; era: string; refs: string[]; file: string;

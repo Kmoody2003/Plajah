@@ -353,26 +353,97 @@ export const ARMOUR_FIT_DEFAULT: ArmourFit = {
   odoshiW: 0.0075, odoshiT: 0.0022,
 };
 
-export function buildHaruKit(anatomy: HumanAnatomy, field: Field, fitIn: Partial<ArmourFit> = {}): Wardrobe {
+// ---- The piece library --------------------------------------------------------------------------------------------
+/**
+ * Every piece the wardrobe can build, in build order, with the fit parameters it reads. A character's kit is a list of
+ * these (a preset, or the spec's own list): pieces left out are never built, rigged or simulated, and the fit searches
+ * only the parameters of the pieces worn. `body` pieces are cut from the body's own skin (they inherit its weights and
+ * correctives); the rest are built over its field.
+ */
+export const PIECES: Record<string, { params: (keyof ArmourFit)[]; body?: boolean; note: string }> = {
+  do: { params: ['doBottom', 'doTop', 'doClear', 'odoshiW', 'odoshiT'], note: 'cuirass of laced kozane rows' },
+  watagami: { params: ['wataRise', 'wataW', 'kohire'], note: 'shoulder straps with kohire flaps (wants do)' },
+  kusazuri: { params: ['kusaLameH', 'kusaFlare', 'kusaClear', 'kusaCount'], note: 'tassets on spring chains (hang from do)' },
+  sode: { params: ['sodeX', 'sodeY', 'sodeZ', 'sodeOut', 'sodeLameH', 'sodeW', 'sodeR'], note: 'shoulder guards on spring chains' },
+  kote: { params: [], note: 'armoured sleeves: splints and hand plate (the cloth under them is cut from the body)' },
+  haidate: { params: [], note: 'thigh apron of small plates' },
+  suneate: { params: ['greave'], note: 'greaves over the kyahan wrap (cut from the body)' },
+  hakama: { params: ['hakLat', 'hakFB', 'hakInner', 'hakGather'], note: 'ballooning trousers, cloth' },
+  eri: { params: ['eriY', 'eriH', 'eriOut'], note: 'the kosode collar' },
+  kosode: { params: ['sleeveTop', 'sleeveFull'], note: 'the robe: torso cut from the body, sleeves as cloth' },
+  obi: { params: ['obiY', 'obiH', 'obiOut'], note: 'sash, holds the swords' },
+  hachimaki: { params: [], note: 'headband' },
+  waraji: { params: [], note: 'straw sandals' },
+  tabi: { params: [], body: true, note: 'split-toe socks (cut from the body)' },
+  katana: { params: ['sayaDown', 'sayaOut'], note: 'katana in hand, saya in the obi (wants obi)' },
+  kabuto: { params: [], note: 'helmet (hidden unless the game asks)' },
+};
+/** Kits as piece lists. A spec names one ("kit": "tosei-gusoku") or composes its own ({ preset, pieces, add, without }). */
+export const KIT_PRESETS: Record<string, string[]> = {
+  'tosei-gusoku': ['do', 'watagami', 'kusazuri', 'sode', 'kote', 'suneate', 'hakama', 'eri', 'kosode', 'obi', 'hachimaki', 'waraji', 'tabi', 'katana', 'kabuto'],
+  // the same man out of armour: a ronin's kosode, hakama and sash, his sword in it
+  'kosode-hakama': ['hakama', 'eri', 'kosode', 'obi', 'hachimaki', 'waraji', 'tabi', 'katana'],
+};
+export type KitSpec = string | { preset?: string; pieces?: string[]; add?: string[]; without?: string[] };
+/** A kit spec resolved to its pieces, in build order. */
+export function kitPieces(kit: KitSpec): string[] {
+  const k = typeof kit === 'string' ? { preset: kit } : kit;
+  if (k.preset && !KIT_PRESETS[k.preset]) throw new Error(`unknown kit preset ${k.preset} (have ${Object.keys(KIT_PRESETS).join(', ')})`);
+  const want = new Set([...(k.pieces ?? KIT_PRESETS[k.preset ?? ''] ?? []), ...(k.add ?? [])]);
+  for (const x of k.without ?? []) want.delete(x);
+  for (const x of want) if (!PIECES[x]) throw new Error(`unknown piece ${x} (have ${Object.keys(PIECES).join(', ')})`);
+  if (process.env.FORGE_HAIDATE === '1') want.add('haidate');
+  return Object.keys(PIECES).filter((p) => want.has(p));
+}
+/** The search's step, minimum and maximum for each fit parameter (forgeArmourFit.ts). */
+export const FIT_STEPS: Partial<Record<keyof ArmourFit, [number, number, number]>> = {
+  doBottom: [0.02, 0.95, 1.1], doTop: [0.02, 1.3, 1.42], doClear: [0.01, 0.015, 0.06],
+  kusaLameH: [0.006, 0.04, 0.08], kusaFlare: [0.004, 0, 0.025], kusaClear: [0.006, 0, 0.04],
+  sodeX: [0.02, 0.17, 0.3], sodeY: [0.02, 1.42, 1.54], sodeZ: [0.02, -0.06, 0.05], sodeOut: [6, -5, 35],
+  sodeLameH: [0.005, 0.03, 0.06], sodeW: [0.03, 0.16, 0.32], sodeR: [0.008, 0.01, 0.05],
+  hakLat: [0.015, 0.04, 0.16], hakFB: [0.015, 0.05, 0.18], hakInner: [0.15, 0, 1], sayaDown: [4, 20, 65], sayaOut: [5, 0, 50],
+  eriY: [0.015, 1.48, 1.6], eriH: [0.012, 0.025, 0.09], eriOut: [0.006, 0.004, 0.04],
+  wataRise: [0.01, 0, 0.07], wataW: [0.02, 0.06, 0.16], kohire: [0.015, 0, 0.08],
+  greave: [0.008, 0.015, 0.06], hakGather: [0.02, 0.38, 0.56],
+  sleeveTop: [0.012, 0, 0.06], sleeveFull: [0.012, 0, 0.08],
+  obiY: [0.015, 0.95, 1.1], obiH: [0.012, 0.035, 0.1], obiOut: [0.008, 0, 0.04],
+};
+/** The fit parameters a kit's pieces read (the tasset count is the art's, never searched). */
+export const fitParamsOf = (pieces: string[]) => pieces.flatMap((p) => PIECES[p].params).filter((k) => k !== 'kusaCount' && FIT_STEPS[k]);
+
+/** Build a kit: the pieces named, fitted to this body. */
+export function buildKit(anatomy: HumanAnatomy, field: Field, pieces: string[], fitIn: Partial<ArmourFit> = {}): Wardrobe {
   const fit: ArmourFit = { ...ARMOUR_FIT_DEFAULT, ...fitIn };
   orientTo(field);
-  try { return haruKit(anatomy, field, fit); } finally { orientTo(null); }
+  try { return kitOf(anatomy, field, fit, new Set(pieces)); } finally { orientTo(null); }
 }
+/** Haru's tosei-gusoku (the first kit; for callers that predate the piece library). */
+export const buildHaruKit = (anatomy: HumanAnatomy, field: Field, fitIn: Partial<ArmourFit> = {}) => buildKit(anatomy, field, KIT_PRESETS['tosei-gusoku'], fitIn);
 
-function haruKit(anatomy: HumanAnatomy, field: Field, fit: ArmourFit): Wardrobe {
+function kitOf(anatomy: HumanAnatomy, field: Field, fit: ArmourFit, wanted: Set<string>): Wardrobe {
   const J = (n: HumanJoint) => anatomy.byName[n].at;
   const w: Wardrobe = {
     armour: new Map(), cloth: new Map(), lacing: [], kabuto: new Map(), hair: new MeshBuilder(),
     bones: [], springs: [], clothChains: new Map(), clothSims: [], sockets: [], pieces: [],
   };
   let current = '';
-  const A = (mat: string) => { let m = w.armour.get(mat); if (!m) { m = new MeshBuilder(); w.armour.set(mat, m); } m.tag = current; return m; };
-  const Cl = (mat: string) => { let m = w.cloth.get(mat); if (!m) { m = new MeshBuilder(); w.cloth.set(mat, m); } m.tag = current; return m; };
-  const K = (mat: string) => { let m = w.kabuto.get(mat); if (!m) { m = new MeshBuilder(); w.kabuto.set(mat, m); } m.tag = current; return m; };
-  const piece = (id: string, label: string, refs = REF_TOSEI) => { current = id; w.pieces.push({ id, label, era: ERA, refs }); };
+  // a piece not worn builds into a sink (its section still runs: later pieces read the measures it takes); whatever it
+  // adds to the rig (bones, springs, cloth, sockets) is dropped at the end
+  const on = () => current === '' || wanted.has(current);
+  const sink = () => { const m = new MeshBuilder(); m.tag = current; return m; };
+  const A = (mat: string) => { if (!on()) return sink(); let m = w.armour.get(mat); if (!m) { m = new MeshBuilder(); w.armour.set(mat, m); } m.tag = current; return m; };
+  const Cl = (mat: string) => { if (!on()) return sink(); let m = w.cloth.get(mat); if (!m) { m = new MeshBuilder(); w.cloth.set(mat, m); } m.tag = current; return m; };
+  const K = (mat: string) => { if (!on()) return sink(); let m = w.kabuto.get(mat); if (!m) { m = new MeshBuilder(); w.kabuto.set(mat, m); } m.tag = current; return m; };
+  const owner = new Map<object, string>();
+  for (const arr of [w.bones, w.springs, w.clothSims, w.sockets] as object[][]) {
+    const push = arr.push.bind(arr);
+    arr.push = (...items: object[]) => { for (const it of items) owner.set(it, current); return push(...items); };
+  }
+  const piece = (id: string, label: string, refs = REF_TOSEI) => { current = id; if (wanted.has(id)) w.pieces.push({ id, label, era: ERA, refs }); };
   const cord = new Map<string, { t: number[]; r: number[]; s: number[] }>();
   /** One lacing stitch: centre, along (the cord's run), out (the plate normal), width and length. */
   const stitch = (bone: string, c: Vec3, along: Vec3, out: Vec3, width: number, length: number, thick = 0.0022) => {
+    if (!on()) return;
     let l = cord.get(bone); if (!l) { l = { t: [], r: [], s: [] }; cord.set(bone, l); }
     const y = norm(along), z = norm(sub(out, mul(y, dot(out, y)))), x = cross(y, z);
     l.t.push(c[0], c[1], c[2]);
@@ -605,8 +676,8 @@ function haruKit(anatomy: HumanAnatomy, field: Field, fit: ArmourFit): Wardrobe 
 
   // ---- Haidate: the thigh apron of small plates ---------------------------------------------------------------------
   // Haru's art shows none: below the kusazuri it is the hakama itself (FORGE_HAIDATE=1 puts it back)
-  if (process.env.FORGE_HAIDATE === '1') piece('haidate', 'Haidate (thigh guard): apron of small lacquered plates over the hakama, tied at the waist');
-  if (process.env.FORGE_HAIDATE === '1') for (const s of ['Left', 'Right'] as const) {
+  piece('haidate', 'Haidate (thigh guard): apron of small lacquered plates over the hakama, tied at the waist');
+  for (const s of ['Left', 'Right'] as const) {
     const sx = s === 'Left' ? 1 : -1;
     const hip = J(`${s}UpLeg` as HumanJoint), knee = J(`${s}Leg` as HumanJoint);
     for (let row = 0; row < 6; row++) for (let col = 0; col < 5; col++) {
@@ -919,6 +990,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field, fit: ArmourFit): Wardrobe 
   }
 
   // ---- Hair: the cap over the scalp and the chonmage topknot ------------------------------------------------------
+  current = ''; // (the character's own, whatever he wears)
   {
     const head = J('Head');
     void head;
@@ -929,6 +1001,9 @@ function haruKit(anatomy: HumanAnatomy, field: Field, fit: ArmourFit): Wardrobe 
     tube(hb, pts, (t) => 0.012 * (1 - t * 0.35), 10, 'Head');
     tube(hb, [add(base, [0, 0.012, 0]), add(base, [0, 0.02, 0.002])], 0.0135, 10, 'Head');
   }
+  // what pieces not worn added to the rig goes (hands keep their grip sockets: any character can be handed a weapon)
+  const keep = (it: object) => { const o = owner.get(it) ?? ''; return o === '' || wanted.has(o) || /^socket_hand/.test((it as { name?: string }).name ?? ''); };
+  for (const arr of [w.bones, w.springs, w.clothSims, w.sockets] as object[][]) { const k = arr.filter(keep); arr.length = 0; Array.prototype.push.apply(arr, k); }
   return w;
 }
 

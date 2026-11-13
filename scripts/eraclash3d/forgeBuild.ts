@@ -1,7 +1,8 @@
 /**
- * forgeHaru.ts — Character Forge, first slice: Haru v3 (docs/character-forge.md "First slice").
+ * forgeBuild.ts — the Forge's build stage: a character from its spec (FORGE_SPEC; Haru by default), body, face, kit
+ * (the spec's pieces from the wardrobe library), rig and look (docs/character-forge.md).
  *
- *   npx tsx scripts/eraclash3d/forgeHaru.ts      → public/games/era-clash/3d/assets/characters/samurai_v3.glb
+ *   npx tsx scripts/eraclash3d/forgeBuild.ts      → public/games/era-clash/3d/assets/characters/samurai_v3.glb
  *   FORGE_NAKED=1 …                              → the body alone, every corrective on the skin (samurai_v3_body.glb)
  *
  * Body from the human anatomy plan (Argilla), wardrobe fitted to its field, correctives baked from the anatomy,
@@ -18,7 +19,7 @@ import {
   meshField, bodyField, settleOnField, relaxMesh, compact, humanSkinWeights, bakeCorrective, nearestOnBody, neighbours,
   type BodyMesh, type CorrectiveSpec,
 } from '../../services/argilla/creature/humanFinish';
-import { buildHaruKit, quatFromBasis, unitBox, MeshBuilder, type Wardrobe } from '../../services/argilla/creature/wardrobe';
+import { buildKit, kitPieces, quatFromBasis, unitBox, MeshBuilder, type Wardrobe } from '../../services/argilla/creature/wardrobe';
 import { PNG } from 'pngjs';
 import { ear } from '../../services/argilla/creature/ears';
 import { nihonto, saya, sheathedHilt } from '../../services/argilla/creature/weapons';
@@ -27,7 +28,7 @@ import type { GPrim } from '../../services/argilla/creature/gltfWriter';
 import { haruMaterials, MATERIAL_INDEX, paintHaru, rgbaPng, paintFace, paintFaceFromArt, type ArtLandmarks } from './forgeLook';
 import { exportKit } from './forgeKit';
 import { spec, WORK_DIR, dataFile, portraitLandmarks, flatLayPieceDir } from './forgeSpec';
-import { HARU_FLATLAY } from './forgeKitPaint';
+import { flatLayPaint } from './forgeKitPaint';
 import { fitFaceToArt, paintHeadFromSheet, HARU_SHEET, loadHeadWarp, headWarpMap, warpField, HEAD_WARP_FILE } from './forgeFaceFit';
 import { CANONICAL_INDICES } from '../../services/vtuber/rigBuilder/canonicalFace';
 import { fitScalp, ponytail, strandAtlas, hairlineAt } from '../../services/argilla/creature/hairSystem';
@@ -41,6 +42,8 @@ fs.mkdirSync(WORK, { recursive: true });
 const t0 = Date.now();
 const log = (s: string) => console.log(`[forge ${((Date.now() - t0) / 1000).toFixed(1)}s] ${s}`);
 const NAKED = process.env.FORGE_NAKED === '1';
+/** The character's mesh nodes: <Name>_head, _body, _cloth, _armour. */
+const NODE = spec.name.replace(/[^A-Za-z0-9]/g, '');
 
 const norm = (a: Vec3): Vec3 => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -53,10 +56,14 @@ type Skin = { skinIndex: Uint16Array; skinWeight: Float32Array };
 async function main() {
   // the face's shape from Muse's art (forgeFaceFit.ts), and the head grown and moved forward to meet it as the
   // turnaround's side view has it; the average face when the art is not on this machine
-  if (spec.kit !== 'tosei-gusoku') throw new Error(`forgeHaru builds the tosei-gusoku kit; ${spec.id} asks for ${spec.kit}`);
+  const pieces = kitPieces(spec.kit);
+  const wears = (p: string) => pieces.includes(p);
   const REF = process.env.FORGE_FACE_ART ?? spec.art.portrait;
   const refMarks = portraitLandmarks();
-  let tune: HumanTune = { ...HARU_TUNE, ...spec.body };
+  // the body: the spec's sliders, then what forge fit-body measured against the art (build, musculature, weight)
+  const BODY_FIT_FILE = process.env.FORGE_BODY_FIT ?? dataFile('body_fit.json');
+  const bodyFit = fs.existsSync(BODY_FIT_FILE) ? JSON.parse(fs.readFileSync(BODY_FIT_FILE, 'utf8')) : {};
+  let tune: HumanTune = { ...HARU_TUNE, ...spec.body, ...bodyFit };
   if (fs.existsSync(refMarks) && fs.existsSync(HARU_SHEET.path) && process.env.FORGE_FACE_FIT !== '0') {
     const fit = await fitFaceToArt({ landmarks: refMarks, chinY: 1.537 });
     tune = { ...tune, face: fit.points, head: HARU_HEAD };
@@ -142,7 +149,7 @@ async function main() {
   // the armour's fitted shape (forgeArmourFit.ts searches it against the art)
   const ARMOUR_FIT_FILE = process.env.FORGE_ARMOUR_FIT ?? dataFile('armour_fit.json');
   const armourFit = fs.existsSync(ARMOUR_FIT_FILE) ? JSON.parse(fs.readFileSync(ARMOUR_FIT_FILE, 'utf8')) : {};
-  const kit = buildHaruKit(anatomy, field, armourFit);
+  const kit = buildKit(anatomy, field, pieces, armourFit);
   log(`wardrobe: ${kit.pieces.map((p) => p.id).join(', ')}; ${kit.bones.length} chain bones, ${kit.springs.length} spring chains`);
   // hair: strand cards over the painted scalp, swept back to a tied ponytail on a spring chain (Muse turnaround)
   const scalp = fitScalp(head.mesh.positions, crownY, anatomy.face[9][1]); // landmark 9: between the brows
@@ -170,21 +177,34 @@ async function main() {
   const dominant = (v: number) => HUMAN_JOINTS[skin.skinIndex[v * 4]] as string;
   const P = (v: number): Vec3 => [body.positions[v * 3], body.positions[v * 3 + 1], body.positions[v * 3 + 2]];
   const collarY = (p: Vec3) => (p[2] > 0.0 ? Math.min(1.47, 1.33 + Math.abs(p[0]) * 1.5) : 1.47);
-  const regions: Record<string, (v: number) => boolean> = {
+  const allRegions: Record<string, (v: number) => boolean> = {
     kosode: (v) => { const p = P(v), b = dominant(v); return p[1] > 0.93 && p[1] < collarY(p) && /^(Hips|Spine|Spine1|Spine2|Neck|LeftShoulder|RightShoulder)$/.test(b); },
     // the sleeve runs on into a fingerless glove over the palm and the back of the hand (the art's navy tekko gloves)
     koteCloth: (v) => /^(Left|Right)(Arm|ArmTwist|ForeArm|ForeArmTwist|Hand)$/.test(dominant(v)),
     kyahan: (v) => /^(Left|Right)Leg$/.test(dominant(v)) && P(v)[1] < 0.5, // up to the hakama's gather under the knee
     tabi: (v) => /^(Left|Right)(Foot|ToeBase)$/.test(dominant(v)),
   };
+  /** Which piece each body-cut garment belongs to: cut only if the character wears it. */
+  const CUT_BY: Record<string, string> = { kosode: 'kosode', koteCloth: 'kote', kyahan: 'suneate', tabi: 'tabi' };
+  const regions = Object.fromEntries(Object.entries(allRegions).filter(([k]) => wears(CUT_BY[k])));
   const OFFSET: Record<string, number> = { kosode: 0.009, koteCloth: 0.0075, kyahan: 0.03, tabi: 0.0035 };
   const offsetPieces = Object.fromEntries(Object.entries(regions).map(([name, sel]) => [name, cutOffset(body, skin, correctives, sel, OFFSET[name])]));
   log(`body-cut garments: ${Object.entries(offsetPieces).map(([k, p]) => `${k} ${p.mesh.positions.length / 3}`).join(', ')}`);
 
-  // the body under the clothes is never seen: drop it (fewer triangles, nothing to poke through)
+  // the body under the clothes is never seen: drop it (fewer triangles, nothing to poke through); what nothing covers
+  // (a bare forearm, a shin with no greave) stays
+  const covered = (v: number) => {
+    const p = P(v), b = dominant(v);
+    if (Object.values(regions).some((sel) => sel(v))) return true;
+    if (/^(Hips|Spine|Spine1|Spine2)$/.test(b) && (wears('kosode') || wears('do'))) return true;
+    if (/UpLeg$/.test(b) && wears('hakama')) return true;
+    if (/(Left|Right)Leg$/.test(b) && wears('hakama') && p[1] > (armourFit.hakGather ?? 0.47) - 0.02) return true;
+    if (/(Arm|ArmTwist)$/.test(b) && /^(Left|Right)Arm/.test(b) && (wears('kosode') || wears('kote'))) return true;
+    return false;
+  };
   const keep = (v: number) => {
     const p = P(v), b = dominant(v);
-    return NAKED || /Hand/.test(b) || b === 'Head' || /Eye$/.test(b) || (p[1] >= collarY(p) - 0.02 && p[1] > 1.3);
+    return NAKED || /Hand/.test(b) || b === 'Head' || /Eye$/.test(b) || (p[1] >= collarY(p) - 0.02 && p[1] > 1.3) || !covered(v);
   };
   const keptTris: number[] = [];
   for (let i = 0; i < body.indices.length; i += 3) {
@@ -309,12 +329,12 @@ async function main() {
     name: spec.name,
     bones,
     skinned: NAKED
-      ? [{ name: 'Haru_body', prims: [bodyPrim], targetNames: morphNames }]
+      ? [{ name: `${NODE}_body`, prims: [bodyPrim], targetNames: morphNames }]
       : [
-        { name: 'Haru_head', prims: [headPrim, scalpPrim], targetNames: [...ARKIT_SHAPES], extras: { face: extrasFace } },
-        { name: 'Haru_body', prims: [bodyPrim], targetNames: morphNames },
-        { name: 'Haru_cloth', prims: clothPrims, targetNames: morphNames },
-        { name: 'Haru_armour', prims: armourPrims },
+        { name: `${NODE}_head`, prims: [headPrim, scalpPrim], targetNames: [...ARKIT_SHAPES], extras: { face: extrasFace } },
+        { name: `${NODE}_body`, prims: [bodyPrim], targetNames: morphNames },
+        { name: `${NODE}_cloth`, prims: clothPrims, targetNames: morphNames },
+        { name: `${NODE}_armour`, prims: armourPrims },
       ],
     rigid: NAKED ? [] : [{ name: 'kabuto', bone: 'Head', prims: kabuto }, ...lacing],
     sockets: NAKED ? sockets.filter((s) => s.name === 'socket_hand_R') : sockets,
@@ -341,17 +361,17 @@ async function main() {
   character.materials[MATERIAL_INDEX.hairCards] = { ...hc, color: [0.016, 0.013, 0.012, 1], baseColorTexture: atlas, roughness: 0.55, specular: { factor: 0.2 }, anisotropy: undefined };
   // every armour, garment and weapon piece also as its own asset (forgeKit.ts)
   if (process.env.FORGE_KIT !== '0' && !NAKED) {
-    const bodyCut = ([['kote', 'koteCloth'], ['suneate', 'kyahan'], ['tabi', 'tabi'], ['kosode', 'kosode']] as const).map(([piece, mat]) => ({ piece, mat, ...offsetPieces[mat].mesh }));
+    const bodyCut = ([['kote', 'koteCloth'], ['suneate', 'kyahan'], ['tabi', 'tabi'], ['kosode', 'kosode']] as const).filter(([, mat]) => offsetPieces[mat]).map(([piece, mat]) => ({ piece, mat, ...offsetPieces[mat].mesh }));
     const assets = await exportKit({
       kit, materials: character.materials, images: character.images, materialIndex: MATERIAL_INDEX, outDir: spec.out.kit, character: spec.name,
-      bodyCut, flatLay: { dir: process.env.FORGE_FLATLAY ?? flatLayPieceDir(), specs: HARU_FLATLAY }, work: path.join(WORK, 'kit_paint'),
+      bodyCut, flatLay: { dir: process.env.FORGE_FLATLAY ?? flatLayPieceDir(), specs: flatLayPaint() }, work: path.join(WORK, 'kit_paint'),
     });
     log(`kit: ${assets.length} assets -> ${spec.out.kit} (${assets.map((a) => a.id).join(', ')})`);
   }
   const glb = forgeToGlb(character);
   const out = process.env.FORGE_OUT ?? (NAKED ? spec.out.character.replace(/\.glb$/, '_body.glb') : spec.out.character);
   fs.writeFileSync(out, glb);
-  fs.writeFileSync(path.join(WORK, 'haru_v3_report.json'), JSON.stringify({
+  fs.writeFileSync(path.join(WORK, 'build_report.json'), JSON.stringify({
     joints: bones.length, muscles: anatomy.muscles.length, morphs: morphNames, springs: kit.springs.length,
     body: { verts: culled.mesh.positions.length / 3, tris: culled.mesh.indices.length / 3 },
     clothTris: clothPrims.reduce((n, p) => n + p.indices.length / 3, 0), armourTris: armourPrims.reduce((n, p) => n + p.indices.length / 3, 0),
