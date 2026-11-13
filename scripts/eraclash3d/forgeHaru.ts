@@ -21,7 +21,7 @@ import {
 import { buildHaruKit, quatFromBasis, unitBox, MeshBuilder, type Wardrobe } from '../../services/argilla/creature/wardrobe';
 import { PNG } from 'pngjs';
 import { ear } from '../../services/argilla/creature/ears';
-import { nihonto, saya } from '../../services/argilla/creature/weapons';
+import { nihonto, saya, sheathedHilt } from '../../services/argilla/creature/weapons';
 import { forgeToGlb, type ForgeCharacter, type ForgeRigid, type ForgeSocket } from '../../services/argilla/creature/exportCreature';
 import type { GPrim } from '../../services/argilla/creature/gltfWriter';
 import { haruMaterials, MATERIAL_INDEX, paintHaru, rgbaPng, paintFace, paintFaceFromArt, type ArtLandmarks } from './forgeLook';
@@ -226,7 +226,11 @@ async function main() {
     const z = cross(s.x, s.y);
     const meshes: ForgeSocket['meshes'] = [];
     if (s.name === 'socket_hand_R') meshes.push({ name: 'katana', at: [0, 0.05, 0], prims: localPrims(katana.meshes), markers: [{ name: 'katana_base', at: katana.base }, { name: 'katana_tip', at: katana.tip }] });
-    if (s.name === 'socket_obi_katana') meshes.push({ name: 'katana_saya', prims: localPrims(saya({ length: 0.76, sori: 0.016, bone: '' })) });
+    if (s.name === 'socket_obi_katana') {
+      meshes.push({ name: 'katana_saya', prims: localPrims(saya({ length: 0.76, sori: 0.016, bone: '' })) });
+      // the katana as the art draws it, sheathed: its hilt out of the saya (the game hides it while the blade is drawn)
+      meshes.push({ name: 'katana_sheathed', prims: localPrims(sheathedHilt(0.25, '')) });
+    }
     // (the art shows one sword: the wakizashi is there with FORGE_WAKIZASHI=1)
     if (s.name === 'socket_obi_wakizashi' && process.env.FORGE_WAKIZASHI === '1') meshes.push({ name: 'wakizashi', prims: localPrims(saya({ length: 0.54, sori: 0.012, bone: '', hilt: 0.17 })) });
     return { name: s.name, bone: s.bone, at: s.at, rotation: quatFromBasis(s.x, s.y, z), meshes };

@@ -156,9 +156,9 @@ async function useCapture(name: string): Promise<string[]> {
 }
 /** Haru's strikes, cut from CMU motion capture by his Atlas art (moves.ts); the authored poses are the fallback. */
 const mocapMoves = new Map<string, CutMove>();
-// ?haru=v3: Haru v3 from the Character Forge (real armour and cloth, springs, correctives; docs/character-forge.md).
-// The current model stays the default and the fallback if v3 can't load.
-const HARU_V3 = params.get('haru') === 'v3';
+// Haru v3 from the Character Forge (real armour and cloth, springs, correctives; docs/character-forge.md) is the hero.
+// ?haru=v2 brings back the previous model, which is also the fallback if v3 can't load.
+const HARU_V3 = params.get('haru') !== 'v2';
 const heroReady = (HARU_V3
   ? loadJack('haru', { url: '/games/era-clash/3d/assets/characters/samurai_v3.glb' }).catch((e) => { console.warn('[eraclash3d] Haru v3', e); return loadJack('haru'); })
   : loadJack('haru')).then(async (c) => {

@@ -53,10 +53,16 @@ export function saya(opts: { length: number; sori: number; bone: string; hilt?: 
   const sageo: Vec3[] = [];
   for (let k = 0; k <= 10; k++) sageo.push([0.018 + k * 0.004, -0.11 - k * 0.012, Math.sin(k) * 0.004]);
   tube(M('silk'), sageo, 0.0035, 5, bone, 0.4);
-  if (hilt) {
-    tube(M('iron'), [[0, 0.008, 0], [0, 0.016, 0]], 0.032, 20, bone);
-    tube(M('silk'), [[0, 0.016, 0], [0, hilt * 0.5, 0], [0, hilt - 0.01, 0]], (t) => 0.013 + 0.0015 * Math.sin(t * Math.PI), 12, bone, 0.78);
-    tube(M('iron'), [[0, hilt - 0.01, 0], [0, hilt + 0.002, 0]], 0.013, 10, bone, 0.78);
-  }
+  if (hilt) for (const [m, mb] of sheathedHilt(hilt, bone)) M(m).append(mb);
+  return meshes;
+}
+
+/** The hilt of a sheathed sword standing out of the saya's mouth (tsuba, tsuka, kashira), in the saya's frame. */
+export function sheathedHilt(hilt: number, bone: string): Map<string, MeshBuilder> {
+  const meshes = new Map<string, MeshBuilder>();
+  const M = (m: string) => { let b = meshes.get(m); if (!b) { b = new MeshBuilder(); meshes.set(m, b); } return b; };
+  tube(M('iron'), [[0, 0.008, 0], [0, 0.016, 0]], 0.032, 20, bone);
+  tube(M('silk'), [[0, 0.016, 0], [0, hilt * 0.5, 0], [0, hilt - 0.01, 0]], (t) => 0.013 + 0.0015 * Math.sin(t * Math.PI), 12, bone, 0.78);
+  tube(M('iron'), [[0, hilt - 0.01, 0], [0, hilt + 0.002, 0]], 0.013, 10, bone, 0.78);
   return meshes;
 }

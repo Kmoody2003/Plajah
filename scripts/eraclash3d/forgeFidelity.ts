@@ -116,7 +116,7 @@ export const PARTS = ['head', 'do', 'kusazuri', 'sode', 'arms', 'obi', 'hakama',
 function partOf(node: string, mat: string, joint: string): number {
   const P = (n: (typeof PARTS)[number]) => PARTS.indexOf(n);
   const m = mat.replace(/_painted$/, '');
-  if (/saya|wakizashi/.test(node)) return P('sword');
+  if (/saya|wakizashi|sheathed/.test(node)) return P('sword');
   if (node === 'Haru_head' || /^(Head|Tail_|HairLock|LeftEye|RightEye)/.test(joint) || m === 'hairCards') return P('head');
   if (/^Kusazuri/.test(joint)) return P('kusazuri');
   if (/^Sode/.test(joint)) return P('sode');
@@ -464,21 +464,22 @@ function partIoU(r: ReturnType<typeof render>, v: ViewName, name: string, shift:
 
 // ---- the art's pose, fitted ---------------------------------------------------------------------------------------
 // arms hang from the A (rotate about the body's forward axis), elbows bend a little, legs stand apart
-function poseOf(p: { arm: number; armFwd: number; elbow: number; leg: number; stagger?: number }) {
+function poseOf(p: { arm: number; armFwd: number; elbow: number; leg: number; stagger?: number; legFwd?: number }) {
   const o: Record<string, number[]> = {};
   for (const sx of [1, -1]) {
     const s = sx > 0 ? 'Left' : 'Right';
     o[`${s}Arm`] = qmul(qaxis([1, 0, 0], -p.armFwd), qaxis([0, 0, 1], -sx * p.arm));
     o[`${s}ForeArm`] = qaxis([1, 0, 0], -p.elbow);
     // stagger: the near (left) leg forward and the far one back, as a turnaround's profile often stands
-    const st = sx * (p.stagger ?? 0);
+    // legFwd: both legs forward of the torso together (the figure's weight a little back), feet kept flat
+    const st = sx * (p.stagger ?? 0) + (p.legFwd ?? 0);
     o[`${s}UpLeg`] = qmul(qaxis([1, 0, 0], -st), qaxis([0, 0, 1], sx * p.leg));
     o[`${s}Foot`] = qmul(qaxis([0, 0, 1], -sx * p.leg), qaxis([1, 0, 0], st));
   }
   return o;
 }
 function fitPose() {
-  let p = { arm: 0.66, armFwd: 0.0, elbow: 0.15, leg: 0.06, stagger: 0 };
+  let p = { arm: 0.66, armFwd: 0.0, elbow: 0.15, leg: 0.06, stagger: 0, legFwd: 0 };
   const iouOf = (q: typeof p) => {
     const tris = posedTris(poseOf(q));
     let s = 0;
@@ -487,7 +488,7 @@ function fitPose() {
     return s;
   };
   let best = iouOf(p);
-  const steps: [keyof typeof p, number][] = [['arm', 0.08], ['leg', 0.03], ['stagger', 0.05], ['armFwd', 0.1], ['elbow', 0.12]];
+  const steps: [keyof typeof p, number][] = [['arm', 0.08], ['leg', 0.03], ['stagger', 0.05], ['legFwd', 0.04], ['armFwd', 0.1], ['elbow', 0.12]];
   for (let round = 0; round < 2; round++) for (const [k, d] of steps) for (const dir of [1, -1]) {
     for (let tries = 0; tries < 3; tries++) {
       const q = { ...p, [k]: p[k] + dir * d / (round + 1) };

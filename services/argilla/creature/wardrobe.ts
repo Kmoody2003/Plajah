@@ -330,6 +330,12 @@ export interface ArmourFit {
   wataRise: number; wataW: number; kohire: number;
   /** Suneate: how far the splints stand off the shin (over the kyahan wrap). Hakama: the height it is gathered at, into the greaves. */
   greave: number; hakGather: number;
+  /** Kosode sleeves: fullness under the sode, and how much more they billow toward the hem. */
+  sleeveTop: number; sleeveFull: number;
+  /** Uwa-obi: the sash's centre height, its band height, its stand-off from the dō. */
+  obiY: number; obiH: number; obiOut: number;
+  /** The dō's kebiki lacing: each cord's width and how far it stands off the plate (the art's lacing reads flat). */
+  odoshiW: number; odoshiT: number;
 }
 export const ARMOUR_FIT_DEFAULT: ArmourFit = {
   doBottom: 1.035, doTop: 1.36, doClear: 0.03,
@@ -342,6 +348,9 @@ export const ARMOUR_FIT_DEFAULT: ArmourFit = {
   eriY: 1.505, eriH: 0.036, eriOut: 0.011,
   wataRise: 0.025, wataW: 0.1, kohire: 0.035,
   greave: 0.042, hakGather: 0.47,
+  sleeveTop: 0, sleeveFull: 0.03,
+  obiY: 1.02, obiH: 0.06, obiOut: 0.012,
+  odoshiW: 0.0075, odoshiT: 0.0022,
 };
 
 export function buildHaruKit(anatomy: HumanAnatomy, field: Field, fitIn: Partial<ArmourFit> = {}): Wardrobe {
@@ -420,7 +429,7 @@ function haruKit(anatomy: HumanAnatomy, field: Field, fit: ArmourFit): Wardrobe 
       const top = ringAt(u, 0.92), bot = ringAt(u, 0.12);
       const a = u * Math.PI * 2;
       const outN: Vec3 = [Math.cos(a), 0, Math.sin(a)];
-      stitch(bone, add(lerp(top, bot, 0.5), mul(outN, 0.003)), sub(top, bot), outN, 0.0075, len(sub(top, bot)));
+      stitch(bone, add(lerp(top, bot, 0.5), mul(outN, 0.0015 + fit.odoshiT)), sub(top, bot), outN, fit.odoshiW, len(sub(top, bot)), fit.odoshiT);
     }
   }
   // munaita (chest plate) and oshitsuke-ita (back plate): solid lacquered plates over the top row, gold-rimmed
@@ -769,7 +778,8 @@ function haruKit(anatomy: HumanAnatomy, field: Field, fit: ArmourFit): Wardrobe 
       const dir = norm(add(mul(e1, Math.cos(a)), mul(e2, Math.sin(a))));
       // roomy, fuller toward the hem, and the hem hangs lower under the arm
       const sec = sleeveSec(Math.round(v * nv));
-      const r = sec(a) + 0.016 + 0.03 * smooth01((t - 0.1) / 0.5) + Math.max(0, Math.sin(a)) * 0.012 * v;
+      // (sleeveFull: how much the sleeve billows past that; sleeveTop: how full it is already under the sode)
+      const r = sec(a) + 0.016 + fit.sleeveTop * (1 - v) + fit.sleeveFull * smooth01((t - 0.1) / 0.5) + Math.max(0, Math.sin(a)) * 0.012 * v;
       return add(c, mul(dir, r));
     };
     sheet(mb, nu, nv, f, `${s}Arm`, [0.6, 0.4]);
@@ -782,16 +792,16 @@ function haruKit(anatomy: HumanAnatomy, field: Field, fit: ArmourFit): Wardrobe 
   piece('obi', 'Uwa-obi: the outer sash over the dō, holding the swords');
   {
     const mb = Cl('obi');
-    const y0 = 0.99, y1 = 1.05;
+    const y0 = fit.obiY - fit.obiH / 2, y1 = fit.obiY + fit.obiH / 2;
     sheet(mb, 72, 3, (u, v) => {
       const a = u * Math.PI * 2;
       const y = y0 + (y1 - y0) * v;
       const s = sec(y);
-      const r = s.radius(a) + doClear + 0.012;
+      const r = s.radius(a) + doClear + fit.obiOut;
       return [Math.cos(a) * r, y, s.cz + Math.sin(a) * r];
     }, 'Spine', [2, 0.1]);
     // the knot at the front left, with two hanging ends
-    const knot: Vec3 = [0.07, 1.02, sec(1.02).cz + sec(1.02).radius(Math.PI / 2 - 0.4) + 0.05];
+    const knot: Vec3 = [0.07, fit.obiY, sec(fit.obiY).cz + sec(fit.obiY).radius(Math.PI / 2 - 0.4) + 0.05];
     tube(mb, [add(knot, [-0.02, 0, 0]), add(knot, [0.02, 0, 0.004])], 0.022, 10, 'Spine', 0.6);
     for (const [dx, l] of [[0.0, 0.16], [0.03, 0.12]] as const) {
       const pts: Vec3[] = [];

@@ -34,8 +34,10 @@ const STEP: Partial<Record<keyof ArmourFit, [number, number, number]>> = {
   eriY: [0.015, 1.48, 1.6], eriH: [0.012, 0.025, 0.09], eriOut: [0.006, 0.004, 0.04],
   wataRise: [0.01, 0, 0.07], wataW: [0.02, 0.06, 0.16], kohire: [0.015, 0, 0.08],
   greave: [0.008, 0.015, 0.06], hakGather: [0.02, 0.38, 0.56],
+  sleeveTop: [0.012, 0, 0.06], sleeveFull: [0.012, 0, 0.08],
+  obiY: [0.015, 0.95, 1.1], obiH: [0.012, 0.035, 0.1], obiOut: [0.008, 0, 0.04],
 };
-const SCORED = ['do', 'kusazuri', 'sode', 'obi', 'hakama', 'shins', 'sword'];
+const SCORED = ['do', 'kusazuri', 'sode', 'obi', 'hakama', 'shins', 'sword', 'arms'];
 const slotDir = path.join(WORK_DIR, 'armour_search');
 fs.mkdirSync(slotDir, { recursive: true });
 

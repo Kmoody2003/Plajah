@@ -389,6 +389,8 @@ export async function loadJack(hero: Hero = 'jack', opts: { url?: string } = {})
   const hand = findBone(model, 'RightHand') ?? null;
   let blade: Character['blade'] = null;
   if (ownBase && ownTip) {
+    // the blade is in his hand: the sheathed hilt the art draws at the obi goes (the saya stays, empty)
+    const sheathed = model.getObjectByName('katana_sheathed'); if (sheathed) sheathed.visible = false;
     let steel: THREE.MeshStandardNodeMaterial | null = null;
     model.getObjectByName('katana')?.traverse((o) => {
       const m = (o as THREE.Mesh).material as THREE.MeshStandardNodeMaterial | undefined;
