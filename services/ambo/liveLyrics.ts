@@ -14,6 +14,7 @@ import { getLyricClock, registerLyricClock, type LyricTrackMeta } from './lyricF
 import { publishCaption } from './liveCaptionStore';
 import { startMusicTranscription, type TranscribeSource, type TranscriberHandle } from './liveTranscriber';
 import { amboAudio } from './amboAudioEngine';
+import { markStageMedia } from './stageSession';
 
 export type LiveLyricSource =
   | { kind: 'auto' }
@@ -165,7 +166,7 @@ function resolve(src: LiveLyricSource): Promise<TranscribeSource> {
   }
   // A playable URL: captureStream() the element. Needs CORS-clean media; HLS needs a browser that plays it natively.
   return new Promise((resolveP, rejectP) => {
-    const el = document.createElement('audio');
+    const el = markStageMedia(document.createElement('audio'));
     el.crossOrigin = 'anonymous'; el.src = src.url; el.autoplay = true;
     mediaEl = el;
     el.onerror = () => rejectP(new Error('That stream could not be played (needs CORS access and a browser-playable format)'));

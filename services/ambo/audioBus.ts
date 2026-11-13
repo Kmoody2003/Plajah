@@ -18,6 +18,7 @@ import {
 import { CUE_COLORS, getCue } from './audioCues';
 import { registerLyricClock } from './lyricFeed';
 import { amboAudio, needsCors, proxied } from './amboAudioEngine';
+import { markStageMedia } from './stageSession';
 
 /** How a song reaches the speakers: through the Ambo mixer with CORS, through
  *  the same-origin proxy, or — last resort — directly (plays, but unmixed). */
@@ -188,7 +189,7 @@ class AudioBus {
   }
   /** `routed`: wire into the Ambo mixer (playlist channel). Once per element. */
   private makeEl(routed = true): HTMLAudioElement {
-    const e = new Audio();
+    const e = markStageMedia(new Audio());
     e.preload = 'auto';
     if (routed && amboAudio.attachElement(e, 'playlist')) this.routed.add(e);
     e.addEventListener('timeupdate', () => {

@@ -23,6 +23,7 @@ import { platformAudio } from '../../services/mediaEngine/audioRuntime';
 import { otherAudioFactor, subscribeAudioPriority } from '../../services/ambo/audioPriority';
 import { lyricsFor, registerLyricClock } from '../../services/ambo/lyricFeed';
 import { amboAudio } from '../../services/ambo/amboAudioEngine';
+import { isStageBackgrounded } from '../../services/ambo/stageSession';
 import { bus as audioBus, type DeckTransport } from '../../services/ambo/audioBus';
 import {
   subscribeLiveLyrics, getLiveLyricsState, getLiveLyricsPrefs,
@@ -404,7 +405,10 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Default shortcuts: keys 1-8
+      // Default shortcuts: keys 1-8 — only while Stage is on screen and the user isn't typing.
+      if (isStageBackgrounded()) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
       const padIndex = soundPads.findIndex(p => p.shortcut === e.key);
       if (padIndex >= 0) {
         e.preventDefault();

@@ -78,6 +78,7 @@ import AmboAudioBus, { useAudioBus } from './AmboAudioBus';
 import AmboLyricsControl from './AmboLyricsControl';
 import { setLiveLyricsPrefs, startLiveLyrics } from '../../services/ambo/liveLyrics';
 import { setLyricsProgram } from '../../services/ambo/lyricsProgram';
+import { setStageOutputting, isStageBackgrounded } from '../../services/ambo/stageSession';
 import { lyricsFor } from '../../services/ambo/lyricFeed';
 import { startTypoTextDriver, publishScriptureToTypo, setTypoTextDemand } from '../../services/ambo/typoTextDriver';
 import { getVizParams, getVizApplyTarget, lastChangedVizMode, subscribeVizParams, numericVizParams } from '../../services/ambo/visualizerParams';
@@ -666,6 +667,7 @@ useEffect(() => {
   // Keyboard shortcut Ctrl+S / Cmd+S
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isStageBackgrounded()) return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         handleManualSave();
@@ -1074,6 +1076,12 @@ useEffect(() => {
       } catch {}
     };
   }, []);
+
+  // Stage "in show": any output carrying signal keeps Stage alive in the background when the
+  // user navigates elsewhere in Plajah, and mutes every non-Stage audio source (stageSession).
+  const isStageOutputting = isProgramWindowOpen || !!partySession?.isActive;
+  useEffect(() => { setStageOutputting(isStageOutputting); }, [isStageOutputting]);
+  useEffect(() => () => setStageOutputting(false), []);
 
   // Track physical window open state
   useEffect(() => {

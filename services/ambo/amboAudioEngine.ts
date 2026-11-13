@@ -29,6 +29,7 @@ import {
   type SpectraState, type MasteringState,
 } from '../fabula/audioFx';
 import type { FxInstance } from '../melos/beats/fx/devices';
+import { markStageMedia } from './stageSession';
 
 export type AmboChannelId = 'playlist' | 'slides' | 'video' | 'dj';
 
@@ -392,6 +393,7 @@ class AmboAudioEngine {
    * routed — the element then still plays directly, just unmixed/unmetered.
    */
   attachElement(el: HTMLMediaElement, id: AmboChannelId): boolean {
+    markStageMedia(el);
     const ctx = this.ensure();
     const strip = this.strips.get(id);
     if (!ctx || !strip) return false;

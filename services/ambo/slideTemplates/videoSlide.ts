@@ -20,6 +20,7 @@ import { setProgramVideoAudible } from '../audioPriority';
 import { attachVideo } from '../videoSync';
 import { registerLiveDrawer, onHostDispose, type LiveEnv, type SlideHost } from './live';
 import type { SlideObj, SlideTheme } from './types';
+import { markStageMedia } from '../stageSession';
 
 // ── fields → settings ───────────────────────────────────────────────────────
 
@@ -200,7 +201,7 @@ function runtimeFor(host: SlideHost, s: VideoSettings): Runtime | null {
   let rt = runtimes.get(host.id);
   if (rt && rt.url === s.url) return rt;
   if (rt) release(host.id);
-  const v = document.createElement('video');
+  const v = markStageMedia(document.createElement('video'));
   v.crossOrigin = 'anonymous';
   v.playsInline = true;
   v.preload = 'auto';

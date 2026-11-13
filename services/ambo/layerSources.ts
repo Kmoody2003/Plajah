@@ -442,7 +442,7 @@ export class VideoSource implements LayerSource {
 
   constructor(content: Extract<LayerContent, { kind: 'VIDEO' }>, audioEnabled = false) {
     const v: HTMLVideoElement = typeof document !== 'undefined'
-      ? document.createElement('video')
+      ? markStageMedia(document.createElement('video'))
       : ({ crossOrigin: '', playsInline: true, loop: true, muted: true, volume: 0, src: '', currentTime: 0, readyState: 0, videoWidth: 1920, videoHeight: 1080, play: () => Promise.resolve(), pause: () => {}, load: () => {} } as any);
     v.crossOrigin = 'anonymous';
     v.playsInline = true;
@@ -1316,7 +1316,7 @@ export class AudioSource implements LayerSource {
       return;
     }
 
-    const a = new Audio();
+    const a = markStageMedia(new Audio());
     a.crossOrigin = 'anonymous';
     a.loop = content.loop ?? false;
     a.preload = 'auto';
@@ -1420,6 +1420,7 @@ export class ClockSource implements LayerSource {
 
 import { getAppOutputStream, onAppOutputStream, onAppOutputRemoved } from '../mediaEngine/bridge';
 import { isNativeLiveInput, subscribeLiveFrames } from './liveInputs';
+import { markStageMedia } from './stageSession';
 
 export class LiveSource implements LayerSource {
   readonly kind = 'live';
@@ -1431,7 +1432,7 @@ export class LiveSource implements LayerSource {
   private bitmap: ImageBitmap | null = null;
 
   constructor(private content: Extract<LayerContent, { kind: 'LIVE' }>) {
-    this.video = document.createElement('video');
+    this.video = markStageMedia(document.createElement('video'));
     if (isNativeLiveInput(content.inputId)) {
       this.unsubscribe = subscribeLiveFrames(content.inputId, 1280, b => { this.bitmap = b; this.isReady = true; });
       return;

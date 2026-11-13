@@ -1,5 +1,6 @@
 import { UserAvatar } from './components/avatar/UserAvatar';
-import React, { useState, useEffect, lazy, Suspense, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, lazy, Suspense, useCallback, useRef, useMemo, useSyncExternalStore } from 'react';
+import { subscribeStageSession, isStageOutputting, setStageBackgrounded, STAGE_ROOT_ATTR } from './services/ambo/stageSession';
 import { Album, Track, AppView, ThemeType, Game, IPWorld, LiveFeed, PhotoGallery, Photo } from './types';
 import { fetchGallery } from './services/galleryService';
 import Logo from './components/Logo';
@@ -1458,6 +1459,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [licenseForFilm, setLicenseForFilm] = useState<{ track: any; album: any } | null>(null);
   const [audiusArtist, setAudiusArtist] = useState<AudiusArtist | null>(null);
   const [isMuseOpen, setIsMuseOpen] = useState(false);
+  // Stage in show (any output carrying signal) — stays alive in the background across navigation.
+  const stageOutputting = useSyncExternalStore(subscribeStageSession, isStageOutputting, () => false);
+  useEffect(() => { setStageBackgrounded(view !== 'AMBO' && view !== 'AMBO_PRO'); }, [view]);
   const [isHaloOpen, setIsHaloOpen] = useState(false);
   const [creatorInitialType, setCreatorInitialType] = useState<string | undefined>(undefined);
   const [isCreatorMinimized, setIsCreatorMinimized] = useState(false);
@@ -7745,7 +7749,21 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'BIBLE' && <BibleExperience onBack={() => setView('BOOKS')} initialRefId={bibleRefId} />}
             {view === 'SACRED_LIBRARY' && <SacredLibraryHub onBack={() => setView('DASHBOARD')} />}
             {/* Old "Ambo Presenter" retired — the AMBO view now redirects to the new presenter. */}
-            {(view === 'AMBO' || view === 'AMBO_PRO') && <AmboProPresenter onBack={() => setView('APPS')} />}
+            {/* While Stage is outputting (desktop/web), it stays mounted — hidden — when the user goes
+                elsewhere in Plajah, so every screen keeps its signal. The Stage button above Aria brings
+                it straight back. Once nothing is outputting and Stage isn't on screen, it unmounts. */}
+            {(view === 'AMBO' || view === 'AMBO_PRO' || (stageOutputting && !isMobile && !getPlatformInfo().isTV)) && (
+              <div
+                {...{ [STAGE_ROOT_ATTR]: '' }}
+                className={(view === 'AMBO' || view === 'AMBO_PRO') ? 'contents' : undefined}
+                aria-hidden={(view === 'AMBO' || view === 'AMBO_PRO') ? undefined : true}
+                style={(view === 'AMBO' || view === 'AMBO_PRO') ? undefined : { position: 'fixed', left: -100000, top: 0, width: '100vw', height: '100vh', visibility: 'hidden', pointerEvents: 'none', overflow: 'hidden' }}
+              >
+                <Suspense fallback={null}>
+                  <AmboProPresenter onBack={() => setView('APPS')} />
+                </Suspense>
+              </div>
+            )}
             {view === 'FOLLOW_ALONG' && <FollowAlongView sessionId={followSessionId} onBack={() => setView('APPS')} />}
             {view === 'VESPERS' && vespersRecapId && <VespersRecap recapId={vespersRecapId} onBack={() => setView('APPS')} />}
             {(view === 'CLASSROOMS' || view === 'ACADEMIA_LANDING') && (
@@ -8420,6 +8438,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           </Suspense>
           )}
 
+        {/* Stage running in the background — one tap returns to it. Sits directly above Aria. */}
+        {!isMobile && !getPlatformInfo().isTV && stageOutputting && view !== 'AMBO' && view !== 'AMBO_PRO' && (
+          <button
+            type="button"
+            aria-label="Return to Stage (live)"
+            title="Stage is live — return to Stage"
+            onClick={() => setView('AMBO_PRO' as AppView)}
+            className="fixed right-5 bottom-[242px] z-[260] flex items-center justify-center rounded-full border border-[#FF8C00]/60 bg-[#1a0f05]/90 text-[#FF8C00] shadow-[0_20px_60px_rgba(255,140,0,0.35)] backdrop-blur-xl transition-all hover:scale-105 hover:border-[#FF8C00] active:scale-95"
+            style={{ width: 58, height: 58 }}
+          >
+            <MonitorPlay size={24} />
+            <span className="absolute top-1.5 right-1.5 flex h-3 w-3">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
+              <span className="relative inline-flex h-3 w-3 rounded-full border border-black/60 bg-red-500" />
+            </span>
+          </button>
+        )}
         {!isMobile && !getPlatformInfo().isTV && (
           <button
             type="button"

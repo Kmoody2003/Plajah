@@ -35,6 +35,7 @@ import {
 } from './audioProgressStyles';
 import { audioBus } from '../audioBus';
 import { getCaption, getLyricCue } from '../liveCaptionStore';
+import { markStageMedia } from '../stageSession';
 
 type Ctx = CanvasRenderingContext2D;
 const nowSec = () => (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
@@ -299,7 +300,7 @@ class AudioController {
       ? [{ src: this.url, cors: true, route: true }, { src: proxied(this.url), cors: false, route: true }, { src: this.url, cors: false, route: false }]
       : [{ src: this.url, cors: false, route: true }];
     const step = plan[Math.min(this.attempt, plan.length - 1)];
-    const a = new Audio();
+    const a = markStageMedia(new Audio());
     if (step.cors) a.crossOrigin = 'anonymous';
     a.preload = 'auto';
     a.loop = this.loop;
