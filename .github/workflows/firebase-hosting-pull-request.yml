@@ -26,7 +26,7 @@ jobs:
 
       - name: Build
         env:
-          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_OPTIONS: --max-old-space-size=12288
         run: npm run build
 
       - name: Authenticate to Google Cloud
