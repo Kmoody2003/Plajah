@@ -16,7 +16,7 @@ export function lightShaft(width: number, length: number, strength = 0.16, tint 
   const geo = new THREE.PlaneGeometry(width, length);
   geo.translate(0, -length / 2, 0);
   const mat = new THREE.MeshBasicNodeMaterial({
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
   });
   const u = uv();
   const along = float(1).sub(u.y).pow(1.6);
@@ -33,7 +33,7 @@ export function lightShaft(width: number, length: number, strength = 0.16, tint 
 
 /** Camera-facing flame card: noisy teardrop, additive, flickering upward. */
 export function flameMaterial(): THREE.MeshBasicNodeMaterial {
-  const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+  const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false });
   const u = uv();
   const n = mx_fractal_noise_float(vec3(u.x.mul(3), u.y.mul(2).sub(time.mul(2.2)), time.mul(0.7)), 3, 2, 0.5, 1);
   const body = smoothstep(float(0.5), float(0.0), u.x.sub(0.5).abs().add(u.y.mul(0.35)).add(n.mul(0.18)));
@@ -79,7 +79,7 @@ export function batchFlames(flames: THREE.Mesh[]): THREE.Mesh | null {
   geo.setIndex(idx);
   geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
 
-  const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+  const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false });
   const centre: N = attribute('center', 'vec3');
   const sd: N = attribute('seed', 'float');
   // Horizontal billboard: quad's x axis = perpendicular to the camera direction in XZ.

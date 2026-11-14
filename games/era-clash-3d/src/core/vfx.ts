@@ -28,7 +28,8 @@ export class Particles {
   private SW: Float32Array; private CX: Float32Array; private CZ: Float32Array;
   private pos: THREE.BufferAttribute; private col: THREE.BufferAttribute;
 
-  constructor(max: number, additive: boolean) {
+  /** `soft`: a gaussian puff (dust, spray) instead of a crisp spark disc. */
+  constructor(max: number, additive: boolean, soft = false) {
     this.max = max;
     this.P = new Float32Array(max * 3); this.Vv = new Float32Array(max * 3); this.C = new Float32Array(max * 3);
     this.L = new Float32Array(max); this.ML = new Float32Array(max); this.S = new Float32Array(max);
@@ -48,9 +49,10 @@ export class Particles {
     geo.setAttribute('pcolor', this.col);
     geo.setIndex(idx);
     geo.setDrawRange(0, 0);
-    const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending });
+    const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, fog: !additive });
     const c: N = attribute('pcolor', 'vec4');
-    const disc: N = smoothstep(float(0.5), float(additive ? 0.0 : 0.3), (length as N)((uv() as N).sub(vec2(0.5, 0.5))));
+    const rr: N = (length as N)((uv() as N).sub(vec2(0.5, 0.5)));
+    const disc: N = soft ? smoothstep(float(0.5), float(0.0), rr).pow(1.8).mul(0.6) : smoothstep(float(0.5), float(additive ? 0.0 : 0.3), rr);
     m.colorNode = additive ? c.rgb.mul(c.a).mul(disc) : c.rgb;
     m.opacityNode = additive ? disc : disc.mul(c.a);
     this.mesh = new THREE.Mesh(geo, m);
@@ -138,7 +140,7 @@ export class Trail {
     geo.setAttribute('pcolor', this.col);
     geo.setIndex(idx);
     geo.setDrawRange(0, 0);
-    const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+    const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false });
     const c: N = attribute('pcolor', 'vec4');
     m.colorNode = c.rgb.mul(c.a);
     this.mesh = new THREE.Mesh(geo, m);
@@ -171,7 +173,7 @@ export class Rings {
     const geo = new THREE.RingGeometry(0.82, 1, 48);
     geo.rotateX(-Math.PI / 2);
     for (let i = 0; i < n; i++) {
-      const mat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+      const mat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.visible = false;
       this.group.add(mesh);

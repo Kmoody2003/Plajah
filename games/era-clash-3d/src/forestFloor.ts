@@ -126,9 +126,13 @@ export function buildForestFloor(o: { area: { x0: number; x1: number; z0: number
     const cloud: N = texture(tex, uv().add(drift)).a.mul(texture(tex, uv().mul(1.7).sub(drift.mul(1.3))).a.mul(1.6).add(0.4));
     const edge: N = smoothstep(0.5, 0.15, length(uv().sub(0.5)));
     // thin out close to the eye (a sheet seen from inside is a flat wash)
-    const near: N = smoothstep(2.5, 9, length(cameraPosition.sub(positionWorld)));
+    const toEye: N = cameraPosition.sub(positionWorld), dist: N = length(toEye);
+    // …and gone past ~60 m and when seen edge-on: from below on the slopes a flat sheet showed as a bright slab where
+    // it stuck out of the hillside, not as mist lying in the hollow
+    const near: N = smoothstep(2.5, 9, dist).mul(float(1).sub(smoothstep(35, 62, dist)));
+    const flat: N = smoothstep(0.08, 0.35, toEye.y.abs().div(dist.max(0.01)));
     mat.colorNode = vec3(0.86, 0.84, 0.86);
-    mat.opacityNode = cloud.mul(edge).mul(near).mul(0.28).clamp(0, 0.18);
+    mat.opacityNode = cloud.mul(edge).mul(near).mul(flat).mul(0.28).clamp(0, 0.18);
     const sheets: THREE.BufferGeometry[] = [];
     for (let i = 0; i < 900 && sheets.length < 90; i++) {
       const x = A.x0 + hash(i, 101) * (A.x1 - A.x0), z = A.z0 + hash(103, i) * (A.z1 - A.z0);
@@ -148,12 +152,18 @@ export function buildForestFloor(o: { area: { x0: number; x1: number; z0: number
 
   // ── shafts of light standing in the glades ──
   {
-    const mat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+    // fog off: the haze mixes every fragment toward its own bright colour with distance, and added on top that turned
+    // each far shaft (which should add nothing) into a solid slab of haze up the hillside
+    const mat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false });
     const v: N = uv().y, u: N = uv().x;
     const across: N = sin(u.mul(Math.PI)).pow(2.2);
     const shimmer: N = sin(time.mul(0.6).add(positionWorld.x.mul(0.3))).mul(0.25).add(0.75);
-    const near: N = smoothstep(3, 12, length(cameraPosition.sub(positionWorld)));
-    mat.colorNode = vec3(1.0, 0.82, 0.55).mul(across.mul(v.pow(0.7)).mul(shimmer).mul(near).mul(0.16));
+    // soft at both ends (a hard top edge read as a lit board), gone up close and past ~45 m: from afar the planes
+    // stacked into white slabs instead of light in the air
+    const dist: N = length(cameraPosition.sub(positionWorld));
+    const near: N = smoothstep(3, 12, dist).mul(float(1).sub(smoothstep(28, 46, dist)));
+    const ends: N = smoothstep(0.0, 0.25, v).mul(float(1).sub(smoothstep(0.7, 1.0, v)));
+    mat.colorNode = vec3(1.0, 0.82, 0.55).mul(across.mul(v.pow(0.7)).mul(ends).mul(shimmer).mul(near).mul(0.12));
     const shafts: THREE.BufferGeometry[] = [];
     const sun = o.sunDir.clone().normalize();
     const tilt = Math.min(0.85, Math.atan2(Math.hypot(sun.x, sun.z), -sun.y)),   // (a low sun's shafts are drawn steeper: they read better)

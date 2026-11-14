@@ -3,7 +3,7 @@
 // Intel's XeSS isn't reachable from the browser; FSR1 is the vendor-neutral equivalent
 // that runs well on Arc iGPUs.
 import * as THREE from 'three/webgpu';
-import { pass, rtt, mrt, output, normalView, metalness, roughness, velocity, vec2, vec3, vec4, float, max, mix, directionToColor, colorToDirection, sample, renderOutput, texture3D, uniform } from 'three/tsl';
+import { pass, rtt, mrt, output, normalView, metalness, roughness, velocity, vec2, vec3, vec4, float, max, mix, dot, directionToColor, colorToDirection, sample, renderOutput, texture3D, uniform, screenUV, smoothstep } from 'three/tsl';
 import { lut3D } from 'three/addons/tsl/display/Lut3DNode.js';
 import { ssr } from 'three/addons/tsl/display/SSRNode.js';
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
@@ -23,7 +23,9 @@ export interface PostQuality { ssr: boolean; ssrScale: number; bloom: 'full' | '
    *  eaves, in alleys, where walls meet the street and round props and feet. */
   ao?: boolean;
   /** Sun shafts: ray-marched through the sun's shadow map, tinted with the sun's own colour. */
-  rays?: THREE.DirectionalLight }
+  rays?: THREE.DirectionalLight;
+  /** CSM-compatible screen-space crepuscular sun shafts projected from the sky horizon (works alongside CSM shadows). */
+  screenShafts?: { sun: THREE.DirectionalLight; reversedDepth?: boolean } }
 
 type V4 = THREE.Node<'vec4'>;
 
@@ -43,6 +45,13 @@ export function setLut(tex: THREE.Data3DTexture | null, amount: number) {
   lutTex.value = tex ?? identity;
   lutAmount.value = tex ? amount : 0;
 }
+
+/**
+ * The fight's camera language (main.ts): `impact` (0…1, decays) is a hit's punch — a radial zoom smear and a colour
+ * fringe from the frame centre; `drama` (0…1) is the kill-cam's grade — the colour drains a little and the corners
+ * darken, so the blow and the blood-red sparks carry the frame.
+ */
+export const fightLook = { impact: uniform(0), drama: uniform(0) };
 
 export function buildPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera, q: PostQuality) {
   const pipeline = new THREE.RenderPipeline(renderer);
@@ -77,50 +86,52 @@ export function buildPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, ca
     return t as unknown as V4;
   };
 
+  // Resolve MSAA depth once if SSR, GTAO, or screen-space shafts read it: multisampled depth breaks
+  // `textureDimensions(depth, level)` and depth sampling in WGSL.
+  let resolvedDepth: unknown = depthTex;
+  if (q.msaa && (q.ssr || q.ao || q.screenShafts)) {
+    const t = rtt(depthTex as never, null, null, { type: THREE.FloatType });
+    if (t.renderTarget) t.renderTarget.texture.minFilter = t.renderTarget.texture.magFilter = THREE.NearestFilter;
+    const update = t.updateBefore.bind(t);
+    t.updateBefore = (frame) => {
+      if (t.width !== sceneRT.width || t.height !== sceneRT.height) t.setSize(sceneRT.width, sceneRT.height);
+      return update(frame);
+    };
+    resolvedDepth = t;
+  }
+
   let composed = colorTex as unknown as V4;
   let ssrNode: ReturnType<typeof ssr> | null = null;
   if (q.ssr) {
     const normalTex = scenePass.getTextureNode('normal');
     const mrTex = scenePass.getTextureNode('metalrough');
     const sceneNormal = sample((uv) => colorToDirection(normalTex.sample(uv)));
-    ssrNode = ssr(colorTex, depthTex, sceneNormal, mrTex.r, mrTex.g, camera);
+    ssrNode = ssr(colorTex, resolvedDepth as never, sceneNormal, mrTex.r, mrTex.g, camera);
     ssrNode.resolutionScale = q.ssrScale;
-    ssrNode.maxDistance.value = 120;
+    ssrNode.maxDistance.value = 140;
     ssrNode.thickness.value = 0.25;
-    ssrNode.quality.value = 0.5;
-    ssrNode.opacity.value = 0.55;
+    ssrNode.quality.value = q.ssrScale > 0.6 ? 0.7 : 0.5;
+    ssrNode.opacity.value = 0.68;
     // Additive, not replace: reflections only ever add light (torch streaks, sky sheen), as in
     // the art. Replace-blending let reflected dark geometry punch black blobs into wet roads.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sr = ssrNode as any;
-    composed = (colorTex as any).add(vec4(sr.rgb.mul(sr.a).mul(0.7), 0)) as V4;
+    composed = (colorTex as any).add(vec4(sr.rgb.mul(sr.a).mul(0.75), 0)) as V4;
   }
   let aoNode: ReturnType<typeof ao> | null = null;
   if (q.ao) {
-    // GTAO rebuilds normals from depth with textureDimensions(depth, level), which WGSL has no form of for a
-    // multisampled depth texture: with MSAA on, the shader failed to compile and AO never ran. Resolve the depth
-    // first (sample 0, full float precision, nearest) into a plain texture at the scene pass's size.
-    let aoDepth: unknown = depthTex;
-    if (q.msaa) {
-      const t = rtt(depthTex as never, null, null, { type: THREE.FloatType });
-      // (32-bit float is not filterable everywhere in WebGPU: read it nearest)
-      if (t.renderTarget) t.renderTarget.texture.minFilter = t.renderTarget.texture.magFilter = THREE.NearestFilter;
-      const update = t.updateBefore.bind(t);
-      t.updateBefore = (frame) => { if (t.width !== sceneRT.width || t.height !== sceneRT.height) t.setSize(sceneRT.width, sceneRT.height); return update(frame); };
-      aoDepth = t;
-    }
-    aoNode = ao(aoDepth as never, null as never, camera);   // no normal target: GTAO rebuilds normals from depth
+    aoNode = ao(resolvedDepth as never, null as never, camera);   // no normal target: GTAO rebuilds normals from depth
     aoNode.resolutionScale = 0.5;
-    aoNode.samples.value = 8;
-    aoNode.radius.value = 0.9;
-    aoNode.distanceExponent.value = 1.6;
-    aoNode.thickness.value = 1.2;
+    aoNode.samples.value = 10;
+    aoNode.radius.value = 1.05;
+    aoNode.distanceExponent.value = 1.65;
+    aoNode.thickness.value = 1.25;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     // GTAO samples a 4×4 noise pattern; without a blur that pattern prints as a regular dot grid on walls and the far
     // hills (worst after the upscale + sharpen). A small blur at the AO's own resolution resolves it.
     const occ = (gaussianBlur((aoNode as any).getTextureNode(), float(1) as never, 2) as any).r;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    composed = (composed as any).mul(vec4(vec3(mix(float(1), occ, 0.85)), 1)) as V4;
+    composed = (composed as any).mul(vec4(vec3(mix(float(1), occ, 0.88)), 1)) as V4;
   }
   let raysNode: ReturnType<typeof godrays> | null = null;
   if (q.rays) {
@@ -138,10 +149,53 @@ export function buildPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, ca
     const shaft = (raysNode as any).getTextureNode().r;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     composed = (composed as any).add(vec4(tint.mul(shaft), 0)) as V4;
+  } else if (q.screenShafts) {
+    // CSM-compatible crepuscular sun shafts: 10 radial depth-sky occlusion taps at quarter res.
+    const { sun, reversedDepth = true } = q.screenShafts;
+    const sunUV = uniform(new THREE.Vector2(0.5, 0.5));
+    const shaftTint = uniform(new THREE.Color());
+    const sunDirW = new THREE.Vector3();
+    const sunFarW = new THREE.Vector3();
+    const camFwd = new THREE.Vector3();
+    const shaftColor = new THREE.Color();
+    const shaftBase = { sunUV, shaftTint };
+    void shaftBase;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const u: any = screenUV;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dTex: any = resolvedDepth;
+    const stepDelta = sunUV.sub(u).mul(1 / 12);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let acc: any = float(0);
+    const TAPS = 10;
+    for (let i = 0; i < TAPS; i++) {
+      const suv = u.add(stepDelta.mul(i + 0.5));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const d: any = dTex.sample(suv).r;
+      const isSky = reversedDepth ? smoothstep(float(0.004), float(0.0002), d) : smoothstep(float(0.996), float(0.9998), d);
+      const fade = float(1 - (i / TAPS) * 0.65);
+      acc = acc.add(isSky.mul(fade));
+    }
+    const radialFade = smoothstep(float(1.15), float(0.08), sunUV.sub(u).length());
+    const rawShaft = vec4(vec3(acc.div(TAPS).mul(radialFade)), 1);
+    const softShaft = gaussianBlur(internal(rawShaft, 0.3, 'scene') as never, float(1.8) as never, 4);
+    const shaftGain = uniform(0).onFrameUpdate(() => {
+      camera.updateMatrixWorld();
+      sunDirW.copy(sun.position).sub(sun.target.position).normalize();
+      camera.getWorldDirection(camFwd);
+      const facing = Math.max(0, camFwd.dot(sunDirW));
+      sunFarW.copy(camera.position).addScaledVector(sunDirW, 4000).project(camera);
+      (sunUV as unknown as { value: THREE.Vector2 }).value.set(sunFarW.x * 0.5 + 0.5, 0.5 - sunFarW.y * 0.5);
+      shaftColor.copy(sun.color).multiplyScalar(0.11 * Math.min(3.5, sun.intensity) * Math.pow(facing, 1.3));
+      (shaftTint as unknown as { value: THREE.Color }).value.copy(shaftColor);
+      return 1;
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    composed = (composed as any).add(vec4(shaftTint.mul((softShaft as any).r).mul(shaftGain), 0)) as V4;
   }
   let bloomNode: ReturnType<typeof bloom> | null = null;
   if (q.bloom === 'full') {
-    bloomNode = bloom(composed, 0.28, 0.18, 1.6);
+    bloomNode = bloom(composed, 0.26, 0.36, 1.15);
     composed = composed.add(bloomNode) as unknown as V4;
   } else if (q.bloom === 'lean') {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -178,9 +232,29 @@ export function buildPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, ca
   // Anti-alias at the internal resolution first: FSR1 expects AA'd input, and upscaling raw
   // aliased edges (then sharpening them) made thin geometry and textures shimmer.
   else if (q.smaa) composed = internal(fxaa(composed === colorTex ? composed : internal(composed))) as unknown as V4;
+  // Impact smear + kill-cam grade (fightLook), at the internal resolution before the upscale: 6 taps along the ray
+  // from the frame centre (zoom blur), red and blue pulled apart along it (fringe), then drain and vignette.
+  {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const src: any = composed === colorTex ? colorTex : internal(composed);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const u: any = screenUV, dir: any = u.sub(0.5), im: any = fightLook.impact, dr: any = fightLook.drama;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let acc: any = src.sample(u);
+    for (let i = 1; i < 6; i++) acc = acc.add(src.sample(u.sub(dir.mul(im.mul(0.045 * i / 5)))));
+    acc = acc.div(6);
+    const fr = dir.mul(im.mul(0.012).add(dr.mul(0.003)));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let c: any = vec3(src.sample(u.add(fr)).r, acc.g, src.sample(u.sub(fr)).b);
+    c = mix(acc.rgb, c, im.add(dr).min(1));
+    const lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
+    c = mix(c, vec3(lum), dr.mul(0.45));
+    c = c.mul(float(1).sub(dr.mul(0.55).mul(smoothstep(0.25, 0.75, dir.length()))));
+    composed = internal(vec4(c, 1));   // FSR needs a texture at the internal size (see internal())
+  }
   // FSR1: edge-adaptive upscale + gentle RCAS (0 = sharpest, 2 = none) with denoise, so
   // sharpening doesn't re-amplify texture sparkle.
-  if (q.upscale) composed = fsr1(composed, 0.6, true) as unknown as V4;
+  if (q.upscale) composed = fsr1(composed, 0.35, true) as unknown as V4;
   // Tone map + sRGB here (not implicitly) so the LUT grades display-referred colour.
   pipeline.outputColorTransform = false;
   composed = renderOutput(composed) as unknown as V4;

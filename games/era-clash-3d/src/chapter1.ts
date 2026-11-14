@@ -20,6 +20,7 @@ import { buildHillside, type Hillside } from './hillside';
 import { buildCastleHill, castleHillCut, castleRoadAt, TEMPLE, type CastleHill } from './castleHill';
 import { buildUndergrowth, type Undergrowth } from './undergrowth';
 import { buildForestFloor } from './forestFloor';
+import { buildRoadStones } from './roadStones';
 import { buildRiver, riverCut, riverAt, COAST_DZ, RIVER_TOP, type River } from './river';
 
 export interface Fire { group: THREE.Group; flames: THREE.Mesh[]; smoke: THREE.Mesh[]; seed: number; size: number; raid: boolean }
@@ -27,6 +28,8 @@ export interface Section { name: string; zMin: number; zMax: number; spawn: THRE
 export interface Chapter1World {
   group: THREE.Group;
   grass: GrassField | null;
+  /** What's underfoot at (x, z): dust rises off dirt, mud and puddles splash (main.ts). */
+  surfaceAt(x: number, z: number): 'dirt' | 'grass' | 'sand' | 'deck';
   spawn: { position: THREE.Vector3; yaw: number };
   sections: Section[];
   fires: Fire[];
@@ -143,10 +146,31 @@ export function heightAt(x: number, z: number): number {
     const k = ss(CHANNEL.half + 0.4, CHANNEL.half - 0.2, Math.abs(x - CHANNEL.x)) * ss(CHANNEL.z0 - 3, CHANNEL.z0, z);
     y = Math.min(y, y + (CHANNEL.bed - y) * k);
   }
+  y += roadRelief(x, z);
   if (z < CHANNEL.z0 + 2) y = riverCut(x, z, y);   // the river through the forest
   if (z > 160) y = castleHillCut(x, z, y);          // the castle's hill, its road, the temple's terrace
   return y;
 }
+/**
+ * The dirt road's own shape outside the town (harbour → Outer Wall): worn a hand's depth below its shoulders, with
+ * long shallow dips, the odd pothole, and a little crown between the wheel tracks. Small — centimetres — but the
+ * light catches it, and it's real ground (the player and the collision walk on it). The ruts and creases finer than
+ * the terrain grid are drawn in the ground's shading (ground.ts).
+ */
+export function roadRelief(x: number, z: number) {
+  if (z > OTSU.wallZ - 1 || z < -462) return 0;
+  const dr = Math.abs(x - roadX(z));
+  if (dr > 4.2) return 0;
+  const k = 1 - Math.min(1, Math.max(0, (dr - 2.2) / 2.0)) ** 2;      // the travelled width, easing up the shoulders
+  const worn = -0.07 * k;
+  const dips = 0.045 * Math.sin(z * 0.31 + Math.sin(z * 0.07) * 2) * Math.sin(x * 0.53 + z * 0.11) + 0.03 * Math.sin(z * 0.83 + x * 0.4);
+  // potholes: one every ~25 m, a soft bowl off the centre line
+  const cell = Math.floor(z / 25), ph = Math.sin(cell * 91.7) * 43758.5453 % 1, pz = cell * 25 + 6 + Math.abs(ph) * 13;
+  const px = roadX(pz) + (Math.abs(Math.sin(cell * 17.3) * 1e4 % 1) - 0.5) * 2.4;
+  const pd = Math.hypot(x - px, z - pz), pot = pd < 1.4 ? -0.11 * (1 - (pd / 1.4) ** 2) ** 2 : 0;
+  return (worn + dips * k) * (dr < 4.2 ? 1 : 0) + pot * k;
+}
+
 /** Where the road runs (x for a given z). */
 export const roadX = (z: number) => Math.sin(z * 0.028) * 7;
 
@@ -156,7 +180,7 @@ function puffTex(inner: string, outer: string) { return canvasTex(128, 128, (g) 
  *  per-instance fade from `userData.fade`. */
 function billboards(tex: THREE.Texture, max: number, o: { additive?: boolean; shade?: any } = {}) {   // eslint-disable-line @typescript-eslint/no-explicit-any
   const fade = new THREE.InstancedBufferAttribute(new Float32Array(max), 1);
-  const mat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: o.additive ? THREE.AdditiveBlending : THREE.NormalBlending });
+  const mat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: o.additive ? THREE.AdditiveBlending : THREE.NormalBlending, fog: !o.additive });
   const tx = texture(tex);
   mat.colorNode = o.shade ? tx.rgb.mul(o.shade) : tx.rgb;
   mat.opacityNode = tx.a.mul(instancedBufferAttribute(fade));
@@ -512,7 +536,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
   const signalFire = fires[fires.length - 1];
   const boatFires = otsu.spots.boats.map((b) => { fire(b.boat.x, b.boat.z, 0.75, false, b.boat.y + 0.4 - heightAt(b.boat.x, b.boat.z)); return fires[fires.length - 1]; });
   // embers: one instanced draw, swirling up round the camera
-  const emberMat = new THREE.MeshBasicNodeMaterial({ color: 0xffa040, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  const emberMat = new THREE.MeshBasicNodeMaterial({ color: 0xffa040, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
   emberMat.colorNode = vec3(2.6, 1.15, 0.35);
   const EMBERS = 280;
   const embers = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.06, 0.06), emberMat, EMBERS);
@@ -660,8 +684,12 @@ export async function buildChapter1(): Promise<Chapter1World> {
   const builtOver = (x: number, z: number) => { for (const b0 of blockedNear(x, z)) if (x > b0.min.x && x < b0.max.x && z > b0.min.z && z < b0.max.z) return true; return false; };
   const wild = (x: number, z: number) => (z < OTSU.wallZ - 4 || (z > 168 && hillTerraceK(x, z) === 0)) && splatAt(x, z).sand < 0.3 ? 1 : 0;
   const undergrowth: Undergrowth | null = new URLSearchParams(location.search).has('noplants') ? null
-    : buildUndergrowth({ heightAt, canopy, riverEdge, roadD, blocked: builtOver, wild });
+    : buildUndergrowth({ heightAt, canopy, riverEdge, roadD, blocked: builtOver, wild,
+      dirtRoad: (x, z) => { if (z > OTSU.wallZ - 2 || z < -462) return false; const r = riverAt(x, z); return !(r && r.d < r.half + 3); } });
   if (undergrowth) group.add(undergrowth.group);
+  const stones = new URLSearchParams(location.search).has('nostones') ? null : buildRoadStones({ heightAt, roadX,
+    skip: (x, z) => { const r = z < CHANNEL.z0 + 2 ? riverAt(x, z) : null; return !!(r && r.d < r.half + 2.5) || builtOver(x, z); } });
+  if (stones) group.add(stones.group);
   group.add(buildForestFloor({
     area: { x0: -158, x1: 40, z0: -445, z1: -60 }, sunDir: new THREE.Vector3(120, -60, -260),
     place: { heightAt, riverEdge, glade: (x, z) => THREE.MathUtils.clamp((gladeNoise(x, z) - 0.45) / 0.4, 0, 1),
@@ -674,6 +702,11 @@ export async function buildChapter1(): Promise<Chapter1World> {
   const SZ = -66 + COAST_DZ, spawn = { position: new THREE.Vector3(roadX(SZ), heightAt(roadX(SZ), SZ), SZ), yaw: 0 };
 
   return {
+    surfaceAt: (x: number, z: number) => {
+      if (Math.max(canal.deckAt(x, z), channel.deckAt(x, z), river.deckAt(x, z)) > heightAt(x, z) + 0.05) return 'deck' as const;
+      const sp = splatAt(x, z);
+      return sp.sand > 0.5 ? 'sand' as const : sp.dirt + sp.gravel > 0.5 ? 'dirt' as const : 'grass' as const;
+    },
     group, grass, spawn, sections, fires, bell, petals, heightAt: groundAt, village, forest, otsu, boatFires, hill, signalFire, water, channel,
     waterPosts: [...canal.posts, ...channel.posts, ...river.posts], river, treeSpots, castleHill,
     // for the map (worldMap.ts / places.ts)
@@ -694,6 +727,7 @@ export async function buildChapter1(): Promise<Chapter1World> {
     update(dt, t, camera) {
       grass?.update(camera.position);
       undergrowth?.update(camera.position);
+      stones?.update(camera.position);
       for (const pl of plumes) pl.sprites.forEach((sp, k) => {
         const ph = ((t * 0.07 + k / pl.sprites.length + pl.seed) % 1);
         sp.position.set(pl.p.x + ph * ph * 7 + Math.sin(t * 0.4 + k + pl.seed) * 0.4, pl.p.y + ph * 14, pl.p.z + ph * 2.5);
@@ -714,15 +748,28 @@ export async function buildChapter1(): Promise<Chapter1World> {
       steamBoard.sync(steamItems, cq); smokeBoard.sync(smokeItems, cq); flameBoard.sync(flameItems, cq);
       // the fires nearest the camera carry the pooled lights (two; the third joins once the town is burning)
       const cpos = camera.position, nLights = raidK > 0.5 ? 3 : 2;
-      const order = fires.filter((f) => f.group.visible).sort((a, b) => a.group.position.distanceToSquared(cpos) - b.group.position.distanceToSquared(cpos));
+      // Zero-GC top-K fire light selection (avoids per-frame array filter + sort closures).
+      let f0: (typeof fires)[number] | null = null, d0 = Infinity;
+      let f1: (typeof fires)[number] | null = null, d1 = Infinity;
+      let f2: (typeof fires)[number] | null = null, d2 = Infinity;
+      for (let i = 0; i < fires.length; i++) {
+        const f = fires[i];
+        if (!f.group.visible) continue;
+        const d = f.group.position.distanceToSquared(cpos);
+        if (d < d0) { f2 = f1; d2 = d1; f1 = f0; d1 = d0; f0 = f; d0 = d; }
+        else if (d < d1) { f2 = f1; d2 = d1; f1 = f; d1 = d; }
+        else if (d < d2) { f2 = f; d2 = d; }
+      }
+      const picked = [f0, f1, f2];
       firePool.forEach((l, i) => {
-        const f = order[i];
+        const f = picked[i];
         if (!f || i >= nLights) { l.intensity = 0; return; }
         const g = f.raid ? Math.min(1, raidK * 1.4) : 1;
         l.position.copy(f.group.position); l.position.y += 2.5 * f.size; l.distance = 22 * f.size;
         l.intensity = (26 + 10 * Math.sin(t * 13 + f.seed) * Math.sin(t * 7.3 + f.seed * 2)) * g * (1 + raidK * 0.6);
       });
-      // embers
+      // embers (reuse scratch vectors: zero per-frame allocations)
+      const _tmpPos = new THREE.Vector3(), _tmpScale = new THREE.Vector3();
       if (embers.visible) {
         const cp = camera.position, cq = (camera as THREE.Camera).quaternion;
         for (let i = 0; i < embers.count; i++) {
@@ -731,7 +778,9 @@ export async function buildChapter1(): Promise<Chapter1World> {
           if (v.p.y > 16) { v.p.y = -1; v.p.x = (R() - 0.5) * 36; v.p.z = (R() - 0.5) * 36; }
           if (v.p.x < -18) v.p.x += 36; if (v.p.x > 18) v.p.x -= 36; if (v.p.z < -18) v.p.z += 36; if (v.p.z > 18) v.p.z -= 36;
           const fl = 0.6 + 0.4 * Math.sin(t * 9 + v.ph * 3);
-          m4.compose(new THREE.Vector3(cp.x + v.p.x, cp.y - 3 + v.p.y, cp.z + v.p.z), cq, new THREE.Vector3(v.s * fl, v.s * fl, 1));
+          _tmpPos.set(cp.x + v.p.x, cp.y - 3 + v.p.y, cp.z + v.p.z);
+          _tmpScale.set(v.s * fl, v.s * fl, 1);
+          m4.compose(_tmpPos, cq, _tmpScale);
           embers.setMatrixAt(i, m4);
         }
         embers.instanceMatrix.needsUpdate = true;
@@ -743,7 +792,8 @@ export async function buildChapter1(): Promise<Chapter1World> {
         if (v.p.y < -2) { v.p.y = 14; }
         if (v.p.x < -20) v.p.x += 40; if (v.p.x > 20) v.p.x -= 40; if (v.p.z < -20) v.p.z += 40; if (v.p.z > 20) v.p.z -= 40;
         e.set(t * 2 + v.ph, t * 1.3 + v.ph, 0); q.setFromEuler(e);
-        m4.compose(new THREE.Vector3(c.x + v.p.x, c.y - 4 + v.p.y, c.z + v.p.z), q, one);
+        _tmpPos.set(c.x + v.p.x, c.y - 4 + v.p.y, c.z + v.p.z);
+        m4.compose(_tmpPos, q, one);
         petals.setMatrixAt(i, m4);
       }
       petals.instanceMatrix.needsUpdate = true;

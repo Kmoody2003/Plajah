@@ -11,9 +11,11 @@
 // and WebGL shader patches don't run on the WebGPU renderer).
 import * as THREE from 'three/webgpu';
 import { windAt, localWindDir } from './wind';
-import { texture, uv, positionLocal, time, sin, cos, vec2, vec3, float, attribute, mix, color, uniform, cameraPosition, smoothstep, interleavedGradientNoise, screenCoordinate, select } from 'three/tsl';
+import { texture, uv, positionLocal, time, sin, cos, vec2, vec3, float, attribute, mix, color, uniform, cameraPosition, smoothstep, select } from 'three/tsl';
 import { Tree } from '@dgreenheck/ez-tree';
 import { rng } from './kit';
+import { cutAlpha as cutAlphaBy, keep, setCoverage } from './lodFade';
+import { seasonU } from './seasonLook';
 
 const TEX = '/games/ravencrest/assets/trees/';
 export type Species = 'pine' | 'oak' | 'ash' | 'aspen' | 'dead' | 'umbrella' | 'cherry';
@@ -77,20 +79,36 @@ function sway(amount: number, bow: number, flutter = 0) {
 }
 
 /**
- * LOD cross-fade: a near tree and its impostor overlap across ±LOD_FADE m of the switch distance and dissolve into
- * each other with screen-space dither (complementary noise, so no gap and no double), instead of the tree snapping
- * between the two at one line. `treeLod` per instance: (switch distance, 0 = full tree | 1 = impostor).
+ * LOD cross-fade: a near tree and its impostor overlap across ±LOD_FADE m of the switch distance and fade into each
+ * other, instead of the tree snapping between the two at one line. The fade is MSAA coverage (alpha-to-coverage):
+ * the resolve averages the samples into a true blend, where a screen dither printed a lattice on every tree in the
+ * band. `treeLod` per instance: (switch distance, 0 = full tree | 1 = impostor).
  */
-export const LOD_FADE = 4;
+export const LOD_FADE = 8;
 /** Off while the impostors are baked (whole trees, nowhere near the camera). */
 const uLodOn = uniform(1);
-function lodMask() {
+function lodFade() {
   const tw = attribute<'vec4'>('treeWind', 'vec4'), lod = attribute<'vec2'>('treeLod', 'vec2');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const d: any = vec2(tw.y, tw.z).sub(cameraPosition.xz).length();
   const k = smoothstep(lod.x.sub(LOD_FADE), lod.x.add(LOD_FADE), d);
-  const n = interleavedGradientNoise(screenCoordinate.xy);
-  return uLodOn.lessThan(0.5).or(select(lod.y.greaterThan(0.5), n.lessThan(k), n.greaterThanEqual(k)));
+  return select(uLodOn.lessThan(0.5), float(1), select(lod.y.greaterThan(0.5), k, float(1).sub(k)));
+}
+/** Alpha-cut card alpha, sharpened to its edge, times the LOD fade (core/lodFade.ts). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const cutAlpha = (a: any, cut: number) => cutAlphaBy(a, cut, lodFade());
+
+const EVERGREEN = new Set(['pine', 'umbrella']);
+/**
+ * Autumn colour for a leaf card: gold, orange or red by the tree (a hash of where it stands, so neighbours differ),
+ * oaks to russet-brown; the card's own light and dark kept.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function autumnLeaf(rgb: any, kind: string): any {
+  const tw = attribute<'vec4'>('treeWind', 'vec4');
+  const h = sin(tw.y.mul(12.9898).add(tw.z.mul(78.233))).mul(43758.5453).fract();
+  const pal = kind === 'oak' ? mix(color(0x9a5a24), color(0x7a3a1a), h) : mix(mix(color(0xe0a630), color(0xd86a1e), smoothstep(0.25, 0.6, h)), color(0xb03422), smoothstep(0.65, 0.95, h));
+  return pal.mul(rgb.dot(vec3(0.3, 0.6, 0.1)).mul(2.6).add(0.15));
 }
 
 /** The ez-tree bark scans (pine | oak | birch), for things made of trees (fallen logs). */
@@ -104,7 +122,9 @@ function barkMaterial(type: string) {
     m.normalMap = tex(`${type}_normal_1k.jpg`, false);
     m.roughnessMap = tex(`${type}_roughness_1k.jpg`, false);
     m.positionNode = sway(0.008, 0.016);
-    m.maskNode = lodMask();
+    m.alphaToCoverage = true;
+    m.opacityNode = lodFade();
+    m.maskNode = keep(m.opacityNode);
     barkMats.set(type, m);
   }
   return barkMats.get(type)!;
@@ -115,16 +135,23 @@ const leafMats = new Map<string, THREE.MeshLambertNodeMaterial>();
 function leafMaterial(type: string, tintKey = type) {
   const key = type + '|' + tintKey;
   if (!leafMats.has(key)) {
-    const m = new THREE.MeshLambertNodeMaterial({ side: THREE.DoubleSide, alphaTest: 0.45, alphaToCoverage: true });
+    const m = new THREE.MeshLambertNodeMaterial({ side: THREE.DoubleSide, alphaToCoverage: true });
     const t = texture(tex(`${type}_color.png`, true), uv());
     // blossom: the leaf card's shape, its colour taken toward the tint (a pale pink, not a dark green × pink)
     const base = tintKey === 'cherry' ? t.rgb.dot(vec3(0.3, 0.6, 0.1)).mul(0.5).add(0.9) : t.rgb.mul(2.1);
-    m.colorNode = base.mul(mix(color(LEAF_TINT[tintKey] ?? 0x445e44), color(LEAF_GREEN[tintKey] ?? 0x3b7a3c), uLeafDay));
+    let col: any = base.mul(mix(color(LEAF_TINT[tintKey] ?? 0x445e44), color(LEAF_GREEN[tintKey] ?? 0x3b7a3c), uLeafDay));   // eslint-disable-line @typescript-eslint/no-explicit-any
+    // the season (core/seasonLook.ts): out of spring a cherry is in leaf; broadleaves turn in autumn and are bare in
+    // winter; the evergreens hold a little snow
+    const ev = EVERGREEN.has(tintKey);
+    if (tintKey === 'cherry') col = mix(t.rgb.mul(2.1).mul(color(0x5c9a3a)), col, seasonU.bloom.mul(uLodOn).add(float(1).sub(uLodOn)));
+    if (!ev) col = mix(col, autumnLeaf(t.rgb, tintKey), seasonU.autumn.mul(uLodOn));
+    col = mix(col, vec3(0.86, 0.88, 0.92), seasonU.snow.mul(ev ? 0.35 : 0.2).mul(uLodOn));
+    m.colorNode = col;
     // blossom petals are thin and translucent: backlit, they glow pale pink instead of going dark
-    if (tintKey === 'cherry') (m as unknown as { emissiveNode: unknown }).emissiveNode = color(0xf2b4c4).mul(0.42);
-    m.opacityNode = t.a;
+    if (tintKey === 'cherry') (m as unknown as { emissiveNode: unknown }).emissiveNode = color(0xf2b4c4).mul(0.42).mul(seasonU.bloom.mul(uLodOn).add(float(1).sub(uLodOn)));
+    m.opacityNode = ev ? cutAlpha(t.a, 0.45) : cutAlpha(t.a, 0.45).mul(float(1).sub(seasonU.bare.mul(uLodOn)));
+    m.maskNode = keep(m.opacityNode);
     m.positionNode = sway(0.016, 0.024, 0.0035);
-    m.maskNode = lodMask();
     leafMats.set(key, m);
   }
   return leafMats.get(key)!;
@@ -137,7 +164,7 @@ function leafMaterial(type: string, tintKey = type) {
  */
 function depthPrepass(im: THREE.InstancedMesh) {
   const lit = im.material as THREE.MeshLambertNodeMaterial;
-  const d = new THREE.MeshBasicNodeMaterial({ side: lit.side, alphaTest: lit.alphaTest, alphaToCoverage: lit.alphaToCoverage, colorWrite: false });
+  const d = new THREE.MeshBasicNodeMaterial({ side: lit.side, alphaToCoverage: lit.alphaToCoverage, colorWrite: false });
   d.opacityNode = lit.opacityNode;
   d.maskNode = lit.maskNode;
   d.positionNode = lit.positionNode;   // same sway graph → same depth, so the lit pass's LessEqual matches
@@ -179,6 +206,8 @@ export class Forest {
   static cull = true;
   /** LOD: full 3D trees inside this distance from the camera, their baked impostors beyond it (Era Clash). */
   static nearDist = 60;
+  /** MSAA is on (main.ts): LOD bands blend by coverage; off, they hand over at the midpoint. */
+  static set coverage(on: boolean) { setCoverage(on); }
   private cullSets: CullSet[] = [];
   readonly group = new THREE.Group();
   private variants: Variant[] = [];
@@ -398,18 +427,24 @@ export class Forest {
           geo.setIndex(idx);
         };
         merge([qa, qb, qc]);
-        const mat = new THREE.MeshLambertNodeMaterial({ side: THREE.DoubleSide, alphaTest: 0.5, alphaToCoverage: true });
+        const mat = new THREE.MeshLambertNodeMaterial({ side: THREE.DoubleSide, alphaToCoverage: true });
         // Render targets are stored top-down under WebGPU (flip V), bottom-up under WebGL.
         const fuv = isWebGL ? uv() : vec2(uv().x, float(1).sub(uv().y));
         const [ta, tb, tc] = vw.shots.map((t) => texture(t, fuv));
         const sel = attribute<'float'>('view', 'float');
         const c = mix(mix(ta, tb, sel.min(1)), tc, sel.sub(1).max(0));
-        mat.colorNode = c.rgb;   // baked with the day tints already
-        mat.opacityNode = c.a;
+        // baked with the spring tints; the season turns them here (the bake itself is season-neutral)
+        const evI = spName === 'pine' || spName === 'umbrella';
+        let ic: any = c.rgb;   // eslint-disable-line @typescript-eslint/no-explicit-any
+        if (spName === 'cherry') ic = mix(c.rgb.dot(vec3(0.3, 0.6, 0.1)).mul(vec3(0.42, 0.62, 0.3)), ic, seasonU.bloom);
+        if (!evI) ic = mix(ic, autumnLeaf(c.rgb.mul(0.9), spName), seasonU.autumn);
+        if (!evI) ic = mix(ic, c.rgb.dot(vec3(0.3, 0.6, 0.1)).mul(vec3(0.62, 0.52, 0.44)), seasonU.bare);   // bare crowns: grey-brown twigs
+        mat.colorNode = mix(ic, vec3(0.86, 0.88, 0.92), seasonU.snow.mul(evI ? 0.35 : 0.2));
+        mat.opacityNode = cutAlpha(c.a, 0.5).mul(evI ? float(1) : float(1).sub(seasonU.bare.mul(0.55)));
         // a flat card goes dark when the low sun is behind it: a little of its own colour back (blossom glows more)
-        (mat as unknown as { emissiveNode: unknown }).emissiveNode = c.rgb.mul(spName === 'cherry' ? 0.45 : 0.14);
+        (mat as unknown as { emissiveNode: unknown }).emissiveNode = (mat.colorNode as any).mul(spName === 'cherry' ? seasonU.bloom.mul(0.31).add(0.14) : float(0.14));   // eslint-disable-line @typescript-eslint/no-explicit-any
         mat.positionNode = sway(0.012, 0.02);
-        mat.maskNode = lodMask();
+        mat.maskNode = keep(mat.opacityNode);
         const im = new THREE.InstancedMesh(geo, mat, ms.length);
         ms.forEach((m, i) => im.setMatrixAt(i, m));
         im.computeBoundingSphere();

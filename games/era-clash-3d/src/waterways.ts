@@ -6,7 +6,8 @@
 // raft.ts) and for the raiders, who keep out of it (core/mobs.ts).
 import * as THREE from 'three/webgpu';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { color, mix, positionWorld, sin, time, float, smoothstep, normalWorld, cameraPosition, normalize, dot, pow, max } from 'three/tsl';
+import { color, mix, positionWorld, sin, cos, vec3, time, float, smoothstep, normalWorld, cameraPosition, normalize, dot, pow, max } from 'three/tsl';
+import { setReflect } from './core/materials';
 import { collide } from './core/collision';
 import { boxGeo, gableGeo } from './village';
 import type { CanalSpec } from './canal';
@@ -181,14 +182,19 @@ export function buildChannel(o: { spec: ChannelSpec; heightAt: (x: number, z: nu
     }
     for (let i = 0; i < n; i++) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
-    const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.06, metalness: 0 });
+    const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.04, metalness: 0 });
     const rip = sin(positionWorld.x.mul(2.1).add(time.mul(0.8))).mul(sin(positionWorld.z.mul(1.6).add(time.mul(1.4)))).mul(0.5).add(0.5);
+    const rip2 = cos(positionWorld.x.mul(4.3).sub(time.mul(1.5))).mul(sin(positionWorld.z.mul(3.4).add(time.mul(1.1)))).mul(0.5).add(0.5);
     const view = normalize(cameraPosition.sub(positionWorld));
-    const fres = pow(float(1).sub(max(dot(view, normalWorld), 0)), 3);
+    const fres = pow(float(1).sub(max(dot(view, normalWorld), 0)), 3.6);
+    const caustic = pow(rip2, 3).mul(0.16);
     // greener in the town, turning to the harbour's blue toward the mouth
     const sea = smoothstep(H.gateZ, H.out, positionWorld.z);
-    m.colorNode = mix(mix(color(0x1a2a24), color(0x163a40), sea), color(0x2c4038), rip.mul(0.35)).mul(float(1).sub(fres.mul(0.4)));
-    m.roughnessNode = mix(float(0.04), float(0.12), smoothstep(0.3, 0.9, rip));
+    m.colorNode = mix(mix(color(0x162922), color(0x133842), sea), color(0x2d4e44), rip.mul(0.38))
+      .add(vec3(0.08, 0.17, 0.18).mul(caustic))
+      .mul(float(1).sub(fres.mul(0.36)));
+    m.roughnessNode = mix(float(0.03), float(0.11), smoothstep(0.25, 0.9, rip));
+    setReflect(m, 0.92, m.roughnessNode);
     const w = new THREE.Mesh(g, m); w.receiveShadow = true; group.add(w);
   }
 

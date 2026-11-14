@@ -3,8 +3,9 @@
 // falling gently from the channel's level to the sea's. Rafts and swimmers use it through waterways' makeWater.
 import * as THREE from 'three/webgpu';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { color, mix, positionWorld, sin, time, float, smoothstep, normalWorld, cameraPosition, normalize, dot, pow, max } from 'three/tsl';
+import { color, mix, positionWorld, sin, cos, time, vec3, float, smoothstep, normalWorld, cameraPosition, normalize, dot, pow, max } from 'three/tsl';
 import { collide } from './core/collision';
+import { setReflect } from './core/materials';
 import { boxGeo } from './village';
 
 /** How far the coast moved south when the forest went in between the harbour and the Outer Wall (2026-11-11). */
@@ -125,15 +126,18 @@ export function buildRiver(o: { heightAt: (x: number, z: number) => number; road
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
     // the winding can flip a triangle's facing: the water is drawn both sides with an upward normal
     const nrm = g.attributes.normal as THREE.BufferAttribute; for (let i = 0; i < nrm.count; i++) nrm.setXYZ(i, 0, 1, 0);
-    const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.06, metalness: 0, side: THREE.DoubleSide });
+    const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.045, metalness: 0, side: THREE.DoubleSide });
     // the current: ripples drift downstream (south) faster than the canal's
     const rip = sin(positionWorld.x.mul(1.9).add(time.mul(0.9))).mul(sin(positionWorld.z.mul(1.4).add(time.mul(2.2)))).mul(0.5).add(0.5);
+    const froth = cos(positionWorld.x.mul(4.5).sub(time.mul(1.2))).mul(sin(positionWorld.z.mul(3.2).add(time.mul(3.1)))).mul(0.5).add(0.5);
     const view = normalize(cameraPosition.sub(positionWorld));
-    const fres = pow(float(1).sub(max(dot(view, normalWorld), 0)), 3);
-    // forest-green and peaty under the trees, the sea's blue toward the mouth
+    const fres = pow(float(1).sub(max(dot(view, normalWorld), 0)), 3.6);
+    // forest-green and peaty under the trees, the sea's blue toward the mouth, current foam streaks
     const mouth = smoothstep(-400, -470, positionWorld.z);
-    m.colorNode = mix(mix(color(0x18291e), color(0x163a40), mouth), color(0x2e4636), rip.mul(0.4)).mul(float(1).sub(fres.mul(0.4)));
-    m.roughnessNode = mix(float(0.04), float(0.14), smoothstep(0.3, 0.9, rip));
+    const rough = mix(float(0.032), float(0.13), smoothstep(0.28, 0.9, rip));
+    m.colorNode = mix(mix(color(0x16291e), color(0x143e46), mouth), color(0x314e3d), rip.mul(0.4)).add(vec3(0.1, 0.17, 0.15).mul(pow(froth, 4).mul(0.18))).mul(float(1).sub(fres.mul(0.38)));
+    m.roughnessNode = rough;
+    setReflect(m, 0.92, rough);
     const w = new THREE.Mesh(g, m); w.receiveShadow = true; group.add(w);
   }
 

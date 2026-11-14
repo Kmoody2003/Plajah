@@ -5,8 +5,9 @@
 // world (townsfolk, villagers, markers).
 import * as THREE from 'three/webgpu';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { color, mix, positionWorld, sin, time, vec3, float, smoothstep, normalWorld, cameraPosition, normalize, dot, pow, max } from 'three/tsl';
+import { color, mix, positionWorld, sin, cos, time, vec3, float, smoothstep, normalWorld, cameraPosition, normalize, dot, pow, max } from 'three/tsl';
 import { collide } from './core/collision';
+import { setReflect } from './core/materials';
 import { boxGeo } from './village';
 import { walkRamp } from './waterways';
 
@@ -125,12 +126,15 @@ export function buildCanal(o: { spec: CanalSpec; heightAt: (x: number, z: number
   // ── The water: still, dark green, a soft moving ripple and the sky in it ─────────────────────────
   const wg = new THREE.PlaneGeometry(C.east - C.west, C.half * 2 + 0.4, 48, 4).rotateX(-Math.PI / 2);
   const water = new THREE.Mesh(wg, (() => {
-    const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.06, metalness: 0 });
+    const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.04, metalness: 0 });
     const rip = sin(positionWorld.x.mul(1.7).add(time.mul(0.9))).mul(sin(positionWorld.z.mul(2.3).sub(time.mul(0.7)))).mul(0.5).add(0.5);
+    const rip2 = cos(positionWorld.x.mul(4.1).sub(time.mul(1.3))).mul(sin(positionWorld.z.mul(3.6).add(time.mul(1.1)))).mul(0.5).add(0.5);
     const view = normalize(cameraPosition.sub(positionWorld));
-    const fres = pow(float(1).sub(max(dot(view, normalWorld), 0)), 3);
-    m.colorNode = mix(color(0x1a2a24), color(0x2c4038), rip.mul(0.35)).mul(float(1).sub(fres.mul(0.4)));
-    m.roughnessNode = mix(float(0.04), float(0.12), smoothstep(0.3, 0.9, rip));
+    const fres = pow(float(1).sub(max(dot(view, normalWorld), 0)), 3.8);
+    const caustic = pow(rip2, 3).mul(0.14);
+    m.colorNode = mix(color(0x162922), color(0x2d4a40), rip.mul(0.4)).add(vec3(0.08, 0.16, 0.14).mul(caustic)).mul(float(1).sub(fres.mul(0.38)));
+    m.roughnessNode = mix(float(0.03), float(0.1), smoothstep(0.25, 0.9, rip));
+    setReflect(m, 0.94, m.roughnessNode);
     void vec3;
     return m;
   })());

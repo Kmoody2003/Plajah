@@ -3,11 +3,12 @@
 // the WebGPU renderer and post chain with iGPU tiers + dynamic resolution, the capsule player and follow
 // camera, contract-rig characters with CMU motion capture, authored strikes, and the mob AI.
 import * as THREE from 'three/webgpu';
-import { buildPost } from './core/post';
+import { buildPost, fightLook } from './core/post';
+import { CSMShadowNode } from 'three/addons/csm/CSMShadowNode.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { texture, equirectUV, positionWorldDirection, mix, smoothstep, vec3 } from 'three/tsl';
 import { initKTX2 } from './core/ktx2';
-import { setTextureTier } from './core/materials';
+import { setTextureTier, setReflectEnabled } from './core/materials';
 import { CollisionWorld } from './core/collision';
 import { PlayerController } from './core/player';
 import { loadJack, prefetchHero, type Character, type CombatMove } from './core/character';
@@ -31,6 +32,12 @@ import { Forest } from './core/forest';
 import { Binds, openBindEditor, type Action } from './binds';
 import { Props, type Body } from './props';
 import { Villagers } from './villagers';
+import { Climate, rollDay, loadDay, saveDay, SEASONS, SKIES, type DayState, type Season, type Sky } from './core/climate';
+import { Precip } from './core/precip';
+import { seasonU } from './core/seasonLook';
+import { groundWeather, puddleAt } from './ground';
+import { Particles } from './core/vfx';
+import { wind } from './core/wind';
 
 const params = new URLSearchParams(location.search);
 const $ = (id: string) => document.getElementById(id)!;
@@ -75,13 +82,24 @@ scene.fog = new THREE.Fog(0x8a5a6a, 70, 620);
 const hemi = new THREE.HemisphereLight(0xb8a8d8, 0x6a5040, 2.4); scene.add(hemi);
 const amb = new THREE.AmbientLight(0x6a5a6a, 0.6); scene.add(amb);
 /** Where the sun is (set from the HDRI when there is one); the light follows the player along it. */
-let lookCtl: { setRaid(k: number): void } | null = null;
+let lookCtl: { setRaid(k: number): void; setClimate(c: { elevDeg: number; azDeg: number; cloud: number; precip: number }): void } | null = null;
 let raidK = 0, raidShown = -1;
 const sunDir = new THREE.Vector3(-120, 60, 260).normalize();
 const sun = new THREE.DirectionalLight(0xffb088, 3.2);
 sun.position.set(-120, 60, 260);
 if (Q.shadow && !params.has('noshadow')) { sun.castShadow = true; sun.shadow.mapSize.setScalar(Q.shadow); const r = Q.shadow > 2048 ? 40 : 26; Object.assign(sun.shadow.camera, { left: -r, right: r, top: r, bottom: -r, far: 600 }); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04; }
 scene.add(sun, sun.target);
+// Cascaded shadows on the discrete-GPU tiers: the near cascade stays as crisp as the old tight frustum round Haru,
+// and the far ones carry the shadows of roofs, walls and trees out across the city (one tight map left everything
+// past ~40 m flat-lit, which read as painted). ?nocsm keeps the single map.
+const useCSM = sun.castShadow && (quality === 'high' || quality === 'ultra') && !params.has('nocsm');
+if (useCSM) {
+  const csm = new CSMShadowNode(sun, { cascades: 3, maxFar: 240, mode: 'practical', lightMargin: 120 });
+  csm.fade = true;
+  sun.shadow.shadowNode = csm as never;
+}
+const useSSR = (quality === 'high' || quality === 'ultra') && !params.has('nossr');
+setReflectEnabled(useSSR);
 $('loadMsg').textContent = 'Painting the valley';
 const world = await buildChapter1();
 scene.add(world.group);
@@ -104,6 +122,75 @@ if (!params.has('painted')) {
     lookCtl = g;
     console.info(`[eraclash3d] sky ${file}: photo sun ${g.photoElevation.toFixed(1)}°, turned ${THREE.MathUtils.radToDeg(g.rotation).toFixed(0)}°`);
   } catch (e) { console.warn('[eraclash3d] HDRI failed, keeping the painted sky', e); }
+}
+// ── The day (core/climate.ts): season, hour and weather rolled fresh for every new game; ?season= ?hour= ?sky= pin
+//    them (and hold the clock / the weather) for review; Continue picks up a saved day ─────────────────────────────
+function pinnedDay(base: DayState): DayState {
+  const d = { ...base };
+  const se = params.get('season') as Season | null, hr = params.get('hour'), sk = params.get('sky') as Sky | null;
+  if (se && SEASONS.includes(se)) d.season = se;
+  if (hr !== null && hr !== '') d.hour = ((Number(hr) % 24) + 24) % 24;
+  if (sk && SKIES.includes(sk)) d.sky = sk;
+  return d;
+}
+let climate = new Climate(pinnedDay(rollDay()));
+const pinClimate = () => { climate.frozenClock = params.has('hour'); climate.frozenSky = params.has('sky'); };
+pinClimate();
+const precip = new Precip(quality === 'low' ? 3500 : 9000, quality === 'low' ? 2500 : 6000);
+scene.add(precip.group);
+/** Dust off a dry road, spray from the puddles, snow kicked up (run only; a walk stirs nothing but water). */
+const kick = new Particles(420, false, true);
+scene.add(kick.mesh);
+let stepPhase = 0;
+const DAY_NAMES: Record<Sky, string> = { clear: 'Clear', cloudy: 'Overcast', lightRain: 'Light rain', heavyRain: 'Heavy rain', snow: 'Snow' };
+const hourName = (h: number) => (h < 5 ? 'Night' : h < 7.5 ? 'Dawn' : h < 11 ? 'Morning' : h < 14 ? 'Midday' : h < 17 ? 'Afternoon' : h < 19.5 ? 'Evening' : h < 21.5 ? 'Dusk' : 'Night');
+const dayLabel = () => `${climate.season[0].toUpperCase()}${climate.season.slice(1)} · ${hourName(climate.hour)} · ${DAY_NAMES[climate.sky]}`;
+function applyClimate(dt: number) {
+  climate.update(dt);
+  const c = climate;
+  lookCtl?.setClimate({ elevDeg: c.sunElevationDeg(), azDeg: (c.hour - 18) * 15, cloud: c.cloud, precip: Math.max(c.rain, c.snow) });
+  groundWeather.wet.value = c.wet; groundWeather.rain.value = c.rain; groundWeather.snow.value = c.snowCover; groundWeather.autumn.value = c.autumn;
+  seasonU.autumn.value = c.autumn; seasonU.bare.value = c.bare; seasonU.bloom.value = c.bloom; seasonU.snow.value = c.snowCover;
+  seasonU.flowers.value = c.season === 'spring' ? 1 : c.season === 'summer' ? 0.45 : 0;
+  wind.strength.value = c.windK;
+  world.petals.visible = c.bloom > 0.3;
+  precip.update(dt, camera, player.object.position, c.rain, c.snow, (x, z) => world.heightAt(x, z));
+}
+/** Footfalls: what the ground gives up under a running (or splashing) step. */
+function footfall(dt: number, speed: number) {
+  const p = player.object.position, gy = world.heightAt(p.x, p.z);
+  if (p.y - gy > 0.25 || speed < 1.2) { stepPhase = 0; return; }
+  stepPhase += dt * speed / 0.9;   // two steps a stride
+  if (stepPhase < 1) return;
+  stepPhase -= 1;
+  const surf = world.surfaceAt(p.x, p.z), pud = puddleAt(p.x, p.z, climate.wet);
+  // the puffs are unlit: dim them with the daylight (and the cloud), or they'd glow at night
+  const lk = THREE.MathUtils.clamp((climate.sunElevationDeg() + 9) / 14, 0.18, 1) * (1 - 0.35 * climate.cloud);
+  const running = speed > 4.2;
+  const back = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+  const at = new THREE.Vector3(p.x, gy + 0.05, p.z).addScaledVector(back, 0.25);
+  if (pud > 0.2) {
+    // a splash: brown droplets thrown up and back, more for a run
+    const n = running ? 10 : 4;
+    for (let i = 0; i < n; i++) kick.emit({ pos: at.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.3, 0, (Math.random() - 0.5) * 0.3)),
+      vel: new THREE.Vector3((Math.random() - 0.5) * 1.6, 1.2 + Math.random() * (running ? 2.2 : 1), (Math.random() - 0.5) * 1.6).addScaledVector(back, running ? 1.2 : 0.3),
+      color: new THREE.Color(0.42, 0.38, 0.32).multiplyScalar(lk), size: 0.03 + Math.random() * 0.025, life: 0.45, gravity: 9.8 });
+    sfx('step', 0.25);
+    return;
+  }
+  if (!running) return;
+  if (climate.snowCover > 0.35 && surf !== 'deck') {
+    for (let i = 0; i < 3; i++) kick.emit({ pos: at, vel: new THREE.Vector3((Math.random() - 0.5) * 0.8, 0.6 + Math.random() * 0.5, (Math.random() - 0.5) * 0.8).addScaledVector(back, 0.6),
+      color: new THREE.Color(0.92, 0.94, 0.98).multiplyScalar(lk), size: 0.07, life: 0.7, gravity: 2.5, drag: 1.5, grow: 0.25 });
+    return;
+  }
+  if ((surf === 'dirt' || surf === 'sand') && climate.wet < 0.3) {
+    // dust: a low brown puff that hangs and drifts on the wind
+    const col = surf === 'sand' ? new THREE.Color(0.78, 0.7, 0.56) : new THREE.Color(0.62, 0.52, 0.4);
+    for (let i = 0; i < 2; i++) kick.emit({ pos: at.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.25, 0.04, (Math.random() - 0.5) * 0.25)),
+      vel: new THREE.Vector3((Math.random() - 0.5) * 0.5 + (wind.dir.value as THREE.Vector2).x * 0.4, 0.25 + Math.random() * 0.35, (Math.random() - 0.5) * 0.5 + (wind.dir.value as THREE.Vector2).y * 0.4).addScaledVector(back, 0.5),
+      color: col.multiplyScalar(0.8 * lk), size: 0.1 + Math.random() * 0.06, life: 1.2 + Math.random() * 0.5, gravity: -0.1, drag: 2.4, grow: 0.42 });
+  }
 }
 const collision = new CollisionWorld(scene);
 collision.rebuild();
@@ -129,18 +216,31 @@ const MSAA = params.has('msaa') ? Number(params.get('msaa')) : quality === 'low'
 // trees outside the view are skipped per instance (a tree just behind the camera may lose its shadow into view: the
 // forest's leaves are drawn three times — depth prepass, lit, shadow — so drawing them all costs millions of triangles)
 Forest.cull = !params.has('nocull');
+Forest.coverage = MSAA > 1;   // LOD cross-fades blend by MSAA coverage (core/forest.ts)
 // then warm every shader the chapter will need (raid fires and embers, each tree variant, the impostors) while it
 // loads: WebGPU compiles a pipeline the first time a thing is drawn, and mid-fight that was a visible freeze
 world.forest.bake(renderer).then(async () => {
   const k = raidShown;
   world.setRaid(1); world.forest.unpack();
+  const pv = precip.group.children.map((c) => c.visible); precip.group.children.forEach((c) => { c.visible = true; });
   try { await renderer.compileAsync(scene, camera); } catch (e) { console.warn('[eraclash3d] shader warm-up', e); }
+  precip.group.children.forEach((c, i) => { c.visible = pv[i]; });
   world.setRaid(Math.max(0, k));
   console.info('[eraclash3d] shaders warmed');
 }).catch((e) => console.warn('[eraclash3d] forest impostors failed', e));
-// Contact shadow (GTAO) and sun shafts on medium and up; ?noao / ?norays turn them off
-const post = buildPost(renderer, scene, camera, { ssr: false, ssrScale: 0.5, bloom: quality === 'low' || params.has('nobloom') ? false : 'lean', taa: false, smaa: false, upscale: true, msaa: MSAA,
-  ao: quality !== 'low' && !params.has('noao'), rays: quality !== 'low' && Q.shadow > 0 && !params.has('norays') ? sun : undefined });
+// Console / Xbox Series X visual stack on High & Ultra: SSR + GTAO + Full 5-mip Bloom + CSM-compatible screen-space sun shafts
+const post = buildPost(renderer, scene, camera, {
+  ssr: useSSR,
+  ssrScale: quality === 'ultra' ? 0.67 : 0.5,
+  bloom: quality === 'low' || params.has('nobloom') ? false : (quality === 'high' || quality === 'ultra' ? 'full' : 'lean'),
+  taa: params.has('taa'),
+  smaa: quality === 'ultra' && !params.has('taa') && !params.has('nosmaa'),
+  upscale: true,
+  msaa: MSAA,
+  ao: quality !== 'low' && !params.has('noao'),
+  rays: quality !== 'low' && Q.shadow > 0 && !useCSM && !params.has('norays') ? sun : undefined,
+  screenShafts: quality !== 'low' && useCSM && !params.has('norays') ? { sun, reversedDepth: true } : undefined,
+});
 
 // ── Haru and the warband ───────────────────────────────────────────────────────────────────────────
 const player = new PlayerController(renderer.domElement);
@@ -299,11 +399,21 @@ $('stGo').addEventListener('click', () => {
   $('story').classList.remove('on');
   void actx.resume(); void startMusic('3d-ch1');
   mode = 'play';
-  card(chapter.title, chapter.place);
+  card(chapter.title, `${chapter.place} · ${dayLabel()}`);
   startSection(0);
   try { (renderer.domElement.requestPointerLock?.() as unknown as Promise<void> | undefined)?.catch?.(() => {}); } catch { /* the pane refuses it; drag-to-look still works */ }
 });
 showStory();
+{
+  // a saved day: Continue keeps it (season, hour, weather as they stood); To Battle rolls a new one
+  const saved = loadDay(), cont = document.getElementById('stCont') as HTMLButtonElement | null;
+  if (saved && cont) {
+    cont.style.display = '';
+    cont.title = `${saved.season} · ${hourName(saved.hour)} · ${DAY_NAMES[saved.sky]}`;
+    cont.addEventListener('click', () => { climate = new Climate(pinnedDay(saved)); pinClimate(); $('stGo').click(); });
+  }
+}
+document.getElementById('pSave')?.addEventListener('click', () => { saveDay(climate.state); const b = document.getElementById('pSave')!; b.textContent = 'Saved — ' + dayLabel(); setTimeout(() => { b.textContent = 'Save progress'; }, 2200); });
 $('loading').classList.add('done');
 
 // ── Waves: the chapter's foes, split across the shore, the village and the hilltop ─────────────────────
@@ -404,6 +514,40 @@ let rollT = -1, rollCd = 0, evadeCd = 0, blockAt = 0;
 const bossMobs = new Set<Mob>();
 const stuck = new Map<Mob, { at: THREE.Vector3; t: number; detour: number }>();
 let slowmo = 0, hitstop = 0, flashT = 0;
+// ── Kill-cam: a finishing blow, a super or the wave's last foe — time slows, the camera swings round the two
+//    fighters, the bars close in and the colour drains (core/post.ts fightLook). ?nokillcam turns it off.
+const KILLCAM = 1.15;
+let killCamT = 0, killSide = 1, killVictim: Mob | null = null;
+const killAt = new THREE.Vector3(), _kc = new THREE.Vector3(), _km = new THREE.Vector3();
+function killCam(v: Mob) {
+  if (params.has('nokillcam') || killCamT > 0) return;
+  killCamT = KILLCAM; killAt.copy(v.object.position);
+  killSide = Math.random() < 0.5 ? -1 : 1;
+  slowmo = Math.max(slowmo, 0.95);
+  document.getElementById('bars')?.classList.add('on');
+}
+/** After the player camera is placed: swing round the kill, then hand the camera back. */
+function killCamFrame(raw: number) {
+  if (killCamT <= 0) { fightLook.drama.value = Math.max(0, fightLook.drama.value - raw * 3); return; }
+  killCamT -= raw;
+  const k = 1 - Math.max(0, killCamT) / KILLCAM;                       // 0 → 1 over the shot
+  const env = Math.min(1, k * 6) * Math.min(1, Math.max(0, killCamT) * 5);   // ease in, ease out
+  fightLook.drama.value = env;
+  const hp = player.object.position;
+  _km.copy(hp).add(killAt).multiplyScalar(0.5); _km.y += 1.15;
+  const ax = killAt.x - hp.x, az = killAt.z - hp.z, l = Math.hypot(ax, az) || 1;
+  // side-on to the line between them, sweeping a little as the blow lands
+  const a = Math.atan2(ax / l, az / l) + killSide * (Math.PI / 2 - 0.55 + 0.5 * k);
+  const r = 3.4 + l * 0.5;
+  _kc.set(_km.x + Math.sin(a) * r, _km.y + 0.25 - 0.2 * k, _km.z + Math.cos(a) * r);
+  camera.position.lerp(_kc, env);
+  const look = camera.position.clone().lerp(_km, 1);
+  const q0 = camera.quaternion.clone();
+  camera.lookAt(look);
+  camera.quaternion.copy(q0.slerp(camera.quaternion, env));
+  camera.fov -= 9 * env; camera.updateProjectionMatrix();   // the player camera sets its own fov every frame
+  if (killCamT <= 0) document.getElementById('bars')?.classList.remove('on');
+}
 /** The chain opens once the blow has visibly landed (a beat of follow-through, never a twitch). */
 const CHAIN_AFTER: Record<Kind, number> = { punch: 0.07, kick: 0.11, blade: 0.1 };
 const canChain = () => { const a = haru?.acting; return !a || a.t >= curHitT + CHAIN_AFTER[lastKind]; };
@@ -561,7 +705,9 @@ function resolveHeroHit(h: NonNullable<typeof pendingHit>) {
     landed++;
     spark(m.object.position, 0xffd27a);
     sfx(lastKind === 'blade' ? 'slash' : h.dmg >= 15 ? 'hitHard' : 'hit', 0.9);
-    if (killed){ sfx('bodyfall', 0.9); hero.meter = Math.min(100, hero.meter + 18); }
+    if (killed){ sfx('bodyfall', 0.9); hero.meter = Math.min(100, hero.meter + 18);
+      // a finisher, a super, or the last of them: the kill-cam takes the blow
+      if (h.finisher || h.super || !enemies.some((e) => e.alive && e.team === 'enemy')) killVictim = m; }
   }
   // the same blow meets the furniture: a kick launches tables, crates and barrels; a punch or a cut breaks pottery
   const pn = props.strike(p, fwd, h.reach, h.arc, h.super ? 16 : lastKind === 'kick' ? 11 + h.knock : 5, !h.super && lastKind !== 'kick');
@@ -573,7 +719,9 @@ function resolveHeroHit(h: NonNullable<typeof pendingHit>) {
     player.kick = Math.min(1.5, player.kick + (h.finisher ? 1 : 0.6));
     player.shake = Math.max(player.shake, h.super ? 0.5 : h.finisher ? 0.22 : 0.1);
     if (h.super) flashT = 0.25;
+    fightLook.impact.value = Math.max(fightLook.impact.value, h.super ? 1 : h.finisher ? 0.6 : 0.28);
   }
+  if (killVictim) { killCam(killVictim); killVictim = null; }
 }
 // enemies and allies swing: whoever they're facing within reach takes it
 const strikeLog: { team: string; d: number; dot: number }[] = [];
@@ -661,7 +809,7 @@ function floatText(at: THREE.Vector3, text: string, col: string) {
 const sparkGeo = new THREE.SphereGeometry(0.06, 6, 4);
 const sparks: { m: THREE.Mesh; v: THREE.Vector3; t: number }[] = [];
 function spark(at: THREE.Vector3, col: number) {
-  const mat = new THREE.MeshBasicNodeMaterial({ color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+  const mat = new THREE.MeshBasicNodeMaterial({ color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
   for (let i = 0; i < 14; i++) {
     const m = new THREE.Mesh(sparkGeo, mat); m.position.copy(at).add(new THREE.Vector3(0, 1.3, 0));
     scene.add(m); sparks.push({ m, v: new THREE.Vector3((Math.random() - 0.5) * 7, Math.random() * 5, (Math.random() - 0.5) * 7), t: 0.35 });
@@ -831,6 +979,11 @@ function applyRes() { const buf = renderer.getDrawingBufferSize(new THREE.Vector
 function resize() { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); applyRes(); }
 addEventListener('resize', resize); resize();
 const ZERO = new THREE.Vector3();
+const _vTo = new THREE.Vector3(), _vSide = new THREE.Vector3(), _vLead = new THREE.Vector3();
+const _vDp = new THREE.Vector3(), _vD = new THREE.Vector3();
+const _nearActors: { pos: THREE.Vector3; vel: THREE.Vector3 }[] = [];
+const _foeBodies: { pos: THREE.Vector3; alive: boolean; ref: Mob }[] = [];
+const _crowdBodies: Mob[] = [];
 
 function tick(rawDt: number) {
   if (paused || worldMap?.open || telling) return;
@@ -849,8 +1002,8 @@ function tick(rawDt: number) {
   player.faceLock = !!haru?.acting;
   // until the blow lands, keep turning onto the locked raider (he moves; the strike follows him)
   if (pendingHit && lock?.alive) {
-    const to = lock.object.position.clone().sub(player.object.position).setY(0);
-    if (to.lengthSq() > 0.01) player.faceYaw(Math.atan2(to.x, to.z), Math.min(1, dt * 14));
+    _vTo.copy(lock.object.position).sub(player.object.position).setY(0);
+    if (_vTo.lengthSq() > 0.01) player.faceYaw(Math.atan2(_vTo.x, _vTo.z), Math.min(1, dt * 14));
   }
   rafts.update(dt);
   player.update(dt, camera);
@@ -863,6 +1016,7 @@ function tick(rawDt: number) {
     if (k >= 1) { rollT = -1; r.rotation.x = 0; r.position.set(0, 0, 0); r.scale.set(1, 1, 1); }
   }
   const sp = Math.hypot(player.object.position.x - lastPos.x, player.object.position.z - lastPos.z) / Math.max(dt, 1e-4);
+  footfall(dt, sp);
   playerVel.copy(player.object.position).sub(lastPos).divideScalar(Math.max(dt, 1e-4));
   lastPos.copy(player.object.position);
   heroSpeed = sp;
@@ -877,32 +1031,33 @@ function tick(rawDt: number) {
   if (throwT >= 0) { throwT -= dt; if (throwT < 0) releaseHeld(); }
   {
     const pp0 = player.object.position;
-    const near = [...enemies, ...allies].filter((m) => m.alive && m.object.position.distanceTo(pp0) < 16);
-    props.update(dt, { pos: pp0, vel: playerVel }, near.map((m) => ({ pos: m.object.position, vel: m.vel })),
-      enemies.filter((m) => m.alive).map((m) => ({ pos: m.object.position, alive: m.alive, ref: m })), world.heightAt);
-    _threats.length = 0; for (const m of enemies) if (m.alive) _threats.push(m.object.position);
+    _nearActors.length = 0;
+    for (let i = 0; i < enemies.length; i++) { const m = enemies[i]; if (m.alive && m.object.position.distanceToSquared(pp0) < 256) _nearActors.push({ pos: m.object.position, vel: m.vel }); }
+    for (let i = 0; i < allies.length; i++) { const m = allies[i]; if (m.alive && m.object.position.distanceToSquared(pp0) < 256) _nearActors.push({ pos: m.object.position, vel: m.vel }); }
+    _foeBodies.length = 0;
+    _threats.length = 0;
+    for (let i = 0; i < enemies.length; i++) { const m = enemies[i]; if (m.alive) { _foeBodies.push({ pos: m.object.position, alive: true, ref: m }); _threats.push(m.object.position); } }
+    props.update(dt, { pos: pp0, vel: playerVel }, _nearActors, _foeBodies, world.heightAt);
     townsfolk.update(dt, camera.position, pp0, _threats, section >= 1);
     questTick(dt);
     villagers.update(dt, simTime, pp0, (at) => enemies.some((m) => m.alive && m.object.position.distanceTo(at) < 6), world.heightAt, SAFETY, roadX);
   }
   // the warband
   const heroTarget = { pos: player.object.position, alive: hero.alive };
-  for (const a of allies) {
+  for (let ai = 0; ai < allies.length; ai++) {
+    const a = allies[ai];
     let foe: Mob | null = null, bd = 24;
-    for (const e of enemies) if (e.alive) { const d = e.object.position.distanceTo(a.object.position); if (d < bd) { bd = d; foe = e; } }
-    const side = new THREE.Vector3(Math.cos(player.yaw), 0, -Math.sin(player.yaw)).multiplyScalar(allies.indexOf(a) ? 2.6 : -2.6);
-    const lead = player.object.position.clone().add(side).add(new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw)).multiplyScalar(1.5));
-    a.update(dt, collision, foe ? { pos: foe.object.position, alive: true } : null, lead, onMobStrike);
+    for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.alive) { const d = e.object.position.distanceTo(a.object.position); if (d < bd) { bd = d; foe = e; } } }
+    _vSide.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw)).multiplyScalar(ai ? 2.6 : -2.6);
+    _vLead.set(Math.sin(player.yaw), 0, Math.cos(player.yaw)).multiplyScalar(1.5).add(_vSide).add(player.object.position);
+    a.update(dt, collision, foe ? { pos: foe.object.position, alive: true } : null, _vLead, onMobStrike);
   }
-  for (const m of [...allies, ...enemies]) {
-    const near = m.object.position.distanceTo(camera.position) < 1.6;
-    m.object.visible = !near;
-  }
+  for (let i = 0; i < allies.length; i++) allies[i].object.visible = allies[i].object.position.distanceToSquared(camera.position) >= 2.56;
   // Ravencrest's director: the two closest raiders on Haru may swing (his companions draw the rest); the
   // others take posts behind him and to his sides, so turning to fight one leaves your back open, and wait.
   const pp = player.object.position;
-  const engaged = enemies.filter((m) => m.alive && m.ready && m.object.position.distanceTo(pp) < 9)
-    .sort((a, b) => a.object.position.distanceTo(pp) - b.object.position.distanceTo(pp));
+  const engaged = enemies.filter((m) => m.alive && m.ready && m.object.position.distanceToSquared(pp) < 81)
+    .sort((a, b) => a.object.position.distanceToSquared(pp) - b.object.position.distanceToSquared(pp));
   const TOKENS = 2, behind = player.yaw + Math.PI;
   for (const m of enemies) {
     const i = engaged.indexOf(m);
@@ -911,14 +1066,18 @@ function tick(rawDt: number) {
     else m.flank = null;
   }
   // bodies push apart (Haru vs everyone, everyone vs each other): no clipping through a crowd
-  const bodies = [...enemies, ...allies].filter((m) => m.alive && m.ready && m.object.position.distanceTo(pp) < 20);
-  for (let i = 0; i < bodies.length; i++) {
-    const a = bodies[i].object.position;
-    const dp = a.clone().sub(pp).setY(0), dl = dp.length();
-    if (dl < 0.85 && dl > 1e-4 && Math.abs(a.y - pp.y) < 1.5) { const o = (0.85 - dl) * 0.5; bodies[i].push.addScaledVector(dp.normalize(), o); player.push.addScaledVector(dp, -o); }
-    for (let j = i + 1; j < bodies.length; j++) {
-      const d = a.clone().sub(bodies[j].object.position).setY(0), l = d.length();
-      if (l < 0.9 && l > 1e-4) { d.normalize().multiplyScalar((0.9 - l) * 0.5); bodies[i].push.add(d); bodies[j].push.sub(d); }
+  _crowdBodies.length = 0;
+  for (let i = 0; i < enemies.length; i++) { const m = enemies[i]; if (m.alive && m.ready && m.object.position.distanceToSquared(pp) < 400) _crowdBodies.push(m); }
+  for (let i = 0; i < allies.length; i++) { const m = allies[i]; if (m.alive && m.ready && m.object.position.distanceToSquared(pp) < 400) _crowdBodies.push(m); }
+  for (let i = 0; i < _crowdBodies.length; i++) {
+    const a = _crowdBodies[i].object.position;
+    _vDp.copy(a).sub(pp).setY(0);
+    const dl = _vDp.length();
+    if (dl < 0.85 && dl > 1e-4 && Math.abs(a.y - pp.y) < 1.5) { const o = (0.85 - dl) * 0.5; _crowdBodies[i].push.addScaledVector(_vDp.normalize(), o); player.push.addScaledVector(_vDp, -o); }
+    for (let j = i + 1; j < _crowdBodies.length; j++) {
+      _vD.copy(a).sub(_crowdBodies[j].object.position).setY(0);
+      const l = _vD.length();
+      if (l < 0.9 && l > 1e-4) { _vD.normalize().multiplyScalar((0.9 - l) * 0.5); _crowdBodies[i].push.add(_vD); _crowdBodies[j].push.sub(_vD); }
     }
   }
   // camera framing: keep the nearest raider in view and pull back with the crowd (player.ts eases it)
@@ -984,11 +1143,15 @@ renderer.setAnimationLoop(() => {
     if (Math.abs(c - internalH) >= 8) { internalH = c; applyRes(); }
   }
   updateWind(Math.min(raw, 0.05));   // the gusts (core/wind.ts)
+  if (!paused) applyClimate(Math.min(raw, 0.05));
+  kick.update(Math.min(raw, 0.05), camera);
   tick(Math.min(raw, 0.05));
   if (mode !== 'story') { hud(); labels(); }
   worldMap.update();
   $('flash').style.opacity = String(Math.max(0, flashT -= raw) * 3);
   camHold?.();
+  killCamFrame(Math.min(raw, 0.05));
+  fightLook.impact.value = Math.max(0, fightLook.impact.value - Math.min(raw, 0.05) * 3.2);
   world.forest.cull(camera);   // after any camera change this frame: the trees drawn match the view rendered
   post.pipeline.render();
   if (params.has('fps')) $('fps').textContent = `${(1000 / frameEma).toFixed(0)} fps · ${internalH}p · ${quality}`;
@@ -1099,7 +1262,7 @@ let camHold: (() => void) | null = null;
     });
     return new THREE.Vector3(2, world.heightAt(2, -68), -68);
   },
-  renderer, perf: () => ({ fpsText: document.getElementById('fps')?.textContent, frameEma, internalH, quality, msaa: MSAA }),
+  get climate() { return climate; }, dayLabel, kick, THREE, renderer, perf: () => ({ fpsText: document.getElementById('fps')?.textContent, frameEma, internalH, quality, msaa: MSAA }),
   pause(p: boolean) { setPaused(p); },
   get state() { return { mode, section, hero: { ...hero }, enemies: enemies.map((m) => ({ k: m.kind, hp: Math.round(m.hp), alive: m.alive, st: m.state })), allies: allies.map((a) => ({ hp: Math.round(a.hp), st: a.state })), pos: player.object.position.toArray().map((n) => +n.toFixed(1)) }; },
   begin() { ($('stGo') as HTMLButtonElement).disabled = false; $('stGo').click(); },
@@ -1108,6 +1271,8 @@ let camHold: (() => void) | null = null;
   strike, superMove, roll, grabOrThrow, props, villagers, setStance, binds, spawnFoe, lockedOn: () => lock, player, camera, scene, world, enemies, allies, strikeLog,
   warp(z: number) { const x = roadX(z); player.teleport(new THREE.Vector3(x, world.heightAt(x, z), z), 0); allies.forEach((a, i) => a.object.position.set(x + (i ? 2 : -2), world.heightAt(x, z), z - 2)); },
   worldMap, rafts, get hero() { return hero; },
+  /** Dev: run the kill-cam on the nearest living foe (or set the impact pulse). */
+  killCam() { const v = enemies.find((e) => e.alive) ?? enemies[0]; if (v) killCam(v); return !!v; }, fightLook,
   /** Dev: write docs/era-clash-3d-map.png + .md from the running game (the vite dev server saves them). */
   async mapDoc() {
     const places = cityPlaces({ ...qSpots, landings: world.landings, rafts: world.rafts, bridges: world.bridges, river: world.river }).filter((p) => p.kind !== 'travel' && p.kind !== 'quest');

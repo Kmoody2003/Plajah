@@ -54,7 +54,7 @@ export class Quests {
   tracked = 0;
   private markers = new THREE.Group();
   private ringMat = new THREE.MeshBasicNodeMaterial({ color: 0xf2c46a, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide });
-  private beamMat = new THREE.MeshBasicNodeMaterial({ color: 0xffd890, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending });
+  private beamMat = new THREE.MeshBasicNodeMaterial({ color: 0xffd890, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
   private el: { obj: HTMLElement; way: HTMLElement; compass: HTMLElement; hint: HTMLElement; log: HTMLElement };
   private t = 0;
   /** Deeds for the city (the magistrate's price for the seal). */

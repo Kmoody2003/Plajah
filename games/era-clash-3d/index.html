@@ -53,6 +53,9 @@
     #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
     .lab { position: absolute; left: 0; top: 0; text-align: center; font-family: Cinzel, serif; font-size: 11px; color: #ff9d8a; text-shadow: 0 1px 2px #000; }
     .lab i { display: block; width: 60px; height: 4px; background: #0009; margin: 3px auto 0; } .lab u { display: block; height: 100%; background: #e0664f; }
+    #bars::before, #bars::after { content: ''; position: fixed; left: 0; right: 0; height: 11vh; background: #000; pointer-events: none; transition: transform .28s cubic-bezier(.2,.7,.2,1); z-index: 4; }
+    #bars::before { top: 0; transform: translateY(-100%); } #bars::after { bottom: 0; transform: translateY(100%); }
+    #bars.on::before, #bars.on::after { transform: none; }
     #flash { position: fixed; inset: 0; background: #fff6e0; opacity: 0; pointer-events: none; }
     #end { position: fixed; inset: 0; display: none; place-items: center; background: #050302cc; z-index: 35; }
     #end.on { display: grid; }
@@ -109,16 +112,17 @@
   <div id="card" class="cz"><div id="cardT"></div><div id="cardS"></div></div>
   <div id="go" class="cz">GO →</div>
   <div id="flash"></div>
+  <div id="bars"></div>
   <div id="keys">WASD move · Shift run · mouse look · <b>Left-click</b> punch · <b>Right-click</b> kick · <b>Middle-click</b> / <b>E</b> katana · <b>Q</b> block · <b>C</b> roll · <b>Space</b> jump · <b>F</b> super (full meter)</div>
   <div id="fps"></div>
   <button id="gear" title="Controls">⚙</button>
-  <div id="pause"><div class="panel"><div class="cz" style="font-size:22px;color:#f4e6c8">PAUSED</div><div id="qLog"></div><button id="pResume" class="btn primary">Resume</button><button id="pControls" class="btn">Controls</button><button class="btn" onclick="location.href='/games/era-clash/index.html'">Leave the field</button></div></div>
+  <div id="pause"><div class="panel"><div class="cz" style="font-size:22px;color:#f4e6c8">PAUSED</div><div id="qLog"></div><button id="pResume" class="btn primary">Resume</button><button id="pSave" class="btn">Save progress</button><button id="pControls" class="btn">Controls</button><button class="btn" onclick="location.href='/games/era-clash/index.html'">Leave the field</button></div></div>
   <div id="binds"></div>
   <div id="story"><div class="st-panel">
     <div id="stKicker" class="cz"></div><div id="stTitle" class="cz"></div><div id="stPlace" class="cz"></div>
     <div id="stBody"></div><div id="stCheck"></div>
     <div class="hint">Tales of the Ages in 3D (preview): The Falling Petal, Chapter I. Fiction woven over real history.</div>
-    <div class="st-actions"><button class="btn" onclick="location.href='/games/era-clash/index.html'">Back</button><button id="stGo" class="btn primary">To Battle →</button></div>
+    <div class="st-actions"><button class="btn" onclick="location.href='/games/era-clash/index.html'">Back</button><button id="stCont" class="btn" style="display:none">Continue saved day</button><button id="stGo" class="btn primary">To Battle →</button></div>
   </div></div>
   <div id="end"><div class="panel"><div id="endT" class="cz"></div><div id="endS"></div><button id="endAgain" class="btn">Fight Again</button> <button id="endBack" class="btn primary">Back to Era Clash</button></div></div>
   <div id="loading"><div class="cz"><span id="loadMsg">Waking the graphics card</span></div></div>
