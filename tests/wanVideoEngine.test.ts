@@ -7,7 +7,9 @@ import {
 import {
   wanVideoEngine,
   WanVideoResult,
+  WanVideoUnavailableError,
 } from '../services/video/wanVideoEngine';
+import { executePlajahNativeTask } from '../services/localAi/plajahNativeRunner';
 import { FabulaDialogueTake } from '../services/voice/plajahAudioCore';
 
 test('Wan 2.1 Video Pipeline: Compiles single keyframe I2V task with camera kinematics', () => {
@@ -106,9 +108,11 @@ test('WanVideoEngine: Executes First & Last Frame Interpolation generation', asy
     },
     (prog) => {
       progressLogs.push(prog.status);
-    }
+    },
+    { simulate: true } // fixture mode: no backend contacted, result flagged `simulated`
   );
 
+  assert.equal(result.simulated, true, 'Fixture results must be flagged as simulated');
   assert.ok(result.videoUrl, 'Video URL must be returned');
   assert.equal(result.mode, 'first_and_last_frame');
   assert.equal(result.durationSeconds, 2.5);
@@ -138,12 +142,106 @@ test('WanVideoEngine: Generates Dialogue-Snapped Shot directly from FabulaDialog
     dialogueTake: mockTake,
     cameraMovement: 'push_in',
     resolution: '480p',
-  });
+  }, undefined, { simulate: true });
 
+  assert.equal(result.simulated, true);
   // Snapped duration must be 2.4 + 0.6 = 3.0s
   assert.equal(result.durationSeconds, 3.0);
   assert.equal(result.audioDurationSnapped, true);
   assert.equal(result.fps, 24);
   assert.equal(result.totalFrames, 72); // 3.0 * 24
   assert.equal(result.cameraTrajectory, 'push_in');
+});
+
+// ── Honest failure: no placeholder clip when no backend produced a video ──────────────────
+
+const realFetch = globalThis.fetch;
+const offlineSpec = {
+  startKeyframeUrl: 'https://example.invalid/a.png',
+  endKeyframeUrl: 'https://example.invalid/b.png',
+  prompt: 'Slow push in',
+  durationSec: 2,
+  resolution: '480p' as const,
+};
+
+test('WanVideoEngine: throws engine_offline when the GPU sidecar is unreachable', async () => {
+  globalThis.fetch = (async () => {
+    throw new TypeError('fetch failed');
+  }) as typeof fetch;
+  try {
+    await assert.rejects(
+      () => wanVideoEngine.generateFirstAndLastFrameInterpolation(offlineSpec),
+      (err: unknown) => {
+        assert.ok(err instanceof WanVideoUnavailableError);
+        assert.equal(err.code, 'engine_offline');
+        assert.match(err.message, /not running/);
+        return true;
+      }
+    );
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test('WanVideoEngine: throws engine_error with the sidecar reason when it returns no video', async () => {
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ success: false, error: 'Wan weights not found' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })) as typeof fetch;
+  try {
+    await assert.rejects(
+      () => wanVideoEngine.generateFirstAndLastFrameInterpolation(offlineSpec),
+      (err: unknown) => {
+        assert.ok(err instanceof WanVideoUnavailableError);
+        assert.equal(err.code, 'engine_error');
+        assert.match(err.message, /Wan weights not found/);
+        return true;
+      }
+    );
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test('WanVideoEngine: returns real bytes (not simulated) when the sidecar succeeds', async () => {
+  const payload = Buffer.from('real-mp4-bytes').toString('base64');
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ success: true, videoUrl: `data:video/mp4;base64,${payload}` }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })) as typeof fetch;
+  try {
+    const result = await wanVideoEngine.generateFirstAndLastFrameInterpolation(offlineSpec);
+    assert.notEqual(result.simulated, true);
+    assert.equal(result.videoBlob.size, 'real-mp4-bytes'.length);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test('PlajahNativeRunner: reports failure, not a procedural placeholder, when the sidecar is offline', async () => {
+  globalThis.fetch = (async () => {
+    throw new TypeError('fetch failed');
+  }) as typeof fetch;
+  try {
+    const res = await executePlajahNativeTask({
+      id: 'task_offline',
+      taskType: 'cinema_still',
+      modelId: 'flux3_klein',
+      prompt: 'a lighthouse at dusk',
+      negativePrompt: '',
+      dimensions: { width: 1024, height: 1024 },
+      steps: 4,
+      cfgScale: 1,
+      seed: 1,
+    } as any);
+    assert.equal(res.success, false);
+    assert.equal(res.mediaUrl, '');
+    assert.equal(res.errorCode, 'engine_offline');
+    assert.equal(res.hardwareBackend, 'FALLBACK');
+    assert.match(res.error || '', /not running/);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });

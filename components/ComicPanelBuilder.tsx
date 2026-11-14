@@ -1964,6 +1964,7 @@ export default function ComicPanelBuilder({
   const [storyIntelStyle, setStoryIntelStyle] = useState<'manga' | 'comic_western' | 'storybook_watercolor'>(isManga ? 'manga' : 'comic_western');
   const [storyIntelLoading, setStoryIntelLoading] = useState(false);
   const [storyIntelIllustrating, setStoryIntelIllustrating] = useState(false);
+  const [storyIntelIllustrateError, setStoryIntelIllustrateError] = useState<string | null>(null);
   const [storyIntelResult, setStoryIntelResult] = useState<StoryBreakdownResult | null>(null);
   const [storyCouncilResult, setStoryCouncilResult] = useState<StoryCouncilCritiqueResult | null>(null);
   const [storyIntelTab, setStoryIntelTab] = useState<'decompose' | 'council'>('decompose');
@@ -2170,12 +2171,14 @@ export default function ComicPanelBuilder({
     if (!newPanels.length) return;
 
     setStoryIntelIllustrating(true);
+    setStoryIntelIllustrateError(null);
     onChange({
       ...page,
       panels: newPanels,
       colorMode: isBW ? 'bw' : 'color',
     });
 
+    let illustrateError: string | null = null;
     try {
       const illustrated = [...newPanels];
       for (let i = 0; i < illustrated.length; i++) {
@@ -2195,8 +2198,8 @@ export default function ComicPanelBuilder({
               cfg: 2.0,
             }),
           });
+          const data = await res.json().catch(() => null);
           if (res.ok) {
-            const data = await res.json();
             if (data?.imageDataUrl) {
               illustrated[i] = { ...illustrated[i], imageUrl: data.imageDataUrl };
               onChange({
@@ -2204,15 +2207,21 @@ export default function ComicPanelBuilder({
                 panels: [...illustrated],
                 colorMode: isBW ? 'bw' : 'color',
               });
+              continue;
             }
           }
+          illustrateError = `Panel ${i + 1} was not illustrated — the local GPU engine reported: ${data?.error || data?.message || data?.detail || `HTTP ${res.status}`}. Check that the image model is installed.`;
         } catch {
-          // Continue if individual panel render skips
+          // Nothing answered on the sidecar port: the remaining panels would fail the same way.
+          illustrateError = 'Panels were applied but not illustrated — the Plajah local GPU engine is not running (no response from http://127.0.0.1:51122). Start the local engine and try again.';
+          break;
         }
       }
     } finally {
       setStoryIntelIllustrating(false);
-      setShowStoryIntel(false);
+      setStoryIntelIllustrateError(illustrateError);
+      // Keep the dialog open on failure so the reason is visible.
+      if (!illustrateError) setShowStoryIntel(false);
       setSelectedPanelId(null);
     }
   };
@@ -3469,6 +3478,11 @@ export default function ComicPanelBuilder({
                       </button>
                     </div>
                   </div>
+                  {storyIntelIllustrateError && (
+                    <div role="alert" className="px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs">
+                      {storyIntelIllustrateError}
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-64 overflow-y-auto pr-1">
                     {storyIntelResult.beats.map((b, i) => (
                       <div key={i} className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-1.5 text-xs">

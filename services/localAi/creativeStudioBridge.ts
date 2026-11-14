@@ -142,7 +142,8 @@ export async function executeCreativeStudioTask(
   // 2. Execute directly on Plajah's Native on-device runtime
   const result = await executePlajahNativeTask(task, onProgress);
 
-  if (result.success) {
+  // `success` alone is not enough: require real output from a real backend.
+  if (result.success && result.mediaUrl && result.hardwareBackend !== 'FALLBACK') {
     const isDirectGpu = result.hardwareBackend === 'NVIDIA_TENSORRT' || result.hardwareBackend === 'WINDOWS_DIRECTML';
     return {
       source: isDirectGpu ? 'local_gpu' : 'webgpu',
@@ -164,6 +165,6 @@ export async function executeCreativeStudioTask(
     outputUrls: [],
     durationMs: result.executionTimeMs,
     costCredits: 0,
-    error: result.error || 'Plajah native rendering failed. Ensure your GPU acceleration is enabled.',
+    error: result.error || 'The Plajah local GPU engine produced no output. Make sure the local engine is running and the model is installed.',
   };
 }

@@ -50,7 +50,7 @@ This architecture provides a frictionless, zero-server-bill creative engine for 
 ### Pillar 1: Plajah Native Engine & DirectML / TensorRT Runtime
 - **`services/localAi/localEngineDiscovery.ts`**: Automatically detects Plajah Native Engine on Windows and WebGPU in the browser. Zero configuration required from the user.
 - **`services/localAi/plajahPipelineEngine.ts`**: Directorial intent compiler. Translates camera focal lengths (anamorphic, 35mm, 85mm), cinematic lighting (chiaroscuro, neon noir), hallucination sliders (0–100%), and 3D light angles into Plajah tensor execution plans.
-- **`services/localAi/plajahNativeRunner.ts`**: Dispatches execution directly through Plajah's Windows WinUI 3 shell (`plajahMediaEngine.invokeNative('ai_diffuse')`) or browser WebGPU shaders without external servers.
+- **`services/localAi/plajahNativeRunner.ts`**: Dispatches execution directly through Plajah's Windows WinUI 3 shell (`plajahMediaEngine.invokeNative('ai_diffuse')`) or the local GPU sidecar (`http://127.0.0.1:51122`). If neither produces output it returns `success: false` with an actionable error — there is no procedural placeholder.
 
 ### Pillar 2: The Plajah Native Creative Studio
 - **`services/localAi/creativeStudioBridge.ts`**:

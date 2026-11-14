@@ -133,6 +133,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
   // Output
   const [outputUrl, setOutputUrl] = useState<string | null>(null);
   const [metaNote, setMetaNote] = useState<string | null>(null);
+  const [metaIsError, setMetaIsError] = useState(false);
 
   // Storage Location & Drive Management
   const [storageInfo, setStorageInfo] = useState<ModelStorageInfo | null>(null);
@@ -275,6 +276,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
 
   const handleGenerate = async () => {
     setLoading(true);
+    setMetaIsError(false);
     setProgressPct(10);
     setProgressMsg('Initiating local engine…');
     setElapsedSec(0);
@@ -326,7 +328,7 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
         }
       );
 
-      if (res.outputUrls.length > 0) {
+      if (res.outputUrls.length > 0 && !res.error) {
         setOutputUrl(res.outputUrls[0]);
         setMetaNote(res.note || 'Generation finished.');
         // Automatically save to Chronological PAI History & User Photos Account
@@ -350,11 +352,14 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
           op,
           sourceImageUrl: sourceImage || undefined,
         });
-      } else if (res.error) {
-        setMetaNote(`Error: ${res.error}`);
+      } else {
+        // Nothing was generated: show why, and do not save or display any asset.
+        setMetaIsError(true);
+        setMetaNote(`Not generated — ${res.error || 'the local engine produced no output.'}`);
       }
     } catch (err: any) {
-      setMetaNote(`Execution failed: ${err.message}`);
+      setMetaIsError(true);
+      setMetaNote(`Not generated — ${err?.message || err}`);
     } finally {
       clearInterval(timer);
       setLoading(false);
@@ -2087,8 +2092,8 @@ export const LocalCreativeStudio: React.FC<LocalCreativeStudioProps> = ({
               alignItems: 'center',
               justifyContent: 'space-between',
             }}>
-              <div style={{ fontSize: '12px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <CheckCircle2 size={16} />
+              <div role={metaIsError ? 'alert' : undefined} style={{ fontSize: '12px', color: metaIsError ? '#f87171' : '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {metaIsError ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
                 <span>{metaNote || 'Ready'}</span>
               </div>
 

@@ -118,6 +118,7 @@ export const TelaComicStudio: React.FC<TelaComicStudioProps> = ({
   ]);
 
   const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [activePanelIdx, setActivePanelIdx] = useState<number | null>(null);
 
   useEffect(() => {
@@ -138,6 +139,7 @@ export const TelaComicStudio: React.FC<TelaComicStudioProps> = ({
 
   const handleGenerateSequential = async () => {
     setGenerating(true);
+    setGenerateError(null);
     const updated = [...panels];
 
     for (let i = 0; i < updated.length; i++) {
@@ -181,9 +183,14 @@ export const TelaComicStudio: React.FC<TelaComicStudioProps> = ({
         if (res.success && res.mediaUrl) {
           panel.renderedImageUrl = res.mediaUrl;
           setPanels([...updated]);
+        } else {
+          setGenerateError(`Panel ${i + 1} was not generated — ${res.error || 'the local engine produced no output.'}`);
+          // No engine answered: the remaining panels would fail the same way.
+          if (res.errorCode === 'engine_offline') break;
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error('Failed generating panel', i, e);
+        setGenerateError(`Panel ${i + 1} was not generated — ${e?.message || e}`);
       }
     }
 
@@ -509,6 +516,11 @@ export const TelaComicStudio: React.FC<TelaComicStudioProps> = ({
           </div>
 
           {/* Action buttons */}
+          {generateError && (
+            <div role="alert" style={{ marginTop: 'auto', padding: '10px', borderRadius: '6px', border: '1px solid #7f1d1d', backgroundColor: 'rgba(127, 29, 29, 0.25)', color: '#fca5a5', fontSize: '12px', lineHeight: 1.4 }}>
+              {generateError}
+            </div>
+          )}
           <button
             onClick={handleGenerateSequential}
             disabled={generating}
@@ -525,7 +537,7 @@ export const TelaComicStudio: React.FC<TelaComicStudioProps> = ({
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
-              marginTop: 'auto',
+              marginTop: generateError ? 0 : 'auto',
             }}
           >
             {generating ? (
