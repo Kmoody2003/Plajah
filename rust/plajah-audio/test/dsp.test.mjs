@@ -8,12 +8,16 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const WASM = join(HERE, '..', 'target', 'wasm32-unknown-unknown', 'release', 'plajah_audio.wasm');
+const WASM = [
+  join(HERE, '..', '..', 'target', 'wasm32-unknown-unknown', 'release', 'plajah_audio.wasm'),
+  join(HERE, '..', 'target', 'wasm32-unknown-unknown', 'release', 'plajah_audio.wasm'),
+  join(HERE, '..', '..', '..', 'services', 'melos', 'beats', 'engine', 'dsp', 'plajah_audio.wasm'),
+].find((p) => existsSync(p)) ?? join(HERE, '..', '..', 'target', 'wasm32-unknown-unknown', 'release', 'plajah_audio.wasm');
 const SR = 48000;
 const BLOCK = 128;
 
@@ -1281,8 +1285,9 @@ test('AURA: Pulse Gate Chopper (A_GATE_ON) and Analog Flux Randomness (A_FLUX_ON
   let diff = 0;
   for (let i = 0; i < steady.length; i++) diff += Math.abs(steady[i] - modulated[i]);
   assert.ok(diff / steady.length > 0.04, 'Pulse Gate & Analog Flux must significantly modulate sustained notes');
+});
 
-  // ── SOMA: Real-Time Multi-Physics Acoustic Percussion & Chamber Simulator (1800+) ──
+test('SOMA: Bessel radial strike, chamber cavities, talking-drum tension & palm damping', async () => {
   const SM = {
     ENABLE: 1800,
     STRIKER_TYPE: 1801,
@@ -1377,10 +1382,13 @@ test('AURA: Pulse Gate Chopper (A_GATE_ON) and Analog Flux Randomness (A_FLUX_ON
   }
 
   let diffDjembeTimpani = 0;
+  let diffGobletTaiko = 0;
   for (let i = 0; i < timpaniKettle.length; i++) {
     diffDjembeTimpani += Math.abs(timpaniKettle[i] - djembeGoblet[i]);
+    diffGobletTaiko += Math.abs(djembeGoblet[i] - taikoBarrel[i]);
   }
   assert.ok(diffDjembeTimpani / timpaniKettle.length > 0.01, 'Djembe Goblet Helmholtz and Copper Kettle must produce distinct acoustic signatures');
+  assert.ok(diffGobletTaiko / djembeGoblet.length > 0.008, 'Djembe Goblet and Taiko Barrel must produce distinct modal & cavity signatures');
 
   // 3. Live Tension Pedal / Talking-Drum Cord Squeeze (SM_TENSION_PEDAL) retunes ringing membrane modes
   {
@@ -1481,4 +1489,154 @@ test('SOMA deep skin: strike export, deep note-on plays its slot and gates the c
   assert.ok(magAt(withLayer, 2000, SR) > 3 * magAt(plain, 2000, SR), 'the deep layer must be heard through the voice');
   const hf = (s) => { let e = 0; for (let i = 1; i < 2400; i++) e += (s[i] - s[i - 1]) ** 2; return e; };
   assert.ok(hf(gatedOnly) < 0.9 * hf(plain), `gating the cloud must remove its HF noise (gated ${hf(gatedOnly).toFixed(4)} vs plain ${hf(plain).toFixed(4)})`);
+});
+
+
+// ── New spectral distinctiveness verification across PNEUMA, ISON, LYRA, BAJO, ONDA ──
+
+const meanAbsDiff = (a, b) => {
+  let acc = 0;
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) acc += Math.abs(a[i] - b[i]);
+  return acc / n;
+};
+
+const hfEnergy = (sig) => {
+  let e = 0;
+  for (let i = 1; i < sig.length; i++) {
+    const d = sig[i] - sig[i - 1];
+    e += d * d;
+  }
+  return e / sig.length;
+};
+
+test('PNEUMA / ISON: Sustained mode couples Blow breath noise and per-Material formants cleanly', async () => {
+  const renderPneuma = async (grain, material, shift = 0.5) => {
+    const ctx = await boot();
+    cantusPatch(ctx, {
+      M_PARTIALS: 0.25,
+      M_MATERIAL: material,
+      M_MODE: 1,
+      M_FORMANT: 0.85,
+      M_FORMANT_SHIFT: shift,
+      X_TYPE: 1,
+      X_PRESSURE: 0.72,
+      X_GRAIN: grain,
+      X_TONE: 0.65,
+    });
+    ctx.x.pa_note_on(ctx.eng, 64, 0.9, 1, 0);
+    renderMono(ctx, 4096);
+    return renderMono(ctx, 16384);
+  };
+
+  const quietAir = await renderPneuma(0.02, 5);
+  const windyAir = await renderPneuma(0.94, 5);
+  assert.ok(windyAir.every(Number.isFinite), 'PNEUMA air must stay 100% finite');
+  assert.ok(hfEnergy(windyAir) > hfEnergy(quietAir) * 1.15 || meanAbsDiff(windyAir, quietAir) > 0.004,
+    'Sustained Blow exciter grain must physically color PNEUMA resonator output');
+
+  const glassVoice = await renderPneuma(0.15, 1, 0.65);
+  const skinVoice = await renderPneuma(0.15, 4, 0.65);
+  assert.ok(meanAbsDiff(glassVoice, skinVoice) > 0.01,
+    'Different Modal Materials (Glass vs Skin) must sculpt distinct formant spectra');
+});
+
+test('LYRA: Piano Grand vs Upright, Flute variants & Tine variants produce distinct voices', async () => {
+  const LY = {
+    ENABLE: 1900, MODEL: 1901, VARIANT: 1902, BRIGHTNESS: 1903, DECAY: 1904,
+    BODY: 1905, BODY_SIZE: 1906, EXCITE_POS: 1907, EXCITE_HARD: 1908,
+    DETUNE: 1915, SYMPATHETIC: 1938,
+  };
+  const runLyra = async (model, variant, note, extra = {}) => {
+    const ctx = await boot();
+    const { x, eng } = ctx;
+    x.pa_set_param(eng, LY.ENABLE, 1);
+    x.pa_set_param(eng, LY.MODEL, model);
+    x.pa_set_param(eng, LY.VARIANT, variant);
+    x.pa_set_param(eng, LY.BODY, 0.75);
+    x.pa_set_param(eng, 1207, 0);
+    for (const [k, v] of Object.entries(extra)) x.pa_set_param(eng, Number(k), v);
+    x.pa_note_on(eng, note, 0.9, 1, 0);
+    return renderMono(ctx, 16384);
+  };
+
+  const grand = await runLyra(1, 0, 60);
+  const upright = await runLyra(1, 1, 60);
+  assert.ok(grand.every(Number.isFinite) && upright.every(Number.isFinite));
+  assert.ok(rmsOf(grand) > 0.01 && rmsOf(upright) > 0.01);
+  assert.ok(meanAbsDiff(grand, upright) > 0.008, 'Concert Grand and Upright Piano must differ acoustically');
+
+  const concFlute = await runLyra(6, 0, 72);
+  const altoFlute = await runLyra(6, 2, 72);
+  assert.ok(rmsOf(concFlute) > 0.005 && rmsOf(altoFlute) > 0.005);
+  assert.ok(meanAbsDiff(concFlute, altoFlute) > 0.004, 'Concert Flute and Alto Flute bores must differ');
+
+  const tineStage = await runLyra(5, 0, 60, { [LY.DETUNE]: 0.2 });
+  const tineReed = await runLyra(5, 1, 60, { [LY.DETUNE]: 0.8, [LY.SYMPATHETIC]: 0.8 });
+  assert.ok(rmsOf(tineStage) > 0.005 && rmsOf(tineReed) > 0.005);
+  assert.ok(meanAbsDiff(tineStage, tineReed) > 0.006, 'Tine variants & detune must yield distinct harmonic profiles');
+});
+
+test('BAJO: Physical String Body SVF tracks upright darkness vs acoustic pick brightness', async () => {
+  const runString = async (tone, pick, bow) => {
+    const ctx = await boot();
+    const { x, eng } = ctx;
+    x.pa_set_param(eng, P.oscEnable(0), 0);
+    x.pa_set_param(eng, P.SUB_LEVEL, 0);
+    x.pa_set_param(eng, P.S_LEVEL, 0.95);
+    x.pa_set_param(eng, P.S_DAMP, 0.25);
+    x.pa_set_param(eng, P.S_TONE, tone);
+    x.pa_set_param(eng, P.S_PICK, pick);
+    x.pa_set_param(eng, P.S_BOW, bow);
+    x.pa_set_param(eng, P.S_BODY, 0.9);
+    x.pa_note_on(eng, 40, 0.95, 1, 0);
+    return renderMono(ctx, 16384);
+  };
+
+  const upright = await runString(0.15, 0.15, 0.4);
+  const brightAcoustic = await runString(0.92, 0.92, 0.0);
+  assert.ok(rmsOf(upright) > 0.005 && rmsOf(brightAcoustic) > 0.005);
+  assert.ok(meanAbsDiff(upright, brightAcoustic) > 0.005, 'BAJO String Body SVF must differentiate upright vs bright acoustic');
+});
+
+test('VOLTA: Circuit-modeled dual-era synth renders live probes, era morph contrast & clean panic kill', async () => {
+  const VL = {
+    ENABLE: 2500, TOPOLOGY: 2501, VINTAGE_MORPH: 2502,
+    WAVEFOLD: 2513, LADDER_CUTOFF: 2515, LADDER_RES: 2516, LADDER_DRIVE: 2517,
+    SVF_CUTOFF: 2518, SVF_MODE: 2520, DIODE_CLIP: 2521, BIAS_TEMP: 2524, FILT_ENV_AMT: 2525,
+  };
+  const renderVolta = async (extra = {}, panicKill = false) => {
+    const ctx = await boot();
+    const { x, eng } = ctx;
+    x.pa_set_param(eng, VL.ENABLE, 1);
+    x.pa_set_param(eng, 1207, 0); // dry off reverb so circuit sound is pure
+    for (const [k, v] of Object.entries(extra)) x.pa_set_param(eng, Number(k), v);
+    x.pa_note_on(eng, 48, 0.95, 1, 0);
+    const activeBlock = renderMono(ctx, 8192);
+    const probesActive = [];
+    for (let i = 0; i < 7; i++) probesActive.push(x.pa_volta_probe(eng, i));
+    if (panicKill) {
+      x.pa_all_notes_off(eng, 1);
+      const afterPanic = renderMono(ctx, 2048);
+      return { activeBlock, probesActive, afterPanic, probeAfterPanic: x.pa_volta_probe(eng, 0) };
+    }
+    return { activeBlock, probesActive };
+  };
+
+  // Pure Vintage '74 BJT Ladder vs Modern '26 HP Cytomic SVF (1kHz HP lets wavefolded harmonics sing cleanly)
+  const vintage = await renderVolta({ [VL.TOPOLOGY]: 3, [VL.VINTAGE_MORPH]: 0.05, [VL.LADDER_CUTOFF]: 0.35, [VL.LADDER_DRIVE]: 0.72, [VL.DIODE_CLIP]: 0.65 });
+  const modern = await renderVolta({ [VL.TOPOLOGY]: 4, [VL.VINTAGE_MORPH]: 0.95, [VL.SVF_CUTOFF]: 0.42, [VL.FILT_ENV_AMT]: 0.25, [VL.SVF_MODE]: 0.66, [VL.WAVEFOLD]: 0.75 });
+
+  assert.ok(vintage.activeBlock.every(Number.isFinite) && modern.activeBlock.every(Number.isFinite));
+  assert.ok(rmsOf(vintage.activeBlock) > 0.02, 'VOLTA vintage ladder audio should be strong and non-zero');
+  assert.ok(rmsOf(modern.activeBlock) > 0.02, 'VOLTA modern wavefolder/SVF audio should be strong and non-zero');
+  assert.ok(meanAbsDiff(vintage.activeBlock, modern.activeBlock) > 0.02,
+    'Vintage 1974 BJT Ladder vs Modern 2026 HP Cytomic + Wavefold must produce distinct waveforms');
+  assert.ok(Math.abs(vintage.probesActive[5] - 1.0) <= 0.35 && vintage.probesActive.slice(0, 5).some((v) => Math.abs(v) > 0.005),
+    'VOLTA internal FFI circuit probes (pa_volta_probe) must report live audio & 5V rail voltage');
+
+  // Verify panic immediately silences all VOLTA voices and chorus rack
+  const killed = await renderVolta({ [VL.TOPOLOGY]: 2 }, true);
+  assert.ok(rmsOf(killed.afterPanic) < 1e-5, `Panic all_notes_off must silence VOLTA completely, got RMS=${rmsOf(killed.afterPanic)}`);
+  assert.equal(killed.probeAfterPanic, 0, 'Panic must reset active VCO circuit node probe to 0');
 });

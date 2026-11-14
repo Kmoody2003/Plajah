@@ -31,6 +31,7 @@ export interface Recognizer {
   start(): void; stop(): void; suspend(): void; resume(): void;
   noteVoiceActivity(): void;
   onWords?: (words: HeardWord[]) => void;
+  onInterim?: (text: string) => void;
   onState?: (s: RecState, err?: RecError) => void;
   onLevel?: (level: number, speaking: boolean) => void;
   readonly state: RecState;
@@ -50,6 +51,7 @@ const isAndroidBrowser = () => /Android/i.test(ua());
 export class WebSpeechRecognizer implements Recognizer {
   readonly kind = 'web-speech' as const;
   onWords?: (words: HeardWord[]) => void;
+  onInterim?: (text: string) => void;
   onState?: (s: RecState, err?: RecError) => void;
   state: RecState = 'idle';
   private rec: any = null;
@@ -58,6 +60,7 @@ export class WebSpeechRecognizer implements Recognizer {
   private seq = 0;
   private emitted = new Map<string, number>();
   private lastInterim = new Map<string, string[]>();
+  private interimTimer: ReturnType<typeof setTimeout> | null = null;
   private restarts: number[] = [];
   private netFails = 0;
   private lastResultAt = 0;
@@ -91,11 +94,24 @@ export class WebSpeechRecognizer implements Recognizer {
     if (!this.watchdog) this.watchdog = setInterval(() => this.checkWatchdog(), 1000);
   }
 
+  private flushPendingInterims() {
+    if (this.interimTimer) { clearTimeout(this.interimTimer); this.interimTimer = null; }
+    const out: HeardWord[] = [];
+    for (const [key, words] of this.lastInterim.entries()) {
+      const done = this.emitted.get(key) ?? 0;
+      for (let k = done; k < words.length; k++) out.push({ text: words[k], alts: [] });
+      this.emitted.set(key, words.length);
+    }
+    this.lastInterim.clear();
+    if (out.length) this.onWords?.(out);
+  }
+
   stop() {
     this.active = false; this.suspended = false;
     if (this.restartTimer) clearTimeout(this.restartTimer);
     if (this.watchdog) { clearInterval(this.watchdog); this.watchdog = null; }
     if (this.levelDecay) { clearInterval(this.levelDecay); this.levelDecay = null; }
+    this.flushPendingInterims();
     this.kill();
     this.set('idle');
   }
@@ -174,9 +190,12 @@ export class WebSpeechRecognizer implements Recognizer {
     if (seq !== this.seq) return;
     this.lastResultAt = Date.now(); this.netFails = 0;
     const out: HeardWord[] = [];
+    const liveParts: string[] = [];
     for (let r = e.resultIndex; r < e.results.length; r++) {
       const res = e.results[r]; const key = `${seq}:${r}`;
-      const words = split(res[0]?.transcript ?? '');
+      const raw = String(res[0]?.transcript ?? '');
+      if (!res.isFinal && raw.trim()) liveParts.push(raw.trim());
+      const words = split(raw);
       const done = this.emitted.get(key) ?? 0;
       if (res.isFinal) {
         const altWords: string[][] = [];
@@ -192,7 +211,13 @@ export class WebSpeechRecognizer implements Recognizer {
         this.lastInterim.set(key, words);
       }
     }
+    this.onInterim?.(liveParts.join(' '));
     if (out.length) this.onWords?.(out);
+    if (this.interimTimer) clearTimeout(this.interimTimer);
+    if (this.lastInterim.size > 0) {
+      // Chromium often holds 1-word utterances or sentence endings as interim for >2s; flush cleanly after 850ms of quiet.
+      this.interimTimer = setTimeout(() => this.flushPendingInterims(), 850);
+    }
   }
 
   private checkWatchdog() {

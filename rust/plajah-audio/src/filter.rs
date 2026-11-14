@@ -48,7 +48,8 @@ impl SvfMode {
     }
 }
 
-/// TPT state-variable filter (Simper/Cytomic form). All five responses for one solve.
+/// TPT state-variable filter (Simper/Cytomic form) with subtle OTA transconductance saturation
+/// on the bandpass integrator state so high-resonance sweeps sing instead of whistling.
 #[derive(Clone, Copy, Default)]
 pub struct Svf {
     ic1: f32,
@@ -64,16 +65,25 @@ impl Svf {
     #[inline]
     pub fn process(&mut self, x: f32, cutoff_hz: f32, res: f32, sr: f32, mode: SvfMode) -> f32 {
         let g = prewarp(cutoff_hz, sr);
+        let r = res.clamp(0.0, 1.0);
         // res 0..1 → k from 2 (heavily damped) down to ~0.02 (self-oscillating).
-        let k = 2.0 - 1.98 * res.clamp(0.0, 1.0);
+        let k = 2.0 - 1.98 * r;
         let a1 = 1.0 / (1.0 + g * (g + k));
         let a2 = g * a1;
         let a3 = g * a2;
 
+        // Subtle OTA core compression when resonant energy builds in ic1
+        let s1 = if r > 0.55 {
+            let nl = 0.32 * (r - 0.55);
+            self.ic1 * (1.0 - nl) + tanh_fast(self.ic1 * 0.75) * (1.333_333_4 * nl)
+        } else {
+            self.ic1
+        };
+
         let v3 = x - self.ic2;
-        let v1 = a1 * self.ic1 + a2 * v3;
-        let v2 = self.ic2 + a2 * self.ic1 + a3 * v3;
-        self.ic1 = 2.0 * v1 - self.ic1;
+        let v1 = a1 * s1 + a2 * v3;
+        let v2 = self.ic2 + a2 * s1 + a3 * v3;
+        self.ic1 = 2.0 * v1 - s1;
         self.ic2 = 2.0 * v2 - self.ic2;
 
         let lp = v2;
@@ -91,13 +101,14 @@ impl Svf {
     }
 }
 
-/// Zero-delay-feedback Moog ladder — four one-pole TPT stages inside a resolved feedback loop,
-/// with saturation in the loop. The nonlinearity is the character: it's what makes the ladder
-/// growl instead of just attenuate.
+/// Zero-delay-feedback 4-stage transistor ladder — four one-pole TPT stages with discrete
+/// transistor-pair pole mismatch, per-stage thermal saturation, and passband bass retention.
 #[derive(Clone, Copy, Default)]
 pub struct Ladder {
     s: [f32; 4],
 }
+
+const STAGE_TOL: [f32; 4] = [1.0, 0.9965, 1.0032, 0.9982];
 
 impl Ladder {
     pub fn reset(&mut self) {
@@ -108,35 +119,41 @@ impl Ladder {
     #[inline]
     pub fn process(&mut self, x: f32, cutoff_hz: f32, res: f32, drive: f32, sr: f32) -> f32 {
         let g = prewarp(cutoff_hz, sr);
-        let big_g = g / (1.0 + g);
+        let drv = drive.clamp(0.0, 1.0);
         let k = 4.2 * res.clamp(0.0, 1.0);
 
-        // Solve the delay-free loop. Each TPT one-pole is y = G*x + (1-G)*s, and (1-G) == 1/(1+g),
-        // so cascading four of them gives y4 = G^4*u + S, with S the states' contribution:
-        let one_minus_g = 1.0 / (1.0 + g); // == 1 - big_g
-        let s1 = self.s[0] * one_minus_g;
-        let s2 = self.s[1] * one_minus_g;
-        let s3 = self.s[2] * one_minus_g;
-        let s4 = self.s[3] * one_minus_g;
-        let g2 = big_g * big_g;
-        let g3 = g2 * big_g;
-        let g4 = g3 * big_g;
-        let big_s = g3 * s1 + g2 * s2 + big_g * s3 + s4;
+        // Matched-pair capacitor/BJT tolerances across the 4 ladder rungs
+        let g0 = (g * STAGE_TOL[0]) / (1.0 + g * STAGE_TOL[0]);
+        let g1 = (g * STAGE_TOL[1]) / (1.0 + g * STAGE_TOL[1]);
+        let g2 = (g * STAGE_TOL[2]) / (1.0 + g * STAGE_TOL[2]);
+        let g3 = (g * STAGE_TOL[3]) / (1.0 + g * STAGE_TOL[3]);
 
-        // u = (x - k*S) / (1 + k*G^4) — the loop resolved in closed form, hence "zero delay".
-        let xd = tanh_fast(x * (1.0 + drive * 3.0));
-        let u = (xd - k * big_s) / (1.0 + k * g4);
+        let s1 = self.s[0] * (1.0 - g0);
+        let s2 = self.s[1] * (1.0 - g1);
+        let s3 = self.s[2] * (1.0 - g2);
+        let s4 = self.s[3] * (1.0 - g3);
+        let g_prod = g0 * g1 * g2 * g3;
+        let big_s = (g1 * g2 * g3) * s1 + (g2 * g3) * s2 + g3 * s3 + s4;
 
-        // Four TPT one-poles: v = (x - s)*G ; y = v + s ; s = y + v.
+        // Input differential-pair saturation + passband bass-retention compensation
+        let in_gain = 1.0 + drv * 3.1;
+        let xd = tanh_fast(x * in_gain) * (1.0 / (1.0 + drv * 0.42));
+        let fb_sig = tanh_fast(big_s * 0.92) * 1.086_956_5;
+        let u = (xd * (1.0 + k * (0.12 + 0.10 * drv)) - k * fb_sig) / (1.0 + k * g_prod);
+
+        // Per-stage BJT thermal nonlinearity scales gently with drive and resonance
+        let stage_drv = 0.55 + drv * 0.85;
+        let inv_stage = 1.0 / stage_drv;
+        let gs = [g0, g1, g2, g3];
         let mut sig = u;
         for i in 0..4 {
-            let v = (sig - self.s[i]) * big_g;
+            let v = (sig - self.s[i]) * gs[i];
             let y = v + self.s[i];
             self.s[i] = y + v;
-            sig = y;
+            sig = tanh_fast(y * stage_drv) * inv_stage;
         }
 
-        let out = sig * (1.0 + k * 0.35); // makeup for the volume the feedback eats
+        let out = sig * (1.0 + k * 0.26); // makeup for remaining feedback attenuation
         if out.is_finite() { out } else { self.reset(); 0.0 }
     }
 }

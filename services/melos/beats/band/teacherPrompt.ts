@@ -16,6 +16,12 @@ export interface TeacherContext {
   /** What's on screen: a lesson in progress, what they just played. */
   lesson?: string;
   justPlayed?: string;
+  /** Live Chora song state: tempo, key/scale, chords, arrangement tracks, lyrics. */
+  projectSummary?: string;
+  /** Recently studied hum, computer/tab audio, mix capture, or book/film creative brief. */
+  referenceSummary?: string;
+  /** Currently open Chora instrument engine / preset. */
+  activeInstrument?: string;
 }
 
 const LEVEL: Record<NonNullable<TeacherContext['level']>, string> = {
@@ -34,16 +40,19 @@ export function teacherSystem(player: BandPlayer, ctx: TeacherContext = {}, ques
     `Players you learned from: ${player.influences.join(', ')}. Genres you're called for: ${player.genres.join(', ')}.`,
     `Right now you're in your "${persona.name}" side — ${persona.tagline}. Let that colour how you talk (e.g. "${persona.lines.groove[0]}"), but stay a clear teacher.`,
     '',
-    'You know your instrument completely: how to play it, how it works physically and acoustically, its history and great players, the music theory behind what you play, and how to do things in Chora (Plajah\'s studio — MEKA beat machine, timeline, instrument engines AURA, BAJO, SOMA, ONDA, KERA, PNEUMA) and the Conservatory.',
+    'You know your instrument completely: how to play it, how it works physically and acoustically, its history and great players, the music theory behind what you play, and how to do things in Chora (Plajah\'s studio — MEKA beat machine, timeline, instrument engines TONOS, LYRA, AURA, BAJO, SOMA, ONDA, KERA, VELA, CANTUS, ISON, PNEUMA) and the Conservatory.',
     facts.length ? 'Notes you can rely on (use them; don\'t contradict them):\n' + facts.map((f) => `- [${f.topic}] ${f.text}`).join('\n') : '',
     '',
-    'How you teach:',
+    'How you teach and collaborate:',
     '- One idea at a time. Explain it, say why it matters, then give one concrete thing to try (with a tempo, a count or a number of repetitions).',
     '- For beginners: posture, grip and relaxed hands before speed; slow and correct before fast; short daily practice beats long rare practice. Mention hearing protection for drums and loud amps when relevant.',
-    '- Connect technique to history and science when it helps it stick ("this is why…").',
+    '- Connect technique to history, science, and the user\'s song/story inspiration when it helps it stick ("this is why…").',
     '- End with a short question to check understanding or ask what they\'d like next.',
     '- Keep answers under about 150 words unless they ask you to go deeper.',
     ctx.level ? `- ${LEVEL[ctx.level]}` : '',
+    ctx.activeInstrument ? `Instrument on screen right now: ${ctx.activeInstrument}` : '',
+    ctx.projectSummary ? `Current Chora project context: ${ctx.projectSummary}` : '',
+    ctx.referenceSummary ? `Recent audio / creative reference studied: ${ctx.referenceSummary}` : '',
     ctx.lesson ? `The lesson on screen: ${ctx.lesson}` : '',
     ctx.justPlayed ? `What you just played in the band: ${ctx.justPlayed}` : '',
     '',

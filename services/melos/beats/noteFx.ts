@@ -363,11 +363,14 @@ function auraArp(raw: Record<string, unknown>): ArpPatch {
   const orders: Record<string, ArpOrder> = { up: 'up', down: 'down', upDown: 'updown', random: 'random', octave: 'up', seq: 'up' };
   const mode = String(raw.mode ?? 'up');
   const semis = Array.isArray(raw.steps) ? (raw.steps as number[]) : [];
-  const steps = mode === 'seq' && semis.length ? semis.map((s) => ({ ...base.steps[0], transpose: Number(s) || 0 })) : base.steps;
+  const isOctavePattern = mode === 'octave' && semis.length > 0 && semis.every((s) => (Number(s) || 0) % 12 === 0) && semis.some((s) => (Number(s) || 0) !== 0);
+  const useStepTranspose = (mode === 'seq' || isOctavePattern) && semis.length > 0;
+  const steps = useStepTranspose ? semis.map((s) => ({ ...base.steps[0], transpose: Number(s) || 0 })) : base.steps;
+  const octaves = isOctavePattern ? 1 : mode === 'octave' ? Math.max(2, typeof raw.octaves === 'number' ? raw.octaves : 2) : (typeof raw.octaves === 'number' ? raw.octaves : 1);
   return {
     ...base, enabled: true, order: orders[mode] ?? 'up', rate: rates[String(raw.rate)] ?? 4,
-    gate: typeof raw.gate === 'number' ? raw.gate : 0.62, octaves: typeof raw.octaves === 'number' ? raw.octaves : 1,
-    steps, length: mode === 'seq' && semis.length ? semis.length : base.length,
+    gate: typeof raw.gate === 'number' ? raw.gate : 0.62, octaves,
+    steps, length: useStepTranspose ? semis.length : base.length,
   };
 }
 

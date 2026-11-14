@@ -17,6 +17,7 @@ import { startAudioClipSource } from './clips';
 import { MeterMap, TempoMap } from '../tempoMap';
 import { AutomationPlayer, applyMessage } from './automationPlayer';
 import { Instrument } from './InstrumentHost';
+import { InstrumentLoader, prepareUnmutedTracks } from './instrumentLoader';
 import type { ArrangeTrack as ATrack, NoteEvent } from '../grooveDoc';
 import { ModulationPlayer } from './modulationPlayer';
 import { LiveNoteFx } from './liveNoteFx';
@@ -86,8 +87,7 @@ export class BeatsEngine {
 
   // One Instrument (worklet node + Rust engine) per instrument track, connected into the same
   // track strips audio clips use — the bus architecture doesn't change for instruments.
-  private instruments = new Map<string, Instrument>();
-  private instrumentLoading = new Set<string>();
+  private instruments = new InstrumentLoader<Instrument>();
   /** Notes started live from the keyboard/MIDI, so a key-up can find its voice. */
   private liveNotes = new Map<string, number>();
   /** Live-held instrument-pad notes (padIdx → the voice sounding), so a pad release finds it. */
@@ -203,6 +203,7 @@ export class BeatsEngine {
     this.syncModulators();
     this.graph.applyDoc(this.doc, this.automation.automated);
     this.syncMixerFx();
+    this.syncInstruments();
   }
 
   // ── Mixer insert + send FX (fx/devices.ts chains on EVERY channel) ──────────
@@ -411,6 +412,11 @@ export class BeatsEngine {
     this.voices.trigger(this.doc, padIdx, vel127, when, gateSec, semiOffset, pan, dest, skipChoke, mods);
     undoHit?.();
     this.lastHit[padIdx] = performance.now();
+    if (when === undefined) {
+      const pname = (pad?.name ?? '').toLowerCase();
+      const pos = /kick|sub|808|bass|bd/.test(pname) ? 0.1 : /snare|clap|rim|sd/.test(pname) ? 0.55 : /hat|cym|crash|ride|hh|oh|ch|perc|shaker/.test(pname) ? 0.85 : 0.55;
+      liveBus.emit({ kind: 'strike', instrument: 'kit', trackId: 'kit', at: liveNow(), note: 36 + padIdx, velocity: vel127 / 127, pos, striker: 0 });
+    }
   }
 
   // ── Step Effects (per-pad "step FX" slots — a bounded set of device chains) ──
@@ -509,10 +515,9 @@ export class BeatsEngine {
     const kera = inst.hasKeraProgram();
 
     if (gateSec !== undefined) {
-      const offIn = Math.max(0, (t - this.ctx.currentTime) + gateSec) * 1000;
       if (kera) {
-        inst.keraNoteOn(note, vel127);
-        setTimeout(() => inst.keraNoteOff(note), offIn);
+        inst.keraNoteOn(note, vel127, t);
+        inst.keraNoteOffAt(note, t + gateSec);
       } else {
         const voiceId = inst.noteOn(note, vel01, t, this.ctx.currentTime, this.ctx.sampleRate);
         inst.noteOffAt(voiceId, t + gateSec);
@@ -697,22 +702,32 @@ export class BeatsEngine {
   // ── Instruments ─────────────────────────────────────────────────────────────
 
   /**
-   * Ensure a track's instrument exists and is connected. Idempotent and safe to call from
-   * render/effect paths — instantiation is async (the wasm module compiles once per page) so the
-   * first note on a brand-new track may be silent; every note after it is not.
+   * Ensure a track's instrument exists and is connected. Idempotent and safe to call concurrently:
+   * callers arriving while the worklet/WASM is still loading await the same in-flight promise so
+   * chords and rapid controls never drop silently.
    */
   async ensureInstrument(track: ATrack): Promise<Instrument | null> {
     if (track.kind !== 'instrument') return null;
-    const existing = this.instruments.get(track.id);
-    if (existing) return existing;
-    if (this.instrumentLoading.has(track.id)) return null;
-    this.instrumentLoading.add(track.id);
+    return this.instruments.ensure(track.id, () => this.createInstrument(track));
+  }
+
+  /** Pre-load instrument worklets/patches so scheduled playback never drops opening notes. */
+  async prepareInstruments(trackIds?: Iterable<string>): Promise<void> {
+    await this.init();
+    await prepareUnmutedTracks(this.doc.arrangement, (t) => this.ensureInstrument(t), trackIds);
+  }
+
+  private async createInstrument(track: ATrack): Promise<Instrument | null> {
     try {
       await this.init();
       if (!this.ctx || !this.graph) return null;
       const inst = await Instrument.create(this.ctx, {
         onError: (m) => console.warn('[beats] instrument error', track.name, m),
       });
+      if (!this.doc.arrangement.some((t) => t.id === track.id && t.kind === 'instrument') || !this.ctx || !this.graph) {
+        inst.dispose();
+        return null;
+      }
       inst.output.connect(this.graph.trackDestination(track));
       inst.trackId = track.id;
       if (track.instrument?.type === 'aura') {
@@ -727,12 +742,11 @@ export class BeatsEngine {
         // VELA carries its own patch shape. Its macros expand to several engine parameters
         // each, so the expansion happens on this side rather than being sent as macro values —
         // the engine has no idea what "Air" means and should not have to.
-        const { deserializeVelaPatch, velaEngineParams, velaDriftSetup } =
+        const { deserializeVelaPatch, applyVelaPatch } =
           await import('../../instruments/vela/patch');
         const patch = deserializeVelaPatch(track.instrument.patch);
         if (patch) {
-          inst.setParams(velaDriftSetup());
-          inst.setParams(velaEngineParams(patch));
+          applyVelaPatch(inst, patch);
         }
       } else if (track.instrument?.type === 'bajo' && track.instrument?.patch) {
         // BAJO carries its own shape too: the wobble rate lane and the gate grid are arrays, and
@@ -747,6 +761,11 @@ export class BeatsEngine {
           await import('../../instruments/aura/patch');
         const patch = deserializeAuraPatch(track.instrument.patch);
         if (patch) applyAuraPatch(inst, patch);
+      } else if (track.instrument?.type === 'volta' && track.instrument?.patch) {
+        const { deserializeVoltaPatch, applyVoltaPatch } =
+          await import('../../instruments/volta/patch');
+        const patch = deserializeVoltaPatch(track.instrument.patch);
+        if (patch) applyVoltaPatch(inst, patch);
       } else if (track.instrument?.type === 'soma' && track.instrument?.patch) {
         const { deserializeSomaPatch, applySomaPatch } =
           await import('../../instruments/soma/patch');
@@ -775,6 +794,10 @@ export class BeatsEngine {
         const prog = await deserializeKeraProgram(track.instrument.kera as unknown as SerializedKeraProgram);
         if (prog) inst.loadKeraProgram(prog);
       }
+      if (!this.doc.arrangement.some((t) => t.id === track.id && t.kind === 'instrument') || !this.ctx || !this.graph) {
+        inst.dispose();
+        return null;
+      }
       this.instruments.set(track.id, inst);
       // If a Step-FX pad owns this instrument, route its output through the slot chain now that the
       // node exists (at connect time above it didn't, so the first sync skipped it).
@@ -784,8 +807,6 @@ export class BeatsEngine {
     } catch (e) {
       console.warn('[beats] instrument create failed', e);
       return null;
-    } finally {
-      this.instrumentLoading.delete(track.id);
     }
   }
 
@@ -979,9 +1000,9 @@ export class BeatsEngine {
     const inst = this.instruments.get(track.id) ?? await this.ensureInstrument(track);
     if (!inst || !track.instrument?.patch) return;
     if (isSuiteType(track.instrument.type)) {
-      const { deserializeVelaPatch, velaEngineParams } = await import('../../instruments/vela/patch');
+      const { deserializeVelaPatch, applyVelaPatch } = await import('../../instruments/vela/patch');
       const patch = deserializeVelaPatch(track.instrument.patch);
-      if (patch) inst.setParams(velaEngineParams(patch));
+      if (patch) applyVelaPatch(inst, patch);
       return;
     }
     if (track.instrument.type === 'bajo') {
@@ -994,6 +1015,12 @@ export class BeatsEngine {
       const { deserializeAuraPatch, applyAuraPatch } = await import('../../instruments/aura/patch');
       const patch = deserializeAuraPatch(track.instrument.patch);
       if (patch) applyAuraPatch(inst, patch);
+      return;
+    }
+    if (track.instrument.type === 'volta') {
+      const { deserializeVoltaPatch, applyVoltaPatch } = await import('../../instruments/volta/patch');
+      const patch = deserializeVoltaPatch(track.instrument.patch);
+      if (patch) applyVoltaPatch(inst, patch);
       return;
     }
     if (track.instrument.type === 'soma') {
@@ -1042,6 +1069,7 @@ export class BeatsEngine {
 
   /** Live keyboard/MIDI note on an instrument track. Returns the voice id for the matching off. */
   instrumentNoteOn(track: ATrack, key: number, vel127: number): void {
+    this.resume();
     // Live playing is what the band's players listen to (band/live).
     liveBus.emit({ kind: 'note', instrument: track.instrument?.type ?? 'instrument', trackId: track.id, at: liveNow(), key, velocity: vel127 / 127, on: true });
     const keys = track.instrument?.type === 'soma' ? [key] : assistKeys(this.doc, key);
@@ -1263,6 +1291,12 @@ export class BeatsEngine {
     this.stopAudition();
     this.voices?.stopAll(this.ctx?.currentTime);
     for (const inst of this.instruments.values()) inst.allNotesOff(true);
+    for (const host of this.padInserts.values()) host.flush();
+    for (const host of this.trackInserts.values()) host.flush();
+    for (const host of this.groupInserts) host?.flush();
+    for (const host of this.sendInserts) host?.flush();
+    for (const host of this.stepFxHosts.values()) host.flush();
+    this.masterSuite?.flush();
     this.liveFx.clear();
     this.assistHeld.clear();
     this.liveNotes.clear();
@@ -1314,9 +1348,8 @@ export class BeatsEngine {
     if (!inst || !this.ctx) return;
     // KERA tracks pick zones per note and fire sampled voices; a synth note-on would play nothing.
     if (inst.hasKeraProgram()) {
-      const wait = Math.max(0, when - this.ctx.currentTime);
-      setTimeout(() => inst.keraNoteOn(note.key, note.vel), wait * 1000);
-      setTimeout(() => inst.keraNoteOff(note.key), (wait + Math.max(0.04, durSec)) * 1000);
+      inst.keraNoteOn(note.key, note.vel, when);
+      inst.keraNoteOffAt(note.key, when + Math.max(0.04, durSec));
       return;
     }
 
@@ -1387,7 +1420,7 @@ export class BeatsEngine {
    *  playback immediately when the transport is stopped. */
   queuePattern(patternId: string): void {
     if (!this.running || this.mode !== 'pattern') {
-      void this.init().then(() => this.play('pattern', { patternId }));
+      void this.prepareInstruments().then(() => this.play('pattern', { patternId }));
       return;
     }
     this.scheduler?.queuePattern(patternId);
@@ -1404,7 +1437,7 @@ export class BeatsEngine {
   queuePatternSet(patternIds: string[]): void {
     if (!patternIds.length) return;
     if (!this.running || this.mode !== 'pattern') {
-      void this.init().then(() => this.play('pattern', { patternIds }));
+      void this.prepareInstruments().then(() => this.play('pattern', { patternIds }));
       return;
     }
     this.scheduler?.queueSet(patternIds);

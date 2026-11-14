@@ -9,7 +9,7 @@ import wasmUrl from './dsp/plajah_audio.wasm?url';
 import workletUrl from './instrumentProcessor.worklet.js?url';
 import { selectZones, type KeraProgram } from '../../instruments/kera/zones';
 import { DEEP_VARIANTS, deepVelBucket, lookupDeep, requestDeep, somaDeepSupported, somaParamsKey, type DeepHit } from '../../instruments/soma/deep/somaDeep';
-import { lookupTonosDeep, requestTonosDeep, tonosDeepCapable, tonosDeepSupported, tonosParamsKey, tonosVelBucket, type TonosDeepHit } from '../../instruments/tonos/deep/tonosDeep';
+import { lookupTonosDeep, requestTonosDeep, TONOS_DEEP_VARIANTS, tonosDeepCapable, tonosDeepSupported, tonosParamsKey, tonosVelBucket, type TonosDeepHit } from '../../instruments/tonos/deep/tonosDeep';
 import { modCapture } from '../modulators';
 import type { NativeTrack } from './nativeStream';
 
@@ -21,7 +21,7 @@ function secToNorm(sec: number): number {
 
 /** 11 adds AURA (param block 1700+): 1960s & 1970s analogue synthesis circuitry. Bumping this
  *  is what stops a stale committed .wasm from loading against a host that expects the new parameters. */
-export const DSP_ABI_VERSION = 18; // 18: TONOS deep body (GPU body modes via note_on_deep, pa_tonos_excitation); 17: TONOS world strings (block 2000+, sympathetic rack); 16: SOMA deep skin (GPU modes, note_on_deep); 15: LYRA brass, strings, plucked, guitar rig; 14: LYRA physical models (block 1900+); 13: scheduled KERA notes
+export const DSP_ABI_VERSION = 21; // 21: VOLTA circuit-modeled super synth; 20: Heritage acoustics (SOMA/TONOS/LYRA), per-voice & custom LFOs (pa_set_lfo_custom), live VELA ModMatrix, ADAA shaper & 4-stage ladder; 19: orchestral ARCO/CORNU/AULOS; 18: TONOS deep body
 
 /** Output layouts — must mirror `spatial::Layout` in the Rust crate. */
 export enum SpatialLayout {
@@ -86,6 +86,8 @@ export class Instrument {
   /** The track this plays, so a touched control can be traced back to it (modulators.ts). */
   trackId = '';
   readonly analyser: AnalyserNode | null = null;
+  readonly analyserR: AnalyserNode | null = null;
+  voltaProbes: number[] = [0, 0, 0, 0, 0, 1, 0.38];
   private readonly outGain: GainNode | null = null;
   private disposed = false;
   private nextVoiceId = 1;
@@ -105,11 +107,22 @@ export class Instrument {
       if (typeof ctx.createGain === 'function' && typeof ctx.createAnalyser === 'function') {
         const g = ctx.createGain();
         g.gain.value = 1;
+        node.connect(g);
         const an = ctx.createAnalyser();
         an.fftSize = 1024;
         an.smoothingTimeConstant = 0.15;
-        node.connect(g);
-        node.connect(an);
+        const anR = ctx.createAnalyser();
+        anR.fftSize = 1024;
+        anR.smoothingTimeConstant = 0.15;
+        if (typeof (ctx as AudioContext).createChannelSplitter === 'function') {
+          const split = (ctx as AudioContext).createChannelSplitter(2);
+          node.connect(split);
+          split.connect(an, 0);
+          split.connect(anR, 1);
+          this.analyserR = anR;
+        } else {
+          node.connect(an);
+        }
         this.outGain = g;
         this.analyser = an;
       }
@@ -122,6 +135,7 @@ export class Instrument {
       const d = e.data;
       if (!d) return;
       if (d.type === 'voices') this.activeVoices = d.count;
+      else if (d.type === 'voltaProbes' && Array.isArray(d.probes)) this.voltaProbes = d.probes;
       else if (d.type === 'ready') resolveReady();
       else if (d.type === 'pong') { const r = this.pendingPings.get(d.id); if (r) { this.pendingPings.delete(d.id); r(); } }
       else if (d.type === 'error') { opts.onError?.(d.message); resolveReady(); }
@@ -179,6 +193,31 @@ export class Instrument {
     return peak;
   }
 
+  /** Read live right-channel waveform for stereo X-Y Lissajous phase scopes. */
+  readRightWaveform(dest: Float32Array): number {
+    const src = this.analyserR ?? this.analyser;
+    if (!src) return 0;
+    src.getFloatTimeDomainData(dest as Float32Array<ArrayBuffer>);
+    let peak = 0;
+    for (let i = 0; i < dest.length; i++) {
+      const a = Math.abs(dest[i]);
+      if (a > peak) peak = a;
+    }
+    return peak;
+  }
+
+  /** Read live decibel FFT magnitude bins (-100..0 dB) into `dest`. */
+  readSpectrum(dest: Float32Array): number {
+    if (!this.analyser) return 0;
+    this.analyser.getFloatFrequencyData(dest as Float32Array<ArrayBuffer>);
+    return this.analyser.frequencyBinCount;
+  }
+
+  /** Enable/disable live Rust DSP circuit-node probe streaming (~23 Hz) for VOLTA. */
+  setVoltaProbeWatch(enabled: boolean): void {
+    this.post({ type: 'watchProbes', enabled });
+  }
+
   /** Returns currently held MIDI note numbers on this instrument. */
   heldNoteNumbers(): number[] {
     return Array.from(this.heldVoices.keys());
@@ -199,8 +238,8 @@ export class Instrument {
     this.lastVelocity = velocity01;
     this.lastNoteOnPerf = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const deep = this.somaDeep(note, velocity01) ?? this.tonosDeep(note, velocity01);
-    if (deep) this.post({ type: 'noteOnDeep', note, velocity: velocity01, voiceId, frameOffset, ...deep });
-    else this.post({ type: 'noteOn', note, velocity: velocity01, voiceId, frameOffset });
+    if (deep) this.post({ type: 'noteOnDeep', note, velocity: velocity01, voiceId, frameOffset, ctxTime, ...deep });
+    else this.post({ type: 'noteOn', note, velocity: velocity01, voiceId, frameOffset, ctxTime });
     this.heldVoices.set(key, voiceId);
     return voiceId;
   }
@@ -273,7 +312,11 @@ export class Instrument {
   private tonosDeep(note: number, velocity01: number): { slot: number; gain: number; top: number } | null {
     if (this.keraProgram || !tonosDeepSupported() || !tonosDeepCapable(this.params)) return null;
     const key = this.tonosKey();
-    const hit = lookupTonosDeep(key, note, velocity01, this.sampleRate);
+    const variant = this.deepTick++ % TONOS_DEEP_VARIANTS;
+    let hit: TonosDeepHit | undefined;
+    for (let i = 0; i < TONOS_DEEP_VARIANTS && !hit; i++) {
+      hit = lookupTonosDeep(key, note, velocity01, this.sampleRate, (variant + i) % TONOS_DEEP_VARIANTS);
+    }
     if (!hit) {
       void requestTonosDeep(this.params, key, note, this.sampleRate, getModule, velocity01);
       return null;
@@ -331,7 +374,10 @@ export class Instrument {
   /** Gate a scheduled voice at `ctxTime`. A native voice is stamped now, since its frames render ahead of the clock. */
   noteOffAt(voiceId: number, ctxTime: number): void {
     if (this.native?.owns(voiceId)) { this.native.offAt(voiceId, ctxTime); return; }
-    setTimeout(() => this.noteOff(voiceId, true), Math.max(0, ctxTime - this.node.context.currentTime) * 1000);
+    for (const [k, v] of this.heldVoices.entries()) {
+      if (v === voiceId) { this.heldVoices.delete(k); break; }
+    }
+    this.post({ type: 'noteOffAt', voiceId, ctxTime });
   }
 
   // ── Native engine (Windows app, nativeStream.ts) ─────────────────────────────
@@ -406,12 +452,25 @@ export class Instrument {
     }
     // The program's amp envelope maps onto the shared engine envelope (slot 0).
     const a = program.amp;
-    this.setParams([
+    const params: Array<[number, number]> = [
       [700 + 0, secToNorm(a.attack)],
       [700 + 1, secToNorm(a.decay)],
       [700 + 2, a.sustain],
       [700 + 3, secToNorm(a.release)],
-    ]);
+    ];
+    if (program.voice) {
+      params.push(
+        [500 + 3, program.voice.cut],
+        [500 + 4, program.voice.res],
+        [500 + 5, program.voice.drive],
+        [800 + 1, program.voice.lfoRate],
+      );
+    }
+    this.setParams(params);
+    if (program.voice) {
+      this.setRoute(0, 8 /* Lfo1 */, 500 + 3 /* F.CUTOFF */, program.voice.lfoOn ? program.voice.lfoDepth : 0, 0);
+      this.setSpatial({ position: [program.voice.x, 0, -1 + program.voice.y] });
+    }
   }
 
   /** The engine voices a note fires through the loaded KERA program: zones selected (velocity
@@ -439,11 +498,11 @@ export class Instrument {
   }
 
   /** Play a note through the loaded KERA program — one sampled voice per matching zone. */
-  keraNoteOn(note: number, velocity127: number): void {
+  keraNoteOn(note: number, velocity127: number, ctxTime = 0): void {
     const { velocity, voices } = this.keraVoices(note, velocity127);
     if (!voices.length) return;
     this.keraHeld.set(note, voices.map((v) => v.voiceId));
-    this.post({ type: 'noteOnSampled', note, velocity, frameOffset: 0, voices });
+    this.post({ type: 'noteOnSampled', note, velocity, frameOffset: 0, ctxTime, voices });
   }
 
   /** The offline twin of keraNoteOn: zones are chosen now (round-robins advance in note order),
@@ -463,6 +522,13 @@ export class Instrument {
     if (!ids) return;
     this.keraHeld.delete(note);
     for (const id of ids) this.post({ type: 'noteOff', voiceId: id });
+  }
+
+  keraNoteOffAt(note: number, ctxTime: number): void {
+    const ids = this.keraHeld.get(note);
+    if (!ids) return;
+    this.keraHeld.delete(note);
+    for (const id of ids) this.noteOffAt(id, ctxTime);
   }
 
   hasKeraProgram(): boolean {
@@ -547,6 +613,12 @@ export class Instrument {
 
   setRoute(index: number, source: number, dest: number, depth: number, via = 0): void {
     this.post({ type: 'route', index, source, dest, depth, via });
+  }
+
+  /** Upload a custom LFO curve or step sequence (2..65 points in 0..1) into LFO slot `index`. */
+  setLfoCustom(index: number, points: Float32Array | number[], stepped: boolean): void {
+    const arr = points instanceof Float32Array ? new Float32Array(points) : Float32Array.from(points);
+    this.post({ type: 'lfoCustom', index, points: arr, stepped });
   }
 
   /** MPE per-note expression. Wired from day one so MPE is additive, not a rewrite. */

@@ -135,7 +135,106 @@ function rcFilter(): Design {
   return { id: 'rc-low-pass', title: 'RC charging (low-pass filter)', about: 'The capacitor charges through R1 with time constant τ = R·C = 1 ms: 63% after 1 ms, 99% after 5 ms. The same pair is a low-pass filter with corner frequency 1 / (2π·R·C) ≈ 159 Hz.', circuit: b.done('RC charging'), sim: { mode: 'tran', tEnd: 0.005, steps: 1000 }, licence: 'CC0-1.0', tags: ['filter', 'capacitor', 'time constant', 'beginner'], pairs: b.pairs };
 }
 
-export const DESIGNS: Design[] = [usbLamp(), coinCellLight(), blinker(), tone(), supply5v(), transistorSwitch(), rcFilter()];
+export interface VoltaCircuitOpts {
+  ladderPos?: number;
+  clipPos?: number;
+  vcoFreqHz?: number;
+  name?: string;
+}
+
+/**
+ * VOLTA Super-Synth analog core schematic: 12 V → 7805 regulated 5 V rail, Class-A 2N3904 transistor
+ * preamp, potentiometer-tuned RC ladder filter, Shockley diode asymmetrical soft clipper, and ¼" jack.
+ */
+export function voltaSynthDesign(opts: VoltaCircuitOpts = {}): Design {
+  const ladderPos = Math.max(0.05, Math.min(0.98, opts.ladderPos ?? 0.62));
+  const clipPos = Math.max(0.05, Math.min(0.98, opts.clipPos ?? 0.35));
+  const freqHz = Math.max(50, Math.min(2000, opts.vcoFreqHz ?? 220));
+  const title = opts.name ?? 'VOLTA Super-Synth Core';
+  const b = new Builder();
+
+  // Power stage: 12V DC supply → switch → 7805 → 5V rail + green power LED
+  b.part('dcsupply', 'J1', -18, -6, 0, { V: 12, Imax: '1' })
+    .part('switch', 'SW1', -13, -8, 0, { state: 'closed' })
+    .part('electrolytic', 'C1', -8, -5, 1, { C: '100u', V: '25' })
+    .part('reg7805', 'U1', -3, -8, 0)
+    .part('capacitor', 'C2', 3, -5, 1, { C: '100n', V: '50' })
+    .part('resistor', 'R1', 7, -5, 1, { R: '470', P: '0.25' })
+    .part('led', 'D1', 7, 0, 1, { color: 'green' });
+  b.w(['J1', '-'], [b.gnd(-18, -2), 'GND']);
+  b.w(['J1', '+'], ['SW1', '1']);
+  b.w(['SW1', '2'], ['C1', '+'], [[-8, -8]]);
+  b.w(['C1', '-'], [b.gnd(-8, -1), 'GND']);
+  b.w(['C1', '+'], ['U1', 'IN'], [[-8, -8]]);
+  b.w(['U1', 'GND'], [b.gnd(-3, -4), 'GND']);
+  b.w(['U1', 'OUT'], ['C2', '1'], [[3, -8]]);
+  b.w(['C2', '2'], [b.gnd(3, -1), 'GND']);
+  b.w(['U1', 'OUT'], ['R1', '1'], [[7, -8]]);
+  b.w(['R1', '2'], ['D1', 'A']);
+  b.w(['D1', 'K'], [b.gnd(7, 4), 'GND']);
+
+  // VCO Signal Core → Class-A BJT Differential Preamp → Tunable Ladder Filter → Diode Clipper → ¼" Out
+  b.part('signal', 'V1', -10, 10, 0, { Vpk: '1', f: String(Math.round(freqHz)), Rout: 100 })
+    .part('capacitor', 'C3', -4, 8, 0, { C: '1u', V: '50' })
+    .part('resistor', 'R_IN', 2, 8, 0, { R: '1k', P: '0.25' })
+    .part('resistor', 'R2', 12, -3, 1, { R: '47k', P: '0.25' })
+    .part('resistor', 'R3', 12, 12, 1, { R: '22k', P: '0.25' })
+    .part('npn', 'Q1', 17, 8, 0, { beta: 120 })
+    .part('resistor', 'R4', 18, -3, 1, { R: '2.2k', P: '0.25' })
+    .part('resistor', 'R5', 18, 13, 1, { R: '1k', P: '0.25' })
+    .part('capacitor', 'C4', 23, 6, 0, { C: '1u', V: '50' })
+    .part('potentiometer', 'RV1', 29, 8, 0, { R: '10k', pos: ladderPos, P: '0.25' })
+    .part('resistor', 'R6', 34, 6, 0, { R: '1k', P: '0.25' })
+    .part('capacitor', 'C5', 37, 10, 1, { C: '100n', V: '50' })
+    .part('potentiometer', 'RV2', 42, 8, 0, { R: '10k', pos: clipPos, P: '0.25' })
+    .part('resistor', 'R7', 47, 6, 0, { R: '1k', P: '0.25' })
+    .part('diode', 'D2', 51, 10, 1, { type: 'signal' })
+    .part('diode', 'D3', 55, 10, 3, { type: 'signal' })
+    .part('capacitor', 'C6', 59, 8, 0, { C: '1u', V: '50' })
+    .part('jack', 'J2', 65, 8, 0);
+
+  b.w(['V1', '-'], [b.gnd(-10, 14), 'GND']);
+  b.w(['V1', '+'], ['C3', '1']);
+  b.w(['C3', '2'], ['R_IN', '1']);
+  b.w(['U1', 'OUT'], ['R2', '1'], [[12, -8]]);
+  b.w(['R3', '2'], [b.gnd(12, 16), 'GND']);
+  b.w(['R_IN', '2'], ['Q1', 'B']);
+  b.w(['R2', '2'], ['Q1', 'B'], [[12, 8]]);
+  b.w(['R3', '1'], ['Q1', 'B'], [[12, 8]]);
+  b.w(['U1', 'OUT'], ['R4', '1'], [[18, -8]]);
+  b.w(['R4', '2'], ['Q1', 'C']);
+  b.w(['Q1', 'E'], ['R5', '1']);
+  b.w(['R5', '2'], [b.gnd(18, 17), 'GND']);
+  b.w(['Q1', 'C'], ['C4', '1']);
+  b.w(['C4', '2'], ['RV1', '1'], [], 'vh');
+  b.w(['RV1', '2'], [b.gnd(31, 10), 'GND']);
+  b.w(['RV1', 'W'], ['R6', '1']);
+  b.w(['R6', '2'], ['C5', '1'], [], 'hv');
+  b.w(['C5', '2'], [b.gnd(37, 14), 'GND']);
+  b.w(['C5', '1'], ['RV2', '1']);
+  b.w(['RV2', '2'], [b.gnd(44, 10), 'GND']);
+  b.w(['RV2', 'W'], ['R7', '1']);
+  b.w(['R7', '2'], ['D2', 'A'], [], 'hv');
+  b.w(['D2', 'K'], [b.gnd(51, 14), 'GND']);
+  b.w(['D2', 'A'], ['D3', 'K']);
+  b.w(['D3', 'A'], [b.gnd(55, 14), 'GND']);
+  b.w(['D3', 'K'], ['C6', '1']);
+  b.w(['C6', '2'], ['J2', 'T']);
+  b.w(['J2', 'S'], [b.gnd(65, 12), 'GND']);
+
+  return {
+    id: 'volta-super-synth',
+    title,
+    about: 'Circuit-modeled Super-Synth core: regulated 5 V analog bus, 2N3904 Class-A transistor overdrive, potentiometer-tunable ladder filter, asymmetrical 1N4148 Shockley diode soft-clipper, and ¼" output jack.',
+    circuit: b.done(title),
+    sim: { mode: 'tran', tEnd: 0.015, steps: 1500 },
+    licence: 'CC0-1.0',
+    tags: ['synth', 'audio', 'ladder', 'transistor', 'diode', 'volta'],
+    pairs: b.pairs,
+  };
+}
+
+export const DESIGNS: Design[] = [usbLamp(), coinCellLight(), blinker(), tone(), supply5v(), transistorSwitch(), rcFilter(), voltaSynthDesign()];
 export const designById = (id: string) => DESIGNS.find(d => d.id === id);
 
 /** Check a design's drawn wires make exactly the intended connections (no accidental joins or gaps). */

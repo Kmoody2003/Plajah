@@ -190,6 +190,97 @@ export const CANTUS_PRESETS: VelaPreset[] = [
     },
     macros: macros(0.48, 0.22, 0.4, 0.6),
   },
+  {
+    id: 'cantus-sygyt', name: 'Sygyt Whistle', family: 'voices',
+    blurb: 'steppe whistle-throat · razor overtone',
+    description:
+      'The crystalline steppe whistle technique: the tongue seals against the hard palate so the fundamental recedes and a razor-narrow upper harmonic sings out like a flute floating above a human chest.',
+    params: {
+      ...body(1.0, 0.0, 0.02, 0.56, 0.44, 6, 0.46, 0.12),
+      ...sung(0.48, 0.72, 0.12), ...overtone(0.92, 0.34, 0.04), ...waver(0.09, 0.28),
+      ...buzz(0.12), ...breath(0, 0.56, 0.22, 0.44, 0.32), ...life(0.28, 0.14, 0.48, 0.28, 0.1),
+      ...evolve(0.22, 0.64, 0.34), ...veil(0.46, 0.74, 0.64, 0.82, 0.1), ...trim(0.4),
+    },
+    macros: macros(0.54, 0.18, 0.82, 0.32),
+  },
+  {
+    id: 'cantus-hildegard-abbey', name: 'Abbey Soprano', family: 'voices',
+    blurb: 'soaring melisma · high stone nave',
+    description:
+      'Inspired by 12th-century Rhenish convent acoustics: a bright, pure head-voice vowel with a gentle upper-harmonic halo that blooms into a vaulted limestone ceiling.',
+    params: {
+      ...body(0.68, 0.004, 0.22, 0.54, 0.48, 6, 0.48, 0.32),
+      ...sung(0.84, 0.68, 0.45), ...overtone(0.48, 0.38, 0.16), ...waver(0.18, 0.26),
+      ...breath(0, 0.48, 0.28, 0.38, 0.3), ...life(0.48, 0.24, 0.62, 0.36, 0.11),
+      ...evolve(0.46, 0.62, 0.42), ...veil(0.72, 0.9, 0.8, 0.88, 0.18, 1, 0.14), ...trim(0.42),
+    },
+    macros: macros(0.5, 0.22, 0.42, 0.45),
+  },
+  {
+    id: 'cantus-polyphonic-vespers', name: 'Georgian Triad', family: 'voices',
+    blurb: 'open chest resonance · rich fifths',
+    description:
+      'Grounded in Caucasus three-part vocal timbre: open pharyngeal vowels, firm chest partials, and enough harmonic spotlight for stacked fourths and fifths to ring with acoustic combination tones.',
+    params: {
+      ...body(0.62, 0.005, 0.2, 0.52, 0.52, 6, 0.44, 0.28),
+      ...sung(0.88, 0.46, 0.38), ...overtone(0.46, 0.28, 0.18), ...waver(0.2, 0.24),
+      ...breath(0, 0.54, 0.3, 0.36, 0.34), ...life(0.42, 0.32, 0.68, 0.38, 0.12),
+      ...evolve(0.34, 0.58, 0.32), ...veil(0.6, 0.8, 0.68, 0.84, 0.1), ...trim(0.43),
+    },
+    macros: macros(0.52, 0.26, 0.36, 0.38),
+  },
+  {
+    id: 'cantus-seraphim-alto', name: 'Seraphim Alto', family: 'pad',
+    blurb: 'luminous vowel cloud · octave halo',
+    description:
+      'Warm alto choral formants suspended in a slow-breathing shimmer veil, bridging intimate human breath with cinematic scoring choir.',
+    params: {
+      ...body(0.72, 0.005, 0.3, 0.56, 0.48, 6, 0.5, 0.34),
+      ...sung(0.78, 0.52, 0.54), ...overtone(0.54, 0.44, 0.22), ...waver(0.15, 0.21),
+      ...breath(1, 0.5, 0.38, 0.35, 0.3), ...life(0.58, 0.28, 0.58, 0.42, 0.08),
+      ...evolve(0.56, 0.74, 0.52), ...veil(0.74, 0.88, 0.82, 0.88, 0.24, 1, 0.18), ...trim(0.41),
+    },
+    macros: macros(0.5, 0.24, 0.48, 0.54),
+  },
+  {
+    id: 'cantus-tuva-khoomei', name: 'Steppe Khoomei', family: 'voices',
+    blurb: 'clear steppe whistle · warm baritone',
+    description:
+      'Classic Tuvan Khoomei throat balance: a round, stable baritone fundamental beneath a sharply focused mid-high harmonic whistle.',
+    params: {
+      ...body(0.92, 0.0, 0.04, 0.56, 0.46, 6, 0.42, 0.16),
+      ...sung(0.56, 0.64, 0.16), ...overtone(0.86, 0.26, 0.06), ...waver(0.11, 0.26),
+      ...buzz(0.08), ...breath(0, 0.56, 0.26, 0.42, 0.3), ...life(0.32, 0.16, 0.45, 0.32, 0.11),
+      ...evolve(0.24, 0.64, 0.36), ...veil(0.48, 0.74, 0.64, 0.82, 0.08), ...trim(0.42),
+    },
+    macros: macros(0.54, 0.2, 0.78, 0.34),
+  },
+  {
+    id: 'cantus-sardinia-tenores', name: 'Sardinian Tenores', family: 'voices',
+    blurb: 'guttural quint · rustic island bass',
+    description:
+      'Sardinian Canto a tenore guttural voicing: earthy glottal subharmonics with an assertive chest vowel spotlight built for dry stone rooms.',
+    params: {
+      ...body(0.88, 0.002, 0.08, 0.52, 0.48, 6, 0.36, 0.2),
+      ...sung(0.76, 0.42, 0.24), ...overtone(0.64, 0.32, 0.1), ...waver(0.14, 0.24),
+      ...buzz(0.58), ...breath(0, 0.62, 0.34, 0.38, 0.36), ...life(0.38, 0.22, 0.52, 0.36, 0.12),
+      ...evolve(0.22, 0.58, 0.32), ...veil(0.46, 0.68, 0.58, 0.78, 0.06), ...trim(0.42),
+    },
+    macros: macros(0.56, 0.24, 0.58, 0.34),
+  },
+  {
+    id: 'cantus-balkan-open-throat', name: 'Rhodope Open Choir', family: 'voices',
+    blurb: 'bright chest vowel · fifth spotlight',
+    description:
+      'Cutting Bulgarian chest-voice polyphony with forward nasal brilliance and sparkling close-interval combination overtones.',
+    params: {
+      ...body(0.66, 0.004, 0.18, 0.5, 0.5, 6, 0.4, 0.32),
+      ...sung(0.9, 0.76, 0.36), ...overtone(0.52, 0.36, 0.12), ...waver(0.22, 0.32),
+      ...breath(0, 0.58, 0.28, 0.44, 0.38), ...life(0.44, 0.34, 0.66, 0.4, 0.14),
+      ...evolve(0.28, 0.6, 0.34), ...veil(0.58, 0.76, 0.66, 0.82, 0.1), ...trim(0.43),
+    },
+    macros: macros(0.56, 0.24, 0.48, 0.38),
+  },
 ];
 
 // ── ISON ─────────────────────────────────────────────────────────────────────
@@ -247,6 +338,97 @@ export const ISON_PRESETS: VelaPreset[] = [
     },
     macros: macros(0.45, 0.45, 0.3, 0.7),
   },
+  {
+    id: 'ison-harmonium-bellows', name: 'Harmonium Bellows', family: 'sustained',
+    blurb: 'teakwood pump-reed · warm beating',
+    description:
+      'Hand-pumped brass free-reeds inside an aged teak cabinet: two unison banks tuned three cents apart breathe gently on a geological timescale.',
+    params: {
+      ...body(0.58, 0.008, 0.38, 0.66, 0.48, 3, 0.42, 0.18),
+      ...sung(0.34, 0.44, 0.4), ...overtone(0.04, 0.36, 0.24), ...waver(0.04, 0.12),
+      ...breath(1, 0.54, 0.34, 0.38, 0.22), ...life(0.38, 0.68, 0.16, 0.28, 0.04),
+      ...evolve(0.58, 0.56, 0.76), ...veil(0.52, 0.74, 0.66, 0.8, 0.08), ...trim(0.44),
+    },
+    macros: macros(0.5, 0.34, 0.2, 0.34),
+  },
+  {
+    id: 'ison-cathedral-32ft', name: '32-Foot Sub-Bourdon', family: 'sustained',
+    blurb: 'wooden pedal pipe · tectonic floor',
+    description:
+      'Modeled on a 32-foot stopped wooden organ pipe whose pitch is felt in the floorboards as much as heard in the nave, evolving over eighty seconds without ever stealing attention.',
+    params: {
+      ...body(0.3, 0.004, 0.18, 0.76, 0.64, 3, 0.5, 0.15),
+      ...sung(0.38, 0.2, 0.52), ...overtone(0.0, 0.4, 0.25), ...waver(0.03, 0.08),
+      ...breath(1, 0.48, 0.3, 0.2, 0.18), ...life(0.26, 0.28, 0.08, 0.2, 0.03),
+      ...evolve(0.72, 0.54, 0.84), ...veil(0.62, 0.9, 0.78, 0.82, 0.06), ...trim(0.5),
+    },
+    macros: macros(0.44, 0.42, 0.14, 0.28),
+  },
+  {
+    id: 'ison-hurdy-bourdon', name: 'Rosin Wheel Drone', family: 'sustained',
+    blurb: 'continuous gut wheel · rustic fifth',
+    description:
+      'A rosined pearwood wheel turning steadily against gut bourdon strings, rich in odd-even bowed harmonics and slow organic beating.',
+    params: {
+      ...body(0.68, 0.014, 0.32, 0.68, 0.46, 3, 0.34, 0.2),
+      ...sung(0.28, 0.48, 0.36), ...overtone(0.08, 0.32, 0.2), ...waver(0.06, 0.14),
+      ...breath(0, 0.58, 0.38, 0.44, 0.24), ...life(0.46, 0.64, 0.18, 0.26, 0.05),
+      ...evolve(0.54, 0.62, 0.78), ...veil(0.54, 0.76, 0.68, 0.8, 0.12, 2), ...trim(0.42),
+    },
+    macros: macros(0.52, 0.38, 0.24, 0.4),
+  },
+  {
+    id: 'ison-monolith-sub', name: 'Basalt Monolith', family: 'soundscape',
+    blurb: 'mineral horizon · 90 s drift',
+    description:
+      'Dark stone-like modal partials locked in glacial beating beneath a fifth-interval shimmer veil, built for ambient scoring and deep meditation beds.',
+    params: {
+      ...body(0.64, 0.036, 0.36, 0.78, 0.48, 4, 0.48, 0.14),
+      ...sung(0.46, 0.18, 0.64, true), ...overtone(0.08, 0.52, 0.28), ...waver(0.05, 0.1),
+      ...breath(0, 0.46, 0.48, 0.28, 0.22), ...life(0.66, 0.52, 0.07, 0.38, 0.03),
+      ...evolve(0.74, 0.8, 0.88), ...veil(0.74, 0.92, 0.84, 0.88, 0.2, 2, 0.26), ...trim(0.38),
+    },
+    macros: macros(0.46, 0.44, 0.28, 0.64),
+  },
+  {
+    id: 'ison-didgeridoo-ochre', name: 'Eucalyptus Earth Drone', family: 'sustained',
+    blurb: 'hollow trunk · woody overtone rumble',
+    description:
+      'Termite-hollowed hardwood air column with slow vowel-formant shifts across an ancient continuous chest pulse.',
+    params: {
+      ...body(0.6, 0.018, 0.28, 0.66, 0.52, 3, 0.36, 0.18),
+      ...sung(0.74, 0.3, 0.54), ...overtone(0.18, 0.24, 0.16), ...waver(0.05, 0.14),
+      ...breath(1, 0.6, 0.46, 0.34, 0.26), ...life(0.44, 0.58, 0.18, 0.32, 0.08),
+      ...evolve(0.44, 0.72, 0.74), ...veil(0.56, 0.76, 0.68, 0.8, 0.08), ...trim(0.44),
+    },
+    macros: macros(0.54, 0.38, 0.2, 0.36),
+  },
+  {
+    id: 'ison-sitar-jawari-bed', name: 'Jawari Bridge Bed', family: 'sustained',
+    blurb: 'buzzing bone bridge · sympathetic fifths',
+    description:
+      'Gently bowed and repeatedly brushed flat-bridge sympathetic bed — shimmering upper overtones hovering softly over a fixed tonic.',
+    params: {
+      ...body(0.9, 0.026, 0.22, 0.76, 0.38, 0, 0.26, 0.22),
+      ...sung(0.32, 0.56, 0.42, true), ...overtone(0.28, 0.38, 0.14), ...waver(0.02, 0.2),
+      ...breath(2, 0.58, 0.32, 0.48, 0.44), ...life(0.52, 0.46, 0.15, 0.24, 0.06),
+      ...evolve(0.34, 0.64, 0.68), ...veil(0.68, 0.82, 0.78, 0.84, 0.28, 1), ...trim(0.36),
+    },
+    macros: macros(0.52, 0.4, 0.42, 0.42),
+  },
+  {
+    id: 'ison-glacial-harmonic', name: 'Glacial Glass Floor', family: 'soundscape',
+    blurb: 'crystal bourdon · slow octave tide',
+    description:
+      'Pure glass partials shifting imperceptibly in pitch and octave shimmer over a ninety-second meditation arc.',
+    params: {
+      ...body(0.54, 0.02, 0.32, 0.8, 0.42, 1, 0.44, 0.16),
+      ...sung(0.38, 0.28, 0.66, true), ...overtone(0.12, 0.48, 0.26), ...waver(0.04, 0.1),
+      ...breath(1, 0.46, 0.42, 0.3, 0.2), ...life(0.68, 0.48, 0.06, 0.34, 0.03),
+      ...evolve(0.76, 0.86, 0.92), ...veil(0.78, 0.92, 0.86, 0.88, 0.32, 1, 0.24), ...trim(0.38),
+    },
+    macros: macros(0.46, 0.4, 0.44, 0.66),
+  },
 ];
 
 // ── PNEUMA ───────────────────────────────────────────────────────────────────
@@ -291,6 +473,97 @@ export const PNEUMA_PRESETS: VelaPreset[] = [
     },
     macros: macros(0.7, 0.2, 0.2, 0.6),
   },
+  {
+    id: 'pneuma-bansuri-bamboo', name: 'Bansuri Mist', family: 'sustained',
+    blurb: 'North Indian bamboo · silky jet air',
+    description:
+      'Thin-walled Assam bamboo transverse flute: soft embouchure jet noise wraps a round fundamental that glides effortlessly across night ragas.',
+    params: {
+      ...body(0.22, 0.008, 0.18, 0.38, 0.56, 3, 0.42, 0.52),
+      ...sung(0.48, 0.54, 0.32), ...overtone(0.16, 0.24, 0.18), ...waver(0.24, 0.3),
+      ...breath(1, 0.64, 0.86, 0.46, 0.42), ...life(0.46, 0.14, 0.38, 0.58, 0.18),
+      ...evolve(0.26, 0.58, 0.28), ...veil(0.54, 0.72, 0.58, 0.8, 0.08), ...trim(0.48),
+    },
+    macros: macros(0.74, 0.2, 0.2, 0.36),
+  },
+  {
+    id: 'pneuma-xiao-courtyard', name: 'Vertical Xiao', family: 'sustained',
+    blurb: 'purple bamboo · intimate notch breath',
+    description:
+      'End-blown Chinese xiao flute with a delicate V-notch edge: hushed, inward, and rich in breath turbulence for quiet solo lines.',
+    params: {
+      ...body(0.2, 0.012, 0.22, 0.35, 0.6, 3, 0.38, 0.48),
+      ...sung(0.52, 0.44, 0.28), ...overtone(0.18, 0.26, 0.18), ...waver(0.18, 0.28),
+      ...breath(1, 0.6, 0.9, 0.42, 0.38), ...life(0.48, 0.15, 0.42, 0.56, 0.16),
+      ...evolve(0.28, 0.56, 0.3), ...veil(0.52, 0.7, 0.56, 0.78, 0.06), ...trim(0.48),
+    },
+    macros: macros(0.76, 0.18, 0.18, 0.34),
+  },
+  {
+    id: 'pneuma-andean-zampona', name: 'Highland Panpipe', family: 'sustained',
+    blurb: 'closed cane tubes · chuff & wind',
+    description:
+      'Stopped cane panpipes blown across the top rim at high altitude — crisp turbulent air burst followed by odd-harmonic hollow cane warmth.',
+    params: {
+      ...body(0.24, 0.016, 0.28, 0.32, 0.62, 3, 0.48, 0.46),
+      ...sung(0.6, 0.48, 0.34), ...overtone(0.14, 0.3, 0.22), ...waver(0.28, 0.36),
+      ...breath(1, 0.7, 0.88, 0.52, 0.48), ...life(0.52, 0.18, 0.46, 0.62, 0.22),
+      ...evolve(0.18, 0.62, 0.24), ...veil(0.58, 0.78, 0.64, 0.82, 0.1), ...trim(0.46),
+    },
+    macros: macros(0.78, 0.22, 0.22, 0.38),
+  },
+  {
+    id: 'pneuma-sirocco-canyon', name: 'Canyon Sirocco', family: 'soundscape',
+    blurb: 'desert sandstone wind · ghostly fifths',
+    description:
+      'Warm desert wind whistling across carved red-rock apertures — almost pure breath sculpted by slow resonant cavities.',
+    params: {
+      ...body(0.18, 0.032, 0.48, 0.32, 0.64, 4, 0.5, 0.24),
+      ...sung(0.8, 0.22, 0.56), ...overtone(0.12, 0.46, 0.36), ...waver(0.14, 0.16),
+      ...breath(1, 0.54, 0.94, 0.38, 0.32), ...life(0.72, 0.14, 0.22, 0.68, 0.06),
+      ...evolve(0.56, 0.52, 0.58), ...veil(0.72, 0.9, 0.78, 0.86, 0.14, 2, 0.3), ...trim(0.5),
+    },
+    macros: macros(0.74, 0.2, 0.24, 0.56),
+  },
+  {
+    id: 'pneuma-kaval-shepherd', name: 'Balkan Rim Kaval', family: 'sustained',
+    blurb: 'plumwood rim · smoky mountain air',
+    description:
+      'An open-tube Bulgarian kaval played slightly tilted across its rim — rich low breath noise over sweet wooden fundamental warmth.',
+    params: {
+      ...body(0.24, 0.01, 0.22, 0.36, 0.58, 3, 0.34, 0.5),
+      ...sung(0.52, 0.46, 0.28), ...overtone(0.22, 0.24, 0.18), ...waver(0.26, 0.32),
+      ...breath(1, 0.68, 0.88, 0.48, 0.44), ...life(0.48, 0.16, 0.42, 0.58, 0.2),
+      ...evolve(0.22, 0.6, 0.26), ...veil(0.52, 0.72, 0.56, 0.78, 0.06), ...trim(0.48),
+    },
+    macros: macros(0.76, 0.18, 0.18, 0.34),
+  },
+  {
+    id: 'pneuma-fujara-overtone', name: 'Carpathian Fujara', family: 'sustained',
+    blurb: 'tall overtone flute · deep wooden sigh',
+    description:
+      'Towering Slovak shepherd bass flute: heavy breath attack opening into gentle wooden overtones floating in mountain air.',
+    params: {
+      ...body(0.26, 0.008, 0.26, 0.38, 0.62, 3, 0.4, 0.44),
+      ...sung(0.44, 0.38, 0.34), ...overtone(0.28, 0.32, 0.16), ...waver(0.18, 0.22),
+      ...breath(1, 0.64, 0.9, 0.44, 0.46), ...life(0.5, 0.18, 0.36, 0.62, 0.16),
+      ...evolve(0.3, 0.58, 0.32), ...veil(0.6, 0.8, 0.64, 0.82, 0.08), ...trim(0.48),
+    },
+    macros: macros(0.78, 0.22, 0.22, 0.36),
+  },
+  {
+    id: 'pneuma-ocarina-clay', name: 'Vessel Clay Ocarina', family: 'sustained',
+    blurb: 'spherical terracotta · pure airy breath',
+    description:
+      'Fired-clay spherical vessel flute with soft, intimate breath onset and almost pure rounded vessel pitch.',
+    params: {
+      ...body(0.18, 0.004, 0.16, 0.34, 0.54, 4, 0.44, 0.56),
+      ...sung(0.42, 0.58, 0.24), ...overtone(0.1, 0.22, 0.2), ...waver(0.28, 0.38),
+      ...breath(1, 0.58, 0.86, 0.4, 0.36), ...life(0.42, 0.12, 0.32, 0.56, 0.22),
+      ...evolve(0.2, 0.54, 0.24), ...veil(0.56, 0.74, 0.6, 0.8, 0.05), ...trim(0.5),
+    },
+    macros: macros(0.7, 0.16, 0.2, 0.32),
+  },
 ];
 
 /**
@@ -323,7 +596,7 @@ export function presetsFor(instrument: SuiteInstrument): VelaPreset[] {
 export interface EnsembleLayer {
   instrument: SuiteInstrument;
   presetId: string;
-  /** 0..1 how present this layer is right now. */
+  /** 0..1 how present this layer right now. */
   level: number;
 }
 

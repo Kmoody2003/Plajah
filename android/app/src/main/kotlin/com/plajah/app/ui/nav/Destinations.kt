@@ -5,6 +5,7 @@ import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Forum
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LibraryMusic
@@ -55,6 +56,7 @@ object Destinations {
     val Chat     = Destination("chat",     "Chat",     "CHAT",          Icons.Rounded.Forum)
     val Studio   = Destination("studio",   "Creator",  "CREATOR_HUB",   Icons.Rounded.AutoAwesome)
     val Profile  = Destination("profile",  "You",      "USER_PROFILE",  Icons.Rounded.AccountCircle)
+    val Files    = Destination("files",    "Files",    "PLAJAH_DRIVE",  Icons.Rounded.FolderOpen)
 
     /** Phone bottom-bar order. */
     val primary: List<Destination> = listOf(Home, Chora, Reello, Lorea, Feed)
@@ -62,6 +64,6 @@ object Destinations {
     /** Everything, in rail/drawer order (Android-laptop windows show the lot). */
     val all: List<Destination> = listOf(
         Home, Chora, Reello, Lorea, Feed,
-        Taleo, Radio, Games, Photos, Sports, Academia, Chat, Studio, Profile,
+        Taleo, Radio, Games, Photos, Files, Sports, Academia, Chat, Studio, Profile,
     )
 }

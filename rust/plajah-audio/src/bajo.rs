@@ -263,9 +263,9 @@ impl Scorch {
             (0.0, x)
         };
 
-        // Focus: matched pre-cut / post-boost around 260 Hz. Positive focus starves the lows
-        // going in so the drive works on mids and highs, then restores balance coming out.
-        let lo_pre = self.tilt_lo[c].process(driven, 260.0, 0.2, sr, SvfMode::Low);
+        // Focus adapts to sub_hz so sub-bass crossover and drive midrange stay aligned.
+        let focus_hz = if cfg.safe { (cfg.sub_hz * 1.85).clamp(160.0, 460.0) } else { 260.0 };
+        let lo_pre = self.tilt_lo[c].process(driven, focus_hz, 0.2, sr, SvfMode::Low);
         driven += lo_pre * (cfg.pre_gain - 1.0);
 
         for st in 0..SC_STAGES {
@@ -277,17 +277,29 @@ impl Scorch {
             let d = (cf.drive + if st < 2 { drive_mod } else { 0.0 }).clamp(0.0, 1.4);
             let alg = cf.alg;
             let bias = cf.bias;
-            let wet = s.shaper.process_with(driven, |v| scorch_curve(v, alg, d, bias));
-            // Block the DC the bias term introduces, per stage, before it stacks.
-            s.dc += (wet - s.dc) * 0.0006;
-            let wet = wet - s.dc;
-            // Tone: a shelf built from the stage's own lowpass, so one filter does both signs.
-            let lo = s.tone.process(wet, 1400.0, 0.2, sr, SvfMode::Low);
+            // Remove the static zero-input DC offset so asymmetrical curves (e.g. tube/ruin/fold
+            // with non-zero bias) produce zero output when idle while keeping full even harmonics
+            // on AC waveforms, and bypass bitcrush quantization noise floors when near silence.
+            let zero = scorch_curve(0.0, alg, d, bias);
+            let wet = if driven.abs() < 1e-6 {
+                s.dc *= 0.99;
+                0.0
+            } else {
+                let raw = s.shaper.process_with(driven, |v| scorch_curve(v, alg, d, bias) - zero);
+                s.dc += (raw - s.dc) * 0.0006;
+                raw - s.dc
+            };
+            let tone_hz = match alg {
+                0 | 1 | 9 => 1050.0, // warm tape / triode / soft diode shelf
+                4 | 5 | 7 => 1850.0, // fold / bit / rectify presence hinge
+                _ => 1400.0,
+            };
+            let lo = s.tone.process(wet, tone_hz, 0.2, sr, SvfMode::Low);
             let wet = wet + lo * (cf.tone_gain - 1.0);
             driven = driven * (1.0 - cf.mix) + wet * cf.mix;
         }
 
-        let lo_post = self.tilt_lo2[c].process(driven, 260.0, 0.2, sr, SvfMode::Low);
+        let lo_post = self.tilt_lo2[c].process(driven, focus_hz, 0.2, sr, SvfMode::Low);
         driven += lo_post * (cfg.post_gain - 1.0);
 
         (driven + clean_sub) * cfg.output
@@ -506,6 +518,31 @@ impl BajoRack {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.throat = Throat::default();
+        self.scorch = Scorch::default();
+        self.gate = GhostGate::new();
+        self.space.ch_l.buf.fill(0.0);
+        self.space.ch_l.w = 0;
+        self.space.ch_r.buf.fill(0.0);
+        self.space.ch_r.w = 0;
+        for c in 0..FX_CH {
+            self.space.dl[c].buf.fill(0.0);
+            self.space.dl[c].w = 0;
+            self.space.dl_fb[c] = 0.0;
+            self.space.dl_tone[c] = Svf::default();
+            self.space.ec[c].buf.fill(0.0);
+            self.space.ec[c].w = 0;
+            self.space.ec_fb[c] = 0.0;
+            self.space.ec_lp[c] = Svf::default();
+            self.space.ec_hp[c] = Svf::default();
+            self.space.ec_sat[c] = Shaper::default();
+            self.spill[c].fill(0.0);
+        }
+        self.spill_hot = false;
+        self.mono_lp = [Svf::default(); 2];
+    }
+
     /// Resolve the wobble for this block. Called before the voices render so they can follow the
     /// same phase.
     pub fn wobble_frame(&mut self, p: &Params, beats: f64, frames: usize, bps: f32) -> WobbleFrame {
@@ -707,11 +744,15 @@ impl BajoRack {
                     let hp_hz = 90.0 + ec_deg * 320.0;
                     for c in 0..2 {
                         let r = self.space.ec[c].read(d);
-                        let sat = self.space.ec_sat[c].process_with(r, |v| tanh_fast(v * (1.0 + ec_drive * 6.0)));
+                        // Normalize small-signal drive gain by `1/dk` so tape saturation warms
+                        // peaks gently without pushing feedback loop gain above unity (which would
+                        // otherwise self-oscillate forever even after keys are released).
+                        let dk = 1.0 + ec_drive * 3.8;
+                        let sat = self.space.ec_sat[c].process_with(r, |v| tanh_fast(v * dk) / dk);
                         let lo = self.space.ec_lp[c].process(sat, lp_hz, 0.2, sr, SvfMode::Low);
                         let band = self.space.ec_hp[c].process(lo, hp_hz, 0.2, sr, SvfMode::High);
                         self.space.ec_fb[c] = band;
-                        self.space.ec[c].write(scratch[c][s] + band * ec_fb);
+                        self.space.ec[c].write(scratch[c][s] + band * ec_fb.min(0.90));
                         scratch[c][s] += r * ec_mix;
                     }
                 }

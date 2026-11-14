@@ -12,6 +12,7 @@
 import type { ArrangeTrack, GrooveDoc, GroupMeta, PadConfig, PadFilterType, VelCurve } from './grooveDoc';
 import { GROUP_NAMES, PAD_BANK } from './grooveDoc';
 import { AURA_MACRO_LABELS, AURA_MACRO_ORDER } from '../instruments/aura/patch';
+import { VOLTA_MACRO_LABELS, VOLTA_MACRO_ORDER } from '../instruments/volta/presets';
 import { BAJO_MACRO_LABELS, BAJO_MACRO_ORDER } from '../instruments/bajo/patch';
 import { SOMA_MACRO_LABELS, SOMA_MACRO_ORDER } from '../instruments/soma/patch';
 import { LYRA_MACRO_LABELS, LYRA_MACRO_ORDER } from '../instruments/lyra/patch';
@@ -87,6 +88,7 @@ export function instrumentMacros(t: ArrangeTrack | undefined): { label: string; 
     order.map((k) => ({ label: labels[k] ?? k, value: typeof rec[k] === 'number' ? rec[k] : 0 }));
   if (Array.isArray(patch.macros)) return (patch.macros as { name: string; value: number }[]).slice(0, 8).map((m) => ({ label: m.name, value: m.value }));
   if (ins.type === 'aura') return fromRecord(AURA_MACRO_ORDER, AURA_MACRO_LABELS);
+  if (ins.type === 'volta') return fromRecord(VOLTA_MACRO_ORDER, VOLTA_MACRO_LABELS);
   if (ins.type === 'soma') return fromRecord(SOMA_MACRO_ORDER, SOMA_MACRO_LABELS);
   if (ins.type === 'lyra') return fromRecord(LYRA_MACRO_ORDER, LYRA_MACRO_LABELS);
   if (ins.type === 'tonos') return fromRecord(TONOS_MACRO_ORDER, TONOS_MACRO_LABELS);
@@ -112,7 +114,7 @@ export function writeInstrumentMacro(d: GrooveDoc, trackId: string, index: numbe
     m.value = v;
     return 'live';
   }
-  const order: readonly string[] | null = ins.type === 'aura' ? AURA_MACRO_ORDER : ins.type === 'soma' ? SOMA_MACRO_ORDER : ins.type === 'lyra' ? LYRA_MACRO_ORDER : ins.type === 'tonos' ? TONOS_MACRO_ORDER
+  const order: readonly string[] | null = ins.type === 'aura' ? AURA_MACRO_ORDER : ins.type === 'volta' ? VOLTA_MACRO_ORDER : ins.type === 'soma' ? SOMA_MACRO_ORDER : ins.type === 'lyra' ? LYRA_MACRO_ORDER : ins.type === 'tonos' ? TONOS_MACRO_ORDER
     : ins.type === 'bajo' ? BAJO_MACRO_ORDER : isSuite(ins.type) ? suiteOrder(ins.type) : null;
   const key = order?.[index];
   if (!key) return null;

@@ -1,88 +1,156 @@
-// Fast path for "Plajah opened a local file" — Explorer double-click / "Open with" on Windows,
-// "Open with" from a file manager or gallery on Android.
-//
-// index.tsx mounts THIS instead of <App/> when the start URL carries ?open=media, so opening a
-// photo never waits on: the main App bundle, Firebase/auth, the Firestore connectivity probe,
-// public-album loading, or the "Synchronizing Front Row" gate. It renders the same viewers the
-// full app uses (NativePhotoViewer / MediaPlajahPlayer) and nothing else.
-//
-// Every "go somewhere in Plajah" action hands off to the full app in place (no reload) via
-// handOffToFullApp — that is the first moment the platform proper boots.
-import React, { Suspense, useEffect, useState } from 'react';
-import { App as CapApp } from '@capacitor/app';
+// components/LocalMediaLaunch.tsx — Lightweight OS "Open With" launch shell (?open=media).
+// Zero top-level Firebase/App imports so Photos, Video, Audio, and Docs open instantaneously,
+// rendered through the unified PlajahMediaStage with instant handoff into Plajah Files or Cinema.
+
+import React, { useEffect, useState } from 'react';
 import { getLaunchMedia, onLaunchMedia, type LaunchMediaPayload } from '../services/launchService';
-import { closeWindow, isWindowsApp } from '../services/windowsBridgeService';
+import {
+  closeWindow,
+  isWindowsApp,
+  onMediaFileActivated,
+  type WindowsPickedFile,
+} from '../services/windowsBridgeService';
 import { handOffToFullApp } from '../src/lib/launchTarget';
-import { MediaPlajahPlayer } from './player/MediaPlajahPlayer';
+import type { StageMediaItem } from '../services/files/unifiedVfs';
+import { PlajahMediaStage } from './media/PlajahMediaStage';
 
-const NativePhotoViewer = React.lazy(() => import('./photo/NativePhotoViewer'));
+const LazyReelloPlayer = React.lazy(() => import('./reello/ReelloUniversalVideoPlayer'));
 
-// Start fetching the photo viewer chunk in parallel with asking native for the file.
-void import('./photo/NativePhotoViewer');
-
-const VIDEO_RE = /\.(mp4|mov|m4v|webm|mkv|avi|mpg|mpeg|wmv|flv|ts|m2ts|vob|ogv|3gp)$/i;
-const AUDIO_RE = /\.(mp3|wav|flac|aac|m4a|ogg|wma|aiff|aif|opus|alac)$/i;
-
-function exitViewer(): void {
-  if (isWindowsApp()) closeWindow();
-  else CapApp.exitApp().catch(() => handOffToFullApp());
+function pickedToStageItem(f: WindowsPickedFile): StageMediaItem {
+  return {
+    name: f.name,
+    fullPath: f.fullPath,
+    folderPath: f.folderPath,
+    url: f.url,
+    size: f.size,
+    lastModified: f.lastModified,
+    mediaKind: f.mediaKind || (f.kind as any),
+    isLocal: true,
+    locationKind: 'local',
+  };
 }
 
-const Blank = () => <div style={{ position: 'fixed', inset: 0, background: '#07080b' }} />;
-
-export default function LocalMediaLaunch() {
+export const LocalMediaLaunch: React.FC = () => {
   const [payload, setPayload] = useState<LaunchMediaPayload | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const [cinemaState, setCinemaState] = useState<{ item: StageMediaItem; siblings: StageMediaItem[] } | null>(null);
 
   useEffect(() => {
     let alive = true;
     getLaunchMedia().then(p => {
       if (!alive) return;
       if (p) setPayload(p);
-      else setFailed(true);
+      else setTimedOut(true);
     });
-    // Android: another file opened while this viewer is up (singleTask re-entry) — show it here.
-    const off = onLaunchMedia(p => { setFailed(false); setPayload(p); });
-    return () => { alive = false; off(); };
+    const offAndroid = onLaunchMedia(p => setPayload(p));
+    const offWin = onMediaFileActivated(p => setPayload(p));
+    return () => {
+      alive = false;
+      offAndroid();
+      offWin();
+    };
   }, []);
 
-  // Nothing to show (launched with ?open=media but native had no file) — boot the normal app.
-  useEffect(() => {
-    if (failed) handOffToFullApp();
-  }, [failed]);
-
-  if (!payload) return <Blank />;
-
-  const { activeFile, folderFiles, mediaKind } = payload;
-  const kind = mediaKind || activeFile.mediaKind || activeFile.kind;
-  const isVideo = kind === 'VIDEO' || VIDEO_RE.test(activeFile.name);
-  const isAudio = kind === 'AUDIO' || AUDIO_RE.test(activeFile.name);
-
-  if (isVideo || isAudio) {
+  if (!payload) {
     return (
-      <MediaPlajahPlayer
-        file={activeFile}
-        folderFiles={folderFiles}
-        onExitToFrontRow={() => handOffToFullApp()}
-        onUploadToReello={() => handOffToFullApp('reello')}
-        onAddToFabula={() => handOffToFullApp('fabula')}
-        onSendToPixels={() => handOffToFullApp('pixels')}
-        onSendToMelos={() => handOffToFullApp('chora_studio')}
-      />
+      <div className="fixed inset-0 bg-[#07080b] text-white flex flex-col items-center justify-center gap-3 p-6 select-none">
+        {!timedOut ? (
+          <>
+            <div className="w-8 h-8 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
+            <p className="text-xs text-white/60">Opening file in Plajah Media Stage…</p>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-white/85">No local file was handed to Plajah.</p>
+            <button
+              onClick={() => handOffToFullApp('files')}
+              className="px-4 py-2 rounded-xl bg-amber-500 text-black font-semibold text-sm hover:bg-amber-400 cursor-pointer"
+            >
+              Open Plajah Files
+            </button>
+          </>
+        )}
+      </div>
     );
   }
 
+  const folderItems = (payload.folderFiles?.length ? payload.folderFiles : [payload.activeFile]).map(pickedToStageItem);
+  const activeStageItem = pickedToStageItem(payload.activeFile);
+
+  if (cinemaState) {
+    return (
+      <React.Suspense
+        fallback={
+          <div className="fixed inset-0 bg-black text-white flex items-center justify-center text-sm">
+            Loading Reello Cinema…
+          </div>
+        }
+      >
+        <LazyReelloPlayer
+          file={{
+            name: cinemaState.item.name,
+            fullPath: cinemaState.item.fullPath || '',
+            folderPath: cinemaState.item.folderPath,
+            size: cinemaState.item.size || 0,
+            lastModified: cinemaState.item.lastModified,
+            url: cinemaState.item.url,
+            mediaKind: 'VIDEO',
+          }}
+          folderFiles={payload.folderFiles}
+          context="LOCAL"
+          title={cinemaState.item.name}
+          onClose={() => setCinemaState(null)}
+        />
+      </React.Suspense>
+    );
+  }
+
+  const handleClose = () => {
+    if (isWindowsApp()) {
+      closeWindow();
+      return;
+    }
+    handOffToFullApp('files');
+  };
+
+  const handleRevealInPlajahFiles = (item: StageMediaItem) => {
+    try {
+      if (item.folderPath || item.fullPath) {
+        sessionStorage.setItem(
+          'plajah:pending-files-target',
+          JSON.stringify({ folderPath: item.folderPath || '', fullPath: item.fullPath || '' }),
+        );
+      }
+    } catch { /* ignore */ }
+    handOffToFullApp('files');
+  };
+
   return (
-    <Suspense fallback={<Blank />}>
-      <NativePhotoViewer
-        initialFile={activeFile}
-        files={folderFiles}
-        onClose={exitViewer}
-        onBackToCatalog={() => handOffToFullApp('photos')}
-        onSendToFabula={() => handOffToFullApp('fabula')}
-        onSendToPixels={() => handOffToFullApp('pixels')}
-        onSendToCrossover={() => handOffToFullApp('crossover')}
-      />
-    </Suspense>
+    <PlajahMediaStage
+      activeItem={activeStageItem}
+      playlist={folderItems}
+      mode="standalone"
+      onSelectItem={next => {
+        const picked =
+          payload.folderFiles.find(
+            f => (f.fullPath && next.fullPath ? f.fullPath === next.fullPath : f.name === next.name && f.url === next.url),
+          ) || {
+            name: next.name,
+            fullPath: next.fullPath || '',
+            folderPath: next.folderPath,
+            size: next.size || 0,
+            lastModified: next.lastModified,
+            url: next.url,
+            mediaKind: (next.mediaKind === 'IMAGE' || next.mediaKind === 'VIDEO' || next.mediaKind === 'AUDIO' ? next.mediaKind : 'UNKNOWN') as any,
+          };
+        setPayload({ ...payload, activeFile: picked });
+      }}
+      onClose={handleClose}
+      onRevealInExplorer={handleRevealInPlajahFiles}
+      onOpenCinemaPlayer={(item, siblings) => setCinemaState({ item, siblings })}
+      onSendToChora={() => handOffToFullApp('chora')}
+    />
   );
-}
+};
+
+export default LocalMediaLaunch;

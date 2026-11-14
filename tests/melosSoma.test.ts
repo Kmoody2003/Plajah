@@ -32,8 +32,8 @@ import {
   SOMA_MACRO_LABELS,
 } from '../services/melos/instruments/soma/patch';
 
-test('SOMA ships 36 physical-modeling percussion presets across 6 world & orchestral families', () => {
-  assert.equal(SOMA_PRESETS.length, 36, `expected 36 presets, got ${SOMA_PRESETS.length}`);
+test('SOMA ships at least 54 physical-modeling percussion presets across 6 world & orchestral families', () => {
+  assert.ok(SOMA_PRESETS.length >= 54, `expected >= 54 presets, got ${SOMA_PRESETS.length}`);
   assert.equal(SOMA_CATEGORY_ORDER.length, 6);
 
   const seenIds = new Set<string>();
@@ -56,7 +56,7 @@ test('SOMA ships 36 physical-modeling percussion presets across 6 world & orches
   }
 
   for (const cat of SOMA_CATEGORY_ORDER) {
-    assert.equal(countsByCat.get(cat), 6, `category ${cat} should have 6 presets`);
+    assert.ok((countsByCat.get(cat) ?? 0) >= 9, `category ${cat} should have >= 9 presets`);
   }
 });
 

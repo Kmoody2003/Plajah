@@ -25,6 +25,7 @@ import { TEMPLATE_PROJECT_PENDING_KEY } from '../../../services/melos/eraClashCh
 import { kithQuestProjects, kithQuestProjectCopy, isKithQuestProjectId } from '../../../services/melos/kithQuestChoraProjects';
 import { HandDrumLibrary, type HandDrumChoice } from './machine/HandDrumLibrary';
 import { playerById } from '../../../services/melos/beats/band/roster';
+import { registerStudioDocMutator } from '../../../services/melos/beats/band/studioContext';
 import { BASSLINES, applyBassline, type BasslinePreset } from '../../../services/melos/beats/bassLines';
 import { DrumPatternThumb, BasslineThumb, cachedPattern } from './PatternThumb';
 import { UniversalLibraryPanel } from '../../shared/UniversalLibrary/UniversalLibraryPanel';
@@ -37,6 +38,8 @@ import {
   subscribeMidi, ensureMidi, noteMidiRouted, midiSendNoteOn, midiSendNoteOff,
 } from '../../../services/melos/midiInput';
 import { mapMidiEvent } from '../../../services/melos/midiMap';
+import { driveFocusedParam } from '../../../services/melos/beats/focusedParamStore';
+import { resolveMidiRouting } from '../../../services/melos/midiRouting';
 import { learnedAction } from '../../../services/melos/midiLearn';
 import { exportDawproject } from '../../../services/melos/beats/dawproject/exportDawproject';
 import { importDawproject } from '../../../services/melos/beats/dawproject/importDawproject';
@@ -44,6 +47,7 @@ import { transcribeToPattern, addTranscribedPattern } from '../../../services/me
 import type { MelosSampleRef } from './melosSamples';
 import { useBeatsDoc } from './useBeatsDoc';
 import { useChoraCoedit } from './useChoraCoedit';
+import type { SongBrief } from '../../../services/melos/direct/songBrief';
 import { CollabDock } from '../../collab/CollabDock';
 import { useChoraJam } from './jam/useChoraJam';
 import { JamPanel } from './jam/JamPanel';
@@ -86,6 +90,7 @@ import { KeraPanel } from './instrument/KeraPanel';
 import { VelaPanel } from './instrument/VelaPanel';
 import { BajoPanel } from './instrument/BajoPanel';
 import { AuraPanel } from './instrument/AuraPanel';
+import { VoltaPanel } from './instrument/VoltaPanel';
 import { SomaPanel } from './instrument/SomaPanel';
 import { LyraPanel } from './instrument/LyraPanel';
 import { TonosPanel } from './instrument/TonosPanel';
@@ -150,6 +155,10 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     doc, rev, saveState, grooves, mutate, undo: localUndo, redo: localRedo, canUndo: localCanUndo, canRedo: localCanRedo,
     replace, applyRemote, getDoc, openShared, setGuestOf, saveNow, openGroove, newGroove, removeGroove,
   } = useBeatsDoc(payload?.grooveId, production?.prodId || payload?.productionId);
+  useEffect(() => {
+    registerStudioDocMutator(mutate);
+    return () => registerStudioDocMutator(null);
+  }, [mutate]);
   // Live collaboration on this groove (inert until the owner shares it). Remote merges fold into
   // the live doc via applyRemote; while shared, Ctrl+Z is the session's selective undo (only YOUR
   // edits) instead of the whole-doc snapshot stack, which would also revert collaborators' work.
@@ -207,6 +216,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const docRefForChoice = React.useRef(doc);
   docRefForChoice.current = doc;
   const [recQuantize, setRecQuantize] = useState(() => localStorage.getItem('melos:padrec:quantize') !== '0');
+  const recQuantRef = React.useRef(recQuantize);
+  recQuantRef.current = recQuantize;
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showGrooves, setShowGrooves] = useState(false);
   const [octave, setOctave] = useState(4);
@@ -216,6 +227,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   // Mirror the view for the MIDI handler: the Project page is for assembling releases — pads
   // and notes should not fire there (transport still works).
   const viewRef = React.useRef<BeatsViewId>('machine');
+  viewRef.current = view;
   // Metronome + record pre-roll (count-in bars) — session preferences, engine-side click.
   const [metronomeOn, setMetronomeOn] = useState(() => localStorage.getItem('plajah_beats_metronome') === '1');
   const [preRollBars, setPreRollBars] = useState(() => { const v = Number(localStorage.getItem('plajah_beats_preroll')); return v === 1 || v === 2 ? v : 1; });
@@ -227,9 +239,29 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const [showInstrumentPicker, setShowInstrumentPicker] = useState(false);
   // Where a freshly-picked instrument lands: a MEKA pad, or its own independent (clip-driven) MIDI track.
   const [instrumentDest, setInstrumentDest] = useState<'meka' | 'track'>('meka');
+  const handlePickNewInstrument = (type: InstrumentType, stayOnDesktopView = false) => {
+    let newId = '';
+    let landedPad = 0;
+    if (instrumentDest === 'track') {
+      // Independent, clip-driven MIDI track — lives on the Timeline arranger, not bound to MEKA pads.
+      mutate((d) => { newId = addInstrument(d, type); });
+      void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
+      setShowInstrumentPicker(false);
+      setView('timeline');
+      if (newId) setTimeout(() => setOpenInstrumentId(newId), 60);
+      return;
+    }
+    mutate((d) => { const r = addInstrumentToNextPad(d, type); newId = r.trackId; landedPad = r.padIdx; });
+    setSelectedPad(landedPad);
+    void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
+    setShowInstrumentPicker(false);
+    if (!stayOnDesktopView) setView('machine');
+    if (newId) setTimeout(() => setOpenInstrumentId(newId), 60);
+  };
   const [showBreakdownImport, setShowBreakdownImport] = useState(false);
   const [musicEngines, setMusicEngines] = useState<EngineStatus[] | null>(() => musicLabAdmin ? unavailableMusicEngines() : null);
   const [showGeneration, setShowGeneration] = useState(false);
+  const [directBrief, setDirectBrief] = useState<SongBrief | null>(null);
   const currentDocRef = React.useRef(doc);
   currentDocRef.current = doc;
   useEffect(() => {
@@ -304,6 +336,15 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     setView('timeline');
   };
   const [openInstrumentId, setOpenInstrumentId] = useState<string | null>(null);
+  const openInstrumentIdRef = React.useRef<string | null>(null);
+  openInstrumentIdRef.current = openInstrumentId;
+  useEffect(() => {
+    if (!openInstrumentId) return;
+    const engine = BeatsEngine.get();
+    if (!engine.isInitialized()) return;
+    const target = docRefForChoice.current.arrangement.find((t) => t.id === openInstrumentId && t.kind === 'instrument');
+    if (target) void engine.ensureInstrument(target);
+  }, [openInstrumentId]);
   // When set, the instrument picker is targeting a PAD (turn the pad into an ONDA/KERA instrument)
   // rather than adding a new arranger track.
   const [padPickerFor, setPadPickerFor] = useState<number | null>(null);
@@ -328,13 +369,15 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   // Poll the WebMIDI device list so the transport dot lights when a controller is present.
   useEffect(() => { const t = setInterval(() => setMidiConnected(midiStatus().connected.length > 0), 2000); return () => clearInterval(t); }, []);
 
-  // The armed instrument track owns the QWERTY keyboard (the pads stand down while it does),
-  // and receives anything played or recorded.
-  // Never a pad's own track: a pad instrument is played by its pad, not the armed keyboard.
+  // An opened instrument panel takes focus ahead of the armed Timeline track; otherwise the
+  // armed Timeline instrument owns the QWERTY keyboard (never a hidden pad track when closed).
+  const openTrack = openInstrumentId
+    ? doc.arrangement.find((t) => t.id === openInstrumentId && t.kind === 'instrument') || null
+    : null;
   const armedTrack = doc.arrangement.find((t) => t.kind === 'instrument' && t.armed && !t.padOwned) || null;
   useInstrumentKeyboard({
     doc,
-    armedTrack,
+    armedTrack: openTrack ?? armedTrack,
     recording,
     running: snap.running,
     posBeats: () => BeatsEngine.get().posBeats(),
@@ -500,11 +543,11 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     // to bar 1 — not audition the loose pattern. Every other view auditions the current pattern.
     if (view === 'timeline') {
       setPlayMode('song');
-      void engine.init().then(() => engine.play('song', { fromBeats: songStartBeats, countInBeats }));
+      void engine.prepareInstruments().then(() => engine.play('song', { fromBeats: songStartBeats, countInBeats }));
     } else {
       // Pattern mode plays every Group's pick together (Maschine Ideas), not one pattern alone.
       const patternIds = ideasSet(doc, { ...choice, ...(pattern ? { [patternGroup(pattern)]: pattern.id } : {}) });
-      void engine.init().then(() => engine.play(playMode, { patternIds, countInBeats }));
+      void engine.prepareInstruments().then(() => engine.play(playMode, { patternIds, countInBeats }));
     }
   }, [view, playMode, pattern?.id, preRollBars, songStartBeats, doc, choice]);
 
@@ -513,17 +556,24 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   // Record button: while stopped it arms AND rolls (with the count-in), like every DAW; while
   // playing it just toggles capture on the fly.
   const handleToggleRecord = useCallback(() => {
-    setRecording((v) => {
-      const next = !v;
-      recordingRef.current = next;
-      if (next && !BeatsEngine.get().isRunning()) {
-        const engine = BeatsEngine.get();
+    const next = !recordingRef.current;
+    recordingRef.current = next;
+    setRecording(next);
+    if (next && !BeatsEngine.get().isRunning()) {
+      const engine = BeatsEngine.get();
+      if (view === 'timeline') {
+        setPlayMode('song');
+        const countInBeats = preRollBars * MeterMap.fromDoc(doc).at(songStartBeats).lenBeats;
+        void engine.prepareInstruments().then(() => engine.play('song', { fromBeats: songStartBeats, countInBeats }));
+      } else {
         const patternIds = ideasSet(doc, { ...choice, ...(pattern ? { [patternGroup(pattern)]: pattern.id } : {}) });
-        void engine.init().then(() => engine.play(playMode, { patternIds, countInBeats: preRollBars * MeterMap.fromDoc(doc).at(0).lenBeats }));
+        void engine.prepareInstruments().then(() => engine.play(playMode, { patternIds, countInBeats: preRollBars * MeterMap.fromDoc(doc).at(0).lenBeats }));
       }
-      return next;
-    });
-  }, [playMode, pattern?.id, preRollBars, doc, choice]);
+    }
+  }, [view, playMode, pattern?.id, preRollBars, songStartBeats, doc, choice]);
+
+  const transportActionsRef = React.useRef({ play: handlePlay, stop: handleStop, toggleRecord: handleToggleRecord });
+  transportActionsRef.current = { play: handlePlay, stop: handleStop, toggleRecord: handleToggleRecord };
 
   // Space = play/stop, the one shortcut every DAW agrees on.
   useEffect(() => {
@@ -573,6 +623,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   }, [mutate]);
 
   const midiRec = React.useRef(new Map<number, RecordedNote>());
+  // Held hardware MIDI notes → exact track & monotonic token (guarantees matching noteOff and no stuck async noteOn).
+  const midiHeldTracks = React.useRef(new Map<number, { track: ArrangeTrack; token: number }>());
+  const midiNoteTokenRef = React.useRef(0);
   // Keyboard notes that are playing an instrument pad (MEKA focus): MIDI note → pad index.
   const midiPadNotes = React.useRef(new Map<number, { pad: number; semi: number }>());
   useEffect(() => {
@@ -580,54 +633,93 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     return subscribeMidi((e) => {
       const engine = BeatsEngine.get();
       const doc0 = docRefForChoice.current;
-      const armed = engine.armedTrack(); // never a pad's own track (see armedTrack)
-      // MEKA follows Maschine's focus: the keys, wheels and knobs play the SELECTED sound. When that
-      // is an instrument pad, keyboard notes are pitched hits on it (recorded into its pitch roll).
       const inMeka = viewRef.current === 'machine';
       const selIdx = selectedPadRef.current;
       const selPad = doc0.kit[selIdx];
-      const padTrack = inMeka && selPad?.source === 'instrument' && selPad.instrumentTrackId
-        ? doc0.arrangement.find((t) => t.id === selPad.instrumentTrackId && t.kind === 'instrument') ?? null
-        : null;
+      const routing = resolveMidiRouting({
+        doc: doc0,
+        view: viewRef.current,
+        selectedPad: selIdx,
+        openInstrumentId: openInstrumentIdRef.current,
+      });
       // Learned user bindings win over the premap; 'captured' means learn mode ate this event.
       const learned = learnedAction(e);
       if (learned === 'captured') return;
-      const action = learned ?? mapMidiEvent(e, !!(padTrack ?? armed), !inMeka);
+      const action = learned ?? mapMidiEvent(e, routing.instrumentArmed, routing.gridPlaysKeys);
       if (!action) return;
       // MIDI plays in every view EXCEPT Project — that page assembles releases, it doesn't
       // perform. Transport controls still pass so hardware play/stop always works.
       if (viewRef.current === 'project' && action.kind !== 'transport') return;
       noteMidiRouted(e.note);
       switch (action.kind) {
-        case 'pad':
-          void engine.init().then(() => engine.padDown(action.pad, action.velocity));
+        case 'pad': {
+          const playPad = () => engine.padDown(action.pad, action.velocity);
+          if (engine.isInitialized()) playPad();
+          else void engine.init().then(playPad);
           setSelectedPad(action.pad);
           break;
+        }
         case 'padOff':
           engine.padUp(action.pad);
           break;
         case 'note': {
-          if (padTrack) {
+          if (routing.padTrack && selPad) {
             const semi = action.note - ((selPad.instrumentNote ?? 60) + (selPad.pitchSemis || 0));
             midiPadNotes.current.set(action.note, { pad: selIdx, semi });
-            void engine.init().then(() => engine.padDownPitched(selIdx, action.velocity, semi, true, true));
+            const playPad = () => engine.padDownPitched(selIdx, action.velocity, semi, true, true);
+            if (engine.isInitialized()) playPad();
+            else void engine.init().then(() => {
+              const held = midiPadNotes.current.get(action.note);
+              if (held && held.pad === selIdx && held.semi === semi) playPad();
+            });
             midiSendNoteOn(action.note, action.velocity);
             break;
           }
-          // Auto-route. `mapMidiEvent` deliberately returns a note for a generic keyboard so it is
-          // "never dead" — and this used to drop it on the floor whenever no track happened to be
-          // armed, which is a device that connects, lights up, and makes no sound. Arm the first
-          // instrument track instead; if a project genuinely has none, the meter says "receiving,
-          // not routed" rather than leaving you guessing.
-          const target = armed ?? autoArm();
+          // Focus priority: open instrument panel > armed Timeline track > auto-arm first Timeline track.
+          const target = routing.openTrack ?? routing.armedTrack ?? autoArm();
           if (!target) break;
-          const playOn = () => void engine.ensureInstrument(target).then(() => engine.instrumentNoteOn(target, action.note, action.velocity));
+          const token = ++midiNoteTokenRef.current;
+          midiHeldTracks.current.set(action.note, { track: target, token });
+          const playOn = () => {
+            if (engine.getInstrument(target.id)) {
+              engine.instrumentNoteOn(target, action.note, action.velocity);
+            } else {
+              void engine.ensureInstrument(target).then((inst) => {
+                const held = midiHeldTracks.current.get(action.note);
+                if (!inst || !held || held.token !== token) return;
+                engine.instrumentNoteOn(target, action.note, action.velocity);
+              });
+            }
+          };
           // Jamming: the note goes to everyone and sounds here JAM_JITTER_MS later, together.
           if (!jamApiRef.current?.sendNote(target.id, true, action.note, action.velocity, playOn)) playOn();
           midiSendNoteOn(action.note, action.velocity);
           // Hardware takes record through the SAME path as the QWERTY keyboard.
           if (recordingRef.current && engine.isRunning()) {
-            midiRec.current.set(action.note, { key: action.note, vel: action.velocity, startBeats: engine.posBeats(), keys: engine.liveKeysFor(target, action.note) });
+            if (target.padOwned) {
+              const ownerIdx = doc0.kit.findIndex((p) => p.instrumentTrackId === target.id);
+              if (ownerIdx >= 0) {
+                const ownerPad = doc0.kit[ownerIdx];
+                const semi = action.note - ((ownerPad.instrumentNote ?? 60) + (ownerPad.pitchSemis || 0));
+                const playing = engine.playingPatternIds();
+                mutate((d) => {
+                  recordPadHit(d, {
+                    padIdx: ownerIdx,
+                    vel: action.velocity,
+                    beat: engine.posBeats(),
+                    mode: playing.length ? 'pattern' : 'song',
+                    semi,
+                  }, playing, recQuantRef.current);
+                });
+              }
+            } else {
+              midiRec.current.set(action.note, {
+                key: action.note,
+                vel: action.velocity,
+                startBeats: engine.posBeats(),
+                keys: engine.liveKeysFor(target, action.note),
+              });
+            }
           }
           break;
         }
@@ -640,7 +732,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
             midiSendNoteOff(action.note);
             break;
           }
-          const target = armed;
+          const held = midiHeldTracks.current.get(action.note);
+          midiHeldTracks.current.delete(action.note);
+          const target = held?.track ?? routing.openTrack ?? routing.armedTrack;
           if (target) {
             const playOff = () => engine.instrumentNoteOff(target, action.note);
             if (!jamApiRef.current?.sendNote(target.id, false, action.note, 0, playOff)) playOff();
@@ -658,31 +752,33 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           break;
         }
         case 'modWheel': {
-          const target = padTrack ?? armed ?? autoArm();
+          const target = routing.openTrack ?? routing.padTrack ?? routing.armedTrack ?? autoArm();
           if (target) engine.setInstrumentModWheel(target, action.value);
           break;
         }
         case 'pitchBend': {
-          const target = padTrack ?? armed ?? autoArm();
+          const target = routing.openTrack ?? routing.padTrack ?? routing.armedTrack ?? autoArm();
           if (target) engine.setInstrumentPitchBend(target, action.value);
           break;
         }
         case 'sustain': {
-          const target = padTrack ?? armed;
+          const target = routing.openTrack ?? routing.padTrack ?? routing.armedTrack;
           if (target && !action.on) {
             engine.getInstrument(target.id)?.allNotesOff(false);
           }
           break;
         }
         case 'macro': {
-          // The eight knobs drive the armed instrument's macros, else whatever page MEKA's control
-          // area is on (Sound / Group / Master) — screen knob N and hardware knob N are one slot.
-          // In MEKA the knobs follow the screen (the selected pad's page); elsewhere, the armed synth.
-          if (armed && !inMeka) {
+          // Hardware Knob 1 (index 0) controls the hovered / cursor-adjacent / selected parameter when present.
+          if (action.index === 0 && driveFocusedParam(action.value)) break;
+          // Open instrument panel or non-MEKA instrument target drives the track's 8 macros;
+          // in MEKA with no instrument modal open, knobs control the Sound / Group / Master page.
+          if (routing.macroTrack) {
+            const macroId = routing.macroTrack.id;
             let how: 'live' | 'reload' | null = null;
-            mutate((d) => { how = writeInstrumentMacro(d, armed.id, action.index, action.value); });
-            if (how === 'live') engine.getInstrument(armed.id)?.setMacro(action.index, action.value);
-            else if (how === 'reload') pushTrackPatch(armed.id);
+            mutate((d) => { how = writeInstrumentMacro(d, macroId, action.index, action.value); });
+            if (how === 'live') engine.getInstrument(macroId)?.setMacro(action.index, action.value);
+            else if (how === 'reload') pushTrackPatch(macroId);
             break;
           }
           const { page } = focusedPage(docRefForChoice.current, selectedPadRef.current);
@@ -712,9 +808,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           break;
         }
         case 'transport':
-          if (action.action === 'play') handlePlay();
-          else if (action.action === 'stop') handleStop();
-          else if (action.action === 'record') setRecording((v) => !v);
+          if (action.action === 'play') transportActionsRef.current.play();
+          else if (action.action === 'stop') transportActionsRef.current.stop();
+          else if (action.action === 'record') transportActionsRef.current.toggleRecord();
           break;
       }
     });
@@ -911,8 +1007,6 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
 
   // Live pad recording: armed record + a running transport → pad hits land in the playing
   // pattern of the pad's Group (padRecord.ts). One undo step per pass.
-  const recQuantRef = React.useRef(recQuantize);
-  recQuantRef.current = recQuantize;
   useEffect(() => {
     let pass = '';
     return BeatsEngine.get().onPadHit((hit) => {
@@ -1146,9 +1240,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           onSelectPad={setSelectedPad}
           onPlay={handlePlay}
           onStop={handleStop}
-          onToggleRecord={() => setRecording((v) => !v)}
+          onToggleRecord={handleToggleRecord}
           onSetPlayMode={setPlayMode}
-          onPlayFrom={(fromBeats) => { setPlayMode('song'); setSongStartBeats(fromBeats); void BeatsEngine.get().init().then(() => BeatsEngine.get().play('song', { fromBeats })); }}
+          onPlayFrom={(fromBeats) => { setPlayMode('song'); setSongStartBeats(fromBeats); void BeatsEngine.get().prepareInstruments().then(() => BeatsEngine.get().play('song', { fromBeats })); }}
           onLoadSampleFile={(padIdx, file) => { void loadSampleFile(padIdx, file); }}
           melosSamples={melosSamples}
           onLoadMelosSample={(padIdx, ref) => { void loadMelosSample(padIdx, ref); }}
@@ -1162,27 +1256,11 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         />
         {showInstrumentPicker && (
           <InstrumentPicker
-            destination={instrumentDest === 'track' ? 'as an independent MIDI track' : undefined}
+            destination={instrumentDest === 'track' ? 'as an independent MIDI track' : 'to a MEKA pad'}
+            destMode={instrumentDest}
+            onChangeDestMode={setInstrumentDest}
             onClose={() => setShowInstrumentPicker(false)}
-            onPick={(type) => {
-              let newId = ''; let landedPad = 0;
-              if (instrumentDest === 'track') {
-                // Independent, clip-driven MIDI track — behaves like an audio track (own mixer strip,
-                // draw MIDI clips on its lane). Send it to a MEKA pad later via the track's right-click.
-                mutate((d) => { newId = addInstrument(d, type); });
-                void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
-                setShowInstrumentPicker(false);
-                setView('timeline'); // the arranger — its new lane is there
-                if (newId) setTimeout(() => setOpenInstrumentId(newId), 60);
-                return;
-              }
-              mutate((d) => { const r = addInstrumentToNextPad(d, type); newId = r.trackId; landedPad = r.padIdx; });
-              setSelectedPad(landedPad);
-              void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
-              setShowInstrumentPicker(false);
-              setView('machine'); // MEKA — the pad it filled is right there
-              if (newId) setTimeout(() => setOpenInstrumentId(newId), 60);
-            }}
+            onPick={(type) => handlePickNewInstrument(type, false)}
           />
         )}
         {padPickerFor !== null && (
@@ -1215,6 +1293,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           if (t.instrument?.type === 'kera') return <KeraPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           if (t.instrument?.type === 'bajo') return <BajoPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           if (t.instrument?.type === 'aura') return <AuraPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
+          if (t.instrument?.type === 'volta') return <VoltaPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           if (t.instrument?.type === 'soma') return <SomaPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           if (t.instrument?.type === 'lyra') return <LyraPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           if (t.instrument?.type === 'tonos') return <TonosPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
@@ -1758,6 +1837,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           doc={doc}
           showTempo={showTempoLane}
           onOpenGenerator={musicEngines ? () => setShowGeneration((v) => !v) : undefined}
+          onOpenGeneratorWithBrief={musicEngines ? (brief) => { setDirectBrief(brief); setShowGeneration(true); } : undefined}
+          onBriefChange={setDirectBrief}
           activePattern={pattern}
           beats={snap.beats}
           running={snap.running}
@@ -1769,7 +1850,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
             setPlayMode('song');
             setSongStartBeats(fromBeats);
             const engine = BeatsEngine.get();
-            void engine.init().then(() => engine.play('song', { fromBeats }));
+            void engine.prepareInstruments().then(() => engine.play('song', { fromBeats }));
           }}
           onOpenInstrument={(id) => setOpenInstrumentId(id)}
           onAddInstrument={(dest?: 'meka' | 'track') => { setInstrumentDest(dest || 'meka'); setShowInstrumentPicker(true); }}
@@ -1846,6 +1927,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
             return t.instrument?.type === 'kera' ? <KeraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
               : t.instrument?.type === 'bajo' ? <BajoPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
               : t.instrument?.type === 'aura' ? <AuraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+              : t.instrument?.type === 'volta' ? <VoltaPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
               : t.instrument?.type === 'soma' ? <SomaPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
               : t.instrument?.type === 'lyra' ? <LyraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
               : t.instrument?.type === 'tonos' ? <TonosPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
@@ -1856,7 +1938,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       )}
       </div>
       {showGeneration && musicEngines && <GenerationPanel key={doc.id} doc={doc} engines={musicEngines} startBeats={songStartBeats}
-        initialDestination={view === 'machine' ? 'meka' : view === 'glass' ? 'glass' : 'timeline'} onClose={() => setShowGeneration(false)} onInsert={insertGeneration} />}
+        initialDestination={view === 'machine' ? 'meka' : view === 'glass' ? 'glass' : 'timeline'} initialBrief={directBrief} onClose={() => setShowGeneration(false)} onInsert={insertGeneration} />}
       {showLibrary && <MuseLibrary docked doc={doc} onMutate={mutate} onClose={() => setShowLibrary(false)} />}
       {showJam && co.isShared && <JamPanel jam={jam} doc={doc} onClose={() => setShowJam(false)} />}
       {ulOpen && (
@@ -1882,10 +1964,13 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           instrument choice rather than a preset list. Mixer and Project don't add sounds. */}
       {view !== 'mixer' && view !== 'project' && (
         <button
-          onClick={() => setShowInstrumentPicker(true)}
+          onClick={() => {
+            setInstrumentDest(view === 'timeline' ? 'track' : 'meka');
+            setShowInstrumentPicker(true);
+          }}
           className="absolute bottom-4 right-4 z-30 h-10 px-4 rounded-full text-[12px] font-semibold text-white flex items-center gap-2 shadow-xl"
           style={{ background: 'linear-gradient(135deg, #6B0099, #B84DFF)' }}
-          title="Add an instrument to this groove"
+          title={view === 'timeline' ? 'Add an instrument track to the Timeline' : 'Add an instrument to this groove'}
         >
           <Plus size={15} /> Instrument
         </button>
@@ -1896,19 +1981,11 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       )}
       {showInstrumentPicker && (
         <InstrumentPicker
+          destination={instrumentDest === 'track' ? 'as an independent MIDI track' : 'to a MEKA pad'}
+          destMode={instrumentDest}
+          onChangeDestMode={setInstrumentDest}
           onClose={() => setShowInstrumentPicker(false)}
-          onPick={(type) => {
-            let newId = ''; let landedPad = 0;
-            // Maschine Groups: fill the next empty pad, spawning a new Group when one fills.
-            mutate((d) => { const r = addInstrumentToNextPad(d, type); newId = r.trackId; landedPad = r.padIdx; });
-            setSelectedPad(landedPad);
-            // Instantiate the worklet now so the first note (or arp step) has something to play.
-            void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
-            // Stay on the view you added it from — it appears in Glass's rack, the Timeline's
-            // pad lanes and MEKA's grid alike; being teleported to MEKA was disorienting.
-            setShowInstrumentPicker(false);
-            if (newId) setTimeout(() => setOpenInstrumentId(newId), 60);
-          }}
+          onPick={(type) => handlePickNewInstrument(type, true)}
         />
       )}
 
@@ -1953,6 +2030,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         const body = t.instrument?.type === 'kera' ? <KeraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
           : t.instrument?.type === 'bajo' ? <BajoPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
           : t.instrument?.type === 'aura' ? <AuraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+          : t.instrument?.type === 'volta' ? <VoltaPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
           : t.instrument?.type === 'soma' ? <SomaPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
               : t.instrument?.type === 'lyra' ? <LyraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
               : t.instrument?.type === 'tonos' ? <TonosPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />

@@ -1,7 +1,8 @@
 // Chora Session Band — the players' AI. Desktop first: in the Plajah Windows app the question goes
 // to the on-device model (NativeLlmService on the PC's GPU — nothing leaves the machine). Otherwise
 // cloud Gemini through /api/band/teach, only after the person agreed to the cloud. With neither,
-// or when a lane fails, the player answers from what they know (teach.answer) — always instant.
+// or when a lane fails, the player answers from what they know (teach.answer + live project/ear
+// awareness) — always instant.
 
 import { auth } from '../../../backendService';
 import { isWindowsApp, nativeLlmChat } from '../../../windowsBridgeService';
@@ -24,6 +25,18 @@ export function deviceLane(): Promise<{ ok: boolean; model?: string }> {
   return device;
 }
 
+function builtInContextReply(playerName: string, question: string, ctx: TeacherContext): string | null {
+  const q = question.toLowerCase();
+  if (ctx.projectSummary && /\b(song|project|session|key|bpm|tempo|chords|progression|tracks|playing now|what am i playing|right now)\b/.test(q)) {
+    const extra = ctx.referenceSummary ? ` Latest studied reference: ${ctx.referenceSummary}.` : '';
+    return `Here is what I hear in your session (${playerName} listening): ${ctx.projectSummary}.${extra} Want me to jam or record a fresh take over these changes?`;
+  }
+  if (ctx.referenceSummary && /\b(hum|hummed|sang|listen|heard|study|studied|reference|book|movie|film|vibe|fresh take|accompany)\b/.test(q)) {
+    return `I've studied that reference: ${ctx.referenceSummary}. Use Fresh Take to invent a variation over your chords or Accompany to interlock beneath it.`;
+  }
+  return null;
+}
+
 /**
  * Ask a player. `history` is the conversation so far (latest question last).
  * Lanes: device → cloud (when consented) → built-in.
@@ -33,6 +46,9 @@ export async function askPlayer(playerId: string, history: TeacherTurn[], ctx: T
   const turns = teacherTurns(history);
   const question = [...turns].reverse().find((t) => t.role === 'user')?.content ?? '';
   const builtIn = (note?: string): MindReply => {
+    const first = p?.name.split(' ')[0] ?? 'Musician';
+    const liveReply = builtInContextReply(first, question, ctx);
+    if (liveReply) return { text: liveReply, lane: 'built-in', note };
     const a = answer(question, playerId);
     return { text: a.text + (a.also ? `\n\n${a.also}` : ''), lane: 'built-in', note };
   };

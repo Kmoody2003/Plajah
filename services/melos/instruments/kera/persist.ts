@@ -1,30 +1,15 @@
 // KERA program persistence — the piece that makes a sampler patch a real, reloadable part of a
 // saved project.
-//
-// A KeraProgram is two very different things: musical METADATA (zones, loops, tuning, amp) that is
-// small plain JSON, and decoded PCM (Float32 per channel) that is large binary. They persist to
-// different places, both scoped to the OWNER and no one else:
-//   • metadata  → serialized here into the groove doc's TrackInstrument, which autosaves to the
-//                 user's own Firestore production. Small enough to live in the document.
-//   • PCM       → content-addressed in OPFS (instant local reopen) with a durable copy in the
-//                 owner's PRIVATE locker at personal/{uid}/… — the same per-user path pad samples
-//                 already use. Never a shared or public path.
-//
-// PCM is stored in an exact little-endian float format, NOT via encodeWav + decodeAudioData:
-// decodeAudioData resamples to the AudioContext's rate, which would silently move loop points
-// (kept in frames) and shift playback pitch. Round-tripping our own bytes preserves the sample
-// exactly — original rate, original frame count, sample-accurate loops.
 
 import { putBytes, getBytes, hasBytes } from '../../../fabula/mediaStore';
 import { uploadFile } from '../../../backendService';
 import { auth } from '../../../firebase';
-import { emptyProgram, type KeraProgram, type KeraSample } from './zones';
+import { emptyProgram, type KeraProgram, type KeraSample, type KeraVoiceState } from './zones';
 
 const MAGIC = 0x4b524131; // 'KRA1'
 const HEADER_BYTES = 20;   // magic(4) + sampleRate f64(8) + channels u32(4) + frames u32(4)
 const keyFor = (hash: string) => `melos/beats/kera/${hash}`;
 
-/** A stored KERA sample: musical metadata inline, PCM referenced by content hash. */
 export interface SerializedKeraSample {
   id: string;
   name: string;
@@ -36,18 +21,17 @@ export interface SerializedKeraSample {
   loopStart: number;
   loopEnd: number;
   loopMode: 'off' | 'forward' | 'sustain';
-  /** Content-addressed OPFS key + durable per-user locker URL for the PCM blob. */
   key: string;
   lockerUrl?: string;
 }
 
-/** The whole program minus PCM — safe to embed in the groove doc and write to Firestore. */
 export interface SerializedKeraProgram {
   v: 1;
   name: string;
   source: KeraProgram['source'];
   zones: KeraProgram['zones'];
   amp: KeraProgram['amp'];
+  voice?: KeraVoiceState;
   playMode: KeraProgram['playMode'];
   transpose: number;
   gainDb: number;
@@ -60,7 +44,6 @@ async function sha256Hex(buf: ArrayBuffer): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** Pack a sample's channels into one exact little-endian blob (channel-major float32). */
 function packPcm(sample: KeraSample): ArrayBuffer {
   const channelCount = sample.channels.length;
   const frames = sample.channels[0]?.length ?? 0;
@@ -84,12 +67,10 @@ function unpackPcm(ab: ArrayBuffer): { channels: Float32Array[]; sampleRate: num
   const frames = view.getUint32(16, true);
   const flat = new Float32Array(ab, HEADER_BYTES, channelCount * frames);
   const channels: Float32Array[] = [];
-  // Copy each channel out so views don't alias the fetched buffer (which may be GC'd/reused).
   for (let c = 0; c < channelCount; c++) channels.push(flat.slice(c * frames, (c + 1) * frames));
   return { channels, sampleRate };
 }
 
-/** Store one sample's PCM: hash → OPFS (dedupe) → durable per-user locker copy. */
 async function putSamplePcm(sample: KeraSample, locker = true): Promise<{ key: string; lockerUrl?: string }> {
   const ab = packPcm(sample);
   const hash = await sha256Hex(ab);
@@ -111,7 +92,7 @@ async function getSamplePcm(s: SerializedKeraSample): Promise<{ channels: Float3
     let blob = await getBytes(s.key);
     if (!blob && s.lockerUrl) {
       const res = await fetch(s.lockerUrl);
-      if (res.ok) { blob = await res.blob(); void putBytes(s.key, blob); } // re-seed OPFS
+      if (res.ok) { blob = await res.blob(); void putBytes(s.key, blob); }
     }
     if (!blob) return null;
     return unpackPcm(await blob.arrayBuffer());
@@ -121,15 +102,7 @@ async function getSamplePcm(s: SerializedKeraSample): Promise<{ channels: Float3
   }
 }
 
-/**
- * Serialize a live program for the doc: every sample's PCM is stored to the owner's OPFS + locker,
- * deduped by content hash, and the returned object (metadata + refs, no PCM) is what gets written
- * into TrackInstrument.kera. Safe to run after the sound is already playing — it only persists.
- */
 export async function serializeKeraProgram(program: KeraProgram, prior?: SerializedKeraProgram | null, opts: { locker?: boolean } = {}): Promise<SerializedKeraProgram> {
-  // Editing zones/loops/amp doesn't change PCM, so reuse a prior store-ref when the audio is
-  // provably identical (same id, frame count, rate, channels) instead of re-hashing megabytes on
-  // every drag. Fresh PCM (a newly loaded sample) has no match and is stored.
   const priorById = new Map((prior?.samples ?? []).map((s) => [s.id, s]));
   const samples: SerializedKeraSample[] = [];
   for (const s of program.samples) {
@@ -137,26 +110,36 @@ export async function serializeKeraProgram(program: KeraProgram, prior?: Seriali
     const p = priorById.get(s.id);
     const reusable = p && p.frames === frames && p.sampleRate === s.sampleRate && p.channelCount === s.channels.length;
     const { key, lockerUrl } = reusable ? { key: p.key, lockerUrl: p.lockerUrl } : await putSamplePcm(s, opts.locker !== false);
-    samples.push({
+    const entry: SerializedKeraSample = {
       id: s.id, name: s.name, sampleRate: s.sampleRate,
       frames, channelCount: s.channels.length,
       rootNote: s.rootNote, fineTune: s.fineTune,
       loopStart: s.loopStart, loopEnd: s.loopEnd, loopMode: s.loopMode,
-      key, lockerUrl,
-    });
+      key,
+    };
+    if (lockerUrl !== undefined) entry.lockerUrl = lockerUrl;
+    samples.push(entry);
   }
-  return {
+  const out: SerializedKeraProgram = {
     v: 1, name: program.name, source: program.source, zones: program.zones, amp: program.amp,
     playMode: program.playMode, transpose: program.transpose, gainDb: program.gainDb,
     polyphony: program.polyphony, samples,
   };
+  if (program.voice) {
+    out.voice = {
+      cut: Number(program.voice.cut) || 0,
+      res: Number(program.voice.res) || 0,
+      drive: Number(program.voice.drive) || 0,
+      lfoOn: !!program.voice.lfoOn,
+      lfoRate: Number(program.voice.lfoRate) || 0.3,
+      lfoDepth: Number(program.voice.lfoDepth) || 0,
+      x: Number(program.voice.x) || 0,
+      y: Number(program.voice.y) || 0,
+    };
+  }
+  return out;
 }
 
-/**
- * The durable half of a save done with `{ locker: false }`: upload every sample that has no
- * locker copy yet (from OPFS, where the fast save put it) and return the refs with their URLs.
- * A big library loads and plays at once; its backup runs after, without holding the UI.
- */
 export async function backupKeraSamples(sp: SerializedKeraProgram): Promise<SerializedKeraProgram> {
   const user = auth.currentUser;
   if (!user) return sp;
@@ -169,22 +152,18 @@ export async function backupKeraSamples(sp: SerializedKeraProgram): Promise<Seri
       const hash = s.key.split('/').pop() || '';
       const safe = s.name.replace(/[^\w.-]+/g, '_').slice(0, 40) || 'sample';
       if (blob) lockerUrl = await uploadFile(`personal/${user.uid}/melos/beats/kera/${hash}_${safe}`, blob);
-    } catch { /* best-effort, like putSamplePcm */ }
+    } catch { /* best-effort */ }
     samples.push(lockerUrl ? { ...s, lockerUrl } : s);
   }
   return { ...sp, samples };
 }
 
-/**
- * A metadata-only program for UI display (zone map, counts, name) without fetching any PCM — so a
- * saved KERA track's panel can show what's loaded instantly on open, while the audible program
- * hydrates in the engine separately. The samples carry empty channel arrays.
- */
 export function keraProgramShell(sp: SerializedKeraProgram): KeraProgram {
   const prog = emptyProgram(sp.name);
   prog.source = sp.source;
   prog.zones = sp.zones;
   prog.amp = sp.amp;
+  if (sp.voice) prog.voice = { ...sp.voice };
   prog.playMode = sp.playMode;
   prog.transpose = sp.transpose;
   prog.gainDb = sp.gainDb;
@@ -197,17 +176,13 @@ export function keraProgramShell(sp: SerializedKeraProgram): KeraProgram {
   return prog;
 }
 
-/**
- * Rebuild a playable program from the doc. Returns null only if NOTHING could be hydrated (all PCM
- * evicted and no locker) — a partial hydrate (some samples missing) still returns a program so the
- * zones that survive still play.
- */
 export async function deserializeKeraProgram(sp: SerializedKeraProgram): Promise<KeraProgram | null> {
   if (!sp?.samples) return null;
   const prog = emptyProgram(sp.name);
   prog.source = sp.source;
   prog.zones = sp.zones;
   prog.amp = sp.amp;
+  if (sp.voice) prog.voice = { ...sp.voice };
   prog.playMode = sp.playMode;
   prog.transpose = sp.transpose;
   prog.gainDb = sp.gainDb;
@@ -216,7 +191,7 @@ export async function deserializeKeraProgram(sp: SerializedKeraProgram): Promise
   const out: KeraSample[] = [];
   for (const s of sp.samples) {
     const pcm = await getSamplePcm(s);
-    if (!pcm) continue; // dropped sample: its zones simply won't sound, rather than failing the load
+    if (!pcm) continue;
     out.push({
       id: s.id, name: s.name, channels: pcm.channels, sampleRate: pcm.sampleRate,
       rootNote: s.rootNote, fineTune: s.fineTune,

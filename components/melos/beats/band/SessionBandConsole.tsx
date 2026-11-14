@@ -9,7 +9,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Play, Square, Radio, Printer, PenLine, GraduationCap, Send, Star, Music, ChevronDown } from 'lucide-react';
+import { X, Play, Square, Radio, Printer, PenLine, GraduationCap, Send, Star, Music, ChevronDown, Mic, MicOff, Headphones, BookOpen, Wand2 } from 'lucide-react';
 import type { GrooveDoc, NoteEvent } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { songTime } from '../../../../services/melos/beats/tempoMap';
@@ -22,6 +22,13 @@ import { parseChart } from '../../../../services/melos/beats/band/chords';
 import { ALL_LESSONS, grooveLine } from '../../../../services/melos/beats/band/teach';
 import { BandAvatar } from './BandAvatar';
 import { createSeatTrack, seatSound } from './bandSeats';
+import { askPlayer } from '../../../../services/melos/beats/band/bandMind';
+import { summarizeStudioContext } from '../../../../services/melos/beats/band/studioContext';
+import { captureDeviceAudioSnippet, captureMicSnippet, captureProjectMixSnippet, type StudiedReference } from '../../../../services/melos/beats/band/audioEar';
+import { researchCreativeReference, type ResearchBrief } from '../../../../services/melos/beats/band/referenceResearch';
+import { applyPresetToDoc, pushTrackPatch } from '../../../../services/melos/beats/presetHub';
+import { createRecognizer, listeningAvailable, type Recognizer, type RecState } from '../../../../services/voca/vocaSpeech';
+import { ariaVoice } from '../../../../services/voice/aria/ariaVoice';
 
 interface Props {
   doc: GrooveDoc;
@@ -52,6 +59,23 @@ export const SessionBandConsole: React.FC<Props> = ({ doc, onMutate, running, on
   const [showLessons, setShowLessons] = useState(false);
   const [teaching, setTeaching] = useState(false);
   const feedEnd = useRef<HTMLDivElement | null>(null);
+  const [studiedRef, setStudiedRef] = useState<StudiedReference | null>(null);
+  const [researchOpen, setResearchOpen] = useState(false);
+  const [refQuery, setRefQuery] = useState('');
+  const [brief, setBrief] = useState<ResearchBrief | null>(null);
+  const [listeningEar, setListeningEar] = useState<string | null>(null);
+  const [micState, setMicState] = useState<RecState>('idle');
+  const [micNote, setMicNote] = useState<string>('');
+  const [liveHeard, setLiveHeard] = useState<string>('');
+  const [voiceSpeak, setVoiceSpeak] = useState(false);
+  const recRef = useRef<Recognizer | null>(null);
+  const heardBufRef = useRef('');
+  const heardTimerRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (heardTimerRef.current) window.clearTimeout(heardTimerRef.current);
+    recRef.current?.stop();
+    recRef.current = null;
+  }, []);
 
   // First open: restore the genre/chart this song's band last used, and say hello.
   useEffect(() => {
@@ -122,17 +146,130 @@ export const SessionBandConsole: React.FC<Props> = ({ doc, onMutate, running, on
   };
   const stopJam = () => { setJamming(false); BeatsEngine.get().stop(); };
 
-  const say = (text: string) => {
+  const replyAsync = async (t: string, speakOut = voiceSpeak) => {
+    const pid = selected ?? BAND.find((p) => session.dir.players[p.id].in)?.id ?? 'theo';
+    const docNow = docRef.current;
+    const projectSummary = summarizeStudioContext(docNow, { recentChords: BeatsEngine.get().playedChords() }).promptSummary;
+    const referenceSummary = [
+      studiedRef?.summary,
+      brief ? `${brief.title}: ${brief.narrative} (${brief.chart})` : '',
+    ].filter(Boolean).join(' | ');
+    try {
+      const reply = await askPlayer(pid, [{ role: 'user', content: t }], { projectSummary, referenceSummary: referenceSummary || undefined });
+      setFeed((f) => [...f.slice(-120), { id: Date.now() + 1, kind: 'answer', playerId: pid, text: reply.text, bar: session.currentBar() }]);
+      if (speakOut) {
+        recRef.current?.suspend();
+        try { await ariaVoice.speak(reply.text); } finally { recRef.current?.resume(); }
+      }
+    } catch { /* fallback handled by session.direct */ }
+  };
+
+  const say = (text: string, fromVoice = false) => {
     const t = text.trim();
     if (!t) return;
     setFeed((f) => [...f, { id: Date.now(), kind: 'band', text: `🎧 ${t}`, bar: session.currentBar() }]);
     const before = session.dir.genre;
-    session.direct(t);
+    const out = session.direct(t);
     // Anyone the direction brought in sits down at their instrument.
     if (jamming) seatPlayers(BAND.filter((p) => session.dir.players[p.id].in).map((p) => p.id));
     if (session.dir.genre !== before) onMutate((d) => { d.band = { seats: {}, ...d.band, genre: session.dir.genre }; });
+    // Always speak & reply on voice talkback (and on typed questions / unrecognized requests) so the
+    // musician visibly & audibly responds instead of silently mutating internal state.
+    if (fromVoice || !out.understood || /\?$/.test(t)) {
+      void replyAsync(t, fromVoice || voiceSpeak);
+    }
     setTalk('');
     bump();
+  };
+
+  const toggleVoiceTalkback = () => {
+    if (recRef.current) {
+      const r = recRef.current;
+      recRef.current = null;
+      r.stop(); // flushes trailing interim words via onWords
+      if (heardTimerRef.current) { window.clearTimeout(heardTimerRef.current); heardTimerRef.current = null; }
+      const leftover = heardBufRef.current.trim();
+      heardBufRef.current = '';
+      setLiveHeard('');
+      setMicState('idle');
+      if (leftover) say(leftover, true);
+      return;
+    }
+    if (!listeningAvailable()) {
+      setMicNote('Speech recognition is unavailable in this browser/webview. Type a prompt or use Hum / Idea.');
+      return;
+    }
+    ariaVoice.prime();
+    setMicNote('');
+    const rec = createRecognizer({ lang: 'en-US' });
+    recRef.current = rec;
+    setVoiceSpeak(true);
+    rec.onState = (s, err) => {
+      setMicState(s);
+      if (err?.message) setMicNote(err.message);
+      else if (s === 'listening') setMicNote('');
+    };
+    rec.onInterim = (txt) => setLiveHeard(txt);
+    rec.onWords = (words) => {
+      if (!words.length) return;
+      heardBufRef.current = `${heardBufRef.current} ${words.map((w) => w.text).join(' ')}`.trim();
+      setLiveHeard(heardBufRef.current);
+      if (heardTimerRef.current) window.clearTimeout(heardTimerRef.current);
+      heardTimerRef.current = window.setTimeout(() => {
+        const spoken = heardBufRef.current.trim();
+        heardBufRef.current = '';
+        setLiveHeard('');
+        if (spoken) say(spoken, true);
+      }, 950);
+    };
+    rec.start();
+  };
+
+  const studyBandEar = async (kind: 'mic' | 'mix' | 'system') => {
+    setListeningEar(kind);
+    try {
+      const ref = kind === 'mic'
+        ? await captureMicSnippet(4500, 'Vocal / Hum Idea')
+        : kind === 'mix'
+          ? await captureProjectMixSnippet(4500, 'Song Mix Tap')
+          : await captureDeviceAudioSnippet(5000, 'Computer Audio Study');
+      setStudiedRef(ref);
+      if (ref.chart) applyChart(ref.chart);
+      setFeed((f) => [...f.slice(-120), { id: Date.now(), kind: 'band', text: `👂 Studied ${ref.summary}`, bar: session.currentBar() }]);
+    } catch (err: any) {
+      setFeed((f) => [...f.slice(-120), { id: Date.now(), kind: 'band', text: `👂 ${err?.message || 'Could not listen right now.'}`, bar: session.currentBar() }]);
+    } finally {
+      setListeningEar(null);
+    }
+  };
+
+  const runBandResearch = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const q = refQuery.trim();
+    if (!q) return;
+    setListeningEar('research');
+    try {
+      const ctx = summarizeStudioContext(docRef.current, { recentChords: BeatsEngine.get().playedChords() });
+      const res = await researchCreativeReference(q, { ctx, studied: studiedRef, playerId: selected ?? undefined });
+      setBrief(res);
+      setFeed((f) => [...f.slice(-120), { id: Date.now(), kind: 'band', text: `📚 Researched "${res.title}" (${res.bpm} BPM · ${res.keyLabel} · ${res.chart}) — ${res.narrative}`, bar: session.currentBar() }]);
+    } finally {
+      setListeningEar(null);
+    }
+  };
+
+  const applyResearchBriefToBand = (b: ResearchBrief) => {
+    setGenre(b.genreId);
+    if (b.chart) applyChart(b.chart);
+    onMutate((d) => {
+      d.bpm = b.bpm;
+      d.key = { tonic: b.keyTonic, scale: b.keyScale };
+      for (const rec of b.recommendedPresets) {
+        const t = d.arrangement.find((tr) => tr.kind === 'instrument' && tr.instrument?.type === rec.instrument);
+        if (t && applyPresetToDoc(d, t.id, rec.presetId)) pushTrackPatch(t.id);
+      }
+    });
+    setFeed((f) => [...f.slice(-120), { id: Date.now(), kind: 'band', text: `✨ Applied "${b.title}" aesthetic (${b.bpm} BPM, ${b.keyLabel}, ${b.chart}).`, bar: session.currentBar() }]);
   };
 
   const setGenre = (id: string) => {
@@ -288,8 +425,29 @@ export const SessionBandConsole: React.FC<Props> = ({ doc, onMutate, running, on
         <div className="flex gap-1 flex-wrap mb-1.5">
           {QUICK.map((q) => <button key={q} onClick={() => say(q)} className="text-[10px] px-2 py-0.5 rounded-full border border-white/12 text-white/70 hover:bg-white/10">{q}</button>)}
           <button onClick={() => setShowLessons(!showLessons)} className="text-[10px] px-2 py-0.5 rounded-full border border-[#00DAF3]/40 text-[#7FEFFF] flex items-center gap-1"><GraduationCap size={10} /> Lessons <ChevronDown size={10} /></button>
+          <button onClick={() => setResearchOpen(!researchOpen)} className="text-[10px] px-2 py-0.5 rounded-full border border-amber-300/40 text-amber-200 flex items-center gap-1"><BookOpen size={10} /> Hear & Research</button>
           {session.lessonRunning() && <button onClick={() => { session.advanceLesson(); bump(); }} className="text-[10px] px-2 py-0.5 rounded-full bg-[#00DAF3]/20 text-[#7FEFFF]">Next step</button>}
         </div>
+        {researchOpen && (
+          <div className="mb-2 rounded-lg border border-amber-300/25 bg-black/40 p-2 flex flex-col gap-1.5 text-[10px]">
+            <div className="flex gap-1 flex-wrap items-center">
+              <span className="text-white/45 flex items-center gap-1"><Headphones size={10} /> Study:</span>
+              <button type="button" disabled={!!listeningEar} onClick={() => void studyBandEar('mic')} className="px-2 py-0.5 rounded border border-white/15 hover:bg-white/10">{listeningEar === 'mic' ? 'Listening…' : 'Hum / Mic'}</button>
+              <button type="button" disabled={!!listeningEar} onClick={() => void studyBandEar('mix')} className="px-2 py-0.5 rounded border border-white/15 hover:bg-white/10">{listeningEar === 'mix' ? 'Listening…' : 'Song Mix'}</button>
+              <button type="button" disabled={!!listeningEar} onClick={() => void studyBandEar('system')} className="px-2 py-0.5 rounded border border-white/15 hover:bg-white/10">{listeningEar === 'system' ? 'Listening…' : 'Computer Audio'}</button>
+            </div>
+            <form onSubmit={(e) => void runBandResearch(e)} className="flex gap-1">
+              <input value={refQuery} onChange={(e) => setRefQuery(e.target.value)} placeholder='Book, movie, song or vibe (e.g. "Dune", "Blade Runner", "Miles noir")…' className={`${field} h-7 px-2 flex-1`} />
+              <button type="submit" disabled={!!listeningEar || !refQuery.trim()} className="h-7 px-2.5 rounded-lg bg-amber-400/20 border border-amber-300/45 text-amber-100 font-semibold flex items-center gap-1"><Wand2 size={10} /> Research</button>
+            </form>
+            {brief && (
+              <div className="flex items-center justify-between gap-2 flex-wrap bg-white/[0.04] rounded px-2 py-1">
+                <span className="text-amber-200 truncate">{brief.title} ({brief.bpm} BPM · {brief.keyLabel})</span>
+                <button type="button" onClick={() => applyResearchBriefToBand(brief)} className="px-2 py-0.5 rounded bg-amber-400/25 border border-amber-300/50 text-amber-100 font-semibold">Apply Vibe + Presets</button>
+              </div>
+            )}
+          </div>
+        )}
         {showLessons && (
           <div className="mb-2 max-h-36 overflow-y-auto rounded-lg border border-white/10 bg-black/30 p-1.5 grid grid-cols-2 gap-1">
             {ALL_LESSONS.map(({ player, lesson }) => (
@@ -301,8 +459,22 @@ export const SessionBandConsole: React.FC<Props> = ({ doc, onMutate, running, on
             ))}
           </div>
         )}
+        {(liveHeard || micNote) && (
+          <div className="mb-1.5 text-[10px] px-2 py-1 rounded-lg border border-white/10 bg-black/35 flex items-center justify-between gap-2">
+            {liveHeard ? <span className="text-violet-200 truncate">Hearing: “{liveHeard}”</span> : <span className="text-rose-300/90">{micNote}</span>}
+          </div>
+        )}
         <form onSubmit={(e) => { e.preventDefault(); say(talk); }} className="flex gap-1.5">
-          <input value={talk} onChange={(e) => setTalk(e.target.value)} placeholder='Talk to the band — "Dwayne, lay back", "Rosie take a solo", "make it gospel", "who invented the sax?"'
+          <button
+            type="button"
+            onClick={toggleVoiceTalkback}
+            className="h-9 px-2.5 rounded-lg border border-white/15 flex items-center gap-1 text-[11px]"
+            style={micState === 'listening' ? { background: 'rgba(139,92,255,0.28)', borderColor: ACCENT, color: '#fff' } : { color: listeningAvailable() ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.4)' }}
+            title="Hands-free voice talkback with the Session Band"
+          >
+            {micState === 'listening' ? <MicOff size={14} /> : <Mic size={14} />}
+          </button>
+          <input value={talk} onChange={(e) => setTalk(e.target.value)} placeholder='Talk to the band — "Dwayne, lay back", "Rosie take a solo", "what key are we in?"'
             className={`${field} flex-1 h-9 px-3 text-[12px]`} aria-label="Talk to the band" />
           <button type="submit" className="h-9 w-9 rounded-lg flex items-center justify-center" style={{ background: ACCENT }} aria-label="Send"><Send size={14} /></button>
         </form>

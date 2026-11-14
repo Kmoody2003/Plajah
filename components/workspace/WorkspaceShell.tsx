@@ -16,6 +16,8 @@ import type { Level } from '../../services/workspace/guidePath';
 import { RoomHostContext } from './roomHost';
 import AskAria, { type AriaTurn } from './AskAria';
 import type { CadRoomProps } from '../cad/CadRoom';
+import { designById } from '../../services/elec/designs';
+import { VOLTA_PENDING_CIRCUIT_KEY } from '../../services/melos/instruments/volta/circuitSpec';
 import type { ElecRoomProps } from '../elec/ElecRoom';
 import type { PatternRoomProps } from '../soft/PatternRoom';
 import type { BioRoomProps } from '../bio/BioRoom';
@@ -160,14 +162,33 @@ function Pane({ id, on, children }: { id: string; on: boolean; children: React.R
   </div>;
 }
 
+function resolveElecStarter(starterId?: string) {
+  const d = starterId ? designById(starterId) : undefined;
+  let customCircuit: ElecRoomProps['initial'] = d?.circuit;
+  if (starterId === 'volta-super-synth' && typeof window !== 'undefined') {
+    try {
+      const raw = sessionStorage.getItem(VOLTA_PENDING_CIRCUIT_KEY);
+      if (raw) {
+        sessionStorage.removeItem(VOLTA_PENDING_CIRCUIT_KEY);
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.parts) && Array.isArray(parsed.wires)) {
+          customCircuit = parsed;
+        }
+      }
+    } catch { /* ignore storage errors */ }
+  }
+  return { circuit: customCircuit, sim: d?.sim };
+}
+
 function Room({ w, level, onLevel, launch, extra, getToken, onClose, onOpen }: { w: Workspace; level: Level; onLevel: (l: Level) => void; launch?: ShellLaunch; extra?: ShellRoomProps; getToken?: () => Promise<string | null>; onClose: () => void; onOpen: (id: string) => void }) {
+  const elecStarter = useMemo(() => (w.id === 'electronics' ? resolveElecStarter(launch?.starter) : { circuit: undefined, sim: undefined }), [w.id, launch?.starter]);
   if (w.status === 'planned' || !w.room) return <Coming w={w} level={level} onOpen={onOpen}/>;
   // A file the host opened decides the start, so the parts library / guide don't pop over it.
   const opened = (p?: Partial<CadRoomProps>) => !!(p?.initialFile || p?.loadInitial);
   switch (w.id) {
     case 'architecture': return <CadRoom startWith={launch?.guided && !opened(extra?.architecture) ? 'guided' : undefined} {...extra?.architecture} getToken={getToken} onClose={onClose} level={level} onLevel={onLevel}/>;
     case 'mechanical': return <CadRoom startWith={opened(extra?.mechanical) ? undefined : 'parts'} {...extra?.mechanical} getToken={getToken} onClose={onClose} level={level} onLevel={onLevel}/>;
-    case 'electronics': return <ElecRoom initialPrompt={launch?.prompt} {...extra?.electronics} getToken={getToken} onClose={onClose} level={level}/>;
+    case 'electronics': return <ElecRoom initial={elecStarter.circuit} initialSim={elecStarter.sim} initialPrompt={launch?.prompt} {...extra?.electronics} getToken={getToken} onClose={onClose} level={level}/>;
     case 'sewing': return <PatternRoom initialTemplate={launch?.template} {...extra?.sewing} getToken={getToken} onClose={onClose} level={level}/>;
     case 'studio': return <BuildStudio getToken={getToken} onClose={onClose} starter={launch?.starter} lesson={launch?.lesson} level={level}/>;
     case 'biology': return <BioRoom {...extra?.biology} onClose={onClose} level={level}/>;

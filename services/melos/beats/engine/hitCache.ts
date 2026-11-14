@@ -12,6 +12,8 @@ import type { SynthHit } from './synthVoices';
 
 const cache = new Map<string, AudioBuffer | 'pending'>();
 const MAX_ENTRIES = 160;   // ~160 one-shots of a second or so — a few MB at 48 kHz mono
+const MAX_CACHE_FLOATS = 4 * 1024 * 1024; // 16 MB hard cap across cached one-shot buffers
+let cacheFloats = 0;
 let variantTick = 0;
 
 /** Velocity levels the cache keeps; a hit is scaled from the nearest level at or above it. */
@@ -53,7 +55,13 @@ export function cachedHit(
         render(off, off.destination, 0, vb);
         const buf = await off.startRendering();
         cache.set(k, buf);
-        while (cache.size > MAX_ENTRIES) cache.delete(cache.keys().next().value as string);
+        cacheFloats += buf.length * buf.numberOfChannels;
+        while ((cache.size > MAX_ENTRIES || cacheFloats > MAX_CACHE_FLOATS) && cache.size > 1) {
+          const oldKey = cache.keys().next().value as string;
+          const oldVal = cache.get(oldKey);
+          cache.delete(oldKey);
+          if (oldVal && oldVal !== 'pending') cacheFloats -= oldVal.length * oldVal.numberOfChannels;
+        }
       } catch { cache.delete(k); }
     })();
   }

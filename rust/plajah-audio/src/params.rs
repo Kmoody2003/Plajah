@@ -96,6 +96,8 @@ pub const L_FADE: u32 = 5;
 /// VELA's Drift needs modulation whose period is measured in minutes; reusing the LFO block
 /// with a range flag keeps every existing Motion route working unchanged.
 pub const L_RANGE: u32 = 6;
+/// >0.5 = per-voice LFO phase/fade clocked independently from each note's onset.
+pub const L_PER_VOICE: u32 = 7;
 
 #[inline]
 pub fn lfo_param(index: usize, p: u32) -> u32 {
@@ -389,6 +391,10 @@ pub const SM_SHELL_RESONANCE: u32 = 25;  // 0..1 structural shell wall vibration
 pub const SM_SHELL_WARMTH: u32 = 26;     // 0..1 high-SPL chamber air compression & wood saturation
 pub const SM_MIC_PERSPECTIVE: u32 = 27;  // 0..1 top batter skin vs. bottom air port & shell radiation mix
 pub const SM_ROOM_EARLY: u32 = 28;       // 0..1 early studio/stage boundary reflections
+pub const SM_HERITAGE_AGE: u32 = 29;     // 0..1 aged hide viscoelastic relaxation & seasoned wood/shell resonance
+pub const SM_CRAFT_ASYMMETRY: u32 = 30;  // 0..1 dorsal-spine hide anisotropy doublet splitting & chisel micro-turbulence
+pub const SM_SYAHI_LOAD: u32 = 31;       // 0..1 C.V. Raman iron-oxide syahi/karanai harmonic paste loading (1:2:3:4:5)
+pub const SM_APERTURE_HAND: u32 = 32;    // 0..1 Clay Udu / pot drum dual-aperture palm occlusion & vortex puff
 
 // ── LYRA (instrument 07): physical models — guitar, piano, violin, sax, trumpet, tine piano,
 // flute, clarinet, double reeds ───
@@ -433,6 +439,9 @@ pub const LY_OD: u32 = 32;          // overdrive pedal (0 = off)
 pub const LY_CHORUS: u32 = 33;      // chorus (0 = off)
 pub const LY_ECHO: u32 = 34;        // tape echo amount (0 = off)
 pub const LY_ECHO_TIME: u32 = 35;   // 80 ms … 900 ms
+pub const LY_HERITAGE_AGE: u32 = 36;    // 0..1 aged tonewood specific modulus, felt conditioning & Alnico relaxation
+pub const LY_CRAFT_CHARACTER: u32 = 37; // 0..1 handmade plate graduation asymmetry & coupled unison polarization
+pub const LY_SYMPATHETIC: u32 = 38;     // 0..1 open-string / duplex / sustain-pedal sympathetic resonance
 
 // ── TONOS (instrument 08): world strings as physical strings ───
 // Block 2000 upward (tonos.rs). Defaults to TN_ENABLE = 0 (bypass). INSTRUMENT, MATERIAL,
@@ -468,6 +477,8 @@ pub const TN_MUTE: u32 = 25;        // palm / finger damping near the bridge
 pub const TN_RELEASE_DAMP: u32 = 26; // how firmly the player stops the string on release
 pub const TN_VEL_SENS: u32 = 27;
 pub const TN_LEGATO: u32 = 28;      // >0.5: a note into a held one slides (bowed: always one bow)
+pub const TN_HERITAGE_AGE: u32 = 29;    // 0..1 centuries of hemicellulose hydrolysis, mineral ground & seasoned gourd/hide
+pub const TN_CRAFT_ASYMMETRY: u32 = 30; // 0..1 hand-carved plate graduation asymmetry & Weinreich dual-polarization coupling
 
 // ── ARCO (instrument 09): orchestral strings — violin, viola, cello, double bass, sections ───
 // Block 2100 upward (arco.rs). Defaults to AR_ENABLE = 0. INSTRUMENT, ENSEMBLE, SECTION, ARTIC,
@@ -554,6 +565,53 @@ pub const AU_TIGHTNESS: u32 = 17;
 pub const AU_WIDTH: u32 = 18;
 pub const KITHARA_BASE: u32 = 2400;
 pub const VOLTA_BASE: u32 = 2500;
+
+// ── VOLTA circuit-modeled vintage + modern super-synth (2500..2599) ─────────
+pub const VL_ENABLE: u32 = 0;         // 0 = off, >0.5 = on
+pub const VL_TOPOLOGY: u32 = 1;       // 0 = Series Ladder->SVF, 1 = Parallel, 2 = Dual Morph, 3 = Vintage Ladder Only, 4 = Modern SVF Only
+pub const VL_VINTAGE_MORPH: u32 = 2;  // 0 = 1974 Discrete Analog, 1 = 2026 Modern Hybrid
+pub const VL_OSC1_WAVE: u32 = 3;      // 0 = Saw, 1 = Pulse/PWM, 2 = Triangle, 3 = Sine, 4 = SuperSaw Pair
+pub const VL_OSC1_PW: u32 = 4;        // 0..1 -> 0.08..0.92 pulse width
+pub const VL_OSC2_WAVE: u32 = 5;      // 0..4
+pub const VL_OSC2_SEMI: u32 = 6;      // 0..1 -> -24..+24 st (0.5 = 0)
+pub const VL_OSC2_DETUNE: u32 = 7;    // 0..1 -> -50..+50 cents (0.5 = 0)
+pub const VL_OSC_MIX: u32 = 8;        // 0..1 Osc1 <-> Osc2 balance
+pub const VL_SUB_LVL: u32 = 9;        // 0..1 Sub-oscillator level
+pub const VL_SUB_OCT: u32 = 10;       // 0 = -1 oct, 1 = -2 oct
+pub const VL_NOISE_LVL: u32 = 11;     // 0..1 Analog thermal transistor noise
+pub const VL_FM_TZ: u32 = 12;         // 0..1 Thru-Zero linear FM depth (Osc2 -> Osc1)
+pub const VL_WAVEFOLD: u32 = 13;      // 0..1 4-stage West-Coast Buchla/Serge wavefolder
+pub const VL_FOLD_SYM: u32 = 14;      // 0..1 Asymmetric bias before wavefolding (0.5 = symmetric)
+pub const VL_LADDER_CUTOFF: u32 = 15; // 0..1 -> 20Hz..20kHz exponential
+pub const VL_LADDER_RES: u32 = 16;    // 0..1 Ladder transistor-pair feedback
+pub const VL_LADDER_DRIVE: u32 = 17;  // 0..1 Discrete differential-pair drive
+pub const VL_SVF_CUTOFF: u32 = 18;    // 0..1 -> 20Hz..20kHz exponential
+pub const VL_SVF_RES: u32 = 19;       // 0..1 Cytomic ZDF Q
+pub const VL_SVF_MODE: u32 = 20;      // 0..1 continuous LP(0) -> BP(0.33) -> HP(0.67) -> Notch(1.0)
+pub const VL_DIODE_CLIP: u32 = 21;    // 0..1 Shockley BJT silicon/germanium clipping stage
+pub const VL_OTA_DRIFT: u32 = 22;     // 0..1 Thermal OTA pitch/cutoff component drift & trim tolerance
+pub const VL_PSU_SAG: u32 = 23;       // 0..1 Power-rail load sag & recovery
+pub const VL_BIAS_TEMP: u32 = 24;     // 0..1 Thermal voltage Vt bias shift
+pub const VL_FILT_ENV_AMT: u32 = 25;  // 0..1 -> -1..+1 (0.5 = 0)
+pub const VL_KEY_TRACK: u32 = 26;     // 0..1 filter keyboard tracking
+pub const VL_AMP_ATK: u32 = 27;
+pub const VL_AMP_DEC: u32 = 28;
+pub const VL_AMP_SUS: u32 = 29;
+pub const VL_AMP_REL: u32 = 30;
+pub const VL_FLT_ATK: u32 = 31;
+pub const VL_FLT_DEC: u32 = 32;
+pub const VL_FLT_SUS: u32 = 33;
+pub const VL_FLT_REL: u32 = 34;
+pub const VL_LFO_RATE: u32 = 35;      // 0..1 -> 0.08Hz..32Hz
+pub const VL_LFO_DEPTH: u32 = 36;     // 0..1
+pub const VL_LFO_DEST: u32 = 37;      // 0 = Cutoff, 1 = Pitch/Vibrato, 2 = Wavefold/PWM, 3 = Thru-Zero FM
+pub const VL_GLIDE: u32 = 38;         // 0..1 -> 0..1.5s
+pub const VL_BEND_RANGE: u32 = 39;    // 0..1 -> 2..24 st
+pub const VL_CHORUS: u32 = 40;        // 0..1 Dual-mode BBD / modern stereo ensemble
+pub const VL_WIDTH: u32 = 41;         // 0..1 Stereo voice pan spread
+pub const VL_VEL_SENS: u32 = 42;      // 0..1 Velocity sensitivity
+pub const VL_UNISON: u32 = 43;        // 0..1 Stacked analog/hybrid voice doubling
+pub const VL_VOICE_MODE: u32 = 44;    // 0 = Poly, 1 = Mono Retrig, 2 = Legato
 
 pub const MAX_PARAM_ID: usize = 2600;
 
@@ -821,6 +879,10 @@ impl Params {
         self.set(SOMA_BASE + SM_SHELL_WARMTH, 0.35);
         self.set(SOMA_BASE + SM_MIC_PERSPECTIVE, 0.45);
         self.set(SOMA_BASE + SM_ROOM_EARLY, 0.28);
+        self.set(SOMA_BASE + SM_HERITAGE_AGE, 0.0);
+        self.set(SOMA_BASE + SM_CRAFT_ASYMMETRY, 0.0);
+        self.set(SOMA_BASE + SM_SYAHI_LOAD, 0.0);
+        self.set(SOMA_BASE + SM_APERTURE_HAND, 0.0);
 
         // ── LYRA ─────────────────────────────────────────────────────────────
         self.set(LYRA_BASE + LY_ENABLE, 0.0);
@@ -859,6 +921,9 @@ impl Params {
         self.set(LYRA_BASE + LY_CHORUS, 0.0);
         self.set(LYRA_BASE + LY_ECHO, 0.0);
         self.set(LYRA_BASE + LY_ECHO_TIME, 0.4);
+        self.set(LYRA_BASE + LY_HERITAGE_AGE, 0.25);
+        self.set(LYRA_BASE + LY_CRAFT_CHARACTER, 0.22);
+        self.set(LYRA_BASE + LY_SYMPATHETIC, 0.25);
 
         // TONOS: off unless enabled; the physical controls sit at "as built".
         for id in TN_POSITION..=TN_LEGATO {
@@ -880,6 +945,8 @@ impl Params {
         self.set(TONOS_BASE + TN_RELEASE_DAMP, 0.3);
         self.set(TONOS_BASE + TN_VEL_SENS, 0.85);
         self.set(TONOS_BASE + TN_LEGATO, 1.0);
+        self.set(TONOS_BASE + TN_HERITAGE_AGE, 0.28);
+        self.set(TONOS_BASE + TN_CRAFT_ASYMMETRY, 0.22);
         // ARCO: off unless enabled.
         for id in AR_DYNAMICS..=AR_TENSION {
             self.set(ARCO_BASE + id, 0.5);
@@ -929,6 +996,53 @@ impl Params {
         self.set(AULOS_BASE + AU_QUALITY, 0.67);
         self.set(AULOS_BASE + AU_INTONATION, 0.3);
         self.set(AULOS_BASE + AU_TIGHTNESS, 0.3);
+
+        // VOLTA: off unless enabled; calibrated Vintage+Modern hybrid defaults.
+        self.set(VOLTA_BASE + VL_ENABLE, 0.0);
+        self.set(VOLTA_BASE + VL_TOPOLOGY, 2.0); // Dual Morph Vintage <-> Modern
+        self.set(VOLTA_BASE + VL_VINTAGE_MORPH, 0.35);
+        self.set(VOLTA_BASE + VL_OSC1_WAVE, 0.0);
+        self.set(VOLTA_BASE + VL_OSC1_PW, 0.5);
+        self.set(VOLTA_BASE + VL_OSC2_WAVE, 0.0);
+        self.set(VOLTA_BASE + VL_OSC2_SEMI, 0.5);
+        self.set(VOLTA_BASE + VL_OSC2_DETUNE, 0.56);
+        self.set(VOLTA_BASE + VL_OSC_MIX, 0.45);
+        self.set(VOLTA_BASE + VL_SUB_LVL, 0.35);
+        self.set(VOLTA_BASE + VL_SUB_OCT, 0.0);
+        self.set(VOLTA_BASE + VL_NOISE_LVL, 0.03);
+        self.set(VOLTA_BASE + VL_FM_TZ, 0.0);
+        self.set(VOLTA_BASE + VL_WAVEFOLD, 0.15);
+        self.set(VOLTA_BASE + VL_FOLD_SYM, 0.5);
+        self.set(VOLTA_BASE + VL_LADDER_CUTOFF, 0.62);
+        self.set(VOLTA_BASE + VL_LADDER_RES, 0.24);
+        self.set(VOLTA_BASE + VL_LADDER_DRIVE, 0.32);
+        self.set(VOLTA_BASE + VL_SVF_CUTOFF, 0.74);
+        self.set(VOLTA_BASE + VL_SVF_RES, 0.18);
+        self.set(VOLTA_BASE + VL_SVF_MODE, 0.0);
+        self.set(VOLTA_BASE + VL_DIODE_CLIP, 0.22);
+        self.set(VOLTA_BASE + VL_OTA_DRIFT, 0.28);
+        self.set(VOLTA_BASE + VL_PSU_SAG, 0.22);
+        self.set(VOLTA_BASE + VL_BIAS_TEMP, 0.38);
+        self.set(VOLTA_BASE + VL_FILT_ENV_AMT, 0.72);
+        self.set(VOLTA_BASE + VL_KEY_TRACK, 0.45);
+        self.set(VOLTA_BASE + VL_AMP_ATK, 0.08);
+        self.set(VOLTA_BASE + VL_AMP_DEC, 0.38);
+        self.set(VOLTA_BASE + VL_AMP_SUS, 0.76);
+        self.set(VOLTA_BASE + VL_AMP_REL, 0.28);
+        self.set(VOLTA_BASE + VL_FLT_ATK, 0.06);
+        self.set(VOLTA_BASE + VL_FLT_DEC, 0.42);
+        self.set(VOLTA_BASE + VL_FLT_SUS, 0.36);
+        self.set(VOLTA_BASE + VL_FLT_REL, 0.34);
+        self.set(VOLTA_BASE + VL_LFO_RATE, 0.36);
+        self.set(VOLTA_BASE + VL_LFO_DEPTH, 0.12);
+        self.set(VOLTA_BASE + VL_LFO_DEST, 0.0);
+        self.set(VOLTA_BASE + VL_GLIDE, 0.06);
+        self.set(VOLTA_BASE + VL_BEND_RANGE, 0.0);
+        self.set(VOLTA_BASE + VL_CHORUS, 0.28);
+        self.set(VOLTA_BASE + VL_WIDTH, 0.55);
+        self.set(VOLTA_BASE + VL_VEL_SENS, 0.72);
+        self.set(VOLTA_BASE + VL_UNISON, 0.2);
+        self.set(VOLTA_BASE + VL_VOICE_MODE, 0.0);
     }
 }
 

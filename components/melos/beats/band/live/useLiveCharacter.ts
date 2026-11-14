@@ -21,6 +21,12 @@ export interface LiveHost {
   playStep?: (stroke: string, velocity: number, note?: number, holdMs?: number) => void;
   enrich?: (o: Observation) => Record<string, string | number>;
   screen?: () => string;
+  /** Live Chora song state summary fed to the AI teacher/band mind. */
+  projectSummary?: () => string | undefined;
+  /** Latest studied hum, song, mix, or creative research summary fed to the AI mind. */
+  referenceSummary?: () => string | undefined;
+  /** Active instrument & sub-preset identifier. */
+  activeInstrument?: () => string | undefined;
   /** A fact about what's on this host (e.g. the current drum); defaults to the player's instrument lore. */
   trivia?: () => string | undefined;
 }
@@ -114,7 +120,17 @@ export function useLiveCharacter(sheet: CharacterSheet, host: LiveHost) {
           finally { signal.removeEventListener('abort', stop); if (ariaVoice.getProfile().id === `band-${sheet.id}`) ariaVoice.setProfile(prev); }
         } finally { recRef.current?.resume(); }
       },
-      ask: (history, screen, signal) => askPlayer(sheet.id, history, { lesson: `In Chora right now: ${screen}` }, signal),
+      ask: (history, screen, signal) => askPlayer(
+        sheet.id,
+        history,
+        {
+          lesson: `In Chora right now: ${screen}`,
+          projectSummary: hostRef.current.projectSummary?.(),
+          referenceSummary: hostRef.current.referenceSummary?.(),
+          activeInstrument: hostRef.current.activeInstrument?.(),
+        },
+        signal,
+      ),
       perform: async (demo: Demo, signal) => {
         const play = hostRef.current.playStep;
         if (!play) return;
@@ -157,41 +173,69 @@ export function useLiveCharacter(sheet: CharacterSheet, host: LiveHost) {
   // Talking back: open the mic, gather words, send after a pause.
   const [mic, setMic] = useState<RecState>('idle');
   const [heard, setHeard] = useState('');
+  const [interim, setInterim] = useState('');
+  const [micError, setMicError] = useState<string | null>(null);
   const heardRef = useRef('');
+  const interimRef = useRef('');
   const sendTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flushHeard = useCallback(() => {
+    if (sendTimer.current) { clearTimeout(sendTimer.current); sendTimer.current = null; }
+    const q = (heardRef.current || interimRef.current).trim();
+    heardRef.current = '';
+    interimRef.current = '';
+    setHeard('');
+    setInterim('');
+    director.listen(false);
+    if (q) void director.hear(q);
+  }, [director]);
   const stopMic = useCallback(() => {
     recRef.current?.stop();
     recRef.current = null;
     setMic('idle');
-    director.listen(false);
-  }, [director]);
+    flushHeard();
+  }, [flushHeard]);
   const startMic = useCallback(() => {
-    if (recRef.current || !listeningAvailable()) return;
+    if (recRef.current) return;
+    if (!listeningAvailable()) {
+      setMicError('Speech recognition is unavailable in this browser/webview.');
+      return;
+    }
+    ariaVoice.prime();
+    setMicError(null);
     const rec = createRecognizer({ lang: 'en-US' });
     recRef.current = rec;
     heardRef.current = '';
+    interimRef.current = '';
     setHeard('');
-    rec.onState = (s) => setMic(s);
+    setInterim('');
+    rec.onState = (s, err) => {
+      setMic(s);
+      if (err?.message) setMicError(err.message);
+      else if (s === 'listening') setMicError(null);
+    };
+    rec.onInterim = (text) => {
+      interimRef.current = text;
+      setInterim(text);
+      if (text.trim()) director.listen(true);
+    };
     rec.onWords = (words) => {
       if (!words.length) return;
       director.listen(true);
-      heardRef.current = `${heardRef.current} ${words.map((w) => w.text).join(' ')}`.trim();
+      interimRef.current = '';
+      setInterim('');
+      const spoken = words.map((w) => w.text).join(' ');
+      heardRef.current = heardRef.current ? heardRef.current + ' ' + spoken : spoken;
+      heardRef.current = heardRef.current.trim();
       setHeard(heardRef.current);
       if (sendTimer.current) clearTimeout(sendTimer.current);
-      sendTimer.current = setTimeout(() => {
-        const q = heardRef.current;
-        heardRef.current = '';
-        setHeard('');
-        director.listen(false);
-        if (q) void director.hear(q);
-      }, 1300);
+      sendTimer.current = setTimeout(flushHeard, 1100);
     };
     rec.start();
-  }, [director]);
+  }, [director, flushHeard]);
   useEffect(() => () => { if (sendTimer.current) clearTimeout(sendTimer.current); recRef.current?.stop(); recRef.current = null; }, []);
 
   return {
     snap, director, prefs, update,
-    mic: { state: mic, heard, available: listeningAvailable(), kind: recRef.current?.kind ?? null, start: startMic, stop: stopMic },
+    mic: { state: mic, heard: heard || interim, error: micError, available: listeningAvailable(), kind: recRef.current?.kind ?? null, start: startMic, stop: stopMic },
   };
 }

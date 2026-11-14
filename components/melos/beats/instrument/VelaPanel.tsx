@@ -2,33 +2,24 @@
 //
 // One panel for four instruments, because they share an engine and a patch shape and it would
 // be dishonest to pretend otherwise by forking the file. What differs is identity: the name, the
-// accent, the preset bank, and what the four macros are CALLED — "Air" on a flute and "Air" on
-// a drone are the same engine target and completely different musical ideas, so each instrument
-// names them for what they do in its own world.
-//
-// VELA — the Play surface.
-//
-// Four macros and a preset name. Nothing else.
-//
-// ONDA's Play panel offers twelve controls because a wavetable synth has twelve things worth
-// reaching for early. VELA has four, and that is not a simplification for its own sake: these
-// four are also the exact surface the meditation host drives, so keeping the Play panel and the
-// Stillness host on the same four controls means a patch that sounds right here sounds right
-// there. Everything deeper is one click away, same as ONDA.
+// accent, the preset bank, and what the four macros are CALLED.
 
 import React, { useCallback, useState } from 'react';
 import { X, Piano } from 'lucide-react';
 import type { ArrangeTrack, GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import {
-  deserializeVelaPatch, applyVelaPreset, velaEngineParams,
+  deserializeVelaPatch, applyVelaPreset, applyVelaPatch,
   VELA_MACRO_HINTS, VELA_MACRO_LABELS, VELA_MACRO_ORDER, type VelaPatch,
 } from '../../../../services/melos/instruments/vela/patch';
-import { VELA_PRESETS } from '../../../../services/melos/instruments/vela/presets';
+import { VELA_PRESETS, expandMacros as expandVelaMacros } from '../../../../services/melos/instruments/vela/presets';
 import { SUITE, presetsFor, type SuiteInstrument } from '../../../../services/melos/instruments/vela/suite';
 import type { VelaMacro } from '../../../../services/melos/instruments/vela/presets';
 import { M } from '../../../../services/melos/instruments/vela/params';
 import { syncPadWithTrack } from '../../../../services/melos/beats/instrumentFactory';
+import { liveBus, now as liveNow } from '../../../../services/melos/beats/band/live/events';
+import { PANEL_SEAT_INTROS } from '../../../../services/melos/beats/band/live/lineAudio';
+import { InstrumentBandSeat } from './InstrumentBandSeat';
 import { Knob } from '../shared/Knob';
 import { PartialDisplay } from './PartialDisplay';
 import { VelaEditor } from './VelaEditor';
@@ -43,8 +34,6 @@ interface Props {
   embedded?: boolean;
 }
 
-/** Bronze for Air, lilac for Body, cyan for Shimmer, lilac for Drift — the same reading order
- *  as the partial display's low-to-high colouring. */
 const MACRO_COLORS: Record<VelaMacro, string> = {
   air: ARMED,
   body: '#D0BCFF',
@@ -58,24 +47,20 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
 
   const kind = (track.instrument?.type ?? 'vela') as SuiteInstrument;
   const identity = SUITE[kind] ?? SUITE.vela;
-  // VELA's own bank is the general one; the others each bring their own.
   const bank = kind === 'vela' ? VELA_PRESETS : presetsFor(kind);
 
-  // Deliberately not memoised, for the same reason as ONDA's panel: the doc mutates in place, so
-  // a memo keyed on the patch object would never invalidate and every control would freeze.
   const patch: VelaPatch | null = deserializeVelaPatch(track.instrument?.patch);
 
-  // If the engine instrument doesn't exist yet (created lazily), create it and THEN apply —
-  // silently dropping the edit is why preset changes sometimes made no sound difference.
-  const pushParams = useCallback((p: VelaPatch) => {
+  const pushPatch = useCallback((p: VelaPatch) => {
     const engine = BeatsEngine.get();
     const inst = engine.getInstrument(track.id);
-    if (inst) { inst.setParams(velaEngineParams(p)); return; }
+    if (inst) { applyVelaPatch(inst, p); return; }
     const t = engine.getDoc().arrangement.find((x) => x.id === track.id);
-    if (t) void engine.ensureInstrument(t).then((i) => i?.setParams(velaEngineParams(p)));
+    if (t) void engine.ensureInstrument(t).then((i) => { if (i) applyVelaPatch(i, p); });
   }, [track.id]);
 
   const setMacro = useCallback((macro: VelaMacro, value: number) => {
+    liveBus.emit({ kind: 'param', instrument: kind, trackId: track.id, at: liveNow(), paramId: VELA_MACRO_ORDER.indexOf(macro) });
     onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === track.id);
       const raw = t?.instrument?.patch as Record<string, unknown> | undefined;
@@ -84,13 +69,14 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
       if (!next) return;
       next.macros[macro] = value;
       (raw as { macros?: Record<string, number> }).macros = { ...next.macros };
-      pushParams(next);
+      pushPatch(next);
     });
-  }, [onMutate, pushParams, track.id]);
+  }, [kind, onMutate, pushPatch, track.id]);
 
   const choosePreset = useCallback((presetId: string) => {
     const preset = bank.find((p) => p.id === presetId);
     if (!preset) return;
+    liveBus.emit({ kind: 'preset', instrument: kind, trackId: track.id, at: liveNow(), presetId: preset.id, presetName: preset.name });
     onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === track.id);
       if (!t?.instrument) return;
@@ -101,10 +87,10 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
       t.instrument.presetName = preset.name;
       t.name = preset.name;
       syncPadWithTrack(d, track.id);
-      pushParams(next);
+      pushPatch(next);
     });
     setGalleryOpen(false);
-  }, [bank, onMutate, pushParams, track.id]);
+  }, [bank, kind, onMutate, pushPatch, track.id]);
 
   if (!patch) {
     return (
@@ -115,7 +101,8 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
     );
   }
 
-  const p = (id: number, fallback: number) => patch.params[id] ?? fallback;
+  const expanded = expandVelaMacros(patch.params, patch.macros);
+  const p = (id: number, fallback: number) => expanded[id] ?? patch.params[id] ?? fallback;
 
   return (
     <div className="flex flex-col h-full min-h-0" style={{ background: SURFACE }}>
@@ -147,7 +134,27 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4 [&>*]:shrink-0">
-        {/* The hero control: the actual partial layout, not a decoration. */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-white/8" style={{ scrollbarWidth: 'none' }}>
+          <span className="text-[9px] uppercase tracking-[0.16em] text-white/35 shrink-0 mr-0.5">Sub-Presets</span>
+          {bank.map((preset) => {
+            const active = preset.id === patch.presetId;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => choosePreset(preset.id)}
+                title={`${preset.family} · ${preset.blurb} — ${preset.description}`}
+                className="h-6 px-2.5 rounded-lg text-[10px] whitespace-nowrap border transition shrink-0"
+                style={active
+                  ? { borderColor: identity.accent, background: `${identity.accent}2B`, color: '#fff', fontWeight: 700 }
+                  : { borderColor: 'rgba(255,255,255,0.09)', background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.62)' }}
+              >
+                {preset.name}
+              </button>
+            );
+          })}
+        </div>
+
         <PartialDisplay
           partials={p(M.PARTIALS, 0.5)}
           inharm={p(M.INHARM, 0.04)}
@@ -158,7 +165,6 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
           position={p(M.POSITION, 0.28)}
         />
 
-        {/* The four macros. */}
         <div className="grid grid-cols-4 gap-3">
           {VELA_MACRO_ORDER.map((macro) => (
             <div key={macro} className="flex flex-col items-center gap-1.5" title={VELA_MACRO_HINTS[macro]}>
@@ -170,6 +176,8 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
                 defaultValue={0.5}
                 color={MACRO_COLORS[macro]}
                 size={54}
+                trackId={track.id}
+                focusId={`vela:${track.id}:macro:${macro}`}
                 format={(v) => `${Math.round(v * 100)}%`}
                 onChange={(v) => setMacro(macro, v)}
               />
@@ -183,8 +191,6 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
           <p className="text-[11px] leading-relaxed text-white/40">{identity.purpose}</p>
         )}
 
-        {/* Preset gallery, inline rather than modal — choosing a body is a listening decision,
-            and covering the partial display while you make it is the wrong trade. */}
         {galleryOpen && (
           <div className="flex flex-col gap-1.5">
             <span className="text-[9.5px] uppercase tracking-[0.16em] text-white/35">
@@ -224,6 +230,29 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
               : 'Arm this track and play — a bowed body sustains for as long as you hold it.'}
           </span>
         </div>
+
+        {(() => {
+          const seat = kind === 'pneuma'
+            ? { playerId: 'felix', loreId: 'spectral-ensemble', role: 'Session Band breath & winds · live', intro: PANEL_SEAT_INTROS.pneuma }
+            : kind === 'ison'
+            ? { playerId: 'ingrid', loreId: 'spectral-ensemble', role: 'Session Band drone & cello · live', intro: PANEL_SEAT_INTROS.ison }
+            : kind === 'cantus'
+            ? { playerId: 'elena', loreId: 'spectral-ensemble', role: 'Session Band overtone ensemble · live', intro: PANEL_SEAT_INTROS.cantus }
+            : { playerId: 'elena', loreId: 'spectral-ensemble', role: 'Session Band spectral ensemble · live', intro: PANEL_SEAT_INTROS.vela };
+          return (
+            <InstrumentBandSeat
+              instrument={kind}
+              playerId={seat.playerId}
+              loreId={seat.loreId}
+              role={seat.role}
+              intro={seat.intro}
+              screenText={`${identity.name} · ${patch.name} · ${VELA_MACRO_ORDER.map((m) => `${identity.macroLabels[m] ?? VELA_MACRO_LABELS[m]} ${Math.round((patch.macros[m] ?? 0) * 100)}%`).join(', ')}`}
+              accent={identity.accent}
+              track={track}
+              presetName={patch.name}
+            />
+          );
+        })()}
       </div>
 
       {editorOpen && (

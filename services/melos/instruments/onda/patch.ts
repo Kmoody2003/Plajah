@@ -2,9 +2,10 @@
 // carries its instruments with it; nothing lives only in engine memory.
 
 import type { Instrument } from '../../beats/engine/InstrumentHost';
-import { SpatialLayout, IamfRole } from '../../beats/engine/InstrumentHost';
+import type { SpatialLayout, IamfRole } from '../../beats/engine/InstrumentHost';
 import { MACRO_BASE, MOD_SOURCE } from './params';
 import { getWavetable, wavetableIndex, FRAMES, FRAME_SIZE, WAVETABLES } from './wavetables';
+import { compileMotions, applyCompiledMotions, type Motion } from '../../motion';
 
 export interface ModRoute {
   source: number; // MOD_SOURCE
@@ -34,6 +35,8 @@ export interface OndaPatch {
   /** Raw param id → 0..1 value. Anything absent keeps the engine default. */
   params: Record<number, number>;
   routes: ModRoute[];
+  /** Optional user Motion modulators persisted alongside the patch. */
+  motions?: Motion[];
   macros: MacroDef[];
   spatial?: {
     position: [number, number, number];
@@ -64,7 +67,7 @@ export function newPatch(name = 'Init', category = 'Keys'): OndaPatch {
     params: {},
     routes: [],
     macros: DEFAULT_MACROS.map((m) => ({ ...m })),
-    spatial: { position: [0, 0, -1], layout: SpatialLayout.Stereo, role: IamfRole.Object },
+    spatial: { position: [0, 0, -1], layout: 0 as SpatialLayout, role: 1 as IamfRole },
     version: 1,
   };
 }
@@ -76,7 +79,7 @@ export function tablesFor(patch: OndaPatch): string[] {
 
 /**
  * Push a whole patch into a live instrument: wavetables first (the mip build is the expensive
- * part), then params in one bulk message, then routes, macros and spatial state.
+ * part), then params in one bulk message, then routes/motions, macros and spatial state.
  */
 export function applyPatch(inst: Instrument, patch: OndaPatch): void {
   const wanted = tablesFor(patch);
@@ -92,9 +95,14 @@ export function applyPatch(inst: Instrument, patch: OndaPatch): void {
   });
   inst.setParams(entries);
 
-  // Clear every route slot first so switching presets never leaves a stale modulation behind.
-  for (let i = 0; i < 32; i++) inst.setRoute(i, MOD_SOURCE.None, 0, 0, 0);
-  patch.routes.slice(0, 32).forEach((r, i) => inst.setRoute(i, r.source, r.dest, r.depth, r.via ?? 0));
+  if (patch.motions && patch.motions.length > 0) {
+    const compiled = compileMotions(patch.motions);
+    applyCompiledMotions(inst, compiled, patch.routes);
+  } else {
+    // Clear every route slot first so switching presets never leaves a stale modulation behind.
+    for (let i = 0; i < 32; i++) inst.setRoute(i, MOD_SOURCE.None, 0, 0, 0);
+    patch.routes.slice(0, 32).forEach((r, i) => inst.setRoute(i, r.source, r.dest, r.depth, r.via ?? 0));
+  }
 
   patch.macros.slice(0, 8).forEach((m, i) => inst.setMacro(i, m.value));
 

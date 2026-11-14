@@ -1,9 +1,10 @@
 //! LFOs. Free-running or tempo-synced, with drawable custom shapes (a small breakpoint table)
-//! so the UI can offer a Serum-style LFO editor without a second engine path.
+//! and crisp step-sequencer tables so the UI can offer a Serum-style LFO editor and step lane
+//! without a second engine path.
 
 use crate::osc::Rng;
 
-pub const CUSTOM_POINTS: usize = 33; // 32 segments + wrap point
+pub const CUSTOM_POINTS: usize = 65; // 64 segments + wrap point (or up to 64 crisp steps)
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum LfoShape {
@@ -47,6 +48,8 @@ pub struct Lfo {
     /// Fade-in time in seconds — delayed vibrato is one of the oldest tricks and still musical.
     pub fade: f32,
     pub custom: [f32; CUSTOM_POINTS],
+    pub custom_len: usize,
+    pub custom_stepped: bool,
     phase: f32,
     sh_value: f32,
     sh_last_phase: f32,
@@ -67,6 +70,8 @@ impl Default for Lfo {
             retrigger: true,
             fade: 0.0,
             custom: [0.0; CUSTOM_POINTS],
+            custom_len: CUSTOM_POINTS,
+            custom_stepped: false,
             phase: 0.0,
             sh_value: 0.0,
             sh_last_phase: 0.0,
@@ -79,6 +84,52 @@ impl Default for Lfo {
 }
 
 impl Lfo {
+    /// Load custom curve or step-sequencer values (`-1.0..=1.0`).
+    pub fn set_custom(&mut self, pts: &[f32], stepped: bool) {
+        if pts.is_empty() {
+            return;
+        }
+        self.custom_stepped = stepped;
+        if stepped {
+            let n = pts.len().min(CUSTOM_POINTS - 1).max(1);
+            self.custom_len = n;
+            for i in 0..n {
+                self.custom[i] = if pts[i].is_finite() { pts[i].clamp(-1.0, 1.0) } else { 0.0 };
+            }
+            self.custom[n] = self.custom[0];
+        } else if pts.len() == CUSTOM_POINTS {
+            self.custom_len = CUSTOM_POINTS;
+            for i in 0..CUSTOM_POINTS {
+                self.custom[i] = if pts[i].is_finite() { pts[i].clamp(-1.0, 1.0) } else { 0.0 };
+            }
+        } else {
+            self.custom_len = CUSTOM_POINTS;
+            let src_last = (pts.len() - 1).max(1) as f32;
+            for i in 0..CUSTOM_POINTS {
+                let pos = (i as f32 / (CUSTOM_POINTS - 1) as f32) * src_last;
+                let k = (pos as usize).min(pts.len() - 1);
+                let k1 = (k + 1).min(pts.len() - 1);
+                let f = pos - k as f32;
+                let a = if pts[k].is_finite() { pts[k] } else { 0.0 };
+                let b = if pts[k1].is_finite() { pts[k1] } else { 0.0 };
+                self.custom[i] = (a * (1.0 - f) + b * f).clamp(-1.0, 1.0);
+            }
+        }
+    }
+
+    pub fn force_reset(&mut self, rng: &mut Rng) {
+        self.phase = 0.0;
+        self.age = 0.0;
+        self.sh_value = rng.bipolar();
+        self.sh_last_phase = 0.0;
+        self.tide = 0.0;
+        self.tide_target = rng.bipolar();
+    }
+
+    pub fn reset_fade(&mut self) {
+        self.age = 0.0;
+    }
+
     pub fn retrigger_now(&mut self, rng: &mut Rng) {
         if self.retrigger {
             self.phase = 0.0;
@@ -121,10 +172,17 @@ impl Lfo {
                 self.sh_value
             }
             LfoShape::Custom => {
-                let x = t * (CUSTOM_POINTS - 1) as f32;
-                let i = (x as usize).min(CUSTOM_POINTS - 2);
-                let f = x - i as f32;
-                self.custom[i] * (1.0 - f) + self.custom[i + 1] * f
+                if self.custom_stepped {
+                    let n = self.custom_len.max(1).min(CUSTOM_POINTS - 1);
+                    let idx = ((t * n as f32) as usize).min(n - 1);
+                    self.custom[idx]
+                } else {
+                    let segs = (self.custom_len.max(2) - 1) as f32;
+                    let x = t * segs;
+                    let i = (x as usize).min(CUSTOM_POINTS - 2);
+                    let f = x - i as f32;
+                    self.custom[i] * (1.0 - f) + self.custom[i + 1] * f
+                }
             }
             LfoShape::Tide => {
                 // A new target each time the phase wraps, then a slow glide toward it with a

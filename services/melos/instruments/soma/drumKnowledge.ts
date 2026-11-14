@@ -96,6 +96,15 @@ export const SOMA_PRESET_DRUM: Record<string, DrumId> = {
   'daf-persian-rings': 'daf', 'udu-igbo-clay': 'udu',
   'bodhran-kerry-tipper': 'bodhran', 'bendir-atlas-gut': 'bendir', 'tar-nubian-deep': 'tar',
   'shamanic-cedar-beater': 'plateau-hand-drum', 'kanjira-lizard-frame': 'kanjira', 'ocean-frame-brush': 'frame-drum',
+  'timpani-1890-leipzig-calf': 'timpani', 'timpani-baroque-cavalry': 'timpani', 'timpani-cinematic-gliss-32': 'timpani',
+  'djembe-segou-ksing-ksing': 'djembe', 'dundunba-kenkeni-bell': 'dunun', 'sabar-senegal-rattan': 'djembe',
+  'havana-1954-mahogany-quinto': 'conga', 'timbale-cascara-brass': 'snare-drum', 'cajon-peruano-cedro': 'conga',
+  'rope-field-tambour-1812': 'snare-drum', 'kodo-okedo-daiko': 'nagado-daiko', 'hans-epic-sub-ensemble': 'bass-drum',
+  'benares-syahi-tabla-dayan': 'tabla', 'thanjavur-jackwood-mridangam': 'mridangam', 'igbo-udu-clay-aperture': 'udu',
+  'sufi-gut-bendir-16': 'bendir', 'persian-kurdish-daf': 'daf', 'brazilian-choro-pandeiro': 'frame-drum',
+  'timpani-26-berlin-felt': 'timpani', 'tama-west-african-squeeze': 'dundun',
+  'conga-matanzas-tres-dos': 'conga', 'concert-snare-wire-crisp': 'snare-drum',
+  'cairo-mother-pearl-doumbek': 'darbuka', 'bodhran-tipper-deep-skin': 'bodhran',
 };
 
 const ENTRIES: Omit<DrumKnowledge, 'photo'>[] = [

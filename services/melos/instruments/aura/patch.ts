@@ -376,7 +376,7 @@ export const AURA_EDITOR_GROUPS: Array<{
     ids: [
       osc(0, O.ENABLE), osc(0, O.LEVEL), osc(0, O.MODE), osc(0, O.ANALOG_SHAPE), osc(0, O.MORPH), osc(0, O.PULSE_WIDTH), osc(0, O.COARSE), osc(0, O.FINE),
       osc(1, O.ENABLE), osc(1, O.LEVEL), osc(1, O.MODE), osc(1, O.ANALOG_SHAPE), osc(1, O.MORPH), osc(1, O.PULSE_WIDTH), osc(1, O.COARSE), osc(1, O.FINE),
-      osc(2, O.ENABLE), osc(2, O.LEVEL), osc(2, O.ANALOG_SHAPE), osc(2, O.COARSE), osc(2, O.FINE),
+      osc(2, O.ENABLE), osc(2, O.LEVEL), osc(2, O.MODE), osc(2, O.ANALOG_SHAPE), osc(2, O.MORPH), osc(2, O.PULSE_WIDTH), osc(2, O.COARSE), osc(2, O.FINE),
       P.SUB_LEVEL, P.SUB_OCTAVE, P.SUB_SHAPE, P.NOISE_LEVEL, P.NOISE_COLOR,
       P.VOICE_MODE, P.GLIDE, P.BEND_RANGE, P.UNISON_COUNT, P.UNISON_DETUNE, P.UNISON_WIDTH,
     ],

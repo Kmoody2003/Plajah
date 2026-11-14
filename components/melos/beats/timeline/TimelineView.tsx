@@ -41,6 +41,8 @@ import { TrackAutomation } from './TrackAutomation';
 import { ArrangerLane } from './ArrangerLane';
 import { CouncilComposerPanel } from '../council/CouncilComposerPanel';
 import { SessionBandConsole } from '../band/SessionBandConsole';
+import { ChoraDirectPanel } from '../composer/ChoraDirectPanel';
+import type { SongBrief } from '../../../../services/melos/direct/songBrief';
 import { syncSongFromSections } from '../../../../services/melos/beats/songSections';
 import { downloadMidi, exportClipMidi, exportTrackMidi } from '../../../../services/melos/beats/midiExport';
 
@@ -265,6 +267,10 @@ interface TimelineViewProps {
   showTempo?: boolean;
   /** Open the full generator side panel (engines, lyrics, kinds). */
   onOpenGenerator?: () => void;
+  /** Open Music Lab pre-filled from a compiled Chora Direct SongBrief. */
+  onOpenGeneratorWithBrief?: (brief: SongBrief) => void;
+  /** Keep the room's active compiled SongBrief in sync. */
+  onBriefChange?: (brief: SongBrief) => void;
 }
 
 export const TimelineView: React.FC<TimelineViewProps> = (p) => {
@@ -504,7 +510,10 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
               const buf = await f.arrayBuffer();
               const startBeats = barFloorOf(p.doc, p.beats || 0);
               const clip = midiFileToClip(buf, startBeats);
-              if (clip) p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); if (t && t.kind === 'instrument') t.clips.push(clip); });
+              if (clip) {
+                p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); if (t && t.kind === 'instrument') t.clips.push(clip); });
+                BeatsEngine.get().syncInstruments();
+              }
             } catch { /* not a readable MIDI file */ }
           };
           input.click();
@@ -848,6 +857,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const [regionGenMode, setRegionGenMode] = useState<'council' | 'stems' | 'holistic' | 'idea' | 'full_song'>('council');
   const [councilOpen, setCouncilOpen] = useState(false);
   const [bandOpen, setBandOpen] = useState(false);
+  const [directOpen, setDirectOpen] = useState(false);
   const [regionPrompt, setRegionPrompt] = useState('');
   const [partInstrument, setPartInstrument] = useState<InstrumentType>('onda');
   const [regionGenerating, setRegionGenerating] = useState(false);
@@ -1289,7 +1299,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
               {regionGenMode === 'idea' && <select aria-label="MIDI part instrument" value={partInstrument}
                 onChange={e => setPartInstrument(e.target.value as InstrumentType)} disabled={regionGenerating}
                 className="h-7 rounded-lg bg-[#171020] text-[10.5px] text-white border border-white/15 px-2">
-                {(['onda', 'aura', 'soma', 'bajo', 'vela', 'cantus', 'ison', 'pneuma'] as const).map(id =>
+                {(['onda', 'aura', 'volta', 'soma', 'bajo', 'vela', 'cantus', 'ison', 'pneuma'] as const).map(id =>
                   <option key={id} value={id}>{id.toUpperCase()}</option>)}
               </select>}
               <div className="flex items-center gap-1 rounded-lg border border-[#00DAF3]/30 bg-[#00DAF3]/[0.06] p-0.5 shrink-0" title="The cyan region on the ruler — drag its handles there, or pick a length here">
@@ -1324,6 +1334,12 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                     className="h-6 px-2 rounded-md text-[10px] text-white/65 hover:text-white hover:bg-white/10 disabled:opacity-35 whitespace-nowrap">{label}</button>
                 ))}
                 <button
+                  onClick={() => setDirectOpen((o) => !o)}
+                  aria-pressed={directOpen}
+                  title="Chora Direct — compile one brief (tempo, key, chords, lyrics, arrangement) for the whole studio"
+                  className={`h-6 px-2 rounded-md text-[10px] font-bold flex items-center gap-1 whitespace-nowrap ${directOpen ? 'bg-[#00DAF3]/20 text-[#00DAF3] border border-[#00DAF3]/40' : 'text-[#7EE8FA] hover:bg-white/10'}`}
+                ><Sparkles size={11} /> Direct</button>
+                <button
                   onClick={() => setBandOpen((o) => !o)}
                   aria-pressed={bandOpen}
                   title="Session Band — thirteen session players who play your song live, take direction, and teach"
@@ -1331,6 +1347,27 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                 ><Users size={11} /> Session Band</button>
               </div>
             </div>
+          )}
+          {directOpen && (
+            <ChoraDirectPanel
+              doc={p.doc}
+              onMutate={p.onMutate}
+              onBriefCompiled={(brief) => p.onBriefChange?.(brief)}
+              onOpenCouncil={(grounding) => {
+                setRegionPrompt(grounding.slice(0, 500));
+                setCouncilOpen(true);
+                setDirectOpen(false);
+              }}
+              onOpenBand={() => {
+                setBandOpen(true);
+                setDirectOpen(false);
+              }}
+              onOpenMusicLab={(brief) => {
+                p.onBriefChange?.(brief);
+                p.onOpenGeneratorWithBrief?.(brief);
+              }}
+              onClose={() => setDirectOpen(false)}
+            />
           )}
           {councilOpen && (
             <CouncilComposerPanel

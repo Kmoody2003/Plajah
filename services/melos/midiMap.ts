@@ -49,6 +49,101 @@ const CC_PLAY = 118;
 const CC_STOP = 117;
 const CC_REC = 119;
 
+/** Standard 8-knob CC bank start offsets across popular MIDI controllers:
+ *  NI (14..21), KeyLab/Korg (16..23), generic (20..27), Launchkey (21..28), Akai MPK (70..77), M-Audio/Roland (80..87). */
+const GENERIC_BANK_STARTS = [80, 70, 21, 20, 16, 14] as const;
+const RESERVED_NON_KNOB_CCS = new Set<number>([
+  0, 1, 5, 6, 7, 10, 11, 32, 38, 64, 65, 66, 67, 68, 69, 98, 99, 100, 101, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127,
+]);
+
+interface SourceBankState {
+  seen: Set<number>;
+  lockedBankStart: number | null;
+  dynamicOrder: number[];
+}
+
+const sourceBanks = new Map<string, SourceBankState>();
+
+function getBankState(sourceKey: string): SourceBankState {
+  let st = sourceBanks.get(sourceKey);
+  if (!st) {
+    st = { seen: new Set<number>(), lockedBankStart: null, dynamicOrder: [] };
+    sourceBanks.set(sourceKey, st);
+  }
+  return st;
+}
+
+/** Reset learned generic CC bank state (used in tests and on MIDI device reconnect). */
+export function resetAutoKnobBanks(): void {
+  sourceBanks.clear();
+}
+
+/**
+ * Auto-detect and map generic 8-knob hardware controller CC banks (`14..21`, `16..23`,
+ * `20..27`, `21..28`, `70..77`, `80..87`) as well as arbitrary unmapped CC knobs onto
+ * macro indices `0..7`, while preserving NI `14..21` and standalone `71/74` by default.
+ */
+export function autoLearnGenericCcBank(cc: number, sourceKey = 'default'): number | null {
+  if (cc < 0 || cc > 127 || RESERVED_NON_KNOB_CCS.has(cc)) return null;
+  const st = getBankState(sourceKey);
+  st.seen.add(cc);
+
+  // If this controller already locked onto a standard 8-knob bank and CC is inside it, use it directly.
+  if (st.lockedBankStart !== null && cc >= st.lockedBankStart && cc < st.lockedBankStart + 8) {
+    return cc - st.lockedBankStart;
+  }
+
+  // Bank 80..87 has zero overlap with NI 14..21 or 71/74 — claim immediately.
+  if (cc >= 80 && cc <= 87) {
+    st.lockedBankStart = 80;
+    return cc - 80;
+  }
+
+  // Bank 70..77 (e.g. Akai MPK): any knob in 70,72,73,75,76,77 claims 70..77 for that source.
+  if (cc === 70 || cc === 72 || cc === 73 || cc === 75 || cc === 76 || cc === 77) {
+    st.lockedBankStart = 70;
+    return cc - 70;
+  }
+
+  // If 71/74 arrive after 70..77 was locked, follow the bank; otherwise let mapMidiEvent keep standalone defaults.
+  if (cc === CC_CUTOFF || cc === CC_RESONANCE) {
+    if (st.lockedBankStart === 70) return cc - 70;
+    return null;
+  }
+
+  // NI 14..21 default (unless 16..28 already locked this controller to 16/20/21 bank).
+  if (cc >= MACRO_CC_LO && cc <= MACRO_CC_HI) {
+    if (st.lockedBankStart !== null && cc >= st.lockedBankStart && cc < st.lockedBankStart + 8) {
+      return cc - st.lockedBankStart;
+    }
+    return cc - MACRO_CC_LO;
+  }
+
+  // Disambiguate 22..28 against 16..23, 20..27, 21..28 when NI 14/15 haven't been seen on this port.
+  if (cc >= 22 && cc <= 28 && !st.seen.has(14) && !st.seen.has(15)) {
+    const windowCcs = [...st.seen].filter((c) => c >= 16 && c <= 28);
+    for (const start of [21, 20, 16]) {
+      if (cc >= start && cc < start + 8 && windowCcs.every((c) => c >= start && c < start + 8)) {
+        st.lockedBankStart = start;
+        return cc - start;
+      }
+    }
+  }
+
+  // Still inside an ambiguous lower bank or arbitrary knob CC: assign dynamic 0..7 slots in arrival order.
+  for (const start of GENERIC_BANK_STARTS) {
+    if (start === 14 && cc >= 14 && cc <= 21) return cc - 14;
+  }
+  const existing = st.dynamicOrder.indexOf(cc);
+  if (existing >= 0) return existing;
+  if (st.dynamicOrder.length < 8) {
+    const slot = st.dynamicOrder.length;
+    st.dynamicOrder.push(cc);
+    return slot;
+  }
+  return null;
+}
+
 /**
  * Map one event to one action. `instrumentArmed` decides whether a keyboard key or Maschine pad
  * should PLAY THE SYNTH (armed instrument) or hit the DRUM PAD — the same physical control does
@@ -57,6 +152,7 @@ const CC_REC = 119;
  */
 export function mapMidiEvent(e: BeatsMidiEvent, instrumentArmed: boolean, gridPlaysKeys = true): MelosMidiAction {
   const dev = e.deviceType;
+  const sourceKey = `${dev}:${e.channel ?? 0}`;
 
   // ── 14-bit Pitch Bend wheel & Channel Aftertouch ──
   if (e.kind === 'pitchbend') {
@@ -71,12 +167,26 @@ export function mapMidiEvent(e: BeatsMidiEvent, instrumentArmed: boolean, gridPl
     const v = (e.value ?? 0) / 127;
     if (e.cc === CC_MOD_WHEEL) return { kind: 'modWheel', value: v };
     if (e.cc === CC_SUSTAIN) return { kind: 'sustain', on: (e.value ?? 0) >= 64 };
-    if (e.cc === CC_CUTOFF) return { kind: 'macro', index: 1, value: v };
-    if (e.cc === CC_RESONANCE) return { kind: 'macro', index: 2, value: v };
-    if (e.cc >= MACRO_CC_LO && e.cc <= MACRO_CC_HI) return { kind: 'macro', index: e.cc - MACRO_CC_LO, value: v };
     if (e.cc === CC_PLAY && (e.value ?? 0) > 0) return { kind: 'transport', action: 'play' };
     if (e.cc === CC_STOP && (e.value ?? 0) > 0) return { kind: 'transport', action: 'stop' };
     if (e.cc === CC_REC && (e.value ?? 0) > 0) return { kind: 'transport', action: 'record' };
+
+    const bankState = getBankState(sourceKey);
+    if (e.cc === CC_CUTOFF) {
+      return { kind: 'macro', index: bankState.lockedBankStart === 70 ? 4 : 1, value: v };
+    }
+    if (e.cc === CC_RESONANCE) {
+      return { kind: 'macro', index: bankState.lockedBankStart === 70 ? 1 : 2, value: v };
+    }
+
+    if (dev !== 'maschine' && dev !== 'komplete_kontrol' && dev !== 'maschine_jam') {
+      const genericIdx = autoLearnGenericCcBank(e.cc, sourceKey);
+      if (genericIdx !== null) return { kind: 'macro', index: genericIdx, value: v };
+    }
+
+    if (e.cc >= MACRO_CC_LO && e.cc <= MACRO_CC_HI) {
+      return { kind: 'macro', index: e.cc - MACRO_CC_LO, value: v };
+    }
     return null;
   }
 

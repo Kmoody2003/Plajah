@@ -1,16 +1,17 @@
-// KERA — the sampler panel (Phase 1).
+// KERA — the sampler panel.
 //
-// Drop an audio file, or load a SoundFont, and play it across the keys. The rich Kontakt-style
-// zone map and the four playback modes are the next phase; this is the honest MVP: the shared
-// Rust sample engine, actually making sound, with the formats that are open to play.
+// Drop an audio file, a SoundFont (.sf2/.sf3), or an SFZ + samples, and play across the keys.
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X, Upload, Piano, Waves, Info } from 'lucide-react';
 import type { GrooveDoc, ArrangeTrack } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
-import { programFromFile, programFromSf2 } from '../../../../services/melos/instruments/kera/loader';
+import { programFromFile, programFromSf2, programFromSfz } from '../../../../services/melos/instruments/kera/loader';
 import { programStats, type KeraProgram } from '../../../../services/melos/instruments/kera/zones';
 import { serializeKeraProgram, deserializeKeraProgram, keraProgramShell, type SerializedKeraProgram } from '../../../../services/melos/instruments/kera/persist';
+import { liveBus, now as liveNow } from '../../../../services/melos/beats/band/live/events';
+import { PANEL_SEAT_INTROS } from '../../../../services/melos/beats/band/live/lineAudio';
+import { InstrumentBandSeat } from './InstrumentBandSeat';
 import { KeraEditor } from './KeraEditor';
 import { PLAYHEAD, SELECT, SURFACE } from '../theme';
 
@@ -25,15 +26,13 @@ interface Props {
 
 export const KeraPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded }) => {
   const [program, setProgram] = useState<KeraProgram | null>(null);
-  const [status, setStatus] = useState('Drop a sound to begin');
+  const [status, setStatus] = useState('Drop a sound, SoundFont, or SFZ + samples to begin');
   const [sf2Presets, setSf2Presets] = useState<{ name: string; index: number }[] | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const sf2Bytes = useRef<Uint8Array | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reopening a saved KERA track: show what's loaded from the doc's metadata instantly (the audible
-  // program hydrates separately in the engine). Runs once for the initial saved program.
   useEffect(() => {
     const saved = track.instrument?.kera as unknown as SerializedKeraProgram | undefined;
     if (saved?.samples?.length) {
@@ -47,15 +46,12 @@ export const KeraPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
 
   const applyProgram = useCallback(async (prog: KeraProgram | null, label: string) => {
     if (!prog) { setStatus('Could not read that file'); return; }
+    liveBus.emit({ kind: 'preset', instrument: 'kera', trackId: track.id, at: liveNow(), presetId: prog.name, presetName: prog.name });
     setProgram(prog);
     const s = programStats(prog);
     setStatus(`${label} · ${s.zones} zone${s.zones !== 1 ? 's' : ''}, ${s.samples} sample${s.samples !== 1 ? 's' : ''}`);
     await BeatsEngine.get().loadKeraProgram(track, prog);
-    // Name the track after the loaded content, immediately.
     onMutate((d) => { const t = d.arrangement.find((x) => x.id === track.id); if (t) t.name = prog.name; });
-    // Persist the program so it survives reload: samples → the owner's OPFS + private locker,
-    // zones/metadata → the doc (which autosaves to the owner's Firestore). Runs after the sound is
-    // already playing, so a heavy SoundFont doesn't block audition.
     setStatus(`${label} · saving to your library…`);
     try {
       const serialized = await serializeKeraProgram(prog);
@@ -70,8 +66,6 @@ export const KeraPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
     }
   }, [track, onMutate]);
 
-  // An edit from the deep editor: reload the live engine immediately, then persist (debounced, and
-  // reusing prior sample refs so metadata-only edits never re-hash the PCM).
   const commitProgram = useCallback((next: KeraProgram) => {
     setProgram(next);
     void BeatsEngine.get().loadKeraProgram(track, next);
@@ -87,8 +81,6 @@ export const KeraPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
     }, 500);
   }, [track, onMutate]);
 
-  // Opening the deep editor needs real PCM for the waveform. A freshly loaded program already has
-  // it; a reopened one is a metadata shell, so hydrate the full program first.
   const openEditor = useCallback(async () => {
     if (program && program.samples.some((s) => s.channels.length && s.channels[0]?.length)) { setEditorOpen(true); return; }
     const saved = track.instrument?.kera as unknown as SerializedKeraProgram | undefined;
@@ -101,12 +93,42 @@ export const KeraPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
     setEditorOpen(true);
   }, [program, track]);
 
-  const handleFile = useCallback(async (file: File) => {
+  const handleFiles = useCallback(async (fileList: FileList | File[]) => {
+    const files = Array.from(fileList);
+    if (!files.length) return;
     setStatus('Loading…');
     const engine = BeatsEngine.get();
     await engine.init();
     const ctx = engine.getContext();
     if (!ctx) return;
+
+    const sfzFile = files.find((f) => /\.sfz$/i.test(f.name));
+    if (sfzFile) {
+      setSf2Presets(null);
+      const name = sfzFile.name.replace(/\.[^.]+$/, '');
+      const text = await sfzFile.text();
+      const byNorm = new Map<string, File>();
+      for (const f of files) {
+        const rel = ((f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name).replace(/\\/g, '/').toLowerCase();
+        byNorm.set(rel, f);
+        byNorm.set(f.name.toLowerCase(), f);
+      }
+      const { program: prog, missing } = await programFromSfz(text, name, ctx, async (reqPath) => {
+        const clean = reqPath.replace(/\\/g, '/').toLowerCase();
+        const base = clean.split('/').pop() || clean;
+        return byNorm.get(clean) ?? byNorm.get(base) ?? null;
+      });
+      if (!prog) {
+        setStatus(missing.length
+          ? `SFZ needs its sample files (${missing.length} missing) — drop ${sfzFile.name} together with its WAVs`
+          : 'Could not read that SFZ file');
+        return;
+      }
+      await applyProgram(prog, name);
+      return;
+    }
+
+    const file = files[0];
     const name = file.name.replace(/\.[^.]+$/, '');
     if (/\.sf[23]$/i.test(file.name)) {
       const bytes = new Uint8Array(await file.arrayBuffer());
@@ -187,19 +209,19 @@ export const KeraPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
           {/* drop zone */}
           <div
             onDragOver={(e) => { e.preventDefault(); }}
-            onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) void handleFile(f); }}
+            onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files?.length) void handleFiles(e.dataTransfer.files); }}
             onClick={() => fileRef.current?.click()}
             className="rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer"
             style={{ height: 120, borderColor: 'rgba(0,218,243,0.35)', background: 'rgba(0,218,243,0.04)' }}
           >
             <Upload size={22} style={{ color: PLAYHEAD }} />
-            <span className="text-[12px] text-white/70">{status}</span>
-            <span className="text-[10px] text-white/30">WAV · AIFF · FLAC · MP3 · OGG · SoundFont (.sf2 / .sf3)</span>
+            <span className="text-[12px] text-white/70 text-center px-3">{status}</span>
+            <span className="text-[10px] text-white/30">WAV · AIFF · FLAC · MP3 · OGG · SoundFont (.sf2 / .sf3) · SFZ (.sfz + samples)</span>
           </div>
           <input
-            ref={fileRef} type="file" className="hidden"
-            accept=".wav,.aiff,.aif,.flac,.mp3,.ogg,.m4a,.sf2,.sf3,audio/*"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f); e.target.value = ''; }}
+            ref={fileRef} type="file" multiple className="hidden"
+            accept=".wav,.aiff,.aif,.flac,.mp3,.ogg,.m4a,.sf2,.sf3,.sfz,audio/*"
+            onChange={(e) => { if (e.target.files?.length) void handleFiles(e.target.files); e.target.value = ''; }}
           />
 
           {/* SF2 preset picker */}
@@ -243,8 +265,22 @@ export const KeraPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
             </div>
             <p className="text-[9px] text-white/22 mt-1.5 flex items-start gap-1">
               <Info size={9} className="flex-none mt-0.5" />
-              Arm this track to play from your keyboard or MIDI controller. KERA shares ONDA's filters and spatial output — the deep zone map and the four playback modes are coming next.
+              Arm this track to play from your keyboard or MIDI controller. KERA shares ONDA&apos;s filters, LFO and spatial output — click Edit ▸ for the full zone map and synthesis stage.
             </p>
+          </div>
+
+          <div className="mt-4">
+            <InstrumentBandSeat
+              instrument="kera"
+              playerId="elena"
+              loreId="sampler"
+              role="Session Band ensemble & sampler · live"
+              intro={PANEL_SEAT_INTROS.kera}
+              screenText={program ? `KERA · ${program.name} · ${stats?.zones ?? 0} zones, ${stats?.samples ?? 0} samples` : `KERA · ${status}`}
+              accent={PLAYHEAD}
+              track={track}
+              presetName={program?.name ?? track.instrument?.presetName ?? track.name}
+            />
           </div>
         </div>
       </div>

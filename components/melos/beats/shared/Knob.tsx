@@ -1,8 +1,16 @@
 // Rotary control for the instrument tier. Drag vertical (shift = fine ×0.1), wheel nudges,
 // double-click resets. Rendered as a conic-gradient ring like the approved mockups.
 
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { knobBridge } from '../../../../services/melos/beats/modulators';
+import {
+  getFocusedParamSnapshot,
+  registerFocusedParam,
+  setHoveredParam,
+  setSelectedParam,
+  subscribeFocusedParam,
+  updateFocusedParam,
+} from '../../../../services/melos/beats/focusedParamStore';
 
 /** One Motion reaching this knob — drawn as a coloured arc from the current value. */
 export interface ModArc {
@@ -15,11 +23,14 @@ interface KnobProps {
   value: number;
   min: number;
   max: number;
+  step?: number;
   defaultValue?: number;
   color?: string;
   size?: number;
   format?: (v: number) => string;
   onChange: (v: number) => void;
+  focusId?: string;
+  trackId?: string;
   /** Modulation reaching this parameter. This is the visual signature of the whole system:
    *  you can see what is moving a control without opening anything. */
   mod?: ModArc[];
@@ -30,9 +41,53 @@ interface KnobProps {
 }
 
 export const Knob: React.FC<KnobProps> = ({
-  label, value, min, max, defaultValue, color = '#00DAF3', size = 40, format, onChange,
-  mod, dropActive, onModDrop,
+  label, value, min, max, step, defaultValue, color = '#00DAF3', size = 40, format, onChange,
+  focusId, trackId, mod, dropActive, onModDrop,
 }) => {
+  const autoId = useId();
+  const resolvedFocusId = focusId ?? `knob:${trackId ?? 'global'}:${label}:${autoId}`;
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const latestRef = useRef({ label, value, min, max, step, trackId, onChange });
+  latestRef.current = { label, value, min, max, step, trackId, onChange };
+  const [isK1Target, setIsK1Target] = useState(() => getFocusedParamSnapshot().activeId === resolvedFocusId);
+
+  useEffect(() => {
+    const entry = {
+      id: resolvedFocusId,
+      label,
+      value,
+      min,
+      max,
+      step,
+      trackId,
+      onChange: (v: number) => latestRef.current.onChange(v),
+      getRect: () => wrapRef.current?.getBoundingClientRect() ?? null,
+      isAlive: () => Boolean(wrapRef.current?.isConnected),
+    };
+    const unregister = registerFocusedParam(entry);
+    const unsub = subscribeFocusedParam(() => {
+      setIsK1Target(getFocusedParamSnapshot().activeId === resolvedFocusId);
+    });
+    return () => {
+      unsub();
+      unregister();
+    };
+  }, [resolvedFocusId]);
+
+  useEffect(() => {
+    updateFocusedParam({
+      id: resolvedFocusId,
+      label,
+      value,
+      min,
+      max,
+      step,
+      trackId,
+      onChange: (v: number) => latestRef.current.onChange(v),
+      getRect: () => wrapRef.current?.getBoundingClientRect() ?? null,
+      isAlive: () => Boolean(wrapRef.current?.isConnected),
+    });
+  }, [resolvedFocusId, label, value, min, max, step, trackId]);
   const drag = useRef<{ startY: number; startV: number } | null>(null);
   const frac = Math.max(0, Math.min(1, (value - min) / (max - min)));
 
@@ -55,9 +110,10 @@ export const Knob: React.FC<KnobProps> = ({
   };
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
+    setSelectedParam(resolvedFocusId);
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     drag.current = { startY: e.clientY, startV: value };
-  }, [value]);
+  }, [value, resolvedFocusId]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!drag.current) return;
@@ -71,7 +127,29 @@ export const Knob: React.FC<KnobProps> = ({
   const onPointerUp = useCallback(() => { drag.current = null; }, []);
 
   return (
-    <div className="flex flex-col items-center gap-1 select-none" title={`${label}: ${format ? format(value) : value.toFixed(1)}`}>
+    <div
+      ref={wrapRef}
+      data-focus-param-id={resolvedFocusId}
+      onPointerEnter={() => setHoveredParam(resolvedFocusId)}
+      onPointerLeave={() => setHoveredParam(null)}
+      onFocus={() => setSelectedParam(resolvedFocusId)}
+      tabIndex={0}
+      className="relative flex flex-col items-center gap-1 select-none outline-none"
+      title={`${label}: ${format ? format(value) : value.toFixed(1)}${isK1Target ? ' · Knob 1 (active)' : ''}`}
+    >
+      {isK1Target && (
+        <span
+          className="absolute -top-1.5 -right-1 z-10 px-1 py-[1px] rounded text-[7.5px] font-bold tracking-[0.06em] uppercase pointer-events-none border shadow-sm"
+          style={{
+            background: 'rgba(6, 12, 20, 0.92)',
+            borderColor: color,
+            color,
+            boxShadow: `0 0 8px ${color}55`,
+          }}
+        >
+          K1
+        </span>
+      )}
       <div className="relative" style={{ width: size, height: size }}
         onPointerUp={() => { if (dropActive && onModDrop) onModDrop(); }}
       >
@@ -138,7 +216,7 @@ export const Knob: React.FC<KnobProps> = ({
         }}
       />
       </div>
-      <span className="text-[9px] uppercase tracking-[0.08em] text-white/40">{label}</span>
+      <span className="text-[9px] uppercase tracking-[0.08em]" style={{ color: isK1Target ? color : 'rgba(255,255,255,0.4)' }}>{label}</span>
       <span className="text-[9px] font-mono text-white/60 -mt-1">{format ? format(value) : value.toFixed(1)}</span>
     </div>
   );

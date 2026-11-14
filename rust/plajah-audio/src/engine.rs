@@ -6,6 +6,7 @@ use crate::bajo::BajoRack;
 use crate::lyra::LyraRack;
 use crate::tonos::TonosRack;
 use crate::orch::OrchRack;
+use crate::volta::{VoltaRack, VOLTA_PROBE_COUNT};
 use crate::lfo::Lfo;
 use crate::modmatrix::{ModMatrix, ModSource, ModValues, Route};
 use crate::osc::Rng;
@@ -82,6 +83,8 @@ pub struct Engine {
     tonos: TonosRack,
     /// ARCO's deep bodies (and the rest of the orchestra & guitar family's racks).
     orch: OrchRack,
+    /// VOLTA's dual-mode vintage BBD / modern stereo chorus & circuit telemetry rack.
+    volta: VoltaRack,
 
     events: Vec<ScheduledEvent>,
     events_dirty: bool,
@@ -125,6 +128,7 @@ impl Engine {
             lyra: LyraRack::new(sr_real),
             tonos: TonosRack::new(sr_real),
             orch: OrchRack::new(),
+            volta: VoltaRack::new(sr_real),
             voices,
             lfos: [Lfo::default(); NUM_LFO],
             tables,
@@ -165,6 +169,18 @@ impl Engine {
             return;
         }
         self.tables[slot] = WaveTable::from_frames(&self.upload[..need], frames, frame_size);
+    }
+
+    /// Load a custom LFO breakpoint curve or step-sequencer lane from `upload[..count]`.
+    pub fn set_lfo_custom(&mut self, slot: usize, count: usize, stepped: bool) {
+        if slot >= NUM_LFO || count == 0 || count > self.upload.len() {
+            return;
+        }
+        let slice = &self.upload[..count];
+        self.lfos[slot].set_custom(slice, stepped);
+        for v in self.voices.iter_mut() {
+            v.lfos[slot].set_custom(slice, stepped);
+        }
     }
 
     /// Load a sample into a slot from the staged upload buffer (channel-major).
@@ -457,7 +473,25 @@ impl Engine {
             }
         }
 
-        let glide_from = if self.params.get(P_GLIDE) > 0.0005 {
+        if self.params.get(VOLTA_BASE + VL_ENABLE) > 0.5 {
+            let vmode = self.params.get(VOLTA_BASE + VL_VOICE_MODE).round() as u32;
+            if vmode == 2 {
+                if let Some(v) = self.voices.iter_mut().find(|v| v.active && !v.released && v.volta_probes().is_some()) {
+                    v.velocity = vel.clamp(0.0, 1.0);
+                    v.voice_id = voice_id;
+                    v.volta_slur(note, &self.params);
+                    return;
+                }
+            }
+            if vmode >= 1 {
+                for v in self.voices.iter_mut() {
+                    if v.active && v.volta_probes().is_some() {
+                        v.note_off();
+                    }
+                }
+            }
+        }
+        let glide_from = if self.params.get(P_GLIDE) > 0.0005 || (self.params.get(VOLTA_BASE + VL_ENABLE) > 0.5 && self.params.get(VOLTA_BASE + VL_GLIDE) > 0.0005) {
             self.voices.iter().find(|v| v.active).map(|v| v.note)
         } else {
             None
@@ -515,8 +549,10 @@ impl Engine {
             }
         }
 
-        for l in self.lfos.iter_mut() {
-            l.retrigger_now(&mut self.rng);
+        for (li, l) in self.lfos.iter_mut().enumerate() {
+            if self.params.get(lfo_param(li, L_PER_VOICE)) <= 0.5 {
+                l.retrigger_now(&mut self.rng);
+            }
         }
     }
 
@@ -539,12 +575,25 @@ impl Engine {
         if hard {
             // A hard stop has to flush the Veil too. A sixty-second diffusion tail surviving a
             // panic-stop is exactly the bug that makes people stop trusting the stop button.
+            self.events.clear();
+            self.events_dirty = false;
             self.veil.clear();
+            self.tonos.clear();
+            self.bajo.clear();
+            self.aura.clear();
+            self.lyra.clear();
+            self.volta.clear();
         }
     }
 
     pub fn active_voices(&self) -> u32 {
         self.voices.iter().filter(|v| v.active).count() as u32
+    }
+
+    /// Live VOLTA circuit-node voltage/RMS telemetry (nodes 0..6: VCO, Wavefold, Ladder, SVF, Diode/Out, PSU Rail, Temp).
+    pub fn volta_probe(&self, node: u32) -> f32 {
+        let i = node as usize;
+        if i < VOLTA_PROBE_COUNT { self.volta.last_probes[i] } else { 0.0 }
     }
 
     // ── Absolute-time scheduling (the offline-render path) ───────────────────
@@ -691,16 +740,41 @@ impl Engine {
         // Split the borrow: voices render into scratch while reading shared state immutably.
         // `veil`, `bajo` and `aura` come out in the same destructure because all three need
         // `scratch` and a second `let Engine { .. } = self` would be a double mutable borrow.
-        let Engine { voices, scratch, params, matrix, tables, samples, sr, layout, position, veil, bajo, aura, lyra, tonos, orch, .. } = self;
+        let Engine { voices, lfos, scratch, params, matrix, tables, samples, sr, layout, position, veil, bajo, aura, lyra, tonos, orch, volta, .. } = self;
         let mut active_cnt = 0u32;
         orch.clear_bus(frames);
         for v in voices.iter_mut() {
             if v.active {
                 active_cnt += 1;
-                v.render(scratch, frames, params, matrix, &globals, tables, samples, *sr, *layout, *position, &wf, orch.bus());
+                v.render(scratch, frames, params, matrix, &globals, lfos, bps, tables, samples, *sr, *layout, *position, &wf, orch.bus());
             }
         }
         orch.process(scratch, frames, nch, params, *sr);
+
+        let mut vp_cnt = 0.0f32;
+        let mut vp_acc = [0.0f32; VOLTA_PROBE_COUNT];
+        for v in voices.iter() {
+            if let Some(pr) = v.volta_probes() {
+                vp_cnt += 1.0;
+                for i in 0..5 {
+                    vp_acc[i] = vp_acc[i].max(pr[i]);
+                }
+                vp_acc[5] += pr[5];
+                vp_acc[6] += pr[6];
+            }
+        }
+        if vp_cnt > 0.0 {
+            volta.last_probes[..5].copy_from_slice(&vp_acc[..5]);
+            volta.last_probes[5] = vp_acc[5] / vp_cnt;
+            volta.last_probes[6] = vp_acc[6] / vp_cnt;
+        } else {
+            volta.last_probes[..5].fill(0.0);
+            volta.last_probes[5] = 1.0;
+            volta.last_probes[6] = params.get(VOLTA_BASE + VL_BIAS_TEMP);
+        }
+        if VoltaRack::active(params) {
+            volta.process(scratch, frames, nch, params, active_cnt);
+        }
 
         if LyraRack::active(params) {
             lyra.process(scratch, frames, nch, params);

@@ -10,12 +10,13 @@ import { X } from 'lucide-react';
 import type { ArrangeTrack, GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import {
-  deserializeBajoPatch, BAJO_EDITOR_GROUPS, flattenGrid, type BajoPatch,
+  applyBajoPatch, deserializeBajoPatch, BAJO_EDITOR_GROUPS, flattenGrid, type BajoPatch,
 } from '../../../../services/melos/instruments/bajo/patch';
 import {
-  BAJO_PARAM_META, formatBajoParam, laneParam, gridParam, W, G, bajoDefault,
+  BAJO_PARAM_META, formatBajoParam, laneParam, gridParam, W, G, O, osc, bajoDefault,
   GATE_BANDS, GATE_STEPS, LANE_LEN,
 } from '../../../../services/melos/instruments/bajo/params';
+import { BAJO_WAVETABLES } from '../../../../services/melos/instruments/bajo/wavetables';
 import { Knob } from '../shared/Knob';
 import { WobbleLane, LANE_PRESETS } from './WobbleLane';
 import { GhostGateGrid, GATE_PRESETS, buildGrid } from './GhostGateGrid';
@@ -31,26 +32,52 @@ interface Props {
 const ACCENT = '#FF4B1C';
 
 export const BajoEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
-  // Not memoised — the doc mutates in place, same reasoning as OndaEditor and VelaEditor.
   const patch: BajoPatch | null = deserializeBajoPatch(track.instrument?.patch);
 
   const val = (id: number, fallback: number) => patch?.params?.[id] ?? fallback;
   const tr = useBajoTransport(patch?.params?.[G.RATE] ?? 1);
 
   const setParam = useCallback((id: number, value: number) => {
-    BeatsEngine.get().getInstrument(track.id)?.setParam(id, value);
+    const inst = BeatsEngine.get().getInstrument(track.id);
+    inst?.setParam(id, value);
+    // Turning up Osc B level automatically engages Osc B if it wasn't explicitly enabled yet.
+    const autoEnableOscB = id === osc(1, O.LEVEL) && value > 0.005 && (patch?.params?.[osc(1, O.ENABLE)] ?? 0) < 0.5;
+    if (autoEnableOscB) inst?.setParam(osc(1, O.ENABLE), 1);
+
     onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === track.id);
       const p = t?.instrument?.patch as { params?: Record<number, number> } | undefined;
       if (!p) return;
       if (!p.params) p.params = {};
       p.params[id] = value;
+      if (autoEnableOscB) p.params[osc(1, O.ENABLE)] = 1;
+    });
+  }, [onMutate, patch?.params, track.id]);
+
+  const setWaveTable = useCallback((slot: 0 | 1, tableId: string) => {
+    onMutate((d) => {
+      const t = d.arrangement.find((x) => x.id === track.id);
+      const raw = t?.instrument?.patch as Record<string, unknown> | undefined;
+      if (!raw) return;
+      const next = deserializeBajoPatch(raw);
+      if (!next) return;
+      next.tables = [next.tables[0] || '', next.tables[1] || ''];
+      next.tables[slot] = tableId;
+      next.params[osc(slot, O.MODE)] = tableId ? 0 : 1;
+      if (slot === 1 && tableId) next.params[osc(1, O.ENABLE)] = 1;
+      raw.tables = [...next.tables];
+      raw.params = Object.fromEntries(Object.entries(next.params).map(([k, v]) => [String(k), v]));
+
+      const engine = BeatsEngine.get();
+      const inst = engine.getInstrument(track.id);
+      if (inst) applyBajoPatch(inst, next);
+      else {
+        const trk = engine.getDoc().arrangement.find((x) => x.id === track.id);
+        if (trk) void engine.ensureInstrument(trk).then((i) => { if (i) applyBajoPatch(i, next); });
+      }
     });
   }, [onMutate, track.id]);
 
-  /** The lane and the grid live outside `params` because that is the shape the UI edits — but
-   *  they still reach the engine as plain param ids, which is why neither needed a bespoke ABI
-   *  call. Both are written at fixed length so a cleared slot writes a value, never undefined. */
   const setLane = useCallback((lane: number[]) => {
     const inst = BeatsEngine.get().getInstrument(track.id);
     for (let i = 0; i < LANE_LEN; i++) inst?.setParam(laneParam(i), lane[i] ?? 6);
@@ -69,7 +96,6 @@ export const BajoEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
     onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === track.id);
       const p = t?.instrument?.patch as { grid?: number[] } | undefined;
-      // Flat: this object is what Firestore stores, and it rejects an array of arrays.
       if (p) p.grid = flattenGrid(grid);
     });
   }, [onMutate, track.id]);
@@ -94,14 +120,31 @@ export const BajoEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
       <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-3 [&>*]:shrink-0">
         {BAJO_EDITOR_GROUPS.map((group) => (
           <section key={group.key} className="rounded-[14px] border border-white/10 p-3" style={{ background: 'rgba(255,255,255,0.02)' }}>
-            <div className="flex items-center gap-2 mb-2.5">
+            <div className="flex items-center gap-2 mb-2.5 flex-wrap">
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: group.color }} />
               <span className="text-[9.5px] uppercase tracking-[0.16em] text-white/45">{group.title}</span>
               <span className="text-[9.5px] text-white/25">{group.blurb}</span>
+              {group.key === 'engine' && (
+                <div className="flex items-center gap-2 ml-auto flex-wrap">
+                  {([0, 1] as const).map((slot) => (
+                    <label key={slot} className="flex items-center gap-1 text-[10px] text-white/50">
+                      <span className="font-mono text-[9px] uppercase text-white/35">Osc {slot === 0 ? 'A' : 'B'} Table:</span>
+                      <select
+                        value={patch.tables[slot] || ''}
+                        onChange={(e) => setWaveTable(slot, e.target.value)}
+                        className="h-6 rounded-lg bg-black/45 border border-white/12 px-1.5 text-[10px] text-white outline-none"
+                      >
+                        <option value="">Analog (PolyBLEP)</option>
+                        {BAJO_WAVETABLES.map((w) => (
+                          <option key={w.id} value={w.id}>{w.name} — {w.journey}</option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* The rate lane sits inside the Wobble section, above its knobs — the knobs shape
-                the curve the lane is playing, so they belong together. */}
             {group.key === 'wobble' && (
               <div className="mb-3 flex flex-col gap-1.5">
                 <WobbleLane
@@ -153,20 +196,13 @@ export const BajoEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
             <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(62px, 1fr))' }}>
               {group.ids.map((id) => {
                 const meta = BAJO_PARAM_META[id];
-                // Ids without BAJO metadata are ONDA's shared controls; the shared editor
-                // already labels those, so this grid only draws what it can name.
                 if (!meta) return null;
                 return (
                   <Knob
                     key={id}
                     label={meta.label}
-                    // A control a preset never set reads at the ENGINE's default for that id,
-                    // not at the middle of its range — which is what had the editor saying
-                    // "Square" while the engine played "Saw".
                     value={val(id, bajoDefault(id))}
                     min={0}
-                    // Stepped controls are stored as raw indices, matching the Rust enums, so
-                    // their range is the option count rather than 0..1.
                     max={meta.options ? meta.options.length - 1 : 1}
                     color={group.color}
                     size={44}

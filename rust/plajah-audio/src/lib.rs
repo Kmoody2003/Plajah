@@ -39,6 +39,7 @@ mod sample;
 mod spatial;
 mod tables;
 mod voice;
+mod volta;
 
 use engine::Engine;
 use spatial::{IamfRole, Layout, Position};
@@ -74,7 +75,11 @@ use spatial::{IamfRole, Layout, Position};
 /// TonosRack of sympathetic strings; MAX_PARAM_ID grows to 2100.
 /// v19 adds the orchestra & guitar family blocks (2100–2599), ARCO orchestral strings first;
 /// MAX_PARAM_ID grows to 2600, and switching a family model on allocates its voices.
-pub const ABI_VERSION: u32 = 19; // 19: ARCO orchestral strings (block 2100+); 18: TONOS deep body; 17: TONOS world strings (block 2000+); 16: SOMA deep skin
+/// v20 adds heritage acoustics & craft parameters (SM_HERITAGE_AGE..SM_APERTURE_HAND,
+/// LY_HERITAGE_AGE..LY_SYMPATHETIC, TN_HERITAGE_AGE..TN_CRAFT_ASYMMETRY), per-voice LFOs,
+/// and `pa_set_lfo_custom` for custom Curves and Steps.
+/// v21 adds VOLTA circuit-modeled vintage+modern super-synth (`VOLTA_BASE = 2500`) and `pa_volta_probe`.
+pub const ABI_VERSION: u32 = 21; // 21: VOLTA circuit-modeled super synth; 20: Heritage physics + custom/per-voice LFOs; 19: ARCO orchestral strings (block 2100+); 18: TONOS deep body; 17: TONOS world strings (block 2000+); 16: SOMA deep skin
 
 #[unsafe(no_mangle)]
 pub extern "C" fn pa_abi_version() -> u32 {
@@ -285,6 +290,17 @@ pub unsafe extern "C" fn pa_commit_table(p: *mut Engine, slot: u32, frames: u32,
     e.commit_table(slot as usize, frames as usize, frame_size as usize);
 }
 
+/// Commit a custom LFO breakpoint curve (`stepped == 0`) or step-sequencer lane (`stepped != 0`)
+/// from the first `count` floats staged in `pa_upload_ptr(p)` (bipolar `-1.0..=1.0`).
+///
+/// # Safety
+/// `p` must be a live engine pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pa_set_lfo_custom(p: *mut Engine, index: u32, count: u32, stepped: u32) {
+    let e = eng!(p);
+    e.set_lfo_custom(index as usize, count as usize, stepped != 0);
+}
+
 /// # Safety
 /// `p` must be a live engine pointer.
 #[unsafe(no_mangle)]
@@ -441,4 +457,14 @@ pub unsafe extern "C" fn pa_clear_schedule(p: *mut Engine) {
 pub unsafe extern "C" fn pa_reset_transport(p: *mut Engine, frame: f64) {
     let e = eng!(p);
     e.reset_transport(frame);
+}
+
+/// Live VOLTA circuit-node telemetry (`node` 0..6 = VCO, Wavefolder, Ladder, SVF, Diode/Out, PSU Rail, Thermal Temp).
+///
+/// # Safety
+/// `p` must be a live engine pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pa_volta_probe(p: *mut Engine, node: u32) -> f32 {
+    let e = eng!(p, 0.0);
+    e.volta_probe(node)
 }

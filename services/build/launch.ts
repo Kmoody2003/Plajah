@@ -6,6 +6,7 @@ export const ROOM_IDS: Room[] = ['elec', 'cad', 'sew', 'bio', 'exchange', 'studi
 /** A launch request from elsewhere in Plajah (an Academia lesson, a link): which room, and what to open in it. */
 export interface BuildLaunch { room: Room; prompt?: string; template?: string; starter?: string; lesson?: string }
 export const PENDING_BUILD_KEY = 'plajah:pendingBuild';
+export const OPEN_BUILD_EVENT = 'plajah:openBuild';
 export function parseLaunch(raw: unknown): BuildLaunch | null {
   const v = typeof raw === 'string' ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : raw;
   if (!v || typeof v !== 'object' || !ROOM_IDS.includes((v as BuildLaunch).room)) return null;

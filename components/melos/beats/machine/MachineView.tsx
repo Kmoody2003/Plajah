@@ -22,6 +22,9 @@ import { BrowserRail } from './BrowserRail';
 import { PitchRoll } from './PitchRoll';
 import { ScenesBar } from './ScenesBar';
 import type { MelosSampleRef } from '../melosSamples';
+import { KitLens } from '../../../../services/melos/beats/band/live/observations';
+import { PANEL_SEAT_INTROS } from '../../../../services/melos/beats/band/live/lineAudio';
+import { InstrumentBandSeat } from '../instrument/InstrumentBandSeat';
 
 const KEY_ROWS = ['zxcv', 'asdf', 'qwer', '1234']; // row 0 = pads 0–3 (bottom)
 
@@ -71,6 +74,7 @@ export const MachineView: React.FC<MachineViewProps> = (p) => {
   // 16 Velocities (the grid plays the selected pad at sixteen levels).
   // Note Repeat lives in the ENGINE (scheduled on the audio clock, locked to the transport), so
   // pads, QWERTY, MIDI and the NI controller all repeat the same way; this is just its panel.
+  const kitLens = useMemo(() => new KitLens(), []);
   const [noteRepeat, setNoteRepeat] = useState(() => BeatsEngine.get().noteRepeatState().on);
   const [repeatRate, setRepeatRate] = useState(3); // 1/16 — the Maschine default
   const [repeatSwing, setRepeatSwing] = useState(0);
@@ -347,6 +351,41 @@ export const MachineView: React.FC<MachineViewProps> = (p) => {
         <p className="mt-3 text-center text-[9px] text-white/20">
           keys: z x c v · a s d f · q w e r · 1 2 3 4{pitched ? ` — playing ${selPad?.name ?? 'the selected pad'}` : ''}
         </p>
+        <div className="mt-3">
+          <InstrumentBandSeat
+            instrument="kit"
+            playerId="marcus"
+            loreId="drum-kit"
+            role="Session Band drums · live"
+            intro={PANEL_SEAT_INTROS.kit}
+            screenText={`Kit · ${p.doc.bpm} BPM · ${p.doc.kit.filter((k) => !k.empty).slice(0, 4).map((k) => k.name).join(', ')}`}
+            accent="#F59E0B"
+            customLens={kitLens}
+            collapsible
+            defaultCollapsed
+            playStep={(stroke, vel) => {
+              const s = stroke.toLowerCase();
+              const re = /kick|bd/.test(s)
+                ? /kick|bd|808|sub/i
+                : /snare|sd|rim|clap/.test(s)
+                  ? /snare|sd|clap|rim/i
+                  : /open|oh/.test(s)
+                    ? /open|oh|cym|crash|ride/i
+                    : /hat|hh|ch/.test(s)
+                      ? /hat|hh|ch|closed/i
+                      : /tom/.test(s)
+                        ? /tom/i
+                        : /crash|ride|cym/.test(s)
+                          ? /crash|ride|cym/i
+                          : /perc|shaker|conga|cowbell/i;
+              const found = p.doc.kit.findIndex((pad) => !pad.empty && re.test(pad.name));
+              const idx = found >= 0 ? found : Math.max(0, p.selectedPad);
+              const vel127 = Math.max(12, Math.min(127, Math.round(vel * 127)));
+              const eng = BeatsEngine.get();
+              void eng.init().then(() => eng.trigger(idx, vel127));
+            }}
+          />
+        </div>
       </div>
 
     </div>

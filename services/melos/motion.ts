@@ -81,9 +81,9 @@ export interface Motion {
   smooth: number;
 
   // ── shape payloads ──
-  /** `curve`: a drawn cycle, 33 points with the last wrapping to the first. */
+  /** `curve`: a drawn cycle, 2..65 points with the last wrapping to the first. */
   curve?: number[];
-  /** `steps`: values walked one per step. */
+  /** `steps`: values walked one per step (2..64 steps). */
   steps?: number[];
   /** `envelope`: ADSR in normalised units; the deep editor swaps this for breakpoints. */
   envelope?: { attack: number; decay: number; sustain: number; release: number };
@@ -121,7 +121,7 @@ export function newMotion(shape: MotionShape = 'curve', index = 0): Motion {
     retrigger: true,
     fade: 0,
     smooth: 0,
-    curve: shape === 'curve' ? undefined : undefined,
+    curve: undefined,
     steps: shape === 'steps' ? Array.from({ length: 8 }, (_, i) => (i % 2 === 0 ? 1 : 0)) : undefined,
     envelope: shape === 'envelope' ? { attack: 0.02, decay: 0.3, sustain: 0.5, release: 0.25 } : undefined,
     seed: shape === 'random' ? (Math.random() * 0xffff) | 0 : undefined,
@@ -169,14 +169,22 @@ const LFO_BASE = 800, LFO_STRIDE = 10;
 const envParam = (i: number, p: number) => ENV_BASE + i * ENV_STRIDE + p;
 const lfoParam = (i: number, p: number) => LFO_BASE + i * LFO_STRIDE + p;
 const E_ATTACK = 0, E_DECAY = 1, E_SUSTAIN = 2, E_RELEASE = 3;
-const L_SHAPE = 0, L_RATE = 1, L_SYNC = 2, L_BIPOLAR = 3, L_RETRIGGER = 4, L_FADE = 5;
+const L_SHAPE = 0, L_RATE = 1, L_SYNC = 2, L_BIPOLAR = 3, L_RETRIGGER = 4, L_FADE = 5, L_PER_VOICE = 7;
 
 /** Envelope slot 0 is the amp envelope and is never handed to a Motion. */
 const FIRST_FREE_ENV = 1;
 
+export interface CustomLfoUpload {
+  slot: number;
+  points: number[];
+  stepped: boolean;
+}
+
 export interface CompiledMotions {
   /** Parameter writes configuring the slots. */
   params: Array<[number, number]>;
+  /** Custom curve/step breakpoint tables to upload via `pa_set_lfo_custom`. */
+  lfoCustoms: CustomLfoUpload[];
   /** Route writes: [index, source, dest, depth, via]. */
   routes: Array<[number, number, number, number, number]>;
   /** Which engine source each Motion ended up on, for the UI to show. */
@@ -193,6 +201,7 @@ export interface CompiledMotions {
  */
 export function compileMotions(motions: Motion[]): CompiledMotions {
   const params: Array<[number, number]> = [];
+  const lfoCustoms: CustomLfoUpload[] = [];
   const routes: Array<[number, number, number, number, number]> = [];
   const assigned = new Map<string, number>();
   const unplaced: Array<{ motionId: string; reason: string }> = [];
@@ -226,14 +235,30 @@ export function compileMotions(motions: Motion[]): CompiledMotions {
           unplaced.push({ motionId: m.id, reason: `No cycle slots left (${NUM_LFO_SLOTS} available)` });
           continue;
         }
-        // The engine's LFO shapes: 0 sine, 1 tri, 2 saw, 3 square, 4 sample&hold, 5 custom.
-        const shapeIndex = m.shape === 'random' ? 4 : m.shape === 'steps' ? 5 : 0;
+        // Engine LFO shapes: 0 sine, 1 tri, 2 saw, 3 square, 4 sample&hold, 5 custom, 6 tide.
+        const hasCustomCurve = m.shape === 'curve' && Array.isArray(m.curve) && m.curve.length >= 2;
+        const shapeIndex =
+          m.shape === 'random'
+            ? ((m.glide ?? 0) > 0.5 ? 6 : 4)
+            : m.shape === 'steps' || hasCustomCurve
+              ? 5
+              : 0;
         params.push([lfoParam(lfoSlot, L_SHAPE), shapeIndex]);
         params.push([lfoParam(lfoSlot, L_RATE), m.rate]);
         params.push([lfoParam(lfoSlot, L_SYNC), m.syncBeats]);
         params.push([lfoParam(lfoSlot, L_BIPOLAR), m.bipolar ? 1 : 0]);
         params.push([lfoParam(lfoSlot, L_RETRIGGER), m.retrigger ? 1 : 0]);
         params.push([lfoParam(lfoSlot, L_FADE), m.fade]);
+        params.push([lfoParam(lfoSlot, L_PER_VOICE), m.perVoice ? 1 : 0]);
+        if (m.shape === 'steps') {
+          const pts = m.steps && m.steps.length >= 2
+            ? m.steps.map((v) => Math.max(0, Math.min(1, v)))
+            : [1, 0, 1, 0, 1, 0, 1, 0];
+          lfoCustoms.push({ slot: lfoSlot, points: pts, stepped: true });
+        } else if (hasCustomCurve) {
+          const pts = m.curve!.map((v) => Math.max(0, Math.min(1, v)));
+          lfoCustoms.push({ slot: lfoSlot, points: pts, stepped: false });
+        }
         source = MOD_SOURCE.Lfo1 + lfoSlot;
         lfoSlot += 1;
         break;
@@ -274,7 +299,37 @@ export function compileMotions(motions: Motion[]): CompiledMotions {
   // Clear any stale routes left from a previous compile.
   for (let i = routeIndex; i < 32; i++) routes.push([i, 0, 0, 0, 0]);
 
-  return { params, routes, assigned, unplaced };
+  return { params, lfoCustoms, routes, assigned, unplaced };
+}
+
+/** Push compiled Motions (params + custom LFO tables + routes + optional preset/drift base routes) onto a live Instrument handle. */
+export function applyCompiledMotions(
+  inst: {
+    setParams: (entries: Array<[number, number]>) => void;
+    setRoute: (index: number, source: number, dest: number, depth: number, via?: number) => void;
+    setLfoCustom?: (index: number, points: number[], stepped: boolean) => void;
+  },
+  compiled: CompiledMotions,
+  baseRoutes?: ReadonlyArray<{ source: number; dest: number; depth: number; via?: number }>,
+): void {
+  if (compiled.params.length) inst.setParams(compiled.params);
+  if (inst.setLfoCustom) {
+    for (const c of compiled.lfoCustoms) inst.setLfoCustom(c.slot, c.points, c.stepped);
+  }
+  const activeMotionRoutes = compiled.routes.filter(([, src, , depth]) => src !== 0 && Math.abs(depth) > 0.0001);
+  let slot = 0;
+  for (const [, src, dest, depth, via] of activeMotionRoutes) {
+    if (slot >= 32) break;
+    inst.setRoute(slot++, src, dest, depth, via);
+  }
+  if (baseRoutes) {
+    for (const r of baseRoutes) {
+      if (slot >= 32) break;
+      if (r.source === 0 || Math.abs(r.depth) <= 0.0001) continue;
+      inst.setRoute(slot++, r.source, r.dest, r.depth, r.via ?? 0);
+    }
+  }
+  for (; slot < 32; slot++) inst.setRoute(slot, 0, 0, 0, 0);
 }
 
 /** Total modulation reaching one parameter — what the knob's arc draws. */

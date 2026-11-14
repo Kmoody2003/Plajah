@@ -338,6 +338,178 @@ export const VELA_PRESETS: VelaPreset[] = [
     },
     macros: { air: 0.6, body: 0.7, shimmer: 0.02, drift: 0.18 },
   },
+  // ── Production & Heritage Modal Expansion ────────────────────────────────
+  {
+    id: 'kyoto-temple-rin', name: 'Kyoto Temple Rin', family: 'struck',
+    blurb: 'spun brass · crisp wood striker · singing fifth',
+    description: 'Hand-hammered Japanese sanctuary rin bowl struck with an ebony-tipped stick: crystalline transient followed by a 0.6 Hz doublet beat.',
+    params: {
+      ...body(0.85, 0.055, 0.11, 0.68, 0.36, 0, 0.21, 0.55),
+      ...breath(2, 0.72, 0.28, 0.56, 0.68), ...life(0.38, 0.58, 0.22, 0.22, 0.14),
+      ...evolve(0.0, 0.52, 0.24), ...veil(0.46, 0.62, 0.58, 0.74, 0.14), ...trim(0.95),
+    },
+    macros: { air: 0.45, body: 0.38, shimmer: 0.26, drift: 0.24 },
+  },
+  {
+    id: 'javanese-bonang-kettle', name: 'Gamelan Bronze Kettle', family: 'struck',
+    blurb: 'boss-tuned bronze · ombak shimmer',
+    description: 'Central-bossed Javanese bronze kettle gong with paired ombak beating and warm wooden rack resonance.',
+    params: {
+      ...body(0.72, 0.12, 0.19, 0.56, 0.48, 0, 0.34, 0.5),
+      ...breath(2, 0.76, 0.34, 0.44, 0.65), ...life(0.42, 0.68, 0.38, 0.2, 0.16),
+      ...evolve(0.0, 0.48, 0.22), ...veil(0.4, 0.58, 0.52, 0.72, 0.06), ...trim(0.92),
+    },
+    macros: { air: 0.42, body: 0.48, shimmer: 0.14, drift: 0.28 },
+  },
+  {
+    id: 'rosewood-marimba-arch', name: 'Honduran Rosewood Bar', family: 'struck',
+    blurb: 'carved wood · yarn mallet · 1:4:10 modes',
+    description: 'Arch-undercut concert rosewood bar over brass resonator tubes — warm fundamental bloom for minimalist ostinati and film cues.',
+    params: {
+      ...body(0.55, 0.08, 0.09, 0.38, 0.64, 3, 0.42, 0.65),
+      ...breath(2, 0.68, 0.26, 0.38, 0.62), ...life(0.24, 0.18, 0.18, 0.14, 0.12),
+      ...evolve(0.0, 0.5, 0.18), ...veil(0.36, 0.54, 0.46, 0.7, 0.04), ...trim(0.96),
+    },
+    macros: { air: 0.38, body: 0.52, shimmer: 0.1, drift: 0.14 },
+  },
+  {
+    id: 'bowed-vibraphone-halo', name: 'Bowed Vibraphone', family: 'sustained',
+    blurb: 'aluminum bar · contrabass bow · motor pulse',
+    description: 'Double-bass hair drawn across the nodal edge of an aluminum vibraphone bar with gentle motor-vane tremolo.',
+    params: {
+      ...body(0.7, 0.065, 0.12, 0.58, 0.38, 0, 0.18, 0.55),
+      ...breath(0, 0.58, 0.24, 0.48, 0.45), ...life(0.44, 0.42, 0.48, 0.48, 0.28),
+      ...evolve(0.22, 0.54, 0.28), ...veil(0.64, 0.72, 0.68, 0.82, 0.28, 1), ...trim(0.26),
+    },
+    macros: { air: 0.5, body: 0.36, shimmer: 0.42, drift: 0.34 },
+  },
+  {
+    id: 'cristal-baschet', name: 'Cristal Baschet', family: 'sustained',
+    blurb: 'wet glass rods · metal radiator cones',
+    description: 'Moistened fingers stroking tuned glass rods coupled to flame-shaped sheet-metal resonators — singing celestial purity.',
+    params: {
+      ...body(0.88, 0.095, 0.14, 0.54, 0.32, 1, 0.24, 0.52),
+      ...breath(3, 0.54, 0.22, 0.58, 0.48), ...life(0.48, 0.32, 0.26, 0.38, 0.14),
+      ...evolve(0.26, 0.58, 0.32), ...veil(0.68, 0.74, 0.72, 0.86, 0.36, 1), ...trim(0.18),
+    },
+    macros: { air: 0.48, body: 0.34, shimmer: 0.54, drift: 0.38 },
+  },
+  {
+    id: 'nordic-ice-harmonica', name: 'Franklin Glass Armonica', family: 'voices',
+    blurb: 'spinning quartz bowls · vocal formant',
+    description: 'Concentric spinning leaded-crystal bowls fused with a delicate vocal formant halo for intimate Nordic underscores.',
+    params: {
+      ...body(0.78, 0.05, 0.18, 0.52, 0.4, 1, 0.26, 0.48),
+      ...sung(0.52, 0.58, 0.4, true), ...breath(3, 0.52, 0.28, 0.5, 0.42),
+      ...life(0.52, 0.34, 0.32, 0.36, 0.16), ...evolve(0.34, 0.62, 0.34),
+      ...veil(0.66, 0.76, 0.7, 0.84, 0.32, 1), ...trim(0.38),
+    },
+    macros: { air: 0.48, body: 0.3, shimmer: 0.46, drift: 0.42 },
+  },
+  {
+    id: 'cello-harmonic-cloud', name: 'Sul Ponticello Cloud', family: 'voices',
+    blurb: 'wooden body · glassy overtones · slow bow',
+    description: 'Bowed just millimetres from the bridge so the fundamental recedes and icy upper wooden modes shimmer across the stereo field.',
+    params: {
+      ...body(0.82, 0.018, 0.32, 0.48, 0.36, 3, 0.12, 0.5),
+      ...sung(0.46, 0.64, 0.38), ...breath(0, 0.58, 0.48, 0.56, 0.4),
+      ...life(0.56, 0.44, 0.52, 0.42, 0.22), ...evolve(0.38, 0.64, 0.32),
+      ...veil(0.62, 0.74, 0.66, 0.82, 0.24), ...trim(0.28),
+    },
+    macros: { air: 0.58, body: 0.28, shimmer: 0.34, drift: 0.44 },
+  },
+  {
+    id: 'amber-sanctuary-swell', name: 'Amber Sanctuary', family: 'pad',
+    blurb: 'aged wood + bronze · 4 s warm bloom',
+    description: 'Lush, velvet modal pad combining aged wooden body warmth with slow bronze shimmer — effortless under vocals or piano.',
+    params: {
+      ...body(0.6, 0.025, 0.22, 0.58, 0.56, 3, 0.36, 0.45),
+      ...sung(0.4, 0.48, 0.52, true), ...breath(0, 0.48, 0.32, 0.3, 0.32),
+      ...life(0.52, 0.36, 0.14, 0.44, 0.09), ...evolve(0.66, 0.6, 0.38),
+      ...veil(0.68, 0.78, 0.68, 0.84, 0.22), ...trim(0.52),
+    },
+    macros: { air: 0.48, body: 0.36, shimmer: 0.32, drift: 0.44 },
+  },
+  {
+    id: 'solstice-horizon', name: 'Solstice Horizon', family: 'pad',
+    blurb: 'air + glass · fifths shimmer · weightless',
+    description: 'Wide atmospheric modal pad whose fifth-shifted Veil halo opens gently as the chord sustains.',
+    params: {
+      ...body(0.68, 0.08, 0.16, 0.54, 0.38, 1, 0.24, 0.5),
+      ...breath(1, 0.52, 0.38, 0.48, 0.36), ...life(0.54, 0.28, 0.24, 0.48, 0.12),
+      ...evolve(0.68, 0.68, 0.36), ...veil(0.74, 0.8, 0.74, 0.88, 0.52, 2), ...trim(0.16),
+    },
+    macros: { air: 0.56, body: 0.3, shimmer: 0.68, drift: 0.48 },
+  },
+  {
+    id: 'subterranean-cistern', name: 'Subterranean Cistern', family: 'soundscape',
+    blurb: 'iron + water reflections · 45 s drift',
+    description: 'Resonant iron pillars echoing across an underground stone reservoir — dark, cinematic tension bed.',
+    params: {
+      ...body(0.92, 0.34, 0.36, 0.72, 0.42, 2, 0.52, 0.16),
+      ...breath(3, 0.46, 0.58, 0.32, 0.38), ...life(0.74, 0.42, 0.06, 0.42, 0.05),
+      ...evolve(0.46, 0.28, 0.48), ...veil(0.76, 0.9, 0.84, 0.86, 0.2, 3, 0.34), ...trim(0.12),
+    },
+    macros: { air: 0.46, body: 0.68, shimmer: 0.26, drift: 0.64 },
+  },
+  {
+    id: 'koto-bamboo-bridge', name: 'Wooden Koto Harp', family: 'struck',
+    blurb: 'plucked wood + paulownia · crisp silk',
+    description: 'Dry plucked paulownia resonators with high treble tilt and swift natural wood damping — articulate chamber arpeggios.',
+    params: {
+      ...body(0.66, 0.014, 0.08, 0.34, 0.68, 3, 0.22, 0.7),
+      ...breath(2, 0.72, 0.18, 0.58, 0.55), ...life(0.18, 0.14, 0.2, 0.12, 0.08),
+      ...evolve(0.0, 0.28, 0.18), ...veil(0.32, 0.48, 0.42, 0.68, 0.04), ...trim(0.95),
+    },
+    macros: { air: 0.68, body: 0.22, shimmer: 0.12, drift: 0.14 },
+  },
+  {
+    id: 'steelpan-island-harmonics', name: 'Trinidad Tenor Pan', family: 'struck',
+    blurb: 'hammered steel · octave harmonic',
+    description: 'Bright hammered tempered iron pan where an octave partial blooms right after the rubber mallet contact.',
+    params: {
+      ...body(0.7, 0.06, 0.1, 0.46, 0.46, 2, 0.34, 0.65),
+      ...breath(2, 0.64, 0.22, 0.62, 0.52), ...life(0.32, 0.42, 0.34, 0.22, 0.14),
+      ...evolve(0.02, 0.44, 0.22), ...veil(0.38, 0.54, 0.48, 0.7, 0.12), ...trim(0.82),
+    },
+    macros: { air: 0.6, body: 0.32, shimmer: 0.26, drift: 0.2 },
+  },
+  {
+    id: 'glass-harmonica-spin', name: 'Bohemian Crystal Armonica', family: 'sustained',
+    blurb: 'wet crystal rims · singing fifth halo',
+    description: 'Rotating nested crystal bowls rubbed with damp fingertips: pure, eerie sine-like partials floating into a crystalline space.',
+    params: {
+      ...body(0.54, 0.024, 0.06, 0.7, 0.44, 1, 0.32, 0.58),
+      ...sung(0.28, 0.58, 0.35), ...breath(0, 0.5, 0.2, 0.44, 0.32),
+      ...life(0.38, 0.52, 0.24, 0.36, 0.12), ...evolve(0.28, 0.42, 0.34),
+      ...veil(0.62, 0.72, 0.68, 0.82, 0.32, 2), ...trim(0.42),
+    },
+    macros: { air: 0.46, body: 0.28, shimmer: 0.5, drift: 0.3 },
+  },
+  {
+    id: 'nordic-choir-fjord', name: 'Fjord Mist Choir', family: 'voices',
+    blurb: 'choral vowel morph · ice breeze',
+    description: 'Open human vowel formants blended with cool air partials so sustained chords drift gently from dark /u/ to bright /e/.',
+    params: {
+      ...body(0.76, 0.008, 0.28, 0.6, 0.48, 6, 0.46, 0.36),
+      ...sung(0.84, 0.36, 0.58, true), ...breath(1, 0.54, 0.42, 0.4, 0.34),
+      ...life(0.6, 0.32, 0.28, 0.46, 0.1), ...evolve(0.56, 0.78, 0.54),
+      ...veil(0.74, 0.88, 0.8, 0.88, 0.28, 1, 0.2), ...trim(0.42),
+    },
+    macros: { air: 0.52, body: 0.3, shimmer: 0.42, drift: 0.56 },
+  },
+  {
+    id: 'cathedral-velvet-organ', name: 'Velvet Pipe Pad', family: 'pad',
+    blurb: 'blown air + wood · infinite fifths',
+    description: 'Slow-arriving blown modal pad balancing warm wooden body resonance with a luminous octave shimmer tail.',
+    params: {
+      ...body(0.62, 0.012, 0.24, 0.64, 0.54, 3, 0.44, 0.42),
+      ...sung(0.46, 0.4, 0.48, true), ...breath(1, 0.56, 0.52, 0.36, 0.3),
+      ...life(0.48, 0.4, 0.16, 0.44, 0.08), ...evolve(0.7, 0.62, 0.5),
+      ...veil(0.7, 0.84, 0.76, 0.86, 0.34, 1, 0.16), ...trim(0.48),
+    },
+    macros: { air: 0.54, body: 0.34, shimmer: 0.48, drift: 0.46 },
+  },
 ];
 
 export const velaPreset = (id: string): VelaPreset | undefined =>

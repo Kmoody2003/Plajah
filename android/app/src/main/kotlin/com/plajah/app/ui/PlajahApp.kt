@@ -148,6 +148,9 @@ fun PlajahApp(
                         onOpenPlatform = onOpenContent,
                         onExit = onExitToClassic
                     )
+                    Destinations.Files.id -> com.plajah.app.ui.screens.FilesScreen(
+                        onOpenWebFiles = { onOpenContent("https://plajah.com/?view=files") },
+                    )
                     Destinations.Home.id, Destinations.Reello.id, Destinations.Lorea.id -> PlatformScreen(current.id) { item ->
                         if(item.kind=="album")selectedAlbum=item else onOpenContent(item.platformUrl)
                     }

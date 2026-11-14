@@ -39,6 +39,10 @@ public sealed partial class MainWindow : Window
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _liveLevelTimer;
     /// <summary>Chora multitrack capture from an ASIO interface/console (one open driver per process).</summary>
     private readonly AsioMultitrackRecorder _asioRec = new();
+    private readonly WindowsFileExplorerService _fileExplorer = new();
+    private readonly WindowsStorageConnectorService _connectors = new();
+    private WindowsSyncEngine? _syncEngine;
+    private WindowsSyncEngine SyncEngine => _syncEngine ??= new WindowsSyncEngine((type, payload) => DispatcherQueue.TryEnqueue(() => PostNativeMessage(type, payload)));
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _asioLevelTimer;
     private DateTime _lastNavRecovery = DateTime.MinValue;
     private DateTime _lastRendererRecovery = DateTime.MinValue;
@@ -172,6 +176,7 @@ public sealed partial class MainWindow : Window
         try { _ndiRecv.Dispose(); } catch (Exception ex) { CrashLog.Write("Close.LiveInputs", ex); }
         // A take in progress: stopping finalizes the WAV headers so the audio isn't lost.
         try { _asioRec.Dispose(); } catch (Exception ex) { CrashLog.Write("Close.AsioCapture", ex); }
+        try { _syncEngine?.Dispose(); } catch (Exception ex) { CrashLog.Write("Close.SyncEngine", ex); }
     }
 
     private bool _ecoMode;
@@ -349,29 +354,7 @@ public sealed partial class MainWindow : Window
                         if (!string.IsNullOrEmpty(fullPath) && File.Exists(fullPath))
                         {
                             var fi = new FileInfo(fullPath);
-                            var ext = fi.Extension.ToLowerInvariant();
-                            var mime = ext switch
-                            {
-                                ".jpg" or ".jpeg" => "image/jpeg",
-                                ".png" => "image/png",
-                                ".gif" => "image/gif",
-                                ".webp" => "image/webp",
-                                ".svg" => "image/svg+xml",
-                                ".bmp" => "image/bmp",
-                                ".avif" => "image/avif",
-                                ".mp4" => "video/mp4",
-                                ".webm" => "video/webm",
-                                ".mov" => "video/quicktime",
-                                ".mkv" => "video/x-matroska",
-                                ".avi" => "video/x-msvideo",
-                                ".mp3" => "audio/mpeg",
-                                ".wav" => "audio/wav",
-                                ".flac" => "audio/flac",
-                                ".aac" => "audio/aac",
-                                ".ogg" => "audio/ogg",
-                                ".m4a" => "audio/mp4",
-                                _ => "application/octet-stream"
-                            };
+                            var mime = WindowsFileExplorerService.GetMimeType(fi.Extension);
 
                             var fileLength = fi.Length;
                             string? rangeHeader = null;
@@ -861,6 +844,10 @@ public sealed partial class MainWindow : Window
             if (type == "PROGRAM_OUT_AUDIO") { _programOutHub?.OnAudio(root); return; }
             if (type == "LD_UDP_SEND") { LightingUdpSender.Send(root); return; }
             if (type is not null && type.StartsWith("FAB_MACHINE_", StringComparison.Ordinal)) { await Fab.HandleAsync(type, root); return; }
+            if (type is not null && (type.StartsWith("FILES_", StringComparison.Ordinal) || type.StartsWith("CONNECTOR_", StringComparison.Ordinal) || type.StartsWith("SYNC_", StringComparison.Ordinal)))
+            {
+                if (await HandleUnifiedFileBridgeAsync(type, root)) return;
+            }
 
             if (type == "NATIVE_AUDIO_OPEN")
             {
@@ -2510,16 +2497,9 @@ public sealed partial class MainWindow : Window
             var files = new List<object>();
             var folders = new List<object>();
 
-            var mediaExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi", ".mpg", ".mpeg",
-                ".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".aiff", ".aif",
-                ".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif", ".heic", ".tif", ".tiff", ".svg"
-            };
-
             foreach (var item in items)
             {
-                if (item is StorageFile sf && mediaExtensions.Contains(sf.FileType))
+                if (item is StorageFile sf)
                 {
                     var folder = Path.GetDirectoryName(sf.Path);
                     var fi = new FileInfo(sf.Path);
@@ -2545,20 +2525,17 @@ public sealed partial class MainWindow : Window
                         foreach (var fi in dirInfo.EnumerateFiles("*", SafeRecursiveScan))
                         {
                             if (files.Count >= MaxScannedFiles) break;
-                            if (mediaExtensions.Contains(fi.Extension))
+                            var relPath = Path.GetRelativePath(sFolder.Path, fi.FullName).Replace('\\', '/');
+                            files.Add(new
                             {
-                                var relPath = Path.GetRelativePath(sFolder.Path, fi.FullName).Replace('\\', '/');
-                                files.Add(new
-                                {
-                                    name = fi.Name,
-                                    relativePath = relPath,
-                                    fullPath = fi.FullName,
-                                    folderPath = sFolder.Path,
-                                    size = fi.Length,
-                                    lastModified = new DateTimeOffset(fi.LastWriteTimeUtc).ToUnixTimeMilliseconds(),
-                                    url = $"https://localmedia.plajah/{Uri.EscapeDataString(relPath).Replace("%2F", "/")}?path={Uri.EscapeDataString(fi.FullName)}"
-                                });
-                            }
+                                name = fi.Name,
+                                relativePath = relPath,
+                                fullPath = fi.FullName,
+                                folderPath = sFolder.Path,
+                                size = fi.Length,
+                                lastModified = new DateTimeOffset(fi.LastWriteTimeUtc).ToUnixTimeMilliseconds(),
+                                url = $"https://localmedia.plajah/{Uri.EscapeDataString(relPath).Replace("%2F", "/")}?path={Uri.EscapeDataString(fi.FullName)}"
+                            });
                         }
                     }
                     catch { }
@@ -2604,9 +2581,136 @@ public sealed partial class MainWindow : Window
         catch { }
     }
 
+    private sealed class CachedThumbEntry
+    {
+        public required byte[] Bytes;
+        public required string ContentType;
+    }
+
+    private static readonly Dictionary<string, LinkedListNode<(string Key, CachedThumbEntry Entry)>> _thumbLruMap = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly LinkedList<(string Key, CachedThumbEntry Entry)> _thumbLruList = new();
+    private static readonly object _thumbCacheLock = new();
+    private const int MaxThumbCacheEntries = 96;
+    private const int MaxCachedThumbBytes = 768 * 1024;
+
+    private static bool TryGetCachedThumb(string key, out CachedThumbEntry entry)
+    {
+        lock (_thumbCacheLock)
+        {
+            if (_thumbLruMap.TryGetValue(key, out var node))
+            {
+                _thumbLruList.Remove(node);
+                _thumbLruList.AddFirst(node);
+                entry = node.Value.Entry;
+                return true;
+            }
+        }
+        entry = null!;
+        return false;
+    }
+
+    private static void PutCachedThumb(string key, byte[] bytes, string contentType)
+    {
+        if (bytes.Length == 0 || bytes.Length > MaxCachedThumbBytes) return;
+        lock (_thumbCacheLock)
+        {
+            if (_thumbLruMap.TryGetValue(key, out var existing))
+            {
+                _thumbLruList.Remove(existing);
+                _thumbLruMap.Remove(key);
+            }
+            var node = _thumbLruList.AddFirst((key, new CachedThumbEntry { Bytes = bytes, ContentType = contentType }));
+            _thumbLruMap[key] = node;
+            while (_thumbLruList.Count > MaxThumbCacheEntries && _thumbLruList.Last is { } oldest)
+            {
+                _thumbLruMap.Remove(oldest.Value.Key);
+                _thumbLruList.RemoveLast();
+            }
+        }
+    }
+
+    private static int CompareNaturalEntryNames(string a, string b)
+    {
+        int ia = 0, ib = 0;
+        while (ia < a.Length && ib < b.Length)
+        {
+            bool da = char.IsDigit(a[ia]);
+            bool db = char.IsDigit(b[ib]);
+            if (da && db)
+            {
+                int sa = ia, sb = ib;
+                while (ia < a.Length && char.IsDigit(a[ia])) ia++;
+                while (ib < b.Length && char.IsDigit(b[ib])) ib++;
+                var na = a[sa..ia].TrimStart('0');
+                var nb = b[sb..ib].TrimStart('0');
+                if (na.Length != nb.Length) return na.Length.CompareTo(nb.Length);
+                int c = string.CompareOrdinal(na, nb);
+                if (c != 0) return c;
+            }
+            else
+            {
+                int c = char.ToLowerInvariant(a[ia]).CompareTo(char.ToLowerInvariant(b[ib]));
+                if (c != 0) return c;
+                ia++;
+                ib++;
+            }
+        }
+        return a.Length.CompareTo(b.Length);
+    }
+
+    private static bool TryExtractComicCover(string path, out byte[]? bytes, out string contentType)
+    {
+        bytes = null;
+        contentType = "image/jpeg";
+        var ext = Path.GetExtension(path);
+        if (!ext.Equals(".cbz", StringComparison.OrdinalIgnoreCase) &&
+            !ext.Equals(".comic", StringComparison.OrdinalIgnoreCase) &&
+            !ext.Equals(".pjc", StringComparison.OrdinalIgnoreCase) &&
+            !ext.Equals(".manga", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        try
+        {
+            using var zip = System.IO.Compression.ZipFile.OpenRead(path);
+            var coverEntry = zip.Entries
+                .Where(e =>
+                    !string.IsNullOrEmpty(e.Name) &&
+                    !e.FullName.StartsWith("__MACOSX", StringComparison.OrdinalIgnoreCase) &&
+                    e.Length > 0 &&
+                    e.Length <= 8 * 1024 * 1024 &&
+                    (e.Name.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                     e.Name.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                     e.Name.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                     e.Name.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) ||
+                     e.Name.EndsWith(".avif", StringComparison.OrdinalIgnoreCase)))
+                .OrderBy(e => e.FullName, Comparer<string>.Create(CompareNaturalEntryNames))
+                .FirstOrDefault();
+
+            if (coverEntry == null) return false;
+            contentType = coverEntry.Name.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+                ? "image/png"
+                : coverEntry.Name.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)
+                    ? "image/webp"
+                    : coverEntry.Name.EndsWith(".avif", StringComparison.OrdinalIgnoreCase)
+                        ? "image/avif"
+                        : "image/jpeg";
+
+            using var entryStream = coverEntry.Open();
+            using var ms = new MemoryStream((int)Math.Min(coverEntry.Length, 512 * 1024));
+            entryStream.CopyTo(ms);
+            bytes = ms.ToArray();
+            return bytes.Length > 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     /// <summary>
-    /// GET https://localmedia.plajah/__thumb?path=C:\...&amp;size=256 — Windows' shell thumbnail for a
-    /// photo or video (the same cached thumbnail Explorer shows), as an image stream.
+    /// GET https://localmedia.plajah/__thumb?path=C:\...&amp;size=256 — Bounded-LRU shell thumbnail for a
+    /// photo, video, or CBZ/comic archive cover, served cleanly without unbounded memory growth.
     /// </summary>
     private async void ServeShellThumbnail(CoreWebView2 core, CoreWebView2WebResourceRequestedEventArgs args, Uri reqUri)
     {
@@ -2627,6 +2731,25 @@ public sealed partial class MainWindow : Window
                 args.Response = core.Environment.CreateWebResourceResponse(null, 404, "Not Found", "Access-Control-Allow-Origin: *");
                 return;
             }
+
+            var cacheKey = $"{path}|{size}|{File.GetLastWriteTimeUtc(path).Ticks}";
+            if (TryGetCachedThumb(cacheKey, out var cached))
+            {
+                var cachedStream = new MemoryStream(cached.Bytes, writable: false).AsRandomAccessStream();
+                args.Response = core.Environment.CreateWebResourceResponse(cachedStream, 200, "OK",
+                    $"Content-Type: {cached.ContentType}\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: max-age=86400");
+                return;
+            }
+
+            if (TryExtractComicCover(path, out var comicBytes, out var comicMime) && comicBytes != null)
+            {
+                PutCachedThumb(cacheKey, comicBytes, comicMime);
+                var comicStream = new MemoryStream(comicBytes, writable: false).AsRandomAccessStream();
+                args.Response = core.Environment.CreateWebResourceResponse(comicStream, 200, "OK",
+                    $"Content-Type: {comicMime}\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: max-age=86400");
+                return;
+            }
+
             var file = await StorageFile.GetFileFromPathAsync(path);
             var thumb = await file.GetThumbnailAsync(Windows.Storage.FileProperties.ThumbnailMode.SingleItem, size, Windows.Storage.FileProperties.ThumbnailOptions.ResizeThumbnail);
             if (thumb == null || thumb.Size == 0)
@@ -2635,6 +2758,21 @@ public sealed partial class MainWindow : Window
                 return;
             }
             var contentType = string.IsNullOrEmpty(thumb.ContentType) ? "image/jpeg" : thumb.ContentType;
+            if (thumb.Size <= MaxCachedThumbBytes)
+            {
+                using var ms = new MemoryStream((int)thumb.Size);
+                using (var netStream = thumb.AsStreamForRead())
+                {
+                    await netStream.CopyToAsync(ms);
+                }
+                var bytes = ms.ToArray();
+                PutCachedThumb(cacheKey, bytes, contentType);
+                var memStream = new MemoryStream(bytes, writable: false).AsRandomAccessStream();
+                thumb.Dispose();
+                args.Response = core.Environment.CreateWebResourceResponse(memStream, 200, "OK",
+                    $"Content-Type: {contentType}\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: max-age=86400");
+                return;
+            }
             args.Response = core.Environment.CreateWebResourceResponse(thumb, 200, "OK",
                 $"Content-Type: {contentType}\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: max-age=86400");
         }

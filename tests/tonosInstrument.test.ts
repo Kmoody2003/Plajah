@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { TN, TONOS_INDEX_PARAMS, TONOS_MATERIALS, TONOS_SYMP_SCALES } from '../services/melos/instruments/tonos/params';
 import { TONOS_INSTRUMENTS } from '../services/melos/instruments/tonos/catalog';
-import { TONOS_PRESETS, tonosPresetById } from '../services/melos/instruments/tonos/presets';
+import { TONOS_PRESETS, tonosPresetById, tonosPresetsForInstrument, tonosSubPresetLabel } from '../services/melos/instruments/tonos/presets';
 import { deserializeTonosPatch, expandTonosMacros, newTonosPatch, serializeTonosPatch } from '../services/melos/instruments/tonos/patch';
 import { describeString, stringFor } from '../services/melos/instruments/tonos/physics';
 
@@ -19,7 +19,7 @@ test('param ids mirror rust/plajah-audio/src/params.rs; host and crate ABI agree
   for (const m of prs.matchAll(/pub const TN_([A-Z_]+): u32 = (\d+);/g)) rust[m[1]] = base + Number(m[2]);
   assert.deepEqual(Object.keys(rust).sort(), Object.keys(TN).sort());
   for (const [k, v] of Object.entries(TN)) assert.equal(v, rust[k], k);
-  assert.match(prs, /MAX_PARAM_ID: usize = 2100/);
+  assert.match(prs, /MAX_PARAM_ID: usize = 2[1-9]\d\d/);
   // Host and crate agree on the ABI (17 brought TONOS; later bumps keep it).
   const hostAbi = Number(fs.readFileSync('services/melos/beats/engine/InstrumentHost.ts', 'utf8').match(/DSP_ABI_VERSION = (\d+)/)![1]);
   const crateAbi = Number(fs.readFileSync('rust/plajah-audio/src/lib.rs', 'utf8').match(/ABI_VERSION: u32 = (\d+)/)![1]);
@@ -94,6 +94,28 @@ test('presets: every instrument has one, ids unique, values in range, index vali
     }
   }
   assert.equal(tonosPresetById('tonos-sitar')?.instrument, 11);
+});
+
+test('every TONOS instrument has >= 3 distinct sub-presets with unique labels and contrasting params', () => {
+  TONOS_INSTRUMENTS.forEach((inst, i) => {
+    const subs = tonosPresetsForInstrument(i);
+    assert.ok(subs.length >= 3, `${inst.name} (#${i}) only has ${subs.length} sub-presets`);
+    const labels = new Set<string>();
+    const paramSignatures = new Set<string>();
+    for (const sub of subs) {
+      const lbl = tonosSubPresetLabel(sub, inst.name);
+      assert.ok(lbl.trim().length > 0, `${sub.id} empty label`);
+      assert.ok(!labels.has(lbl), `${inst.name} duplicate sub-preset label "${lbl}"`);
+      labels.add(lbl);
+      const keys = Object.keys(sub.params)
+        .map(Number)
+        .filter((k) => k !== TN.ENABLE && k !== TN.INSTRUMENT)
+        .sort((a, b) => a - b);
+      const sig = `${sub.defaultNote}:` + keys.map((k) => `${k}=${sub.params[k].toFixed(3)}`).join(',');
+      paramSignatures.add(sig);
+    }
+    assert.equal(paramSignatures.size, subs.length, `${inst.name} has identical sub-preset parameter vectors`);
+  });
 });
 
 test('patches round-trip and macros stay in range', () => {

@@ -1,10 +1,12 @@
 /** Ground orchestration in the factory banks used by the instrument editors. */
 import { AURA_PRESETS } from '../instruments/aura/presets';
+import { VOLTA_PRESETS } from '../instruments/volta/presets';
 import { BAJO_PRESETS } from '../instruments/bajo/presets';
 import { FACTORY_PRESETS } from '../instruments/onda/presets';
 import { SUITE, SUITE_ORDER, presetsFor } from '../instruments/vela/suite';
 import { VELA_PRESETS } from '../instruments/vela/presets';
 import { newAuraPatch, serializeAuraPatch } from '../instruments/aura/patch';
+import { newVoltaPatch, serializeVoltaPatch } from '../instruments/volta/patch';
 import { newBajoPatch, serializeBajoPatch } from '../instruments/bajo/patch';
 import { newVelaPatch, serializeVelaPatch } from '../instruments/vela/patch';
 import { serializePatch } from '../instruments/onda/patch';
@@ -18,6 +20,7 @@ export interface EnsembleVoice {
 const suiteBank = (type: typeof SUITE_ORDER[number]) => type === 'vela' ? VELA_PRESETS : presetsFor(type);
 const catalog = [
   ...AURA_PRESETS.map(p => ({ instrument: 'aura' as const, id: p.id, name: p.name, description: `${p.category}: ${p.description}` })),
+  ...VOLTA_PRESETS.map(p => ({ instrument: 'volta' as const, id: p.id, name: p.name, description: `${p.category}: ${p.circuitNotes}` })),
   ...BAJO_PRESETS.map(p => ({ instrument: 'bajo' as const, id: p.id, name: p.name, description: `${p.genre}, ${p.family}: ${p.description}` })),
   ...FACTORY_PRESETS.map(p => ({ instrument: 'onda' as const, id: p.name, name: p.name, description: `${p.category}; ${p.tags.join(', ')}` })),
   ...SUITE_ORDER.flatMap(type => suiteBank(type).map(p => ({ instrument: type, id: p.id, name: p.name,
@@ -25,7 +28,7 @@ const catalog = [
 ];
 
 export function instrumentGrounding(): string {
-  return `Platform instruments: ONDA wavetable bass/lead/pad/pluck; AURA vintage analogue keys/brass/strings; BAJO mono bass, plucked upright, wobble and gate; ${SUITE_ORDER.map(id => `${SUITE[id].name}: ${SUITE[id].blurb}`).join('; ')}. CANTUS is a formant synth, not a lyric singer. KERA requires an explicitly loaded sample program; do not assume orchestral samples are installed.`;
+  return `Platform instruments: ONDA wavetable bass/lead/pad/pluck; AURA vintage analogue keys/brass/strings; VOLTA circuit-modeled vintage BJT ladder & modern Cytomic wavefold super-synth; BAJO mono bass, plucked upright, wobble and gate; ${SUITE_ORDER.map(id => `${SUITE[id].name}: ${SUITE[id].blurb}`).join('; ')}. CANTUS is a formant synth, not a lyric singer. KERA requires an explicitly loaded sample program; do not assume orchestral samples are installed.`;
 }
 
 /** Genre routing is explicit and deterministic. Presets come from the live banks. */
@@ -70,6 +73,9 @@ export function ensembleVoicePatch(voice: Pick<EnsembleVoice, 'instrument' | 'pr
   if (voice.instrument === 'aura') {
     const p = AURA_PRESETS.find(p => p.id === voice.presetId);
     if (p) return serializeAuraPatch(newAuraPatch(p));
+  } else if (voice.instrument === 'volta') {
+    const p = VOLTA_PRESETS.find(p => p.id === voice.presetId);
+    if (p) return serializeVoltaPatch(newVoltaPatch(p));
   } else if (voice.instrument === 'bajo') {
     const p = BAJO_PRESETS.find(p => p.id === voice.presetId);
     if (p) return serializeBajoPatch(newBajoPatch(p));

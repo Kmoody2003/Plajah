@@ -257,6 +257,9 @@ export function bajoEngineParams(patch: BajoPatch): Array<[number, number]> {
   const expanded = expandBajoMacros(patch.params, patch.macros);
   const out: Array<[number, number]> = [];
   for (const [k, v] of Object.entries(expanded)) out.push([Number(k), v]);
+  if ((expanded[osc(1, O.LEVEL)] ?? 0) > 0.005 && expanded[osc(1, O.ENABLE)] === undefined) {
+    out.push([osc(1, O.ENABLE), 1]);
+  }
   for (let i = 0; i < LANE_LEN; i++) out.push([laneParam(i), patch.lane[i] ?? 6]);
   for (let b = 0; b < GATE_BANDS; b++) {
     for (let st = 0; st < GATE_STEPS; st++) out.push([gridParam(b, st), patch.grid[b]?.[st] ? 1 : 0]);
@@ -351,8 +354,8 @@ export const BAJO_EDITOR_GROUPS: Array<{
     blurb: 'Two oscillators, sub, noise',
     color: '#FF4B1C',
     ids: [
-      osc(0, O.LEVEL), osc(0, O.ANALOG_SHAPE), osc(0, O.COARSE), osc(0, O.FINE),
-      osc(1, O.LEVEL), osc(1, O.ANALOG_SHAPE), osc(1, O.COARSE), osc(1, O.FINE),
+      osc(0, O.ENABLE), osc(0, O.LEVEL), osc(0, O.MODE), osc(0, O.ANALOG_SHAPE), osc(0, O.MORPH), osc(0, O.PULSE_WIDTH), osc(0, O.COARSE), osc(0, O.FINE),
+      osc(1, O.ENABLE), osc(1, O.LEVEL), osc(1, O.MODE), osc(1, O.ANALOG_SHAPE), osc(1, O.MORPH), osc(1, O.PULSE_WIDTH), osc(1, O.COARSE), osc(1, O.FINE),
       P.UNISON_COUNT, P.UNISON_DETUNE, P.UNISON_WIDTH,
       P.SUB_LEVEL, P.SUB_OCTAVE, P.SUB_SHAPE, P.NOISE_LEVEL, P.GLIDE, P.VOICE_MODE,
     ],

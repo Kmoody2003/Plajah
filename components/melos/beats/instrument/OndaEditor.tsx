@@ -1,17 +1,24 @@
 // ONDA — the full editor. The Play panel's "Open" leads here.
 //
-// Everything the Play panel abstracts, shown honestly: three oscillators, sub and noise, two
-// filters with routing, the Motion rack, and the spatial position. Every knob is a valid
-// modulation target — drag a Motion handle onto any of them and it draws the arc.
+// Everything the Play panel abstracts, shown honestly: three oscillators (Wavetable + PolyBLEP
+// Analog), sub and noise, two filters with SVF multi-mode & routing, the Motion rack, and the
+// spatial position. Every knob is a valid modulation target — drag a Motion handle onto any of
+// them and it draws the arc.
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { X } from 'lucide-react';
 import type { ArrangeTrack, GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { deserializePatch, type OndaPatch } from '../../../../services/melos/instruments/onda/patch';
-import { E, F, O, P, env, flt, formatParam, osc, paramLabel } from '../../../../services/melos/instruments/onda/params';
-import { compileMotions, depthFor, setRoute, type Motion } from '../../../../services/melos/motion';
-import { WAVETABLES } from '../../../../services/melos/instruments/onda/wavetables';
+import {
+  ANALOG_SHAPES, E, F, FILTER_MODES, O, P, env, flt, formatParam, osc,
+} from '../../../../services/melos/instruments/onda/params';
+import {
+  applyCompiledMotions, compileMotions, depthFor, setRoute, type Motion,
+} from '../../../../services/melos/motion';
+import {
+  FRAMES, FRAME_SIZE, WAVETABLES, getWavetable, wavetableIndex,
+} from '../../../../services/melos/instruments/onda/wavetables';
 import { Knob } from '../shared/Knob';
 import { MotionPanel } from './MotionPanel';
 import { WavetableDisplay } from './WavetableDisplay';
@@ -30,8 +37,7 @@ export const OndaEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
   const [dragging, setDragging] = useState<string | null>(null);
 
   // NOT memoised on the patch object: the doc is mutated IN PLACE, so the reference never
-  // changes and a memo would serve stale data for the rest of the session. Deserialising a
-  // patch is cheap; a knob that silently stops updating is not.
+  // changes and a memo would serve stale data for the rest of the session.
   const patch: OndaPatch | null = track.instrument?.patch ? deserializePatch(track.instrument.patch) : null;
   const motions: Motion[] = (track.instrument?.patch as { motions?: Motion[] } | undefined)?.motions || [];
   const compiled = compileMotions(motions);
@@ -49,11 +55,34 @@ export const OndaEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
     });
   }, [onMutate, track.id]);
 
-  /** Edit the Motion list, then recompile onto the engine in the same gesture. */
+  /** Upload a chosen wavetable to the live engine immediately and persist in the patch. */
+  const setOscTable = useCallback((slot: number, nextTableId: string) => {
+    const engine = BeatsEngine.get();
+    const inst = engine.getInstrument(track.id);
+    const data = getWavetable(nextTableId);
+    const tableIdx = wavetableIndex(nextTableId);
+    if (inst && data) {
+      inst.loadWavetable(tableIdx, data, FRAMES, FRAME_SIZE);
+      inst.setParam(osc(slot, O.TABLE), tableIdx);
+      inst.setParam(osc(slot, O.MODE), 0);
+    }
+    onMutate((d) => {
+      const t = d.arrangement.find((x) => x.id === track.id);
+      const p = t?.instrument?.patch as { tables?: string[]; params?: Record<number, number> } | undefined;
+      if (!p) return;
+      if (!p.tables) p.tables = [];
+      p.tables[slot] = nextTableId;
+      if (!p.params) p.params = {};
+      p.params[osc(slot, O.TABLE)] = tableIdx;
+      p.params[osc(slot, O.MODE)] = 0;
+    });
+  }, [onMutate, track.id]);
+
+  /** Edit the Motion list, then recompile onto the engine (preserving factory routes) in the same gesture. */
   const editMotions = useCallback((fn: (list: Motion[]) => void) => {
     onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === track.id);
-      const p = t?.instrument?.patch as { motions?: Motion[] } | undefined;
+      const p = t?.instrument?.patch as { motions?: Motion[]; routes?: OndaPatch['routes'] } | undefined;
       if (!p) return;
       if (!p.motions) p.motions = [];
       fn(p.motions);
@@ -61,8 +90,7 @@ export const OndaEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
       const inst = BeatsEngine.get().getInstrument(track.id);
       if (inst) {
         const c = compileMotions(p.motions);
-        if (c.params.length) inst.setParams(c.params);
-        for (const [i, src, dest, depth, via] of c.routes) inst.setRoute(i, src, dest, depth, via);
+        applyCompiledMotions(inst, c, p.routes);
       }
     });
   }, [onMutate, track.id]);
@@ -74,7 +102,6 @@ export const OndaEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
     setDragging(null);
     editMotions((list) => {
       const m = list.find((x) => x.id === id);
-      // A fresh route starts at a third of full travel — audible, but not a slam.
       if (m) setRoute(m, paramId, m.routes.find((r) => r.paramId === paramId) ? 0 : 0.33);
     });
   }, [dragging, editMotions]);
@@ -114,7 +141,6 @@ export const OndaEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
     <div
       className="absolute inset-0 z-50 grid place-items-center bg-black/70 backdrop-blur-sm p-4"
       onClick={onClose}
-      // Releasing anywhere that isn't a knob cancels a drag — no stuck state.
       onPointerUp={() => setDragging(null)}
     >
       <div
@@ -137,11 +163,13 @@ export const OndaEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
             {[0, 1, 2].map((o) => {
               const on = val(osc(o, O.ENABLE), o === 0 ? 1 : 0) > 0.5;
+              const isAnalog = val(osc(o, O.MODE), 0) > 0.5;
+              const analogShape = Math.round(val(osc(o, O.ANALOG_SHAPE), 0));
               const tableId = patch?.tables?.[o] || WAVETABLES[0].id;
               return (
                 <div key={o} className="rounded-2xl border p-3"
                   style={{ borderColor: on ? `${OSC_COLORS[o]}4d` : 'rgba(255,255,255,0.09)', background: SURFACE_RAISED, opacity: on ? 1 : 0.6 }}>
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-1.5 mb-2">
                     <button
                       onClick={() => setParam(osc(o, O.ENABLE), on ? 0 : 1)}
                       className="w-3 h-3 rounded-full flex-none"
@@ -149,29 +177,47 @@ export const OndaEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
                       aria-label={`${on ? 'Disable' : 'Enable'} oscillator ${o + 1}`}
                     />
                     <span className="text-[11.5px] font-semibold">OSC {o + 1}</span>
-                    <select
-                      value={tableId}
-                      onChange={(e) => onMutate((d) => {
-                        const t = d.arrangement.find((x) => x.id === track.id);
-                        const p = t?.instrument?.patch as { tables?: string[] } | undefined;
-                        if (!p) return;
-                        if (!p.tables) p.tables = [];
-                        p.tables[o] = e.target.value;
-                      })}
-                      className="h-6 rounded-lg bg-black/40 border border-white/10 px-1.5 text-[10px] text-white outline-none flex-1 min-w-0"
+                    <button
+                      onClick={() => setParam(osc(o, O.MODE), isAnalog ? 0 : 1)}
+                      className="h-6 px-1.5 rounded-lg text-[9.5px] font-mono border border-white/12 text-white/65 hover:text-white"
+                      title={isAnalog ? 'PolyBLEP virtual analog oscillator' : 'Band-limited mip-mapped wavetable oscillator'}
                     >
-                      {WAVETABLES.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-                    </select>
+                      {isAnalog ? 'VA' : 'WT'}
+                    </button>
+                    {isAnalog ? (
+                      <select
+                        value={analogShape}
+                        onChange={(e) => setParam(osc(o, O.ANALOG_SHAPE), Number(e.target.value))}
+                        className="h-6 rounded-lg bg-black/40 border border-white/10 px-1.5 text-[10px] text-white outline-none flex-1 min-w-0"
+                        aria-label={`Oscillator ${o + 1} analog waveform`}
+                      >
+                        {ANALOG_SHAPES.map((name, idx) => <option key={name} value={idx}>{name}</option>)}
+                      </select>
+                    ) : (
+                      <select
+                        value={tableId}
+                        onChange={(e) => setOscTable(o, e.target.value)}
+                        className="h-6 rounded-lg bg-black/40 border border-white/10 px-1.5 text-[10px] text-white outline-none flex-1 min-w-0"
+                        aria-label={`Oscillator ${o + 1} wavetable`}
+                      >
+                        {WAVETABLES.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                      </select>
+                    )}
                   </div>
 
                   {on && (
                     <>
-                      <WavetableDisplay tableId={tableId} morph={val(osc(o, O.MORPH), 0)} color={OSC_COLORS[o]} height={54} />
-                      <div className="flex flex-wrap gap-2.5 justify-around mt-2.5">
-                        {modKnob(osc(o, O.MORPH), 'Morph', { color: OSC_COLORS[o], def: 0 })}
+                      {!isAnalog && (
+                        <WavetableDisplay tableId={tableId} morph={val(osc(o, O.MORPH), 0)} color={OSC_COLORS[o]} height={54} trackId={track.id} />
+                      )}
+                      <div className="flex flex-wrap gap-2 justify-around mt-2.5">
+                        {isAnalog
+                          ? modKnob(osc(o, O.PULSE_WIDTH), 'PW', { color: OSC_COLORS[o], def: 0.5 })
+                          : modKnob(osc(o, O.MORPH), 'Morph', { color: OSC_COLORS[o], def: 0 })}
                         {modKnob(osc(o, O.LEVEL), 'Level', { def: o === 0 ? 0.8 : 0 })}
                         {modKnob(osc(o, O.COARSE), 'Pitch', { def: 0.5 })}
                         {modKnob(osc(o, O.FINE), 'Fine', { def: 0.5 })}
+                        {modKnob(osc(o, O.DRIVE), 'Drive', { def: 0 })}
                         {modKnob(osc(o, O.PAN), 'Pan', { def: 0.5 })}
                       </div>
                     </>
@@ -209,10 +255,11 @@ export const OndaEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
             {[0, 1].map((f) => {
               const on = val(flt(f, F.ENABLE), f === 0 ? 1 : 0) > 0.5;
               const isLadder = val(flt(f, F.TYPE), 0) < 0.5;
+              const svfMode = Math.round(val(flt(f, F.MODE), 0));
               return (
                 <div key={f} className="rounded-2xl border p-3"
                   style={{ borderColor: on ? `${ARMED}40` : 'rgba(255,255,255,0.09)', background: SURFACE_RAISED, opacity: on ? 1 : 0.6 }}>
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <button
                       onClick={() => setParam(flt(f, F.ENABLE), on ? 0 : 1)}
                       className="w-3 h-3 rounded-full flex-none"
@@ -223,8 +270,18 @@ export const OndaEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
                     <button
                       onClick={() => setParam(flt(f, F.TYPE), isLadder ? 1 : 0)}
                       className="h-6 px-2 rounded-lg text-[10px] border border-white/12 text-white/60 hover:text-white"
-                      title={isLadder ? 'Moog-style 24dB ladder with drive' : 'State-variable: low, band, high, notch, peak'}
+                      title={isLadder ? 'Moog-style 24dB ZDF ladder with per-stage saturation' : 'Cytomic ZDF State-variable: low, band, high, notch, peak'}
                     >{isLadder ? 'Ladder 24dB' : 'SVF 12dB'}</button>
+                    {!isLadder && (
+                      <select
+                        value={svfMode}
+                        onChange={(e) => setParam(flt(f, F.MODE), Number(e.target.value))}
+                        className="h-6 rounded-lg bg-black/40 border border-white/10 px-1.5 text-[10px] text-white outline-none"
+                        aria-label={`Filter ${f + 1} SVF mode`}
+                      >
+                        {FILTER_MODES.map((m, idx) => <option key={m} value={idx}>{m}</option>)}
+                      </select>
+                    )}
                     {f === 0 && (
                       <button
                         onClick={() => setParam(P.FILTER_ROUTING, val(P.FILTER_ROUTING, 0) > 0.5 ? 0 : 1)}
@@ -233,12 +290,13 @@ export const OndaEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
                     )}
                   </div>
                   {on && (
-                    <div className="flex flex-wrap gap-3 justify-around">
+                    <div className="flex flex-wrap gap-2.5 justify-around">
                       {modKnob(flt(f, F.CUTOFF), 'Cutoff', { def: 1, color: ARMED })}
                       {modKnob(flt(f, F.RES), 'Reso', { def: 0.1, color: ARMED })}
                       {modKnob(flt(f, F.DRIVE), 'Drive', { def: 0 })}
                       {modKnob(flt(f, F.ENV_AMT), 'Env', { def: 0.5 })}
                       {modKnob(flt(f, F.KEYTRACK), 'Key', { def: 0 })}
+                      {modKnob(flt(f, F.MIX), 'Mix', { def: 1 })}
                     </div>
                   )}
                 </div>
@@ -252,7 +310,7 @@ export const OndaEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
               Amp envelope <span className="normal-case tracking-normal text-white/22">· always per note, never taken by a Motion</span>
             </p>
             <div className="flex flex-wrap gap-3 justify-around">
-              {modKnob(env(0, E.ATTACK), 'Attack', { def: 0 , color: PLAYHEAD })}
+              {modKnob(env(0, E.ATTACK), 'Attack', { def: 0, color: PLAYHEAD })}
               {modKnob(env(0, E.DECAY), 'Decay', { def: 0.2, color: PLAYHEAD })}
               {modKnob(env(0, E.SUSTAIN), 'Sustain', { def: 0.8, color: PLAYHEAD })}
               {modKnob(env(0, E.RELEASE), 'Release', { def: 0.15, color: PLAYHEAD })}

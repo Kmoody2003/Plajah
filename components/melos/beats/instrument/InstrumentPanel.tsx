@@ -18,6 +18,9 @@ import { OndaEditor } from './OndaEditor';
 import { PresetGallery } from './PresetGallery';
 import { defaultArpPatch, type ArpPatch } from '../../../../services/melos/arp';
 import { syncPadWithTrack } from '../../../../services/melos/beats/instrumentFactory';
+import { liveBus, now as liveNow } from '../../../../services/melos/beats/band/live/events';
+import { PANEL_SEAT_INTROS } from '../../../../services/melos/beats/band/live/lineAudio';
+import { InstrumentBandSeat } from './InstrumentBandSeat';
 import { ARMED, PLAYHEAD, SELECT, SURFACE, SURFACE_RAISED } from '../theme';
 
 interface Props {
@@ -43,7 +46,15 @@ export const InstrumentPanel: React.FC<Props> = ({ doc, track, onMutate, onClose
 
   /** Edit a param: update the stored patch AND push it to the live engine in the same gesture. */
   const setParam = useCallback((id: number, value: number) => {
-    BeatsEngine.get().getInstrument(track.id)?.setParam(id, value);
+    liveBus.emit({ kind: 'param', instrument: 'onda', trackId: track.id, at: liveNow(), paramId: id });
+    const engine = BeatsEngine.get();
+    const inst = engine.getInstrument(track.id);
+    if (inst) {
+      inst.setParam(id, value);
+    } else {
+      const liveTrack = engine.getDoc().arrangement.find((x) => x.id === track.id) ?? track;
+      void engine.ensureInstrument(liveTrack).then((created) => created?.setParam(id, value));
+    }
     onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === track.id);
       const p = t?.instrument?.patch as { params?: Record<number, number> } | undefined;
@@ -52,18 +63,27 @@ export const InstrumentPanel: React.FC<Props> = ({ doc, track, onMutate, onClose
         p.params[id] = value;
       }
     });
-  }, [onMutate, track.id]);
+  }, [onMutate, track]);
 
   const setMacro = useCallback((index: number, value: number) => {
-    BeatsEngine.get().getInstrument(track.id)?.setMacro(index, value);
+    liveBus.emit({ kind: 'param', instrument: 'onda', trackId: track.id, at: liveNow(), paramId: index });
+    const engine = BeatsEngine.get();
+    const inst = engine.getInstrument(track.id);
+    if (inst) {
+      inst.setMacro(index, value);
+    } else {
+      const liveTrack = engine.getDoc().arrangement.find((x) => x.id === track.id) ?? track;
+      void engine.ensureInstrument(liveTrack).then((created) => created?.setMacro(index, value));
+    }
     onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === track.id);
       const p = t?.instrument?.patch as { macros?: { name: string; value: number }[] } | undefined;
       if (p?.macros?.[index]) p.macros[index].value = value;
     });
-  }, [onMutate, track.id]);
+  }, [onMutate, track]);
 
   const loadPreset = useCallback((preset: OndaPatch) => {
+    liveBus.emit({ kind: 'preset', instrument: 'onda', trackId: track.id, at: liveNow(), presetId: preset.name, presetName: preset.name });
     onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === track.id);
       if (!t?.instrument) return;
@@ -227,7 +247,49 @@ export const InstrumentPanel: React.FC<Props> = ({ doc, track, onMutate, onClose
 
           {/* play surface */}
           <div className="p-4">
-            <WavetableDisplay tableId={tableId} morph={morph} color="#FF6E9E" />
+            <div className="flex flex-col gap-1.5 rounded-xl border border-white/10 bg-black/30 px-2.5 py-2 mb-3">
+              <div className="flex items-center gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+                <span className="text-[9px] uppercase tracking-[0.16em] text-white/35 shrink-0 mr-0.5">Category</span>
+                {[null, ...PRESET_CATEGORIES].map((cat) => {
+                  const active = category === cat;
+                  return (
+                    <button
+                      key={cat ?? 'all'}
+                      type="button"
+                      onClick={() => setCategory(cat)}
+                      className="h-5 px-2 rounded-full text-[9.5px] whitespace-nowrap border transition shrink-0"
+                      style={active
+                        ? { borderColor: '#FF6E9E', background: 'rgba(255,110,158,0.22)', color: '#FFD6E5', fontWeight: 600 }
+                        : { borderColor: 'rgba(255,255,255,0.09)', color: 'rgba(255,255,255,0.5)' }}
+                    >
+                      {cat ?? `All (${FACTORY_PRESETS.length})`}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+                <span className="text-[9px] uppercase tracking-[0.16em] text-white/35 shrink-0 mr-0.5">Sub-Presets</span>
+                {(category ? FACTORY_PRESETS.filter((p) => p.category === category) : FACTORY_PRESETS).map((preset) => {
+                  const active = preset.name === patch?.name;
+                  return (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => loadPreset(preset)}
+                      title={preset.tags.join(' · ')}
+                      className="h-6 px-2.5 rounded-lg text-[10px] whitespace-nowrap border transition shrink-0"
+                      style={active
+                        ? { borderColor: '#FF6E9E', background: 'rgba(255,110,158,0.22)', color: '#fff', fontWeight: 700 }
+                        : { borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.65)' }}
+                    >
+                      {preset.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <WavetableDisplay tableId={tableId} morph={morph} color="#FF6E9E" trackId={track.id} />
 
             <p className="text-[9.5px] uppercase tracking-[0.18em] text-white/30 font-semibold mt-4 mb-2">Macros</p>
             <div className="grid grid-cols-8 gap-2 mb-4">
@@ -338,6 +400,20 @@ export const InstrumentPanel: React.FC<Props> = ({ doc, track, onMutate, onClose
             <p className="text-[9px] text-white/22 mt-1.5">
               Arm this track and play your MIDI keyboard, or use the row above. Open the full editor for the mod matrix and breakpoint envelopes.
             </p>
+
+            <div className="mt-4">
+              <InstrumentBandSeat
+                instrument="onda"
+                playerId="nova"
+                loreId="synthesizer"
+                role="Session Band synth · live"
+                intro={PANEL_SEAT_INTROS.onda}
+                screenText={`ONDA · ${patch?.name ?? 'Default'} · ${patch?.category ?? 'Synth'} · ${tableId}`}
+                accent="#FF6E9E"
+                track={track}
+                presetName={patch?.name}
+              />
+            </div>
           </div>
         </div>
       </div>

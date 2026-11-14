@@ -289,6 +289,96 @@ static INSTRUMENTS: [Inst; 52] = [
 
 pub const NUM_INSTRUMENTS: usize = 52;
 
+/// Acoustic body-radiation, cavity-formant, course-rake and damping character per instrument so each
+/// build's timber, skin/gourd resonance, sustain and attack contact reads audibly distinct.
+#[derive(Clone, Copy)]
+struct Voicing {
+    f1: f32, q1: f32, g1: f32,
+    f2: f32, q2: f32, g2: f32,
+    f3: f32, q3: f32, g3: f32,
+    lpf_hz: f32,
+    direct: f32,
+    damp_mul: f32,
+    body_gain: f32,
+    slap_hz: f32,
+    rake_ms: f32,
+    pick_tone: f32,
+}
+
+macro_rules! vc {
+    ($f1:expr, $q1:expr, $g1:expr, $f2:expr, $q2:expr, $g2:expr, $f3:expr, $q3:expr, $g3:expr,
+     $lpf:expr, $dir:expr, $dm:expr, $bg:expr, $slap:expr, $rake:expr, $pick:expr) => {
+        Voicing {
+            f1: $f1, q1: $q1, g1: $g1,
+            f2: $f2, q2: $q2, g2: $g2,
+            f3: $f3, q3: $q3, g3: $g3,
+            lpf_hz: $lpf, direct: $dir, damp_mul: $dm, body_gain: $bg,
+            slap_hz: $slap, rake_ms: $rake, pick_tone: $pick,
+        }
+    };
+}
+
+#[rustfmt::skip]
+static VOICING: [Voicing; 52] = [
+    // East Asia 0-10
+    vc!(250.0, 1.05, 1.65,  620.0, 1.5, 0.45, 2200.0, 1.6, 0.28,  5600.0, 0.032, 0.58, 0.95,   0.0, 0.00, 2400.0), // 0 Guzheng
+    vc!(215.0, 1.15, 1.35,  480.0, 1.6, 0.72, 1850.0, 1.8, 0.38,  6400.0, 0.038, 0.80, 1.02,   0.0, 0.00, 2150.0), // 1 Koto
+    vc!(460.0, 1.60, 0.40, 1120.0, 1.7, 1.35, 3250.0, 1.5, 1.20, 12800.0, 0.095, 1.48, 0.76,   0.0, 0.00, 4200.0), // 2 Pipa
+    vc!(360.0, 3.2, 1.15, 1080.0, 3.4, 1.35, 2450.0, 2.6, 0.52,  5600.0, 0.024, 1.00, 1.20,   0.0, 0.00,    0.0), // 3 Erhu
+    vc!(195.0, 2.4, 0.72,  660.0, 2.0, 0.52, 2950.0, 2.0, 0.76, 10500.0, 0.062, 0.68, 0.80,   0.0, 0.65,    0.0), // 4 Yangqin
+    vc!(265.0, 1.40, 1.20,  860.0, 2.0, 1.15, 2350.0, 1.8, 0.65,  6200.0, 0.036, 1.95, 1.05, 195.0, 0.00, 2600.0), // 5 Shamisen
+    vc!(168.0, 2.6, 1.15,  510.0, 2.2, 0.75, 1750.0, 2.0, 0.46,  5200.0, 0.035, 1.60, 1.05, 150.0, 0.00, 1850.0), // 6 Biwa
+    vc!(135.0, 2.5, 1.25,  340.0, 2.2, 0.65, 1350.0, 1.8, 0.22,  4200.0, 0.022, 1.55, 1.15,   0.0, 0.00,    0.0), // 7 Gayageum
+    vc!(430.0, 3.2, 1.05,  960.0, 3.0, 1.10, 2100.0, 2.5, 0.45,  4800.0, 0.028, 1.15, 1.15,   0.0, 0.00,    0.0), // 8 Haegeum
+    vc!(175.0, 2.8, 1.35,  460.0, 2.4, 0.88, 1450.0, 2.0, 0.28,  3900.0, 0.024, 1.00, 1.20,   0.0, 0.00,    0.0), // 9 Morin khuur
+    vc!(210.0, 2.6, 0.95,  620.0, 2.6, 0.85, 1650.0, 2.0, 0.35,  5400.0, 0.032, 0.70, 1.00,   0.0, 0.00, 1900.0), // 10 Dan bau
+    // South Asia 11-18
+    vc!(185.0, 1.40, 0.75,  960.0, 1.9, 1.05, 2950.0, 1.5, 1.05, 12500.0, 0.082, 0.72, 1.00,   0.0, 0.00, 3400.0), // 11 Sitar
+    vc!(120.0, 2.00, 0.25, 1180.0, 1.8, 0.40, 3800.0, 1.5, 0.55, 21000.0, 0.110, 0.92, 1.15,   0.0, 0.00,    0.0), // 12 Tanpura
+    vc!(165.0, 2.6, 1.15,  610.0, 2.4, 0.85, 2200.0, 2.0, 0.45,  6000.0, 0.042, 1.50, 1.10, 140.0, 0.00, 2500.0), // 13 Sarod
+    vc!(255.0, 3.0, 1.15,  710.0, 3.2, 1.25, 1850.0, 2.4, 0.48,  4900.0, 0.020, 1.00, 1.25,   0.0, 0.00,    0.0), // 14 Sarangi
+    vc!(135.0, 2.4, 1.15,  590.0, 2.4, 0.90, 1750.0, 2.0, 0.42,  5800.0, 0.032, 0.78, 1.10,   0.0, 0.00,    0.0), // 15 Saraswati veena
+    vc!(240.0, 2.2, 0.65,  820.0, 2.0, 0.55, 3300.0, 2.0, 0.85, 11500.0, 0.072, 0.80, 0.78,   0.0, 0.55,    0.0), // 16 Santoor
+    vc!(225.0, 2.8, 1.15,  680.0, 2.8, 0.95, 1950.0, 2.2, 0.44,  5400.0, 0.025, 1.00, 1.15,   0.0, 0.00,    0.0), // 17 Esraj
+    vc!(185.0, 2.8, 1.25,  560.0, 2.6, 0.95, 1650.0, 2.2, 0.38,  4800.0, 0.022, 1.00, 1.20,   0.0, 0.00,    0.0), // 18 Dilruba
+    // Middle East & Central Asia 19-29
+    vc!(195.0, 1.05, 1.75,  410.0, 1.5, 0.62, 1450.0, 1.7, 0.18,  3900.0, 0.018, 1.25, 1.20,   0.0, 1.70, 1750.0), // 19 Oud
+    vc!(160.0, 1.50, 0.52,  820.0, 1.7, 0.72, 3150.0, 1.5, 1.18, 11800.0, 0.088, 0.88, 0.88,   0.0, 1.90, 3500.0), // 20 Qanun
+    vc!(225.0, 2.2, 0.68,  890.0, 2.0, 0.60, 3150.0, 2.0, 0.82, 11000.0, 0.068, 0.85, 0.82,   0.0, 0.75,    0.0), // 21 Santur
+    vc!(290.0, 3.0, 1.05,  960.0, 3.0, 1.12, 2550.0, 2.4, 0.58,  6400.0, 0.030, 1.00, 1.15,   0.0, 0.00,    0.0), // 22 Kamancheh
+    vc!(205.0, 2.8, 1.15,  780.0, 2.6, 0.95, 2350.0, 2.2, 0.55,  6800.0, 0.044, 1.65, 1.05, 175.0, 0.80, 2900.0), // 23 Tar
+    vc!(250.0, 2.6, 0.88,  880.0, 2.5, 0.78, 2450.0, 2.2, 0.62,  8200.0, 0.052, 1.05, 0.95,   0.0, 0.00, 3300.0), // 24 Setar
+    vc!(210.0, 2.4, 0.92,  710.0, 2.4, 0.82, 2500.0, 2.0, 0.64,  8600.0, 0.060, 0.95, 0.92,   0.0, 1.25, 3100.0), // 25 Baglama
+    vc!(185.0, 2.4, 1.05,  540.0, 2.2, 0.68, 1700.0, 1.8, 0.32,  5200.0, 0.032, 1.40, 1.05,   0.0, 1.10, 2200.0), // 26 Dutar
+    vc!(165.0, 2.6, 1.20,  590.0, 2.5, 0.90, 1850.0, 2.0, 0.40,  5400.0, 0.030, 1.55, 1.12, 145.0, 0.00, 2300.0), // 27 Rubab
+    vc!(155.0, 2.5, 0.88,  640.0, 2.4, 0.72, 2750.0, 2.2, 0.68,  9600.0, 0.056, 0.55, 0.92,   0.0, 0.95, 3200.0), // 28 Tanbur
+    vc!(240.0, 2.8, 1.15,  790.0, 2.8, 1.05, 1950.0, 2.2, 0.45,  4800.0, 0.028, 1.05, 1.20,   0.0, 0.00,    0.0), // 29 Rebab
+    // Europe 30-39
+    vc!(200.0, 1.50, 0.45,  880.0, 1.6, 0.55, 3200.0, 1.4, 1.25, 13500.0, 0.098, 0.82, 0.78,   0.0, 0.85, 3600.0), // 30 Bouzouki
+    vc!(270.0, 2.6, 0.95,  920.0, 2.4, 0.78, 2600.0, 2.0, 0.58,  7800.0, 0.050, 1.35, 0.95,   0.0, 0.00, 3100.0), // 31 Balalaika
+    vc!(230.0, 2.6, 1.05,  860.0, 2.8, 0.98, 2350.0, 2.2, 0.55,  6400.0, 0.042, 1.00, 1.10,   0.0, 0.00,    0.0), // 32 Hurdy-gurdy
+    vc!(240.0, 2.6, 1.05,  740.0, 2.6, 0.90, 2650.0, 2.4, 0.64,  7200.0, 0.036, 1.00, 1.10,   0.0, 0.00,    0.0), // 33 Nyckelharpa
+    vc!(275.0, 2.8, 1.00,  660.0, 2.5, 0.82, 2450.0, 2.4, 0.80,  8200.0, 0.034, 1.00, 1.15,   0.0, 0.00,    0.0), // 34 Hardanger fiddle
+    vc!(255.0, 2.5, 0.92,  680.0, 2.2, 0.62, 2200.0, 1.9, 0.45,  7600.0, 0.044, 0.72, 0.95,   0.0, 0.00,    0.0), // 35 Kantele
+    vc!(120.0, 2.4, 1.25,  420.0, 2.0, 0.72, 2350.0, 1.8, 0.52,  8400.0, 0.052, 0.60, 0.98,   0.0, 1.00,    0.0), // 36 Cimbalom
+    vc!(132.0, 2.5, 1.20,  445.0, 2.2, 0.76, 1450.0, 1.8, 0.25,  4500.0, 0.022, 1.45, 1.15,   0.0, 1.50,    0.0), // 37 Lute
+    vc!(250.0, 3.0, 1.20,  780.0, 2.9, 1.08, 1750.0, 2.2, 0.38,  4200.0, 0.024, 1.10, 1.20,   0.0, 0.00,    0.0), // 38 Gusle
+    vc!(190.0, 2.4, 0.78,  820.0, 2.2, 0.65, 3050.0, 2.2, 0.88, 11200.0, 0.085, 0.82, 0.82,   0.0, 0.80, 3800.0), // 39 Portuguese guitar
+    // Africa 40-51
+    vc!(195.0, 1.05, 1.85,  420.0, 1.6, 0.42, 1350.0, 1.7, 0.16,  4200.0, 0.016, 1.05, 1.20,   0.0, 0.00,    0.0), // 40 Kora
+    vc!(175.0, 2.6, 1.15,  580.0, 2.4, 0.85, 1950.0, 2.0, 0.42,  6000.0, 0.032, 1.35, 1.10,   0.0, 0.00,    0.0), // 41 Kamale n'goni
+    vc!(195.0, 2.7, 1.10,  690.0, 2.5, 0.90, 2150.0, 2.2, 0.52,  6200.0, 0.038, 1.95, 1.08, 205.0, 0.00, 2900.0), // 42 Xalam
+    vc!(160.0, 2.6, 1.15,  550.0, 2.4, 0.86, 1950.0, 2.0, 0.45,  5800.0, 0.034, 1.75, 1.12, 175.0, 0.00, 2600.0), // 43 Ekonting
+    vc!(180.0, 2.6, 1.05,  640.0, 2.5, 0.85, 2150.0, 2.0, 0.48,  6400.0, 0.044, 1.40, 1.05,   0.0, 0.00, 2800.0), // 44 Krar
+    vc!(120.0, 1.50, 0.65,  840.0, 1.5, 1.45, 2050.0, 1.5, 0.85,  7200.0, 0.055, 1.45, 1.15,   0.0, 0.00,    0.0), // 45 Begena
+    vc!(240.0, 3.0, 1.15,  880.0, 3.0, 1.18, 2100.0, 2.2, 0.45,  5000.0, 0.028, 1.05, 1.20,   0.0, 0.00,    0.0), // 46 Masenqo
+    vc!(360.0, 1.80, 0.48,  780.0, 1.8, 1.15, 2850.0, 1.6, 1.05, 11200.0, 0.076, 0.80, 1.02,   0.0, 0.00, 3400.0), // 47 Valiha
+    vc!(185.0, 1.20, 1.45,  420.0, 1.6, 0.72, 1250.0, 1.7, 0.20,  3800.0, 0.018, 1.60, 1.18,   0.0, 0.00,    0.0), // 48 Inanga
+    vc!(135.0, 1.15, 1.95,  310.0, 1.5, 0.85, 1250.0, 1.6, 0.18,  3600.0, 0.018, 2.10, 1.25,  96.0, 0.00,    0.0), // 49 Gimbri
+    vc!(210.0, 2.8, 1.20,  760.0, 2.9, 1.10, 1900.0, 2.2, 0.40,  4600.0, 0.025, 1.05, 1.20,   0.0, 0.00,    0.0), // 50 Goje
+    vc!(460.0, 3.2, 1.25,  940.0, 3.4, 1.35, 1850.0, 2.4, 0.45,  5600.0, 0.022, 0.95, 1.25,   0.0, 0.00,    0.0), // 51 Uhadi
+];
+
 /// Sympathetic-string tunings (scale degrees in semitones from the key).
 pub const SYMP_SCALE_NAMES: [&str; 9] = ["Yaman", "Bilawal (major)", "Kafi (Dorian)", "Bhairav", "Todi", "Hijaz", "Pentatonic minor", "Chromatic", "Fifths"];
 static SYMP_SCALES: [&[u8]; 9] = [
@@ -563,7 +653,7 @@ const BUF: usize = 8192; // power of two: ≥ 2 × the longest loop (24 Hz at 96
 const NLOOP: usize = 3;
 const MAX_AP: usize = 4;
 const MAX_JAW: usize = 4;
-const MAX_MODES: usize = 12;
+const MAX_MODES: usize = 14;
 /// Floors centred at or above this are the ones the GPU deep body replaces.
 pub const DEEP_FLOOR_HZ: f32 = 1000.0;
 /// The seed a deep note is played with, so the live string matches the one the layer was recorded
@@ -721,6 +811,13 @@ struct Rattle {
 pub struct TonosVoice {
     sr: f32,
     loops: [Loop; NLOOP],
+    /// Orthogonal horizontal-polarization string loop (Weinreich 1977 coupled dual-polarization
+    /// bridge admittance: stores low-loss horizontal energy that rotates into the singing aftersound).
+    h_loop: Loop,
+    h_coupling: f32,
+    /// Longitudinal compression-wave ("phantom partial") resonators at f_long = (n / 2L) * sqrt(E/rho).
+    long_modes: [Bp; 2],
+    long_gain: f32,
     nloop: usize,
     inst: usize,
     ex: u8,
@@ -756,6 +853,19 @@ pub struct TonosVoice {
     dir_hp: f32,
     dir_x1: f32,
     norm: f32,
+    v_modes: [Bp; 3],
+    v_gains: [f32; 3],
+    v_lpf_l: f32,
+    v_lpf_r: f32,
+    v_lpf_a: f32,
+    v_direct: f32,
+    v_body_gain: f32,
+    slap_bp: Bp,
+    slap_imp: f32,
+    pick_bp: Bp,
+    pick_t: u32,
+    pick_amp: f32,
+    amp_ref: f32,
     pan_l: f32,
     pan_r: f32,
     // excitation
@@ -821,6 +931,10 @@ impl TonosVoice {
         TonosVoice {
             sr,
             loops: [Loop::new(), Loop::new(), Loop::new()],
+            h_loop: Loop::new(),
+            h_coupling: 0.0,
+            long_modes: [Bp::default(); 2],
+            long_gain: 0.0,
             nloop: 1,
             inst: 0,
             ex: EX_FINGER,
@@ -848,6 +962,19 @@ impl TonosVoice {
             dir_hp: 0.0,
             dir_x1: 0.0,
             norm: 1.0,
+            v_modes: [Bp::default(); 3],
+            v_gains: [0.0; 3],
+            v_lpf_l: 0.0,
+            v_lpf_r: 0.0,
+            v_lpf_a: 0.0,
+            v_direct: 0.05,
+            v_body_gain: 1.0,
+            slap_bp: Bp::default(),
+            slap_imp: 0.0,
+            pick_bp: Bp::default(),
+            pick_t: 0,
+            pick_amp: 0.0,
+            amp_ref: 1.0,
             pan_l: 1.0,
             pan_r: 1.0,
             m_ex: 4,
@@ -922,6 +1049,11 @@ impl TonosVoice {
             c.z1 = 0.0;
             c.z2 = 0.0;
         }
+        self.h_loop.clear();
+        for lm in self.long_modes.iter_mut() {
+            lm.z1 = 0.0;
+            lm.z2 = 0.0;
+        }
         self.vb = 0.0;
         self.deep = false;
         self.deep_env = 0.0;
@@ -931,6 +1063,19 @@ impl TonosVoice {
         self.pr_prev = 0.0;
         self.dir_hp = 0.0;
         self.dir_x1 = 0.0;
+        for m in self.v_modes.iter_mut() {
+            m.z1 = 0.0;
+            m.z2 = 0.0;
+        }
+        self.v_lpf_l = 0.0;
+        self.v_lpf_r = 0.0;
+        self.slap_bp.z1 = 0.0;
+        self.slap_bp.z2 = 0.0;
+        self.slap_imp = 0.0;
+        self.pick_bp.z1 = 0.0;
+        self.pick_bp.z2 = 0.0;
+        self.pick_t = 0;
+        self.pick_amp = 0.0;
         self.level = 0.0;
         self.bow_env = 0.0;
         self.ham_on = false;
@@ -980,7 +1125,7 @@ impl TonosVoice {
         past && self.level < 1.5e-5
     }
 
-    fn build_body(&mut self, b: &Body, size: f32, skin_t: f32, sr: f32) {
+    fn build_body(&mut self, b: &Body, size: f32, skin_t: f32, heritage_age: f32, craft_asym: f32, sr: f32) {
         let mut modes: [(f32, f32, f32); MAX_MODES] = [(0.0, 1.0, 0.0); MAX_MODES];
         let mut n = 0;
         let mut push = |f: f32, q: f32, g: f32| {
@@ -989,7 +1134,8 @@ impl TonosVoice {
                 n += 1;
             }
         };
-        let fs = size; // frequency scale from body size
+        let fs = size * (1.0 + 0.068 * heritage_age); // seasoned wood/hide specific stiffness shift
+        let q_age = 1.0 + 0.52 * heritage_age; // hemicellulose hydrolysis lowers internal tan(delta)
         match b.kind {
             BODY_SKIN => {
                 // Circular membrane: f₀₁ = 2.405/(2πa)·√(Tₛ/σ), air-loaded (the lowest mode drops most).
@@ -997,35 +1143,49 @@ impl TonosVoice {
                 const R: [f32; 8] = [1.0, 1.593, 2.136, 2.296, 2.653, 2.918, 3.156, 3.501];
                 const L: [f32; 8] = [0.82, 0.92, 0.95, 0.97, 0.98, 0.99, 0.99, 1.0];
                 for k in 0..8 {
-                    push(f01 * R[k] * L[k], 16.0 + 2.0 * k as f32, 1.0 / (1.0 + 0.22 * k as f32));
+                    let asym = 1.0 + craft_asym * 0.018 * ((k as f32 * 1.7 + 0.3).sin());
+                    push(f01 * R[k] * L[k] * asym, (10.5 + 1.8 * k as f32) * q_age, (1.15 + 0.18 * heritage_age) / (1.0 + 0.20 * k as f32));
                 }
-                push(b.helm * fs, 9.0, 0.55);
-                push(f01 * 2.2, 0.9, 0.3);
-                push(2600.0, 0.8, 0.30);
+                push(b.helm * fs, 6.5 * (1.0 + 0.25 * heritage_age), 0.85 * (1.0 + 0.15 * heritage_age));
+                push(f01 * 2.2, 0.9, 0.26);
+                push(2600.0, 0.8, 0.16);
             }
             BODY_TUBE => {
                 for k in 1..=5 {
-                    push(b.plate * k as f32 * fs, 22.0, 1.0 / (k as f32).sqrt());
+                    let asym = 1.0 + craft_asym * 0.016 * ((k as f32 * 2.1).cos());
+                    push(b.plate * k as f32 * fs * asym, 14.0 * q_age, (1.15 + 0.18 * heritage_age) / (k as f32).sqrt());
                 }
-                push(b.helm * fs, 30.0, 0.5);
-                push(b.helm * 1.62 * fs, 30.0, 0.35);
-                push(1800.0, 0.8, 0.22);
+                push(b.helm * fs, 16.0 * (1.0 + 0.2 * heritage_age), 0.72);
+                push(b.helm * 1.62 * fs, 16.0, 0.48);
+                push(1800.0, 0.8, 0.14);
             }
             BODY_GOURD => {
-                push(b.helm * fs, 7.0, 1.0);
-                push(b.helm * 2.3 * fs, 9.0, 0.4);
-                push(b.plate, 20.0, 0.3);
-                push(1500.0, 0.8, 0.18);
+                push(b.helm * fs, 5.5 * (1.0 + 0.25 * heritage_age), 1.35 * (1.0 + 0.15 * heritage_age));
+                push(b.helm * (2.3 + 0.06 * craft_asym) * fs, 7.0 * q_age, 0.65 * (1.0 + 0.2 * heritage_age));
+                push(b.plate, 12.0 * (1.0 + 0.2 * heritage_age), 0.48);
+                push(1500.0, 0.8, 0.14);
             }
             _ => {
                 const R: [f32; 7] = [1.0, 1.45, 1.93, 2.55, 3.3, 4.2, 5.4];
-                push(b.helm * fs, 12.0, 0.75);
+                push(b.helm * fs, 7.5 * (1.0 + 0.28 * heritage_age), 1.15 * (1.0 + 0.18 * heritage_age));
                 for k in 0..7 {
-                    push(b.plate * R[k] * fs, 25.0 + 2.0 * k as f32, 0.8 / (1.0 + 0.3 * k as f32));
+                    let asym = 1.0 + craft_asym * 0.022 * ((k as f32 * 1.9 + 0.4).sin());
+                    let mf = b.plate * R[k] * fs * asym;
+                    let g_age = if mf >= 340.0 && mf <= 720.0 {
+                        1.0 - 0.24 * heritage_age
+                    } else if mf >= 1100.0 {
+                        1.0 + 0.32 * heritage_age
+                    } else {
+                        1.0 + 0.08 * heritage_age
+                    };
+                    push(mf, (13.5 + 1.8 * k as f32) * q_age, (0.95 * g_age) / (1.0 + 0.25 * k as f32));
+                }
+                if heritage_age > 0.02 {
+                    push(2180.0 * size.clamp(0.75, 1.35), 3.8 * q_age, 0.42 * heritage_age);
                 }
                 // Above the first few, plate modes overlap: a broad mid and high floor.
-                push(b.plate * 2.6 * fs, 0.9, 0.35);
-                push(1800.0, 0.8, 0.3);
+                push(b.plate * 2.6 * fs, 0.9, 0.24);
+                push(1800.0, 0.8, 0.18);
             }
         }
         self.nmodes = n;
@@ -1035,7 +1195,7 @@ impl TonosVoice {
             self.mode_g[i] = g;
             self.mode_floor[i] = q < 1.0 && f >= DEEP_FLOOR_HZ;
             // Radiation differs by direction: a deterministic ± spread per mode.
-            let s = ((i as f32 * 2.399).sin() * 0.45).clamp(-0.45, 0.45);
+            let s = ((i as f32 * 2.399 + craft_asym * 0.7).sin() * (0.45 + 0.18 * craft_asym)).clamp(-0.62, 0.62);
             self.mode_l[i] = g * (1.0 - s);
             self.mode_r[i] = g * (1.0 + s);
         }
@@ -1070,6 +1230,55 @@ impl TonosVoice {
 
     /// Release the static shape a point force leaves: triangle apex `amp` at the pluck point,
     /// rounded over the finger/nail/plectrum's contact width — as velocity waves, from rest.
+    fn tune_h_loop(&mut self, period: f32, damp: f32) {
+        let mat = &MATERIALS[self.mat];
+        let inst = &INSTRUMENTS[self.inst];
+        let sr = self.sr;
+        let mut s = self.spec;
+        s.f_loop = sr / period;
+        // Horizontal polarization experiences slightly higher pin/bridge contact damping than vertical
+        let (g, b) = design_loss(&s, mat, inst.stop, sr, damp * 1.15);
+        let (a, nap) = if matches!(inst.ex, EX_BOW | EX_WHEEL) {
+            (0.0, 0)
+        } else {
+            design_dispersion(s.f_loop, s.b, period, b, sr, 0.10)
+        };
+        let w = TAU / period;
+        let l = &mut self.h_loop;
+        l.g = g;
+        l.b = b;
+        l.nap = nap;
+        for k in 0..MAX_AP {
+            l.ap[k].a = if k < nap { a } else { 0.0 };
+        }
+        let pd = onepole_pd(b, w) + nap as f32 * allpass_pd(a, w);
+        l.pd = pd;
+        l.period = period;
+        l.target = period;
+        l.read = (period - 1.0 - pd).max(1.0);
+    }
+
+    fn pluck_h(&mut self, amp: f32, m_p: f32, width: f32) {
+        let sr = self.sr;
+        let l = &mut self.h_loop;
+        let n = l.period * 0.5;
+        let m_p = m_p.clamp(1.0, n - 1.0);
+        let s1 = amp / m_p;
+        let s2 = -amp / (n - m_p);
+        let w = width.max(0.5);
+        let last = (l.read + 3.0) as usize;
+        for a in 0..last.min(BUF - 1) {
+            let pos = if (a as f32) <= n { a as f32 } else { l.period - a as f32 };
+            if pos < 0.0 {
+                continue;
+            }
+            let t = ((pos - (m_p - 0.5 * w)) / w).clamp(0.0, 1.0);
+            let t = t * t * (3.0 - 2.0 * t);
+            let slope = s1 + (s2 - s1) * t;
+            l.add(a, -0.5 * sr * slope);
+        }
+    }
+
     fn pluck(&mut self, li: usize, amp: f32, m_p: f32, width: f32) {
         let sr = self.sr;
         let l = &mut self.loops[li];
@@ -1112,7 +1321,10 @@ impl TonosVoice {
         let f = note_hz.clamp(20.0, sr * 0.3);
         self.spec = string_for(&inst, &mat, f, tension_scale, harm_pick);
         let s = self.spec;
-        let damp = 2f32.powf((p01(p, TN_DAMPING) - 0.5) * 3.0);
+        let heritage_age = p01(p, TN_HERITAGE_AGE);
+        let craft_asym = p01(p, TN_CRAFT_ASYMMETRY);
+        let v_spec = VOICING[self.inst];
+        let damp = 2f32.powf((p01(p, TN_DAMPING) - 0.5) * 3.2) * v_spec.damp_mul / (1.0 + 0.25 * heritage_age);
         let vel_sens = p01(p, TN_VEL_SENS);
         let v = 1.0 - vel_sens + vel_sens * self.vel;
 
@@ -1131,7 +1343,53 @@ impl TonosVoice {
         // Body: its admittance sets how much the bridge moves; size and skin tension retune it.
         let size = 2f32.powf((0.5 - p01(p, TN_BODY_SIZE)) * 1.5);
         let skin_t = 2f32.powf((p01(p, TN_SKIN_TENSION) - 0.5) * 2.0);
-        self.build_body(&inst.body, size, skin_t, sr);
+        let body_ctrl = p01(p, TN_BODY);
+        let hard = p01(p, TN_HARDNESS);
+        let force = p01(p, TN_FORCE);
+        self.build_body(&inst.body, size, skin_t, heritage_age, craft_asym, sr);
+        let size_mul = size.clamp(0.55, 1.85);
+        let age_bright = 1.0 + 0.34 * heritage_age;
+        let uhadi_shift = if self.inst == 51 { 0.72 + 0.70 * p01(p, TN_POSITION) } else { 1.0 };
+        self.v_modes[0] = Bp::new((v_spec.f1 * size_mul * (1.0 + 0.04 * heritage_age)).clamp(45.0, sr * 0.42), v_spec.q1 * (1.0 + 0.25 * heritage_age), sr);
+        self.v_modes[1] = Bp::new((v_spec.f2 * size_mul * uhadi_shift).clamp(80.0, sr * 0.42), v_spec.q2 * (1.0 + 0.20 * heritage_age), sr);
+        self.v_modes[2] = Bp::new((v_spec.f3 * size_mul.sqrt() * age_bright).clamp(150.0, sr * 0.44), v_spec.q3 * (1.0 + 0.35 * heritage_age), sr);
+        let body_scale = (0.45 + 1.1 * body_ctrl).clamp(0.35, 1.75);
+        self.v_gains = [
+            v_spec.g1 * body_scale * (1.0 + 0.16 * heritage_age),
+            v_spec.g2 * body_scale * (1.0 - 0.18 * heritage_age),
+            v_spec.g3 * age_bright * (0.65 + 0.70 * hard),
+        ];
+        let mat_lpf = match self.mat as u8 {
+            0 | 8 => 1.25,
+            1 | 7 => 1.08,
+            2 | 6 => 0.90,
+            3 => 0.76,
+            4 | 5 => 0.64,
+            _ => 1.0,
+        };
+        let fc_lpf = (v_spec.lpf_hz * mat_lpf * 2f32.powf((hard - 0.5) * 1.15) * (1.0 + 0.38 * heritage_age)).clamp(900.0, sr * 0.44);
+        self.v_lpf_a = (-TAU * fc_lpf / sr).exp();
+        self.v_direct = v_spec.direct * (0.65 + 0.75 * hard) * (1.35 - 0.7 * body_ctrl).clamp(0.3, 1.5);
+        self.v_body_gain = v_spec.body_gain * (0.75 + 0.50 * body_ctrl);
+        // Weinreich coupled horizontal polarization loop (active on non-bowed strings)
+        if !matches!(self.ex, EX_BOW | EX_WHEEL) && craft_asym > 0.005 {
+            let allow_pol_split = p01(p, TN_NONLIN) > 0.001 || p01(p, TN_JAWARI) > 0.001;
+            let h_cents = if allow_pol_split { 0.65 + 1.85 * craft_asym } else { 0.0 };
+            let h_ratio = 2f32.powf(h_cents / 1200.0);
+            self.h_loop.ratio = h_ratio;
+            self.tune_h_loop((base_period / h_ratio).min((BUF / 2 - 8) as f32), damp);
+            self.h_coupling = 0.04 + 0.08 * craft_asym;
+        } else {
+            self.h_coupling = 0.0;
+        }
+        // Passive longitudinal compression-wave soundboard radiation (metallic strings only — no feedback into bridge loop)
+        let is_metal_string = matches!(self.mat as u8, STEEL | NSTEEL | 1 | 8);
+        let c_long = (mat.e / mat.rho.max(100.0)).sqrt();
+        let f_long1 = (c_long / (2.0 * s.l_stop.max(0.08))).clamp(240.0, sr * 0.35);
+        let f_long2 = (f_long1 * 1.985).min(sr * 0.40);
+        self.long_modes[0] = Bp::new(f_long1, 7.0 + 3.0 * heritage_age, sr);
+        self.long_modes[1] = Bp::new(f_long2, 6.0 + 2.5 * heritage_age, sr);
+        self.long_gain = if is_metal_string && p01(p, TN_NONLIN) > 0.001 { 0.012 * p01(p, TN_NONLIN) } else { 0.0 };
         let gsum: f32 = self.mode_g[..self.nmodes].iter().sum();
         let mut y0 = inst.body.y0 * 4f32.powf(p01(p, TN_BODY) - 0.5);
         // Keep the bridge passive and stable: |2Z₀Y| summed over the course stays well under 1.
@@ -1212,11 +1470,10 @@ impl TonosVoice {
         }
 
         // Output scale: the radiated level of a nominal pluck, so instruments sit at similar levels.
-        self.norm = inst.level * 0.3 / (self.y0 * s.t * 0.05).max(1e-9);
+        self.amp_ref = (self.y0 * s.t * 0.05).max(1e-9);
+        self.norm = inst.level * 0.3 / self.amp_ref;
 
         // Excite.
-        let hard = p01(p, TN_HARDNESS);
-        let force = p01(p, TN_FORCE);
         let dx = s.c / sr;
         match self.ex {
             EX_BOW | EX_WHEEL => {
@@ -1253,28 +1510,45 @@ impl TonosVoice {
                 // Static deflection under the pluck force: A = F·β(1−β)·L/T.
                 let fp = (0.15 + 1.4 * force) * (0.15 + 0.85 * v.powf(1.4));
                 let amp = (fp * self.beta * (1.0 - self.beta) * s.l_stop / s.t).min(0.012 * s.l_stop.max(0.2));
-                let contact = match self.ex {
-                    EX_FINGER => 0.012,
-                    EX_NAIL => 0.004,
-                    EX_PLECTRUM => 0.0025,
-                    EX_BACHI => 0.006,
-                    _ => 0.008,
-                } * (1.5 - hard);
-                self.width = (contact / dx).max(0.5);
+                let (contact, min_samps) = match self.ex {
+                    EX_FINGER => (0.015 * (1.45 - 0.80 * hard), 3.6 * (1.35 - 0.70 * hard)),
+                    EX_NAIL => (0.004 * (1.35 - 0.80 * hard), 0.9),
+                    EX_PLECTRUM => (0.0024 * (1.30 - 0.85 * hard), 0.6),
+                    EX_BACHI => (0.006 * (1.35 - 0.75 * hard), 1.4),
+                    _ => (0.009 * (1.35 - 0.75 * hard), 2.4),
+                };
+                self.width = (contact / dx).max(min_samps).max(0.5);
                 let sign = if rng.next_f32() < 0.5 { -1.0 } else { 1.0 };
                 self.amp = amp * sign;
                 let w = self.width;
+                let rake_samps = v_spec.rake_ms * 0.001 * sr;
                 for li in 0..self.nloop {
-                    self.pluck(li, self.amp, m_ex, w);
+                    let c_scale = if li == 0 { 1.0 } else if li == 1 { 0.88 } else { 0.76 };
+                    let pos_shift = li as f32 * (0.75 + 0.85 * craft_asym + rake_samps * 0.45);
+                    let m_li = (m_ex + pos_shift).min(0.45 * n_stop).max(1.0);
+                    let w_li = w * (1.0 + 0.22 * li as f32);
+                    self.pluck(li, self.amp * c_scale, m_li, w_li);
                 }
-                // The nail / plectrum scraping off, and the bachi or thumb slapping the skin.
+                if self.h_coupling > 0.001 {
+                    self.pluck_h(self.amp * (0.24 + 0.28 * craft_asym), m_ex, w);
+                }
+                // The nail / plectrum scraping off, and a tuned pick-edge chirp per instrument.
                 if matches!(self.ex, EX_NAIL | EX_PLECTRUM | EX_BACHI) {
                     self.noise_t = (sr * 0.004) as u32;
-                    self.noise_amp = amp.abs() * sr * 0.02 * (0.3 + hard);
+                    self.noise_amp = amp.abs() * sr * 0.016 * (0.25 + hard);
+                    if v_spec.pick_tone > 0.0 {
+                        let pf = (v_spec.pick_tone * (0.72 + 0.65 * hard) * (0.9 + 0.15 * rng.bipolar())).clamp(500.0, sr * 0.42);
+                        self.pick_bp = Bp::new(pf, 3.0, sr);
+                        self.pick_t = (sr * 0.0055) as u32;
+                        self.pick_amp = self.amp_ref * fp * (0.25 + 0.85 * hard) * 0.12;
+                    }
                 }
                 if inst.slap > 0.0 {
-                    self.slap_t = (sr * 0.0015) as u32;
+                    self.slap_t = (sr * 0.002) as u32;
                     self.slap_amp = inst.slap * fp * 3.0;
+                    let slap_fc = if v_spec.slap_hz > 0.0 { v_spec.slap_hz } else { 170.0 };
+                    self.slap_bp = Bp::new((slap_fc * skin_t.sqrt() * size_mul).clamp(55.0, 900.0), if slap_fc < 130.0 { 4.2 } else { 5.2 }, sr);
+                    self.slap_imp = self.amp_ref * inst.slap * fp * (0.35 + 0.65 * force) * 0.22;
                 }
             }
         }
@@ -1304,6 +1578,10 @@ impl TonosVoice {
             let r = self.loops[li].ratio;
             self.loops[li].target = (base / r).min((BUF / 2 - 8) as f32);
         }
+        if self.h_coupling > 0.001 {
+            let hr = self.h_loop.ratio.max(0.5);
+            self.h_loop.target = (base / hr).min((BUF / 2 - 8) as f32);
+        }
         // A hammer-on / slide on a plucked string adds a little energy where the finger lands.
         if !self.is_sustained() {
             let a = self.amp * 0.25;
@@ -1332,6 +1610,65 @@ impl TonosVoice {
         l.kick(a, b, -v * zeta / (1.0 + zeta));
     }
 
+    /// Refresh performance & timbral controls during sustained notes (~1x per audio block).
+    pub fn update_live(&mut self, p: &Params) {
+        let sr = self.sr;
+        let inst = INSTRUMENTS[self.inst];
+        let v_spec = VOICING[self.inst];
+        let mat = &MATERIALS[self.mat];
+        let heritage_age = p01(p, TN_HERITAGE_AGE);
+        let body_ctrl = p01(p, TN_BODY);
+        let hard = p01(p, TN_HARDNESS);
+        let force = p01(p, TN_FORCE);
+
+        let body_scale = (0.45 + 1.1 * body_ctrl).clamp(0.35, 1.75);
+        let age_bright = 1.0 + 0.34 * heritage_age;
+        self.v_gains = [
+            v_spec.g1 * body_scale * (1.0 + 0.16 * heritage_age),
+            v_spec.g2 * body_scale * (1.0 - 0.18 * heritage_age),
+            v_spec.g3 * age_bright * (0.65 + 0.70 * hard),
+        ];
+        let mat_lpf = match self.mat as u8 {
+            0 | 8 => 1.25,
+            1 | 7 => 1.08,
+            2 | 6 => 0.90,
+            3 => 0.76,
+            4 | 5 => 0.64,
+            _ => 1.0,
+        };
+        let fc_lpf = (v_spec.lpf_hz * mat_lpf * 2f32.powf((hard - 0.5) * 1.15) * (1.0 + 0.38 * heritage_age)).clamp(900.0, sr * 0.44);
+        self.v_lpf_a = (-TAU * fc_lpf / sr).exp();
+        self.v_direct = v_spec.direct * (0.65 + 0.75 * hard) * (1.35 - 0.7 * body_ctrl).clamp(0.3, 1.5);
+        self.v_body_gain = v_spec.body_gain * (0.75 + 0.50 * body_ctrl);
+
+        self.nl = p01(p, TN_NONLIN) * 2.0;
+        self.mute_z = p01(p, TN_MUTE) * 1.5;
+        self.vib_depth = p01(p, TN_VIB_DEPTH) * 45.0;
+        self.vib_rate = 3.5 + p01(p, TN_VIB_RATE) * 4.5;
+        let trem = p01(p, TN_TREMOLO);
+        self.trem_rate = if trem < 0.01 { 0.0 } else { 4.0 + trem * 12.0 };
+
+        if matches!(self.ex, EX_BOW | EX_WHEEL) && !self.released {
+            let vel_sens = p01(p, TN_VEL_SENS);
+            let v = 1.0 - vel_sens + vel_sens * self.vel;
+            self.mu_s = 0.6 + 0.4 * hard;
+            self.mu_d = 0.25 + 0.1 * hard;
+            let speed = p01(p, TN_BOW_SPEED);
+            self.bow_v = if self.ex == EX_WHEEL { 0.25 + 0.35 * speed } else { (0.05 + 0.25 * speed) * (0.6 + 0.4 * v) };
+            let fmax = 2.0 * self.spec.z0 * self.bow_v / (self.beta.max(0.03) * (self.mu_s - self.mu_d));
+            self.bow_f = fmax * (0.12 + 0.55 * force) * (0.7 + 0.3 * v);
+        }
+
+        let damp = 2f32.powf((p01(p, TN_DAMPING) - 0.5) * 3.2) * v_spec.damp_mul / (1.0 + 0.25 * heritage_age);
+        for li in 0..self.nloop {
+            let mut s = self.spec;
+            s.f_loop = sr / self.loops[li].target.max(1.0);
+            let (g, b) = design_loss(&s, mat, inst.stop, sr, damp);
+            self.loops[li].g = g;
+            self.loops[li].b = b;
+        }
+    }
+
     /// One stereo sample. `bend` is a frequency ratio (it changes tension / stopped length).
     pub fn render_sample(&mut self, bend: f32, mod_wheel: f32, rng: &mut Rng) -> (f32, f32) {
         let sr = self.sr;
@@ -1351,8 +1688,7 @@ impl TonosVoice {
         self.bend += (bend - self.bend) * 0.01;
         if self.t % 16 == 0 && self.nl > 0.0 {
             let strain = self.loops[0].strain(s.c);
-            let dt_n = self.ea * strain * self.nl; // ΔT (N)
-            self.long_force = dt_n * 0.15;
+            let dt_n = (self.ea * strain * self.nl).min(s.t * 0.8); // ΔT (N), bounded physically
             self.nl_ratio = (1.0 + dt_n / s.t).sqrt();
         }
         let pitch = self.bend * vib * self.nl_ratio;
@@ -1362,14 +1698,27 @@ impl TonosVoice {
             l.read = (l.period / pitch - 1.0 - l.pd).clamp(1.0, (BUF - 8) as f32);
         }
 
-        // 1. Waves arriving at the bridge → bridge force.
+        if self.h_coupling > 0.001 {
+            let hl = &mut self.h_loop;
+            hl.period += (hl.target - hl.period) * self.glide;
+            hl.read = (hl.period / pitch - 1.0 - hl.pd).clamp(1.0, (BUF - 8) as f32);
+        }
+        // 1. Waves arriving at the bridge → bridge force (passive: never inject long_modes back into loop).
         let mut xin = [0.0f32; NLOOP];
         let mut fsum = 0.0;
         for li in 0..self.nloop {
             xin[li] = self.loops[li].read_at(self.loops[li].read);
             fsum += xin[li];
         }
-        let mut fb = -2.0 * s.z0 * fsum + self.long_force;
+        let xh = if self.h_coupling > 0.001 { self.h_loop.read_at(self.h_loop.read) } else { 0.0 };
+        let fb_h = -2.0 * s.z0 * xh * self.h_coupling;
+        let f_long_rad = if self.long_gain > 0.0 {
+            let ac_drive = ((fsum * s.z0).tanh() * (fsum * s.z0).tanh() * 0.6).min(0.8);
+            (self.long_modes[0].tick(ac_drive) + 0.45 * self.long_modes[1].tick(ac_drive)) * self.long_gain
+        } else {
+            0.0
+        };
+        let mut fb = -2.0 * s.z0 * fsum + fb_h;
         if self.slap_t > 0 {
             let k = self.slap_t as f32 / (sr * 0.0015);
             fb += self.slap_amp * (PI * k).sin();
@@ -1454,6 +1803,10 @@ impl TonosVoice {
             l.write(y);
         }
 
+        if self.h_coupling > 0.001 {
+            let yh = self.h_loop.filter(xh) + vb * self.h_coupling;
+            self.h_loop.write(yh);
+        }
         // 4. Contacts and excitation along the string.
         let n_half = (self.loops[0].period * 0.5) as usize;
         let m_ex = self.m_ex.min(n_half.saturating_sub(1)).max(1);
@@ -1517,6 +1870,11 @@ impl TonosVoice {
                     let dv = favg / (2.0 * s.z0 * self.nloop as f32);
                     l.kick(a, b, dv);
                     l.y_ex += (vh + dv) * dt;
+                }
+                if self.h_coupling > 0.001 {
+                    let (_, ha, hb) = self.h_loop.point(m_ex);
+                    let hdv = favg / (2.0 * s.z0 * self.nloop as f32) * (0.20 + 0.45 * self.h_coupling);
+                    self.h_loop.kick(ha, hb, hdv);
                 }
                 if self.ham_v < 0.0 && self.ham_y < self.loops[0].y_ex - 2.0e-4 {
                     self.ham_on = false; // rebounded clear
@@ -1598,16 +1956,26 @@ impl TonosVoice {
             }
         }
 
-        // 5. Radiation: the body's acceleration (d/dt of its velocity), plus a little string.
+        if self.h_coupling > 0.001 {
+            if self.mute_z > 0.0 {
+                let m = ((n_half as f32) * 0.06).max(1.0) as usize;
+                Self::dashpot(&mut self.h_loop, m, self.mute_z * 0.15);
+            }
+            if self.released && (!self.is_sustained() || self.bow_env < 0.05) {
+                let m = ((n_half as f32) * 0.8).max(1.0) as usize;
+                Self::dashpot(&mut self.h_loop, m, self.rel_z * 0.12);
+            }
+        }
+        // 5. Radiation: body velocity + acceleration blend, cavity formants & timber/skin rolloff.
         let norm_d = sr / (TAU * 400.0);
-        let mut yl = (pl - self.pl_prev) * norm_d * self.y0;
-        let mut yr = (pr - self.pr_prev) * norm_d * self.y0;
+        let mut yl = ((pl - self.pl_prev) * norm_d * 0.94 + pl * 0.05) * self.y0;
+        let mut yr = ((pr - self.pr_prev) * norm_d * 0.94 + pr * 0.05) * self.y0;
         self.pl_prev = pl;
         self.pr_prev = pr;
-        // Direct: a high-passed share of the bridge force (strings radiate the highs a little).
+        // Direct: instrument-scaled high-passed share of bridge force.
         self.dir_hp = 0.97 * (self.dir_hp + fb - self.dir_x1);
         self.dir_x1 = fb;
-        let direct = self.dir_hp * self.y0 * 0.12;
+        let direct = (self.dir_hp * self.v_direct + f_long_rad * 0.35) * self.y0;
         if click > 0.0 {
             let mut c = 0.0;
             for k in 0..3 {
@@ -1625,8 +1993,41 @@ impl TonosVoice {
             yl += cc;
             yr += cc;
         }
-        let ol = (yl + direct) * self.norm * self.pan_l;
-        let or = (yr + direct) * self.norm * self.pan_r;
+        let xm = 0.5 * (yl + yr) * self.v_body_gain + direct;
+        let mut form = 0.0f32;
+        for k in 0..3 {
+            form += self.v_modes[k].tick(xm) * self.v_gains[k];
+        }
+        let mut xl = yl * (self.v_body_gain * 0.56) + direct + form * 0.84;
+        let mut xr = yr * (self.v_body_gain * 0.56) + direct + form * 0.84;
+        if self.slap_imp > 0.0 {
+            let drive = if self.slap_t > 0 { self.slap_imp } else { 0.0 };
+            let sb = self.slap_bp.tick(drive);
+            xl += sb;
+            xr += sb;
+            if self.slap_t == 0 && sb.abs() < 1e-7 && self.slap_bp.z1.abs() < 1e-7 {
+                self.slap_imp = 0.0;
+            }
+        }
+        if self.pick_amp > 0.0 {
+            let drive = if self.pick_t > 0 {
+                let p_env = self.pick_t as f32 / (sr * 0.0055).max(1.0);
+                self.pick_t -= 1;
+                self.pick_amp * rng.bipolar() * p_env
+            } else {
+                0.0
+            };
+            let pb = self.pick_bp.tick(drive);
+            xl += pb;
+            xr += pb;
+            if self.pick_t == 0 && pb.abs() < 1e-7 && self.pick_bp.z1.abs() < 1e-7 {
+                self.pick_amp = 0.0;
+            }
+        }
+        self.v_lpf_l = (1.0 - self.v_lpf_a) * xl + self.v_lpf_a * self.v_lpf_l;
+        self.v_lpf_r = (1.0 - self.v_lpf_a) * xr + self.v_lpf_a * self.v_lpf_r;
+        let ol = self.v_lpf_l * self.norm * self.pan_l;
+        let or = self.v_lpf_r * self.norm * self.pan_r;
         let a = ol.abs().max(or.abs());
         self.level = if a > self.level { a } else { self.level * 0.9995 };
         self.t = self.t.wrapping_add(1);
@@ -1649,24 +2050,33 @@ struct Symp {
     g: f32,
     b: f32,
     lp: f32,
+    ap: Allpass,
     gl: f32,
     gr: f32,
 }
 impl Symp {
     fn new() -> Self {
-        Symp { buf: vec![0.0; 4096], w: 0, read: 100.0, g: 0.999, b: 0.2, lp: 0.0, gl: 1.0, gr: 1.0 }
+        Symp { buf: vec![0.0; 4096], w: 0, read: 100.0, g: 0.999, b: 0.2, lp: 0.0, ap: Allpass { a: -0.18, x1: 0.0, y1: 0.0 }, gl: 1.0, gr: 1.0 }
     }
     #[inline]
     fn tick(&mut self, x: f32) -> f32 {
         let mask = self.buf.len() - 1;
-        let d = self.read.clamp(1.0, (mask - 2) as f32);
+        let d = self.read.clamp(2.0, (mask - 3) as f32);
         let i = d.floor() as usize;
         let fr = d - i as f32;
         let a = self.buf[(self.w.wrapping_sub(1 + i)) & mask];
         let b = self.buf[(self.w.wrapping_sub(2 + i)) & mask];
-        let y = a + (b - a) * fr;
+        let t = 1.0 + fr;
+        let x0 = self.buf[(self.w.wrapping_sub(i)) & mask];
+        let x3 = self.buf[(self.w.wrapping_sub(3 + i)) & mask];
+        let h0 = -(t - 1.0) * (t - 2.0) * (t - 3.0) / 6.0;
+        let h1 = t * (t - 2.0) * (t - 3.0) / 2.0;
+        let h2 = -t * (t - 1.0) * (t - 3.0) / 2.0;
+        let h3 = t * (t - 1.0) * (t - 2.0) / 6.0;
+        let y = x0 * h0 + a * h1 + b * h2 + x3 * h3;
         self.lp = (1.0 - self.b) * y + self.b * self.lp;
-        self.buf[self.w] = self.lp * self.g + x;
+        let disp = self.ap.tick(self.lp * self.g);
+        self.buf[self.w] = disp + x;
         self.w = (self.w + 1) & mask;
         y
     }
@@ -1692,6 +2102,17 @@ impl TonosRack {
         p.get(TONOS_BASE + TN_ENABLE) > 0.5 && p.get(TONOS_BASE + TN_SYMP) > 0.001
     }
 
+    pub fn clear(&mut self) {
+        self.hp_x1 = 0.0;
+        self.hp_y1 = 0.0;
+        for s in self.strings.iter_mut() {
+            s.buf.fill(0.0);
+            s.lp = 0.0;
+            s.ap.x1 = 0.0;
+            s.ap.y1 = 0.0;
+        }
+    }
+
     fn retune(&mut self, p: &Params) {
         let inst = pidx(p, TN_INSTRUMENT, NUM_INSTRUMENTS);
         let key = pidx(p, TN_SYMP_KEY, 12);
@@ -1704,6 +2125,7 @@ impl TonosRack {
         if stamp == self.key {
             return;
         }
+        let inst_changed = inst != self.key.0;
         self.key = stamp;
         self.n = count;
         let degrees = SYMP_SCALES[scale];
@@ -1720,12 +2142,21 @@ impl TonosRack {
             let mu = t / (c * c);
             let d = (4.0 * mu / (PI * mat.rho)).sqrt();
             let spec = StringSpec { f, f_loop: f, l_open: l, l_stop: l, t, mu, d, dc: d, wound: 1.0, c, z0: (t * mu).sqrt(), b: 0.0, harmonic: 1 };
-            let (g, b) = design_loss(&spec, &mat, STOP_OPEN, self.sr, damp);
+            let (g, b) = design_loss(&spec, &mat, STOP_OPEN, self.sr, damp * 1.35);
+            let bridge_g = (-1.0 / (f * 0.52 / damp.max(0.25))).exp();
             let period = self.sr / f;
             let s = &mut self.strings[i];
-            s.g = (g * 0.9995).min(0.9997); // they also lose to the bridge they share
+            if inst_changed {
+                s.buf.fill(0.0);
+                s.lp = 0.0;
+                s.ap.x1 = 0.0;
+                s.ap.y1 = 0.0;
+            }
+            s.g = (g * bridge_g).min(0.9965);
+
             s.b = b;
-            s.read = (period - 1.0 - onepole_pd(b, TAU / period)).max(1.0);
+            let w0 = TAU / period;
+            s.read = (period - 1.0 - onepole_pd(b, w0) - allpass_pd(-0.18, w0)).max(2.0);
             let pan = (i as f32 / count.max(1) as f32 - 0.5) * 0.8;
             s.gl = 1.0 - pan;
             s.gr = 1.0 + pan;
@@ -1735,10 +2166,11 @@ impl TonosRack {
     pub fn process(&mut self, out: &mut [[f32; crate::engine::MAX_BLOCK]; crate::spatial::MAX_CHANNELS], frames: usize, nch: usize, p: &Params) {
         self.retune(p);
         let level = p01(p, TN_SYMP);
-        let drive = 0.03 * level;
-        let wet = 1.6 * level;
+        let drive = 0.012 * level;
+        let wet = 0.42 * level;
+
         for f in 0..frames {
-            let x = if nch >= 2 { 0.5 * (out[0][f] + out[1][f]) } else { out[0][f] };
+            let x = (if nch >= 2 { 0.5 * (out[0][f] + out[1][f]) } else { out[0][f] }).clamp(-1.5, 1.5);
             // DC-blocked drive.
             let hp = 0.995 * (self.hp_y1 + x - self.hp_x1);
             self.hp_x1 = x;
@@ -1977,6 +2409,68 @@ mod tests {
         assert!(hb > ha * 1.15, "jawari off {} on {}", ha, hb);
     }
 
+    fn low_mid_high(x: &[f32]) -> (f32, f32, f32) {
+        let mut lp1 = 0.0f32;
+        let mut lp2 = 0.0f32;
+        let a_low = (-TAU * 420.0 / SR).exp();
+        let a_mid = (-TAU * 1650.0 / SR).exp();
+        let (mut e_lo, mut e_mid, mut e_hi) = (0.0f64, 0.0f64, 0.0f64);
+        for &s in x {
+            lp1 = (1.0 - a_low) * s + a_low * lp1;
+            lp2 = (1.0 - a_mid) * s + a_mid * lp2;
+            let lo = lp1;
+            let mid = lp2 - lp1;
+            let hi = s - lp2;
+            e_lo += (lo * lo) as f64;
+            e_mid += (mid * mid) as f64;
+            e_hi += (hi * hi) as f64;
+        }
+        let tot = (e_lo + e_mid + e_hi).max(1e-18);
+        ((e_lo / tot) as f32, (e_mid / tot) as f32, (e_hi / tot) as f32)
+    }
+
+    fn spectral_l1(a: &[f32], b: &[f32]) -> f32 {
+        let (al, am, ah) = low_mid_high(a);
+        let (bl, bm, bh) = low_mid_high(b);
+        (al - bl).abs() + (am - bm).abs() + (ah - bh).abs()
+    }
+
+    #[test]
+    fn tonos_instruments_and_subpresets_are_spectrally_distinct() {
+        let pairs: &[(usize, usize, f32)] = &[
+            (0, 2, 62.0),   // Guzheng vs Pipa
+            (1, 5, 62.0),   // Koto vs Shamisen
+            (19, 30, 55.0), // Oud vs Bouzouki
+            (49, 47, 52.0), // Gimbri vs Valiha
+            (11, 20, 57.0), // Sitar vs Qanun
+            (40, 45, 55.0), // Kora vs Begena
+        ];
+        for &(ia, ib, note) in pairs {
+            let xa = render(&params(ia), note, 0.8, 0.8);
+            let xb = render(&params(ib), note, 0.8, 0.8);
+            let diff = spectral_l1(&xa, &xb);
+            assert!(
+                diff > 0.14,
+                "{} vs {} at midi {} converged spectrally (L1 {:.3})",
+                INSTRUMENT_NAMES[ia], INSTRUMENT_NAMES[ib], note, diff
+            );
+        }
+
+        let mut soft = params(19);
+        soft.set(TONOS_BASE + TN_HARDNESS, 0.18);
+        soft.set(TONOS_BASE + TN_POSITION, 0.72);
+        soft.set(TONOS_BASE + TN_BODY, 0.78);
+        let mut sharp = params(19);
+        sharp.set(TONOS_BASE + TN_HARDNESS, 0.90);
+        sharp.set(TONOS_BASE + TN_POSITION, 0.20);
+        sharp.set(TONOS_BASE + TN_BODY, 0.35);
+        sharp.set(TONOS_BASE + TN_MATERIAL, 1.0);
+        let xo_soft = render(&soft, 55.0, 0.8, 0.8);
+        let xo_sharp = render(&sharp, 55.0, 0.8, 0.8);
+        let oud_diff = spectral_l1(&xo_soft, &xo_sharp);
+        assert!(oud_diff > 0.12, "Oud sub-presets did not diverge enough ({:.3})", oud_diff);
+    }
+
     #[test]
     fn tonos_bow_sustains_until_released() {
         let p = params(3); // erhu
@@ -2102,6 +2596,84 @@ mod tests {
             let x = render(&params(i), n, 1.0, 0.8);
             let peak = x.iter().fold(0.0f32, |a, v| a.max(v.abs()));
             println!("{:2} {:20} rms {:.4} peak {:.3}", i, INSTRUMENT_NAMES[i], rms(&x[..(0.6 * SR) as usize]), peak);
+        }
+    }
+
+    #[test]
+    fn tonos_no_metallic_ring_or_runaway_tail() {
+        for &i in &[0usize, 1, 2, 3, 11, 12, 16, 19, 20, 25, 30, 32, 35, 37, 40, 49] {
+            let inst = &INSTRUMENTS[i];
+            let base = if inst.opens.is_empty() { inst.reference + 7.0 } else { inst.opens[0] + 5.0 };
+            for (pass, &n) in [base, (base + 19.0).min(88.0)].iter().enumerate() {
+                let mut p = params(i);
+                p.set(TONOS_BASE + TN_NONLIN, 0.7);
+                p.set(TONOS_BASE + TN_HERITAGE_AGE, 0.85);
+                p.set(TONOS_BASE + TN_CRAFT_ASYMMETRY, 0.6);
+                p.set(TONOS_BASE + TN_JAWARI, if inst.jawari > 0.0 { 0.85 } else { 0.0 });
+                p.set(TONOS_BASE + TN_FORCE, 0.75);
+                // Test both default release damping (first pass) and firm stopping (second pass).
+                if pass == 1 {
+                    p.set(TONOS_BASE + TN_RELEASE_DAMP, 0.65);
+                }
+                let mut v = TonosVoice::new(SR);
+                let mut rng = Rng(12345 + pass as u32);
+                v.trigger(midi_to_hz(n), 0.9, &p, &mut rng);
+                let mut out = Vec::with_capacity((6.0 * SR) as usize);
+                let mut nonlin_peak = 0.0f32;
+                for k in 0..(6.0 * SR) as usize {
+                    if k == (0.3 * SR) as usize {
+                        v.release();
+                    }
+                    let (l, r) = v.render_sample(1.0, 0.0, &mut rng);
+                    let m = 0.5 * (l + r);
+                    assert!(m.is_finite(), "{} note {} produced non-finite sample", INSTRUMENT_NAMES[i], n);
+                    out.push(m);
+                    nonlin_peak = nonlin_peak.max(v.long_force.abs());
+                }
+                let r_early = rms(&out[..(0.5 * SR) as usize]);
+                let r_late = rms(&out[(4.5 * SR) as usize..(6.0 * SR) as usize]);
+                let peak = out.iter().fold(0.0f32, |a, &x| a.max(x.abs()));
+                assert!(peak < 3.5, "{} note {} runaway peak {}", INSTRUMENT_NAMES[i], n, peak);
+                assert!(nonlin_peak == 0.0, "{} note {} stairstep long_force {}", INSTRUMENT_NAMES[i], n, nonlin_peak);
+                if matches!(inst.ex, EX_BOW | EX_WHEEL) || pass == 1 {
+                    assert!(
+                        r_late < (r_early * 0.02).max(2e-4),
+                        "{} note {} runaway tail: early {:.5} late {:.5}",
+                        INSTRUMENT_NAMES[i],
+                        n,
+                        r_early,
+                        r_late
+                    );
+                    assert!(v.is_quiet(), "{} note {} failed to quiet after release", INSTRUMENT_NAMES[i], n);
+                }
+            }
+        }
+        for &(inst, symp) in &[(11usize, 0.72f32), (16usize, 0.85f32)] {
+            let mut rack = TonosRack::new(SR);
+            let mut p = params(inst);
+            p.set(TONOS_BASE + TN_SYMP, symp);
+            let mut buf = [[0.0f32; crate::engine::MAX_BLOCK]; crate::spatial::MAX_CHANNELS];
+            let mut symp_rms = [0.0f32; 6];
+            for blk in 0..((6.0 * SR) as usize / crate::engine::MAX_BLOCK) {
+                for f in 0..crate::engine::MAX_BLOCK {
+                    let x = if blk < 20 { (f as f32 * 0.13).sin() * 0.25 } else { 0.0 };
+                    buf[0][f] = x;
+                    buf[1][f] = x;
+                }
+                rack.process(&mut buf, crate::engine::MAX_BLOCK, 2, &p);
+                let sec = blk * crate::engine::MAX_BLOCK / SR as usize;
+                if sec < 6 {
+                    symp_rms[sec] = symp_rms[sec].max(rms(&buf[0][..crate::engine::MAX_BLOCK]));
+                }
+            }
+            assert!(symp_rms[2] < 0.01 && symp_rms[3] < 0.002 && symp_rms[5] < 0.0005, "inst {} TonosRack tail too hot: {:?}", inst, symp_rms);
+            assert!(symp_rms[2] < symp_rms[1] && symp_rms[4] < symp_rms[2], "inst {} TonosRack not decaying: {:?}", inst, symp_rms);
+            rack.clear();
+            for ch in buf.iter_mut().take(2) {
+                ch.fill(0.0);
+            }
+            rack.process(&mut buf, crate::engine::MAX_BLOCK, 2, &p);
+            assert!(rms(&buf[0][..crate::engine::MAX_BLOCK]) < 1e-6, "TonosRack::clear left residual tail");
         }
     }
 }

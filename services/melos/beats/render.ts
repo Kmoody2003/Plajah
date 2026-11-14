@@ -160,13 +160,17 @@ export async function renderGroove(
       if (track.instrument?.patch) {
         const tType = track.instrument.type;
         if (tType === 'vela' || tType === 'cantus' || tType === 'ison' || tType === 'pneuma') {
-          const { deserializeVelaPatch, velaEngineParams } = await import('../instruments/vela/patch');
+          const { deserializeVelaPatch, applyVelaPatch } = await import('../instruments/vela/patch');
           const p = deserializeVelaPatch(track.instrument.patch);
-          if (p) inst.setParams(velaEngineParams(p));
+          if (p) applyVelaPatch(inst, p);
         } else if (tType === 'aura') {
           const { deserializeAuraPatch, applyAuraPatch } = await import('../instruments/aura/patch');
           const p = deserializeAuraPatch(track.instrument.patch);
           if (p) applyAuraPatch(inst, p);
+        } else if (tType === 'volta') {
+          const { deserializeVoltaPatch, applyVoltaPatch } = await import('../instruments/volta/patch');
+          const p = deserializeVoltaPatch(track.instrument.patch);
+          if (p) applyVoltaPatch(inst, p);
         } else if (tType === 'soma') {
           const { deserializeSomaPatch, applySomaPatch } = await import('../instruments/soma/patch');
           const p = deserializeSomaPatch(track.instrument.patch);

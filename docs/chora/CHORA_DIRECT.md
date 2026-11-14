@@ -109,6 +109,37 @@ Two kinds of engine can sit behind that request:
    previews; it will not sound like a recorded singer on its own. The realistic path is hybrid:
    our score controls, a generative or neural voice renders.
 
+## Model roster and licences (checked 2026-11-13)
+
+Read from each project's LICENSE file, README and Hugging Face card. Hugging Face pages that
+could not be loaded are marked unverified. This is an engineering read, not legal advice;
+have the licence files reviewed before a model ships to paying users.
+
+| Model | Job in Chora | Code | Weights | Ship to users' PCs? |
+| --- | --- | --- | --- | --- |
+| ACE-Step 1.5 (2B base / sft / turbo) | Full songs, repaint a window (re-sing a phrase), cover, reference audio; **base only:** lego (add a vocal or instrument track), extract (pull the vocal out), complete | MIT | MIT (umbrella HF card) | **Yes.** Keep the MIT notice with the files. Per-variant cards for base and sft not read. |
+| ACE-Step 1.5 XL (4B base / sft / turbo) | Same tasks, higher quality; 12 GB VRAM with offload and INT8, 20 GB without | MIT | **Unverified** (HF cards would not load) | Probably, but confirm the XL card tags first. |
+| ACE-Step 5Hz LM planners (0.6B / 1.7B / 4B) | Song planning before the DiT ("thinking") | MIT | Fine-tuned from Qwen3; own licence **unverified** | Check the Qwen3 base licence and the LM cards before hosting. |
+| HeartMuLa RL 3B (2026-01-23) and 3B happy-new-year | Song generation; upgrade for the HeartMuLa we already support | Apache-2.0 | Apache-2.0 | **Yes**, with Apache notices. HeartCodec and HeartTranscriptor licences not checked. |
+| SoulX-Singer (+ SVC) | Sings lyrics on our exact notes (MIDI or F0), lyric editing, timbre cloning. English, Mandarin, Cantonese | Apache-2.0 | README says weights are covered; HF tag **unverified** | **Likely.** The README's usage note lists "academic research, educational purposes, and legitimate applications" and forbids impersonation; confirm the HF tag. Its preprocessing models (vocal separation, RMVPE, Parakeet, ROSVOT) have their own licences. |
+| MuLaCover (HeartMuLa, 2026-09) | MIDI melody + chords + lyrics → full arrangement | Apache-2.0 | **CC BY-NC 4.0**, and outputs are non-commercial too | **No.** Needs a written commercial licence from MuLa Labs. |
+| MuScriptor (Kyutai + Mirelo, 2026-07) | Full mix → multi-instrument MIDI | MIT | **CC BY-NC 4.0** | **No.** No commercial licence route is published. |
+| DiffRhythm 1.2 | Fast full-song generation, 8 GB with chunked decoding | Apache-2.0 | Apache-2.0 (v1) | Yes. DiffRhythm 2 has no published weights licence yet. |
+| LeVo 2 / SongGeneration (Tencent) | Reported best open vocals | ? | ? | Unknown: the GitHub repository returned 404. |
+
+What this means for the plan:
+
+- **Vocals:** ACE-Step (repaint, lego, extract) does the realistic singing and in-context
+  regeneration. SoulX-Singer is the note-exact engine behind the vocal layer once its weight
+  licence is confirmed. Host the ACE-Step **base** model as well as turbo, or the stem tasks
+  are unavailable.
+- **MIDI to audio:** MuLaCover is the closest model, but it cannot ship without a licence from
+  MuLa Labs. Until then, score-to-audio is our own instruments plus ACE-Step `cover` and
+  `lego` with a bounced guide.
+- **Audio to MIDI:** MuScriptor cannot ship without a licence. Basic Pitch (Apache-2.0) stays;
+  G3 builds chords and stem routing on top of it. A commercial-licence enquiry to Kyutai/Mirelo
+  is the business step if we want MuScriptor.
+
 ## Phases
 
 1. **Core (done):** prompt language, style packs, brief, read-through, vocal layer model, tests.

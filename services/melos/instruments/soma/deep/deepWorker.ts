@@ -4,6 +4,7 @@
 
 import { buildDeepModes, DEEP_MODE_BUDGET, matchCloudLevel, type DeepModeSet } from './deepModes';
 import { modalGpu, renderModalBatch, type ModalJob } from './gpuModal';
+import { trimSilenceTail } from './deepUtil';
 
 export interface DeepWorkerJob {
   params: Array<[number, number]>;
@@ -40,25 +41,39 @@ const MAX_BATCH_GROUPS = 1536; // keeps the GPU scratch near 25 MB
 type Exports = Record<string, (...a: number[]) => number> & { memory: WebAssembly.Memory };
 
 /** Each job's strike: the force fed to the membrane and the cloud's output for the same strike. */
-function strikes(module: WebAssembly.Module, jobs: DeepWorkerJob[]): Array<{ drive: Float32Array; cloud: Float32Array }> {
-  const x = new WebAssembly.Instance(module, {}).exports as unknown as Exports;
-  let eng = 0;
-  let lastParams: Array<[number, number]> | null = null;
-  try {
-    return jobs.map((j) => {
-      if (j.params !== lastParams) {
-        if (eng) x.pa_destroy(eng);
-        eng = x.pa_create(j.sr);
-        for (const [id, v] of j.params) x.pa_set_param(eng, id, v);
-        lastParams = j.params;
-      }
-      const ptr = x.pa_soma_excitation(eng, j.note, j.vb, 0x5eed + j.variant * 7919 + j.note, EXCITE_FRAMES);
-      const v = new Float32Array(x.memory.buffer, ptr, 2 * EXCITE_FRAMES);
-      return { drive: v.slice(0, EXCITE_FRAMES), cloud: v.slice(EXCITE_FRAMES) };
-    });
-  } finally {
-    if (eng) x.pa_destroy(eng);
+interface CachedWasm {
+  mod: WebAssembly.Module;
+  x: Exports;
+  eng: number;
+  lastKey: string;
+}
+let cachedWasm: CachedWasm | null = null;
+
+function ensureEngine(module: WebAssembly.Module, sr: number, params: Array<[number, number]>): { x: Exports; eng: number } {
+  const key = `${sr}|${params.map(([k, v]) => `${k}=${v}`).join(',')}`;
+  if (!cachedWasm || cachedWasm.mod !== module) {
+    const x = new WebAssembly.Instance(module, {}).exports as unknown as Exports;
+    const eng = x.pa_create(sr);
+    for (const [id, v] of params) x.pa_set_param(eng, id, v);
+    cachedWasm = { mod: module, x, eng, lastKey: key };
+    return { x, eng };
   }
+  if (cachedWasm.lastKey !== key) {
+    if (cachedWasm.eng) cachedWasm.x.pa_destroy(cachedWasm.eng);
+    cachedWasm.eng = cachedWasm.x.pa_create(sr);
+    for (const [id, v] of params) cachedWasm.x.pa_set_param(cachedWasm.eng, id, v);
+    cachedWasm.lastKey = key;
+  }
+  return { x: cachedWasm.x, eng: cachedWasm.eng };
+}
+
+function strikes(module: WebAssembly.Module, jobs: DeepWorkerJob[]): Array<{ drive: Float32Array; cloud: Float32Array }> {
+  return jobs.map((j) => {
+    const { x, eng } = ensureEngine(module, j.sr, j.params);
+    const ptr = x.pa_soma_excitation(eng, j.note, j.vb, 0x5eed + j.variant * 7919 + j.note, EXCITE_FRAMES);
+    const v = new Float32Array(x.memory.buffer, ptr, 2 * EXCITE_FRAMES);
+    return { drive: v.slice(0, EXCITE_FRAMES), cloud: v.slice(EXCITE_FRAMES) };
+  });
 }
 
 async function handle(req: DeepWorkerRequest): Promise<DeepWorkerResponse> {
@@ -90,7 +105,8 @@ async function handle(req: DeepWorkerRequest): Promise<DeepWorkerResponse> {
     out.gpuMs += res.gpuMs;
     batch.forEach((k, b) => {
       const s = sets[live[k]]!;
-      out.results[live[k]] = { data: res.outputs[b], frames: s.frames, topRatio: s.topRatio, modes: s.modes };
+      const trimmed = trimSilenceTail(res.outputs[b]!, true, s.frames, Math.min(s.frames, 1024));
+      out.results[live[k]] = { data: trimmed.data, frames: trimmed.frames, topRatio: s.topRatio, modes: s.modes };
     });
   }
   return out;

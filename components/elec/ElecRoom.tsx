@@ -44,6 +44,8 @@ export interface ElecRoomProps {
   apiBase?: string;
   /** Opens on Describe with this prompt already read (from the Plajah Build hub). */
   initialPrompt?: string;
+  /** Initial simulation options when opened with a prebuilt starter design. */
+  initialSim?: SimOptions;
   /** Simple/Pro from the workspace shell: Pro shows every tool, Simple lets them join as needed. */
   level?: Level;
 }
@@ -58,11 +60,11 @@ const download = (name: string, data: BlobPart, type: string) => { const u = URL
 const fmtV = (v: number) => `${Math.abs(v) < 0.01 ? '0' : v.toFixed(Math.abs(v) >= 10 ? 1 : 2)} V`;
 const fmtT = (t: number) => t >= 1 ? `${t.toFixed(2)} s` : t >= 1e-3 ? `${(t * 1e3).toFixed(2)} ms` : `${(t * 1e6).toFixed(0)} µs`;
 
-export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, onSendTable, getToken, apiBase = '', initialPrompt, level = 'simple' }: ElecRoomProps) {
+export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, onSendTable, getToken, apiBase = '', initialPrompt, initialSim, level = 'simple' }: ElecRoomProps) {
   const roomHost = useRoomHost();
   const start = DESIGNS.find(d => d.id === '555-led-blinker')!;
   const [circuit, setCircuit] = useState<Circuit>(() => initial ? clone(initial) : clone(start.circuit));
-  const [simOpts, setSimOpts] = useState<SimOptions>(initial ? { mode: 'dc' } : start.sim);
+  const [simOpts, setSimOpts] = useState<SimOptions>(initialSim ?? (initial ? { mode: 'dc' } : start.sim));
   const [history, setHistory] = useState<Circuit[]>([]);
   const [tool, setTool] = useState<Tool>({ kind: 'select' });
   const [sel, setSel] = useState<Sel>(null);
@@ -167,6 +169,9 @@ export default function ElecRoom({ initial, loadInitial, onClose, onAddToTela, o
     const tick = () => { const t = ((performance.now() - t0) / 1000) * rate; const i = Math.min(sim.time.length - 1, Math.round(t / span * (sim.time.length - 1))); setTIdx(i); if (i >= sim.time.length - 1) setPlaying(false); else raf = requestAnimationFrame(tick); };
     raf = requestAnimationFrame(tick); return () => cancelAnimationFrame(raf);
   }, [playing, sim]);
+  useEffect(() => {
+    if (initial && initialSim) run(circuit, initialSim);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const at = sim ? Math.min(tIdx, sim.time.length - 1) : 0;
   const glow = useMemo(() => { const g: Record<string, number> = {}; if (sim) for (const p of circuit.parts) if (p.kind === 'led') g[p.id] = ledGlow(p, sim.parts[p.id]?.i[at] ?? 0); return g; }, [sim, at, circuit]);
 

@@ -22,7 +22,7 @@ import {
   Mail, Rss, Sparkles, Clapperboard, MonitorPlay, Cctv, Search, HelpCircle, Monitor, Factory, Building2,
   Briefcase, MapPin, TrendingUp, Ticket, Home, LayoutPanelTop, Megaphone,
   Compass, Palette, Trophy, Bell, ChevronLeft,
-  ChevronRight, LogOut, RotateCcw, X, Disc3, Grid3x3, Lightbulb, CalendarDays,
+  ChevronRight, LogOut, RotateCcw, X, Disc3, Grid3x3, Lightbulb, CalendarDays, HardDrive,
 } from 'lucide-react';
 import UniversalCommandResults from './UniversalCommandResults';
 import AriaMark from './aria/AriaMark';
@@ -69,6 +69,7 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'RADIO', label: 'Radio', icon: Radio },
     { id: 'GAMES', label: 'Games', icon: Gamepad2 },
     { id: 'GLOBAL_PHOTOS', label: 'Photos', icon: Camera },
+    { id: 'PLAJAH_DRIVE', label: 'Files & Drive', icon: HardDrive },
     { id: 'BOOKS', label: 'Lorea', icon: BookOpen },
     { id: 'LIVE_HUB', label: 'Live Hub', icon: Sparkles },
     { id: 'PPV_EVENTS', label: 'Live Events', icon: Ticket },

@@ -16,9 +16,12 @@ import {
   type PadTarget,
   BAJO_MACRO_HINTS, BAJO_MACRO_LABELS, BAJO_MACRO_ORDER, type BajoPatch,
 } from '../../../../services/melos/instruments/bajo/patch';
-import { BAJO_PRESETS, type BajoMacro } from '../../../../services/melos/instruments/bajo/presets';
+import { BAJO_GENRES, BAJO_PRESETS, type BajoMacro } from '../../../../services/melos/instruments/bajo/presets';
 import { newBajoPatch } from '../../../../services/melos/instruments/bajo/patch';
 import { syncPadWithTrack } from '../../../../services/melos/beats/instrumentFactory';
+import { liveBus, now as liveNow } from '../../../../services/melos/beats/band/live/events';
+import { PANEL_SEAT_INTROS } from '../../../../services/melos/beats/band/live/lineAudio';
+import { InstrumentBandSeat } from './InstrumentBandSeat';
 import { W, G, bajoParamLabel } from '../../../../services/melos/instruments/bajo/params';
 import { MorphPad, padValue } from './MorphPad';
 import { useBajoTransport } from './useBajoTransport';
@@ -50,6 +53,7 @@ const MACRO_COLORS: Record<BajoMacro, string> = {
 export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded }) => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [genreFilter, setGenreFilter] = useState<string>('all');
   const [xfOpen, setXfOpen] = useState(false);
   const [xfA, setXfA] = useState(BAJO_PRESETS[0].id);
   const [xfB, setXfB] = useState(BAJO_PRESETS[BAJO_PRESETS.length - 1].id);
@@ -86,6 +90,7 @@ export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
 
   /** Edit the patch in place and push the result. One path for every control on the panel. */
   const edit = useCallback((fn: (p: BajoPatch) => void) => {
+    liveBus.emit({ kind: 'param', instrument: 'bajo', trackId: track.id, at: liveNow(), paramId: 0 });
     onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === track.id);
       const raw = t?.instrument?.patch as Record<string, unknown> | undefined;
@@ -104,6 +109,7 @@ export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
   const choosePreset = useCallback((presetId: string) => {
     const preset = BAJO_PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
+    liveBus.emit({ kind: 'preset', instrument: 'bajo', trackId: track.id, at: liveNow(), presetId: preset.id, presetName: preset.name });
     onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === track.id);
       if (!t?.instrument) return;
@@ -159,6 +165,7 @@ export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
 
   /** Drag finished, or a recording stopped: now it is worth storing. */
   const padCommit = useCallback((px: number, py: number, recorded?: number[]) => {
+    liveBus.emit({ kind: 'param', instrument: 'bajo', trackId: track.id, at: liveNow(), paramId: 1 });
     onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === track.id);
       const raw = t?.instrument?.patch as Record<string, unknown> | undefined;
@@ -229,6 +236,50 @@ export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4 [&>*]:shrink-0">
+        {/* Genre & Sub-Preset Quick Strip (acoustic phys vs synth sub-presets) */}
+        <div className="flex flex-col gap-1.5 rounded-xl border border-white/10 bg-black/30 px-3 py-2">
+          <div className="flex items-center gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+            <span className="text-[9px] uppercase tracking-[0.16em] text-white/35 shrink-0 mr-0.5">Genre</span>
+            {['all', ...BAJO_GENRES].map((g) => {
+              const active = genreFilter === g;
+              return (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setGenreFilter(g)}
+                  className="h-5 px-2 rounded-full text-[9.5px] whitespace-nowrap border transition shrink-0"
+                  style={active
+                    ? { borderColor: BAJO_ACCENT, background: 'rgba(255,75,28,0.2)', color: '#FFD0C2', fontWeight: 600 }
+                    : { borderColor: 'rgba(255,255,255,0.09)', color: 'rgba(255,255,255,0.5)' }}
+                >
+                  {g === 'all' ? `All (${BAJO_PRESETS.length})` : g}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+            <span className="text-[9px] uppercase tracking-[0.16em] text-white/35 shrink-0 mr-0.5">Sub-Presets</span>
+            {(genreFilter === 'all' ? BAJO_PRESETS : BAJO_PRESETS.filter((p) => p.genre === genreFilter)).map((p) => {
+              const active = p.id === patch.presetId;
+              const isPhys = p.family === 'phys';
+              const tint = isPhys ? '#E0A85C' : BAJO_ACCENT;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => choosePreset(p.id)}
+                  title={`${p.family === 'phys' ? 'Physical String' : 'Synth Bass'} · ${p.genre} — ${p.description}`}
+                  className="h-6 px-2.5 rounded-lg text-[10px] whitespace-nowrap border transition shrink-0"
+                  style={active
+                    ? { borderColor: tint, background: isPhys ? 'rgba(224,168,92,0.22)' : 'rgba(255,75,28,0.22)', color: '#fff', fontWeight: 700 }
+                    : { borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.65)' }}
+                >
+                  {p.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         {/* The hero control: the actual rate lane, editable in place. */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
@@ -451,6 +502,19 @@ export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
             ))}
           </div>
         )}
+
+        <InstrumentBandSeat
+          instrument="bajo"
+          playerId="dwayne"
+          loreId="bass"
+          role="Session Band bass · live"
+          intro={PANEL_SEAT_INTROS.bajo}
+          screenText={`BAJO · ${patch.name} · weight ${Math.round((patch.macros.weight ?? 0) * 100)}%, grit ${Math.round((patch.macros.grit ?? 0) * 100)}%, wobble ${wobbleOn ? 'on' : 'off'}`}
+          accent={BAJO_ACCENT}
+          track={track}
+          presetName={patch.name}
+          defaultNote={36}
+        />
       </div>
 
       {editorOpen && (

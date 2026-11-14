@@ -30,6 +30,10 @@ import {
 import {
   newAuraPatch, deserializeAuraPatch, applyAuraPreset, serializeAuraPatch,
 } from '../instruments/aura/patch';
+import { VOLTA_PRESETS, VOLTA_CATEGORY_LABELS } from '../instruments/volta/presets';
+import {
+  newVoltaPatch, deserializeVoltaPatch, serializeVoltaPatch,
+} from '../instruments/volta/patch';
 
 export interface PresetEntry {
   id: string;
@@ -122,9 +126,21 @@ export function listPresets(type: InstrumentType): PresetEntry[] {
       category: AURA_CATEGORY_LABELS[p.category],
       description: `${p.year} · ${p.inspiration} — ${p.description}`,
     }));
+  } else if (type === 'volta') {
+    factory = VOLTA_PRESETS.map((p) => ({
+      id: `f_${p.id}`,
+      name: p.name,
+      category: VOLTA_CATEGORY_LABELS[p.category],
+      description: p.circuitNotes,
+    }));
   } else if (isSuite(type)) {
     const bank = type === 'vela' ? VELA_PRESETS : presetsFor(type);
-    factory = bank.map((p) => ({ id: `f_${p.id}`, name: p.name }));
+    factory = bank.map((p) => ({
+      id: `f_${p.id}`,
+      name: p.name,
+      category: p.family,
+      description: p.description || p.blurb,
+    }));
   }
   // KERA plays loaded programs, not patches — only user snapshots apply.
   const user = userPresets(type).map((p) => ({ id: p.id, name: p.name, user: true as const }));
@@ -176,6 +192,13 @@ export function applyPresetToDoc(d: GrooveDoc, trackId: string, presetId: string
     const current = deserializeAuraPatch(t.instrument.patch);
     const next = current ? applyAuraPreset(current, preset) : newAuraPatch(preset);
     t.instrument.patch = serializeAuraPatch(next) as Record<string, unknown>;
+    t.instrument.presetName = preset.name;
+    t.name = preset.name;
+  } else if (type === 'volta') {
+    const preset = VOLTA_PRESETS.find((p) => p.id === fid);
+    if (!preset) return false;
+    const next = newVoltaPatch(preset);
+    t.instrument.patch = serializeVoltaPatch(next) as Record<string, unknown>;
     t.instrument.presetName = preset.name;
     t.name = preset.name;
   } else if (type === 'soma') {

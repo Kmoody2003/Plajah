@@ -16,23 +16,55 @@ interface Props {
   onClose: () => void;
   /** Shown in the header — "as a track" vs "on this pad". */
   destination?: string;
+  /** Optional interactive destination toggle (Timeline MIDI Track vs MEKA Pad). */
+  destMode?: 'track' | 'meka';
+  onChangeDestMode?: (dest: 'track' | 'meka') => void;
 }
 
-export const InstrumentPicker: React.FC<Props> = ({ onPick, onClose, destination }) => (
+export const InstrumentPicker: React.FC<Props> = ({ onPick, onClose, destination, destMode, onChangeDestMode }) => (
   <div className="absolute inset-0 z-[60] grid place-items-center bg-black/70 backdrop-blur-sm p-5" onClick={onClose}>
     <div
-      className="w-full max-w-md rounded-[20px] border border-white/[0.16] shadow-2xl overflow-hidden"
+      className="w-full max-w-md rounded-[20px] border border-white/[0.16] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
       style={{ background: SURFACE }}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="flex items-center gap-3 px-4 h-12 border-b border-white/10" style={{ background: '#0E0E12' }}>
+      <div className="flex items-center gap-3 px-4 h-12 border-b border-white/10 shrink-0" style={{ background: '#0E0E12' }}>
         <span className="text-[12px] font-semibold text-white">Add an instrument{destination ? ` ${destination}` : ''}</span>
         <span className="flex-1" />
         <button onClick={onClose} aria-label="Close" className="w-7 h-7 grid place-items-center rounded-lg border border-white/10 text-white/45 hover:text-white">
           <X size={14} />
         </button>
       </div>
-      <div className="p-3 flex flex-col gap-2">
+      {onChangeDestMode && destMode && (
+        <div className="px-3 pt-2.5 pb-1 flex items-center gap-1.5 shrink-0 border-b border-white/[0.06]">
+          <span className="text-[10px] uppercase tracking-wider text-white/40 mr-1">Route to</span>
+          <button
+            type="button"
+            onClick={() => onChangeDestMode('track')}
+            className="flex-1 h-7 rounded-lg text-[11px] font-medium border transition-colors"
+            style={{
+              borderColor: destMode === 'track' ? '#D0BCFF88' : 'rgba(255,255,255,0.1)',
+              background: destMode === 'track' ? 'rgba(208,188,255,0.16)' : 'rgba(255,255,255,0.03)',
+              color: destMode === 'track' ? '#E9DDFF' : 'rgba(255,255,255,0.55)',
+            }}
+          >
+            Timeline MIDI Track
+          </button>
+          <button
+            type="button"
+            onClick={() => onChangeDestMode('meka')}
+            className="flex-1 h-7 rounded-lg text-[11px] font-medium border transition-colors"
+            style={{
+              borderColor: destMode === 'meka' ? '#B84DFF88' : 'rgba(255,255,255,0.1)',
+              background: destMode === 'meka' ? 'rgba(184,77,255,0.16)' : 'rgba(255,255,255,0.03)',
+              color: destMode === 'meka' ? '#F3D8FF' : 'rgba(255,255,255,0.55)',
+            }}
+          >
+            MEKA Pad
+          </button>
+        </div>
+      )}
+      <div className="p-3 flex flex-col gap-2 overflow-y-auto">
         {INSTRUMENTS.map((inst) => (
           <button
             key={inst.name}

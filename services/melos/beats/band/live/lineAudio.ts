@@ -24,4 +24,28 @@ export const lineManifestUrl = (characterId: string) => `/band/voice/${character
 export const LYRA_SEAT_INTROS: Record<string, string> = {
   tine: 'This is our tine electric piano, modelled on the pianos Harold Rhodes built: a hammer strikes a thin steel tine bolted to a tone bar, and a pickup turns its motion into sound.',
   piano: 'This is LYRA\'s piano — felt hammers on one to three strings a note, and a soundboard, all modelled.',
+  guitar: 'This is LYRA\'s guitar — modelled string stiffness, bridge coupling, pick position, and body warmth from classical gut to amplified pickups.',
+  pluck: 'These are LYRA\'s plucked family — harp soundboards, paired mandolin courses, banjo skins, and crisp orchestra pizzicato.',
+  violin: 'This is LYRA\'s bowed string — continuous Helmholtz stick-slip bow traction driving a carved spruce top with its 2.3 kHz Bridge Hill.',
+  sax: 'This is LYRA\'s saxophone — a single bamboo reed pulsing against a conical brass bore that flips smoothly into altissimo overblows.',
+  trumpet: 'This is LYRA\'s trumpet — buzzing lips driving a bright flare bell that blooms into brassy cuivré edge as you push harder.',
+  brass: 'This is the rest of the brass section — French horn, flugelhorn, trombone slide flare, and sub-octave tuba bore.',
+  flute: 'This is LYRA\'s flute — an air jet whistling across the embouchure hole into an open cylindrical bore with breath chiff on every attack.',
+  clarinet: 'This is LYRA\'s clarinet — a single reed sealing a closed cylinder, lifting pure odd harmonics in the hollow chalumeau register.',
+  reed: 'These are LYRA\'s double reeds — two bound cane blades feeding narrow conical oboe and bassoon bores rich in nasal formants.',
+};
+
+/** Openers for Chora's other instrument engines when the Session Band joins at the desk. */
+export const PANEL_SEAT_INTROS: Record<string, string> = {
+  tonos: 'This is TONOS — 52 traditional stringed instruments modelled by physical string length, jawari grazing bridges, bow rosin, skin resonators, and sympathetic taraf strings.',
+  aura: 'This is AURA — warm 1960s and 1970s voltage-controlled analogue oscillators, ladder filters, BBD ensembles, and aged drawbar organs.',
+  onda: 'This is ONDA — high-resolution wavetable morphing, dual analog-style ladder filters, unison spread, and programmable Motion lanes.',
+  bajo: 'This is BAJO — sub-weight low-end synthesis with tempo-locked wobble lanes, four-band gating, and acoustic upright pluck at the warm end.',
+  vela: 'This is VELA — continuous additive modal resynthesis where overtone stiffness, strike position, and tilt turn bars, bowls, and strings into living sustains.',
+  cantus: 'This is CANTUS — vowel and formant-sculpted spectral overtone singing shaped from the fundamental up.',
+  ison: 'This is ISON — modal tonic-and-fifth drone architecture built to anchor slow harmonic stillness.',
+  pneuma: 'This is PNEUMA — physical air, flute overtone turbulence, and bowed breath sustained without harsh transients.',
+  kera: 'This is KERA — multi-zone sampler for SoundFonts, SFZ libraries, and your own chopped field recordings.',
+  volta: 'This is VOLTA — a dual-era circuit-modeled Super-Synth pairing 1974 discrete transistor ladders, 1N4148 diodes, and 12V rail sag with Buchla wavefolding, Thru-Zero FM, and a 2026 Cytomic ZDF filter — buildable for real in Plajah Builder.',
+  kit: 'This is our Maschine-style kit rack — 16 velocity-responsive pads per bank wired through Chora\'s mix and swing engine.',
 };

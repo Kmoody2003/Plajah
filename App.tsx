@@ -206,6 +206,8 @@ import { onMediaFileActivated, isWindowsApp, type WindowsPickedFile } from './se
 import { onLaunchMedia, onLaunchExperience } from './services/launchService';
 import { experienceView, LAUNCHED_VIA_SHARE, rememberResumeView, readResumeView, parseChannelShareParams } from './src/lib/launchTarget';
 import { MediaPlajahPlayer } from './components/player/MediaPlajahPlayer';
+const PlajahMediaStage = retryLazy(() => import('./components/media/PlajahMediaStage'));
+import type { StageMediaItem } from './services/files/unifiedVfs';
 
 // Pre-warm viewer chunks on Windows for near-instant boot and viewer opening
 if (typeof window !== 'undefined' && isWindowsApp()) {
@@ -1108,6 +1110,9 @@ const App: React.FC = () => {
   const [isMediaPlajahMode, setIsMediaPlajahMode] = useState<boolean>(false);
   const [activeLocalMediaFile, setActiveLocalMediaFile] = useState<WindowsPickedFile | null>(null);
   const [localMediaFolderFiles, setLocalMediaFolderFiles] = useState<WindowsPickedFile[]>([]);
+  // ── Unified Local Media & Quick-View Stage (Photos + Video + Audio + Docs) ─
+  const [activatedStageItem, setActivatedStageItem] = useState<StageMediaItem | null>(null);
+  const [activatedStagePlaylist, setActivatedStagePlaylist] = useState<StageMediaItem[]>([]);
 
   // "Learn more on Plajah" from the Tela template gallery → the Art Museum, with the
   // style remembered so the museum can focus its search on it.
@@ -2789,34 +2794,24 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // ── Native Windows Media Routing (Chora Album View for Audio, Photos Experience for Visual Media, Universal Video Player for Video) ──
   useEffect(() => {
     const route = ({ activeFile, folderFiles, mediaKind }: { activeFile: WindowsPickedFile; folderFiles: WindowsPickedFile[]; mediaKind?: string }) => {
-      const ext = activeFile.name.toLowerCase();
-      const isVideo = mediaKind === 'VIDEO' || activeFile.kind === 'VIDEO' || activeFile.mediaKind === 'VIDEO' || /\.(mp4|mov|m4v|webm|mkv|avi|mpg|mpeg|wmv|flv|ts|m2ts|vob|ogv|3gp)$/i.test(ext);
-      const isAudio = mediaKind === 'AUDIO' || activeFile.kind === 'AUDIO' || activeFile.kind === 'audio' || activeFile.mediaKind === 'AUDIO' || /\.(mp3|wav|flac|aac|m4a|ogg|wma|aiff|opus|alac)$/i.test(ext);
-
-      if (isVideo && !isAudio) {
-        // Local video plays in the same unified player as Reello / Taleo, so local and online feel identical.
-        setIsMediaPlajahMode(false);
-        setActivatedNativeFile(null);
-        setActiveUniversalVideo({
-          file: activeFile,
-          folderFiles: folderFiles && folderFiles.length > 0 ? folderFiles : [activeFile],
-          context: 'LOCAL',
-          title: activeFile.name,
-        } as any);
-      } else if (isVideo || isAudio) {
-        setActiveUniversalVideo(null);
-        setActivatedNativeFile(null);
-        setActiveLocalMediaFile(activeFile);
-        setLocalMediaFolderFiles(folderFiles && folderFiles.length > 0 ? folderFiles : [activeFile]);
-        setIsMediaPlajahMode(true);
-      } else {
-        setIsMediaPlajahMode(false);
-        setActiveUniversalVideo(null);
-        setPhotosInitialFile(null);
-        setPhotosFolderFiles(folderFiles || [activeFile]);
-        setActivatedNativeFile(activeFile);
-        setActivatedNativeFolderFiles(folderFiles || [activeFile]);
-      }
+      const toStage = (f: WindowsPickedFile): StageMediaItem => ({
+        name: f.name,
+        fullPath: f.fullPath,
+        folderPath: f.folderPath,
+        url: f.url,
+        size: f.size,
+        lastModified: f.lastModified,
+        mediaKind: (f.mediaKind || mediaKind || f.kind) as any,
+        isLocal: true,
+        locationKind: 'local',
+      });
+      const list = (folderFiles && folderFiles.length > 0 ? folderFiles : [activeFile]).map(toStage);
+      setIsMediaPlajahMode(false);
+      setActiveUniversalVideo(null);
+      setActivatedNativeFile(null);
+      setPhotosInitialFile(null);
+      setActivatedStagePlaylist(list);
+      setActivatedStageItem(toStage(activeFile));
     };
     // Windows: a file opened into this live window. Android: "Open with" while Plajah is running
     // (cold "Open with" boots the LocalMediaLaunch shell instead — see index.tsx).
@@ -7964,7 +7959,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'PLAJAH_DRIVE' && !tvBlocked && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <PlajahDriveView onBack={() => setView('DASHBOARD')} />
+                <PlajahDriveView onBack={() => setView('DASHBOARD')} onSendToChora={() => setView('MUSIC')} onOpenCinemaPlayer={(item, siblings) => setActiveUniversalVideo({ file: { name: item.name, fullPath: item.fullPath || '', folderPath: item.folderPath, size: item.size || 0, lastModified: item.lastModified, url: item.url, mediaKind: 'VIDEO' }, folderFiles: siblings.map(s => ({ name: s.name, fullPath: s.fullPath || '', folderPath: s.folderPath, size: s.size || 0, lastModified: s.lastModified, url: s.url })), context: 'LOCAL', title: item.name })} />
               </Suspense>
             )}
 
@@ -9183,6 +9178,40 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             onUploadToReello={handleUploadLocalToReello}
           />
         </div>
+      )}
+
+      {activatedStageItem && (
+        <Suspense fallback={null}>
+          <PlajahMediaStage
+            activeItem={activatedStageItem}
+            playlist={activatedStagePlaylist}
+            mode="lightbox"
+            onSelectItem={next => setActivatedStageItem(next)}
+            onClose={() => setActivatedStageItem(null)}
+            onRevealInExplorer={item => {
+              if (item.folderPath || item.fullPath) {
+                try {
+                  sessionStorage.setItem('plajah:pending-files-target', JSON.stringify({ folderPath: item.folderPath || '', fullPath: item.fullPath || '' }));
+                } catch {}
+              }
+              setActivatedStageItem(null);
+              setView('PLAJAH_DRIVE');
+            }}
+            onOpenCinemaPlayer={(item, siblings) => {
+              setActivatedStageItem(null);
+              setActiveUniversalVideo({
+                file: { name: item.name, fullPath: item.fullPath || '', folderPath: item.folderPath, size: item.size || 0, lastModified: item.lastModified, url: item.url, mediaKind: 'VIDEO' },
+                folderFiles: siblings.map(s => ({ name: s.name, fullPath: s.fullPath || '', folderPath: s.folderPath, size: s.size || 0, lastModified: s.lastModified, url: s.url })),
+                context: 'LOCAL',
+                title: item.name,
+              } as any);
+            }}
+            onSendToChora={() => {
+              setActivatedStageItem(null);
+              setView('MUSIC');
+            }}
+          />
+        </Suspense>
       )}
 
       {/* Media Plajah Player: Dedicated standalone-grade local player mode */}

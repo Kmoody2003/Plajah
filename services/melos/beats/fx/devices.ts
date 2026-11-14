@@ -3291,6 +3291,7 @@ export class FxChainHost {
   private bpm = 120;
   /** The wired order of active devices — a rewire only happens when THIS changes. */
   private wiring = '';
+  private lastInstances: FxInstance[] = [];
 
   constructor(ctx: BaseAudioContext) {
     this.ctx = ctx;
@@ -3308,6 +3309,7 @@ export class FxChainHost {
   }
 
   setChain(instances: FxInstance[]): void {
+    this.lastInstances = instances.map((i) => ({ ...i, params: { ...i.params } }));
     // Drop devices no longer present (or whose type changed at the same id).
     const wanted = new Set(instances.filter((i) => i.on).map((i) => i.id));
     for (const [id, entry] of [...this.live]) {
@@ -3373,6 +3375,19 @@ export class FxChainHost {
   reductionOf(id: string): number {
     const node = this.live.get(id)?.node;
     return node?.gr ? node.gr() : 0;
+  }
+
+  /** Clear all live delay/feedback/freeze states immediately (used by Panic / Kill Audio). */
+  flush(): void {
+    for (const { node } of this.live.values()) node.dispose();
+    this.live.clear();
+    this.wiring = '#rewire';
+    if (this.lastInstances.length > 0) this.setChain(this.lastInstances);
+    else {
+      try { this.input.disconnect(); this.bypass.disconnect(); } catch { /* */ }
+      this.input.connect(this.bypass);
+      this.bypass.connect(this.output);
+    }
   }
 
   dispose(): void {

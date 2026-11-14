@@ -23,6 +23,7 @@ export interface TonosDeepHit {
 }
 
 const VEL_LEVELS = 4;
+export const TONOS_DEEP_VARIANTS = 2;
 const MAX_CACHE_FLOATS = 24 * 1024 * 1024; // 96 MB
 const BATCH_NOTES = 4;
 const SLOW_BATCH_MS = 8000;
@@ -46,14 +47,14 @@ export function tonosDeepCapable(params: Map<number, number>): boolean {
   return !!b && !b.sustained;
 }
 
-const hitKey = (paramsKey: string, note: number, vb: number, sr: number) => `${paramsKey}|${note}|${vb}|${sr}`;
+const hitKey = (paramsKey: string, note: number, vb: number, variant: number, sr: number) => `${paramsKey}|${note}|${vb}|${variant}|${sr}`;
 
 const cache = new Map<string, TonosDeepHit>();
 let cacheFloats = 0;
 const pending = new Set<string>();
 const none = new Set<string>();
 
-interface Job { key: string; params: Map<number, number>; note: number; vb: number; sr: number; module: () => Promise<WebAssembly.Module> }
+interface Job { key: string; params: Map<number, number>; note: number; vb: number; variant: number; sr: number; module: () => Promise<WebAssembly.Module> }
 const queue: Job[] = [];
 const waiters: Array<() => void> = [];
 let running = false;
@@ -77,16 +78,16 @@ export function tonosDeepSupported(): boolean {
   return !prefOff() && tonosDeepAvailable();
 }
 
-export function lookupTonosDeep(paramsKey: string, note: number, velocity: number, sr: number): TonosDeepHit | undefined {
-  const k = hitKey(paramsKey, note, tonosVelBucket(velocity), sr);
+export function lookupTonosDeep(paramsKey: string, note: number, velocity: number, sr: number, variant = 0): TonosDeepHit | undefined {
+  const k = hitKey(paramsKey, note, tonosVelBucket(velocity), variant % TONOS_DEEP_VARIANTS, sr);
   const hit = cache.get(k);
   if (hit) { cache.delete(k); cache.set(k, hit); }
   return hit;
 }
 
 /**
- * Ask for every velocity level of `note` (the one just played first). Resolves when the queue has
- * drained; never rejects.
+ * Ask for every velocity level and round-robin variant of `note` (the one just played first).
+ * Resolves when the queue has drained; never rejects.
  */
 export function requestTonosDeep(params: Map<number, number>, paramsKey: string, note: number, sr: number, module: () => Promise<WebAssembly.Module>, velocity = 0.7): Promise<void> {
   if (!tonosDeepSupported() || !tonosDeepCapable(params) || performance.now() < cooldownUntil) return Promise.resolve();
@@ -94,11 +95,13 @@ export function requestTonosDeep(params: Map<number, number>, paramsKey: string,
   const first = tonosVelBucket(velocity);
   const levels = [first, ...Array.from({ length: VEL_LEVELS }, (_, i) => (i + 1) / VEL_LEVELS).filter((v) => v !== first)];
   levels.forEach((vb, i) => {
-    const key = hitKey(paramsKey, note, vb, sr);
-    if (cache.has(key) || pending.has(key) || none.has(key)) return;
-    pending.add(key);
-    const job = { key, params: snapshot, note, vb, sr, module };
-    if (i === 0) queue.unshift(job); else queue.push(job);
+    for (let variant = 0; variant < TONOS_DEEP_VARIANTS; variant++) {
+      const key = hitKey(paramsKey, note, vb, variant, sr);
+      if (cache.has(key) || pending.has(key) || none.has(key)) continue;
+      pending.add(key);
+      const job = { key, params: snapshot, note, vb, variant, sr, module };
+      if (i === 0 && variant === 0) queue.unshift(job); else queue.push(job);
+    }
   });
   const done = new Promise<void>((res) => waiters.push(res));
   if (!running) { running = true; setTimeout(() => { void pump(); }, 0); }
@@ -148,8 +151,8 @@ async function pump(): Promise<void> {
       const shared = new Map<Map<number, number>, Array<[number, number]>>();
       const jobs = batch.map((j) => {
         if (!shared.has(j.params)) shared.set(j.params, [...j.params]);
-        // One take per note: the layer is replayed from deep_seed(note, 0).
-        return { params: shared.get(j.params)!, note: j.note, vb: j.vb, variant: 0, sr: j.sr };
+        // Replayed from deep_seed(note, variant) so round-robin takes never machine-gun.
+        return { params: shared.get(j.params)!, note: j.note, vb: j.vb, variant: j.variant, sr: j.sr };
       });
       const t0 = performance.now();
       const res = await ask({ id: nextId++, module, jobs });
@@ -166,7 +169,7 @@ async function pump(): Promise<void> {
       batch.forEach((j, i) => {
         pending.delete(j.key);
         const r = res.results[i];
-        if (r) { store(j.key, { ...r, variant: 0 }); modes = Math.max(modes, r.modes); } else if (!res.failed) none.add(j.key);
+        if (r) { store(j.key, { ...r, variant: j.variant }); modes = Math.max(modes, r.modes); } else if (!res.failed) { if (none.size > 4096) none.clear(); none.add(j.key); }
       });
       if (!res.failed) {
         stats.batches++;

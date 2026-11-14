@@ -29,12 +29,20 @@ import { ROLE_RANGE, type ComposedNote } from '../services/melos/beats/council/c
 import { parseNoteLines, toLines } from '../services/melos/beats/council/noteLines';
 import {
   briefGrounding,
+  briefToBandChart,
+  briefToEnsemblePlan,
+  briefToLyricLines,
+  briefToRenderRequest,
   compileSongBrief,
+  reviewBrief,
   type BriefSection,
   type SongBrief,
 } from '../services/melos/direct/songBrief';
 import { parseSongPrompt } from '../services/melos/direct/songPrompt';
+import { layoutVocal } from '../services/melos/direct/vocalScore';
 import type { Chair } from '../services/melos/direct/styleKnowledge';
+import { renderBriefHeadless } from '../services/melos/render';
+import { recognizeChordsFromAudio } from '../services/melos/transcribe';
 import { midiToName } from '../services/melos/theory';
 
 export const CHORA_DIRECT_MODEL_ENV = 'CHORA_DIRECT_MODEL';
@@ -352,7 +360,8 @@ export function createChoraDirectRouter(deps: ChoraDirectDeps = {}) {
   const isConfigured = deps.configured ?? (() => !!deps.lane || geminiConfigured());
 
   if (deps.limiter) router.use(deps.limiter);
-  router.use(express.json({ limit: '256kb' }));
+  const smallJson = express.json({ limit: '256kb' });
+  const audioJson = express.json({ limit: '4mb' });
 
   router.get('/ai-info', (_req, res) => {
     const model = laneModel(CHORA_DIRECT_MODEL_ENV);
@@ -364,11 +373,120 @@ export function createChoraDirectRouter(deps: ChoraDirectDeps = {}) {
     });
   });
 
+  // ── Deterministic local endpoints (zero cloud AI, zero consent required) ──────
+
+  router.post('/compile', smallJson, (req, res) => {
+    const body = req.body ?? {};
+    const hasPromptStr = typeof body.prompt === 'string' && body.prompt.trim().length > 0;
+    const hasBoxInput =
+      typeof body.style === 'string' || typeof body.lyrics === 'string' || typeof body.title === 'string';
+    if (!hasPromptStr && !hasBoxInput) {
+      return res.status(400).json({ error: 'Provide `prompt` or `{ style, lyrics }`.' });
+    }
+    const parsed = hasPromptStr
+      ? parseSongPrompt(body.prompt)
+      : parseSongPrompt({
+          style: typeof body.style === 'string' ? body.style : undefined,
+          lyrics: typeof body.lyrics === 'string' ? body.lyrics : undefined,
+          title: typeof body.title === 'string' ? body.title : undefined,
+        });
+    const brief = compileSongBrief(parsed, {
+      bpm: typeof body.bpm === 'number' && Number.isFinite(body.bpm) ? body.bpm : undefined,
+      key: body.key && typeof body.key.tonic === 'number' ? body.key : undefined,
+      meter: Array.isArray(body.meter) && body.meter.length === 2 ? body.meter : undefined,
+    });
+    const review = reviewBrief(brief);
+    return res.json({
+      parsed,
+      brief,
+      review,
+      ensemblePlan: briefToEnsemblePlan(brief),
+      bandChart: briefToBandChart(brief),
+      renderRequest: briefToRenderRequest(brief),
+      lyricLines: briefToLyricLines(brief),
+      vocalLayer: layoutVocal(brief),
+    });
+  });
+
+  router.post('/render-preview', smallJson, async (req, res) => {
+    const body = req.body ?? {};
+    let brief: SongBrief | undefined;
+    if (isSongBrief(body.brief)) {
+      brief = body.brief;
+    } else if (typeof body.prompt === 'string' && body.prompt.trim()) {
+      brief = compileSongBrief(parseSongPrompt(body.prompt));
+    } else {
+      return res.status(400).json({ error: 'Provide a compiled `brief` or `prompt` string.' });
+    }
+    const maxDurationSec =
+      typeof body.maxDurationSec === 'number' && Number.isFinite(body.maxDurationSec)
+        ? Math.max(1, Math.min(30, body.maxDurationSec))
+        : Math.min(20, Math.max(4, brief.seconds));
+    const sampleRate =
+      typeof body.sampleRate === 'number' && Number.isFinite(body.sampleRate)
+        ? Math.max(16000, Math.min(48000, Math.round(body.sampleRate)))
+        : 22050;
+    const bitDepth = body.bitDepth === 24 ? 24 : 16;
+
+    const result = await renderBriefHeadless(brief, {
+      sampleRate,
+      bitDepth,
+      maxDurationSec,
+      targetLufs:
+        typeof body.targetLufs === 'number' && Number.isFinite(body.targetLufs)
+          ? body.targetLufs
+          : undefined,
+    });
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({
+      backend: result.backend,
+      sampleRate: result.sampleRate,
+      bitDepth: result.bitDepth,
+      durationSec: result.durationSec,
+      noteCount: result.noteCount,
+      drumHitCount: result.drumHitCount,
+      measured: result.measured,
+      wavBase64: Buffer.from(result.wavBytes).toString('base64'),
+    });
+  });
+
+  router.post('/transcribe-chords', audioJson, (req, res) => {
+    const body = req.body ?? {};
+    const sampleRate = Number(body.sampleRate);
+    if (!Number.isFinite(sampleRate) || sampleRate < 8000 || sampleRate > 96000) {
+      return res.status(400).json({ error: '`sampleRate` must be between 8000 and 96000 Hz.' });
+    }
+    let pcm: Float32Array | null = null;
+    if (typeof body.pcmBase64 === 'string' && body.pcmBase64.length) {
+      const raw = Buffer.from(body.pcmBase64, 'base64');
+      if (raw.byteLength % 4 !== 0 || raw.byteLength === 0) {
+        return res.status(400).json({ error: '`pcmBase64` must encode non-empty float32 samples.' });
+      }
+      pcm = new Float32Array(raw.buffer, raw.byteOffset, raw.byteLength / 4);
+    } else if (Array.isArray(body.pcm) && body.pcm.length) {
+      pcm = Float32Array.from(body.pcm, (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0));
+    }
+    if (!pcm || pcm.length < 64) {
+      return res.status(400).json({ error: 'Provide `pcmBase64` (float32le) or `pcm` sample array.' });
+    }
+    const beatTimes = Array.isArray(body.beatTimes)
+      ? body.beatTimes.filter((t: unknown) => typeof t === 'number' && Number.isFinite(t))
+      : undefined;
+    const result = recognizeChordsFromAudio(pcm, sampleRate, beatTimes, {
+      beatsPerBar:
+        typeof body.beatsPerBar === 'number' && Number.isFinite(body.beatsPerBar)
+          ? body.beatsPerBar
+          : undefined,
+      doc: body.doc && typeof body.doc === 'object' ? body.doc : undefined,
+    });
+    return res.json(result);
+  });
+
   const writeGuards: RequestHandler[] = [];
   if (deps.authenticate) writeGuards.push(deps.authenticate);
   if (deps.requireRegisteredUser) writeGuards.push(deps.requireRegisteredUser);
 
-  router.post('/write', ...writeGuards, async (req: any, res) => {
+  router.post('/write', smallJson, ...writeGuards, async (req: any, res) => {
     const body = req.body ?? {};
     if (body.cloudConsent !== true) {
       return res.status(428).json({

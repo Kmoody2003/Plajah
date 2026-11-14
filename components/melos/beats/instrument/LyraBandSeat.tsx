@@ -2,9 +2,10 @@
 // (band/live): the pianist Theo for the piano and the tine electric piano, Rosa for guitar, Priya or
 // Ingrid for the bowed strings, Lena for sax, Corny for brass, Felix for the winds. They hear what
 // you play on the keys or a controller (the keys lens: chords, touch, time, the tine's bark), talk
-// in the pauses, play demos on this instrument, answer questions, and open up the instrument's lore.
+// in the pauses, jam/record with the project, hear hums/computer audio, research creative books &
+// films, play demos on this instrument, answer questions, and open up the instrument's lore.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { ArrangeTrack } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import type { LyraModel } from '../../../../services/melos/instruments/lyra/params';
@@ -13,9 +14,11 @@ import { loreById, type InstrumentLore } from '../../../../services/melos/beats/
 import { KeysLens } from '../../../../services/melos/beats/band/live/keysLens';
 import { liveBus, now } from '../../../../services/melos/beats/band/live/events';
 import type { LiveDirector } from '../../../../services/melos/beats/band/live/director';
+import { summarizeStudioContext } from '../../../../services/melos/beats/band/studioContext';
 import { LiveAvatar } from '../band/live/LiveAvatar';
 import { LYRA_SEAT_INTROS } from '../../../../services/melos/beats/band/live/lineAudio';
 import { LoreCard } from '../band/live/LoreCard';
+import { MusicianStageControls } from '../band/live/MusicianStageControls';
 import type { LiveHost } from '../band/live/useLiveCharacter';
 
 /** Who plays which LYRA model, and the lore they bring. Variant matters for the violin family. */
@@ -24,6 +27,7 @@ function seatFor(model: LyraModel, variant: number): { player: string; lore: str
     case 'tine': return { player: 'theo', lore: 'tine-electric-piano', role: 'Session Band keys · live' };
     case 'piano': return { player: 'theo', lore: 'piano', role: 'Session Band keys · live' };
     case 'guitar': return { player: 'rosa', lore: 'guitar', role: 'Session Band guitar · live' };
+    case 'pluck': return variant === 4 ? { player: 'priya', lore: 'violin', role: 'Session Band pizzicato · live' } : variant === 0 ? { player: 'priya', lore: 'orchestra', role: 'Session Band harp · live' } : { player: 'rosa', lore: 'guitar', role: 'Session Band plucked strings · live' };
     case 'violin': return variant === 2 ? { player: 'ingrid', lore: 'cello', role: 'Session Band cello · live' } : { player: 'priya', lore: 'violin', role: 'Session Band violin · live' };
     case 'sax': return { player: 'lena', lore: 'saxophone', role: 'Session Band sax · live' };
     case 'trumpet': case 'brass': return { player: 'corny', lore: 'trumpet', role: 'Session Band trumpet · live' };
@@ -41,6 +45,7 @@ export const LyraBandSeat: React.FC<{ track: ArrangeTrack; model: LyraModel; var
   const sheet = seat ? sheetById(seat.player) : undefined;
   const lore: InstrumentLore | undefined = seat ? loreById(seat.lore) : undefined;
   const [director, setDirector] = useState<LiveDirector | null>(null);
+  const referenceRef = useRef('');
   const lens = useMemo(() => new KeysLens('lyra', model === 'tine'), [model]);
 
   useEffect(() => {
@@ -50,19 +55,32 @@ export const LyraBandSeat: React.FC<{ track: ArrangeTrack; model: LyraModel; var
 
   if (!seat || !sheet) return null;
 
+  const playStep = (_stroke: string, velocity: number, note?: number, holdMs?: number) => {
+    const eng = BeatsEngine.get();
+    void eng.init().then(async () => {
+      const inst = await eng.ensureInstrument(track);
+      if (!inst) return;
+      const vid = inst.noteOn(60 + (note ?? 0), velocity, 0, 0, 48000, true);
+      setTimeout(() => inst.noteOff(vid, true), Math.max(60, holdMs ?? 300));
+    });
+  };
+
   const host: LiveHost = {
     lens,
-    playStep: (_stroke, velocity, note, holdMs) => {
-      const eng = BeatsEngine.get();
-      void eng.init().then(async () => {
-        const inst = await eng.ensureInstrument(track);
-        if (!inst) return;
-        const vid = inst.noteOn(60 + (note ?? 0), velocity, 0, 0, 48000, true);
-        setTimeout(() => inst.noteOff(vid, true), Math.max(60, holdMs ?? 300));
-      });
-    },
+    playStep,
     enrich: () => ({ intro: INTRO[model] ?? '', preset: presetName }),
     screen: () => `The learner has LYRA open on "${presetName}" (the ${model === 'tine' ? 'tine electric piano' : model} model).`,
+    projectSummary: () => {
+      const eng = BeatsEngine.get();
+      return summarizeStudioContext(eng.getDoc(), {
+        trackId: track.id,
+        recentChords: eng.playedChords(),
+        activeInstrument: 'lyra',
+        activePreset: presetName,
+      }).promptSummary;
+    },
+    referenceSummary: () => referenceRef.current || undefined,
+    activeInstrument: () => `LYRA (${model}) · ${presetName}`,
     trivia: () => {
       if (!lore) return undefined;
       const pool = [...lore.physics, ...lore.construction, ...lore.traditions, ...lore.variants.map((v) => `In ${v.where} there's the ${v.name}: ${v.how}`)];
@@ -73,6 +91,17 @@ export const LyraBandSeat: React.FC<{ track: ArrangeTrack; model: LyraModel; var
   return (
     <div className="rounded-2xl border border-white/10 bg-black/30 p-3 flex flex-col gap-2.5">
       <LiveAvatar key={sheet.id + model} sheet={sheet} host={host} fallbackLine={INTRO[model]} role={seat.role} onDirector={setDirector} />
+      <MusicianStageControls
+        playerId={sheet.id}
+        instrument="lyra"
+        accent={accent}
+        track={track}
+        presetName={presetName}
+        defaultNote={60}
+        director={director}
+        playStep={playStep}
+        onReferenceUpdate={(s) => { referenceRef.current = s; }}
+      />
       {lore && (
         <div className="flex flex-col gap-1">
           <span className="text-[9px] uppercase tracking-[0.2em] text-white/35">{lore.name}</span>

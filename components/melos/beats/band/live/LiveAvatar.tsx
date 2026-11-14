@@ -113,15 +113,15 @@ export const LiveAvatar: React.FC<{
           </p>
           {snap.note && <p className="text-[9.5px] text-amber-200/70 m-0 mt-1">{snap.note}</p>}
           {mic.heard && <p className="text-[10.5px] m-0 mt-1" style={{ color: c }}>You: {mic.heard}</p>}
+          {mic.error && <p className="text-[9.5px] text-rose-300/85 m-0 mt-1">{mic.error}</p>}
         </div>
 
         <div className="flex items-center gap-1 flex-wrap">
           <button
             onClick={() => (mic.state === 'idle' || mic.state === 'error' ? mic.start() : mic.stop())}
-            disabled={!mic.available}
-            className="h-6 px-2 rounded-lg text-[10px] font-semibold border flex items-center gap-1 disabled:opacity-40"
-            style={mic.state === 'listening' ? { background: `${c}33`, borderColor: c, color: '#fff' } : { borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}
-            title={mic.available ? `Talk to ${first} — they wait for you to finish` : 'No speech recognition on this device — type instead'}
+            className="h-6 px-2 rounded-lg text-[10px] font-semibold border flex items-center gap-1"
+            style={mic.state === 'listening' ? { background: `${c}33`, borderColor: c, color: '#fff' } : { borderColor: 'rgba(255,255,255,0.12)', color: mic.available ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.4)' }}
+            title={mic.available ? `Talk to ${first} — pause or click Stop talking to send` : 'No speech recognition available on this device — click for details or type instead'}
           >
             {mic.state === 'listening' ? <MicOff size={10} /> : <Mic size={10} />} {mic.state === 'listening' ? 'Stop talking' : `Talk to ${first}`}
           </button>

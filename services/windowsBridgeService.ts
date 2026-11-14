@@ -940,7 +940,7 @@ export function nativeDwgToDxf(base64: string): Promise<{ id: string; success: b
   return requestNativeResponse('CAD_DWG_TO_DXF', 'CAD_DWG_TO_DXF_RESULT', { id, data: base64 }, m => m?.id === id, 120_000);
 }
 
-function requestNativeResponse<T>(requestType: string, responseType: string, payload: object = {}, matches?: (message: any) => boolean, timeoutMs = 30_000): Promise<T> {
+export function requestNativeResponse<T>(requestType: string, responseType: string, payload: object = {}, matches?: (message: any) => boolean, timeoutMs = 30_000): Promise<T> {
   return new Promise((resolve, reject) => {
     const webview = (window as any).chrome?.webview;
     if (!webview) {
@@ -992,7 +992,9 @@ export type NativeMessageType =
   | 'NATIVE_FILES_DROPPED'
   | 'HARDWARE_JOG_EVENT'
   | 'OPEN_MEDIA_FILE'
-  | 'LAUNCH_EXPERIENCE';
+  | 'LAUNCH_EXPERIENCE'
+  | 'SYNC_LOCAL_CHANGES'
+  | 'SYNC_STATUS_UPDATE';
 
 export interface NativeDroppedFile {
   name: string;

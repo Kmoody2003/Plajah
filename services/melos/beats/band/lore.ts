@@ -1008,7 +1008,251 @@ export const INSTRUMENT_LORE: InstrumentLore[] = [
     { title: 'Benny Goodman', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Benny_Goodman' }
   ],
 },
-];
+{
+  id: 'world-lutes-and-harps',
+  name: 'World Plucked Lutes, Jawari Bridges & West African Harps',
+  players: ['rosa', 'amara'],
+  family: 'Plucked chordophones (long-necked lutes, bowl lutes & bridge-harps)',
+  physics: [
+    'Unlike a flat guitar saddle that gives strings a sharp vertical node, South Asian lutes (sitar, veena, tanpura, sarod) terminate on a wide parabolic camel-bone or hardwood bridge called a jawari. At every downward half-cycle the string rolls across the curved surface, shifting effective speaking length continuously and sweeping bright harmonic formants across the upper spectrum.',
+    'West African bridge-harps (kora) mount twenty-one strings in two orthogonal ranks across a notched hardwood bridge resting atop a goatskin-covered calabash gourd; plucking along two planes couples vertical skin pumping with rocking bridge modes, adding woody thump behind harp clarity.',
+    'Movable silk or gut frets tied around hollow necks (sitar, setar, baglama) allow lateral meend string pulls of up to a fifth on one note, while sympathetically tuned taraf under-strings bloom softly along modal scale degrees.',
+  ],
+  materials: [
+    'Carved resonator bowls range from hollow aged mulberry wood (oud, rubab) and seasoned tun cedar (sitar, sarod) to sun-dried Lagenaria siceraria bottle gourds (kora, tanpura) fitted with stretched cow, goat, sheep, or monitor-lizard skins.',
+    'Strings span phosphor-bronze and high-carbon steel (sitar, saz, bouzouki) to twisted silk and nylon (oud, pipa, kora). Brass or steel jingle plates (nyenyemo on kora; sesse beads on mvet) chatter empathetically on loudest fundamentals.',
+  ],
+  construction: [
+    'Lutes like the oud bend thin ribs over a ribbed pear mold without a truss rod, carving delicate rosewood soundholes (shamsiyyat); dugout lutes (sarod, rubab, shamisen) chisel a solid trunk thin enough for acoustic skin projection.',
+    'The West African kora drives a long hardwood rosewood neck straight through a halved calabash gourd resonator, anchoring rawhide collars (konso) along the pole to tune tension alongside notched twin string ranks.',
+  ],
+  tuning: [
+    'Indian raga instruments tune taraf sympathetic strings to the exact microtonal intervals of each raga (Sa-centric movable tonic, C# or D common on sitar) with tiny bone beads near the bridge for fine cents trimming.',
+    'Middle Eastern oud and tar employ neutral second and third intervals within maqam and Persian dastgah systems; Malian and Senegalese kora players tune heptatonic patterns including Tomora and Sauta.',
+  ],
+  properties: {
+    range: 'Three to four octaves per instrument, often extending below C2 (tanpura, gimbri, oud) up past E5.',
+    size: 'From compact 66 cm Andean charangos and ngoni lutes to 1.2 m sculpted North Indian sitars and 21-string kalabash koras.',
+    other: [
+      'Lateral string pulling (meend) bends pitch microtonally without changing fret position.',
+      'Skin-bellied lutes trade some sustain for immediate transient punch and midrange vocal formant warmth.',
+    ],
+  },
+  variants: [
+    { name: 'Sitar', where: 'North India and Pakistan', how: 'Long-necked gourd-resonated lute with scalloped brass frets, flat jawari grazing bridge, and eleven to thirteen sympathetic steel taraf strings.' },
+    { name: 'Kora', where: 'Mali, Senegal, Gambia, Guinea', how: 'Twenty-one-string bridge-harp played by jeli (griot) oral historians; combine interlocking bass ostinato and shimmering cascade trebles.' },
+    { name: 'Oud', where: 'Iraq, Syria, Lebanon, Egypt, Turkey, Maghreb', how: 'Fretless pear-shaped eleven-string short-neck lute with bent pegbox, predecessor to the European Renaissance lute.' },
+    { name: 'Pipa', where: 'China', how: 'Four-string pear-shaped plucked lute with raised ivory/bamboo frets allowing dramatic sideways string pushes and five-finger lunzhi tremolo rolls.' },
+    { name: 'Shamisen', where: 'Japan', how: 'Long fretless square-bodied three-string lute with taut cat/dogskin head struck sharply with an ivory-edged bachi plectrum for crisp percussive snap.' },
+  ],
+  music: [
+    'Hindustani ragas develop slowly from unaccompanied unmetered alap curves over drifting jawari tanpura overtones into rapid metered gat interplay with tabla.',
+    'Mande jeli kora masters pass centuries-old praise lineages (Sundiata, Kaira, Tara) across interlocking cyclical ostinati; Arab taqasim showcase fretless maqam modulation on the oud.',
+  ],
+  traditions: [
+    'In West African Mande society, kora and ngoni knowledge passes hand to hand through jeli lineages in Gambia, Casamance, and Mali; masters like Toumani Diabate brought twenty-one-string polyphony to global concert halls.',
+    'South Asian sitar and sarod lineages (Maihar, Etawah, Senia) distinguish vocalized gayaki ang style from rapid stroked tantrakari virtuosity.',
+  ],
+  sources: [
+    { title: 'Sitar', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Sitar' },
+    { title: 'Kora (instrument)', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Kora_(instrument)' },
+    { title: 'Oud', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Oud' },
+    { title: 'Jawari', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Jawari' },
+  ],
+},
+{
+  id: 'world-bowed-fiddles',
+  name: 'World Bowed Fiddles & Wheel Lyres (Erhu, Sarangi, Kamancheh, Hurdy-Gurdy)',
+  players: ['priya', 'ingrid'],
+  family: 'Bowed & continuously wheel-excited chordophones',
+  physics: [
+    'Whereas Western violins couple bow stick-slip traction through a stiff arched spruce plate, skin-bellied bowed fiddles (erhu, kamancheh, haegeum, masenqo, sarangi) drive an unsupported animal or python skin membrane directly, producing intense vocal-like formants between 1 kHz and 3 kHz.',
+    'On the Chinese erhu and Korean haegeum, horsehair bow hair is threaded permanently between the two vertical strings; pushing and pulling the bamboo stick alternates inner and outer strings with zero fingerboard beneath the stopping fingers.',
+    'The European hurdy-gurdy (viola organista / vielle a roue) replaces back-and-forth bowing with a continuous rosined wooden wheel spun by hand, plus a loose hinged trompette bridge (chien) that chatters rhythmically whenever the player snaps the crank wrist.',
+  ],
+  materials: [
+    'Aged red sandalwood or ebony hexagonal tubes topped with Burmese python belly skin (erhu); carved walnut or mulberry spheres dipped in sheep/sturgeon skin (kamancheh); hollowed single-block tun wood (sarangi); pear/lute wooden bodies with boxwood tangent keys (hurdy-gurdy).',
+    'Unbleached stallion horsehair strung on bamboo, rattan, or pernambuco sticks dusted generously with pine rosin.',
+  ],
+  construction: [
+    'Spike fiddles (kamancheh, rebab, morin khuur) run an iron or hardwood endpin cleanly through the soundbox bottom to anchor player rotation while pivoting the instrument into the stationary bow.',
+    'Scandinavian keyed fiddles (nyckelharpa) and Norwegian Hardanger fiddles mount banks of twelve resonant under-strings beneath carved f-holes and inlaid mother-of-pearl tops.',
+  ],
+  tuning: [
+    'Erhu tunes D4–A4 in pure fifths; sarangi stops three thick gut main strings (using fingernail cuticles rather than fingertip pads!) while thirty-five steel sympathetic wires resonate beneath.',
+    'Hurdy-gurdy sets chanting melody strings (chanterelles) in G/C unison against constant open fifth bourdons and the buzzing trompette.',
+  ],
+  properties: {
+    range: 'Typically two to three octaves, spanning dark baritone horsehair growls (morin khuur, sarangi) up to soprano lament slides (erhu).',
+    size: 'Spike fiddles 65–105 cm tall; keyed nyckelharpa and cranked hurdy-gurdy around 75–85 cm long.',
+    other: [
+      'Air-stopped string technique (no fingerboard press) produces effortless glissandi and microtonal vocal ornamentation.',
+      'Wheel-driven instruments deliver infinite circular sustain paired with wrist-snapped buzz punctuation.',
+    ],
+  },
+  variants: [
+    { name: 'Erhu', where: 'China (Huqin family)', how: 'Two-string vertical spike fiddle with hexagonal body, snakeskin soundboard, and bow hair threaded between the strings.' },
+    { name: 'Sarangi', where: 'North India and Rajasthan', how: 'Fretless carved-wood bowed instrument stopped with fingernail cuticles, packed with three gut melody strings and up to 37 steel sympathetic strings.' },
+    { name: 'Kamancheh', where: 'Iran, Azerbaijan, Armenia', how: 'Spherical spiked fiddle rotated on its iron pin during bowing so the spherical skin meets the horsehair cleanly on any string.' },
+    { name: 'Hurdy-gurdy', where: 'France, Spain, Hungary, Central Europe', how: 'Cranked rosined wheel bows chanterelle and drone strings simultaneously while keyed wooden tangents fret melody notes and the chien bridge buzzes.' },
+    { name: 'Nyckelharpa', where: 'Uppland, Sweden', how: 'Sixteen-string keyed fiddle with sliding wooden tangent keys, four melody/drone bowed strings, and twelve sympathetic under-strings.' },
+  ],
+  music: [
+    "Erhu anchors Jiangnan silk-and-bamboo ensembles and solo masterworks like Hua Yanjun's Erquan Yingyue; Mongolian morin khuur imitates steppe gallops and wind harmonics.",
+    'Indian sarangi historically shadowed classical vocalists line for line before Pandit Ram Narayan established it as a solo raga voice; French Bourbonnais and Galician zanfona traditions drive dance bourrees.',
+  ],
+  traditions: [
+    'Because players press strings in free air against finger pads or cuticles rather than wooden ebony, intonation directly mirrors vocal micro-ornaments (gamak, hua yin, tahrir).',
+    'European hurdy-gurdy guilds evolved from giant two-player medieval church organistrums to nimble folk street instruments.',
+  ],
+  sources: [
+    { title: 'Erhu', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Erhu' },
+    { title: 'Sarangi', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Sarangi' },
+    { title: 'Kamancheh', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Kamancheh' },
+    { title: 'Hurdy-gurdy', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Hurdy-gurdy' },
+  ],
+},
+{
+  id: 'world-zithers-dulcimers',
+  name: 'Board Zithers & Hammered Dulcimers (Guzheng, Koto, Santur, Cimbalom)',
+  players: ['theo', 'rosa'],
+  family: 'Board zithers, movable-bridge harps & struck dulcimers',
+  physics: [
+    'Long East Asian board zithers (guzheng, koto, gayageum) rest strings over individual tall movable chess-piece wooden bridges sitting along a curved hollow paulownia soundbox; each pluck excites both longitudinal string stretch and flex of the thin arched belly.',
+    'Pressing the string softly on the non-speaking left side of each bridge dynamically lifts tension and pitch, giving players expressive microtonal bends, shivering vibrato, and cascading harp glissandi.',
+    'Hammered dulcimers (Persian santur, Chinese yangqin, Kashmiri santoor, Hungarian cimbalom) split multi-string bronze or steel courses across alternating chess-piece or bar bridges so light carved mallets bounce back rapidly at high speeds.',
+  ],
+  materials: [
+    'Quarter-sawn Japanese kiri / Chinese paulownia tops (soft low-density timber with high radiation ratio) backed by harder walnut, rosewood, or redwood rails; bronze, steel, nylon-wrapped silk, or brass music wire.',
+    'Lightweight carved walnut/maple mezrab beaters (santur), bamboo-with-rubber beaters (yangqin), and tortoiseshell/ivory/horn finger picks (guzheng/koto tsume).',
+  ],
+  construction: [
+    'A Japanese koto uses thirteen equal-length taut silk or tetoron cords elevated by carved ji bridges; moving the ji left or right shifts tuning between hirajoshi, kumoi, and akebono modes.',
+    "Josef Schunda's 1874 Budapest concert cimbalom enclosed four chromatic octaves of triple/quadruple steel courses inside a braced cast-frame table with a piano-style foot damper pedal.",
+  ],
+  tuning: [
+    'East Asian zithers commonly tune pentatonic anhemitonic scales across twenty-one (guzheng) or thirteen (koto) strings with left-hand pressing adding semitone and quarter-tone inflections.',
+    'Persian santur arranges nine treble bronze courses and nine bass brass courses tuned in fourths and octaves for rapid maqam/dastgah modulation.',
+  ],
+  properties: {
+    range: 'Two to four octaves; cimbalom spans E2–A6 chromatically, guzheng spans four pentatonic octaves (D2–D6).',
+    size: '160–190 cm long for concert koto/guzheng; 90 cm portable trapezoidal santur to 140 cm table cimbalom.',
+    other: [
+      'Moving individual bridges transposes scales acoustically without touching tuning pegs.',
+      'Rebounding mallets create shimmering tremolos akin to pianissimo clouds.',
+    ],
+  },
+  variants: [
+    { name: 'Guzheng', where: 'China', how: 'Twenty-one-string arched paulownia zither plucked with right-hand finger picks while the left hand bends pitch left of the bridges.' },
+    { name: 'Koto', where: 'Japan', how: 'Thirteen-string silk/synthetic board zither with movable ivory/plastic ji bridges, central to court sokyoku and modern koto music.' },
+    { name: 'Santur', where: 'Iran and Kashmir', how: 'Seventy-two-string trapezoidal walnut hammered dulcimer struck with feathered light mezrab wooden mallets over two banks of bridges.' },
+    { name: 'Cimbalom', where: 'Hungary, Romania, Central Europe', how: 'Large chromatic leg-mounted concert dulcimer with damping pedal, central to Bartok, Kodaly, Liszt, and klezmer/Roma ensembles.' },
+    { name: 'Yangqin', where: 'China', how: 'Multi-course butterfly/trapezoid dulcimer played with springy bamboo hammers.' },
+  ],
+  music: [
+    "Chinese guzheng solos depict Flowing Water (Gao Shan Liu Shui) and Yu Zhou Chang Wan; Japanese koto master Yatsuhashi Kengyo formalized Rokudan no Shirabe in the 17th century.",
+    'Persian santur anchors classical radif improvisation (Faramarz Payvar), while cimbalom bridges Gypsy conservatory virtuosity and 20th-century scores by Stravinsky and Kodaly.',
+  ],
+  traditions: [
+    'Unlike fixed frets, movable bridges let players transpose entire scale modes silently in seconds between pieces.',
+    'Struck dulcimers from Persia spread eastward along the Silk Road to become the Chinese yangqin and westward into the hammered dulcimer and cimbalom — and even inspired Pantaleon Hebenstreit before Cristofori invented the piano.',
+  ],
+  sources: [
+    { title: 'Guzheng', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Guzheng' },
+    { title: 'Koto (instrument)', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Koto_(instrument)' },
+    { title: 'Santur', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Santur' },
+    { title: 'Cimbalom', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Cimbalom' },
+  ],
+},
+{
+  id: 'sampler',
+  name: 'Multi-Zone Samplers, Tape Keyboards & SoundFont Archives',
+  players: ['elena', 'nova'],
+  family: 'Electro-mechanical & digital sample-playback instruments',
+  physics: [
+    'Before digital memory, the 1963 Mellotron pulled separate eight-second magnetic tape ribbons per key across dedicated playback heads whenever you pressed a note — so holding a chord beyond eight seconds literally hit the physical tape stop.',
+    'Digital multi-zone sampling (Fairlight CMI, E-mu Emulator, Akai MPC, SoundFont .sf2 & SFZ) captures arrays of audio recordings mapped across key ranges (pitch transpose bounds) and velocity layers (soft finger vs fortissimo hammer), interpolating pitch and looping sustain tails seamlessly.',
+  ],
+  materials: [
+    'Magnetic ferric-oxide tape loops and brass capstans (Mellotron), 8-bit/12-bit DACs (Emulator/MPC60), or 24-bit floating-point PCM memory routed through sculpted zero-delay ladder filters and ADSR amplitude shapers.',
+  ],
+  construction: [
+    'SoundFont (.sf2/.sf3) and SFZ open specifications pack multi-sample instruments with split key zones, loop start/end crossfades, release triggers, and velocity switches so choirs, orchestras, and found field recordings respond musically across all 88 keys.',
+  ],
+  tuning: [
+    'Each zone anchors a root MIDI pitch and cent fine-tune; pitching a single string or horn sample far up or down creates the beloved unnatural chipmunk/halftime formant shift of early hip-hop and jungle.',
+  ],
+  properties: {
+    range: 'Full 128-MIDI-note split-zone architecture with arbitrary round-robin or velocity switching.',
+    size: 'Software multisamplers replace refrigerator-sized Fairlight and Mellotron racks with instant drag-and-drop sample maps.',
+    other: [
+      'Looping sustain segments decouple physical sample length from sustained chord holds.',
+      'Chopping drum breaks across pads lets producers replay live human pocket bar by bar.',
+    ],
+  },
+  variants: [
+    { name: 'Mellotron M400', where: 'Birmingham, England (1963 onward)', how: 'Analog polyphonic tape-replay keyboard holding 35 parallel strips of pre-recorded flute, choir, and strings.' },
+    { name: 'Fairlight CMI', where: 'Sydney, Australia (1979)', how: 'The first commercial polyphonic digital sampler and Page R workstation, known for iconic orchestra hits and breathy sararr voices.' },
+    { name: 'Akai MPC60 & MPC3000', where: 'Japan / US (Roger Linn design, 1988)', how: 'Twelve-bit/16-bit phrase sampler marrying sixteen velocity-sensitive rubber pads to swing-quantized groove sequencing.' },
+    { name: 'SoundFont (.sf2) & SFZ', where: 'Open digital standards (1990s–present)', how: 'Cross-platform zone mapping formats holding multi-layered acoustic ensembles and field recordings.' },
+  ],
+  music: [
+    'From Beatles ("Strawberry Fields Forever" Mellotron flute) and King Crimson to boom-bap hip-hop crate-digging (J Dilla, DJ Premier) and modern orchestral mockups.',
+  ],
+  traditions: [
+    'Chopping acoustic vinyl drum breaks onto 16 pads transformed the turntable and tape splicer into a playable percussive ensemble instrument.',
+  ],
+  sources: [
+    { title: 'Sampler (musical instrument)', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Sampler_(musical_instrument)' },
+    { title: 'Mellotron', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Mellotron' },
+    { title: 'SoundFont', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/SoundFont' },
+  ],
+},
+{
+  id: 'spectral-ensemble',
+  name: 'Spectral & Overtone Voices (VELA, CANTUS, ISON, PNEUMA)',
+  players: ['elena', 'felix', 'ingrid'],
+  family: 'Additive modal resynthesis, vocal overtone & continuous drone engines',
+  physics: [
+    'Fourier and Jean-Claude Risset additive resynthesis sums harmonic or stiff inharmonic sine partials individually. Tuning partial decay tilt and stiffness transforms a warm cello string spectrum cleanly into a struck Tibetan bowl or crystal glass.',
+    'Human overtone singing (CANTUS, modeled on Tuvan khoomei and Tibetan chanting) locks two independent vocal-tract formants (F1/F2) fiercely around one high harmonic over a low fundamental drone, letting listeners hear a flute-like whistling second melody rise out of one voice.',
+    'Continuous Byzantine ison (ISON) and pneumatic air models (PNEUMA) suppress percussive attacks completely so room standing waves and slow phase beating drive harmonic tension.',
+  ],
+  materials: [
+    'Pure mathematical sinusoidal banks paired with formant bandpass resonators (vowel cavities), pink breath noise exciters, and subtle inharmonic stiffness dispersion.',
+  ],
+  construction: [
+    "Built along Chora's unified additive spectral engine: up to dozens of coherent partials whose amplitude, damping slope, detune spread, and stereo shimmer shift continuously in real time.",
+  ],
+  tuning: [
+    'Pure integer harmonic series favor beatless just-intonation fifths and octaves for choir/ison stillness; raising stiffness B stretches partials sharp into singing metal bells and glass armonicas.',
+  ],
+  properties: {
+    range: 'Sub-bass pedal drones (C1) to pure harmonic whistle partials above 8 kHz.',
+    size: 'Software spectral synthesis architecture.',
+    other: [
+      'Exciting partial position shifts odd vs even harmonic emphasis just like plucking/bowing distance from a bridge.',
+      'Zero attack transient clicks preserves calm spatial headroom.',
+    ],
+  },
+  variants: [
+    { name: 'VELA Modal Body', where: 'Additive & spectral music synthesis', how: 'Continuous partials spanning warm bowed spruce bodies, tuned struck bars, and glistening spectral frost.' },
+    { name: 'Tuvan Khoomei & Cantus Overtone Choir', where: 'Tuva, Mongolia & liturgical vocal tradition', how: 'Fundamental vocal drone shaped through tight vowel cavities so individual upper harmonics sing clearly above.' },
+    { name: 'Byzantine & Orthodox Ison Drone', where: 'Eastern Mediterranean sacred chant', how: 'Unbroken modal tonic or fifth vocal floor framing florid microtonal melodies above.' },
+    { name: 'PNEUMA Breath Model', where: 'Flute & air-column physics', how: 'Breath-turbulence excitation feeding pure odd and soft even partials with zero percussive pluck.' },
+  ],
+  music: [
+    "IRCAM spectral composers (Gerard Grisey, Tristan Murail), Pauline Oliveros's Deep Listening accordion/drone works, Arvo Part's tintinnabuli choral clarity, and central Asian throat singing.",
+  ],
+  traditions: [
+    'Hearing one overtone detach cleanly from a steady fundamental takes focus — both a meditative listening practice and an ancient sacred singing discipline.',
+  ],
+  sources: [
+    { title: 'Additive synthesis', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Additive_synthesis' },
+    { title: 'Overtone singing', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Overtone_singing' },
+    { title: 'Spectral music', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Spectral_music' },
+  ],
+}];
 
 /** Words people use when they ask about each kind of lore. */
 const ASK = {

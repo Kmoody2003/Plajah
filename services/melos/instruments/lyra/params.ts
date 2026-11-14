@@ -1,5 +1,5 @@
 // LYRA parameter ids — the TypeScript mirror of the block-1900 constants in
-// rust/plajah-audio/src/params.rs (LY_*). Keep the two in lockstep; DSP_ABI_VERSION (15) in
+// rust/plajah-audio/src/params.rs (LY_*). Keep the two in lockstep; DSP_ABI_VERSION (20) in
 // InstrumentHost guards against a stale .wasm.
 
 import { P as ONDA_P } from '../onda/params';
@@ -46,6 +46,10 @@ export const LY = {
   CHORUS: 1933,
   ECHO: 1934,
   ECHO_TIME: 1935,
+  // Heritage acoustics & handmade craft modeling (ABI 20).
+  HERITAGE_AGE: 1936,
+  CRAFT_CHARACTER: 1937,
+  SYMPATHETIC: 1938,
 } as const;
 
 export type LyraModel = 'guitar' | 'piano' | 'violin' | 'sax' | 'trumpet' | 'tine' | 'flute' | 'clarinet' | 'reed' | 'brass' | 'pluck';
@@ -65,7 +69,7 @@ export const LYRA_VARIANTS: Record<LyraModel, string[]> = {
   violin: ['Violin', 'Viola', 'Cello', 'Double bass', 'String quartet (by register)'],
   sax: ['Alto', 'Tenor'],
   trumpet: ['Open', 'Cup mute', 'Harmon mute', 'Straight mute'],
-  tine: ['Stage tine piano'],
+  tine: ['Stage tine piano', 'Reed electric piano', 'Dyno crystalline tine'],
   flute: ['Concert flute', 'Piccolo', 'Alto flute', 'Tin whistle'],
   clarinet: ['B♭ clarinet', 'Bass clarinet'],
   reed: ['Oboe', 'English horn', 'Bassoon'],
@@ -75,7 +79,7 @@ export const LYRA_VARIANTS: Record<LyraModel, string[]> = {
 
 /** The electric guitar's selector positions (single coils / humbuckers), amps and cabs. */
 export const LYRA_PICKUPS_SINGLE = ['Neck', 'Neck + middle', 'Middle', 'Middle + bridge', 'Bridge'];
-export const LYRA_PICKUPS_HUMBUCKER = ['Neck', 'Neck', 'Both', 'Bridge', 'Bridge'];
+export const LYRA_PICKUPS_HUMBUCKER = ['Neck', 'Neck (Inner)', 'Both', 'Bridge (Inner)', 'Bridge'];
 export const LYRA_AMPS = ['American clean', 'British crunch', 'Chime (class A)', 'Modern high gain'];
 export const LYRA_CABS = ['1×12 open back', '2×12 alnico', '4×12 closed back', '1×10 small combo'];
 /** Params that hold an index, not a 0..1 amount. */
@@ -105,6 +109,9 @@ export const LYRA_PARAM_META: LyraParamMeta[] = [
   { id: LY.BODY_SIZE, label: 'Body size', hint: 'A bigger body moves its resonances lower.', group: 'body' },
   { id: LY.DETUNE, label: 'Unison detune', hint: 'Piano strings in a unison are a hair apart — the beating gives the two-stage decay.', models: ['piano'], group: 'body' },
   { id: LY.WIDTH, label: 'Stereo width', hint: 'Spread notes across the stereo field like sitting at the keyboard (or the harp).', models: ['piano', 'tine', 'pluck'], group: 'body' },
+  { id: LY.HERITAGE_AGE, label: 'Heritage age', hint: 'Seasoned spruce/maple hemicellulose aging (Cremonese Bridge-Hill bloom), aged wool-felt hammer memory, or vintage Alnico magnet & paper-in-oil cap patina.', group: 'body' },
+  { id: LY.CRAFT_CHARACTER, label: 'Craft character', hint: 'Handmade luthier micro-asymmetries: dual-polarization bridge coupling, Smith-Woodhouse thermal rosin grip, hand-hammered bore & vintage pole-piece flux.', group: 'body' },
+  { id: LY.SYMPATHETIC, label: 'Sympathetic resonance', hint: 'Undamped open-string harp / duplex-scale resonance and Bank-Sujbert longitudinal compression-wave phantom partials.', models: ['guitar', 'piano', 'violin', 'tine', 'pluck'], group: 'body' },
   { id: LY.PEDAL, label: 'Sustain pedal', hint: 'Dampers up: notes keep ringing after you let go.', models: ['piano', 'tine'], group: 'expression' },
   { id: LY.VIB_DEPTH, label: 'Vibrato', hint: 'Depth of the player\'s vibrato (the mod wheel adds more).', models: ['violin', 'sax', 'trumpet', 'flute', 'clarinet', 'reed', 'brass'], group: 'expression' },
   { id: LY.VIB_RATE, label: 'Vibrato rate', hint: '3 to 8 wobbles a second.', models: ['violin', 'sax', 'trumpet', 'flute', 'clarinet', 'reed', 'brass'], group: 'expression' },
@@ -168,6 +175,9 @@ export const LYRA_DEFAULTS: Readonly<Record<number, number>> = Object.freeze({
   [LY.CHORUS]: 0,
   [LY.ECHO]: 0,
   [LY.ECHO_TIME]: 0.4,
+  [LY.HERITAGE_AGE]: 0.25,
+  [LY.CRAFT_CHARACTER]: 0.22,
+  [LY.SYMPATHETIC]: 0.25,
   [RV.MIX]: 0.12,
   [RV.SIZE]: 0.5,
   [RV.DECAY]: 0.45,

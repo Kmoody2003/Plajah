@@ -83,21 +83,37 @@ impl BankMode {
 /// It is the single cheapest way out of "everything sounds like a bell", because it costs one
 /// multiply per partial at build time and nothing at all per sample.
 #[inline]
-fn formant_gain(freq: f32, shift: f32, amount: f32) -> f32 {
+fn formant_gain(freq: f32, shift: f32, amount: f32, mat: Material) -> f32 {
     if amount <= 0.001 {
         return 1.0;
     }
-    // Shift sweeps the triple roughly /u/ -> /o/ -> /a/ -> /e/.
-    let k = 0.55 + shift * 1.1;
-    let peaks = [(300.0 * k, 90.0), (1100.0 * k, 150.0), (2600.0 * k, 260.0)];
-    let weights = [1.0, 0.72, 0.42];
+    let s = shift.clamp(0.0, 1.0);
+    let k = 0.55 + s * 1.1;
+    let (peaks, weights): ([(f32, f32); 3], [f32; 3]) = match mat {
+        // Vocal tract morphs across real vowel regions (/u/ -> /o/ -> /a/ -> /e/ -> /i/).
+        Material::Voice => {
+            let f1 = if s < 0.5 {
+                300.0 + (s * 2.0) * 420.0
+            } else {
+                720.0 - ((s - 0.5) * 2.0) * 410.0
+            };
+            let f2 = 780.0 + s * 1580.0;
+            let f3 = 2350.0 + s * 700.0;
+            ([(f1, 85.0), (f2, 145.0), (f3, 245.0)], [1.0, 0.78, 0.44])
+        }
+        Material::Glass => ([(520.0 * k, 110.0), (1680.0 * k, 210.0), (3900.0 * k, 380.0)], [0.56, 1.0, 0.86]),
+        Material::Iron => ([(165.0 * k, 65.0), (610.0 * k, 130.0), (1840.0 * k, 220.0)], [1.0, 0.76, 0.52]),
+        Material::Wood => ([(210.0 * k, 72.0), (720.0 * k, 130.0), (1480.0 * k, 180.0)], [1.0, 0.90, 0.32]),
+        Material::Skin => ([(115.0 * k, 55.0), (380.0 * k, 105.0), (940.0 * k, 175.0)], [1.0, 0.68, 0.24]),
+        Material::Air => ([(260.0 * k, 95.0), (1240.0 * k, 195.0), (3150.0 * k, 340.0)], [0.65, 1.0, 0.68]),
+        Material::Bronze => ([(280.0 * k, 85.0), (920.0 * k, 145.0), (2350.0 * k, 240.0)], [0.84, 1.0, 0.58]),
+    };
     let mut sum = 0.0;
     for (i, (fc, bw)) in peaks.iter().enumerate() {
         let d = (freq - fc) / bw;
         sum += weights[i] / (1.0 + d * d);
     }
-    // Floor so partials between the formants thin out rather than vanish — a fully notched
-    // spectrum sounds synthetic and loses the body underneath.
+    // Floor so partials between the formants thin out rather than vanish.
     let shaped = (sum.min(1.6) / 1.6).max(0.12);
     1.0 - amount + amount * shaped
 }
@@ -370,6 +386,7 @@ pub struct ModalBank {
     note_samples: usize,
     retune_ctl: usize,
     vib_phase: f32,
+    spec_dirty: bool,
 }
 
 impl ModalBank {
@@ -418,6 +435,7 @@ impl ModalBank {
             note_samples: 0,
             retune_ctl: 0,
             vib_phase: 0.0,
+            spec_dirty: false,
         }
     }
 
@@ -454,6 +472,42 @@ impl ModalBank {
         self.retune_ctl = 0;
         self.build(0.0);
         self.arm_bloom(s.bloom, sr);
+        self.spec_dirty = false;
+    }
+
+    #[inline]
+    pub fn update_spec(&mut self, s: &ModalSpec) {
+        let keep_count = self.spec.count;
+        let cur = &self.spec;
+        let changed = (s.f0 - cur.f0).abs() > 1e-4
+            || (s.inharm - cur.inharm).abs() > 1e-5
+            || (s.spread - cur.spread).abs() > 1e-5
+            || (s.decay - cur.decay).abs() > 1e-4
+            || (s.decay_tilt - cur.decay_tilt).abs() > 1e-5
+            || s.material != cur.material
+            || (s.anima - cur.anima).abs() > 1e-5
+            || (s.beat - cur.beat).abs() > 1e-5
+            || (s.beat_rate - cur.beat_rate).abs() > 1e-4
+            || (s.position - cur.position).abs() > 1e-5
+            || (s.keytrack - cur.keytrack).abs() > 1e-5
+            || (s.morph - cur.morph).abs() > 1e-5
+            || (s.morph_time - cur.morph_time).abs() > 1e-4
+            || s.mode != cur.mode
+            || (s.formant - cur.formant).abs() > 1e-5
+            || (s.formant_shift - cur.formant_shift).abs() > 1e-5
+            || (s.bloom - cur.bloom).abs() > 1e-5
+            || (s.spotlight - cur.spotlight).abs() > 1e-5
+            || (s.spotlight_pos - cur.spotlight_pos).abs() > 1e-5
+            || (s.spotlight_width - cur.spotlight_width).abs() > 1e-5
+            || (s.vibrato - cur.vibrato).abs() > 1e-5
+            || (s.vibrato_rate - cur.vibrato_rate).abs() > 1e-4
+            || (s.subharm - cur.subharm).abs() > 1e-5;
+        if changed {
+            self.spec = *s;
+            self.spec.count = keep_count;
+            self.spec_dirty = true;
+        }
+
     }
 
     /// Re-derive the partial layout at a given point in the note's morph, 0..1.
@@ -563,7 +617,7 @@ impl ModalBank {
 
             // Formants shape the amplitudes in BOTH modes — a struck body with a throat is
             // exactly as useful as a sung one.
-            let amp = amp * formant_gain(freq, s.formant_shift, s.formant);
+            let amp = amp * formant_gain(freq, s.formant_shift, s.formant, s.material);
 
             // The spotlight lifts its partial toward the FUNDAMENTAL'S level rather than
             // multiplying by a fixed factor.
@@ -688,6 +742,12 @@ impl ModalBank {
     /// Drive the bank with one sample of excitation and return the summed output.
     #[inline]
     pub fn process(&mut self, x: f32) -> f32 {
+        self.process_coupled(x, false)
+    }
+
+    /// Drive the bank with optional continuous breath-resonator coupling in Sustained mode (PNEUMA).
+    #[inline]
+    pub fn process_coupled(&mut self, x: f32, blow_coupled: bool) -> f32 {
         // Age the note and re-derive the body as it goes.
         self.note_samples += 1;
         if self.spec.vibrato > 0.0005 {
@@ -696,10 +756,11 @@ impl ModalBank {
                 self.vib_phase -= 1.0;
             }
         }
-        if self.spec.morph.abs() > 0.001 || self.spec.vibrato > 0.0005 {
+        if self.spec_dirty || self.spec.morph.abs() > 0.001 || self.spec.vibrato > 0.0005 {
             self.retune_ctl += 1;
             if self.retune_ctl >= RETUNE {
                 self.retune_ctl = 0;
+                self.spec_dirty = false;
                 let secs = self.note_samples as f32 / self.sr;
                 // Eased, so the change is fastest in the middle of the journey and settles at
                 // each end rather than stopping dead.
@@ -716,30 +777,44 @@ impl ModalBank {
             self.ctl = 0;
         }
         let mode = self.spec.mode;
+        // Sustained winds (PNEUMA Air/bamboo) need continuous breath turbulence filtered through
+        // the tuned column resonators rather than discarding exciter noise; voices keep only a
+        // subtle glottal aspiration halo so overtone spotlights remain crisp.
+        let (sust_res_w, sust_osc_w) = if blow_coupled {
+            if self.spec.material == Material::Air {
+                (0.78, 0.55)
+            } else if matches!(self.spec.material, Material::Wood | Material::Skin) && self.count <= 24 {
+                (0.62, 0.68)
+            } else {
+                (0.55, 0.72)
+            }
+        } else if matches!(self.spec.material, Material::Glass | Material::Iron | Material::Bronze) {
+            (0.14, 1.0)
+        } else {
+            (0.0, 1.0)
+        };
         let mut sum = 0.0;
         for k in 0..self.count {
             self.gain[k] += self.gain_step[k];
             let g = self.gain[k];
 
-            // The gain rides the OUTPUT, so it modulates the sound itself rather than the
-            // excitation — the partials breathe while the note is sounding.
             if mode != BankMode::Sustained {
                 sum += self.res[k].process(x) * g;
+            } else if sust_res_w > 0.0 {
+                // Keep resonator bank coupled when blown breath (PNEUMA) or glassy/metallic body
+                // is active; leave vocal/overtone banks pure so spotlight isolation stays razor-sharp.
+                sum += self.res[k].process(x) * g * sust_res_w;
             }
             if mode != BankMode::Struck {
-                // Coupled-form quadrature oscillator. `s` is the sine output.
+                // Coupled-form quadrature oscillator. s is the sine output.
                 self.osc_s[k] += self.osc_eps[k] * self.osc_c[k];
                 self.osc_c[k] -= self.osc_eps[k] * self.osc_s[k];
                 if self.osc_env[k] < 1.0 {
                     self.osc_env[k] = (self.osc_env[k] + self.osc_env_inc[k]).min(1.0);
                 }
                 let e = self.osc_env[k];
-                // OSC_GAIN because the two paths do not have comparable output for the same
-                // amplitude. A resonator is DRIVEN continuously and integrates its input by
-                // roughly its own Q, while an oscillator just puts out the amplitude it was
-                // given — so the sung bank arrived about 25x under the struck one on identical
-                // partial amplitudes, which reads as the mode being broken rather than quiet.
-                sum += self.osc_s[k] * self.osc_amp[k] * g * (e * e * (3.0 - 2.0 * e)) * OSC_GAIN;
+                let ow = if mode == BankMode::Sustained { sust_osc_w } else { 1.0 };
+                sum += self.osc_s[k] * self.osc_amp[k] * g * (e * e * (3.0 - 2.0 * e)) * OSC_GAIN * ow;
             }
         }
         // Blend sums two full banks, so halve it rather than letting the mode change the level.

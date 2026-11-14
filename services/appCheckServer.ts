@@ -119,6 +119,7 @@ export const APPCHECK_STRICT_PREFIXES = [
   '/api/ai/',
   '/api/character/chat',
   '/api/band/teach',
+  '/api/band/research',
   '/api/push',
   '/api/email/',
   '/api/social-import/',

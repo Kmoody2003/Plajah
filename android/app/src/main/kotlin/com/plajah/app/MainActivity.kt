@@ -48,6 +48,8 @@ class MainActivity : BridgeActivity() {
             mime.startsWith("image/") -> "IMAGE"
             mime.startsWith("video/") -> "VIDEO"
             mime.startsWith("audio/") -> "AUDIO"
+            mime == "application/zip" || mime == "application/x-zip-compressed" -> "ARCHIVE"
+            mime == "application/pdf" || mime.startsWith("text/") || mime == "application/json" -> "DOC"
             else -> return null
         }
         var name = uri.lastPathSegment?.substringAfterLast('/') ?: "file"

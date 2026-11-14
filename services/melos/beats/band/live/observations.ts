@@ -47,8 +47,10 @@ export class SomaLens implements Lens {
   private preset: { id: string; name: string; at: number } | null = null;
   private opened: number | null = null;
 
+  constructor(protected readonly instrument: string = 'soma') {}
+
   feed(e: LiveEvent): void {
-    if (e.instrument !== 'soma') return;
+    if (e.instrument !== this.instrument) return;
     if (e.kind === 'strike') {
       this.hits.push({ at: e.at, v: e.velocity, zone: somaZone(e.pos, e.striker) });
       this.totalHits++;
@@ -133,7 +135,7 @@ export class SomaLens implements Lens {
   summary(at: number): string {
     const hs = this.recent(at);
     const parts: string[] = [];
-    if (this.preset) parts.push(`SOMA preset "${this.preset.name}"`);
+    if (this.preset) parts.push(`${this.instrument.toUpperCase()} preset "${this.preset.name}"`);
     if (hs.length) {
       const counts = new Map<SomaZone, number>();
       for (const h of hs) counts.set(h.zone, (counts.get(h.zone) ?? 0) + 1);
@@ -147,4 +149,8 @@ export class SomaLens implements Lens {
   }
 
   reset(): void { this.hits = []; this.params = []; this.totalHits = 0; this.preset = null; this.opened = null; this.lastActivity = -Infinity; }
+}
+
+export class KitLens extends SomaLens {
+  constructor() { super('kit'); }
 }

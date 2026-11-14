@@ -54,6 +54,18 @@ class WebSpeechProvider implements VoiceProvider {
 
   async available() { return webSpeechSupported(); }
 
+  /** Call inside a user click gesture so browsers keep speechSynthesis unlocked for delayed replies. */
+  prime() {
+    try {
+      const synth = getSynth();
+      if (!synth || typeof SpeechSynthesisUtterance === 'undefined') return;
+      if (synth.paused) synth.resume();
+      const u = new SpeechSynthesisUtterance('');
+      u.volume = 0;
+      synth.speak(u);
+    } catch { /* ignore */ }
+  }
+
   cancel() {
     for (const r of this.runs) { r.cancelled = true; r.finish?.(); }
     try { getSynth()?.cancel(); } catch { /* nothing speaking */ }
@@ -114,7 +126,10 @@ class WebSpeechProvider implements VoiceProvider {
       };
       probe = setTimeout(() => {}, 0);
       const safety = setTimeout(finish, Math.min(estDur * 1.2 + 2500, 40000));   // Chrome sometimes never fires `end`
-      try { c.synth.speak(u); } catch { finish(); }
+      try {
+        if (c.synth.paused) c.synth.resume();
+        c.synth.speak(u);
+      } catch { finish(); }
     });
   }
 }

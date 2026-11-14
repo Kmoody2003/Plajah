@@ -1,7 +1,7 @@
 // AURA — the full 1960s/1970s hardware editor. The Play panel's "Open Editor" leads here.
 //
 // Six hardware sections in signal flow order:
-//   1. VCO Bank I · II · III (plus Vintage Hardware Wave Bank selectors for VCO 1 & VCO 2)
+//   1. VCO Bank I · II · III (plus Vintage Hardware Wave Bank selectors for VCO 1, 2 & 3)
 //   2. Cross-Mod & Vintage Aura (Hard Sync, Cross-Mod Pitch/Filter, Ring Mod, Voice-Card Trim & Preamp)
 //   3. Dual Vintage Filters (24dB Moog Transistor Ladder + 12dB Oberheim SEM State-Variable)
 //   4. Contour Generators & LFOs (Amp ADSR, Filter ADSR, Mod Env, LFO 1 & 2)
@@ -17,8 +17,9 @@ import {
   deserializeAuraPatch, applyAuraPatch, auraEngineParams, AURA_EDITOR_GROUPS,
   type AuraPatch, type AuraArpConfig,
 } from '../../../../services/melos/instruments/aura/patch';
+import { expandAuraMacros } from '../../../../services/melos/instruments/aura/presets';
 import {
-  AURA_PARAM_META, formatAuraParam, auraDefault, A, P, O, osc,
+  AURA_PARAM_META, formatAuraParam, auraDefault, A, P, O, F, flt, osc,
 } from '../../../../services/melos/instruments/aura/params';
 import { AURA_WAVETABLES } from '../../../../services/melos/instruments/aura/wavetables';
 import { Knob } from '../shared/Knob';
@@ -37,34 +38,50 @@ const SEQ_PATTERNS: { name: string; mode: AuraArpConfig['mode']; rate: AuraArpCo
   { name: 'Moroder Octave', mode: 'octave', rate: '1/16', steps: [0, 0, 12, 12, 0, 0, 12, 12] },
   { name: 'Synthi AKS', mode: 'seq', rate: '1/16', steps: [0, 7, 12, 3, 10, 5, 15, -5] },
   { name: 'Düsseldorf Robot', mode: 'seq', rate: '1/16', steps: [0, 12, 0, 10, 0, 7, -2, 5] },
-  { name: 'Fifths Cascade', mode: 'upDown', rate: '1/16', steps: [0, 7, 12, 19, 24, 19, 12, 7] },
+  { name: 'Fifths Cascade', mode: 'seq', rate: '1/16', steps: [0, 7, 12, 19, 24, 19, 12, 7] },
 ];
 
 export const AuraEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
   // Deliberately not memoised — the GrooveDoc mutates in place.
   const patch: AuraPatch | null = deserializeAuraPatch(track.instrument?.patch);
+  const expanded = patch ? expandAuraMacros(patch.params, patch.macros) : null;
 
-  const val = (id: number, fallback: number) => patch?.params?.[id] ?? fallback;
+  const val = (id: number, fallback: number) => expanded?.[id] ?? patch?.params?.[id] ?? fallback;
 
   const setParam = useCallback((id: number, value: number) => {
     BeatsEngine.get().getInstrument(track.id)?.setParam(id, value);
-    onMutate((d) => {
-      const t = d.arrangement.find((x) => x.id === track.id);
-      const p = t?.instrument?.patch as { params?: Record<string, number> } | undefined;
-      if (!p) return;
-      if (!p.params) p.params = {};
-      p.params[String(id)] = value;
-    });
-  }, [onMutate, track.id]);
-
-  const setWaveTable = useCallback((slot: 0 | 1, tableId: string) => {
     onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === track.id);
       const raw = t?.instrument?.patch as Record<string, unknown> | undefined;
       if (!raw) return;
       const next = deserializeAuraPatch(raw);
       if (!next) return;
-      next.tables = [next.tables[0] || '', next.tables[1] || ''];
+      const clamp = (v: number, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, v));
+      // Inverse macro delta so what the user dials in the editor survives macro reloads identically.
+      let baseVal = value;
+      if (id === A.WARMTH) baseVal = clamp(value - (next.macros.warmth - 0.35) * 0.85);
+      else if (id === flt(0, F.DRIVE)) baseVal = clamp(value - (next.macros.warmth - 0.35) * 0.85 * 0.65);
+      else if (id === A.TAPE_SAT) baseVal = clamp(value - (next.macros.warmth - 0.35) * 0.85 * 0.55);
+      else if (id === flt(0, F.CUTOFF)) baseVal = clamp(value - (next.macros.cutoff - 0.5) * 0.65, 0.03, 0.99);
+      else if (id === flt(1, F.CUTOFF) && (next.params[flt(1, F.ENABLE)] ?? 0) > 0.5) {
+        baseVal = clamp(value - (next.macros.cutoff - 0.5) * 0.65 * 0.5, 0.03, 0.99);
+      } else if (id === flt(0, F.RES)) baseVal = clamp(value - (next.macros.resonance - 0.3) * 0.75, 0, 0.96);
+      else if (id === A.AURA) baseVal = clamp(value - (next.macros.aura - 0.35) * 0.85);
+      else if (id === P.ANALOG_DRIFT) baseVal = clamp(value - (next.macros.aura - 0.35) * 0.85 * 0.7);
+
+      if (!raw.params || typeof raw.params !== 'object') raw.params = {};
+      (raw.params as Record<string, number>)[String(id)] = baseVal;
+    });
+  }, [onMutate, track.id]);
+
+  const setWaveTable = useCallback((slot: 0 | 1 | 2, tableId: string) => {
+    onMutate((d) => {
+      const t = d.arrangement.find((x) => x.id === track.id);
+      const raw = t?.instrument?.patch as Record<string, unknown> | undefined;
+      if (!raw) return;
+      const next = deserializeAuraPatch(raw);
+      if (!next) return;
+      next.tables = [next.tables[0] || '', next.tables[1] || '', next.tables[2] || ''];
       next.tables[slot] = tableId;
       // Mode 0 = Wavetable, Mode 1 = Pure Analog VCO
       next.params[osc(slot, O.MODE)] = tableId ? 0 : 1;
@@ -193,7 +210,7 @@ export const AuraEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
       <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-3 [&>*]:shrink-0">
         {/* Vintage Hardware Wave Bank & Voice Architecture Strip */}
         <section
-          className="rounded-[14px] border border-[#E59A38]/20 p-3 flex flex-wrap items-center gap-4"
+          className="rounded-[14px] border border-[#E59A38]/20 p-3 flex flex-wrap items-center gap-3"
           style={{ background: 'linear-gradient(180deg, rgba(229,154,56,0.06), rgba(255,255,255,0.015))' }}
         >
           <div className="flex items-center gap-2">
@@ -203,13 +220,13 @@ export const AuraEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
             </span>
           </div>
 
-          {([0, 1] as const).map((slot) => (
-            <label key={slot} className="flex items-center gap-2 text-[10.5px] text-white/65">
-              <span className="font-mono text-[9.5px] uppercase text-white/40">VCO {slot + 1} ROM/Tape:</span>
+          {([0, 1, 2] as const).map((slot) => (
+            <label key={slot} className="flex items-center gap-1.5 text-[10.5px] text-white/65">
+              <span className="font-mono text-[9.5px] uppercase text-white/40">VCO {slot + 1}:</span>
               <select
                 value={patch.tables[slot] || ''}
                 onChange={(e) => setWaveTable(slot, e.target.value)}
-                className="h-7 rounded-lg bg-black/50 border border-white/15 px-2 text-[11px] text-white outline-none focus:border-[#E59A38]"
+                className="h-7 rounded-lg bg-black/50 border border-white/15 px-2 text-[10.5px] text-white outline-none focus:border-[#E59A38]"
               >
                 <option value="">Pure Analog VCO (PolyBLEP)</option>
                 {AURA_WAVETABLES.map((w) => (

@@ -4,14 +4,13 @@
 //   centre — the keyboard×velocity map + the wave strip beneath it  (where + how it plays)
 //   right  — amp envelope, filter, LFO, spatial                     (how it's shaped)
 //
-// Amp shapes every zone and is saved with the program; filter, LFO and spatial drive the shared
-// engine voice live (KERA runs through the same filter/amp/spatial stage as ONDA).
+// Amp, filter, LFO and spatial all persist on `program` so reopening a project restores the exact sound.
 
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import type { KeraProgram, KeraZone, KeraPlayMode } from '../../../../services/melos/instruments/kera/zones';
+import type { KeraProgram, KeraZone, KeraPlayMode, KeraVoiceState } from '../../../../services/melos/instruments/kera/zones';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
-import { F, flt, MOD_SOURCE } from '../../../../services/melos/instruments/onda/params';
+import { F, L, flt, lfo, MOD_SOURCE } from '../../../../services/melos/instruments/onda/params';
 import { Knob } from '../shared/Knob';
 import { ARMED, PLAYHEAD, SELECT, SURFACE } from '../theme';
 
@@ -28,10 +27,13 @@ const ZONE_COLORS = ['#00DAF3', '#FF2E88', '#B84DFF', '#FFC24B', '#57E389', '#FF
 const LO_KEY = 21, HI_KEY = 108;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
+const DEFAULT_VOICE: KeraVoiceState = {
+  cut: 1, res: 0.12, drive: 0.1, lfoOn: false, lfoRate: 0.3, lfoDepth: 0.3, x: 0, y: 0,
+};
+
 export const KeraEditor: React.FC<Props> = ({ program, trackId, onChange, onClose }) => {
   const [sel, setSel] = useState(0);
-  const [lfoOn, setLfoOn] = useState(false);
-  const [live, setLive] = useState({ cut: 1, res: 0.12, drive: 0.1, lfoRate: 0.3, lfoDepth: 0.3, x: 0, y: 0 });
+  const [live, setLive] = useState<KeraVoiceState>(() => ({ ...DEFAULT_VOICE, ...(program.voice ?? {}) }));
   const mapRef = useRef<HTMLDivElement>(null);
   const waveRef = useRef<HTMLDivElement>(null);
 
@@ -45,33 +47,42 @@ export const KeraEditor: React.FC<Props> = ({ program, trackId, onChange, onClos
   const inst = () => BeatsEngine.get().getInstrument(trackId);
 
   const commit = useCallback((mut: (p: KeraProgram) => void) => {
-    const next: KeraProgram = { ...program, zones: program.zones.map((z) => ({ ...z })), amp: { ...program.amp } };
+    const next: KeraProgram = {
+      ...program,
+      zones: program.zones.map((z) => ({ ...z })),
+      amp: { ...program.amp },
+      voice: program.voice ? { ...program.voice } : { ...live },
+    };
     mut(next);
     onChange(next);
-  }, [program, onChange]);
+  }, [live, program, onChange]);
   const editZone = useCallback((i: number, mut: (z: KeraZone) => void) => commit((p) => { const z = p.zones[i]; if (z) mut(z); }), [commit]);
 
-  // live engine params (filter / lfo / spatial) — audible immediately; amp is the saved one
-  const setLiveParam = useCallback((patch: Partial<typeof live>) => {
+  // Live engine params (filter / lfo / spatial) — audible immediately AND persisted in `program.voice`.
+  const setLiveParam = useCallback((patch: Partial<KeraVoiceState>) => {
     setLive((prev) => {
-      const n = { ...prev, ...patch };
+      const n: KeraVoiceState = { ...prev, ...patch };
       const i = inst();
       if (i) {
         if (patch.cut !== undefined) i.setParam(flt(0, F.CUTOFF), n.cut);
         if (patch.res !== undefined) i.setParam(flt(0, F.RES), n.res);
         if (patch.drive !== undefined) i.setParam(flt(0, F.DRIVE), n.drive);
+        if (patch.lfoRate !== undefined) i.setParam(lfo(0, L.RATE), n.lfoRate);
+        if (patch.lfoOn !== undefined || patch.lfoDepth !== undefined) {
+          i.setRoute(0, MOD_SOURCE.Lfo1, flt(0, F.CUTOFF), n.lfoOn ? n.lfoDepth : 0);
+        }
         if (patch.x !== undefined || patch.y !== undefined) i.setSpatial({ position: [n.x, 0, -1 + n.y] });
       }
+      const nextProg: KeraProgram = {
+        ...program,
+        zones: program.zones.map((z) => ({ ...z })),
+        amp: { ...program.amp },
+        voice: n,
+      };
+      onChange(nextProg);
       return n;
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const toggleLfo = useCallback(() => {
-    setLfoOn((on) => {
-      const next = !on;
-      inst()?.setRoute(0, MOD_SOURCE.Lfo1, flt(0, F.CUTOFF), next ? live.lfoDepth : 0);
-      return next;
-    });
-  }, [live.lfoDepth]);
+  }, [onChange, program]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── mapping drag ─────────────────────────────────────────────────────────────
   const keyToX = (k: number) => ((k - LO_KEY) / (HI_KEY - LO_KEY)) * 100;
@@ -119,7 +130,6 @@ export const KeraEditor: React.FC<Props> = ({ program, trackId, onChange, onClos
 
   const addLayer = () => commit((p) => { if (!zone) return; p.zones.push({ ...zone, loVel: 1, hiVel: Math.max(1, zone.loVel - 1), rrIndex: 0 }); });
 
-  // amp envelope curve
   const amp = program.amp;
   const ampPath = useMemo(() => {
     const A = Math.min(1, amp.attack / 2), H = Math.min(0.4, amp.hold / 2), D = Math.min(1, amp.decay / 2), S = amp.sustain, R = Math.min(1, amp.release / 2);
@@ -127,7 +137,6 @@ export const KeraEditor: React.FC<Props> = ({ program, trackId, onChange, onClos
     return `M0 46 L${x1.toFixed(1)} 4 L${x2.toFixed(1)} 4 L${x3.toFixed(1)} ${(46 - S * 42).toFixed(1)} L${(x3 + 30).toFixed(1)} ${(46 - S * 42).toFixed(1)} L${Math.min(198, xr).toFixed(1)} 46`;
   }, [amp]);
 
-  // round-robin count for the selected zone's group
   const rrCount = zone ? Math.max(1, zones.filter((z) => z.rrGroup === zone.rrGroup && z.loKey === zone.loKey && z.hiKey === zone.hiKey).length) : 1;
 
   const D = (label: string, value: number, color: string, onCh: (v: number) => void, fmt?: (v: number) => string, min = 0, max = 1) => (
@@ -267,7 +276,7 @@ export const KeraEditor: React.FC<Props> = ({ program, trackId, onChange, onClos
             </div>
 
             <div className="rounded-xl border border-white/10 p-2.5" style={{ background: '#17171D' }}>
-              <p className="text-[10px] font-semibold text-white mb-1.5 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-sm" style={{ background: PLAYHEAD }} />Filter<span className="ml-auto font-mono text-[8px] text-white/30">ladder · live</span></p>
+              <p className="text-[10px] font-semibold text-white mb-1.5 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-sm" style={{ background: PLAYHEAD }} />Filter<span className="ml-auto font-mono text-[8px] text-white/30">ladder · saved</span></p>
               <div className="flex justify-between">
                 {D('Cut', live.cut, PLAYHEAD, (v) => setLiveParam({ cut: v }))}
                 {D('Res', live.res, PLAYHEAD, (v) => setLiveParam({ res: v }))}
@@ -277,15 +286,15 @@ export const KeraEditor: React.FC<Props> = ({ program, trackId, onChange, onClos
 
             <div className="rounded-xl border border-white/10 p-2.5" style={{ background: '#17171D' }}>
               <p className="text-[10px] font-semibold text-white mb-1.5 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-sm" style={{ background: '#B84DFF' }} />LFO 1
-                <button onClick={toggleLfo} className="ml-auto font-mono text-[8px] px-1.5 py-0.5 rounded" style={lfoOn ? { background: 'rgba(184,77,255,0.2)', color: '#D6B0FF' } : { color: 'rgba(255,255,255,0.3)', border: '1px solid rgba(255,255,255,0.12)' }}>→cut {lfoOn ? 'on' : 'off'}</button></p>
+                <button onClick={() => setLiveParam({ lfoOn: !live.lfoOn })} className="ml-auto font-mono text-[8px] px-1.5 py-0.5 rounded" style={live.lfoOn ? { background: 'rgba(184,77,255,0.2)', color: '#D6B0FF' } : { color: 'rgba(255,255,255,0.3)', border: '1px solid rgba(255,255,255,0.12)' }}>→cut {live.lfoOn ? 'on' : 'off'}</button></p>
               <div className="flex justify-between">
-                {D('Rate', live.lfoRate, '#B84DFF', (v) => setLive((p) => ({ ...p, lfoRate: v })))}
-                {D('Depth', live.lfoDepth, '#B84DFF', (v) => { setLive((p) => ({ ...p, lfoDepth: v })); if (lfoOn) inst()?.setRoute(0, MOD_SOURCE.Lfo1, flt(0, F.CUTOFF), v); })}
+                {D('Rate', live.lfoRate, '#B84DFF', (v) => setLiveParam({ lfoRate: v }))}
+                {D('Depth', live.lfoDepth, '#B84DFF', (v) => setLiveParam({ lfoDepth: v }))}
               </div>
             </div>
 
             <div className="rounded-xl border border-white/10 p-2.5" style={{ background: '#17171D' }}>
-              <p className="text-[10px] font-semibold text-white mb-1.5 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-sm" style={{ background: PLAYHEAD }} />Spatial<span className="ml-auto font-mono text-[8px] text-white/30">position</span></p>
+              <p className="text-[10px] font-semibold text-white mb-1.5 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-sm" style={{ background: PLAYHEAD }} />Spatial<span className="ml-auto font-mono text-[8px] text-white/30">saved</span></p>
               <div className="relative rounded-lg border border-white/10 cursor-crosshair" style={{ height: 84, background: '#0B0B0F' }}
                 onPointerDown={(e) => {
                   const el = e.currentTarget; const r = el.getBoundingClientRect();

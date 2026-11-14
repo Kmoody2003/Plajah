@@ -38,6 +38,7 @@ const TRAITS: Array<[number, number, number]> = [
   [0.55, 1.3, 0.7],    // Wood
   [0.85, 1.55, 0.45],  // Skin
   [0.15, 1.8, 0.12],   // Air
+  [0.35, 1.35, 0.04],  // Voice
 ];
 
 /** Deterministic per-partial jitter, matching the seeded array the engine builds once. */

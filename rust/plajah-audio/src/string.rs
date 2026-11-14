@@ -176,10 +176,14 @@ impl StringVoice {
         // sampled basses sound synthetic.
         let mut out = r;
         if body > 0.001 {
-            let b0 = self.body[0].process(r, 92.0, 0.72, sr, SvfMode::Band);
-            let b1 = self.body[1].process(r, 196.0, 0.78, sr, SvfMode::Band);
-            let b2 = self.body[2].process(r, 430.0, 0.7, sr, SvfMode::Band);
-            out += (b0 * 1.6 + b1 * 1.2 + b2 * 0.7) * body;
+            // Sculpt Helmholtz air & wood plates along pick/tone/bow: dark upright contrabass down
+            // around 78/172/360 Hz vs bright acoustic bass plectrum forward around 112/245/570 Hz.
+            let wood_shift = 0.84 + tone.clamp(0.0, 1.0) * 0.24 + pick.clamp(0.0, 1.0) * 0.16 - bow.clamp(0.0, 1.0) * 0.08;
+            let q_bow = 0.70 + bow.clamp(0.0, 1.0) * 0.16;
+            let b0 = self.body[0].process(r, (92.0 * wood_shift).clamp(55.0, 145.0), q_bow, sr, SvfMode::Band);
+            let b1 = self.body[1].process(r, (196.0 * wood_shift).clamp(135.0, 290.0), q_bow + 0.06, sr, SvfMode::Band);
+            let b2 = self.body[2].process(r, (430.0 * wood_shift).clamp(300.0, 720.0), 0.70, sr, SvfMode::Band);
+            out += (b0 * 1.6 + b1 * 1.2 + b2 * (0.65 + 0.35 * tone.clamp(0.0, 1.0))) * body;
         }
 
         // Tone: a final one-pole tilt standing in for pickup position and string age. On its own

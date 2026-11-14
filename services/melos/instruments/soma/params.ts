@@ -69,6 +69,16 @@ export const SM = {
   MIC_PERSPECTIVE: 1827,
   /** Early stage/floor boundary reflections around the physical drum body. */
   ROOM_EARLY: 1828,
+
+  // ── Domain V: Heritage Aging, Craft Asymmetry & Raman Acoustics (1829..1832) ─
+  /** Seasoned hide collagen cross-linking & aged wood/copper patina (0 = fresh, 1 = century-aged). */
+  HERITAGE_AGE: 1829,
+  /** Hand-carved shell chisel diffusion & natural hide dorsal-spine doublet splitting. */
+  CRAFT_ASYMMETRY: 1830,
+  /** Concentric C.V. Raman syahi / karanai harmonic paste mass loading (tabla/mridangam/pakhawaj). */
+  SYAHI_LOAD: 1831,
+  /** Clay Udu / Ghatam side-hole hand aperture occlusion (0 = open port, 1 = palm-sealed glissando). */
+  APERTURE_HAND: 1832,
 } as const;
 
 /** Shared Acoustic Space & Delay (block 1600). */
@@ -126,7 +136,7 @@ export const SHELL_MATERIALS = [
   'Birch / Maple Hoop',
 ] as const;
 
-export const DELAY_DIVS = ['1/16', '1/8', '1/8D', '1/4', '1/4D', '1/2'] as const;
+export const DELAY_DIVS = ['1/1', '1/2', '1/4D', '1/4', '1/8D', '1/8', '1/8T', '1/16'] as const;
 
 /** Exact 16 circular membrane Bessel eigenmodes (m, n) mirrored from soma.rs for UI wave visualization. */
 export interface BesselModeInfo {
@@ -394,6 +404,30 @@ export const SOMA_PARAM_META: Record<number, SomaParamMeta> = {
     'Early acoustic boundary reflections from the stage floor and studio walls.',
     pct,
   ),
+  [SM.HERITAGE_AGE]: meta(
+    SM.HERITAGE_AGE,
+    'Heritage Age',
+    'Seasoned hide collagen cross-linking & aged wood/copper patina — dries HF viscoelastic loss and opens sustain.',
+    pct,
+  ),
+  [SM.CRAFT_ASYMMETRY]: meta(
+    SM.CRAFT_ASYMMETRY,
+    'Craft Asymmetry',
+    'Hand-carved spiral adze chisel diffusion & natural hide dorsal-spine doublet splitting.',
+    pct,
+  ),
+  [SM.SYAHI_LOAD]: meta(
+    SM.SYAHI_LOAD,
+    'Syahi / Karanai Load',
+    'Concentric C.V. Raman iron-paste harmonic loading (aligns circular membrane overtones into singing 2:3:4:5 harmonics).',
+    pct,
+  ),
+  [SM.APERTURE_HAND]: meta(
+    SM.APERTURE_HAND,
+    'Hand Port Occlusion',
+    'Clay Udu / Ghatam side-port hand sealing (sweeps coupled dual-aperture Helmholtz resonance pitch).',
+    pct,
+  ),
   [RV.SIZE]: meta(RV.SIZE, 'Hall Size', 'Acoustic concert hall / recording room dimensions.', pct),
   [RV.DECAY]: meta(RV.DECAY, 'Hall Decay', 'Concert hall reverberation tail (RT60).', hallSec),
   [RV.DIFFUSION]: meta(RV.DIFFUSION, 'Wall Diffusion', 'Acoustic dispersion of the hall surfaces.', pct),
@@ -404,7 +438,8 @@ export const SOMA_PARAM_META: Record<number, SomaParamMeta> = {
     SP.DL_DIV,
     'Echo Division',
     'Tempo division of the rhythmic echo.',
-    (v) => DELAY_DIVS[Math.min(DELAY_DIVS.length - 1, Math.floor(v * DELAY_DIVS.length))] ?? '1/8D',
+    pick(DELAY_DIVS),
+    DELAY_DIVS,
   ),
   [SP.DL_FB]: meta(SP.DL_FB, 'Echo Repeats', 'Regeneration of the rhythmic echo.', pct),
   [SP.DL_TONE]: meta(SP.DL_TONE, 'Echo Damping', 'High-frequency absorption per repeat.', pct),
@@ -446,6 +481,10 @@ export const SOMA_DEFAULTS: Readonly<Record<number, number>> = Object.freeze({
   [SM.SHELL_WARMTH]: 0.35,
   [SM.MIC_PERSPECTIVE]: 0.45,
   [SM.ROOM_EARLY]: 0.28,
+  [SM.HERITAGE_AGE]: 0,
+  [SM.CRAFT_ASYMMETRY]: 0,
+  [SM.SYAHI_LOAD]: 0,
+  [SM.APERTURE_HAND]: 0,
 
   [RV.SIZE]: 0.58,
   [RV.DECAY]: 0.42,
@@ -455,7 +494,7 @@ export const SOMA_DEFAULTS: Readonly<Record<number, number>> = Object.freeze({
   [RV.MIX]: 0.18,
 
   [SP.DL_ON]: 0,
-  [SP.DL_DIV]: 2,
+  [SP.DL_DIV]: 4,
   [SP.DL_FB]: 0.32,
   [SP.DL_TONE]: 0.55,
   [SP.DL_PING]: 1,

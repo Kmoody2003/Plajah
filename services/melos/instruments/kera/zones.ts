@@ -1,13 +1,7 @@
 // KERA — the multisample zone model.
 //
 // This is the lingua franca of the sampler: the SF2 parser, the SFZ parser and a plain
-// dragged-in file all produce a `KeraProgram`, and the engine plays one. Keeping the model in
-// one place is what lets three very different input formats feel like one instrument, and it is
-// the same design that lets Kontakt, SFZ and SoundFonts describe the same idea their own ways.
-//
-// A zone is "when a note in THIS key range is played at THIS velocity, sound THIS sample, tuned
-// so its root lands on the note." Round-robins, velocity layers and key-splits are all just
-// several zones whose ranges overlap.
+// dragged-in file all produce a `KeraProgram`, and the engine plays one.
 
 /** One sample buffer, decoded to interleaved-by-channel Float32 (mono or stereo). */
 export interface KeraSample {
@@ -55,6 +49,18 @@ export interface KeraAmpEnv {
   release: number;
 }
 
+/** Persisted right-hand voice synthesis state (Filter, LFO 1, Spatial XY). */
+export interface KeraVoiceState {
+  cut: number;
+  res: number;
+  drive: number;
+  lfoOn: boolean;
+  lfoRate: number;
+  lfoDepth: number;
+  x: number;
+  y: number;
+}
+
 export type KeraPlayMode = 'repitch' | 'stretch' | 'textures' | 'slice';
 
 export interface KeraProgram {
@@ -65,6 +71,8 @@ export interface KeraProgram {
   samples: KeraSample[];
   zones: KeraZone[];
   amp: KeraAmpEnv;
+  /** Optional saved filter / LFO / spatial shaping. */
+  voice?: KeraVoiceState;
   playMode: KeraPlayMode;
   /** Master tuning and level for the whole program. */
   transpose: number;
@@ -91,9 +99,6 @@ export function emptyProgram(name = 'Empty'): KeraProgram {
 /**
  * Pick the zone(s) a note+velocity triggers. Returns every matching zone (velocity layers can
  * overlap), with round-robins already resolved to the one whose turn it is.
- *
- * `rrState` carries the per-group counters between calls so consecutive notes advance the cycle;
- * it is mutated, which is the point — the caller owns one map per playing instance.
  */
 export function selectZones(
   program: KeraProgram,
@@ -106,7 +111,6 @@ export function selectZones(
   );
   if (!candidates.length) return [];
 
-  // Group by round-robin group. Group 0 means "always play"; other groups cycle.
   const byGroup = new Map<number, KeraZone[]>();
   for (const z of candidates) {
     const g = z.rrGroup || 0;
@@ -119,8 +123,6 @@ export function selectZones(
       chosen.push(...zones);
       continue;
     }
-    // Advance this group's counter and pick the matching rrIndex; fall back to modulo position
-    // so an SFZ that used seq_position rather than a dense rrIndex still cycles evenly.
     const sorted = [...zones].sort((a, b) => a.rrIndex - b.rrIndex);
     const next = (rrState.get(group) ?? -1) + 1;
     rrState.set(group, next);

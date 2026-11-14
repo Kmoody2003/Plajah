@@ -38,6 +38,8 @@ export const TN = {
   RELEASE_DAMP: 2026,
   VEL_SENS: 2027,
   LEGATO: 2028,
+  HERITAGE_AGE: 2029,
+  CRAFT_ASYMMETRY: 2030,
 } as const;
 
 /** Params that hold an index, not a 0..1 amount. */
@@ -93,6 +95,8 @@ export const TONOS_PARAM_META: TonosParamMeta[] = [
   { id: TN.BODY_SIZE, label: 'Body size', hint: 'A bigger body moves its resonances lower.', group: 'body' },
   { id: TN.SKIN_TENSION, label: 'Skin tension', hint: 'Tighten or slacken the skin belly — its modes move with √tension.', group: 'body', when: 'skin' },
   { id: TN.WIDTH, label: 'Stereo width', hint: 'Spread low and high notes across the stereo field.', group: 'body' },
+  { id: TN.HERITAGE_AGE, label: 'Heritage age', hint: 'Seasoned spruce/toona/kiri hemicellulose aging: raises soundboard stiffness-to-density c_L, lowers internal loss tangent, and opens the 2.4 kHz Bridge-Hill bloom.', group: 'body' },
+  { id: TN.CRAFT_ASYMMETRY, label: 'Craft asymmetry', hint: 'Handmade luthier character: Weinreich dual-polarization bridge orbit coupling, longitudinal phantom partials, and asymmetric skin/carving doublets.', group: 'body' },
   { id: TN.VIB_DEPTH, label: 'Vibrato', hint: 'The left hand\'s vibrato (more with the mod wheel). Pitch bend changes tension, like pressing behind a bridge or deflecting a string.', group: 'hand' },
   { id: TN.VIB_RATE, label: 'Vibrato rate', hint: '3.5 to 8 wobbles a second.', group: 'hand' },
   { id: TN.SLIDE, label: 'Slide time', hint: 'Legato: how long the finger takes to slide to the next note on the same string.', group: 'hand' },
@@ -135,6 +139,8 @@ export const TONOS_DEFAULTS: Readonly<Record<number, number>> = Object.freeze({
   [TN.RELEASE_DAMP]: 0.3,
   [TN.VEL_SENS]: 0.85,
   [TN.LEGATO]: 1,
+  [TN.HERITAGE_AGE]: 0.28,
+  [TN.CRAFT_ASYMMETRY]: 0.22,
   [RV.MIX]: 0.14,
   [RV.SIZE]: 0.5,
   // Veil rt60 = 0.5 + decay²·59.5 s: 0.12 is a ~1.4 s room, not a pad reverb.

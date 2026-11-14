@@ -16,6 +16,15 @@
 // deep skin).
 
 import { besselJ, besselZeros } from '../../soma/deep/deepModes';
+import {
+  acquireF64Scratch,
+  fftRadix2,
+  lruSet,
+  lruTouch,
+  realPowerSpecInto,
+  releaseF64Scratch,
+} from '../../soma/deep/deepUtil';
+import { ageTonewood, HERITAGE_TONEWOODS } from '../../physics/heritageAcoustics';
 import { TONOS_BODIES, type TonosBodySpec } from './bodies';
 
 const GROUP = 64;
@@ -71,11 +80,35 @@ function unfold(n: (f: number) => number, f0: number, f1: number, rnd: () => num
 interface Mode { f: number; g: number; q: number; pan: number }
 
 /** What the body's own physics says lives above the explicit modes. */
-function bodyModes(b: TonosBodySpec, size: number, skinT: number, top: number, rnd: () => number): Mode[] {
+function bodyModes(
+  b: TonosBodySpec,
+  size: number,
+  skinT: number,
+  top: number,
+  rnd: () => number,
+  heritageAge = 0.28,
+  craftAsym = 0.22,
+): Mode[] {
   const modes: Mode[] = [];
   const fs = size;
+  // Tai et al. (PNAS 2017/2021) hemicellulose hydrolysis & seasoned mineral ground:
+  // raises specific sound speed c_L and lowers internal loss tangent tan(δ).
+  const baseWood = b.kind === 'gourd' ? HERITAGE_TONEWOODS.aged_gourd : HERITAGE_TONEWOODS.cremonese_spruce;
+  const agedWood = ageTonewood(baseWood, heritageAge, heritageAge * 0.5);
+  const lossScale = agedWood.lossLong / baseWood.lossLong;
+  const cScale = agedWood.cLong / Math.sqrt(baseWood.eLong / baseWood.rho);
+  const bridgeHillGain = 1 + 0.42 * heritageAge;
+  const bridgeHillHz = 2380 * (0.94 + 0.12 * cScale);
   const pan = () => Math.max(-0.8, Math.min(0.8, (rnd() * 2 - 1) * 0.55));
-  const push = (f: number, g: number, q: number) => { if (f >= START_HZ && f < top) modes.push({ f, g, q, pan: pan() }); };
+  const push = (f: number, g: number, q: number) => {
+    if (f >= START_HZ && f < top) {
+      // Cremonese / carved-top Bridge-Hill radiation focus around 2.1–2.8 kHz (above low-skirt guard)
+      const wHi = Math.max(0, Math.min(1, (f - 1200) / 800));
+      const bh = 1 + wHi * (bridgeHillGain - 1) * Math.exp(-(((f - bridgeHillHz) / 520) ** 2));
+      const fAged = f + wHi * f * (0.12 * (cScale - 1));
+      if (fAged < top) modes.push({ f: fAged, g: g * bh, q, pan: pan() });
+    }
+  };
   // A cavity behind the board or skin: V from its Helmholtz mode (a fixed neck/hole ratio), so a
   // deeper air resonance means a bigger box. Air modes radiate through the hole and the board: weak.
   const helm = Math.max(40, b.helm * fs);
@@ -85,9 +118,19 @@ function bodyModes(b: TonosBodySpec, size: number, skinT: number, top: number, r
   const plate = (f1: number, gain: number, eta0: number) => {
     // A thin plate's modal density is constant, n = S/(2κ); its lowest mode f₁ ≈ κπ/S, so
     // n ≈ π/(2f₁). Bracing and the back add their own families: ×2, the back at lower gain.
+    // Apply hemicellulose Q-brightening smoothly above 1.2 kHz so 700 Hz boundary modes keep
+    // exact low-skirt isolation below 500 Hz.
+    const etaAt = (base: number, f: number) => {
+      const w = Math.max(0, Math.min(1, (f - 1200) / 1400));
+      const ls = 1 + (lossScale - 1) * w;
+      return (base + 0.012 * (f / 5000)) * ls;
+    };
     const n = Math.PI / (2 * Math.max(40, f1));
-    for (const f of unfold(() => n, START_HZ, top, rnd, 4000)) push(f, gain * gauss(rnd), 1 / (eta0 + 0.012 * (f / 5000)));
-    for (const f of unfold(() => n * 0.8, START_HZ, top, rnd, 4000)) push(f, 0.45 * gain * gauss(rnd), 1 / (eta0 * 1.2 + 0.012 * (f / 5000)));
+    for (const f of unfold(() => n, START_HZ, top, rnd, 4000)) push(f, gain * gauss(rnd), 1 / etaAt(eta0, f));
+    for (const f of unfold(() => n * 0.8, START_HZ, top, rnd, 4000)) {
+      const fCraft = f * (1 + 0.004 * (craftAsym - 0.22));
+      push(fCraft, 0.45 * gain * gauss(rnd), 1 / etaAt(eta0 * 1.2, fCraft));
+    }
   };
   switch (b.kind) {
     case 'wood': {
@@ -96,7 +139,7 @@ function bodyModes(b: TonosBodySpec, size: number, skinT: number, top: number, r
       break;
     }
     case 'gourd': {
-      // A gourd or calabash wall: a thick, lossy shell — plate-like density from its own lowest mode.
+      // A gourd or calabash wall: a thick, lossy shell — seasoned dried calabash stiffens with age.
       plate(b.plate, 0.9, 0.016);
       for (const f of unfold(airN, START_HZ, top, rnd, 3000)) push(f, 0.3 * gauss(rnd), airQ(f));
       break;
@@ -104,17 +147,17 @@ function bodyModes(b: TonosBodySpec, size: number, skinT: number, top: number, r
     case 'tube': {
       // Bamboo tube: the air column's harmonics carry on up, and the wall's flexural modes.
       const f0 = b.plate * fs;
-      for (let k = 1; k * f0 < top; k++) push(k * f0 * (1 + 0.0008 * k * (rnd() - 0.5)), 0.6 / Math.sqrt(k) * (rnd() < 0.5 ? -1 : 1), 1 / (0.012 + 0.004 * Math.sqrt((k * f0) / 1000)));
+      for (let k = 1; k * f0 < top; k++) push(k * f0 * (1 + (0.0008 + 0.0014 * craftAsym) * k * (rnd() - 0.5)), 0.6 / Math.sqrt(k) * (rnd() < 0.5 ? -1 : 1), 1 / ((0.012 + 0.004 * Math.sqrt((k * f0) / 1000)) * lossScale));
       plate(b.plate * 3 * fs, 0.7, 0.011);
       break;
     }
     case 'skin': {
       // Circular membrane: f_mn = j_mn/(2πa)·√(Tₛ/σ). tonos.rs steps the first eight; carry on from
       // the ninth. The bridge foot stands off-centre on the skin (ρ ≈ 0.35 of the radius), so each
-      // mode is driven by J_m(j·ρ); m ≥ 1 comes as two orientations, detuned by uneven tension.
-      const c = Math.sqrt((b.ts * skinT) / b.sigma);
+      // mode is driven by J_m(j·ρ); m ≥ 1 comes as two orientations, detuned by uneven dorsal-spine tension.
+      const c = Math.sqrt((b.ts * skinT) / b.sigma) * (1 + 0.03 * heritageAge);
       const k0 = c / (2 * Math.PI * b.a) * fs;
-      const rho = 0.35;
+      const rho = 0.35 + 0.03 * craftAsym;
       const zeros = besselZeros();
       for (let z = 8; z < zeros.length / 3; z++) {
         const m = zeros[3 * z], j = zeros[3 * z + 2];
@@ -122,11 +165,11 @@ function bodyModes(b: TonosBodySpec, size: number, skinT: number, top: number, r
         if (f >= top) break;
         if (f < START_HZ) continue;
         const w = besselJ(m, j * rho) * Math.pow(1 + (j / 40) ** 2, -0.5);
-        const q = 1 / (0.012 + 0.02 * (f / 3000));
+        const q = 1 / ((0.012 + 0.02 * (f / 3000)) * (1 - 0.14 * heritageAge));
         if (m === 0) push(f, w, q);
         else {
           const axis = rnd() * 2 * Math.PI;
-          const det = 0.002 + 0.003 * rnd();
+          const det = 0.002 + 0.003 * rnd() + 0.006 * craftAsym / Math.sqrt(m);
           push(f * (1 - det / 2), w * Math.cos(m * axis), q);
           push(f * (1 + det / 2), w * Math.sin(m * axis), q);
         }
@@ -138,10 +181,15 @@ function bodyModes(b: TonosBodySpec, size: number, skinT: number, top: number, r
   return modes;
 }
 
-/** TN_* values the body depends on (mirror params.ts: BODY_SIZE = 2014, SKIN_TENSION = 2015). */
-export function bodyScales(get: (id: number) => number): { size: number; skinT: number } {
+/** TN_* values the body depends on (mirror params.ts: BODY_SIZE = 2014, SKIN_TENSION = 2015, HERITAGE_AGE = 2029, CRAFT_ASYMMETRY = 2030). */
+export function bodyScales(get: (id: number) => number): { size: number; skinT: number; heritageAge: number; craftAsym: number } {
   const p = (id: number, d: number) => { const v = get(id); return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : d; };
-  return { size: Math.pow(2, (0.5 - p(2014, 0.5)) * 1.5), skinT: Math.pow(2, (p(2015, 0.5) - 0.5) * 2) };
+  return {
+    size: Math.pow(2, (0.5 - p(2014, 0.5)) * 1.5),
+    skinT: Math.pow(2, (p(2015, 0.5) - 0.5) * 2),
+    heritageAge: p(2029, 0.28),
+    craftAsym: p(2030, 0.22),
+  };
 }
 
 /**
@@ -151,10 +199,10 @@ export function bodyScales(get: (id: number) => number): { size: number; skinT: 
 export function buildTonosDeepBody(inst: number, get: (id: number) => number, sampleRate: number, budget = TONOS_DEEP_BUDGET): TonosDeepSet | null {
   const b = TONOS_BODIES[Math.max(0, Math.min(TONOS_BODIES.length - 1, Math.round(inst)))];
   if (!b || b.sustained) return null;
-  const { size, skinT } = bodyScales(get);
+  const { size, skinT, heritageAge, craftAsym } = bodyScales(get);
   const top = Math.min(0.45 * sampleRate, 16000);
   const rnd = mulberry(0x70b0d1e5 ^ Math.imul(inst + 1, 2654435761));
-  let modes = bodyModes(b, size, skinT, top, rnd).filter((m) => m.g !== 0 && Number.isFinite(m.f));
+  let modes = bodyModes(b, size, skinT, top, rnd, heritageAge, craftAsym).filter((m) => m.g !== 0 && Number.isFinite(m.f));
   if (!modes.length) return null;
   // Over budget: thin evenly (every mode's chance the same), so the density's shape survives;
   // matchFloors restores each band's energy.
@@ -185,69 +233,22 @@ export function buildTonosDeepBody(inst: number, get: (id: number) => number, sa
 
 /** |DFT|² of `x` zero-padded to n (power of two), bins 0..n/2. */
 export function powerSpectrum(x: Float32Array, n: number): Float64Array {
-  const re = new Float64Array(n), im = new Float64Array(n);
-  for (let i = 0; i < Math.min(n, x.length); i++) re[i] = x[i];
-  for (let i = 1, j = 0; i < n; i++) {
-    let bit = n >> 1;
-    for (; j & bit; bit >>= 1) j ^= bit;
-    j ^= bit;
-    if (i < j) { const t = re[i]; re[i] = re[j]; re[j] = t; }
-  }
-  for (let len = 2; len <= n; len <<= 1) {
-    const a = (-2 * Math.PI) / len, half = len >> 1;
-    const wr0 = Math.cos(a), wi0 = Math.sin(a);
-    for (let i = 0; i < n; i += len) {
-      let wr = 1, wi = 0;
-      for (let k = 0; k < half; k++) {
-        const p = i + k, q = p + half;
-        const xr = re[q] * wr - im[q] * wi, xi = re[q] * wi + im[q] * wr;
-        re[q] = re[p] - xr; im[q] = im[p] - xi;
-        re[p] += xr; im[p] += xi;
-        const t = wr * wr0 - wi * wi0; wi = wr * wi0 + wi * wr0; wr = t;
-      }
-    }
-  }
   const out = new Float64Array(n / 2 + 1);
-  for (let k = 0; k <= n / 2; k++) out[k] = re[k] * re[k] + im[k] * im[k];
+  realPowerSpecInto(x, x.length, n, out);
   return out;
 }
 
 /**
- * The drive the GPU modes get: the bridge force through (1 − z⁻²). The kernel's modes are complex
+ * The drive the GPU modes get: the bridge force through (1 - z⁻²). The kernel's modes are complex
  * one-poles read as Im(z) — a two-pole with no zero at DC, whose skirts stay up across the whole
  * band; summed over thousands of modes they'd leak into the low end. tonos.rs's body modes are
- * bandpasses b₀(1 − z⁻²)/(…), zeros at DC and Nyquist; feeding the kernel this drive gives each
+ * bandpasses b₀(1 - z⁻²)/(…) with zeros at DC and Nyquist; feeding the kernel this drive gives each
  * GPU mode that same shape. matchFloors is given this drive too, so its prediction matches.
  */
 export function bandpassDrive(drive: Float32Array): Float32Array {
   const out = new Float32Array(drive.length);
   for (let i = 0; i < drive.length; i++) out[i] = drive[i] - (i >= 2 ? drive[i - 2] : 0);
   return out;
-}
-
-/** In-place radix-2 complex FFT (inverse when `inv`, unscaled). */
-function fft(re: Float64Array, im: Float64Array, inv: boolean): void {
-  const n = re.length;
-  for (let i = 1, j = 0; i < n; i++) {
-    let bit = n >> 1;
-    for (; j & bit; bit >>= 1) j ^= bit;
-    j ^= bit;
-    if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
-  }
-  for (let len = 2; len <= n; len <<= 1) {
-    const a = ((inv ? 2 : -2) * Math.PI) / len, half = len >> 1;
-    const wr0 = Math.cos(a), wi0 = Math.sin(a);
-    for (let i = 0; i < n; i += len) {
-      let wr = 1, wi = 0;
-      for (let k = 0; k < half; k++) {
-        const p = i + k, q = p + half;
-        const xr = re[q] * wr - im[q] * wi, xi = re[q] * wi + im[q] * wr;
-        re[q] = re[p] - xr; im[q] = im[p] - xi;
-        re[p] += xr; im[p] += xi;
-        const t = wr * wr0 - wi * wi0; wi = wr * wi0 + wi * wr0; wr = t;
-      }
-    }
-  }
 }
 
 /**
@@ -259,20 +260,32 @@ function fft(re: Float64Array, im: Float64Array, inv: boolean): void {
 export function floorsBelow(floors: Float32Array, sampleRate: number): Float32Array {
   let n = 1024;
   while (n < floors.length + 4096) n <<= 1;
-  const re = new Float64Array(n), im = new Float64Array(n);
-  for (let i = 0; i < floors.length; i++) re[i] = floors[i];
-  fft(re, im, false);
-  const lo = 500, hi = START_HZ;
-  for (let k = 0; k <= n / 2; k++) {
-    const f = (k * sampleRate) / n;
-    const w = f <= lo ? 1 : f >= hi ? 0 : 0.5 + 0.5 * Math.cos((Math.PI * (f - lo)) / (hi - lo));
-    re[k] *= w; im[k] *= w;
-    if (k > 0 && k < n / 2) { re[n - k] *= w; im[n - k] *= w; }
+  const re = acquireF64Scratch(n);
+  const im = acquireF64Scratch(n);
+  try {
+    for (let i = 0; i < floors.length; i++) re[i] = floors[i]!;
+    re.fill(0, floors.length, n);
+    im.fill(0, 0, n);
+    fftRadix2(re, im, n, false);
+    const lo = 500, hi = START_HZ;
+    for (let k = 0; k <= n / 2; k++) {
+      const f = (k * sampleRate) / n;
+      const w = f <= lo ? 1 : f >= hi ? 0 : 0.5 + 0.5 * Math.cos((Math.PI * (f - lo)) / (hi - lo));
+      re[k]! *= w;
+      im[k]! *= w;
+      if (k > 0 && k < n / 2) {
+        re[n - k]! *= w;
+        im[n - k]! *= w;
+      }
+    }
+    fftRadix2(re, im, n, true);
+    const out = new Float32Array(floors.length);
+    for (let i = 0; i < out.length; i++) out[i] = re[i]!;
+    return out;
+  } finally {
+    releaseF64Scratch(re);
+    releaseF64Scratch(im);
   }
-  fft(re, im, true);
-  const out = new Float32Array(floors.length);
-  for (let i = 0; i < out.length; i++) out[i] = re[i] / n;
-  return out;
 }
 
 /** How long the layer needs to be: until the floors have fallen 60 dB from their peak. */
@@ -320,7 +333,7 @@ export function applyScales(set: TonosDeepSet, scales: Float32Array): Float32Arr
 /** FFTs of the far-field kernels for transform size n (cached: they only depend on n). */
 const kernelCache = new Map<number, { kDir: { re: Float64Array; im: Float64Array }; kMir: { re: Float64Array; im: Float64Array } }>();
 function farKernels(n: number) {
-  const hit = kernelCache.get(n);
+  const hit = lruTouch(kernelCache, n);
   if (hit) return hit;
   const N2 = 2 * n, half2 = n / 2, dw = (2 * Math.PI) / n;
   const cotH = (j: number) => 0.5 / Math.tan((j * dw) / 2);
@@ -331,13 +344,12 @@ function farKernels(n: number) {
     const idx = (t + N2) % N2;
     kDir.re[idx] = 0.5; kDir.im[idx] = cotH(-t);
   }
-  fft(kDir.re, kDir.im, false);
+  fftRadix2(kDir.re, kDir.im, N2, false);
   const kMir = { re: new Float64Array(N2), im: new Float64Array(N2) };
   for (let u = 1; u < n; u++) { kMir.re[u] = 0.5; kMir.im[u] = -cotH(u); }
-  fft(kMir.re, kMir.im, false);
+  fftRadix2(kMir.re, kMir.im, N2, false);
   const out = { kDir, kMir };
-  if (kernelCache.size > 3) kernelCache.clear();
-  kernelCache.set(n, out);
+  lruSet(kernelCache, n, out, 4);
   return out;
 }
 
@@ -347,137 +359,167 @@ export function floorScales(set: TonosDeepSet, drive: Float32Array, floors: Floa
   while (n < len && n < 1 << 17) n <<= 1;
   const hz = sampleRate / n;
   const half2 = n / 2;
-  const spec = (x: Float32Array, add?: Float32Array) => {
-    const re = new Float64Array(n), im = new Float64Array(n);
-    for (let i = 0; i < Math.min(n, len); i++) re[i] = x[i] + (add ? add[i] : 0);
-    fft(re, im, false);
-    return { re, im };
-  };
-  const Xc = spec(drive);
-  const zero = new Float32Array(len);
-  const B = spec(rest ?? zero, below);                 // what stays: rest of the body + floors below
-  const T = spec(rest ?? zero, floors);                // the plain note: rest of the body + floors
+  const N2 = 2 * n;
   const step = Math.pow(2, 1 / 3);
   const bands: number[] = [];
   for (let f = START_HZ; f < sampleRate * 0.45; f *= step) bands.push(f);
   const nb = bands.length;
   const band = (f: number) => Math.min(nb - 1, Math.max(0, Math.floor(Math.log(f / bands[0]) / Math.log(step))));
   const k0b = Math.ceil(GUARD_HZ / hz);
-  const binBand = new Int32Array(half2);
-  for (let k = 0; k < half2; k++) binBand[k] = k < k0b ? -1 : band(k * hz);
-  const targetE = new Float64Array(nb), baseE = new Float64Array(nb);
-  for (let k = k0b; k < half2; k++) {
-    const b = binBand[k];
-    targetE[b] += T.re[k] ** 2 + T.im[k] ** 2;
-    baseE[b] += B.re[k] ** 2 + B.im[k] ** 2;
-  }
-  const peak = Math.max(...targetE);
-  if (!(peak > 0)) return null;
 
-  // The deep layer's spectrum is D = X·(H(ω) − conj H(−ω))/(2i) summed over modes, with
-  // H_m(ω) = g/(1 − r·e^{i(θ−ω)}) (Im(z) of the kernel's complex one-pole). Near its resonance each
-  // mode is summed exactly; far from it every mode is ≈ g·K(k_m − k), K(j) = 1/(1 − e^{ij·dω}) =
-  // ½ + (i/2)·cot(j·dω/2), and that far field of all modes at once is a convolution of the binned
-  // gains with K (one FFT pass) — as is the mirror term conj H(−ω). The tails fall only as 1/Δ and
-  // thousands of modes add up, so they can't be dropped.
-  const g0 = (i: number) => 0.5 * (set.coef[i * 4 + 2] + set.coef[(set.groups * GROUP + i) * 4 + 2]);
-  const dw = (2 * Math.PI) / n;
-  const cdw = Math.cos(dw), sdw = Math.sin(dw);
-  const N2 = 2 * n; // linear convolution room for kernels spanning ±n/2 … n
-  const cotH = (j: number) => 0.5 / Math.tan((j * dw) / 2); // Im K(j), j ≠ 0
-  const { kDir, kMir } = farKernels(n);
-  const kBin = Float64Array.from({ length: set.modes }, (_, i) => Math.round((2 * Math.PI * set.freq[i]) / sampleRate / dw));
-  const sRe = new Float64Array(half2), sIm = new Float64Array(half2);
-  const scales = new Float32Array(set.modes).fill(1);
-  const deepOnly = new Float64Array(nb), withBase = new Float64Array(nb);
-  const gRe = new Float64Array(N2), gIm = new Float64Array(N2), cRe = new Float64Array(N2), cIm = new Float64Array(N2);
-  const predict = () => {
-    // Far field: binned gains G, then S_far = G ∗ K' and M = corr(G, Q).
-    gRe.fill(0); gIm.fill(0);
-    for (let i = 0; i < set.modes; i++) if (kBin[i] > 0 && kBin[i] < half2) gRe[kBin[i]] += g0(i) * scales[i];
-    fft(gRe, gIm, false);
-    for (let k = 0; k < N2; k++) {
-      cRe[k] = gRe[k] * kDir.re[k] - gIm[k] * kDir.im[k];
-      cIm[k] = gRe[k] * kDir.im[k] + gIm[k] * kDir.re[k];
+  const xcRe = acquireF64Scratch(n);
+  const xcIm = acquireF64Scratch(n);
+  const bRe = acquireF64Scratch(n);
+  const bIm = acquireF64Scratch(n);
+  const sRe = acquireF64Scratch(half2);
+  const sIm = acquireF64Scratch(half2);
+  const gRe = acquireF64Scratch(N2);
+  const gIm = acquireF64Scratch(N2);
+  const cRe = acquireF64Scratch(N2);
+  const cIm = acquireF64Scratch(N2);
+  try {
+    const copyLen = Math.min(n, len);
+    for (let i = 0; i < copyLen; i++) xcRe[i] = drive[i]!;
+    xcRe.fill(0, copyLen, n);
+    xcIm.fill(0, 0, n);
+    fftRadix2(xcRe, xcIm, n, false);
+
+    // Pack base (rest + below) into real and total (rest + floors) into imag for a single FFT.
+    for (let i = 0; i < copyLen; i++) {
+      const r = rest ? rest[i]! : 0;
+      bRe[i] = r + (below ? below[i]! : 0);
+      bIm[i] = r + floors[i]!;
     }
-    fft(cRe, cIm, true);
-    for (let k = 0; k < half2; k++) { sRe[k] = cRe[k] / N2; sIm[k] = cIm[k] / N2; }
-    // Mirror: M(k) = Σ_t G[t]·Q(t + k) = IFFT(conj(FFT G)·FFT Q)[k] (G real). S −= M.
-    for (let k = 0; k < N2; k++) {
-      cRe[k] = gRe[k] * kMir.re[k] + gIm[k] * kMir.im[k];
-      cIm[k] = gRe[k] * kMir.im[k] - gIm[k] * kMir.re[k];
-    }
-    fft(cRe, cIm, true);
-    for (let k = 0; k < half2; k++) { sRe[k] -= cRe[k] / N2; sIm[k] -= cIm[k] / N2; }
-    // Near field: replace each mode's far approximation by its exact response within ±3 bandwidths.
-    for (let i = 0; i < set.modes; i++) {
-      const r = set.decay[i], gi = g0(i) * scales[i];
-      const theta = (2 * Math.PI * set.freq[i]) / sampleRate;
-      const km = kBin[i];
-      if (km <= 0 || km >= half2) continue;
-      const h = Math.max(4, Math.ceil((3 * (1 - r)) / dw));
-      const ka = Math.max(1, km - h), kb = Math.min(half2 - 1, km + h);
-      let c = Math.cos(theta - ka * dw), sn = Math.sin(theta - ka * dw);
-      for (let k = ka; k <= kb; k++) {
-        const dr = 1 - r * c, di = -r * sn;
-        const den = dr * dr + di * di;
-        sRe[k] += (gi * dr) / den;
-        sIm[k] -= (gi * di) / den;
-        const j = km - k;
-        if (j !== 0) { sRe[k] -= gi * 0.5; sIm[k] -= gi * cotH(j); }
-        const nc = c * cdw + sn * sdw;
-        sn = sn * cdw - c * sdw;
-        c = nc;
-      }
-    }
-    deepOnly.fill(0); withBase.fill(0);
+    bRe.fill(0, copyLen, n);
+    bIm.fill(0, copyLen, n);
+    fftRadix2(bRe, bIm, n, false);
+
+    const binBand = new Int32Array(half2);
+    for (let k = 0; k < half2; k++) binBand[k] = k < k0b ? -1 : band(k * hz);
+    const targetE = new Float64Array(nb), baseE = new Float64Array(nb);
     for (let k = k0b; k < half2; k++) {
-      const b = binBand[k];
-      const xr = Xc.re[k], xi = Xc.im[k];
-      // X·S, then ÷ 2i: (a + ib)/(2i) = (b − ia)/2
-      const pr = xr * sRe[k] - xi * sIm[k], pi = xr * sIm[k] + xi * sRe[k];
-      const dr = pi / 2, di = -pr / 2;
-      deepOnly[b] += dr * dr + di * di;
-      const yr = B.re[k] + dr, yi = B.im[k] + di;
-      withBase[b] += yr * yr + yi * yi;
+      const nk = n - k;
+      const zrk = bRe[k]!, zik = bIm[k]!, zrn = bRe[nk]!, zin = bIm[nk]!;
+      const br = 0.5 * (zrk + zrn), bi = 0.5 * (zik - zin);
+      const tr = 0.5 * (zik + zin), ti = 0.5 * (zrn - zrk);
+      bRe[k] = br;
+      bIm[k] = bi;
+      const b = binBand[k]!;
+      targetE[b] += tr * tr + ti * ti;
+      baseE[b] += br * br + bi * bi;
     }
-  };
+    const peak = Math.max(...targetE);
+    if (!(peak > 0)) return null;
 
-  const factor = new Float64Array(nb).fill(NaN);
-  const live = (b: number) => targetE[b] > peak * 1e-7;
-  predict();
-  for (let b = 0; b < nb; b++) {
-    if (deepOnly[b] > 0 && live(b)) factor[b] = Math.sqrt(Math.max(targetE[b] - baseE[b], 0.05 * targetE[b]) / deepOnly[b]);
-  }
-  const fill = () => {
-    let last = NaN;
-    for (let b = 0; b < nb; b++) { if (Number.isFinite(factor[b])) last = factor[b]; else factor[b] = last; }
-    last = NaN;
-    for (let b = nb - 1; b >= 0; b--) { if (Number.isFinite(factor[b])) last = factor[b]; else factor[b] = last; }
-  };
-  fill();
-  if (!Number.isFinite(factor[0])) return null;
-  const interp = (f: number) => {
-    // Log-frequency interpolation between band centres, so no band edge is audible.
-    const pos = Math.log(f / bands[0]) / Math.log(step) - 0.5;
-    const b0 = Math.max(0, Math.min(nb - 1, Math.floor(pos)));
-    const b1 = Math.min(nb - 1, b0 + 1);
-    const t = Math.max(0, Math.min(1, pos - b0));
-    return Math.exp(Math.log(factor[b0]) * (1 - t) + Math.log(factor[b1]) * t);
-  };
-  // Refine: predict the whole note (rest + below + deep, with the cross terms) at the gains as they
-  // will be applied — interpolation leaks gain between neighbouring bands — and correct.
-  for (let pass = 0; pass < 3; pass++) {
-    for (let i = 0; i < set.modes; i++) scales[i] = interp(set.freq[i]);
+    const g0 = (i: number) => 0.5 * (set.coef[i * 4 + 2]! + set.coef[(set.groups * GROUP + i) * 4 + 2]!);
+    const dw = (2 * Math.PI) / n;
+    const cdw = Math.cos(dw), sdw = Math.sin(dw);
+    const cotH = (j: number) => 0.5 / Math.tan((j * dw) / 2); // Im K(j), j ≠ 0
+    const { kDir, kMir } = farKernels(n);
+    const kBin = Float64Array.from({ length: set.modes }, (_, i) => Math.round((2 * Math.PI * set.freq[i]!) / sampleRate / dw));
+    const scales = new Float32Array(set.modes).fill(1);
+    const deepOnly = new Float64Array(nb), withBase = new Float64Array(nb);
+    const predict = () => {
+      // Far field: binned gains G, then S_far = G ∗ K' and M = corr(G, Q).
+      gRe.fill(0, 0, N2);
+      gIm.fill(0, 0, N2);
+      for (let i = 0; i < set.modes; i++) {
+        const kb = kBin[i]!;
+        if (kb > 0 && kb < half2) gRe[kb] += g0(i) * scales[i]!;
+      }
+      fftRadix2(gRe, gIm, N2, false);
+      for (let k = 0; k < N2; k++) {
+        const gr = gRe[k]!, gi = gIm[k]!, kr = kDir.re[k]!, ki = kDir.im[k]!;
+        cRe[k] = gr * kr - gi * ki;
+        cIm[k] = gr * ki + gi * kr;
+      }
+      fftRadix2(cRe, cIm, N2, true);
+      for (let k = 0; k < half2; k++) { sRe[k] = cRe[k]!; sIm[k] = cIm[k]!; }
+      // Mirror: M(k) = Σ_t G[t]·Q(t + k) = IFFT(conj(FFT G)·FFT Q)[k] (G real). S −= M.
+      for (let k = 0; k < N2; k++) {
+        const gr = gRe[k]!, gi = gIm[k]!, kr = kMir.re[k]!, ki = kMir.im[k]!;
+        cRe[k] = gr * kr + gi * ki;
+        cIm[k] = gr * ki - gi * kr;
+      }
+      fftRadix2(cRe, cIm, N2, true);
+      for (let k = 0; k < half2; k++) { sRe[k] -= cRe[k]!; sIm[k] -= cIm[k]!; }
+      // Near field: replace each mode's far approximation by its exact response within ±3 bandwidths.
+      for (let i = 0; i < set.modes; i++) {
+        const r = set.decay[i]!, gi = g0(i) * scales[i]!;
+        const theta = (2 * Math.PI * set.freq[i]!) / sampleRate;
+        const km = kBin[i];
+        if (km <= 0 || km >= half2) continue;
+        const h = Math.max(4, Math.ceil((3 * (1 - r)) / dw));
+        const ka = Math.max(1, km - h), kb = Math.min(half2 - 1, km + h);
+        let c = Math.cos(theta - ka * dw), sn = Math.sin(theta - ka * dw);
+        for (let k = ka; k <= kb; k++) {
+          const dr = 1 - r * c, di = -r * sn;
+          const den = dr * dr + di * di;
+          sRe[k] += (gi * dr) / den;
+          sIm[k] -= (gi * di) / den;
+          const j = km - k;
+          if (j !== 0) { sRe[k] -= gi * 0.5; sIm[k] -= gi * cotH(j); }
+          const nc = c * cdw + sn * sdw;
+          sn = sn * cdw - c * sdw;
+          c = nc;
+        }
+      }
+      deepOnly.fill(0); withBase.fill(0);
+      for (let k = k0b; k < half2; k++) {
+        const b = binBand[k]!;
+        const xr = xcRe[k]!, xi = xcIm[k]!;
+        // X·S, then ÷ 2i: (a + ib)/(2i) = (b − ia)/2
+        const pr = xr * sRe[k]! - xi * sIm[k]!, pi = xr * sIm[k]! + xi * sRe[k]!;
+        const dr = pi * 0.5, di = -pr * 0.5;
+        deepOnly[b] += dr * dr + di * di;
+        const yr = bRe[k]! + dr, yi = bIm[k]! + di;
+        withBase[b] += yr * yr + yi * yi;
+      }
+    };
+
+    const factor = new Float64Array(nb).fill(NaN);
+    const live = (b: number) => targetE[b]! > peak * 1e-7;
     predict();
     for (let b = 0; b < nb; b++) {
-      if (!live(b) || !(deepOnly[b] > 0)) continue;
-      // How much the deep part should carry vs carries (cross terms with the base included).
-      const want = Math.max(targetE[b] - baseE[b], 0.05 * targetE[b]);
-      const got = Math.max(withBase[b] - baseE[b], 0.05 * deepOnly[b]);
-      factor[b] *= Math.min(2, Math.max(0.5, Math.sqrt(want / got)));
+      if (deepOnly[b]! > 0 && live(b)) factor[b] = Math.sqrt(Math.max(targetE[b]! - baseE[b]!, 0.05 * targetE[b]!) / deepOnly[b]!);
     }
+    const fill = () => {
+      let last = NaN;
+      for (let b = 0; b < nb; b++) { if (Number.isFinite(factor[b])) last = factor[b]!; else factor[b] = last; }
+      last = NaN;
+      for (let b = nb - 1; b >= 0; b--) { if (Number.isFinite(factor[b])) last = factor[b]!; else factor[b] = last; }
+    };
+    fill();
+    if (!Number.isFinite(factor[0])) return null;
+    const interp = (f: number) => {
+      const pos = Math.log(f / bands[0]!) / Math.log(step) - 0.5;
+      const b0 = Math.max(0, Math.min(nb - 1, Math.floor(pos)));
+      const b1 = Math.min(nb - 1, b0 + 1);
+      const t = Math.max(0, Math.min(1, pos - b0));
+      return Math.exp(Math.log(factor[b0]!) * (1 - t) + Math.log(factor[b1]!) * t);
+    };
+    for (let pass = 0; pass < 3; pass++) {
+      for (let i = 0; i < set.modes; i++) scales[i] = interp(set.freq[i]!);
+      predict();
+      for (let b = 0; b < nb; b++) {
+        if (!live(b) || !(deepOnly[b]! > 0)) continue;
+        const want = Math.max(targetE[b]! - baseE[b]!, 0.05 * targetE[b]!);
+        const got = Math.max(withBase[b]! - baseE[b]!, 0.05 * deepOnly[b]!);
+        factor[b] *= Math.min(2, Math.max(0.5, Math.sqrt(want / got)));
+      }
+    }
+    for (let i = 0; i < set.modes; i++) scales[i] = interp(set.freq[i]!);
+    return scales;
+  } finally {
+    releaseF64Scratch(xcRe);
+    releaseF64Scratch(xcIm);
+    releaseF64Scratch(bRe);
+    releaseF64Scratch(bIm);
+    releaseF64Scratch(sRe);
+    releaseF64Scratch(sIm);
+    releaseF64Scratch(gRe);
+    releaseF64Scratch(gIm);
+    releaseF64Scratch(cRe);
+    releaseF64Scratch(cIm);
   }
-  for (let i = 0; i < set.modes; i++) scales[i] = interp(set.freq[i]);
-  return scales;
 }

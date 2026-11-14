@@ -136,6 +136,10 @@
                 <data android:mimeType="image/*" />
                 <data android:mimeType="video/*" />
                 <data android:mimeType="audio/*" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/json" />
             </intent-filter>
         </activity>
 

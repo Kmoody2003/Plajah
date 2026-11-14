@@ -5,6 +5,7 @@ import { cancelMusicGeneration, getGeneratedAudio, getMusicGeneration, startMusi
 import type { GenerationKind, GenerationRequest, GenerationResult } from '../../../../services/melos/generation/types';
 import type { InsertTarget } from '../../../../services/melos/generation/insert';
 import { validateGeneratedNotes } from '../../../../services/melos/generation/types';
+import { briefToRenderRequest, type SongBrief } from '../../../../services/melos/direct/songBrief';
 
 export interface GenerationInsertion {
   result: GenerationResult;
@@ -19,18 +20,29 @@ export interface GenerationInsertion {
 interface Props {
   doc: GrooveDoc; engines: EngineStatus[]; startBeats: number;
   initialDestination: 'timeline' | 'meka' | 'glass';
+  initialBrief?: SongBrief | null;
   onClose: () => void; onInsert: (value: GenerationInsertion) => Promise<void>;
 }
 const field = 'w-full rounded-lg border border-white/15 bg-[#171020] px-2 py-1.5 text-xs text-white';
 
-export default function GenerationPanel({ doc, engines, startBeats, initialDestination, onClose, onInsert }: Props) {
+export default function GenerationPanel({ doc, engines, startBeats, initialDestination, initialBrief, onClose, onInsert }: Props) {
+  const initialRendered = initialBrief ? briefToRenderRequest(initialBrief) : null;
   const [kind, setKind] = useState<GenerationKind>('audio');
   const [engineId, setEngineId] = useState('ace-step-2.5');
-  const [prompt, setPrompt] = useState('');
-  const [lyrics, setLyrics] = useState('');
-  const [key, setKey] = useState('D Minor');
-  const [bars, setBars] = useState(32);
-  const [seconds, setSeconds] = useState(180);
+  const [prompt, setPrompt] = useState(initialRendered?.prompt ?? '');
+  const [lyrics, setLyrics] = useState(initialRendered?.lyrics ?? '');
+  const [key, setKey] = useState(initialRendered?.key ?? 'D Minor');
+  const [bars, setBars] = useState(initialBrief?.totalBars ?? 32);
+  const [seconds, setSeconds] = useState(initialRendered?.seconds ?? 180);
+  useEffect(() => {
+    if (!initialBrief) return;
+    const req = briefToRenderRequest(initialBrief);
+    setPrompt(req.prompt);
+    setLyrics(req.lyrics);
+    setKey(req.key);
+    setBars(initialBrief.totalBars);
+    setSeconds(req.seconds);
+  }, [initialBrief]);
   const [seed, setSeed] = useState(42);
   const [abc, setAbc] = useState('');
   const [destination, setDestination] = useState<InsertTarget['destination']>(initialDestination);
@@ -169,7 +181,7 @@ export default function GenerationPanel({ doc, engines, startBeats, initialDesti
       <div className="grid grid-cols-2 gap-2"><label className="text-xs">Key<input className={field} value={key} maxLength={40} onChange={event => setKey(event.target.value)} /></label>
         {notesMode ? <label className="text-xs">Bars (up to 128)<input className={field} type="number" min={1} max={destination === 'timeline' ? 128 : 16} value={bars} onChange={event => setBars(Number(event.target.value))} /></label> : <label className="text-xs">Score Length (10–360s)<input className={field} type="number" min={10} max={360} value={seconds} onChange={event => setSeconds(Number(event.target.value))} /></label>}</div>
       <label className="block text-xs">Seed<input className={field} type="number" min={0} max={2147483647} value={seed} onChange={event => setSeed(Number(event.target.value))} /></label>
-      {notesMode && <><label className="block text-xs">Destination<select className={field} value={destination} onChange={event => setDestination(event.target.value as InsertTarget['destination'])}><option value="timeline">Timeline MIDI track</option><option value="meka">MEKA pattern</option><option value="glass">Glass pattern</option></select></label><label className="block text-xs">Instrument<select className={field} value={instrument} onChange={event => setInstrument(event.target.value as InstrumentType)}><option value="aura">AURA vintage & orchestral synth</option><option value="soma">SOMA physical acoustic percussion</option><option value="bajo">BAJO physical contrabass & cello</option><option value="vela">VELA modal harp & strings</option><option value="cantus">CANTUS vocal & Gothic choir</option><option value="ison">ISON pipe organ & drone</option><option value="pneuma">PNEUMA breath flute & woodwind</option><option value="onda">ONDA wavetable synth</option></select></label></>}
+      {notesMode && <><label className="block text-xs">Destination<select className={field} value={destination} onChange={event => setDestination(event.target.value as InsertTarget['destination'])}><option value="timeline">Timeline MIDI track</option><option value="meka">MEKA pattern</option><option value="glass">Glass pattern</option></select></label><label className="block text-xs">Instrument<select className={field} value={instrument} onChange={event => setInstrument(event.target.value as InstrumentType)}><option value="aura">AURA vintage & orchestral synth</option><option value="volta">VOLTA circuit-modeled Super-Synth</option><option value="soma">SOMA physical acoustic percussion</option><option value="bajo">BAJO physical contrabass & cello</option><option value="vela">VELA modal harp & strings</option><option value="cantus">CANTUS vocal & Gothic choir</option><option value="ison">ISON pipe organ & drone</option><option value="pneuma">PNEUMA breath flute & woodwind</option><option value="onda">ONDA wavetable synth</option></select></label></>}
       {kind !== 'sample' && (!notesMode || destination === 'timeline') && <><label className="block text-xs">Track<select className={field} value={trackId} onChange={event => setTrackId(event.target.value)}><option value="">New {notesMode ? 'MIDI' : 'audio'} track</option>{doc.arrangement.filter(track => track.kind === (notesMode ? 'instrument' : 'audio') && !track.padOwned).map(track => <option key={track.id} value={track.id}>{track.name}</option>)}</select></label><label className="block text-xs">Start beat (0 = beginning)<input className={field} type="number" min={0} max={100000} step={0.25} value={atBeat} onChange={event => setAtBeat(Number(event.target.value))} /></label></>}
       {selected?.id === 'yue2' && <label className="block text-xs">ABC score (optional)<textarea className={field} rows={3} maxLength={100000} value={abc} onChange={event => setAbc(event.target.value)} /></label>}
       {kind !== 'sample' && <label className="flex gap-2 items-center text-xs"><input type="checkbox" checked={autoInsert} onChange={event => setAutoInsert(event.target.checked)} /> Insert when ready</label>}

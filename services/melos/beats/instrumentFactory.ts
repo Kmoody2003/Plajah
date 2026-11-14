@@ -7,6 +7,7 @@ import { newPatch, serializePatch } from '../instruments/onda/patch';
 import { newVelaPatch, serializeVelaPatch } from '../instruments/vela/patch';
 import { newBajoPatch, serializeBajoPatch } from '../instruments/bajo/patch';
 import { newAuraPatch, serializeAuraPatch } from '../instruments/aura/patch';
+import { newVoltaPatch, serializeVoltaPatch } from '../instruments/volta/patch';
 import { newSomaPatch, serializeSomaPatch } from '../instruments/soma/patch';
 import { newLyraPatch, serializeLyraPatch } from '../instruments/lyra/patch';
 import { newTonosPatch, serializeTonosPatch } from '../instruments/tonos/patch';
@@ -31,7 +32,8 @@ export interface InstrumentDef {
  *  what kind of thing you want, not scrolling a preset list. */
 export const INSTRUMENTS: InstrumentDef[] = [
   { type: 'onda', name: 'ONDA', blurb: 'Wavetable synth. Basses, leads, pads — anything you can shape.', color: '#B84DFF', ready: true },
-  { type: 'aura', name: 'AURA', blurb: "Vintage '60s & '70s voltage-controlled analogue synth. 56 classic hardware templates, BBD string ensemble, and tape warmth.", color: '#E59A38', ready: true },
+  { type: 'aura', name: 'AURA', blurb: "Vintage '60s & '70s voltage-controlled analogue synth. 70 classic hardware templates, BBD string ensemble, and tape warmth.", color: '#E59A38', ready: true },
+  { type: 'volta', name: 'VOLTA', blurb: "Dual-era circuit-modeled Super-Synth: 1974 discrete BJT transistor ladder & diode clip morphing into 2026 Cytomic ZDF & Buchla wavefolder — buildable for real in Plajah Builder.", color: '#06B6D4', ready: true },
   { type: 'soma', name: 'SOMA', blurb: 'Real-time physical-modeling acoustic percussion & chamber simulator. Timpani, West African Djembe & Talking Drum, Congas, Taiko & Frame drums.', color: '#E86A33', ready: true },
   { type: 'lyra', name: 'LYRA', blurb: 'Physical-model guitar, piano, violin, sax, trumpet and tine electric piano — real strings, bows, reeds and lips, no samples.', color: '#D9B36C', ready: true },
   { type: 'tonos', name: 'TONOS', blurb: 'World strings, physically modelled: 52 instruments from Asia, India, the Middle East, Europe and Africa — sitar, guzheng, oud, kora, erhu, hurdy-gurdy — real string length, tension and material, jawari bridges, bows and hammers, skin and gourd bodies, sympathetic strings.', color: '#C98B4A', ready: true },
@@ -53,6 +55,7 @@ export function instrumentLabel(type: InstrumentType): string {
   if (type === 'kera') return 'KERA';
   if (type === 'bajo') return 'BAJO';
   if (type === 'aura') return 'AURA';
+  if (type === 'volta') return 'VOLTA';
   if (type === 'soma') return 'SOMA';
   if (type === 'lyra') return 'LYRA';
   if (type === 'tonos') return 'TONOS';
@@ -66,6 +69,7 @@ export function instrumentColor(type: InstrumentType): string {
   if (type === 'kera') return '#00DAF3';
   if (type === 'bajo') return '#FF4B1C';
   if (type === 'aura') return '#E59A38';
+  if (type === 'volta') return '#06B6D4';
   if (type === 'soma') return '#E86A33';
   if (type === 'lyra') return '#D9B36C';
   if (type === 'tonos') return '#C98B4A';
@@ -99,6 +103,8 @@ export function makeInstrumentTrack(type: InstrumentType, count: number, presetP
           ? (serializeBajoPatch(newBajoPatch()) as ReturnType<typeof serializePatch>)
           : type === 'aura'
             ? (serializeAuraPatch(newAuraPatch()) as ReturnType<typeof serializePatch>)
+            : type === 'volta'
+              ? (serializeVoltaPatch(newVoltaPatch()) as ReturnType<typeof serializePatch>)
             : type === 'soma'
               ? (serializeSomaPatch(newSomaPatch()) as ReturnType<typeof serializePatch>)
             : type === 'lyra'

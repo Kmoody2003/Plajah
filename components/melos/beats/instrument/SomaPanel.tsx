@@ -60,6 +60,10 @@ import { SomaDrumStory } from './SomaDrumStory';
 import { SomaDeepToggle } from './SomaDeepToggle';
 import { SomaHandMapCard } from './SomaHandMapCard';
 import { liveBus, now as liveNow } from '../../../../services/melos/beats/band/live/events';
+import { buildSomaCadModel } from '../../../../services/melos/instruments/cad3d';
+import { Instrument3DViewport } from './3d/Instrument3DViewport';
+import { Split2D3DWorkspace } from './3d/Split2D3DWorkspace';
+import { computeMembraneModeRatios } from '../../../../services/melos/instruments/physics/heritageAcoustics';
 
 interface Props {
   doc: GrooveDoc;
@@ -74,10 +78,7 @@ const GOLD = '#F59E0B';
 const TEAL = '#10B981';
 
 export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embedded }) => {
-  const patch: SomaPatch = useMemo(
-    () => deserializeSomaPatch(track.instrument?.patch) ?? newSomaPatch(),
-    [track.instrument?.patch],
-  );
+  const patch: SomaPatch = deserializeSomaPatch(track.instrument?.patch) ?? newSomaPatch();
 
   const [category, setCategory] = useState<SomaCategory>(() => {
     const found = SOMA_PRESETS.find((p) => p.id === patch.presetId);
@@ -88,6 +89,12 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
   const [morphTargetId, setMorphTargetId] = useState<string>(SOMA_PRESETS[6]?.id ?? 'djembe-lenke-master');
   const [morphAmt, setMorphAmt] = useState<number>(0);
   const [heldNotes, setHeldNotes] = useState<Set<number>>(new Set());
+  const [strikeNonce, setStrikeNonce] = useState<number>(0);
+  useEffect(() => liveBus.on((e) => {
+    if (e.trackId === track.id && (e.kind === 'strike' || (e.kind === 'note' && e.on))) {
+      setStrikeNonce((k) => k + 1);
+    }
+  }), [track.id]);
   const [labGroovePlaying, setLabGroovePlaying] = useState<boolean>(false);
   const [lastTelemetry, setLastTelemetry] = useState<{
     crestDb: number;
@@ -129,6 +136,7 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
   const headCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const chamberCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const labScopeCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const wakeSimRef = useRef<() => void>(() => {});
   const activeVoices = useRef<Map<number, number>>(new Map());
   const refAudioCtxRef = useRef<AudioContext | null>(null);
 
@@ -182,6 +190,7 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
         velocity,
         weights,
       };
+      wakeSimRef.current();
 
       const engine = BeatsEngine.get();
       void engine.init().then(async () => {
@@ -421,7 +430,106 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
   // Real-time 2D Bessel Membrane & Coupled Air Chamber animation loop
   useEffect(() => {
     let raf = 0;
+    let idleTimer: ReturnType<typeof setInterval> | null = null;
+    let disposed = false;
+    const pcmBuf = new Float32Array(512);
+    let freqBuf: Uint8Array | null = null;
+    let prevPeak = 0;
+
+    let cachedHeadBg: HTMLCanvasElement | null = null;
+    let cachedHeadKey = '';
+
+    const getHeadBg = (w: number, h: number): HTMLCanvasElement => {
+      const shellMat = Math.round(resolvedParams[SM.SHELL_MATERIAL] ?? 1);
+      const skinMat = Math.round(resolvedParams[SM.SKIN_MATERIAL] ?? 0);
+      const heritageAge = resolvedParams[SM.HERITAGE_AGE] ?? 0.35;
+      const craftAsym = resolvedParams[SM.CRAFT_ASYMMETRY] ?? 0.25;
+      const syahiLoad = resolvedParams[SM.SYAHI_LOAD] ?? 0;
+      const key = `${w}x${h}:${shellMat}:${skinMat}:${heritageAge.toFixed(2)}:${craftAsym.toFixed(2)}:${syahiLoad.toFixed(2)}`;
+      if (cachedHeadBg && cachedHeadKey === key) return cachedHeadBg;
+
+      const bg = cachedHeadBg ?? document.createElement('canvas');
+      bg.width = w;
+      bg.height = h;
+      const bctx = bg.getContext('2d');
+      if (bctx) {
+        bctx.clearRect(0, 0, w, h);
+        const cx = w * 0.5;
+        const cy = h * 0.5;
+        const R = Math.min(cx, cy) * 0.86;
+        const rimColor = shellMat === 1 ? '#D97736' : shellMat === 0 ? '#8B4513' : shellMat === 2 ? '#A16207' : '#64748B';
+        bctx.beginPath();
+        bctx.arc(cx, cy, R + 7, 0, Math.PI * 2);
+        bctx.fillStyle = `${rimColor}38`;
+        bctx.fill();
+        bctx.lineWidth = 3;
+        bctx.strokeStyle = rimColor;
+        bctx.stroke();
+
+        const skinTone =
+          skinMat === 0 ? '#F3E5AB' : skinMat === 1 ? '#D6B88A' : skinMat === 2 ? '#E8D3B3' : skinMat === 3 ? '#C89D66' : skinMat === 4 ? '#B88655' : '#CBD5E1';
+        const grad = bctx.createRadialGradient(cx, cy, R * 0.05, cx, cy, R);
+        grad.addColorStop(0, `${skinTone}28`);
+        grad.addColorStop(0.7, `${skinTone}16`);
+        grad.addColorStop(1, '#09090C');
+        bctx.beginPath();
+        bctx.arc(cx, cy, R, 0, Math.PI * 2);
+        bctx.fillStyle = grad;
+        bctx.fill();
+
+        if (heritageAge > 0.05) {
+          bctx.beginPath();
+          bctx.arc(cx, cy, R * 0.94, 0, Math.PI * 2);
+          bctx.strokeStyle = `rgba(120, 68, 24, ${(heritageAge * 0.45).toFixed(3)})`;
+          bctx.lineWidth = 6;
+          bctx.stroke();
+        }
+        if (craftAsym > 0.04) {
+          const spineAng = 0.22 + craftAsym * 0.18;
+          bctx.save();
+          bctx.translate(cx, cy);
+          bctx.rotate(spineAng);
+          bctx.strokeStyle = `rgba(255, 224, 178, ${(0.06 + craftAsym * 0.2).toFixed(3)})`;
+          bctx.setLineDash([3, 5]);
+          bctx.lineWidth = 1.2;
+          bctx.beginPath();
+          bctx.moveTo(-R * 0.92, 0); bctx.lineTo(R * 0.92, 0);
+          bctx.moveTo(0, -R * 0.92); bctx.lineTo(0, R * 0.92);
+          bctx.stroke();
+          bctx.restore();
+        }
+        if (syahiLoad > 0.03) {
+          const ecc = R * 0.06 * craftAsym;
+          const sR = R * (0.14 + 0.24 * syahiLoad);
+          const sGrad = bctx.createRadialGradient(cx + ecc, cy - ecc * 0.5, sR * 0.1, cx + ecc, cy - ecc * 0.5, sR);
+          sGrad.addColorStop(0, 'rgba(18, 18, 22, 0.95)');
+          sGrad.addColorStop(0.75, 'rgba(32, 30, 36, 0.88)');
+          sGrad.addColorStop(1, 'rgba(45, 40, 48, 0.18)');
+          bctx.beginPath();
+          bctx.arc(cx + ecc, cy - ecc * 0.5, sR, 0, Math.PI * 2);
+          bctx.fillStyle = sGrad;
+          bctx.fill();
+          bctx.strokeStyle = 'rgba(245, 158, 11, 0.35)';
+          bctx.lineWidth = 1;
+          bctx.stroke();
+        }
+        for (const nodalR of [0.28, 0.4356, 0.65, 0.82]) {
+          bctx.beginPath();
+          bctx.arc(cx, cy, R * nodalR, 0, Math.PI * 2);
+          bctx.strokeStyle = nodalR === 0.65 ? 'rgba(232,106,51,0.32)' : 'rgba(255,255,255,0.08)';
+          bctx.setLineDash(nodalR === 0.65 ? [4, 4] : []);
+          bctx.lineWidth = nodalR === 0.65 ? 1.3 : 1;
+          bctx.stroke();
+        }
+        bctx.setLineDash([]);
+      }
+      cachedHeadBg = bg;
+      cachedHeadKey = key;
+      return bg;
+    };
+
     const renderVisuals = (now: number) => {
+      if (disposed) return;
       const headCanvas = headCanvasRef.current;
       const chamberCanvas = chamberCanvasRef.current;
       const st = strikeAnimRef.current;
@@ -430,8 +538,18 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
       const t60 = 0.25 + 4.5 * decayNorm * decayNorm;
       const env = st.active ? Math.exp((-3.2 * elapsedSec) / t60) : 0;
       if (env < 0.004) st.active = false;
+      const eng = BeatsEngine.get();
+      const liveInst = eng.getInstrument(track.id);
+      const livePeak = liveInst ? liveInst.readWaveform(pcmBuf) : 0;
+      if (livePeak > 0.042 && livePeak > prevPeak * 1.38 && now - st.time > 45) {
+        st.time = now;
+        st.active = true;
+        st.velocity = Math.min(1, livePeak * 1.45);
+      }
+      prevPeak = livePeak;
+      const visEnv = Math.max(env, Math.min(1, livePeak * 1.65));
 
-      // 1. Render 2D Circular Drumhead & Bessel Nodal Rings
+      // 1. Render 2D Circular Drumhead & Bessel Nodal Rings (blitted static backdrop)
       if (headCanvas) {
         const ctx = headCanvas.getContext('2d');
         if (ctx) {
@@ -441,53 +559,43 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
           const cy = h * 0.5;
           const R = Math.min(cx, cy) * 0.86;
           ctx.clearRect(0, 0, w, h);
+          ctx.drawImage(getHeadBg(w, h), 0, 0);
 
-          // Outer wood/copper counterhoop rim
-          const shellMat = Math.round(resolvedParams[SM.SHELL_MATERIAL] ?? 1);
-          const rimColor =
-            shellMat === 1 ? '#D97736' : shellMat === 0 ? '#8B4513' : shellMat === 2 ? '#A16207' : '#64748B';
-          ctx.beginPath();
-          ctx.arc(cx, cy, R + 7, 0, Math.PI * 2);
-          ctx.fillStyle = `${rimColor}38`;
-          ctx.fill();
-          ctx.lineWidth = 3;
-          ctx.strokeStyle = rimColor;
-          ctx.stroke();
+          const buzzAmt = resolvedParams[SM.BUZZ_AMOUNT] ?? 0;
 
-          // Membrane skin surface gradient
-          const skinMat = Math.round(resolvedParams[SM.SKIN_MATERIAL] ?? 0);
-          const skinTone =
-            skinMat === 0
-              ? '#F3E5AB'
-              : skinMat === 1
-                ? '#D6B88A'
-                : skinMat === 2
-                  ? '#E8D3B3'
-                  : skinMat === 3
-                    ? '#C89D66'
-                    : skinMat === 4
-                      ? '#B88655'
-                      : '#CBD5E1';
-          const grad = ctx.createRadialGradient(cx, cy, R * 0.05, cx, cy, R);
-          grad.addColorStop(0, `${skinTone}28`);
-          grad.addColorStop(0.7, `${skinTone}16`);
-          grad.addColorStop(1, '#09090C');
-          ctx.beginPath();
-          ctx.arc(cx, cy, R, 0, Math.PI * 2);
-          ctx.fillStyle = grad;
-          ctx.fill();
-
-          // Draw Bessel nodal circles (r/a = 0.4356 for (0,2), 0.6376 for (0,3), 0.65 optimal playing zone)
-          for (const nodalR of [0.28, 0.4356, 0.65, 0.82]) {
+          // Azimuthal 2D Bessel (m,n) petal standing wave & Hunt-Crossley snare/gut buzz sparks
+          if (visEnv > 0.015) {
             ctx.beginPath();
-            ctx.arc(cx, cy, R * nodalR, 0, Math.PI * 2);
-            ctx.strokeStyle =
-              nodalR === 0.65 ? 'rgba(232,106,51,0.32)' : 'rgba(255,255,255,0.08)';
-            ctx.setLineDash(nodalR === 0.65 ? [4, 4] : []);
-            ctx.lineWidth = nodalR === 0.65 ? 1.3 : 1;
+            for (let deg = 0; deg <= 72; deg++) {
+              const th = (deg / 72) * Math.PI * 2;
+              const petal = Math.cos(2 * th) * Math.sin(now * 0.035) * visEnv * 7 + Math.cos(3 * th + 0.5) * Math.cos(now * 0.052) * visEnv * 4.5;
+              const pr = R * 0.62 + petal;
+              const px = cx + pr * Math.cos(th);
+              const py = cy + pr * Math.sin(th);
+              if (deg === 0) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            }
+            ctx.strokeStyle = `rgba(56, 189, 248, ${(visEnv * 0.52).toFixed(3)})`;
+            ctx.lineWidth = 1.5;
             ctx.stroke();
+
+            if (buzzAmt > 0.05) {
+              ctx.strokeStyle = `rgba(251, 191, 36, ${(0.25 + buzzAmt * 0.5).toFixed(2)})`;
+              ctx.lineWidth = 1.2;
+              ctx.beginPath();
+              ctx.moveTo(cx - R * 0.85, cy + R * 0.18);
+              ctx.lineTo(cx + R * 0.85, cy + R * 0.18);
+              ctx.stroke();
+              ctx.fillStyle = 'rgba(253, 224, 71, 0.85)';
+              for (let sp = -3; sp <= 3; sp++) {
+                const sx = cx + (sp / 4) * R * 0.72;
+                const sy = cy + R * 0.18 + Math.sin(now * 0.11 + sp * 1.9) * visEnv * buzzAmt * 5;
+                ctx.beginPath();
+                ctx.arc(sx, sy, 1.8 + visEnv * 1.6, 0, Math.PI * 2);
+                ctx.fill();
+              }
+            }
           }
-          ctx.setLineDash([]);
 
           // Live 2D Bessel eigenmode standing wave rings when vibrating
           if (env > 0.005) {
@@ -648,6 +756,37 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
           ctx.lineWidth = 2.5;
           ctx.stroke();
 
+          // Hand-chiseled spiral adze bore grooves & Udu/Ghatam hand-port occlusion
+          const boreCraft = resolvedParams[SM.CRAFT_ASYMMETRY] ?? 0.25;
+          const apertureHand = resolvedParams[SM.APERTURE_HAND] ?? 0;
+          if (boreCraft > 0.05 && (cavityType === 1 || cavityType === 2 || cavityType === 3)) {
+            ctx.strokeStyle = `rgba(245, 158, 11, ${(0.08 + boreCraft * 0.22).toFixed(3)})`;
+            ctx.lineWidth = 1;
+            for (let g = 1; g <= 4; g++) {
+              const gy = topY + ((botY - topY) * g) / 5;
+              ctx.beginPath();
+              ctx.moveTo(cx - topHalfW * 0.55, gy - 4);
+              ctx.lineTo(cx + topHalfW * 0.55, gy + 4);
+              ctx.stroke();
+            }
+          }
+          if (cavityType !== 0) {
+            const portHalf = topHalfW * (cavityType === 1 ? 0.34 : 0.48);
+            const openFrac = 1 - apertureHand * 0.88;
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(cx - portHalf * openFrac, botY + 3);
+            ctx.lineTo(cx + portHalf * openFrac, botY + 3);
+            ctx.stroke();
+            if (apertureHand > 0.03) {
+              ctx.fillStyle = `rgba(232, 106, 51, ${(0.28 + apertureHand * 0.55).toFixed(2)})`;
+              ctx.beginPath();
+              ctx.roundRect(cx + portHalf * openFrac - 2, botY - 1, portHalf * (2 - openFrac * 2) + 4, 7, 3);
+              ctx.fill();
+            }
+          }
+
           // Sympathetic bottom membrane for Dual-Head drums (Hourglass & Taiko)
           if (cavityType === 3 || cavityType === 4) {
             const botDeflect = -headDeflect * 0.72;
@@ -709,15 +848,17 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
             ctx.lineWidth = 1.8;
             ctx.stroke();
 
-            // FFT Spectrum in bottom half (0 .. 4000 Hz)
-            const freqData = new Uint8Array(analyser.frequencyBinCount);
-            analyser.getByteFrequencyData(freqData);
-            const maxBin = Math.min(freqData.length, Math.floor((4000 * analyser.fftSize) / 48000));
+            // FFT Spectrum in bottom half (0 .. 4000 Hz) reusing pre-allocated buffer
+            if (!freqBuf || freqBuf.length !== analyser.frequencyBinCount) {
+              freqBuf = new Uint8Array(analyser.frequencyBinCount);
+            }
+            analyser.getByteFrequencyData(freqBuf);
+            const maxBin = Math.min(freqBuf.length, Math.floor((4000 * analyser.fftSize) / 48000));
             ctx.beginPath();
             ctx.moveTo(0, h);
             for (let b = 0; b < maxBin; b++) {
               const x = (b / maxBin) * w;
-              const mag = freqData[b]! / 255;
+              const mag = freqBuf[b]! / 255;
               const y = h - mag * (h - midY - 14);
               ctx.lineTo(x, y);
             }
@@ -751,12 +892,36 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
         }
       }
 
-      raf = requestAnimationFrame(renderVisuals);
+      if (visEnv > 0.005 || livePeak > 0.002 || st.active || eng.isRunning()) {
+        raf = requestAnimationFrame(renderVisuals);
+      } else {
+        raf = 0;
+        if (!idleTimer) {
+          idleTimer = setInterval(() => {
+            const instNow = eng.getInstrument(track.id);
+            const active = strikeAnimRef.current.active || eng.isRunning() || (instNow ? instNow.readWaveform(pcmBuf) > 0.002 : false);
+            if (active && !raf && !disposed) {
+              if (idleTimer) { clearInterval(idleTimer); idleTimer = null; }
+              raf = requestAnimationFrame(renderVisuals);
+            }
+          }, 120);
+        }
+      }
+    };
+
+    wakeSimRef.current = () => {
+      if (disposed) return;
+      if (idleTimer) { clearInterval(idleTimer); idleTimer = null; }
+      if (!raf) raf = requestAnimationFrame(renderVisuals);
     };
 
     raf = requestAnimationFrame(renderVisuals);
-    return () => cancelAnimationFrame(raf);
-  }, [resolvedParams]);
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(raf);
+      if (idleTimer) clearInterval(idleTimer);
+    };
+  }, [resolvedParams, track.id]);
 
   const handleNoteOn = useCallback(
     (note: number, vel = 0.88) => {
@@ -774,6 +939,7 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
         active: true,
         velocity: vel,
       };
+      wakeSimRef.current();
     },
     [track],
   );
@@ -803,8 +969,12 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
   const currentCavityIdx = Math.round(resolvedParams[SM.CAVITY_TYPE] ?? 0);
   const currentShellIdx = Math.round(resolvedParams[SM.SHELL_MATERIAL] ?? 1);
   const currentSkinIdx = Math.round(resolvedParams[SM.SKIN_MATERIAL] ?? 0);
+  const somaCad = useMemo(() => buildSomaCadModel(resolvedParams, patch.presetId), [resolvedParams, patch.presetId]);
+  const cavVol = resolvedParams[SM.CAVITY_VOLUME] ?? 0.65;
+  const drumRadius = 0.14 + 0.18 * (resolvedParams[SM.HEAD_DIAMETER] ?? 0.55);
+  const drumHeight = currentCavityIdx === 5 ? 0.08 + 0.04 * cavVol : 0.24 + 0.34 * cavVol;
 
-  return (
+  const somaMain = (
     <div className="flex flex-col text-white select-none" style={{ background: '#0A0B0F' }}>
       {/* Top Instrument Identity & Mode Bar */}
       <div
@@ -1010,6 +1180,7 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
 
           {/* Right 7 cols: Coupled Air Chamber Cross-Section + Live Tension Pedal + 6 Physical Macros */}
           <div className="lg:col-span-7 flex flex-col gap-3">
+            {/* Dedicated live 3D CAD drum viewport sits continuously on the right pane */}
             {/* Coupled Air Chamber & Bessel Modal Spectrum Card */}
             <div className="rounded-2xl border border-white/10 bg-black/40 p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -1117,6 +1288,43 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
                     format={(v) => `${Math.round(v * 100)}%`}
                   />
                 ))}
+              </div>
+            </div>
+
+            {/* Heritage Hide, C.V. Raman Syahi & Handmade Craft Physics */}
+            <div className="rounded-2xl border border-amber-500/20 bg-black/40 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                  Heritage Hide, Syahi Paste & Handmade Craft Physics
+                </span>
+                <span className="text-[9.5px] font-mono text-white/50">
+                  {(() => {
+                    const mr = computeMembraneModeRatios({
+                      syahiLoad: resolvedParams[SM.SYAHI_LOAD] ?? 0,
+                      stiffnessB: 0.008,
+                      craftAsymmetry: resolvedParams[SM.CRAFT_ASYMMETRY] ?? 0.25,
+                    });
+                    return `Modes: 1.00× · ${mr[2]!.primaryRatio.toFixed(2)}× · ${mr[4]!.primaryRatio.toFixed(2)}× (Δ ${(mr[1]!.doubletRatio - mr[1]!.primaryRatio).toFixed(3)})`;
+                  })()}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 justify-items-center">
+                {([SM.HERITAGE_AGE, SM.CRAFT_ASYMMETRY, SM.SYAHI_LOAD, SM.APERTURE_HAND] as const).map((pid) => {
+                  const meta = SOMA_PARAM_META[pid];
+                  return (
+                    <Knob
+                      key={pid}
+                      label={meta?.label ?? 'Param'}
+                      value={patch.params[pid] ?? somaDefault(pid)}
+                      min={0}
+                      max={1}
+                      defaultValue={somaDefault(pid)}
+                      onChange={(v) => setParamValue(pid, v)}
+                      color={pid === SM.APERTURE_HAND ? TEAL : pid === SM.SYAHI_LOAD ? GOLD : ACCENT}
+                      format={meta?.format}
+                    />
+                  );
+                })}
               </div>
             </div>
 
@@ -1404,5 +1612,33 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
         })}
       </div>
     </div>
+  );
+
+  return (
+    <Split2D3DWorkspace
+      trackId={track.id}
+      accentHex={ACCENT}
+      title3D={`3D CAD · ${somaCad.spec.family.toUpperCase()} SHELL`}
+      subtitle3D={`${patch.name} · ${SKIN_MATERIALS[currentSkinIdx]}`}
+      left={somaMain}
+      right3D={
+        <Instrument3DViewport
+          fillHeight
+          model={somaCad.model}
+          spec={somaCad.spec}
+          trackId={track.id}
+          strikeNonce={strikeNonce}
+          subtitle={patch.origin ?? somaCad.spec.family}
+          kinematicsMeta={{
+            archetype: 'percussion',
+            strikePos: resolvedParams[SM.STRIKE_POS] ?? 0.62,
+            strikeAngle: resolvedParams[SM.STRIKE_ANGLE] ?? 0.5,
+            drumRadius,
+            drumHeight,
+          }}
+          onTrigger={() => triggerPhysicalStrike(patch.defaultNote || 48, 0.9, resolvedParams[SM.STRIKE_POS] ?? 0.62)}
+        />
+      }
+    />
   );
 };

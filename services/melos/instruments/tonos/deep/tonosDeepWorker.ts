@@ -4,6 +4,7 @@
 
 import { applyScales, bandpassDrive, buildTonosDeepBody, floorScales, floorsBelow, layerFrames, type TonosDeepSet } from './deepBody';
 import { modalGpu, renderModalBatch, type ModalJob } from '../../soma/deep/gpuModal';
+import { lruSet, lruTouch, trimSilenceTail } from '../../soma/deep/deepUtil';
 
 export interface TonosDeepJob {
   params: Array<[number, number]>;
@@ -40,16 +41,16 @@ type Exports = Record<string, (...a: number[]) => number> & { memory: WebAssembl
 const sets = new Map<string, TonosDeepSet | null>();
 function bodyKey(params: Array<[number, number]>, sr: number): string {
   const m = new Map(params);
-  return `${sr}|${m.get(TN_INSTRUMENT) ?? 0}|${m.get(2014) ?? 0.5}|${m.get(2015) ?? 0.5}`;
+  return `${sr}|${m.get(TN_INSTRUMENT) ?? 0}|${m.get(2014) ?? 0.5}|${m.get(2015) ?? 0.5}|${m.get(2029) ?? 0.35}|${m.get(2030) ?? 0.25}`;
 }
 function setFor(params: Array<[number, number]>, sr: number): TonosDeepSet | null {
-  const m = new Map(params);
   const key = bodyKey(params, sr);
-  if (!sets.has(key)) {
-    if (sets.size > 24) sets.clear();
-    sets.set(key, buildTonosDeepBody(m.get(TN_INSTRUMENT) ?? 0, (id) => m.get(id) ?? NaN, sr));
-  }
-  return sets.get(key)!;
+  const hit = lruTouch(sets, key);
+  if (hit !== undefined || sets.has(key)) return hit ?? null;
+  const m = new Map(params);
+  const built = buildTonosDeepBody(m.get(TN_INSTRUMENT) ?? 0, (id) => m.get(id) ?? NaN, sr);
+  lruSet(sets, key, built, 24);
+  return built;
 }
 
 // Calibration (floorScales, ~1–2 s) depends on the note's partials and the body, hardly on how hard
@@ -59,29 +60,48 @@ function scaleKey(j: TonosDeepJob): string {
   return `${j.params.map(([id, v]) => `${id}:${Math.round(v * 1e4)}`).join(',')}|${j.note}|${j.sr}`;
 }
 
+interface CachedTonosWasm {
+  mod: WebAssembly.Module;
+  x: Exports;
+  eng: number;
+  lastKey: string;
+}
+let cachedWasm: CachedTonosWasm | null = null;
+
+function ensureTonosEngine(module: WebAssembly.Module, sr: number, params: Array<[number, number]>): { x: Exports; eng: number } {
+  const key = `${sr}|${params.map(([id, v]) => `${id}=${v}`).join(',')}`;
+  if (!cachedWasm || cachedWasm.mod !== module) {
+    const x = new WebAssembly.Instance(module, {}).exports as unknown as Exports;
+    const eng = x.pa_create(sr);
+    for (const [id, v] of params) x.pa_set_param(eng, id, v);
+    cachedWasm = { mod: module, x, eng, lastKey: key };
+    return { x, eng };
+  }
+  if (cachedWasm.lastKey !== key) {
+    if (cachedWasm.eng) cachedWasm.x.pa_destroy(cachedWasm.eng);
+    cachedWasm.eng = cachedWasm.x.pa_create(sr);
+    for (const [id, v] of params) cachedWasm.x.pa_set_param(cachedWasm.eng, id, v);
+    cachedWasm.lastKey = key;
+  }
+  return { x: cachedWasm.x, eng: cachedWasm.eng };
+}
+
 /** Each job's note: the force on the bridge and the floors' sound, trimmed to where they've died. */
 function notes(module: WebAssembly.Module, jobs: TonosDeepJob[]): Array<{ drive: Float32Array; floors: Float32Array; rest: Float32Array; below: Float32Array }> {
-  const x = new WebAssembly.Instance(module, {}).exports as unknown as Exports;
-  let eng = 0;
-  let lastParams: Array<[number, number]> | null = null;
-  try {
-    return jobs.map((j) => {
-      if (j.params !== lastParams) {
-        if (eng) x.pa_destroy(eng);
-        eng = x.pa_create(j.sr);
-        for (const [id, v] of j.params) x.pa_set_param(eng, id, v);
-        lastParams = j.params;
-      }
-      const frames = Math.round(MAX_SECONDS * j.sr);
-      const ptr = x.pa_tonos_excitation(eng, j.note, j.vb, j.variant, frames);
-      const v = new Float32Array(x.memory.buffer, ptr, 3 * frames);
-      const floors = v.slice(frames, 2 * frames);
-      const len = layerFrames(floors, j.sr, frames);
-      return { drive: bandpassDrive(v.subarray(0, len)), floors: floors.subarray(0, len), rest: v.slice(2 * frames, 2 * frames + len), below: floorsBelow(floors.subarray(0, len), j.sr) };
-    });
-  } finally {
-    if (eng) x.pa_destroy(eng);
-  }
+  return jobs.map((j) => {
+    const { x, eng } = ensureTonosEngine(module, j.sr, j.params);
+    const frames = Math.round(MAX_SECONDS * j.sr);
+    const ptr = x.pa_tonos_excitation(eng, j.note, j.vb, j.variant, frames);
+    const v = new Float32Array(x.memory.buffer, ptr, 3 * frames);
+    const floors = v.slice(frames, 2 * frames);
+    const len = layerFrames(floors, j.sr, frames);
+    return {
+      drive: bandpassDrive(v.subarray(0, len)),
+      floors: floors.subarray(0, len),
+      rest: v.slice(2 * frames, 2 * frames + len),
+      below: floorsBelow(floors.subarray(0, len), j.sr),
+    };
+  });
 }
 
 async function handle(req: TonosDeepRequest): Promise<TonosDeepResponse> {
@@ -93,12 +113,11 @@ async function handle(req: TonosDeepRequest): Promise<TonosDeepResponse> {
   const rec = notes(req.module, live.map((i) => req.jobs[i]));
   const coefs = live.map((i, k) => {
     const sk = scaleKey(req.jobs[i]);
-    if (!scaleCache.has(sk)) {
-      if (scaleCache.size > 256) scaleCache.clear();
-      scaleCache.set(sk, floorScales(bodies[i]!, rec[k].drive, rec[k].floors, req.jobs[i].sr, rec[k].rest, rec[k].below));
-    }
-    const sc = scaleCache.get(sk);
-    return sc ? applyScales(bodies[i]!, sc) : null;
+    const hit = lruTouch(scaleCache, sk);
+    if (hit !== undefined || scaleCache.has(sk)) return hit ? applyScales(bodies[i]!, hit) : null;
+    const computed = floorScales(bodies[i]!, rec[k].drive, rec[k].floors, req.jobs[i].sr, rec[k].rest, rec[k].below);
+    lruSet(scaleCache, sk, computed, 256);
+    return computed ? applyScales(bodies[i]!, computed) : null;
   });
   const ready = live.map((i, k) => ({ i, k })).filter(({ k }) => coefs[k] && rec[k].drive.length >= 64);
   let at = 0;
@@ -115,9 +134,10 @@ async function handle(req: TonosDeepRequest): Promise<TonosDeepResponse> {
     out.gpuMs += res.gpuMs;
     batch.forEach(({ i, k }, b) => {
       // The layer = the GPU's modes plus the floors' own part below them (both channels).
-      const data = res.outputs[b], len = rec[k].drive.length, below = rec[k].below;
-      for (let s = 0; s < len; s++) { data[s] += below[s]; data[len + s] += below[s]; }
-      out.results[i] = { data, frames: len, modes: bodies[i]!.modes };
+      const raw = res.outputs[b], len = rec[k].drive.length, below = rec[k].below;
+      for (let s = 0; s < len; s++) { raw[s] += below[s]; raw[len + s] += below[s]; }
+      const trimmed = trimSilenceTail(raw, true, len, Math.min(len, 2048));
+      out.results[i] = { data: trimmed.data, frames: trimmed.frames, modes: bodies[i]!.modes };
     });
   }
   return out;

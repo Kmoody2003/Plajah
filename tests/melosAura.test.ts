@@ -15,8 +15,8 @@ import {
 import { A, P, AURA_PARAM_META, formatAuraParam } from '../services/melos/instruments/aura/params';
 import { AURA_WAVETABLES, getAuraWavetable } from '../services/melos/instruments/aura/wavetables';
 
-test('AURA ships 56 classic 1960s & 1970s presets across 7 historic categories', () => {
-  assert.equal(AURA_PRESETS.length, 56, `expected 56 presets, got ${AURA_PRESETS.length}`);
+test('AURA ships at least 70 classic 1960s & 1970s presets across 7 historic categories', () => {
+  assert.ok(AURA_PRESETS.length >= 70, `expected >= 70 presets, got ${AURA_PRESETS.length}`);
   assert.equal(AURA_CATEGORY_ORDER.length, 7);
 
   const seenIds = new Set<string>();
@@ -39,7 +39,7 @@ test('AURA ships 56 classic 1960s & 1970s presets across 7 historic categories',
   }
 
   for (const cat of AURA_CATEGORY_ORDER) {
-    assert.equal(countsByCat.get(cat), 8, `category ${cat} should have 8 presets`);
+    assert.ok((countsByCat.get(cat) ?? 0) >= 10, `category ${cat} should have >= 10 presets`);
   }
 });
 

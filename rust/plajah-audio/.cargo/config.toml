@@ -4,6 +4,7 @@ rustflags = [
   # detaches memory.buffer and invalidates every Float32Array view the worklet holds — the
   # classic WASM-audio crash. Wavetable banks are the only large allocation and they are
   # committed up front, so this ceiling is generous.
+  "-C", "target-feature=+simd128",
   "-C", "link-arg=--initial-memory=33554432",
   "-C", "link-arg=-zstack-size=1048576",
 ]

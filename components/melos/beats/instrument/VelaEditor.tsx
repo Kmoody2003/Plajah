@@ -2,19 +2,15 @@
 //
 // Everything the Play panel abstracts, shown honestly: the partial layout, the exciter, the
 // Veil and the Motion rack. Same two-tier rule as ONDA.
-//
-// The one structural difference from OndaEditor: the hero is the partial display rather than a
-// knob grid, and it is a valid Motion target in its own right. Dropping a Motion handle on it
-// routes to inharmonicity, which is the single most expressive route in the instrument — a slow
-// Tide on the partial stretch is what turns a static bowl into something that sounds alive.
 
 import React, { useCallback, useState } from 'react';
 import { X } from 'lucide-react';
 import type { ArrangeTrack, GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import {
-  deserializeVelaPatch, VELA_EDITOR_GROUPS, type VelaPatch,
+  applyVelaPatch, deserializeVelaPatch, VELA_EDITOR_GROUPS, type VelaPatch,
 } from '../../../../services/melos/instruments/vela/patch';
+import { expandMacros as expandVelaMacros } from '../../../../services/melos/instruments/vela/presets';
 import { M, VELA_PARAM_META, formatVelaParam } from '../../../../services/melos/instruments/vela/params';
 import { compileMotions, depthFor, setRoute, type Motion } from '../../../../services/melos/motion';
 import { Knob } from '../shared/Knob';
@@ -31,43 +27,60 @@ interface Props {
 export const VelaEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
   const [dragging, setDragging] = useState<string | null>(null);
 
-  // Not memoised — the doc mutates in place, same reasoning as OndaEditor.
   const patch: VelaPatch | null = deserializeVelaPatch(track.instrument?.patch);
   const motions: Motion[] = (track.instrument?.patch as { motions?: Motion[] } | undefined)?.motions || [];
   const compiled = compileMotions(motions);
+  const expanded = patch ? expandVelaMacros(patch.params, patch.macros) : {};
 
-  const val = (id: number, fallback: number) => patch?.params?.[id] ?? fallback;
+  const val = (id: number, fallback: number) => expanded[id] ?? patch?.params?.[id] ?? fallback;
 
   const setParam = useCallback((id: number, value: number) => {
-    BeatsEngine.get().getInstrument(track.id)?.setParam(id, value);
+    const engine = BeatsEngine.get();
     onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === track.id);
-      const p = t?.instrument?.patch as { params?: Record<number, number> } | undefined;
-      if (!p) return;
-      if (!p.params) p.params = {};
-      p.params[id] = value;
+      const raw = t?.instrument?.patch as Record<string, unknown> | undefined;
+      const cur = deserializeVelaPatch(raw);
+      if (!raw || !cur) return;
+      const beforeExpanded = expandVelaMacros(cur.params, cur.macros);
+      const rawBefore = cur.params[id] ?? value;
+      const macroOffset = (beforeExpanded[id] ?? rawBefore) - rawBefore;
+      const meta = VELA_PARAM_META[id];
+      const maxVal = meta?.options && id !== M.PARTIALS ? meta.options.length - 1 : 1;
+      const adjustedBase = maxVal <= 1
+        ? Math.max(0, Math.min(1, value - macroOffset))
+        : Math.max(0, Math.min(maxVal, value));
+      cur.params[id] = adjustedBase;
+      (raw as { params?: Record<number, number> }).params = { ...cur.params };
+
+      const curMotions = (raw as { motions?: Motion[] }).motions || [];
+      const inst = engine.getInstrument(track.id);
+      if (inst) {
+        applyVelaPatch(inst, cur, curMotions);
+      } else if (t) {
+        void engine.ensureInstrument(t).then((created) => {
+          if (created) applyVelaPatch(created, cur, curMotions);
+        });
+      }
     });
   }, [onMutate, track.id]);
 
   const editMotions = useCallback((fn: (list: Motion[]) => void) => {
     onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === track.id);
-      const p = t?.instrument?.patch as { motions?: Motion[] } | undefined;
-      if (!p) return;
+      const raw = t?.instrument?.patch as Record<string, unknown> | undefined;
+      if (!raw) return;
+      const p = raw as { motions?: Motion[] };
       if (!p.motions) p.motions = [];
       fn(p.motions);
 
       const inst = BeatsEngine.get().getInstrument(track.id);
-      if (inst) {
-        const c = compileMotions(p.motions);
-        if (c.params.length) inst.setParams(c.params);
-        for (const [i, src, dest, depth, via] of c.routes) inst.setRoute(i, src, dest, depth, via);
+      const next = deserializeVelaPatch(raw);
+      if (inst && next) {
+        applyVelaPatch(inst, next, p.motions);
       }
     });
   }, [onMutate, track.id]);
 
-  /** The drop half of the drag-onto-a-control gesture. Toggles, matching OndaEditor: dropping
-   *  the same Motion on the same control again removes the route rather than stacking one. */
   const dropMotion = useCallback((paramId: number) => {
     if (!dragging) return;
     editMotions((list) => {
@@ -121,11 +134,11 @@ export const VelaEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
                     label={meta.label}
                     value={val(id, 0.5)}
                     min={0}
-                    // Stepped controls are stored as raw indices, matching the Rust enums, so
-                    // their range is the option count rather than 0..1.
                     max={meta.options && id !== M.PARTIALS ? meta.options.length - 1 : 1}
                     color={group.color}
                     size={44}
+                    trackId={track.id}
+                    focusId={`vela:${track.id}:${id}`}
                     format={(v) => formatVelaParam(id, v)}
                     onChange={(v) => setParam(id, v)}
                     mod={depthFor(motions, id)}

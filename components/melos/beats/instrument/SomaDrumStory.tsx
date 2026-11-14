@@ -5,7 +5,7 @@
 // Content lives in services/melos/instruments/soma/drumKnowledge.ts. SOMA is the first live host:
 // SomaPanel reports hits, presets and knob moves on the band live bus.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, ChevronDown, ExternalLink, Volume2 } from 'lucide-react';
 import { drumForPreset, drumPhotoLocalUrl, drumPhotoUrl, type DrumKnowledge } from '../../../../services/melos/instruments/soma/drumKnowledge';
 import { sheetById } from '../../../../services/melos/beats/band/character/sheets';
@@ -13,6 +13,9 @@ import { SomaLens, type Observation } from '../../../../services/melos/beats/ban
 import { liveBus, now } from '../../../../services/melos/beats/band/live/events';
 import type { LiveDirector } from '../../../../services/melos/beats/band/live/director';
 import { LiveAvatar } from '../band/live/LiveAvatar';
+import { MusicianStageControls } from '../band/live/MusicianStageControls';
+import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
+import { summarizeStudioContext } from '../../../../services/melos/beats/band/studioContext';
 import type { LiveHost } from '../band/live/useLiveCharacter';
 
 const ACCENT = '#E86A33';
@@ -90,6 +93,7 @@ export const SomaDrumStory: React.FC<{ presetId?: string; presetName?: string; t
   // 0 = bundled copy, 1 = Commons, 2 = neither loaded.
   const [photoTry, setPhotoTry] = useState(0);
   const [director, setDirector] = useState<LiveDirector | null>(null);
+  const referenceRef = useRef('');
 
   const lens = useMemo(() => new SomaLens(), []);
   // Opening the panel is the character's cue to say hello.
@@ -114,6 +118,17 @@ export const SomaDrumStory: React.FC<{ presetId?: string; presetName?: string; t
     screen: () => (drum
       ? `The learner has SOMA (physical-model percussion) open on the preset "${presetName ?? presetId}", which models the ${drum.name} (${drum.region}).`
       : 'The learner has SOMA open.'),
+    projectSummary: () => {
+      const eng = BeatsEngine.get();
+      return summarizeStudioContext(eng.getDoc(), {
+        trackId,
+        recentChords: eng.playedChords(),
+        activeInstrument: 'soma',
+        activePreset: presetName ?? drum?.name,
+      }).promptSummary;
+    },
+    referenceSummary: () => referenceRef.current || undefined,
+    activeInstrument: () => `SOMA · ${presetName ?? drum?.name ?? 'Percussion'}`,
   };
 
   if (!drum) return null;
@@ -153,6 +168,17 @@ export const SomaDrumStory: React.FC<{ presetId?: string; presetName?: string; t
         </div>
 
         {amara && <LiveAvatar sheet={amara} host={host} fallbackLine={drum.intro} role="Session Band percussion · live" onDirector={setDirector} />}
+        <MusicianStageControls
+          playerId="amara"
+          instrument="soma"
+          accent={ACCENT}
+          track={BeatsEngine.get().getDoc().arrangement.find((t) => t.id === trackId)}
+          presetName={presetName ?? drum.name}
+          defaultNote={defaultNote}
+          director={director}
+          playStep={host.playStep}
+          onReferenceUpdate={(s) => { referenceRef.current = s; }}
+        />
 
         <div className="flex flex-wrap gap-1">
           {SECTIONS.map(({ id, label }) => (

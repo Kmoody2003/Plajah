@@ -15,7 +15,9 @@ class InstrumentProcessor extends AudioWorkletProcessor {
     this.ready = false;
     this.eng = 0;
     this.paramQ = [];
+    this.noteOffQ = [];
     this.channels = 2;
+    this.watchVoltaProbes = false;
     this.outPtrs = [];
     this.views = [];
     this.memBytes = 0;
@@ -60,21 +62,32 @@ class InstrumentProcessor extends AudioWorkletProcessor {
     if (!this.ready || !msg) return;
     const x = this.x;
     switch (msg.type) {
-      case 'noteOn':
-        // frameOffset makes an async message land on an exact sample.
-        x.pa_note_on(this.eng, msg.note, msg.velocity, msg.voiceId, msg.frameOffset | 0);
+      case 'noteOn': {
+        const off = typeof msg.ctxTime === 'number' && msg.ctxTime > 0
+          ? Math.max(0, Math.round((msg.ctxTime - currentTime) * sampleRate))
+          : (msg.frameOffset | 0);
+        x.pa_note_on(this.eng, msg.note, msg.velocity, msg.voiceId, off);
         break;
+      }
       // SOMA deep skin (ABI 16): the strike plus its GPU-rendered upper membrane from a slot.
-      case 'noteOnDeep':
-        x.pa_note_on_deep(this.eng, msg.note, msg.velocity, msg.voiceId, msg.frameOffset | 0, msg.slot, msg.gain, msg.top);
+      case 'noteOnDeep': {
+        const off = typeof msg.ctxTime === 'number' && msg.ctxTime > 0
+          ? Math.max(0, Math.round((msg.ctxTime - currentTime) * sampleRate))
+          : (msg.frameOffset | 0);
+        x.pa_note_on_deep(this.eng, msg.note, msg.velocity, msg.voiceId, off, msg.slot, msg.gain, msg.top);
         break;
+      }
       case 'scheduleOnDeep':
         x.pa_schedule_note_on_deep(this.eng, msg.note, msg.velocity, msg.voiceId, msg.frame, msg.slot, msg.gain, msg.top);
         break;
       case 'noteOff':
         x.pa_note_off(this.eng, msg.voiceId);
         break;
+      case 'noteOffAt':
+        this.noteOffQ.push({ frame: Math.round((msg.ctxTime || 0) * sampleRate), voiceId: msg.voiceId });
+        break;
       case 'allNotesOff':
+        this.noteOffQ.length = 0;
         x.pa_all_notes_off(this.eng, msg.hard ? 1 : 0);
         break;
       // Absolute-frame scheduling — the offline render path.
@@ -150,13 +163,17 @@ class InstrumentProcessor extends AudioWorkletProcessor {
         }
         break;
       }
-      case 'noteOnSampled':
+      case 'noteOnSampled': {
         // One or more zones (velocity layers), each its own voice.
+        const off = typeof msg.ctxTime === 'number' && msg.ctxTime > 0
+          ? Math.max(0, Math.round((msg.ctxTime - currentTime) * sampleRate))
+          : (msg.frameOffset | 0);
         for (let i = 0; i < msg.voices.length; i++) {
           const z = msg.voices[i];
-          x.pa_note_on_sampled(this.eng, msg.note, msg.velocity, z.voiceId, msg.frameOffset | 0, z.slot, z.detune || 0, z.startFrame || 0);
+          x.pa_note_on_sampled(this.eng, msg.note, msg.velocity, z.voiceId, off, z.slot, z.detune || 0, z.startFrame || 0);
         }
         break;
+      }
       case 'tempo':
         x.pa_set_tempo(this.eng, msg.beatsPerSec);
         break;
@@ -176,8 +193,22 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       // message queued before this ping — crucially the wavetable/sample uploads and their
       // (synchronous) mip-pyramid build — has been fully applied. The offline render awaits this
       // before startRendering(), so a bounce never reads a table that isn't committed yet.
+      case 'lfoCustom': {
+        const ptr = x.pa_upload_ptr(this.eng);
+        const cap = x.pa_upload_capacity(this.eng);
+        const pts = msg.points;
+        if (ptr && pts && pts.length >= 2 && pts.length <= cap && typeof x.pa_set_lfo_custom === 'function') {
+          const n = Math.min(pts.length, 65);
+          new Float32Array(x.memory.buffer, ptr, n).set(pts.subarray ? pts.subarray(0, n) : pts.slice(0, n));
+          x.pa_set_lfo_custom(this.eng, msg.index, n, msg.stepped ? 1 : 0);
+        }
+        break;
+      }
       case 'ping':
         this.port.postMessage({ type: 'pong', id: msg.id });
+        break;
+      case 'watchProbes':
+        this.watchVoltaProbes = !!msg.enabled;
         break;
       case 'dispose':
         this.dispose();
@@ -212,6 +243,16 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       if (n) this.paramQ.splice(0, n);
     }
 
+    if (this.noteOffQ.length) {
+      const end = currentFrame + frames;
+      this.noteOffQ.sort((a, b) => a.frame - b.frame);
+      let n = 0;
+      while (n < this.noteOffQ.length && this.noteOffQ[n].frame < end) {
+        this.x.pa_note_off(this.eng, this.noteOffQ[n++].voiceId);
+      }
+      if (n) this.noteOffQ.splice(0, n);
+    }
+
     this.x.pa_render(this.eng, frames);
 
     if (this.x.memory.buffer.byteLength !== this.memBytes) this.refreshViews();
@@ -232,6 +273,18 @@ class InstrumentProcessor extends AudioWorkletProcessor {
     this.tick = (this.tick || 0) + 1;
     if (this.tick % 128 === 0) {
       this.port.postMessage({ type: 'voices', count: this.x.pa_active_voices(this.eng) });
+    }
+    if (this.watchVoltaProbes && this.tick % 16 === 0 && typeof this.x.pa_volta_probe === 'function') {
+      const probes = [
+        this.x.pa_volta_probe(this.eng, 0),
+        this.x.pa_volta_probe(this.eng, 1),
+        this.x.pa_volta_probe(this.eng, 2),
+        this.x.pa_volta_probe(this.eng, 3),
+        this.x.pa_volta_probe(this.eng, 4),
+        this.x.pa_volta_probe(this.eng, 5),
+        this.x.pa_volta_probe(this.eng, 6),
+      ];
+      this.port.postMessage({ type: 'voltaProbes', probes });
     }
     return true;
   }

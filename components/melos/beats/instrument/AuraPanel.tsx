@@ -28,6 +28,9 @@ import {
 } from '../../../../services/melos/instruments/aura/presets';
 import { A, P, O, F, SP, RV, auraParamLabel, osc, flt } from '../../../../services/melos/instruments/aura/params';
 import { syncPadWithTrack } from '../../../../services/melos/beats/instrumentFactory';
+import { liveBus, now as liveNow } from '../../../../services/melos/beats/band/live/events';
+import { PANEL_SEAT_INTROS } from '../../../../services/melos/beats/band/live/lineAudio';
+import { InstrumentBandSeat } from './InstrumentBandSeat';
 import { MorphPad, padValue } from './MorphPad';
 import { Knob } from '../shared/Knob';
 import { AuraEditor, AURA_ACCENT } from './AuraEditor';
@@ -101,7 +104,7 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
   const [baseOctave, setBaseOctave] = useState(3);
   const [latchMode, setLatchMode] = useState(false);
   const [heldNotes, setHeldNotes] = useState<number[]>([]);
-  const [activeSeqStep, setActiveSeqStep] = useState<number>(0);
+  const [activeSeqStep, setActiveSeqStep] = useState<number>(-1);
   const [pitchBendUi, setPitchBendUi] = useState(0); // -1 .. +1
   const [modWheelUi, setModWheelUi] = useState(0);   // 0 .. 1
 
@@ -148,6 +151,7 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
   }, [track.id]);
 
   const edit = useCallback((fn: (p: AuraPatch) => void) => {
+    liveBus.emit({ kind: 'param', instrument: 'aura', trackId: track.id, at: liveNow(), paramId: 0 });
     onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === track.id);
       const raw = t?.instrument?.patch as Record<string, unknown> | undefined;
@@ -173,6 +177,7 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
   const choosePreset = useCallback((presetId: string) => {
     const preset = AURA_PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
+    liveBus.emit({ kind: 'preset', instrument: 'aura', trackId: track.id, at: liveNow(), presetId: preset.id, presetName: preset.name });
     onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === track.id);
       if (!t?.instrument) return;
@@ -366,6 +371,11 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
   const scopeCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const scopeReadoutRef = useRef<HTMLSpanElement | null>(null);
 
+  const pitchBendRef = useRef(pitchBendUi);
+  pitchBendRef.current = pitchBendUi;
+  const modWheelRef = useRef(modWheelUi);
+  modWheelRef.current = modWheelUi;
+
   useEffect(() => {
     const canvas = scopeCanvasRef.current;
     if (!canvas) return;
@@ -374,9 +384,10 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
 
     let raf = 0;
     let phase = 0;
+    let lastDrawMs = 0;
     const pcmBuf = new Float32Array(1024);
 
-    const draw = () => {
+    const draw = (now: number) => {
       const w = canvas.width;
       const h = canvas.height;
       const curPatch = patchRef.current;
@@ -392,21 +403,37 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
       const currentMidi = activeMidiNoteRef.current
         ?? (activeNotes.length > 0 ? activeNotes[activeNotes.length - 1] : (inst?.lastNote ?? 60));
 
+      // Throttle standby animated preview to ~24 fps when quiet so GPU compositing stays light
+      if (!isNotePlaying && !BeatsEngine.get().isRunning() && now - lastDrawMs < 40) {
+        raf = requestAnimationFrame(draw);
+        return;
+      }
+      lastDrawMs = now;
+
       // Sync hardware MIDI Pitch Bend & Mod Wheel to UI indicators when changed externally
       if (inst) {
-        if (Math.abs(inst.pitchBendValue - pitchBendUi) > 0.02) {
+        if (Math.abs(inst.pitchBendValue - pitchBendRef.current) > 0.02) {
           setPitchBendUi(inst.pitchBendValue);
         }
-        if (Math.abs(inst.modWheelValue - modWheelUi) > 0.02) {
+        if (Math.abs(inst.modWheelValue - modWheelRef.current) > 0.02) {
           setModWheelUi(inst.modWheelValue);
         }
       }
 
       const prm = curPatch.params;
       const bendRangeSt = Math.max(1, Math.round((prm[P.BEND_RANGE] ?? (2 / 24)) * 24));
-      const totalBendSt = (inst?.pitchBendValue ?? pitchBendUi) * bendRangeSt;
-      const modWheel = inst?.modWheelValue ?? modWheelUi;
+      const totalBendSt = (inst?.pitchBendValue ?? pitchBendRef.current) * bendRangeSt;
+      const modWheel = inst?.modWheelValue ?? modWheelRef.current;
       const noteFreq = midiToHz(currentMidi + totalBendSt);
+      if (isNotePlaying && curPatch.arp.enabled) {
+        const rMap: Record<string, number> = { '1/4': 1, '1/8': 2, '1/8T': 3, '1/16': 4, '1/16T': 6 };
+        const rDiv = rMap[curPatch.arp.rate] ?? 4;
+        const beatNow = BeatsEngine.get().isRunning() ? BeatsEngine.get().posBeatsDisplay() : (performance.now() * 0.001 * ((doc.bpm || 120) / 60));
+        const nextStep = ((Math.floor(beatNow * rDiv) % 8) + 8) % 8;
+        setActiveSeqStep((prev) => (prev === nextStep ? prev : nextStep));
+      } else {
+        setActiveSeqStep((prev) => (prev === -1 ? prev : -1));
+      }
 
       // Update live note/frequency badge
       if (scopeReadoutRef.current) {
@@ -429,17 +456,19 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
       ctx.fillStyle = isNotePlaying ? 'rgba(11, 9, 7, 0.28)' : 'rgba(11, 9, 7, 0.36)';
       ctx.fillRect(0, 0, w, h);
 
-      // Graticule grid
+      // Graticule grid (single batched path)
       ctx.strokeStyle = 'rgba(229, 154, 56, 0.09)';
       ctx.lineWidth = 1;
+      ctx.beginPath();
       for (let gx = 1; gx < 8; gx++) {
         const x = (w / 8) * gx;
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+        ctx.moveTo(x, 0); ctx.lineTo(x, h);
       }
       for (let gy = 1; gy < 4; gy++) {
         const y = (h / 4) * gy;
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+        ctx.moveTo(0, y); ctx.lineTo(w, y);
       }
+      ctx.stroke();
 
       const cutoff = Math.min(1, (prm[flt(0, F.CUTOFF)] ?? 0.55) + modWheel * 0.22);
       const res = prm[flt(0, F.RES)] ?? 0.25;
@@ -479,10 +508,8 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
         // Optional BBD Ensemble stereo ghost trace
         if (ensMix > 0.05) {
           ctx.beginPath();
-          ctx.lineWidth = 1.4;
+          ctx.lineWidth = 1.6;
           ctx.strokeStyle = 'rgba(92, 201, 167, 0.55)';
-          ctx.shadowColor = '#5CC9A7';
-          ctx.shadowBlur = 5;
           for (let px = 0; px < w; px++) {
             const idx = trigIdx + Math.min(span - 1, Math.floor(((px / w) * span + 10) % span));
             const s = Math.tanh((pcmBuf[idx] ?? 0) * gainNorm);
@@ -493,12 +520,8 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
           ctx.stroke();
         }
 
-        // Primary live cathode-ray beam
+        // Primary live cathode-ray beam (dual-stroke glow avoids per-frame GPU shadowBlur pass)
         ctx.beginPath();
-        ctx.lineWidth = 2.4;
-        ctx.strokeStyle = '#FFD27D';
-        ctx.shadowColor = '#E59A38';
-        ctx.shadowBlur = 12;
         for (let px = 0; px < w; px++) {
           const samplePos = trigIdx + (px / w) * (span - 1);
           const i0 = Math.floor(samplePos);
@@ -509,8 +532,12 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
           if (px === 0) ctx.moveTo(px, y);
           else ctx.lineTo(px, y);
         }
+        ctx.lineWidth = 5.5;
+        ctx.strokeStyle = 'rgba(229, 154, 56, 0.22)';
         ctx.stroke();
-        ctx.shadowBlur = 0;
+        ctx.lineWidth = 2.3;
+        ctx.strokeStyle = '#FFD27D';
+        ctx.stroke();
       } else {
         // Standby / synthetic preview trace scaled by note pitch, bend, mod wheel, gate & flux
         const wave1 = (prm[osc(0, O.MODE)] ?? 1) < 0.5 ? 4 : Math.round(prm[osc(0, O.ANALOG_SHAPE)] ?? 0);
@@ -526,12 +553,6 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
         const traces = ensMix > 0.05 ? 2 : 1;
         for (let tr = traces - 1; tr >= 0; tr--) {
           ctx.beginPath();
-          ctx.lineWidth = tr === 0 ? (isNotePlaying ? 2.4 : 1.9) : 1.3;
-          ctx.strokeStyle = tr === 0
-            ? (isNotePlaying ? '#FFD27D' : '#E59A38')
-            : 'rgba(92, 201, 167, 0.55)';
-          ctx.shadowColor = tr === 0 ? '#E59A38' : '#5CC9A7';
-          ctx.shadowBlur = tr === 0 ? (isNotePlaying ? 12 : 7) : 4;
 
           const bbdOffset = tr === 1 ? Math.sin(phase * 1.7) * 0.35 * ensMix : 0;
           const driftWobble = Math.sin(phase * 0.43) * auraAmt * 0.12 + Math.sin(phase * 2.8) * modWheel * 0.18 + fluxJitter;
@@ -572,9 +593,19 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
             if (px === 0) ctx.moveTo(px, y);
             else ctx.lineTo(px, y);
           }
-          ctx.stroke();
+          if (tr === 0) {
+            ctx.lineWidth = isNotePlaying ? 5 : 4;
+            ctx.strokeStyle = 'rgba(229, 154, 56, 0.18)';
+            ctx.stroke();
+            ctx.lineWidth = isNotePlaying ? 2.4 : 1.9;
+            ctx.strokeStyle = isNotePlaying ? '#FFD27D' : '#E59A38';
+            ctx.stroke();
+          } else {
+            ctx.lineWidth = 1.4;
+            ctx.strokeStyle = 'rgba(92, 201, 167, 0.55)';
+            ctx.stroke();
+          }
         }
-        ctx.shadowBlur = 0;
       }
 
       raf = requestAnimationFrame(draw);
@@ -582,7 +613,7 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
 
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [pitchBendUi, modWheelUi]);
+  }, []);
 
   const filteredPresets = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -662,7 +693,7 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
         <button
           onClick={() => { setGalleryOpen((v) => !v); setXfOpen(false); }}
           className="flex items-center gap-2 text-left hover:opacity-90 shrink-0 max-w-[60%] min-w-0"
-          title="Browse all 56 classic 1960s & 1970s templates"
+          title={`Browse all ${AURA_PRESETS.length} classic 1960s & 1970s templates`}
         >
           <span className="text-[12.5px] font-semibold text-white truncate" title={patch.name}>{patch.name}</span>
           <span
@@ -706,7 +737,7 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
             : { borderColor: 'rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.7)' }}
         >
           <Sparkles size={11} style={{ color: AURA_ACCENT }} />
-          56 Templates
+          {AURA_PRESETS.length} Templates
         </button>
 
         <button
@@ -741,7 +772,54 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
 
       {/* ── Main Scrollable Faceplate Body ── */}
       <div className="flex-1 min-h-0 overflow-y-auto p-3.5 flex flex-col gap-2.5 [&>*]:shrink-0">
-        {/* ── 56-Preset Vintage Template Browser (when open) ── */}
+        {/* ── Quick Vintage Era & Sub-Preset Strip ── */}
+        <div className="flex flex-col gap-1.5 rounded-xl border border-[#E59A38]/20 bg-black/30 px-2.5 py-2">
+          <div className="flex items-center gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+            {([
+              ['all', `All (${AURA_PRESETS.length})`],
+              ['60s', "'60s"],
+              ['70s', "'70s"],
+              ...AURA_CATEGORY_ORDER.map((c) => [c, AURA_CATEGORY_LABELS[c]] as const),
+            ] as const).map(([key, label]) => {
+              const active = catFilter === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setCatFilter(key as typeof catFilter)}
+                  className="h-5 px-2 rounded-full text-[9.5px] font-mono whitespace-nowrap border transition shrink-0"
+                  style={active
+                    ? { borderColor: AURA_ACCENT, background: 'rgba(229,154,56,0.22)', color: '#FFD28A', fontWeight: 600 }
+                    : { borderColor: 'rgba(255,255,255,0.09)', color: 'rgba(255,255,255,0.5)' }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+            <span className="text-[9px] uppercase tracking-[0.16em] text-white/35 shrink-0">Sub-Presets</span>
+            {filteredPresets.map((pr) => {
+              const active = pr.id === patch.presetId;
+              return (
+                <button
+                  key={pr.id}
+                  type="button"
+                  onClick={() => choosePreset(pr.id)}
+                  title={`${pr.year} · ${pr.inspiration} — ${pr.description}`}
+                  className="h-6 px-2.5 rounded-lg text-[10px] whitespace-nowrap border transition shrink-0"
+                  style={active
+                    ? { borderColor: AURA_ACCENT, background: 'rgba(229,154,56,0.22)', color: '#FFE4B5', fontWeight: 700 }
+                    : { borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.65)' }}
+                >
+                  {pr.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Vintage Template Browser (when open) ── */}
         {galleryOpen && (
           <div
             className="rounded-xl border border-[#E59A38]/30 p-3 flex flex-col gap-2.5"
@@ -1205,7 +1283,7 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
                       p.params[SP.DL_ON] = 1;
                       p.params[SP.EC_TIME] = preset.time;
                       p.params[SP.EC_FB] = preset.fb;
-                      p.params[SP.DL_DIV] = preset.div;
+                      p.params[SP.DL_DIV] = preset.div < 1 ? (preset.div <= 0.25 ? 7 : preset.div <= 0.5 ? 4 : preset.div <= 0.7 ? 3 : 2) : preset.div;
                       p.params[SP.DL_FB] = preset.fb;
                       p.params[SP.DL_PING] = preset.ping;
                       p.params[SP.EC_MIX] = Math.max(p.params[SP.EC_MIX] ?? 0, 0.34);
@@ -1444,7 +1522,7 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
           {patch.arp.enabled && (
             <div className="grid grid-cols-8 gap-1.5">
               {(patch.arp.steps || [0, 7, 12, 7, 0, 12, 7, 19]).slice(0, 8).map((st, idx) => {
-                const isRunning = heldNotes.length > 0 && activeSeqStep === idx;
+                const isRunning = activeSeqStep === idx;
                 return (
                   <button
                     key={idx}
@@ -1603,6 +1681,23 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
             </div>
           </div>
         </div>
+
+        {(() => {
+          const isOrgan = /organ|vox|farfisa|b3|tonewheel|leslie/i.test(`${patch?.presetId ?? ''} ${patch?.name ?? ''}`);
+          return (
+            <InstrumentBandSeat
+              instrument="aura"
+              playerId={isOrgan ? 'hez' : 'nova'}
+              loreId={isOrgan ? 'organ' : 'synthesizer'}
+              role={isOrgan ? 'Session Band organ · live' : 'Session Band analogue synth · live'}
+              intro={PANEL_SEAT_INTROS.aura}
+              screenText={`AURA · ${patch?.name ?? 'Default'} · warmth ${Math.round((patch?.macros?.warmth ?? 0) * 100)}%, aura ${Math.round((patch?.macros?.aura ?? 0) * 100)}%`}
+              accent={AURA_ACCENT}
+              track={track}
+              presetName={patch?.name}
+            />
+          );
+        })()}
       </div>
 
       {editorOpen && (

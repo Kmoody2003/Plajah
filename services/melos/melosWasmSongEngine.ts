@@ -31,7 +31,7 @@ import { BAJO_PRESETS } from './instruments/bajo/presets';
 import { newBajoPatch, bajoEngineParams, bajoTablesFor } from './instruments/bajo/patch';
 import { getBajoWavetable, bajoTableIndex, FRAMES as BAJO_FRAMES, FRAME_SIZE as BAJO_FRAME_SIZE } from './instruments/bajo/wavetables';
 import { VELA_PRESETS } from './instruments/vela/presets';
-import { newVelaPatch, velaEngineParams, velaDriftSetup } from './instruments/vela/patch';
+import { newVelaPatch, velaEngineParams, velaDriftSetup, velaDriftRoutes } from './instruments/vela/patch';
 import { findSuitePreset } from './instruments/vela/suite';
 import { FACTORY_PRESETS } from './instruments/onda/presets';
 import { tablesFor as ondaTablesFor } from './instruments/onda/patch';
@@ -243,6 +243,10 @@ export function configureMelosPresetOnEngine(
       }
     }
     // Boost quiet modal/choir presets so they balance with AURA and BAJO in a full orchestral mix
+    for (let i = 0; i < 32; i++) x.pa_set_route(eng, i, 0, 0, 0, 0);
+    velaDriftRoutes(patch.macros.drift).slice(0, 32).forEach((r, idx) => {
+      x.pa_set_route(eng, idx, r.source, r.dest, r.depth, r.via ?? 0);
+    });
     const rawMaster = preset.params[0] ?? 0.5;
     const makeup = rawMaster < 0.15 ? 2.4 : rawMaster < 0.35 ? 1.55 : 1.15;
     return { trimGain: makeup };

@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Era Clash · Tales of the Ages 3D</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap" rel="stylesheet" />
+  <style>
+    html, body { margin: 0; height: 100%; background: #0c0806; overflow: hidden; color: #e8d8b0; font-family: 'Cormorant Garamond', Georgia, serif; }
+    #view { position: fixed; inset: 0; }
+    #view canvas { display: block; width: 100%; height: 100%; }
+    .cz { font-family: Cinzel, Georgia, serif; letter-spacing: .12em; }
+    #loading { position: fixed; inset: 0; display: grid; place-items: center; background: #0c0806; z-index: 40; transition: opacity .6s; }
+    #loading.done { opacity: 0; pointer-events: none; }
+    #loading .cz { font-size: 13px; color: #c9a46a; }
+    /* story card */
+    #story { position: fixed; inset: 0; display: none; place-items: center; background: radial-gradient(ellipse at center, #1a120acc, #050302ee); z-index: 30; }
+    #story.on { display: grid; }
+    .st-panel { width: min(640px, 92vw); max-height: 84vh; display: flex; flex-direction: column; background: #120c07ee; border: 1px solid #6b4d2a; box-shadow: 0 20px 60px #000; padding: 22px 26px; }
+    #stKicker { font-size: 11px; color: #c9973f; }
+    #stTitle { font-size: 24px; margin: 8px 0 4px; color: #f4e6c8; }
+    #stPlace { font-size: 11px; color: #9a8a6a; margin-bottom: 12px; }
+    #stBody { overflow-y: auto; font-size: 19px; line-height: 1.55; padding-right: 8px; }
+    #stBody p { margin: 0 0 14px; }
+    #stCheck { font-style: italic; color: #c9a46a; min-height: 1.2em; margin-top: 8px; font-size: 15px; }
+    .btn { font-family: Cinzel, serif; letter-spacing: .1em; font-size: 13px; padding: 10px 18px; border: 1px solid #c9973f; background: #2a1c10; color: #f4e6c8; cursor: pointer; }
+    .btn:disabled { opacity: .4; cursor: default; }
+    .btn.primary { background: #8a2a14; border-color: #e8a24a; }
+    .st-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+    .hint { font-size: 13px; color: #8a7a5c; margin-top: 10px; line-height: 1.4; }
+    /* HUD */
+    #hud { position: fixed; left: 18px; top: 16px; width: 260px; pointer-events: none; text-shadow: 0 1px 2px #000; }
+    #hud .name { font-size: 15px; color: #f4e6c8; margin-bottom: 6px; }
+    .bar { height: 10px; background: #000a; border: 1px solid #5a3a1a; margin-bottom: 5px; }
+    .bar i { display: block; height: 100%; background: linear-gradient(#f0c46a, #c9973f); transition: width .2s; }
+    #mt i { background: linear-gradient(#7ad0ff, #2a7ab0); }
+    #mt.full i { background: linear-gradient(#ffffff, #f0c46a); box-shadow: 0 0 10px #f0c46a; }
+    #allyBars { margin-top: 8px; font-size: 11px; }
+    #allyBars div { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+    #allyBars span { width: 54px; color: #a8e6a1; font-family: Cinzel, serif; }
+    #allyBars i { display: block; height: 5px; background: #7fc96f; flex: none; max-width: 150px; }
+    #hudR { position: fixed; right: 18px; top: 16px; text-align: right; pointer-events: none; text-shadow: 0 1px 2px #000; }
+    #hudWave { font-size: 12px; color: #f0c46a; } #foes { font-size: 12px; color: #ff9d8a; margin-top: 4px; }
+    #combo { position: fixed; right: 26px; top: 34%; font-size: 40px; color: #fff3d6; text-shadow: 0 3px 0 #140a02, 0 0 12px #000; pointer-events: none; }
+    #card { position: fixed; left: 0; right: 0; top: 24%; text-align: center; opacity: 0; pointer-events: none; text-shadow: 0 3px 12px #000; }
+    #card.on { animation: cardin 3.2s ease forwards; }
+    @keyframes cardin { 0% { opacity: 0; transform: translateY(8px); } 12% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+    #cardT { font-size: 34px; color: #fff3d6; } #cardS { font-size: 13px; color: #f0c46a; margin-top: 6px; }
+    #go { position: fixed; right: 40px; top: 46%; font-size: 40px; color: #f0c46a; display: none; text-shadow: 0 3px 0 #140a02; animation: pulse .7s ease-in-out infinite alternate; }
+    #go.on { display: block; }
+    @keyframes pulse { from { opacity: .45; transform: translateX(0); } to { opacity: 1; transform: translateX(8px); } }
+    #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+    .lab { position: absolute; left: 0; top: 0; text-align: center; font-family: Cinzel, serif; font-size: 11px; color: #ff9d8a; text-shadow: 0 1px 2px #000; }
+    .lab i { display: block; width: 60px; height: 4px; background: #0009; margin: 3px auto 0; } .lab u { display: block; height: 100%; background: #e0664f; }
+    #bars::before, #bars::after { content: ''; position: fixed; left: 0; right: 0; height: 11vh; background: #000; pointer-events: none; transition: transform .28s cubic-bezier(.2,.7,.2,1); z-index: 4; }
+    #bars::before { top: 0; transform: translateY(-100%); } #bars::after { bottom: 0; transform: translateY(100%); }
+    #bars.on::before, #bars.on::after { transform: none; }
+    #flash { position: fixed; inset: 0; background: #fff6e0; opacity: 0; pointer-events: none; }
+    #end { position: fixed; inset: 0; display: none; place-items: center; background: #050302cc; z-index: 35; }
+    #end.on { display: grid; }
+    #end .panel { text-align: center; padding: 26px 34px; background: #120c07ee; border: 1px solid #6b4d2a; }
+    #endT { font-size: 30px; color: #f4e6c8; } #endS { font-size: 18px; margin: 10px 0 18px; }
+    #keys { position: fixed; left: 18px; bottom: 14px; font-size: 12px; color: #a8987a; opacity: .75; pointer-events: none; text-shadow: 0 1px 2px #000; }
+    #fps { position: fixed; right: 10px; bottom: 8px; font: 11px ui-monospace, Consolas, monospace; color: #cfe; }
+    /* pause + controls editor */
+    #pause { position: fixed; inset: 0; display: none; place-items: center; background: #050302b0; z-index: 36; }
+    #pause.on { display: grid; }
+    #pause .panel { text-align: center; padding: 24px 34px; background: #120c07ee; border: 1px solid #6b4d2a; display: flex; flex-direction: column; gap: 10px; min-width: 240px; }
+    #binds { position: fixed; inset: 0; display: none; place-items: center; background: #050302c8; z-index: 38; }
+    #binds.on { display: grid; }
+    .bd-panel { width: min(560px, 94vw); max-height: 88vh; overflow-y: auto; background: #120c07f4; border: 1px solid #6b4d2a; padding: 18px 22px; box-shadow: 0 20px 60px #000; }
+    .bd-h { font-size: 18px; color: #f4e6c8; margin-bottom: 10px; }
+    .bd-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid #2a1d10; font-size: 17px; }
+    .bd-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+    .bd-chip, .bd-add { font-family: Cinzel, serif; font-size: 11px; letter-spacing: .06em; padding: 5px 9px; border: 1px solid #6b4d2a; background: #2a1c10; color: #f4e6c8; cursor: pointer; }
+    .bd-chip:hover { border-color: #e0664f; color: #ffb6a6; }
+    .bd-add { border-style: dashed; color: #c9a46a; }
+    .bd-add.on { border-color: #f0c46a; color: #fff3d6; background: #4a2a10; animation: pulse .6s infinite alternate; }
+    .bd-foot { display: flex; justify-content: space-between; margin-top: 14px; }
+    .bd-tip { font-size: 13px; color: #8a7a5c; margin-top: 10px; }
+    #gear { position: fixed; right: 14px; bottom: 30px; z-index: 20; font-size: 18px; background: #120c07cc; color: #e8d8b0; border: 1px solid #6b4d2a; width: 34px; height: 34px; cursor: pointer; }
+    #stance { font-size: 12px; color: #f0c46a; margin-top: 4px; }
+    /* quests: the objective (under Haru's bars), a marker in the world, the compass, the action hint, the log */
+    #qObj { position: fixed; left: 18px; top: 96px; max-width: 340px; pointer-events: none; text-shadow: 0 1px 3px #000; font-family: Cinzel, serif; }
+    #qObj .qt { color: #f0c46a; font-size: 13px; letter-spacing: .06em; }
+    #qObj .qs { color: #f4e6c8; font-size: 15px; margin-top: 3px; font-family: Georgia, serif; }
+    #qObj .qn { color: #b8a27e; font-size: 11px; margin-top: 4px; }
+    #qWay { position: fixed; transform: translate(-50%, -50%); pointer-events: none; text-align: center; color: #f0c46a; text-shadow: 0 1px 3px #000; transition: opacity .3s; }
+    #qWay b { display: block; font-size: 20px; line-height: 1; }
+    #qWay span { font: 11px Georgia, serif; color: #f4e6c8; }
+    #qCompass { position: fixed; left: 50%; top: 12px; width: 360px; height: 22px; margin-left: -180px; pointer-events: none; border-bottom: 1px solid #6b4d2a99;
+      background: linear-gradient(90deg, transparent, #120c0788 20%, #120c0788 80%, transparent); font-family: Cinzel, serif; }
+    #qCompass b, #qCompass i { position: absolute; top: 2px; transform: translateX(-50%); font-style: normal; }
+    #qCompass b { color: #e8dcc0; font-size: 13px; } #qCompass i { color: #f0c46a; font-size: 14px; }
+    #qHint { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); color: #f4e6c8; font: 15px Georgia, serif; background: #120c07cc;
+      border: 1px solid #6b4d2a; padding: 6px 14px; pointer-events: none; opacity: 0; transition: opacity .2s; }
+    #qLog { text-align: left; max-height: 46vh; overflow: auto; margin: 6px 0; font: 13px Georgia, serif; color: #e8dcc0; }
+    #qLog .qlt { font-family: Cinzel, serif; color: #f0c46a; margin-top: 8px; }
+    #qLog ul { margin: 4px 0 0 18px; padding: 0; } #qLog li.dn { color: #8a7a62; text-decoration: line-through; }
+    #qLog .ql.done .qlt { color: #8fbf7a; } #qLog .qn { color: #b8a27e; margin-top: 10px; }
+  </style>
+  <script type="module" crossorigin src="/games/era-clash/3d/play/assets/index-Co1qt6AI.js"></script>
+</head>
+<body>
+  <div id="view"></div>
+  <div id="vignette" style="position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 55%, transparent 55%, rgba(12,6,2,.42) 100%)"></div>
+  <div id="labels"></div>
+  <div id="hud"><div class="name cz">HARU <span style="color:#c9973f;font-size:11px">· THE CRIMSON BLADE</span></div><div class="bar"><i id="hpFill" style="width:100%"></i></div><div class="bar" id="mt"><i id="mtFill" style="width:0%"></i></div><div id="allyBars"></div></div>
+  <div id="qObj"></div><div id="qWay"><b>◆</b><span></span></div><div id="qCompass"></div><div id="qHint"></div>
+  <div id="hudR" class="cz"><div id="hudWave"></div><div id="foes"></div><div id="stance">CHŪDAN · MID</div></div>
+  <div id="combo" class="cz"></div>
+  <div id="card" class="cz"><div id="cardT"></div><div id="cardS"></div></div>
+  <div id="go" class="cz">GO →</div>
+  <div id="flash"></div>
+  <div id="bars"></div>
+  <div id="keys">WASD move · Shift run · mouse look · <b>Left-click</b> punch · <b>Right-click</b> kick · <b>Middle-click</b> / <b>E</b> katana · <b>Q</b> block · <b>C</b> roll · <b>Space</b> jump · <b>F</b> super (full meter)</div>
+  <div id="fps"></div>
+  <button id="gear" title="Controls">⚙</button>
+  <div id="pause"><div class="panel"><div class="cz" style="font-size:22px;color:#f4e6c8">PAUSED</div><div id="qLog"></div><button id="pResume" class="btn primary">Resume</button><button id="pSave" class="btn">Save progress</button><button id="pControls" class="btn">Controls</button><button class="btn" onclick="location.href='/games/era-clash/index.html'">Leave the field</button></div></div>
+  <div id="binds"></div>
+  <div id="story"><div class="st-panel">
+    <div id="stKicker" class="cz"></div><div id="stTitle" class="cz"></div><div id="stPlace" class="cz"></div>
+    <div id="stBody"></div><div id="stCheck"></div>
+    <div class="hint">Tales of the Ages in 3D (preview): The Falling Petal, Chapter I. Fiction woven over real history.</div>
+    <div class="st-actions"><button class="btn" onclick="location.href='/games/era-clash/index.html'">Back</button><button id="stCont" class="btn" style="display:none">Continue saved day</button><button id="stGo" class="btn primary">To Battle →</button></div>
+  </div></div>
+  <div id="end"><div class="panel"><div id="endT" class="cz"></div><div id="endS"></div><button id="endAgain" class="btn">Fight Again</button> <button id="endBack" class="btn primary">Back to Era Clash</button></div></div>
+  <div id="loading"><div class="cz"><span id="loadMsg">Waking the graphics card</span></div></div>
+</body>
+</html>

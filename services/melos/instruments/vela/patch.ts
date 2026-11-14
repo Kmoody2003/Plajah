@@ -6,9 +6,15 @@
 // share an engine and a parameter space but not a single field of their patch beyond the
 // envelope, and merging them would mean every ONDA preset grows dead VELA keys.
 
-import { SpatialLayout, IamfRole } from '../../beats/engine/InstrumentHost';
+import type { Instrument } from '../../beats/engine/InstrumentHost';
+import type { SpatialLayout, IamfRole } from '../../beats/engine/InstrumentHost';
 import { M, V, X, lfoRange, LFO_SHAPE_TIDE } from './params';
-import { DEFAULT_VELA_PRESET, expandMacros, type VelaMacro, type VelaPreset } from './presets';
+import {
+  DEFAULT_VELA_PRESET, driftDepthScale, expandMacros, type VelaMacro, type VelaPreset,
+} from './presets';
+import {
+  MOD_SOURCE, applyCompiledMotions, compileMotions, type Motion,
+} from '../../motion';
 
 export interface VelaModRoute {
   source: number;
@@ -44,6 +50,7 @@ export interface VelaPatch {
   /** Raw param id → value. Anything absent keeps the engine default. */
   params: Record<number, number>;
   routes: VelaModRoute[];
+  motions?: Motion[];
   macros: Record<VelaMacro, number>;
   spatial?: {
     position: [number, number, number];
@@ -88,7 +95,7 @@ export function serializeVelaPatch(p: VelaPatch): Record<string, unknown> {
 
 export function deserializeVelaPatch(raw: Record<string, unknown> | undefined): VelaPatch | null {
   if (!raw || typeof raw !== 'object') return null;
-  const src = raw as Partial<VelaPatch> & { params?: Record<string, number> };
+  const src = raw as Partial<VelaPatch> & { params?: Record<string, number>; motions?: Motion[] };
   const params: Record<number, number> = {};
   for (const [k, v] of Object.entries(src.params ?? {})) {
     const id = Number(k);
@@ -101,6 +108,7 @@ export function deserializeVelaPatch(raw: Record<string, unknown> | undefined): 
     description: src.description,
     params,
     routes: Array.isArray(src.routes) ? (src.routes as VelaModRoute[]) : [],
+    motions: Array.isArray(src.motions) ? src.motions : undefined,
     macros: {
       air: src.macros?.air ?? 0.55,
       body: src.macros?.body ?? 0.35,
@@ -127,7 +135,8 @@ export function velaEngineParams(patch: VelaPatch): Array<[number, number]> {
 }
 
 /**
- * Drift's Motion slots. Three Tide modulators on the slow range.
+ * Drift's Motion slots. Three Tide modulators on the slow range (LFO slots 3..5 so user Motions
+ * in slots 0..2 never collide with Drift).
  *
  * Set up once when a VELA track is created. Tide is the only aperiodic shape and the slow range
  * puts a cycle at 20 s to 5 minutes — together that is what stops a twenty-minute pad from
@@ -137,13 +146,63 @@ export function velaDriftSetup(): Array<[number, number]> {
   const out: Array<[number, number]> = [];
   const rates = [0.18, 0.31, 0.47]; // mutually non-commensurate: no common period either
   for (let i = 0; i < 3; i++) {
-    out.push([800 + i * 10 + 0, LFO_SHAPE_TIDE]);
-    out.push([800 + i * 10 + 1, rates[i]]);
-    out.push([lfoRange(i), 1]);
-    out.push([800 + i * 10 + 3, 1]); // bipolar
-    out.push([800 + i * 10 + 4, 0]); // retrigger off — a retriggered walk is a cycle
+    const slot = 3 + i;
+    out.push([800 + slot * 10 + 0, LFO_SHAPE_TIDE]);
+    out.push([800 + slot * 10 + 1, rates[i]]);
+    out.push([lfoRange(slot), 1]);
+    out.push([800 + slot * 10 + 3, 1]); // bipolar
+    out.push([800 + slot * 10 + 4, 0]); // retrigger off — a retriggered walk is a cycle
   }
   return out;
+}
+
+/**
+ * Modulation routes driven by the front-panel Drift macro using the three slow Tide slots (Lfo4..Lfo6).
+ */
+export function velaDriftRoutes(drift: number): VelaModRoute[] {
+  const s = driftDepthScale(drift);
+  if (s <= 0.001) return [];
+  return [
+    { source: MOD_SOURCE.Lfo4, dest: M.POSITION, depth: Math.min(0.45, 0.12 * s) },
+    { source: MOD_SOURCE.Lfo5, dest: M.FORMANT_SHIFT, depth: Math.min(0.48, 0.14 * s) },
+    { source: MOD_SOURCE.Lfo6, dest: M.SPOTLIGHT_POS, depth: Math.min(0.42, 0.13 * s) },
+    { source: MOD_SOURCE.Lfo4, dest: X.TONE, depth: Math.min(0.38, 0.10 * s) },
+    { source: MOD_SOURCE.Lfo5, dest: M.INHARM, depth: Math.min(0.12, 0.025 * s) },
+  ];
+}
+
+/**
+ * Push a whole VELA/Suite patch (Drift LFOs, expanded params, Drift routes, and user Motions)
+ * into a live Instrument handle.
+ */
+export function applyVelaPatch(inst: Instrument, patch: VelaPatch, explicitMotions?: Motion[]): void {
+  inst.setParams(velaDriftSetup());
+  inst.setParams(velaEngineParams(patch));
+
+  const dScale = 0.35 + driftDepthScale(patch.macros.drift);
+  const baseRoutes: VelaModRoute[] = [
+    ...velaDriftRoutes(patch.macros.drift),
+    ...patch.routes.map((r) => ({ ...r, depth: Math.max(-1, Math.min(1, r.depth * dScale)) })),
+  ];
+  const motions = explicitMotions ?? patch.motions ?? [];
+  const compiled = compileMotions(motions);
+  // Drift scales user Motion route depths gently while keeping them responsive even at low Drift
+  const motionScale = 0.55 + 0.65 * Math.max(0, Math.min(1, patch.macros.drift));
+  const scaledCompiled = {
+    ...compiled,
+    routes: compiled.routes.map(([idx, src, dest, depth, via]) =>
+      [idx, src, dest, Math.max(-1, Math.min(1, depth * motionScale)), via] as [number, number, number, number, number],
+    ),
+  };
+  applyCompiledMotions(inst, scaledCompiled, baseRoutes);
+
+  if (patch.spatial) {
+    inst.setSpatial({
+      position: patch.spatial.position,
+      layout: patch.spatial.layout,
+      role: patch.spatial.role,
+    });
+  }
 }
 
 /** The ids the editor surfaces, grouped for its section cards. */
@@ -152,9 +211,6 @@ export const VELA_EDITOR_GROUPS: Array<{ key: 'body' | 'breath' | 'veil'; title:
     key: 'body', title: 'Body', color: '#D0BCFF',
     ids: [
       M.PARTIALS, M.INHARM, M.DECAY, M.DECAY_TILT, M.SPREAD, M.POSITION, M.MATERIAL, M.KEYTRACK,
-      // The life controls. Anima and Beat are what stop a bank sounding like an organ, so they
-      // sit with the body rather than in a separate "modulation" section — they are not
-      // modulation of the sound, they are part of what the sound is.
       M.MODE, M.FORMANT, M.FORMANT_SHIFT, M.BLOOM,
       M.SPOTLIGHT, M.SPOTLIGHT_POS, M.SPOTLIGHT_WIDTH, M.VIBRATO, M.VIBRATO_RATE, M.SUBHARM,
       M.ANIMA, M.BEAT, M.BEAT_RATE, M.SWELL, M.MORPH, M.MORPH_TIME,

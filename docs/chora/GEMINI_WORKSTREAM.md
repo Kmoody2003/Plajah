@@ -59,6 +59,25 @@ layer needs a window of an existing recording sung again in context
 - Done when: a repaint request built from a `VocalRegenRequest` round-trips through the fixture
   server, and the doc states which modes are verified against the real API and which are not.
 
+- Also in G1: the `lego` (generate a named track such as `vocals` over existing audio) and
+  `extract` (isolate a named track) tasks. They need the ACE-Step **base** checkpoint, so the
+  adapter must report clearly when the connected checkpoint is turbo or sft and refuse those
+  tasks rather than send them.
+
+### G1b. Engine registry entries for the new models
+
+Licences are in the "Model roster" table in `CHORA_DIRECT.md`. Register only models marked
+"Yes" or "Likely" there.
+
+- `services/musicEnginePolicy.ts`: add `heartmula-rl-3b` (Apache-2.0) and `soulx-singer`
+  (marked evaluation until its Hugging Face licence tag is confirmed by Kenne). Do **not** add
+  MuLaCover or MuScriptor: their weights are CC BY-NC.
+- `scripts/music_lab_worker.py` and `adapters.ts`: a `soulx-singer` path that takes the
+  `VocalRegenRequest.notes` (syllable, MIDI key, start, length) plus lyrics and an optional
+  reference voice file, and returns audio. Write it against the official SoulX-Singer repository's
+  documented inference entry point; do not guess argument names.
+- Fixture tests only. Do not download or run the weights on this laptop.
+
 ### G2. Deeper style packs
 
 Add packs in `services/melos/direct/packs/` (one file per family, listed in `EXTRA_PACKS` in

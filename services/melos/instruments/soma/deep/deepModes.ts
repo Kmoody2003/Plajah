@@ -12,6 +12,14 @@
 // side, change the other.
 
 import { SM } from '../params';
+import {
+  acquireF32Scratch,
+  acquireF64Scratch,
+  realPairPowerSpecsInto,
+  realPowerSpecInto,
+  releaseF32Scratch,
+  releaseF64Scratch,
+} from './deepUtil';
 
 // ── Bessel functions ────────────────────────────────────────────────────────────────────────
 
@@ -165,30 +173,40 @@ export function buildDeepModes(
   const tilt = (m: number) => (striker === 2 ? (m >= 2 ? 1.75 : 0.85) : striker === 3 ? 0.9 : striker === 5 ? (m >= 1 ? 1.35 : 0.75) : 1);
   const slapClampUpper = striker === 2 ? 1.8 : striker === 3 ? 5.2 : 1;
 
-  // Body (recompute_modal_structure).
+  // Body & Heritage physics (recompute_modal_structure).
   const cavity = clamp(Math.round(get(SM.CAVITY_TYPE)), 0, 5);
-  const [stiffDisp, viscF2, matT60] = SKIN[clamp(Math.round(get(SM.SKIN_MATERIAL)), 0, 5)];
+  const [stiffDispBase, viscF2Base, matT60Base] = SKIN[clamp(Math.round(get(SM.SKIN_MATERIAL)), 0, 5)];
+  const heritageAge = clamp(get(SM.HERITAGE_AGE) || 0, 0, 1);
+  const craftAsym = clamp(get(SM.CRAFT_ASYMMETRY) || 0, 0, 1);
+  const syahiLoad = clamp(get(SM.SYAHI_LOAD) || 0, 0, 1);
+  // Aged hide collagen cross-linking raises bending stiffness & sustain while lowering viscoelastic HF loss.
+  const stiffDisp = stiffDispBase * (1 + 0.18 * heritageAge);
+  const viscF2 = viscF2Base * (1 - 0.14 * heritageAge) * (1 - 0.18 * syahiLoad);
+  const matT60 = matT60Base * (1 + 0.22 * heritageAge) * (1 + 0.35 * syahiLoad);
   const decay = clamp(get(SM.MEMBRANE_DECAY), 0, 1);
   const dampHf = clamp(get(SM.MEMBRANE_DAMP_HF), 0, 1);
   const baseT60 = (0.08 + 1.85 * Math.pow(decay, 1.8)) * matT60 * CHAMBER_T60[cavity];
   const hfLaw = (0.55 + 1.6 * dampHf) * viscF2;
   const visc = (ratio: number, n: number) => 1 + hfLaw * (0.55 * Math.pow(Math.max(0, ratio - 1.55), 1.25) + 0.9 * Math.max(0, n - 1));
   const jRef = cavity === 0 ? J11 : J01;
-  const refK = cavity === 0 ? 1 : 0;
-  const refStiff = Math.sqrt(1 + stiffDisp * refK * refK);
-  // soma.rs stiffens mode k by √(1 + d·k²) over its 16 modes; k ≈ j²/9 along them, so the same
-  // dispersion continued past them is √(1 + 1.667·d·j²) — equal at (2,3), physical above it.
-  const beta = 1.667 * stiffDisp;
+  const refStiff = Math.sqrt(1 + stiffDisp * jRef * jRef);
+  // Exact Kirchhoff-Love bending dispersion f_mn ∝ j_mn · √(1 + B · j_mn²), matching soma.rs ABI 20.
+  const beta = stiffDisp;
 
   const topHz = Math.min(0.45 * sampleRate, 18000);
   const zeros = besselZeros();
   type M = { f: number; g: number; pan: number; r: number; t60: number; ratio: number };
   const modes: M[] = [];
   let idx = 16;
+  const dorsalAxis = 0.38; // Hide dorsal-spine fiber orientation matching soma.rs
   for (let z = 0; z < zeros.length / 3; z++) {
     const m = zeros[3 * z], n = zeros[3 * z + 1], j = zeros[3 * z + 2];
     if (EXPLICIT.has(`${m},${n}`)) continue;
-    const ratio = (j / jRef) * Math.sqrt(1 + beta * j * j) / refStiff;
+    const rawRatio = (j / jRef) * Math.sqrt(1 + beta * j * j) / refStiff;
+    // C.V. Raman concentric syahi/karanai paste pulls lower overtones toward integer harmonic series
+    const nearHarm = Math.max(2, Math.round(rawRatio));
+    const ramanPull = syahiLoad * Math.exp(-0.18 * Math.max(0, rawRatio - 2));
+    const ratio = rawRatio + (nearHarm - rawRatio) * 0.65 * ramanPull;
     const f = baseHz * ratio;
     if (f >= topHz) continue;
     // Contact footprint as a spatial filter. soma.rs's Gaussian is fine over 16 modes but would
@@ -197,20 +215,20 @@ export function buildDeepModes(
     const x = j * footprint;
     const w = besselJ(m, j * rho) * Math.pow(1 + (x / 2.2) ** 2, -0.75) * tilt(m);
     const g0 = w * 0.065 * radEff(m, n);
-    // The cloud's decay law for this region: half the viscous excess, capped by air radiation.
-    const airCap = 0.09 * Math.sqrt(1000 / Math.max(f, 100));
-    // (radial order 1 for all, as the cloud: its law was tuned by measurement for exactly this region)
-    const t60 = Math.max(0.004, Math.min(airCap, baseT60 / ((1 + 0.5 * (visc(ratio, 1) - 1)) * slapClampUpper)));
+    // The cloud's decay law for this region: viscous damping + subtle higher-radial rim collar loss, capped by air radiation.
+    const airCap = (0.09 + 0.04 * syahiLoad) * (1 + 0.08 * craftAsym) * Math.sqrt(1000 / Math.max(f, 100));
+    const radialCollar = 1 + 0.008 * Math.max(0, n - 1);
+    const t60 = Math.max(0.004, Math.min(airCap, baseT60 / ((1 + 0.5 * (visc(ratio, 1) - 1)) * slapClampUpper * radialCollar)));
     const dps = 6.907755 / t60 + touchDamp * (0.45 + 0.55 * Math.abs(w)) * sampleRate;
     const r = Math.exp(-dps / sampleRate);
     const spread = 0.35 + 0.45 * rho;
     if (m === 0) {
       modes.push({ f, g: g0, pan: 0, r, t60, ratio });
     } else {
-      // Two orientations about a random nodal axis: the strike excites them by cos / sin of
-      // m·(strike − axis), detuned a fraction of a percent by the head's uneven tension.
-      const axis = (rnd() * 2 * Math.PI) / m;
-      const detune = 0.0015 + 0.003 * rnd();
+      // Two orientations blended between random micro-unevenness and dorsal-spine craft axis:
+      // detuned further as hand-laced tension & dorsal-spine thickness asymmetry increase.
+      const axis = ((1 - 0.65 * craftAsym) * rnd() * 2 * Math.PI + 0.65 * craftAsym * dorsalAxis) / m;
+      const detune = 0.0015 + 0.003 * rnd() + (0.011 * craftAsym) / Math.sqrt(m);
       const pan = clamp(Math.sin(m * azimuth + idx * 0.65) * spread, -0.85, 0.85);
       modes.push({ f: f * (1 - detune / 2), g: g0 * Math.cos(m * (azimuth - axis)), pan, r, t60, ratio });
       modes.push({ f: f * (1 + detune / 2), g: g0 * Math.sin(m * (azimuth - axis)), pan: -pan, r, t60, ratio });
@@ -248,30 +266,8 @@ export function buildDeepModes(
 
 /** |DFT|^2 of `x` zero-padded to n (power of two), bins 0..n/2. */
 function powerSpectrum(x: Float32Array, n: number): Float64Array {
-  const re = new Float64Array(n), im = new Float64Array(n);
-  for (let i = 0; i < Math.min(n, x.length); i++) re[i] = x[i];
-  for (let i = 1, j = 0; i < n; i++) {
-    let bit = n >> 1;
-    for (; j & bit; bit >>= 1) j ^= bit;
-    j ^= bit;
-    if (i < j) { const t = re[i]; re[i] = re[j]; re[j] = t; }
-  }
-  for (let len = 2; len <= n; len <<= 1) {
-    const a = (-2 * Math.PI) / len, half = len >> 1;
-    const wr0 = Math.cos(a), wi0 = Math.sin(a);
-    for (let i = 0; i < n; i += len) {
-      let wr = 1, wi = 0;
-      for (let k = 0; k < half; k++) {
-        const p = i + k, q = p + half;
-        const xr = re[q] * wr - im[q] * wi, xi = re[q] * wi + im[q] * wr;
-        re[q] = re[p] - xr; im[q] = im[p] - xi;
-        re[p] += xr; im[p] += xi;
-        const t = wr * wr0 - wi * wi0; wi = wr * wi0 + wi * wr0; wr = t;
-      }
-    }
-  }
   const out = new Float64Array(n / 2 + 1);
-  for (let k = 0; k <= n / 2; k++) out[k] = re[k] * re[k] + im[k] * im[k];
+  realPowerSpecInto(x, x.length, n, out);
   return out;
 }
 
@@ -288,96 +284,98 @@ function powerSpectrum(x: Float32Array, n: number): Float64Array {
  */
 export function matchCloudLevel(set: DeepModeSet, drive: Float32Array, cloud: Float32Array, sampleRate: number): void {
   const n = 16384, hz = sampleRate / n;
-  const X = powerSpectrum(drive, n);
-  const C = powerSpectrum(cloud, n);
-  const bands: number[] = [];
-  for (let f = Math.max(60, set.freq[0] / 1.2); f < sampleRate * 0.45; f *= Math.SQRT2) bands.push(f);
-  if (bands.length < 2) return;
-  const band = (f: number) => Math.min(bands.length - 1, Math.max(0, Math.floor(Math.log(f / bands[0]) / Math.log(Math.SQRT2))));
-  const fill = (v: Float64Array) => {
-    let last = NaN;
-    for (let b = 0; b < v.length; b++) { if (Number.isFinite(v[b])) last = v[b]; else v[b] = last; }
-    last = NaN;
-    for (let b = v.length - 1; b >= 0; b--) { if (Number.isFinite(v[b])) last = v[b]; else v[b] = last; }
-  };
-  const interp = (v: Float64Array, f: number) => {
-    // Log-frequency interpolation between band centres, so no band edge is audible.
-    const pos = Math.log(f / bands[0]) / Math.log(Math.SQRT2) - 0.5;
-    const b0 = Math.max(0, Math.min(bands.length - 1, Math.floor(pos)));
-    const b1 = Math.min(bands.length - 1, b0 + 1);
-    const t = Math.max(0, Math.min(1, pos - b0));
-    return Math.exp(Math.log(v[b0]) * (1 - t) + Math.log(v[b1]) * t);
-  };
+  const X = acquireF64Scratch(n / 2 + 1);
+  const C = acquireF64Scratch(n / 2 + 1);
+  const seg = acquireF32Scratch(1024);
+  const segPow = acquireF64Scratch(513);
+  try {
+    // Pack drive + cloud into one complex FFT of length 16384 (2x faster, zero per-note heap churn).
+    realPairPowerSpecsInto(drive, drive.length, cloud, cloud.length, n, X, C);
+    const bands: number[] = [];
+    for (let f = Math.max(60, set.freq[0] / 1.2); f < sampleRate * 0.45; f *= Math.SQRT2) bands.push(f);
+    if (bands.length < 2) return;
+    const band = (f: number) => Math.min(bands.length - 1, Math.max(0, Math.floor(Math.log(f / bands[0]) / Math.log(Math.SQRT2))));
+    const fill = (v: Float64Array) => {
+      let last = NaN;
+      for (let b = 0; b < v.length; b++) { if (Number.isFinite(v[b])) last = v[b]; else v[b] = last; }
+      last = NaN;
+      for (let b = v.length - 1; b >= 0; b--) { if (Number.isFinite(v[b])) last = v[b]; else v[b] = last; }
+    };
+    const interp = (v: Float64Array, f: number) => {
+      const pos = Math.log(f / bands[0]) / Math.log(Math.SQRT2) - 0.5;
+      const b0 = Math.max(0, Math.min(bands.length - 1, Math.floor(pos)));
+      const b1 = Math.min(bands.length - 1, b0 + 1);
+      const t = Math.max(0, Math.min(1, pos - b0));
+      return Math.exp(Math.log(v[b0]) * (1 - t) + Math.log(v[b1]) * t);
+    };
 
-  // 1. Decay. The cloud keeps being fed by the contact, slap and rim for tens of ms, so its bands
-  // ring longer than the bare law — and that ring is what the realism pass tuned. Measure each
-  // band's decay in this strike's cloud (short-time energy slope from its peak) and move the modes
-  // in that band onto it, keeping their spread relative to each other.
-  const W = 1024, times = [2, 8, 16, 28, 44, 64, 90, 120];
-  const db: number[][] = bands.map(() => []);
-  const seg = new Float32Array(W);
-  for (const ms of times) {
-    const start = Math.round((ms / 1000) * sampleRate);
-    for (let i = 0; i < W; i++) seg[i] = (cloud[start + i] ?? 0) * (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (W - 1)));
-    const P = powerSpectrum(seg, W);
+    const W = 1024, times = [2, 8, 16, 28, 44, 64, 90, 120];
+    const db: number[][] = bands.map(() => []);
     const e = new Float64Array(bands.length);
-    for (let k = 1; k < W / 2; k++) e[band((k * sampleRate) / W)] += P[k];
-    for (let b = 0; b < bands.length; b++) db[b].push(10 * Math.log10(e[b] + 1e-30));
-  }
-  const bandT60 = new Float64Array(bands.length).fill(NaN);
-  for (let b = 0; b < bands.length; b++) {
-    const d = db[b];
-    const top = d.indexOf(Math.max(...d));
-    const pts: Array<[number, number]> = [];
-    for (let j = top; j < d.length && d[j] > d[top] - 45 && d[j] > -200; j++) pts.push([times[j] / 1000, d[j]]);
-    if (pts.length < 3) continue;
-    const mx = pts.reduce((a, p) => a + p[0], 0) / pts.length, my = pts.reduce((a, p) => a + p[1], 0) / pts.length;
-    const slope = pts.reduce((a, p) => a + (p[0] - mx) * (p[1] - my), 0) / pts.reduce((a, p) => a + (p[0] - mx) ** 2, 0);
-    if (slope < -5) bandT60[b] = Math.min(1.5, Math.max(0.004, 60 / -slope));
-  }
-  fill(bandT60);
-  if (Number.isFinite(bandT60[0])) {
-    const t60Of = (r: number) => 6.907755 / (-Math.log(r) * sampleRate);
-    const logSum = new Float64Array(bands.length), count = new Float64Array(bands.length);
-    for (let i = 0; i < set.modes; i++) { const b = band(set.freq[i]); logSum[b] += Math.log(t60Of(set.decay[i])); count[b]++; }
-    const meanT60 = new Float64Array(bands.length).fill(NaN);
-    for (let b = 0; b < bands.length; b++) if (count[b]) meanT60[b] = Math.exp(logSum[b] / count[b]);
-    fill(meanT60);
-    let longest = 0;
-    for (let i = 0; i < set.modes; i++) {
-      const f = set.freq[i];
-      const t60 = Math.min(1.5, Math.max(0.004, t60Of(set.decay[i]) * (interp(bandT60, f) / interp(meanT60, f))));
-      const r = Math.exp(-6.907755 / (t60 * sampleRate));
-      const k = r / set.decay[i];
-      for (const o of [i * 4, (set.groups * GROUP + i) * 4]) { set.coef[o] *= k; set.coef[o + 1] *= k; }
-      set.decay[i] = r;
-      longest = Math.max(longest, t60);
+    for (const ms of times) {
+      const start = Math.round((ms / 1000) * sampleRate);
+      for (let i = 0; i < W; i++) seg[i] = (cloud[start + i] ?? 0) * (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (W - 1)));
+      realPowerSpecInto(seg, W, W, segPow);
+      e.fill(0);
+      for (let k = 1; k < W / 2; k++) e[band((k * sampleRate) / W)] += segPow[k]!;
+      for (let b = 0; b < bands.length; b++) db[b]!.push(10 * Math.log10(e[b]! + 1e-30));
     }
-    set.frames = Math.max(set.frames, Math.ceil(Math.min(2.5, longest + 0.09) * sampleRate / GROUP) * GROUP);
-  }
+    const bandT60 = new Float64Array(bands.length).fill(NaN);
+    for (let b = 0; b < bands.length; b++) {
+      const d = db[b]!;
+      const top = d.indexOf(Math.max(...d));
+      const pts: Array<[number, number]> = [];
+      for (let j = top; j < d.length && d[j]! > d[top]! - 45 && d[j]! > -200; j++) pts.push([times[j]! / 1000, d[j]!]);
+      if (pts.length < 3) continue;
+      const mx = pts.reduce((a, p) => a + p[0], 0) / pts.length, my = pts.reduce((a, p) => a + p[1], 0) / pts.length;
+      const slope = pts.reduce((a, p) => a + (p[0] - mx) * (p[1] - my), 0) / pts.reduce((a, p) => a + (p[0] - mx) ** 2, 0);
+      if (slope < -5) bandT60[b] = Math.min(1.5, Math.max(0.004, 60 / -slope));
+    }
+    fill(bandT60);
+    if (Number.isFinite(bandT60[0])) {
+      const t60Of = (r: number) => 6.907755 / (-Math.log(r) * sampleRate);
+      const logSum = new Float64Array(bands.length), count = new Float64Array(bands.length);
+      for (let i = 0; i < set.modes; i++) { const b = band(set.freq[i]!); logSum[b] += Math.log(t60Of(set.decay[i]!)); count[b]++; }
+      const meanT60 = new Float64Array(bands.length).fill(NaN);
+      for (let b = 0; b < bands.length; b++) if (count[b]!) meanT60[b] = Math.exp(logSum[b]! / count[b]!);
+      fill(meanT60);
+      let longest = 0;
+      for (let i = 0; i < set.modes; i++) {
+        const f = set.freq[i]!;
+        const t60 = Math.min(1.5, Math.max(0.004, t60Of(set.decay[i]!) * (interp(bandT60, f) / interp(meanT60, f))));
+        const r = Math.exp(-6.907755 / (t60 * sampleRate));
+        const k = r / set.decay[i]!;
+        for (const o of [i * 4, (set.groups * GROUP + i) * 4]) { set.coef[o] *= k; set.coef[o + 1] *= k; }
+        set.decay[i] = r;
+        longest = Math.max(longest, t60);
+      }
+      set.frames = Math.max(set.frames, Math.ceil(Math.min(2.5, longest + 0.09) * sampleRate / GROUP) * GROUP);
+    }
 
-  // 2. Level. Energy the deep layer would carry per band (mono, before scaling), and the cloud's.
-  const deepE = new Float64Array(bands.length), cloudE = new Float64Array(bands.length);
-  const g = (i: number) => 0.5 * (Math.abs(set.coef[i * 4 + 2]) + Math.abs(set.coef[(set.groups * GROUP + i) * 4 + 2]));
-  for (let i = 0; i < set.modes; i++) {
-    const r = set.decay[i];
-    deepE[band(set.freq[i])] += g(i) ** 2 * X[Math.round(set.freq[i] / hz)] / (2 * (1 - r * r));
-  }
-  for (let k = 1; k < n / 2; k++) cloudE[band(k * hz)] += (2 / n) * C[k];
-  // In the voice the cloud splits 0.62/0.38 across L/R, so it reaches the mono sum at 0.5 in
-  // amplitude (0.25 in energy); the deep pair reaches it at g = mean(gL, gR), as computed here.
-  const peak = Math.max(...cloudE);
-  const factor = new Float64Array(bands.length).fill(NaN);
-  for (let b = 0; b < bands.length; b++) {
-    if (deepE[b] > 0 && cloudE[b] > peak * 1e-5) factor[b] = Math.sqrt((0.25 * cloudE[b]) / deepE[b]);
-  }
-  // Bands the cloud doesn't reach (below its first band, above its last) hold their neighbour.
-  fill(factor);
-  if (!Number.isFinite(factor[0])) return; // no cloud at all: keep the physical level
-  const clamped = factor.map((v) => Math.min(3000, Math.max(0.1, v)));
-  for (let i = 0; i < set.modes; i++) {
-    const k = interp(clamped, set.freq[i]);
-    set.coef[i * 4 + 2] *= k;
-    set.coef[(set.groups * GROUP + i) * 4 + 2] *= k;
+    const deepE = new Float64Array(bands.length), cloudE = new Float64Array(bands.length);
+    const g = (i: number) => 0.5 * (Math.abs(set.coef[i * 4 + 2]!) + Math.abs(set.coef[(set.groups * GROUP + i) * 4 + 2]!));
+    for (let i = 0; i < set.modes; i++) {
+      const r = set.decay[i]!;
+      deepE[band(set.freq[i]!)] += g(i) ** 2 * X[Math.round(set.freq[i]! / hz)]! / (2 * (1 - r * r));
+    }
+    for (let k = 1; k < n / 2; k++) cloudE[band(k * hz)] += (2 / n) * C[k]!;
+    const peak = Math.max(...cloudE);
+    const factor = new Float64Array(bands.length).fill(NaN);
+    for (let b = 0; b < bands.length; b++) {
+      if (deepE[b]! > 0 && cloudE[b]! > peak * 1e-5) factor[b] = Math.sqrt((0.25 * cloudE[b]!) / deepE[b]!);
+    }
+    fill(factor);
+    if (!Number.isFinite(factor[0])) return;
+    const clamped = factor.map((v) => Math.min(3000, Math.max(0.1, v)));
+    for (let i = 0; i < set.modes; i++) {
+      const k = interp(clamped, set.freq[i]!);
+      set.coef[i * 4 + 2] *= k;
+      set.coef[(set.groups * GROUP + i) * 4 + 2] *= k;
+    }
+  } finally {
+    releaseF64Scratch(X);
+    releaseF64Scratch(C);
+    releaseF32Scratch(seg);
+    releaseF64Scratch(segPow);
   }
 }

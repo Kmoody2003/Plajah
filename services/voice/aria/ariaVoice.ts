@@ -12,7 +12,7 @@ export { splitSentences, estimateMarks } from './text';
  * are skipped. speak()/speakSentences() ALWAYS resolve. A new speak cancels the previous one (no overlap).
  */
 
-const CASCADE = ['serverTts', 'kokoro', 'webSpeech'];
+const CASCADE = ['kokoro', 'webSpeech', 'serverTts'];
 
 export const DEFAULT_PROFILES: Record<string, VoiceProfile> = {
   aria: {
@@ -116,6 +116,11 @@ export class AriaVoiceService {
     try { this.ctrl?.abort(); } catch { /* ignore */ }
     this.silence();
     this.emit({ speaking: false });
+  }
+
+  /** Unlock browser speechSynthesis inside a user gesture before async recognition finishes. */
+  prime() {
+    try { (webSpeechProvider as { prime?: () => void }).prime?.(); } catch { /* ignore */ }
   }
 
   private silence() {

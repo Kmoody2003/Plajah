@@ -266,14 +266,23 @@ const cents = (v: number) => `${(v - 0.5) * 200 >= 0 ? '+' : ''}${Math.round((v 
 
 export const VOICE_MODES = ['Poly', 'Mono', 'Legato'] as const;
 export const SUB_OCTAVES = ['-1 oct', '-2 oct'] as const;
+export const OSC_SOURCES = ['Wavetable', 'Analog'] as const;
 
 const sharedMeta: BajoParamMeta[] = [
+  meta(osc(0, O.ENABLE), 'Osc A on', 'Engage Oscillator A.', undefined, undefined, true),
   meta(osc(0, O.LEVEL), 'Osc A', 'The main oscillator.', pct),
+  meta(osc(0, O.MODE), 'Source A', 'Wavetable bank vs. PolyBLEP analog.', pick(OSC_SOURCES), OSC_SOURCES),
   meta(osc(0, O.ANALOG_SHAPE), 'Shape', undefined, pick(ANALOG_SHAPES), ANALOG_SHAPES),
+  meta(osc(0, O.MORPH), 'Morph A', 'Sweeps Oscillator A wavetable frames.', pct),
+  meta(osc(0, O.PULSE_WIDTH), 'PW A', 'Pulse width for Square/Pulse shape.', pct),
   meta(osc(0, O.COARSE), 'Coarse', undefined, semis),
   meta(osc(0, O.FINE), 'Fine', undefined, cents),
+  meta(osc(1, O.ENABLE), 'Osc B on', 'Engage Oscillator B.', undefined, undefined, true),
   meta(osc(1, O.LEVEL), 'Osc B', 'A second oscillator — detune it a hair against A for a reese.', pct),
+  meta(osc(1, O.MODE), 'Source B', 'Wavetable bank vs. PolyBLEP analog.', pick(OSC_SOURCES), OSC_SOURCES),
   meta(osc(1, O.ANALOG_SHAPE), 'Shape B', undefined, pick(ANALOG_SHAPES), ANALOG_SHAPES),
+  meta(osc(1, O.MORPH), 'Morph B', 'Sweeps Oscillator B wavetable frames.', pct),
+  meta(osc(1, O.PULSE_WIDTH), 'PW B', 'Pulse width for Oscillator B.', pct),
   meta(osc(1, O.COARSE), 'Coarse B', undefined, semis),
   meta(osc(1, O.FINE), 'Fine B', 'The detune that makes a reese beat.', cents),
   meta(P.UNISON_COUNT, 'Voices', undefined, (v) => `${Math.round(1 + v * 15)}`),

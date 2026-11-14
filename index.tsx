@@ -52,6 +52,12 @@ const FullApp = React.lazy(loadFullApp);
 // shell — no App bundle, no Firebase, no auth/connectivity gates — so a photo opens immediately.
 const LocalMediaLaunch = React.lazy(() => import('./components/LocalMediaLaunch'));
 const reviewMatch = window.location.pathname.match(/^\/review\/([A-Za-z0-9_-]+)\/?$/);
+const PublicTransferPage = React.lazy(() => import('./components/files/PublicTransferPage'));
+const transferMatch = window.location.pathname.match(/^\/transfer\/([A-Za-z0-9_-]+)\/?$/);
+const searchParams = new URLSearchParams(window.location.search);
+const publicTransferId =
+  transferMatch?.[1] ||
+  (searchParams.get('view') === 'transfer' ? searchParams.get('id') || '' : '');
 // Plajah Evites guest page /i/:id — account-free, its own light entry (no platform shell, no auth gate).
 const inviteMatch = window.location.pathname.match(/^\/i\/([a-z0-9]{6,14})\/?$/);
 const EviteGuestPage = React.lazy(() => import('./components/evite/EviteGuestPage'));
@@ -398,6 +404,14 @@ if (isProgramOut) {
           <EventPoolView poolId={poolMatch[1]} onBack={() => location.assign('/')} onRequestSignIn={() => location.assign('/')} />
         </React.Suspense>
       </ErrorBoundary>
+  );
+} else if (publicTransferId) {
+  root.render(
+    <ErrorBoundary>
+      <React.Suspense fallback={<div style={{ width: '100vw', height: '100vh', background: '#07080d' }} />}>
+        <PublicTransferPage transferId={publicTransferId} />
+      </React.Suspense>
+    </ErrorBoundary>
   );
 } else if (reviewMatch && reviewToken) {
   // Account-free external reviewer — standalone, no platform shell, no auth gate.

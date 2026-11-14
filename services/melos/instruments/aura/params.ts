@@ -101,7 +101,7 @@ export const ENS_MODES = ['Solina 3-Phase', 'Juno I', 'Juno II'] as const;
 export const LFO_SHAPES = ['Sine', 'Triangle', 'Saw', 'Square', 'S&H', 'Drift'] as const;
 export const GATE_SHAPES = ['Pulse', 'Saw Ramp', 'Random Step'] as const;
 export const FLUX_MODES = ['S&H Filter', 'Buchla Drift', 'Cosmic Glitch'] as const;
-export const DELAY_DIVS = ['1/16', '1/8', '1/8D', '1/4', '1/4D', '1/2'] as const;
+export const DELAY_DIVS = ['1/1', '1/2', '1/4D', '1/4', '1/8D', '1/8', '1/8T', '1/16'] as const;
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 const bipolar = (v: number) => `${v > 0.5 ? '+' : ''}${Math.round((v - 0.5) * 200)}%`;
@@ -178,6 +178,8 @@ export const AURA_PARAM_META: Record<number, AuraParamMeta> = {
   [osc(2, O.LEVEL)]: meta(osc(2, O.LEVEL), 'VCO 3 Level', 'Mixer level for VCO 3.', pct),
   [osc(2, O.MODE)]: meta(osc(2, O.MODE), 'VCO 3 Source', undefined, pick(OSC_MODES), OSC_MODES),
   [osc(2, O.ANALOG_SHAPE)]: meta(osc(2, O.ANALOG_SHAPE), 'VCO 3 Wave', undefined, pick(ANALOG_SHAPES), ANALOG_SHAPES),
+  [osc(2, O.MORPH)]: meta(osc(2, O.MORPH), 'Contour 3', 'Sweeps VCO 3 vintage wave bank.', pct),
+  [osc(2, O.PULSE_WIDTH)]: meta(osc(2, O.PULSE_WIDTH), 'PW 3', 'Pulse width for VCO 3.', pct),
   [osc(2, O.COARSE)]: meta(osc(2, O.COARSE), 'VCO 3 Pitch', 'Tune to +7st or -12st for classic 3-VCO chords & basses.', semis),
   [osc(2, O.FINE)]: meta(osc(2, O.FINE), 'VCO 3 Detune', undefined, cents),
   [P.SUB_LEVEL]: meta(P.SUB_LEVEL, 'Sub Osc', 'Flip-flop divide-down sub-oscillator.', pct),
@@ -250,7 +252,7 @@ export const AURA_PARAM_META: Record<number, AuraParamMeta> = {
   [SP.EC_MIX]: meta(SP.EC_MIX, 'Echo Mix', 'Tape echo wet level.', pct),
 
   [SP.DL_ON]: meta(SP.DL_ON, 'Stereo Delay', 'Tempo-synced stereo bucket-brigade / digital delay.', undefined, undefined, true),
-  [SP.DL_DIV]: meta(SP.DL_DIV, 'Delay Division', 'Tempo division of the stereo delay.', (v) => DELAY_DIVS[Math.min(DELAY_DIVS.length - 1, Math.floor(v * DELAY_DIVS.length))] ?? '1/8D'),
+  [SP.DL_DIV]: meta(SP.DL_DIV, 'Delay Division', 'Tempo division of the stereo delay.', pick(DELAY_DIVS), DELAY_DIVS),
   [SP.DL_FB]: meta(SP.DL_FB, 'Delay Feedback', 'Stereo delay regeneration.', pct),
   [SP.DL_TONE]: meta(SP.DL_TONE, 'Delay Tone', 'Damping filter inside the delay feedback loop.', pct),
   [SP.DL_PING]: meta(SP.DL_PING, 'Ping-Pong', 'Cross-coupled stereo ping-pong bounce.', undefined, undefined, true),
@@ -409,7 +411,7 @@ export const AURA_DEFAULTS: Readonly<Record<number, number>> = Object.freeze({
   [A.FLUX_MODE]: 0,
 
   [SP.DL_ON]: 0,
-  [SP.DL_DIV]: 0.45,
+  [SP.DL_DIV]: 4,
   [SP.DL_FB]: 0.42,
   [SP.DL_TONE]: 0.52,
   [SP.DL_PING]: 1,

@@ -9,11 +9,13 @@ import { X, ChevronLeft, ChevronRight, Circle, Save, Trash2, LayoutGrid } from '
 import type { ArrangeTrack, GrooveDoc, InstrumentType } from '../../../../services/melos/beats/grooveDoc';
 import { instrumentLabel, instrumentColor } from '../../../../services/melos/beats/instrumentFactory';
 import { PresetGallery } from './PresetGallery';
+import { liveBus, now as liveNow } from '../../../../services/melos/beats/band/live/events';
 import {
   listPresets, applyPresetToDoc, pushTrackPatch, saveUserPreset, deleteUserPreset, type PresetEntry,
 } from '../../../../services/melos/beats/presetHub';
 import { ARMED, SURFACE } from '../theme';
 import { NoteFxRack } from '../assist/NoteFxRack';
+import { getFocusedParamSnapshot, subscribeFocusedParam } from '../../../../services/melos/beats/focusedParamStore';
 
 interface Geometry { x: number; y: number; w: number; h: number }
 
@@ -22,7 +24,10 @@ const GEO_KEY = 'melos.instrumentWindow.v1';
 const DEFAULT_SIZE: Record<string, { w: number; h: number }> = {
   onda: { w: 1040, h: 700 },
   aura: { w: 980, h: 700 },
-  soma: { w: 1020, h: 720 },
+  soma: { w: 1220, h: 760 },
+  tonos: { w: 1220, h: 760 },
+  lyra: { w: 1220, h: 760 },
+  volta: { w: 1240, h: 780 },
   kera: { w: 900, h: 660 },
   bajo: { w: 780, h: 640 },
   vela: { w: 720, h: 620 },
@@ -70,6 +75,8 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
   const label = instrumentLabel(type);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [noteFxOpen, setNoteFxOpen] = useState(false);
+  const [focusedLabel, setFocusedLabel] = useState<string | null>(() => getFocusedParamSnapshot()?.label ?? null);
+  useEffect(() => subscribeFocusedParam(() => setFocusedLabel(getFocusedParamSnapshot()?.label ?? null)), []);
 
   const [geo, setGeo] = useState<Geometry>(() => {
     const saved = loadGeo(type);
@@ -141,7 +148,11 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
   const applyPreset = useCallback((presetId: string) => {
     let ok = false;
     onMutate((d) => { ok = applyPresetToDoc(d, track.id, presetId); });
-    if (ok) pushTrackPatch(track.id);
+    if (ok) {
+      pushTrackPatch(track.id);
+      const pName = presets.find((p) => p.id === presetId)?.name ?? presetId;
+      liveBus.emit({ kind: 'preset', instrument: type, trackId: track.id, at: liveNow(), presetId, presetName: pName });
+    }
   }, [onMutate, track.id]);
   const stepPreset = (dir: 1 | -1) => {
     if (!presets.length) return;
@@ -204,6 +215,15 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
           >{track.name}</span>
         )}
 
+        {focusedLabel && (
+          <span
+            className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-400/15 border border-amber-400/40 text-[9.5px] font-bold text-amber-200 truncate max-w-[190px]"
+            title="Hardware Knob 1 live focus target (hover, select, or move near any control)"
+          >
+            <span className="font-mono text-[9px] text-amber-300">K1</span>
+            <span className="truncate">{focusedLabel}</span>
+          </span>
+        )}
         <span className="flex-1" />
 
         {/* preset dropdown + prev/next + manage */}

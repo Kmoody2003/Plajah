@@ -1,30 +1,20 @@
-// QWERTY as a keyboard, plus note recording against the transport.
-//
-// Layout is the tracker/DAW convention people already have in their fingers: the home row is the
-// white keys and the row above holds the sharps, with a second octave on the QWERTY row.
-//
-// The armed instrument track OWNS the keyboard — that's why the pads release their z/x/c/v
-// bindings while a track is armed. Two things grabbing the same key is worse than either.
-
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
-import { grooveUid, type ArrangeTrack, type GrooveDoc, type NoteEvent } from '../../../../services/melos/beats/grooveDoc';
-import { songTime } from '../../../../services/melos/beats/tempoMap';
-import { contentPosAt } from '../../../../services/melos/beats/clipContent';
+import type { ArrangeTrack, GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
+import { liveBus, now as liveNow } from '../../../../services/melos/beats/band/live/events';
+import { commitRecordedNote, type RecordedNote } from '../../../../services/melos/midiRouting';
 
-/** key → semitone offset from the base octave's C. */
+export { commitRecordedNote, type RecordedNote };
+
+/**
+ * QWERTY → semitone-above-octave-root. Classic two-row tracker/DAW layout:
+ * bottom row z..m = C..B, home row s,d,g,h,j = black keys, top row q..u = next C..B.
+ */
 const KEY_MAP: Record<string, number> = {
-  z: 0, s: 1, x: 2, d: 3, c: 4, v: 5, g: 6, b: 7, h: 8, n: 9, j: 10, m: 11, ',': 12,
-  q: 12, '2': 13, w: 14, '3': 15, e: 16, r: 17, '5': 18, t: 19, '6': 20, y: 21, '7': 22, u: 23, i: 24,
+  z: 0, s: 1, x: 2, d: 3, c: 4, v: 5, g: 6, b: 7, h: 8, n: 9, j: 10, m: 11,
+  q: 12, '2': 13, w: 14, '3': 15, e: 16, r: 17, '5': 18, t: 19, '6': 20, y: 21, '7': 22, u: 23,
+  i: 24, '9': 25, o: 26, '0': 27, p: 28,
 };
-
-export interface RecordedNote {
-  /** Every note the press played, when auto-chord made it more than one. */
-  keys?: number[];
-  key: number;
-  vel: number;
-  startBeats: number;
-}
 
 export interface KeyboardOptions {
   doc: GrooveDoc;
@@ -38,13 +28,20 @@ export interface KeyboardOptions {
   onOctaveChange: (o: number) => void;
 }
 
+interface HeldKey {
+  track: ArrangeTrack;
+  note: number;
+  token: number;
+}
+
 export function useInstrumentKeyboard(opts: KeyboardOptions): void {
   // Everything the handlers need, in a ref — otherwise the listeners would be torn down and
   // rebuilt on every transport tick, which drops held keys.
   const ref = useRef(opts);
   ref.current = opts;
 
-  const held = useRef(new Set<string>());
+  const held = useRef(new Map<string, HeldKey>());
+  const nextToken = useRef(0);
   const recorded = useRef(new Map<number, RecordedNote>());
 
   useEffect(() => {
@@ -61,7 +58,6 @@ export function useInstrumentKeyboard(opts: KeyboardOptions): void {
 
       const k = e.key.toLowerCase();
       if (k === 'arrowup' || k === 'arrowdown') {
-        // Octave shift, clamped to something a keyboard can actually reach.
         e.preventDefault();
         o.onOctaveChange(Math.max(1, Math.min(7, o.octave + (k === 'arrowup' ? 1 : -1))));
         return;
@@ -69,45 +65,50 @@ export function useInstrumentKeyboard(opts: KeyboardOptions): void {
       const semi = KEY_MAP[k];
       if (semi === undefined || held.current.has(k)) return;
       e.preventDefault();
-      held.current.add(k);
 
+      const track = o.armedTrack;
       const note = o.octave * 12 + semi;
+      const token = ++nextToken.current;
+      // Record synchronously before any async init so a fast key-up cancels pending noteOn.
+      held.current.set(k, { track, note, token });
+
       const vel = e.shiftKey ? 127 : 100; // shift = accent, the oldest trick in tracker history
       const engine = BeatsEngine.get();
-      void engine.ensureInstrument(o.armedTrack).then(() => {
-        engine.instrumentNoteOn(o.armedTrack!, note, vel);
-      });
+      if (engine.getInstrument(track.id)) {
+        engine.instrumentNoteOn(track, note, vel);
+      } else {
+        void engine.ensureInstrument(track).then((inst) => {
+          const cur = held.current.get(k);
+          if (!inst || !cur || cur.token !== token) return;
+          engine.instrumentNoteOn(track, note, vel);
+        });
+      }
 
       if (o.recording && o.running) {
-        recorded.current.set(note, { key: note, vel, startBeats: o.posBeats(), keys: engine.liveKeysFor(o.armedTrack, note) });
+        recorded.current.set(note, { key: note, vel, startBeats: o.posBeats(), keys: engine.liveKeysFor(track, note) });
       }
     };
 
     const onUp = (e: KeyboardEvent) => {
-      const o = ref.current;
       const k = e.key.toLowerCase();
-      if (!held.current.has(k)) return;
+      const cur = held.current.get(k);
+      if (!cur) return;
       held.current.delete(k);
-      const semi = KEY_MAP[k];
-      if (semi === undefined || !o.armedTrack) return;
-      const note = o.octave * 12 + semi;
-      BeatsEngine.get().instrumentNoteOff(o.armedTrack, note);
+      BeatsEngine.get().instrumentNoteOff(cur.track, cur.note);
 
-      const rec = recorded.current.get(note);
+      const rec = recorded.current.get(cur.note);
       if (rec) {
-        recorded.current.delete(note);
-        if (o.armedTrack) commitRecordedNote(o.armedTrack.id, rec, o.posBeats(), o.onMutate);
+        recorded.current.delete(cur.note);
+        commitRecordedNote(cur.track.id, rec, ref.current.posBeats(), ref.current.onMutate);
       }
     };
 
     // Losing focus with keys down would leave notes stuck on forever.
     const panic = () => {
-      const o = ref.current;
-      if (o.armedTrack) {
-        for (const k of held.current) {
-          const semi = KEY_MAP[k];
-          if (semi !== undefined) BeatsEngine.get().instrumentNoteOff(o.armedTrack, o.octave * 12 + semi);
-        }
+      nextToken.current++;
+      const engine = BeatsEngine.get();
+      for (const cur of held.current.values()) {
+        engine.instrumentNoteOff(cur.track, cur.note);
       }
       held.current.clear();
       recorded.current.clear();
@@ -125,57 +126,88 @@ export function useInstrumentKeyboard(opts: KeyboardOptions): void {
   }, []);
 }
 
+export interface AuditionKeyControls {
+  noteOn: (n: number) => void;
+  noteOff: (n: number) => void;
+  releaseAll: (hard?: boolean) => void;
+  heldSize: () => number;
+}
+
 /**
- * Write a captured note into a clip on the armed track, creating the clip if the take started
- * somewhere no clip exists yet. Recording that silently discards notes is worse than not
- * recording, so the clip is grown to fit rather than clipping the take.
- * Exported so the hardware-MIDI path (BeatsRoom) records through the same code as QWERTY.
+ * Race-free on-screen audition keyboard controller: binds synchronous held state + token guards
+ * around async engine initialization so rapid taps, pointer-capture losses, preset switches, or
+ * window blurs never leave an instrument voice stuck ringing.
  */
-export function commitRecordedNote(
-  trackId: string,
-  rec: RecordedNote,
-  endBeats: number,
-  onMutate: (fn: (d: GrooveDoc) => void) => void,
-): void {
-  // Auto-chord: a press that played a chord records the chord.
-  if (rec.keys && rec.keys.length > 1) {
-    for (const key of rec.keys) commitRecordedNote(trackId, { ...rec, key, keys: undefined }, endBeats, onMutate);
-    return;
-  }
-  const lengthBeats = Math.max(0.0625, endBeats - rec.startBeats);
-  onMutate((d) => {
-    const track = d.arrangement.find((t) => t.id === trackId);
-    if (!track || track.kind !== 'instrument') return;
+export function useAuditionKeys(
+  track: ArrangeTrack,
+  onStrike?: (note: number) => void,
+): AuditionKeyControls {
+  const held = useRef(new Map<number, { token: number; vid?: number }>());
+  const nextToken = useRef(0);
+  const trackRef = useRef(track);
+  trackRef.current = track;
+  const strikeRef = useRef(onStrike);
+  strikeRef.current = onStrike;
 
-    let clip = track.clips.find(
-      (c) => rec.startBeats >= c.startBeats - 1e-9 && rec.startBeats < c.startBeats + c.lengthBeats,
-    );
-    if (!clip) {
-      // Start the clip on the bar the take began in — recording from bar 3 shouldn't create a
-      // clip that starts at an arbitrary fraction of a beat.
-      const bar = songTime(d).meter.at(rec.startBeats);
-      clip = { id: grooveUid(), startBeats: bar.startBeat, lengthBeats: bar.lenBeats, notes: [] };
-      track.clips.push(clip);
+  const noteOff = useCallback((n: number) => {
+    const cur = held.current.get(n);
+    if (!cur) return;
+    held.current.delete(n);
+    const tr = trackRef.current;
+    const instName = tr.instrument?.type ?? 'instrument';
+    liveBus.emit({ kind: 'note', instrument: instName, trackId: tr.id, at: liveNow(), key: n, velocity: 0, on: false });
+    if (cur.vid === undefined) return;
+    const eng = BeatsEngine.get();
+    const existing = eng.getInstrument(tr.id);
+    if (existing) {
+      existing.noteOff(cur.vid, true);
+    } else {
+      void eng.ensureInstrument(tr).then((engineInst) => engineInst?.noteOff(cur.vid!, true));
     }
-    if (!clip.notes) clip.notes = [];
+  }, []);
 
-    const note: NoteEvent = {
-      id: grooveUid(),
-      // Content beats: a slipped or looped clip stores the note where its window shows it.
-      startBeats: contentPosAt(clip, rec.startBeats) ?? rec.startBeats - clip.startBeats,
-      lengthBeats,
-      key: rec.key,
-      vel: rec.vel,
+  const releaseAll = useCallback((hard = false) => {
+    nextToken.current++;
+    for (const n of [...held.current.keys()]) noteOff(n);
+    if (hard) {
+      BeatsEngine.get().getInstrument(trackRef.current.id)?.allNotesOff(true);
+    }
+  }, [noteOff]);
+
+  const noteOn = useCallback((n: number) => {
+    if (held.current.has(n)) noteOff(n);
+    const token = ++nextToken.current;
+    held.current.set(n, { token });
+    const tr = trackRef.current;
+    const instName = tr.instrument?.type ?? 'instrument';
+    liveBus.emit({ kind: 'note', instrument: instName, trackId: tr.id, at: liveNow(), key: n, velocity: 0.8, on: true });
+    strikeRef.current?.(n);
+
+    const eng = BeatsEngine.get();
+    const existing = eng.getInstrument(tr.id);
+    if (existing) {
+      const vid = existing.noteOn(n, 0.8, 0, 0, 1);
+      held.current.set(n, { token, vid });
+      return;
+    }
+    void eng.init().then(async () => {
+      const engineInst = await eng.ensureInstrument(tr);
+      const cur = held.current.get(n);
+      if (!engineInst || !cur || cur.token !== token) return;
+      cur.vid = engineInst.noteOn(n, 0.8, 0, 0, 1);
+    });
+  }, [noteOff]);
+
+  useEffect(() => {
+    const onBlur = () => releaseAll(false);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      window.removeEventListener('blur', onBlur);
+      releaseAll(false);
     };
-    clip.notes.push(note);
+  }, [track.id, releaseAll]);
 
-    // Grow an unlooped clip to contain the note, rounded out to the bar (a looped clip already
-    // repeats its content — the take lands inside the loop).
-    const songEnd = rec.startBeats + lengthBeats;
-    if (!clip.loop && songEnd > clip.startBeats + clip.lengthBeats) {
-      const b = songTime(d).meter.at(songEnd);
-      const ceil = b.beatInBar < 1e-6 ? songEnd : b.startBeat + b.lenBeats;
-      clip.lengthBeats = ceil - clip.startBeats;
-    }
-  });
+  const heldSize = useCallback(() => held.current.size, []);
+
+  return { noteOn, noteOff, releaseAll, heldSize };
 }

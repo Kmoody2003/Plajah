@@ -11,7 +11,9 @@ export type LiveEvent =
   | { kind: 'open'; instrument: string; trackId: string; at: number; presetId?: string }
   | { kind: 'close'; instrument: string; trackId: string; at: number }
   /** A key played live on a pitched instrument (keyboard, controller, QWERTY). */
-  | { kind: 'note'; instrument: string; trackId: string; at: number; key: number; velocity: number; on: boolean };
+  | { kind: 'note'; instrument: string; trackId: string; at: number; key: number; velocity: number; on: boolean }
+  /** The studio ear studied a hum, system stream, project mix, audio file, or creative reference. */
+  | { kind: 'study'; instrument: string; trackId?: string; source: string; bpm: number; key: string; chords: string[]; summary: string; at: number };
 
 type Listener = (e: LiveEvent) => void;
 const listeners = new Set<Listener>();

@@ -133,6 +133,7 @@ import { createLivePartyRouter } from './routes/liveParty';
 import { createGamerSocialRouter } from './routes/gamerSocial';
 import { fsQuery as gamerFsQuery } from './services/firebaseAdminRest';
 import { driveRouter } from './routes/drive';
+import { driveTransfersRouter } from './routes/driveTransfers';
 import { createGenCloudRouter, onPackCheckoutCompleted, onPackChargeRefunded, type PackWebhookDeps } from './routes/genCloud';
 import { adaptersFromEnv as genCloudAdapters } from './services/genCloud/providers';
 import { ledgerStore as genCloudLedgerStore, jobStore as genCloudJobStore, LEDGER_COLLECTION as GENCLOUD_LEDGERS } from './services/genCloud/store';
@@ -7261,6 +7262,9 @@ async function startServer() {
       level: ['new', 'beginner', 'intermediate', 'advanced'].includes(c.level) ? c.level : undefined,
       lesson: typeof c.lesson === 'string' ? c.lesson.slice(0, 400) : undefined,
       justPlayed: typeof c.justPlayed === 'string' ? c.justPlayed.slice(0, 400) : undefined,
+      projectSummary: typeof c.projectSummary === 'string' ? c.projectSummary.slice(0, 900) : undefined,
+      referenceSummary: typeof c.referenceSummary === 'string' ? c.referenceSummary.slice(0, 600) : undefined,
+      activeInstrument: typeof c.activeInstrument === 'string' ? c.activeInstrument.slice(0, 80) : undefined,
     };
     try {
       const model = laneModel('BAND_TEACHER_MODEL');
@@ -7269,6 +7273,38 @@ async function startServer() {
     } catch (err: any) {
       console.error('/api/band/teach', err?.message || err);
       res.status(502).json({ error: 'The teacher could not answer right now.' });
+    }
+  });
+
+  // Session Band creative reference research (book, movie, song, aesthetic) -> concrete musical brief
+  app.post('/api/band/research', authMiddleware, aiLimiter, requireRegisteredUser, express.json({ limit: '32kb' }), async (req: any, res) => {
+    if (req.body?.cloudConsent !== true) return res.status(428).json({ error: 'Cloud research needs your OK first.' });
+    if (!geminiConfigured()) return res.status(503).json({ error: 'AI not configured' });
+    const query = typeof req.body?.query === 'string' ? req.body.query.trim().slice(0, 300) : '';
+    if (!query) return res.status(400).json({ error: 'No creative reference provided.' });
+    const player = teacherPlayer(req.body?.playerId);
+    const activeInstrument = typeof req.body?.activeInstrument === 'string' ? req.body.activeInstrument.slice(0, 40) : '';
+    const studioSummary = typeof req.body?.studioSummary === 'string' ? req.body.studioSummary.slice(0, 800) : '';
+    const studiedSummary = typeof req.body?.studiedSummary === 'string' ? req.body.studiedSummary.slice(0, 500) : '';
+    const system = [
+      'You are the Chora Session Band musical & story aesthetic researcher.',
+      player ? `Speaking through ${player.name} (${player.instrument}), grounded in real music history, film scoring, and orchestration.` : '',
+      'Translate the user\'s book, movie, song, or aesthetic reference into a valid JSON object ONLY (no markdown fences) with keys:',
+      '{ "title": string, "category": "book"|"film"|"song"|"style"|"vibe", "bpm": number, "key": string, "chords": string[], "swing": number, "energy": number, "vibeTags": string[], "arrangementCue": string, "narrative": string, "presetHints": string[] }.',
+    ].filter(Boolean).join('\n');
+    const prompt = [
+      `Reference to research: "${query}"`,
+      activeInstrument ? `Active studio instrument: ${activeInstrument}` : '',
+      studioSummary ? `Current project: ${studioSummary}` : '',
+      studiedSummary ? `Studied audio snippet: ${studiedSummary}` : '',
+    ].filter(Boolean).join('\n');
+    try {
+      const model = laneModel('BAND_TEACHER_MODEL');
+      const { text } = await geminiGenerate({ model, system, contents: toGeminiContents([{ role: 'user', content: prompt }]), maxTokens: 520, temperature: 0.45 });
+      res.json({ reply: text, model });
+    } catch (err: any) {
+      console.error('/api/band/research', err?.message || err);
+      res.status(502).json({ error: 'Creative research could not finish right now.' });
     }
   });
 
@@ -15336,6 +15372,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     appendEvent: gamerRouter.appendEvent,
   }));
   // Plajah Drive (B2 + Bunny). Answers 503 drive_off until DRIVE_ENABLED=1.
+  app.use('/api/drive/transfers', rateLimit({ windowMs: 60 * 1000, max: 180, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '64kb' }), driveTransfersRouter);
   app.use('/api/drive', rateLimit({ windowMs: 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '64kb' }), driveRouter);
   // Plajah cloud generation (routes/genCloud.ts): white-label image/video/voice on Plajah's provider accounts,
   // paid in credits (monthly Plajah+ allowance granted lazily + bonus grants). 503 gencloud_off until GENCLOUD_ENABLED=1.

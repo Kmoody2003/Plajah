@@ -328,11 +328,11 @@ struct BrassBell {
 
 /// Flugelhorn, French horn, tenor trombone, bass trombone, tuba.
 static BRASS: [BrassBell; 5] = [
-    BrassBell { lo_k: (1.3, 2.0), lo_min: 300.0, hi: (5000.0, 9000.0), edge: 1.2, shock: (0.03, 0.08), formants: [(900.0, 1.2, 0.4), (1800.0, 1.6, 0.2)], cut: 100.0, air: 9000.0, gain: 2.4 },
-    BrassBell { lo_k: (1.2, 1.8), lo_min: 160.0, hi: (3500.0, 6500.0), edge: 1.6, shock: (0.05, 0.15), formants: [(450.0, 1.3, 0.5), (1100.0, 1.8, 0.25)], cut: 50.0, air: 5500.0, gain: 2.8 },
-    BrassBell { lo_k: (1.6, 2.6), lo_min: 220.0, hi: (7000.0, 13000.0), edge: 2.4, shock: (0.08, 0.22), formants: [(520.0, 1.3, 0.5), (1200.0, 1.6, 0.3)], cut: 60.0, air: 12000.0, gain: 2.3 },
-    BrassBell { lo_k: (1.5, 2.4), lo_min: 160.0, hi: (5000.0, 10000.0), edge: 2.2, shock: (0.08, 0.2), formants: [(380.0, 1.3, 0.55), (950.0, 1.6, 0.3)], cut: 40.0, air: 9000.0, gain: 2.4 },
-    BrassBell { lo_k: (1.4, 2.2), lo_min: 110.0, hi: (2500.0, 5000.0), edge: 1.2, shock: (0.04, 0.12), formants: [(230.0, 1.2, 0.6), (600.0, 1.6, 0.25)], cut: 25.0, air: 5000.0, gain: 2.8 },
+    BrassBell { lo_k: (1.2, 1.8), lo_min: 260.0, hi: (3800.0, 7400.0), edge: 0.9, shock: (0.02, 0.06), formants: [(720.0, 1.3, 0.45), (1550.0, 1.6, 0.22)], cut: 90.0, air: 6800.0, gain: 2.5 },
+    BrassBell { lo_k: (1.1, 1.7), lo_min: 145.0, hi: (3200.0, 6200.0), edge: 1.9, shock: (0.06, 0.20), formants: [(420.0, 1.7, 0.65), (1050.0, 2.2, 0.35)], cut: 48.0, air: 5000.0, gain: 2.9 },
+    BrassBell { lo_k: (1.7, 2.8), lo_min: 230.0, hi: (7500.0, 14500.0), edge: 2.8, shock: (0.10, 0.27), formants: [(510.0, 1.4, 0.55), (1280.0, 1.8, 0.35)], cut: 60.0, air: 12500.0, gain: 2.3 },
+    BrassBell { lo_k: (1.5, 2.5), lo_min: 155.0, hi: (5500.0, 11000.0), edge: 2.5, shock: (0.09, 0.24), formants: [(360.0, 1.4, 0.60), (920.0, 1.7, 0.35)], cut: 38.0, air: 9500.0, gain: 2.4 },
+    BrassBell { lo_k: (1.3, 2.1), lo_min: 100.0, hi: (2200.0, 4600.0), edge: 1.3, shock: (0.04, 0.13), formants: [(185.0, 1.4, 0.72), (490.0, 1.7, 0.30)], cut: 24.0, air: 4600.0, gain: 2.9 },
 ];
 
 /// One plucked instrument: string, pluck and body.
@@ -378,7 +378,22 @@ pub struct LyraVoice {
     strings: [StringLoop; 3],
     nstr: usize,
     detune: [f32; 3],
+    str_weights: [f32; 3],
+    str_last: [f32; 3],
+    bridge_eps: f32,
     t60: f32,
+
+    symp: [Biquad; 4],
+    symp_g: [f32; 4],
+    nsymp: usize,
+    symp_long_slot: bool,
+    symp_env: f32,
+    symp_damp: f32,
+
+    heritage_age: f32,
+    craft: f32,
+    sympathetic: f32,
+    rosin_heat: f32,
 
     exc: Vec<f32>,
     exc_len: usize,
@@ -486,7 +501,20 @@ impl LyraVoice {
             strings: [StringLoop::new(16), StringLoop::new(16), StringLoop::new(16)],
             nstr: 1,
             detune: [0.0; 3],
+            str_weights: [1.0, 1.0, 1.0],
+            str_last: [0.0; 3],
+            bridge_eps: 0.0,
             t60: 1.0,
+            symp: [Biquad::default(); 4],
+            symp_g: [0.0; 4],
+            nsymp: 0,
+            symp_long_slot: false,
+            symp_env: 1.0,
+            symp_damp: 1.0,
+            heritage_age: 0.25,
+            craft: 0.22,
+            sympathetic: 0.25,
+            rosin_heat: 0.0,
             exc: vec![0.0; EXC_MAX],
             exc_len: 0,
             exc_pos: 0,
@@ -589,12 +617,23 @@ impl LyraVoice {
         for s in self.strings.iter_mut() {
             s.clear();
         }
+        self.str_last = [0.0; 3];
+        self.str_weights = [1.0, 1.0, 1.0];
+        self.bridge_eps = 0.0;
         self.d1.clear();
         self.d2.clear();
         self.hist.clear();
         for b in self.body.iter_mut() {
             b.clear();
         }
+        for b in self.symp.iter_mut() {
+            b.clear();
+        }
+        self.nsymp = 0;
+        self.symp_long_slot = false;
+        self.symp_env = 1.0;
+        self.symp_damp = 1.0;
+        self.rosin_heat = 0.0;
         self.mute[0].clear();
         self.mute[1].clear();
         self.lip.clear();
@@ -645,9 +684,62 @@ impl LyraVoice {
 
     fn set_body(&mut self, modes: &[(f32, f32, f32)], scale: f32, amount: f32) {
         self.nbody = modes.len().min(MAX_BODY);
+        let age = self.heritage_age;
+        let craft = self.craft;
+        // Tai hemicellulose hydrolysis & mineral ground aging (Cremonese / pre-war CT studies):
+        // higher specific modulus E_L/rho lifts Bridge-Hill & upper plate modes, increases modal Q,
+        // and clears muddy mid-box damping; handmade craft adds subtle wood graduation character.
         for (i, &(f, q, g)) in modes.iter().take(MAX_BODY).enumerate() {
-            self.body[i] = Biquad::bandpass(f * scale, q, self.sr);
-            self.body_g[i] = g * amount;
+            let craft_skew = if (i & 1) == 0 { 1.0 + 0.022 * craft } else { 1.0 - 0.016 * craft };
+            let (f_age, q_age, g_age) = if f >= 1100.0 {
+                (1.0 + 0.062 * age, 1.0 + 0.50 * age, 1.0 + 0.34 * age)
+            } else if f >= 320.0 {
+                (1.0 + 0.024 * age, 1.0 + 0.22 * age, 1.0 - 0.24 * age)
+            } else {
+                (1.0 + 0.010 * age, 1.0 + 0.16 * age, 1.0 + 0.14 * age)
+            };
+            self.body[i] = Biquad::bandpass(f * scale * f_age * craft_skew, q * q_age, self.sr);
+            self.body_g[i] = g * amount * g_age;
+        }
+    }
+
+    /// Configure sympathetic open-string / duplex-scale / longitudinal-phantom resonators.
+    fn setup_sympathetic(&mut self, base_gain: f32, piano_longitudinal: bool) {
+        self.nsymp = 0;
+        self.symp_long_slot = false;
+        self.symp_env = 1.0;
+        self.symp_damp = 1.0;
+        let sym = self.sympathetic;
+        if sym <= 0.005 && !piano_longitudinal {
+            return;
+        }
+        let pedal_boost = if self.pedal { 1.65 } else { 1.0 };
+        let q_sym = lerp(110.0, 260.0, self.heritage_age);
+        let harmonics = [
+            (2.0 * self.f0, 0.42),
+            (3.0 * self.f0, 0.28),
+            (1.4983 * self.f0, 0.22),
+            (4.0 * self.f0, 0.18),
+        ];
+        for (idx, (fh, w)) in harmonics.into_iter().enumerate() {
+            if idx == 3 && piano_longitudinal && self.note < 66.0 {
+                // Bank & Sujbert (2005) longitudinal compression phantom mode f_L = (1/2L) sqrt(E/rho),
+                // excited quadratically by transverse tension modulation (s^2) on bass/tenor strings.
+                let ratio_l = (9.6 - 0.095 * (self.note - 21.0).max(0.0)).clamp(4.3, 9.6);
+                let fl = self.f0 * ratio_l;
+                if fl < self.sr * 0.44 {
+                    self.symp[idx] = Biquad::bandpass(fl, 65.0 + 45.0 * self.heritage_age, self.sr);
+                    self.symp_g[idx] = base_gain * (0.18 + 0.35 * self.heritage_age) * (0.4 + 0.6 * self.vel);
+                    self.symp_long_slot = true;
+                    self.nsymp = idx + 1;
+                }
+                continue;
+            }
+            if fh < self.sr * 0.44 && sym > 0.005 {
+                self.symp[idx] = Biquad::bandpass(fh, q_sym, self.sr);
+                self.symp_g[idx] = sym * base_gain * w * pedal_boost;
+                self.nsymp = idx + 1;
+            }
         }
     }
 
@@ -671,6 +763,9 @@ impl LyraVoice {
         self.model = (p.get(LYRA_BASE + LY_MODEL).round() as i32).clamp(0, 10) as u32;
         self.variant = p.get(LYRA_BASE + LY_VARIANT).round().max(0.0) as u32;
         self.pedal = p01(p, LY_PEDAL) > 0.5;
+        self.heritage_age = p01(p, LY_HERITAGE_AGE);
+        self.craft = p01(p, LY_CRAFT_CHARACTER);
+        self.sympathetic = p01(p, LY_SYMPATHETIC);
 
         let vs = p01(p, LY_VEL_SENS);
         let v = lerp(0.7, self.vel, vs); // velocity response
@@ -709,7 +804,12 @@ impl LyraVoice {
     fn bore_len(&self, f0: f32) -> f32 {
         let sr = self.sr;
         match self.model {
-            MODEL_VIOLIN => sr / f0 - 3.78,
+            MODEL_VIOLIN => {
+                let ref_pole = 0.75 - 0.2 * 22050.0 / sr;
+                let ref_pd = onepole_pd(ref_pole, TAU * f0 / sr);
+                let cur_pd = onepole_pd(self.pole, TAU * f0 / sr);
+                sr / f0 - 3.78 - (cur_pd - ref_pd)
+            }
             MODEL_SAX | MODEL_REED => sr / f0 - 2.5,
             MODEL_TRUMPET | MODEL_BRASS => sr / f0 - 1.0,
             // The jet delay sits in the loop too, so the bore is the rest of the period.
@@ -793,23 +893,59 @@ impl LyraVoice {
         let mutep = p01(p, LY_DAMP);
         let period = sr / f0;
 
-        let base_t60 = if nylon { 2.8 } else if electric { 5.5 } else { 4.5 };
-        let mut t60 = (base_t60 * (82.4 / f0).powf(0.45)).clamp(0.35, 12.0) * lerp(0.3, 1.8, decay);
+        let base_t60 = if nylon { 2.8 } else if electric { 5.8 } else { 4.6 };
+        let age_ring = if electric { 1.0 - 0.04 * self.heritage_age } else { 1.0 + 0.24 * self.heritage_age };
+        let mut t60 = (base_t60 * age_ring * (82.4 / f0).powf(0.45)).clamp(0.35, 13.5) * lerp(0.3, 1.8, decay);
         t60 *= 1.0 - 0.92 * mutep;
         self.t60 = t60;
         let pitch_k = (196.0 / f0).sqrt().clamp(0.45, 1.6);
-        let mut b = (0.04 + (1.0 - bright) * 0.42) * pitch_k + if nylon { 0.12 } else { 0.0 } + 0.3 * mutep;
+        let mut b = if nylon {
+            (0.08 + (1.0 - bright) * 0.48) * pitch_k + 0.16 + 0.30 * mutep
+        } else if electric {
+            let coil_warmth = if self.variant >= 3 { 0.03 + 0.04 * self.heritage_age } else { 0.015 + 0.02 * self.heritage_age };
+            (coil_warmth + (1.0 - bright) * 0.36) * pitch_k + 0.28 * mutep
+        } else {
+            (0.025 + (1.0 - bright) * 0.40) * pitch_k + 0.28 * mutep
+        };
         b = b.clamp(0.0, 0.9);
         let s = &mut self.strings[0];
         s.b = b;
-        s.nap = if nylon { 0 } else { 1 };
-        s.ap[0].a = -0.06;
+        if nylon {
+            s.nap = 0;
+        } else if electric {
+            s.nap = 1;
+            s.ap[0].a = -0.055;
+        } else {
+            // Wound bronze steel acoustic string dispersion gives unmistakable steel ring.
+            s.nap = 2;
+            s.ap[0].a = -0.075;
+            s.ap[1].a = -0.04;
+        }
         s.set_t60(t60, f0);
         s.tune(period);
-        self.nstr = 1;
+        self.detune = [0.0; 3];
+        self.str_weights = [1.0, 0.0, 0.0];
+        if !electric && self.craft > 0.02 {
+            // Orthogonal horizontal polarization on an irregular hand-carved bone saddle:
+            // sees lower soundboard admittance (longer T60) and blooms into aftersound.
+            self.nstr = 2;
+            self.detune[1] = 1.45 * self.craft;
+            self.str_weights[1] = 0.14 * self.craft;
+            self.bridge_eps = 0.00042 * self.craft;
+            let f1 = f0 * 2f32.powf(self.detune[1] / 1200.0);
+            let s1 = &mut self.strings[1];
+            s1.b = (b * 0.92).clamp(0.0, 0.9);
+            s1.nap = if nylon { 0 } else { 1 };
+            s1.ap[0].a = if nylon { 0.0 } else { -0.06 };
+            s1.set_t60(t60 * (1.28 + 0.24 * self.heritage_age), f1);
+            s1.tune(sr / f1);
+        } else {
+            self.nstr = 1;
+            self.bridge_eps = 0.0;
+        }
 
         // The pluck: one period of noise, comb-filtered at the pick position (the harmonics with
-        // a node there go missing), then rounded off by the pick — softer pick, darker pluck.
+        // a node there go missing), then shaped by finger flesh (nylon) vs flatpick/steel bite.
         let len = (period.round() as usize).clamp(4, EXC_MAX);
         for i in 0..len {
             self.exc[i] = rng.bipolar();
@@ -820,14 +956,28 @@ impl LyraVoice {
         }
         let mut c = (0.18 + 0.78 * (hard * 0.6 + self.vel * 0.4)).clamp(0.05, 0.98);
         if nylon {
-            c *= 0.55;
+            c *= 0.42;
+        } else if electric && self.variant >= 3 {
+            c *= 0.84;
         }
         let mut y = 0.0;
-        let mut rms = 0.0;
         for i in 0..len {
             y += c * (self.exc[i] - y);
             self.exc[i] = y;
-            rms += y * y;
+        }
+        if !nylon {
+            // Crisp plectrum-on-steel transient bite in the first fraction of a period.
+            let snap_len = ((sr * 0.0012) as usize).clamp(2, len);
+            let snap_g = (0.35 + 0.45 * hard) * if electric { 0.85 } else { 1.0 };
+            for i in 0..snap_len {
+                let w = 1.0 - (i as f32 / snap_len as f32);
+                self.exc[i] += snap_g * w * rng.bipolar();
+            }
+        }
+        let mut rms = 0.0;
+        for i in 0..len {
+            let e = self.exc[i];
+            rms += e * e;
         }
         let norm = self.vel * 0.9 / (rms / len as f32).sqrt().max(1e-6);
         for i in 0..len {
@@ -841,15 +991,17 @@ impl LyraVoice {
         if electric {
             self.set_pickups(p, period, self.variant >= 3);
             self.direct = 1.0;
-            self.gain = 0.2;
+            self.gain = if self.variant >= 3 { 0.24 } else { 0.20 };
         } else if nylon {
-            self.set_body(&[(96.0, 9.0, 1.1), (188.0, 14.0, 0.9), (285.0, 12.0, 0.5), (450.0, 10.0, 0.45), (1800.0, 1.4, 0.22)], size, amt);
-            self.direct = 0.5;
-            self.gain = 0.5;
+            self.set_body(&[(92.0, 10.0, 1.25), (180.0, 15.0, 1.05), (272.0, 12.0, 0.55), (435.0, 9.0, 0.35), (1650.0, 1.5, 0.16)], size, amt);
+            self.setup_sympathetic(0.055, false);
+            self.direct = 0.46;
+            self.gain = 0.52;
         } else {
-            self.set_body(&[(98.0, 9.0, 1.0), (204.0, 16.0, 0.85), (390.0, 13.0, 0.5), (580.0, 10.0, 0.38), (2400.0, 1.2, 0.28), (4500.0, 1.0, 0.12)], size, amt);
-            self.direct = 0.55;
-            self.gain = 0.5;
+            self.set_body(&[(100.0, 9.5, 1.0), (206.0, 16.5, 0.88), (402.0, 13.0, 0.48), (610.0, 10.0, 0.36), (2550.0, 1.4, 0.34), (4700.0, 1.1, 0.16)], size, amt);
+            self.setup_sympathetic(0.065, false);
+            self.direct = 0.56;
+            self.gain = 0.50;
         }
         if !electric {
             self.npk = 0;
@@ -866,9 +1018,11 @@ impl LyraVoice {
         // (mm from the bridge on a 648 mm scale, share)
         let coils: &[(f32, f32)] = if humbucker {
             match sel {
-                0 | 1 => &[(140.0, 0.5), (158.0, 0.5)],
-                2 => &[(140.0, 0.25), (158.0, 0.25), (38.0, 0.25), (56.0, 0.25)],
-                _ => &[(38.0, 0.5), (56.0, 0.5)],
+                0 => &[(140.0, 0.5), (158.0, 0.5)],       // Neck full humbucker
+                1 => &[(158.0, 1.0)],                     // Neck inner coil split
+                2 => &[(140.0, 0.25), (158.0, 0.25), (38.0, 0.25), (56.0, 0.25)], // Both
+                3 => &[(38.0, 1.0)],                      // Bridge inner coil split
+                _ => &[(38.0, 0.5), (56.0, 0.5)],         // Bridge full humbucker
             }
         } else {
             match sel {
@@ -901,20 +1055,24 @@ impl LyraVoice {
         let period = sr / f0;
 
         self.nstr = if n < 34.0 { 1 } else if n < 46.0 { 2 } else { 3 };
-        let d = 0.25 + p01(p, LY_DETUNE) * 2.2; // cents
+        let d = 0.25 + p01(p, LY_DETUNE) * 2.2 + 0.35 * self.craft; // cents + hand-voicing spread
         self.detune = match self.nstr {
             1 => [0.0, 0.0, 0.0],
-            2 => [-d * 0.5, d * 0.5, 0.0],
-            _ => [-d, 0.12, d * 0.85],
+            2 => [-d * 0.5, d * 0.54, 0.0],
+            _ => [-d, 0.12 + 0.08 * self.craft, d * (0.85 + 0.08 * self.craft)],
         };
+        self.str_weights = [1.0, 1.0, 1.0];
+        self.bridge_eps = if self.nstr > 1 { 0.00055 + 0.00065 * self.craft } else { 0.0 };
         let mut t60 = (1.0 + 30.0 * (-(n - 21.0) / 22.0).exp()) * lerp(0.45, 1.8, decay);
         if upright {
             t60 *= 0.65;
         }
         self.t60 = t60;
         // Stiffness: thick bass strings and short treble strings are the most inharmonic.
-        let stiff = if n < 60.0 { lerp(0.42, 0.12, ((n - 21.0) / 39.0).clamp(0.0, 1.0)) } else { lerp(0.12, 0.2, ((n - 60.0) / 48.0).clamp(0.0, 1.0)) };
-        let b = ((0.05 + 0.32 * (1.0 - bright)) * (261.6 / f0).powf(0.3)).clamp(0.01, 0.8);
+        // Uprights have shorter, steeper overstrung scales -> higher dispersion stiffness than a 9ft grand.
+        let stiff_scale = if upright { 1.38 } else { 1.0 };
+        let stiff = (if n < 60.0 { lerp(0.42, 0.12, ((n - 21.0) / 39.0).clamp(0.0, 1.0)) } else { lerp(0.12, 0.2, ((n - 60.0) / 48.0).clamp(0.0, 1.0)) } * stiff_scale).min(0.68);
+        let b = ((0.05 + 0.32 * (1.0 - bright) + if upright { 0.06 } else { 0.0 }) * (261.6 / f0).powf(0.3)).clamp(0.01, 0.8);
         for i in 0..self.nstr {
             let s = &mut self.strings[i];
             s.b = b;
@@ -926,14 +1084,21 @@ impl LyraVoice {
             s.tune(sr / fi);
         }
 
-        // Hammer + soundboard: a half-sine force pulse (narrower = harder hammer, harder blow,
-        // higher note) over a short decaying knock of the board, then the felt's lowpass. The
-        // strike point sits near 1/8 of the string, so harmonics around the 8th are weak.
+        // Hammer + soundboard: Stulov nonlinear wool-felt hysteresis (asymmetric compression/rebound
+        // skews the force pulse forward at higher velocity) over a short decaying knock of the board,
+        // then the felt's lowpass. The strike point sits near 1/8 of the string.
         let len = ((sr * 0.035) as usize).min(EXC_MAX);
         let width = (lerp(2.6, 0.55, (hard * 0.5 + self.vel * 0.5).clamp(0.0, 1.0)) * (261.6 / f0).powf(0.25)).clamp(0.25, 4.0) * 0.001 * sr;
-        let knock = 0.1 + 0.35 * p01(p, LY_NOISE);
+        let knock = (0.1 + 0.35 * p01(p, LY_NOISE)) * if upright { 1.38 } else { 1.0 };
+        let hyst_skew = 0.18 * self.vel * (0.5 + 0.5 * self.craft);
         for i in 0..len {
-            let hp = if (i as f32) < width { (PI * i as f32 / width).sin() } else { 0.0 };
+            let hp = if (i as f32) < width {
+                let u = (i as f32 / width).clamp(0.0, 1.0);
+                let u_hyst = u.powf(1.0 - hyst_skew);
+                (PI * u_hyst).sin()
+            } else {
+                0.0
+            };
             let board = rng.bipolar() * (-(i as f32) / (sr * 0.007)).exp() * knock;
             self.exc[i] = hp + board;
         }
@@ -956,9 +1121,19 @@ impl LyraVoice {
         self.exc_pos = 0;
 
         let size = lerp(1.25, 0.85, p01(p, LY_BODY_SIZE));
-        self.set_body(&[(110.0, 1.4, 0.45), (480.0, 1.2, 0.3), (1300.0, 1.1, 0.2), (2900.0, 1.0, 0.18)], size, p01(p, LY_BODY));
-        self.direct = 0.8;
-        self.gain = 1.1;
+        if upright {
+            // Upright cabinet + vertical spruce board: boxy 155/580 Hz chest & narrower top.
+            self.set_body(&[(155.0, 1.8, 0.58), (580.0, 1.5, 0.44), (1620.0, 1.2, 0.26), (3400.0, 1.0, 0.14)], size, p01(p, LY_BODY));
+            self.setup_sympathetic(0.042, true);
+            self.direct = 0.68;
+            self.gain = 1.05;
+        } else {
+            // Concert grand: deep 95 Hz rim boom, rich Sitka belly, and long duplex sympathetic wash.
+            self.set_body(&[(95.0, 1.5, 0.48), (380.0, 1.3, 0.34), (1180.0, 1.1, 0.22), (2800.0, 1.0, 0.20)], size, p01(p, LY_BODY));
+            self.setup_sympathetic(0.072, true);
+            self.direct = 0.82;
+            self.gain = 1.12;
+        }
         self.pan = ((n - 64.0) / 44.0).clamp(-1.0, 1.0) * 0.7 * p01(p, LY_WIDTH);
     }
 
@@ -967,15 +1142,18 @@ impl LyraVoice {
         let sr = self.sr;
         self.base = (sr / self.f0 - 4.0).max(4.0);
         self.beta = lerp(0.06, 0.3, p01(p, LY_EXCITE_POS));
-        self.pole = 0.75 - 0.2 * 22050.0 / sr;
+        let kind = self.string_kind();
+        let bright = p01(p, LY_BRIGHTNESS);
+        let base_pole = match kind { 1 => 0.79, 2 => 0.83, 3 => 0.87, _ => 0.74 };
+        self.pole = (base_pole - 0.18 * bright - 0.09 * self.heritage_age - 0.14 * 22050.0 / sr).clamp(0.15, 0.90);
         let pressure = p01(p, LY_EXCITE_HARD);
-        self.slope = 5.0 - 4.0 * pressure;
+        let rosin_bias = match kind { 1 => 0.95, 2 => 0.88, 3 => 0.82, _ => 1.05 };
+        self.slope = (5.0 - 4.0 * pressure) * rosin_bias * (1.0 - 0.08 * self.heritage_age);
         self.max_drive = 0.03 + 0.2 * self.vel;
         self.env_up = 1.0 / (lerp(0.015, 0.6, p01(p, LY_ATTACK)) * sr);
         self.env_down = 1.0 / (lerp(0.04, 1.2, p01(p, LY_DECAY)) * sr);
         self.noise_gain = p01(p, LY_NOISE) * 0.12;
         let size = lerp(1.15, 0.85, p01(p, LY_BODY_SIZE));
-        let kind = self.string_kind();
         // Each body: the air mode A0, the main wood modes B1−/B1+, and the "bridge hill" — all
         // lower and broader as the instrument grows (Jansson; Bissinger's violin-octet data).
         let (body, gain) = STRING_BODIES[kind as usize];
@@ -1008,14 +1186,15 @@ impl LyraVoice {
         let sr = self.sr;
         let bright = p01(p, LY_BRIGHTNESS);
         let drive = p01(p, LY_DRIVE).max(0.3);
+        let age = self.heritage_age;
         let b = &BRASS[self.variant.min(4) as usize];
-        self.dyn_lo = (self.f0 * lerp(b.lo_k.0, b.lo_k.1, bright)).max(b.lo_min);
-        self.dyn_hi = lerp(b.hi.0, b.hi.1, bright);
-        self.edge_amt = b.edge;
+        self.dyn_lo = (self.f0 * lerp(b.lo_k.0, b.lo_k.1, bright) * (1.0 - 0.14 * age)).max(b.lo_min * (1.0 - 0.12 * age));
+        self.dyn_hi = lerp(b.hi.0 * 0.36, b.hi.1, bright) * (1.0 - 0.22 * age);
+        self.edge_amt = b.edge * lerp(0.18, 1.85, bright) * (1.0 - 0.12 * age);
         self.shock = lerp(b.shock.0, b.shock.1, drive);
         self.nmute = 2;
-        self.mute = [Biquad::highpass(b.cut, 0.7, sr), Biquad::lowpass(b.air, 0.7, sr)];
-        self.set_body(&b.formants, 1.0, p01(p, LY_BODY));
+        self.mute = [Biquad::highpass(b.cut, 0.7, sr), Biquad::lowpass(b.air * lerp(0.38, 1.35, bright) * (1.0 - 0.18 * age), 0.7, sr)];
+        self.set_body(&b.formants, 1.0 - 0.04 * age, p01(p, LY_BODY) * (1.0 + 0.28 * age));
         self.direct = 1.0;
         self.gain = b.gain;
     }
@@ -1041,16 +1220,37 @@ impl LyraVoice {
         let pitch_k = (196.0 / f0).sqrt().clamp(0.45, 1.6);
         let b = ((0.04 + (1.0 - bright) * 0.42) * pitch_k + k.soft + 0.3 * mutep).clamp(0.0, 0.9);
         let courses = k.courses;
-        self.nstr = courses;
-        for i in 0..courses {
-            self.detune[i] = if courses == 1 { 0.0 } else { k.spread * (i as f32 - 0.5) * 2.0 + rng.bipolar() * 0.5 };
-            let fi = f0 * 2f32.powf(self.detune[i] / 1200.0);
-            let s = &mut self.strings[i];
-            s.b = b;
-            s.nap = if k.stiff != 0.0 { 1 } else { 0 };
-            s.ap[0].a = k.stiff;
-            s.set_t60(t60, fi);
-            s.tune(sr / fi);
+        self.detune = [0.0; 3];
+        self.str_weights = [1.0, 1.0, 1.0];
+        if courses == 1 && self.craft > 0.02 {
+            // Orthogonal horizontal polarization on a single-course harp/banjo/ukulele/pizzicato string.
+            self.nstr = 2;
+            self.detune[1] = 1.55 * self.craft;
+            self.str_weights = [1.0, 0.15 * self.craft, 0.0];
+            self.bridge_eps = 0.00045 * self.craft;
+            for i in 0..2 {
+                let fi = f0 * 2f32.powf(self.detune[i] / 1200.0);
+                let s = &mut self.strings[i];
+                s.b = if i == 1 { (b * 0.92).clamp(0.0, 0.9) } else { b };
+                s.nap = if k.stiff != 0.0 { 1 } else { 0 };
+                s.ap[0].a = k.stiff;
+                let ti = if i == 1 { t60 * (1.25 + 0.18 * self.heritage_age) } else { t60 };
+                s.set_t60(ti, fi);
+                s.tune(sr / fi);
+            }
+        } else {
+            self.nstr = courses;
+            self.bridge_eps = if courses > 1 { 0.0006 + 0.0005 * self.craft } else { 0.0 };
+            for i in 0..courses {
+                self.detune[i] = if courses == 1 { 0.0 } else { k.spread * (i as f32 - 0.5) * 2.0 + rng.bipolar() * (0.5 + 0.6 * self.craft) };
+                let fi = f0 * 2f32.powf(self.detune[i] / 1200.0);
+                let s = &mut self.strings[i];
+                s.b = b;
+                s.nap = if k.stiff != 0.0 { 1 } else { 0 };
+                s.ap[0].a = k.stiff;
+                s.set_t60(t60, fi);
+                s.tune(sr / fi);
+            }
         }
         let len = (period.round() as usize).clamp(4, EXC_MAX);
         for i in 0..len {
@@ -1082,6 +1282,7 @@ impl LyraVoice {
             (k.body, k.direct, k.gain)
         };
         self.set_body(body, size, p01(p, LY_BODY));
+        self.setup_sympathetic(if kind == 0 { 0.085 } else { 0.045 }, false);
         self.direct = direct;
         self.gain = gain;
         if kind == 0 {
@@ -1103,16 +1304,24 @@ impl LyraVoice {
         self.noise_gain = p01(p, LY_NOISE) * 0.3;
         self.growl = p01(p, LY_DRIVE);
         let bright = p01(p, LY_BRIGHTNESS);
+        let age = self.heritage_age;
         let tenor = self.variant == 1;
+        if tenor {
+            self.beta = (self.beta * 0.90).clamp(0.08, 0.42);
+            self.slope *= 0.90;
+        } else {
+            self.beta = (self.beta * 1.06).clamp(0.08, 0.45);
+            self.slope *= 1.08;
+        }
         let size = lerp(1.15, 0.85, p01(p, LY_BODY_SIZE));
         if tenor {
-            self.set_body(&[(480.0, 2.5, 0.6), (1350.0, 2.5, 0.45), (2700.0, 2.0, 0.2)], size, p01(p, LY_BODY));
-            self.dyn_lo = lerp(900.0, 1800.0, bright);
-            self.dyn_hi = lerp(4500.0, 9000.0, bright);
+            self.set_body(&[(480.0, 2.5, 0.6), (1350.0, 2.5, 0.45), (2700.0, 2.0, 0.2)], size, p01(p, LY_BODY) * (1.0 + 0.25 * age));
+            self.dyn_lo = lerp(900.0, 1800.0, bright) * (1.0 - 0.14 * age);
+            self.dyn_hi = lerp(4500.0, 9000.0, bright) * (1.0 - 0.22 * age);
         } else {
-            self.set_body(&[(700.0, 2.5, 0.6), (1800.0, 2.5, 0.45), (3300.0, 2.0, 0.2)], size, p01(p, LY_BODY));
-            self.dyn_lo = lerp(1200.0, 2400.0, bright);
-            self.dyn_hi = lerp(5500.0, 11000.0, bright);
+            self.set_body(&[(700.0, 2.5, 0.6), (1800.0, 2.5, 0.45), (3300.0, 2.0, 0.2)], size, p01(p, LY_BODY) * (1.0 + 0.25 * age));
+            self.dyn_lo = lerp(1200.0, 2400.0, bright) * (1.0 - 0.14 * age);
+            self.dyn_hi = lerp(5500.0, 11000.0, bright) * (1.0 - 0.22 * age);
         }
         self.rad_amt = 0.55;
         self.direct = 0.7;
@@ -1136,22 +1345,23 @@ impl LyraVoice {
         self.steep = lerp(1.0, 3.5, p01(p, LY_DRIVE).max(0.3)) * (sr / 48000.0);
         self.shock = lerp(0.06, 0.18, p01(p, LY_DRIVE).max(0.3));
         let bright = p01(p, LY_BRIGHTNESS);
+        let age = self.heritage_age;
         self.nmute = 2;
         match self.variant {
-            1 => self.mute = [Biquad::lowpass(1800.0, 0.8, sr), Biquad::highpass(220.0, 0.7, sr)],
-            2 => self.mute = [Biquad::highpass(950.0, 1.2, sr), Biquad::lowpass(lerp(3000.0, 5000.0, bright), 3.0, sr)],
-            3 => self.mute = [Biquad::highpass(520.0, 1.0, sr), Biquad::lowpass(lerp(3500.0, 6500.0, bright), 1.8, sr)],
-            _ => self.mute = [Biquad::highpass(120.0, 0.7, sr), Biquad::lowpass(lerp(6000.0, 14000.0, bright), 0.7, sr)],
+            1 => self.mute = [Biquad::lowpass(1800.0 * (1.0 - 0.15 * age), 0.8, sr), Biquad::highpass(220.0, 0.7, sr)],
+            2 => self.mute = [Biquad::highpass(950.0, 1.2, sr), Biquad::lowpass(lerp(3000.0, 5000.0, bright) * (1.0 - 0.15 * age), 3.0, sr)],
+            3 => self.mute = [Biquad::highpass(520.0, 1.0, sr), Biquad::lowpass(lerp(3500.0, 6500.0, bright) * (1.0 - 0.15 * age), 1.8, sr)],
+            _ => self.mute = [Biquad::highpass(120.0, 0.7, sr), Biquad::lowpass(lerp(6000.0, 14000.0, bright) * (1.0 - 0.20 * age), 0.7, sr)],
         }
         // Soft brass is nearly a pure tone; loud brass throws harmonics past 10 kHz. The bell's
         // soft-note corner tracks the note (about the 2nd harmonic), opening fully at ff.
-        self.dyn_lo = (self.f0 * lerp(1.6, 2.6, bright)).max(350.0);
-        self.dyn_hi = lerp(9000.0, 16000.0, bright);
+        self.dyn_lo = (self.f0 * lerp(1.6, 2.6, bright) * (1.0 - 0.14 * age)).max(310.0);
+        self.dyn_hi = lerp(3800.0, 16000.0, bright) * (1.0 - 0.22 * age);
         self.bell2 = true;
-        self.edge_amt = 2.2;
+        self.edge_amt = 2.2 * lerp(0.18, 1.85, bright) * (1.0 - 0.12 * age);
         self.rad_amt = 0.45;
         // The trumpet's formant region sits around 1.2–1.5 kHz, with presence near 2.5 kHz.
-        self.set_body(&[(1250.0, 1.4, 0.45), (2500.0, 1.8, 0.3)], 1.0, p01(p, LY_BODY));
+        self.set_body(&[(1250.0, 1.4, 0.45), (2500.0, 1.8, 0.3)], 1.0 - 0.04 * age, p01(p, LY_BODY) * (1.0 + 0.28 * age));
         self.direct = 1.0;
         // Mutes cut the lows, so high notes come through hotter — level them across the range.
         let reg = (392.0 / self.f0).powf(0.6).clamp(0.4, 2.5);
@@ -1162,24 +1372,34 @@ impl LyraVoice {
         // STK Flute: an air jet (its own short delay + the jet's cubic nonlinearity) driving the
         // bore. Variants: concert flute, piccolo, alto flute, tin whistle.
         let sr = self.sr;
-        self.jet_ratio = lerp(0.22, 0.42, p01(p, LY_EXCITE_POS));
-        self.pole = 0.7 - 0.1 * 22050.0 / sr;
-        self.max_drive = 1.1 + 0.2 * self.vel;
-        self.env_up = 1.0 / (lerp(0.012, 0.3, p01(p, LY_ATTACK)) * sr);
-        self.env_down = 1.0 / (lerp(0.03, 0.6, p01(p, LY_DECAY)) * sr);
         let noise = p01(p, LY_NOISE);
         let bright = p01(p, LY_BRIGHTNESS);
-        let (nz, lo, hi, gain) = match self.variant {
-            1 => (0.06, 2600.0, 12000.0, 1.6), // piccolo
-            2 => (0.08, 1100.0, 5500.0, 2.2),  // alto flute
-            3 => (0.18, 2200.0, 12000.0, 1.6), // tin whistle
-            _ => (0.05, 1800.0, 9000.0, 1.8),  // concert flute
+        let age = self.heritage_age;
+        let size = lerp(1.16, 0.84, p01(p, LY_BODY_SIZE));
+        let (jet_k, base_pole, nz, lo, hi, rad, gain) = match self.variant {
+            1 => (0.86, 0.63, 0.06, 1050.0, 12500.0, 0.32, 1.6), // piccolo
+            2 => (1.14, 0.82, 0.09, 460.0,  5200.0,  0.18, 2.2), // alto flute
+            3 => (0.94, 0.68, 0.20, 780.0,  12000.0, 0.35, 1.6), // tin whistle
+            _ => (1.00, 0.74, 0.05, 620.0,  9200.0,  0.25, 1.8), // concert flute
         };
-        self.noise_gain = nz + noise * 0.14;
-        self.dyn_lo = lo * lerp(0.7, 1.3, bright);
-        self.dyn_hi = hi * lerp(0.7, 1.3, bright);
-        self.rad_amt = 0.25;
-        self.set_body(&[(1000.0, 1.2, 0.2), (2600.0, 1.5, 0.15)], 1.0, p01(p, LY_BODY));
+        self.jet_ratio = lerp(0.22, 0.42, p01(p, LY_EXCITE_POS)) * jet_k;
+        self.pole = (base_pole + 0.06 * age - 0.08 * bright - 0.10 * 22050.0 / sr).clamp(0.20, 0.90);
+        self.max_drive = 1.02 + 0.32 * self.vel;
+        let atk_scale = if self.variant == 3 { 0.65 } else { 1.0 };
+        self.env_up = 1.0 / (lerp(0.012, 0.3, p01(p, LY_ATTACK)) * atk_scale * sr);
+        self.env_down = 1.0 / (lerp(0.03, 0.6, p01(p, LY_DECAY)) * sr);
+        self.noise_gain = nz + noise * 0.16;
+        self.dyn_lo = lo * lerp(0.7, 1.3, bright) * (1.0 - 0.14 * age);
+        self.dyn_hi = hi * lerp(0.7, 1.3, bright) * (1.0 - 0.22 * age);
+        self.edge_amt = 0.85;
+        self.rad_amt = rad;
+        let flute_body: &[(f32, f32, f32)] = match self.variant {
+            1 => &[(2100.0, 1.4, 0.28), (4800.0, 1.7, 0.22), (7600.0, 1.3, 0.12)],
+            2 => &[(520.0, 1.5, 0.30), (1420.0, 1.4, 0.22), (2750.0, 1.2, 0.10)],
+            3 => &[(1350.0, 2.2, 0.34), (3100.0, 2.0, 0.26), (5600.0, 1.5, 0.16)],
+            _ => &[(920.0, 1.3, 0.22), (2450.0, 1.6, 0.18), (4200.0, 1.4, 0.10)],
+        };
+        self.set_body(flute_body, size, p01(p, LY_BODY));
         self.direct = 1.0;
         self.gain = gain;
     }
@@ -1196,16 +1416,17 @@ impl LyraVoice {
         self.env_down = 1.0 / (lerp(0.03, 0.6, p01(p, LY_DECAY)) * sr);
         self.noise_gain = p01(p, LY_NOISE) * 0.25;
         let bright = p01(p, LY_BRIGHTNESS);
+        let age = self.heritage_age;
         let bass = self.variant == 1;
         if bass {
-            self.set_body(&[(400.0, 2.0, 0.35), (1100.0, 2.0, 0.25)], 1.0, p01(p, LY_BODY));
-            self.dyn_lo = lerp(700.0, 1300.0, bright);
-            self.dyn_hi = lerp(3500.0, 7000.0, bright);
+            self.set_body(&[(400.0, 2.0, 0.35), (1100.0, 2.0, 0.25)], 1.0, p01(p, LY_BODY) * (1.0 + 0.25 * age));
+            self.dyn_lo = lerp(700.0, 1300.0, bright) * (1.0 - 0.14 * age);
+            self.dyn_hi = lerp(3500.0, 7000.0, bright) * (1.0 - 0.22 * age);
         } else {
             // The tone-hole lattice cuts off around 1.5 kHz: below it odd harmonics, above it all.
-            self.set_body(&[(1500.0, 1.5, 0.35), (3000.0, 2.0, 0.2)], 1.0, p01(p, LY_BODY));
-            self.dyn_lo = lerp(1300.0, 2400.0, bright);
-            self.dyn_hi = lerp(6000.0, 12000.0, bright);
+            self.set_body(&[(1500.0, 1.5, 0.35), (3000.0, 2.0, 0.2)], 1.0, p01(p, LY_BODY) * (1.0 + 0.25 * age));
+            self.dyn_lo = lerp(1300.0, 2400.0, bright) * (1.0 - 0.14 * age);
+            self.dyn_hi = lerp(6000.0, 12000.0, bright) * (1.0 - 0.22 * age);
         }
         self.rad_amt = 0.5;
         self.direct = 0.85;
@@ -1226,8 +1447,9 @@ impl LyraVoice {
         self.noise_gain = p01(p, LY_NOISE) * 0.18;
         self.growl = p01(p, LY_DRIVE) * 0.4;
         let bright = p01(p, LY_BRIGHTNESS);
+        let age = self.heritage_age;
         let size = lerp(1.15, 0.85, p01(p, LY_BODY_SIZE));
-        let amt = p01(p, LY_BODY);
+        let amt = p01(p, LY_BODY) * (1.0 + 0.25 * age);
         match self.variant {
             1 => {
                 self.set_body(&[(750.0, 3.0, 0.7), (2200.0, 3.0, 0.4), (3400.0, 2.5, 0.2)], size, amt);
@@ -1242,8 +1464,8 @@ impl LyraVoice {
                 self.gain = 2.5;
             }
         }
-        self.dyn_lo = lerp(1500.0, 2600.0, bright);
-        self.dyn_hi = lerp(6000.0, 11000.0, bright);
+        self.dyn_lo = lerp(1500.0, 2600.0, bright) * (1.0 - 0.14 * age);
+        self.dyn_hi = lerp(6000.0, 11000.0, bright) * (1.0 - 0.22 * age);
         self.rad_amt = 0.5;
         self.direct = 0.45;
     }
@@ -1258,11 +1480,26 @@ impl LyraVoice {
         // Neoprene tips are softer in the bass. Contact 1–4.5 ms.
         // Treble hammers are harder, and contact never outlasts ~40% of the tine's period.
         let tau = (lerp(4.5, 1.0, (hard * 0.55 + self.vel * 0.45).clamp(0.0, 1.0)) * 0.001 * (261.6 / f0).powf(0.6)).min(0.4 / f0);
-        let t60 = (0.9 + 12.0 * (-(n - 28.0) / 18.0).exp()) * lerp(0.4, 1.8, decay);
+        let detune = p01(p, LY_DETUNE);
+        let body_sz = lerp(0.90, 1.12, p01(p, LY_BODY_SIZE));
+        let symp = (0.5 * p01(p, LY_SYMPATHETIC) + 0.5 * self.sympathetic).clamp(0.0, 1.0);
+        let (var_t60, m2_ratio, m3_ratio, m2_lvl, m3_lvl) = match self.variant {
+            // 1 = Reed electric piano (punchier decay, woodier upper mode); 2 = Dyno crystal bell.
+            1 => (0.72, 5.42, 13.80, 0.65, 0.24),
+            2 => (1.12, 6.82, 19.10, 0.72, 0.28),
+            _ => (1.00, 6.27, 17.55, 0.55, 0.18),
+        };
+        let t60 = (0.9 + 12.0 * (-(n - 28.0) / 18.0).exp()) * lerp(0.4, 1.8, decay) * var_t60;
         self.t60 = t60;
-        // Tine (cantilever beam modes 1 : 6.27 : 17.55) + its tuned tonebar a hair off, so the
-        // pair beats slowly the way a real tine assembly does.
-        let defs = [(1.0, t60, 1.0), (1.0006, t60 * 1.3, 0.35), (6.27, 0.32 * lerp(0.5, 1.5, bright), 0.55 * lerp(0.4, 1.4, bright)), (17.55, 0.05, 0.18 * bright)];
+        let beat_ratio = 1.0 + 0.00025 + detune * 0.0026;
+        let tonebar_amp = 0.28 + 0.34 * symp;
+        let bell_t = (0.30 + 0.28 * symp) * lerp(0.5, 1.5, bright);
+        let defs = [
+            (1.0, t60, 1.0),
+            (beat_ratio, t60 * (1.2 + 0.4 * symp), tonebar_amp),
+            (m2_ratio * body_sz, bell_t, m2_lvl * lerp(0.4, 1.4, bright)),
+            (m3_ratio * body_sz, 0.05 + 0.04 * symp, m3_lvl * bright),
+        ];
         self.nmodes = 0;
         for (ratio, t, a) in defs {
             let f = f0 * ratio;
@@ -1277,7 +1514,7 @@ impl LyraVoice {
         self.pk_off = lerp(0.05, 0.55, p01(p, LY_EXCITE_POS));
         self.pk_amp = lerp(0.25, 1.15, self.vel);
         self.pk_norm = (261.6 / f0).powf(0.7);
-        self.pk_prev = Self::flux(0.0, self.pk_off);
+        self.pk_prev = Self::flux(0.0, self.pk_off, self.craft, self.heritage_age);
         // The pickup's flux shifts with the decaying swing — keep that slow drift (a thump) out.
         self.hp_a = (-TAU * f0 * 0.5 / sr).exp();
         self.pan = ((n - 64.0) / 44.0).clamp(-1.0, 1.0) * 0.35 * p01(p, LY_WIDTH);
@@ -1285,9 +1522,124 @@ impl LyraVoice {
     }
 
     #[inline]
-    fn flux(x: f32, off: f32) -> f32 {
-        let d = x - off;
-        1.0 / (d * d + 0.12).sqrt()
+    fn flux(x: f32, off: f32, craft: f32, age: f32) -> f32 {
+        // Vintage Alnico V pole-piece flux: aged degaussing rounds the pole gap slightly, while
+        // hand-set tine/pickup alignment adds subtle asymmetric eddy-current bark on hard swings.
+        let d = x - off * (1.0 + 0.1 * craft);
+        let gap = lerp(0.12, 0.108, age);
+        1.0 / (d * d + gap).sqrt() - 0.06 * craft * (x * 1.35).tanh()
+    }
+
+    /// Update held-voice continuous parameters (~1x per audio block) so live knob sweeps
+    /// affect sustained voices immediately without re-triggering.
+    pub fn update_live(&mut self, p: &Params) {
+        self.heritage_age = p01(p, LY_HERITAGE_AGE);
+        self.craft = p01(p, LY_CRAFT_CHARACTER);
+        self.vib_depth = p01(p, LY_VIB_DEPTH);
+        self.vib_inc = TAU * lerp(3.0, 8.0, p01(p, LY_VIB_RATE)) / self.sr;
+        self.noise_gain = match self.model {
+            MODEL_VIOLIN => p01(p, LY_NOISE) * 0.12,
+            MODEL_TRUMPET | MODEL_BRASS => p01(p, LY_NOISE) * 0.04,
+            MODEL_FLUTE => 0.05 + p01(p, LY_NOISE) * 0.16,
+            MODEL_CLARINET => p01(p, LY_NOISE) * 0.25,
+            MODEL_SAX => p01(p, LY_NOISE) * 0.3,
+            MODEL_REED => p01(p, LY_NOISE) * 0.18,
+            _ => self.noise_gain,
+        };
+        let bright = p01(p, LY_BRIGHTNESS);
+        let age = self.heritage_age;
+        let sr = self.sr;
+        match self.model {
+            MODEL_TRUMPET => {
+                self.slope = p01(p, LY_EXCITE_HARD);
+                let drv = p01(p, LY_DRIVE).max(0.3);
+                self.steep = lerp(1.0, 3.5, drv) * (sr / 48000.0);
+                self.shock = lerp(0.06, 0.18, drv);
+                self.dyn_lo = (self.f0 * lerp(1.6, 2.6, bright) * (1.0 - 0.14 * age)).max(310.0);
+                self.dyn_hi = lerp(3800.0, 16000.0, bright) * (1.0 - 0.22 * age);
+                self.edge_amt = 2.2 * lerp(0.18, 1.85, bright) * (1.0 - 0.12 * age);
+                let lp_hz = match self.variant {
+                    1 => 1800.0 * (1.0 - 0.15 * age),
+                    2 => lerp(3000.0, 5000.0, bright) * (1.0 - 0.15 * age),
+                    3 => lerp(3500.0, 6500.0, bright) * (1.0 - 0.15 * age),
+                    _ => lerp(3800.0, 14000.0, bright) * (1.0 - 0.20 * age),
+                };
+                let idx = if self.variant == 1 { 0 } else { 1 };
+                let q = match self.variant { 1 => 0.8, 2 => 3.0, 3 => 1.8, _ => 0.7 };
+                let fresh = Biquad::lowpass(lp_hz, q, sr);
+                self.mute[idx] = Biquad { z1: self.mute[idx].z1, z2: self.mute[idx].z2, ..fresh };
+            }
+            MODEL_BRASS => {
+                self.slope = p01(p, LY_EXCITE_HARD);
+                let drv = p01(p, LY_DRIVE).max(0.3);
+                let b = &BRASS[self.variant.min(4) as usize];
+                self.steep = lerp(1.0, 3.5, drv) * (sr / 48000.0);
+                self.shock = lerp(b.shock.0, b.shock.1, drv);
+                self.dyn_lo = (self.f0 * lerp(b.lo_k.0, b.lo_k.1, bright) * (1.0 - 0.14 * age)).max(b.lo_min * (1.0 - 0.12 * age));
+                self.dyn_hi = lerp(b.hi.0 * 0.36, b.hi.1, bright) * (1.0 - 0.22 * age);
+                self.edge_amt = b.edge * lerp(0.18, 1.85, bright) * (1.0 - 0.12 * age);
+                let fresh = Biquad::lowpass(b.air * lerp(0.38, 1.35, bright) * (1.0 - 0.18 * age), 0.7, sr);
+                self.mute[1] = Biquad { z1: self.mute[1].z1, z2: self.mute[1].z2, ..fresh };
+            }
+            MODEL_SAX => {
+                self.growl = p01(p, LY_DRIVE);
+                self.slope_n = p01(p, LY_EXCITE_HARD);
+                let tenor = self.variant == 1;
+                self.slope = lerp(0.2, 0.42, self.slope_n) * if tenor { 0.90 } else { 1.08 };
+                self.dyn_lo = (if tenor { lerp(900.0, 1800.0, bright) } else { lerp(1200.0, 2400.0, bright) }) * (1.0 - 0.14 * age);
+                self.dyn_hi = (if tenor { lerp(4500.0, 9000.0, bright) } else { lerp(5500.0, 11000.0, bright) }) * (1.0 - 0.22 * age);
+            }
+            MODEL_FLUTE => {
+                let (base_pole, lo, hi) = match self.variant {
+                    1 => (0.63, 1050.0, 12500.0),
+                    2 => (0.82, 460.0, 5200.0),
+                    3 => (0.68, 780.0, 12000.0),
+                    _ => (0.74, 620.0, 9200.0),
+                };
+                self.pole = (base_pole + 0.06 * age - 0.08 * bright - 0.10 * 22050.0 / sr).clamp(0.20, 0.90);
+                self.dyn_lo = lo * lerp(0.7, 1.3, bright) * (1.0 - 0.14 * age);
+                self.dyn_hi = hi * lerp(0.7, 1.3, bright) * (1.0 - 0.22 * age);
+            }
+            MODEL_CLARINET => {
+                self.slope = lerp(0.2, 0.45, p01(p, LY_EXCITE_HARD));
+                self.slope_n = p01(p, LY_EXCITE_HARD);
+                let bass = self.variant == 1;
+                self.dyn_lo = (if bass { lerp(700.0, 1300.0, bright) } else { lerp(1300.0, 2400.0, bright) }) * (1.0 - 0.14 * age);
+                self.dyn_hi = (if bass { lerp(3500.0, 7000.0, bright) } else { lerp(6000.0, 12000.0, bright) }) * (1.0 - 0.22 * age);
+            }
+            MODEL_REED => {
+                self.growl = p01(p, LY_DRIVE) * 0.4;
+                self.slope = lerp(0.14, 0.3, p01(p, LY_EXCITE_HARD));
+                self.slope_n = p01(p, LY_EXCITE_HARD);
+                self.dyn_lo = lerp(1500.0, 2600.0, bright) * (1.0 - 0.14 * age);
+                self.dyn_hi = lerp(6000.0, 11000.0, bright) * (1.0 - 0.22 * age);
+            }
+            MODEL_VIOLIN => {
+                let kind = self.string_kind();
+                let base_pole = match kind { 1 => 0.79, 2 => 0.83, 3 => 0.87, _ => 0.74 };
+                self.pole = (base_pole - 0.18 * bright - 0.09 * age - 0.14 * 22050.0 / sr).clamp(0.15, 0.90);
+                let rosin_bias = match kind { 1 => 0.95, 2 => 0.88, 3 => 0.82, _ => 1.05 };
+                self.slope = (5.0 - 4.0 * p01(p, LY_EXCITE_HARD)) * rosin_bias * (1.0 - 0.08 * age);
+            }
+            MODEL_GUITAR => {
+                let nylon = self.variant == 1;
+                let electric = self.variant >= 2;
+                let mutep = p01(p, LY_DAMP);
+                let pitch_k = (196.0 / self.f0).sqrt().clamp(0.45, 1.6);
+                let b = if nylon {
+                    ((0.08 + (1.0 - bright) * 0.48) * pitch_k + 0.16 + 0.30 * mutep).clamp(0.0, 0.9)
+                } else if electric {
+                    let coil_warmth = if self.variant >= 3 { 0.03 + 0.04 * age } else { 0.015 + 0.02 * age };
+                    ((coil_warmth + (1.0 - bright) * 0.36) * pitch_k + 0.28 * mutep).clamp(0.0, 0.9)
+                } else {
+                    ((0.025 + (1.0 - bright) * 0.40) * pitch_k + 0.28 * mutep).clamp(0.0, 0.9)
+                };
+                for i in 0..self.nstr {
+                    self.strings[i].b = if i == 1 { (b * 0.92).clamp(0.0, 0.9) } else { b };
+                }
+            }
+            _ => {}
+        }
     }
 
     pub fn release(&mut self, p: &Params) {
@@ -1299,7 +1651,13 @@ impl LyraVoice {
         match self.model {
             MODEL_GUITAR => {
                 let t = lerp(0.07, 0.6, decay);
-                self.strings[0].set_t60(t, self.f0);
+                for i in 0..self.nstr {
+                    let fi = self.f0 * 2f32.powf(self.detune[i] / 1200.0);
+                    self.strings[i].set_t60(t, fi);
+                }
+                if !self.pedal {
+                    self.symp_damp = 0.9990;
+                }
             }
             MODEL_PLUCK => {
                 // A harpist lets the string ring and damps it by hand later; the others stop it.
@@ -1307,6 +1665,9 @@ impl LyraVoice {
                 for i in 0..self.nstr {
                     let fi = self.f0 * 2f32.powf(self.detune[i] / 1200.0);
                     self.strings[i].set_t60(t, fi);
+                }
+                if self.variant != 0 && !self.pedal {
+                    self.symp_damp = 0.9990;
                 }
             }
             MODEL_PIANO => {
@@ -1317,6 +1678,7 @@ impl LyraVoice {
                         let fi = self.f0 * 2f32.powf(self.detune[i] / 1200.0);
                         self.strings[i].set_t60(t, fi);
                     }
+                    self.symp_damp = 0.9990;
                 }
             }
             MODEL_TINE => {
@@ -1460,9 +1822,19 @@ impl LyraVoice {
                 } else {
                     0.0
                 };
+                let mut bridge_avg = 0.0;
+                if self.nstr > 1 {
+                    for i in 0..self.nstr {
+                        bridge_avg += self.str_last[i];
+                    }
+                    bridge_avg /= self.nstr as f32;
+                }
                 let mut s = 0.0;
                 for i in 0..self.nstr {
-                    s += self.strings[i].tick(x);
+                    let couple = if self.nstr > 1 { self.bridge_eps * (bridge_avg - self.str_last[i]) } else { 0.0 };
+                    let si = self.strings[i].tick(x * self.str_weights[i] + couple);
+                    self.str_last[i] = si;
+                    s += si;
                 }
                 let s = if self.npk > 0 {
                     // Electric: each pickup hears the string at one point — a comb on the output.
@@ -1475,8 +1847,18 @@ impl LyraVoice {
                 } else {
                     s
                 };
+                let mut sym_out = 0.0;
+                if self.nsymp > 0 {
+                    self.symp_env *= self.symp_damp;
+                    let quad_drive = (s * s).min(1.5) * 1.3;
+                    for i in 0..self.nsymp {
+                        let drv = if i == 3 && self.symp_long_slot { quad_drive } else { s };
+                        sym_out += self.symp[i].tick(drv) * self.symp_g[i];
+                    }
+                    sym_out *= self.symp_env;
+                }
                 let knock = if self.model == MODEL_PIANO && self.exc_pos < self.exc_len { x * 0.25 } else { 0.0 };
-                self.body_tick(s) + knock
+                self.body_tick(s + sym_out) + knock
             }
             MODEL_VIOLIN => {
                 let (_, drift) = self.breath(rng);
@@ -1490,7 +1872,11 @@ impl LyraVoice {
                 let nut_refl = -self.last1;
                 let string_vel = bridge_refl + nut_refl;
                 let dv = bow - string_vel;
-                let new_vel = if self.env > 0.0 { dv * ((dv * self.slope + 0.001).abs() + 0.75).powi(-4).min(1.0) } else { 0.0 };
+                // Smith-Woodhouse thermal rosin hysteresis: slip velocity warms rosin film,
+                // sharpening the stick-to-slip release corner with craft character.
+                self.rosin_heat += 0.06 * (dv.abs().min(1.5) - self.rosin_heat);
+                let slope_eff = self.slope * (1.0 + 0.22 * self.craft * self.rosin_heat);
+                let new_vel = if self.env > 0.0 { dv * ((dv * slope_eff + 0.001).abs() + 0.75).powi(-4).min(1.0) } else { 0.0 };
                 self.last1 = self.d1.process(bridge_refl + new_vel, neck_len);
                 self.last2 = self.d2.process(nut_refl + new_vel, bridge_len);
                 self.body_tick(self.last2) * Self::loudness(self.dynv).sqrt()
@@ -1541,26 +1927,32 @@ impl LyraVoice {
                 if self.lp >= 1.0 {
                     self.lp -= 1.0;
                 }
-                let _ = breath;
                 let dynamic = self.dynv * self.env;
-                // Soft: round, nearly sinusoidal lip motion. Loud and tense: a short, sharp opening.
-                // Soft, the lips never quite close — a round, nearly sinusoidal buzz. Loud, they slap
-                // shut every cycle and open in a short, sharp puff.
-                let swing = lerp(0.45, 2.6, dynamic * dynamic) * lerp(0.85, 1.15, self.slope);
+                // Forced lip valve + bell reflection lowpass inside bore loop:
+                // Differential pressure (P_mouth - P_bore) modulates Bernoulli lip flow while
+                // high frequencies radiate out the bell flare rather than ringing as synth buzz.
+                let swing = lerp(0.45, 2.7, dynamic * dynamic) * lerp(0.85, 1.15, self.slope);
                 let h = (1.0 + swing * (TAU * self.lp).sin()).max(0.0) / (1.0 + swing);
-                let k = lerp(1.0, 8.0, (dynamic * dynamic * 0.7 + self.slope * 0.3).clamp(0.0, 1.0));
+                let k = lerp(1.1, 8.2, (dynamic * dynamic * 0.7 + self.slope * 0.3).clamp(0.0, 1.0));
                 let open = h.powf(k);
-                let mouth = 0.3 * breath;
-                let bore = 0.85 * self.last1;
-                let y = open * mouth + (1.0 - open) * bore;
+                let c_refl = (TAU * (3600.0 - 1100.0 * self.heritage_age) / self.sr).min(0.82);
+                let refl = self.oz_x1 + c_refl * (self.last1 - self.oz_x1);
+                self.oz_x1 = refl;
+                let p_back = 0.80 * refl;
+                let p_mouth = (0.34 + 0.14 * dynamic) * breath;
+                let dp = (p_mouth - p_back).clamp(-1.6, 1.6);
+                let turb = 0.012 * dynamic * (1.0 - open) * rng.bipolar();
+                let y = p_back + open * dp * (0.95 + 0.35 * open) + turb;
                 let dc = y - self.dc_x1 + 0.995 * self.dc_y1;
                 self.dc_x1 = y;
                 self.dc_y1 = dc;
                 // Wave steepening: high pressure travels faster down the tube.
-                let steep = self.steep * dynamic * dynamic * self.last1.clamp(-1.0, 1.0);
+                let steep = self.steep * dynamic * dynamic * p_back.clamp(-1.0, 1.0);
                 let len = (self.glide() / bend * drift - steep).max(1.0);
                 self.last1 = self.d1.process(dc, len);
-                let mut o = (self.last1 * 1.6).tanh() / 1.6;
+                let p_flare = self.last1 - 0.56 * refl;
+                let mut o = 0.62 * self.last1 + 0.58 * p_flare;
+                o = (o * 1.45).tanh() / 1.45;
                 if self.shock > 0.0 {
                     o = self.shock_wave(o, dynamic);
                 }
@@ -1585,7 +1977,7 @@ impl LyraVoice {
                 let jt = (jet * (jet * jet - 1.0)).clamp(-1.0, 1.0);
                 self.last1 = self.d1.process(jt + 0.5 * dc, base.max(1.0));
                 let d = self.dynv * self.env;
-                let y = self.bell(0.3 * self.last1, d) * Self::loudness(d);
+                let y = self.bell(0.3 * self.last1, d * d) * Self::loudness(d);
                 self.body_tick(y)
             }
             MODEL_CLARINET => {
@@ -1615,10 +2007,10 @@ impl LyraVoice {
                 for m in self.modes[..self.nmodes].iter_mut() {
                     x += m.tick();
                 }
-                let fl = Self::flux(x * self.pk_amp * 0.5, self.pk_off);
+                let fl = Self::flux(x * self.pk_amp * 0.5, self.pk_off, self.craft, self.heritage_age);
                 let d = (fl - self.pk_prev) * self.pk_norm;
                 self.pk_prev = fl;
-                self.pk_lp += 0.55 * (d - self.pk_lp);
+                self.pk_lp += lerp(0.55, 0.48, self.heritage_age) * (d - self.pk_lp);
                 let hp = self.hp_a * (self.hp_y1 + self.pk_lp - self.hp_x1);
                 self.hp_x1 = self.pk_lp;
                 self.hp_y1 = hp;
@@ -1784,7 +2176,7 @@ pub struct LyraRack {
     tone: [Biquad; 2],
     cab_lo: [Biquad; 2],
     cab_hi: [Biquad; 2],
-    built_for: [u16; 11],
+    built_for: [u16; 13],
     // guitar
     pickup_res: Biquad,
     pickup_gain: f32,
@@ -1821,7 +2213,7 @@ impl LyraRack {
             tone: [Biquad::default(); 2],
             cab_lo: [Biquad::default(); 2],
             cab_hi: [Biquad::default(); 2],
-            built_for: [u16::MAX; 11],
+            built_for: [u16::MAX; 13],
             pickup_res: Biquad::default(),
             pickup_gain: 1.0,
             comp_env: 0.0,
@@ -1876,7 +2268,9 @@ impl LyraRack {
             Self::cab_index(p) as u16,
             q(LY_BODY),
             q(LY_DRIVE),
-            q(LY_PICKUP),
+            if tine { q(LY_BODY_SIZE) } else { q(LY_PICKUP) },
+            q(LY_HERITAGE_AGE),
+            q(LY_CRAFT_CHARACTER),
         ];
         if key == self.built_for {
             return;
@@ -1885,24 +2279,41 @@ impl LyraRack {
         self.built_for = key;
         let sr = self.sr;
         let tone = p01(p, LY_TONE);
+        let age = p01(p, LY_HERITAGE_AGE);
+        let craft = p01(p, LY_CRAFT_CHARACTER);
         if tine {
+            let var = p.get(LYRA_BASE + LY_VARIANT).round() as u32;
+            let body_sz = lerp(1.14, 0.86, p01(p, LY_BODY_SIZE));
+            let (lo_hz, hi_hz, top_hi) = match var {
+                1 => (250.0, 2350.0, 7200.0),  // Reed EP mid bark
+                2 => (145.0, 3100.0, 11500.0), // Dyno studio chime
+                _ => (180.0, 1600.0, 9000.0),  // Stage / Suitcase
+            };
+            let fc_age = 1.0 - 0.1 * age; // aged paper-in-oil preamp capacitor warmth
             for c in 0..2 {
-                self.hp[c] = Biquad::highpass(45.0, 0.7, sr);
-                self.tone[c] = Biquad::lowpass(lerp(2500.0, 9000.0, tone), 0.7, sr);
-                self.cab_lo[c] = Biquad::bandpass(180.0, 0.9, sr);
-                self.cab_hi[c] = Biquad::bandpass(1600.0, 1.0, sr);
+                let ch_tol = if c == 0 { 1.0 - 0.015 * craft } else { 1.0 + 0.015 * craft };
+                self.hp[c] = Biquad::highpass(45.0 * ch_tol, 0.7, sr);
+                self.tone[c] = Biquad::lowpass(lerp(2400.0, top_hi, tone) * fc_age * ch_tol, 0.7 + 0.12 * craft, sr);
+                self.cab_lo[c] = Biquad::bandpass(lo_hz * body_sz, 0.9 + 0.1 * age, sr);
+                self.cab_hi[c] = Biquad::bandpass(hi_hz * body_sz * (1.0 - 0.04 * age), 1.0 + 0.15 * age, sr);
             }
             return;
         }
         // The pickup's coil and the guitar's tone pot: a resonant low-pass. Single coils peak
-        // high and sharp (~5 kHz); humbuckers lower and broader. Turning the tone knob down
-        // pulls the peak down and flattens it.
+        // high and sharp (~5 kHz); humbuckers lower and broader. Aged Alnico II/V magnets &
+        // Foucault eddy-current losses warm the resonant peak; scatter-wound craft lifts Q.
         let humbucker = p.get(LYRA_BASE + LY_VARIANT).round() as u32 >= 3;
         let tk = tone.powf(1.2);
-        let res = if humbucker { Biquad::lowpass(lerp(1100.0, 3100.0, tk), lerp(0.7, 1.9, tone), sr) } else { Biquad::lowpass(lerp(1500.0, 5000.0, tk), lerp(0.7, 2.4, tone), sr) };
+        let fc_scale = 1.0 - 0.28 * age;
+        let q_scale = (1.0 - 0.25 * age) * (1.0 + 0.16 * craft);
+        let res = if humbucker {
+            Biquad::lowpass(lerp(1050.0, 2750.0, tk) * fc_scale, lerp(0.7, 1.85, tone) * q_scale, sr)
+        } else {
+            Biquad::lowpass(lerp(1750.0, 5600.0, tk) * fc_scale, lerp(0.8, 2.75, tone) * q_scale, sr)
+        };
         self.pickup_res = Biquad { z1: self.pickup_res.z1, z2: self.pickup_res.z2, ..res };
         // A pickup puts out a few hundred millivolts: a clean amp stays clean until it is pushed.
-        self.pickup_gain = if humbucker { 0.55 } else { 0.35 };
+        self.pickup_gain = if humbucker { 0.68 } else { 0.35 };
         let fs = sr * OS as f32;
         let amp = &AMPS[Self::amp_index(p)];
         let keep = |old: Biquad, new: Biquad| if fresh { new } else { Biquad { z1: old.z1, z2: old.z2, ..new } };
@@ -1939,6 +2350,38 @@ impl LyraRack {
         self.ec_hp = keep(self.ec_hp, Biquad::highpass(180.0, 0.7, sr));
     }
 
+    pub fn clear(&mut self) {
+        self.trem = 0.0;
+        for c in 0..2 {
+            self.hp[c].clear();
+            self.tone[c].clear();
+            self.cab_lo[c].clear();
+            self.cab_hi[c].clear();
+            self.up[c].clear();
+            self.down[c].clear();
+        }
+        self.pickup_res.clear();
+        self.comp_env = 0.0;
+        self.od_hp.clear();
+        self.od_lp = 0.0;
+        self.bright.clear();
+        for s in 0..4 {
+            self.st_hp[s].clear();
+            self.st_lp[s].clear();
+        }
+        self.stack.z = [0.0; 3];
+        self.sag_env = 0.0;
+        for c in 0..8 {
+            self.cab[c].clear();
+        }
+        self.chorus.fill(0.0);
+        self.ch_w = 0;
+        self.echo.fill(0.0);
+        self.ec_w = 0;
+        self.ec_lp = 0.0;
+        self.ec_hp.clear();
+    }
+
     pub fn process(&mut self, out: &mut [[f32; crate::engine::MAX_BLOCK]; crate::spatial::MAX_CHANNELS], frames: usize, nch: usize, p: &Params) {
         let tine = p.get(LYRA_BASE + LY_MODEL).round() as u32 == MODEL_TINE;
         self.build(p, tine);
@@ -1957,6 +2400,7 @@ impl LyraRack {
         let pre = 1.0 + drive * 5.0;
         let makeup = 1.0 / (1.0 + drive * 1.8);
         let cab = p01(p, LY_BODY);
+        let asym_mix = (0.3 * p01(p, LY_HERITAGE_AGE) + 0.25 * p01(p, LY_CRAFT_CHARACTER)).clamp(0.0, 0.6);
         let chans = nch.min(2);
         for f in 0..frames {
             self.trem += inc;
@@ -1966,7 +2410,8 @@ impl LyraRack {
             let s = self.trem.sin();
             for c in 0..chans {
                 let mut x = self.hp[c].tick(out[c][f]);
-                x = (x * pre).tanh() * makeup;
+                let xp = x * pre;
+                x = lerp(xp.tanh(), triode(xp), asym_mix) * makeup;
                 let t = self.tone[c].tick(x);
                 let y = t + cab * (0.6 * self.cab_lo[c].tick(t) + 0.45 * self.cab_hi[c].tick(t));
                 // Stereo tremolo: the two sides swap, like the suitcase's two power amps.
@@ -1985,6 +2430,8 @@ impl LyraRack {
         let master = p01(p, LY_MASTER);
         let power_g = lerp(0.4, 5.0, master * master);
         let power_makeup = 1.0 / (power_g * 0.8).tanh();
+        let sag_amt = amp.sag * (1.0 + 0.25 * p01(p, LY_HERITAGE_AGE));
+        let asym_eff = amp.asym + 0.035 * p01(p, LY_CRAFT_CHARACTER) + 0.14 * p01(p, LY_HERITAGE_AGE);
         let sag_att = 1.0 - (-1.0 / (0.004 * fs)).exp();
         let sag_rel = 1.0 - (-1.0 / (0.15 * fs)).exp();
         // Compressor: a pedal that evens the picking out and stretches the sustain.
@@ -2039,9 +2486,9 @@ impl LyraRack {
                 v = self.stack.tick(v) * self.stack_norm;
                 // Power amp: push-pull output tubes; the supply sags under a hard chord, which
                 // squeezes the headroom — the bloom and give of a tube amp turned up.
-                let vs = 1.0 - amp.sag * self.sag_env.min(1.0) * 0.6;
+                let vs = 1.0 - sag_amt * self.sag_env.min(1.0) * 0.6;
                 let pv = v * power_g;
-                let o = vs * ((pv + amp.asym) / vs).tanh() - vs * (amp.asym / vs).tanh();
+                let o = vs * ((pv + asym_eff) / vs).tanh() - vs * (asym_eff / vs).tanh();
                 let a = o.abs();
                 self.sag_env += (if a > self.sag_env { sag_att } else { sag_rel }) * (a - self.sag_env);
                 let d = self.down[0].tick(o * power_makeup);
@@ -2556,5 +3003,71 @@ mod tests {
             eprintln!("model {m} slur → {f:.1} Hz ({c:+.1} c)");
             assert!(c.abs() < 25.0, "model {m}: slur landed {c:.1} cents off");
         }
+    }
+
+    #[test]
+    fn guitar_variants_and_heritage_age_differ_spectrally() {
+        let sr = 48000.0;
+        let hf_ratio = |x: &[f32], f0: f32| {
+            let low: f32 = (1..=3).map(|h| harmonic(x, sr, f0 * h as f32)).sum();
+            let hi: f32 = (4..=10).map(|h| harmonic(x, sr, f0 * h as f32)).sum();
+            hi / low.max(1e-6)
+        };
+        // Steel acoustic (var 0) should carry noticeably more upper harmonic energy than nylon (var 1).
+        let steel = render(0, 0, 52.0, 0.85, 1.0, 0.5);
+        let nylon = render(0, 1, 52.0, 0.85, 1.0, 0.5);
+        let f0 = 440.0 * 2f32.powf((52.0 - 69.0) / 12.0);
+        let r_steel = hf_ratio(&steel[..(0.45 * sr) as usize], f0);
+        let r_nylon = hf_ratio(&nylon[..(0.45 * sr) as usize], f0);
+        assert!(r_steel > r_nylon * 1.15, "steel hf {r_steel:.3} should exceed nylon {r_nylon:.3}");
+
+        // Electric guitar heritage age 0 vs 1 should visibly warm pickup + tube balance.
+        let (fresh_rig, _) = rig(&[(LY_HERITAGE_AGE, 0.0), (LY_DRIVE, 0.55)]);
+        let (aged_rig, _) = rig(&[(LY_HERITAGE_AGE, 1.0), (LY_DRIVE, 0.55)]);
+        let diff: f32 = fresh_rig.iter().zip(aged_rig.iter()).map(|(a, b)| (a - b).abs()).sum::<f32>() / fresh_rig.len() as f32;
+        assert!(diff > 0.01, "heritage aging must audibly shift electric rig signal (mean diff {diff:.4})");
+    }
+
+    #[test]
+    fn live_param_sweep_modulates_sustained_brass() {
+        use crate::engine::Engine;
+        let sr = 48000.0;
+        let render_held = |bright_after: f32| {
+            let mut e = Engine::new(sr);
+            e.params.set(LYRA_BASE + LY_ENABLE, 1.0);
+            e.params.set(LYRA_BASE + LY_MODEL, MODEL_BRASS as f32);
+            e.params.set(LYRA_BASE + LY_VARIANT, 1.0);
+            e.params.set(LYRA_BASE + LY_BRIGHTNESS, 0.2);
+            e.note_on(53.0, 0.85, 1, 0);
+            let mut out = Vec::new();
+            for b in 0..((0.8 * sr) as usize / 128) {
+                if b == 120 {
+                    e.params.set(LYRA_BASE + LY_BRIGHTNESS, bright_after);
+                }
+                e.render(128);
+                if b >= 180 {
+                    let pl = e.scratch_ptr(0);
+                    for i in 0..128 {
+                        out.push(unsafe { *pl.add(i) });
+                    }
+                }
+            }
+            out
+        };
+        let dark = render_held(0.15);
+        let bright = render_held(0.95);
+        let diff: f32 = dark.iter().zip(bright.iter()).map(|(a, b)| (a - b).abs()).sum::<f32>() / dark.len() as f32;
+        assert!(diff > 0.008, "live brightness sweep on held horn must change audio (diff {diff:.4})");
+        let f0 = 440.0 * 2f32.powf((53.0 - 69.0) / 12.0);
+        let centroid = |x: &[f32]| {
+            let (mut num, mut den) = (0.0f32, 0.0f32);
+            for h in 1..12 {
+                let a = harmonic(x, sr, f0 * h as f32);
+                num += a * h as f32;
+                den += a;
+            }
+            num / den.max(1e-6)
+        };
+        assert!(centroid(&bright) > centroid(&dark) * 1.08, "bright sweep must lift centroid: {} -> {}", centroid(&dark), centroid(&bright));
     }
 }

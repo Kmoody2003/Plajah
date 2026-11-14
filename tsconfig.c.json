@@ -1,0 +1,1 @@
+{ "extends": "./tsconfig.json", "compilerOptions": { "noEmit": true }, "files": ["server.ts","services/backendService.ts","components/UserDashboard.tsx","components/MusicDistributionHub.tsx","components/reello/VideoStudioPanel.tsx"] }

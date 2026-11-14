@@ -177,7 +177,13 @@ async function pump(): Promise<void> {
       batch.forEach((j, i) => {
         pending.delete(j.key);
         const r = res.results[i];
-        if (r) { store(j.key, r); modes += r.modes; } else if (!res.failed) none.add(j.key);
+        if (r) {
+          store(j.key, r);
+          modes += r.modes;
+        } else if (!res.failed) {
+          if (none.size > 4096) none.clear();
+          none.add(j.key);
+        }
       });
       if (!res.failed) {
         stats.batches++;
