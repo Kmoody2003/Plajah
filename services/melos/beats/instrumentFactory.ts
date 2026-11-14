@@ -11,11 +11,18 @@ import { newVoltaPatch, serializeVoltaPatch } from '../instruments/volta/patch';
 import { newSomaPatch, serializeSomaPatch } from '../instruments/soma/patch';
 import { newLyraPatch, serializeLyraPatch } from '../instruments/lyra/patch';
 import { newTonosPatch, serializeTonosPatch } from '../instruments/tonos/patch';
+import { newOrchestraPatch, serializeOrchestraPatch } from '../instruments/orchestra/patch';
+import type { OrchestraFamily } from '../instruments/orchestra/params';
 import { SUITE, SUITE_ORDER, presetsFor } from '../instruments/vela/suite';
 
 /** True for any member of the meditation suite — they share a patch shape and an editor. */
 export function isSuite(type: InstrumentType): type is 'vela' | 'cantus' | 'ison' | 'pneuma' {
   return type === 'vela' || type === 'cantus' || type === 'ison' || type === 'pneuma';
+}
+
+/** True for any member of the orchestral family (ARCO strings, CORNU brass, AULOS woodwinds). */
+export function isOrchestra(type: InstrumentType): type is OrchestraFamily {
+  return type === 'arco' || type === 'cornu' || type === 'aulos';
 }
 
 export interface InstrumentDef {
@@ -37,6 +44,9 @@ export const INSTRUMENTS: InstrumentDef[] = [
   { type: 'soma', name: 'SOMA', blurb: 'Real-time physical-modeling acoustic percussion & chamber simulator. Timpani, West African Djembe & Talking Drum, Congas, Taiko & Frame drums.', color: '#E86A33', ready: true },
   { type: 'lyra', name: 'LYRA', blurb: 'Physical-model guitar, piano, violin, sax, trumpet and tine electric piano — real strings, bows, reeds and lips, no samples.', color: '#D9B36C', ready: true },
   { type: 'tonos', name: 'TONOS', blurb: 'World strings, physically modelled: 52 instruments from Asia, India, the Middle East, Europe and Africa — sitar, guzheng, oud, kora, erhu, hurdy-gurdy — real string length, tension and material, jawari bridges, bows and hammers, skin and gourd bodies, sympathetic strings.', color: '#C98B4A', ready: true },
+  { type: 'arco', name: 'ARCO', blurb: 'Orchestral strings — Solo Violin, Viola, Cello, Double Bass, Quartet & Full String Orchestra with physical bow dynamics and articulations.', color: '#E8B86D', ready: true },
+  { type: 'cornu', name: 'CORNU', blurb: 'Orchestral brass — French Horn, Trumpet, Trombone, Tuba, Brass Quintet & Big Band Horn sections with lip tension, bell brilliance & mutes.', color: '#F29F4B', ready: true },
+  { type: 'aulos', name: 'AULOS', blurb: 'Orchestral woodwinds — Flute, Oboe, Clarinet, Bassoon, Saxophones & Woodwind Choir with reed hardness, embouchure & tone-hole lattice.', color: '#6EE7B7', ready: true },
   { type: 'kera', name: 'KERA', blurb: 'Sampler. Play SoundFonts, SFZ and your own recordings across the keys.', color: '#00DAF3', ready: true },
   // The meditation suite. Four entries because they are four instruments, even though they
   // share an engine — what makes an instrument an instrument is what you reach for it FOR.
@@ -59,6 +69,9 @@ export function instrumentLabel(type: InstrumentType): string {
   if (type === 'soma') return 'SOMA';
   if (type === 'lyra') return 'LYRA';
   if (type === 'tonos') return 'TONOS';
+  if (type === 'arco') return 'ARCO';
+  if (type === 'cornu') return 'CORNU';
+  if (type === 'aulos') return 'AULOS';
   if (isSuite(type)) return SUITE[type].name;
   return 'ONDA';
 }
@@ -73,6 +86,9 @@ export function instrumentColor(type: InstrumentType): string {
   if (type === 'soma') return '#E86A33';
   if (type === 'lyra') return '#D9B36C';
   if (type === 'tonos') return '#C98B4A';
+  if (type === 'arco') return '#E8B86D';
+  if (type === 'cornu') return '#F29F4B';
+  if (type === 'aulos') return '#6EE7B7';
   if (isSuite(type)) return SUITE[type].accent;
   return '#B84DFF';
 }
@@ -111,6 +127,8 @@ export function makeInstrumentTrack(type: InstrumentType, count: number, presetP
               ? (serializeLyraPatch(newLyraPatch()) as ReturnType<typeof serializePatch>)
             : type === 'tonos'
               ? (serializeTonosPatch(newTonosPatch()) as ReturnType<typeof serializePatch>)
+            : isOrchestra(type)
+              ? (serializeOrchestraPatch(newOrchestraPatch(type)) as ReturnType<typeof serializePatch>)
             : serializePatch(newPatch(label))),
       presetName,
     },

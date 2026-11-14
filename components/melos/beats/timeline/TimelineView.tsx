@@ -42,7 +42,11 @@ import { ArrangerLane } from './ArrangerLane';
 import { CouncilComposerPanel } from '../council/CouncilComposerPanel';
 import { SessionBandConsole } from '../band/SessionBandConsole';
 import { ChoraDirectPanel } from '../composer/ChoraDirectPanel';
-import type { SongBrief } from '../../../../services/melos/direct/songBrief';
+import { VocalTrackPanel } from './VocalTrackPanel';
+import { layoutVocal } from '../../../../services/melos/direct/vocalScore';
+import { compileSongBrief, type SongBrief } from '../../../../services/melos/direct/songBrief';
+import { parseSongPrompt } from '../../../../services/melos/direct/songPrompt';
+import { vocalNotesToMidiClipNotes } from '../../../../services/melos/direct/vocalTimeline';
 import { syncSongFromSections } from '../../../../services/melos/beats/songSections';
 import { downloadMidi, exportClipMidi, exportTrackMidi } from '../../../../services/melos/beats/midiExport';
 
@@ -858,6 +862,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const [councilOpen, setCouncilOpen] = useState(false);
   const [bandOpen, setBandOpen] = useState(false);
   const [directOpen, setDirectOpen] = useState(false);
+  const [vocalOpen, setVocalOpen] = useState(false);
   const [regionPrompt, setRegionPrompt] = useState('');
   const [partInstrument, setPartInstrument] = useState<InstrumentType>('onda');
   const [regionGenerating, setRegionGenerating] = useState(false);
@@ -1340,6 +1345,12 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                   className={`h-6 px-2 rounded-md text-[10px] font-bold flex items-center gap-1 whitespace-nowrap ${directOpen ? 'bg-[#00DAF3]/20 text-[#00DAF3] border border-[#00DAF3]/40' : 'text-[#7EE8FA] hover:bg-white/10'}`}
                 ><Sparkles size={11} /> Direct</button>
                 <button
+                  onClick={() => setVocalOpen((o) => !o)}
+                  aria-pressed={vocalOpen}
+                  title="Vocal Layer — edit lyrics, syllables, pitch, phrases and stale regions on the timeline"
+                  className={`h-6 px-2 rounded-md text-[10px] font-bold flex items-center gap-1 whitespace-nowrap ${vocalOpen ? 'bg-[#D0BCFF]/20 text-[#D0BCFF] border border-[#D0BCFF]/40' : 'text-[#E9DDFF]/75 hover:bg-white/10'}`}
+                ><Music2 size={11} /> Vocal</button>
+                <button
                   onClick={() => setBandOpen((o) => !o)}
                   aria-pressed={bandOpen}
                   title="Session Band — thirteen session players who play your song live, take direction, and teach"
@@ -1367,6 +1378,45 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                 p.onOpenGeneratorWithBrief?.(brief);
               }}
               onClose={() => setDirectOpen(false)}
+            />
+          )}
+          {vocalOpen && (
+            <VocalTrackPanel
+              doc={p.doc}
+              layer={p.doc.vocalLayer ?? layoutVocal(compileSongBrief(parseSongPrompt(p.doc.name || 'Chora Song')))}
+              onChangeLayer={(next) => {
+                p.onMutate((d) => { d.vocalLayer = next; });
+              }}
+              onCreateGuideTrack={(guideNotes) => {
+                const targetId = assistTrack;
+                const notes = guideNotes.map((n) => ({
+                  id: grooveUid(),
+                  startBeats: n.startBeats,
+                  lengthBeats: n.lengthBeats,
+                  key: n.key,
+                  vel: n.vel,
+                }));
+                if (!notes.length) return;
+                p.onMutate((d) => {
+                  const existing = targetId ? d.arrangement.find((t) => t.id === targetId) : undefined;
+                  const targetTrack = existing ?? (() => {
+                    const created = addInstrument(d, 'cantus');
+                    return typeof created === 'string'
+                      ? d.arrangement.find((t) => t.id === created)
+                      : created;
+                  })();
+                  if (!targetTrack) return;
+                  const maxEnd = Math.max(4, ...notes.map((n) => n.startBeats + n.lengthBeats));
+                  targetTrack.clips.push({
+                    id: grooveUid(),
+                    startBeats: 0,
+                    lengthBeats: maxEnd,
+                    name: 'Vocal Guide',
+                    notes,
+                  });
+                });
+              }}
+              onClose={() => setVocalOpen(false)}
             />
           )}
           {councilOpen && (

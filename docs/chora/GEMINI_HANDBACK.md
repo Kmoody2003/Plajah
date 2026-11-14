@@ -228,6 +228,17 @@ Requests for Claude:
 - None.
 
 
+## Phase 3 Vocal Track & Phase 6 ARCO / CORNU / AULOS Orchestra Suite (2026-11-14)
+Changed: `services/melos/direct/vocalTimeline.ts`, `components/melos/beats/timeline/VocalTrackPanel.tsx`, `services/melos/instruments/orchestra/{params,presets,patch}.ts`, `components/melos/beats/instrument/OrchestraPanel.tsx`, `services/melos/beats/grooveDoc.ts`, `services/melos/beats/instrumentFactory.ts`, `services/melos/beats/engine/BeatsEngine.ts`, `services/melos/direct/applyBriefToDoc.ts`, `components/melos/beats/timeline/TimelineView.tsx`, `components/melos/beats/BeatsRoom.tsx`, `tests/choraVocalTrack.test.ts`, `tests/choraOrchestraInstruments.test.ts`, `docs/chora/GEMINI_HANDBACK.md`
+Verified:
+- **Phase 3 (Vocal Track on Timeline)**: Added `vocalLayer?: VocalLayer` on `GrooveDoc` + `'vocal'` on `ArrangeTrack['kind']`; wired `applyBriefToDoc` to populate `doc.vocalLayer = layoutVocal(brief)`; created `vocalTimeline.ts` and `VocalTrackPanel.tsx` (syllables drawn over notes, inline retext, move, split, pitch steps, delivery tags, stale region badges, guide MIDI clip export) mounted via `Vocal` button in `TimelineView.tsx`.
+- **Phase 6 (`ARCO`, `CORNU`, `AULOS` + Articulations)**: Added `'arco' | 'cornu' | 'aulos'` to `InstrumentType`, `instrumentFactory.ts`, `BeatsEngine.ts`, and `BeatsRoom.tsx` (`OrchestraPanel`); mirrored Rust `ARCO_BASE` (`2100`), `CORNU_BASE` (`2200`), and `AULOS_BASE` (`2300`) in `services/melos/instruments/orchestra/params.ts`; wired `BeatsEngine.startInstrumentNote` to dispatch `NoteEvent.articulation` into live WASM articulation/mute/bow-pos parameters via `orchestraNoteExpressionParams`.
+- `node node_modules/tsx/dist/cli.mjs --test tests/choraVocalTrack.test.ts tests/choraOrchestraInstruments.test.ts tests/choraDirectWire.test.ts tests/choraDirectRoutes.test.ts tests/choraHeadlessRender.test.ts tests/choraDirect.test.ts tests/choraDirectPacks.test.ts tests/choraTranscribe.test.ts tests/evalChoraDirect.test.ts` -> **42/42 passed** (`0` failed).
+Not verified:
+- Interactive browser UI playback/auditioning of `ARCO`/`CORNU`/`AULOS` and `VocalTrackPanel` against `plajah_audio.wasm` in `npm run dev` (unit tests verify TypeScript dispatch, param IDs, and patch serialization).
+Requests for Claude:
+- None.
+
 ## Phase 2 Chora Direct Studio UI Wiring (2026-11-13)
 Changed: `services/melos/direct/applyBriefToDoc.ts`, `components/melos/beats/composer/ChoraDirectPanel.tsx`, `components/melos/beats/composer/GenerationPanel.tsx`, `components/melos/beats/timeline/TimelineView.tsx`, `components/melos/beats/BeatsRoom.tsx`, `tests/choraDirectWire.test.ts`, `package.json`, `docs/chora/GEMINI_HANDBACK.md`
 Verified:

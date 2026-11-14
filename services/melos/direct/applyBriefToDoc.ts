@@ -12,6 +12,7 @@ import {
   briefToRenderRequest,
   type SongBrief,
 } from './songBrief';
+import { layoutVocal } from './vocalScore';
 
 type MeterDen = 2 | 4 | 8 | 16;
 const VALID_DENS = new Set<MeterDen>([2, 4, 8, 16]);
@@ -51,6 +52,7 @@ export function applyBriefToDoc(
     bar: l.bar,
     text: l.text,
   }));
+  doc.vocalLayer = layoutVocal(brief);
 
   const bandChart = briefToBandChart(brief);
   doc.band = {

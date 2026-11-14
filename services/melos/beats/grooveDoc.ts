@@ -389,6 +389,8 @@ export interface AudioOrigin {
   at?: number;
 }
 
+import type { VocalLayer } from '../direct/vocalScore';
+
 export interface TimelineClip {
   id: string;
   startBeats: number;
@@ -437,7 +439,7 @@ export interface TimelineClip {
 /** The meditation suite (vela/cantus/ison/pneuma) shares one engine and one editor; they are
  *  separate types because they are separate instruments — different purpose, different preset
  *  bank, different thing you reach for. See instruments/vela/suite.ts. */
-export type InstrumentType = 'onda' | 'kera' | 'vela' | 'cantus' | 'ison' | 'pneuma' | 'bajo' | 'aura' | 'volta' | 'soma' | 'lyra' | 'tonos';
+export type InstrumentType = 'onda' | 'kera' | 'vela' | 'cantus' | 'ison' | 'pneuma' | 'bajo' | 'aura' | 'volta' | 'soma' | 'lyra' | 'tonos' | 'arco' | 'cornu' | 'aulos';
 
 export interface TrackInstrument {
   type: InstrumentType;
@@ -455,7 +457,7 @@ export interface TrackInstrument {
 
 export interface ArrangeTrack {
   id: string;
-  kind: 'pattern' | 'audio' | 'instrument';
+  kind: 'pattern' | 'audio' | 'instrument' | 'vocal';
   name: string;
   color: string;
   mute: boolean;
@@ -600,6 +602,8 @@ export interface GrooveDoc {
   modulators?: Modulator[];
   /** MEKA scenes: one pattern per Group, launched together (Maschine scenes / MPC sequences). */
   scenes?: Scene[];
+  /** Chora Direct Phase 3: editable vocal phrase/syllable layer on the timeline. */
+  vocalLayer?: VocalLayer;
   /** The song as scene sections in order (Maschine Song view). They write the Group tracks. */
   sections?: SongSection[];
   /** MEKA Group slots (index = bank of 16): name, color and where an imported kit came from. */

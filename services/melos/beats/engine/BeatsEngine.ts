@@ -22,6 +22,7 @@ import type { ArrangeTrack as ATrack, NoteEvent } from '../grooveDoc';
 import { ModulationPlayer } from './modulationPlayer';
 import { LiveNoteFx } from './liveNoteFx';
 import { padBaseNote, padChain, seedOf, trackChain, type FxNote, type PadNoteData } from '../noteFx';
+import { orchestraNoteExpressionParams } from '../../instruments/orchestra/params';
 import { assistKeys, identifyPlayedChord, type PlayedChord } from '../chordAssist';
 import { docKey } from '../songKey';
 import { modTargetKey, overlayPadHit } from '../modulators';
@@ -781,6 +782,11 @@ export class BeatsEngine {
           await import('../../instruments/tonos/patch');
         const patch = deserializeTonosPatch(track.instrument.patch);
         if (patch) applyTonosPatch(inst, patch);
+      } else if ((track.instrument?.type === 'arco' || track.instrument?.type === 'cornu' || track.instrument?.type === 'aulos') && track.instrument?.patch) {
+        const { deserializeOrchestraPatch, applyOrchestraPatch } =
+          await import('../../instruments/orchestra/patch');
+        const patch = deserializeOrchestraPatch(track.instrument.type, track.instrument.patch);
+        if (patch) applyOrchestraPatch(inst, patch);
       } else if (track.instrument?.patch) {
         const [{ deserializePatch, applyPatch }] = await Promise.all([
           import('../../instruments/onda/patch'),
@@ -1039,6 +1045,12 @@ export class BeatsEngine {
       const { deserializeTonosPatch, applyTonosPatch } = await import('../../instruments/tonos/patch');
       const patch = deserializeTonosPatch(track.instrument.patch);
       if (patch) applyTonosPatch(inst, patch);
+      return;
+    }
+    if (track.instrument.type === 'arco' || track.instrument.type === 'cornu' || track.instrument.type === 'aulos') {
+      const { deserializeOrchestraPatch, applyOrchestraPatch } = await import('../../instruments/orchestra/patch');
+      const patch = deserializeOrchestraPatch(track.instrument.type, track.instrument.patch);
+      if (patch) applyOrchestraPatch(inst, patch);
       return;
     }
     if (track.instrument.type === 'kera') {
@@ -1366,6 +1378,12 @@ export class BeatsEngine {
               : 0.96;
     const effectiveDurSec = Math.max(0.04, durSec * gateScale);
     const velBoost = art === 'marcato' || art === 'sfz-hairpin' ? 1.12 : art === 'con-sordino' || art === 'sul-tasto' ? 0.82 : 1.0;
+
+    const instType = track.instrument?.type;
+    if ((instType === 'arco' || instType === 'cornu' || instType === 'aulos') && note.articulation) {
+      const artParams = orchestraNoteExpressionParams(instType, note.articulation);
+      if (artParams.length) inst.setParams(artParams);
+    }
 
     const voiceId = inst.noteOn(
       note.key,
