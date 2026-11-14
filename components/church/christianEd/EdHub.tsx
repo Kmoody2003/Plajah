@@ -66,9 +66,11 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
   const isTeacher = teaching.length > 0;
   // Class tabs: department heads, admins and teachers see every class; a student sees only their own.
   const seesAll = canEdit || isTeacher;
+  // Open classes anyone on the page can tune in to (watch-only unless they're on the class).
+  const openClasses = useMemo(() => all.filter(p => p.openClass && !teaching.includes(p) && !enrolled.includes(p)), [all, teaching, enrolled]);
   const tabClasses = useMemo(
-    () => (seesAll ? all : all.filter(p => enrolled.includes(p) || teaching.includes(p))),
-    [seesAll, all, enrolled, teaching],
+    () => (seesAll ? all : all.filter(p => enrolled.includes(p) || teaching.includes(p) || openClasses.includes(p))),
+    [seesAll, all, enrolled, teaching, openClasses],
   );
   const otherClasses = useMemo(() => (seesAll ? all.filter(p => !teaching.includes(p) && !enrolled.includes(p)) : []), [seesAll, all, teaching, enrolled]);
   const liveNow = useClassLiveNow(useMemo(() => tabClasses.map(p => p.id), [tabClasses]));
@@ -223,6 +225,8 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
       if (needsLesson.includes(p)) flags.push(['soon', 'No lesson this week']);
       if ((p.students || []).length === 0) flags.push(['', 'No students yet']);
       if (flags.length === 0) flags.push(['done', 'All caught up']);
+    } else if (openClasses.includes(p)) {
+      flags.push(['', 'Open class']);
     } else {
       const d = (w?.assignments || []).filter(a => !['TURNED_IN', 'RETURNED_WITH_FEEDBACK'].includes(desk[a.id]?.status || '')).length;
       flags.push(d ? ['soon', `${d} due`] : ['done', 'Caught up']);
@@ -306,6 +310,7 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
           orgName={church.name}
           program={p}
           isTeacher={asTeacher}
+          visitor={!asTeacher && !enrolled.includes(p) && (!!p.publicCard || (!canEdit && !!p.openClass))}
           canSeeKey={asTeacher && canSeeKey}
           viewer={viewer}
           units={units}
@@ -573,6 +578,12 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
             <>
               {!isPhone && <div className="eyebrow" style={{ marginTop: 6 }}>My classes</div>}
               {enrolled.length > 0 && <div className="clubs">{enrolled.map(p => clubCard(p, false))}</div>}
+              {openClasses.length > 0 && (
+                <>
+                  <div className="eyebrow" style={{ marginTop: 6 }}>Open classes · tune in live</div>
+                  <div className="clubs">{openClasses.map(p => clubCard(p, false))}</div>
+                </>
+              )}
               {joinBox}
             </>
           )}

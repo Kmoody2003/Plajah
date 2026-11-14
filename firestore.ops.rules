@@ -696,6 +696,25 @@ service cloud.firestore {
     }
     // ── Christian Ed desk mirror (services/christianEdSync.ts) ───────────────────
     function eduProgram(pid) { return get(/databases/$(database)/documents/churchPrograms/$(pid)).data; }
+    // Open classes: a roster-free public card (services/churchEducationService openClassCard) so anyone
+    // signed in can find the class and tune in to its live session. Only the class's teachers publish it.
+    match /churchOpenClasses/{pid} {
+      allow read: if isAuthenticated();
+      allow create, update: if eduTeacher(pid) && request.resource.data.id == pid
+        && request.resource.data.orgId == eduProgram(pid).orgId && request.resource.data.openClass == true
+        && request.resource.data.keys().hasOnly(['id', 'orgId', 'name', 'kind', 'ageBand', 'description', 'meetingSchedule', 'leadInstructor', 'coverHue', 'teacherUids', 'createdBy', 'createdAt', 'openClass']);
+      allow delete: if isAuthenticated() && (!exists(/databases/$(database)/documents/churchPrograms/$(pid)) || eduTeacher(pid));
+    }
+    // Live auto check-in: an enrolled student marks THEMSELVES present when they tune in (one row per day).
+    match /churchClassAttendance/{rid} {
+      allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid || eduTeacher(resource.data.programId));
+      allow create, update: if isAuthenticated() && request.resource.data.uid == request.auth.uid
+        && eduStudent(request.resource.data.programId)
+        && rid == request.resource.data.programId + '__' + request.resource.data.date + '__' + request.auth.uid
+        && request.resource.data.status == 'present' && request.resource.data.source == 'live'
+        && request.resource.data.keys().hasOnly(['programId', 'orgId', 'uid', 'name', 'date', 'status', 'source', 'checkedInAt']);
+      allow delete: if eduTeacher(resource.data.programId);
+    }
     function eduTeacher(pid) {
       return isAuthenticated() && (request.auth.uid in eduProgram(pid).get('teacherUids', []) || orgAdminOf(eduProgram(pid).orgId));
     }

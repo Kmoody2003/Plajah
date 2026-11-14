@@ -105,6 +105,10 @@ export interface SharedClassroomClubHubProps {
   lessons?: IngestedCurriculumUnit[];
   /** Everyone who may teach this class (co-teachers, department heads). Any of them can run the lecture. */
   teacherUids?: string[];
+  /** Open class: anyone who opens the live tab receives the broadcast (no roster gate on media). */
+  openLive?: boolean;
+  /** Fired once per visit when the teacher's live feed first reaches this (non-teacher) viewer. */
+  onLiveJoined?: () => void;
 }
 
 const WHITEBOARD_COLORS = ['#FFFFFF', '#FF8C00', '#00DAF3', '#06D6A0', '#D40055', '#FFD24A', '#A78BFA'];
@@ -269,6 +273,8 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   embedded = false,
   lessons,
   teacherUids,
+  openLive = false,
+  onLiveJoined,
 }) => {
   const viewerUid = currentUserUid || auth.currentUser?.uid || (isTeacher ? teacherUid : 'student_local');
   const viewerName =
@@ -431,8 +437,8 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   // a department head), so students follow the host seat in the session rather than a fixed uid.
   const teacherIds = useMemo(() => Array.from(new Set([teacherUid, ...(teacherUids || [])].filter(Boolean))), [teacherUid, teacherUids]);
   const allowedPeerIds = useMemo(
-    () => (isTeacher && rosterStudents.length ? [...rosterStudents.map(r => r.id), ...teacherIds] : undefined),
-    [isTeacher, rosterStudents, teacherIds],
+    () => (isTeacher && !openLive && rosterStudents.length ? [...rosterStudents.map(r => r.id), ...teacherIds] : undefined),
+    [isTeacher, openLive, rosterStudents, teacherIds],
   );
   const hostPeerRef = useRef<string>(teacherUid);
   const broadcastRef = useRef<() => void>(() => {});
@@ -603,6 +609,15 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   }, [isTeacher, rtc.localStream]);
   // Students: ask for the current state once connected; back to "not live" once the teacher has left.
   const hostStream = !isTeacher ? (rtc.remoteStreams.get(hostPeerId) ?? null) : null;
+  // Tuned in: tell the parent once (Christian Ed checks an enrolled student in for attendance).
+  const joinedRef = useRef(false);
+  const onLiveJoinedRef = useRef(onLiveJoined);
+  onLiveJoinedRef.current = onLiveJoined;
+  useEffect(() => {
+    if (isTeacher || !hostStream || joinedRef.current) return;
+    joinedRef.current = true;
+    onLiveJoinedRef.current?.();
+  }, [isTeacher, hostStream]);
   useEffect(() => {
     if (isTeacher) return;
     if (hostStream) {

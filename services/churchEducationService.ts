@@ -54,6 +54,11 @@ export interface ChurchProgram {
   teacherUids?: string[];
   /** Short code a student types to ask to join (teacher approves). */
   joinCode?: string;
+  /** Open class: anyone who can see the church's Christian Ed page may tune in to its live session.
+   *  Mirrored to churchOpenClasses/{id} as a roster-free public card (see openClassCard). */
+  openClass?: boolean;
+  /** Set on cards loaded from churchOpenClasses: this viewer is not on the class, they can only watch live. */
+  publicCard?: boolean;
   /** Week the class is on right now (index into weeks). */
   currentWeek?: number;
   coverHue?: string;
@@ -329,6 +334,64 @@ function writeLocalPrograms(orgId: string, list: ChurchProgram[]): void {
 
 const col = () => collection(opsDb, 'churchPrograms');
 
+/** The public, roster-free card an open class publishes so people outside the class can find it and tune in.
+ *  No students, guardians, weeks or chat: only what the class page header and live room need. */
+export function openClassCard(p: ChurchProgram) {
+  return {
+    id: p.id, orgId: p.orgId, name: p.name, kind: p.kind, ageBand: p.ageBand || '', description: p.description || '',
+    meetingSchedule: p.meetingSchedule || '', leadInstructor: p.leadInstructor || '', coverHue: p.coverHue || '',
+    teacherUids: p.teacherUids || [], createdBy: p.createdBy, createdAt: p.createdAt, openClass: true as const,
+  };
+}
+
+/** A public card as a ChurchProgram the hub can render (watch-only: no roster, no plan). */
+function fromOpenCard(c: ReturnType<typeof openClassCard>): ChurchProgram {
+  return {
+    ...c, courseIds: [], weeks: [], students: [], studentUids: [], chatRoomId: '', publicCard: true,
+  } as ChurchProgram;
+}
+
+/** Open classes of an org (public cards). Empty when the org has none or the read fails. */
+export async function listOpenClasses(orgId: string): Promise<ChurchProgram[]> {
+  try {
+    const snap = await getDocs(query(collection(opsDb, 'churchOpenClasses'), where('orgId', '==', orgId)));
+    return snap.docs.map(d => fromOpenCard(d.data() as ReturnType<typeof openClassCard>));
+  } catch {
+    return [];
+  }
+}
+
+/** Auto check-in: an enrolled student who tuned in to the live class is marked present for today.
+ *  One doc per class, day and student (churchClassAttendance/{programId}__{YYYY-MM-DD}__{uid}), so
+ *  re-joining the same day is a no-op. Only the student writes their own row; teachers read them. */
+export async function checkInLiveClass(p: Pick<ChurchProgram, 'id' | 'orgId'>, viewer: { uid: string; name: string }): Promise<boolean> {
+  if (!viewer.uid) return false;
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  try {
+    await setDoc(doc(opsDb, 'churchClassAttendance', `${p.id}__${date}__${viewer.uid}`), {
+      programId: p.id, orgId: p.orgId, uid: viewer.uid, name: (viewer.name || 'Student').slice(0, 100),
+      date, status: 'present', source: 'live', checkedInAt: Date.now(),
+    });
+    return true;
+  } catch (e) {
+    console.warn('[christianEd] live check-in failed:', (e as Error)?.message);
+    return false;
+  }
+}
+
+export interface LiveCheckIn { uid: string; name: string; checkedInAt: number }
+/** Teachers: who checked in to today's live class. */
+export async function listLiveCheckIns(programId: string, date: string): Promise<LiveCheckIn[]> {
+  try {
+    const snap = await getDocs(query(collection(opsDb, 'churchClassAttendance'), where('programId', '==', programId), where('date', '==', date)));
+    return snap.docs.map(d => d.data() as LiveCheckIn).sort((a, b) => a.checkedInAt - b.checkedInAt);
+  } catch {
+    return [];
+  }
+}
+
 export async function listPrograms(orgId: string): Promise<ChurchProgram[]> {
   let local = readLocalPrograms(orgId);
   try {
@@ -347,18 +410,24 @@ export async function listPrograms(orgId: string): Promise<ChurchProgram[]> {
       const org = (await getDoc(doc(db, 'organizations', orgId)).catch(() => null))?.data();
       const deptIds = Object.entries((org?.departmentUids || {}) as Record<string, string[]>).filter(([, uids]) => uids.includes(uid)).map(([id]) => id);
       const byDept = await Promise.all(deptIds.map(d => getDocs(query(col(), where('orgId', '==', orgId), where('departmentId', '==', d))).catch(() => null)));
-      if (!taught && !enrolled && !byDept.some(Boolean)) throw new Error('no access');
+      if (!taught && !enrolled && !byDept.some(Boolean)) {
+        const open = await listOpenClasses(orgId);
+        if (open.length) return open;
+        throw new Error('no access');
+      }
       remote = [...(taught?.docs || []), ...(enrolled?.docs || []), ...byDept.flatMap(s => s?.docs || [])].map(d => d.data() as ChurchProgram);
       // Drop classes an earlier session cached on this device that this person is not part of.
       const mine = (p: ChurchProgram) => !!(p.teacherUids?.includes(uid) || p.studentUids?.includes(uid) || p.createdBy === uid || remote.some(r => r.id === p.id));
       local = local.filter(mine);
     }
     const byId = new Map<string, ChurchProgram>();
-    for (const p of local) byId.set(p.id, p);
+    for (const p of local) if (!p.publicCard) byId.set(p.id, p);
     for (const p of remote) byId.set(p.id, p);
     const merged = Array.from(byId.values()).sort((a, b) => a.createdAt - b.createdAt);
     if (merged.length > 0) writeLocalPrograms(orgId, merged);
-    return merged;
+    // Open classes this person isn't on: watch-only cards (never cached as full classes).
+    const open = (await listOpenClasses(orgId)).filter(c => !byId.has(c.id));
+    return [...merged, ...open];
   } catch {
     return local.sort((a, b) => a.createdAt - b.createdAt);
   }
@@ -377,6 +446,7 @@ export async function saveProgram(p: ChurchProgram): Promise<void> {
   // A class belongs to the org's Christian Education department unless it says otherwise.
   const org = p.departmentId ? null : (await getDoc(doc(db, 'organizations', p.orgId)).catch(() => null))?.data();
   const departmentId = p.departmentId || (org?.ministries as Array<{ id: string; name: string }> | undefined)?.find(m => /christian\s*ed|education|sunday\s*school|discipleship/i.test(m.name))?.id;
+  if (p.publicCard) return; // a watch-only card is never saved over the real class
   const normalized: ChurchProgram = {
     ...p,
     ...(departmentId ? { departmentId } : {}),
@@ -396,6 +466,9 @@ export async function saveProgram(p: ChurchProgram): Promise<void> {
 
   try {
     await setDoc(doc(opsDb, 'churchPrograms', normalized.id), JSON.parse(JSON.stringify(normalized)));
+    // Open classes publish a roster-free card anyone on the church page can read; closing removes it.
+    const card = doc(opsDb, 'churchOpenClasses', normalized.id);
+    void (normalized.openClass ? setDoc(card, JSON.parse(JSON.stringify(openClassCard(normalized)))) : deleteDoc(card)).catch(() => {});
     // Students on the roster hold the Enrolled Student role for this class (services/enrollmentCore.ts).
     void import('./enrollments').then(m => m.syncProgramEnrollments(normalized.id, normalized.studentUids || [])).catch(() => {});
   } catch {
@@ -409,6 +482,7 @@ export async function deleteProgram(id: string, orgId?: string): Promise<void> {
     writeLocalPrograms(orgId, remaining);
   }
   try {
+    await deleteDoc(doc(opsDb, 'churchOpenClasses', id)).catch(() => {});
     await deleteDoc(doc(opsDb, 'churchPrograms', id));
     void import('./enrollments').then(m => m.endProgramEnrollments(id)).catch(() => {});
   } catch {

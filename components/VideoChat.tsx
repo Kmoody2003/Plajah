@@ -58,16 +58,16 @@ interface VideoChatProps {
 }
 
 /** Attaches a MediaStream to a <video>. One tile per participant. */
-const StreamTile: React.FC<{ stream: MediaStream; label: string; muted?: boolean; mirror?: boolean; connecting?: boolean; contain?: boolean }> =
-({ stream, label, muted, mirror, connecting, contain }) => {
+const StreamTile: React.FC<{ stream: MediaStream; label: string; muted?: boolean; mirror?: boolean; connecting?: boolean; contain?: boolean; fill?: boolean }> =
+({ stream, label, muted, mirror, connecting, contain, fill }) => {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => { if (ref.current) ref.current.srcObject = stream; }, [stream]);
   return (
     <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-      className="relative aspect-video bg-black border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl">
+      className={`relative bg-black border border-white/10 overflow-hidden ${fill ? 'h-full min-h-0 rounded-3xl' : 'aspect-video rounded-[2.5rem] shadow-2xl'}`}>
       <video ref={ref} autoPlay playsInline muted={muted}
         className={`w-full h-full ${contain ? 'object-contain' : 'object-cover'} ${mirror ? 'scale-x-[-1]' : ''}`} />
-      <div className="absolute bottom-4 left-4 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-xl border border-white/10 flex items-center gap-2">
+      <div className={`absolute bg-black/60 backdrop-blur-md rounded-xl border border-white/10 flex items-center gap-2 ${fill ? 'bottom-2.5 left-2.5 px-2.5 py-1' : 'bottom-4 left-4 px-3 py-1.5'}`}>
         {!connecting && <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />}
         <span className="text-[9px] font-black uppercase tracking-widest">{label}</span>
       </div>
@@ -80,6 +80,19 @@ const HiddenAudio: React.FC<{ stream: MediaStream }> = ({ stream }) => {
   useEffect(() => { if (ref.current) ref.current.srcObject = stream; }, [stream]);
   return <audio ref={ref} autoPlay playsInline className="hidden" />;
 };
+
+/** True on phone-width screens; drives the compact Spotlight / Grid call layouts. */
+function useIsPhone(): boolean {
+  const q = '(max-width: 639px)';
+  const [phone, setPhone] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches);
+  useEffect(() => {
+    const m = window.matchMedia(q);
+    const on = () => setPhone(m.matches);
+    m.addEventListener('change', on);
+    return () => m.removeEventListener('change', on);
+  }, []);
+  return phone;
+}
 
 /** Remote tiles per grid page: 3×3 with you on desktop, 2×2 on phones. */
 function gridPageSize(): number {
@@ -301,6 +314,15 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
   // Mobile-first: a 1:1 call (2 tiles) stacks on phones instead of two tiny side-by-side tiles.
   const cols = tiles <= 1 ? 'grid-cols-1' : tiles <= 2 ? 'grid-cols-1 sm:grid-cols-2' : tiles <= 4 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3';
 
+  // Phone layouts: Spotlight (1:1 — big remote, small self-view) and Grid (3+ people, 2×2 tiles).
+  const isPhone = useIsPhone();
+  // On phones the meeting tools (production, breakout rooms, present a doc) fold behind one button,
+  // so the video keeps the screen.
+  const [showTools, setShowTools] = useState(false);
+  const [docPick, setDocPick] = useState(0);
+  const toolsOpen = !isPhone || showTools;
+  const phoneMode: 'spot' | 'grid' | null = !isPhone ? null : (pageRemotes.length <= 1 && !hasScreen ? 'spot' : 'grid');
+
   const nameFor = (peerId: string) => rtc.participants.find(p => p.id === peerId)?.name || 'Participant';
 
   const stopMeetingRecording = async () => {
@@ -355,12 +377,12 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
       {/* Romance FX — falling rose petals + hearts on intimate calls */}
       {room?.isIntimate && romanceFx && <RomanceFXOverlay />}
       {/* Top bar */}
-      <div className="p-3 sm:p-6 flex items-center justify-between gap-2 bg-gradient-to-b from-black/80 to-transparent" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
+      <div className="px-3 pb-1 pt-3 sm:p-6 flex items-center justify-between gap-2 bg-gradient-to-b from-black/80 to-transparent" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
         <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-          <div className="p-2 sm:p-3 bg-red-500/20 rounded-2xl shrink-0"><Video className="text-red-500 w-5 h-5 sm:w-6 sm:h-6" /></div>
+          <div className="hidden sm:block p-2 sm:p-3 bg-red-500/20 rounded-2xl shrink-0"><Video className="text-red-500 w-5 h-5 sm:w-6 sm:h-6" /></div>
           <div className="min-w-0">
             <h2 className="text-base sm:text-xl font-black uppercase tracking-tightest leading-none truncate">{session?.title || room.name || 'Call'}</h2>
-            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-1 truncate">{callType === 'AUDIO' ? 'Voice' : 'Live Video'} Session • {total} in call</p>
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-0.5 sm:mt-1 truncate">{callType === 'AUDIO' ? 'Voice' : 'Live Video'} Session • {total} in call</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
@@ -379,6 +401,10 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
             <Captions size={20} />
           </button>
           <button onClick={() => setHandRaised(v => !v)} aria-label={handRaised ? 'Lower hand' : 'Raise hand'} aria-pressed={handRaised} title={handRaised ? 'Lower hand' : 'Raise hand'} className={`p-2.5 rounded-2xl ${handRaised ? 'bg-amber-400/20 text-amber-300' : 'bg-white/5 text-white/50'}`}><Hand size={20} /></button>
+          <button onClick={() => setShowTools(v => !v)} aria-label={showTools ? 'Hide meeting tools' : 'Meeting tools'} aria-pressed={showTools}
+            className={`sm:hidden p-2.5 rounded-2xl transition-all ${showTools ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 text-white/40'}`}>
+            <LayoutGrid size={20} />
+          </button>
           <button onClick={() => { setShowAdd(s => !s); setShowSettings(false); }} title="Add people"
             className={`p-2.5 sm:p-4 rounded-2xl transition-all ${showAdd ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
             <UserPlus size={20} />
@@ -396,7 +422,8 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 px-4 py-2 border-b border-white/10 text-xs bg-black/30">
+      {toolsOpen && <div className="flex flex-wrap items-center gap-3 px-4 py-2 border-b border-white/10 text-xs bg-black/30">
+        {isPhone && !isGuest && <button onClick={() => setDocPick(n => n + 1)} className="rounded-lg px-3 py-2 bg-white/10">Present a Tela doc</button>}
         {handRaised && <span className="text-amber-300">Your hand is raised</span>}
         {[...raisedHands].filter(id => rtc.participants.some(p => p.id === id)).map(id => <span key={id} className="text-amber-300">✋ {nameFor(id)}</span>)}
         {!room.isIntimate && <label className="flex items-center gap-2"><input type="checkbox" checked={productionConsent} onChange={e => setProductionConsent(e.target.checked)} /> Allow my audio/video in live production</label>}
@@ -406,7 +433,10 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
           {productionEnabled && <span className="text-white/50">Moderators excluded · consenting guests only</span>}
         </>}
         {productionNotice && <span role="status" className="text-white/60">{productionNotice}</span>}
-      </div>
+      </div>}
+      {isPhone && !toolsOpen && (handRaised || raisedHands.size > 0) && (
+        <div className="px-4 py-1 text-xs text-amber-300">{handRaised ? 'Your hand is raised' : `✋ ${raisedHands.size} hand${raisedHands.size === 1 ? '' : 's'} raised`}</div>
+      )}
 
       {meetingError && <div role="status" className="px-4 py-2 text-sm text-amber-300 bg-amber-400/10">{meetingError}</div>}
       {liveRecording && (
@@ -436,7 +466,7 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
           ))}
         </div>
       )}
-      {!session && meetingReady && !removed && selfId && !room.isIntimate && <MeetingControls room={room} state={meeting} uid={selfId} participants={room.participants.filter(id => id !== selfId).map(id => ({ id, name: rtc.participants.find(p => p.id === id)?.name || contacts.find(c => c.uid === id)?.displayName || 'Conversation member' }))} onError={setMeetingError} />}
+      {toolsOpen && !session && meetingReady && !removed && selfId && !room.isIntimate && <MeetingControls room={room} state={meeting} uid={selfId} participants={room.participants.filter(id => id !== selfId).map(id => ({ id, name: rtc.participants.find(p => p.id === id)?.name || contacts.find(c => c.uid === id)?.displayName || 'Conversation member' }))} onError={setMeetingError} />}
       {/* Add-a-caller picker */}
       <AnimatePresence>
         {showAdd && (
@@ -522,18 +552,18 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
       )}
 
       {/* Grid */}
-      <div className={`flex-1 p-3 sm:p-6 lg:p-12 overflow-y-auto ${rtc.refusal ? 'hidden' : ''}`}>
-        <div className={`grid gap-3 sm:gap-6 h-full ${cols}`}>
+      <div className={`flex-1 min-h-0 ${phoneMode ? 'p-2 overflow-hidden' : 'p-3 sm:p-6 lg:p-12 overflow-y-auto'} ${rtc.refusal ? 'hidden' : ''}`}>
+        <div className={phoneMode === 'spot' ? 'relative h-full' : phoneMode === 'grid' ? 'grid gap-2 h-full grid-cols-2 auto-rows-fr' : `grid gap-3 sm:gap-6 h-full ${cols}`}>
           {/* Local tile — always mounted so the self-preview stays attached */}
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-            className="relative aspect-video bg-black border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl">
+            className={`bg-black overflow-hidden ${phoneMode === 'spot' ? 'absolute top-2 right-2 z-20 w-[28%] max-w-[120px] aspect-[3/4] rounded-2xl border-2 border-white/70 shadow-lg' : phoneMode === 'grid' ? 'relative h-full min-h-0 rounded-3xl border border-white/10' : 'relative aspect-video border border-white/10 rounded-[2.5rem] shadow-2xl'}`}>
             <video ref={localRef} autoPlay muted playsInline className="w-full h-full object-cover scale-x-[-1]" />
             {!rtc.videoEnabled && (
               <div className="absolute inset-0 flex items-center justify-center bg-black">
-                <div className="w-24 h-24 rounded-full bg-white/10 border border-white/10 flex items-center justify-center"><VideoOff size={36} className="text-white/20" /></div>
+                <div className={`${phoneMode ? 'w-12 h-12' : 'w-24 h-24'} rounded-full bg-white/10 border border-white/10 flex items-center justify-center`}><VideoOff size={phoneMode ? 20 : 36} className="text-white/20" /></div>
               </div>
             )}
-            <div className="absolute bottom-4 left-4 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-xl border border-white/10 text-[9px] font-black uppercase tracking-widest">
+            <div className={`absolute bg-black/60 backdrop-blur-md rounded-xl border border-white/10 text-[9px] font-black uppercase tracking-widest ${phoneMode ? 'bottom-1.5 left-1.5 px-2 py-0.5' : 'bottom-4 left-4 px-3 py-1.5'}`}>
               You {!rtc.audioEnabled && <MicOff size={9} className="inline ml-1 text-red-400" />}
             </div>
           </motion.div>
@@ -551,12 +581,12 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
 
           {/* Remote tiles — one per peer (1:1 or group, same path) */}
           {pageRemotes.map(([peerId, stream]) => (
-            <StreamTile key={peerId} stream={stream} label={nameFor(peerId)} />
+            <StreamTile key={peerId} stream={stream} label={nameFor(peerId)} fill={!!phoneMode} />
           ))}
 
           {/* Waiting state */}
           {remotes.length === 0 && (
-            <div className="aspect-video bg-white/5 border border-white/5 border-dashed rounded-[2.5rem] flex flex-col items-center justify-center gap-4">
+            <div className={`bg-white/5 border border-white/5 border-dashed flex flex-col items-center justify-center gap-4 ${phoneMode ? 'h-full rounded-3xl' : 'aspect-video rounded-[2.5rem]'}`}>
               <div className="w-10 h-10 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
               <p className="text-[9px] font-black uppercase tracking-widest text-white/30">{ringingName ? `Ringing ${ringingName}…` : 'Waiting for others to join…'}</p>
             </div>
@@ -579,7 +609,7 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
       {openRecording && <MeetingRecordingView roomId={room.id} recording={openRecording} onClose={() => setOpenRecording(null)} />}
       <ReactionFloats floats={floats} />
       <ReactionBar onReact={react} />
-      <CallControlBar rtc={rtc} onEnd={() => void end()} record={isGuest ? undefined : { active: rtc.isRecording, toggle: () => void toggleRecord() }} />
+      <CallControlBar compact={isPhone} rtc={rtc} onEnd={() => void end()} record={isGuest ? undefined : { active: rtc.isRecording, toggle: () => void toggleRecord() }} />
       </div>
 
       {/* In-call chat side panel */}
@@ -616,7 +646,7 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
           </motion.div>
         )}
       </AnimatePresence>
-      <LiveDocDock sessionKey={`call_${room.id}`} canPresent={!isGuest} hostName={auth.currentUser?.displayName || 'You'} audience="members" memberUids={room.participants} />
+      <LiveDocDock quiet={isPhone} pickSignal={docPick} sessionKey={`call_${room.id}`} canPresent={!isGuest} hostName={auth.currentUser?.displayName || 'You'} audience="members" memberUids={room.participants} />
     </div>
   );
 };

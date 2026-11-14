@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { ChurchProgram, PlanWeek } from '../../../services/churchEducationService';
-import { KIND_LABEL } from '../../../services/churchEducationService';
+import { KIND_LABEL, checkInLiveClass, listLiveCheckIns, type LiveCheckIn } from '../../../services/churchEducationService';
 import { openUnitInTela, type IngestedCurriculumUnit } from '../../../services/curriculumIngestionService';
 import { getAllStudentDeskWorkspaces, removeDeskAssignment, type UniversalDeskAssignment } from '../../../services/universalStudentDeskService';
 import { unmirrorAssignment, type EduSubmissionRecord } from '../../../services/christianEdSync';
@@ -14,7 +14,7 @@ import ClassSearch from './ClassSearch';
 import { createThread, lessonAttachment } from '../../../services/classForum';
 import AnnouncementsPanel from '../../announcements/AnnouncementsPanel';
 import { coverFor, initials } from './edStyles';
-import { announceWorkChanged, currentWeekIndex, needsReview, type ClassWork } from './edWork';
+import { announceWorkChanged, currentWeekIndex, isStudentOf, needsReview, type ClassWork } from './edWork';
 import { openLessonLibrary } from '../../../services/lessonLibraryNav';
 import { AssignmentDatesEditor, ClassLedgerPanel, ExtensionRequestsPanel, datesLine } from './EdWorkRules';
 import { dueChipText } from '../../desk/DueStatePanel';
@@ -41,6 +41,8 @@ interface Props {
   onOpenGradebook: () => void;
   /** A teacher is live in this class's lecture room right now. */
   liveNow?: boolean;
+  /** Not on this open class: watch the live session only (no work, roster or discussion). */
+  visitor?: boolean;
 }
 
 const statusTag = (s?: string) => {
@@ -60,7 +62,23 @@ const statusTag = (s?: string) => {
 /** A Christian Ed class rendered as a Plajah club: cover, five channels, right rail. */
 const EdClassClub: React.FC<Props> = props => {
   const { orgId, orgName, program: p, isTeacher, canSeeKey, viewer, units, work, onSave, onRefresh } = props;
-  const [chan, setChan] = useState<ClassChannel>(props.initialChannel || (isTeacher ? 'work' : 'work'));
+  const visitor = !!props.visitor;
+  const [chan, setChan] = useState<ClassChannel>(visitor ? 'live' : props.initialChannel || 'work');
+  const enrolledHere = !isTeacher && !visitor && isStudentOf(p, viewer.uid);
+  const [checkedIn, setCheckedIn] = useState(false);
+  // Teachers: who checked in to today's live class (enrolled students are checked in when they tune in).
+  const [checkIns, setCheckIns] = useState<LiveCheckIn[]>([]);
+  useEffect(() => {
+    if (!isTeacher || chan !== 'live') return;
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const today = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    let gone = false;
+    const load = () => void listLiveCheckIns(p.id, today).then(r => { if (!gone) setCheckIns(r); });
+    load();
+    const t = window.setInterval(load, 30_000);
+    return () => { gone = true; window.clearInterval(t); };
+  }, [isTeacher, chan, p.id]);
   const [feedSection, setFeedSection] = useState<'SOCIAL_FEED' | 'PHOTOS'>('SOCIAL_FEED');
   const [assignUnit, setAssignUnit] = useState<IngestedCurriculumUnit | null>(null);
   const [preview, setPreview] = useState<IngestedCurriculumUnit | null>(null);
@@ -137,7 +155,7 @@ const EdClassClub: React.FC<Props> = props => {
     onRefresh();
   };
 
-  const channels: Array<[ClassChannel, string, number?]> = [
+  const channels: Array<[ClassChannel, string, number?]> = visitor ? [['live', 'Live']] : [
     ['feed', 'Feed'],
     ['lessons', 'Lessons'],
     ['work', 'Work', isTeacher ? toReview || undefined : myDue.length || undefined],
@@ -439,7 +457,18 @@ const EdClassClub: React.FC<Props> = props => {
             club={{ kind: 'churchProgram', id: p.id }}
             lessons={isTeacher ? visibleUnits : studentUnits}
             initialSection={chan === 'live' ? 'LIVE_LECTURE' : feedSection}
+            openLive={!!p.openClass}
+            onLiveJoined={enrolledHere ? () => void checkInLiveClass(p, viewer).then(ok => setCheckedIn(ok)) : undefined}
           />
+          {chan === 'live' && checkedIn && <div className="okmsg" role="status">You're checked in for today's class.</div>}
+          {chan === 'live' && visitor && <div className="small">You're watching this open class. Ask the teacher to enroll you to join in, turn in work and be counted present.</div>}
+          {chan === 'live' && isTeacher && (
+            <div className="card">
+              <div className="t">Checked in today · {checkIns.length}</div>
+              <div className="small">{checkIns.length ? checkIns.map(c => c.name).join(', ') : 'Enrolled students are checked in automatically when they tune in.'}</div>
+              <div className="small">{p.openClass ? 'Open class: anyone on the church page can watch live.' : 'Only enrolled students can watch. Turn on Open class in Edit class to let anyone tune in.'}</div>
+            </div>
+          )}
         </div>
       );
     }
@@ -573,7 +602,7 @@ const EdClassClub: React.FC<Props> = props => {
         ))}
       </div>
 
-      <ClassSearch program={p} isTeacher={isTeacher} canSeeKey={canSeeKey} lessons={[...visibleUnits, ...studentUnits]} assignments={assignments} onOpenLesson={u => setPreview(u)} onGo={c => setChan(c)} />
+      {!visitor && <ClassSearch program={p} isTeacher={isTeacher} canSeeKey={canSeeKey} lessons={[...visibleUnits, ...studentUnits]} assignments={assignments} onOpenLesson={u => setPreview(u)} onGo={c => setChan(c)} />}
 
       {err && <div className="err">{err}</div>}
       {status && <div className="okmsg row"><span className="grow">{status}</span><button type="button" className="btn sm" onClick={() => setStatus('')}>OK</button></div>}
@@ -607,6 +636,10 @@ const EdClassClub: React.FC<Props> = props => {
           <label className="lbl">
             About this class
             <textarea id="ed-class-about" className="field" rows={2} value={draft.description} onChange={e => setDraft({ ...draft, description: e.target.value })} />
+          </label>
+          <label className="lbl" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input type="checkbox" checked={!!draft.openClass} onChange={e => setDraft({ ...draft, openClass: e.target.checked })} />
+            Open class: anyone on the church page can tune in to the live session (students' names stay private)
           </label>
           <button type="button" className="btn p" style={{ justifySelf: 'start' }} onClick={async () => { await save(draft); setEditingClass(false); }}>
             Save

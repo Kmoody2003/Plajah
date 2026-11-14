@@ -8,6 +8,7 @@
 //   ?split=call | class | campus   two people in a chat video call / a class lecture (teacher +
 //                student) / a campus broadcast (+ master control) / a huddle / a collab call.
 //                One frame: ?as=call|class|campus|huddle|collab&who=a|b
+//                class: &outsider=1 (viewer not on the roster)  &open=1 (open class: no roster gate)
 import React, { Suspense, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '/index.css';
@@ -159,7 +160,9 @@ function Surface() {
     <div style={{ padding: 16, background: '#05030a', minHeight: '100vh' }}>
       <ClassHub classId="lab-class" className="Lab Class" contextKind={'ACADEMIA' as any} teacherUid="lab-host" teacherName="Lab Host"
         isTeacher={who === 'a'} currentUserUid={auth.currentUser.uid} currentUserName={auth.currentUser.displayName}
-        rosterStudents={[{ id: 'lab-viewer', name: 'Lab Viewer' }]} club={{ kind: 'classroom', id: 'lab-class' }} lessons={[LAB_LESSON]}
+        rosterStudents={qs.get('outsider') === '1' ? [{ id: 'someone-else', name: 'Someone Else' }] : [{ id: 'lab-viewer', name: 'Lab Viewer' }]}
+        openLive={qs.get('open') === '1'} onLiveJoined={() => { (window as any).__liveJoined = Date.now(); }}
+        club={{ kind: 'classroom', id: 'lab-class' }} lessons={[LAB_LESSON]}
         initialSection={(new URLSearchParams(location.search).get('section') as any) || 'LIVE_LECTURE'} />
     </div>
   );
