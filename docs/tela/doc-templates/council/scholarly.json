@@ -1,0 +1,193 @@
+{
+  "family": "scholarly",
+  "name": "Essays, lesson plans & grant narratives",
+  "id": "mwfogjihb1oi32",
+  "uid": "doc-themes",
+  "createdAt": 1794616720073,
+  "depth": "QUICK",
+  "status": "DONE",
+  "brief": {
+    "ask": "Direct the theme for studious documents: essays, research papers, study guides, lesson plans and grant narratives.",
+    "domain": "students, teachers and grant writers",
+    "audience": "graders, reviewers and learners reading closely with a pen",
+    "feeling": "clear-headed, rigorous, generous to the reader",
+    "surface": "Tela word-document theme family \"Essays, lesson plans & grant narratives\"",
+    "constraints": [
+      "Surface: a word-processor page in Plajah Tela — US Letter, 8.5 × 11 in, printed on an office laser or church copier and also read on screen. These are documents people WRITE in: the words are theirs and can be any length. The design must hold with one paragraph or forty pages.",
+      "You are directing a THEME: a stylesheet plus page flourishes. The stylesheet covers Title, Subtitle, Heading 1–3, Body, Quote, Pull quote, Caption, Lists (bullet glyph), Header/Footer text. For each give the font from the list, size in pt, weight, case, tracking, colour, alignment and spacing; say whether body is ragged or justified and whether paragraphs indent or space.",
+      "Fonts available (use only these): Text serifs: Source Serif 4, EB Garamond, Cormorant Garamond, Crimson Pro, Libre Baskerville, Lora, Spectral, Merriweather, Cardo, Alegreya, Gelasio, Noto Serif, Bitter, Zilla Slab, Roboto Slab, Josefin Slab. Display serifs: Playfair Display, Fraunces, DM Serif Display, Bodoni Moda, Instrument Serif, Gloock, Cinzel, Italiana, Forum, Marcellus, Yeseva One, Abril Fatface, Philosopher. Sans: Inter, Source Sans 3, DM Sans, Manrope, Work Sans, Karla, Nunito, Outfit, Sora, Space Grotesk, Epilogue, Archivo, Raleway, Josefin Sans, Tenor Sans, Lexend, Bricolage Grotesque, Syne, Rubik. Condensed: Oswald, Bebas Neue, League Gothic, Big Shoulders Display, Archivo Black, Anton. Mono / typewriter: JetBrains Mono, IBM Plex Mono, DM Mono, Space Mono, Courier Prime, Special Elite. Hand: Caveat, Kalam, Patrick Hand. Blackletter / uncial: UnifrakturMaguntia, Uncial Antiqua, Almendra.",
+      "Flourish vocabulary the page engine can draw behind and around the text, as flat vector art: paper tint; page border frames (single, double, inset, bracketed corners); corner ornaments; rules above/below headings (hairline, thick-thin, short centred, full measure, dashed); a side band or margin stripe; a head band across the top; drop caps (2–4 lines); a fleuron or geometric mark between sections; folio (page number) treatment; heading number tabs; shaded or ruled quote blocks. No photographs, no gradients wider than a band, nothing that depends on the words.",
+      "Print law: body text 10.5–12 pt with at least 7:1 contrast against the paper; ink coverage low enough for a church copier (no full-bleed dark pages; tinted paper must also read when printed on white); nothing vital within 0.4 in of the edge; the theme must survive black-and-white printing.",
+      "Give production-ready specifics: palette as hex (paper, ink, muted ink, accent, second accent), the exact fonts, sizes, the flourish list with positions and weights in pt or inches, and the one detail that makes this theme recognisable from across a table.",
+      "Name the direction with a two- or three-word title a church administrator or a student would understand in a template gallery."
+    ],
+    "references": [
+      "Plajah Tela Writer (paragraph styles, page setup, vector page flourishes)"
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "The Structural Counterpoint",
+      "idea": "An enduring study stylesheet built on strict geometric proportion, cantus-firmus margin rules, and high-contrast typographic hierarchy.",
+      "geometry": "A precise 12-column grid mapped to US Letter with a 1-inch outer margin and a 1.25-inch inner binding gutter, establishing strict vertical bay alignment for headings, blockquotes, and marginalia.",
+      "typography": "Source Serif 4 for body text at 11.5 pt with 1.4 leading and justified alignment; Playfair Display for Title and Heading 1; JetBrains Mono for figures and running headers. All settings strictly constrained to open-licensed Google Fonts.",
+      "imageLogic": "No photographic elements are permitted; vector-based architectural rules and geometric header bars serve as the sole visual anchors, drawn from the page engine.",
+      "texture": "Simulated warm vellum paper tint (#FBF9F5) with sharp black laser-ink rendering (#1A1918) and a faint, deterministic dry-press plate mark around the 0.5-inch page border.",
+      "motion": "Static digital rendering; page transitions in the screen reader snap cleanly without fade effects, echoing the hard page turn of a bound ledger.",
+      "productionMethod": "Vector stylesheet script generating PDF/A-1b compliant documents natively within Plajah Tela, ensuring identical reproduction on an office laser or high-speed church copier.",
+      "humanTrace": "The deliberate, visible weight of structural column lines and the subtle optical kerning of the lead serif title, reminiscent of hand-set lead type on an 1832 press.",
+      "risk": "Risking severe rigidity that may alienate those accustomed to loose, unstructured word processor default layouts; this risk is worth taking because true legibility and lasting authority require an unyielding structural backbone.",
+      "arguesWith": {
+        "directorId": "REBEL",
+        "why": "The Rebellious Hand calls my hierarchy a cage; I maintain that a mark with no structure behind it is merely noise with confidence."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Mimeographed Dissent",
+      "idea": "A study guide stylesheet that simulates the gritty, over-inked heat of a church-basement mimeograph machine running late into the night.",
+      "geometry": "A harsh, unyielding US Letter grid with an off-center 1.2-inch left margin and a heavy, bleeding right margin that accommodates handwritten margin notes and red pen corrections from a tired grader.",
+      "typography": "Courier Prime for all body text at 11pt, regular, all-left, tight tracking with typewriter strike-through inconsistencies; Special Elite for Heading 1 at 18pt, bolded via double-strike simulation; DM Mono for Headings 2 and 3; no paid fonts, only Google Fonts OFL.",
+      "imageLogic": "No photographs. Pure vector line-art flourishing: crooked double-bracket corner ornaments and an imperfect, scratched side margin stripe generated procedurally to look like drum-scratches on an old stencil master.",
+      "texture": "Simulated rough-tooth newsprint paper tint (Hex #F4F0EA) overlaid with faint, uneven ink bleed and roller-skip artifacts around headings to mimic cheap black ink soaked into cheap stock.",
+      "motion": "Static document format for print and reading, but on screen, the page rendering engine simulates the flickering light of a fluorescent ballast overhead as the document is scrolled.",
+      "productionMethod": "Procedural shader rules and vector flourishes compiled inside Plajah Tela, designed specifically to output high-contrast monochrome plates that survive four generations of photocopying on a church Gestetner machine.",
+      "humanTrace": "Simulated typewriter key-clash density variations, uneven inked character weight, and hand-drawn bracket corners that betray the wobble of a human hand cutting a stencil with a stylus.",
+      "risk": "It looks intentionally messy, unpolished, and abrasive to institutional aesthetics, risking the rejection of reviewers who want clean corporate typefaces.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind wants serene, centered grace and harmonious serif proportions. I am smashing an ink-clogged typewriter across the page because clean margins never stopped an unjust grade or a bad policy."
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "Systemic Ledger and Marginal Notation",
+      "idea": "An instrument of strict procedural layout that translates the precise spatial telemetry of an 1814 Jean Le Page pistol case into a resilient, church-copier-proof typography system for dense academic prose.",
+      "geometry": "US Letter 8.5 x 11 in with a 1.25-inch left margin grid for marginalia, locked to a baseline grid with strict 0.4-inch boundary constraints and a dual-band structural header.",
+      "typography": "IBM Plex Mono for metadata and numbering; Source Serif 4 for body and headings; JetBrains Mono for folio and running headers; open-licensed fonts strictly configured for 7:1 contrast.",
+      "imageLogic": "Vector-only flourishes and rules; no photographs or gradients, using flat vector vector-art framing derived from 19th-century mechanical joinery blueprints.",
+      "texture": "Simulated unbleached paper tint (#F7F5F0) with precise vector hairline rules and crisp single-pixel black ink rendering optimized for low-toner church copiers.",
+      "motion": "Static document layout by default; interactive document states display a programmatic layout shift that snaps margin notes into alignment when hovered.",
+      "productionMethod": "Procedural CSS/SVG stylesheet engine generating client-side print-ready layouts with embedded vector flourish primitives.",
+      "humanTrace": "The mechanical precision of a calculated coordinate system derived from the partition geometry of the Le Page pistol case dividers.",
+      "risk": "It risks feeling overly clinical or bureaucratic to a casual reader, but this rigor is essential for graders and reviewers parsing forty-page grant narratives.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist wants theatrical reveals and emotional flourishes on the cover, while I build an unrelenting programmatic stylesheet where every rule and margin is bound by strict functional telemetry."
+      }
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "Eclectic Field Studies and Ledger Sheets",
+      "idea": "Grounded in the precise spatial documentation of 'The Pennsylvania College book, 1832-1882' [Library of Congress], this theme builds a rigorous, archival ledger structure for study guides and essays that honors the handwritten margin note and the church copier's grain.",
+      "geometry": "A traditional 1-inch document grid with an expanded 1.5-inch left margin stripe reserved for handwritten marginalia and instructor tallies, maintaining absolute vertical rhythm via a 14pt baseline grid.",
+      "typography": "Title: EB Garamond 24pt, bold, sentence case, tracking 0, ink color, left-aligned, line height 1.2. Subtitle: Source Sans 3, 11pt, regular, all caps, tracking 100, muted ink, left-aligned, space after 12pt. Heading 1: EB Garamond 16pt, bold, sentence case, tracking 0, accent color, space before 18pt, space after 6pt. Heading 2: Source Sans 3 13pt, semi-bold, sentence case, tracking 50, ink color, space before 12pt, space after 4pt. Heading 3: Source Sans 3 11pt, bold, italic, sentence case, tracking 0, ink color. Body: Source Serif 4 11pt, regular, paragraph justified, first-line indent 0.25in, line height 1.4, ink color. Quote: Source Serif 4 10pt, italic, left indent 0.5in, right indent 0.5in, muted ink. Pull Quote: EB Garamond 14pt, italic, centered, full measure, accent color. Caption: Source Sans 3 9pt, regular, muted ink, left-aligned. Lists: Source Serif 4 11pt with custom hanging",
+      "imageLogic": "No photographs permitted under the strict production policy; visual interest is carried entirely by procedural vector margins, rules, and typography.",
+      "texture": "Simulated warm off-white parchment paper tint (#FBF9F5) with a subtle procedural tooth that maintains crisp contrast against deep black-brown ink (#1E1B18), optimized for high-contrast church copier reproduction.",
+      "motion": "Static document format with smooth page-flip rendering transitions in the Tela viewer, adhering to standard pagination timing.",
+      "productionMethod": "Generated entirely via CSS-to-vector printing engines and SVG procedural flourish constants, requiring no external font licenses or paid assets.",
+      "humanTrace": "Simulated ink bleed at microscopic scales and the structural layout logic derived from nineteenth-century institutional ledger books.",
+      "risk": "Risking an overly austere academic feel by refusing decorative illustrations, but worth it because it treats student notes and grant narratives with genuine archival dignity.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist wants to smuggle in gilded flourishes borrowed from Le Page percussion pistols [Art Institute of Chicago], forgetting that a church copier will crush fine gold lines into illegible mud. Specificity means respecting the medium's physical constraints."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "Chiaroscuro Scholasticism",
+      "idea": "An academic paper treated as a Dutch interior—deeply legible, generous with white space, and anchored by heavy structural framing that guides the eye like natural window light.",
+      "geometry": "Generous 1.2-inch margins on US Letter with a disciplined 12pt grid, establishing a weighty, centered reading column flanked by a dedicated margin stripe for annotations and section markers.",
+      "typography": "EB Garamond for body at 11.5pt with 1.4 line height and justified alignment; Fraunces for Title and Headings with deep optical sizing, small caps, and dramatic contrast; Courier Prime for captions and metadata.",
+      "imageLogic": "Vector flourish framework using precise architectural rules and corner ornaments derived from Gerard ter Borch's interior geometries, rendered entirely as crisp SVG paths.",
+      "texture": "Simulated warm vellum paper tint (#FBF9F5) with a subtle grain pattern baked into the SVG background, paired with deep iron-gall ink (#1C1A18) for maximum laser-print contrast.",
+      "motion": "Static document format with smooth programmatic accordion expansion for nested outline views in Tela, echoing the slow, deliberate reveal of a curtain drawing back.",
+      "productionMethod": "Procedural CSS/SVG generation via Tela page engine, compiled directly to printer-safe PDF with zero external image dependencies and low ink coverage.",
+      "humanTrace": "The slight optical imperfections and character weight variations inherent in EB Garamond's open-source revival of Jean Jannon's seventeenth-century punches.",
+      "risk": "Risks looking overly theatrical for a dry grant narrative, but that theatricality ensures the reader's attention is commanded rather than begged.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Minimalist calls my margin stripes and corner ornaments decorative clutter; I call them the architecture of focus that keeps the eye from drifting off the page."
+      }
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "Clear Manuscript Grid",
+      "idea": "Remove every typographic ornament until only the single load-bearing hairline rule remains to anchor forty pages of rigorous thought.",
+      "geometry": "US Letter, 0.8-inch side margins, 1-inch top/bottom margins; a single structural column governed entirely by an absolute 12pt baseline grid that forces every line, heading, and quote block to snap to vertical position without exception.",
+      "typography": "Source Serif 4 (Body, 11pt, regular, 0 tracking, #1A1A1A, justified, paragraph indent 0.25in); Source Sans 3 (Title, 24pt, 600 weight, uppercase, 0.05em tracking, #1A1A1A, left, space below 12pt); Source Sans 3 (Subtitle, 13pt, 400 weight, normal case, 0.03em tracking, #4A4A4A, left, space below 24pt); Source Serif 4 (Heading 1, 16pt, 600 weight, normal case, 0 tracking, #1A1A1A, left, space above 18pt, space below 6pt); Source Serif 4 (Heading 2, 13pt, 600 weight, normal case, 0 tracking, #2A2A2A, left, space above 14pt, space below 4pt); Source Serif 4 (Heading 3, 11pt, 600 weight, italic, 0 tracking, #2A2A2A, left, space above 10pt, space below 2pt); Source Serif 4 (Quote, 10.5pt, regular, italic, 0 tracking, #3A3A3A, left, indented left and right 0.5in, space above/below 8pt); Source Sans 3 (Pull quote, 14pt, 600 weight, normal case, 0 tracking, #1A1A1A, centered, space above/below 1",
+      "imageLogic": "No photographs. Pure vector page flourishes: a single 0.5pt hairline rule directly above Heading 1 as a gravitational anchor, and a minimalist page number folio at the bottom center. No other decoration.",
+      "texture": "Clean off-white archival paper tint (#FBFBFA) carrying sharp, low-saturation carbon black ink (#1A1A1A) engineered for high-contrast legibility on office laser printers and church copiers alike.",
+      "motion": "Static document sheet; layout engine snaps text instantly to the baseline grid upon edit without layout reflow jitter.",
+      "productionMethod": "Procedural CSS and SVG generation engine for Plajah Tela, compiling markdown/plaintext directly into precise print-ready PDF streams using only open-licensed Google Fonts (Source Serif 4 and Source Sans 3).",
+      "humanTrace": "The deliberate, visible restraint of the editor who chose what to cross out, leaving only an absolute typographic rhythm as evidence of human thought.",
+      "risk": "Risking severe austerity that some users may mistake for a blank default template, but worth it because total reduction forces every single word to carry its own weight.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Dramatist adds flourishes until something happens. I remove flourishes until only the thought that matters can survive. Decoration is noise on a forty-page research paper."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "REBEL",
+      "objection": "The Rebellious Hand calls my hierarchy a cage; I maintain that a mark with no structure behind it is merely noise with confidence."
+    },
+    {
+      "from": "REBEL",
+      "against": "CLASSICAL",
+      "objection": "The Classical Mind wants serene, centered grace and harmonious serif proportions. I am smashing an ink-clogged typewriter across the page because clean margins never stopped an unjust grade or a bad policy."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "BAROQUE",
+      "objection": "The Baroque Dramatist wants theatrical reveals and emotional flourishes on the cover, while I build an unrelenting programmatic stylesheet where every rule and margin is bound by strict functional telemetry."
+    },
+    {
+      "from": "WORLD_ECLECTIC",
+      "against": "BAROQUE",
+      "objection": "The Baroque Dramatist wants to smuggle in gilded flourishes borrowed from Le Page percussion pistols [Art Institute of Chicago], forgetting that a church copier will crush fine gold lines into illegible mud. Specificity means respecting the medium's physical constraints."
+    },
+    {
+      "from": "BAROQUE",
+      "against": "RADICAL_MINIMAL",
+      "objection": "The Minimalist calls my margin stripes and corner ornaments decorative clutter; I call them the architecture of focus that keeps the eye from drifting off the page."
+    },
+    {
+      "from": "RADICAL_MINIMAL",
+      "against": "BAROQUE",
+      "objection": "The Dramatist adds flourishes until something happens. I remove flourishes until only the thought that matters can survive. Decoration is noise on a forty-page research paper."
+    }
+  ],
+  "reflections": [],
+  "synthesis": {
+    "lead": "WORLD_ECLECTIC",
+    "counterpoint": "REBEL",
+    "editor": "RADICAL_MINIMAL",
+    "direction": "geometry: US Letter with a 1-inch outer margin and a generous 1.5-inch left margin stripe for instructor notes and tallies, locked to a 14pt baseline grid. type: EB Garamond for titles and headings, Source Serif 4 for body text at 11pt, and Source Sans 3 for metadata and captions, all configured for 7:1 laser-black contrast. image: Vector-only flourishes including a full-measure rule above headings and a bracketed corner frame. texture: Simulated warm off-white parchment paper tint (#FBF9F5) paired with deep carbon ink (#1E1B18), optimized for high-contrast church copier reproduction.",
+    "keepFromCounterpoint": "The gritty, high-contrast black ink density and stencil-like punch required to survive generations of low-toner photocopying.",
+    "editorCut": "The Baroque corner ornaments and theatrical framing were excised by the editor because fine vector lines turn straight to muddy ink on a church copier.",
+    "openDecision": "Choose whether your document opens with an archival ledger margin stripe for heavy teacher annotations or keeps the clean, unyielding minimalist gutter.",
+    "ariaSummary": "Hello. I convened the council to direct the definitive studious document theme for Plajah Tela, balancing the close scrutiny of a grading pen with the harsh physical realities of an office laser or church copier. \n\nThe team clashed immediately over ornamentation. The Rebellious Hand argued that clean institutional grids ignore the messy reality of marginalia, while The Classical Mind defended strict proportional cages. We ultimately sided with The World-Eclectic Traveler's archival discipline, knowing that a true study guide must respect both historical legibility and the physical ink limitations of a basement copier.\n\nThe editor stepped in to strip away the heavier Baroque flourishes that would otherwise turn to mud under low toner. What remains is a high-contrast, robustly structured stylesheet where every word of your essay, grant narrative, or lesson plan commands absolute clarity.",
+    "quotes": [
+      {
+        "directorId": "WORLD_ECLECTIC",
+        "line": "Specificity means respecting the medium's physical constraints."
+      },
+      {
+        "directorId": "REBEL",
+        "line": "I am smashing an ink-clogged typewriter across the page because clean margins never stopped an unjust grade or a bad policy."
+      }
+    ]
+  }
+}

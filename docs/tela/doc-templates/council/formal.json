@@ -1,0 +1,193 @@
+{
+  "family": "formal",
+  "name": "Letters, memos & minutes",
+  "id": "mwfo6fnsz1lklm",
+  "uid": "doc-themes",
+  "createdAt": 1794616248520,
+  "depth": "QUICK",
+  "status": "DONE",
+  "brief": {
+    "ask": "Direct the theme for institutional paperwork: letters on letterhead, memos, board minutes, policies and reports.",
+    "domain": "churches, nonprofits and small organisations in Detroit",
+    "audience": "board members, donors, city offices, congregants — people who judge an organisation by its paper",
+    "feeling": "trustworthy, settled, dignified without being stiff",
+    "surface": "Tela word-document theme family \"Letters, memos & minutes\"",
+    "constraints": [
+      "Surface: a word-processor page in Plajah Tela — US Letter, 8.5 × 11 in, printed on an office laser or church copier and also read on screen. These are documents people WRITE in: the words are theirs and can be any length. The design must hold with one paragraph or forty pages.",
+      "You are directing a THEME: a stylesheet plus page flourishes. The stylesheet covers Title, Subtitle, Heading 1–3, Body, Quote, Pull quote, Caption, Lists (bullet glyph), Header/Footer text. For each give the font from the list, size in pt, weight, case, tracking, colour, alignment and spacing; say whether body is ragged or justified and whether paragraphs indent or space.",
+      "Fonts available (use only these): Text serifs: Source Serif 4, EB Garamond, Cormorant Garamond, Crimson Pro, Libre Baskerville, Lora, Spectral, Merriweather, Cardo, Alegreya, Gelasio, Noto Serif, Bitter, Zilla Slab, Roboto Slab, Josefin Slab. Display serifs: Playfair Display, Fraunces, DM Serif Display, Bodoni Moda, Instrument Serif, Gloock, Cinzel, Italiana, Forum, Marcellus, Yeseva One, Abril Fatface, Philosopher. Sans: Inter, Source Sans 3, DM Sans, Manrope, Work Sans, Karla, Nunito, Outfit, Sora, Space Grotesk, Epilogue, Archivo, Raleway, Josefin Sans, Tenor Sans, Lexend, Bricolage Grotesque, Syne, Rubik. Condensed: Oswald, Bebas Neue, League Gothic, Big Shoulders Display, Archivo Black, Anton. Mono / typewriter: JetBrains Mono, IBM Plex Mono, DM Mono, Space Mono, Courier Prime, Special Elite. Hand: Caveat, Kalam, Patrick Hand. Blackletter / uncial: UnifrakturMaguntia, Uncial Antiqua, Almendra.",
+      "Flourish vocabulary the page engine can draw behind and around the text, as flat vector art: paper tint; page border frames (single, double, inset, bracketed corners); corner ornaments; rules above/below headings (hairline, thick-thin, short centred, full measure, dashed); a side band or margin stripe; a head band across the top; drop caps (2–4 lines); a fleuron or geometric mark between sections; folio (page number) treatment; heading number tabs; shaded or ruled quote blocks. No photographs, no gradients wider than a band, nothing that depends on the words.",
+      "Print law: body text 10.5–12 pt with at least 7:1 contrast against the paper; ink coverage low enough for a church copier (no full-bleed dark pages; tinted paper must also read when printed on white); nothing vital within 0.4 in of the edge; the theme must survive black-and-white printing.",
+      "Give production-ready specifics: palette as hex (paper, ink, muted ink, accent, second accent), the exact fonts, sizes, the flourish list with positions and weights in pt or inches, and the one detail that makes this theme recognisable from across a table.",
+      "Name the direction with a two- or three-word title a church administrator or a student would understand in a template gallery."
+    ],
+    "references": [
+      "Plajah Tela Writer (paragraph styles, page setup, vector page flourishes)"
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "Proportional Civic Standard",
+      "idea": "A formal document architecture built on Renaissance book-art proportions, establishing immediate institutional authority through strict typographic counterpoint and light vector geometry that survives cheap copier reproduction.",
+      "geometry": "US Letter page governed by a 12-column cantus firmus grid with 0.75 in side margins and 0.875 in top/bottom margins, enforcing a strict 2:3 vertical proportion between body text block and total sheet height; side band at 0.5 in left margin acts as an architectural axis line.",
+      "typography": "Display: Marcellus (Heading 1 at 20 pt / 24 pt leading, caps, +80 tracking; Heading 2 at 14 pt / 18 pt leading, small caps, +40 tracking). Text Serif: EB Garamond (Body at 11 pt / 15 pt leading, sentence case, normal tracking, ragged-right, 0.25 in first-line indent; Subtitle at 12 pt italic; Quote at 10.5 pt italic with 0.5 in left-indent). Header/Footer: Source Sans 3 at 8.5 pt / 11 pt leading, uppercase, +100 tracking. Palette: Paper #FBF9F5, Ink #1A1A18, Muted Ink #54524D, Accent #7C2529 (oxblood), Second Accent #3D4A3E (deep olive).",
+      "imageLogic": "Generative procedural line art and relief-shaded vector borders; no continuous-tone photography. Generative shaders simulate traditional woodblock fleuron weights and copperplate rules at 1200 DPI vector accuracy, matching Jacopo Sansovino's framed relief density ('The Institution of the Rosary', c. 1590).",
+      "texture": "Simulated 24 lb warm rag paper tooth via procedural noise at 3% opacity; high-contrast ink simulation with slight ink-spread micro-edges on headings to evoke cold-type relief printing without losing laser-printer crispness.",
+      "motion": "Static print-first document system; digital web views implement a 240 ms linear opacity swell on section division rules during scroll focus, mimicking light traversing an architectural molding.",
+      "productionMethod": "Procedural SVG stylesheet engine rendering zero-raster vector page flourishes (0.5 pt double hairline borders, 1.5 pt thick-thin rules under Heading 1, centered 6 pt diamond fleuron micro-marks) generated dynamically via Plajah Tela layout scripts.",
+      "humanTrace": "Slight asymmetric counter-spacing calibrated manually in Marcellus display ligatures and physical ink-bleed micro-contours baked into the SVG rule terminals.",
+      "risk": "Risks appearing overly conservative or archival to youth-led organizations; worth the risk because absolute visual stability and legibility foster deep institutional trust across city departments, donors, and elders.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist demands theatrical contrast swells and asymmetrical theatrical frames; I insist that a document's authority comes from quiet, unchanging proportional balance where no reveal needs to announce itself."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Heavy Ink Board and Letterhead",
+      "idea": "Dignity built from physical pressure and heavy industrial slab type rather than fragile luxury flourishes, so every memo feels deliberate and permanent when pulled from a church copier.",
+      "geometry": "Asymmetric left margin anchor: a 0.5 in dark accent band running down the left side with embedded document status text, leaving 0.75 in top/bottom/right margins and a wide, stable 6.5 in text column that supports short letters or endless policy pages without shifting.",
+      "typography": "Title: Bitter Bold 22 pt, sentence case, tracking -0.02, accent color #1B365D. Heading 1: Bitter SemiBold 14 pt, uppercase, tracking +0.05, ink color #1A1A1A with a 1 pt hairline rule below. Body: Source Serif 4 Regular 11 pt, 15 pt leading, ragged right, paragraph spacing 8 pt (no indent), contrast 11:1 on cream paper. Subtitle/Header/Footer: IBM Plex Mono Medium 9 pt, uppercase, tracking +0.10, muted ink #4A5568. Bullet glyph: heavy solid square.",
+      "imageLogic": "No arbitrary photos. Procedurally generated vector page flourishes draw sharp 1.5 pt bracketed corner frames and thick-thin rules that emulate high-pressure presswork without clogging low-resolution office printers or adding heavy file weight on mobile PDF readers.",
+      "texture": "A simulated off-white tooth paper background (#FBF9F5) with micro-procedural noise representing laser-toner bite, high-density carbon ink (#1A1A1A), structural industrial navy (#1B365D), and a deep red accent line (#8B0000) inspired by lithographic press marks in Jean Louis Forain's 'The Reporter'.",
+      "motion": "Static printable document rendering with responsive reflow for screen reading; page flourishes lock to page bounds while text scales fluidly on mobile viewports.",
+      "productionMethod": "Engineered entirely in procedural vector SVG and Tela layout rules: flat vector border frames, procedural rule drawing, and system web-font loading via Google Fonts with zero raster asset dependencies.",
+      "humanTrace": "The deliberate heft of slab serif letterforms combined with typewriter mono metadata and off-center ruled brackets—recalling hand-stamped docket marks and mimeograph distribution lines from Detroit labor and church archives.",
+      "risk": "Risks appearing too blunt or unpolished to board members expecting traditional centered copperplate serif templates, but gains undeniable urgency, authenticity, and flawless black-and-white print legibility.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind wants centered symmetry and delicate serif flourishes to fake historical authority; I demand thick slab structure and offset rules that look honest on a cheap church copier and insist on present-day urgency."
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "Parametric Civic Ledger Theme System",
+      "idea": "An adaptive institutional theme where visual hierarchy and margin telemetry adjust dynamically to document length and page state while retaining total laser-copier legibility.",
+      "geometry": "Modular 8-column typographic grid on an 8.5 × 11 inch page with 0.625 in margins; layout rules re-evaluate header band height and rule thickness programmatically based on total page count and character density.",
+      "typography": "Body: Source Serif 4 (11pt, regular, 1.45 leading, ragged right, 0.25 in paragraph indent); Headings 1–3: Space Grotesk (18pt bold, 14pt medium, 12pt bold, all-caps tracking +0.05em); Telemetry & Folios: IBM Plex Mono (8.5pt regular, uppercase).",
+      "imageLogic": "No pictorial assets; vector graphics are strictly parametric metadata badges, rule calculations, and document state stamps derived programmatically from file attributes.",
+      "texture": "Procedural micro-dithered laser toner edge simulation and procedural fiber-grain offset generated entirely via code shaders for display, rendering clean vectors on office copiers.",
+      "motion": "On-screen viewports calculate fluid reflow states between single-page letterheads and multi-page board minutes, animating margin guides and section dividers on structural updates.",
+      "productionMethod": "Pure SVG vector template engine compiled via CSS parametric logic and post-processed for high-contrast B&W physical laser print output.",
+      "humanTrace": "Algorithmic simulation of physical toner drum heat-scatter along rule-line boundaries and pressure-sensitive baseline micro-variations.",
+      "risk": "Exposing metadata telemetry like document length and edit state on formal paperwork risks feeling industrial, but it establishes total administrative transparency and structural honesty.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind insists on static monumental frames, whereas I mandate a dynamic layout instrument that recalibrates its rules based on document input."
+      }
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "Gratiot Parish Ledger",
+      "idea": "An archival civic layout grounded in 1940s Detroit labor bulletins and parish registry books, where high-density text, deliberate dual-script header geometry, and resilient laser-copier margins turn ordinary office memos into permanent records.",
+      "geometry": "Based on an 8.5 × 11 in US Letter grid with asymmetrical margins: 1.0 in left margin for binding and archive margin notes, 0.75 in top/bottom/right margins. The header block runs on a 2-column micro-grid (70% primary document title, 30% JetBrains Mono metadata block). Heading 1 is anchored by a 0.5 pt hairline rule spanning full measure with a 3 pt accent square placed at the left intersection. Body text uses 11 pt with 15 pt leading on a strict 3 pt baseline mesh to ensure complete cross-column alignment.",
+      "typography": "Body: Libre Baskerville, 11 pt / 15 pt, regular, normal case, tracking 0, ink (#1F2226), justified with 0.25 in first-line indent (no paragraph spacing). Title: Libre Baskerville, 24 pt, bold, sentence case, tracking -0.01 em, ink (#1F2226), left aligned, 18 pt space after. Subtitle: Noto Serif, 13 pt, italic, sentence case, tracking 0, muted ink (#596068), left aligned, 12 pt space after. Heading 1: Libre Baskerville, 15 pt, bold, sentence case, tracking 0, accent (#9E4225), left aligned, 12 pt before / 6 pt after. Heading 2: Libre Baskerville, 12.5 pt, bold italic, sentence case, tracking 0, ink (#1F2226), left aligned, 9 pt before / 4 pt after. Heading 3: Noto Serif, 11 pt, bold, ALL CAPS, tracking +0.05 em, muted ink (#596068), left aligned, 6 pt before / 2 pt after. Quote / Pull quote: Noto Serif, 12 pt / 17 pt, italic, sentence case, tracking 0, accent (#9E4225), left aligned with ",
+      "imageLogic": "No photographic imagery. Document graphics are limited to procedural vector rules, archival catalog boxes drawn in 0.5 pt stroke, and generative vector stamp textures for organizational seals generated via SVG path data.",
+      "texture": "Simulated 24 lb unbleached cotton paper tint (#F8F5EE) generated procedurally with faint micro-grain noise (1.5% opacity) to prevent digital flat surfaces on screen while allowing clean output on standard white office paper or budget laser copiers.",
+      "motion": "Static print layout. Screen-viewing transition renders page turns with a linear 120ms fade and micro-shift (2px vertical) without visual elastic spring or artificial shadow skew.",
+      "productionMethod": "Procedural CSS/SVG template engine rendering vectors directly to PDF/A for permanent digital archiving and high-contrast monochrome printing on church or office copiers.",
+      "humanTrace": "Generative micro-variations in line-weight density along the 0.5 pt section rules, mimicking the subtle ink-bleed and pressure variances of mid-century mechanical mimeograph impression on rag paper.",
+      "risk": "Risks appearing too dense or overly bureaucratic to modern readers accustomed to expansive white space; worth it because high-density typography respects the reader's time, saves paper, and conveys immediate institutional gravity.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Minimalist strips away page flourishes and margin rules as extraneous noise under the illusion of universal clarity. In practice, removing visual structure strips non-profit records of provenance and makes every organization sound like a tech startup; specific margins and catalog marks protect the document's history and purpose."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "Sanctuary Ledger Bronze Chiaroscuro",
+      "idea": "Transform routine institutional documents into high-stage civic records by pairing dramatic relief framing with architectural typographic contrast that commands reverence on the page.",
+      "geometry": "A dramatic 0.5-inch left margin anchor band in deep bronze, 0.75-inch top/bottom/right margins, with a heavy 2 pt structural head band spanning full measure above H1 titles and inset corner-bracketed quote containers.",
+      "typography": "Title: Instrument Serif 32pt/36pt regular; Subtitle: Cormorant Garamond 14pt italic; H1: Instrument Serif 20pt; Body: Cormorant Garamond 11pt/15pt ragged right with 0.25-inch first-line indent; Headers/Footers: JetBrains Mono 8.5pt uppercase +0.1em tracking.",
+      "imageLogic": "Generative procedural vector ornaments and bevelled fleurons designed with chiaroscuro depth curves, inspired by Jacopo Sansovino's low-relief bronze work 'The Institution of the Rosary'—rendering sculpted dimensional weight without raster photo assets.",
+      "texture": "Simulated heavy rag paper tooth (#F9F6F0) with iron gall ink (#1C1A17), warm bronze accent (#4A3225), and pale brass highlight (#9E825A), engineered to drop cleanly to crisp high-contrast monochrome on a office copier.",
+      "motion": "On screen, the top rule expands horizontally from center over 220ms (ease-out-cubic), followed by a subtle fade-up of the 3-line drop cap and side band to set a deliberate, theatrical reveal for the text.",
+      "productionMethod": "Procedural SVG vector stylesheet with WebGL micro-noise paper shaders; parameters generate vector flourishes dynamically per page height and print color-separations automatically.",
+      "humanTrace": "Intentionally asymmetrical tool-carve offsets in the SVG fleuron paths, giving rules and corner brackets the tangible weight of hand-engraved metal relief.",
+      "risk": "Risks being perceived as overly theatrical for quick internal memos, but the gravitas earns trust and respect from board members and city officers where generic templates fail.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Minimalist calls an empty page with floating light-gray sans-serif restraint; I call it a refusal to make a decision or grant an institution's words the stage they deserve."
+      }
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "The Single Hairline Record",
+      "idea": "Strip every border, frame, and drop cap until a single 0.25 pt rule and asymmetric spatial silence carry complete institutional trust on 20lb copier paper.",
+      "geometry": "Asymmetric layout: 1.25 in left margin creating an active vertical margin column for dates and document IDs, 0.75 in top, right, and bottom margins; no page borders, zero corner ornaments.",
+      "typography": "Source Serif 4 for body (11 pt / 15 pt leading, regular, ragged-right, unindented with 6 pt paragraph gap) paired with IBM Plex Mono for headers, folios, and labels (8.5 pt, uppercase, 0.06 em tracking). Heading 1 in Source Serif 4 Semibold at 15 pt.",
+      "imageLogic": "No photographic or decorative assets permitted; screen previews use procedurally generated 600dpi laser-toner density maps to simulate optical printing on lightweight office wove.",
+      "texture": "Uncoated bright-white office stock (#FDFDFD) with high-contrast typewriter charcoal ink (#111111) and muted slate (#555555) for structural rules and folios, inspired by the stark clarity of the 8th-century Nara manuscript '賢愚経残巻（大聖武）'.",
+      "motion": "Static page geometry; screen render fades metadata along the baseline grid in a single sharp 100ms step to mimic physical sheet placement.",
+      "productionMethod": "Pure declarative SVG layout engine compiled to PDF/A and Tela CSS paged media using open-source web fonts; zero raster fills or solid ink blocks to ensure instant copier output.",
+      "humanTrace": "Procedurally authored micro-variations in line stroke width (0.25 pt fluctuating to 0.22 pt) simulating physical ink-jet drop and laser heat fusing.",
+      "risk": "Risks being judged as unfinished by administrators expecting traditional frame borders, but wins by eliminating print cost and giving absolute authority to the spoken word.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist adds borders, drop caps, and section fleurons until the page is full. I edit until nothing can be removed without collapsing the document's legibility."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "BAROQUE",
+      "objection": "The Baroque Dramatist demands theatrical contrast swells and asymmetrical theatrical frames; I insist that a document's authority comes from quiet, unchanging proportional balance where no reveal needs to announce itself."
+    },
+    {
+      "from": "REBEL",
+      "against": "CLASSICAL",
+      "objection": "The Classical Mind wants centered symmetry and delicate serif flourishes to fake historical authority; I demand thick slab structure and offset rules that look honest on a cheap church copier and insist on present-day urgency."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "CLASSICAL",
+      "objection": "The Classical Mind insists on static monumental frames, whereas I mandate a dynamic layout instrument that recalibrates its rules based on document input."
+    },
+    {
+      "from": "WORLD_ECLECTIC",
+      "against": "RADICAL_MINIMAL",
+      "objection": "The Minimalist strips away page flourishes and margin rules as extraneous noise under the illusion of universal clarity. In practice, removing visual structure strips non-profit records of provenance and makes every organization sound like a tech startup; specific margins and catalog marks protect the document's history and purpose."
+    },
+    {
+      "from": "BAROQUE",
+      "against": "RADICAL_MINIMAL",
+      "objection": "The Minimalist calls an empty page with floating light-gray sans-serif restraint; I call it a refusal to make a decision or grant an institution's words the stage they deserve."
+    },
+    {
+      "from": "RADICAL_MINIMAL",
+      "against": "BAROQUE",
+      "objection": "The Baroque Dramatist adds borders, drop caps, and section fleurons until the page is full. I edit until nothing can be removed without collapsing the document's legibility."
+    }
+  ],
+  "reflections": [],
+  "synthesis": {
+    "lead": "WORLD_ECLECTIC",
+    "counterpoint": "REBEL",
+    "editor": "RADICAL_MINIMAL",
+    "direction": "Title: Gratiot Parish Ledger. Geometry: US Letter (8.5 × 11 in) with 1.0 in left binding margin, 0.75 in top, bottom, and right margins, anchored on a 3 pt baseline grid. Type: Title: Libre Baskerville Bold 22 pt / 26 pt, sentence case, tracking -0.01 em, left aligned (#1F2226); Subtitle: Noto Serif Italic 13 pt / 17 pt, muted ink (#596068); Heading 1: Libre Baskerville Bold 15 pt / 19 pt, sentence case, accent rust (#9E4225), 12 pt space before / 6 pt after; Heading 2: Libre Baskerville Bold Italic 12.5 pt / 16 pt; Heading 3: Noto Serif Bold 11 pt, ALL CAPS, tracking +0.05 em; Body: Libre Baskerville Regular 11 pt / 15 pt, sentence case, tracking 0, justified, 0.25 in first-line indent, 0 pt paragraph gap (#1F2226); Quote / Pull quote: Noto Serif Italic 12 pt / 17 pt, left aligned with 0.5 in left indent and 1.5 pt rust left rule; Header/Footer & Metadata: IBM Plex Mono Regular 8.5 pt, uppercase, tracking +0.06 em; Bullet glyph: 3 pt solid square. Flourishes: 0.5 pt vector hairline rule spanning full measure above Heading 1 with a solid 3 pt square accent mark at the left margin line; 0.5 pt metadata outline box in header; simple centered mono folio in footer. Palette: Paper #F8F5",
+    "keepFromCounterpoint": "The high-contrast typewriter metadata block (IBM Plex Mono) and heavy square bullet glyphs that bring present-day administrative urgency to archival typography.",
+    "editorCut": "Removed heavy vertical side margin bands, shaded quote containers, and multi-line drop caps to prevent copier toner clogging and keep file weight minimal.",
+    "openDecision": "Choose whether body text is set to justified with 0.25-inch first-line indents (traditional parish ledger) or ragged-right with 6 pt paragraph spacing (modern policy memo).",
+    "ariaSummary": "The council convened to build a document system that carries quiet authority whether printed on a church copier or read on a tablet. The team split quickly over how civic dignity should feel on 20 lb bond paper.\n\nThe Rebellious Hand pushed for industrial heft, while The Radical Minimalist urged us to strip every rule and frame. I chose The World-Eclectic Traveler's archival parish ledger direction as our lead: high-density typography and clear margin structure give non-profit paperwork immediate history and weight.\n\nFrom the counterpoint, we kept the sharp mono metadata headers and square structural bullets that make memos look deliberate. From the editor, we cut dark background fills and heavy side bars so every page prints clean on budget office toner.",
+    "quotes": [
+      {
+        "directorId": "REBEL",
+        "line": "I demand thick slab structure and offset rules that look honest on a cheap church copier and insist on present-day urgency."
+      },
+      {
+        "directorId": "RADICAL_MINIMAL",
+        "line": "I edit until nothing can be removed without collapsing the document's legibility."
+      }
+    ]
+  }
+}

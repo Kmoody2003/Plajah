@@ -100,6 +100,8 @@ export type TelaOp =
   | { type: 'SET_LIVING_PAGE'; page: LivingPage }
   | { type: 'SET_LIVING_BOOK'; living: LivingBook | undefined }
   // ── Versioning (P2b) — lock/unlock is a doc-level mutation ───────────────────
+  /** Several ops as ONE edit (one undo step): applying a theme or a template across pages. */
+  | { type: 'BATCH'; ops: TelaOp[]; label: string }
   | { type: 'SET_LOCKED'; locked: boolean }
   | { type: 'SET_CURRENT_VERSION'; versionId: string; locked?: boolean };
 
@@ -116,6 +118,11 @@ function reorderById<T extends { id: string }>(list: T[], id: string, toIndex: n
 export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
   const now = Date.now();
   switch (op.type) {
+    case 'BATCH': {
+      let d = doc;
+      for (const o of op.ops) if (o.type !== 'BATCH') d = applyTelaOp(d, o);
+      return d;
+    }
     case 'SET_TITLE':
       return { ...doc, title: op.title, updatedAt: now };
     case 'ADD_FRAME': {

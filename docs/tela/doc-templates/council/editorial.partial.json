@@ -1,0 +1,142 @@
+{
+  "family": "editorial",
+  "name": "Newsletters, articles & annual reports",
+  "id": "mwfo8t06qa4ug9",
+  "uid": "doc-themes",
+  "createdAt": 1794616359126,
+  "depth": "QUICK",
+  "status": "FAILED",
+  "brief": {
+    "ask": "Direct the theme for editorial documents: newsletters, feature articles, impact and annual reports.",
+    "domain": "community organisations and independent publishers telling their own story",
+    "audience": "members, neighbours and funders who will skim first and read second",
+    "feeling": "confident, journalistic, alive — a publication, not a form",
+    "surface": "Tela word-document theme family \"Newsletters, articles & annual reports\"",
+    "constraints": [
+      "Surface: a word-processor page in Plajah Tela — US Letter, 8.5 × 11 in, printed on an office laser or church copier and also read on screen. These are documents people WRITE in: the words are theirs and can be any length. The design must hold with one paragraph or forty pages.",
+      "You are directing a THEME: a stylesheet plus page flourishes. The stylesheet covers Title, Subtitle, Heading 1–3, Body, Quote, Pull quote, Caption, Lists (bullet glyph), Header/Footer text. For each give the font from the list, size in pt, weight, case, tracking, colour, alignment and spacing; say whether body is ragged or justified and whether paragraphs indent or space.",
+      "Fonts available (use only these): Text serifs: Source Serif 4, EB Garamond, Cormorant Garamond, Crimson Pro, Libre Baskerville, Lora, Spectral, Merriweather, Cardo, Alegreya, Gelasio, Noto Serif, Bitter, Zilla Slab, Roboto Slab, Josefin Slab. Display serifs: Playfair Display, Fraunces, DM Serif Display, Bodoni Moda, Instrument Serif, Gloock, Cinzel, Italiana, Forum, Marcellus, Yeseva One, Abril Fatface, Philosopher. Sans: Inter, Source Sans 3, DM Sans, Manrope, Work Sans, Karla, Nunito, Outfit, Sora, Space Grotesk, Epilogue, Archivo, Raleway, Josefin Sans, Tenor Sans, Lexend, Bricolage Grotesque, Syne, Rubik. Condensed: Oswald, Bebas Neue, League Gothic, Big Shoulders Display, Archivo Black, Anton. Mono / typewriter: JetBrains Mono, IBM Plex Mono, DM Mono, Space Mono, Courier Prime, Special Elite. Hand: Caveat, Kalam, Patrick Hand. Blackletter / uncial: UnifrakturMaguntia, Uncial Antiqua, Almendra.",
+      "Flourish vocabulary the page engine can draw behind and around the text, as flat vector art: paper tint; page border frames (single, double, inset, bracketed corners); corner ornaments; rules above/below headings (hairline, thick-thin, short centred, full measure, dashed); a side band or margin stripe; a head band across the top; drop caps (2–4 lines); a fleuron or geometric mark between sections; folio (page number) treatment; heading number tabs; shaded or ruled quote blocks. No photographs, no gradients wider than a band, nothing that depends on the words.",
+      "Print law: body text 10.5–12 pt with at least 7:1 contrast against the paper; ink coverage low enough for a church copier (no full-bleed dark pages; tinted paper must also read when printed on white); nothing vital within 0.4 in of the edge; the theme must survive black-and-white printing.",
+      "Give production-ready specifics: palette as hex (paper, ink, muted ink, accent, second accent), the exact fonts, sizes, the flourish list with positions and weights in pt or inches, and the one detail that makes this theme recognisable from across a table.",
+      "Name the direction with a two- or three-word title a church administrator or a student would understand in a template gallery."
+    ],
+    "references": [
+      "Plajah Tela Writer (paragraph styles, page setup, vector page flourishes)"
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "Canonical Broadside Theme",
+      "idea": "A structural editorial stylesheet grounded in classical 3:2 page proportions, rigorous typographic counterpoint, and low-ink vector rule-work that holds authority on both screen and office copiers.",
+      "geometry": "8.5 × 11 inch US Letter page with 0.875 in side margins and 1.0 in top/bottom margins; content aligns to a 6-column structural grid with a strict 15 pt baseline grid governing every heading, rule, and paragraph.",
+      "typography": "Title: DM Serif Display 30 pt, normal case, tracking 0.01 in, center-aligned, 30 pt lead; Subtitle: EB Garamond 13 pt italic, centered, 18 pt lead; Heading 1: Marcellus 18 pt, all caps, tracking 0.08 in, 24 pt lead, center-aligned; Heading 2: EB Garamond 14 pt bold, title case, left-aligned, 18 pt lead; Heading 3: IBM Plex Mono 10 pt bold, all caps, tracking 0.1 in, left-aligned; Body: EB Garamond 11 pt regular, 15 pt lead, justified with 0.2 in first-line indent (no paragraph gap); Quote: EB Garamond 11.5 pt italic, ragged-right, inset 0.5 in left/right with 0.75 pt rule top and bottom; Caption: IBM Plex Mono 8.5 pt regular, tracking 0.04 in, left-aligned; Header/Footer: IBM Plex Mono 8 pt uppercase, tracking 0.12 in, outer-aligned; Bullet lists: EB Garamond 11 pt with custom square fleuron bullet. Palette: Paper #F8F6F1, Ink #1B1A17, Muted Ink #5C584F, Accent #8C2A1C (oxblood red), Sec",
+      "imageLogic": "Generative procedural vector diagrams, heraldic line marks, and monochrome halftone-simulated engravings bounded by strict 0.5 pt hairline frames; no full-bleed imagery; all visual assets are generated as single-color SVG vectors that map to Accent or Ink.",
+      "texture": "Off-white wove paper tint (#F8F6F1) inspired by the off-white wove paper of Jean Louis Forain's lithograph 'The Reporter' (Art Institute of Chicago); crisp lithographic ink edge behavior simulated purely through vector rules without pixel noise, rendering perfectly when printed on standard black-and-white church copiers.",
+      "motion": "Static document structure for print, with digital screen views adopting a discrete 200ms opacity transition on page flip, ensuring the structural frame never shifts position or re-flows dynamically.",
+      "productionMethod": "Executed entirely via Plajah Tela CSS page layout rules and flat SVG vector flourishes: a 1.5 pt / 0.5 pt double head-band rule below the header, a 3-line drop cap in DM Serif Display for section openers, and centered 4-pt diamond fleurons as section dividers.",
+      "humanTrace": "Proportional weight calibration of metal-type typographers translated directly into rigid baseline-grid lock-ups, preserving the felt friction of hot-metal page composition.",
+      "risk": "Risks being perceived as overly formal by casual community writers, but this risk is necessary to give local announcements the unshakeable authority and long-term legibility of a historical record.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist demands dramatic spatial reveals and asymmetrical tension, whereas I insist that the layout frame must remain fixed, predictable, and structurally disciplined."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Independent Press Gazette Theme",
+      "idea": "Tear away digital slickness with a high-contrast broadside layout that channels the press-ink urgency of Jean Louis Forain’s lithographs into a office-copier-proof document system.",
+      "geometry": "0.6 in outer print boundary; asymmetric 0.25 in margin-stripe down the left edge; rigid 12 pt baseline; single-column body with 2.2 in wide offset pull-quote track; tight 0.4 in edge clearance to guarantee zero crop loss on home copiers.",
+      "typography": "Title: Bricolage Grotesque, 32 pt, Bold, tracking -0.02 em, #111111. Subtitle: DM Mono, 12 pt, Uppercase, tracking 0.08 em, #4A4A4A. H1: Space Grotesk, 20 pt, Bold, Uppercase, rule-below 2 pt #111111. H2: Space Grotesk, 14 pt, Bold. H3: DM Mono, 11 pt, Uppercase, #C43208. Body: Bitter, 11 pt / 15 pt line height, Regular, Ragged right, no indent, 8 pt paragraph space, #111111 over #F4F2EC paper. Pull Quote: Bitter Italic 14 pt with 3 pt #C43208 vertical rule. Caption: DM Mono 9 pt. Folio: DM Mono 8.5 pt bracketed '[ PAGE 01 ]'.",
+      "imageLogic": "Generative 1-bit high-contrast dithered duotone images, rendered directly as procedural vector SVG halftones; no smooth continuous tone allowed; images emulate zinc-plate newsprint press impressions under heavy physical pressure. Cites Jean Louis Forain's 'The Reporter' (c. 1900, Art Institute of Chicago https://www.artic.edu/artworks/7992) for its raw lithographic grease-pencil velocity.",
+      "texture": "Simulated 75 gsm unbleached newsprint background (#F4F2EC); micro-bleed on heavy text rules; matte ink bite (#111111) with zero gloss or soft ambient gradients.",
+      "motion": "Static print-first stylesheet; on screen, section headers snap instantly into position on scroll with 0-ms ease-out transitions to preserve telegraphic mechanical speed.",
+      "productionMethod": "Pure CSS print-stylesheet and SVG vector page flourishes generated procedurally in Plajah Tela Engine; palette uses #F4F2EC (paper tint), #111111 (carbon ink), #4A4A4A (lead gray), #C43208 (vermilion press red), #2B4C3F (hunter green margin band); fully monochrome-reproducible for 1-cent xerox machines.",
+      "humanTrace": "Intentionally uneven rule weights (2 pt head rule vs 0.75 pt sub-rules), heavy slab drop caps pressing into body copy, and visible bracketed typewriter folio markers.",
+      "risk": "Risks looking unpolished or abrupt to corporate readers, but wins by giving community organizers an unignorable voice that feels like real news off a press instead of a sterile corporate PDF.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind wants elegant, balanced margins and graceful Garamond italics that resolve smoothly; I want heavy slab rules, ragged-right Bitter text, and raw ink-bite contrast that screams to be read on a folded sheet of copier paper."
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "Parametric Wire Gazette",
+      "idea": "A data-governed publication system that structures editorial community broadsheets into high-density, responsive telemetry reports.",
+      "geometry": "Asymmetric two-column broadsheet grid on 8.5 × 11 in US Letter with a 0.6 in left structural telemetry margin containing procedural section index tabs, hairline rules, and document metadata coordinates, ensuring 0.5 in minimum outer safety margin for copier reproduction.",
+      "typography": "Title: Space Grotesk, 32 pt, Bold, sentence case, tracking -0.02em, Ink #0F1419, left. Subtitle: JetBrains Mono, 10 pt, Medium, UPPERCASE, tracking +0.08em, Muted Ink #4A5568, left. H1: Fraunces, 20 pt, SemiBold, sentence case, Ink #0F1419, left, 12 pt space above / 6 pt below. H2: Space Grotesk, 14 pt, Bold, sentence case, Accent #004080, left, 10 pt space above. H3: JetBrains Mono, 11 pt, Bold, UPPERCASE, Accent #004080, left. Body: Source Serif 4, 11 pt, Regular, ragged right, 1.4 leading, Ink #0F1419, 0 pt indent, 8 pt space between paragraphs. Quote: Fraunces, 13 pt, Italic, Accent #004080, left, 0.5 in left inset. Pull quote: Space Grotesk, 16 pt, SemiBold, Ink #0F1419, center, top/bottom 1pt rules. Caption: JetBrains Mono, 8.5 pt, Regular, Muted Ink #4A5568, left. Lists: JetBrains Mono bullet glyph [•], 11 pt, left. Header/Footer: JetBrains Mono, 8 pt, UPPERCASE, tracking +0.05em,",
+      "imageLogic": "Generative procedural line-art conversions and high-contrast lithographic threshold renderings derived from archival media (echoing Jean Louis Forain’s 'The Reporter', 1879), rendered in single-pass vector ink overlays without full-bleed coverage to preserve church-copier performance.",
+      "texture": "Simulated 300 DPI micro-stipple toner dispersal and vector edge micro-bleed along thin rule lines, maintaining 100% legibility on office laser prints while emulating cold-type newspaper broadsheet density on screen.",
+      "motion": "On digital screens, section index tabs and top head-bands recalculate coordinate offsets dynamically on page scroll; print output flattens these state variables into locked rasterized vector rules.",
+      "productionMethod": "Generative Tela layout CSS/SVG stylesheet system driven by document AST (Abstract Syntax Tree) metrics; zero manual positioning required for variable-length community reports.",
+      "humanTrace": "Subtle procedural pressure variation along vertical rule margins and calculated ink-trap notches at font stroke intersections, mimicking fast-run web offset lithography.",
+      "risk": "The cool technical clarity risks feeling like an administrative log rather than a cozy newsletter, but this risk is necessary to elevate community reporting into authoritative, high-density journalism that commands reader respect.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind insists on static historic proportions and symmetrical frames; I insist that a document grid must function as a dynamic instrument that re-indexes its flourishes based on word count and structural payload."
+      }
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "Field Dispatch Gazette",
+      "idea": "A grounded, journalistic document theme inspired by lithographic field reporting, using robust slab serif body typography and precise section-index marginalia designed to survive church copiers while honoring localized storytelling.",
+      "geometry": "Asymmetric 2-column layout on 8.5 × 11 in Letter ( margins: left 0.75 in with a 0.35 in margin tab track, right 0.5 in, top 0.6 in, bottom 0.6 in); 12 pt baseline alignment grid governing all vertical intervals.",
+      "typography": "Title: Bricolage Grotesque 28 pt, bold, sentence case, tracking -0.02, #1A1A18, left; Subtitle: Bitter 12 pt, italic, sentence case, tracking 0, #5C584E, left; H1: Bricolage Grotesque 18 pt, bold, sentence case, tracking -0.01, #1A1A18, left, 14 pt before / 6 pt after; H2: Space Grotesk 13 pt, medium, sentence case, tracking 0, #2C4A3E, left, 12 pt before / 4 pt after; H3: Space Grotesk 10 pt, bold, ALL CAPS, tracking 0.06, #5C584E, left, 8 pt before / 2 pt after; Body: Bitter 10.5 pt, regular, sentence case, tracking 0, #1A1A18, ragged right, 14 pt line height, no indent, 6 pt space after; Quote: Bitter 11 pt, italic, sentence case, tracking 0, #2C4A3E, left, 0.25 in left indent; Pull quote: Bricolage Grotesque 15 pt, medium, sentence case, tracking -0.01, #9E4A2B, center, 12 pt top/bottom space; Caption: Space Grotesk 8.5 pt, regular, sentence case, tracking 0.02, #5C584E, left; Lists:",
+      "imageLogic": "Vector frame enclosures utilizing 0.75 pt rule borders with explicit photo-provenance metadata headers (source, maker, date) placed directly beneath frames in 8 pt mono space.",
+      "texture": "Screen view features a subtle #F7F5F0 newsprint tint; print execution defaults to pure white paper while maintaining crisp 0.5 pt section rules that hold under low-toner laser copying.",
+      "motion": "Static SVG vector rendering for Tela layout engine; screen preview features a fast 150ms rule-draw animation on page load.",
+      "productionMethod": "Procedural SVG stylesheet with hex palette #F7F5F0 (paper), #1A1A18 (ink), #5C584E (muted ink), #2C4A3E (accent pine), #9E4A2B (second accent rust). Flourish set includes a 0.5 pt left margin rule, bracketed page-number folios at footer outer, thick-thin rule above H1 (2 pt / 0.5 pt), and square section break fleurons (▪ ▪ ▪). Signature detail: absolute-positioned margin section tabs with vertical text indicators on the left 0.75 in gutter.",
+      "humanTrace": "Layout structure derived from press proofs and field notes, referencing the high-contrast journalistic economy of Jean Louis Forain's 'The Reporter' (Art Institute of Chicago, 7992).",
+      "risk": "Density of margin tabs and structural rules risks feeling rigid, but provides unmistakable editorial authority and navigating clarity for long community reports.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Minimalist calls margin rule lines and index tabs unnecessary ornamentation, but stripping visual provenance and structural markers flattens distinct community dispatches into generic corporate white space."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "Dramatic Press",
+      "idea": "Transform the humble office-copier report into a proscenium stage using high-contrast theatrical typography, deep crimson curtain-rule anchors, and lithographic page framing that creates dramatic depth even on plain paper.",
+      "geometry": "Asymmetric stage-frame grid: 0.5 in left margin accent stripe acting as a proscenium border, 0.75 in top/right/bottom margins. Headings break column bounds with negative-space overhangs. Headband across top at 0.125 in height anchored by bracketed top-left and bottom-right corner vector ornaments.",
+      "typography": "Display: Abril Fatface (Title 36 pt / leading 40 pt / tracking -0.01 / Ink #12100E; Heading 1 24 pt / leading 28 pt / Ink #8C1C13 deep crimson). Body: EB Garamond (Body 11 pt / leading 15 pt / regular / sentence case / ragged right / 0.15 in first-line indent / zero paragraph gap / Ink #12100E). Subtitle: EB Garamond Italic 14 pt / Muted Ink #4A443E. Heading 2: DM Serif Display 16 pt / Accent #8C1C13. Heading 3: EB Garamond Bold 12 pt / UPPERCASE / tracking +0.08. Quote: Abril Fatface 14 pt Italic with 3 pt left rule in Accent #8C1C13. Drop Cap: Abril Fatface 4-line height in Accent #8C1C13. Caption & Folio: Space Mono 8.5 pt / UPPERCASE / tracking +0.1 / Muted Ink #4A443E. Bullet glyph: Solid black square (4 pt).",
+      "imageLogic": "Generative procedural vector graphics only: high-contrast lithographic woodcut section dividers and stylized fleuron marks rendered as crisp SVG vectors. Generative portrait assets (when inserted by author) are auto-processed via shader into high-contrast 2-tone stipple/halftone lithographs referencing Jean Louis Forain’s ink pressure in 'The Reporter' (Art Institute of Chicago), ensuring crisp 100% black ink reproduction on church copiers.",
+      "texture": "Simulated heavy rag paper tooth (#F8F5EF background tint) with simulated ink-bleed edges on display titles. Shaded quote blocks utilize a 5% tint of Second Accent (#D4A359) with thick-thin double border rules (2 pt outer, 0.5 pt inner).",
+      "motion": "Page-turn reveal timing: CSS keyframe curtain-reveal on digital render, where header rules expand horizontally from center over 400ms cubic-bezier(0.25, 1, 0.5, 1) and drop caps scale up from 90% opacity, establishing an unmistakable theatrical entrance upon scrolling or loading.",
+      "productionMethod": "Generative SVG stylesheet template compiled via CSS Paged Media module. Uses purely algorithmic vector paths for corner brackets, fleuron dividers, and margin rules. Color palette optimized for dual-mode fidelity: Screen/Color Print (Paper #F8F5EF, Ink #12100E, Muted Ink #4A443E, Accent #8C1C13, Second Accent #D4A359); Monochromatic Copier mode automatically maps Accent to 100% black ink and Second Accent to 15% grey stipple pattern while maintaining >9:1 contrast ratio.",
+      "humanTrace": "The deliberate ink-pooling weight at the serifs of Abril Fatface display titles and the expressive, asymmetrical stroke tension of lithographic reportage drawn from Jean Louis Forain's 'The Reporter'.",
+      "risk": "Risks appearing overly theatrical for mundane quarterly balance sheets, but this bold staging transforms dry administrative text into an urgent, memorable public proclamation that commands immediate reading.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Radical Minimalist treats page adornment as clutter to be purged. I maintain that a 4-line drop cap and a crimson proscenium rule do not obscure the report—they build the stage upon which the community's voice is heard."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "BAROQUE",
+      "objection": "The Baroque Dramatist demands dramatic spatial reveals and asymmetrical tension, whereas I insist that the layout frame must remain fixed, predictable, and structurally disciplined."
+    },
+    {
+      "from": "REBEL",
+      "against": "CLASSICAL",
+      "objection": "The Classical Mind wants elegant, balanced margins and graceful Garamond italics that resolve smoothly; I want heavy slab rules, ragged-right Bitter text, and raw ink-bite contrast that screams to be read on a folded sheet of copier paper."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "CLASSICAL",
+      "objection": "The Classical Mind insists on static historic proportions and symmetrical frames; I insist that a document grid must function as a dynamic instrument that re-indexes its flourishes based on word count and structural payload."
+    }
+  ],
+  "reflections": [],
+  "error": "{\"error\":{\"code\":429,\"message\":\"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\\nPlease retry in 7h25m52.823145161s.\",\"status\":\"RESOURCE_EXHAUSTED\",\"details\":[{\"@type\":\"type.googleapis.com/google.rpc.Help\",\"links\":[{\"description\":\"Learn more about Gemini API quotas\",\"url\":\"https://aistudio.google.com/docs/rate-limits\"}]},{\"@type\":\"type.googleapis.com/google.rpc.QuotaFailure\",\"violations\":[{\"description\":\"Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\",\"quotaMetric\":\"generativelanguage.googleapis.com/generate_content_free_tier_requests\",\"quotaId\":\"GenerateRequestsPerDayPerProjectPerModel-FreeTier\",\"quotaDimensions\":{\"location\":\"global\",\"model\":\"gemini-3.6-flash\"},\"quotaValue\":\"20\"}]},{\"@type\":\"type.googleapis.com/google.rpc.RetryInfo\",\"retryDelay\":\"26752s\"}]}}"
+}

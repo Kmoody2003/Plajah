@@ -1,0 +1,193 @@
+{
+  "family": "worship",
+  "name": "Sermons, bulletins & orders of service",
+  "id": "mwfoc19nf3ime6",
+  "uid": "doc-themes",
+  "createdAt": 1794616509803,
+  "depth": "QUICK",
+  "status": "DONE",
+  "brief": {
+    "ask": "Direct the theme for worship documents: sermon manuscripts, Sunday bulletins, orders of service, devotionals and prayer guides.",
+    "domain": "Black church and wider Christian worship life",
+    "audience": "pastors at the pulpit reading at arm's length, and congregants holding a folded bulletin",
+    "feeling": "reverent, warm, sung rather than spoken — never kitsch",
+    "surface": "Tela word-document theme family \"Sermons, bulletins & orders of service\"",
+    "constraints": [
+      "Surface: a word-processor page in Plajah Tela — US Letter, 8.5 × 11 in, printed on an office laser or church copier and also read on screen. These are documents people WRITE in: the words are theirs and can be any length. The design must hold with one paragraph or forty pages.",
+      "You are directing a THEME: a stylesheet plus page flourishes. The stylesheet covers Title, Subtitle, Heading 1–3, Body, Quote, Pull quote, Caption, Lists (bullet glyph), Header/Footer text. For each give the font from the list, size in pt, weight, case, tracking, colour, alignment and spacing; say whether body is ragged or justified and whether paragraphs indent or space.",
+      "Fonts available (use only these): Text serifs: Source Serif 4, EB Garamond, Cormorant Garamond, Crimson Pro, Libre Baskerville, Lora, Spectral, Merriweather, Cardo, Alegreya, Gelasio, Noto Serif, Bitter, Zilla Slab, Roboto Slab, Josefin Slab. Display serifs: Playfair Display, Fraunces, DM Serif Display, Bodoni Moda, Instrument Serif, Gloock, Cinzel, Italiana, Forum, Marcellus, Yeseva One, Abril Fatface, Philosopher. Sans: Inter, Source Sans 3, DM Sans, Manrope, Work Sans, Karla, Nunito, Outfit, Sora, Space Grotesk, Epilogue, Archivo, Raleway, Josefin Sans, Tenor Sans, Lexend, Bricolage Grotesque, Syne, Rubik. Condensed: Oswald, Bebas Neue, League Gothic, Big Shoulders Display, Archivo Black, Anton. Mono / typewriter: JetBrains Mono, IBM Plex Mono, DM Mono, Space Mono, Courier Prime, Special Elite. Hand: Caveat, Kalam, Patrick Hand. Blackletter / uncial: UnifrakturMaguntia, Uncial Antiqua, Almendra.",
+      "Flourish vocabulary the page engine can draw behind and around the text, as flat vector art: paper tint; page border frames (single, double, inset, bracketed corners); corner ornaments; rules above/below headings (hairline, thick-thin, short centred, full measure, dashed); a side band or margin stripe; a head band across the top; drop caps (2–4 lines); a fleuron or geometric mark between sections; folio (page number) treatment; heading number tabs; shaded or ruled quote blocks. No photographs, no gradients wider than a band, nothing that depends on the words.",
+      "Print law: body text 10.5–12 pt with at least 7:1 contrast against the paper; ink coverage low enough for a church copier (no full-bleed dark pages; tinted paper must also read when printed on white); nothing vital within 0.4 in of the edge; the theme must survive black-and-white printing.",
+      "Give production-ready specifics: palette as hex (paper, ink, muted ink, accent, second accent), the exact fonts, sizes, the flourish list with positions and weights in pt or inches, and the one detail that makes this theme recognisable from across a table.",
+      "Name the direction with a two- or three-word title a church administrator or a student would understand in a template gallery."
+    ],
+    "references": [
+      "Plajah Tela Writer (paragraph styles, page setup, vector page flourishes)"
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "The Cantor's Nave",
+      "idea": "An architectural hymnbook taxonomy where the page bay is partitioned by the strict proportions of Rembrandt's engraving and structural counterpoint.",
+      "geometry": "A canonical 3:5 proportioned vertical grid with a double-ruled vertical margin stripe acting as a structural nave bay, holding text blocks to a disciplined 11-column baseline.",
+      "typography": "Source Serif 4 for body text at 11.5 pt with 1.45 line height, paired with Bodoni Moda for titles and headings at varied tracking, grounded by JetBrains Mono for rubrication numbers and footer folios.",
+      "imageLogic": "No raster photographs are permitted; all visual weight is carried by crisp vector page flourishes, double-band borders, and geometric fleurons derived from the spatial divisions of Rembrandt van Rijn's 1652 engraving 'David in Prayer' [Art Institute of Chicago].",
+      "texture": "Warm off-white parchment paper tint with dense matte black carbon ink, reproducing the tactile tooth of an aged etching plate printed on an office laser copier.",
+      "motion": "Static and monumental as a church vault, relying on fixed structural weight rather than animation.",
+      "productionMethod": "Procedural XML style definitions compiled by the Plajah Tela Writer engine into vector PostScript and PDF output, optimised for single-pass monochrome and spot-color office copying without any heavy black fills.",
+      "humanTrace": "Simulated plate-edge impression indentation and subtle ink-bleed variance governed by procedural noise.",
+      "risk": "Risking severe liturgical austerity that might alienate casual readers, but worth it because it grants the pastor's text the authority of a permanent monument.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist wants the reveal to announce itself with sweeping theatrical gestures, whereas I require the structural proportion to hold the weight before any emotion is ever permitted to speak."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Mimeograph and Margins",
+      "idea": "A generative church document style that forces the clean word processor to bleed ink and show physical toner fatigue like a mimeographed parish bulletin.",
+      "geometry": "Standard US Letter with a heavy 0.75-inch left margin stripe and uneven, simulated toner-clogged vector border brackets.",
+      "typography": "Heading 1: Special Elite, 22pt, uppercase, tracked out, #1C1A17. Body: Courier Prime, 11pt, ragged right, 1.4 line height, indented paragraphs.",
+      "imageLogic": "Vector-only flat line art rendered via procedural ink-bleed shaders that simulate photocopier degradation without photographic assets.",
+      "texture": "Simulated 20lb bond paper with random toner dropouts, subtle fiber flecks, and scanner-bed grain across the entire surface.",
+      "motion": "Static document template; motion is limited to the procedural jitter of vector line weights when exported to PDF.",
+      "productionMethod": "Generative CSS/SVG stylesheet applied inside Plajah Tela using procedural displacement shaders for simulated analog noise.",
+      "humanTrace": "Uneven ink density, manual typewriter font imperfections, and simulated roller-skid marks in the side margin.",
+      "risk": "Risks being rejected by administrators who confuse digital reproduction artifacts with broken printing equipment; it is worth it because it restores tactile urgency to flat text.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind wants pristine centered proportions and quiet ink; I want the page to look like it was dragged off a smoking gestetner machine in a church basement at midnight."
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "Liturgical Instrument Calibration",
+      "idea": "A procedural typographic engine where historical devotional manuscripts are treated not as monuments to imitate, but as operational state tables whose grid logic we execute in real-time code.",
+      "geometry": "US Letter 8.5x11in with an asymmetric editorial column grid, anchored by a strict 0.75-inch outer margin and a programmatic 0.4-inch boundary constraint derived from Rembrandt's 'David in Prayer' plate layout ratios.",
+      "typography": "Source Serif 4 for body text at 11pt, 1.4 leading, justified with programmatic word-spacing bounds; Fraunces for Display/Titles with optical size axes mapped directly to heading hierarchy; JetBrains Mono for system notes and rubric markers.",
+      "imageLogic": "Vector page flourishes and geometric ornaments generated via deterministic path algorithms; zero raster photographs or simulated ink gradients permitted.",
+      "texture": "Simulated low-ink church copier bleed and unbleached off-white paper tooth rendered through procedural noise shaders.",
+      "motion": "State transitions in the digital preview layer interpolate layout reflows across paragraph deletions and insertions at a constant 180ms ease-out curve.",
+      "productionMethod": "Compiled entirely within the Plajah Tela Writer stylesheet engine using OFL fonts, vector SVG flourish primitives, and CSS Paged Media rules.",
+      "humanTrace": "The deliberate irregularity of simulated laser-toner scatter and the slight, system-bound variations in procedural drop-cap baseline alignments.",
+      "risk": "Risking clinical coldness by stripping away decorative religious kitsch; worth it because true reverence lies in structural precision and operational honesty.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind builds monuments that cannot respond; I build an instrument whose layout recalculates dynamically whether the document is one paragraph or forty pages."
+      }
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "Liturgical Field Notes",
+      "idea": "A sermon manuscript and bulletin theme structured by the hand-ruled margins and copperplate ink weights of 1832 institutional record-keeping, avoiding sanitized minimalism and historicist pastiche alike.",
+      "geometry": "A strict 1-inch outer text block flanked by a 0.75-inch left margin reserved for running rubrics, anchored by double-rule header bands at 0.5-inch intervals derived from the layout logic of 'The Pennsylvania College book, 1832-1882' (Library of Congress).",
+      "typography": "Source Serif 4 for body text at 11pt, 1.45 line height, justified with 0.15-inch paragraph indentation; Libre Baskerville for Heading 1 at 18pt bold uppercase with 0.05em tracking; IBM Plex Mono for running headers and rubrics at 9pt.",
+      "imageLogic": "No raster photographs; all decorative structure is rendered as clean vector rules, double-stroke page border frames, and 3-line drop caps drawn directly by the page engine.",
+      "texture": "Simulated warm off-white bond paper with a subtle, low-contrast tooth and iron-gall ink bleed profile optimized for legibility at arm's length on office laser copiers.",
+      "motion": "Static document layout designed for tactile page-turning, reading aloud, and congregational response during sung liturgy.",
+      "productionMethod": "Pure vector procedural generation via Plajah Tela Writer styleset, compiling directly to printer-ready PDF with low ink coverage and high 7:1 contrast.",
+      "humanTrace": "The deliberate weight distribution of hand-copied ledger lines and the variable ink density simulated across repeated copier runs.",
+      "risk": "Risking severe austerity by rejecting florid church-bulletin clichés in favor of archival ledger structures, justified by the need for genuine pastoral dignity.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist wants to drape our pages in unearned ecclesiastical gold leaf borrowed from European cathedrals that belong to no living congregation here. I argue for the unvarnished specificity of an 1832 American college notebook—documenting actual institutional practice with humility and correct attribution rather than staging a hollow pageant."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "Chiaroscuro Liturgy and Vellum",
+      "idea": "We construct a dramatic, light-carved liturgy that treats the Sunday bulletin not as an office form, but as a sacred illuminated page where deep ink values and golden accents command the eye from across the sanctuary.",
+      "geometry": "A classic 1-inch grid anchored by an imposing double-ruled margin stripe on the left and a heavy top head band, creating a vertical staging column that gives the sermon manuscript the gravitas of a choir book.",
+      "typography": "Cormorant Garamond for titles in majestic small caps with expansive tracking; EB Garamond for body text at 11.5pt with generous 1.4 line-height and classical paragraph indents; JetBrains Mono for rubric notes.",
+      "imageLogic": "No raster photographs; all imagery is rendered as crisp, generative vector engravings—specifically channeling Rembrandt's 'David in Prayer'—with high contrast hatching and deep black shadows framing the text blocks.",
+      "texture": "A warm cream parchment paper tint (#FBF8F2) paired with dense, velvety lampblack ink (#121110), giving the printed sheet the tactile weight and dry tooth of seventeenth-century laid paper.",
+      "motion": "On screen, the page loads with a dramatic fade and a slow, staged lateral slide of the margin stripe, mimicking a heavy velvet sanctuary curtain parting before the service begins.",
+      "productionMethod": "Generated entirely via procedural SVG vector flourishes and CSS print-media stylesheets, ensuring low ink coverage for church copers while maintaining rich chiaroscuro contrast.",
+      "humanTrace": "The visible pressure of simulated plate-ink bleed and hand-drawn vector hatching lines that recall the physical copperplate engraving process of Rembrandt's era.",
+      "risk": "It risks being overwhelmingly heavy and theatrical for a routine church announcement, but that risk is entirely worth it to rescue worship from corporate sterility.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Minimalist calls my double rules and margin stripes 'clutter,' as if stripping away ornament somehow purifies the soul. I call it starving the senses when the moment demands absolute, breathtaking weight."
+      }
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "Silence and Margin",
+      "idea": "Remove every typographic ornament until the single hair-thin vertical margin rule bears the full weight of the service.",
+      "geometry": "Asymmetrical letterpress column, 1.25 inch outer margin housing a single 0.25 pt rule, leaving 6 inches of text measure.",
+      "typography": "Source Serif 4 for body at 11 pt with 1.4 leading; Inter for running heads at 8 pt tracked wide at 1.5px; Crimson Pro for titles at 22 pt, sentence case.",
+      "imageLogic": "No images. The only graphic intervention is the absolute emptiness of the head-margin and the single vertical rule.",
+      "texture": "Warm unbleached cotton paper simulation (#F7F5F0) with matte black toner ink (#111111) and zero gradient intrusion.",
+      "motion": "Static document; the eye's motion is governed entirely by the drop from the 22 pt title to the generous 1.4 body leading.",
+      "productionMethod": "Vector page flourishes rendered via Plajah Tela engine using clean SVG paths; compiled directly to PDF/UA for office laser printing.",
+      "humanTrace": "Slight photographic grain simulation on the paper tint and the precise optical tracking of the humanist serif body text.",
+      "risk": "Risking severe clerical pushback for lack of traditional crosses or decorative borders; worth it because true reverence requires stillness, not ornament.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Dramatist wants to stack drop caps, double rules, and dramatic flourishes to manufacture emotion. I remove them so the empty space does the work."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "BAROQUE",
+      "objection": "The Baroque Dramatist wants the reveal to announce itself with sweeping theatrical gestures, whereas I require the structural proportion to hold the weight before any emotion is ever permitted to speak."
+    },
+    {
+      "from": "REBEL",
+      "against": "CLASSICAL",
+      "objection": "The Classical Mind wants pristine centered proportions and quiet ink; I want the page to look like it was dragged off a smoking gestetner machine in a church basement at midnight."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "CLASSICAL",
+      "objection": "The Classical Mind builds monuments that cannot respond; I build an instrument whose layout recalculates dynamically whether the document is one paragraph or forty pages."
+    },
+    {
+      "from": "WORLD_ECLECTIC",
+      "against": "BAROQUE",
+      "objection": "The Baroque Dramatist wants to drape our pages in unearned ecclesiastical gold leaf borrowed from European cathedrals that belong to no living congregation here. I argue for the unvarnished specificity of an 1832 American college notebook—documenting actual institutional practice with humility and correct attribution rather than staging a hollow pageant."
+    },
+    {
+      "from": "BAROQUE",
+      "against": "RADICAL_MINIMAL",
+      "objection": "The Minimalist calls my double rules and margin stripes 'clutter,' as if stripping away ornament somehow purifies the soul. I call it starving the senses when the moment demands absolute, breathtaking weight."
+    },
+    {
+      "from": "RADICAL_MINIMAL",
+      "against": "BAROQUE",
+      "objection": "The Dramatist wants to stack drop caps, double rules, and dramatic flourishes to manufacture emotion. I remove them so the empty space does the work."
+    }
+  ],
+  "reflections": [],
+  "synthesis": {
+    "lead": "WORLD_ECLECTIC",
+    "counterpoint": "BAROQUE",
+    "editor": "CLASSICAL",
+    "direction": "A rigorous archival grid built on a US Letter page with a 0.75-inch left margin stripe for running rubrics, paired with a warm off-white bond paper tint and dense matte black ink. The typography pairs Source Serif 4 body text with Libre Baskerville headings and IBM Plex Mono metadata, structured by clean vector double-rule header bands and drop caps. Ink coverage remains low and high-contrast (above 7:1) to guarantee flawless reproduction on office laser and church copiers without bleeding.",
+    "keepFromCounterpoint": "The deep, velvety lampblack ink contrast and the commanding vertical framing of a left margin stripe, keeping the page grounded with gravitas.",
+    "editorCut": "Stripped away the unearned European cathedral gold leaf and theatrical curtain-parting animations proposed by the Baroque Dramatist, replacing them with the unvarnished humility of an 1832 institutional record so the text stays focused on actual congregational practice.",
+    "openDecision": "Choose whether the running side margin stripe features a stark single hairline rule for a cleaner modern look, or a double-ruled ledger stroke for a more archival, notebook-like feel.",
+    "ariaSummary": "The council convened around the brief to design a reverent, warm, and sung worship document stylesheet that survives office laser copiers and scales effortlessly from a single prayer to forty pages of sermon manuscript. The team split sharply over how much theatrical weight to apply; the Baroque Dramatist demanded sweeping chiaroscuro gestures and gold-leaf pageantry, while the World-Eclectic Traveler argued for the grounded, humble specificity of an archival notebook. I sided with the World-Eclectic Traveler to keep the documents authentic to living congregations rather than staging a hollow historical pageant.\n\nOur editor, the Classical Mind, intervened to strip away any excessive ornamental flourishes that might compromise readability at arm's length. The result is a rigorous, high-contrast, vector-driven layout that honours both the pastor at the pulpit and the congregant holding the folded bulletin.",
+    "quotes": [
+      {
+        "directorId": "WORLD_ECLECTIC",
+        "line": "I argue for the unvarnished specificity of an 1832 American college notebook—documenting actual institutional practice with humility."
+      },
+      {
+        "directorId": "BAROQUE",
+        "line": "We construct a dramatic, light-carved liturgy that treats the Sunday bulletin not as an office form, but as a sacred illuminated page."
+      }
+    ]
+  }
+}

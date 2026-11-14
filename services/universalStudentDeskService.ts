@@ -286,6 +286,22 @@ export function isOpenFor(a: Pick<UniversalDeskAssignment, 'opensAt' | 'assigned
   return !a.opensAt || a.opensAt <= now || a.assignedByUid === uid;
 }
 
+/**
+ * Gives an assigned item another look (services/edu/documentLook). Only the design changes: the
+ * words, the answer key, the dates and who may open it stay exactly as they were, so this never
+ * makes a custom copy of the lesson.
+ */
+export function setDeskAssignmentLook(id: string, livingTemplateId: string): UniversalDeskAssignment | null {
+  const all = readStoredAssignments();
+  const cur = all.find(a => a.id === id);
+  if (!cur || !livingTemplateId) return null;
+  if (cur.livingTemplateId === livingTemplateId) return cur;
+  const next: UniversalDeskAssignment = { ...cur, livingTemplateId, rescheduledAt: Date.now(), unitSnapshot: { ...cur.unitSnapshot, livingTemplateId } };
+  writeStoredAssignments(all.map(a => (a.id === id ? next : a)));
+  void mirrorAssignment(next);
+  return next;
+}
+
 /** Moves an assigned item to new dates (calendar drag or edit). Returns the updated assignment, or null if it isn't on this device. */
 export function rescheduleDeskAssignment(id: string, at: { dueAt: number; dueLabel: string; opensAt?: number | null; scheduledFor?: number | null; afterDue?: AfterDue }): UniversalDeskAssignment | null {
   const all = readStoredAssignments();

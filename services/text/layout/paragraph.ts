@@ -229,7 +229,11 @@ export function composeParagraph(env: LayoutEnv, prep: PreparedParagraph, widths
   const hit = cache.get(k);
   if (hit) { hits++; cache.delete(k); cache.set(k, hit); return hit; }
   misses++;
-  const out = env.engine.layoutParagraph(prep.text, prep.runs, { ...prep.spec, widths });
+  // A tab stop past the end of the line can never be reached (the text after it wraps): it means
+  // "flush with the right edge", so it lands there. Keeps leader rows intact when margins change.
+  const narrow = Math.min(...widths);
+  const tabs = prep.spec.tabs?.some(t => t.pos > narrow - 0.5) ? prep.spec.tabs.map(t => (t.pos > narrow - 0.5 ? { ...t, pos: narrow - 0.5 } : t)) : prep.spec.tabs;
+  const out = env.engine.layoutParagraph(prep.text, prep.runs, { ...prep.spec, tabs, widths });
   cache.set(k, out);
   if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string);
   return out;

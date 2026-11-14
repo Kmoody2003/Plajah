@@ -142,6 +142,8 @@ export interface WriterDocumentParts {
   floats: Record<string, WriterFloat>;
   lists: Record<string, ListDefinition>;
   settings: WriterSettings;
+  /** Page theme: the flourishes drawn behind and around the text (./theme). The stylesheet half of a theme lives in `styles`. Absent = plain page. */
+  theme?: import('./theme').WriterTheme;
   /** Signature of the legacy `blocks` this story was last synchronised with. */
   blocksHash?: string;
   /** Document properties (docx core.xml). */

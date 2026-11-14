@@ -14,7 +14,9 @@
 // Opening the library brings it into view where the viewer is, rather than leaving it above the fold.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, Check, Copy, ExternalLink, FolderOpen, Globe2, KeyRound, LayoutTemplate, Lock, PenLine, Plus, Search, Trash2, X } from 'lucide-react';
+import { CalendarDays, Check, Copy, ExternalLink, FolderOpen, Globe2, KeyRound, LayoutTemplate, Lock, Palette, PenLine, Plus, Search, Trash2, X } from 'lucide-react';
+import DocumentLookSheet from './library/DocumentLookSheet';
+import { LOOKS_CHANGED, getOrgLooks, getTeacherLook, resolveLook, type EduLook, type OrgLooks } from '../../services/edu/documentLook';
 import {
   listIngestedUnits,
   ensureAllDetectedLinksOnboarded,
@@ -243,6 +245,22 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
   const [report, setReport] = useState<CourseImportReport | null>(() => getCourseImportReport(orgId));
   const [reportOpen, setReportOpen] = useState(false);
   const [owner, setOwner] = useState<'ALL' | 'ORG' | 'MINE'>('ALL');
+  // The look lessons wear here: the viewer's own, else the organization's (services/edu/documentLook).
+  const [lookOpen, setLookOpen] = useState(false);
+  const [orgLooks, setOrgLooksState] = useState<OrgLooks | null>(null);
+  const [myLook, setMyLook] = useState<EduLook | null>(null);
+  useEffect(() => {
+    if (tier !== 'org' || !orgId) return;
+    let live = true;
+    const load = () => {
+      void getOrgLooks(orgId).then(l => { if (live) setOrgLooksState(l); });
+      void getTeacherLook(orgId, currentUserUid || '').then(l => { if (live) setMyLook(l); });
+    };
+    load();
+    window.addEventListener(LOOKS_CHANGED, load);
+    return () => { live = false; window.removeEventListener(LOOKS_CHANGED, load); };
+  }, [tier, orgId, currentUserUid]);
+  const dressed = (u: IngestedCurriculumUnit): IngestedCurriculumUnit => (tier === 'org' ? { ...u, livingTemplateId: resolveLook({ unit: u, teacher: myLook, organization: orgLooks?.org }).templateId } : u);
   const [busy, setBusy] = useState('');
 
   const refreshUnits = () => { setUnits(listIngestedUnits(orgId, programId, orgName)); setReport(getCourseImportReport(orgId)); };
@@ -395,7 +413,9 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
     try {
       const copy = copyAsTemplate(u, { uid: currentUserUid, name: currentUserName }, copyInto.orgId);
       saveIngestedUnit({ ...copy, scopeKind: isStandaloneTeacherScopeId(copyInto.orgId) ? 'user' : 'org' });
-      setStatus(`Copied to ${copyInto.label} as “${copy.title}”. Opening it in Tela…`);
+      setStatus(tier === 'org'
+        ? `Your custom version, “${copy.title}”, is in My custom lessons. ${orgName}’s original is unchanged. Opening yours in Tela…`
+        : `Copied to ${copyInto.label} as “${copy.title}”. Opening it in Tela…`);
       await openUnitInTela(copy, { fromTelaDocId: u.telaDocId, ownerUid: currentUserUid });
     } finally { setBusy(''); }
   };
@@ -436,7 +456,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
               : tier === 'org'
                 ? viewerIsAdmin
                   ? ' · you manage this library: lessons you add are locked for teachers'
-                  : ' · the org’s lessons are locked; make your own copy to change one'
+                  : ' · the org’s lessons are locked; customize one and it becomes your own version'
                 : canAssign ? ' · select pages to assign & schedule them for a course' : ''}
           </div>
         </div>
@@ -445,6 +465,9 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
             <button type="button" aria-pressed={view === 'library'} onClick={() => setView('library')}>Library</button>
             <button type="button" aria-pressed={view === 'calendar'} onClick={() => setView('calendar')}><CalendarDays size={14} /> Course calendar</button>
           </div>
+        )}
+        {tier === 'org' && canUploadToLibrary && !!currentUserUid && (
+          <button type="button" className="btn sm" onClick={() => setLookOpen(true)} title="The design lessons wear when they are handed out: the organization’s default, a department’s, or your own"><Palette size={14} /> Document look</button>
         )}
         {onOpenContentHQ && (
           <button type="button" className="btn sm" onClick={onOpenContentHQ}><FolderOpen size={14} /> Content HQ</button>
@@ -518,7 +541,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
             </label>
             {tier === 'org' && (
               <div className="chips" role="group" aria-label="Whose">
-                {([['ALL', 'All'], ['ORG', `${orgName}’s`], ['MINE', 'My copies']] as const).map(([k, l]) => (
+                {([['ALL', 'All'], ['ORG', `${orgName}’s`], ['MINE', 'My custom lessons']] as const).map(([k, l]) => (
                   <button key={k} type="button" className="chip" aria-pressed={owner === k} onClick={() => setOwner(k)}>{l}</button>
                 ))}
               </div>
@@ -621,7 +644,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
               {panelTab === 'page' && preview.layoutPages?.length && !preview.questions.length && <LayoutPages pages={preview.layoutPages} title={preview.title} />}
               {panelTab === 'page' && !(preview.layoutPages?.length && !preview.questions.length) && (
                 <LivingTemplateBespokeRenderer
-                  templateId={preview.livingTemplateId || getDefaultLivingTemplateForUnit(preview).id}
+                  templateId={dressed(preview).livingTemplateId || getDefaultLivingTemplateForUnit(preview).id}
                   unit={preview}
                   answers={{}}
                   onUpdateAnswer={() => {}}
@@ -685,7 +708,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
               {copyInto && currentUserUid && (tier === 'platform' || canUploadToLibrary) && (
                 <button type="button" className="btn sm" disabled={busy === preview.id} onClick={() => makeCopy(preview)}
                   title={`An editable copy in ${copyInto.label}; the original stays as it is`}>
-                  <Copy size={14} /> {tier === 'platform' ? `Copy to ${copyInto.label}` : 'Make my copy'}
+                  <Copy size={14} /> {tier === 'platform' ? `Copy to ${copyInto.label}` : lockedForMe(preview) ? 'Customize (my version)' : 'Make my copy'}
                 </button>
               )}
               {tier === 'user' && canChange(preview) && (
@@ -717,6 +740,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
               onClose={() => { setScheduling(null); if (sendAfter) { setSending(sendAfter); setSendAfter(null); } }}
               onDone={scheduled}
               onSaveProgram={onSaveProgram}
+              teacherUid={currentUserUid}
             />
           </div>
         </>
@@ -734,12 +758,16 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
 
       {deskView && (
         <DeskView
-          unit={deskView}
+          unit={dressed(deskView)}
           canViewAnswerKey={canAccessAnswerKey}
           onClose={() => setDeskView(null)}
-          onEdit={canChange(deskView) && tier !== 'platform' ? () => { const u = deskView; setDeskView(null); void editInTela(u); } : undefined}
+          // A teacher changing the words of the organization's lesson gets their own custom version; the original is never edited.
+          onEdit={canChange(deskView) && tier !== 'platform' ? () => { const u = deskView; setDeskView(null); void editInTela(u); }
+            : lockedForMe(deskView) && copyInto && currentUserUid && canUploadToLibrary ? () => { const u = deskView; setDeskView(null); void makeCopy(u); } : undefined}
         />
       )}
+
+      {lookOpen && <DocumentLookSheet orgId={orgId} orgName={orgName} isAdmin={!!viewerIsAdmin} viewerUid={currentUserUid || ''} onClose={() => setLookOpen(false)} />}
 
       {fullPreview && (
         <TelaDocumentPreviewModal

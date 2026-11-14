@@ -1,0 +1,193 @@
+{
+  "family": "editorial",
+  "name": "Newsletters, articles & annual reports",
+  "id": "mwfofobsspij80",
+  "uid": "doc-themes",
+  "createdAt": 1794616679656,
+  "depth": "QUICK",
+  "status": "DONE",
+  "brief": {
+    "ask": "Direct the theme for editorial documents: newsletters, feature articles, impact and annual reports.",
+    "domain": "community organisations and independent publishers telling their own story",
+    "audience": "members, neighbours and funders who will skim first and read second",
+    "feeling": "confident, journalistic, alive — a publication, not a form",
+    "surface": "Tela word-document theme family \"Newsletters, articles & annual reports\"",
+    "constraints": [
+      "Surface: a word-processor page in Plajah Tela — US Letter, 8.5 × 11 in, printed on an office laser or church copier and also read on screen. These are documents people WRITE in: the words are theirs and can be any length. The design must hold with one paragraph or forty pages.",
+      "You are directing a THEME: a stylesheet plus page flourishes. The stylesheet covers Title, Subtitle, Heading 1–3, Body, Quote, Pull quote, Caption, Lists (bullet glyph), Header/Footer text. For each give the font from the list, size in pt, weight, case, tracking, colour, alignment and spacing; say whether body is ragged or justified and whether paragraphs indent or space.",
+      "Fonts available (use only these): Text serifs: Source Serif 4, EB Garamond, Cormorant Garamond, Crimson Pro, Libre Baskerville, Lora, Spectral, Merriweather, Cardo, Alegreya, Gelasio, Noto Serif, Bitter, Zilla Slab, Roboto Slab, Josefin Slab. Display serifs: Playfair Display, Fraunces, DM Serif Display, Bodoni Moda, Instrument Serif, Gloock, Cinzel, Italiana, Forum, Marcellus, Yeseva One, Abril Fatface, Philosopher. Sans: Inter, Source Sans 3, DM Sans, Manrope, Work Sans, Karla, Nunito, Outfit, Sora, Space Grotesk, Epilogue, Archivo, Raleway, Josefin Sans, Tenor Sans, Lexend, Bricolage Grotesque, Syne, Rubik. Condensed: Oswald, Bebas Neue, League Gothic, Big Shoulders Display, Archivo Black, Anton. Mono / typewriter: JetBrains Mono, IBM Plex Mono, DM Mono, Space Mono, Courier Prime, Special Elite. Hand: Caveat, Kalam, Patrick Hand. Blackletter / uncial: UnifrakturMaguntia, Uncial Antiqua, Almendra.",
+      "Flourish vocabulary the page engine can draw behind and around the text, as flat vector art: paper tint; page border frames (single, double, inset, bracketed corners); corner ornaments; rules above/below headings (hairline, thick-thin, short centred, full measure, dashed); a side band or margin stripe; a head band across the top; drop caps (2–4 lines); a fleuron or geometric mark between sections; folio (page number) treatment; heading number tabs; shaded or ruled quote blocks. No photographs, no gradients wider than a band, nothing that depends on the words.",
+      "Print law: body text 10.5–12 pt with at least 7:1 contrast against the paper; ink coverage low enough for a church copier (no full-bleed dark pages; tinted paper must also read when printed on white); nothing vital within 0.4 in of the edge; the theme must survive black-and-white printing.",
+      "Give production-ready specifics: palette as hex (paper, ink, muted ink, accent, second accent), the exact fonts, sizes, the flourish list with positions and weights in pt or inches, and the one detail that makes this theme recognisable from across a table.",
+      "Name the direction with a two- or three-word title a church administrator or a student would understand in a template gallery."
+    ],
+    "references": [
+      "Plajah Tela Writer (paragraph styles, page setup, vector page flourishes)"
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "Proportional Canon Editorial",
+      "idea": "An editorial template built on architectural column proportions derived from Jean Le Page's 1814 cased pistols and Jean Louis Forain's lithographic line, where every heading and rule is locked to an immutable cantus firmus grid.",
+      "geometry": "A strict 12-column architectural page geometry on US Letter (8.5 × 11 in) with a 0.75-inch inner binding gutter and a 0.5-inch outer margin, maintaining a golden-section proportional drop for primary headings.",
+      "typography": "Source Serif 4 for body text at 11pt with 15pt leading, justified alignment with standard paragraph indents of 1.5 em; Playfair Display for Title at 32pt uppercase; Source Sans 3 for Headings and captions.",
+      "imageLogic": "No raster photographs are permitted within the base stylesheet; all visual hierarchy is carried exclusively by vector page flourishes, rules, and typographic weight.",
+      "texture": "A simulation of creamy laid paper stock with low-ink-density black toner printing optimized for low-cost office lasers and church copiers.",
+      "motion": "Static and structurally unyielding on the printed page, relying entirely on the reader's eye traveling down the fixed proportional grid at a deliberate, architectural pace.",
+      "productionMethod": "Generated entirely through vector-based PDF compilation engines and CSS print stylesheets using only open-licensed Google Fonts and flat SVG geometry.",
+      "humanTrace": "The deliberate weight of simulated physical line-screen imperfections and the handcrafted precision of proportional rule placement.",
+      "risk": "Risking severe rigidity that may alienate users seeking casual templates, but this is worth it to ensure absolute structural legibility and permanence across decades.",
+      "arguesWith": {
+        "directorId": "REBEL",
+        "why": "The Rebellious Hand calls my proportional hierarchy a cage, but I maintain that a mark with no structure behind it is merely noise with misplaced confidence."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Mimeograph Witness",
+      "idea": "An editorial system that looks like it was scraped onto a stencil by hand and run through a failing school copier, turning administrative reports into urgent underground bulletins.",
+      "geometry": "A raw, asymmetrical grid with an overweighted left margin stripe and uneven column gaps that force the eye to track like a hand-cranked feed.",
+      "typography": "Courier Prime for all body and headings, scaled aggressively with heavy letter-spacing and forced small-caps for section headers to mimic hammered typewriter steel.",
+      "imageLogic": "No raster photographs; all visual breaks are built from heavy vector rules, dashed boundary frames, and procedural high-contrast dither patterns referencing Jean Louis Forain's 'The Reporter'.",
+      "texture": "Simulated heavy tooth on cheap office bond paper, uneven toner distribution, and marginal ink-clog artifacts.",
+      "motion": "Static document format with a staggered, jittered load sequence that snaps vector borders into place like a mechanical carriage return.",
+      "productionMethod": "Procedural CSS/SVG template engine generating pure vector output and deterministic dither patterns for low-resolution printing.",
+      "humanTrace": "The visible irregularity of misaligned typewriter keys and simulated ink-clogged glyphs where human pressure hit the ribbon too hard.",
+      "risk": "It risks looking unreadable to corporate funders who expect smooth sanitised templates, but that friction is exactly how it forces them to read every single word.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind wants proportions and justified symmetry that soothe the reader. I want jagged rags and typewriter hammer marks because bureaucratic reporting is a mess and the document should bear the physical evidence of that struggle."
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "Systemic Ledger: The Municipal Gazette",
+      "idea": "A computational grid stylesheet that turns word-processor pages into self-regulating editorial instruments driven by fixed typographic ratios and raster-bounded column rules.",
+      "geometry": "US Letter at 8.5 × 11 inches with a strict 0.75-inch margin grid; a multi-column modular flow where heading hierarchies act as structural anchors rather than decorative breaks.",
+      "typography": "Source Serif 4 for body text at 11pt, regular weight, justified, with paragraph indentations; Inter for UI and caption labels at 9pt; Space Mono for metadata and folio counts at 8.5pt.",
+      "imageLogic": "No raster photographs; purely vector-based structural elements, rules, and mathematically generated typographic layouts referencing the ink-density economy of Jean Louis Forain's 'The Reporter' [Art Institute of Chicago, https://www.artic.edu/artworks/7992].",
+      "texture": "Off-white paper simulation with subtle laser-toner micro-roughness and consistent low-coverage ink density optimized for 300dpi office copiers.",
+      "motion": "Static document format with dynamic state transitions handled by the word processor's real-time reflow engine and responsive margin calculations.",
+      "productionMethod": "Procedural JSON stylesheet for Plajah Tela Writer compiling directly into print-ready PostScript or PDF streams.",
+      "humanTrace": "Simulated physical print constraints: slight toner scatter, deliberate paper stock tint, and human-authored paragraph hierarchy spacing.",
+      "risk": "Risking severe legibility failure for casual readers if their local office printer fails to reproduce the subtle 7:1 contrast ratios of the rules, but worth it to establish absolute typographic integrity.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist relies on theatrical reveals and empty atmospheric space, whereas my system treats every millimeter of the page as load-bearing data infrastructure."
+      }
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "Field Report Gazette",
+      "idea": "An unpretentious, living documentary gazette rooted in the typography and layout discipline of Jean Louis Forain’s 19th-century lithographic news sheets (\"The Reporter\", Art Institute of Chicago) combined with daguerreotype paper weights.",
+      "geometry": "A traditional two-column editorial grid on US Letter (8.5 x 11 in) with a generous 0.8-inch outer margin and a 0.5-inch inner spine, providing 0.4 inches of safe margin space for church copiers.",
+      "typography": "Source Serif 4 for body text (11 pt, regular, justified, 1.25 line height, 0 pt space after, no indent on first paragraph after heading, 12 pt indent on subsequent paragraphs), with Inter for functional metadata and captioning, and Noto Serif for headlines in small caps.",
+      "imageLogic": "No raster photographs; all surface visual interest is driven by procedural vector rules, single-pixel hairline borders, and vector margin stripes that evoke newsprint column dividers.",
+      "texture": "Simulated warm off-white wove paper tint with subtle fiber tooth and low-coverage charcoal ink simulation designed for high legibility on 200 dpi office copiers.",
+      "motion": "Static document format designed for fluid reflow across variable page counts from one paragraph to forty pages without breaking the grid.",
+      "productionMethod": "Generated entirely via programmatic CSS-to-vector print stylesheets and SVG flourish primitives rendered directly inside Plajah Tela Writer.",
+      "humanTrace": "Slight procedural variations in rule weights and hand-adjusted ragged column endings that simulate the pressure and ink bleed of traditional lithography.",
+      "risk": "Risks looking overly austere or archival to readers conditioned by glossy corporate templates, but this constraint is essential for building immediate grassroots trust.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist reaches for ornamental gold and borrowed opulence without asking who made it or whether it fits a working church copier. We reject unearned gold in favor of honest, legible ink on wove paper."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "Chiaroscuro Gazette",
+      "idea": "An editorial system forged from the ink-heavy drama of Forain’s lithography, where high-contrast typography and precise margin rules transform standard church copiers into printing presses of conviction.",
+      "geometry": "A generous text block flanked by a commanding 0.75-inch left margin stripe and double-ruled header geometry, anchoring the eye with authoritative weight.",
+      "typography": "Title: Bodoni Moda 36pt, bold, all-caps, -0.02em tracking. H1: Bodoni Moda 22pt, bold, normal case. Body: Lora 11pt, regular, left-aligned with paragraph spacing of 4pt and no indent, ensuring instant legibility for skimmers.",
+      "imageLogic": "Pure typography and flat vector rules; no photographs permitted, relying entirely on ink density and rule weight to carry pictorial gravity.",
+      "texture": "Simulated warm eggshell paper tint (#FBF9F4) with deep carbon ink (#111111) and a sharp rust-red accent (#8C2D19) for margin rules and drop caps.",
+      "motion": "Static document layout designed for instant visual impact upon first glance, prioritizing the kinetic leap from headline to pull-quote.",
+      "productionMethod": "Generated via CSS/SVG page templates compiled to US Letter PDF, optimized for low toner coverage to run cleanly on office copiers.",
+      "humanTrace": "Visible ink bleeds simulated via subtle vector micro-roughness and classic editorial hierarchy drawn from 19th-century print traditions.",
+      "risk": "Risking an austere formality that might intimidate casual readers, but necessary to grant community newsletters the undeniable gravity of a serious journal.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Minimalist calls our generous margin stripe and double-rules redundant decoration. I call them the architectural scaffolding that prevents the page from collapsing into timid whitespace."
+      }
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "The Uncompromising Margin",
+      "idea": "We remove every decorative gesture that does not serve as a load-bearing structural constraint, leaving only the brutal truth of proportion and type.",
+      "geometry": "US Letter 8.5 x 11 in with an unyielding 1-inch minimum margin, anchored by a single precise 0.5pt hairline rule separating the running header from the text body.",
+      "typography": "Source Serif 4 for body text at 11pt with 15pt leading, ragged right, zero paragraph indentation, 6pt paragraph space; Space Mono for Headings and UI elements in uppercase with wide tracking.",
+      "imageLogic": "No photographs. The page relies entirely on typographic density, negative space, and the structural tension of vector border frames.",
+      "texture": "Matte warm white paper tone with crisp black vector ink; no gradients, no shadows, no simulated grain.",
+      "motion": "Static. A document printed on a church copier does not move; its permanence is its velocity.",
+      "productionMethod": "Generated via procedural CSS-to-vector printing instructions compiled natively within Plajah Tela for office laser and Risograph output.",
+      "humanTrace": "The optical precision of the hairlines and the deliberate, unfluctuating rhythm of the paragraph spacing set by an editor who refused to fill the void.",
+      "risk": "It risks looking austere or uninhabited to those who mistake clutter for community, but that emptiness is what forces the reader to actually read the words.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist adds flourishes until something happens. I remove elements until only the thing that matters can survive. Decoration is noise; emptiness is articulate."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "REBEL",
+      "objection": "The Rebellious Hand calls my proportional hierarchy a cage, but I maintain that a mark with no structure behind it is merely noise with misplaced confidence."
+    },
+    {
+      "from": "REBEL",
+      "against": "CLASSICAL",
+      "objection": "The Classical Mind wants proportions and justified symmetry that soothe the reader. I want jagged rags and typewriter hammer marks because bureaucratic reporting is a mess and the document should bear the physical evidence of that struggle."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "BAROQUE",
+      "objection": "The Baroque Dramatist relies on theatrical reveals and empty atmospheric space, whereas my system treats every millimeter of the page as load-bearing data infrastructure."
+    },
+    {
+      "from": "WORLD_ECLECTIC",
+      "against": "BAROQUE",
+      "objection": "The Baroque Dramatist reaches for ornamental gold and borrowed opulence without asking who made it or whether it fits a working church copier. We reject unearned gold in favor of honest, legible ink on wove paper."
+    },
+    {
+      "from": "BAROQUE",
+      "against": "RADICAL_MINIMAL",
+      "objection": "The Minimalist calls our generous margin stripe and double-rules redundant decoration. I call them the architectural scaffolding that prevents the page from collapsing into timid whitespace."
+    },
+    {
+      "from": "RADICAL_MINIMAL",
+      "against": "BAROQUE",
+      "objection": "The Baroque Dramatist adds flourishes until something happens. I remove elements until only the thing that matters can survive. Decoration is noise; emptiness is articulate."
+    }
+  ],
+  "reflections": [],
+  "synthesis": {
+    "lead": "BAROQUE",
+    "counterpoint": "RADICAL_MINIMAL",
+    "editor": "WORLD_ECLECTIC",
+    "direction": "The theme deploys a generous US Letter page geometry with a commanding left margin stripe and double-ruled header geometry. Lora 11pt drives the body text with ragged-right alignment and zero indent for immediate skimmability, anchored by Bodoni Moda titles and an ink-dense warm eggshell paper simulation. All visual hierarchy is built from flat vector rules, drop caps, and crisp carbon ink optimized for low-cost office and church copiers.",
+    "keepFromCounterpoint": "The uncompromising 1-inch minimum margin discipline to protect readability across varied office printer hardware.",
+    "editorCut": "The editor stripped away the decorative double rules and rust-red accents proposed by the Baroque Dramatist, because a church copier running on low toner cannot consistently reproduce colored ink without muddying the text.",
+    "openDecision": "Do you want the running header to feature a solid 0.75-inch left margin stripe for immediate journalistic gravity, or a clean, unlined 1-inch margin that leaves more room for handwritten marginalia?",
+    "ariaSummary": "The team convened to design an editorial stylesheet that turns standard word-processor documents into confident, journalistic publications on a church copier budget. \n\nThe Baroque Dramatist and the Radical Minimalist locked horns over page architecture. The Baroque Dramatist argued that 'architectural scaffolding prevents the page from collapsing into timid whitespace,' while the Radical Minimalist countered that 'decoration is noise; emptiness is articulate.'\n\nI sided with the Baroque Dramatist's bold typographic contrast and margin structure to ensure these community reports feel like a serious journal rather than an administrative form, tempered by our editor's insistence on low-ink economy.",
+    "quotes": [
+      {
+        "directorId": "BAROQUE",
+        "line": "The Minimalist calls our generous margin stripe and double-rules redundant decoration. I call them the architectural scaffolding that prevents the page from collapsing into timid whitespace."
+      },
+      {
+        "directorId": "RADICAL_MINIMAL",
+        "line": "Decoration is noise; emptiness is articulate."
+      }
+    ]
+  }
+}

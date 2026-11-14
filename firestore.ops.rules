@@ -953,6 +953,12 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if orgAdminOf(orgId) || isAdmin();
     }
+    // A teacher's own look for the work they hand out (services/edu/documentLook.ts). Design only; theirs alone.
+    match /eduTeacherLooks/{id} {
+      allow read, delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow create, update: if isAuthenticated() && request.resource.data.uid == request.auth.uid
+        && id == request.resource.data.orgId + '_' + request.auth.uid && request.resource.data.look is map;
+    }
     match /churchPrayers/{prayerId} {
       // Public wall prayers: any signed-in user. Private requests: author, pastors/ministers, prayer warriors, admins.
       allow read: if isAuthenticated() && (

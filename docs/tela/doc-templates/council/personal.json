@@ -1,0 +1,193 @@
+{
+  "family": "personal",
+  "name": "Résumés, cover letters & programs",
+  "id": "mwfohxu8vmdeqw",
+  "uid": "doc-themes",
+  "createdAt": 1794616785296,
+  "depth": "QUICK",
+  "status": "DONE",
+  "brief": {
+    "ask": "Direct the theme for personal documents: résumés, cover letters, bios, event programs and invitations.",
+    "domain": "individuals presenting themselves or an occasion",
+    "audience": "a hiring manager with thirty seconds; a guest keeping the program",
+    "feeling": "self-possessed, memorable, one confident gesture",
+    "surface": "Tela word-document theme family \"Résumés, cover letters & programs\"",
+    "constraints": [
+      "Surface: a word-processor page in Plajah Tela — US Letter, 8.5 × 11 in, printed on an office laser or church copier and also read on screen. These are documents people WRITE in: the words are theirs and can be any length. The design must hold with one paragraph or forty pages.",
+      "You are directing a THEME: a stylesheet plus page flourishes. The stylesheet covers Title, Subtitle, Heading 1–3, Body, Quote, Pull quote, Caption, Lists (bullet glyph), Header/Footer text. For each give the font from the list, size in pt, weight, case, tracking, colour, alignment and spacing; say whether body is ragged or justified and whether paragraphs indent or space.",
+      "Fonts available (use only these): Text serifs: Source Serif 4, EB Garamond, Cormorant Garamond, Crimson Pro, Libre Baskerville, Lora, Spectral, Merriweather, Cardo, Alegreya, Gelasio, Noto Serif, Bitter, Zilla Slab, Roboto Slab, Josefin Slab. Display serifs: Playfair Display, Fraunces, DM Serif Display, Bodoni Moda, Instrument Serif, Gloock, Cinzel, Italiana, Forum, Marcellus, Yeseva One, Abril Fatface, Philosopher. Sans: Inter, Source Sans 3, DM Sans, Manrope, Work Sans, Karla, Nunito, Outfit, Sora, Space Grotesk, Epilogue, Archivo, Raleway, Josefin Sans, Tenor Sans, Lexend, Bricolage Grotesque, Syne, Rubik. Condensed: Oswald, Bebas Neue, League Gothic, Big Shoulders Display, Archivo Black, Anton. Mono / typewriter: JetBrains Mono, IBM Plex Mono, DM Mono, Space Mono, Courier Prime, Special Elite. Hand: Caveat, Kalam, Patrick Hand. Blackletter / uncial: UnifrakturMaguntia, Uncial Antiqua, Almendra.",
+      "Flourish vocabulary the page engine can draw behind and around the text, as flat vector art: paper tint; page border frames (single, double, inset, bracketed corners); corner ornaments; rules above/below headings (hairline, thick-thin, short centred, full measure, dashed); a side band or margin stripe; a head band across the top; drop caps (2–4 lines); a fleuron or geometric mark between sections; folio (page number) treatment; heading number tabs; shaded or ruled quote blocks. No photographs, no gradients wider than a band, nothing that depends on the words.",
+      "Print law: body text 10.5–12 pt with at least 7:1 contrast against the paper; ink coverage low enough for a church copier (no full-bleed dark pages; tinted paper must also read when printed on white); nothing vital within 0.4 in of the edge; the theme must survive black-and-white printing.",
+      "Give production-ready specifics: palette as hex (paper, ink, muted ink, accent, second accent), the exact fonts, sizes, the flourish list with positions and weights in pt or inches, and the one detail that makes this theme recognisable from across a table.",
+      "Name the direction with a two- or three-word title a church administrator or a student would understand in a template gallery."
+    ],
+    "references": [
+      "Plajah Tela Writer (paragraph styles, page setup, vector page flourishes)"
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "Proportional Measure and Structural Bay",
+      "idea": "A personal document theme built upon classical proportion and a strict structural bay system, demonstrating that true legibility requires an underlying architectural framework rather than flat vector rules.",
+      "geometry": "A 24×14 grid system derived from the red-figure proportions of the Chicago 'Pyxis (Container for Personal Objects)' (Art Institute of Chicago, 430-420 BCE, https://www.artic.edu/artworks/616), functioning as absolute positional authority for every page flourish.",
+      "typography": "Source Serif 4 for body text at 11 pt, justified with paragraph indents; Cinzel for display and headings, all caps with generous tracking, referencing the inscribed dignity of classical Attic grave stle.",
+      "imageLogic": "No raster photographs; visual weight is carried entirely by crisp vector rules, double margin borders, and structural header bands rendered at exact grid intersections.",
+      "texture": "Simulated warm cream parchment paper tint with high-contrast dark charcoal ink, optimized for office laser and church copiers without requiring halftone gradients.",
+      "motion": "Static and monumental in print; on screen, the document stylesheet loads with an absolute typographic cadence that preserves visual hierarchy across forty pages as rigidly as one.",
+      "productionMethod": "Generated via the Plajah Tela word-processor page engine using pure SVG vector flourishes and OFL web fonts (Source Serif 4 and Cinzel), ensuring zero-cost production and copiers-ready toner coverage.",
+      "humanTrace": "The deliberate simulation of paper tooth and the precise proportional placement of rules and drop caps, acting as a visual map of underlying structure and composition.",
+      "risk": "Risking severity in the pursuit of architectural order, which is worth it because a mark with no structure behind it is merely noise with confidence.",
+      "arguesWith": {
+        "directorId": "REBEL",
+        "why": "The Rebellious Hand calls my hierarchy a cage, but I maintain that without a structural bay to anchor those rules, the page remains merely printed rather than built."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Heavy Carbon Margin",
+      "idea": "Force the office copier toner to run thick and dark against a raw cream sheet, building a personal document that feels thumbed and inked by hand.",
+      "geometry": "Standard US Letter with a heavy 0.75-inch left margin stripe and an uncompromising single-rule border set 0.45 inches from the edge.",
+      "typography": "Source Serif 4 for body text at 11pt, heavy tracking, ragged right, zero paragraph indentation with 6pt space between; Special Elite for headers at 14pt, uppercase, tracking 3px, black ink.",
+      "imageLogic": "No photographs; relies entirely on heavy vector rules, inset corner brackets, and simulated high-contrast typewriter strike depth.",
+      "texture": "Simulated heavy carbon black ink spread on rough 80gsm cream stock, showing slight toner bleed and imperfect stamp pressure.",
+      "motion": "Static digital layout printed on physical paper; speed is conveyed through the abrupt, heavy horizontal rules dividing sections.",
+      "productionMethod": "Procedural vector page flourishes generated by Plajah Tela, compiled to PDF, and printed via office laser printer with high toner density settings.",
+      "humanTrace": "The uneven ink coverage of the typewriter typeface and the deliberate asymmetry of the left margin stripe, leaving a visible physical press mark.",
+      "risk": "Risks looking aggressively unpolished and amateur to a sterile HR algorithm, but that friction is worth it to demand a human look.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind wants pristine, balanced margins and harmonious proportions. I am smashing an ink-heavy vertical stripe down the left edge to break their polite symmetry."
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "Systemic Monolith",
+      "idea": "An instrument of precise typographic restraint where structural grid laws and flat vector rules replace dynamic illumination, turning low-cost office copier constraints into an engine of rigorous personal authority.",
+      "geometry": "US Letter, 8.5 × 11 in, built on a strict modular baseline grid with a 0.75-inch margin architecture. Flourishes are bound by hard-coded coordinate constraints, preventing content-dependent reflow failures.",
+      "typography": "Title: Inter, 28pt, bold, uppercase, tracking +0.05em. Subtitle: JetBrains Mono, 11pt, regular, normal, tracking +0.02em. Heading 1: Inter, 18pt, bold, uppercase, tracking +0.03em. Heading 2: Inter, 14pt, medium, normal, tracking +0.01em. Heading 3: Inter, 12pt, semibold, normal. Body: Source Serif 4, 11pt, regular, justified, paragraph spacing 0pt with 6pt break, no indent. Quote: Source Serif 4, 11pt, italic. Pull quote: Inter, 16pt, medium, centered. Caption: JetBrains Mono, 9pt, regular. Lists: Source Serif 4, 11pt with custom square glyph. Header/Footer: JetBrains Mono, 8.5pt, uppercase.",
+      "imageLogic": "Purely procedural flat vector art: single hairline borders, precise corner brackets, and left-aligned margin rules driven by system variables, maintaining absolute clarity across monochromatic church copiers.",
+      "texture": "The raw tooth of standard 20lb office bond paper and high-density, flat monochrome toner ink with zero gradients, digital drop shadows, or simulated transparency.",
+      "motion": "Static layout rendered dynamically by the page engine; state changes occur instantly upon character input, preserving structural integrity from a single paragraph to a forty-page document.",
+      "productionMethod": "Procedural CSS-to-vector rendering pipeline targeting zero-asset-overhead output for low-cost office lasers and digital PDF generation.",
+      "humanTrace": "The deliberate embrace of physical office print constraints: clean raster thresholds, crisp vector rules, and the palpable grain of uncoated paper stock.",
+      "risk": "Risking severe austerity that alienates users seeking decorative charm; worth it because true functional authority requires stripping away all effects that do not serve as structural instruments.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist relies on dynamic lighting and theatrical reveals that collapse under the physical realities of an office laser printer. A document is an instrument of transmission, not a screensaver; if it requires a high-end display to function, the design has failed its primary state space."
+      }
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "The Registry of Provenance",
+      "idea": "A personal document styled like a 13th-century administrative register—such as the Kamakura-period letters catalogued in Japan Search (鎌倉時代 13世紀) or the red-figure inventory pyxides of Athens (Art Institute of Chicago, 430-420 BCE)—where the authority comes entirely from carbon-ink rules, precise line-number grids, and archival paper stock.",
+      "geometry": "US Letter 8.5x11 in with strict 0.75-in side margins, a 0.5-in running header, and a vertical 1-pt margin stripe positioned 0.4 in from the left edge acting as a binding stitch.",
+      "typography": "Source Serif 4 for body text at 11 pt, tracked at 0 em, ragged right with 1.25 pt paragraph spacing; IBM Plex Mono for Headings and data tables at 10 pt, all-caps, tracked at +0.05 em; Noto Serif for Title at 24 pt, bold, centered.",
+      "imageLogic": "No raster images or photographs; all structural ornaments are strictly vector-drawn ruled lines, bracketed page border frames, and geometric division marks.",
+      "texture": "Warm eggshell paper simulation (#FBF9F5) with a dry carbon-ink print rendering (#181817) that carries the slight micro-roughness of an office laser drum.",
+      "motion": "Static document format designed for zero-latency rendering, instant PDF compilation, and seamless cross-platform office copier duplication.",
+      "productionMethod": "Procedural CSS and SVG generation engine outputting directly to print-ready PDF streams with zero external asset dependencies or licensed fonts.",
+      "humanTrace": "Simulated carbon-ink bleed and the rhythmic, hand-measured cadence of administrative ruled lines that recall scribal registers.",
+      "risk": "Risking severe austerity by rejecting all decorative flourishes in favor of pure structural hierarchy, justified by the ultimate legibility it grants the hiring manager in thirty seconds.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist reaches for gold before asking whose gold, loading personal documents with borrowed heraldry and grand flourishes that flatten distinct cultures; true presence needs no synthetic opulence, only the unyielding precision of an archival register."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "The High-Contrast Chiaroscuro Page",
+      "idea": "To forge a profound theatrical severity through uncompromising carbon-black rules and dramatic light, proving that the discipline of ink-dense geometry carries the heavy dramatic weight of a golden baroque arch.",
+      "geometry": "A commanding single-column grid with generous 1.25-inch margins and a heavy, 3-point double-rule frame inset at 0.5 inches, creating a theatrical stage portal around every page.",
+      "typography": "Bodoni Moda for Display and Headings (18-32 pt, tracked out, uppercase), paired with Source Serif 4 for Body (11 pt, justified, 1.3 line spacing, 6 pt paragraph space). Open-licensed Google Fonts only.",
+      "imageLogic": "No raster images or photographs; the page relies entirely on generative vector flourishes, stark drop caps, and sharp typographic light contrasts.",
+      "texture": "Crisp white paper stock bearing heavy, rich black toner with high contrast (exceeding 14:1) that survives a low-cost office or church copier with absolute authority.",
+      "motion": "Static printed page brought to life by the theatrical timing of the reader's eye moving from the heavy double-rule frame down to the sharp drop cap.",
+      "productionMethod": "Generated via procedural vector styling and pure CSS/PDF layout rules for Plajah Tela, optimized for instant, high-contrast monochrome printing on standard US Letter stock.",
+      "humanTrace": "The simulated ink density and precise, hand-tuned weight of the border rules, echoing the physical pressure of a master printer's press.",
+      "risk": "Risking severe formality and intimidating density; worth it because true self-possession demands gravitas rather than timid compliance.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Minimalist calls restraint a virtue when it is merely an alibi for avoiding a bold emotional decision. I demand spectacle, volume, and chiaroscuro contrast where they offer only empty air."
+      }
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "The Single Hairline",
+      "idea": "A document stripped to its structural skeleton where silence does the work of decoration.",
+      "geometry": "A strict 1-inch grid with an asymmetric left bias, leaving generous 1.5-inch negative space for marginalia and single-hairline structural rules.",
+      "typography": "Source Serif 4 for body at 11pt, regular weight, 0pt tracking, ragged right, 1.25 line height; Instrument Serif for titles at 28pt, italic, 0.5pt tracking, left-aligned.",
+      "imageLogic": "No images. Pure typographic rhythm, vector geometry, and structural white space.",
+      "texture": "Matte eggshell paper simulation with subtle pulp tooth and deep carbon-black ink hit.",
+      "motion": "Instantaneous static load with zero motion; the document stands complete and immovable on the page.",
+      "productionMethod": "Vector generation via shader and procedural PDF rendering; single pass, high contrast, zero-bleed laser-safe execution.",
+      "humanTrace": "The slight optical warmth of digital paper tooth and the precise manual weight of a 0.25pt hairline rule.",
+      "risk": "Risking severe austerity that alienates users accustomed to rich templates, but worth it for immediate legibility and timeless authority.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist adds redundant gestures and heavy flourishes until something happens. I remove every gesture until only the load-bearing bones remain."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "REBEL",
+      "objection": "The Rebellious Hand calls my hierarchy a cage, but I maintain that without a structural bay to anchor those rules, the page remains merely printed rather than built."
+    },
+    {
+      "from": "REBEL",
+      "against": "CLASSICAL",
+      "objection": "The Classical Mind wants pristine, balanced margins and harmonious proportions. I am smashing an ink-heavy vertical stripe down the left edge to break their polite symmetry."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "BAROQUE",
+      "objection": "The Baroque Dramatist relies on dynamic lighting and theatrical reveals that collapse under the physical realities of an office laser printer. A document is an instrument of transmission, not a screensaver; if it requires a high-end display to function, the design has failed its primary state space."
+    },
+    {
+      "from": "WORLD_ECLECTIC",
+      "against": "BAROQUE",
+      "objection": "The Baroque Dramatist reaches for gold before asking whose gold, loading personal documents with borrowed heraldry and grand flourishes that flatten distinct cultures; true presence needs no synthetic opulence, only the unyielding precision of an archival register."
+    },
+    {
+      "from": "BAROQUE",
+      "against": "RADICAL_MINIMAL",
+      "objection": "The Minimalist calls restraint a virtue when it is merely an alibi for avoiding a bold emotional decision. I demand spectacle, volume, and chiaroscuro contrast where they offer only empty air."
+    },
+    {
+      "from": "RADICAL_MINIMAL",
+      "against": "BAROQUE",
+      "objection": "The Baroque Dramatist adds redundant gestures and heavy flourishes until something happens. I remove every gesture until only the load-bearing bones remain."
+    }
+  ],
+  "reflections": [],
+  "synthesis": {
+    "lead": "FUTURIST",
+    "counterpoint": "BAROQUE",
+    "editor": "CLASSICAL",
+    "direction": "A systemic, high-density typographic architecture built on US Letter with a 0.75-inch grid, combining the structural authority of Inter for headings and Source Serif 4 for body text. The layout relies on exact coordinate-bound flat vector rules and hairline borders that print flawlessly on low-cost office lasers. Texture is rendered as matte eggshell paper with high-density carbon toner, prioritizing instantaneous transmission and uncompromising cross-device legibility.",
+    "keepFromCounterpoint": "The striking, high-contrast chiaroscuro ink density that commands immediate visual weight.",
+    "editorCut": "The Baroque double-rule frames and decorative flourishes were cut because they collapse under office laser constraints and add unnecessary toner weight.",
+    "openDecision": "Choose whether your personal documents lead with the unyielding structural utility of Inter or the softer, classical cadence of Source Serif 4 for headings.",
+    "ariaSummary": "The team convened to forge a personal document theme for Plajah Tela that must survive both an office laser and a church copier while winning over a hiring manager in thirty seconds. The Futurist argued for uncompromising system reliability, stating that a document is an instrument of transmission rather than a screensaver. The Baroque Dramatist fought hard for theatrical gravity and high-contrast frames, calling out minimal restraint as an alibi for avoiding bold choices.\n\nI sided with the Futurist, because a template that fails on cheap paper fails its fundamental state space. However, as The Classical Mind reminded us without quoting directly, we must preserve proportional measure so the structure feels built rather than merely printed. The editor stepped in to strip away all heavy decorative frames that choke low-cost copiers.\n\nThe resulting theme, 'Systemic Monolith', balances functional authority with crisp typographic clarity. Now, the final choice rests with you.",
+    "quotes": [
+      {
+        "directorId": "FUTURIST",
+        "line": "A document is an instrument of transmission, not a screensaver; if it requires a high-end display to function, the design has failed its primary state space."
+      },
+      {
+        "directorId": "BAROQUE",
+        "line": "The Minimalist calls restraint a virtue when it is merely an alibi for avoiding a bold emotional decision."
+      }
+    ]
+  }
+}

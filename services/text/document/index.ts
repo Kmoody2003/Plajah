@@ -20,6 +20,7 @@ export * from './blocks';
 export * from './display';
 export * from './paginate';
 export * from './render';
+export * from './theme';
 
 const envs = new WeakMap<object, WeakMap<object, LayoutEnv>>();
 /** A LayoutEnv bound to the document's stylesheet (memoised so caches keep hitting). */

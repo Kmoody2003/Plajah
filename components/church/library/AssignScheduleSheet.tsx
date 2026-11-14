@@ -13,6 +13,8 @@ import { announceWorkChanged, fmtDay } from '../christianEd/edWork';
 import { KIND_META, kindOf } from './TelaPage';
 import { calendarDay, type CourseSource } from './courseSource';
 import { AFTER_DUE_LABEL, endOfDay, type AfterDue } from '../../../services/edu/assignmentPolicy';
+import { SOURCE_LABEL, getOrgLooks, getTeacherLook, isTestKind, lookChoices, lookName, looksForCourse, resolveLook, type EduLook, type OrgLooks } from '../../../services/edu/documentLook';
+import { auth } from '../../../services/firebase';
 
 const TOOLS: Array<[keyof DeskAssignmentToolsConfig, string]> = [
   ['allowSelfCheckBeforeTurnIn', 'Check my work'],
@@ -33,7 +35,9 @@ export interface ScheduledResult {
   last: Date;
 }
 
-export default function AssignScheduleSheet({ units, source, onClose, onDone, onSaveProgram }: {
+export default function AssignScheduleSheet({ units, source, onClose, onDone, onSaveProgram, teacherUid }: {
+  /** Whose look the hand-outs wear by default (defaults to the signed-in account). */
+  teacherUid?: string;
   units: IngestedCurriculumUnit[];
   /** Christian Ed courses or the teacher's own Academia classes (courseSource). */
   source: CourseSource;
@@ -65,6 +69,24 @@ export default function AssignScheduleSheet({ units, source, onClose, onDone, on
   const [month, setMonth] = useState(() => new Date());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  // The look these hand-outs wear: picked here, else the teacher's own, the department's, the org's.
+  const [pickedLook, setPickedLook] = useState('');
+  const [orgLooks, setOrgLooks] = useState<OrgLooks | null>(null);
+  const [myLook, setMyLook] = useState<EduLook | null>(null);
+  const lookOrgId = program?.kind === 'CHRISTIAN_EDUCATION' ? program.orgId || '' : '';
+  useEffect(() => {
+    if (!lookOrgId) { setOrgLooks(null); setMyLook(null); return; }
+    let live = true;
+    void getOrgLooks(lookOrgId).then(l => { if (live) setOrgLooks(l); });
+    void getTeacherLook(lookOrgId, teacherUid || auth.currentUser?.uid || '').then(l => { if (live) setMyLook(l); });
+    return () => { live = false; };
+  }, [lookOrgId, teacherUid]);
+  const lookOf = (unit: IngestedCurriculumUnit) => resolveLook({
+    unit,
+    // A picked look only dresses the kind it was made for (a quiz design stays off worksheets).
+    assignment: pickedLook && lookChoices(isTestKind(unit.kind)).some(t => t.id === pickedLook) ? pickedLook : null,
+    teacher: myLook, ...looksForCourse(orgLooks, program?.program?.departmentId),
+  });
 
   const byId = useMemo(() => new Map(units.map(u => [u.id, u])), [units]);
   const auto = useMemo(() => spreadDates(order.length, fromIsoDay(start), cadence, program?.meetingSchedule), [order.length, start, cadence, program?.meetingSchedule]);
@@ -121,6 +143,7 @@ export default function AssignScheduleSheet({ units, source, onClose, onDone, on
           opensAt: opens && opens > Date.now() ? opens : undefined,
           afterDue,
           tools,
+          lookId: program.kind === 'CHRISTIAN_EDUCATION' ? lookOf(unit).templateId : undefined,
         });
       }
       const plan = program.program;
@@ -287,6 +310,22 @@ export default function AssignScheduleSheet({ units, source, onClose, onDone, on
                 </div>
               </>
             )}
+            {program?.kind === 'CHRISTIAN_EDUCATION' && order.length > 0 && (() => {
+              const first = byId.get(order[0]);
+              const base = first ? resolveLook({ unit: first, teacher: myLook, ...looksForCourse(orgLooks, program.program?.departmentId) }) : null;
+              const tests = order.some(id => isTestKind(byId.get(id)?.kind)), sheets = order.some(id => !isTestKind(byId.get(id)?.kind));
+              return (
+                <>
+                  <div className="small">Look</div>
+                  <select className="field" aria-label="The look these wear" value={pickedLook} onChange={e => setPickedLook(e.target.value)}>
+                    <option value="">{base ? `${lookName(base.templateId)} (${SOURCE_LABEL[base.source]})` : 'Default'}</option>
+                    {sheets && <optgroup label="Lessons & worksheets">{lookChoices(false).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>}
+                    {tests && <optgroup label="Tests & quizzes">{lookChoices(true).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>}
+                  </select>
+                  <div className="small" style={{ opacity: .7 }}>Only the design changes. The lesson, its answer key and who can open it stay the same for every class.</div>
+                </>
+              );
+            })()}
             {source.deskTools && program?.kind !== 'ACADEMIA' ? (
               <>
                 <div className="small">Desk tools</div>

@@ -1,0 +1,103 @@
+{
+  "family": "worship",
+  "name": "Sermons, bulletins & orders of service",
+  "id": "mwfo96w3f1xqk7",
+  "uid": "doc-themes",
+  "createdAt": 1794616377123,
+  "depth": "QUICK",
+  "status": "FAILED",
+  "brief": {
+    "ask": "Direct the theme for worship documents: sermon manuscripts, Sunday bulletins, orders of service, devotionals and prayer guides.",
+    "domain": "Black church and wider Christian worship life",
+    "audience": "pastors at the pulpit reading at arm's length, and congregants holding a folded bulletin",
+    "feeling": "reverent, warm, sung rather than spoken — never kitsch",
+    "surface": "Tela word-document theme family \"Sermons, bulletins & orders of service\"",
+    "constraints": [
+      "Surface: a word-processor page in Plajah Tela — US Letter, 8.5 × 11 in, printed on an office laser or church copier and also read on screen. These are documents people WRITE in: the words are theirs and can be any length. The design must hold with one paragraph or forty pages.",
+      "You are directing a THEME: a stylesheet plus page flourishes. The stylesheet covers Title, Subtitle, Heading 1–3, Body, Quote, Pull quote, Caption, Lists (bullet glyph), Header/Footer text. For each give the font from the list, size in pt, weight, case, tracking, colour, alignment and spacing; say whether body is ragged or justified and whether paragraphs indent or space.",
+      "Fonts available (use only these): Text serifs: Source Serif 4, EB Garamond, Cormorant Garamond, Crimson Pro, Libre Baskerville, Lora, Spectral, Merriweather, Cardo, Alegreya, Gelasio, Noto Serif, Bitter, Zilla Slab, Roboto Slab, Josefin Slab. Display serifs: Playfair Display, Fraunces, DM Serif Display, Bodoni Moda, Instrument Serif, Gloock, Cinzel, Italiana, Forum, Marcellus, Yeseva One, Abril Fatface, Philosopher. Sans: Inter, Source Sans 3, DM Sans, Manrope, Work Sans, Karla, Nunito, Outfit, Sora, Space Grotesk, Epilogue, Archivo, Raleway, Josefin Sans, Tenor Sans, Lexend, Bricolage Grotesque, Syne, Rubik. Condensed: Oswald, Bebas Neue, League Gothic, Big Shoulders Display, Archivo Black, Anton. Mono / typewriter: JetBrains Mono, IBM Plex Mono, DM Mono, Space Mono, Courier Prime, Special Elite. Hand: Caveat, Kalam, Patrick Hand. Blackletter / uncial: UnifrakturMaguntia, Uncial Antiqua, Almendra.",
+      "Flourish vocabulary the page engine can draw behind and around the text, as flat vector art: paper tint; page border frames (single, double, inset, bracketed corners); corner ornaments; rules above/below headings (hairline, thick-thin, short centred, full measure, dashed); a side band or margin stripe; a head band across the top; drop caps (2–4 lines); a fleuron or geometric mark between sections; folio (page number) treatment; heading number tabs; shaded or ruled quote blocks. No photographs, no gradients wider than a band, nothing that depends on the words.",
+      "Print law: body text 10.5–12 pt with at least 7:1 contrast against the paper; ink coverage low enough for a church copier (no full-bleed dark pages; tinted paper must also read when printed on white); nothing vital within 0.4 in of the edge; the theme must survive black-and-white printing.",
+      "Give production-ready specifics: palette as hex (paper, ink, muted ink, accent, second accent), the exact fonts, sizes, the flourish list with positions and weights in pt or inches, and the one detail that makes this theme recognisable from across a table.",
+      "Name the direction with a two- or three-word title a church administrator or a student would understand in a template gallery."
+    ],
+    "references": [
+      "Plajah Tela Writer (paragraph styles, page setup, vector page flourishes)"
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "The Sacred Canon Order of Service",
+      "idea": "A strictly proportioned typographic hierarchy derived from early printed liturgical books, balancing an oxblood cantus firmus grid with generous, legibility-first reading measures for pulpit and pew.",
+      "geometry": "Constructed on a classical 4:5 golden page ratio inside an 8.5 × 11 in sheet: 0.75 in side margins and 1.0 in top/bottom margins establish a stable 7.0 in text column (65 characters per line in 11 pt EB Garamond). The vertical rhythm resolves to a rigid 14 pt baseline grid; all headings, blockquotes, and rule flourishes lock precisely to integer multiples of this 14 pt unit. Folded bulletin spreads bisect cleanly along a 0.5 in central gutter without disrupting rule intersections.",
+      "typography": "Title: EB Garamond, 28 pt, Regular, Title Case, tracking +0.02em, #1C1A17, centered, 28 pt space after. Subtitle: Tenor Sans, 11 pt, Regular, UPPERCASE, tracking +0.14em, #5C5449, centered, 14 pt space after. Heading 1: EB Garamond, 18 pt, Regular, Title Case, tracking 0, #1C1A17, left-aligned, 28 pt before / 14 pt after. Heading 2: Tenor Sans, 10.5 pt, SemiBold, UPPERCASE, tracking +0.10em, #7A3B2E, left-aligned, 14 pt before / 14 pt after. Heading 3: EB Garamond, 12 pt, Italic, Sentence case, tracking 0, #1C1A17, left-aligned, 14 pt before / 0 pt after. Body: EB Garamond, 11 pt, Regular, Sentence case, tracking 0, #1C1A17, ragged right, 14 pt line height, first-line indent 0.25 in with 0 pt paragraph space. Quote: EB Garamond, 10.5 pt, Italic, tracking 0, #3D3730, centered, 14 pt before and after, 0.5 in left/right indent. Pull Quote: EB Garamond, 15 pt, Regular, tracking +0.01em, #7A3",
+      "imageLogic": "Under our generative-only policy, visual accents enter exclusively as algorithmically generated vector etchings and procedural line ornaments. Drawing inspiration from Rembrandt van Rijn's 1652 engraving 'David in Prayer' [Art Institute of Chicago], vector fleurons and rule terminations feature microscopic line-density variations that simulate hand-cut copperplate engraving when rendered at high DPI or printed on standard laser toner.",
+      "texture": "Paper tint: Warm natural vellum (#FBF8F3). Ink: Deep charcoal (#1C1A17, achieving 14:1 contrast ratio against paper). Muted ink: Warm slate gray (#5C5449). Accent: Liturgical oxblood (#7A3B2E). Second accent: Antique bronze gold (#9A7B38). Microscopic procedural noise is baked into the vector flourishes to emulate light ink-squeeze on 20 lb bond copier paper without increasing toner consumption or risking full-bleed smear.",
+      "motion": "Static printed document; on digital screen preview, page-turns use an unadorned 200ms linear opacity cross-fade. The layout frame remains absolutely rigid while text streams through it, ensuring no visual layout shifts occur between a single-page order of service and a forty-page devotional manuscript.",
+      "productionMethod": "Engineered in Plajah Tela Writer as a purely procedural vector template. Layout flourishes (a 1 pt top head-band rule bounded by 0.5 pt hairline accents at 0.5 in from the top edge, 2-line drop caps in EB Garamond oxblood, and centered 8 pt bronze gold cross fleurons between major sections) are rendered entirely via programmatic SVG paths and CSS rules. Designed to maintain 100% legibility and structural hierarchy when printed on black-and-white church office copiers.",
+      "humanTrace": "The deliberate optical adjustment of the baseline grid, where rule weights (0.5 pt and 1 pt) and letter-spacing directly mirror the hand-set iron metal type and woodblock borders of 19th-century church hymnals and academic press monographs.",
+      "risk": "The strict reliance on classic serif hierarchy and rigid grid alignment risks appearing traditional to those seeking trendy layout novelties. This risk is embraced because sacred texts require structural permanence, legibility at arm's length in dim sanctuaries, and a cadence that serves the spoken word across decades.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist seeks theatrical contrast and dramatic visual reveals through dynamic scale jumps; I insist that sacred authority resides in predictable, unannounced structural cadence and refined proportions that never compete with the spoken sermon."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Testimony & Woodblock Press",
+      "idea": "Treat the sermon and bulletin not as a fragile liturgical keepsake, but as an active, high-contrast working tool built for arm-length pulpit reading and rough copier runs.",
+      "geometry": "Asymmetric 0.5 in inner margin guide for handwritten pulpit notes; top headband formed by a 3 pt heavy black rule paired with a 0.5 pt accent rule; offset double-rule footers; broad 0.75 in outer margins. Body text is ragged-right with 6 pt paragraph spacing (no indents).",
+      "typography": "Title: Fraunces, 32 pt, Bold, Title Case, tracking -0.02em, Ink #1A1817, Left-aligned. Subtitle: Libre Baskerville, 14 pt, Italic, Sentence Case, Muted Ink #5C5650, Left-aligned. Heading 1: Fraunces, 20 pt, Bold, Sentence Case, Ink #1A1817, Left-aligned with 4 pt bottom rule. Heading 2: Libre Baskerville, 13 pt, Bold, Sentence Case, Accent #8C241C. Heading 3: Libre Baskerville, 11 pt, Bold Italic, Sentence Case, Ink #1A1817. Body: Libre Baskerville, 11 pt, Regular, Sentence Case, line height 1.45, Ink #1A1817, Ragged Right, 6 pt space after. Quote: Libre Baskerville, 11 pt, Italic, Ink #1A1817, 18 pt left inset with 2 pt vertical rule in Accent #8C241C. Pull Quote: Fraunces, 16 pt, Semi-Bold, Accent #8C241C, Centered, enclosed top and bottom by 1 pt rules. Caption: JetBrains Mono, 9 pt, Regular, Ink #5C5650. Header/Footer: JetBrains Mono, 8.5 pt, Medium, Uppercase, tracking +0.1em, Muted",
+      "imageLogic": "No photos. Vector ornaments generated with procedural ink-bite edges inspired by Rembrandt van Rijn's dark plate pressure in 'David in Prayer' (1652, Art Institute of Chicago). Section dividers use a bold 12 pt block fleuron flanked by asymmetrical thick-thin hairlines.",
+      "texture": "Palette: Paper #F4F0EA, Ink #1A1817, Muted Ink #5C5650, Accent #8C241C, Second Accent #2D4A3E. Procedural toner-drag vector noise applied to rule terminals to mimic hand-pulled woodblock prints without heavy ink coverage.",
+      "motion": "Static layout for physical print; for digital reading on screens, subtle procedural page-turn resistance and smooth focus jumps between Heading 1 sermon sections.",
+      "productionMethod": "Procedural SVG vector flourishes embedded into Plajah Tela stylesheet; optimized for 600 DPI monochrome church copiers and high-contrast mobile displays.",
+      "humanTrace": "Intentionally variable hairline weights on section rules and bracketed corners that emulate press pressure and heavy plate bite.",
+      "risk": "Risks looking too stark or print-shop raw for high-church formalists who want faint gold filigree, but it wins because it remains completely legible under harsh pulpit lighting and survives 500 passes on a low-toner copier.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind insists on delicate centered symmetry and paper-thin hairlines that collapse into dust on a cheap church copier. I demand heavy rules, offset weights, and high ink contrast that hold up under real pulpit conditions."
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "Dynamic Liturgical Cadence",
+      "idea": "A responsive typographical cadence system where text hierarchy acts as a structural dynamic score, framing sermon rhetoric with precise vector beam-rules and adaptive margin telemetry that guarantee arm's-length pulpit legibility.",
+      "geometry": "US Letter (8.5 x 11 in) structured on an 8-column micro-grid with a 0.65 in safety margin; features a 0.75 in left margin index track for scripture markers and a primary 5.5 in text body column aligned to a strict 14 pt baseline grid.",
+      "typography": "Title: Fraunces (28 pt, 700 weight, Sentence case, 0 tracking, ink #1B1817, Left, 16 pt space after); Subtitle: Instrument Serif (16 pt, 400 weight Italic, Sentence case, 0.5 pt tracking, muted ink #4A453F, Left, 12 pt after); Heading 1: Cormorant Garamond (18 pt, 600 weight, All Caps, 2 pt tracking, ink #1B1817, Left, 14 pt before / 6 pt after, accompanied by a 0.75 pt accent rule below); Heading 2: Source Serif 4 (13 pt, 600 weight, Sentence case, 0.5 pt tracking, ink #1B1817, Left, 10 pt before / 4 pt after); Heading 3: Source Sans 3 (10 pt, 600 weight, All Caps, 1.5 pt tracking, muted ink #4A453F, Left, 8 pt before / 2 pt after); Body: Source Serif 4 (11.5 pt, 400 weight, Ragged right, 1.4 line height, 0 pt indent, 7 pt space after, ink #1B1817); Quote: Instrument Serif (15 pt, 400 weight Italic, Left, 1.35 line height, muted ink #4A453F, 12 pt left inset with 1.5 pt accent side bord",
+      "imageLogic": "Generative procedural vector glyphs and stroke distributions derived mathematically from etching line densities in Rembrandt's 'David in Prayer' (1652, Art Institute of Chicago, https://www.artic.edu/artworks/48960), converting tonal shadows into functional margin dividers.",
+      "texture": "Simulated high-contrast laser toner fusing with an unbleached 20 lb rag-paper texture (#FDFBF7), maintaining sharp 0.5 pt micro-rules that survive low-toner church copiers and grayscale reproduction without muddying.",
+      "motion": "On digital readers, structural heading tabs execute a discrete 150 ms linear state shift when toggled, while an adaptive reading-progress micro-bar advances along the left margin telemetry track.",
+      "productionMethod": "Procedurally constructed SVG layout templates compiled via CSS Paged Media rules, generating identical geometric vector layouts for both physical 300 dpi laser printing and responsive digital screen rendering.",
+      "humanTrace": "Procedural stroke-weight modulations derived from pressure-map samples of Rembrandt's original 1652 copperplate engraving, translating physical hand-etched ink density into parametric algorithmic vector weights.",
+      "risk": "Risks appearing overly technical to traditional congregations accustomed to standard centered bulletin templates; worth it because it delivers unprecedented functional clarity at arm's length under pulpit lighting.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind builds static monuments out of traditional centered typography; I build responsive instruments whose visual hierarchy dynamically re-indexes based on document length and physical reading distance."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "REBEL",
+      "against": "CLASSICAL",
+      "objection": "The Classical Mind insists on delicate centered symmetry and paper-thin hairlines that collapse into dust on a cheap church copier. I demand heavy rules, offset weights, and high ink contrast that hold up under real pulpit conditions."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "CLASSICAL",
+      "objection": "The Classical Mind builds static monuments out of traditional centered typography; I build responsive instruments whose visual hierarchy dynamically re-indexes based on document length and physical reading distance."
+    }
+  ],
+  "reflections": [],
+  "error": "{\"error\":{\"code\":429,\"message\":\"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\\nPlease retry in 7h25m29.694527431s.\",\"status\":\"RESOURCE_EXHAUSTED\",\"details\":[{\"@type\":\"type.googleapis.com/google.rpc.Help\",\"links\":[{\"description\":\"Learn more about Gemini API quotas\",\"url\":\"https://aistudio.google.com/docs/rate-limits\"}]},{\"@type\":\"type.googleapis.com/google.rpc.QuotaFailure\",\"violations\":[{\"description\":\"Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\",\"quotaMetric\":\"generativelanguage.googleapis.com/generate_content_free_tier_requests\",\"quotaId\":\"GenerateRequestsPerDayPerProjectPerModel-FreeTier\",\"quotaDimensions\":{\"location\":\"global\",\"model\":\"gemini-3.6-flash\"},\"quotaValue\":\"20\"}]},{\"@type\":\"type.googleapis.com/google.rpc.RetryInfo\",\"retryDelay\":\"26729s\"}]}}"
+}

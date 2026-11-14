@@ -408,9 +408,12 @@ export function commitLine(env: LayoutEnv, prep: PreparedParagraph, p: Paragraph
     const attrs = prep.styles[r.style] ?? prep.char;
     const rx = e.x + r.x;
     const y = e.baseline - r.shift;
+    // A tab has no glyph in most fonts: the shaper hands back .notdef, which would print as a
+    // box at the start of the tab's gap. The gap (and any leader) is already in the positions.
+    const glyphs = r.glyphs.some(g => g.gid === 0 && prep.text.charCodeAt(g.cluster) === 9) ? r.glyphs.filter(g => !(g.gid === 0 && prep.text.charCodeAt(g.cluster) === 9)) : r.glyphs;
     return {
       font: r.font, size: r.size, color: attrs.color, y, x: rx, width: r.width, scaleX: r.scaleX, level: r.level, flags: r.flags,
-      glyphs: r.glyphs.map(g => g.gid), xs: r.glyphs.map(g => rx + g.x), ys: r.glyphs.map(g => y - g.y), clusters: r.glyphs.map(g => g.cluster + off),
+      glyphs: glyphs.map(g => g.gid), xs: glyphs.map(g => rx + g.x), ys: glyphs.map(g => y - g.y), clusters: glyphs.map(g => g.cluster + off),
       styleIndex: r.style, attrs, paragraphId: p.id,
     };
   });

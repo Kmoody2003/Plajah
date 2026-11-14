@@ -43,7 +43,15 @@ export default function TextSurface(props: TextSurfaceProps) {
   const { system, story, frames, onChange, readOnly } = props;
   const [fontsVersion, setFontsVersion] = useState(0);
   const [localSel, setLocalSel] = useState<TextRange>(() => { const at = props.caretAtEnd ? endOf(story) : startOf(story); return { anchor: at, focus: at }; });
-  const sel = props.selection ?? localSel;
+  // The story can be replaced from outside (a template applied, an undo, a remote edit): a
+  // selection pointing at paragraphs that are gone falls back to the start instead of throwing.
+  const heldSel = props.selection ?? localSel;
+  const sel = useMemo<TextRange>(() => {
+    const ok = (p: Position) => { const q = story.paragraphs.find(x => x.id === p.paragraphId); return !!q && p.offset <= paragraphLength(q); };
+    if (ok(heldSel.anchor) && ok(heldSel.focus)) return heldSel;
+    const at = startOf(story);
+    return { anchor: at, focus: at };
+  }, [heldSel, story]);
   const setSel = useCallback((r: TextRange) => { setLocalSel(r); props.onSelectionChange?.(r); }, [props.onSelectionChange]);
   const [affinity, setAffinity] = useState<Affinity>('downstream');
   const goalX = useRef<number | undefined>(undefined);

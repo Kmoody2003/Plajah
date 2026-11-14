@@ -19,7 +19,8 @@ import type { TelaBlock, TelaBlockKind, TelaTextSemanticKind, TelaWriterDevice }
 import TextSurface from '../text/TextSurface';
 import { createTextSystem, type TextSystem, type TextStory, type TextOp, type TextFrame, type TextRange, storyText, sliceStory } from '../../services/text';
 import { writerDocumentOf, applyWriterEdit, applyLegacyBlocks, writerCoalesce } from './writer/writerModel';
-import { deriveBlocks } from '../../services/text/document';
+import { deriveBlocks, documentEnv, pageFlourishSvg, readTheme, styleFlourishSvg, themedMargins } from '../../services/text/document';
+import { ensureStoryResources, layoutStory, type StoryLayout } from '../../services/text/layout/flow';
 import type { WriterOp } from '../../services/text/document/ops';
 
 export const newBlockId = () => `blk_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -180,13 +181,35 @@ const TelaWriter: React.FC<TelaWriterProps> = ({ device, onChangeBlocks, onWrite
 
   const doc = useMemo(() => writerDocumentOf(device), [device]);
 
-  const frames = useMemo<TextFrame[]>(() => [{
+  // A themed page (services/tela/docTemplates) is drawn at true page size with the document's
+  // own stylesheet, page setup (margins, columns) and flourishes. Plain pages keep the classic
+  // fixed text block, so documents made before themes look exactly as they did.
+  const theme = useMemo(() => readTheme(doc.theme), [doc.theme]);
+  const themedSystem = useMemo<TextSystem | null>(() => {
+    if (!system || !theme) return null;
+    const env = documentEnv(system, doc);
+    return { ...system, env, sheet: doc.styles, ensure: story => ensureStoryResources(env, story), layout: (story, fr, o) => layoutStory(env, story, fr, o) };
+  }, [system, doc.styles, !!theme]);
+  const setup = doc.sections[0]?.setup;
+  const pageBox = useMemo(() => {
+    if (!theme || !setup) return null;
+    const m = themedMargins(theme, setup.margins);
+    return { width: setup.width, height: setup.height, content: { x: m.left + (setup.margins.gutter || 0), y: m.top, width: setup.width - m.left - m.right - (setup.margins.gutter || 0), height: setup.height - m.top - m.bottom } };
+  }, [theme, setup]);
+  const [themedLayout, setThemedLayout] = useState<StoryLayout | null>(null);
+  const pageArt = useMemo(() => (theme && pageBox ? pageFlourishSvg(theme, pageBox) : ''), [theme, pageBox]);
+  const wordArt = useMemo(() => (theme && themedLayout ? styleFlourishSvg(theme, themedLayout, doc.story, doc.styles.defaultParagraph) : ''), [theme, themedLayout, doc.story, doc.styles]);
+
+  const frames = useMemo<TextFrame[]>(() => pageBox && setup ? [{
+    id: 'body', ...pageBox.content,
+    columns: Math.max(1, setup.columns?.count || 1), gutter: setup.columns?.gap,
+  }] : [{
     id: 'body',
     x: 72,
     y: 64,
     width: 672,
     height: 928,
-  }], []);
+  }], [pageBox, setup]);
 
   const handleEngineChange = useCallback((nextStory: TextStory, textOps: TextOp[]) => {
     const ops: WriterOp[] = [{ type: 'text', target: { kind: 'body' }, ops: textOps }];
@@ -396,20 +419,24 @@ const TelaWriter: React.FC<TelaWriterProps> = ({ device, onChangeBlocks, onWrite
           style={{
             height: '100%',
             overflowY: 'visible',
-            background: '#FFFFFF',
+            background: theme ? theme.palette.paper : '#FFFFFF',
             color: '#1B1523',
             cursor: readOnly ? 'default' : 'text',
-            padding: '24px 32px',
+            padding: theme ? 0 : '24px 32px',
           }}
+          data-doc-theme={theme?.id}
         >
           <TextSurface
-            system={system}
+            system={themedSystem ?? system}
             story={doc.story}
             frames={frames}
             readOnly={readOnly}
             onChange={handleEngineChange}
             showFrames={false}
             style={{ minHeight: '100%' }}
+            viewBox={pageBox ? [0, 0, pageBox.width, pageBox.height] : undefined}
+            onLayout={theme ? setThemedLayout : undefined}
+            underlay={theme ? <g pointerEvents="none" dangerouslySetInnerHTML={{ __html: pageArt + wordArt }} /> : undefined}
           />
         </div>
       ) : (

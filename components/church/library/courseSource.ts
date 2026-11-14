@@ -59,6 +59,8 @@ export interface DeliverWhen {
   tools: DeskAssignmentToolsConfig;
   /** What the class ledger calls it ('auto_scheduled' from the auto-scheduler). */
   ledgerEvent?: LedgerEvent;
+  /** The look this hand-out wears (services/edu/documentLook). The lesson itself is untouched. */
+  lookId?: string;
 }
 
 export interface CourseSource {
@@ -153,6 +155,7 @@ export function useCourseSource(opts: {
           assignedByUid: teacher.uid,
           assignedByName: teacher.name,
           toolsConfig: when.tools,
+          livingTemplateId: when.lookId,
         });
       },
       list: async course => {

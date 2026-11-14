@@ -139,14 +139,19 @@ export async function fetchLibraryUnits(tier: LibraryTier, scopeId: string): Pro
   }
 }
 
-/** A teacher's editable copy of a lesson (the original stays as it was). */
+/**
+ * A teacher's own custom version of a lesson. Changing what a lesson SAYS always goes through this:
+ * the original stays as it was for everyone else, and the custom version is filed under that
+ * teacher in the organization (provisioned 'teacher', ownerUid). Changing only its look does not
+ * (services/edu/documentLook).
+ */
 export function copyAsTemplate(u: IngestedCurriculumUnit, viewer: { uid: string; name: string }, intoOrgId: string): IngestedCurriculumUnit {
   const stamp = Date.now().toString(36);
   return {
     ...u,
     id: `${u.id.replace(/_copy_[a-z0-9]+$/, '')}_copy_${stamp}`,
     orgId: intoOrgId,
-    title: `${u.title} (my copy)`,
+    title: `${u.title.replace(/ · [^·]*’s version$/, '').replace(/ (my copy)$/, '')} · ${(viewer.name || 'My').trim().split(/s+/)[0]}’s version`,
     telaDocId: `${u.telaDocId || u.id}_copy_${stamp}`,
     provisioned: 'teacher',
     ownerUid: viewer.uid,

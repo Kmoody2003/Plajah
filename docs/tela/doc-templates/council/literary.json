@@ -1,0 +1,193 @@
+{
+  "family": "literary",
+  "name": "Chapters, poems & journals",
+  "id": "mwfojby3fm3i6n",
+  "uid": "doc-themes",
+  "createdAt": 1794616850235,
+  "depth": "QUICK",
+  "status": "DONE",
+  "brief": {
+    "ask": "Direct the theme for literary pages: book chapters, short stories, poetry folios, journals and memoir.",
+    "domain": "writers drafting and sharing their own work",
+    "audience": "readers settling in for long-form reading",
+    "feeling": "bookish, intimate, a page you want to keep reading",
+    "surface": "Tela word-document theme family \"Chapters, poems & journals\"",
+    "constraints": [
+      "Surface: a word-processor page in Plajah Tela — US Letter, 8.5 × 11 in, printed on an office laser or church copier and also read on screen. These are documents people WRITE in: the words are theirs and can be any length. The design must hold with one paragraph or forty pages.",
+      "You are directing a THEME: a stylesheet plus page flourishes. The stylesheet covers Title, Subtitle, Heading 1–3, Body, Quote, Pull quote, Caption, Lists (bullet glyph), Header/Footer text. For each give the font from the list, size in pt, weight, case, tracking, colour, alignment and spacing; say whether body is ragged or justified and whether paragraphs indent or space.",
+      "Fonts available (use only these): Text serifs: Source Serif 4, EB Garamond, Cormorant Garamond, Crimson Pro, Libre Baskerville, Lora, Spectral, Merriweather, Cardo, Alegreya, Gelasio, Noto Serif, Bitter, Zilla Slab, Roboto Slab, Josefin Slab. Display serifs: Playfair Display, Fraunces, DM Serif Display, Bodoni Moda, Instrument Serif, Gloock, Cinzel, Italiana, Forum, Marcellus, Yeseva One, Abril Fatface, Philosopher. Sans: Inter, Source Sans 3, DM Sans, Manrope, Work Sans, Karla, Nunito, Outfit, Sora, Space Grotesk, Epilogue, Archivo, Raleway, Josefin Sans, Tenor Sans, Lexend, Bricolage Grotesque, Syne, Rubik. Condensed: Oswald, Bebas Neue, League Gothic, Big Shoulders Display, Archivo Black, Anton. Mono / typewriter: JetBrains Mono, IBM Plex Mono, DM Mono, Space Mono, Courier Prime, Special Elite. Hand: Caveat, Kalam, Patrick Hand. Blackletter / uncial: UnifrakturMaguntia, Uncial Antiqua, Almendra.",
+      "Flourish vocabulary the page engine can draw behind and around the text, as flat vector art: paper tint; page border frames (single, double, inset, bracketed corners); corner ornaments; rules above/below headings (hairline, thick-thin, short centred, full measure, dashed); a side band or margin stripe; a head band across the top; drop caps (2–4 lines); a fleuron or geometric mark between sections; folio (page number) treatment; heading number tabs; shaded or ruled quote blocks. No photographs, no gradients wider than a band, nothing that depends on the words.",
+      "Print law: body text 10.5–12 pt with at least 7:1 contrast against the paper; ink coverage low enough for a church copier (no full-bleed dark pages; tinted paper must also read when printed on white); nothing vital within 0.4 in of the edge; the theme must survive black-and-white printing.",
+      "Give production-ready specifics: palette as hex (paper, ink, muted ink, accent, second accent), the exact fonts, sizes, the flourish list with positions and weights in pt or inches, and the one detail that makes this theme recognisable from across a table.",
+      "Name the direction with a two- or three-word title a church administrator or a student would understand in a template gallery."
+    ],
+    "references": [
+      "Plajah Tela Writer (paragraph styles, page setup, vector page flourishes)"
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "The Canonical Octavo",
+      "idea": "Architecture of the codex translated to the word processor through proportional bays and ruled margin notes.",
+      "geometry": "Based on the golden section rectangle of the classical octavo page, establishing a strict 1.25-inch inner margin and 1-inch outer margins to hold text within a proportional structural bay.",
+      "typography": "EB Garamond for body text at 11.5 pt with 1.4 line spacing and justified alignment; Cormorant Garamond for headings in small caps with generous tracking.",
+      "imageLogic": "No photographs; all spatial division relies on vector rules, thin hairlines, and structural margin bands derived from Charles Vernier's 'The Literary Life' layout principles.",
+      "texture": "Simulated warm ivory wove paper tint with carbon black ink density optimized for copier toner adhesion.",
+      "motion": "Static document layout with precise vertical rhythm where every line of text lands on a baseline grid.",
+      "productionMethod": "Procedural CSS styles and vector canvas layers rendered inside the Plajah Tela word processor and output directly to office laser printers.",
+      "humanTrace": "Subtle paper tooth grain texture and slight ink feathering simulation that recalls lithographic print impressions on antique stock.",
+      "risk": "Strict adherence to justified blocks and classical margins may challenge writers accustomed to modern left-aligned drafting spaces, but the resulting gravitas earns the friction.",
+      "arguesWith": {
+        "directorId": "FUTURIST",
+        "why": "The Futurist wants reconfigurable systems and fluid motion, whereas I maintain that a literary page must hold its ground like a structural bay in a cathedral."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Heavy Carbon Press",
+      "idea": "We weaponize the office laser copier by choking it with heavy black toner density until the administrative grid bleeds into the margins.",
+      "geometry": "US Letter with a heavy 0.75-inch double-ruled margin frame that breaks under deliberate toner flooding.",
+      "typography": "Instrument Serif for Display, Special Elite for Mono/Typewriter, and EB Garamond for Body text.",
+      "imageLogic": "Vector page flourishes only: heavy rules and bracketed corners rendered in near-solid black ink.",
+      "texture": "A simulated office xerox grain with toner scatter and edge-bleeding ink over an ivory wove paper tint (#F4F1EA).",
+      "motion": "Static digital layout with high-contrast binary impact, designed for the aggressive mechanical feed of a church mimeograph.",
+      "productionMethod": "Procedural vector generation mapped to a strict CSS print stylesheet with maxed-out black carbon density.",
+      "humanTrace": "The physical evidence of toner saturation, manual ink flooding, and uneven carbon distribution across the page edge.",
+      "risk": "Risks being unreadable to the bureaucrat who wants a safe, clean margin; it's worth it because paper needs to smell like carbon and fight back.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Minimalist strips away every imperfection until the page is dead and silent. I flood the toner until the carbon screams."
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "Systems Ledger Manuscript",
+      "idea": "An algorithmic instrument that treats institutional stationery logic as a hard geometric constraint, enforcing typographic rigor through data-bound coordinates rather than historical pastiche.",
+      "geometry": "US Letter 8.5 x 11 in with a strict 0.75 in margin, anchored by an instructor tally stripe and a 31.7°N astronomical coordinate system acting as a hard code constant.",
+      "typography": "JetBrains Mono for headers and metadata at 11 pt, 0 tracking, uppercase; Source Serif 4 for body text at 11.5 pt with 1.4em line-height, ragged right and 0.5 in paragraph indentation.",
+      "imageLogic": "Pure vector engine geometry and procedural line work; zero photographic assets or gradient fills, relying entirely on 1-bit vector rules, crop marks, and marginal coordinate stamps.",
+      "texture": "Simulated low-toner church copier grain, flat ivory wove paper tint (#FBF9F5), and high-contrast carbon black ink (#111111) optimized for 7:1 optical contrast.",
+      "motion": "State transitions driven strictly by paragraph re-flow inputs, updating running headers and margin tallies instantly without easing curves or decorative latency.",
+      "productionMethod": "Procedural CSS-to-vector print renderer utilizing open-source fonts from Google Fonts and vector-only canvas primitives for zero-latency DOM generation.",
+      "humanTrace": "The perceptible signature of low-resolution toner thresholds, physical paper tooth, and the deliberate constraint of office-printer reproduction limits.",
+      "risk": "Risking severe austerity by stripping away all comforting historical ornament, trading nostalgic literary warmth for uncompromising instrumental precision.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist wants an atmospheric reveal and theatrical spectacle; I build a responsive instrument whose authority comes from its hard-coded system rules and structural transparency."
+      }
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "Quiet Copy Press",
+      "idea": "An unpretentious literary manuscript theme built for the church mimeograph and the office laser, grounded in the unvarnished lithographic ink of Charles Vernier's 'The Literary Life' at the Art Institute of Chicago.",
+      "geometry": "US Letter 8.5x11 inches with a strict 1-inch left margin for hole-punching and drafting notes, an asymmetrical 0.75-inch right margin, and a baseline grid locked to a 14pt leading step to guarantee legibility whether printed on ivory stock or plain white office bond.",
+      "typography": "Source Serif 4 for body text at 11pt on 15pt leading, justified with a 0.25-inch first-line indent and no paragraph skips; JetBrains Mono at 9pt for inline typewriter insertions; Inter at 10pt for clean UI labels; all sourced from Google Fonts under OFL.",
+      "imageLogic": "No raster photographs or heavy fills; all page framing, corner registration marks, and heading dividers are rendered as crisp, low-coverage vector strokes derived from lithographic margin guides.",
+      "texture": "Simulated warm unbleached paper tint (#F6F3EE) with a subtle dry-ink scatter and a clean 7:1 contrast ratio against deep carbon ink (#1B1B1B) designed not to clog a standard office laser drum or church copier.",
+      "motion": "Static typographic layout with instantaneous page rendering; zero distracting UI animations to protect the long-form reading experience.",
+      "productionMethod": "Procedural CSS and SVG stylesheet generation within Plajah Tela, outputting printer-safe PostScript and high-contrast PDF files with zero external font dependencies or paid foundry licenses.",
+      "humanTrace": "Visible ragged ink edge simulation and subtle baseline micro-fluctuations that mimic a well-inked press bed rather than a sterile digital render.",
+      "risk": "Limiting our palette to near-monochrome risks looking austere, but that restraint guarantees the page remains readable when photocopied five generations deep on a church machine.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist reaches for gold ink and extravagant display faces that would immediately jam a church copier and violate our strict low-coverage production laws for distributed folios."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "Chiaroscuro Liturgy",
+      "idea": "We construct a dramatic stage of ink and margins where the quiet stillness of the page yields entirely to the authoritative voice of the text.",
+      "geometry": "US Letter 8.5x11 inches with generous 1.2-inch side margins and an assertive 1.4-inch top margin, anchoring the text block in a classic Renaissance book-proportion grid that protects vital ink from the copier's edge.",
+      "typography": "Title: Bodoni Moda, 32pt, bold, uppercase, tracking +50, #1A1A1A, centered, space-after 18pt. Subtitle: Cormorant Garamond, 16pt, italic, sentence case, tracking +20, #4A4A4A, centered, space-after 24pt. Heading 1: Bodoni Moda, 20pt, bold, uppercase, tracking +30, #1A1A1A, left, space-before 20pt, space-after 8pt. Heading 2: Cormorant Garamond, 15pt, semi-bold, sentence case, tracking +10, #2A2A2A, left, space-before 14pt, space-after 6pt. Heading 3: Cormorant Garamond, 12pt, italic, sentence case, tracking 0, #3A3A3A, left, space-before 10pt, space-after 4pt. Body: EB Garamond, 11.5pt, regular, lowercase, tracking 0, #1A1A1A, justified, paragraph indent 0.25in, space-after 0pt. Quote: EB Garamond, 10.5pt, italic, lowercase, tracking 0, #3A3A3A, justified, left-indent 0.5in, right-indent 0.5in, space-before 10pt, space-after 10pt. Pull quote: Bodoni Moda, 18pt, regular, lowercase, tracki",
+      "imageLogic": "Generated vector page flourishes derived from the restrained elegance of Charles Vernier's 'The Literary Life' (Art Institute of Chicago), utilizing crisp black vector rules and double-framed borders that translate flawlessly to church copiers.",
+      "texture": "Simulated ivory wove paper tint (#F7F5F0) with deep charcoal ink (#1A1A1A) and a subtle 0.75pt hairline rule above headings, capturing the tactile volume of pressed lithography.",
+      "motion": "Static typographic layout engineered for high-contrast rendering across printed sheets and digital readers, prioritizing the dramatic timing of the eye moving down the page.",
+      "productionMethod": "Procedural CSS and SVG vector generation within Plajah Tela, outputting zero-raster PDFs optimized for high-contrast monochrome church copiers and office laser printers.",
+      "humanTrace": "The deliberate selection of historical lithographic weight and the careful calibration of text margins to simulate the hand-fed pressure of an artisanal press.",
+      "risk": "Relying on high-contrast high-fashion display serifs (Bodoni Moda) for a church copier risks showing toner speckling if maintenance is poor, but the sheer dramatic payoff of the contrast is entirely worth it.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Radical Minimalist calls restraint a virtue when it is merely an alibi for avoiding a decision; I demand the rich, high-contrast theatricality of Bodoni Moda and heavy rules because emotion deserves scale, depth, and unapologetic presence."
+      }
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "Absolute Margin Silence",
+      "idea": "We remove every decorative flourish until the text column rests entirely on the weight of an unprinted 1.5-inch left margin stripe.",
+      "geometry": "US Letter 8.5x11 inches, single column body aligned to a strict 12pt vertical grid with a 1.5-inch left structural margin holding page numbers and section markers.",
+      "typography": "Source Serif 4 for body text at 11pt, 16pt leading, ragged right, paragraph indent 1.5em; Instrument Serif for titles at 36pt, uppercase, tracking 0.05em. All fonts from Google Fonts / OFL.",
+      "imageLogic": "No raster images or photographs; vector flat-art page engine renders strictly a single 0.25pt vertical hairline rule exactly 1.2 inches from the left edge as the sole anchor.",
+      "texture": "Simulated warm ivory wove paper tooth and high-contrast deep black laser toner ink, calibrated for clear reading on office laser and church copiers.",
+      "motion": "Static document format; no motion, relying entirely on typographic hierarchy and typographic pacing for the reading experience.",
+      "productionMethod": "Procedural CSS stylesheet and vector page-engine layout rules executing inside Plajah Tela Writer, exporting to print-ready PDF with zero external asset dependencies.",
+      "humanTrace": "Simulated ink coverage inconsistencies of an office laser printer and the precise optical hand-adjustment of paragraph ragging.",
+      "risk": "Risking severe emptiness that unaccustomed readers might mistake for a broken file, which is worth it to force absolute focus on the text.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist adds ornamental flourishes until something happens. I remove until only the text that matters can survive."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "FUTURIST",
+      "objection": "The Futurist wants reconfigurable systems and fluid motion, whereas I maintain that a literary page must hold its ground like a structural bay in a cathedral."
+    },
+    {
+      "from": "REBEL",
+      "against": "RADICAL_MINIMAL",
+      "objection": "The Minimalist strips away every imperfection until the page is dead and silent. I flood the toner until the carbon screams."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "BAROQUE",
+      "objection": "The Baroque Dramatist wants an atmospheric reveal and theatrical spectacle; I build a responsive instrument whose authority comes from its hard-coded system rules and structural transparency."
+    },
+    {
+      "from": "WORLD_ECLECTIC",
+      "against": "BAROQUE",
+      "objection": "The Baroque Dramatist reaches for gold ink and extravagant display faces that would immediately jam a church copier and violate our strict low-coverage production laws for distributed folios."
+    },
+    {
+      "from": "BAROQUE",
+      "against": "RADICAL_MINIMAL",
+      "objection": "The Radical Minimalist calls restraint a virtue when it is merely an alibi for avoiding a decision; I demand the rich, high-contrast theatricality of Bodoni Moda and heavy rules because emotion deserves scale, depth, and unapologetic presence."
+    },
+    {
+      "from": "RADICAL_MINIMAL",
+      "against": "BAROQUE",
+      "objection": "The Baroque Dramatist adds ornamental flourishes until something happens. I remove until only the text that matters can survive."
+    }
+  ],
+  "reflections": [],
+  "synthesis": {
+    "lead": "WORLD_ECLECTIC",
+    "counterpoint": "BAROQUE",
+    "editor": "RADICAL_MINIMAL",
+    "direction": "US Letter 8.5x11 inches with a strict 1-inch left drafting margin and balanced 0.75-inch right margin, locked to a robust 14pt leading step. Body text uses Source Serif 4 at 11pt, justified with 0.25-inch first-line indents, paired with JetBrains Mono for metadata and Inter for UI labels. All vector flourishes—hairlines, corner marks, and heading rules—are rendered at low ink coverage to guarantee flawless reproduction on church copiers and office laser drums.",
+    "keepFromCounterpoint": "The high-contrast visual drama of Bodoni Moda headings, adapted for safe, low-toner reproduction.",
+    "editorCut": "The Baroque Dramatist's excessive decorative frames and gold ink simulations, which would smear on office copiers and violate our non-generative production policy.",
+    "openDecision": "Choose whether your running heads feature the subtle lithographic hairline rule or remain entirely unlined for maximum minimalist breathing room.",
+    "ariaSummary": "The team convened to establish a literary stylesheet for Plajah Tela that balances intimate long-form reading with the brutal realities of office laser printers and church copiers. The council split sharply on theatricality: The Baroque Dramatist argued that 'emotion deserves scale, depth, and unapologetic presence,' while the World-Eclectic Traveler countered that heavy display elements 'would immediately jam a church copier.'\n\nI sided with the World-Eclectic Traveler's pragmatic restraint, ensuring every asset complies strictly with our generative production policies and low-toner print laws. The Radical Minimalist then stripped away all remaining ornamental excess, leaving a clean, high-contrast typographic engine that honors Charles Vernier's lithographic traditions without sacrificing legibility.\n\nThe system is built. The council leaves the final structural choice in your hands.",
+    "quotes": [
+      {
+        "directorId": "BAROQUE",
+        "line": "emotion deserves scale, depth, and unapologetic presence."
+      },
+      {
+        "directorId": "WORLD_ECLECTIC",
+        "line": "The Baroque Dramatist reaches for gold ink and extravagant display faces that would immediately jam a church copier."
+      }
+    ]
+  }
+}

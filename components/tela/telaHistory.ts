@@ -65,7 +65,7 @@ const LABELS: Partial<Record<TelaOp['type'], string>> = {
   ADD_BINDING: 'Bind', REMOVE_BINDING: 'Unbind', SET_LIVING_PAGE: 'Edit behaviours', SET_TITLE: 'Rename',
 };
 
-export const opLabel = (op: TelaOp): string => (op.type === 'WRITER_EDIT' && op.label) || (op.type === 'SET_IMAGE_RASTER' && op.label) || (op.type === 'EDIT_VECTOR_DEVICE' && op.label) || (op.type === 'GRID_WORKBOOK' && op.label) || LABELS[op.type] || op.type.toLowerCase().replace(/_/g, ' ');
+export const opLabel = (op: TelaOp): string => (op.type === 'BATCH' && op.label) || (op.type === 'WRITER_EDIT' && op.label) || (op.type === 'SET_IMAGE_RASTER' && op.label) || (op.type === 'EDIT_VECTOR_DEVICE' && op.label) || (op.type === 'GRID_WORKBOOK' && op.label) || LABELS[op.type] || op.type.toLowerCase().replace(/_/g, ' ');
 
 /**
  * Record that `before` is about to become the result of `op`. Returns the

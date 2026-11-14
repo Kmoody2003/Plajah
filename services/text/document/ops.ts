@@ -18,7 +18,7 @@ export type RecordKey = 'headerFooters' | 'notes' | 'comments' | 'media' | 'floa
 export type WriterOp =
   | { type: 'text'; target: StoryTarget; ops: TextOp[] }
   | { type: 'set'; key: RecordKey; id: string; value: unknown | null }
-  | { type: 'set'; key: 'sections' | 'styles' | 'settings' | 'properties'; value: unknown };
+  | { type: 'set'; key: 'sections' | 'styles' | 'settings' | 'properties' | 'theme'; value: unknown };
 
 // ── Story access ────────────────────────────────────────────────────────────────────────────
 

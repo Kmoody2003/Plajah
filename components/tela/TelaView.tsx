@@ -152,6 +152,7 @@ const TelaComicStudio = React.lazy(() => import('./TelaComicStudio').then(m => (
 const TelaClassworkStudio = React.lazy(() => import('./classwork/TelaClassworkStudio'));
 const SaveTemplateDialog = React.lazy(() => import('../templates/SaveTemplateDialog'));
 const TemplateLibrary = React.lazy(() => import('../templates/TemplateLibrary'));
+const TelaDocTemplatePanel = React.lazy(() => import('./templates/TelaDocTemplatePanel'));   // Word-page themes + templates, docked right
 const MerchDesignerStudio = React.lazy(() => import('./merch/MerchDesignerStudio'));
 const StoryIntelWorkspace = React.lazy(() => import('./storyIntel/StoryIntelWorkspace'));
 const ArgillaStudio = React.lazy(() => import('../argilla/ArgillaStudio'));
@@ -504,6 +505,8 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const [classworkOpen, setClassworkOpen] = useState(!!classwork);
   const [isEducator, setIsEducator] = useState(false);
   const [templateMenu, setTemplateMenu] = useState<null | 'menu' | 'save' | 'library'>(null);
+  // The template library for word pages lives in a collapsible panel on the right.
+  const [docTemplates, setDocTemplates] = useState<null | 'open' | 'collapsed'>(null);
   useEffect(() => { if (classwork) setClassworkOpen(true); }, [classwork]);
   useEffect(() => {
     // Classwork is for teachers and education staff: anyone who opened Tela from a class, or a teacher account.
@@ -3411,10 +3414,11 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
         {/* Templates — save this document as a template (me / the org / everyone) or start from the shared library */}
         <div className="relative shrink-0">
           <button
-            onClick={() => setTemplateMenu(m => (m === 'menu' ? null : 'menu'))}
-            aria-expanded={templateMenu === 'menu'}
+            onClick={() => { setTemplateMenu(null); setLibraryPanel(null); setDocTemplates(s => (s === 'open' ? 'collapsed' : 'open')); }}
+            aria-expanded={docTemplates === 'open'}
+            data-testid="doc-templates-button"
             className="flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[.72rem] font-bold text-violet-200 bg-violet-500/10 border border-violet-400/30 hover:bg-violet-500/20 transition-all shadow-sm"
-            title="Templates — save this document as a template, or start from the shared library"
+            title="Templates — themes and page templates for this document, in a panel on the right"
           >
             <LayoutTemplate size={13} />
             <span className={hdrLabel}>Templates</span>
@@ -3505,6 +3509,23 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
         {designImport && <React.Suspense fallback={null}><DesignImportDialog state={designImport} onClose={() => setDesignImport(null)} onOpenSmart={(id, name) => void openImportedSmartObject(id, name)}/></React.Suspense>}
         {pluginPanelOpen && <React.Suspense fallback={null}><TelaPluginPanel hasImage={!!pluginTargetImage()} onClose={() => setPluginPanelOpen(false)} onRun={runPluginOnSelection}/></React.Suspense>}
         {libraryPanel && <React.Suspense fallback={null}><TelaLibraryPanel initialTab={libraryPanel.tab} note={libraryPanel.note} onClose={() => setLibraryPanel(null)} onPlaceShape={placeLibraryShape} onUseColor={useLibraryColor} onUsePattern={p => void useLibraryPattern(p)} onUseBrush={useLibraryBrush}/></React.Suspense>}
+        {docTemplates && !libraryPanel && <React.Suspense fallback={null}>
+          <TelaDocTemplatePanel
+            doc={doc}
+            activeFrameId={activeFrameId}
+            collapsed={docTemplates === 'collapsed'}
+            onCollapse={c => setDocTemplates(c ? 'collapsed' : 'open')}
+            onClose={() => setDocTemplates(null)}
+            origin={nextFramePos}
+            dispatch={(op, focusFrameId) => {
+              dispatchOp(op);
+              const frame = focusFrameId ? docRef.current?.frames.find(f => f.id === focusFrameId) : null;
+              if (frame) { setActiveFrameId(frame.id); requestAnimationFrame(() => (posture === 'PAGE' ? fitFrame(frame) : fitAll())); }
+            }}
+            onOpenFullLibrary={() => setTemplateMenu('library')}
+            onSaveAsTemplate={() => setTemplateMenu('save')}
+          />
+        </React.Suspense>}
 
         <button className={topBtn} onClick={exportPdf} title="Print the active frame at exact page size — save as PDF in the print dialog">
           <FileDown size={15} /> <span className={hdrLabel2}>Export PDF</span>

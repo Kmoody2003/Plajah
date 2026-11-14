@@ -117,6 +117,7 @@
     "test:cad": "npx tsx --test tests/cad.test.ts",
     "test:guide": "npx tsx --test tests/guide.test.ts",
     "test:workspace": "npx tsx --test tests/workspace.test.ts",
+    "test:doctemplates": "npx tsx --test tests/docTemplates.test.ts",
     "test:telapdf": "npx tsx --test tests/telaPdf.test.ts",
     "test:meetings-sfu": "npx tsx --test tests/meetingsSfu.test.ts",
     "test:gamer": "npx tsx --test tests/gamerNet.test.ts",
