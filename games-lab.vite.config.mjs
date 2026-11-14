@@ -13,7 +13,7 @@ export default defineConfig({
     {
       name: 'stub-firebase-auth',
       enforce: 'pre',
-      resolveId: (id, importer) => (id === '../firebase' && importer && /gamerNet[\/]client\.ts/.test(importer) ? '\0virtual-lab-auth' : null),
+      resolveId: (id, importer) => (id === '../firebase' && importer && /(gamerNet|liveGames)[\/]client\.ts/.test(importer) ? '\0virtual-lab-auth' : null),
       load: (id) => (id === '\0virtual-lab-auth'
         ? "const uid = new URLSearchParams(location.search).get('as'); export const auth = { currentUser: uid ? { uid, getIdToken: async () => 'tok-' + uid } : null };"
         : null),

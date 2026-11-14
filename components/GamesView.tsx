@@ -1,18 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { Gamepad2, Play, Users, Trophy, TrendingUp, ChevronLeft, Search, Globe, Library, ExternalLink, Cpu, Smartphone } from 'lucide-react';
+import { Gamepad2, Play, Users, Trophy, TrendingUp, ChevronLeft, Search, Globe, Library, ExternalLink, Cpu, Smartphone, ShieldCheck, Tv, Sparkles, UserPlus, Radio } from 'lucide-react';
 import PageHeader from './PageHeader';
 import { motion, AnimatePresence } from 'motion/react';
 import { Game, UserProfile } from '../types';
 import { fetchGames, updateGamePlayCount, fetchUserProfile, auth } from '../services/backendService';
 import ChipRail from './ui/ChipRail';
 import { ERA_CLASH_GAME } from '../packages/first-party-games/games/era-clash/registry';
+import { PLAJAH_GAMES_CATALOG, getPlajahGameById, type PlajahGameEntry } from '../data/plajahGamesCatalog';
+import type { GameId as KithGameId } from './kithParty/catalog';
+import { gamer, failed, isSignedIn, type GamerProfile } from '../services/gamerNet/client';
 const KithParty = React.lazy(() => import('./kithParty/KithParty'));
 const EraClashFrame = React.lazy(() => import('./games/EraClashFrame'));
+const EraClash3DFrame = React.lazy(() => import('./games/EraClash3DFrame'));
+const RavencrestGameFrame = React.lazy(() => import('./taleo/RavencrestGameFrame').then(m => ({ default: m.RavencrestGameFrame })));
 const CyberTicTacToe = React.lazy(() => import('./games/CyberTicTacToe'));
 const GamerHub = React.lazy(() => import('./games/GamerHub'));
 const LiveGamesStudio = React.lazy(() => import('./liveGames/LiveGamesStudio'));
 const LiveNowStrip = React.lazy(() => import('./liveGames/LiveNowStrip'));
-import { PostGameButton } from './games/social/PostGameButton';
+const GameDetailPage = React.lazy(() => import('./games/GameDetailPage'));
+const UniversalPassportShowcase = React.lazy(() => import('./UniversalPassportShowcase').then(m => ({ default: m.UniversalPassportShowcase })));
+import GamesConcourse from './games/concourse/GamesConcourse';
+import { useConcourseFont, logPlay } from './games/concourse/shared';
 
 // Uploaded copies of tic tac toe open the first-party Cyber Tic Tac Toe (mobile, same-device + online play).
 const isTicTacToe = (g: { title?: string }) => /tic[\s-]*tac[\s-]*toe/i.test(g.title || '');
@@ -44,14 +52,19 @@ interface GamesViewProps {
 
 const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse, user, profile }) => {
   const [showKithParty, setShowKithParty] = useState(false);
+  const [kithInitialGame, setKithInitialGame] = useState<KithGameId | undefined>(undefined);
   const [showEraClash, setShowEraClash] = useState(false);
+  const [showEraClash3d, setShowEraClash3d] = useState(false);
+  const [showRavencrest, setShowRavencrest] = useState(false);
   const [showTtt, setShowTtt] = useState(false);
   const [liveGameKind, setLiveGameKind] = useState<null | 'pick' | 'sketch' | 'trivia' | 'crowd' | 'impostor'>(null);
+  const [selectedDetailGame, setSelectedDetailGame] = useState<PlajahGameEntry | null>(null);
+  const [gamerProfile, setGamerProfile] = useState<GamerProfile | null>(null);
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [gameOwners, setGameOwners] = useState<Record<string, UserProfile>>({});
   
-  const [activeTab, setActiveTab] = useState<'HOME_BASE' | 'LEADERBOARDS' | 'GLOBAL'>('HOME_BASE');
+  const [activeTab, setActiveTab] = useState<'HOME_BASE' | 'LEADERBOARDS' | 'PASSPORT' | 'GLOBAL'>('HOME_BASE');
   const [globalGames, setGlobalGames] = useState<FreeToGame[]>([]);
   const [loadingGlobal, setLoadingGlobal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -128,6 +141,36 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
     }
   }, [activeTab]);
 
+  useEffect(() => {
+    if (!isSignedIn()) return;
+    let alive = true;
+    void gamer.me().then(r => { if (alive && !failed(r)) setGamerProfile(r.profile); });
+    return () => { alive = false; };
+  }, [user?.uid]);
+
+  useConcourseFont();
+
+  // Invite links land here: /?view=games&game=<catalog id> opens that game's page.
+  useEffect(() => {
+    try {
+      const id = new URLSearchParams(window.location.search).get('game');
+      const g = id ? getPlajahGameById(id) : undefined;
+      if (g) { setActiveTab('HOME_BASE'); setSelectedDetailGame(g); }
+    } catch { /* no URL access */ }
+  }, []);
+
+  const launchCatalogGame = (entry: PlajahGameEntry) => {
+    logPlay(entry);
+    switch (entry.launch.type) {
+      case 'era-clash-2d': setShowEraClash(true); break;
+      case 'era-clash-3d': setShowEraClash3d(true); break;
+      case 'ravencrest': setShowRavencrest(true); break;
+      case 'kith-party': setKithInitialGame(entry.launch.gameId); setShowKithParty(true); break;
+      case 'cyber-ttt': setShowTtt(true); break;
+      case 'live-game': setLiveGameKind(entry.launch.kind); break;
+    }
+  };
+
   const handleLaunchGame = async (game: Game) => {
     if (isTicTacToe(game)) { setShowTtt(true); return; }
     if (isEraClash(game)) { setShowEraClash(true); return; }
@@ -148,358 +191,115 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
   );
   if (liveGameKind) return <React.Suspense fallback={<div className="p-8">Loading live games…</div>}><LiveGamesStudio initialKind={liveGameKind === 'pick' ? undefined : liveGameKind} onExit={() => setLiveGameKind(null)} /></React.Suspense>;
   if (showEraClash) return <React.Suspense fallback={<div className="p-8">Loading Era Clash…</div>}><EraClashFrame onExit={() => setShowEraClash(false)} /></React.Suspense>;
-  if (showKithParty) return <React.Suspense fallback={<div className="p-8">Loading Kith Party…</div>}><KithParty onBack={() => setShowKithParty(false)} profile={profile} uid={user?.uid ?? null} /></React.Suspense>;
+  if (showEraClash3d) return <React.Suspense fallback={<div className="p-8">Loading Era Clash 3D Campaign…</div>}><EraClash3DFrame onExit={() => setShowEraClash3d(false)} /></React.Suspense>;
+  if (showRavencrest) return (
+    <React.Suspense fallback={<div className="p-8">Loading Ravencrest…</div>}>
+      <RavencrestGameFrame
+        onBack={() => setShowRavencrest(false)}
+        classic={
+          <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-8 text-center">
+            <h2 className="text-3xl font-black mb-2">Ravencrest</h2>
+            <p className="text-white/65 max-w-md mb-6">WebGPU is not active in this browser. Open the current live build directly or switch to a WebGPU-capable browser.</p>
+            <div className="flex gap-3">
+              <a href="/games/ravencrest/play/index.html" target="_blank" rel="noopener noreferrer" className="px-6 py-3 rounded-xl bg-white text-black font-black text-xs uppercase tracking-widest">Open Direct Build</a>
+              <button onClick={() => setShowRavencrest(false)} className="px-6 py-3 rounded-xl bg-white/10 text-white font-black text-xs uppercase tracking-widest">Back to Arcade</button>
+            </div>
+          </div>
+        }
+      />
+    </React.Suspense>
+  );
+  if (showKithParty) return <React.Suspense fallback={<div className="p-8">Loading Kith Party…</div>}><KithParty initialGame={kithInitialGame} onBack={() => { setShowKithParty(false); setKithInitialGame(undefined); }} profile={profile} uid={user?.uid ?? null} /></React.Suspense>;
 
   return (
-    <div className="h-full bg-transparent text-white overflow-y-auto overflow-x-hidden lg:overflow-hidden flex flex-col">
-      {/* Games Header — on phones the whole page scrolls; on desktop only the content pane does */}
-      <div className="p-4 sm:p-8 border-b border-white/5 flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-4">
-            {onBack && (
-              <button onClick={onBack} className="lg:hidden p-3 bg-white/5 rounded-2xl">
-                <ChevronLeft size={20} />
-              </button>
-            )}
-            <div className="p-3 bg-small-orange/20 rounded-2xl w-fit">
-              <Gamepad2 className="text-small-orange" size={24} />
+    <div className="gcx h-full overflow-y-auto overflow-x-hidden">
+      <header className="gcx-bar">
+        <div className="gcx-wrap">
+          {onBack && <button type="button" className="gcx-back" onClick={onBack} aria-label="Back"><ChevronLeft size={18} /></button>}
+          <button type="button" className="gcx-mark" onClick={() => { setSelectedDetailGame(null); setActiveTab('HOME_BASE'); }}><i />Plajah <b>Games</b></button>
+          <nav className="gcx-tabs" aria-label="Games sections">
+            {([['HOME_BASE', 'Home'], ['LEADERBOARDS', 'Leaderboards'], ['PASSPORT', 'Passport'], ['GLOBAL', 'Community']] as const).map(([id, label]) => (
+              <button key={id} type="button" aria-current={activeTab === id && !(id === 'HOME_BASE' && selectedDetailGame) ? 'page' : undefined} onClick={() => { setSelectedDetailGame(null); setActiveTab(id); }}>{label}</button>
+            ))}
+          </nav>
+          <div className="gcx-barr">
+            {onLaunchFse && <button type="button" className="gcx-couch" onClick={onLaunchFse} title="10-foot couch view with controller">Couch mode</button>}
+            <div className="gcx-chip" title="Your Plajah gamer score">
+              <span className="gcx-av">{gamerProfile?.photo ? <img src={gamerProfile.photo} alt="" /> : (gamerProfile?.name || profile?.displayName || 'P').charAt(0).toUpperCase()}</span>
+              <span><small>Gamer score</small><strong>{gamerProfile ? gamerProfile.score.toLocaleString('en-US') : 'Sign in'}</strong></span>
             </div>
-          </div>
-          <div>
-            <PageHeader>Plajah Arcade</PageHeader>
-            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-2 sm:mt-4">Plajah Originals · Artist-hosted games · One gamer score</p>
           </div>
         </div>
+      </header>
 
-        {onLaunchFse && (
-          <button
-            onClick={onLaunchFse}
-            className="group relative hidden sm:flex items-center gap-4 px-6 py-4 rounded-2xl bg-gradient-to-r from-orange-600/30 via-purple-600/30 to-pink-600/20 border-2 border-orange-500/50 hover:border-orange-400 hover:shadow-[0_0_35px_rgba(255,107,0,0.45)] transition-all duration-300 text-left cursor-pointer active:scale-95"
-            title="Launch The Plajah FSE (10-Foot Console Experience)"
-          >
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-black font-black text-xl shadow-lg group-hover:scale-110 transition-transform">
-              🎮
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-black uppercase tracking-wider text-orange-400">Living Room 10-Foot Console</span>
-                <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-orange-500/20 text-orange-300 border border-orange-500/30 uppercase tracking-widest animate-pulse">Controller Native</span>
-              </div>
-              <h3 className="text-base font-black text-white group-hover:text-orange-200 transition-colors">
-                Enter The Plajah FSE
-              </h3>
-              <p className="text-[11px] text-white/60 font-medium">
-                10-ft couch view • Local PC game launcher • Plajah Dock multitask
-              </p>
-            </div>
-            <div className="ml-2 hidden sm:flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 text-white group-hover:bg-orange-500 group-hover:text-black transition-colors font-black text-sm">
-              →
-            </div>
-          </button>
-        )}
-      </div>
-
-      {isAdmin && (
-        <div className="mx-4 sm:mx-8 mt-4 sm:mt-6 p-5 sm:p-6 rounded-[2rem] border border-orange-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-left shadow-2xl relative overflow-hidden" style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(255,140,0,0.25), transparent 70%), linear-gradient(135deg, rgba(107,0,153,0.45), rgba(212,0,85,0.30) 50%, rgba(255,140,0,0.22))' }}>
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-orange-500 to-pink-600 text-white text-[8px] font-black uppercase tracking-widest shadow">Admin Only</span>
-              <span className="text-[9px] font-bold text-orange-300 uppercase tracking-wider">3D Kart Racing & World Exploration</span>
-            </div>
-            <strong className="block text-2xl md:text-3xl font-black text-white tracking-tight">✳ KITH PARTY: PRISM PARKWAY</strong>
-            <p className="text-xs text-white/70 max-w-xl mt-1">High-speed 3D kart racing with real physics, launch torque, dynamic camera warp, dual rocket exhaust jets, 3-tier drift boosts, and the fantasy cliff viaduct world.</p>
-          </div>
-          <div className="flex items-center gap-3 relative z-10 w-full md:w-auto">
-            <button
-              onClick={() => setShowKithParty(true)}
-              className="flex-1 md:flex-initial px-6 py-3.5 rounded-xl bg-white text-black font-black text-xs uppercase tracking-wider hover:scale-105 transition-all shadow-lg flex items-center justify-center gap-2"
-            >
-              <Play size={15} fill="currentColor" /> Play In Plajah
-            </button>
-            <a
-              href="http://127.0.0.1:3188/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
-              title="Open standalone Kith Party window (Port 3188)"
-            >
-              <ExternalLink size={14} /> Standalone
-            </a>
-          </div>
-        </div>
-      )}
-
-      {/* Platform Chip Rail treatment (components/ui/ChipRail) */}
-      <div className="px-4 sm:px-8 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-white/5">
-        <ChipRail
-          items={[
-            { id: 'HOME_BASE', label: 'Home Base', icon: <Library size={13} /> },
-            { id: 'LEADERBOARDS', label: 'Leaderboards', icon: <Trophy size={13} /> },
-            { id: 'GLOBAL', label: 'Global Games Community', icon: <Globe size={13} /> },
-          ]}
-          activeId={activeTab}
-          onSelect={(id) => setActiveTab(id as any)}
-        />
-      </div>
-
-      <div className="lg:flex-1 lg:overflow-y-auto p-4 sm:p-8 relative" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+      <div className="gcx-wrap" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
         {activeTab === 'LEADERBOARDS' ? (
-          <div className="max-w-7xl mx-auto">
+          <div className="max-w-7xl mx-auto gcx-pad">
             <React.Suspense fallback={<div className="p-8 text-white/50 text-sm">Loading leaderboards…</div>}><GamerHub /></React.Suspense>
           </div>
+        ) : activeTab === 'PASSPORT' ? (
+          <div className="max-w-7xl mx-auto gcx-pad">
+            <React.Suspense fallback={<div className="p-8 text-white/50 text-sm">Loading Universal Gamer Passport…</div>}>
+              <UniversalPassportShowcase
+                userId={user?.uid || 'guest_plajah_pioneer'}
+                username={profile?.displayName || profile?.name || 'Plajah Pioneer'}
+              />
+            </React.Suspense>
+          </div>
+        ) : activeTab === 'HOME_BASE' && selectedDetailGame ? (
+          <React.Suspense fallback={<div className="p-8 text-white/50 text-sm">Loading game page…</div>}>
+            <GameDetailPage
+              game={selectedDetailGame}
+              onBack={() => setSelectedDetailGame(null)}
+              onPlayNow={launchCatalogGame}
+              onGoLive={(g) => {
+                if (g.launch.type === 'live-game') setLiveGameKind(g.launch.kind);
+                else setLiveGameKind('pick');
+              }}
+            />
+          </React.Suspense>
         ) : activeTab === 'HOME_BASE' ? (
-           <>
-           {/* Plajah Originals — first-party games on the gamer network */}
-           <div className="max-w-7xl mx-auto mb-8 sm:mb-12">
-             <div className="flex items-center gap-3 mb-4 sm:mb-6">
-               <Gamepad2 size={20} className="text-small-orange" />
-               <h3 className="text-lg sm:text-xl font-black uppercase tracking-tightest">Plajah Originals</h3>
-             </div>
-             <button
-               onClick={() => setShowTtt(true)}
-               className="w-full text-left relative rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden border border-cyan-400/30 p-5 sm:p-8 active:scale-[0.99] transition-transform"
-               style={{ background: 'radial-gradient(40rem 20rem at 85% -10%, rgba(255,43,214,0.22), transparent 60%), radial-gradient(30rem 18rem at 0% 120%, rgba(0,240,255,0.20), transparent 60%), #070a16' }}
-             >
-               <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-                 <div className="grid grid-cols-3 gap-1.5 w-24 h-24 sm:w-28 sm:h-28 shrink-0 p-1.5 rounded-2xl bg-cyan-400/10 border border-cyan-400/30" aria-hidden>
-                   {'XO-OX---X'.split('').map((c, i) => (
-                     <span key={i} className={`rounded-lg bg-black/60 flex items-center justify-center text-xl font-black ${c === 'X' ? 'text-cyan-300' : 'text-fuchsia-400'}`} style={{ textShadow: '0 0 10px currentColor' }}>{c === '-' ? '' : c}</span>
-                   ))}
-                 </div>
-                 <div className="flex-1 min-w-0">
-                   <h4 className="text-2xl sm:text-4xl font-black tracking-tight"><span className="text-cyan-300">CYBER</span> <span className="text-fuchsia-400">TIC TAC TOE</span></h4>
-                   <div className="flex flex-wrap gap-2 mt-3">
-                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest"><Cpu size={12} /> vs CPU</span>
-                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest"><Smartphone size={12} /> 2 players · 1 device</span>
-                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest"><Globe size={12} /> Online · ranked</span>
-                   </div>
-                 </div>
-                 <span className="inline-flex items-center justify-center gap-2 min-h-[48px] px-6 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-widest"><Play size={16} fill="currentColor" /> Play</span>
-               </div>
-             </button>
-             <div className="flex justify-end mt-2">
-               <PostGameButton
-                 what={{ kind: 'play', game: 'ttt' }}
-                 className="inline-flex items-center gap-2 min-h-[40px] px-4 rounded-full border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 text-[10px] font-black uppercase tracking-widest hover:bg-cyan-400/20 disabled:opacity-60"
-               />
-             </div>
-             {/* Live party games — host on a stream, the audience plays from the feed */}
-             <button
-               onClick={() => setLiveGameKind('sketch')}
-               className="mt-4 w-full text-left relative rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden border border-pink-400/30 p-5 sm:p-8 active:scale-[0.99] transition-transform"
-               style={{ background: 'radial-gradient(36rem 18rem at 90% -10%, rgba(236,72,153,0.28), transparent 60%), radial-gradient(30rem 18rem at 0% 120%, rgba(124,58,237,0.30), transparent 60%), #120a2a' }}
-             >
-               <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-                 <div className="w-24 h-20 sm:w-28 sm:h-24 shrink-0 rounded-2xl bg-white p-2 shadow-inner" aria-hidden>
-                   <svg viewBox="0 0 100 75" className="w-full h-full"><path d="M12 60 Q30 20 50 40 T88 18" fill="none" stroke="#7c3aed" strokeWidth="6" strokeLinecap="round" /><circle cx="70" cy="52" r="9" fill="none" stroke="#ec4899" strokeWidth="5" /></svg>
-                 </div>
-                 <div className="flex-1 min-w-0">
-                   <h4 className="text-2xl sm:text-4xl font-black tracking-tight"><span className="text-pink-300">SKETCH</span> <span className="text-violet-300">RUSH</span></h4>
-                   <p className="text-white/70 text-sm mt-1">Go live and draw. Your audience guesses from the stream or right in their feed for points.</p>
-                   <div className="flex flex-wrap gap-2 mt-3">
-                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest"><Users size={12} /> Live audience</span>
-                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest"><Globe size={12} /> Join from the feed</span>
-                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest"><Trophy size={12} /> Gamer score</span>
-                   </div>
-                 </div>
-                 <span className="inline-flex items-center justify-center gap-2 min-h-[48px] px-6 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-widest"><Play size={16} fill="currentColor" /> Host</span>
-               </div>
-             </button>
-             {/* The other live party games — same room, same feed join, same gamer score */}
-             <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-               {([
-                 ['trivia', '🧠', 'BRAIN RUSH', 'Rapid-fire trivia. Right and fast wins.', 'border-sky-400/30', 'rgba(14,165,233,0.25)'],
-                 ['crowd', '📊', 'CROWD SAYS', 'Answer like the crowd. The room makes the board.', 'border-amber-400/30', 'rgba(245,158,11,0.25)'],
-                 ['impostor', '🕵️', 'IMPOSTOR NIGHT', 'Everyone knows the word but one. Clue, argue, vote.', 'border-emerald-400/30', 'rgba(16,185,129,0.25)'],
-               ] as const).map(([k, emoji, name, blurb, border, glow]) => (
-                 <button key={k} onClick={() => setLiveGameKind(k)}
-                   className={`text-left rounded-[1.5rem] border ${border} p-4 sm:p-5 active:scale-[0.99] transition-transform`}
-                   style={{ background: `radial-gradient(20rem 10rem at 90% -10%, ${glow}, transparent 60%), #0d0b1e` }}>
-                   <div className="text-3xl" aria-hidden>{emoji}</div>
-                   <h4 className="mt-1 text-lg sm:text-xl font-black tracking-tight">{name}</h4>
-                   <p className="text-white/65 text-xs sm:text-sm mt-0.5">{blurb}</p>
-                   <span className="mt-3 inline-flex items-center gap-1.5 min-h-[36px] px-4 rounded-xl bg-white text-black text-[10px] font-black uppercase tracking-widest"><Play size={13} fill="currentColor" /> Host live</span>
-                 </button>
-               ))}
-             </div>
-             <React.Suspense fallback={null}><LiveNowStrip /></React.Suspense>
-             <button
-               onClick={() => setShowEraClash(true)}
-               className="mt-4 w-full text-left relative rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden border border-amber-400/30 p-5 sm:p-8 active:scale-[0.99] transition-transform"
-               style={{ background: 'linear-gradient(90deg, rgba(20,12,6,0.92) 35%, rgba(20,12,6,0.55)), url(/games/era-clash/assets/stage-japan.webp) center/cover, #140c06' }}
-             >
-               <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-                 <div className="flex -space-x-4 shrink-0" aria-hidden>
-                   {['samurai', 'viking', 'knight'].map((w) => (
-                     <img key={w} src={`/games/era-clash/assets/portrait-${w}.webp`} alt="" loading="lazy" className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-amber-400/70 bg-black" />
-                   ))}
-                 </div>
-                 <div className="flex-1 min-w-0">
-                   <h4 className="text-2xl sm:text-4xl font-black tracking-tight text-amber-200" style={{ fontFamily: 'Georgia, serif' }}>ERA CLASH</h4>
-                   <p className="text-white/70 text-sm mt-1">Six warriors from six ages. Story mode, vs CPU, or duel a friend.</p>
-                   <div className="flex flex-wrap gap-2 mt-3">
-                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest"><Cpu size={12} /> vs CPU</span>
-                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest"><Smartphone size={12} /> 2 players · 1 device</span>
-                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-widest"><Globe size={12} /> Online duel</span>
-                   </div>
-                 </div>
-                 <span className="inline-flex items-center justify-center gap-2 min-h-[48px] px-6 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-widest"><Play size={16} fill="currentColor" /> Play</span>
-               </div>
-             </button>
-           </div>
-           {loading ? (
-             <div className="flex flex-col items-center justify-center p-20">
-               <div className="w-16 h-16 border-4 border-small-orange border-t-transparent rounded-full animate-spin mb-4" />
-               <p className="text-xs font-black uppercase tracking-widest opacity-40">Loading Game Library...</p>
-             </div>
-           ) : (
-             <div className="max-w-7xl mx-auto space-y-12">
-               {/* Plajah Originals — first-party games built by Plajah */}
-               <div>
-                 <div className="flex items-center gap-3 mb-4 sm:mb-8">
-                   <Gamepad2 size={20} className="text-small-orange" />
-                   <h3 className="text-xl font-black uppercase tracking-tightest">Plajah Originals</h3>
-                 </div>
-                 {isAdmin && (
-                 <div
-                   className="relative rounded-[2rem] sm:rounded-[3rem] overflow-hidden border border-white/10 p-5 sm:p-8 md:p-10"
-                   style={{ background: 'radial-gradient(60rem 30rem at 80% -20%, rgba(255,140,0,0.18), transparent 60%), linear-gradient(135deg, rgba(107,0,153,0.35), rgba(212,0,85,0.25) 55%, rgba(255,140,0,0.15))' }}
-                 >
-                   <div className="flex flex-col md:flex-row md:items-center gap-8">
-                     <div className="flex-1">
-                       <span className="px-2.5 py-1 rounded-md bg-white/10 border border-white/15 text-[8px] font-black uppercase tracking-widest text-white/70">Prototype · Admin</span>
-                       <h4 className="font-black tracking-tightest text-4xl md:text-5xl mt-3" style={{ background: 'linear-gradient(135deg,#FF8C00,#D40055)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>PEW PEW</h4>
-                       <p className="text-white/70 text-sm mt-3 max-w-md leading-relaxed">The live-action shooter — early feel test. Point your phone (or headset) at targets, hold to lock, release to fire. Needs camera + motion, so open it on a phone.</p>
-                     </div>
-                     <div className="flex flex-col gap-3 w-full md:w-auto">
-                       <a href="/pewpew/" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-widest hover:scale-105 transition-all">
-                         <Play size={16} fill="currentColor" /> Play on Phone
-                       </a>
-                       <a href="/pewpew/xr.html" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-white/10 border border-white/15 text-white text-[11px] font-black uppercase tracking-widest hover:bg-white/20 transition-all">
-                         <ExternalLink size={16} /> Headset (Quest)
-                       </a>
-                     </div>
-                   </div>
-                 </div>
-                 )}
-                 {/* Era Clash — public first-party original */}
-                 <div
-                   className="relative rounded-[3rem] overflow-hidden border border-white/10 p-8 md:p-10 mt-6"
-                   style={{ background: 'radial-gradient(60rem 30rem at 80% -20%, rgba(255,140,0,0.18), transparent 60%), linear-gradient(135deg, rgba(107,0,153,0.35), rgba(212,0,85,0.25) 55%, rgba(255,140,0,0.15))' }}
-                 >
-                   <div className="flex flex-col md:flex-row md:items-center gap-8">
-                     <div className="flex-1">
-                       <div className="flex items-center gap-2 mb-3">
-                         <span className="px-2.5 py-1 rounded-md bg-gradient-to-r from-orange-500 to-pink-600 text-white text-[8px] font-black uppercase tracking-widest shadow">Plajah Original</span>
-                         <span className="px-2.5 py-1 rounded-md bg-green-500/20 border border-green-500/30 text-[8px] font-black uppercase tracking-widest text-green-400">Live</span>
-                       </div>
-                       <h4 className="font-black tracking-tightest text-4xl md:text-5xl" style={{ background: 'linear-gradient(135deg,#FF8C00,#D40055)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>ERA CLASH</h4>
-                       <p className="text-white/70 text-sm mt-3 max-w-md leading-relaxed">{ERA_CLASH_GAME.description}</p>
-                     </div>
-                     <div className="flex flex-col gap-3 w-full md:w-auto">
-                       {ERA_CLASH_GAME.thumbnailUrl ? (
-                         <img src={ERA_CLASH_GAME.thumbnailUrl} alt="Era Clash" className="w-full md:w-64 rounded-2xl object-cover" />
-                       ) : null}
-                       <button
-                         onClick={() => handleLaunchGame(ERA_CLASH_GAME)}
-                         className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-widest hover:scale-105 transition-all"
-                       >
-                         <Play size={16} fill="currentColor" /> Play
-                       </button>
-                     </div>
-                   </div>
-                 </div>
-               </div>
-
-               {/* Trending Section */}
-               {games.length > 0 && (
-               <div>
-                 <div className="flex items-center gap-3 mb-4 sm:mb-8">
-                   <TrendingUp size={20} className="text-small-orange" />
-                   <h3 className="text-xl font-black uppercase tracking-tightest">Most Popular</h3>
-                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8">
-                   {games.slice(0, 3).map((game) => (
-                     <motion.button 
-                       key={game.id}
-                       whileHover={{ scale: 1.02 }}
-                       whileTap={{ scale: 0.98 }}
-                       onClick={() => handleLaunchGame(game)}
-                       className="group relative h-56 sm:h-80 rounded-[2rem] sm:rounded-[3rem] overflow-hidden border border-white/10 bg-white/[0.02] transition-all media-lift"
-                     >
-                       <img 
-                         src={game.thumbnailUrl || 'https://picsum.photos/seed/game/800/800'} 
-                         className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-700" 
-                         alt={game.title}
-                       />
-                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent p-8 flex flex-col justify-end text-left">
-                         <h4 className="text-2xl font-black uppercase tracking-tightest mb-2">{game.title}</h4>
-                         <p className="text-[10px] font-bold text-small-orange uppercase tracking-widest mb-4">
-                           By {gameOwners[game.ownerId]?.displayName || 'Artist'}
-                         </p>
-                         <div className="flex items-center justify-between">
-                           <div className="flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full">
-                             <Users size={12} className="text-white/40" />
-                             <span className="text-[9px] font-bold">{game.playCount || 0} Plays</span>
-                           </div>
-                           <div className="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-xl">
-                             <Play size={20} fill="currentColor" className="ml-1" />
-                           </div>
-                         </div>
-                       </div>
-                     </motion.button>
-                   ))}
-                 </div>
-               </div>
-               )}
-
-               {/* All Games Section */}
-               {games.length > 0 && (
-               <div>
-                 <div className="flex items-center gap-3 mb-4 sm:mb-8">
-                   <Gamepad2 size={20} className="text-small-orange" />
-                   <h3 className="text-xl font-black uppercase tracking-tightest">All Platform Games</h3>
-                 </div>
-                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
+           <GamesConcourse
+             profile={gamerProfile}
+             onOpenGame={(g) => setSelectedDetailGame(g)}
+             onPlay={launchCatalogGame}
+             onHostLive={() => setLiveGameKind('pick')}
+             onOpenPassport={() => setActiveTab('PASSPORT')}
+             onOpenLeaderboards={() => setActiveTab('LEADERBOARDS')}
+           >
+             {games.length > 0 && (
+               <section className="gcx-shelf">
+                 <div className="gcx-shelf-h"><h2>From Plajah creators</h2><span>Games artists host on their Home Base</span></div>
+                 <div className="gcx-row">
                    {games.map((game) => (
-                     <motion.button 
-                       key={game.id}
-                       whileHover={{ scale: 1.05 }}
-                       whileTap={{ scale: 0.95 }}
-                       onClick={() => handleLaunchGame(game)}
-                       className="group flex flex-col text-left"
-                     >
-                       <div className="aspect-square rounded-[2rem] overflow-hidden border border-white/10 bg-white/[0.02] mb-4 relative media-lift">
-                         <img 
-                           src={game.thumbnailUrl || 'https://picsum.photos/seed/game/400/400'} 
-                           className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all" 
-                           alt={game.title}
-                         />
-                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
-                           <Play size={24} fill="currentColor" />
-                         </div>
+                     <button key={game.id} type="button" className="gcx-card" onClick={() => handleLaunchGame(game)}>
+                       <div className="gcx-thumb">
+                         {game.thumbnailUrl ? <img src={game.thumbnailUrl} alt={game.title} loading="lazy" /> : <div className="gcx-cover" style={{ ['--gx-h' as any]: '#a63be6' }} aria-hidden><span>▶</span></div>}
                        </div>
-                       <h5 className="text-xs font-black uppercase tracking-widest text-white mb-1 truncate">{game.title}</h5>
-                       <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest truncate">
-                         {gameOwners[game.ownerId]?.displayName || 'Artist'}
-                       </p>
-                     </motion.button>
+                       <div className="gcx-meta">
+                         <h3>{game.title}</h3>
+                         <p>By {gameOwners[game.ownerId]?.displayName || 'Artist'}</p>
+                         <div className="gcx-foot"><span>{game.playCount || 0} plays</span></div>
+                       </div>
+                     </button>
                    ))}
                  </div>
-               </div>
-               )}
-               {games.length === 0 && (
-                 <div className="p-6 sm:p-12 bg-white/5 border border-white/10 rounded-[2rem] sm:rounded-[3rem] text-center max-w-2xl mx-auto">
-                    <Gamepad2 size={48} className="text-white/20 mx-auto mb-6" />
-                    <h3 className="text-2xl font-black uppercase tracking-widest mb-4">No Platform Games Yet</h3>
-                    <p className="text-white/60 text-sm">Artists haven't uploaded any games to their Home Base. Switch to the Global Games Community tab to discover free community games.</p>
+               </section>
+             )}
+             {isAdmin && (
+               <section className="gcx-shelf">
+                 <div className="gcx-shelf-h"><h2>In development</h2><span>Admins only</span></div>
+                 <div className="gcx-row">
+                   <a href="/pewpew/" target="_blank" rel="noopener noreferrer" className="gcx-card" style={{ textDecoration: 'none', color: 'inherit' }}>
+                     <div className="gcx-thumb"><div className="gcx-cover" style={{ ['--gx-h' as any]: '#ff8c00' }} aria-hidden><span>◎</span></div><span className="gcx-badge">Prototype</span></div>
+                     <div className="gcx-meta"><h3>Pew Pew</h3><p>Live-action shooter feel test. Point your phone or headset at targets, hold to lock, release to fire.</p></div>
+                   </a>
                  </div>
-               )}
-             </div>
-           )}
-           </>
+               </section>
+             )}
+           </GamesConcourse>
         ) : (
-           <div className="max-w-7xl mx-auto flex flex-col h-full">
+           <div className="max-w-7xl mx-auto flex flex-col gcx-pad">
               <div className="flex flex-col md:flex-row gap-6 mb-8 items-center justify-between">
                  <div className="flex items-center gap-4 flex-1 w-full relative">
                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={20} />

@@ -32,7 +32,7 @@ import { Router, type Request, type Response } from 'express';
 import { randomUUID, randomInt } from 'node:crypto';
 import { casUpdate } from '../services/casCore';
 import type { GamerStore } from '../services/gamerNet/store';
-import { GAMES, gameRules } from '../services/gamerNet/registry';
+import { GAMES, gameRules, canLogPlay } from '../services/gamerNet/registry';
 import { GENESIS, entryId, makeEntry, verifyChain, type GamerEntry, type GamerEventBody } from '../services/gamerNet/ledger';
 import { applyEvent, emptyFold, emptyStats, newlyEarned, recalculate, scoreOf, type GamerFold } from '../services/gamerNet/score';
 import { nextRating, START_RATING } from '../services/gamerNet/rating';
@@ -206,7 +206,7 @@ export function createGamerRouter(deps: GamerDeps): Router & { appendEvent: Game
 
   r.post('/local', async (req, res) => {
     const uid = await needUid(req, res); if (!uid) return;
-    const game = s(req.body?.game, 20); if (!gameRules(game)) { res.status(400).json({ error: 'Unknown game' }); return; }
+    const game = s(req.body?.game, 20); if (!canLogPlay(game)) { res.status(400).json({ error: 'Unknown game' }); return; }
     const result = ['win', 'loss', 'draw'].includes(req.body?.result) ? req.body.result : undefined;
     const vs = req.body?.vs === 'cpu' ? `vs CPU (${s(req.body?.level, 10) || 'normal'})` : 'same device';
     const out = await appendEvent(uid, { event: 'LOCAL_PLAY', uid, at: now(), key: `local:${randomUUID()}`, source: 'self', game, result, note: vs });

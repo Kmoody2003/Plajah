@@ -36,3 +36,15 @@ const ticTacToe: GameRules = {
 
 export const GAMES: Readonly<Record<string, GameRules>> = { [ticTacToe.id]: ticTacToe };
 export const gameRules = (id: unknown): GameRules | null => (typeof id === 'string' && Object.prototype.hasOwnProperty.call(GAMES, id) ? GAMES[id] : null);
+
+/**
+ * Games that log play history to the ledger but have no server-refereed matches yet (LOCAL_PLAY only,
+ * source 'self', never scored). Ids match data/plajahGamesCatalog.ts so "Jump back in" on the Games page
+ * follows the player across devices. Never queue or rate these: they are not in GAMES.
+ */
+export const PLAY_ONLY_GAMES: ReadonlySet<string> = new Set([
+  'ravencrest', 'era-clash-2d', 'era-clash-3d',
+  'kith-circuit', 'kith-tennis', 'kith-kombat', 'kith-crystals', 'kith-rhythm', 'kith-quest',
+  'sketch-rush', 'brain-rush', 'crowd-says', 'impostor-night',
+]);
+export const canLogPlay = (id: unknown): boolean => !!gameRules(id) || (typeof id === 'string' && PLAY_ONLY_GAMES.has(id));
