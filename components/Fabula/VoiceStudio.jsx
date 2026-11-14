@@ -132,6 +132,11 @@ export default function VoiceStudio({ audioTracks = [], playhead, setPlayhead, s
         resolution: "480p",
       });
 
+      // Never place anything for a result that no real model produced.
+      if (!shot || shot.simulated || !shot.videoBlob || shot.videoBlob.size === 0) {
+        throw new Error("The local video engine returned no playable video. Nothing was added to the timeline.");
+      }
+
       // Place audio take onto timeline
       onPlaceClip(dialogueTake.audioBlob, `${line.speakerName} (T${take.takeNum})`, {
         trackId: track,
@@ -140,7 +145,7 @@ export default function VoiceStudio({ audioTracks = [], playhead, setPlayhead, s
 
       ping?.(`✨ Wan 2.1 video shot generated (${shot.dimensions.width}x${shot.dimensions.height} @ ${shot.fps}fps, ${shot.durationSeconds}s) & snapped to timeline!`);
     } catch (e) {
-      ping?.("Wan Video generation failed: " + (e?.message || e));
+      ping?.("⚠️ Wan video not generated — " + (e?.message || e));
     }
     setBusy(false);
   };

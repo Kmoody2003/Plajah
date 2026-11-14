@@ -1,14 +1,15 @@
 // plajahNativeRunner.ts — Native execution dispatcher for Plajah Generative Studio.
 // Executes generative diffusion tasks natively on-device:
 //   1. Windows WinUI 3 Native Shell via DirectML & NVIDIA TensorRT (PlajahAiNativeService)
-//   2. Browser WebGPU Compute Shaders (WebNN & ONNX Runtime Web)
-//   3. On-Device High-Fidelity Procedural Neural Synthesis Engine
+//
+// If neither backend produces output the task FAILS (`success: false`). There is no
+// procedural/canvas stand-in: a placeholder must never be reported as model output.
 //
 // Zero third-party vendor software (No ComfyUI, No external web servers).
 
 import { PlajahNativeTask } from './plajahPipelineEngine';
 import { isWindowsApp, getNativeMediaEngine } from '../windowsBridgeService';
-import { supportsJxlEncode, supportsJxlDecode, encodeJxlViaSidecar } from '../jxlCodec';
+import { encodeJxlViaSidecar } from '../jxlCodec';
 
 export interface NativeExecutionProgress {
   taskId: string;
@@ -36,17 +37,12 @@ export interface NativeExecutionResult {
   height: number;
   seed: number;
   executionTimeMs: number;
+  /** `'FALLBACK'` only ever accompanies `success: false` — no backend ran. */
   hardwareBackend: 'WINDOWS_DIRECTML' | 'NVIDIA_TENSORRT' | 'BROWSER_WEBGPU' | 'FALLBACK';
+  /** User-actionable failure message (set whenever `success` is false). */
   error?: string;
-}
-
-/**
- * Encode an HTMLCanvasElement to standard lossless PNG (`image/png`) for the
- * primary generated image so every browser, WebView2, `<canvas>`, and
- * `createImageBitmap` call finishes immediately without error.
- */
-function encodeCanvasPreferredDataUrl(canvas: HTMLCanvasElement, _quality = 0.92): { dataUrl: string; format: 'png' } {
-  return { dataUrl: canvas.toDataURL('image/png'), format: 'png' };
+  /** `engine_offline`: nothing answered. `engine_error`: an engine answered but produced no output. */
+  errorCode?: 'engine_offline' | 'engine_error';
 }
 
 /**
@@ -80,297 +76,6 @@ export async function createJxlCopyAfterGeneration(
 }
 
 /**
- * Procedural neural-style on-device canvas renderer.
- * Produces aesthetic, high-resolution visual frames responding directly to
- * directorial prompt, aspect ratio, lens, and 3D lighting settings.
- */
-async function renderOnDeviceAestheticFrame(task: PlajahNativeTask): Promise<string> {
-  if (typeof document === 'undefined') {
-    return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="%23141318"/></svg>';
-  }
-
-  const canvas = document.createElement('canvas');
-  const w = Math.max(320, task.dimensions.width || 1024);
-  const h = Math.max(320, task.dimensions.height || 1024);
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return '';
-
-  const prompt = (task.prompt || '').toLowerCase();
-  const lighting = (task.directorial?.lighting || 'chiaroscuro').toLowerCase();
-  const lens = (task.directorial?.lens || 'anamorphic').toLowerCase();
-
-  // If a source image was provided (e.g. detail enhancer or 3D relight), draw and composite it
-  if (task.sourceImage) {
-    try {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => resolve(); // fallback gracefully
-        img.src = task.sourceImage!;
-      });
-
-      if (img.width && img.height) {
-        ctx.drawImage(img, 0, 0, w, h);
-
-        // 3D Relight per-pixel 2.5D normal-mapped directional key + shadow + rim lighting
-        if (task.taskType === '3d_relight' && task.relighting) {
-          const rel = task.relighting;
-          const lx = rel.lightX !== undefined ? rel.lightX : Math.sin(((rel.azimuth ?? 45) * Math.PI) / 180);
-          const ly = rel.lightY !== undefined ? rel.lightY : -Math.sin(((rel.elevation ?? 30) * Math.PI) / 180);
-          const lz = rel.lightZ !== undefined ? rel.lightZ : 0.65;
-          const lLen = Math.hypot(lx, ly, lz) || 1;
-          const Lx = lx / lLen, Ly = ly / lLen, Lz = lz / lLen;
-
-          const parseHex = (hStr = '#ffaa55') => {
-            const clean = hStr.replace('#', '');
-            const n = parseInt(clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean, 16) || 0xffaa55;
-            return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-          };
-          const [kr, kg, kb] = parseHex(rel.colorHex || '#ffaa55');
-          const [ar, ag, ab] = parseHex(rel.ambientColorHex || '#182238');
-          const [rr, rg, rb] = parseHex(rel.rimColorHex || '#55ccff');
-          const intensity = rel.intensity ?? 1.25;
-          const softness = rel.softness ?? 0.55;
-          const shadowDensity = rel.shadowDensity ?? 0.68;
-          const rimStrength = rel.rimStrength ?? 0.48;
-
-          const imgData = ctx.getImageData(0, 0, w, h);
-          const d = imgData.data;
-          const luma = new Float32Array(w * h);
-          for (let i = 0, p = 0; i < d.length; i += 4, p++) {
-            luma[p] = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
-          }
-
-          const step = Math.max(2, Math.round(Math.min(w, h) / 120));
-          const wrap = 0.15 + 0.45 * softness;
-          for (let y = 0; y < h; y++) {
-            const nyCoord = (y / h) * 2 - 1;
-            const y0 = Math.max(0, y - step), y1 = Math.min(h - 1, y + step);
-            for (let x = 0; x < w; x++) {
-              const nxCoord = (x / w) * 2 - 1;
-              const x0 = Math.max(0, x - step), x1 = Math.min(w - 1, x + step);
-              const dx = (luma[y * w + x1] - luma[y * w + x0]) * 3.5;
-              const dy = (luma[y1 * w + x] - luma[y0 * w + x]) * 3.5;
-              const nx = 0.55 * nxCoord - dx;
-              const ny = 0.50 * nyCoord - dy;
-              const nz = Math.sqrt(Math.max(0.1, 1 - Math.min(0.9, nx * nx + ny * ny)));
-
-              const nDotL = nx * Lx + ny * Ly + nz * Lz;
-              const diff = Math.pow(Math.max(0, Math.min(1, (nDotL + wrap) / (1 + wrap))), 1.4 - 0.4 * softness);
-              const rimDot = Math.max(0, -nx * Lx - ny * Ly + nz * 0.15);
-              const rim = Math.pow(1 - nz, 1.4) * rimDot * rimStrength;
-              const shadowKeep = 1 - shadowDensity * 0.82;
-              const ambWeight = (1 - diff) * (0.35 + 0.65 * shadowDensity);
-
-              const idx = (y * w + x) * 4;
-              const sr = d[idx] / 255, sg = d[idx + 1] / 255, sb = d[idx + 2] / 255;
-              const outR = sr * (shadowKeep * (1 - diff) * 0.45 + (ar / 255) * ambWeight + (kr / 255) * diff * intensity * 1.25) + (rr / 255) * rim * 0.7;
-              const outG = sg * (shadowKeep * (1 - diff) * 0.45 + (ag / 255) * ambWeight + (kg / 255) * diff * intensity * 1.25) + (rg / 255) * rim * 0.7;
-              const outB = sb * (shadowKeep * (1 - diff) * 0.45 + (ab / 255) * ambWeight + (kb / 255) * diff * intensity * 1.25) + (rb / 255) * rim * 0.7;
-
-              d[idx] = Math.max(0, Math.min(255, Math.round(outR * 255)));
-              d[idx + 1] = Math.max(0, Math.min(255, Math.round(outG * 255)));
-              d[idx + 2] = Math.max(0, Math.min(255, Math.round(outB * 255)));
-            }
-          }
-          ctx.putImageData(imgData, 0, 0);
-        }
-
-        // Detail enhancer micro-texture overlay
-        if (task.taskType === 'detail_enhancer') {
-          ctx.save();
-          ctx.globalCompositeOperation = 'overlay';
-          ctx.globalAlpha = 0.25;
-          ctx.fillStyle = '#ffffff';
-          for (let i = 0; i < 400; i++) {
-            const rx = Math.random() * w;
-            const ry = Math.random() * h;
-            ctx.fillRect(rx, ry, 1.5, 1.5);
-          }
-          ctx.restore();
-        }
-
-        return encodeCanvasPreferredDataUrl(canvas, 0.88).dataUrl;
-      }
-    } catch {
-      // Fall through to procedural generation
-    }
-  }
-
-  // Atmospheric background gradient according to lighting style
-  const bgGrad = ctx.createLinearGradient(0, 0, w, h);
-  if (lighting.includes('golden_hour')) {
-    bgGrad.addColorStop(0, '#1c1017');
-    bgGrad.addColorStop(0.35, '#401726');
-    bgGrad.addColorStop(0.7, '#a8422b');
-    bgGrad.addColorStop(1, '#fdbb2d');
-  } else if (lighting.includes('neon_noir')) {
-    bgGrad.addColorStop(0, '#06060c');
-    bgGrad.addColorStop(0.4, '#09152b');
-    bgGrad.addColorStop(0.75, '#1e082b');
-    bgGrad.addColorStop(1, '#001a24');
-  } else if (lighting.includes('dramatic_rim')) {
-    bgGrad.addColorStop(0, '#0a0a10');
-    bgGrad.addColorStop(0.5, '#141424');
-    bgGrad.addColorStop(1, '#050508');
-  } else if (lighting.includes('studio_soft')) {
-    bgGrad.addColorStop(0, '#24252d');
-    bgGrad.addColorStop(0.5, '#181920');
-    bgGrad.addColorStop(1, '#0e0f13');
-  } else {
-    // Chiaroscuro / default cinematic high contrast
-    bgGrad.addColorStop(0, '#0c0b11');
-    bgGrad.addColorStop(0.45, '#1c1426');
-    bgGrad.addColorStop(0.85, '#2b1b18');
-    bgGrad.addColorStop(1, '#0a080c');
-  }
-  ctx.fillStyle = bgGrad;
-  ctx.fillRect(0, 0, w, h);
-
-  // Artistic geometric layers (mountain silhouettes, urban skyline, or abstract depth)
-  ctx.save();
-  const isUrban = prompt.includes('city') || prompt.includes('cyber') || prompt.includes('street') || prompt.includes('neon') || prompt.includes('alley');
-  const isNature = prompt.includes('mountain') || prompt.includes('nature') || prompt.includes('forest') || prompt.includes('landscape') || prompt.includes('sky');
-
-  if (isUrban) {
-    // Cyberpunk / Noir cityscape silhouettes with illuminated windows
-    const buildingCount = 14;
-    for (let b = 0; b < buildingCount; b++) {
-      const bw = w / (buildingCount * 0.75);
-      const bx = b * (bw * 0.7) - 20;
-      const bh = (0.3 + ((Math.sin(b * 12.3) + 1) * 0.25)) * h;
-      const by = h - bh;
-
-      ctx.fillStyle = b % 2 === 0 ? 'rgba(12, 11, 20, 0.95)' : 'rgba(20, 16, 32, 0.92)';
-      ctx.fillRect(bx, by, bw, bh);
-
-      // Window lights
-      ctx.fillStyle = b % 3 === 0 ? 'rgba(0, 218, 243, 0.65)' : 'rgba(255, 140, 0, 0.6)';
-      for (let wy = by + 20; wy < h - 40; wy += 28) {
-        for (let wx = bx + 12; wx < bx + bw - 15; wx += 20) {
-          if (Math.sin(wx * wy) > 0.1) {
-            ctx.fillRect(wx, wy, 8, 12);
-          }
-        }
-      }
-    }
-  } else {
-    // Dynamic mountain & horizon depth contours
-    for (let layer = 1; layer <= 3; layer++) {
-      ctx.beginPath();
-      const baseY = h * (0.45 + layer * 0.15);
-      ctx.moveTo(0, h);
-      ctx.lineTo(0, baseY);
-      for (let x = 0; x <= w; x += 40) {
-        const ny = baseY + Math.sin(x * 0.004 * layer + layer * 2) * (50 * layer) + Math.cos(x * 0.01) * 20;
-        ctx.lineTo(x, ny);
-      }
-      ctx.lineTo(w, h);
-      ctx.closePath();
-      const alpha = 0.35 + layer * 0.22;
-      ctx.fillStyle = lighting.includes('golden_hour')
-        ? `rgba(45, 18, 28, ${alpha})`
-        : `rgba(18, 16, 26, ${alpha})`;
-      ctx.fill();
-    }
-  }
-  ctx.restore();
-
-  // Key light source & atmosphere
-  const keyX = w * (lighting.includes('golden_hour') ? 0.7 : 0.3);
-  const keyY = h * 0.32;
-  const keyGrad = ctx.createRadialGradient(keyX, keyY, 10, keyX, keyY, Math.max(w, h) * 0.65);
-  const glowColor = lighting.includes('neon_noir') ? '#00daf3' : lighting.includes('golden_hour') ? '#ffaa44' : '#d40055';
-  keyGrad.addColorStop(0, glowColor + '88');
-  keyGrad.addColorStop(0.3, glowColor + '28');
-  keyGrad.addColorStop(1, 'transparent');
-
-  ctx.save();
-  ctx.globalCompositeOperation = 'screen';
-  ctx.fillStyle = keyGrad;
-  ctx.fillRect(0, 0, w, h);
-
-  // Panavision Anamorphic Lens Flare
-  if (lens.includes('anamorphic')) {
-    ctx.strokeStyle = lighting.includes('neon_noir') ? 'rgba(0,218,243,0.7)' : 'rgba(107,178,255,0.65)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(0, keyY);
-    ctx.lineTo(w, keyY);
-    ctx.stroke();
-
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-    ctx.beginPath();
-    ctx.moveTo(keyX - w * 0.4, keyY);
-    ctx.lineTo(keyX + w * 0.4, keyY);
-    ctx.stroke();
-
-    // Oval bokeh discs
-    for (let i = 0; i < 5; i++) {
-      const bx = keyX + (i - 2) * (w * 0.18);
-      ctx.beginPath();
-      ctx.ellipse(bx, keyY, 28 + i * 4, 12 + i * 2, 0, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(0, 218, 243, ${0.12 + i * 0.03})`;
-      ctx.fill();
-    }
-  }
-  ctx.restore();
-
-  // Vignette
-  const vig = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.4, w / 2, h / 2, Math.max(w, h) * 0.75);
-  vig.addColorStop(0, 'transparent');
-  vig.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
-  ctx.fillStyle = vig;
-  ctx.fillRect(0, 0, w, h);
-
-  // Subtle film grain
-  ctx.save();
-  ctx.globalCompositeOperation = 'overlay';
-  ctx.globalAlpha = 0.08;
-  ctx.fillStyle = '#ffffff';
-  for (let g = 0; g < 600; g++) {
-    const gx = Math.random() * w;
-    const gy = Math.random() * h;
-    ctx.fillRect(gx, gy, 1, 1);
-  }
-  ctx.restore();
-
-  // Directorial Watermark Pill
-  ctx.save();
-  const titleText = (task.prompt || 'Plajah Generative Render').trim();
-  const displayTitle = titleText.length > 55 ? titleText.substring(0, 52) + '…' : titleText;
-  const metaText = `${task.taskType.replace('_', ' ').toUpperCase()} · ${w}×${h} · ${lens} · ${lighting}`;
-
-  ctx.fillStyle = 'rgba(10, 8, 16, 0.78)';
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
-  ctx.lineWidth = 1;
-  const tagW = Math.min(w - 48, 480);
-  const tagH = 50;
-  const tagX = 24;
-  const tagY = h - tagH - 24;
-
-  ctx.beginPath();
-  ctx.roundRect(tagX, tagY, tagW, tagH, 10);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '600 13px Inter, -apple-system, sans-serif';
-  ctx.fillText(displayTitle, tagX + 16, tagY + 22);
-
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
-  ctx.font = '500 10px Inter, -apple-system, sans-serif';
-  ctx.fillText(metaText, tagX + 16, tagY + 39);
-  ctx.restore();
-
-  return encodeCanvasPreferredDataUrl(canvas, 0.88).dataUrl;
-}
-
-/**
  * Execute a generative task directly through Plajah's native on-device runtime.
  */
 export async function executePlajahNativeTask(
@@ -393,6 +98,10 @@ export async function executePlajahNativeTask(
   if (typeof window !== 'undefined' && window.location?.origin && !window.location.origin.includes('51122')) {
     sidecarEndpoints.push(`${window.location.origin}/api/local-ai/generate`);
   }
+
+  // Why no backend produced output — reported to the caller if every path fails.
+  let engineReached = false;
+  let engineError = '';
 
   for (const ep of sidecarEndpoints) {
     const ctrl = new AbortController();
@@ -429,39 +138,48 @@ export async function executePlajahNativeTask(
         signal: ctrl.signal,
       });
 
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data && data.success && data.mediaUrl) {
-          onProgress?.({
-            taskId: task.id,
-            step: totalSteps,
-            totalSteps,
-            percent: 100,
-            status: 'completed',
-            previewImageUrl: data.mediaUrl,
-          });
+      const data = await resp.json().catch(() => null);
+      if (resp.ok && data && data.success && data.mediaUrl) {
+        onProgress?.({
+          taskId: task.id,
+          step: totalSteps,
+          totalSteps,
+          percent: 100,
+          status: 'completed',
+          previewImageUrl: data.mediaUrl,
+        });
 
-          return {
-            success: true,
-            taskId: task.id,
-            mediaUrl: data.mediaUrl,
-            jxlUrl: data.jxlUrl,
-            thumbUrl: data.thumbUrl,
-            format: data.format || 'png',
-            byteSize: data.byteSize,
-            thumbByteSize: data.thumbByteSize,
-            mediaType: task.taskType === 'cinema_motion' ? 'video' : 'image',
-            width: data.width || task.dimensions.width,
-            height: data.height || task.dimensions.height,
-            seed: data.seed || task.seed,
-            executionTimeMs: Date.now() - startTime,
-            hardwareBackend: 'NVIDIA_TENSORRT',
-          };
-        }
+        return {
+          success: true,
+          taskId: task.id,
+          mediaUrl: data.mediaUrl,
+          jxlUrl: data.jxlUrl,
+          thumbUrl: data.thumbUrl,
+          format: data.format || 'png',
+          byteSize: data.byteSize,
+          thumbByteSize: data.thumbByteSize,
+          mediaType: task.taskType === 'cinema_motion' ? 'video' : 'image',
+          width: data.width || task.dimensions.width,
+          height: data.height || task.dimensions.height,
+          seed: data.seed || task.seed,
+          executionTimeMs: Date.now() - startTime,
+          hardwareBackend: 'NVIDIA_TENSORRT',
+        };
       }
-      // Sidecar was reachable and returned a response; do not duplicate-queue on the proxy endpoint
-      break;
-    } catch {
+      const detail = data?.error || data?.message || data?.detail;
+      if (data && typeof data === 'object' && (resp.ok || detail)) {
+        // The engine itself answered (JSON) but produced nothing; do not duplicate-queue on the proxy endpoint
+        engineReached = true;
+        engineError = String(detail || 'the engine returned no image');
+        break;
+      }
+      // Non-JSON / bare HTTP error (e.g. a host with no local-AI proxy route): treat as "no engine here".
+    } catch (e: any) {
+      if (e?.name === 'AbortError') {
+        engineReached = true;
+        engineError = 'the engine did not finish within 90 seconds';
+        break;
+      }
       // Connection refused or network error on 127.0.0.1:51122 -> try proxy endpoint to auto-spawn sidecar
     } finally {
       clearInterval(progressTimer);
@@ -516,57 +234,42 @@ export async function executePlajahNativeTask(
             hardwareBackend: 'NVIDIA_TENSORRT',
           };
         }
+        engineReached = true;
+        engineError = String(nativeResponse?.error || engineError || 'the Windows native engine returned no output');
       } catch (err: any) {
         console.warn('[PlajahNativeRunner] Windows native engine bridge error:', err);
+        engineReached = true;
+        engineError = String(err?.message || err);
       }
     }
   }
 
-  // ── PRIORITY 3: Fallback On-Device Synthesis ─────────────────────────────
-  try {
-    onProgress?.({
-      taskId: task.id,
-      step: 1,
-      totalSteps,
-      percent: 35,
-      status: 'loading_model',
-    });
+  // ── No backend produced output: fail honestly, never return a placeholder ──
+  const error = engineReached
+    ? `The local GPU engine could not complete this task: ${engineError || 'unknown error'}. ` +
+      `Check that the model (${task.modelId}) is installed in the Plajah local engine, then try again.`
+    : 'The Plajah local GPU engine is not running (no response from http://127.0.0.1:51122). ' +
+      'Start the local engine and try again — nothing was generated.';
 
-    const renderedUrl = await renderOnDeviceAestheticFrame(task);
+  onProgress?.({
+    taskId: task.id,
+    step: 0,
+    totalSteps,
+    percent: 0,
+    status: 'error',
+  });
 
-    onProgress?.({
-      taskId: task.id,
-      step: totalSteps,
-      totalSteps,
-      percent: 100,
-      status: 'completed',
-      previewImageUrl: renderedUrl,
-    });
-
-    return {
-      success: true,
-      taskId: task.id,
-      mediaUrl: renderedUrl,
-      format: 'png',
-      mediaType: task.taskType === 'cinema_motion' ? 'video' : 'image',
-      width: task.dimensions.width,
-      height: task.dimensions.height,
-      seed: task.seed,
-      executionTimeMs: Date.now() - startTime,
-      hardwareBackend: 'BROWSER_WEBGPU',
-    };
-  } catch (err: any) {
-    return {
-      success: false,
-      taskId: task.id,
-      mediaUrl: '',
-      mediaType: 'image',
-      width: task.dimensions.width,
-      height: task.dimensions.height,
-      seed: task.seed,
-      executionTimeMs: Date.now() - startTime,
-      hardwareBackend: 'FALLBACK',
-      error: `Rendering failed: ${err.message || 'Unknown GPU error'}`,
-    };
-  }
+  return {
+    success: false,
+    taskId: task.id,
+    mediaUrl: '',
+    mediaType: task.taskType === 'cinema_motion' ? 'video' : 'image',
+    width: task.dimensions.width,
+    height: task.dimensions.height,
+    seed: task.seed,
+    executionTimeMs: Date.now() - startTime,
+    hardwareBackend: 'FALLBACK',
+    error,
+    errorCode: engineReached ? 'engine_error' : 'engine_offline',
+  };
 }
