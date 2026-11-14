@@ -77,6 +77,9 @@ export interface OrgAsset {
   approvedAt?: number;
   approvedByUid?: string;
   uploadedAt: number;
+  /** Set on files made by a generator (Fabula's Generate panel and friends). Content HQ is where
+   *  generated work lives; this is its provenance — see services/generatedGallery.ts. */
+  generation?: import('./generatedGallery').GenerationMeta;
 }
 
 const COLLECTION = 'orgAssets';
@@ -855,6 +858,11 @@ export async function requestHqScan(assetId: string): Promise<{ scanStatus: 'PEN
     if (!res.ok) return null;
     return await res.json();
   } catch { return null; }
+}
+
+/** Merge provenance fields onto a generated asset's record (review verdict, public copy, …). */
+export async function updateHqAssetGeneration(assetId: string, generation: import('./generatedGallery').GenerationMeta): Promise<void> {
+  await setDoc(doc(opsDb, COLLECTION, assetId), { generation: JSON.parse(JSON.stringify(generation)) }, { merge: true });
 }
 
 /** Move an asset to a different folder (or clear it). */

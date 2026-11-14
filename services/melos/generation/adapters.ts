@@ -16,6 +16,7 @@ import {
   type GenerationResult,
 } from './types';
 import { buildEnsemblePlan, validateEnsemblePlan } from './ensemblePlan';
+import { aceStepAudioUrl } from './aceStepProtocol';
 
 export interface AdapterResult extends GenerationResult { audio?: Buffer }
 export interface EngineConfig { url?: string; token?: string; python?: string; model?: string; aceThinking?: boolean }
@@ -313,15 +314,8 @@ export async function runGeneration(request: GenerationRequest, config: EngineCo
     progress('Generating audio on ACE-Step…');
     for (;;) {
       await delay(1500, undefined, { signal });
-      const poll = await post('/query_result', { task_id_list: [taskId] });
-      const job = poll.data?.find((item: any) => item.task_id === taskId);
-      if (Number(job?.status) === 2) throw new Error('ACE-Step generation failed; inspect its local log');
-      if (Number(job?.status) !== 1) continue;
-      const items = typeof job.result === 'string' ? JSON.parse(job.result) : job.result;
-      const file = items?.[0]?.file;
-      if (typeof file !== 'string') throw new Error('ACE-Step returned no audio');
-      const url = new URL(file, config.url);
-      if (url.origin !== new URL(config.url!).origin || url.pathname !== '/v1/audio') throw new Error('ACE-Step returned an unexpected audio location');
+      const url = aceStepAudioUrl(await post('/query_result', { task_id_list: [taskId] }), taskId, config.url!);
+      if (!url) continue;
       progress('Receiving generated audio…');
       const audio = await boundedBytes(await fetch(url, { headers, signal, redirect: 'error' }), 50000000);
       return { audio, mime: 'audio/wav', warning: request.kind === 'sample' ? 'ACE-Step generates at least 10 seconds. Choose a region from the preview for your sample.' : undefined };

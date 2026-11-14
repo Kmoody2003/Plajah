@@ -100,6 +100,10 @@ import { SavedFoldersMenu, setLastFolderId, openSavedHandle } from "../ui/SavedF
 import { isWindowsApp, pickWindowsFolder, pickWindowsFile, scanWindowsLibrary, convertWindowsPickedFileToFile, getStudioDisplays, openStudioCleanFeed, closeStudioCleanFeed, onNativeMessage, extractStudioThumbnails } from "../../services/windowsBridgeService";
 import { isVectorFile, rasterizeVector } from "../../services/fabula/vectorRaster";
 import GeneratePanel from "./GeneratePanel";
+import StoryIntelligencePanel from "./StoryIntelligencePanel";
+import GenGallery from "../gallery/GenGallery";
+import { galleryForUser } from "../../services/generatedGallery";
+import { directScene, motivationsFrom, continuesFrom, mapCoverage, addPlaceholdersForMissing, breakdownForScene, matchProductionScene, fileSheetResult, placeSuggestionInCut, pullScriptIntoProduction, pushSceneToScript, scoreCueRequest, voiceTagFor, shotRefs, reviewChecklist, reviewPrompt, normalizeReview } from "../../services/fabula/story";
 import RunwayPluginPanel from "./RunwayPluginPanel";
 import { LocalCreativeStudio } from "./LocalCreativeStudio";
 import { specFromShot, connectorById, placeResultInCut } from "../../services/fabula/genAgent";
@@ -108,7 +112,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectCloud } from "../../services/fabulaProjects";
 import { fetchAlbumById, uploadFabulaAsset, uploadVideo } from "../../services/backendService";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
-import { syncProductionToWorld, worldCharactersForProduction } from "../../services/fabulaWorldBridge";
+import { syncProductionToWorld, worldCharactersForProduction, withStoryIntel } from "../../services/fabulaWorldBridge";
 import { computeClipLinkedScript, formatTimecode as fmtScriptTc } from "../../services/storyIntelBridge";
 import SpatialMixer from "../spatialMixer/SpatialMixer";
 import { setComicHandoff } from "../../services/comicHandoff";
@@ -1716,6 +1720,32 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   const mediaFilesRef = useRef(null);               // plain files → auto-tagged import (media assets tab)
   const scriptFilesRef = useRef(null);              // .txt/.md/.fountain → Lorea script structuring
   const [genOpen, setGenOpen] = useState(false);    // generation agent panel (Kling/Magnific → bins)
+  const [storyOpen, setStoryOpen] = useState(false); // Story Intelligence: coverage, characters, direction, story
+  // Generated work lives in Content HQ; this is the shared view of it (one store per signed-in owner,
+  // the same one Content HQ itself reads). Signed out, takes are kept for the session only.
+  const [galleryUid, setGalleryUid] = useState(() => auth?.currentUser?.uid || null);
+  useEffect(() => (auth?.onAuthStateChanged ? auth.onAuthStateChanged((u) => setGalleryUid(u?.uid || null)) : undefined), []);
+  const galleryStore = useMemo(() => galleryForUser(galleryUid), [galleryUid]);
+  const galleryIds = useRef(new Map());   // pool asset id → gallery item id
+  // The Film Production hub's continuity data for the production this project was cut from (the hub
+  // stamps `filmProductionId` on the project). Its scene list and script breakdown seed the continuity
+  // ledger, so generated shots hold the same wardrobe/props/makeup state the Script Supervisor logged.
+  const [filmHub, setFilmHub] = useState({ scenes: [], breakdown: [] });
+  const filmProductionId = prod?.filmProductionId;
+  useEffect(() => {
+    setFilmHub({ scenes: [], breakdown: [] });
+    if (!filmProductionId) return undefined;
+    let alive = true; const offs = [];
+    (async () => {
+      try {
+        const [FP, BD] = await Promise.all([import("../../services/filmProductionService"), import("../../services/productionBreakdownService")]);
+        if (!alive) return;
+        offs.push(FP.subScenes(filmProductionId, (scenes) => alive && setFilmHub((h) => ({ ...h, scenes }))));
+        offs.push(BD.subscribeBreakdownElements(filmProductionId, (breakdown) => alive && setFilmHub((h) => ({ ...h, breakdown }))));
+      } catch (e) { console.warn("[story-intel] film hub link unavailable", e); }
+    })();
+    return () => { alive = false; offs.forEach((off) => { try { off(); } catch { /* already closed */ } }); };
+  }, [filmProductionId]);
   // Context for the generation panel when it's opened from a SLATE shot card or a timeline clip rather
   // than the media pool — carries the compiled ShotSpec so the panel opens pre-filled with the shot's
   // prompt and the scene bible's identity locks as references. null = opened bare from the pool.
@@ -3714,6 +3744,147 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   // generation panel pre-filled, instead of the user copy-pasting into a provider by hand. `which`
   // picks which of the shot's prompts to run; the production's default target for that kind decides
   // the provider (still → stillTarget, video → service).
+  // ── Story Intelligence: the parts that touch media, the cut, and other tools ─────────────────────
+  const storyAssetBlob = async (assetId) => {
+    const a = (prod?.mediaPool || []).find((x) => x.id === assetId);
+    const url = a?.url || a?.cloudUrl;
+    let blob = url ? await fetch(url).then((r) => (r.ok ? r.blob() : null)).catch(() => null) : null;
+    if (!blob || !blob.size) blob = await stGet("studio:blob:" + assetId);
+    if (!blob || !blob.size) throw new Error(`"${a?.name || "That clip"}" is offline on this device — relink it first.`);
+    return blob;
+  };
+  // Watch one clip with the same vision pass "build script from the cut" uses. Returns the raw
+  // analysis, or throws with the reason it couldn't be watched.
+  const storyWatchClip = async (asset) => {
+    let blob = await storyAssetBlob(asset.id);
+    if (blob.size > 18 * 1024 * 1024) blob = (await stGet("studio:proxy:" + asset.id)) || blob;
+    if (blob.size > 18 * 1024 * 1024) throw new Error(`"${asset.name}" is over 18MB — build a proxy for it and it can be watched.`);
+    const { analyzeClipForScript } = await import("../../services/geminiService");
+    const mime = blob.type || (asset.type === "audio" ? "audio/mpeg" : asset.type === "image" ? "image/jpeg" : "video/mp4");
+    const raw = await analyzeClipForScript(await blobToBase64(blob), mime, (prod.cast || []).map((c) => c.name).filter(Boolean), asset.name || "clip");
+    if (!raw) throw new Error(`"${asset.name}" couldn't be analysed — the vision service didn't answer.`);
+    return raw;
+  };
+  const storyPlaceSuggestion = (sug) => {
+    const out = placeSuggestionInCut(clips, sug, prod.acts || [], prod.mediaPool || [], uid);
+    if (out.how === "none") { ping("Those clips are no longer in the bins."); return; }
+    applyClips(out.clips);
+    ping(out.how === "alternate" ? "Alternate laid in — the previous take is muted, not removed (Ctrl+Z to undo)."
+      : out.how === "filled" ? "Laid into the empty slot for that shot."
+        : `${out.count} clip${out.count === 1 ? "" : "s"} added at the end of V1 for you to place.`);
+  };
+  // A rendered voice reference becomes a pool asset in a "Voice Locks" bin and is linked from the lock.
+  const storySaveVoiceReference = async (castId, wav, seconds) => {
+    const id = uid();
+    const name = (prod.cast || []).find((c) => c.id === castId)?.name || "character";
+    await stSet("studio:blob:" + id, wav);
+    updateProd((p) => {
+      p.bins = p.bins || []; if (!p.bins.includes("Voice Locks")) p.bins.push("Voice Locks");
+      p.mediaPool.push({ id, name: `${name} — voice reference.wav`, type: "audio", url: URL.createObjectURL(wav), duration: seconds, session: true, bin: "Voice Locks", castId, tags: [name.toLowerCase(), "voice lock"] });
+      const m = (p.cast || []).find((c) => c.id === castId);
+      if (m?.voiceLock) m.voiceLock = { ...m.voiceLock, referenceAssetId: id, referenceSec: seconds };
+    });
+    scheduleAutoSync([id]);
+    ping(`Voice reference built for ${name} — ${seconds}s, in the Voice Locks bin.`);
+  };
+  // Speak a line in a character's locked voice, with delivery from the performance direction, and lay
+  // it on the first audio track at the shot's position. Uses the on-platform cloning engine; if that
+  // engine isn't running this says so rather than placing a stand-in voice.
+  const storySpeakLine = async ({ castId, text, beat, shotId }) => {
+    const member = (prod.cast || []).find((c) => c.id === castId);
+    const refId = member?.voiceLock?.referenceAssetId;
+    if (!refId) throw new Error("Build the voice reference for this character first.");
+    const { fishSpeechProvider } = await import("../../services/voice/aria/providers/fishSpeech");
+    if (!(await fishSpeechProvider.available())) throw new Error("The voice-cloning engine (Fish Speech) isn't running on this machine, so the locked voice can't be spoken yet. Start it and try again.");
+    const refBlob = await storyAssetBlob(refId);
+    const referenceAudio = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(refBlob); });
+    const { plajahAudioCore } = await import("../../services/voice/plajahAudioCore");
+    const take = await plajahAudioCore.synthesizeFabulaDialogue({ text, speakerName: member.name, emotion: voiceTagFor(beat), engine: "fish_speech", referenceAudio, rate: beat?.vocal?.rate });
+    const at = clips.find((c) => c.shotId === shotId && !c.disabled && !String(c.trackId || "").startsWith("a"))?.start;
+    const aTrack = tracks.find((tr) => tr.type === "audio")?.id || "a1";
+    const clip = await placeAudioClip(take.audioBlob, `${member.name} — ${text.slice(0, 24)}`, { trackId: aTrack, at: at != null ? at : playhead, defer: true });
+    if (clip) applyClips([...clips, { ...clip, shotId, kind: "media" }]);
+    ping(`${member.name}'s line placed on ${aTrack.toUpperCase()} in the locked voice.`);
+  };
+  // Run a score section through the platform's music generation and lay the cue under its shots.
+  // Three ways a cue can be generated, tried in this order:
+  //   1. the user's OWN machine — an open model they downloaded and are running (no platform compute,
+  //      so no gate at all);
+  //   2. the platform's hosted music lab — admin-only, because it is one shared server runtime with no
+  //      per-user quota yet (routes/musicLab.ts);
+  // and when neither is available the reason is given, with what would make it work.
+  const storyScoreCue = async (section, timing, progress) => {
+    const request = scoreCueRequest(section, timing.seconds, Date.now() % 100000);
+    const local = await import("../../services/melos/generation/localAceStep");
+    let audio = null, source = "", warning = "";
+    if (await local.localAceStepAvailable()) {
+      const out = await local.runLocalAceStep(request, { progress });
+      audio = out.audio; source = "your music engine"; warning = out.warning || "";
+    } else {
+      const lab = await import("../../services/melos/generation/client");
+      let engines = [];
+      try { engines = await lab.getMusicEngines(); } catch { /* not an admin, or the lab isn't deployed here */ }
+      const engine = engines.find((e) => e.kinds.includes("audio") && e.access.allowed && e.runtimeConnected);
+      if (!engine) {
+        throw new Error(`No music engine found. To generate cues on your own machine, run ACE-Step and it will be picked up at ${local.getLocalAceStepUrl()} (change the address under Score & sound brief). The platform's hosted engines are limited to admin evaluation for now. The cue text can be copied into any music tool meanwhile.`);
+      }
+      const out = await lab.runLocalMusicGeneration({ engine: engine.id, ...request }, new AbortController().signal, progress);
+      if (!out.audio) throw new Error(out.result?.warning || `${engine.name} finished without returning audio.`);
+      audio = out.audio; source = engine.name;
+    }
+    const aTracks = tracks.filter((tr) => tr.type === "audio");
+    const mTrack = (aTracks[1] || aTracks[0])?.id || "a2";
+    const clip = await placeAudioClip(audio, `Score ${section.fromSlug}${section.toSlug !== section.fromSlug ? "–" + section.toSlug : ""}`, { trackId: mTrack, at: timing.start, defer: true });
+    if (clip) applyClips([...clips, clip]);
+    ping(`Score cue from ${source} laid on ${mTrack.toUpperCase()} at ${fmtTc(timing.start, prod.defaults.format)}.${warning ? " " + warning : ""}`);
+  };
+  // The screenplay (written in the script editor) ⇄ this production.
+  const storyScripts = async () => {
+    const u = auth.currentUser?.uid; if (!u) return [];
+    const { listWritingProjects } = await import("../../services/loreaProjectsService");
+    return (await listWritingProjects(u)).projects.filter((x) => x.kind === "SCRIPT").map((x) => ({ id: x.id, title: x.title, scenes: x.chapterCount }));
+  };
+  const storyScriptDoc = async (scriptId) => {
+    const [{ db }, fs] = await Promise.all([import("../../services/firebase"), import("firebase/firestore")]);
+    const ref = fs.doc(db, "scripts", scriptId);
+    const snap = await fs.getDoc(ref);
+    if (!snap.exists()) throw new Error("That screenplay could not be opened.");
+    return { ref, fs, data: snap.data() };
+  };
+  const storyPullScript = async (scriptId) => {
+    const { data } = await storyScriptDoc(scriptId);
+    // Counted on a copy so the caller can report what the pull will do; the same merge is then applied.
+    const report = pullScriptIntoProduction(deepClone(prod), data.elements || [], uid, BLANK_SCENE);
+    updateProd((p) => { pullScriptIntoProduction(p, data.elements || [], uid, BLANK_SCENE); p.scriptId = scriptId; p.scriptTitle = data.titlePage?.title || p.scriptTitle; });
+    return report;
+  };
+  const storyPushScene = async (sceneId) => {
+    if (!prod.scriptId) throw new Error("Link a screenplay first.");
+    const i = allScenes.findIndex((x) => x.scene.id === sceneId);
+    if (i < 0) throw new Error("That scene is no longer in the production.");
+    const { ref, fs, data } = await storyScriptDoc(prod.scriptId);
+    const prevLinked = allScenes.slice(0, i).reverse().find((x) => x.scene.scriptElementId)?.scene;
+    const out = pushSceneToScript(data.elements || [], allScenes[i].scene, prevLinked, uid);
+    await fs.setDoc(ref, { elements: out.elements, updatedAt: Date.now() }, { merge: true });
+    updateProd((p) => { for (const a of p.acts || []) for (const sc of a.scenes || []) if (sc.id === sceneId) { sc.scriptElementId = out.headingId; delete sc.notInScript; } });
+    return out.replaced;
+  };
+
+  // Story Intelligence direction for one shot: the performance each character plays at this point in
+  // the scene's arc, and the continuity state the shot inherits (props in hand, marks, sides of frame,
+  // light direction) — carried in from the previous scene when this one continues it. It rides on the
+  // ShotSpec and is re-phrased per model, so switching provider doesn't lose it.
+  const directionForShot = (sc, shot) => {
+    if (!sc?.shots?.length || !shot?.id) return undefined;
+    try {
+      const motivations = motivationsFrom(prod?.storyIntel?.relationships);
+      const i = allScenes.findIndex((x) => x.scene.id === sc.id);
+      const prev = i > 0 ? allScenes[i - 1].scene : null;
+      const hubBreakdown = (x) => breakdownForScene(filmHub.breakdown, matchProductionScene(x, filmHub.scenes, { clips, pool: prod?.mediaPool })?.id);
+      const carryIn = prev && continuesFrom(sc) ? { characters: directScene(prev, motivations, { breakdown: hubBreakdown(prev) }).ledger.out.characters } : undefined;
+      return directScene(sc, motivations, { breakdown: hubBreakdown(sc), ...(carryIn ? { carryIn } : {}) }).forShot(shot.id);
+    } catch (e) { console.warn("[story-intel] direction failed", e); return undefined; }
+  };
   const openGenForShot = (sc, shot, which) => {
     if (!shot?.[which]) return;
     const spec = specFromShot({
@@ -3721,6 +3892,12 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       aspect: prod?.defaults?.aspect,
       sceneId: sc?.id,
     });
+    if (which !== "voice") {
+      spec.direction = directionForShot(sc, shot);
+      // Identity references follow the characters who are IN this shot: their sheet images and
+      // locks, in place of every bible lock as text. Anything else on the spec (a first frame) stays.
+      spec.refs = [...shotRefs(sc, shot, prod), ...spec.refs.filter((r) => r.role !== "character" && r.role !== "location")];
+    }
     const target = which === "video" ? prod?.defaults?.service : prod?.defaults?.stillTarget;
     setGenCtx({
       spec,
@@ -3775,16 +3952,53 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     if (!results?.length) return;
     const target = bin || "Generated";
     // Mint the pool assets first so the ids exist before any clip points at one.
-    const minted = results.map((r) => ({
-      id: uid(), name: r.name || "generated", type: r.type || "image", url: r.url, cloudUrl: r.url,
-      bin: target, duration: 0, generated: true, synced: true, session: true,
+    // A take generated on this machine arrives as bytes, not a cloud URL: keep the bytes with the
+    // project (so it survives a reload) and let the normal sync give other devices a copy.
+    const localIds = [];
+    const minted = results.map((r) => {
+      const id = uid();
+      if (r.blob) { stSet("studio:blob:" + id, r.blob); localIds.push(id); }
+      return {
+      id, name: r.name || "generated", type: r.type || "image", url: r.blob ? URL.createObjectURL(r.blob) : r.url,
+      ...(r.blob ? { localGenerated: true } : { cloudUrl: r.url, synced: true }),
+      bin: target, duration: 0, generated: true, session: true,
       shotId: job?.spec?.shotId,          // provenance: which SLATE shot this came from
-    }));
+      // A storyboard frame is a drawing — Continuity Eye must never use it as a picture reference.
+      ...(job?.spec?.direction?.boardStyle ? { board: true } : {}),
+      };
+    });
+    if (localIds.length) scheduleAutoSync(localIds);
+    // File every take in Content HQ's Generated folder, with where it came from. The gallery shows
+    // it at once; the upload happens behind it.
+    minted.forEach((a, i) => {
+      const r = results[i];
+      (async () => {
+        try {
+          const blob = r.blob || await fetch(a.url).then((x) => (x.ok ? x.blob() : null));
+          if (!blob) return;
+          const item = galleryStore.add({
+            blob, name: a.name, previewUrl: a.url,
+            generation: {
+              provider: job?.provider || "unknown", providerName: connectorById(job?.provider || "")?.name, kind: a.type === "video" ? "video" : a.type === "audio" ? "audio" : "image",
+              prompt: job?.prompt, productionId: prod?.id, productionTitle: prod?.title, sceneId: job?.spec?.sceneId, shotId: job?.spec?.shotId, slug: job?.spec?.slug,
+              castId: job?.spec?.sheet?.castId, sheetView: job?.spec?.sheet?.view, board: !!job?.spec?.direction?.boardStyle,
+              attempt: job?.spec?.attempt || 1, local: job?.mode === "local", jobId: job?.id,
+            },
+          });
+          galleryIds.current.set(a.id, item.id);
+        } catch (e) { console.warn("[gallery] could not file a generated take", e); }
+      })();
+    });
     updateProd((p) => {
       p.mediaPool = p.mediaPool || []; p.bins = p.bins || [];
       if (!p.bins.includes(target)) p.bins.push(target);
       minted.forEach((a) => p.mediaPool.push(a));
     });
+
+    // A character-sheet generation files itself onto the cast member it was made for, as a locked
+    // reference — so the next generation of that character starts from the sheet.
+    const sheetImage = job?.spec?.sheet && minted.find((a) => a.type === "image");
+    if (sheetImage) updateProd((p) => { fileSheetResult(p, job.spec.sheet, sheetImage.id); });
 
     // Close the loop back into the cut. `buildEditFromBreakdown()` lays down a `kind:"script"`
     // placeholder per shot; the first playable result for that shotId takes its slot, keeping the
@@ -3794,16 +4008,81 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     const shotId = job?.spec?.shotId;
     const playable = minted.find((a) => a.type === "video") || minted.find((a) => a.type === "image");
     let swapped = 0, alt = 0;
+    let slotted = 0;
     if (shotId && playable) {
       const placed = placeResultInCut(clips, shotId, playable, uid);
       swapped = placed.filled; alt = placed.alternates;
       if (swapped || alt) { setClips(placed.clips); commitClips(placed.clips); }
+      else {
+        // The script has this shot but the cut has no slot for it yet (a board made straight from the
+        // coverage map). Give it one at the end of V1 rather than leaving the take stranded in a bin.
+        const found = allScenes.map(({ scene: sc }) => ({ sc, shot: (sc.shots || []).find((x) => x.id === shotId) })).find((x) => x.shot);
+        const has = clips.some((c) => c.shotId === shotId && !String(c.trackId || "").startsWith("a"));
+        if (found && !has) {
+          const end = clips.filter((c) => c.trackId === "v1").reduce((m, c) => Math.max(m, (c.start || 0) + (c.duration || 0)), 0);
+          const next = [...clips, { id: uid(), trackId: "v1", start: Math.round(end * 10) / 10, duration: estimateShotSeconds(found.shot, found.sc.mode), srcIn: 0, kind: "media", assetId: playable.id, shotId, label: `${found.shot.slug} · ${found.shot.type || ""}`.trim() }];
+          setClips(next); commitClips(next); slotted = 1;
+        }
+      }
     }
 
     const added = `${results.length} generated result${results.length === 1 ? "" : "s"} added to ${target}`;
     ping(swapped ? `${added} — ${swapped} placeholder${swapped === 1 ? "" : "s"} filled in the cut`
       : alt ? `${added} — alternate take laid in, previous muted`
-        : added);
+        : slotted ? `${added} — laid at the end of V1 as this shot's slot`
+          : added);
+    return minted;
+  };
+  // Gallery → cut. A gallery item is laid into its shot (as an alternate if the shot already has
+  // picture) or, when it has no shot, added to the bin. A take from another session is first brought
+  // into this project's pool.
+  const galleryUseInCut = async (item, blob) => {
+    let asset = (prod.mediaPool || []).find((a) => galleryIds.current.get(a.id) === item.id || (item.hqAssetId && a.hqAssetId === item.hqAssetId));
+    if (!asset) {
+      const id = uid();
+      await stSet("studio:blob:" + id, blob);
+      asset = { id, name: item.name, type: item.kind, url: URL.createObjectURL(blob), duration: 0, bin: "Generated", generated: true, session: true, shotId: item.generation.shotId, hqAssetId: item.hqAssetId, ...(item.generation.board ? { board: true } : {}) };
+      const minted = asset;
+      updateProd((p) => { p.bins = p.bins || []; if (!p.bins.includes("Generated")) p.bins.push("Generated"); p.mediaPool.push(minted); });
+      galleryIds.current.set(id, item.id);
+    }
+    const shotId = item.generation.productionId === prod.id ? item.generation.shotId : null;
+    if (shotId && item.kind !== "audio") {
+      const live = clips.find((c) => c.shotId === shotId && !c.disabled && c.assetId === asset.id);
+      if (live) { ping("That take is already the one in the cut."); return; }
+      const placed = placeResultInCut(clips.map((c) => (c.assetId === asset.id && c.shotId === shotId ? { ...c, __skip: true } : c)).filter((c) => !c.__skip), shotId, asset, uid);
+      if (placed.filled || placed.alternates) { applyClips(placed.clips); ping(placed.filled ? "Laid into that shot's slot." : "Now the take in the cut — the previous one is muted, not removed."); return; }
+    }
+    ping(`"${item.name}" is in the Generated bin — drag it to the timeline.`);
+  };
+
+  // Review a finished take against the direction it was generated from: a vision pass answers a
+  // checklist built from the shot's continuity, staging, performance and identity references. The
+  // verdict is kept on the asset, so a take that doesn't match is marked wherever it is used.
+  const storyReviewTake = async ({ job, assets }) => {
+    const spec = job?.spec;
+    const take = assets.find((a) => a.type === "video") || assets.find((a) => a.type === "image");
+    if (!spec?.direction || !take?.url) throw new Error("Nothing to review.");
+    const frame = take.type === "video" ? await videoFrameB64(take.url) : await imageUrlB64(take.url);
+    const refs = [];
+    // A storyboard isn't checked for photographic likeness, so it needs no identity references.
+    for (const r of (spec.direction.boardStyle ? [] : (spec.refs || []).filter((x) => x.role === "character" && x.lock && x.assetId)).slice(0, 3)) {
+      const a = (prod.mediaPool || []).find((x) => x.id === r.assetId);
+      try { if (a?.url) refs.push({ name: r.name, image: await imageUrlB64(a.url) }); } catch { /* a reference that won't load is skipped; the lock text is checked instead */ }
+    }
+    const names = refs.map((r) => r.name);
+    const checks = reviewChecklist(spec, names);
+    if (!checks.length) throw new Error("This shot's direction has nothing checkable in it.");
+    const raw = await claudeVisionJson([frame, ...refs.map((r) => r.image)], reviewPrompt(checks, names, take.type === "video" ? "video" : "image"));
+    const review = normalizeReview(raw, checks, spec.attempt || 1);
+    updateProd((p) => {
+      const a = (p.mediaPool || []).find((x) => x.id === take.id);
+      if (a) a.review = { verdict: review.verdict, score: review.score, summary: review.summary, attempt: review.attempt, at: review.at, failed: [...review.failed, ...review.warnings].map((c) => ({ id: c.id, question: c.question, observed: c.observed, must: c.must })) };
+    });
+    // The verdict belongs to the file, wherever it is shown.
+    const gid = galleryIds.current.get(take.id);
+    if (gid) galleryStore.updateGeneration(gid, { review: { verdict: review.verdict, score: review.score, summary: review.summary } });
+    return review;
   };
   // ── Media Assets: notes + add-to-scene ────────────────────────────────────────
   const updateAssetNote = (assetId, note) => updateProd((p) => { const a = p.mediaPool?.find((x) => x.id === assetId); if (a) a.note = note; });
@@ -6952,6 +7231,13 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
             <FileText size={11} /> TIMECODE SCRIPT
           </button>
           <button
+            className={`tbtn2 ${storyOpen ? "on" : "ghost"}`}
+            title="Story Intelligence — script vs. cut coverage, storyboards for the gaps, character sheets and voice locks, performance direction, story notes"
+            onClick={() => setStoryOpen(true)}
+          >
+            <Sparkles size={11} /> STORY INTEL
+          </button>
+          <button
             className="tbtn2 ghost"
             title="Connect & sync this production's characters, locations, and lore to Plajah World"
             onClick={() => setConnectWorldOpen(true)}
@@ -7360,10 +7646,51 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
           onChange={(clean) => updateClipAudio(audioEdit.clip.id, { clean })}
           onClose={() => setAudioEdit(null)} />
       )}
+      {storyOpen && prod && (
+        <StoryIntelligencePanel
+          prod={prod} clips={clips} sceneId={scene?.id} aspect={prod?.defaults?.aspect}
+          callJson={callClaudeJson} updateProd={updateProd} ping={ping}
+          filmHub={filmHub}
+          resolveFrame={storyAssetBlob}
+          watchClip={storyWatchClip} onPlaceSuggestion={storyPlaceSuggestion}
+          onSaveVoiceReference={storySaveVoiceReference} onSpeakLine={storySpeakLine} onScoreCue={storyScoreCue}
+          listScripts={storyScripts} onPullScript={storyPullScript} onPushScene={storyPushScene}
+          onLogCheck={async (row) => {
+            // Same log the hub's Continuity tab writes to, so the Script Supervisor sees generated-shot checks too.
+            if (!filmProductionId) return;
+            try { (await import("../../services/filmProductionService")).putContinuityCheck(filmProductionId, row); }
+            catch (e) { console.warn("[story-intel] continuity log failed", e); }
+          }}
+          onClose={() => setStoryOpen(false)}
+          onGotoScene={(actId, sceneId) => { setStoryOpen(false); gotoScene(actId, sceneId, "slate"); }}
+          onGenerate={({ spec, kind, title }) => {
+            setGenCtx({ spec, kind, title, provider: connectorById((kind === "video" ? prod?.defaults?.service : prod?.defaults?.stillTarget) || "")?.id });
+            setGenOpen(true);
+          }}
+          onAddSlots={() => {
+            const cov = mapCoverage(prod.acts || [], clips, prod.mediaPool || []);
+            const out = addPlaceholdersForMissing(clips, cov, prod.acts || [], uid, (shot, sc) => estimateShotSeconds(shot, sc?.mode));
+            if (out.added) { applyClips(out.clips); ping(`${out.added} empty slot${out.added === 1 ? "" : "s"} added at the end of V1 — board or generate into them.`); }
+          }}
+        />
+      )}
       {genOpen && (
         <GeneratePanel projectId={prod?.id || "local"} bins={binTree()}
           defaultBin={binFilter !== "all" ? binFilter : ""} context={genCtx}
-          importResults={importGenResults} onClose={() => { setGenOpen(false); setGenCtx(null); }} />
+          importResults={importGenResults} onClose={() => { setGenOpen(false); setGenCtx(null); }}
+          gallery={(
+            <GenGallery
+              store={galleryStore} onUse={galleryUseInCut} useLabel="Use in the cut"
+              scopes={[
+                ...(genCtx?.spec?.shotId ? [{ id: "shot", label: `This shot${genCtx.spec.slug ? " · " + genCtx.spec.slug : ""}`, filter: { productionId: prod?.id, shotId: genCtx.spec.shotId } }] : []),
+                ...(genCtx?.spec?.sheet?.castId ? [{ id: "cast", label: "This character", filter: { castId: genCtx.spec.sheet.castId } }] : []),
+                { id: "prod", label: "This production", filter: { productionId: prod?.id } },
+                { id: "all", label: "Everything", filter: {} },
+              ]}
+            />
+          )}
+          reviewTake={storyReviewTake} autoRetry={!!prod?.storyIntel?.autoRetry}
+          onAutoRetry={(on) => updateProd((p) => { p.storyIntel = { ...(p.storyIntel || {}), autoRetry: on }; })} />
       )}
       {runwayPluginOpen && (
         <RunwayPluginPanel
@@ -7732,7 +8059,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
               onConnected={(wid) => updateProd((p) => { p.worldId = wid || undefined; })}
               onSync={(worldId) => syncProductionToWorld(worldId, {
                 id: prod.id, title: prod.title,
-                cast: (prod.cast || []).map((c) => ({ id: c.id, name: c.name, visual_lock: c.looks, voice_profile: c.voice, arc_in_scene: c.personality })),
+                cast: withStoryIntel((prod.cast || []).map((c) => ({ id: c.id, name: c.name, visual_lock: c.looks, voice_profile: c.voice, arc_in_scene: c.personality })), prod.storyIntel?.relationships),
                 worldCats: prod.worldCats,
               })}
               onImport={async (worldId) => {

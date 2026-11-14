@@ -19,6 +19,7 @@
 
 import { get as idbGet, set as idbSet } from 'idb-keyval';
 import { getOptionalIdToken } from '../backendService';
+import { applyDirection, type ShotDirection } from './story/promptCompiler';
 
 const API = '/api/genagent';
 
@@ -66,6 +67,9 @@ export interface Connector {
   handoffUrl?: string;     // where handoff mode opens the user
   desktopUrl?: string;     // native-app deep link, where one is known to exist
   walletNote?: string;     // plain-English billing truth, shown in the panel
+  /** Which prompt dialect this connector speaks, when it isn't its own id — a model reached through
+   *  an aggregator (e.g. Kling hosted on fal) is phrased for the MODEL, not for the host. */
+  dialect?: string;
   connectMode?: ConnectMode; // legacy field, retained for the existing backend contract
   connected?: boolean;     // user's account linked (filled by /connectors)
   hint?: string;           // masked tail of the stored key, e.g. "••••1234" — never the key itself
@@ -78,12 +82,12 @@ export interface GenJob {
   prompt: string;
   params?: Record<string, any>;
   spec?: ShotSpec;         // the full shot spec this job was compiled from (refs, locks, provenance)
-  mode?: GenMode;          // 'connected' (agent ran it) | 'handoff' (user ran it, watch folder caught it)
+  mode?: GenMode | 'local'; // 'connected' (agent ran it) | 'handoff' (user ran it) | 'local' (ran on this machine's GPU)
   projectId: string;
   bin: string;             // target bin the results should land in
   status: 'queued' | 'running' | 'done' | 'error' | 'backend-offline';
   progress?: number;       // 0..1
-  results?: { url: string; name: string; mime: string }[];
+  results?: { url: string; name: string; mime: string; /** Bytes of a locally generated take. */ blob?: Blob }[];
   error?: string;
   /** A non-fatal caveat about how the job had to be adapted — e.g. the provider has no 2.39:1 frame,
    *  so it was generated at the nearest ratio and needs cropping. Shown alongside the result. */
@@ -353,6 +357,9 @@ export interface GenRef {
    *  established look follows them across every shot without the user re-attaching it each time. */
   worldEntityId?: string;
   url?: string;
+  /** A locally displayable address for the image (may be a blob: or data: URL). For showing and
+   *  downloading the reference on this device only — never sent to a provider; that is `url`. */
+  previewUrl?: string;
   name?: string;
   /** Verbatim text lock from the scene bible (visual_lock / environment_lock) — carried alongside the
    *  image because most providers honor both, and the text is what keeps identity stable. */
@@ -372,6 +379,20 @@ export interface ShotSpec {
   sceneId?: string;
   shotId?: string;
   slug?: string;
+  /** Performance direction + continuity state for this shot, from Story Intelligence. Attached to the
+   *  SHOT rather than written into one provider's prompt, so it survives a change of model — the
+   *  compiler re-phrases it per connector. See story/promptCompiler.ts. */
+  direction?: ShotDirection;
+  /** Set on character-sheet generations: the cast member and view the result should be filed under. */
+  sheet?: { castId: string; view: string };
+  /** Which try this is. A take that failed review is retried with corrections; this caps the loop. */
+  attempt?: number;
+}
+
+/** Identity locks are pasted verbatim, but several in a row need to read as separate sentences. */
+function joinLocks(locks: string[]): string {
+  const seen = new Set<string>();
+  return locks.map((l) => l.trim()).filter((l) => l && !seen.has(l) && !!seen.add(l)).map((l) => (/[.!?]$/.test(l) ? l : `${l}.`)).join(' ');
 }
 
 /** Build a ShotSpec from a SLATE shot + its scene bible. `which` picks which of the shot's three
@@ -408,7 +429,8 @@ export function specFromShot(input: {
  *  service is going to silently drop. Text-only locks (no image) are never dropped — they fold into the
  *  prompt instead, which every provider understands. */
 export function refsForConnector(spec: ShotSpec, connector: Connector): { used: GenRef[]; dropped: GenRef[] } {
-  const imageRefs = (spec.refs || []).filter((r) => r.assetId || r.url);
+  // An image that only exists on this device (previewUrl) is still an attached reference.
+  const imageRefs = (spec.refs || []).filter((r) => r.assetId || r.url || r.previewUrl);
   const eligible = imageRefs.filter((r) => connector.caps.refRoles.includes(r.role));
   const used = eligible.slice(0, connector.caps.maxRefs);
   const dropped = imageRefs.filter((r) => !used.includes(r));
@@ -433,17 +455,25 @@ export function compileHandoff(spec: ShotSpec, connector: Connector): HandoffBun
 
   // Text locks that aren't carried as images fold into the prompt verbatim — that's how identity holds
   // on services with no reference-image slot.
+  // A character's written lock is kept even when their reference image is attached: the picture and
+  // the words reinforce each other, and on a hand-off the image only helps if the user attaches it.
   const textLocks = (spec.refs || [])
-    .filter((r) => r.lock && !used.some((u) => u.name === r.name))
+    .filter((r) => r.lock && (r.role === 'character' || !used.some((u) => u.name === r.name)))
     .map((r) => r.lock as string);
   if (textLocks.length && !textLocks.every((l) => prompt.includes(l))) {
     const missing = textLocks.filter((l) => !prompt.includes(l));
-    if (missing.length) prompt += `\n\n${missing.join(' ')}`;
+    if (missing.length) prompt += `\n\n${joinLocks(missing)}`;
   }
 
-  if (spec.negative) {
-    if (connector.caps.supportsNegative) notes.push(`Negative prompt: ${spec.negative}`);
-    else notes.push(`No negative-prompt field on ${connector.name} — "${spec.negative}" must be worked into the prompt.`);
+  // Performance + continuity, phrased for this model. A spec with no direction is left exactly as is.
+  const directed = applyDirection(prompt, spec, connector, used);
+  prompt = directed.prompt;
+  notes.push(...directed.notes);
+
+  const negative = [spec.negative, ...directed.negatives].filter(Boolean).join(', ');
+  if (negative) {
+    if (connector.caps.supportsNegative) notes.push(`Negative prompt: ${negative}`);
+    else if (spec.negative) notes.push(`No negative-prompt field on ${connector.name} — "${spec.negative}" must be worked into the prompt.`);
   }
 
   // Provider dialect: Midjourney takes trailing flags, everything else uses UI fields.
@@ -461,6 +491,22 @@ export function compileHandoff(spec: ShotSpec, connector: Connector): HandoffBun
   notes.push('Download the result into your watch folder and it lands in this bin automatically.');
 
   return { prompt, refs: used, droppedRefs: dropped, openUrl: connector.handoffUrl, notes };
+}
+
+/** The prompt and negative a CONNECTED job should send for this spec on this provider: identity locks
+ *  folded in, direction phrased in the model's dialect. Same text the handoff shows, minus the
+ *  provider-UI flags a person would type — so what the agent runs is what the user previewed. */
+export function compileShotPrompt(spec: ShotSpec, connector: Connector): { prompt: string; negative?: string; notes: string[] } {
+  const { used } = refsForConnector(spec, connector);
+  let prompt = (spec.prompt || '').trim();
+  const missing = (spec.refs || [])
+    .filter((r) => r.lock && (r.role === 'character' || !used.some((u) => u.name === r.name)))
+    .map((r) => r.lock as string)
+    .filter((l) => !prompt.includes(l));
+  if (missing.length) prompt += `\n\n${joinLocks(missing)}`;
+  const directed = applyDirection(prompt, spec, connector, used);
+  const negative = [spec.negative, ...directed.negatives].filter(Boolean).join(', ');
+  return { prompt: directed.prompt, negative: negative || undefined, notes: directed.notes };
 }
 
 // ── landing a result back in the cut ────────────────────────────────────────────
@@ -566,6 +612,8 @@ export async function submitJob(input: {
     const j: GenJob = { ...base, status: 'error', error: `${c.name} has no public API — use Hand off instead.` };
     await upsertLocal(j); return j;
   }
+  // A model on the user's own GPU is run from here — the cloud agent can't reach their machine.
+  if (c && c.walletModel === 'free_local') return startLocalJob({ ...base, id: `lj_${base.id.slice(3)}`, mode: 'local', status: 'running' }, c);
   try {
     const res = await fetch(`${API}/jobs`, { method: 'POST', headers: await authHeaders(), body: JSON.stringify(input) });
     if (res.ok) {
@@ -583,6 +631,10 @@ export async function submitJob(input: {
 
 /** Poll a single job's status; updates the local mirror. Returns null if unreachable. */
 export async function pollJob(projectId: string, jobId: string): Promise<GenJob | null> {
+  if (jobId.startsWith('lj_')) {
+    // Local jobs live in this tab. One that isn't here was interrupted by a reload.
+    return localJobs.get(jobId) || { ...(await loadLocal(projectId)).find((j) => j.id === jobId)!, status: 'error', error: 'This local generation was interrupted when the page reloaded.' };
+  }
   try {
     const res = await fetch(`${API}/jobs/${encodeURIComponent(jobId)}`, { method: 'GET', headers: await authHeaders() });
     if (!res.ok) return null;
@@ -590,6 +642,32 @@ export async function pollJob(projectId: string, jobId: string): Promise<GenJob 
     await upsertLocal({ ...job, projectId });
     return job;
   } catch { return null; }
+}
+
+// ── local jobs ──────────────────────────────────────────────────────────────────
+const localJobs = new Map<string, GenJob>();
+
+async function startLocalJob(job: GenJob, connector: Connector): Promise<GenJob> {
+  localJobs.set(job.id, job);
+  await upsertLocal({ ...job });
+  void (async () => {
+    let next: GenJob;
+    try {
+      const { runLocalGeneration } = await import('./localGen');
+      const compiled = job.spec ? compileShotPrompt(job.spec, connector) : { prompt: job.prompt, negative: undefined };
+      const out = await runLocalGeneration({
+        connector, spec: job.spec || { prompt: job.prompt, refs: [] },
+        prompt: job.prompt || compiled.prompt, negative: compiled.negative,
+      });
+      next = { ...job, status: 'done', results: out.results, note: out.note };
+    } catch (e: any) {
+      next = { ...job, status: 'error', error: e?.message || 'Local generation failed.' };
+    }
+    localJobs.set(job.id, next);
+    // The mirror keeps the outcome, not the bytes — those are saved into the project on import.
+    await upsertLocal({ ...next, results: next.results?.map(({ blob: _blob, ...r }) => r) }).catch(() => {});
+  })();
+  return job;
 }
 
 /** Map a result mime to a Fabula pool asset type. */

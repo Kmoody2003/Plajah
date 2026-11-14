@@ -164,6 +164,8 @@
     "test:forge": "npx tsx --test tests/forgeEffects.test.ts tests/forgeBindings.test.ts tests/ofxManifest.test.ts tests/titleAnimators.test.ts tests/titleDynamic.test.ts tests/fcpxmlTransform.test.ts tests/trackShare.test.ts tests/forgeTransitions.test.ts tests/forgeLooks.test.ts tests/audioReact.test.ts tests/forgeKeyframes.test.ts tests/forgeRegistryIntegrity.test.ts tests/textOverlay.test.ts tests/customEffects.test.ts tests/effectCost.test.ts tests/fxReference.test.ts tests/meshTrack.test.ts",
     "test:vectortrack": "npx tsx --test tests/vectorTrack.test.ts tests/planarTrack.test.ts tests/planarSequence.test.ts",
     "test:fabulagen": "npx tsx --test tests/fabulaGenHandoff.test.ts tests/fabulaMagnific.test.ts tests/fabulaRunway.test.ts",
+    "test:fabulastory": "npx tsx --test tests/fabulaStoryIntel.test.ts",
+    "test:gengallery": "npx tsx --test tests/generatedGallery.test.ts",
     "academia:ingest": "npx tsx scripts/ingestOerLibrary.ts",
     "test:runner": "npx tsx --test tests/serviceRunner.test.ts",
     "test:stillness": "npx tsx --test tests/stillnessEngine.test.ts tests/solaHandoff.test.ts tests/velaPlayer.test.ts tests/velaSuite.test.ts tests/generativeChannel.test.ts tests/inflection.test.ts tests/composer.test.ts tests/autonomousProducer.test.ts",

@@ -41,6 +41,11 @@ export interface FabulaDialogueRequest {
   sceneNum?: string;
   takeIndex?: number;
   engine?: 'kokoro' | 'fish_speech';
+  /** A reference recording (URL or base64/data URL) for engines that clone from a sample — a
+   *  character's locked voice from Story Intelligence. Ignored by engines that don't clone. */
+  referenceAudio?: string;
+  /** Speaking rate multiplier, from the performance direction. Defaults to 1. */
+  rate?: number;
 }
 
 export interface FabulaDialogueTake {
@@ -130,13 +135,14 @@ export class PlajahAudioCore {
     const profile: VoiceProfile = {
       ...ARIA_DEFAULT_PROFILE,
       name: req.speakerName || 'Aria',
+      ...(req.referenceAudio ? { referenceClips: [req.referenceAudio] } : {}),
       providerPrefs: {
         kokoro: { voice: 'af_heart' },
         fish_speech: { emotion: req.emotion || 'neutral' },
       },
     };
 
-    const { result, engineUsed } = await this.synthVoice(req.text, profile, 1.0, req.engine);
+    const { result, engineUsed } = await this.synthVoice(req.text, profile, req.rate || 1.0, req.engine);
 
     const durSec = result.durationMs / 1000.0;
     // Add small breathing buffer (+0.2s pre-roll and +0.3s post-roll) for cinematic video cut snapping

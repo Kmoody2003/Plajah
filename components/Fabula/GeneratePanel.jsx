@@ -17,9 +17,10 @@ import {
 } from "lucide-react";
 import {
   listConnectors, listJobs, submitJob, pollJob, connectAccount, health,
-  assetTypeForMime, compileHandoff, refsForConnector, saveProviderKey, revokeProvider,
+  assetTypeForMime, compileHandoff, compileShotPrompt, refsForConnector, saveProviderKey, revokeProvider,
 } from "../../services/fabula/genAgent";
 import { openGenCloud } from "../../services/genCloud/open";
+import { canRetry, correctedSpec, MAX_ATTEMPTS } from "../../services/fabula/story/reviewTake";
 
 const WALLET_LABEL = {
   shared: "Draws your plan credits",
@@ -28,7 +29,11 @@ const WALLET_LABEL = {
   free_local: "100% Free · Runs on Local GPU",
 };
 
-export default function GeneratePanel({ projectId, bins = [], defaultBin, onClose, importResults, context }) {
+export default function GeneratePanel({ projectId, bins = [], defaultBin, onClose, importResults, context, reviewTake, autoRetry = false, onAutoRetry, gallery = null }) {
+  // Review of finished takes against their direction: jobId → "running" | TakeReview | { error }.
+  const [reviews, setReviews] = useState({});
+  const autoRetryRef = useRef(autoRetry);
+  autoRetryRef.current = autoRetry;
   const [healthy, setHealthy] = useState(null);        // null=checking, true/false
   const [connectors, setConnectors] = useState([]);
   const [provider, setProvider] = useState(context?.provider || "");
@@ -65,6 +70,14 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
     [spec, conn],
   );
 
+  // Story Intelligence direction riding on the spec (performance + continuity). It is compiled per
+  // model, so what a connected job sends is the same text the hand-off view shows.
+  const direction = spec.direction;
+  const directed = useMemo(
+    () => (conn && direction ? compileShotPrompt(spec, conn) : null),
+    [spec, conn, direction],
+  );
+
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -99,13 +112,43 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
           imported.current.add(j.id);
           // The job goes with the results: its spec carries the shotId, which is how a finished
           // generation finds the placeholder clip it should fill in the cut.
-          importResults?.(j.results.map((r) => ({ ...r, type: assetTypeForMime(r.mime) })), j.bin, j);
+          const assets = importResults?.(j.results.map((r) => ({ ...r, type: assetTypeForMime(r.mime) })), j.bin, j);
+          reviewJob(j, assets);
         }
       });
       setJobs(updated);
     }, 4000);
     return () => clearInterval(t);
   }, [jobs, projectId, importResults]);
+
+  // Submit the same shot again with what the last take got wrong stated up front.
+  const retryJob = async (j, review) => {
+    const c = connectors.find((x) => x.id === j.provider);
+    if (!c || !j.spec) return;
+    const next = correctedSpec(j.spec, review);
+    const compiled = compileShotPrompt(next, c);
+    const job = await submitJob({
+      provider: j.provider, kind: j.kind, prompt: compiled.prompt, spec: next,
+      params: { ...(j.params || {}), ...(compiled.negative ? { negative: compiled.negative } : {}) },
+      projectId, bin: j.bin,
+    });
+    setJobs((js) => [job, ...js.filter((x) => x.id !== job.id)]);
+  };
+
+  // Look at a finished take against the direction it was made from. Only directed shots are reviewed
+  // (a character sheet or a bare prompt has nothing to check against). A failed review can retry by
+  // itself when the user has turned that on — each retry is a new paid generation, so it is opt-in.
+  const reviewJob = async (j, assets) => {
+    if (!reviewTake || !j.spec?.direction || j.spec.sheet || !assets?.length) return;
+    setReviews((m) => ({ ...m, [j.id]: "running" }));
+    try {
+      const review = await reviewTake({ job: j, assets });
+      setReviews((m) => ({ ...m, [j.id]: review }));
+      if (autoRetryRef.current && canRetry(review)) await retryJob(j, review);
+    } catch (e) {
+      setReviews((m) => ({ ...m, [j.id]: { error: e?.message || "The take couldn't be reviewed." } }));
+    }
+  };
 
   const doConnect = async (pid) => {
     setKeyErr("");
@@ -142,8 +185,8 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
     setBusy(true);
     try {
       const job = await submitJob({
-        provider, kind, prompt: prompt.trim(), spec,
-        params: kind === "video" ? { aspect } : {},
+        provider, kind, prompt: directed?.prompt || prompt.trim(), spec,
+        params: { ...(kind === "video" ? { aspect } : {}), ...(directed?.negative ? { negative: directed.negative } : {}) },
         projectId, bin: bin || "Generated",
       });
       setJobs((js) => [job, ...js.filter((j) => j.id !== job.id)]);
@@ -169,7 +212,8 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
 
   return (
     <div className="gp-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
-      <div className="gp-modal glass-dark">
+      <div className={`gp-modal glass-dark ${gallery ? "gp-studio" : ""}`}>
+       <div className="gp-main">
         <div className="gp-head">
           <div className="gp-title">
             <Sparkles size={15} /> GENERATE
@@ -189,7 +233,7 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
           <button className="gp-x" onClick={onClose}><X size={16} /></button>
         </div>
 
-        {healthy === false && mode === "connected" && (
+        {healthy === false && mode === "connected" && conn?.walletModel !== "free_local" && (
           <div className="gp-note">
             The generation agent isn’t connected yet. You can still queue jobs — they’ll run once the
             cloud agent is live. Or switch to <b>Hand off</b> and run this on your own account right now.
@@ -197,27 +241,45 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
         )}
 
         {/* connectors + account linking */}
-        <div className="gp-conns">
-          {connectors.map((c) => (
+        {[
+          ["On your GPU — free", connectors.filter((c) => c.walletModel === "free_local")],
+          ["Your connected accounts", connectors.filter((c) => c.walletModel !== "free_local" && c.modes?.includes("connected"))],
+          ["Hand off — runs on your own subscription", connectors.filter((c) => !c.modes?.includes("connected"))],
+        ].filter(([, list]) => list.length).map(([label, list]) => (
+          <div key={label} className="gp-group">
+            <div className="gp-hlbl">{label.toUpperCase()}</div>
+            <div className="gp-conns">
+              {list.map((c) => (
             <button key={c.id} className={`gp-conn ${provider === c.id ? "on" : ""}`} onClick={() => setProvider(c.id)} title={c.blurb}>
-              <div className="gp-conn-top">
-                {c.kind === "video" ? <Film size={13} /> : c.kind === "upscale" ? <Wand2 size={13} /> : <ImageIcon size={13} />}
-                <span className="gp-conn-name">{c.name}</span>
-                {!c.modes?.includes("connected")
-                  ? <span className="gp-handoffonly">hand off</span>
-                  : c.connected
-                    ? (
-                      <span className="gp-linked" title={c.hint ? `Key ${c.hint}` : "linked"}
-                        onClick={(e) => { e.stopPropagation(); doRevoke(c.id); }}>
-                        <CheckCircle2 size={11} /> {c.hint || "linked"}
-                      </span>
-                    )
-                    : <span className="gp-link" onClick={(e) => { e.stopPropagation(); doConnect(c.id); }}><Link2 size={11} /> connect</span>}
-              </div>
-              <div className="gp-conn-blurb">{c.blurb}</div>
-            </button>
-          ))}
-        </div>
+                  <div className="gp-conn-top">
+                    {c.kind === "video" ? <Film size={13} /> : c.kind === "upscale" ? <Wand2 size={13} /> : <ImageIcon size={13} />}
+                    <span className="gp-conn-name">{c.name}</span>
+                    {!c.modes?.includes("connected")
+                      ? <span className="gp-handoffonly">hand off</span>
+                      : c.connected
+                        ? (
+                          <span className="gp-linked" title={c.hint ? `Key ${c.hint}` : "linked"}
+                            onClick={(e) => { e.stopPropagation(); doRevoke(c.id); }}>
+                            <CheckCircle2 size={11} /> {c.hint || "linked"}
+                          </span>
+                        )
+                        : <span className="gp-link" onClick={(e) => { e.stopPropagation(); doConnect(c.id); }}><Link2 size={11} /> connect</span>}
+                  </div>
+                  <div className="gp-conn-blurb">{c.blurb}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        {conn && (
+          <div className="gp-caps" aria-label={`What ${conn.name} can take`}>
+            <span>{conn.kind === "video" ? "Video" : conn.kind === "upscale" ? "Stills + upscale" : "Stills"}</span>
+            {conn.caps?.refRoles?.length > 0 && <span>takes {conn.caps.refRoles.map((r) => r.replace(/_/g, " ")).join(", ")} · up to {conn.caps.maxRefs} image{conn.caps.maxRefs === 1 ? "" : "s"}</span>}
+            {conn.caps?.durations && <span>{conn.caps.durations.join(" or ")}s</span>}
+            <span>{conn.caps?.supportsNegative ? "negative prompt" : "no negative prompt"}</span>
+            {conn.caps?.supportsSeed && <span>repeatable seed</span>}
+          </div>
+        )}
 
         {keyErr && !keyChallenge && <div className="gp-note err"><AlertTriangle size={12} /> {keyErr}</div>}
 
@@ -291,6 +353,39 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
           </div>
         )}
 
+        {/* direction from Story Intelligence — what gets added so this shot matches its neighbours */}
+        {direction && (
+          <div className="gp-direction">
+            <div className="gp-hlbl">DIRECTED BY STORY INTELLIGENCE</div>
+            {(direction.performance || []).map((b) => (
+              <div key={b.character} className="gp-dline">
+                <b>{b.character}</b> {b.emotion.name}{b.toward && b.toward.name !== b.emotion.name ? ` → ${b.toward.name}` : ""} · plays to {b.tactic}
+              </div>
+            ))}
+            {(direction.continuity?.characters || []).filter((c) => c.props.length || c.marks.length || c.wardrobe.length).map((c) => (
+              <div key={`k-${c.name}`} className="gp-dline">
+                <b>{c.name}</b> holds: {[...c.props, ...c.wardrobe, ...c.marks].join(", ")}
+              </div>
+            ))}
+            {direction.boardStyle && <div className="gp-dline">Storyboard frame — drawn, not photographic.</div>}
+            {mode === "connected" && directed && (
+              <details className="gp-dmore">
+                <summary>What {conn?.name} will be sent</summary>
+                <pre className="gp-hprompt">{directed.prompt}</pre>
+                {directed.negative && <div className="gp-dline">Negative: {directed.negative}</div>}
+                {directed.notes.map((n, i) => <div key={i} className="gp-dline warn">{n}</div>)}
+              </details>
+            )}
+          </div>
+        )}
+
+        {reviewTake && direction && mode === "connected" && (
+          <label className="gp-autoretry">
+            <input type="checkbox" checked={!!autoRetry} onChange={(e) => onAutoRetry?.(e.target.checked)} />
+            Every take is checked against this direction. Retry automatically when it doesn't match (up to {MAX_ATTEMPTS} tries — {conn?.walletModel === "free_local" ? "free on your own GPU" : "each retry is a new generation on your account"}).
+          </label>
+        )}
+
         {mode === "connected" ? (
           <div className="gp-controls">
             {(kind === "video" || conn?.caps?.aspects) && (
@@ -319,6 +414,16 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
               )}
             </div>
             <pre className="gp-hprompt">{handoff?.prompt || "—"}</pre>
+            {handoff?.refs?.some((r) => r.previewUrl || r.url) && (
+              <div className="gp-refpack">
+                <span className="gp-hlbl">REFERENCE PACK</span>
+                {handoff.refs.filter((r) => r.previewUrl || r.url).map((r, i) => (
+                  <a key={i} className="gp-refimg" href={r.previewUrl || r.url} download={`${(r.name || r.role).replace(/[^a-z0-9]+/gi, "_")}.png`} title={`Download — attach as ${r.role.replace(/_/g, " ")}`}>
+                    <img src={r.previewUrl || r.url} alt="" /><span>{r.name || r.role}</span>
+                  </a>
+                ))}
+              </div>
+            )}
             {!!handoff?.notes?.length && (
               <ol className="gp-hnotes">
                 {handoff.notes.map((n, i) => <li key={i}>{n}</li>)}
@@ -339,6 +444,25 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
                 </div>
                 <div className="gp-job-prompt">{j.prompt}</div>
                 {j.note && <div className="gp-job-note"><AlertTriangle size={10} /> {j.note}</div>}
+                {(j.spec?.attempt || 1) > 1 && <div className="gp-job-note">Attempt {j.spec.attempt} of {MAX_ATTEMPTS} — retried with corrections.</div>}
+                {(() => {
+                  const r = reviews[j.id];
+                  if (!r) return null;
+                  if (r === "running") return <div className="gp-review"><Loader size={10} className="gp-spin" /> Checking the take against its direction…</div>;
+                  if (r.error) return <div className="gp-review warn"><AlertTriangle size={10} /> Not reviewed — {r.error}</div>;
+                  return (
+                    <div className={`gp-review ${r.verdict}`}>
+                      <div><b>{r.verdict === "pass" ? "Matches its direction" : r.verdict === "retry" ? "Doesn't match" : "Worth a look"}</b> · {r.score}/100{r.unknown ? ` · ${r.unknown} couldn't be judged` : ""}</div>
+                      {[...r.failed, ...r.warnings].slice(0, 5).map((c) => (
+                        <div key={c.id} className="gp-rline">{c.must ? "✕" : "!"} {c.question}{c.observed ? ` — saw: ${c.observed}` : ""}</div>
+                      ))}
+                      {canRetry(r) && connectors.find((x) => x.id === j.provider)?.modes?.includes("connected") && (
+                        <button className="gp-hbtn" onClick={() => retryJob(j, r)}>Retry with these corrections</button>
+                      )}
+                      {r.verdict === "retry" && !canRetry(r) && <div className="gp-rline">That was the last automatic attempt — this one needs your eye.</div>}
+                    </div>
+                  );
+                })()}
               </div>
               <div className="gp-job-side">
                 {statusPill(j)}
@@ -350,7 +474,17 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
           ))}
         </div>
 
+       </div>
+       {gallery && <aside className="gp-gallery" aria-label="Generated work">{gallery}</aside>}
         <style>{`
+          .gp-studio{width:min(1320px,96vw) !important;display:grid;grid-template-columns:minmax(380px,560px) minmax(0,1fr);gap:18px;align-items:start}
+          .gp-studio .gp-main{min-width:0}
+          .gp-gallery{min-width:0;position:sticky;top:0;max-height:calc(88vh - 40px);overflow:auto;border-left:1px solid rgba(255,255,255,0.08);padding-left:18px}
+          @media(max-width:900px){.gp-studio{grid-template-columns:1fr}.gp-gallery{position:static;max-height:none;border-left:0;padding-left:0;border-top:1px solid rgba(255,255,255,0.08);padding-top:14px}}
+          .gp-group{margin-bottom:4px}
+          .gp-group>.gp-hlbl{margin:0 0 6px}
+          .gp-caps{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+          .gp-caps span{font-size:10.5px;color:#b9b4cf;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:999px;padding:3px 8px}
           .gp-backdrop{position:fixed;inset:0;z-index:1000;background:rgba(4,4,8,0.62);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px}
           .gp-modal{width:min(680px,94vw);max-height:88vh;overflow:auto;border-radius:16px;border:1px solid rgba(255,255,255,0.1);padding:18px 18px 20px;box-shadow:0 24px 80px rgba(0,0,0,0.6)}
           .gp-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}.gp-head .gp-title{margin-right:auto}.gp-cloud{white-space:nowrap}
@@ -358,6 +492,21 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
           .gp-ctx{font-weight:700;letter-spacing:.04em;color:#f0913f;background:rgba(240,145,63,0.12);border:1px solid rgba(240,145,63,0.3);border-radius:999px;padding:2px 9px;font-size:10.5px}
           .gp-x{background:none;border:none;color:var(--w40,#9a96a8);cursor:pointer;padding:4px;border-radius:6px}
           .gp-x:hover{color:#fff;background:rgba(255,255,255,0.08)}
+          .gp-review{margin-top:6px;font-size:11px;line-height:1.45;color:#cfcbe0;border-left:3px solid #64748b;padding:2px 0 2px 8px;display:flex;flex-direction:column;gap:3px;max-width:420px}
+          .gp-review.pass{border-color:#34d399}.gp-review.retry{border-color:#fb7185}.gp-review.review,.gp-review.warn{border-color:#fbbf24}
+          .gp-review b{color:#f1eefb}
+          .gp-rline{color:#b9b4cf}
+          .gp-review .gp-hbtn{align-self:flex-start;margin-top:2px}
+          .gp-refpack{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+          .gp-refimg{display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;color:#b9b4cf;font-size:10px;max-width:84px}
+          .gp-refimg img{width:72px;height:54px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,0.14)}
+          .gp-autoretry{display:flex;align-items:center;gap:6px;font-size:11px;color:#b9b4cf;margin:0 0 10px}
+          .gp-direction{border:1px solid rgba(139,92,246,0.3);background:rgba(139,92,246,0.08);border-radius:10px;padding:9px 11px;margin:0 0 12px;display:flex;flex-direction:column;gap:4px}
+          .gp-dline{font-size:11.5px;line-height:1.45;color:#d8d2ea}
+          .gp-dline b{color:#e9d5ff;font-weight:700;margin-right:4px}
+          .gp-dline.warn{color:#fcd34d}
+          .gp-dmore summary{font-size:11px;color:#c4b5fd;cursor:pointer;margin-top:4px}
+          .gp-dmore .gp-hprompt{margin-top:6px}
           .gp-note{font-size:12px;line-height:1.5;color:#d7c9a6;background:rgba(180,140,40,0.12);border:1px solid rgba(200,160,60,0.28);border-radius:10px;padding:9px 11px;margin-bottom:12px}
           .gp-conns{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:13px}
           @media(max-width:520px){.gp-conns{grid-template-columns:1fr}}

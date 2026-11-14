@@ -68,9 +68,14 @@ interface Props {
   accent?: string;
   onClose: () => void;
   onPosted?: () => void;
+  /** Override the prefilled body. Shares of a creator's own work (e.g. a generated image) start
+   *  blank rather than with a description written for them. */
+  initialText?: string;
+  /** Override the prefilled media — e.g. a video, which an academic asset cannot describe. */
+  attachments?: Array<{ type: 'PHOTO' | 'VIDEO' | 'MODEL3D'; url: string; title?: string; thumbnail?: string }>;
 }
 
-const ShareToPlajahComposer: React.FC<Props> = ({ asset, accent = '#C9A55C', onClose, onPosted }) => {
+const ShareToPlajahComposer: React.FC<Props> = ({ asset, accent = '#C9A55C', onClose, onPosted, initialText: initialTextOverride, attachments: attachmentsOverride }) => {
   const disciplineId = resolveDisciplineId(asset.discipline);
   const [primary, setPrimary] = useState<'discipline' | 'social'>(disciplineId ? 'discipline' : 'social');
   const [extra, setExtra] = useState<ExtraTarget[]>([]);
@@ -82,10 +87,10 @@ const ShareToPlajahComposer: React.FC<Props> = ({ asset, accent = '#C9A55C', onC
   const [dropOpen, setDropOpen] = useState(false);
   const [done, setDone] = useState(false);
 
-  const initialText = useMemo(() => academicPrefillText(asset), [asset]);
+  const initialText = useMemo(() => initialTextOverride ?? academicPrefillText(asset), [asset, initialTextOverride]);
   const initialAttachments = useMemo(
-    () => academicPrefillAttachments(asset) as any,
-    [asset]
+    () => (attachmentsOverride ?? academicPrefillAttachments(asset)) as any,
+    [asset, attachmentsOverride]
   );
 
   useEffect(() => {
