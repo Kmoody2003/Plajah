@@ -26,7 +26,7 @@ export interface VisualizerEntry extends AmboMediaSourceItem { value: string; gr
 
 let milkdropNames: string[] | null = null;
 let milkdropLoad: Promise<string[]> | null = null;
-function loadMilkdropNames(): Promise<string[]> {
+export function loadMilkdropNames(): Promise<string[]> {
   if (milkdropNames) return Promise.resolve(milkdropNames);
   milkdropLoad ??= import('butterchurn-presets').then(mod => {
     const api: any = (mod as any).default || mod;

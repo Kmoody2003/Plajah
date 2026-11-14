@@ -29,6 +29,8 @@
     "test:music-lab": "tsx --test tests/musicEnginePolicy.test.ts && node scripts/testMelosGeneration.mjs",
     "test:lyra": "npx tsx --test tests/lyraInstrument.test.ts && cargo test --release --manifest-path rust/plajah-audio/Cargo.toml lyra",
     "test:tonos": "npx tsx --test tests/tonosInstrument.test.ts tests/tonosDeep.test.ts && cargo test --release --manifest-path rust/plajah-audio/Cargo.toml tonos",
+    "test:cg": "tsx --test tests/fabulaCg.test.ts tests/fxCouncilPresets.test.ts tests/liveData.test.ts",
+    "typecheck:cg": "tsc -p tsconfig.fabulacg.json --noEmit",
     "typecheck:kith": "tsc -p tsconfig.kith-party.json --noEmit",
     "dev": "tsx server.ts",
     "start": "node server.ts",

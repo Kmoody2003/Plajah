@@ -22,6 +22,7 @@ import {
 import SpatialStudio from "./SpatialStudio";
 const AnimaStudio = lazy(() => import("./anima/AnimaStudio"));
 const DiscAuthoring = lazy(() => import("./DiscAuthoring"));
+const CgWorkspace = lazy(() => import("./cg/CgWorkspace"));
 import * as THREE from "three";
 import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from "idb-keyval";
 import { putBytes as mediaPutBytes, getBytes as mediaGetBytes, delBytes as mediaDelBytes } from "../../services/fabula/mediaStore";
@@ -46,7 +47,7 @@ import { transcodeToProxy, canTranscode } from "../plajahPixels/engine/core/prox
 import { FxLibraryPanel, LottieBuilder, PerformCapture, CompBuilder } from "./FxLibrary";
 import { UniversalLibraryPanel } from "../shared/UniversalLibrary/UniversalLibraryPanel";
 import { FX_EFFECTS } from "../plajahPixels/engine/fx/effects";
-import { createEffectInstance } from "../../services/fabula/forgeEffects";
+import { createEffectInstance, effectPresets, councilPresetsForEffect } from "../../services/fabula/forgeEffects";
 import { createForgeTransition } from "../../services/fabula/forgeTransitions";
 import { instantiateLook, lookFromStack, saveUserLook, LOOK_CATEGORIES, FORGE_LOOKS } from "../../services/fabula/forgeLooks";
 import { AUDIO_SOURCES } from "../plajahPixels/engine/fx/audioReact";
@@ -123,6 +124,10 @@ import LowerThirdMonitor from "./LowerThirdMonitor";
 import LowerThirdGallery from "./LowerThirdGallery";
 import LowerThirdInspector from "./LowerThirdInspector";
 import BroadcastGraphicMonitor from "./BroadcastGraphicMonitor";
+import CgClipMonitor, { CgClipFields } from "./cg/CgClipMonitor";
+import { findCgGraphic, isCgDrag, readCgDragData } from "../../services/fabula/cg/cgLibrary";
+import { cgDefaultDuration } from "../../services/fabula/cg/cgEvaluate";
+import { sharedPlayout } from "../../services/fabula/cg/cgPlayout";
 import MotionTemplateMonitor, { MotionTemplateClipFields } from "./MotionTemplateMonitor";
 import MotionCouncilPanel from "../motion/council/MotionCouncilPanel";
 import MotionCouncilBuilder from "../motion/council/MotionCouncilBuilder";
@@ -2345,7 +2350,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       const instance = createEffectInstance(effectId, presetId, uid());
       updateFx(selClipId, { stack: [...current.stack, instance] });
       const effect = FX_EFFECTS.find((candidate) => candidate.id === effectId);
-      const preset = effect?.presets?.find((candidate) => candidate.id === presetId);
+      const preset = effect ? effectPresets(effect).find((candidate) => candidate.id === presetId) : undefined;
       ping(`✦ ${preset?.name || effect?.name || effectId} added to the Forge stack`);
     } catch (error) { ping(error?.message || "Could not add effect"); }
   };
@@ -4672,6 +4677,24 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     setClips(nc); setSelClipId(clip.id); setLtGallery(null);
   };
 
+  // Fabula CG graphic (Graphics workspace / library drag) as a title clip carrying `cGraphic`.
+  // One renderer (services/fabula/cg/cgRender) draws the monitor, the export, the switcher
+  // and Stage; the clip duration is the graphic's D, so the handles retime the OUT.
+  const addCgGraphic = (ref, opts = {}) => {
+    const g = findCgGraphic(ref); if (!g) { ping("That graphic is not available."); return; }
+    const sid = opts.trackId && tracks.find((t) => t.id === opts.trackId && t.type === "subtitle") ? opts.trackId : subTrackId();
+    const dur = Math.max(.5, opts.duration || cgDefaultDuration(g));
+    const firstField = g.fields.find((f) => f.type === "text");
+    const text = (firstField && (ref.fields?.[firstField.key] ?? firstField.default)) || g.name;
+    const clip = { id: uid(), trackId: sid, start: opts.at != null ? opts.at : playhead, duration: dur, kind: "title", text, subtitle: "",
+      cGraphic: ref, label: `${g.name}`, srcIn: 0, fx: { ...SUB_FX, blend: "normal", fadeIn: 0, fadeOut: 0 } };
+    const nc = [...clips, clip];
+    updateProd((p) => { ensureSubTrack(p, sid); writeTimelineClips(p, nc); });
+    setClips(nc); setSelClipId(clip.id);
+    ping(`${g.name} placed on the timeline${g.live === "transition" ? " — centre it over the cut" : " — drag the handles to retime its OUT"}.`);
+  };
+  const [cgOpenGraphic, setCgOpenGraphic] = useState(null);
+
   const activeEdit = editSel ? prod?.edits?.find((e) => e.id === editSel) : null;
   const container = activeEdit || scene; // whichever timeline is open
   // ── playback-engine wiring (MUST sit below the `container` declaration — reading
@@ -6194,8 +6217,12 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                           </div>
                         ) : null;
                       })()}
+                      {/* Fabula CG: every active CG clip stacks (bug + ticker + lower third), lowest track first. */}
+                      {clips.filter((c) => c.kind === "title" && c.cGraphic && playhead >= c.start && playhead < c.start + c.duration).map((tc) => (
+                        <CgClipMonitor key={tc.id} clip={tc} playhead={playhead} selected={selClipId === tc.id} onSelect={() => setSelClipId(tc.id)} />
+                      ))}
                       {(() => {
-                        const tc = clips.find((c) => c.kind === "title" && c.text && playhead >= c.start && playhead < c.start + c.duration);
+                        const tc = clips.find((c) => c.kind === "title" && !c.cGraphic && c.text && playhead >= c.start && playhead < c.start + c.duration);
                         if (!tc) return null;
                         if (tc.tGraphic && findLowerThird(tc.tGraphic.specId)) {
                           return <LowerThirdMonitor key={tc.id} clip={tc} playhead={playhead} selected={selClipId === tc.id} onSelect={() => setSelClipId(tc.id)}
@@ -6418,7 +6445,16 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                             <div className="dim small">An Stage template drawn live from code. Its entrance plays from the clip start and its exit ends at the clip end; drag the clip handles to retime it.</div>
                           </>
                         )}
-                        {selClip.kind === "title" && !selClip.tGraphic && !selClip.bGraphic && !selClip.mGraphic && (
+                        {selClip.kind === "title" && selClip.cGraphic && (
+                          <>
+                            <div className="insp-div" />
+                            <CgClipFields clipRef={selClip.cGraphic}
+                              onChange={(next) => { const g = findCgGraphic(next); const f = g?.fields.find((x) => x.type === "text"); updateClip(selClip.id, { cGraphic: next, text: (f && (next.fields?.[f.key] ?? f.default)) || selClip.text }); }}
+                              onOpenWorkspace={() => { const g = findCgGraphic(selClip.cGraphic); if (g) { setCgOpenGraphic({ ...g, custom: true, id: g.custom ? g.id : "draft" }); setEditWs("graphics"); } }}
+                              onTakeLive={() => { sharedPlayout({ master: true }).take(selClip.cGraphic); ping("Taken live on the CG playout."); }} />
+                          </>
+                        )}
+                        {selClip.kind === "title" && !selClip.cGraphic && !selClip.tGraphic && !selClip.bGraphic && !selClip.mGraphic && (
                           <>
                             <div className="insp-div" />
                             <div className="lbl">TITLE</div>
@@ -6753,13 +6789,14 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                                       <button className="minibtn" disabled={stackIndex === fx.stack.length - 1} onClick={() => moveStack(1)}>▼</button>
                                       <button className="minibtn danger" onClick={() => updateFx(selClip.id, { stack: fx.stack.filter((_, index) => index !== stackIndex) })}>✕</button>
                                     </div>
-                                    {!!effect.presets?.length && (
+                                    {!!effectPresets(effect).length && (
                                       <select className="sel xs full" value={instance.presetId || ""} onChange={(e) => {
-                                        const preset = effect.presets.find((candidate) => candidate.id === e.target.value);
+                                        const preset = effectPresets(effect).find((candidate) => candidate.id === e.target.value);
                                         if (preset) patchStack({ presetId: preset.id, params: { ...Object.fromEntries(effect.params.map((param) => [param.key, param.default])), ...preset.params } });
                                       }}>
                                         <option value="">Custom</option>
-                                        {effect.presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}
+                                        {!!effect.presets?.length && <optgroup label="Signature">{effect.presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}</optgroup>}
+                                        <optgroup label="Council presets">{councilPresetsForEffect(effect).map((preset) => <option key={preset.id} value={preset.id} title={preset.description}>{preset.name}</option>)}</optgroup>
                                       </select>
                                     )}
                                     {effect.auxInput?.kind === "text" && (() => {
@@ -7045,7 +7082,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         D,
         { label: `Snapping: ${snapOn ? "On" : "Off"}`, fn: () => setSnapOn((s) => !s) },
         D,
-        ...[["media", "MEDIA"], ["edit", "EDIT"], ["script", "TIMECODE SCRIPT"], ["anima", "ANIMA 2D/3D"], ["vfx", "VFX"], ["color", "COLOR"], ["audio", "AUDIO"], ["deliver", "DELIVER"], ["disc", "DISC AUTHORING"]].map(([id, lab]) => ({ label: `Workspace: ${lab}`, fn: () => setEditWs(id), active: editWs === id })),
+        ...[["media", "MEDIA"], ["edit", "EDIT"], ["script", "TIMECODE SCRIPT"], ["anima", "ANIMA 2D/3D"], ["graphics", "GRAPHICS · CG & TITLES"], ["vfx", "VFX"], ["color", "COLOR"], ["audio", "AUDIO"], ["deliver", "DELIVER"], ["disc", "DISC AUTHORING"]].map(([id, lab]) => ({ label: `Workspace: ${lab}`, fn: () => setEditWs(id), active: editWs === id })),
         D,
         { label: "Keyboard shortcuts…", fn: () => setShowShortcuts(true) },
       ],
@@ -7435,6 +7472,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                         <button className="minibtn" onClick={sendCaptionsToCrossover} title="Check these subtitle clips against video and export MCC, SCC or any sidecar in Crossover"><Captions size={10} /> CAPS TO CROSSOVER</button>
                         <button className="minibtn" onClick={sendSelectedToCrossover} title="Inspect or convert the selected clip's media in Crossover"><Film size={10} /> TO CROSSOVER</button>
                         <button className="minibtn" onClick={() => setLtGallery("add")} title="Add an editable lower third or full-page shader motion graphic"><Type size={10} /> + MOTION GFX</button>
+                        <button className="minibtn" onClick={() => setEditWs("graphics")} title="Fabula CG — the full motion-graphics & title library, designer and live playout"><Sparkles size={10} /> CG &amp; TITLES</button>
                         {/* Trim modes + snap now live in the edit toolset directly above the timeline (moved 2026-09-06). */}
                         <button className="minibtn" onClick={() => setShowShortcuts(true)} title="Keyboard shortcuts — map your own (Ctrl+Alt+K)"><Keyboard size={10} /> KEYS</button>
                         <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
@@ -7504,8 +7542,15 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                             })()}
                           </div>
                           <div className="trackbody"
-                            onDragOver={(e) => { if (dragAssetRef.current) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } }}
+                            onDragOver={(e) => { if (dragAssetRef.current || isCgDrag(e.dataTransfer)) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } }}
                             onDrop={(e) => {
+                              const cg = readCgDragData(e.dataTransfer);
+                              if (cg) {
+                                e.preventDefault();
+                                const r = e.currentTarget.getBoundingClientRect();
+                                addCgGraphic(cg.ref, { at: Math.max(0, (e.clientX - r.left) / pxPerSec), trackId: tr.id });
+                                return;
+                              }
                               const d = dragAssetRef.current; if (!d) return;
                               e.preventDefault();
                               const rect = e.currentTarget.getBoundingClientRect();
@@ -9516,6 +9561,17 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                   </div>
                 )}
 
+                {editWs === "graphics" && (
+                  <div style={{ flex: 1, minHeight: 0, display: "flex", width: "100%", height: "100%" }}>
+                    <Suspense fallback={<div className="p-8 text-center text-xs opacity-50">Loading Fabula CG…</div>}>
+                      <CgWorkspace host="fabula" ping={ping} openGraphic={cgOpenGraphic}
+                        onBack={() => setEditWs("edit")}
+                        onSendToTimeline={(ref) => addCgGraphic(ref)}
+                        onOpenInTela={(g) => import("../../services/fabula/cg/cgToTela").then((m) => m.openCgInTela(g)).catch((err) => ping("Could not open in Tela — " + (err?.message || err)))} />
+                    </Suspense>
+                  </div>
+                )}
+
                 {editWs === "vfx" && (() => {
                   // Four-band VFX/COMP: monitor + inspector reference surface; the three authoring
                   // tools (comp / lottie / capture) become a tabbed control band.
@@ -10354,7 +10410,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
           {page === "edit" && prod && container && (
             <>
               <span className="raildiv" />
-              {[["media", "MEDIA", MonitorPlay], ["edit", "EDIT", Film], ["script", "TIMECODE SCRIPT", FileText], ["anima", "ANIMA 2D/3D", Sparkles], ["vfx", "VFX", Box], ["color", "COLOR", Palette], ["audio", "AUDIO", Music], ["spatial", "SPATIAL 3D", Eye], ["deliver", "DELIVER", ListVideo], ["disc", "DISC AUTHORING", Disc3]].map(([id, lab, Ic]) => (
+              {[["media", "MEDIA", MonitorPlay], ["edit", "EDIT", Film], ["script", "TIMECODE SCRIPT", FileText], ["anima", "ANIMA 2D/3D", Sparkles], ["graphics", "GRAPHICS · CG & TITLES", Type], ["vfx", "VFX", Box], ["color", "COLOR", Palette], ["audio", "AUDIO", Music], ["spatial", "SPATIAL 3D", Eye], ["deliver", "DELIVER", ListVideo], ["disc", "DISC AUTHORING", Disc3]].map(([id, lab, Ic]) => (
                 <button key={id} className={`raildot ws ${editWs === id ? "on" : ""}`} onClick={() => setEditWs(id)} title={lab}>
                   <Ic size={13} />
                 </button>

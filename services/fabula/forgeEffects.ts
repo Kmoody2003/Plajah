@@ -1,5 +1,6 @@
 import { FX_EFFECTS, FxEffect, FxPreset } from '../../components/plajahPixels/engine/fx/effects';
 import type { TextOverlaySpec } from './textOverlay';
+import { allPresetsForEffect, councilPresetsForEffect } from './fxCouncilPresets';
 
 /** Portable, host-neutral instance stored by Fabula clips and translatable to OFX later. */
 export interface ForgeEffectInstance {
@@ -22,8 +23,16 @@ export function effectDefaults(effect: FxEffect): Record<string, number> {
 }
 
 export function resolvePreset(effect: FxEffect, presetId: string): FxPreset | undefined {
-  return effect.presets?.find((preset) => preset.id === presetId);
+  return effect.presets?.find((preset) => preset.id === presetId)
+    // Council preset bank (services/fabula/fxCouncilPresets.ts) — every effect has one.
+    ?? councilPresetsForEffect(effect).find((preset) => preset.id === presetId);
 }
+
+/** Hand-authored presets followed by the twelve-director council bank. */
+export function effectPresets(effect: FxEffect): FxPreset[] {
+  return allPresetsForEffect(effect) as FxPreset[];
+}
+export { councilPresetsForEffect };
 
 export function createEffectInstance(effectId: string, presetId?: string, instanceId = `${effectId}-${Date.now()}`): ForgeEffectInstance {
   const effect = FX_EFFECTS.find((candidate) => candidate.id === effectId);

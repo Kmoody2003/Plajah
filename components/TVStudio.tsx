@@ -21,6 +21,9 @@ import React, {
 import { motion, AnimatePresence } from 'motion/react';
 import HardwareControls from './production/HardwareControls';
 import AmboCGPanel from './production/AmboCGPanel';
+import FabulaCGSwitcherPanel from './production/FabulaCGSwitcherPanel';
+import { isCgDrag, readCgDragData } from '../services/fabula/cg/cgLibrary';
+import { sharedPlayout } from '../services/fabula/cg/cgPlayout';
 import { useContextMenu, type MenuNode } from './ui/ContextMenu';
 import {
   ArrowLeft, Video, Monitor, Film, Palette, Radio, Circle, Square,
@@ -900,6 +903,7 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
         {/* ══ MAIN ════════════════════════════════════════════════════════ */}
         <main className="flex-1 flex flex-col min-w-0 min-h-0 gap-1.5 p-1.5 overflow-hidden" style={{background:'#0a0a0a'}}>
           <AmboCGPanel visible={studioTab === 'GRAPHICS_BUILDER'} target={() => engineRef.current} />
+          <FabulaCGSwitcherPanel visible={studioTab === 'GRAPHICS_BUILDER'} target={() => engineRef.current} />
 
           {/* ════ VIDEO SWITCHER TAB ════════════════════════════════════════ */}
           {studioTab === 'SWITCHER' && (
@@ -907,7 +911,10 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
               {/* Top row: Program | Preview | 2×4 mini multiview */}
               <div className="flex gap-1.5 min-h-0" style={{flex:'3 1 0'}}>
                 {/* Program */}
-                <div className="relative rounded overflow-hidden bg-black" style={{flex:'3 1 0',border:'1px solid #D40055'}}>
+                <div className="relative rounded overflow-hidden bg-black" style={{flex:'3 1 0',border:'1px solid #D40055'}}
+                  title="Drop a Fabula CG graphic here to take it straight to air"
+                  onDragOver={e => { if (isCgDrag(e.dataTransfer)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } }}
+                  onDrop={e => { const p = readCgDragData(e.dataTransfer); if (!p) return; e.preventDefault(); sharedPlayout({ master: true }).take(p.ref, { label: p.name }); }}>
                   <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider" style={{background:'#D40055',color:'#fff'}}>Program</div>
                   <canvas ref={programCanvasRef} width={1920} height={1080} className="w-full h-full block"/>
                   {!programId && <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><span className="text-[10px] opacity-15 uppercase tracking-widest">No Program</span></div>}

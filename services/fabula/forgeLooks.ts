@@ -9,7 +9,8 @@
 // selected clip and persisted per browser. Both are validated by tests: every step must name a
 // real effect, a real preset, and parameter values inside the declared range.
 import { FX_EFFECTS } from '../../components/plajahPixels/engine/fx/effects';
-import { createEffectInstance, type ForgeEffectInstance } from './forgeEffects';
+import { createEffectInstance, resolvePreset, type ForgeEffectInstance } from './forgeEffects';
+import { FX_COUNCIL_LENSES, councilPresetsForEffect } from './fxCouncilPresets';
 import type { TelaChartStyle } from '../../types';
 
 export type LookCategory = 'cinematic' | 'vintage' | 'music' | 'documentary' | 'genre' | 'graphic';
@@ -148,7 +149,7 @@ export function validateLook(look: ForgeLook): string[] {
   for (const step of look.steps) {
     const effect = FX_EFFECTS.find(e => e.id === step.effectId);
     if (!effect) { problems.push(`${look.id}: unknown effect "${step.effectId}"`); continue; }
-    if (step.presetId && !(effect.presets || []).some(p => p.id === step.presetId)) problems.push(`${look.id}/${step.effectId}: unknown preset "${step.presetId}"`);
+    if (step.presetId && !resolvePreset(effect, step.presetId)) problems.push(`${look.id}/${step.effectId}: unknown preset "${step.presetId}"`);
     for (const [key, value] of Object.entries(step.params || {})) {
       const param = effect.params.find(p => p.key === key);
       if (!param) { problems.push(`${look.id}/${step.effectId}: unknown param "${key}"`); continue; }
@@ -180,4 +181,43 @@ export function deleteUserLook(id: string): ForgeLook[] {
   const next = loadUserLooks().filter(l => l.id !== id);
   writeUserLooks(next); return next;
 }
-export function allLooks(): ForgeLook[] { return [...FORGE_LOOKS, ...loadUserLooks()]; }
+export function allLooks(): ForgeLook[] { return [...FORGE_LOOKS, ...COUNCIL_LOOKS, ...loadUserLooks()]; }
+
+// ── council looks ──────────────────────────────────────────────────────────────────────────
+// Every director of the Art and Motion councils builds one look per category from the same
+// three-effect foundation, each step set to that director's council preset. 12 × 6 = 72
+// templates that read as a family: pick a category, then pick whose eye you want.
+const COUNCIL_LOOK_STACKS: Record<LookCategory, { label: string; steps: string[]; mix?: number[] }> = {
+  cinematic: { label: 'Cinema', steps: ['cinematiccolor', 'filmhalation', 'regrain'], mix: [1, .8, .7] },
+  vintage: { label: 'Vintage', steps: ['retrograde', 'mistdiffusion', 'regrain'], mix: [1, .6, .9] },
+  music: { label: 'Music Video', steps: ['ultraglow', 'chromaticfringe', 'neoncontours'], mix: [.9, .8, .55] },
+  documentary: { label: 'Documentary', steps: ['spatialdenoise', 'parametriccurve', 'detailsharpen'], mix: [1, 1, .7] },
+  genre: { label: 'Genre', steps: ['analogtv', 'heatwave', 'atmosphericglow'], mix: [.75, .5, .8] },
+  graphic: { label: 'Graphic', steps: ['halftonepro', 'graphiccartoon', 'ditherpalettes'], mix: [.8, .6, .5] },
+};
+const ART_STYLE: Record<string, TelaChartStyle> = { CLASSICAL: 'CLASSICAL', REBEL: 'REBEL', FUTURIST: 'FUTURIST', WORLD_ECLECTIC: 'WORLD_ATLAS' as TelaChartStyle, BAROQUE: 'BAROQUE', RADICAL_MINIMAL: 'RADICAL_MINIMAL' };
+
+export const COUNCIL_LOOKS: ForgeLook[] = (() => {
+  const out: ForgeLook[] = [];
+  for (const [category, stack] of Object.entries(COUNCIL_LOOK_STACKS) as [LookCategory, typeof COUNCIL_LOOK_STACKS[LookCategory]][]) {
+    for (const lens of FX_COUNCIL_LENSES) {
+      const steps: LookStep[] = [];
+      stack.steps.forEach((effectId, i) => {
+        const effect = FX_EFFECTS.find(e => e.id === effectId);
+        if (!effect) return;
+        const preset = councilPresetsForEffect(effect).find(p => p.council.member === lens.member);
+        steps.push({ effectId, ...(preset ? { presetId: preset.id } : {}), ...(stack.mix?.[i] != null ? { mix: stack.mix[i] } : {}) });
+      });
+      if (!steps.length) continue;
+      out.push({
+        id: `council-${category}-${lens.member.toLowerCase()}`,
+        name: `${stack.label} · ${lens.name}`,
+        category, builtIn: true,
+        description: `${stack.label} foundation through the ${lens.council === 'art' ? 'Art' : 'Motion'} Council lens — ${lens.ethos}.`,
+        steps,
+        ...(ART_STYLE[lens.member] ? { councilStyle: ART_STYLE[lens.member] } : {}),
+      });
+    }
+  }
+  return out;
+})();
