@@ -28,7 +28,7 @@ const WALLET_LABEL = {
   free_local: "100% Free · Runs on Local GPU",
 };
 
-export default function GeneratePanel({ projectId, bins = [], defaultBin, onClose, importResults, context, reviewTake, autoRetry = false, onAutoRetry }) {
+export default function GeneratePanel({ projectId, bins = [], defaultBin, onClose, importResults, context, reviewTake, autoRetry = false, onAutoRetry, gallery = null }) {
   // Review of finished takes against their direction: jobId → "running" | TakeReview | { error }.
   const [reviews, setReviews] = useState({});
   const autoRetryRef = useRef(autoRetry);
@@ -211,7 +211,8 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
 
   return (
     <div className="gp-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
-      <div className="gp-modal glass-dark">
+      <div className={`gp-modal glass-dark ${gallery ? "gp-studio" : ""}`}>
+       <div className="gp-main">
         <div className="gp-head">
           <div className="gp-title">
             <Sparkles size={15} /> GENERATE
@@ -228,27 +229,45 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
         )}
 
         {/* connectors + account linking */}
-        <div className="gp-conns">
-          {connectors.map((c) => (
+        {[
+          ["On your GPU — free", connectors.filter((c) => c.walletModel === "free_local")],
+          ["Your connected accounts", connectors.filter((c) => c.walletModel !== "free_local" && c.modes?.includes("connected"))],
+          ["Hand off — runs on your own subscription", connectors.filter((c) => !c.modes?.includes("connected"))],
+        ].filter(([, list]) => list.length).map(([label, list]) => (
+          <div key={label} className="gp-group">
+            <div className="gp-hlbl">{label.toUpperCase()}</div>
+            <div className="gp-conns">
+              {list.map((c) => (
             <button key={c.id} className={`gp-conn ${provider === c.id ? "on" : ""}`} onClick={() => setProvider(c.id)} title={c.blurb}>
-              <div className="gp-conn-top">
-                {c.kind === "video" ? <Film size={13} /> : c.kind === "upscale" ? <Wand2 size={13} /> : <ImageIcon size={13} />}
-                <span className="gp-conn-name">{c.name}</span>
-                {!c.modes?.includes("connected")
-                  ? <span className="gp-handoffonly">hand off</span>
-                  : c.connected
-                    ? (
-                      <span className="gp-linked" title={c.hint ? `Key ${c.hint}` : "linked"}
-                        onClick={(e) => { e.stopPropagation(); doRevoke(c.id); }}>
-                        <CheckCircle2 size={11} /> {c.hint || "linked"}
-                      </span>
-                    )
-                    : <span className="gp-link" onClick={(e) => { e.stopPropagation(); doConnect(c.id); }}><Link2 size={11} /> connect</span>}
-              </div>
-              <div className="gp-conn-blurb">{c.blurb}</div>
-            </button>
-          ))}
-        </div>
+                  <div className="gp-conn-top">
+                    {c.kind === "video" ? <Film size={13} /> : c.kind === "upscale" ? <Wand2 size={13} /> : <ImageIcon size={13} />}
+                    <span className="gp-conn-name">{c.name}</span>
+                    {!c.modes?.includes("connected")
+                      ? <span className="gp-handoffonly">hand off</span>
+                      : c.connected
+                        ? (
+                          <span className="gp-linked" title={c.hint ? `Key ${c.hint}` : "linked"}
+                            onClick={(e) => { e.stopPropagation(); doRevoke(c.id); }}>
+                            <CheckCircle2 size={11} /> {c.hint || "linked"}
+                          </span>
+                        )
+                        : <span className="gp-link" onClick={(e) => { e.stopPropagation(); doConnect(c.id); }}><Link2 size={11} /> connect</span>}
+                  </div>
+                  <div className="gp-conn-blurb">{c.blurb}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        {conn && (
+          <div className="gp-caps" aria-label={`What ${conn.name} can take`}>
+            <span>{conn.kind === "video" ? "Video" : conn.kind === "upscale" ? "Stills + upscale" : "Stills"}</span>
+            {conn.caps?.refRoles?.length > 0 && <span>takes {conn.caps.refRoles.map((r) => r.replace(/_/g, " ")).join(", ")} · up to {conn.caps.maxRefs} image{conn.caps.maxRefs === 1 ? "" : "s"}</span>}
+            {conn.caps?.durations && <span>{conn.caps.durations.join(" or ")}s</span>}
+            <span>{conn.caps?.supportsNegative ? "negative prompt" : "no negative prompt"}</span>
+            {conn.caps?.supportsSeed && <span>repeatable seed</span>}
+          </div>
+        )}
 
         {keyErr && !keyChallenge && <div className="gp-note err"><AlertTriangle size={12} /> {keyErr}</div>}
 
@@ -443,7 +462,17 @@ export default function GeneratePanel({ projectId, bins = [], defaultBin, onClos
           ))}
         </div>
 
+       </div>
+       {gallery && <aside className="gp-gallery" aria-label="Generated work">{gallery}</aside>}
         <style>{`
+          .gp-studio{width:min(1320px,96vw) !important;display:grid;grid-template-columns:minmax(380px,560px) minmax(0,1fr);gap:18px;align-items:start}
+          .gp-studio .gp-main{min-width:0}
+          .gp-gallery{min-width:0;position:sticky;top:0;max-height:calc(88vh - 40px);overflow:auto;border-left:1px solid rgba(255,255,255,0.08);padding-left:18px}
+          @media(max-width:900px){.gp-studio{grid-template-columns:1fr}.gp-gallery{position:static;max-height:none;border-left:0;padding-left:0;border-top:1px solid rgba(255,255,255,0.08);padding-top:14px}}
+          .gp-group{margin-bottom:4px}
+          .gp-group>.gp-hlbl{margin:0 0 6px}
+          .gp-caps{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+          .gp-caps span{font-size:10.5px;color:#b9b4cf;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:999px;padding:3px 8px}
           .gp-backdrop{position:fixed;inset:0;z-index:1000;background:rgba(4,4,8,0.62);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px}
           .gp-modal{width:min(680px,94vw);max-height:88vh;overflow:auto;border-radius:16px;border:1px solid rgba(255,255,255,0.1);padding:18px 18px 20px;box-shadow:0 24px 80px rgba(0,0,0,0.6)}
           .gp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}

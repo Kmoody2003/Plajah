@@ -5,6 +5,8 @@ import {
   Sparkles, Eye, Layers, KeyRound, ExternalLink,
 } from 'lucide-react';
 import ContentAssetManager from './ContentAssetManager';
+import GenGallery from './gallery/GenGallery';
+import { getGalleryStore, hqGalleryBackend, isGeneratedFolder } from '../services/generatedGallery';
 import { Album } from '../types';
 import {
   listHqAssets, addHqAsset, deleteHqAsset, humanFileSize,
@@ -481,6 +483,18 @@ export const HqFilesTab: React.FC<{
       {notice && <div className="mb-3 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200">{notice}</div>}
 
       {/* upload progress */}
+      {/* Generated work is filed here like any other file; inside a Generated folder it is also shown
+          as the gallery — the same records the Generate panel in Fabula shows, with share actions. */}
+      {isGeneratedFolder(folder) && (
+        <div className="mb-3 p-3 rounded-2xl bg-white/[0.03] border border-white/10">
+          <GenGallery
+            store={getGalleryStore(`${scope.kind}:${scope.id}`, () => hqGalleryBackend(scope))}
+            scopes={[{ id: folder, label: folder, filter: { folder } }]}
+            emptyHint="Nothing generated in this folder yet."
+          />
+        </div>
+      )}
+
       {uploading.length > 0 && (
         <div className="mb-3 space-y-1.5">
           {uploading.map((u) => (

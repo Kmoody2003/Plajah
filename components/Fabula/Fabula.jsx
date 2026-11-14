@@ -98,6 +98,8 @@ import { isWindowsApp, pickWindowsFolder, pickWindowsFile, scanWindowsLibrary, c
 import { isVectorFile, rasterizeVector } from "../../services/fabula/vectorRaster";
 import GeneratePanel from "./GeneratePanel";
 import StoryIntelligencePanel from "./StoryIntelligencePanel";
+import GenGallery from "../gallery/GenGallery";
+import { galleryForUser } from "../../services/generatedGallery";
 import { directScene, motivationsFrom, continuesFrom, mapCoverage, addPlaceholdersForMissing, breakdownForScene, matchProductionScene, fileSheetResult, placeSuggestionInCut, pullScriptIntoProduction, pushSceneToScript, scoreCueRequest, voiceTagFor, shotRefs, reviewChecklist, reviewPrompt, normalizeReview } from "../../services/fabula/story";
 import RunwayPluginPanel from "./RunwayPluginPanel";
 import { LocalCreativeStudio } from "./LocalCreativeStudio";
@@ -1385,6 +1387,12 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   const scriptFilesRef = useRef(null);              // .txt/.md/.fountain → Lorea script structuring
   const [genOpen, setGenOpen] = useState(false);    // generation agent panel (Kling/Magnific → bins)
   const [storyOpen, setStoryOpen] = useState(false); // Story Intelligence: coverage, characters, direction, story
+  // Generated work lives in Content HQ; this is the shared view of it (one store per signed-in owner,
+  // the same one Content HQ itself reads). Signed out, takes are kept for the session only.
+  const [galleryUid, setGalleryUid] = useState(() => auth?.currentUser?.uid || null);
+  useEffect(() => (auth?.onAuthStateChanged ? auth.onAuthStateChanged((u) => setGalleryUid(u?.uid || null)) : undefined), []);
+  const galleryStore = useMemo(() => galleryForUser(galleryUid), [galleryUid]);
+  const galleryIds = useRef(new Map());   // pool asset id → gallery item id
   // The Film Production hub's continuity data for the production this project was cut from (the hub
   // stamps `filmProductionId` on the project). Its scene list and script breakdown seed the continuity
   // ledger, so generated shots hold the same wardrobe/props/makeup state the Script Supervisor logged.
@@ -3626,6 +3634,27 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       };
     });
     if (localIds.length) scheduleAutoSync(localIds);
+    // File every take in Content HQ's Generated folder, with where it came from. The gallery shows
+    // it at once; the upload happens behind it.
+    minted.forEach((a, i) => {
+      const r = results[i];
+      (async () => {
+        try {
+          const blob = r.blob || await fetch(a.url).then((x) => (x.ok ? x.blob() : null));
+          if (!blob) return;
+          const item = galleryStore.add({
+            blob, name: a.name, previewUrl: a.url,
+            generation: {
+              provider: job?.provider || "unknown", providerName: connectorById(job?.provider || "")?.name, kind: a.type === "video" ? "video" : a.type === "audio" ? "audio" : "image",
+              prompt: job?.prompt, productionId: prod?.id, productionTitle: prod?.title, sceneId: job?.spec?.sceneId, shotId: job?.spec?.shotId, slug: job?.spec?.slug,
+              castId: job?.spec?.sheet?.castId, sheetView: job?.spec?.sheet?.view, board: !!job?.spec?.direction?.boardStyle,
+              attempt: job?.spec?.attempt || 1, local: job?.mode === "local", jobId: job?.id,
+            },
+          });
+          galleryIds.current.set(a.id, item.id);
+        } catch (e) { console.warn("[gallery] could not file a generated take", e); }
+      })();
+    });
     updateProd((p) => {
       p.mediaPool = p.mediaPool || []; p.bins = p.bins || [];
       if (!p.bins.includes(target)) p.bins.push(target);
@@ -3670,6 +3699,29 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
           : added);
     return minted;
   };
+  // Gallery → cut. A gallery item is laid into its shot (as an alternate if the shot already has
+  // picture) or, when it has no shot, added to the bin. A take from another session is first brought
+  // into this project's pool.
+  const galleryUseInCut = async (item, blob) => {
+    let asset = (prod.mediaPool || []).find((a) => galleryIds.current.get(a.id) === item.id || (item.hqAssetId && a.hqAssetId === item.hqAssetId));
+    if (!asset) {
+      const id = uid();
+      await stSet("studio:blob:" + id, blob);
+      asset = { id, name: item.name, type: item.kind, url: URL.createObjectURL(blob), duration: 0, bin: "Generated", generated: true, session: true, shotId: item.generation.shotId, hqAssetId: item.hqAssetId, ...(item.generation.board ? { board: true } : {}) };
+      const minted = asset;
+      updateProd((p) => { p.bins = p.bins || []; if (!p.bins.includes("Generated")) p.bins.push("Generated"); p.mediaPool.push(minted); });
+      galleryIds.current.set(id, item.id);
+    }
+    const shotId = item.generation.productionId === prod.id ? item.generation.shotId : null;
+    if (shotId && item.kind !== "audio") {
+      const live = clips.find((c) => c.shotId === shotId && !c.disabled && c.assetId === asset.id);
+      if (live) { ping("That take is already the one in the cut."); return; }
+      const placed = placeResultInCut(clips.map((c) => (c.assetId === asset.id && c.shotId === shotId ? { ...c, __skip: true } : c)).filter((c) => !c.__skip), shotId, asset, uid);
+      if (placed.filled || placed.alternates) { applyClips(placed.clips); ping(placed.filled ? "Laid into that shot's slot." : "Now the take in the cut — the previous one is muted, not removed."); return; }
+    }
+    ping(`"${item.name}" is in the Generated bin — drag it to the timeline.`);
+  };
+
   // Review a finished take against the direction it was generated from: a vision pass answers a
   // checklist built from the shot's continuity, staging, performance and identity references. The
   // verdict is kept on the asset, so a take that doesn't match is marked wherever it is used.
@@ -3693,6 +3745,9 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       const a = (p.mediaPool || []).find((x) => x.id === take.id);
       if (a) a.review = { verdict: review.verdict, score: review.score, summary: review.summary, attempt: review.attempt, at: review.at, failed: [...review.failed, ...review.warnings].map((c) => ({ id: c.id, question: c.question, observed: c.observed, must: c.must })) };
     });
+    // The verdict belongs to the file, wherever it is shown.
+    const gid = galleryIds.current.get(take.id);
+    if (gid) galleryStore.updateGeneration(gid, { review: { verdict: review.verdict, score: review.score, summary: review.summary } });
     return review;
   };
   // ── Media Assets: notes + add-to-scene ────────────────────────────────────────
@@ -7241,6 +7296,17 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         <GeneratePanel projectId={prod?.id || "local"} bins={binTree()}
           defaultBin={binFilter !== "all" ? binFilter : ""} context={genCtx}
           importResults={importGenResults} onClose={() => { setGenOpen(false); setGenCtx(null); }}
+          gallery={(
+            <GenGallery
+              store={galleryStore} onUse={galleryUseInCut} useLabel="Use in the cut"
+              scopes={[
+                ...(genCtx?.spec?.shotId ? [{ id: "shot", label: `This shot${genCtx.spec.slug ? " · " + genCtx.spec.slug : ""}`, filter: { productionId: prod?.id, shotId: genCtx.spec.shotId } }] : []),
+                ...(genCtx?.spec?.sheet?.castId ? [{ id: "cast", label: "This character", filter: { castId: genCtx.spec.sheet.castId } }] : []),
+                { id: "prod", label: "This production", filter: { productionId: prod?.id } },
+                { id: "all", label: "Everything", filter: {} },
+              ]}
+            />
+          )}
           reviewTake={storyReviewTake} autoRetry={!!prod?.storyIntel?.autoRetry}
           onAutoRetry={(on) => updateProd((p) => { p.storyIntel = { ...(p.storyIntel || {}), autoRetry: on }; })} />
       )}
